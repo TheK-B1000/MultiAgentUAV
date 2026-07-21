@@ -25,6 +25,7 @@ from gpu_env.state.agent_state import _AgentStateMixin
 from gpu_env.state.allocation import _AllocationMixin
 from gpu_env.state.episode_state import _EpisodeStateMixin
 from gpu_env.state.flag_state import _FlagStateMixin
+from gpu_env.state.map_pool_state import _MapPoolStateMixin
 from gpu_env.state.map_state import _MapStateMixin
 from gpu_env.state.models import _CoreStateMixin
 from gpu_env.state.opponent_state import _OpponentStateMixin
@@ -37,6 +38,7 @@ from gpu_env.state.validation import _ValidationMixin
 
 class _StateMixin(
     _CoreStateMixin,
+    _MapPoolStateMixin,
     _AllocationMixin,
     _AgentStateMixin,
     _TeamStateMixin,

@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -73,6 +74,27 @@ def _occupancy_ok(rows: list[dict], latent_k: int = 4) -> tuple[bool, str]:
     return True, "ok"
 
 
+def _credit_telemetry_from_checkpoint(smoke_checkpoint: Path) -> dict[str, float]:
+    from rl.custom_ppo.checkpoints.archive import _torch_load_checkpoint
+
+    payload = _torch_load_checkpoint(str(smoke_checkpoint), map_location="cpu")
+    last_stats = dict(payload.get("last_stats", {}) or {})
+    keys = [
+        "strategy_advantage_source",
+        "router_decision_count",
+        "router_advantage_std",
+        "router_advantage_mean",
+        "router_advantage_positive_fraction",
+        "strategy_policy_grad_norm",
+        "router_entropy_grad_norm",
+        "strategy_policy_to_router_entropy_grad_ratio",
+        "feedforward_router_entropy_loss",
+        "strategy_policy_loss",
+        "strategy_encoder_grad_norm",
+    ]
+    return {k: float(last_stats[k]) for k in keys if k in last_stats}
+
+
 def verify(
     *,
     metrics_csv: Path,
@@ -117,6 +139,34 @@ def verify(
         "pass": int(recurrent_hidden_dim) == 0,
     }
 
+    gates["router_credit"] = {
+        "pass": False,
+        "detail": "smoke checkpoint not provided",
+    }
+    credit: dict[str, float] = {}
+    if smoke_checkpoint is not None and smoke_checkpoint.is_file():
+        credit = _credit_telemetry_from_checkpoint(smoke_checkpoint)
+        ratio = credit.get("strategy_policy_to_router_entropy_grad_ratio")
+        gates["router_credit"] = {
+            "strategy_advantage_source": credit.get("strategy_advantage_source"),
+            "router_decision_count": credit.get("router_decision_count"),
+            "router_advantage_std": credit.get("router_advantage_std"),
+            "strategy_policy_grad_norm": credit.get("strategy_policy_grad_norm"),
+            "router_entropy_grad_norm": credit.get("router_entropy_grad_norm"),
+            "strategy_policy_to_router_entropy_grad_ratio": ratio,
+            "feedforward_router_entropy_loss": credit.get("feedforward_router_entropy_loss"),
+            "pass": (
+                credit.get("strategy_advantage_source") == 2.0
+                and (credit.get("router_decision_count") or 0) > 0
+                and (credit.get("router_advantage_std") or 0) > 0
+                and (credit.get("strategy_policy_grad_norm") or 0) > 0
+                and (credit.get("router_entropy_grad_norm") or 0) > 0
+                and ratio is not None
+                and math.isfinite(float(ratio))
+                and (credit.get("feedforward_router_entropy_loss") or 0) != 0
+            ),
+        }
+
     hash_report = {
         "frozen_tensor_hash_match": None,
         "shared_actor_max_abs_delta": None,
@@ -146,6 +196,7 @@ def verify(
         gates["router_mechanism"]["pass"],
         gates["occupancy"]["pass"],
         gates["recurrent_inactive"]["pass"],
+        gates["router_credit"]["pass"],
     ]
     if gates["frozen_tensor_hash"]["pass"] is not None:
         all_required.append(bool(gates["frozen_tensor_hash"]["pass"]))
@@ -155,6 +206,7 @@ def verify(
         "anchor_path": str(anchor_path),
         "rows": len(rows),
         "global_step_last": rows[-1].get("global_step"),
+        "router_credit_telemetry": credit,
         "gates": gates,
         "smoke_pass": all(all_required),
     }

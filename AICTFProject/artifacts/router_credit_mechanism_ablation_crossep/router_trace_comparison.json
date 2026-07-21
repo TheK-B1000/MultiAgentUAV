@@ -1,0 +1,112 @@
+{
+  "fixed_z2__vs__learned_qphi_switching": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.04662559773933026,
+    "max_abs_return_delta": 12.571764478721889
+  },
+  "fixed_z2__vs__shuffled_qphi_cross_episode": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.04662559773933026,
+    "max_abs_return_delta": 12.571764478721889
+  },
+  "fixed_z2__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.04662559773933026,
+    "max_abs_return_delta": 12.571764478721889
+  },
+  "fixed_z2__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 1,
+    "same_return_fraction": 0.025,
+    "mean_return_delta_left_minus_right": 0.6044427453234675,
+    "max_abs_return_delta": 13.351940820401069
+  },
+  "learned_qphi_switching__vs__shuffled_qphi_cross_episode": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 40,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 40,
+    "same_z_sequence_fraction": 1.0,
+    "same_return_count": 40,
+    "same_return_fraction": 1.0,
+    "mean_return_delta_left_minus_right": 0.0,
+    "max_abs_return_delta": 0.0
+  },
+  "learned_qphi_switching__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 40,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 40,
+    "same_z_sequence_fraction": 1.0,
+    "same_return_count": 40,
+    "same_return_fraction": 1.0,
+    "mean_return_delta_left_minus_right": 0.0,
+    "max_abs_return_delta": 0.0
+  },
+  "learned_qphi_switching__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 37,
+    "same_initial_z_fraction": 0.925,
+    "same_z_sequence_count": 36,
+    "same_z_sequence_fraction": 0.9,
+    "same_return_count": 1,
+    "same_return_fraction": 0.025,
+    "mean_return_delta_left_minus_right": 0.5578171475841373,
+    "max_abs_return_delta": 16.06683546656859
+  },
+  "shuffled_qphi_cross_episode__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 40,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 40,
+    "same_z_sequence_fraction": 1.0,
+    "same_return_count": 40,
+    "same_return_fraction": 1.0,
+    "mean_return_delta_left_minus_right": 0.0,
+    "max_abs_return_delta": 0.0
+  },
+  "shuffled_qphi_cross_episode__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 37,
+    "same_initial_z_fraction": 0.925,
+    "same_z_sequence_count": 36,
+    "same_z_sequence_fraction": 0.9,
+    "same_return_count": 1,
+    "same_return_fraction": 0.025,
+    "mean_return_delta_left_minus_right": 0.5578171475841373,
+    "max_abs_return_delta": 16.06683546656859
+  },
+  "shuffled_qphi_outputs__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 40,
+    "same_initial_z_count": 37,
+    "same_initial_z_fraction": 0.925,
+    "same_z_sequence_count": 36,
+    "same_z_sequence_fraction": 0.9,
+    "same_return_count": 1,
+    "same_return_fraction": 0.025,
+    "mean_return_delta_left_minus_right": 0.5578171475841373,
+    "max_abs_return_delta": 16.06683546656859
+  }
+}

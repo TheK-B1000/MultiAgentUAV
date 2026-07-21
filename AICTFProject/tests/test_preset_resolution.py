@@ -39,6 +39,7 @@ def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
     for tuple_field in (
         "opponent_pool",
         "opponent_pool_weights",
+        "map_pool",
         "latent_router_distill_opponents",
         "router_allowed_latents",
         "router_ablation_conditions",

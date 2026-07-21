@@ -1,0 +1,26 @@
+{
+  "checkpoint": "checkpoints\\2v2\\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip",
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10"
+  ],
+  "maps": [
+    "map_b",
+    "map_b_split_lane_v2"
+  ],
+  "latents": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "episodes_per_cell": 2,
+  "base_seed": 42,
+  "deterministic_actions": true,
+  "max_decision_steps": 400,
+  "device": "cuda",
+  "collect_behavior_mean": true,
+  "progress_every": 8,
+  "episode_count": 48
+}

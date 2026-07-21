@@ -1,0 +1,17 @@
+{
+  "arm": "treatment",
+  "preset": "v6i10_episode_router_explore_hardpool",
+  "checkpoint": "checkpoints\\2v2\\final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip",
+  "checkpoint_sha256": "edbbaefb014dc10ea376869078f99f96814060940be29261bb0ca4cd6fdfa73d",
+  "source_commit": "d03f7e0e52cdddab3ccf022d96379ff0afa2ac62",
+  "seed": 1,
+  "n_updates": 5,
+  "router_type": "feedforward-MLP",
+  "advantage_source_cfg": "arc_return_running_mean_baseline (BPTT PPO disabled)",
+  "initial_router_hash": "8755bfe9e3aff33b76f0537d4935a7c69cc3098908e0daacf79dbd5dfb9bbeee",
+  "initial_frozen_actor_hash": "f332687ef1bfc29733a220f13cc56dd2a283fc791b5119503e6c5b9f81ab0e5c",
+  "fresh_optimizer": true,
+  "optimizer_checked": "optimizer (fallback)",
+  "optimizer_state_entry_count": 0,
+  "advantage_source_buffer": "router_advantages"
+}

@@ -207,6 +207,7 @@ class _DynamicsMixin:
         target_x: torch.Tensor,
         target_y: torch.Tensor,
         speed_cap: Optional[torch.Tensor] = None,
+        speed_overdrive_mask: Optional[torch.Tensor] = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Marine kinematics with acceleration/yaw constraints and turn-radius limiting.
@@ -228,9 +229,16 @@ class _DynamicsMixin:
 
         max_speed = min(2.2, float(self.cfg.max_speed_cps))
         max_accel = min(2.0, float(self.cfg.max_accel_cps2))
-        desired_speed = torch.full_like(speed, max_speed)
+        max_speed_t = torch.full_like(speed, max_speed)
+        cap = None
         if speed_cap is not None:
-            desired_speed = torch.minimum(desired_speed, torch.clamp(speed_cap, min=0.0))
+            cap = torch.clamp(speed_cap, min=0.0)
+            if speed_overdrive_mask is not None:
+                overdrive = speed_overdrive_mask.to(device=speed.device, dtype=torch.bool)
+                max_speed_t = torch.where(overdrive, torch.maximum(max_speed_t, cap), max_speed_t)
+        desired_speed = max_speed_t
+        if cap is not None:
+            desired_speed = torch.minimum(desired_speed, cap)
         dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
         # Deceleration zone near objective to prevent overshoot/spin lock.
         desired_speed = torch.where(dist < 2.0, desired_speed * torch.clamp(dist / 2.0, 0.0, 1.0), desired_speed)
@@ -240,10 +248,10 @@ class _DynamicsMixin:
             max_accel,
         )
 
-        speed2 = torch.clamp(speed + accel_cmd * dt, 0.0, max_speed)
+        speed2 = torch.minimum(torch.clamp(speed + accel_cmd * dt, min=0.0), max_speed_t)
         if speed_cap is not None:
-            cap = self._align_speed_cap_to_speed(speed, speed_cap)
-            speed2 = torch.minimum(speed2, cap)
+            aligned_cap = self._align_speed_cap_to_speed(speed, speed_cap)
+            speed2 = torch.minimum(speed2, aligned_cap)
         heading2 = heading + yaw_rate_cmd * dt
         # CUDA/trig can misbehave if heading/speed dtypes differ (e.g. float64 vs float32).
         s2 = speed2.float()

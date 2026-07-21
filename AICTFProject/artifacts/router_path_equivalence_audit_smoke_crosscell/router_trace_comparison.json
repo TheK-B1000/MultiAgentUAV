@@ -1,0 +1,112 @@
+{
+  "fixed_z2__vs__learned_qphi_switching": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -2.739687593842973,
+    "max_abs_return_delta": 3.8034210148325656
+  },
+  "fixed_z2__vs__qphi_initial_only_no_switch": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -2.8092439635511255,
+    "max_abs_return_delta": 4.124596348265186
+  },
+  "fixed_z2__vs__shuffled_qphi_initial_only_no_switch": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -2.8092439635511255,
+    "max_abs_return_delta": 4.124596348265186
+  },
+  "fixed_z2__vs__uniform_episode_fixed": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -3.3974370778450975,
+    "max_abs_return_delta": 4.59902538213646
+  },
+  "learned_qphi_switching__vs__qphi_initial_only_no_switch": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 4,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -0.06955636970815249,
+    "max_abs_return_delta": 0.3211753334326204
+  },
+  "learned_qphi_switching__vs__shuffled_qphi_initial_only_no_switch": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 4,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -0.06955636970815249,
+    "max_abs_return_delta": 0.3211753334326204
+  },
+  "learned_qphi_switching__vs__uniform_episode_fixed": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -0.6577494840021245,
+    "max_abs_return_delta": 0.7956043673038948
+  },
+  "qphi_initial_only_no_switch__vs__shuffled_qphi_initial_only_no_switch": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 4,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 4,
+    "same_z_sequence_fraction": 1.0,
+    "same_return_count": 4,
+    "same_return_fraction": 1.0,
+    "mean_return_delta_left_minus_right": 0.0,
+    "max_abs_return_delta": 0.0
+  },
+  "qphi_initial_only_no_switch__vs__uniform_episode_fixed": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -0.588193114293972,
+    "max_abs_return_delta": 0.7019571947166696
+  },
+  "shuffled_qphi_initial_only_no_switch__vs__uniform_episode_fixed": {
+    "n_matched_episodes": 4,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": -0.588193114293972,
+    "max_abs_return_delta": 0.7019571947166696
+  }
+}

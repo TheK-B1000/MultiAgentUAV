@@ -1,0 +1,198 @@
+{
+  "preset": "v6i13_opening_window_advantage_router",
+  "checkpoint": "checkpoints\\2v2\\final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip",
+  "n_updates": 1,
+  "total_arcs": 448,
+  "routing_verdict": "FLAT",
+  "promotion_status": "NOT_A_CANDIDATE",
+  "reliably_separating_opponents": 0,
+  "reliability_gap_ci": {
+    "OP8": {
+      "best_z": 2,
+      "second_z": 0,
+      "gap": 0.07781048119068146,
+      "ci_low": -0.26987033933401106,
+      "ci_high": 0.4438245572149753,
+      "ci_excludes_zero": false,
+      "insufficient": false
+    },
+    "OP9": {
+      "best_z": 1,
+      "second_z": 0,
+      "gap": 0.013519510626792908,
+      "ci_low": -0.272004747390747,
+      "ci_high": 0.32827257066965065,
+      "ci_excludes_zero": false,
+      "insufficient": false
+    },
+    "OP10": {
+      "best_z": 0,
+      "second_z": 1,
+      "gap": 0.08804623037576675,
+      "ci_low": -0.3010256104171276,
+      "ci_high": 0.47646944299340227,
+      "ci_excludes_zero": false,
+      "insufficient": false
+    }
+  },
+  "spread_final_adv": {
+    "adv_spread_OP8": 0.1275059221737797,
+    "adv_spread_OP9": 0.45027180262447153,
+    "adv_spread_OP10": 0.25270278074202085
+  },
+  "replay_validity": {
+    "replay_size": 448,
+    "total_offered": 448,
+    "inserted_total": 448,
+    "duplicates_rejected": 0,
+    "no_duplicate_arcs": true,
+    "count_by_z": {
+      "0": 104,
+      "1": 122,
+      "2": 124,
+      "3": 98
+    },
+    "all_z_represented": true,
+    "count_by_opponent": {
+      "OP8": 168,
+      "OP9": 142,
+      "OP10": 138
+    },
+    "opponents_present": [
+      0,
+      1,
+      2
+    ],
+    "all_opponents_represented": true,
+    "z_present": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "return_variance": 10.148533821105957,
+    "return_variance_nonzero": true,
+    "mean_arc_length": 109.29241071428571,
+    "terminal_finalized_fraction": 1.0,
+    "per_cell": {
+      "OP8_z0": {
+        "n": 44,
+        "mean": -2.5000503063201904,
+        "std": 3.062082529067993,
+        "sem": 0.4616263102736848
+      },
+      "OP8_z1": {
+        "n": 41,
+        "mean": -2.740128517150879,
+        "std": 3.2617146968841553,
+        "sem": 0.509394254419753
+      },
+      "OP8_z2": {
+        "n": 44,
+        "mean": -2.164546489715576,
+        "std": 2.7515437602996826,
+        "sem": 0.4148108294162565
+      },
+      "OP8_z3": {
+        "n": 39,
+        "mean": -2.8405628204345703,
+        "std": 3.2231836318969727,
+        "sem": 0.5161224443504377
+      },
+      "OP9_z0": {
+        "n": 32,
+        "mean": -2.220898151397705,
+        "std": 2.5140206813812256,
+        "sem": 0.4444202679619723
+      },
+      "OP9_z1": {
+        "n": 44,
+        "mean": -2.379474401473999,
+        "std": 2.4143025875091553,
+        "sem": 0.3639698096887296
+      },
+      "OP9_z2": {
+        "n": 37,
+        "mean": -2.719532012939453,
+        "std": 3.043701410293579,
+        "sem": 0.5003814295121523
+      },
+      "OP9_z3": {
+        "n": 29,
+        "mean": -3.5775201320648193,
+        "std": 3.701663017272949,
+        "sem": 0.6873815658099865
+      },
+      "OP10_z0": {
+        "n": 28,
+        "mean": -2.5241568088531494,
+        "std": 2.9371824264526367,
+        "sem": 0.555075303973067
+      },
+      "OP10_z1": {
+        "n": 37,
+        "mean": -3.024442195892334,
+        "std": 2.7694239616394043,
+        "sem": 0.45529049471270877
+      },
+      "OP10_z2": {
+        "n": 43,
+        "mean": -3.812680959701538,
+        "std": 4.282021999359131,
+        "sem": 0.6530022330350289
+      },
+      "OP10_z3": {
+        "n": 30,
+        "mean": -3.4487650394439697,
+        "std": 3.876063585281372,
+        "sem": 0.7076691533276522
+      }
+    },
+    "map_coverage": "NOT_INSTRUMENTED (arc record carries no map_id; count_by_opponent x z is available instead)"
+  },
+  "min_cell_arcs": 28.0,
+  "frozen_actor_ok": true,
+  "updates": [
+    {
+      "update": 1,
+      "records_before_update": 448,
+      "records_after_update": 0,
+      "replay_inserted": 448,
+      "replay_duplicates_rejected": 0,
+      "replay_size": 448,
+      "terminal_finalized_fraction": 1.0,
+      "commit_step_min": 32,
+      "commit_step_max": 32,
+      "total_arcs": 448,
+      "count_by_z": {
+        "0": 104,
+        "1": 122,
+        "2": 124,
+        "3": 98
+      },
+      "v_loss_mean": 0.8700115275382996,
+      "a_loss_mean": 0.32432096272706984,
+      "v_grad_norm": 0.3989712940901518,
+      "a_grad_norm": 0.13267543189227582,
+      "baseline_r2_mean": 0.12657666543147328,
+      "advantage_target_std_mean": 0.9316891419887543,
+      "a_steps": 100,
+      "adv_spread_OP8": 0.1275059221737797,
+      "adv_spread_OP9": 0.45027180262447153,
+      "adv_spread_OP10": 0.25270278074202085,
+      "count_OP8_z0": 44,
+      "count_OP8_z1": 41,
+      "count_OP8_z2": 44,
+      "count_OP8_z3": 39,
+      "count_OP9_z0": 32,
+      "count_OP9_z1": 44,
+      "count_OP9_z2": 37,
+      "count_OP9_z3": 29,
+      "count_OP10_z0": 28,
+      "count_OP10_z1": 37,
+      "count_OP10_z2": 43,
+      "count_OP10_z3": 30,
+      "elapsed_s": 648.2
+    }
+  ]
+}

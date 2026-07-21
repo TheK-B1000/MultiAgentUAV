@@ -57,7 +57,15 @@ class CustomPPOInferencePolicy:
         self._current_env_index = None
         self._current_decision_step = 0
         self._opportunity_counter = 0
+        self._current_map = None
         self.opportunity_trace_log = []
+
+    def set_current_map(self, map_name: str | None) -> None:
+        """Record the active map so opportunity traces can be grouped by
+        (opponent, map). Required for the cross-episode histogram-preserving
+        shuffle control, which otherwise degenerates to singleton (opponent,
+        seed) cells under a unique-seed-per-episode eval protocol."""
+        self._current_map = None if map_name is None else str(map_name)
 
     def set_current_episode_context(
         self,
@@ -110,6 +118,7 @@ class CustomPPOInferencePolicy:
         self._current_environment_seed = None
         self._current_env_index = None
         self._current_decision_step = 0
+        self._current_map = None
         if isinstance(self._opportunity_counter, np.ndarray):
             self._opportunity_counter.fill(0)
         else:
@@ -295,6 +304,14 @@ class CustomPPOInferencePolicy:
     def _global_state_tensor(self, obs: Dict[str, np.ndarray], batch: int) -> torch.Tensor:
         raw = obs.get("global_state")
         if raw is None:
+            if self.model.uses_latent_strategy:
+                import warnings
+                warnings.warn(
+                    "_global_state_tensor: 'global_state' missing from obs dict — router will "
+                    "receive all-zero context. Inject env.state() before calling predict(). "
+                    "See run_eval_episodes() line: single['global_state'] = env.state()[0]",
+                    stacklevel=3,
+                )
             return torch.zeros((batch, GLOBAL_STATE_DIM), dtype=torch.float32, device=self.device)
         arr = np.asarray(raw, dtype=np.float32)
         if arr.ndim == 1:
@@ -522,7 +539,21 @@ class CustomPPOInferencePolicy:
                     z_idx = self._prev_z.to(self.device)
 
                 if needs_strategy.any() and batch == 1:
-                    prev_z_val = self.opportunity_trace_log[-1]["selected_z"] if self.opportunity_trace_log else -1
+                    trace_opponent = self._current_opponent
+                    trace_seed = getattr(self, "_current_eval_seed", None) or self._current_seed
+                    trace_episode_index = getattr(self, "_current_env_index", None) or (
+                        self._current_episode_index if self._current_episode_index is not None else 0
+                    )
+                    prev_z_val = -1
+                    if self.opportunity_trace_log:
+                        prev_trace = self.opportunity_trace_log[-1]
+                        same_episode = (
+                            prev_trace.get("opponent") == trace_opponent
+                            and prev_trace.get("seed") == trace_seed
+                            and prev_trace.get("episode_index") == trace_episode_index
+                        )
+                        if same_episode:
+                            prev_z_val = int(prev_trace["selected_z"])
                     logit_list = z_logits.detach().cpu().numpy()[0].tolist()
                     prob_list = z_probs.detach().cpu().numpy()[0].tolist()
                     sel_z_val = int(z_idx.item())
@@ -533,10 +564,11 @@ class CustomPPOInferencePolicy:
                         opp_idx = int(self._opportunity_counter[0])
                         
                     self.opportunity_trace_log.append({
-                        "opponent": self._current_opponent,
-                        "seed": getattr(self, "_current_eval_seed", None) or self._current_seed,
+                        "opponent": trace_opponent,
+                        "map": getattr(self, "_current_map", None),
+                        "seed": trace_seed,
                         "environment_seed": getattr(self, "_current_environment_seed", None) or self._current_seed,
-                        "episode_index": getattr(self, "_current_env_index", None) or (self._current_episode_index if self._current_episode_index is not None else 0),
+                        "episode_index": trace_episode_index,
                         "opportunity_index": opp_idx,
                         "step": self._current_decision_step,
                         "logits": logit_list,
@@ -551,9 +583,10 @@ class CustomPPOInferencePolicy:
                         else:
                             self._opportunity_counter += 1
 
-                if needs_strategy.any() and self.model.router_current_plus_delta_enabled:
-                    current = global_state[:, :GLOBAL_STATE_DIM].float()
-                    self._previous_opportunity_features[needs_strategy] = current[needs_strategy].clone().detach()
+                if needs_strategy.any():
+                    if self.model.router_current_plus_delta_enabled:
+                        current = global_state[:, :GLOBAL_STATE_DIM].float()
+                        self._previous_opportunity_features[needs_strategy] = current[needs_strategy].clone().detach()
                     self._opportunity_occurred[needs_strategy] = True
 
                 self._last_strategy_z = z_idx.detach().cpu()

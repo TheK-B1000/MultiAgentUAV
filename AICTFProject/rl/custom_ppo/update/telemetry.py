@@ -31,6 +31,15 @@ DEFAULT_METRIC_SCHEMA: dict[str, AggregationMode] = {
     "strategy_aux_return_loss": AggregationMode.MEAN,
     "strategy_persist_loss": AggregationMode.MEAN,
     "strategy_grad_norm": AggregationMode.MEAN,
+    "strategy_advantage_source": AggregationMode.LAST,
+    "router_advantage_mean": AggregationMode.MEAN,
+    "router_advantage_std": AggregationMode.MEAN,
+    "router_advantage_positive_fraction": AggregationMode.MEAN,
+    "router_decision_count": AggregationMode.SUM,
+    "feedforward_router_entropy_loss": AggregationMode.MEAN,
+    "strategy_policy_grad_norm": AggregationMode.MEAN,
+    "router_entropy_grad_norm": AggregationMode.MEAN,
+    "strategy_policy_to_router_entropy_grad_ratio": AggregationMode.MEAN,
     "strategy_resample_fraction": AggregationMode.MEAN,
     "strategy_kl": AggregationMode.MEAN,
     "strategy_phase_loss": AggregationMode.MEAN,
@@ -124,6 +133,15 @@ def build_metric_schema(*, latent_k: int, pair_count: int) -> dict[str, Aggregat
     schema["ppo_cf_cosine"] = AggregationMode.MEAN
     for k_idx in range(latent_k):
         schema[f"router_rollout_soft_p_bar_z{k_idx}"] = AggregationMode.LAST
+    for k_idx in range(latent_k):
+        schema[f"latent_arc_raw_adv_mean_z{k_idx}"] = AggregationMode.MEAN
+        schema[f"latent_arc_count_z{k_idx}"] = AggregationMode.SUM
+    for k_idx in range(latent_k):
+        schema[f"router_selected_z_occupancy_z{k_idx}"] = AggregationMode.LAST
+    schema["router_selected_z_unique_count"] = AggregationMode.LAST
+    schema["router_selected_z_dominant"] = AggregationMode.LAST
+    schema["router_selected_z_occupancy_max"] = AggregationMode.LAST
+    schema["router_selected_z_decision_count"] = AggregationMode.LAST
     return schema
 
 

@@ -245,6 +245,51 @@ class _RewardsMixin:
             r -= float(SPARSE_OOB_POINTS) * red_oob.sum(dim=1).to(torch.float32)
         return r
 
+    def _surface_pressure_reward(
+        self,
+        *,
+        blue_cap_env: torch.Tensor,
+        red_grab_env: torch.Tensor,
+    ) -> torch.Tensor:
+        """Default-off margin/tempo pressure terms for diagnostic surfaces."""
+        out = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+        step_frac = torch.clamp(
+            self.step_count.to(torch.float32) / max(1.0, float(self.max_steps)),
+            min=0.0,
+            max=1.0,
+        )
+        out = out + float(self.cfg.surface_blue_capture_tempo_bonus) * blue_cap_env.to(torch.float32) * (1.0 - step_frac)
+        out = out - float(self.cfg.surface_red_flag_touch_penalty) * red_grab_env.to(torch.float32)
+
+        red_has_flag = self.red_carrying.any(dim=1)
+        red_idx = torch.argmax(self.red_carrying.to(torch.int64), dim=1)
+        red_x = self.red_x[torch.arange(self.B, device=self.device), red_idx]
+        red_y = self.red_y[torch.arange(self.B, device=self.device), red_idx]
+        red_home_dx = self.blue_flag_home[:, 0] - red_x
+        red_home_dy = self.blue_flag_home[:, 1] - red_y
+        red_home_dist = torch.sqrt(red_home_dx * red_home_dx + red_home_dy * red_home_dy + 1e-8)
+        red_progress = 1.0 - torch.clamp(red_home_dist / max(1e-6, self.max_dist), min=0.0, max=1.0)
+        out = out - float(self.cfg.surface_red_carrier_progress_penalty) * torch.where(
+            red_has_flag,
+            red_progress,
+            torch.zeros_like(red_progress),
+        )
+
+        blue_has_flag = self.blue_carrying.any(dim=1)
+        blue_idx = torch.argmax(self.blue_carrying.to(torch.int64), dim=1)
+        blue_x = self.blue_x[torch.arange(self.B, device=self.device), blue_idx]
+        blue_y = self.blue_y[torch.arange(self.B, device=self.device), blue_idx]
+        blue_home_dx = self.blue_flag_home[:, 0] - blue_x
+        blue_home_dy = self.blue_flag_home[:, 1] - blue_y
+        blue_home_dist = torch.sqrt(blue_home_dx * blue_home_dx + blue_home_dy * blue_home_dy + 1e-8)
+        blue_progress = 1.0 - torch.clamp(blue_home_dist / max(1e-6, self.max_dist), min=0.0, max=1.0)
+        out = out + float(self.cfg.surface_blue_near_cap_bonus) * torch.where(
+            blue_has_flag,
+            blue_progress,
+            torch.zeros_like(blue_progress),
+        )
+        return out
+
     def _reward_total(
         self,
         rterm: torch.Tensor,

@@ -100,6 +100,24 @@ class TestScenario02InterceptInfeasibleCounter(unittest.TestCase):
         agent = roles.index(ROLE_COUNTER)
         self.assertEqual(branches[agent], ROLE_COUNTER)
 
+    def test_op12_counter_pushes_on_blue_overcommit_before_flag_grab(self) -> None:
+        c, _ = _core("OP12")
+        c.bt_adapt_overcommit[0] = 0.8
+        c.blue_carrying[0] = False
+        c.red_flag_pos[0] = c.red_flag_home[0].clone()
+        c.blue_x[0, 0] = 15.0
+        c.blue_y[0, 0] = 8.0
+        c.blue_x[0, 1] = 16.0
+        c.blue_y[0, 1] = 12.0
+        c.red_x[0, 0] = 18.0
+        c.red_y[0, 0] = 5.0
+        c.red_x[0, 1] = 18.0
+        c.red_y[0, 1] = 15.0
+        roles, branches, _, _ = _bt(c)
+        self.assertIn(ROLE_COUNTER, roles)
+        agent = roles.index(ROLE_COUNTER)
+        self.assertEqual(branches[agent], ROLE_COUNTER)
+
 
 class TestScenario03CarrierPursuedEscort(unittest.TestCase):
     def test_escort_interposes_between_carrier_and_threat(self) -> None:

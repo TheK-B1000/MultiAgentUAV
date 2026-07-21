@@ -121,6 +121,8 @@ def print_training_banner(
         )
     if curriculum is not None:
         print("[PPO] Training profile: curriculum baseline")
+    elif bool(getattr(cfg, "latent_contract_specialist_enabled", False)):
+        print("[PPO] Training profile: contract-specialist diagnostic scaffold")
     elif use_latent:
         print("[PPO] Training profile: default latent (Summer implementation)")
     else:
@@ -276,6 +278,13 @@ def _print_latent_strategy_banner(cfg: PPOConfig) -> None:
         )
     if fixed:
         print("[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.")
+    recurrent_hidden = int(getattr(cfg, "recurrent_selector_hidden_dim", 0) or 0)
+    print(f"[PPO] Recurrent selector hidden dim: {recurrent_hidden}")
+    if bool(getattr(cfg, "router_reward_enabled", False)) and recurrent_hidden == 0:
+        print(
+            "[PPO] Feedforward router sparse advantage source: router_advantages "
+            f"(router_ent_coef={float(getattr(cfg, 'router_ent_coef', 0.0) or 0.0):.4f})"
+        )
     if bool(getattr(cfg, "csia_enabled", False)) and not fixed:
         payoff_path = str(getattr(cfg, "csia_payoff_csv_path", "") or "").strip()
         evidence_path = str(getattr(cfg, "csia_strategy_evidence_csv_path", "") or "").strip()

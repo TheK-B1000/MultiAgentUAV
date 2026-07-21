@@ -66,6 +66,7 @@ class _CoreStateMixin:
 
         self._build_macro_targets()
         self._alloc_state()
+        self._init_map_pool_state()
         self.reset_all()
 
     def reseed(self, seed: int) -> None:

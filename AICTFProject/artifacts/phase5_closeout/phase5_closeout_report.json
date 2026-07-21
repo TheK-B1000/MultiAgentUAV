@@ -3,13 +3,17 @@
   "goal": "Rollout refactor verification and closeout",
   "final_verdict": "COMPLETE",
   "scientific_delta": "NONE",
+  "validated_at": "2026-07-01T17:41:18-04:00",
+  "validated_at_commit": "b7b0a78a3ff123f90fb5af085f8d567367c344a4",
+  "baseline_commit": "fe0e923d8a9b13631a8439a929d21ee65a19817e",
   "rollout_equivalence": {
-    "status": "PASS"
+    "status": "PASS",
+    "evidence_file": "artifacts/phase5_closeout/rollout_equivalence.json"
   },
   "telemetry_invariance": {
     "status": "PASS",
-    "command": "K:\\MultiAgentUAV\\AICTFProject\\.venv\\Scripts\\python.exe -m pytest tests/test_telemetry_invariance.py -q --tb=no",
-    "evidence": "OFF/BASIC/FULL rollout buffer and weight equality pinned by test_telemetry_invariance.py"
+    "evidence_file": "artifacts/phase5_closeout/telemetry_invariance.json",
+    "evidence": "OFF/BASIC/FULL rollout buffer and weight equality pinned by tests/test_telemetry_invariance.py"
   },
   "performance_comparison": {
     "status": "PASS",
@@ -19,22 +23,42 @@
   },
   "memory_comparison": {
     "status": "WARN",
-    "reason": "CUDA memory baseline not rerun in this closeout script."
+    "accepted_for_phase5_closeout": true,
+    "reason": "CUDA memory baseline was not rerun, so no GPU-memory improvement claim is made."
   },
-  "focused_phase5_suites": {
-    "command": "K:\\MultiAgentUAV\\AICTFProject\\.venv\\Scripts\\python.exe -m pytest tests/test_telemetry_invariance.py tests/test_rollout_buffer.py tests/test_option_advantage.py tests/test_train_ppo_smoke.py -q --tb=no",
-    "exit_code": 0,
-    "result": "PASS",
-    "stdout_tail": "...........................................                              [100%]\n43 passed in 22.36s"
+  "current_discovery": {
+    "status": "PASS",
+    "command": "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest discover -s tests",
+    "tests": 1435,
+    "skipped": 4,
+    "duration_seconds": 148.043,
+    "phase4_recorded_baseline_tests": 1268,
+    "baseline_count_gate": "PASS"
   },
+  "focused_phase5_suites": [
+    {
+      "command": "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest tests.test_telemetry_invariance tests.test_rollout_buffer tests.test_option_advantage tests.test_train_ppo_smoke",
+      "result": "PASS",
+      "tests": 43
+    },
+    {
+      "command": "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe -m unittest tests.test_inference_distribution_contract tests.test_v6i9_map_aware",
+      "result": "PASS",
+      "tests": 17
+    }
+  ],
+  "scope_note": "Pre-existing Phase 6 telemetry edits are not used as Phase 5 evidence.",
   "gates": {
     "golden_rollout_equivalence": "PASS",
     "buffer_equality": "PASS",
     "rng_equality": "PASS",
     "facade_delegation": "PASS",
+    "distribution_contract": "PASS",
+    "telemetry_invariance": "PASS",
     "performance": "PASS",
-    "scientific_delta": "NONE",
+    "cuda_memory": "WARN_DOCUMENTED",
+    "test_discovery_count": "PASS",
     "focused_tests": "PASS",
-    "telemetry_invariance": "PASS"
+    "scientific_delta": "NONE"
   }
 }

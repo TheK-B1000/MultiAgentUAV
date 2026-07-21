@@ -119,6 +119,14 @@ class ArcCreditManager:
                 if opponent_ids is not None
                 else int(self.host.arc_open_opponent_id[env_i].detach().cpu().item())
             )
+            # Stable, monotonic arc id so downstream replay buffers can reject
+            # duplicate insertions by identity (not by content hash, which two
+            # legitimate episodes can occasionally collide on). The counter is
+            # NOT reset per rollout — it is unique for the lifetime of this
+            # LatentStrategyState — so ``arc_uid`` alone uniquely identifies a
+            # finalized arc.
+            arc_uid = int(getattr(self.host, "_arc_record_uid_counter", 0))
+            self.host._arc_record_uid_counter = arc_uid + 1
             rec = {
                     "global_state_0": self.host.arc_open_ctx[env_i].detach().clone().cpu(),
                     "z": int(self.host.arc_open_z[env_i].detach().cpu().item()),
@@ -128,7 +136,14 @@ class ArcCreditManager:
                     "opponent_id": rec_opp,
                     "bucket_id": int(self.host.arc_open_bucket_id[env_i].detach().cpu().item()),
                     "reason": str(reason),
+                    "env_index": env_i,
+                    "arc_uid": arc_uid,
+                    "commit_step": int(self.host.arc_open_commit_step[env_i].detach().cpu().item()),
                 }
+            if str(getattr(trainer.cfg, "router_opening_context_mode", "") or ""):
+                rec["opening_context"] = (
+                    self.host.arc_open_opening_context[env_i].detach().clone().cpu()
+                )
             if self.host.arc_open_selector_hidden is not None:
                 rec["selector_hidden_0"] = (
                     self.host.arc_open_selector_hidden[env_i].detach().clone().cpu()
@@ -190,6 +205,26 @@ class ArcCreditManager:
             self.host.arc_open_selector_hidden[idx] = selector_hidden.index_select(0, idx).detach()
         buckets = strategy_experience_bucket_ids(gs).detach()
         self.host.arc_open_bucket_id[idx] = buckets
+        self.host.arc_open_commit_step[idx] = self.host.steps_since_ep_start.index_select(0, idx).detach().long()
+        mode = str(getattr(trainer.cfg, "router_opening_context_mode", "") or "").strip().lower()
+        if mode in {"initial_commit_delta", "state0_commit_delta", "opening_summary"}:
+            init = self.host.episode_initial_global_state.index_select(0, idx).detach()
+            if init.shape[1] >= target_dim:
+                init = init[:, :target_dim]
+            elif init.shape[1] < target_dim:
+                pad = torch.zeros(
+                    (init.shape[0], target_dim - init.shape[1]),
+                    dtype=init.dtype,
+                    device=init.device,
+                )
+                init = torch.cat([init, pad], dim=1)
+            opening = torch.cat([init, gs, gs - init], dim=1)
+            self.host.arc_open_opening_context[idx] = opening
+        elif mode:
+            raise ValueError(
+                f"Unknown router_opening_context_mode {mode!r}; expected "
+                "'initial_commit_delta' or empty string"
+            )
         if opponent_ids is not None:
             self.host.arc_open_opponent_id[idx] = opponent_ids.index_select(0, idx).detach().long()
         self.host.arc_has_open[idx] = True
@@ -216,6 +251,19 @@ class ArcCreditManager:
             "latent_arc_mean_return": 0.0,
             "latent_arc_advantage_mean": 0.0,
             "latent_arc_advantage_std": 0.0,
+            "latent_arc_baseline_mean": 0.0,
+            "latent_arc_raw_advantage_mean": 0.0,
+            "latent_arc_raw_advantage_std": 0.0,
+            "latent_arc_positive_fraction": 0.0,
+            **{f"latent_arc_raw_adv_mean_z{_zi}": 0.0 for _zi in range(4)},
+            **{f"latent_arc_count_z{_zi}": 0.0 for _zi in range(4)},
+            # Separation of per-z raw advantage means (max - min over z's that
+            # received >=1 arc). A centered signal with zero spread gives every
+            # z the same expected credit and CANNOT teach routing, no matter how
+            # healthy the aggregate positive_fraction looks.
+            "latent_arc_raw_adv_z_spread": 0.0,
+            "latent_arc_running_mean_count": 0.0,
+            "latent_arc_running_mean_value": 0.0,
             "latent_arc_policy_loss": 0.0,
             "latent_arc_value_loss": 0.0,
             "latent_arc_clipfrac": 0.0,
@@ -312,7 +360,32 @@ class ArcCreditManager:
                 fixed_baseline = trainer.model.episode_strategy_value(
                     states, z, selector_hidden=selector_hidden
                 ).detach()
-            fixed_adv = arc_returns - fixed_baseline
+            raw_adv = (arc_returns - fixed_baseline).detach()
+            # Raw (pre-normalization) advantage diagnostics: these expose
+            # whether the ORIGINAL sparse signal has real spread before the
+            # per-batch standardization scrubs the scale. Aggressive
+            # normalization can make a nearly-flat signal look healthy.
+            stats["latent_arc_baseline_mean"] = float(fixed_baseline.mean().item())
+            stats["latent_arc_raw_advantage_mean"] = float(raw_adv.mean().item())
+            stats["latent_arc_raw_advantage_std"] = (
+                float(raw_adv.std(unbiased=False).item()) if raw_adv.numel() > 1 else 0.0
+            )
+            stats["latent_arc_positive_fraction"] = float((raw_adv > 0).float().mean().item())
+            stats["latent_arc_running_mean_count"] = float(self.host.arc_return_running_count)
+            stats["latent_arc_running_mean_value"] = float(self.host.arc_return_running_mean)
+            _K = int(getattr(trainer, "latent_k", 4) or 4)
+            _z_means: list[float] = []
+            for _zi in range(_K):
+                _m = z == _zi
+                _zmean = float(raw_adv[_m].mean().item()) if _m.any() else float("nan")
+                stats[f"latent_arc_raw_adv_mean_z{_zi}"] = _zmean
+                stats[f"latent_arc_count_z{_zi}"] = float(_m.sum().item())
+                if _m.any():
+                    _z_means.append(_zmean)
+            stats["latent_arc_raw_adv_z_spread"] = (
+                float(max(_z_means) - min(_z_means)) if len(_z_means) >= 2 else 0.0
+            )
+            fixed_adv = raw_adv.clone()
             if return_norm and fixed_adv.numel() > 1:
                 fixed_adv = (fixed_adv - fixed_adv.mean()) / (fixed_adv.std(unbiased=False) + 1e-8)
             fixed_adv = fixed_adv.detach()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import MISSING, dataclass, fields as dataclass_fields, replace as dataclass_replace
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 from game_manager import (
     ACTION_FAILED_PUNISHMENT,
@@ -51,6 +51,11 @@ class RewardConfig:
     stalemate_penalty: float = -0.08
     spin_penalty_coef: float = 0.05
     idle_penalty_coef: float = 0.03
+    surface_score_margin_coef: float = 0.0
+    surface_blue_capture_tempo_bonus: float = 0.0
+    surface_red_flag_touch_penalty: float = 0.0
+    surface_red_carrier_progress_penalty: float = 0.0
+    surface_blue_near_cap_bonus: float = 0.0
 
     @classmethod
     def from_object(cls, obj: Any) -> "RewardConfig":
@@ -89,6 +94,7 @@ class GPUFieldConfig:
     max_red_agents: int = 2
     map_set: str = "train"
     map_layout: str = MAP_A_OPEN
+    map_pool: Tuple[str, ...] = ()
     map_rows: int = 20
     map_cols: int = 20
     obstacle_obs_channel: Optional[bool] = None
@@ -241,6 +247,17 @@ class GPUFieldConfig:
             allowed = ", ".join(sorted(MAP_SET_SEED_OFFSETS))
             raise ValueError(f"map_set must be one of {{{allowed}}}, got {self.map_set!r}")
         self.map_layout = normalize_map_layout(self.map_layout)
+        pool_raw = tuple(getattr(self, "map_pool", ()) or ())
+        if pool_raw:
+            self.map_pool = tuple(normalize_map_layout(m) for m in pool_raw)
+            if len(self.map_pool) < 1:
+                raise ValueError("map_pool must contain at least one layout when set.")
+            if self.obstacle_obs_channel is None:
+                from ._maps import MAP_A_OPEN as _MAP_A_OPEN
+
+                self.obstacle_obs_channel = any(layout != _MAP_A_OPEN for layout in self.map_pool)
+        else:
+            self.map_pool = ()
         if self.obstacle_obs_channel is None:
             self.obstacle_obs_channel = self.map_layout != MAP_A_OPEN
         self.map_b_vertical_mirror_prob = max(0.0, min(1.0, float(self.map_b_vertical_mirror_prob)))

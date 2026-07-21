@@ -1,0 +1,236 @@
+{
+  "control_dir": "artifacts\\ab_router_credit\\control",
+  "treatment_dir": "artifacts\\ab_router_credit\\treatment",
+  "control_complete": true,
+  "treatment_complete": true,
+  "control_router_type": "recurrent-GRU (hidden_dim=64)",
+  "treatment_router_type": "recurrent-GRU (hidden_dim=64)",
+  "launch_contract": {
+    "checks": {
+      "initial_router_hash_match": true,
+      "initial_frozen_actor_hash_match": true,
+      "control_fresh_optimizer": true,
+      "treatment_fresh_optimizer": true,
+      "advantage_sources_differ": true,
+      "same_checkpoint": true,
+      "all_passed": true
+    },
+    "control_advantage_source": "router_advantages (sparse-reward GAE from router critic)",
+    "treatment_advantage_source": "arc_return_running_mean_baseline (BPTT PPO disabled)",
+    "control_initial_router_hash": "d41e281bb3d50cf4792c343ae53d0fb16e22131d33761e74081a6b6ec4b6c400",
+    "treatment_initial_router_hash": "d41e281bb3d50cf4792c343ae53d0fb16e22131d33761e74081a6b6ec4b6c400"
+  },
+  "control_frozen_integrity": {
+    "frozen_actor_z_unchanged": true,
+    "router_moved": true
+  },
+  "treatment_frozen_integrity": {
+    "frozen_actor_z_unchanged": true,
+    "router_moved": true
+  },
+  "treatment_verdict": {
+    "evaluable": true,
+    "signals": {
+      "raw_advantage_centered": true,
+      "positive_fraction_two_sided": true,
+      "router_gradients_active": true,
+      "per_z_means_separate": true,
+      "routing_teachable": true,
+      "mechanism_healthy": true
+    },
+    "final_raw_advantage_mean": -0.09186866879463196,
+    "final_positive_fraction": 0.5690683722496033,
+    "final_per_z_spread": 0.06645835563540459,
+    "final_q_phi_grad_norm": 0.04410457455900544,
+    "note": "per_z_means_separate is the gate that distinguishes 'grades repaired' from 'routing learned'. A centered, two-sided signal with z_spread ~ 0 gives every z the same expected credit and cannot teach routing."
+  },
+  "trajectories": {
+    "control": {
+      "latent_arc_raw_advantage_mean": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "latent_arc_positive_fraction": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "latent_arc_raw_adv_z_spread": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "latent_arc_raw_adv_mean_z0": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "latent_arc_raw_adv_mean_z1": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "latent_arc_raw_adv_mean_z2": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "latent_arc_raw_adv_mean_z3": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "q_phi_grad_norm": [
+        0.023498542525582405,
+        0.025785534259436343,
+        0.02952356585592497,
+        0.030779018595543068,
+        0.03279022519806555
+      ],
+      "strategy_entropy": [
+        1.3768260696281989,
+        1.3698992837841313,
+        1.348815066429476,
+        1.339697412836055,
+        1.3337454826881487
+      ],
+      "latent_mi_z_opponent_nats": [
+        0.003274552601971372,
+        0.0006601183890882537,
+        0.00200487576985099,
+        0.0011266803077933903,
+        0.0032062255966832237
+      ],
+      "latent_mi_z_phase_nats": [
+        0.0007516748548925005,
+        0.0006355736930643472,
+        0.0008358435138289245,
+        0.0008869939246518191,
+        0.00027647281508973555
+      ],
+      "latent_mi_z_outcome_nats": [
+        0.0015478131413911905,
+        0.0013686474705582562,
+        0.0010788483378102488,
+        0.0007442578699569157,
+        0.00028680730332724313
+      ],
+      "latent_mi_z_flag_state_nats": [
+        0.001067071932466115,
+        0.0008742234500249985,
+        0.0005915489031299214,
+        0.0010224280825307554,
+        0.0011534316293033806
+      ]
+    },
+    "treatment": {
+      "latent_arc_raw_advantage_mean": [
+        -0.058945439755916595,
+        -0.06598377972841263,
+        -0.0811217725276947,
+        -0.0640312060713768,
+        -0.09186866879463196
+      ],
+      "latent_arc_positive_fraction": [
+        0.5683721303939819,
+        0.5773671865463257,
+        0.5550945401191711,
+        0.570438802242279,
+        0.5690683722496033
+      ],
+      "latent_arc_raw_adv_z_spread": [
+        0.07839814946055412,
+        0.06520228274166584,
+        0.06565145775675774,
+        0.07062225975096226,
+        0.06645835563540459
+      ],
+      "latent_arc_raw_adv_mean_z0": [
+        -0.05075119435787201,
+        -0.09142506122589111,
+        -0.11572914570569992,
+        -0.09965652972459793,
+        -0.11581304669380188
+      ],
+      "latent_arc_raw_adv_mean_z1": [
+        -0.08271515369415283,
+        -0.030000610277056694,
+        -0.050077687948942184,
+        -0.05043413117527962,
+        -0.04935469105839729
+      ],
+      "latent_arc_raw_adv_mean_z2": [
+        -0.010799158364534378,
+        -0.09520289301872253,
+        -0.05592971667647362,
+        -0.029034269973635674,
+        -0.08389590680599213
+      ],
+      "latent_arc_raw_adv_mean_z3": [
+        -0.0891973078250885,
+        -0.04715985059738159,
+        -0.09800460189580917,
+        -0.07088460773229599,
+        -0.11554576456546783
+      ],
+      "q_phi_grad_norm": [
+        0.0406508722357357,
+        0.028198692549132837,
+        0.03723797775623157,
+        0.03078900715756485,
+        0.04410457455900544
+      ],
+      "strategy_entropy": [
+        1.378214219585061,
+        1.3751189423104127,
+        1.3661954884106915,
+        1.3751207673922181,
+        1.3736819966385763
+      ],
+      "latent_mi_z_opponent_nats": [
+        0.003274552601971372,
+        0.0011989944965274126,
+        0.0022514292053861587,
+        0.0019259057753754048,
+        0.0006805177717560374
+      ],
+      "latent_mi_z_phase_nats": [
+        0.0007516748548925005,
+        0.0005647207797227515,
+        0.0006377033154629855,
+        0.0002948216304761008,
+        0.0004115910876862944
+      ],
+      "latent_mi_z_outcome_nats": [
+        0.0015478131413911905,
+        0.0013985565789844312,
+        0.00033407987373401367,
+        0.0013872750596412766,
+        0.0016185974394677177
+      ],
+      "latent_mi_z_flag_state_nats": [
+        0.001067071932466115,
+        0.001257812419600518,
+        0.0008305172493865498,
+        0.0003372565626623314,
+        0.0003478675676094772
+      ]
+    }
+  },
+  "bias_sign_note": "Telemetry reports ADVANTAGE bias (A = R - baseline), not critic bias. The critic's +2.705 value over-estimation maps to an ~ -2.705 advantage offset under A = R - V. latent_arc_raw_advantage_mean is the advantage quantity; a value near zero means the offset has been removed."
+}

@@ -1,0 +1,129 @@
+{
+  "protocol": "router_selection_trace_audit_v1",
+  "created_utc": "2026-07-01T22:22:26.163306+00:00",
+  "checkpoint": "checkpoints/2v2/final_v6i9-mapaware-router-feedforward-hardpool-refactor-r1-seed1-mechanism_2v2.zip",
+  "opponent": "OP8",
+  "map": "map_b",
+  "episode_seeds": [
+    9000,
+    9001,
+    9002,
+    9003,
+    9004,
+    9005,
+    9006,
+    9007,
+    9008,
+    9009
+  ],
+  "switch_cadence": 32,
+  "shuffled_mapping_meta": {
+    "shuffle_mapping_hash": "32908e9c62e8f76fc0758cd149b06f2c66a66ef34e90af93b617921c9f23fcd8",
+    "shuffle_mapping_size": 10,
+    "mean_displacement_fraction": 0.29166666666666663,
+    "trace_opportunity_count": 55
+  },
+  "condition_summary": {
+    "learned_router": {
+      "condition": "learned_qphi_switching",
+      "selection_mode": "qphi_switching",
+      "n_episodes": 10,
+      "mean_return": -5.2487282655522,
+      "z_histogram": {
+        "3": 44,
+        "0": 11
+      },
+      "unique_z_sequences": 8
+    },
+    "fixed_z2": {
+      "condition": "fixed_z2",
+      "selection_mode": "fixed_latent",
+      "n_episodes": 10,
+      "mean_return": -3.746823516493896,
+      "z_histogram": {},
+      "unique_z_sequences": 1
+    },
+    "uniform_z": {
+      "condition": "uniform_random_at_router_opportunities",
+      "selection_mode": "uniform_random",
+      "n_episodes": 10,
+      "mean_return": -5.936653171895887,
+      "z_histogram": {
+        "0": 21,
+        "1": 10,
+        "2": 14,
+        "3": 12
+      },
+      "unique_z_sequences": 10
+    },
+    "shuffled_router": {
+      "condition": "shuffled_qphi_outputs",
+      "selection_mode": "shuffled_qphi",
+      "n_episodes": 10,
+      "mean_return": -4.061370589458965,
+      "z_histogram": {
+        "3": 38,
+        "0": 11,
+        "1": 2
+      },
+      "unique_z_sequences": 9
+    }
+  },
+  "assertions": {
+    "fixed_z2_all_constant": true,
+    "fixed_z2_switch_count_zero": true,
+    "uniform_reaches_multiple_z": true,
+    "uniform_z_values_seen": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "learned_differs_from_uniform_episodes": 10,
+    "learned_differs_from_uniform": true,
+    "shuffled_differs_from_learned_episodes": 6,
+    "shuffled_differs_from_learned": true,
+    "shuffled_preserves_marginal_vs_learned": false,
+    "learned_uniform_trace_identical_all": false,
+    "learned_shuffled_trace_identical_all": false,
+    "diagnostic_wiring_trusted": true,
+    "latent_k": 4
+  },
+  "trace_equivalence": {
+    "fixed_z2__vs__learned_qphi_switching": {
+      "n_matched_seeds": 10,
+      "same_z_sequence_count": 0,
+      "same_z_sequence_fraction": 0.0
+    },
+    "fixed_z2__vs__shuffled_qphi_outputs": {
+      "n_matched_seeds": 10,
+      "same_z_sequence_count": 0,
+      "same_z_sequence_fraction": 0.0
+    },
+    "fixed_z2__vs__uniform_random_at_router_opportunities": {
+      "n_matched_seeds": 10,
+      "same_z_sequence_count": 0,
+      "same_z_sequence_fraction": 0.0
+    },
+    "learned_qphi_switching__vs__shuffled_qphi_outputs": {
+      "n_matched_seeds": 10,
+      "same_z_sequence_count": 4,
+      "same_z_sequence_fraction": 0.4
+    },
+    "learned_qphi_switching__vs__uniform_random_at_router_opportunities": {
+      "n_matched_seeds": 10,
+      "same_z_sequence_count": 0,
+      "same_z_sequence_fraction": 0.0
+    },
+    "shuffled_qphi_outputs__vs__uniform_random_at_router_opportunities": {
+      "n_matched_seeds": 10,
+      "same_z_sequence_count": 0,
+      "same_z_sequence_fraction": 0.0
+    }
+  },
+  "verdict": {
+    "diagnostic_wiring_trusted": true,
+    "proceed_to_250k": false,
+    "note": "Trace audit only; 250k remains blocked until full ablation passes with trusted wiring."
+  }
+}

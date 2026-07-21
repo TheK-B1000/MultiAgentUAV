@@ -337,7 +337,10 @@ def run_eval_episodes(
 
         global_step_counter = 0
         for ep_idx in range(n_episodes):
-            episode_seed = logical_eval_seed if logical_eval_seed is not None else (latent_eval_seed if latent_eval_seed is not None else 0)
+            base_episode_seed = logical_eval_seed if logical_eval_seed is not None else (
+                latent_eval_seed if latent_eval_seed is not None else 0
+            )
+            episode_seed = int(base_episode_seed) + int(ep_idx)
             
             if expected_strategy_interval is not None and expected_allow_switching is not None:
                 # 1. Derive separate seeds using SHA-256
@@ -385,9 +388,9 @@ def run_eval_episodes(
                     getattr(model.model, "uses_latent_strategy", False)
                 ):
                     mode_to_set = "normal"
-                    if cond_name == "shuffled_qphi_outputs":
+                    if selection_rule == "shuffled_qphi" or cond_name == "shuffled_qphi_outputs":
                         mode_to_set = "shuffled"
-                    elif cond_name in ("uniform_episode_fixed", "uniform_random_at_router_opportunities"):
+                    elif selection_rule == "uniform" or cond_name in ("uniform_episode_fixed", "uniform_random_at_router_opportunities"):
                         mode_to_set = "uniform_random"
                     model.set_latent_eval_mode(mode_to_set, seed=router_seed)
                     
@@ -416,7 +419,7 @@ def run_eval_episodes(
             if hasattr(model, "set_eval_episode_context"):
                 model.set_eval_episode_context(
                     opponent=opponent,
-                    eval_seed=logical_eval_seed if logical_eval_seed is not None else actual_eval_seed,
+                    eval_seed=episode_seed if expected_strategy_interval is not None else actual_eval_seed,
                     environment_seed=actual_env_seed,
                     env_index=ep_idx,
                 )

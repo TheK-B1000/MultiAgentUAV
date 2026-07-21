@@ -72,6 +72,31 @@ def strategy_entropy_loss(
     return -lam_h * h_mean, {"strategy_entropy_term_mean": float(h_mean.detach().cpu().item())}
 
 
+def feedforward_router_entropy_loss(
+    strategy_entropy: Tensor,
+    decision_mask: Tensor,
+    *,
+    router_ent_coef: float,
+    device: torch.device,
+) -> Tuple[Tensor, _LossStats]:
+    """Conditional router entropy for feedforward sparse-routing updates.
+
+    Matches ``RouterSequenceUpdater`` semantics: maximize entropy at router
+    decision steps only via ``router_ent_coef * (-mean H)``.
+    """
+    if not bool(decision_mask.any()) or router_ent_coef <= 0.0:
+        return _zero_scalar(device), {
+            "feedforward_router_entropy_mean": 0.0,
+            "feedforward_router_entropy_loss": 0.0,
+        }
+    h_mean = strategy_entropy[decision_mask].mean()
+    loss = router_ent_coef * (-h_mean)
+    return loss, {
+        "feedforward_router_entropy_mean": float(h_mean.detach().cpu().item()),
+        "feedforward_router_entropy_loss": float(loss.detach().cpu().item()),
+    }
+
+
 def strategy_marginal_entropy_loss(
     strategy_logits: Tensor,
     resample_mask: Tensor,

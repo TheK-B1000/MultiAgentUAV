@@ -70,6 +70,7 @@ class _EpisodeStateMixin:
         self.step_count[idx] = 0
         self.sim_step_count[idx] = 0
         self.stalemate_steps[idx] = 0
+        self._resample_map_pool(env_mask)
         self.blue_score[idx] = 0
         self.red_score[idx] = 0
         self._reset_map_layout(env_mask)

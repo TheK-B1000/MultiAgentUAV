@@ -519,6 +519,43 @@ class ArcCreditPPOUpdateTests(unittest.TestCase):
         ):
             self.assertEqual(stats[k], 0.0)
 
+    def test_running_mean_baseline_exposes_raw_advantage_telemetry(self) -> None:
+        """Running-mean path must emit raw (pre-norm) advantage diagnostics.
+
+        The one-update treatment smoke reads these fields to decide whether
+        the original sparse signal has real spread before normalization.
+        """
+        trainer = _make_trainer(arc_enabled=True, arc_min_len=1, arc_baseline="running_mean")
+        ls = LatentStrategyState(trainer)
+        ls.reset()
+        ls.arc_open(
+            torch.tensor([True, True]),
+            global_state=torch.zeros((2, 4), dtype=torch.float32),
+            z_idx=torch.tensor([0, 1], dtype=torch.long),
+            z_log_prob=torch.zeros((2,), dtype=torch.float32),
+        )
+        for _ in range(2):
+            ls.arc_accumulate_step(torch.tensor([2.0, 4.0]))
+        ls.arc_finalize(torch.tensor([True, True]))
+        stats = ls.apply_arc_strategy_ppo()
+
+        # arc returns = [4, 8]; running mean = 6 -> raw advantages = [-2, 2].
+        for key in (
+            "latent_arc_baseline_mean",
+            "latent_arc_raw_advantage_mean",
+            "latent_arc_raw_advantage_std",
+            "latent_arc_positive_fraction",
+            "latent_arc_running_mean_count",
+            "latent_arc_running_mean_value",
+        ):
+            self.assertIn(key, stats)
+        self.assertAlmostEqual(stats["latent_arc_baseline_mean"], 6.0, places=5)
+        self.assertAlmostEqual(stats["latent_arc_raw_advantage_mean"], 0.0, places=5)
+        self.assertGreater(stats["latent_arc_raw_advantage_std"], 0.0)
+        self.assertAlmostEqual(stats["latent_arc_positive_fraction"], 0.5, places=5)
+        self.assertEqual(stats["latent_arc_running_mean_count"], 2.0)
+        self.assertAlmostEqual(stats["latent_arc_running_mean_value"], 6.0, places=5)
+
     def test_apply_arc_strategy_ppo_running_mean_baseline_avoids_value_head(self) -> None:
         """``running_mean`` baseline path bypasses ``episode_strategy_value_head``."""
         trainer = _make_trainer(arc_enabled=True, arc_min_len=1, arc_baseline="running_mean")

@@ -47,6 +47,11 @@ def _gpu_env_reward_kwargs(cfg: PPOConfig) -> dict[str, Any]:
         ("reward_clip", getattr(cfg, "env_reward_clip", None)),
         ("stalemate_penalty", getattr(cfg, "env_stalemate_penalty", None)),
         ("stalemate_max_steps", getattr(cfg, "env_stalemate_max_steps", None)),
+        ("surface_score_margin_coef", getattr(cfg, "env_surface_score_margin_coef", None)),
+        ("surface_blue_capture_tempo_bonus", getattr(cfg, "env_surface_blue_capture_tempo_bonus", None)),
+        ("surface_red_flag_touch_penalty", getattr(cfg, "env_surface_red_flag_touch_penalty", None)),
+        ("surface_red_carrier_progress_penalty", getattr(cfg, "env_surface_red_carrier_progress_penalty", None)),
+        ("surface_blue_near_cap_bonus", getattr(cfg, "env_surface_blue_near_cap_bonus", None)),
     )
     out: dict[str, Any] = {}
     for name, raw in pairs:
@@ -122,6 +127,9 @@ def build_training_env(
     if reward_kw:
         parts = [f"{k}={v}" for k, v in sorted(reward_kw.items())]
         print("[PPO] GPU env reward overrides: " + ", ".join(parts))
+    map_pool = tuple(getattr(cfg, "map_pool", ()) or ())
+    if map_pool:
+        print("[PPO] map_pool (per-episode uniform sample): " + ", ".join(map_pool))
     rrc: RouterRewardConfig | None = None
     if bool(getattr(cfg, "router_reward_enabled", False)):
         rrc = RouterRewardConfig(
@@ -142,6 +150,7 @@ def build_training_env(
         n_agents_per_team=max_agents,
         map_set=str(getattr(cfg, "map_set", "train")).lower(),
         map_layout=str(getattr(cfg, "map_layout", "map_a_open")).lower(),
+        map_pool=tuple(getattr(cfg, "map_pool", ()) or ()),
         max_decision_steps=max(1, int(cfg.max_decision_steps)),
         aquaticus_profile=True,
         rules_profile="OURS",

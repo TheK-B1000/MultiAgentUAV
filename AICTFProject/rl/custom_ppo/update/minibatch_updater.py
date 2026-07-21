@@ -19,6 +19,12 @@ from rl.custom_ppo.update.loss_result import LossComponent, MinibatchUpdateResul
 from rl.custom_ppo.update.optimizer_stepper import OptimizerStepper
 from rl.custom_ppo.update.phase_policy import PhaseTrainingPolicy
 from rl.custom_ppo.update.separation_objectives import SeparationObjective
+from rl.custom_ppo.update.strategy_credit import (
+    encoder_grad_norm_from_loss,
+    is_feedforward_sparse_router,
+    is_recurrent_router,
+    router_decision_mask,
+)
 from rl.custom_ppo.update.strategy_objectives import StrategyObjective
 from rl.custom_ppo.update.update_context import PPOUpdateContext
 from rl.custom_ppo.update.actor_pathway_diagnostics import actor_pathway_grad_diagnostics_for_model
@@ -222,20 +228,60 @@ class MinibatchUpdater:
             zero_scalar=zero_scalar,
         )
 
+        credit_telemetry: dict[str, float] = {}
+        feedforward_router_entropy_loss_value = 0.0
+        strategy_policy_grad_norm = 0.0
+        router_entropy_grad_norm = 0.0
+
         if hparams.use_latent_strategy:
-            resample = batch["z_resampled"].bool()
+            decision_mask = router_decision_mask(batch)
+            resample = decision_mask
             strategy_entropy = aux["strategy_entropy"]
             h_mode = prep.h_mode
             h_goal = prep.h_goal
             has_dedicated_router_opt = runtime.latent_router_optimizer is not None
             apply_main_loop_qphi_loss = context.apply_main_loop_qphi_loss
-            apply_entropy_loss = (
+            router_ent_coef = float(getattr(cfg, "router_ent_coef", 0.0) or 0.0)
+            feedforward_router = is_feedforward_sparse_router(cfg)
+            recurrent_router = is_recurrent_router(cfg, model)
+
+            apply_latent_lam_h_entropy = (
                 hparams.use_latent_strategy
                 and (
                     (not has_dedicated_router_opt and float(latent_lam_h or 0.0) > 0.0)
                     or float(v6i1_usage_coef) > 0.0
                 )
                 and h_goal != "none"
+            )
+            if feedforward_router and router_ent_coef > 0.0:
+                apply_latent_lam_h_entropy = False
+            if recurrent_router and router_ent_coef > 0.0:
+                apply_latent_lam_h_entropy = False
+
+            if feedforward_router and router_ent_coef > 0.0:
+                entropy_component = self.entropy_objective.feedforward_router_component(
+                    strategy_entropy=strategy_entropy,
+                    router_decision_mask=decision_mask,
+                    router_ent_coef=router_ent_coef,
+                    apply=True,
+                    zero_scalar=zero_scalar,
+                )
+            else:
+                entropy_component, _ = self.entropy_objective.conditional_component(
+                    strategy_entropy=strategy_entropy,
+                    resample=resample,
+                    latent_lam_h=latent_lam_h,
+                    h_mode=h_mode,
+                    h_goal=h_goal,
+                    apply_entropy_loss=apply_latent_lam_h_entropy,
+                    zero_scalar=zero_scalar,
+                )
+            marginal_component = self.entropy_objective.marginal_minibatch_component(
+                epoch_state,
+                mb_idx=mb_idx,
+                apply_entropy_loss=apply_latent_lam_h_entropy,
+                apply_rollout_marginal=prep.apply_rollout_marginal,
+                zero_scalar=zero_scalar,
             )
             apply_persistence_loss = (
                 hparams.use_latent_strategy
@@ -250,23 +296,7 @@ class MinibatchUpdater:
                 and not has_dedicated_router_opt
                 and float(hparams.latent_kl_consecutive or 0.0) > 0.0
             )
-            entropy_component, _ = self.entropy_objective.conditional_component(
-                strategy_entropy=strategy_entropy,
-                resample=resample,
-                latent_lam_h=latent_lam_h,
-                h_mode=h_mode,
-                h_goal=h_goal,
-                apply_entropy_loss=apply_entropy_loss,
-                zero_scalar=zero_scalar,
-            )
-            marginal_component = self.entropy_objective.marginal_minibatch_component(
-                epoch_state,
-                mb_idx=mb_idx,
-                apply_entropy_loss=apply_entropy_loss,
-                apply_rollout_marginal=prep.apply_rollout_marginal,
-                zero_scalar=zero_scalar,
-            )
-            if h_mode == "marginal" and apply_entropy_loss and epoch_state.marginal_stats:
+            if h_mode == "marginal" and apply_latent_lam_h_entropy and epoch_state.marginal_stats:
                 marginal_telemetry = {
                     "strategy_marginal_entropy_loss_value": float(
                         epoch_state.marginal_stats.get("rollout_marginal_entropy_kl", 0.0)
@@ -285,7 +315,7 @@ class MinibatchUpdater:
                 advantages=advantages,
                 latent_lam_h=latent_lam_h,
                 apply_main_loop_qphi_loss=apply_main_loop_qphi_loss,
-                apply_entropy_loss=apply_entropy_loss,
+                apply_entropy_loss=apply_latent_lam_h_entropy,
                 apply_persistence_loss=apply_persistence_loss,
                 apply_kl_loss=apply_kl_loss,
                 entropy_component=entropy_component,
@@ -303,7 +333,32 @@ class MinibatchUpdater:
             strategy_aux_return_loss_value = bundle.strategy_aux_return_loss_value
             strategy_phase_loss_value = bundle.strategy_phase_loss_value
             marginal_telemetry = bundle.marginal_telemetry
+            credit_telemetry = dict(bundle.credit_telemetry)
             bundle_components = bundle.components
+            if entropy_component.name == "feedforward_router_entropy":
+                feedforward_router_entropy_loss_value = float(
+                    entropy_component.metrics.get("feedforward_router_entropy_loss", 0.0)
+                )
+            if feedforward_router and apply_main_loop_qphi_loss:
+                encoder = getattr(model, "strategy_encoder", None)
+                if encoder is not None:
+                    for component in bundle_components:
+                        if component.name == "strategy_ppo" and component.active:
+                            strategy_policy_grad_norm = encoder_grad_norm_from_loss(
+                                component.scaled_loss, encoder
+                            )
+                        if component.name == "feedforward_router_entropy" and component.active:
+                            router_entropy_grad_norm = encoder_grad_norm_from_loss(
+                                component.scaled_loss, encoder
+                            )
+                credit_telemetry["strategy_policy_grad_norm"] = float(strategy_policy_grad_norm)
+                credit_telemetry["router_entropy_grad_norm"] = float(router_entropy_grad_norm)
+                credit_telemetry["strategy_policy_to_router_entropy_grad_ratio"] = float(
+                    strategy_policy_grad_norm / (router_entropy_grad_norm + 1e-8)
+                )
+                credit_telemetry["feedforward_router_entropy_loss"] = float(
+                    feedforward_router_entropy_loss_value
+                )
 
             if hparams.fixed_latent_strategy:
                 strategy_entropy = torch.zeros_like(entropy)
@@ -810,6 +865,7 @@ class MinibatchUpdater:
             ),
             "strategy_grad_norm": float(step_result.strategy_grad_norm),
             "strategy_resample_fraction": float(resample.float().mean().detach().cpu().item()),
+            **credit_telemetry,
             "latent_actor_z_separation_loss": float(z_sep_loss.detach().cpu().item()),
             "latent_actor_z_separation_jsd": tensor_stat(z_sep_stats.get("jsd", zero_scalar)),
             "latent_actor_z_separation_jsd_min": tensor_stat(

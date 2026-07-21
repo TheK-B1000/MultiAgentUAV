@@ -119,6 +119,34 @@ def _latent_rollout_stats(trainer: Any, buffer: Any) -> dict[str, float]:
     for k in range(trainer.latent_k):
         out[f"strategy_occupancy_{k}"] = float(occ_stats.get(f"strategy_occupancy_{k}", 0.0))
 
+    # Selected-z occupancy at router DECISION points (argmax histogram over the
+    # z actually selected at each opportunity). ``strategy_occupancy_*`` above is
+    # dominated by continuation steps where z merely persists; this decision-only
+    # view is the direct collapse indicator (e.g. every opportunity picks z3).
+    # Computed every update for BOTH credit channels (arc-credit and sparse-GAE)
+    # and independent of the entropy mode, unlike
+    # ``router_rollout_soft_argmax_occupancy_*`` which only runs on the marginal
+    # entropy path. Makes router collapse visible during training, not only at
+    # the eval shuffle gate.
+    if bool(resampled.any()):
+        z_dec = z[resampled].clamp(min=0, max=trainer.latent_k - 1)
+        dec_counts = torch.bincount(z_dec, minlength=trainer.latent_k).float()
+    else:
+        dec_counts = torch.zeros(trainer.latent_k)
+    dec_total = float(dec_counts.sum().item())
+    for k in range(trainer.latent_k):
+        out[f"router_selected_z_occupancy_z{k}"] = float(
+            dec_counts[k].item() / dec_total if dec_total > 0.0 else 0.0
+        )
+    out["router_selected_z_unique_count"] = float((dec_counts > 0).sum().item())
+    out["router_selected_z_dominant"] = (
+        float(torch.argmax(dec_counts).item()) if dec_total > 0.0 else -1.0
+    )
+    out["router_selected_z_occupancy_max"] = float(
+        dec_counts.max().item() / dec_total if dec_total > 0.0 else 0.0
+    )
+    out["router_selected_z_decision_count"] = dec_total
+
     total_decisions = float(z.numel())
     arc_boundaries = max(1.0, resample_count)
     out["mean_strategy_duration"] = total_decisions / arc_boundaries

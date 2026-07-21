@@ -328,82 +328,79 @@ def sample_batched_opponent_params(
             sync_nc_low, sync_nc_high = 2, 5
             n_low, n_high = 0.0, 0.04
         elif key in ("OP8", "OP8_INTERCEPTOR"):
-            # Coordinated pressure/interception: one agent pursues blue carrier,
-            # one intercepts the carrier's path home. Very low role churn so agents
-            # stay committed. High coordination, low deception.
+            # Adaptive interceptor / carrier hunter (hardpool v2, v6i21+):
+            # BT tracks blue lane repetition and shifts intercept coverage.
             attacker_style = 1
             defender_style = 1
             role_switch_prob = 0.02
-            d_low, d_high = 0.02, 0.08
-            c_prob = 0.92
+            d_low, d_high = 0.04, 0.12
+            c_prob = 0.94
             sync_c_low, sync_c_high = 2, 5
             sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.03
+            n_low, n_high = 0.0, 0.04
             if n_agents >= 8:
                 s_low, s_high = 0.80, 0.96
                 c_prob = 0.80
             elif n_agents >= 4:
                 s_low, s_high = 0.94, 1.10
-                d_low, d_high = 0.03, 0.10
-                c_prob = 0.90
+                d_low, d_high = 0.05, 0.14
+                c_prob = 0.92
             else:
-                s_low, s_high = 0.88, 1.06
+                s_low, s_high = 1.35, 1.45
+                d_low, d_high = 0.16, 0.34
+                c_prob = 0.94
         elif key in ("OP9", "OP9_FORTRESS"):
-            # Fortress + counterattack: tight guardian orbits own flag; after blue grabs
-            # red flag (enemy_carrier_exists), all agents surge to intercept enemy carrier.
-            # Heavy coordination on counterattack. Moderate deception from defenders.
+            # Adaptive fortress / flag denial: collapses cap lane after fast conversions.
             attacker_style = 0
             defender_style = 1
             role_switch_prob = 0.05
-            d_low, d_high = 0.06, 0.18
-            c_prob = 0.88
+            d_low, d_high = 0.08, 0.22
+            c_prob = 0.90
             sync_c_low, sync_c_high = 2, 5
             sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.03
+            n_low, n_high = 0.0, 0.04
             if n_agents >= 8:
                 s_low, s_high = 0.72, 0.88
                 c_prob = 0.75
             elif n_agents >= 4:
                 s_low, s_high = 0.82, 0.98
-                d_low, d_high = 0.10, 0.22
-                c_prob = 0.85
+                d_low, d_high = 0.12, 0.26
+                c_prob = 0.88
             else:
-                s_low, s_high = 0.76, 0.94
+                s_low, s_high = 1.20, 1.25
+                d_low, d_high = 0.16, 0.34
+                c_prob = 0.94
         elif key in ("OP10", "OP10_ESCORT"):
-            # Coordinated carrier + active escort: escort agent interposes between
-            # carrier and nearest enemy instead of sitting perpendicular. Focus on
-            # offense with screening. Low deception; escort stays committed.
+            # Adaptive escort breaker: split pressure when blue stacks escort.
             attacker_style = 1
             defender_style = 0
             role_switch_prob = 0.04
-            d_low, d_high = 0.02, 0.08
-            c_prob = 0.90
+            d_low, d_high = 0.04, 0.12
+            c_prob = 0.92
             sync_c_low, sync_c_high = 2, 5
             sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.03
+            n_low, n_high = 0.0, 0.04
             if n_agents >= 8:
                 s_low, s_high = 0.82, 0.98
                 c_prob = 0.78
             elif n_agents >= 4:
                 s_low, s_high = 0.96, 1.12
-                d_low, d_high = 0.03, 0.10
-                c_prob = 0.88
+                d_low, d_high = 0.05, 0.14
+                c_prob = 0.90
             else:
-                s_low, s_high = 0.90, 1.08
+                s_low, s_high = 1.20, 1.25
+                d_low, d_high = 0.10, 0.24
+                c_prob = 0.94
         elif key in ("OP11", "OP11_BT_BALANCED"):
-            # Behavior-tree adaptive opponent (OP11): uses full BT brain with dynamic
-            # role switching (attacker/defender/escort/interceptor/counter).
-            # Balanced aggression/defense mix. Moderate coordination, moderate deception
-            # so the BT can express diverse strategies.
+            # Adaptive balanced anti-meta: lane prediction + emergency collapse.
             attacker_style = 1
             defender_style = 1
-            role_switch_prob = 0.30   # BT handles most switching internally; this
-                                       # governs the classic guardian→striker fallback.
-            d_low, d_high = 0.08, 0.22
-            c_prob = 0.55
+            role_switch_prob = 0.30
+            d_low, d_high = 0.10, 0.26
+            c_prob = 0.62
             sync_c_low, sync_c_high = 2, 6
             sync_nc_low, sync_nc_high = 1, 4
-            n_low, n_high = 0.0, 0.04
+            n_low, n_high = 0.0, 0.05
             if n_agents >= 8:
                 s_low, s_high = 0.74, 0.90
                 c_prob = 0.38
@@ -411,35 +408,36 @@ def sample_batched_opponent_params(
                 sync_nc_low, sync_nc_high = 1, 3
             elif n_agents >= 4:
                 s_low, s_high = 0.88, 1.06
-                d_low, d_high = 0.10, 0.26
-                c_prob = 0.60
+                d_low, d_high = 0.12, 0.28
+                c_prob = 0.65
                 sync_c_low, sync_c_high = 2, 6
                 sync_nc_low, sync_nc_high = 2, 5
             else:
-                s_low, s_high = 0.84, 1.02
+                s_low, s_high = 1.20, 1.25
+                d_low, d_high = 0.10, 0.24
+                c_prob = 0.94
+                role_switch_prob = 0.06
         elif key in ("OP12", "OP12_COUNTER"):
-            # Behavior-tree counter-capture specialist (OP12): whenever intercept is
-            # infeasible the BT immediately switches to capturing the enemy flag rather
-            # than chasing the blue carrier. Forces PPO to learn to defend own flag
-            # before attacking. Very low deception; decision variety comes from the BT
-            # rather than random parameter perturbation.
+            # Adaptive counter-capture: punishes blue overcommit on enemy half.
             attacker_style = 1
             defender_style = 1
-            role_switch_prob = 0.06   # BT-internal role pivots handle most switching.
-            d_low, d_high = 0.02, 0.10
-            c_prob = 0.80
+            role_switch_prob = 0.06
+            d_low, d_high = 0.04, 0.14
+            c_prob = 0.84
             sync_c_low, sync_c_high = 2, 5
             sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.03
+            n_low, n_high = 0.0, 0.04
             if n_agents >= 8:
                 s_low, s_high = 0.76, 0.92
                 c_prob = 0.65
             elif n_agents >= 4:
                 s_low, s_high = 0.90, 1.08
-                d_low, d_high = 0.03, 0.12
-                c_prob = 0.82
+                d_low, d_high = 0.05, 0.16
+                c_prob = 0.86
             else:
-                s_low, s_high = 0.86, 1.04
+                s_low, s_high = 1.20, 1.25
+                d_low, d_high = 0.10, 0.24
+                c_prob = 0.94
         elif key == "OP4":
             # Held-out eval opponent: never used in training. Make it deliberately broad and
             # stochastic so robustness matters more than memorizing one scripted style.

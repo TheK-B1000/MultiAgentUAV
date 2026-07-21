@@ -1,0 +1,11 @@
+condition,opponent,map_layout,n_episodes,return_mean,return_std,success_rate,initial_z_dist
+current_switching_learned,OP10,map_b_split_lane,10,-5.066725845783367,3.0939592168417307,0.0,"{""1"": 10}"
+current_switching_learned,OP8,map_b_split_lane,10,-4.546695279542473,2.918411332835932,0.0,"{""1"": 10}"
+fixed_z2,OP10,map_b_split_lane,10,-3.8566876571712783,2.820778190256194,0.0,"{""-1"": 10}"
+fixed_z2,OP8,map_b_split_lane,10,-3.4596530980954414,2.458044238583146,0.0,"{""-1"": 10}"
+learned_initial_no_switch,OP10,map_b_split_lane,10,-5.066725845783367,3.0939592168417307,0.0,"{""1"": 10}"
+learned_initial_no_switch,OP8,map_b_split_lane,10,-4.546695279542473,2.918411332835932,0.0,"{""1"": 10}"
+shuffled_episode_assignment,OP10,map_b_split_lane,10,-5.066725845783367,3.0939592168417307,0.0,"{""-1"": 10}"
+shuffled_episode_assignment,OP8,map_b_split_lane,10,-4.546695279542473,2.918411332835932,0.0,"{""-1"": 10}"
+uniform_episode_persistent,OP10,map_b_split_lane,10,-4.619699499866693,2.462889133706374,0.0,"{""2"": 10}"
+uniform_episode_persistent,OP8,map_b_split_lane,10,-2.991977723306627,1.9361297121086367,0.0,"{""2"": 10}"

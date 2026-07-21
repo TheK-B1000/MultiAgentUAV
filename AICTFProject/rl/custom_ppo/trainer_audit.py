@@ -125,11 +125,29 @@ def log_plan_faithful_audit(trainer: "CustomPPOTrainer") -> None:
         "kl_consecutive": float(getattr(cfg, "latent_kl_consecutive", 0.0) or 0.0) > 0.0,
         "resample_on_flag": bool(getattr(cfg, "latent_resample_on_flag", False)),
         "fixed_latent_strategy": bool(getattr(cfg, "fixed_latent_strategy", False)),
+        "contract_specialist_rewards": bool(
+            getattr(cfg, "latent_contract_specialist_enabled", False)
+        ),
     }
-    print(
-        "[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, "
-        "no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels."
-    )
+    contract_on = bool(getattr(cfg, "latent_contract_specialist_enabled", False))
+    if contract_on:
+        contract_coef = float(getattr(cfg, "latent_contract_specialist_coef", 0.0) or 0.0)
+        contract_clip = float(getattr(cfg, "latent_contract_specialist_clip", 0.0) or 0.0)
+        print(
+            "[PPO] Contract-specialist diagnostic scaffold: ON "
+            f"(coef={contract_coef:.3f}, clip={contract_clip:.3f}); "
+            "handcrafted z-role reward contracts are active for repertoire birth. "
+            "Do not label this run paper-faithful or Summer-faithful."
+        )
+        print(
+            "[PPO] Latent safety audit: no supervised router labels, no opponent-ID heads, "
+            "no Gumbel-Softmax, no VAE losses."
+        )
+    else:
+        print(
+            "[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, "
+            "no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels."
+        )
     extras_on = [name for name, on in optional.items() if on]
     if extras_on:
         print(

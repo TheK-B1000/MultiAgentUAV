@@ -25,6 +25,14 @@ class BehaviorContrastResult:
     active: int
 
 
+@dataclass
+class OutcomeDiversityResult:
+    bonus: torch.Tensor
+    distance: float
+    count: int
+    active: int
+
+
 class BehaviorContrastMemory:
     """EMA centroids for behavior embeddings keyed by label-free context bucket."""
 
@@ -143,4 +151,99 @@ class BehaviorContrastMemory:
             self._counts[key] = torch.as_tensor(value, dtype=torch.long, device=self.device)
 
 
-__all__ = ["BehaviorContrastMemory", "BehaviorContrastResult"]
+class OutcomeDiversityMemory:
+    """EMA outcome centroids keyed by label-free context bucket.
+
+    This memory tracks only generic terminal outcome scalars such as score
+    margin. It never consumes behavior-role metrics and never assigns semantic
+    meanings to z indices.
+    """
+
+    def __init__(
+        self,
+        *,
+        latent_k: int,
+        ema: float = 0.9,
+        margin: float = 1.0,
+        device: torch.device | str = "cpu",
+    ) -> None:
+        self.latent_k = max(1, int(latent_k))
+        self.ema = min(max(float(ema), 0.0), 0.999)
+        self.margin = max(float(margin), 1e-6)
+        self.device = torch.device(device)
+        self._means: dict[int, torch.Tensor] = {}
+        self._counts: dict[int, torch.Tensor] = {}
+
+    def _ensure_bucket(self, bucket_id: int) -> tuple[torch.Tensor, torch.Tensor]:
+        key = int(bucket_id)
+        if key not in self._means:
+            self._means[key] = torch.zeros((self.latent_k,), dtype=torch.float32, device=self.device)
+            self._counts[key] = torch.zeros((self.latent_k,), dtype=torch.long, device=self.device)
+        return self._means[key], self._counts[key]
+
+    def score_and_update(
+        self,
+        *,
+        bucket_id: int,
+        z: int,
+        outcome: torch.Tensor | float,
+        coef: float,
+    ) -> OutcomeDiversityResult:
+        """Return bounded outcome-separation bonus, then update z's EMA."""
+        z_idx = max(0, min(int(z), self.latent_k - 1))
+        means, counts = self._ensure_bucket(int(bucket_id))
+        outcome_t = torch.as_tensor(outcome, dtype=torch.float32, device=self.device).reshape(())
+
+        other_mask = counts > 0
+        other_mask[z_idx] = False
+        if bool(other_mask.any().item()):
+            other = means[other_mask]
+            distances = torch.abs(other - outcome_t)
+            distance = distances.mean()
+            bounded = torch.clamp(distance, max=self.margin)
+            bonus = float(max(coef, 0.0)) * bounded
+            distance_f = float(distance.detach().cpu().item())
+            active = 1
+        else:
+            bonus = torch.zeros((), dtype=torch.float32, device=self.device)
+            distance_f = 0.0
+            active = 0
+
+        if int(counts[z_idx].detach().cpu().item()) <= 0:
+            means[z_idx] = outcome_t
+        else:
+            means[z_idx] = self.ema * means[z_idx] + (1.0 - self.ema) * outcome_t
+        counts[z_idx] += 1
+        return OutcomeDiversityResult(
+            bonus=bonus,
+            distance=distance_f,
+            count=1,
+            active=active,
+        )
+
+    def state_dict(self) -> dict[str, Any]:
+        return {
+            "latent_k": self.latent_k,
+            "ema": self.ema,
+            "margin": self.margin,
+            "means": {int(k): v.detach().cpu() for k, v in self._means.items()},
+            "counts": {int(k): v.detach().cpu() for k, v in self._counts.items()},
+        }
+
+    def load_state_dict(self, state: dict[str, Any]) -> None:
+        self._means.clear()
+        self._counts.clear()
+        for raw_key, value in dict(state.get("means", {})).items():
+            key = int(raw_key)
+            self._means[key] = torch.as_tensor(value, dtype=torch.float32, device=self.device)
+        for raw_key, value in dict(state.get("counts", {})).items():
+            key = int(raw_key)
+            self._counts[key] = torch.as_tensor(value, dtype=torch.long, device=self.device)
+
+
+__all__ = [
+    "BehaviorContrastMemory",
+    "BehaviorContrastResult",
+    "OutcomeDiversityMemory",
+    "OutcomeDiversityResult",
+]

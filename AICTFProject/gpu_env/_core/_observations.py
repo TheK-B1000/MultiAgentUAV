@@ -29,6 +29,7 @@ from .._constants import (
     VEC_OBS_DIM,
 )
 from .._episode_payload import _build_episode_result_payload
+from .._maps import MAP_B_SPLIT_LANE
 
 
 class _ObservationsMixin:
@@ -292,12 +293,14 @@ class _ObservationsMixin:
             target_mask = torch.zeros_like(mask[:, :, self.cfg.n_macros :])
             target_mask.scatter_(2, commit_target.unsqueeze(-1), 1.0)
             mask[:, :, self.cfg.n_macros :] = torch.where(committed.unsqueeze(-1), target_mask, mask[:, :, self.cfg.n_macros :])
-        if self.map_layout == "map_b_split_lane" and bool(self.obstacle_active.any().item()):
+        v1_env_mask = self._map_layout_mask((MAP_B_SPLIT_LANE,))
+        if bool(v1_env_mask.any().item()) and bool(self.obstacle_active.any().item()):
             target_x = self._macro_targets[:, 0].reshape(1, -1).expand(self.B, -1)
             target_y = self._macro_targets[:, 1].reshape(1, -1).expand(self.B, -1)
             if side == "red":
                 target_x = self._mirror_x(target_x, side)
             blocked_targets = self._points_in_obstacles(target_x, target_y)
+            blocked_targets = blocked_targets & v1_env_mask[:, None]
             if blocked_targets.any():
                 target_slice = mask[:, :, self.cfg.n_macros :]
                 target_slice = torch.where(blocked_targets[:, None, :], torch.zeros_like(target_slice), target_slice)

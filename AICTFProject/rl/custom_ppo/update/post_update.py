@@ -297,6 +297,7 @@ class PostUpdatePipeline:
         stats.update(strategy_experience_stats)
         stats.update(refresh_log_stats)
         stats.update(latent_state.behavior_contrast_rollout_stats())
+        stats.update(latent_state.outcome_diversity_rollout_stats())
         stats.update(latent_state.event_refresh_rollout_stats())
         stats.update(latent_state.sparse_tactical_refresh_rollout_stats())
         if hparams.use_latent_strategy and "z_forced" in buffer.fields:

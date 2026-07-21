@@ -1,0 +1,22 @@
+{
+  "N": 600,
+  "selected_z": 1,
+  "correlation_online_vs_oracle": 0.7887697667300954,
+  "sign_agreement": 0.5916666666666667,
+  "wrong_sign_fraction": 0.4083333333333333,
+  "quartile_mean_online": {
+    "Q1": -6.993806838989258,
+    "Q2": -2.008484363555908,
+    "Q3": -1.0229054689407349,
+    "Q4": -0.7348875999450684
+  },
+  "critic_calibration_corr": 0.0007246817855760154,
+  "critic_best_z_agree": 0.28,
+  "mean_V_spread_across_z": 0.11410535126924515,
+  "mean_return_spread_across_z": 6.070732116699219,
+  "mean_V_oracle_vs_selected": -0.0524885319173336,
+  "oracle_selected_advantage_mean": 0.01495075412094593,
+  "oracle_selected_advantage_std": 2.914135456085205,
+  "online_proxy_mean": -2.690021276473999,
+  "online_proxy_std": 3.591245174407959
+}

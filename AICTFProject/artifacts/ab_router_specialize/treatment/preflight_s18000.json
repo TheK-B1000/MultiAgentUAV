@@ -1,0 +1,202 @@
+{
+  "checkpoint": "artifacts/ab_router_specialize/treatment/final_treatment.zip",
+  "base_seed": 18000,
+  "episodes_per_cell": 8,
+  "n_episodes": 48,
+  "n_decisions": 230,
+  "argmax_z_histogram": {
+    "3": 230
+  },
+  "distinct_z_values": [
+    3
+  ],
+  "global_distinct_episode_signatures_by_length": 8,
+  "per_cell": [
+    {
+      "opponent": "OP10",
+      "map": "map_b",
+      "episodes": 8,
+      "distinct_signatures": 4,
+      "example_signatures": [
+        [
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "opponent": "OP10",
+      "map": "map_b_split_lane_v2",
+      "episodes": 8,
+      "distinct_signatures": 6,
+      "example_signatures": [
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "opponent": "OP8",
+      "map": "map_b",
+      "episodes": 8,
+      "distinct_signatures": 4,
+      "example_signatures": [
+        [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "opponent": "OP8",
+      "map": "map_b_split_lane_v2",
+      "episodes": 8,
+      "distinct_signatures": 5,
+      "example_signatures": [
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "opponent": "OP9",
+      "map": "map_b",
+      "episodes": 8,
+      "distinct_signatures": 4,
+      "example_signatures": [
+        [
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      ]
+    },
+    {
+      "opponent": "OP9",
+      "map": "map_b_split_lane_v2",
+      "episodes": 8,
+      "distinct_signatures": 3,
+      "example_signatures": [
+        [
+          3,
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3
+        ],
+        [
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      ]
+    }
+  ],
+  "cross_episode": {
+    "can_reassign": true,
+    "cell_count": 6,
+    "reassignable_episode_count": 48,
+    "reassigned_episode_count": 33,
+    "non_constant_episode_count": 0,
+    "episode_histogram_preserved": true
+  },
+  "cross_episode_gate_untestable": true,
+  "recommendation": "STOP: cross-episode shuffle is untestable. The learned router emitted only z-value(s) [3] across every decision (non_constant_episode_count=0); there is no contextual z-variation to shuffle. Any 'distinct signatures' differ only in episode length, so the shuffle is an identity permutation. The full behavioral exam cannot prove contextual routing.",
+  "corrected_note": "The initial auto-recommendation (PROCEED) was a false positive: can_reassign=True and length-distinct signatures were driven purely by differing episode lengths of an all-z3 policy, not by genuine z-value variation. Corrected gate requires >=2 distinct z VALUES."
+}

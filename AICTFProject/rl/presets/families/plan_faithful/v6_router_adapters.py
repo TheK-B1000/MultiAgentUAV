@@ -284,6 +284,202 @@ def apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg: PPOConf
     return cfg
 
 
+def apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 treatment: arc-credit with running_mean baseline, BPTT PPO disabled.
+
+    A/B counterpart to ``v6i9_mapaware_router_sparse_hardpool`` (control).
+    Identical in every way EXCEPT the router credit channel:
+
+    Control:
+        latent_strategy_ppo_coef=0.10  (actor-GAE BPTT PPO active)
+        latent_arc_credit_enabled=False
+
+    Treatment (this preset):
+        latent_strategy_ppo_coef=0.0   (actor-GAE BPTT PPO disabled)
+        latent_arc_credit_enabled=True
+        latent_arc_credit_baseline="running_mean"
+
+    Motivation from credit audit (2026-07-02):
+    - Actor-GAE critic overestimates V(s_0) by +2.71 units on average.
+    - RouterSequenceUpdater normalization is per-chunk over 1-2 decisions;
+      for single-decision chunks (>50% of all chunks with strategy_interval=32)
+      normalization is disabled entirely by the numel>1 guard.
+    - The +2.705 offset therefore survives into the PPO loss for most updates,
+      producing chronically negative advantages and 41% sign flips.
+    - Arc credit with running_mean baseline auto-centers advantages (EMA tracks
+      actual game returns), removing the absolute bias without changing any
+      other hyperparameter.
+
+    BPTT path still contributes entropy and persistence regularization
+    (router_ent_coef * ent_loss + latent_lam_p * persist_loss); only the
+    PPO term (router_ppo_coef * ppo_loss) is zeroed.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_router_sparse_hardpool(cfg)
+    # Disable actor-GAE PPO from BPTT (the source of the biased credit).
+    cfg.latent_strategy_ppo_coef = 0.0
+    # Enable arc-level consequence credit with auto-centering baseline.
+    cfg.latent_arc_credit_enabled = True
+    cfg.latent_arc_credit_baseline = "running_mean"
+    cfg.latent_arc_credit_coef = 1.0   # default; full arc-credit gradient weight
+    cfg.latent_arc_credit_min_len = 8   # accept shorter terminal arcs (vs default 32)
+    cfg.run_tag = "v6i9_arc_credit_running_mean_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i9_arc_credit_specialize_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I9 specialization treatment: arc-credit + reduced conditional entropy + marginal coverage.
+
+    Builds on ``v6i9_arc_credit_running_mean_hardpool`` (arc credit fixed, BPTT PPO
+    disabled) and adds two entropy-balance changes to break near-tie argmax collapse:
+
+    1. ``router_ent_coef`` reduced from 0.005 -> 0.001
+       Weaker conditional entropy pressure allows the router to develop
+       context-specific preferences rather than staying near-uniform everywhere.
+
+    2. ``latent_lam_h`` enabled at 0.01 (marginal coverage)
+       KL(q_bar || Uniform) penalty ensures all four z values remain globally
+       used, preventing the router from dropping entire latents even as it
+       becomes more confident within individual contexts.
+
+    Diagnosis motivating this preset (2026-07-03):
+    - Training softmax entropy: 1.374 / 1.386 max -- near-uniform at all times.
+    - Eval argmax collapses to z=3 (85%) + z=1 (15%); z=0 and z=2 never selected.
+    - Cross-episode shuffle gate vacuous: can_reassign=False because every
+      episode draws from the same two-latent universe.
+    - Root cause: router_ent_coef=0.005 keeps H(z|context) near maximum,
+      preventing per-context confidence. latent_lam_h=0.0 means no marginal
+      coverage gradient.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_arc_credit_running_mean_hardpool(cfg)
+    cfg.router_ent_coef = 0.001
+    cfg.latent_lam_h = 0.01
+    # ``latent_entropy_mode`` is the field the runtime entropy path
+    # (rl/custom_ppo/update/entropy_objectives.py) and the audit banner
+    # actually read; ``h_mode`` is a legacy alias with no consumer in the
+    # entropy path. Setting only ``h_mode`` leaves the marginal-coverage loss
+    # OFF and turns ``latent_lam_h`` into a CONDITIONAL entropy-maximization
+    # term (pushes q_phi toward uniform per context) — the exact opposite of
+    # this preset's intent. Set the runtime field. The rollout-level marginal
+    # aggregation contract (AGENTS.md §"Aggregation contract") is honored
+    # because ``latent_entropy_mode == "marginal"`` routes through
+    # ``rollout_marginal_entropy_loss``.
+    cfg.latent_entropy_mode = "marginal"
+    cfg.h_mode = "marginal"
+    # The arc-credit parent zeroes ``latent_entropy_objective`` (it disables the
+    # main-loop strategy PPO term). The marginal-coverage path additionally
+    # requires an active objective (``h_goal != "none"``), so re-enable it to
+    # MAXIMIZE marginal entropy H(q_bar) — i.e. keep all four latents globally
+    # used — matching the canonical marginal preset v5i6.
+    cfg.latent_entropy_objective = "maximize"
+    cfg.run_tag = "v6i9_arc_credit_specialize_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """V6I9 treatment: feedforward router + running-mean arc credit (A/B vs feedforward control).
+
+    Direct A/B counterpart to ``v6i9_mapaware_router_feedforward_hardpool``
+    (the control).  The router architecture, 35-dim context, strategy_interval,
+    learning rate, entropy coefficient, opponent/map pool, frozen actor +
+    z-specific parameters, seed, and training budget are held IDENTICAL to the
+    control.  The ONLY resolved-config deltas (verified by
+    ``tests/test_v6i9_arc_credit_feedforward.py``) are:
+
+        latent_arc_credit_enabled  : False -> True
+        latent_arc_credit_baseline : context_value -> running_mean
+        latent_strategy_ppo_coef   : 0.1   -> 0.0
+        run_tag                    : ...   -> arc-credit tag
+
+    Scientific rationale (credit audit, 2026-07-02)
+    ----------------------------------------------
+    The control routes q_phi credit through the main-loop strategy PPO term
+    scaled by ``latent_strategy_ppo_coef`` using ``router_advantages`` =
+    ``router_return - V_critic``.  The critic overestimates V(s_0) by ~+2.71
+    units, and because most single-decision chunks skip the per-chunk
+    advantage normalization (the ``numel > 1`` guard), that constant +2.705
+    bias survives into the PPO loss, producing chronically negative advantages
+    and ~41% sign flips.
+
+    This treatment REPLACES that channel: it zeroes ``latent_strategy_ppo_coef``
+    (removing the biased critic advantage) and enables arc-level consequence
+    credit with a detached running-mean baseline (an EMA over completed arc
+    returns, no V dependency).  The EMA auto-centers advantages, removing the
+    absolute bias without touching any architectural hyperparameter.
+
+    ``latent_arc_credit_min_len`` is left at the control default (32) so only
+    full strategy-interval arcs contribute to the PPO batch.  The BPTT/main
+    entropy and persistence regularizers are unaffected (only the PPO term is
+    zeroed); q_phi's learning signal now flows exclusively through
+    ``apply_arc_strategy_ppo``.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg)
+    # Remove the biased critic-based router advantage (the "magnet").
+    cfg.latent_strategy_ppo_coef = 0.0
+    # Enable arc-level consequence credit with an auto-centering EMA baseline.
+    cfg.latent_arc_credit_enabled = True
+    cfg.latent_arc_credit_baseline = "running_mean"
+    cfg.latent_arc_credit_coef = 1.0  # control default; explicit for clarity
+    cfg.run_tag = "v6i9_arc_credit_running_mean_feedforward_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool(
+    cfg: PPOConfig,
+) -> PPOConfig:
+    """V6I10: feedforward episode router over the frozen v6i9 repertoire.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i10_episode_router_explore_hardpool.
+    Parent preset: v6i9_mapaware_router_feedforward_hardpool.
+    Classification: SUMMER-COMPATIBLE EXTENSION.
+    Research question: can a one-decision-per-episode feedforward router learn
+    useful dispatch over the validated frozen repertoire before adding history
+    encoders, dynamic switching, or opponent-response models?
+
+    Delta table vs parent:
+        Actor conditioning: residual adapters remain frozen, intended change no.
+        Router task PPO: on -> off, intended change yes.
+        Episode credit: running-mean arc credit on one episode-long arc, intended
+        change yes.
+        Arc credit: off -> running_mean, intended change yes.
+        Forced-z schedule: off, intended change no.
+        Persistence: 0.02 -> 0.0, intended change yes.
+        Entropy: conditional -> marginal coverage, intended change yes.
+        Resampling: interval 32 -> episode-start only, intended change yes.
+        Exploration: 0.0 -> 0.20 behavior mixture, intended change yes.
+
+    This is not a paper-faithful row: it changes cadence, credit aggregation,
+    entropy strength, and behavior-policy exploration. It remains label-free:
+    no opponent IDs, oracle z labels, supervised best-z targets, aux heads, or
+    forced-z curriculum are added.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg)
+    cfg.latent_resample_every_n = 0
+    cfg.strategy_interval = 0
+    cfg.latent_lam_p = 0.0
+    cfg.latent_strategy_ppo_coef = 0.0
+    cfg.latent_arc_credit_enabled = True
+    cfg.latent_arc_credit_baseline = "running_mean"
+    cfg.latent_arc_credit_coef = 1.0
+    cfg.latent_arc_credit_min_len = 1
+    cfg.learning_rate = 1e-4
+    cfg.router_ent_coef = 0.002
+    cfg.router_uniform_exploration_prob = 0.20
+    cfg.latent_lam_h = 0.015
+    cfg.latent_lam_h_end = 0.015
+    cfg.latent_entropy_anneal_start = 0
+    cfg.latent_entropy_anneal_end = 0
+    cfg.latent_entropy_mode = "marginal"
+    cfg.h_mode = "marginal"
+    cfg.latent_entropy_objective = "maximize"
+    cfg.experiment_id = "v6i10"
+    cfg.run_tag = "v6i10_episode_router_explore_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
 def apply_plan_faithful_latent_v6i9_mapaware_router_feedforward_hardpool(cfg: PPOConfig) -> PPOConfig:
     """V6I9 Stage 3 feedforward — state-only MLP router over frozen repertoire.
 
@@ -360,4 +556,822 @@ def apply_plan_faithful_latent_v6i9_mapaware_nav_refinement(cfg: PPOConfig) -> P
     cfg.learning_rate = 5e-5
     cfg.experiment_id = "v6i9"
     cfg.run_tag = "v6i9_mapaware_nav_refinement_splitlane_OP8_OP9_OP10_200k"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i11_q_router_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I11 — contextual Q-value return router over the frozen v6i9 repertoire.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i11_q_router_hardpool.
+    Parent preset: v6i10_episode_router_explore_hardpool (episode-persistent,
+    feedforward, arc == episode, validated one-decision-per-episode contract).
+    Classification: SUMMER-COMPATIBLE EXTENSION (context enrichment + off-policy
+    value regression; label-free — targets are online experienced returns).
+
+    Research question: can a SEPARATE return-prediction model learn
+    ``context + selected z -> expected EPISODE return`` from online exploratory
+    data, cleanly separating "estimate which latent has higher value" (Q-router)
+    from "execute the selected latent" (frozen actor)?  This side-steps the
+    policy-gradient credit problem that repeatedly turned tiny logit biases into
+    one-latent argmax collapse (v6i9/v6i10).
+
+    Target-horizon contract (2026-07-03 correction)
+    ------------------------------------------------
+    The validated complementarity (Probe A, forced-z oracle, +2.37 oracle gap)
+    is defined on EPISODE-PERSISTENT forced-z EPISODE return: "which z is best
+    for the whole episode?".  An earlier draft of this preset inherited the
+    cadence-32 recurrent lineage (``strategy_interval=32``,
+    ``latent_resample_every_n=32``, ``latent_arc_credit_min_len=32``), which
+    made each arc a ~32-step MID-EPISODE segment and changed the learning target
+    to "which z produced the best LOCAL arc return?".  Those two targets need
+    not agree (a latent may pay a short-term cost for a better eventual capture),
+    so the diagnostic would not have measured the validated task.
+
+    This preset therefore inherits v6i10's episode-persistent contract so that:
+        * exactly one routing decision per episode (resample only at episode start),
+        * ``global_state_0`` in each arc record IS the episode-start context,
+        * ``arc_return`` IS the total episode return (min_len == 1, one arc/episode).
+    That matches Probe A and the forced-z oracle exactly.
+
+    Key changes vs v6i10_episode_router_explore_hardpool
+    ----------------------------------------------------
+    * ``latent_arc_credit_coef = 0.0``     — the internal router is NOT updated
+                                              from arc records; arc records are
+                                              collected purely as data for the
+                                              EXTERNAL Q-regressor.
+    * ``router_ent_coef = 0.0``            — no entropy pressure on the router.
+    * ``latent_lam_h = 0.0`` / ``latent_lam_h_end = 0.0`` — no marginal-entropy
+                                              pressure (v6i10 used 0.015).
+    * ``latent_strategy_ppo_coef = 0.0``   — BPTT PPO disabled (already 0).
+    * ``router_uniform_exploration_prob = 0.5`` — 50 % uniform z / 50 % router
+                                              argmax so every (opponent, z) cell
+                                              gets samples.
+    * ``latent_arc_credit_enabled = True`` — arc records still collected.
+    Inherited unchanged from v6i10: episode-persistent resampling
+    (``strategy_interval=0``, ``latent_resample_every_n=0``), feedforward router,
+    ``latent_arc_credit_min_len=1`` (arc == episode), frozen actor + adapters.
+
+    The Q-regressor is EXTERNAL to the PPO trainer: it is instantiated in the
+    experiment script (``experiments/run_v6i11_q_router.py``) and trained from
+    ``trainer.latent_state.rollout_strategy_arc_records`` after each rollout.
+    The router context adds a 3-way opponent one-hot to the 35-d geometry; this
+    is an observed INPUT feature, not opponent-identity SUPERVISION.
+
+    What FLAT does and does not mean
+    --------------------------------
+    A flat Q-router does NOT re-open the question of repertoire diversity — that
+    was already established by counterfactual actor-logit differences, forced-z
+    behavioural separation, and the +2.37 oracle gap.  FLAT here means "no usable
+    value separation was learned under THIS dataset, target horizon, context, and
+    training budget" — i.e. the current Q-learning formulation failed to resolve
+    the latents, not that the latents do not differ.  See the verdict semantics
+    in ``experiments/run_v6i11_q_router.py``.
+    """
+    cfg = apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool(cfg)
+    # Internal router receives NO gradient; all routing credit goes to the
+    # external Q-regressor.  Arc records are still collected as its training data.
+    cfg.latent_arc_credit_coef = 0.0
+    cfg.router_ent_coef = 0.0
+    cfg.latent_lam_p = 0.0
+    cfg.latent_lam_h = 0.0
+    cfg.latent_lam_h_end = 0.0
+    cfg.latent_strategy_ppo_coef = 0.0
+    # Episode-persistent contract (arc == episode) is inherited from v6i10:
+    #   latent_resample_every_n = 0, strategy_interval = 0, latent_arc_credit_min_len = 1.
+    cfg.latent_arc_credit_enabled = True
+    # 50 % uniform exploration so every (opponent, z) cell gets adequate samples.
+    cfg.router_uniform_exploration_prob = 0.5
+    cfg.experiment_id = "v6i11"
+    cfg.run_tag = "v6i11_q_router_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i12_advantage_router_hardpool(cfg: PPOConfig) -> PPOConfig:
+    """V6I12 — paired-advantage router: V(context) baseline + A(context, z) residual.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i12_advantage_router_hardpool.
+    Parent preset: v6i11_q_router_hardpool (same arc collection infrastructure).
+    Classification: SUMMER-COMPATIBLE EXTENSION (same frozen-actor, label-free
+    training; only the EXTERNAL regressor changes from Q to V+A pair).
+
+    Research question: does subtracting a context-specific baseline V(context)
+    from the normalized episode return reveal reliable latent-advantage signal?
+    V6I11 used raw paired Q targets, which still carry ~2.6–3.9 std of
+    episode-level variance across opponents and episodes.  V(context) absorbs
+    that component; A(context, z) = normalized_return - stopgrad(V(context))
+    is the latent residual.
+
+    Double-centering (in the external regressor, not the trainer):
+      1. Global: norm_ret = (return - batch_mean) / (batch_std + eps)
+      2. Context: a_target = norm_ret - stopgrad(V(context))
+    Route: argmax_z A(context, z)
+
+    Verdict pass condition (two requirements):
+      * advantage gap CI excludes zero for ≥2 opponents
+      * gap ≥ spread_threshold (default 0.05; lower than Q-router because
+        advantages are V-centered, compressing the raw return scale)
+    Held-out gate (required before promotion):
+      * A-router > cross-episode-shuffled-A-router (decisive)
+      * then A-router > uniform and approaches/beats fixed_z2
+
+    Key changes vs v6i11_q_router_hardpool
+    ---------------------------------------
+    * Experiment script: ``experiments/run_v6i12_advantage_router.py``
+    * External model: ContextualVBaseline + AdvantageRouter (``rl/router/advantage_router.py``)
+    * Trainer-side: IDENTICAL to v6i11 (arc collection unchanged)
+    Trainer settings inherited unchanged:
+      * latent_arc_credit_enabled = True
+      * router_uniform_exploration_prob = 0.5
+      * strategy_interval = 0, latent_resample_every_n = 0
+      * latent_arc_credit_min_len = 1 (arc == episode)
+      * latent_arc_credit_coef = 0.0 (internal router no-op)
+      * router_ent_coef = latent_lam_p = latent_lam_h = latent_strategy_ppo_coef = 0.0
+    """
+    cfg = apply_plan_faithful_latent_v6i11_q_router_hardpool(cfg)
+    cfg.experiment_id = "v6i12"
+    cfg.run_tag = "v6i12_advantage_router_hardpool_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i13_opening_window_advantage_router(cfg: PPOConfig) -> PPOConfig:
+    """V6I13: delayed-commit opening-window advantage router.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i13_opening_window_advantage_router.
+    Parent preset: v6i12_advantage_router_hardpool.
+    Classification: SUMMER-COMPATIBLE EXTENSION.
+    Research question: does waiting 32 decision steps, then routing on an
+    opening-window summary, produce a more learnable latent-advantage signal
+    than choosing from the thin episode-start context?
+
+    Key changes vs v6i12
+    --------------------
+    * ``latent_episode_strategy_warmup_decision_steps = 32``: q_phi commits
+      after observing the opening.
+    * ``router_warmup_uniform_z = True``: the pre-commit latent is sampled
+      uniformly so no z receives a hidden default advantage.
+    * ``router_arc_post_commit_only = True``: arc records open at commit, so
+      ``arc_return`` is post-commit return, not full episode return.
+    * ``router_opening_context_mode = "initial_commit_delta"``: finalized arc
+      records carry ``opening_context = [state_0, state_commit, delta]`` for
+      the external V/A diagnostic.
+
+    The internal router PPO remains disabled exactly as in v6i12; the external
+    diagnostic learns only from online sampled returns. No labels, opponent-ID
+    supervision head, forced-z oracle target, hindsight best-z target, auxiliary
+    task, or actor training is added.
+    """
+    cfg = apply_plan_faithful_latent_v6i12_advantage_router_hardpool(cfg)
+    cfg.latent_episode_strategy_warmup_decision_steps = 32
+    cfg.router_warmup_uniform_z = True
+    cfg.router_arc_post_commit_only = True
+    cfg.router_opening_context_mode = "initial_commit_delta"
+    cfg.experiment_id = "v6i13"
+    cfg.run_tag = "v6i13_opening_window_advantage_router_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i14_contract_specialists(cfg: PPOConfig) -> PPOConfig:
+    """V6I14: contract-specialist repertoire birth.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i14_contract_specialists.
+    Parent preset: v6i9_mapaware_repertoire_hardpool.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can explicit temporary z-indexed behavioral contracts
+    create real reusable specialists before router training resumes?
+
+    This intentionally breaks the no-handcrafted-role boundary. It is not a
+    paper-faithful row and should not be used for Summer-faithful claims.
+
+    Contract map:
+      z0: opening pressure toward enemy flag.
+      z1: home defense / enemy-carrier pressure recovery.
+      z2: friendly-carrier escort and support.
+      z3: carrier conversion / closeout progress.
+
+    Router is off during this phase. z is assigned by balanced episodes,
+    shared actor trunk remains frozen by the v6i9 repertoire stage, and the
+    z-specific adapters / embeddings / biases learn under normal env reward
+    plus a small contract scaffold.
+    """
+    cfg = apply_plan_faithful_latent_v6i9_mapaware_repertoire_hardpool(cfg)
+    cfg.latent_contract_specialist_enabled = True
+    cfg.latent_contract_specialist_coef = 0.25
+    cfg.latent_contract_specialist_clip = 1.0
+    cfg.experiment_id = "v6i14"
+    cfg.run_tag = "v6i14_contract_specialists_OP8_OP9_OP10"
+    return cfg
+
+
+def _apply_v6i15_contract_pressure(
+    cfg: PPOConfig,
+    *,
+    multiplier: int,
+    suffix: str,
+) -> PPOConfig:
+    cfg = apply_plan_faithful_latent_v6i14_contract_specialists(cfg)
+    cfg.latent_contract_specialist_coef = 0.25 * float(multiplier)
+    cfg.experiment_id = "v6i15"
+    cfg.run_tag = f"v6i15_contract_pressure_{suffix}_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg: PPOConfig) -> PPOConfig:
+    """V6I15A: contract-pressure diagnostic, 3x contract coefficient.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i15_contract_pressure_3x.
+    Parent preset: v6i14_contract_specialists.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can the current frozen-shared-trunk, z-specific
+    pathway express distinct behavior when the role contract is made loud?
+
+    Delta table vs v6i14:
+      Reward changed: yes, contract coefficient 0.25 -> 0.75.
+      Actor architecture changed: no.
+      Router objective changed: no; router remains off.
+      Exploration schedule changed: no; balanced_episode remains active.
+      Supervision added: no new labels beyond the inherited handcrafted
+      z-role contract scaffold.
+
+    This is the first pressure arm. If behavior fingerprints do not move
+    under 3x/6x/10x, the next diagnostic is z-specific capacity or feature
+    design, not router training.
+    """
+    return _apply_v6i15_contract_pressure(cfg, multiplier=3, suffix="3x")
+
+
+def apply_plan_faithful_latent_v6i15_contract_pressure_6x(cfg: PPOConfig) -> PPOConfig:
+    """V6I15A: contract-pressure diagnostic, 6x contract coefficient."""
+    return _apply_v6i15_contract_pressure(cfg, multiplier=6, suffix="6x")
+
+
+def apply_plan_faithful_latent_v6i15_contract_pressure_10x(cfg: PPOConfig) -> PPOConfig:
+    """V6I15A: contract-pressure diagnostic, 10x contract coefficient."""
+    return _apply_v6i15_contract_pressure(cfg, multiplier=10, suffix="10x")
+
+
+def _apply_v6i16_capacity_knobs(cfg: PPOConfig) -> None:
+    cfg.latent_z_gate_init = 0.08
+    cfg.latent_actor_z_adapter_enabled = True
+    cfg.latent_actor_z_adapter_scale = 0.10
+    cfg.latent_actor_z_adapter_init_std = 0.05
+    cfg.latent_actor_z_film_layers = 1
+
+
+def apply_plan_faithful_latent_v6i16_sharp_contracts(cfg: PPOConfig) -> PPOConfig:
+    """V6I16A: sharp contract-feature diagnostic with current z capacity.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i16_sharp_contracts.
+    Parent preset: v6i15_contract_pressure_3x.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can sharper role contracts force behavior separation when
+    the current z pathway is held fixed?
+
+    Delta table vs v6i15 3x:
+      Reward changed: yes, contract variant base -> sharp.
+      Actor architecture changed: no.
+      Router objective changed: no; router remains off.
+      Exploration schedule changed: no; balanced_episode remains active.
+      Supervision added: no new external labels; the handcrafted contract
+      scaffold is sharper and remains diagnostic-only.
+    """
+    cfg = apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg)
+    cfg.latent_contract_specialist_variant = "sharp"
+    cfg.experiment_id = "v6i16"
+    cfg.run_tag = "v6i16_sharp_contracts_3x_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i16_capacity(cfg: PPOConfig) -> PPOConfig:
+    """V6I16B: z-pathway capacity diagnostic with base contracts.
+
+    Tests whether stronger z-specific actor leverage helps when the reward
+    contract is held at the best v6i15 pressure level.
+    """
+    cfg = apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg)
+    _apply_v6i16_capacity_knobs(cfg)
+    cfg.experiment_id = "v6i16"
+    cfg.run_tag = "v6i16_capacity_3x_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i16_capacity_sharp_contracts(cfg: PPOConfig) -> PPOConfig:
+    """V6I16C: z-pathway capacity plus sharp contract features.
+
+    This is the combined diagnostic arm. It should be judged only by forced-z
+    behavioral fingerprints and role ownership metrics, not by saturated win
+    rate. Router training remains blocked.
+    """
+    cfg = apply_plan_faithful_latent_v6i15_contract_pressure_3x(cfg)
+    _apply_v6i16_capacity_knobs(cfg)
+    cfg.latent_contract_specialist_variant = "sharp"
+    cfg.experiment_id = "v6i16"
+    cfg.run_tag = "v6i16_capacity_sharp_contracts_3x_OP8_OP9_OP10"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I17A: surface-pressure diagnostic over the v6i16 combined scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i17_surface_pressure_diagnostic.
+    Parent preset: v6i16_capacity_sharp_contracts.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can specialists separate when the environment surface
+    creates role tradeoffs that the current OP8/OP9/OP10 surface did not?
+
+    Delta table vs v6i16 combined:
+      Opponent surface changed: yes, OP8/OP9/OP10 -> OP8/OP9/OP10/OP11/OP12.
+      Reward contract changed: no, sharp 3x contracts are inherited.
+      Actor z capacity changed: no, v6i16 capacity knobs are inherited.
+      Router objective changed: no; router remains off.
+      Exploration schedule changed: no; balanced_episode remains active.
+
+    This is not a router row. Promotion requires forced-z behavior, margin,
+    tempo, or role-fingerprint separation on the harder/asymmetric surface.
+    """
+    cfg = apply_plan_faithful_latent_v6i16_capacity_sharp_contracts(cfg)
+    cfg.opponent_pool = ("OP8", "OP9", "OP10", "OP11", "OP12")
+    cfg.opponent_pool_weights = ()
+    cfg.experiment_id = "v6i17"
+    cfg.run_tag = "v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I18A: margin/tempo consequence surface over the v6i17 scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i18_margin_tempo_surface_diagnostic.
+    Parent preset: v6i17_surface_pressure_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can specialists separate when the task grades margin,
+    tempo, enemy pressure allowed, and near-cap conversion instead of only
+    binary win/loss?
+
+    Delta table vs v6i17:
+      Horizon changed: yes, 400 -> 240 decision steps.
+      Consequence surface changed: yes, default-off margin/tempo pressure terms.
+      Opponent surface changed: no, OP8..OP12 inherited.
+      Reward contract changed: no, sharp 3x contracts are inherited.
+      Actor z capacity changed: no, v6i16 capacity knobs are inherited.
+      Router objective changed: no; router remains off.
+    """
+    cfg = apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic(cfg)
+    cfg.max_decision_steps = 240
+    cfg.env_stalemate_max_steps = 80
+    cfg.env_surface_score_margin_coef = 0.15
+    cfg.env_surface_blue_capture_tempo_bonus = 0.25
+    cfg.env_surface_red_flag_touch_penalty = 0.20
+    cfg.env_surface_red_carrier_progress_penalty = 0.025
+    cfg.env_surface_blue_near_cap_bonus = 0.015
+    cfg.experiment_id = "v6i18"
+    cfg.run_tag = "v6i18_margin_tempo_surface_OP8_OP9_OP10_OP11_OP12"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I19: per-episode map pool over the v6i18 margin/tempo surface scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i19_map_pool_surface_diagnostic.
+    Parent preset: v6i18_margin_tempo_surface_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can z-specialists separate when opponent x map context
+    creates real layout-driven role tradeoffs?
+
+    Delta table vs v6i18:
+      map_pool changed: yes, uniform per-episode sample over validated layouts.
+      Consequence surface changed: no, inherited from v6i18.
+      Contract / z-capacity / router / shared-actor freeze: unchanged.
+    """
+    cfg = apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic(cfg)
+    cfg.map_pool = ("map_b", "map_b_split_lane_v2")
+    cfg.map_layout = "map_b"
+    cfg.experiment_id = "v6i19"
+    cfg.run_tag = "v6i19_map_pool_surface_diagnostic_OP8_OP9_OP10_OP11_OP12"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic(cfg: PPOConfig) -> PPOConfig:
+    """V6I20A: asymmetric consequence pressure over the v6i19 map-pool scaffold.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i20_asymmetry_handicap_surface_diagnostic.
+    Parent preset: v6i19_map_pool_surface_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: can z-specialists separate when the arena makes enemy
+    progress and slow conversion more expensive, creating tradeoffs that one
+    generalist behavior may not satisfy cleanly?
+
+    Delta table vs v6i19:
+      map_pool / opponents changed: no, OP8..OP12 x two layouts inherited.
+      Contract / z-capacity / router / shared-actor freeze: unchanged.
+      Horizon / stalemate changed: no, v6i18/v6i19 timing surface inherited.
+      Consequence asymmetry changed: yes, stronger enemy-pressure penalties and
+      stronger blue tempo / near-cap conversion pressure.
+    """
+    cfg = apply_plan_faithful_latent_v6i19_map_pool_surface_diagnostic(cfg)
+    cfg.env_surface_blue_capture_tempo_bonus = 0.45
+    cfg.env_surface_red_flag_touch_penalty = 0.50
+    cfg.env_surface_red_carrier_progress_penalty = 0.075
+    cfg.env_surface_blue_near_cap_bonus = 0.035
+    cfg.experiment_id = "v6i20"
+    cfg.run_tag = "v6i20_asymmetry_handicap_surface_OP8_OP9_OP10_OP11_OP12"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21: adaptive OP8-OP12 hardpool calibration fork over v6i20.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21_adaptive_op8_op12_hardpool_calibration.
+    Parent preset: v6i20_asymmetry_handicap_surface_diagnostic.
+    Classification: DIAGNOSTIC (non-Summer scaffold).
+    Research question: after upgrading OP8-OP12 in-place to adaptive hardpool v2,
+    does blue WR fall into the 35-65% calibration band against strong checkpoints?
+
+    Delta table vs v6i20:
+      opponent_pool / map_pool / surface / contract / router: unchanged.
+      OP8-OP12 behavior: upgraded in engine code (``_bt_adaptive.py``), not via
+      new opponent IDs. Pre-v6i21 OP8-OP12 results are not directly comparable.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic(cfg)
+    cfg.experiment_id = "v6i21"
+    cfg.run_tag = "v6i21_adaptive_op8_op12_hardpool_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21c_adaptive_hardpool_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21C: denial / physical-pressure calibration fork over v6i21.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21c_adaptive_hardpool_denial_calibration.
+    Parent preset: v6i21_adaptive_op8_op12_hardpool_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21B failed saturation gates, does stronger
+    denial (predictive intercept, collapse locks, physical pressure) break
+    blue WR below 90% without PPO retraining?
+
+    Delta table vs v6i21:
+      OP8-OP12 denial tuning lives in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``, ``_step.py``, ``_rules.py``).
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21_adaptive_op8_op12_hardpool_calibration(cfg)
+    cfg.experiment_id = "v6i21c"
+    cfg.run_tag = "v6i21c_adaptive_hardpool_denial_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21D: brutal denial upper-bound calibration fork over v6i21C.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21d_adaptive_hardpool_brutal_denial_calibration.
+    Parent preset: v6i21c_adaptive_hardpool_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: can OP8-OP12 be made physically/adaptively hard enough
+    to break the v6i9 blue generalist's saturated win rate at all?
+
+    Delta table vs v6i21C:
+      OP8-OP12 brutal denial tuning lives in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``, ``_dynamics.py``,
+      ``_step.py``, ``_rules.py``).
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21c_adaptive_hardpool_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21d"
+    cfg.run_tag = "v6i21d_adaptive_hardpool_brutal_denial_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21e_targeted_denial_balance_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21E: targeted denial balance calibration fork over v6i21D.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21e_targeted_denial_balance_calibration.
+    Parent preset: v6i21d_adaptive_hardpool_brutal_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21D smoke showed OP9/OP12 in-band but OP8/OP10/OP11
+    still saturated, can targeted per-opponent hardening balance the 10-cell grid
+    without over-tightening OP9/OP12?
+
+    Delta table vs v6i21D:
+      OP8/OP10/OP11 targeted tuning lives in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``). OP9/OP12 unchanged.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21d_adaptive_hardpool_brutal_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21e"
+    cfg.run_tag = "v6i21e_targeted_denial_balance_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21f_op8_carrier_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21F: OP8-only carrier denial calibration fork over v6i21E.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21f_op8_carrier_denial_calibration.
+    Parent preset: v6i21e_targeted_denial_balance_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21E smoke showed OP9/OP12 in-band but OP8 still
+    saturated with rising red scores and blue still at 3.0, can OP8 become a pure
+    carrier-hunter / cap-lane denial monster without touching OP9-OP12?
+
+    Delta table vs v6i21E:
+      OP8-only denial tuning in engine code (``_bt_adaptive.py``,
+      ``_bt_profiles.py``, ``opponent_params.py``). OP9-OP12 unchanged.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21e_targeted_denial_balance_calibration(cfg)
+    cfg.experiment_id = "v6i21f"
+    cfg.run_tag = "v6i21f_op8_carrier_denial_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21G: easy-cell conversion denial calibration fork over v6i21F.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21g_easy_cell_conversion_denial_calibration.
+    Parent preset: v6i21f_op8_carrier_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after v6i21F failed to move OP8 and left OP10/OP11
+    saturated, can targeted cap-lane body blocking and conversion-denial geometry
+    reduce the remaining easy cells while preserving OP9/OP12 pressure?
+
+    Delta table vs v6i21F:
+      OP8/OP10/OP11 route/profile/2v2 dynamics tuning lives in engine code
+      (``_bt_adaptive.py``, ``_bt_profiles.py``, ``opponent_params.py``).
+      OP9/OP12 unchanged. experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21f_op8_carrier_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21g"
+    cfg.run_tag = "v6i21g_easy_cell_conversion_denial_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21H: saturation fix using calibrated surrogate opponent shapes.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21h_saturation_surrogate_calibration.
+    Parent preset: v6i21g_easy_cell_conversion_denial_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after OP8/OP10/OP11 bespoke denial geometry failed, can
+    the remaining saturated cells be fixed by reusing the calibrated OP9/OP12
+    pressure shapes instead of adding more geometry?
+
+    Delta table vs v6i21G:
+      OP8 profile/dynamics are moved to OP9-like fortress pressure.
+      OP10/OP11 profile/dynamics are moved to OP12-like counter pressure.
+      Failed OP8/OP10/OP11 bespoke adaptive route overrides are disabled.
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration(cfg)
+    cfg.experiment_id = "v6i21h"
+    cfg.run_tag = "v6i21h_saturation_surrogate_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21I: OP8 extreme physical upper-bound calibration.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21i_op8_extreme_physical_calibration.
+    Parent preset: v6i21h_saturation_surrogate_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: can OP8 break saturation at all if blue carrier speed is
+    crushed and OP8 red gets explicit physical overdrive?
+
+    Delta table vs v6i21H:
+      OP8-only physical pressure lives in engine code (``_step.py``,
+      ``_bt_adaptive.py``, ``opponent_params.py``).
+      experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration(cfg)
+    cfg.experiment_id = "v6i21i"
+    cfg.run_tag = "v6i21i_op8_extreme_physical_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i21j_hardpool_balance_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21J: OP8/OP10/OP11 hardpool balance calibration.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21j_hardpool_balance_calibration.
+    Parent preset: v6i21i_op8_extreme_physical_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after OP8 broke saturation at 70-80% WR, can a balanced
+    OP8/OP10/OP11 physical-pressure pass bring the hardpool closer to the
+    repertoire-birth target without changing OP9/OP12?
+
+    Delta table vs v6i21I:
+      OP8 physical pressure is slightly increased; OP10/OP11 receive targeted
+      carrier slowdown and red overdrive in engine code (``_step.py``,
+      ``_bt_adaptive.py``). experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration(cfg)
+    cfg.experiment_id = "v6i21j"
+    cfg.run_tag = "v6i21j_hardpool_balance_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg: PPOConfig) -> PPOConfig:
+    """V6I22: label-free repertoire birth on the calibrated adaptive hardpool.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22_adaptive_hardpool_repertoire_birth.
+    Parent preset: v6i21j_hardpool_balance_calibration.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: can balanced, episode-persistent z exposure under the
+    calibrated OP8-OP12 hardpool produce forced-z behavioral separation without
+    handcrafted z-role contracts or router training?
+
+    Delta table vs v6i21J:
+      Router objective changed: no router training; forced episodes are excluded.
+      Exploration schedule changed: balanced_episode is held active.
+      Reward changed: contract-specialist rewards are explicitly OFF.
+      Supervision added: no labels, no opponent-ID head, no oracle-z targets.
+      Actor architecture changed: no new V6I22 architecture; inherited v6i16
+      z-capacity scaffold remains a v6 extension.
+
+    This is the Summer-compatible version of the repertoire-birth fork: z has
+    no coded semantics. Promotion requires forced-z fingerprints, not natural
+    rollout telemetry and not router performance.
+    """
+    cfg = apply_plan_faithful_latent_v6i21j_hardpool_balance_calibration(cfg)
+    cfg.latent_assignment_mode = "balanced_episode"
+    cfg.train_router_when_forced = False
+    cfg.train_router_critic_when_forced = False
+    cfg.v6i9_training_stage = "repertoire"
+    cfg.latent_contract_specialist_enabled = False
+    cfg.latent_contract_specialist_coef = 0.0
+    cfg.latent_contract_specialist_variant = "base"
+    cfg.experiment_id = "v6i22"
+    cfg.run_tag = "v6i22_adaptive_hardpool_repertoire_birth_OP8_OP9_OP10_OP11_OP12"
+    return cfg
+
+
+def _apply_v6i22b_behavior_diversity(cfg: PPOConfig, *, coef: float, suffix: str) -> PPOConfig:
+    cfg = apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg)
+    cfg.latent_behavior_contrast_coef = float(coef)
+    cfg.latent_behavior_contrast_margin = 0.06
+    cfg.latent_behavior_contrast_ema = 0.9
+    cfg.latent_behavior_contrast_anneal_after_steps = 0
+    cfg.latent_behavior_contrast_anneal_to = 0.0
+    cfg.experiment_id = f"v6i22b_{suffix}"
+    cfg.run_tag = (
+        "v6i22b_context_behavior_diversity_"
+        f"{suffix}_OP8_OP9_OP10_OP11_OP12"
+    )
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i22b_context_behavior_diversity(cfg: PPOConfig) -> PPOConfig:
+    """V6I22B: label-free context-conditioned behavior anti-collapse.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22b_context_behavior_diversity.
+    Parent preset: v6i22_adaptive_hardpool_repertoire_birth.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: can a small label-free behavior-diversity reward turn
+    V6I22's forced-z consequence differences into stronger forced-z behavior
+    fingerprints without contracts or router training?
+
+    Delta table vs v6i22:
+      Router objective changed: no, router remains off.
+      Exploration schedule changed: no, balanced_episode is preserved.
+      Reward changed: yes, a success-gated behavior-contrast reward is active.
+      Supervision added: no strategy labels, no roles, no oracle best-z targets.
+      Actor architecture changed: no new architecture; inherited v6 scaffold.
+
+    Runtime contract: behavior contrast is computed from trajectory telemetry,
+    keyed by opponent x map at episode terminal, and only successful episodes
+    update or receive the bonus. The signal says only "do not collapse into the
+    same trajectory signature"; it does not assign semantics to z indices.
+    """
+    return _apply_v6i22b_behavior_diversity(cfg, coef=0.03, suffix="coef003")
+
+
+def apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef001(cfg: PPOConfig) -> PPOConfig:
+    """V6I22B coefficient-sweep arm: behavior diversity coefficient 0.01."""
+    return _apply_v6i22b_behavior_diversity(cfg, coef=0.01, suffix="coef001")
+
+
+def apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef005(cfg: PPOConfig) -> PPOConfig:
+    """V6I22B coefficient-sweep arm: behavior diversity coefficient 0.05."""
+    return _apply_v6i22b_behavior_diversity(cfg, coef=0.05, suffix="coef005")
+
+
+def _apply_v6i22d_strong_behavior_diversity(cfg: PPOConfig, *, coef: float, suffix: str) -> PPOConfig:
+    cfg = apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg)
+    cfg.latent_behavior_contrast_coef = float(coef)
+    cfg.latent_behavior_contrast_margin = 0.06
+    cfg.latent_behavior_contrast_ema = 0.9
+    cfg.latent_behavior_contrast_anneal_after_steps = 0
+    cfg.latent_behavior_contrast_anneal_to = 0.0
+    cfg.experiment_id = f"v6i22d_{suffix}"
+    cfg.run_tag = (
+        "v6i22d_strong_behavior_diversity_"
+        f"{suffix}_OP8_OP9_OP10_OP11_OP12"
+    )
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i22d_strong_behavior_diversity(cfg: PPOConfig) -> PPOConfig:
+    """V6I22D: stronger label-free behavior-diversity repertoire birth.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22d_strong_behavior_diversity.
+    Parent preset: v6i22_adaptive_hardpool_repertoire_birth.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: after V6I22B (coef <= 0.05) and V6I22C failed the
+    forced-z behavior birth gate, can stronger behavior-contrast pressure push
+    z branches apart on the birth-gate fingerprint metrics without contracts or
+    router training?
+
+    Delta table vs v6i22:
+      Router objective changed: no, router remains off.
+      Exploration schedule changed: no, balanced_episode is preserved.
+      Reward changed: yes, a stronger success-gated behavior-contrast reward
+      is active.
+      Supervision added: no strategy labels, no roles, no oracle best-z targets.
+      Actor architecture changed: no new architecture; inherited v6 scaffold.
+
+    Runtime contract: same trajectory-fingerprint behavior contrast as V6I22B,
+    keyed by opponent x map at episode terminal, success-only updates. The
+    coefficient sweep targets the previously untested 0.10 arm plus a paired
+    0.05 control (already evaluated under V6I22B naming).
+    """
+    return _apply_v6i22d_strong_behavior_diversity(cfg, coef=0.10, suffix="coef010")
+
+
+def apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005(cfg: PPOConfig) -> PPOConfig:
+    """V6I22D coefficient-sweep arm: behavior diversity coefficient 0.05."""
+    return _apply_v6i22d_strong_behavior_diversity(cfg, coef=0.05, suffix="coef005")
+
+
+def apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity(cfg: PPOConfig) -> PPOConfig:
+    """V6I22C: label-free context-conditioned outcome diversity.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22c_contextual_outcome_diversity.
+    Parent preset: v6i22_adaptive_hardpool_repertoire_birth.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: can stronger generic outcome-diversity credit separate
+    forced-z branches under the calibrated adaptive hardpool without z-role
+    contracts, role-specific rewards, oracle targets, or router training?
+
+    Delta table vs v6i22:
+      Router objective changed: no, router remains off.
+      Exploration schedule changed: no, balanced_episode is preserved.
+      Reward changed: yes, a success-gated terminal outcome-diversity reward
+      is active.
+      Supervision added: no strategy labels, no roles, no oracle best-z targets.
+      Actor architecture changed: no new architecture; inherited v6 scaffold.
+
+    Runtime contract: outcome diversity is computed from generic terminal
+    score margin, keyed by opponent x map at episode terminal, and only
+    successful episodes update or receive the bonus. The signal says only that
+    z branches should not collapse to identical context-conditioned outcome
+    distributions. It never maps z indices to strategic roles.
+    """
+    cfg = apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg)
+    cfg.latent_outcome_diversity_coef = 0.03
+    cfg.latent_outcome_diversity_margin = 1.0
+    cfg.latent_outcome_diversity_ema = 0.9
+    cfg.latent_outcome_diversity_success_only = True
+    cfg.experiment_id = "v6i22c_coef003"
+    cfg.run_tag = "v6i22c_contextual_outcome_diversity_coef003_OP8_OP9_OP10_OP11_OP12"
     return cfg

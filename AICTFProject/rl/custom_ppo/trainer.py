@@ -32,7 +32,7 @@ from rl.custom_ppo.communication.observation import extend_observation_space_if_
 from rl.custom_ppo.communication.runtime import CommRolloutRuntime
 from rl.custom_ppo.curriculum_runtime import TrainingOpponentPool
 from rl.custom_ppo.episode_stats import EpisodeStats
-from rl.custom_ppo.latent_behavior_contrast import BehaviorContrastMemory
+from rl.custom_ppo.latent_behavior_contrast import BehaviorContrastMemory, OutcomeDiversityMemory
 from rl.custom_ppo.latent.state import LatentStrategyState
 from rl.custom_ppo.ppo_updater import PPOUpdater
 from rl.custom_ppo.return_normalization import ReturnNormalizer
@@ -312,16 +312,34 @@ class CustomPPOTrainer:
                 min_count=hparams.latent_q_phi_bucket_baseline_min_count,
             )
         self.latent_behavior_contrast: Optional[BehaviorContrastMemory] = None
+        latent_assignment_mode = str(
+            getattr(hparams, "latent_assignment_mode", getattr(self.cfg, "latent_assignment_mode", "router"))
+            or "router"
+        )
+        contrast_balanced_assignment = latent_assignment_mode in {"balanced_episode", "balanced_arc"}
         if (
             hparams.use_latent_strategy
             and not hparams.fixed_latent_strategy
             and hparams.latent_behavior_contrast_coef > 0.0
-            and hparams.latent_forced_z_episode_frac > 0.0
+            and (hparams.latent_forced_z_episode_frac > 0.0 or contrast_balanced_assignment)
         ):
             self.latent_behavior_contrast = BehaviorContrastMemory(
                 latent_k=hparams.latent_k,
                 ema=hparams.latent_behavior_contrast_ema,
                 margin=hparams.latent_behavior_contrast_margin,
+                device=self.device,
+            )
+        self.latent_outcome_diversity: Optional[OutcomeDiversityMemory] = None
+        if (
+            hparams.use_latent_strategy
+            and not hparams.fixed_latent_strategy
+            and hparams.latent_outcome_diversity_coef > 0.0
+            and (hparams.latent_forced_z_episode_frac > 0.0 or contrast_balanced_assignment)
+        ):
+            self.latent_outcome_diversity = OutcomeDiversityMemory(
+                latent_k=hparams.latent_k,
+                ema=hparams.latent_outcome_diversity_ema,
+                margin=hparams.latent_outcome_diversity_margin,
                 device=self.device,
             )
 

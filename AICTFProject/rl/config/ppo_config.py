@@ -82,6 +82,7 @@ class PPOConfig:
     max_decision_steps: int = 400
     map_set: str = "train"
     map_layout: str = "map_a_open"
+    map_pool: tuple[str, ...] = field(default_factory=tuple)
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
     # Uniform random scripted opponent per episode: either mode=OPPONENT_POOL or FIXED_OPPONENT + True.
@@ -112,6 +113,17 @@ class PPOConfig:
     router_allowed_latents: tuple[int, ...] = field(default_factory=tuple)
     router_freeze_actor: bool = False
     router_reinitialize_on_load: bool = False
+    # Training-only router behavior mixture:
+    #   p_train(z|s) = (1 - eps) * q_phi(z|s) + eps * Uniform(allowed z).
+    # Deterministic evaluation still uses q_phi directly.
+    router_uniform_exploration_prob: float = 0.0
+    # Delayed-commit router controls. Default-off so existing warmup users keep
+    # their current behavior. When enabled, the pre-commit latent is sampled
+    # uniformly, arc credit starts only at the warmup commit, and finalized arc
+    # records carry an opening summary for external V/A router diagnostics.
+    router_warmup_uniform_z: bool = False
+    router_arc_post_commit_only: bool = False
+    router_opening_context_mode: str = ""
 
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True
@@ -468,6 +480,13 @@ class PPOConfig:
     latent_behavior_contrast_ema: float = 0.9
     latent_behavior_contrast_anneal_after_steps: int = 0
     latent_behavior_contrast_anneal_to: float = 0.0
+    # Label-free outcome diversity for repertoire birth. Successful forced-z
+    # episodes can receive a bounded terminal bonus when their generic outcome
+    # scalar separates from other z outcome centroids in the same context bucket.
+    latent_outcome_diversity_coef: float = 0.0
+    latent_outcome_diversity_margin: float = 1.0
+    latent_outcome_diversity_ema: float = 0.9
+    latent_outcome_diversity_success_only: bool = True
     # v5i9 CSIA extension: detached reward feedback from frozen forced-z
     # evaluation evidence. Default-off so every existing preset reproduces
     # its original reward path unless a preset/CLI explicitly enables it.
@@ -610,6 +629,11 @@ class PPOConfig:
     env_reward_clip: Optional[float] = None
     env_stalemate_penalty: Optional[float] = None
     env_stalemate_max_steps: Optional[int] = None
+    env_surface_score_margin_coef: Optional[float] = None
+    env_surface_blue_capture_tempo_bonus: Optional[float] = None
+    env_surface_red_flag_touch_penalty: Optional[float] = None
+    env_surface_red_carrier_progress_penalty: Optional[float] = None
+    env_surface_blue_near_cap_bonus: Optional[float] = None
     # Optional trainer-side reward shaping decay: scales (offense+pbrs+team) contribution seen by PPO.
     reward_shaping_coef_start: float = 1.0
     reward_shaping_coef_end: float = 1.0
@@ -723,6 +747,14 @@ class PPOConfig:
     train_router_when_forced: bool = False
     # When True, continue updating the router critic target even during forced episodes.
     train_router_critic_when_forced: bool = False
+    # --- V6I14: Contract-specialist scaffold rewards ---
+    # Default-off z-indexed behavioral contracts used to birth recognizable
+    # specialists before routing. This is a post-Summer scaffold, not a
+    # paper-faithful latent objective.
+    latent_contract_specialist_enabled: bool = False
+    latent_contract_specialist_coef: float = 0.0
+    latent_contract_specialist_clip: float = 1.0
+    latent_contract_specialist_variant: str = "base"
 
     # --- V6I9: Multi-Stage Training ---
     # Controls which parameter groups are frozen at optimizer build time.

@@ -124,6 +124,16 @@ def build_train_parser() -> argparse.ArgumentParser:
         help="Load only model weights from a checkpoint, discarding the optimizer state. Useful when resuming with a different model structure.",
     )
     parser.add_argument(
+        "--router-reinitialize-on-load",
+        choices=("true", "false"),
+        default=None,
+        help=(
+            "Override the preset's router_reinitialize_on_load. Set 'false' to CONTINUE training a "
+            "router checkpoint (preserve learned router weights + optimizer state); set 'true' to reset "
+            "the router when warm-starting from a non-router checkpoint (repertoire anchor)."
+        ),
+    )
+    parser.add_argument(
         "--allow-active-actor-module-migration",
         action="store_true",
         help="Allow active actor-affecting modules (e.g. z_adapter, actor_z_film) to be discarded during compatibility load.",

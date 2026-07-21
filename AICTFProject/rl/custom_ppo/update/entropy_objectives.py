@@ -170,6 +170,33 @@ class EntropyObjective:
             stats,
         )
 
+    def feedforward_router_component(
+        self,
+        *,
+        strategy_entropy: torch.Tensor,
+        router_decision_mask: torch.Tensor,
+        router_ent_coef: float,
+        apply: bool,
+        zero_scalar: torch.Tensor,
+    ) -> LossComponent:
+        from rl.latent_losses import feedforward_router_entropy_loss
+
+        loss, stats = feedforward_router_entropy_loss(
+            strategy_entropy,
+            router_decision_mask,
+            router_ent_coef=float(router_ent_coef),
+            device=self.device,
+        )
+        if not apply:
+            loss = torch.zeros_like(loss)
+        return LossComponent(
+            name="feedforward_router_entropy",
+            scaled_loss=loss,
+            raw_value=loss.detach(),
+            active=bool(apply),
+            metrics=stats,
+        )
+
     def marginal_minibatch_component(
         self,
         epoch_state: RolloutEntropyState,

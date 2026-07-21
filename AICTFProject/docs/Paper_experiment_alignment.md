@@ -424,6 +424,209 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i22C / context-conditioned outcome diversity:** Added
+  `apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity`
+  (aliases `v6i22c`, `v6i22c_contextual_outcome_diversity`,
+  `v6i22c_outcome_diversity_coef003`, and long plan/latent aliases). The
+  preset is a `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. It
+  inherits V6I22's router-off, balanced-episode, contract-disabled
+  repertoire-birth scaffold and adds only a success-gated terminal
+  outcome-diversity reward keyed by opponent x map. The outcome scalar is
+  score margin, not a behavior-role metric. No handcrafted z-role mapping,
+  supervised labels, opponent-ID actor shortcut, oracle best-z targets, router
+  distillation, behavior-role rewards, or router training are added. Added
+  default-off `PPOConfig.latent_outcome_diversity_*` fields, runtime telemetry
+  `reward_outcome_diversity` and `latent_outcome_diversity_*`, focused tests
+  in `tests/test_v6i22c_contextual_outcome_diversity.py`, and extended
+  `tests/test_latent_behavior_contrast.py`.
+- **v6i22B / context-conditioned behavior diversity:** Added
+  `apply_plan_faithful_latent_v6i22b_context_behavior_diversity`
+  (aliases `v6i22b`, `v6i22b_context_behavior_diversity`,
+  `v6i22b_behavior_diversity_coef003`, and long plan/latent aliases) plus
+  coefficient sweep arms `v6i22b_coef001` and `v6i22b_coef005`. The preset is
+  a `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. It inherits
+  V6I22's router-off, balanced-episode, contract-disabled repertoire-birth
+  scaffold and adds only a small success-gated behavior-contrast reward keyed
+  by opponent x map at terminal. Balanced-episode z assignments now feed the
+  existing contrast ledger; failed episodes do not update centroids or receive
+  the bonus. No handcrafted z roles, supervised strategy labels, opponent-ID
+  actor shortcut, oracle best-z targets, router distillation, or router
+  training are added. Added focused tests in
+  `tests/test_v6i22b_context_behavior_diversity.py` and extended
+  `tests/test_latent_behavior_contrast.py`.
+- **v6i22 / label-free adaptive hardpool repertoire birth:** Added
+  `apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth`
+  (aliases `v6i22`, `v6i22_adaptive_hardpool_repertoire_birth`,
+  `v6i22_repertoire_birth`, and long plan/latent aliases) built directly
+  on `v6i21j_hardpool_balance_calibration`. The preset is a
+  `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row: it keeps the
+  v6 hardpool/staged-freeze/adapter scaffold but explicitly disables the
+  handcrafted contract-specialist reward (`latent_contract_specialist_enabled
+  = False`, `latent_contract_specialist_coef = 0.0`,
+  `latent_contract_specialist_variant = "base"`). Router training remains
+  off through balanced episode-level z assignment; no opponent-ID
+  supervision, oracle-z target, distillation, auxiliary label head, or
+  z-role contract is added. Added focused tests in
+  `tests/test_v6i22_adaptive_hardpool_repertoire_birth.py`; regenerated
+  `tests/preset_snapshots.json` for the five new aliases.
+- **v6i20 / asymmetry-handicap surface diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic`
+  as an asymmetric consequence-pressure diagnostic over v6i19. Classification:
+  `DIAGNOSTIC` non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The resolved diff vs
+  `v6i19_map_pool_surface_diagnostic` is exactly
+  `{env_surface_blue_capture_tempo_bonus, env_surface_blue_near_cap_bonus,
+  env_surface_red_carrier_progress_penalty, env_surface_red_flag_touch_penalty,
+  experiment_id, run_tag}`. Router training remains off, `balanced_episode` z
+  assignment remains active, OP8/OP9/OP10/OP11/OP12 and the two-layout map pool
+  stay active, and the inherited sharp 3x contract/capacity settings stay
+  unchanged. Added focused tests in
+  `tests/test_v6i20_asymmetry_handicap_surface.py` and regenerated
+  `tests/preset_snapshots.json`.
+- **v6i18 / margin-tempo surface diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i18_margin_tempo_surface_diagnostic` as a
+  consequence-surface diagnostic over v6i17. Classification: `DIAGNOSTIC`
+  non-Summer scaffold, not a paper-faithful row and not a Summer-compatible
+  extension. The resolved diff vs `v6i17_surface_pressure_diagnostic` is
+  exactly `{env_stalemate_max_steps, env_surface_blue_capture_tempo_bonus,
+  env_surface_blue_near_cap_bonus, env_surface_red_carrier_progress_penalty,
+  env_surface_red_flag_touch_penalty, env_surface_score_margin_coef,
+  experiment_id, max_decision_steps, run_tag}`. Router training remains off,
+  `balanced_episode` z assignment remains active, OP8/OP9/OP10/OP11/OP12 stay
+  active, and the inherited sharp 3x contract/capacity settings stay
+  unchanged. Added default-off reward-surface fields to `RewardConfig`,
+  matching `PPOConfig` overrides, env-factory forwarding, focused tests in
+  `tests/test_v6i18_margin_tempo_surface.py`, and regenerated
+  `tests/preset_snapshots.json`.
+- **v6i17 / surface-pressure diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i17_surface_pressure_diagnostic` as a
+  harder/asymmetric opponent-surface diagnostic over the v6i16 combined
+  capacity + sharp-contract scaffold. Classification: `DIAGNOSTIC`
+  non-Summer scaffold, not a paper-faithful row and not a Summer-compatible
+  extension. The resolved diff vs `v6i16_capacity_sharp_contracts` is exactly
+  `{experiment_id, opponent_pool, run_tag}`: the opponent pool expands from
+  OP8/OP9/OP10 to OP8/OP9/OP10/OP11/OP12 while router training remains off,
+  `balanced_episode` z assignment remains active, and the inherited sharp 3x
+  contract/capacity settings stay unchanged. Extended the training opponent
+  allowlist to preserve OP11/OP12 through validation. Added focused tests in
+  `tests/test_v6i17_surface_pressure_diagnostic.py` and regenerated
+  `tests/preset_snapshots.json`.
+- **v6i16 / capacity + sharp-contract diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i16_sharp_contracts`,
+  `apply_plan_faithful_latent_v6i16_capacity`, and
+  `apply_plan_faithful_latent_v6i16_capacity_sharp_contracts` as a
+  three-arm diagnostic over `v6i15_contract_pressure_3x`. Classification:
+  `DIAGNOSTIC` non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The sharp-contract arm changes exactly
+  `{experiment_id, latent_contract_specialist_variant, run_tag}`; the
+  capacity arm changes exactly `{experiment_id,
+  latent_actor_z_adapter_enabled, latent_actor_z_adapter_init_std,
+  latent_actor_z_adapter_scale, latent_z_gate_init, run_tag}`; the
+  combined arm changes the union of those fields. `v6i16` resolves to the
+  combined capacity + sharp-contract arm. Added default-off
+  `PPOConfig.latent_contract_specialist_variant`, added the `"sharp"`
+  contract reward variant, made `z_adapter` trainable in the repertoire
+  freeze allowlist when enabled, added focused tests in
+  `tests/test_v6i16_capacity_feature_ablation.py`, and regenerated
+  `tests/preset_snapshots.json`.
+- **v6i15 / contract-pressure coefficient sweep:** Registered
+  `apply_plan_faithful_latent_v6i15_contract_pressure_3x`,
+  `apply_plan_faithful_latent_v6i15_contract_pressure_6x`, and
+  `apply_plan_faithful_latent_v6i15_contract_pressure_10x` as direct
+  pressure arms over `v6i14_contract_specialists`. Classification:
+  `DIAGNOSTIC` non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The resolved diff vs v6i14 is exactly
+  `{experiment_id, latent_contract_specialist_coef, run_tag}`; the
+  coefficients are `0.75`, `1.50`, and `2.50`. `v6i15` and
+  `v6i15_contract_pressure` resolve to the 3x arm. Added focused tests in
+  `tests/test_v6i15_contract_pressure.py` and regenerated
+  `tests/preset_snapshots.json` for the new aliases.
+- **v6i14 / contract-specialist repertoire diagnostic:** Registered
+  `apply_plan_faithful_latent_v6i14_contract_specialists` (aliases
+  `v6i14`, `v6i14_contract_specialists`,
+  `v6i14_contract_specialist_repertoire`,
+  `latent_v6i14_contract_specialists`, and the long
+  `plan_faithful_latent_...` alias) built directly on
+  `v6i9_mapaware_repertoire_hardpool`. Classification: `DIAGNOSTIC`
+  non-Summer scaffold, not a paper-faithful row and not a
+  Summer-compatible extension. The resolved diff vs the repertoire parent
+  is exactly `{experiment_id, latent_contract_specialist_coef,
+  latent_contract_specialist_enabled, run_tag}`. The runtime now supports
+  default-off contract-specialist reward fields and stores the active bonus
+  as `reward_contract_specialist`. Added focused tests in
+  `tests/test_v6i14_contract_specialists.py`; regenerated
+  `tests/preset_snapshots.json` (adds five v6i14 aliases and three new
+  default-off `PPOConfig` fields to every snapshot entry).
+- **v6i13 / opening-window delayed-commit advantage-router extension:**
+  Registered
+  `apply_plan_faithful_latent_v6i13_opening_window_advantage_router`
+  (aliases `v6i13`, `v6i13_opening_window_advantage_router`,
+  `v6i13_opening_window`, `v6i13_advantage_router`,
+  `latent_v6i13_opening_window_advantage_router`, and the long
+  `plan_faithful_latent_...` alias) built directly on
+  `v6i12_advantage_router_hardpool`. Classification:
+  `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. The resolved
+  diff vs v6i12 is exactly
+  `{experiment_id, latent_episode_strategy_warmup_decision_steps,
+  router_arc_post_commit_only, router_opening_context_mode,
+  router_warmup_uniform_z, run_tag}`. The runtime now supports
+  default-off delayed-commit controls: uniform warmup z, post-commit-only
+  arc opening, and finalized arc records with
+  `opening_context = [state_0, state_commit, state_commit - state_0]`.
+  Added `experiments/run_v6i13_opening_window_advantage_router.py`,
+  focused tests in `tests/test_v6i13_opening_window_advantage_router.py`,
+  and regenerated `tests/preset_snapshots.json` (adds six v6i13 aliases
+  and the three new default-off `PPOConfig` fields to every snapshot
+  entry).
+- **v6i10 / episode-router exploration extension:** Registered
+  `apply_plan_faithful_latent_v6i10_episode_router_explore_hardpool`
+  (aliases `v6i10`, `v6i10_episode_router_explore_hardpool`,
+  `v6i10_episode_router_explore`,
+  `latent_v6i10_episode_router_explore_hardpool`, and the long
+  `plan_faithful_latent_...` alias) built directly on
+  `v6i9_mapaware_router_feedforward_hardpool`. Classification:
+  `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. The resolved
+  diff vs the feedforward parent is exactly
+  `{experiment_id, h_mode, latent_arc_credit_baseline,
+  latent_arc_credit_enabled, latent_arc_credit_min_len,
+  latent_entropy_anneal_end, latent_entropy_anneal_start,
+  latent_entropy_mode, latent_entropy_objective, latent_lam_h,
+  latent_lam_h_end, latent_lam_p, latent_resample_every_n,
+  latent_strategy_ppo_coef, learning_rate, router_ent_coef,
+  router_uniform_exploration_prob, run_tag, strategy_interval}`. The
+  preset holds one z for the whole episode, freezes the validated v6i9
+  repertoire, replaces critic-based router PPO with running-mean
+  episode arc credit, adds training-only 20 percent uniform exploration,
+  uses marginal coverage, and keeps labels/opponent IDs/oracle-z
+  supervision/aux heads/forced-z curriculum off. Added
+  `PPOConfig.router_uniform_exploration_prob`, wired behavior log-probs
+  through the same mixture used to sample z, added
+  `tests/test_v6i10_episode_router_explore.py`, and regenerated
+  `tests/preset_snapshots.json`.
+- **v6i9 feedforward running-mean arc-credit treatment (A/B):** Registered
+  `apply_plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`
+  (aliases `v6i9_arc_credit_running_mean_feedforward_hardpool`,
+  `v6i9_arc_credit_feedforward`, and the long `plan_faithful_latent_...`
+  alias) as the direct A/B treatment for the feedforward router control
+  `v6i9_mapaware_router_feedforward_hardpool`. Classification:
+  `SUMMER-COMPATIBLE EXTENSION` (arc credit is the documented v3i19
+  post-Summer channel; not a paper-faithful row). The resolved-config diff
+  vs the feedforward control is exactly four keys —
+  `latent_arc_credit_enabled` (False→True), `latent_arc_credit_baseline`
+  (context_value→running_mean), `latent_strategy_ppo_coef` (0.1→0.0, which
+  removes the biased critic-based router advantage), and `run_tag`. The
+  feedforward router architecture, 35-dim context, strategy interval,
+  learning rate, entropy coefficient, opponent/map pool, frozen actor +
+  z-specific parameters, seed, and training budget are held identical
+  (pinned by `tests/test_v6i9_arc_credit_feedforward.py`). Also added raw
+  (pre-normalization) arc-advantage telemetry
+  (`latent_arc_baseline_mean`, `latent_arc_raw_advantage_mean/std`,
+  `latent_arc_positive_fraction`, `latent_arc_running_mean_count/value`),
+  persisted the arc running-mean EMA in the latent checkpoint schema
+  (mirroring the macro channel), added the one-update smoke gate helper
+  `rl/custom_ppo/diagnostics/arc_credit_smoke.py` +
+  `experiments/run_arc_credit_treatment_smoke.py`, and regenerated
+  `tests/preset_snapshots.json`.
 - **v6i6 / evidence-gated repertoire expansion contract:** Registered
   `apply_plan_faithful_latent_v6i6_strategy_expansion` (aliases `v6i6`,
   `v6i6_strategy_expansion`, and long plan/latent aliases) built on

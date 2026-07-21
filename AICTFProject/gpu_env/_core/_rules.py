@@ -194,7 +194,17 @@ class _RulesMixin:
             self.blue_carrying[kill_blue] = False
         if kill_red.any():
             self.red_alive[kill_red] = False
-            self.red_respawn[kill_red] = 2.0
+            respawn_base = 2.0
+            if hasattr(self, "_adaptive_hardpool_pressure_mask"):
+                mult = float(getattr(self, "_RED_RESPAWN_MULT", 1.0))
+                env_t = torch.where(
+                    self._adaptive_hardpool_pressure_mask(),
+                    torch.full((self.B,), respawn_base * mult, device=self.device, dtype=self.red_respawn.dtype),
+                    torch.full((self.B,), respawn_base, device=self.device, dtype=self.red_respawn.dtype),
+                )
+                self.red_respawn = torch.where(kill_red, env_t[:, None], self.red_respawn)
+            else:
+                self.red_respawn[kill_red] = respawn_base
             self.red_speed[kill_red] = 0.0
             self.red_carrying[kill_red] = False
 

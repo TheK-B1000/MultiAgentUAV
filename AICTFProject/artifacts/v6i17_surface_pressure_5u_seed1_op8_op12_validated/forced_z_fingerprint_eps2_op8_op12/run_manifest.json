@@ -1,0 +1,275 @@
+{
+  "checkpoint": "artifacts\\v6i17_surface_pressure_5u_seed1_op8_op12_validated\\final_v6i17_surface_pressure_5u_seed1_op8_op12_validated_2v2.zip",
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
+  ],
+  "maps": [
+    "map_b",
+    "map_b_split_lane_v2"
+  ],
+  "latents": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "episodes_per_cell": 2,
+  "base_seed": 42,
+  "deterministic_actions": true,
+  "max_decision_steps": 400,
+  "device": "cuda",
+  "collect_behavior_mean": true,
+  "progress_every": 25,
+  "status": "completed",
+  "started_at_utc": "2026-07-04T17:33:36.982259+00:00",
+  "updated_at_utc": "2026-07-04T18:00:20.673475+00:00",
+  "pid": 58832,
+  "completed_conditions": [
+    {
+      "opponent": "OP8",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    }
+  ],
+  "completed_condition_count": 40,
+  "episode_count": 80
+}

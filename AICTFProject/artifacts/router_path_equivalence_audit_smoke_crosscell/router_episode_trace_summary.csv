@@ -1,0 +1,21 @@
+condition,condition_display,opponent,map,episode_seed,cell_seed,episode_index,initial_z,z_sequence,z_sequence_len,z_switches_at_opportunities,logged_switches,router_entropy_mean,return,score_margin,episode_length,strategy_switches,strategy_resamples,strategy_unique_count
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,0,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP8,map_b,1016020432,9100,1,2,2,1,0,0,nan,-6.693783697090112,2,180,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,0,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+fixed_z2,fixed_z2,OP9,map_b,337479914,10100,1,2,2,1,0,0,nan,-2.3076487706566695,2,110,0,0,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,0,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP8,map_b,1016020432,9100,1,1,1,1,0,0,1.384302574826596,-2.0947583149536513,2,99,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,0,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+uniform_episode_fixed,uniform_z_episode_fixed,OP9,map_b,337479914,10100,1,1,1,1,0,0,1.3844902910078414,-0.11179999710293487,3,93,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,0,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP8,map_b,1016020432,9100,1,0,0,1,0,0,1.384302574826596,-2.5691873488249257,2,156,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,0,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+qphi_initial_only_no_switch,learned_router_start_only,OP9,map_b,337479914,10100,1,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,0,0,0,1,0,0,1.3844902910078414,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP8,map_b,1016020432,9100,1,0,0,1,0,0,1.3844902910078414,-2.5691873488249257,2,156,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,0,0,0,1,0,0,1.3844902910078414,-0.8137571918196045,3,96,0,1,1
+shuffled_qphi_initial_only_no_switch,shuffled_router_start_only,OP9,map_b,337479914,10100,1,0,0,1,0,0,1.384302574826596,-0.8137571918196045,3,96,0,1,1
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,0,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP8,map_b,1016020432,9100,1,0,0 3 0 3,4,3,3,1.3851398122030871,-2.890362682257546,2,124,3,4,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,0,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2
+learned_qphi_switching,learned_router,OP9,map_b,337479914,10100,1,0,0 3 3,3,1,1,1.3854712879991498,-0.6316945978032891,3,90,1,3,2

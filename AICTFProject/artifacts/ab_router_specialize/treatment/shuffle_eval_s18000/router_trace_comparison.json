@@ -1,0 +1,112 @@
+{
+  "fixed_z2__vs__learned_qphi_switching": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.486269592314881,
+    "max_abs_return_delta": 16.860100723366486
+  },
+  "fixed_z2__vs__shuffled_qphi_cross_episode": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.486269592314881,
+    "max_abs_return_delta": 16.860100723366486
+  },
+  "fixed_z2__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 0,
+    "same_initial_z_fraction": 0.0,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 0,
+    "same_return_fraction": 0.0,
+    "mean_return_delta_left_minus_right": 0.486269592314881,
+    "max_abs_return_delta": 16.860100723366486
+  },
+  "fixed_z2__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 2,
+    "same_initial_z_fraction": 0.013333333333333334,
+    "same_z_sequence_count": 0,
+    "same_z_sequence_fraction": 0.0,
+    "same_return_count": 1,
+    "same_return_fraction": 0.006666666666666667,
+    "mean_return_delta_left_minus_right": 0.19019421503529885,
+    "max_abs_return_delta": 17.948542996688047
+  },
+  "learned_qphi_switching__vs__shuffled_qphi_cross_episode": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 150,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 150,
+    "same_z_sequence_fraction": 1.0,
+    "same_return_count": 150,
+    "same_return_fraction": 1.0,
+    "mean_return_delta_left_minus_right": 0.0,
+    "max_abs_return_delta": 0.0
+  },
+  "learned_qphi_switching__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 150,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 150,
+    "same_z_sequence_fraction": 1.0,
+    "same_return_count": 150,
+    "same_return_fraction": 1.0,
+    "mean_return_delta_left_minus_right": 0.0,
+    "max_abs_return_delta": 0.0
+  },
+  "learned_qphi_switching__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 145,
+    "same_initial_z_fraction": 0.9666666666666667,
+    "same_z_sequence_count": 144,
+    "same_z_sequence_fraction": 0.96,
+    "same_return_count": 1,
+    "same_return_fraction": 0.006666666666666667,
+    "mean_return_delta_left_minus_right": -0.2960753772795821,
+    "max_abs_return_delta": 15.141482495411765
+  },
+  "shuffled_qphi_cross_episode__vs__shuffled_qphi_outputs": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 150,
+    "same_initial_z_fraction": 1.0,
+    "same_z_sequence_count": 150,
+    "same_z_sequence_fraction": 1.0,
+    "same_return_count": 150,
+    "same_return_fraction": 1.0,
+    "mean_return_delta_left_minus_right": 0.0,
+    "max_abs_return_delta": 0.0
+  },
+  "shuffled_qphi_cross_episode__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 145,
+    "same_initial_z_fraction": 0.9666666666666667,
+    "same_z_sequence_count": 144,
+    "same_z_sequence_fraction": 0.96,
+    "same_return_count": 1,
+    "same_return_fraction": 0.006666666666666667,
+    "mean_return_delta_left_minus_right": -0.2960753772795821,
+    "max_abs_return_delta": 15.141482495411765
+  },
+  "shuffled_qphi_outputs__vs__uniform_random_at_router_opportunities": {
+    "n_matched_episodes": 150,
+    "same_initial_z_count": 145,
+    "same_initial_z_fraction": 0.9666666666666667,
+    "same_z_sequence_count": 144,
+    "same_z_sequence_fraction": 0.96,
+    "same_return_count": 1,
+    "same_return_fraction": 0.006666666666666667,
+    "mean_return_delta_left_minus_right": -0.2960753772795821,
+    "max_abs_return_delta": 15.141482495411765
+  }
+}

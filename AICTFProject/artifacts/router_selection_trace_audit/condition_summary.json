@@ -1,0 +1,46 @@
+{
+  "learned_router": {
+    "condition": "learned_qphi_switching",
+    "selection_mode": "qphi_switching",
+    "n_episodes": 10,
+    "mean_return": -5.2487282655522,
+    "z_histogram": {
+      "3": 44,
+      "0": 11
+    },
+    "unique_z_sequences": 8
+  },
+  "fixed_z2": {
+    "condition": "fixed_z2",
+    "selection_mode": "fixed_latent",
+    "n_episodes": 10,
+    "mean_return": -3.746823516493896,
+    "z_histogram": {},
+    "unique_z_sequences": 1
+  },
+  "uniform_z": {
+    "condition": "uniform_random_at_router_opportunities",
+    "selection_mode": "uniform_random",
+    "n_episodes": 10,
+    "mean_return": -5.936653171895887,
+    "z_histogram": {
+      "0": 21,
+      "1": 10,
+      "2": 14,
+      "3": 12
+    },
+    "unique_z_sequences": 10
+  },
+  "shuffled_router": {
+    "condition": "shuffled_qphi_outputs",
+    "selection_mode": "shuffled_qphi",
+    "n_episodes": 10,
+    "mean_return": -4.061370589458965,
+    "z_histogram": {
+      "3": 38,
+      "0": 11,
+      "1": 2
+    },
+    "unique_z_sequences": 9
+  }
+}

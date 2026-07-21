@@ -1,7 +1,7 @@
 """Single-pass matched-seed forced-z episode collection."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 import numpy as np
 import torch
@@ -26,6 +26,7 @@ def _make_env(protocol: ForcedZProtocol, map_name: str, seed: int) -> Any:
         rules_profile="OURS",
         device=protocol.device,
         seed=seed,
+        **dict(protocol.env_reward_kwargs),
     )
     return GPUCTFVecEnv(cfg)
 
@@ -69,6 +70,7 @@ def run_forced_z_episodes(
     env_mode: str = "reuse_block",
     shared_model: Any | None = None,
     latent_order: tuple[int, ...] | None = None,
+    on_cell_complete: Callable[[tuple[str, int, str], list[dict[str, Any]]], None] | None = None,
     quiet: bool = False,
 ) -> CellEpisodes:
     """Collect forced-z episodes.
@@ -82,10 +84,22 @@ def run_forced_z_episodes(
     """
     order = tuple(latent_order if latent_order is not None else protocol.latents)
     if env_mode == "fresh_per_z":
-        return _run_fresh_env_per_z(protocol, shared_model=shared_model, latent_order=order, quiet=quiet)
+        return _run_fresh_env_per_z(
+            protocol,
+            shared_model=shared_model,
+            latent_order=order,
+            on_cell_complete=on_cell_complete,
+            quiet=quiet,
+        )
     if env_mode != "reuse_block":
         raise ValueError(f"Unknown env_mode: {env_mode!r}")
-    return _run_reuse_env_block(protocol, shared_model=shared_model, latent_order=order, quiet=quiet)
+    return _run_reuse_env_block(
+        protocol,
+        shared_model=shared_model,
+        latent_order=order,
+        on_cell_complete=on_cell_complete,
+        quiet=quiet,
+    )
 
 
 def _run_reuse_env_block(
@@ -93,13 +107,14 @@ def _run_reuse_env_block(
     *,
     shared_model: Any | None,
     latent_order: tuple[int, ...],
+    on_cell_complete: Callable[[tuple[str, int, str], list[dict[str, Any]]], None] | None,
     quiet: bool,
 ) -> CellEpisodes:
     from plot.eval_rollout import run_eval_episodes
     from rl.custom_ppo import load_custom_ppo_policy
 
     if not quiet:
-        print(audit_protocol_note())
+        print(audit_protocol_note(protocol))
         print(f"Checkpoint : {protocol.checkpoint}")
         print(f"Episodes   : {protocol.episodes_per_cell} per (opponent, z, map)")
         print(f"Device     : {protocol.device}")
@@ -141,7 +156,10 @@ def _run_reuse_env_block(
                     except Exception as exc:  # noqa: BLE001
                         print(f"  ERROR {opponent} z={z} {map_name}: {exc}")
                         eps = []
-                    cells[(opponent, z, map_name)] = eps
+                    key = (opponent, int(z), map_name)
+                    cells[key] = eps
+                    if on_cell_complete is not None:
+                        on_cell_complete(key, eps)
                     if not quiet:
                         if eps:
                             wr = sum(int(e.get("success", 0)) for e in eps) / len(eps)
@@ -158,6 +176,7 @@ def _run_fresh_env_per_z(
     *,
     shared_model: Any | None,
     latent_order: tuple[int, ...],
+    on_cell_complete: Callable[[tuple[str, int, str], list[dict[str, Any]]], None] | None,
     quiet: bool,
 ) -> CellEpisodes:
     from plot.eval_rollout import run_eval_episodes
@@ -200,7 +219,10 @@ def _run_fresh_env_per_z(
                         eps = []
                 finally:
                     env.close()
-                cells[(opponent, z, map_name)] = eps
+                key = (opponent, int(z), map_name)
+                cells[key] = eps
+                if on_cell_complete is not None:
+                    on_cell_complete(key, eps)
                 if not quiet:
                     if eps:
                         wr = sum(int(e.get("success", 0)) for e in eps) / len(eps)

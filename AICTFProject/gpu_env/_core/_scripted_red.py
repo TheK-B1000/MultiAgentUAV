@@ -8,6 +8,7 @@ import torch
 
 from macro_actions import MacroAction
 
+from .._maps import MAP_B_SPLIT_LANE_V2
 from .._paths import _resolve_snapshot_path
 
 
@@ -137,23 +138,23 @@ class _ScriptedRedMixin:
         idx_env = torch.arange(B, device=device)
         max_x = float(max(0, self.cols - 1))
         max_y = float(max(0, self.rows - 1))
-        split_lane_v2 = str(getattr(self, "map_layout", "")) == "map_b_split_lane_v2"
-        if split_lane_v2 and (not is_blue):
+        split_lane_v2_mask = self._map_layout_mask((MAP_B_SPLIT_LANE_V2,))
+        if not is_blue:
             op5_mask = torch.as_tensor(
                 [str(k).upper() in ("OP5", "OP5_RUSHER") for k in self._opponent_key],
                 device=device,
                 dtype=torch.bool,
-            )
+            ) & split_lane_v2_mask
             op6_mask = torch.as_tensor(
                 [str(k).upper() in ("OP6", "OP6_TURTLE") for k in self._opponent_key],
                 device=device,
                 dtype=torch.bool,
-            )
+            ) & split_lane_v2_mask
             op7_mask = torch.as_tensor(
                 [str(k).upper() in ("OP7", "OP7_SWITCHER") for k in self._opponent_key],
                 device=device,
                 dtype=torch.bool,
-            )
+            ) & split_lane_v2_mask
         else:
             op5_mask = torch.zeros((B,), device=device, dtype=torch.bool)
             op6_mask = torch.zeros((B,), device=device, dtype=torch.bool)
@@ -333,13 +334,12 @@ class _ScriptedRedMixin:
             else:
                 med_x = torch.clamp(self.red_script_guard_x, 0.0, max_x)
                 med_y = torch.clamp(self.red_script_guard_y, 0.0, max_y)
-                if split_lane_v2:
-                    upper_gate_y = torch.full((B,), max(0.0, max_y * 0.24), device=device)
-                    lower_gate_y = torch.full((B,), min(max_y, max_y * 0.76), device=device)
-                    mid_gate_y = torch.full((B,), max_y * 0.50, device=device)
-                    med_y = torch.where(op5_mask, upper_gate_y, med_y)
-                    med_y = torch.where(op6_mask, lower_gate_y, med_y)
-                    med_y = torch.where(op7_mask, mid_gate_y, med_y)
+                upper_gate_y = torch.full((B,), max(0.0, max_y * 0.24), device=device)
+                lower_gate_y = torch.full((B,), min(max_y, max_y * 0.76), device=device)
+                mid_gate_y = torch.full((B,), max_y * 0.50, device=device)
+                med_y = torch.where(split_lane_v2_mask & op5_mask, upper_gate_y, med_y)
+                med_y = torch.where(split_lane_v2_mask & op6_mask, lower_gate_y, med_y)
+                med_y = torch.where(split_lane_v2_mask & op7_mask, mid_gate_y, med_y)
             gx = torch.where(def_medium, med_x, easy_x)
             gy = torch.where(def_medium, med_y, easy_y)
 
@@ -421,13 +421,12 @@ class _ScriptedRedMixin:
                 lane_mid = torch.full((B,), center_y, device=device)
                 lane_amp = torch.full((B,), 5.0, device=device)
                 lane_y = torch.clamp(lane_mid + self.red_script_lane_sign * lane_amp, 0.0, max_y)
-                if split_lane_v2:
-                    upper_gate_y = torch.full((B,), max(0.0, max_y * 0.24), device=device)
-                    lower_gate_y = torch.full((B,), min(max_y, max_y * 0.76), device=device)
-                    mid_gate_y = torch.full((B,), max_y * 0.50, device=device)
-                    lane_y = torch.where(op5_mask, upper_gate_y, lane_y)
-                    lane_y = torch.where(op6_mask, lower_gate_y, lane_y)
-                    lane_y = torch.where(op7_mask, mid_gate_y, lane_y)
+                upper_gate_y = torch.full((B,), max(0.0, max_y * 0.24), device=device)
+                lower_gate_y = torch.full((B,), min(max_y, max_y * 0.76), device=device)
+                mid_gate_y = torch.full((B,), max_y * 0.50, device=device)
+                lane_y = torch.where(split_lane_v2_mask & op5_mask, upper_gate_y, lane_y)
+                lane_y = torch.where(split_lane_v2_mask & op6_mask, lower_gate_y, lane_y)
+                lane_y = torch.where(split_lane_v2_mask & op7_mask, mid_gate_y, lane_y)
             sy_easy = torch.where(dist_to_flag > 4.0, lane_y, efy)
             sx_easy = efx
             sx_med = sx_easy.clone()

@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-06-18 (UTC-4)
+> **Last updated:** 2026-07-03 (UTC-4)
 
 ---
 
@@ -169,6 +169,300 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §8). PLANNED
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
+
+### 3.0 v6i9 feedforward running-mean arc-credit A/B (IMPLEMENTED, PENDING_SMOKE)
+
+**Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as
+`v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases
+`v6i9_arc_credit_feedforward`,
+`plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`),
+`SUMMER-COMPATIBLE EXTENSION` (arc-credit row), parent
+`v6i9_mapaware_router_feedforward_hardpool`.
+
+**Motivation (credit audit, 2026-07-02):** the feedforward router control
+routes q_phi credit through the main-loop strategy-PPO term on
+`router_advantages = router_return − V_critic`. The critic overestimates
+V(s_0) by ~+2.71 and, because most single-decision chunks skip the
+`numel>1` advantage normalization, that constant bias survives into the
+loss (chronically negative advantages, ~41% sign flips). The treatment
+**replaces** that channel: `latent_strategy_ppo_coef` 0.1→0.0 (magnet
+removed) plus arc credit with a detached running-mean EMA baseline that
+auto-centers advantages. Resolved diff vs control = exactly 4 keys
+(pinned by `tests/test_v6i9_arc_credit_feedforward.py`).
+
+**Next actions (do NOT scale until these pass):**
+1. One-update treatment smoke from the repertoire anchor with a fresh
+   optimizer: `experiments/run_arc_credit_treatment_smoke.py`. Gates:
+   arc-credit source active, baseline=running_mean, valid router
+   decisions > 0, raw arc advantage finite, frozen actor/z hashes
+   unchanged, router gradients > 0.
+2. Three-update A/B mechanism test (control vs treatment, identical
+   seed/budget): look for fewer all-negative decision batches, positive
+   fraction moving toward balance, context-conditioned logit variation,
+   argmax no longer always z1, MI(z;context) above noise.
+3. Aligned episode-persistent credit audit: require Q1 negative / Q4
+   positive credit and near-zero critic/global bias shift.
+4. Cheap corrected ablation (learned / exact-histogram shuffled /
+   uniform / fixed z2); proceed only when learned > shuffled.
+
+### 3.0.1 v6i9 feedforward credit-patch mechanism + continuation — `EVALUATED` (context-blind collapse)
+
+**Status:** `EVALUATED`. This is the *minimal credit patch* on the control
+preset `v6i9_mapaware_router_feedforward_hardpool` (feedforward router,
+35-dim team-geometry context, K=4, frozen repertoire) — **not** the
+§3.0 arc-credit A/B. The patch makes the feedforward strategy-PPO update
+consume `router_advantages` (erroring if absent) and applies conditional
+router entropy only at decision steps (`router_ent_coef`, kept separate
+from `latent_lam_h`). No context change: **credit + entropy changed,
+context did not.**
+
+**Runs (2v2, opponent pool OP8/OP9/OP10, seed 1, frozen repertoire):**
+
+1. Wiring smoke (1 update) — all gates green (router_advantages selected,
+   decision mask active, entropy subordinate, frozen repertoire hashes
+   unchanged).
+2. Mechanism run — 3 updates from the repertoire anchor with a fresh
+   router optimizer (`final_v6i9-router-credit-mechanism-seed1_2v2.zip`).
+3. Continuation — 7 more updates (base_step 1,769,472 → 2,169,472) via a
+   clean resume that **preserves** the learned router + optimizer
+   (`--router-reinitialize-on-load false`; behavioral-equivalence check
+   PASS, argmax_diff=0; freeze intact)
+   (`final_v6i9-router-credit-mechanism-cont-seed1_2v2.zip`).
+
+**Continuation trend (updates 28→34):** `strategy_entropy` fell
+monotonically `1.356 → 1.256`; **`MI_z_obs` stayed pinned at ≈0.001**
+throughout; sampled occupancy concentrated `z0/z1 → z2/z3`
+(`[0.24,0.21,0.28,0.28] → [0.12,0.16,0.34,0.38]`). Signature of a
+**context-independent preference shift (mode-collapse toward z3)**, not
+context-dependent routing.
+
+**Cheap held-out ablation (OP8/OP10 × {map_b, map_b_split_lane_v2},
+10 seeds/cell = 160 eps).** Cross-episode histogram-preserving shuffle
+control added (`build_cross_episode_shuffled_mapping_from_learned_traces`).
+
+* On the mechanism (3-update) checkpoint (base_seed 12000): eval argmax
+  = z3 in 188/188 opportunities, mean-max-prob 0.300, entropy 1.376.
+* On the continuation (10-update) checkpoint (fresh base_seed 14000):
+  eval argmax = z3 in **177/177** opportunities across all cells;
+  mean-max-prob **0.30 → 0.462**; entropy `1.226`. Returns (n=40):
+  `uniform −3.231 > learned/shuffled −3.399 > fixed_z2 −3.763`. Both
+  shuffle controls are byte-identical to learned (constant output ⇒
+  shuffles are no-ops). Promotion gates all fail
+  (`learned_beats_uniform=False`, `learned_beats_shuffled=False`,
+  `proceed_to_250k=False`).
+
+**Conclusion (decisive).** With provably healthy plumbing (correct
+credit source, ~85% positive advantage fraction, entropy subordinate at
+grad-ratio 11–24, repertoire frozen, resume clean) the feedforward
+router trained on the **geometry-only 35-dim context collapses to a
+context-independent constant z3**. More updates increase *confidence*
+(max-prob 0.30→0.46) but **not context sensitivity** (`MI_z_obs≈0`
+throughout; eval argmax constant). The under-training hypothesis is
+refuted; this is the **Fail branch = context insufficiency**. Note the
+two known ablation caveats (do not over-read the trace-based trust
+gates): (a) the cross-episode shuffle grouping keyed on
+`(opponent, episode_seed)` yields singleton cells, and (b) a pre-existing
+trace-summary join keys episode rows on `cell_seed` vs traces on
+`episode_seed` so only `episode_index=0` joins — both inflate
+`same_z_sequence`; the return-based verdict is unaffected.
+
+**Open decision (fork presented, user deferred):** (i) offline best-z
+predictability probe on the real 35-dim decision-time context (cheap;
+separates "context lacks signal" from "router can't extract it") before
+spending compute; (ii) lift the deferral and add opponent/map identity
+to the context, then retrain (the Fail-branch action); (iii) stop
+feedforward routing on geometry-only context. Artifacts:
+`artifacts/router_credit_mechanism_ablation_crossep/`,
+`artifacts/router_credit_mechanism_cont_ablation/`,
+`artifacts/v6i9_router_credit_mechanism_cont_seed1.log`.
+
+### 3.0.2 Recurrent running-mean arc-credit A/B + collapse-visibility tooling — `EVALUATED` (mechanism repaired, router collapsed)
+
+**Status:** `EVALUATED`. Recurrent-GRU A/B from the repertoire anchor
+(2v2, OP8/OP9/OP10, seed 1, frozen repertoire, 5 updates each). Control =
+`v6i9_mapaware_router_sparse_hardpool` (sparse-GAE router credit);
+treatment = `v6i9_arc_credit_running_mean_hardpool` (running-mean arc
+credit, main-loop strategy PPO disabled). Same GRU, same initial router +
+frozen-actor hashes, fresh optimizer both arms, credit channel the only
+functional difference (`compare_ab_router_credit.py` launch contract:
+PASS).
+
+**Mechanism result (treatment):** running-mean baseline works — final
+`raw_adv_mean ≈ −0.09`, `positive_fraction ≈ 0.57`, per-z spread ≈ 0.067,
+router gradients active. The chronic critic-bias advantage offset is
+removed and the credit signal is two-sided.
+
+**Behavioral result (fresh held-out base_seed 15000, 150 eps/condition):**
+`fixed_z2 −3.09 > learned −3.58 > uniform −3.78`. Learned beats uniform
+and within-episode shuffle but **loses to fixed_z2** and does not beat the
+cross-episode shuffle. Root cause: the router **collapsed** — argmax = z3
+in the large majority of opportunities, z0/z2 never selected. Repaired
+grades did not (yet) produce better *choices*.
+
+**Tooling fixes landed with this entry:**
+
+1. **Cross-episode shuffle regrouping (caveat (a) in §3.0.1 fixed).**
+   `build_cross_episode_shuffled_mapping_from_learned_traces` now groups
+   cells by `(opponent, map)` instead of `(opponent, episode_seed)`. Under
+   a unique-seed-per-episode protocol the old key produced singleton cells
+   → `can_reassign=False` → a structural no-op that made the
+   `learned_beats_cross_episode_shuffled` gate vacuous (delta 0.0). Map is
+   threaded through the opportunity trace
+   (`inference_policy.set_current_map`, set per cell in
+   `eval_v6i9_router_diagnostic_ablation._run_condition`); absent map falls
+   back to per-opponent grouping. Note: for a *collapsed* router the
+   shuffle is still legitimately a no-op (identical signatures), which is
+   now an honest collapse signal rather than a grouping artifact.
+2. **Decision-point selected-z occupancy telemetry.**
+   `router_selected_z_occupancy_z{0..K-1}` (+ `_max`, `_unique_count`,
+   `_dominant`, `_decision_count`) computed every update in
+   `_latent_rollout_stats` for both credit channels, independent of the
+   entropy mode (unlike `router_rollout_soft_argmax_occupancy_*`, which
+   only runs on the marginal-entropy path). Surfaced in the A/B runner and
+   in `compare_ab_router_credit.py` (`router_not_collapsed` signal). Makes
+   router collapse visible per-update during training, not only at the eval
+   shuffle gate. Pinned by
+   `tests/test_router_occupancy_and_cross_episode.py`.
+
+### 3.0.3 v6i9 arc-credit *specialize* preset (entropy-balance) — `EVALUATED` (mechanism FAIL: global z3 collapse, MI≈0)
+
+**5-update result (2026-07-03, recurrent, seed 1, from repertoire anchor;
+`artifacts/ab_router_specialize/treatment/`).** Integrity PASS (frozen-actor
+hash match, router moved `q_phi_grad` 0.041→0.073, fresh optimizer, arc
+credit active, old strategy-PPO channel off, resolved entropy path correct).
+Specialization/coverage FAIL:
+
+| upd | H_marg | H_cond | MI_proxy | margin | argmax_frac |
+|-----|--------|--------|----------|--------|-------------|
+| 1 | 1.3845 | 1.3844 | 0.0001 | 0.065 | z1=1.00 |
+| 2 | 1.3725 | 1.3722 | 0.0004 | 0.018 | z2=0.68/z3=0.32 |
+| 3 | 1.3661 | 1.3649 | 0.0011 | 0.248 | z3=1.00 |
+| 4 | 1.3521 | 1.3494 | 0.0027 | 0.343 | z3=1.00 |
+| 5 | 1.3203 | 1.3182 | 0.0022 | 0.482 | z3=1.00 |
+
+`MI_proxy` peaked at ~0.0027 nats (~0.2% of log 4) — `H_cond ≈ H_marg`
+throughout, i.e. the router is **context-independent**. Deterministic
+argmax collapsed to **z3=100%** by update 3; `q_bar` drifted z3 0.25→0.40,
+z0 0.23→0.15 while `H_marg` fell 1.385→1.320 (coverage eroding). The
+growing top1−top2 margin is a **global** logit bias, not contextual
+confidence. This is the "false diversity → global collapse" pattern:
+`latent_lam_h=0.01` marginal coverage too weak to hold the distribution
+while reduced `router_ent_coef` let a global z3 preference form.
+
+**Conclusion.** With the entropy path now correctly wired (bug in §3.0.3
+fixed pre-launch) the two-axis entropy balance changed *which* latent and
+increased *confidence* but not *context sensitivity* — reproducing the
+§3.0.1 context-insufficiency finding on the recurrent router. No entropy
+knob converts a context-independent router into a context-dependent one
+when MI(z;context)≈0. Behavioral gate expected to be near-vacuous
+(deterministic z3 everywhere ⇒ cross-episode shuffle likely
+`can_reassign=False` / `cross_episode_gate_untestable=true`). Recommended
+next: the offline best-z predictability probe on the real 35-dim
+decision-time context (separate "context lacks signal" from "router can't
+extract it") before adding opponent/map identity to the context.
+
+**Learned-only preflight (`base_seed=18000`, 8 eps/cell, learned router
+only, `experiments/preflight_learned_trace.py` →
+`artifacts/ab_router_specialize/treatment/preflight_s18000.json`).** Ran a
+cheap 48-episode learned-only trace instead of the full 900-episode
+behavioral exam, to decide whether the cross-episode shuffle is even
+testable. Result confirms the collapse prediction:
+
+```text
+argmax_z_histogram        : {3: 230}   (100% z3, all decisions)
+distinct_z_values         : [3]
+non_constant_episode_count: 0          (no episode ever switches z)
+cross_episode_gate_untestable = true
+```
+
+Verdict: **STOP — do not run the full behavioral exam.** The cross-episode
+shuffle is an identity permutation: every episode plays z3 at every router
+opportunity, so fixed_z2 / uniform / shuffled conditions cannot prove
+contextual routing (nothing to shuffle). Note a tooling lesson: the
+preflight's first auto-verdict was a *false* PROCEED because
+`build_cross_episode_shuffled_mapping_from_learned_traces` returned
+`can_reassign=True` — but that came purely from episodes having different
+*lengths* (`[3,3,3]` vs `[3,3,3,3,3]`), not different z *values*. The
+preflight gate was corrected to require ≥2 distinct z **values**
+(`non_constant_episode_count` / `distinct_z_values`), not length-distinct
+signature tuples. This is the definitive answer for the specialize arm:
+the behavioral gate is untestable; the next lever must create z-value
+variation (offline best-z context probe, or context enrichment), not
+another entropy-knob run.
+
+### 3.0.3b v6i9 arc-credit *specialize* preset (entropy-balance) — original PENDING_LAUNCH notes
+
+**Preset:** `v6i9_arc_credit_specialize_hardpool` (aliases
+`v6i9_arc_credit_specialize`,
+`plan_faithful_latent_v6i9_arc_credit_specialize_hardpool`), parent
+`v6i9_arc_credit_running_mean_hardpool` (recurrent GRU router, running-mean
+arc credit, BPTT PPO disabled). `SUMMER-COMPATIBLE EXTENSION`.
+
+**Hypothesis:** can the router become *decisive within each context*
+(lower H(z|context)) while still *using all four latents across the
+context distribution* (preserve marginal coverage)? Two-axis entropy
+balance on top of the repaired running-mean credit channel.
+
+**Resolved-config diff vs the running-mean parent (exactly 6 keys, pinned
+by `tests/test_v6i9_arc_credit_specialize.py`):**
+
+```text
+router_ent_coef          : 0.005 -> 0.001   (weaker conditional entropy)
+latent_lam_h             : 0.0   -> 0.01     (marginal coverage weight)
+latent_entropy_mode      : conditional -> marginal
+latent_entropy_objective : none -> maximize
+h_mode                   : conditional -> marginal  (legacy alias, kept consistent)
+run_tag                  : ...specialize...
+```
+
+**Bug found and fixed before any launch (2026-07-03).** The preset
+originally set only the legacy `h_mode="marginal"` field. The runtime
+entropy path (`rl/custom_ppo/update/entropy_objectives.py::RolloutMarginalPrep`)
+and the audit banner both key off `latent_entropy_mode`, which stayed
+`"conditional"`, and the arc-credit parent had zeroed
+`latent_entropy_objective` to `"none"`. Net effect of the buggy config:
+the rollout-level marginal-coverage loss never engaged, and `latent_lam_h`
+acted as a **conditional entropy-maximization** term (pushing q_phi toward
+uniform *per context*) — the exact opposite of the intended "decisive
+within each context." Fix sets `latent_entropy_mode="marginal"` and
+`latent_entropy_objective="maximize"` so the rollout-level
+`rollout_marginal_entropy_loss` path (AGENTS.md aggregation contract)
+actually runs. Verified: resolved config now yields
+`marginal-path would_apply = True`. Snapshot regenerated (additive: 6 new
+arc-credit/specialize entries, 0 existing presets changed).
+
+**Launch (5-update mechanism run, recurrent, from the repertoire anchor):**
+
+```powershell
+uv run python experiments/run_ab_router_credit.py --arm treatment `
+  --preset v6i9_arc_credit_specialize_hardpool `
+  --checkpoint checkpoints/2v2/final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip `
+  --n-updates 5 --device cuda --seed 1 `
+  --out-dir artifacts/ab_router_specialize --force
+```
+
+Mechanism success (per-update telemetry): `H_marg` high (≈log 4≈1.386),
+`H_cond` falling below `H_marg`, `MI_proxy = H_marg − H_cond` rising,
+`q_bar` still spread over all four z, and — via the new
+`router_selected_z_occupancy_z*` telemetry — the decision-point argmax
+histogram becoming context-dependent (z0/z2 used, not only z1/z3).
+
+**Behavioral gate (fresh held-out seeds — do NOT reuse 15000):**
+
+```powershell
+uv run python experiments/eval_v6i9_router_diagnostic_ablation.py `
+  --checkpoint artifacts/ab_router_specialize/treatment/final_treatment.zip `
+  --anchor-checkpoint checkpoints/2v2/final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip `
+  --opponents OP8 OP9 OP10 --maps map_b map_b_split_lane_v2 `
+  --episodes 25 --base-seed 18000 --device cuda `
+  --out-dir artifacts/ab_router_specialize/treatment/shuffle_eval_s18000
+```
+
+Promotion requires: `learned > cross_episode_shuffled`, `learned > uniform`,
+`learned` closer to `fixed_z2`, and `cross_episode_gate_untestable = false`
+(now emitted explicitly by the evaluator; the corrected (opponent, map)
+cell grouping means a genuine reassignment/delta or an explicit
+untestable flag — never a silent identity tie).
 
 ### 3.1 v5i6 — canonical marginal-entropy interpretation (IMPLEMENTED, PENDING_LAUNCH)
 
@@ -508,6 +802,1610 @@ honest next step *only* if v5i4 fails its gates (§2.1 eval matrix +
 §3.2 multi-seed). If v5i4 passes the §4.2 routing-quality control with
 a paired-bootstrap-significant delta, v4i4post is icing and is
 deprioritized.
+
+### 3.9 v6i10 episode-router exploration preset — `EVALUATED` (smoke PASS; 5-update mechanism HARD-STOP, MI≈0)
+
+**Status:** `EVALUATED`. Committed at `696bfb1` (code + tests; tracker doc
+follow-up `d03f7e0`). The one-update runtime smoke passed **every** gate
+and the five-update mechanism run then triggered two hard-stop conditions
+(MI pinned at the smoke floor; per-z advantage rankings flip randomly).
+Verdict: **reject for promotion; do not run the behavioral grid.** The
+35-dim geometry-only context yields no extractable routing signal — the
+third independent confirmation after §3.0.1 (v6i9 continuation) and
+§3.0.3 (v6i9-specialize).
+
+**Smoke (1 update, `--load-weights-only` from anchor, run_tag
+`v6i10-episode-router-explore-smoke-seed1`):** all 11 gates green — one
+decision/episode (486 opportunities − 454 finalized arcs = 32 open =
+one per env; `arc_mean_length=138.8`); z fixed until termination
+(`strategy_switch_count=0`); behavior = `0.8·q_phi + 0.2·U` with stored
+old-log-prob = behavior mixture (config `router_uniform_exploration_prob=0.2`,
+`router_sampling.py:730`, unit-test pinned); all four z sampled
+(`unique=4`); `latent_arc_running_mean_count=454`; marginal entropy active
+(`rollout_marginal_active=1.0`, `main_loop_q_phi_grad_norm=3.2e-5>0`);
+router grads nonzero (`q_phi_grad_norm=0.0253`); frozen actor+z grads/deltas
+exactly 0; frozen tensor hash byte-identical to anchor (`f332687…`);
+checkpoint round-trips bit-exact. Deterministic argmax already 0.909-
+concentrated on one z despite near-uniform `q_bar` (the v6i9 precursor).
+
+**Five-update mechanism (`experiments/run_ab_router_credit.py --arm
+treatment`, from anchor, fresh optimizer, `source_commit=d03f7e0`,
+`artifacts/v6i10_episode_router_explore/treatment/`):**
+
+```text
+              u1       u2       u3       u4       u5
+mi_proxy    2.19e-5  2.13e-5  2.40e-5  2.30e-5  2.31e-5   FLAT at smoke floor
+top1-top2   0.0212   0.0157   0.0124   0.0107   0.0118    SHRINKING (logits flatten)
+argmax z2   0.934    0.865    0.705    0.638    0.715     (z0,z3 NEVER argmax)
+best per-z  z3       z1       z3       z2       z3        ranking flips randomly
+frozen hash f332687 == f332687 unchanged; router moved YES; unique z=4 each update
+```
+
+`H_marginal ≈ H_conditional ≈ ln4` every update ⇒ the router emits a
+near-uniform distribution for every state; the per-episode z is therefore
+effectively random (near-uniform router + 20% floor), so arc credit chases
+noise and per-z ordering never stabilizes. The `argmax<0.90` guard passed
+but is a **false positive**: argmax softened (0.93→0.72) because logits
+flattened (indecision), not because context emerged. Plumbing verified
+perfect (exact frozen hash, auto-centered arc advantage, ~85–99% positive
+fraction). Artifacts: `summary.json`, `run_meta.json`, `final_treatment.zip`.
+
+**Next lever (unchanged from §3.0.1 conclusion):** context enrichment
+(opponent/map identity) or the offline best-z predictability probe on the
+real 35-dim context — **not** another entropy/credit/exploration knob run.
+
+### 3.10 v6i11 contextual Q-value return router — `EVALUATED` (three pre-run bugs fixed; 15-update diagnostic = FLAT on a VALID dataset)
+
+**Result (2026-07-03, `artifacts/v6i11_q_router_run2_seed1/summary.json`):**
+`routing_verdict = FLAT`, `promotion_status = NOT_A_CANDIDATE`,
+`reliably_separating_opponents = 0/3`. The dataset is **valid, not
+insufficient**: replay_size 7038, no duplicates, all z + all opponents
+represented, `min_cell_arcs = 527` (≫ 20/cell bar), `return_variance = 11.08`,
+`mean_arc_length ≈ 139`, `terminal_finalized_fraction = 1.0`,
+`frozen_actor_ok = true`. So `FLAT` here is a genuine negative under the
+tightened semantics, not a swallowed pipeline failure.
+
+*Why FLAT (the reliability gate did its job).* Empirical row-spreads
+(OP8 0.262, OP9 0.240, OP10 0.256) exceed the 0.10 magnitude threshold, but
+every best-vs-second-best gap's bootstrap CI **includes zero** (OP8 gap 0.151
+CI[-0.15,0.45]; OP9 0.030 CI[-0.34,0.38]; OP10 0.036 CI[-0.36,0.43]). Episode-
+return std (≈ 2.6–3.9 per cell) swamps the ≈0.15–0.26 per-z mean gaps even at
+~530–630 arcs/cell. Predicted-Q spread stayed tiny (0.01–0.04) — the network did
+**not** invent confident spreads — and best-z agreement was 2/3 (OP8✓, OP9✗,
+OP10✓), i.e. suggestive but unreliable.
+
+*What FLAT does and does not mean here.* It does **not** re-open repertoire
+diversity (already established by counterfactual actor-logit differences,
+forced-z behavioural separation, and the +2.37 forced-z EPISODE oracle gap). The
+key tension: the oracle gap is a **paired, matched-seed within-episode**
+quantity, whereas this Q-router regresses an **unpaired between-episode**
+expectation `E[return | episode-start context, z]`. Between-episode variance
+(map, spawn, opponent stochasticity) dominates the per-z effect, so an unpaired
+replay-mean target cannot resolve the latents at this SNR/budget — and/or
+episode-start geometry is only weakly predictive of which z wins *this* episode.
+FLAT = "the current unpaired Q-formulation failed to resolve the latents under
+this dataset/horizon/context/budget," not "the latents don't differ."
+
+*Consequence for the held-out gate.* Per the recommended sequence, the held-out
+prospective evaluator (`experiments/eval_v6i11_q_router_heldout.py`, built) is
+run only when the diagnostic is at least `WEAK_SEPARATION`. FLAT does **not**
+meet that bar, so the held-out gate is **not** run and `map_id` instrumentation
+is **not** warranted yet. A productive redesign (not yet actioned) would target
+the paired signal directly — e.g. a per-context/per-episode baseline-subtracted
+(advantage-style) target rather than a raw between-episode return mean.
+
+**Pre-run status (retained):** 15-update diagnostic ran from the clean anchor
+(seed 1, cuda, ~13 min/update ≈ 3.3 h wall). Update 1 validated coverage
+(29–51 arcs/cell, balanced `count_by_z`, `arc_length ≈ 138`, `term_frac = 1.0`,
+`records_after_update = 0`). Preset
+`v6i11_q_router_hardpool` (aliases `v6i11_q_router`,
+`plan_faithful_latent_v6i11_q_router_hardpool`), experiment
+`experiments/run_v6i11_q_router.py`, external model `rl/router/q_value_router.py`.
+Classification: **SUMMER-COMPATIBLE EXTENSION** — off-policy value regression
+over online experienced returns, plus a 3-way opponent one-hot as an *input*
+feature (not opponent-identity supervision). Targets are experienced returns
+from sampled actions; no hindsight forced-z labels, no best-z labels, actor +
+adapters frozen. **Not yet run.**
+
+**Scientific delta:** replace BPTT PPO logit routing (which repeatedly turned
+tiny logit biases into one-latent argmax collapse in §3.0.1/§3.9) with a
+separate return-prediction model learning `context + selected z → expected
+EPISODE return` from a replay buffer. Separates "estimate which latent has
+higher value" (Q-router) from "execute the selected latent" (frozen actor).
+
+**Three pre-run bugs found and fixed (2026-07-03):**
+
+1. **Target-horizon mismatch.** The first draft inherited the cadence-32
+   recurrent lineage (`strategy_interval=32`, `latent_resample_every_n=32`,
+   `latent_arc_credit_min_len=32`), so each arc was a ~32-step MID-EPISODE
+   segment and the target became "which z produced the best *local* arc
+   return?" — NOT the episode-persistent forced-z EPISODE return validated by
+   Probe A / the +2.37 oracle gap. **Fix:** re-parent to
+   `v6i10_episode_router_explore_hardpool` (episode-persistent contract →
+   `strategy_interval=0`, `latent_resample_every_n=0`, `min_len=1`), so
+   arc == episode, `global_state_0` == episode-start context, `arc_return` ==
+   total episode return. `arc_length` telemetry now printed per update to
+   confirm arc ≈ episode length.
+
+2. **Arc-extraction after drain.** The script read
+   `rollout_strategy_arc_records` *after* `trainer.update()`, but
+   `post_update.py` drains that buffer via `reset_arc_credit_rollout_state()`
+   at the end of every update → the Q-router would have trained on **zero
+   arcs** every step (silent no-op). **Fix:** extract arcs between
+   `collect_rollout()` and `update()`.
+
+3. **Opponent identity never captured (opponent one-hot always zero).** The
+   rollout `arc_open` (router_sampling) and the episode-end `arc_finalize`
+   (collector) both omitted `opponent_ids`, so `arc_open_opponent_id` stayed at
+   its `-1` sentinel and every arc record carried `opponent_id = -1`. That
+   zeroed the Q-router's opponent one-hot — collapsing the context back to
+   geometry-only and defeating v6i11's premise — and forced every per-opponent
+   cell to `count = 0 / mean = NaN` (an automatic `INSUFFICIENT_DATA`). A
+   *second* half of the bug: the Q-router assumed OP8/9/10 → ids 8/9/10, but the
+   canonical `_opponent_id_int_from_info` (`csv_writers._OPPONENT_TAG_TO_ID`,
+   scheme OP_N → N-1) yields **7/8/9**, so even a threaded id would have been
+   unmapped. **Fix:** (a) collector stamps the episode-end `arc_finalize` with
+   `_opponent_id_int_from_info` per env (opponent is episode-constant, so the
+   finalize-time value is exact for arc == episode); (b) `_OPPONENT_ID_TO_IDX`
+   in the experiment and `_DEFAULT_OPPONENT_ID_TO_IDX` in the Q-router corrected
+   to `{7:0, 8:1, 9:2}`; (c) `q_value_router` display labels now route through
+   `_opponent_tag_from_id` so rows read OP8/OP9/OP10, not OP7/OP8/OP9. Verified
+   live: update-1 `count_OP*_z*` all populated (29–51/cell), `mean_return_OP*_z*`
+   real. Pinned by `V6i11OpponentContextWiringTests` (canonical one-hot rows,
+   zero one-hot for -1/unmapped, default-map scheme).
+
+**Hardening pass (2026-07-03, before trusting `summary.json`):**
+
+* **Stable record IDs + rejection dedup.** `arc_finalize` now stamps each
+  record with `env_index` + a monotonic `arc_uid`
+  (`arc_credit.py`). The replay buffer dedups by identity
+  `(rollout_index, env_index, arc_uid)` and **rejects** (does not insert)
+  duplicates — content-hash dedup could collide two legitimate episodes.
+  `push_many` returns `{inserted, duplicates_rejected, size_before,
+  size_after}`.
+* **Hard guards abort the run** (`check_arc_guards` → `ArcIntegrityError`)
+  every update: `records_before_update > 0`, `inserted > 0`,
+  `size_after > size_before`, and `records_after_update == 0` (proves the
+  drain happened after we copied). A broken pipeline writes
+  `routing_verdict = INVALID` and exits — it **never** emits `FLAT`.
+* **Deep-copied extraction** (`copy_arc_record`) so the post-update reset
+  cannot mutate the captured records; copy+push happen **before** `update()`.
+* **Verdict is now 5-state** (`decide_verdict`): `INVALID` (zero arcs / dup
+  contamination / horizon mismatch via terminal-finalized fraction / frozen
+  actor drift), `INSUFFICIENT_DATA` (missing z, missing opponent, zero
+  variance, or <20 arcs in the smallest cell), `FLAT`, `WEAK_SEPARATION`,
+  `SEPARATING`. `FLAT` explicitly does **not** re-open repertoire diversity
+  (proven by counterfactual logits, forced-z separation, +2.37 oracle gap);
+  it means the Q-formulation failed to resolve the latents. Adding `INVALID`
+  and `INSUFFICIENT_DATA` prevents `FLAT` from swallowing tooling failures.
+* **Reliability gate:** an opponent separates only if row-spread ≥ threshold
+  **and** the bootstrap CI on the best-vs-second-best mean-return gap excludes
+  zero (`best_second_gap_ci`). Raw spread alone is insufficient.
+* **Replay validity report** (`validity_report`): count-by-z, count-by-opponent,
+  per-cell count/mean/std/sem, return variance, mean arc length,
+  **terminal-finalized fraction** (episode-horizon check — should be ≈1.0),
+  and the duplicate-rejection guard. Per-update coverage gate warns on z
+  starvation by update ≥3.
+* **`map × z` coverage remains NOT_INSTRUMENTED**: the arc record carries no
+  `map_id` (threading it through the shared arc lifecycle touches every
+  arc-credit preset). `count_by_opponent × z` is reported instead. Adding
+  `map_id` is the prerequisite for a map-aware held-out grid.
+* **Promotion is gated, not asserted:** a positive data verdict yields
+  `promotion_status = SEPARATING_CANDIDATE` (not "wire in") and
+  `heldout_gate = REQUIRED_NOT_RUN`. The decisive gate is the held-out
+  prospective test (argmax-Q vs fixed-z2 / uniform / cross-episode-shuffled-Q /
+  oracle; decisive = Q-router > shuffled-Q), a separate post-training step.
+* Pinning tests: `tests/test_v6i11_q_router.py` (15 cases) — horizon contract,
+  extraction-before-drain, zero-arc/no-insert abort, record_id dedup,
+  terminal-fraction/arc-length, coverage→INSUFFICIENT_DATA, reliable
+  separation→SEPARATING, noisy overlap→not SEPARATING, plus opponent-context
+  wiring (canonical `{7:0,8:1,9:2}` one-hot rows, zero one-hot for -1/unmapped).
+
+**Held-out prospective evaluator (built, not yet run):**
+`experiments/eval_v6i11_q_router_heldout.py` is the decisive behavioural gate.
+Matched-seed design: per `(opponent, map, seed)` held-out episode it reads the
+legal t=0 context, predicts `Q(context, z)`, and runs ALL FOUR forced-z rollouts
+once on fresh matched-seed envs; every condition (Q-router argmax, cross-episode
+histogram-preserving shuffled-Q, uniform episode-persistent, fixed-z2, oracle)
+is derived from the SAME four paired returns. Cross-episode shuffle permutes
+chosen-z assignments *within* each `(opponent, map)` cell and reports
+`cross_episode_gate_untestable = true` if no cell can be reassigned (all choices
+identical) rather than a spurious zero-delta tie. Fresh `base_seed = 30000`,
+disjoint from Probe A (42), the v6i9 diagnostic (4242), and v6i11 training
+(seed 1). Decisive gate: paired `Q-router > shuffled-Q` (bootstrap CI excludes
+0); then `> uniform`; then approaches/beats fixed-z2. Frozen-actor hash checked
+before/after. It loads `q_router_final.pt`; run only after the diagnostic is at
+least `WEAK_SEPARATION`.
+
+**Next step:** await the running 15-update diagnostic
+(`artifacts/v6i11_q_router_run2_seed1/summary.json`). If validity holds and the
+verdict is at least `WEAK_SEPARATION`, run the held-out evaluator above; add
+`map_id` instrumentation only before a full map-aware grid, per the recommended
+sequence. Snapshot regenerated (adds the 3 v6i11 aliases only; no other preset
+changed).
+
+### 3.12 v6i13 delayed-commit opening-window advantage router — `EVALUATED` (20-update = FLAT; baseline_r2 ~0.18–0.21 held; z-residual advantage genuinely ~0 on single map)
+
+**5-update mechanism result (2026-07-03,
+`artifacts/v6i13_opening_window_advantage_router_5u_seed1/summary.json`, seed 1,
+2341 arcs):** net-positive on the information axis, not yet on the routing axis.
+`baseline_r2` rose and held across accumulation
+(`0.127 → 0.193 → 0.193 → 0.200 → 0.213`), and `advantage_target_std` fell
+(`0.932 → 0.883`), both far better than v6i12's `0.03` / `~0.99` plateau. z
+coverage broad (`{577,617,589,558}`), `dup=0`, `terminal_frac=1.0`,
+`min_cell_arcs=178`, commit locked at 32, frozen actor unchanged. **BUT**
+verdict is still `FLAT` (0/3 reliably separating): final advantage-gap CIs
+include zero (OP8 `+0.077 [-0.062,+0.221]`; OP9 `+0.010 [-0.157,+0.182]`; OP10
+`+0.064 [-0.134,+0.252]`), though they narrowed sharply vs the smoke (OP8 width
+0.71→0.28 as n grew 44→200). Empirical spreads (OP8 0.145, OP10 0.154) exceed
+v6i12's final (~0.09).
+
+**Interpretation:** the opening window confirms the *information* hypothesis —
+the episode-start context was genuinely missing return-predictive signal
+(V(context) R² 0.03 → 0.21). The remaining gap is that the *z-conditional
+residual advantage* is small (~0.07) relative to per-cell noise at n≈200. This
+is the pre-registered "promising" branch (smoke signal survived + strengthened,
+separation unresolved), so the decision is: **thread `map_id`, then run the
+20-update diagnostic**; hold the GRU/history encoder. `hidden=256` /
+`train_steps=100` are already the defaults, so the "strengthen V/A training"
+lever is spent — the open levers are (a) more data + narrower CIs at 20 updates,
+and (b) an extra context axis (`map_id`) for the advantage to separate on.
+
+**Next step — BLOCKER on the map_id plan:** the pre-registered "thread map_id"
+step is **infeasible as-is**. `rl/training/env_factory.py` builds one
+`GPUFieldConfig` with a single `map_layout`, and the v6i9 split-lane preset note
+(`v6_router_adapters.py`) states explicitly: "The current training system passes
+a single map_layout per run; there is no built-in map-pool sampling." v6i13 runs
+on `map_b_split_lane` with only a 0.5 vertical-mirror flip. A `map_id` field
+would therefore be **constant** across every arc → zero information for V/A.
+Options considered: (a) run 20-update WITHOUT map_id (pure more-data /
+CI-narrowing test on the ~0.07 gaps); (b) add genuine map-pool sampling
+(`map_pool` field + per-episode env sampling) so map actually varies, then
+thread map_id — larger infra change that shifts the training distribution;
+(c) use the per-episode vertical-mirror polarity as a lightweight varying axis if
+exposed in `info`; (d) escalate to a compact history/temporal encoder since the
+baseline signal is already strong.
+
+**Decision taken (2026-07-03):** option (a) — launched the 20-update V6I13
+diagnostic without map_id (`artifacts/v6i13_opening_window_advantage_router_20u_seed1/`,
+seed 1).
+
+**20-update diagnostic result (2026-07-04,
+`artifacts/v6i13_opening_window_advantage_router_20u_seed1/summary.json`, seed 1,
+9352 arcs):** `FLAT`, 0/3 reliably separating — a **decisive negative** on the
+"more data will narrow CIs enough" hypothesis. Dataset fully valid (`dup=0`,
+`terminal_frac=1.0`, `min_cell_arcs=741`, z balanced `{2302,2308,2335,2307}`,
+frozen actor unchanged, commit locked at 32). `baseline_r2` held in the
+`~0.17–0.21` band (peaked 0.213 at u5, final u20 = 0.188); `adv_std` stayed
+`~0.88–0.90` (well below v6i12's ~0.99). **But advantage gaps regressed toward
+zero as n grew** — the early ~0.07 spreads were noise-inflated: final gaps OP8
+`+0.012 [-0.060,+0.087]`, OP9 `+0.039 [-0.042,+0.126]`, OP10 `+0.009
+[-0.090,+0.107]`; empirical spreads compressed to OP8 0.066, OP9 0.124, OP10
+0.067. No held-out eval (requires ≥ `WEAK_SEPARATION`).
+
+**Interpretation — what V6I13 proved and closed:**
+1. **Information hypothesis CONFIRMED:** opening-window context (`[s0,s32,delta]`)
+   carries return-predictive signal V(context) can absorb (`baseline_r2 ~0.18–0.21`
+   vs v6i12's 0.03). The router was missing information, not just training pressure.
+2. **Z-residual routing hypothesis REFUTED on single map:** the post-commit
+   z-conditional advantage is genuinely ~0 at n≈740/cell — more data did not reveal
+   separation, it *removed* the illusion of it. The forced-z oracle gap (+2.37) is
+   not recoverable from unpaired post-commit returns on `map_b_split_lane` alone
+   via this V/A formulation.
+3. **map_id as planned is still blocked:** single fixed map per run; threading
+   `map_id` without map-pool sampling remains dead instrumentation.
+
+**Next fork (pre-registered):** do NOT run held-out delayed-router eval. The
+open levers are now infrastructure-level, not "more updates":
+* **(b) map-pool sampling** — add `map_pool` + per-episode env sampling so map
+  actually varies, then thread map_id into arc records and re-run V6I13-class
+  diagnostic; or
+* **(d) compact history/temporal encoder** — richer opening summary than
+  `[s0,s32,delta]` if the residual advantage needs trajectory dynamics, not just
+  endpoint snapshots; or
+* **(c) vertical-mirror polarity** as a lightweight binary geometry axis if
+  exposed in `info` (secondary — mirror is the only within-run geometry variation
+  today).
+
+### 3.13 v6i14 contract-specialist repertoire birth — `EVALUATED_FAIL`
+
+**Scientific delta vs v6i13/v6i12:** the delayed-router diagnostics showed the
+measurement pipe works but the z-conditional residual advantage is effectively
+flat at large n. v6i14 stops treating the router as the next bottleneck and
+tests whether explicit temporary z contracts can birth real reusable
+specialists before routing resumes.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This is not a
+paper-faithful row and not a Summer-compatible extension. It deliberately adds
+handcrafted z-role reward terms during repertoire training.
+
+**Parent:** `v6i9_mapaware_repertoire_hardpool`. Router is off, z assignment is
+balanced by episode, and the v6i9 repertoire trainable scope remains active
+(shared actor trunk frozen; z-specific modules trainable).
+
+**Resolved-config diff vs parent:** exactly `{experiment_id,
+latent_contract_specialist_coef, latent_contract_specialist_enabled, run_tag}`.
+The runtime adds default-off `latent_contract_specialist_enabled`,
+`latent_contract_specialist_coef`, and `latent_contract_specialist_clip` to
+`PPOConfig`; only v6i14 enables the contract bonus.
+
+**Contract map:** `z0` opening pressure, `z1` home defense / recovery, `z2`
+friendly-carrier support, `z3` carrier conversion. The reward is computed from
+existing normalized global-state features and stored as
+`reward_contract_specialist`.
+
+**Gate before router work resumes:** forced-z behavior fingerprints must exist.
+If z0/z1/z2/z3 do not separate on their contract metrics, router training is
+not meaningful. If fingerprints exist but forced-z returns do not differ by
+opponent/context, the specialists are different but not useful. Only if both
+pass should a selector be trained.
+
+**1-update smoke (2026-07-04,
+`artifacts/v6i14_contract_specialists_smoke_metric/`):** PASSED. Warm-started
+from `final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip` with
+`--additional-steps 1024`, `n_envs=4`, `n_steps=256`, `n_epochs=1`. Run config
+resolved `latent_assignment_mode=balanced_episode`,
+`train_router_when_forced=False`, `v6i9_training_stage=repertoire`,
+`latent_contract_specialist_enabled=True`, and `latent_contract_specialist_coef=0.25`.
+The metrics CSV exposes `reward_contract_specialist_mean=0.05616` on the
+smoke update, proving the contract bonus flows through the real rollout/update
+path. `shared_actor_max_abs_delta=0.0`; z-specific update telemetry is present
+for the contract-repertoire path.
+
+**20-update diagnostic (2026-07-04,
+`artifacts/v6i14_contract_specialists_20upd_diag/`):** MECHANISM PASSED,
+SPECIALIST GATE FAILED. The run completed updates 17-36 from the v6i9 hardpool
+checkpoint with router off, `balanced_episode` z assignment, contract reward
+enabled, and shared actor frozen (`shared_actor_max_abs_delta=0.0`). Contract
+reward stayed active (`reward_contract_specialist_mean=0.04987`, min `0.03503`,
+max `0.06106`), and episode z coverage was balanced (z0=36, z1=34, z2=35,
+z3=36). The forced-z fingerprint sniff was partial (44/48 episodes) and showed
+weak separation only: mean pair distance `0.0453`, max `0.0717`, pairs above
+threshold `0`. Do not train the router from this checkpoint.
+
+**50-update continuation (2026-07-04,
+`artifacts/v6i14_contract_specialists_50upd_cont/`):** COMPLETED, SPECIALIST
+GATE STILL FAILED. The run continued from
+`artifacts/v6i14_contract_specialists_20upd_diag/final_v6i14_contract_specialists_20upd_diag_2v2.zip`
+for 50 update rows (updates 37-86, timesteps 1,070,080 -> 1,120,256). Router
+remained off, z coverage stayed balanced (z0=92, z1=91, z2=92, z3=93), contract
+reward remained active (`reward_contract_specialist_mean=0.05162`, min
+`0.03822`, max `0.06473`), and shared actor drift stayed zero. The complete
+small forced-z behavior grid
+(`artifacts/v6i14_contract_specialists_50upd_cont/forced_z_fingerprint_eps2_complete/`,
+48/48 episodes) did not improve separation: mean pair distance `0.0431`, max
+`0.0623`, min `0.0238`, pairs above threshold `0`, all z represented. The next
+move is not router training; strengthen the contract-specialist reward/loss
+before any selector work resumes.
+
+**Verdict (2026-07-04):** `EVALUATED_FAIL`. Contract-specialist diagnostic
+wiring passed: contract reward live, shared actor frozen, balanced z assignment
+active, training stable. Specialist-birth gates failed: forced-z behavior pair
+distances remained far below threshold and decreased after continuation
+(20upd mean `0.0453` → 50upd mean `0.0431`); Stage-C complementarity failed
+with saturated forced-z win rates and no best-z variation (`best_z=0` in every
+cell, all forced-z win rates `1.0`). Tiny oracle gap is not promotion-worthy
+due to saturated returns and near-identical behavior fingerprints. Router
+promotion blocked. Next step: V6I15 contract-pressure / capacity /
+harder-surface ablation.
+
+### 3.14 v6i15 contract-pressure sweep -- `EVALUATED_FAIL` (phase-1: 5-update coefficient arms)
+
+**Scientific delta vs v6i14:** v6i14 proved the contract path is wired but
+that the mild coefficient did not birth behaviorally separated specialists.
+v6i15 keeps the same scaffold and asks whether the current z-specific actor
+pathway responds when the contract reward is made loud.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This is still
+handcrafted z-role reward shaping, so it is not paper-faithful and not a
+Summer-compatible extension.
+
+**Parent:** `v6i14_contract_specialists`. Router remains off,
+`balanced_episode` z assignment remains active, and the v6i9 repertoire-stage
+trainable scope remains active (shared actor trunk frozen; z-specific modules
+trainable).
+
+**Resolved-config diff vs v6i14:** exactly `{experiment_id,
+latent_contract_specialist_coef, run_tag}`. The 3x, 6x, and 10x arms set
+`latent_contract_specialist_coef` to `0.75`, `1.50`, and `2.50` respectively.
+`v6i15` and `v6i15_contract_pressure` resolve to the 3x arm. The 1x baseline
+is v6i14 (`coef=0.25`).
+
+**Phase-1 protocol (completed 2026-07-04):** 5-update coefficient arms from
+the same v6i9 anchor
+(`checkpoints/2v2/final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip`,
+`--load-weights-only`, `--additional-steps 5120`), each followed by a complete
+48-episode forced-z fingerprint grid (`episodes=2` per cell, OP8/OP9/OP10 ×
+`map_b` / `map_b_split_lane_v2`).
+
+| Arm | `coef` | `reward_contract_specialist_mean` (final update) | forced-z `behavior_pair_distance_mean` | pairs above threshold |
+|-----|--------|--------------------------------------------------|----------------------------------------|----------------------|
+| v6i14 (1× baseline) | 0.25 | ~0.05 | 0.0431 (50upd cont) | 0 |
+| 3× (`artifacts/v6i15_contract_pressure_3x_5u_seed1/`) | 0.75 | 0.149 | 0.0436 | 0 |
+| 6× (`artifacts/v6i15_contract_pressure_6x_5u_seed1/`) | 1.50 | 0.298 | 0.0409 | 0 |
+| 10× (`artifacts/v6i15_contract_pressure_10x_5u_seed1/`) | 2.50 | 0.497 | 0.0409 | 0 |
+
+**Mechanism checks passed on all arms:** contract reward scales with coefficient
+(~linear vs v6i14), shared actor frozen (`shared_actor_max_abs_delta=0.0`),
+balanced z assignment, training stable, win rate saturated (~100%).
+
+**Specialist-birth gate failed on all arms:** forced-z behavior pair distances
+stayed in the v6i14 band (~0.04) with zero pairs above threshold; 6× and 10×
+eval fingerprints were identical (`mean=0.0409`). Stage-C still shows
+`best_z=0` in every cell with all forced-z win rates `1.0`. Contract reward
+rose but behavior did not separate — the model is collecting contract crumbs
+without changing forced-z behavior.
+
+**Verdict:** coefficient pressure alone does not birth specialists. Do **not**
+continue any arm to 20 updates. Do **not** resume router training. Next fork:
+Arm C (z-specific capacity / adapter design) and/or Arm B (harder eval surface
+with non-saturating margin metrics).
+
+**Promotion gate:** router training remains blocked. If a future capacity arm
+still fails at 10× pressure, treat the z pathway as underpowered or the
+contract features as misaligned — not a routing problem.
+
+### 3.15 v6i16 capacity + sharp-contract ablation -- `EVALUATED_FAIL`
+
+**Scientific delta vs v6i15:** v6i15 showed that louder contract reward moves
+behavior distance somewhat but quickly hits a ceiling. v6i16 tests the next
+diagnosis: the current contracts may be satisfiable by one generic policy, and
+the z-specific actor pathway may not have enough leverage.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This is
+handcrafted z-role reward shaping plus actor z-pathway capacity tuning. It is
+not paper-faithful and not a Summer-compatible extension.
+
+**Parent:** `v6i15_contract_pressure_3x`. All arms keep 3x contract pressure
+(`latent_contract_specialist_coef = 0.75`), router off, `balanced_episode` z
+assignment, `v6i9_training_stage = "repertoire"`, OP8/OP9/OP10 hard pool, and
+the frozen shared actor trunk.
+
+**Arm matrix:**
+
+| Arm | Preset | Delta vs v6i15 3x |
+|-----|--------|-------------------|
+| A | `v6i16_sharp_contracts` | `latent_contract_specialist_variant = "sharp"` |
+| B | `v6i16_capacity` | `latent_z_gate_init = 0.08`, `latent_actor_z_adapter_enabled = True`, `latent_actor_z_adapter_scale = 0.10`, `latent_actor_z_adapter_init_std = 0.05` |
+| C | `v6i16_capacity_sharp_contracts` (`v6i16`) | Arm A + Arm B |
+
+**Sharp contract map:** `z0` pressure / interception / enemy-carrier
+disruption; `z1` escort / carrier support / conversion support; `z2`
+home-flag defense / returns / denial; `z3` spacing / lane control / split
+pressure.
+
+**Phase-1 protocol (completed 2026-07-04):** 5 updates per arm from the same
+v6i9 anchor checkpoint, followed by the same 48-episode forced-z fingerprint
+grid (`episodes=2` per cell, OP8/OP9/OP10 x `map_b` /
+`map_b_split_lane_v2`). Artifacts:
+`artifacts/v6i16_sharp_contracts_5u_seed1/`,
+`artifacts/v6i16_capacity_5u_seed1/`, and
+`artifacts/v6i16_capacity_sharp_contracts_5u_seed1/`.
+
+| Arm | forced-z `behavior_pair_distance_mean` | max pair distance | pairs above threshold | `unique_best_z_count` | Stage-C |
+|-----|----------------------------------------|-------------------|-----------------------|-----------------------|---------|
+| A sharp contracts | 0.0436 | 0.0617 | 0 | 1 | FAIL |
+| B capacity | 0.0450 | 0.0608 | 0 | 1 | FAIL |
+| C capacity + sharp contracts (`v6i16`) | 0.0450 | 0.0608 | 0 | 1 | FAIL |
+
+**Mechanism checks passed:** all arms trained from the intended anchor with
+router off, balanced episode z assignment, contract reward active, and
+forced-z eval artifacts complete. Stage-C win rate stayed saturated
+(`100%` for every forced-z cell), so binary win rate remains unusable.
+
+**Specialist-birth gate failed:** sharper contracts, larger z pathway
+capacity, and the combined arm all remained in the same ~0.04-0.045 behavior
+distance band with zero pairs above threshold. The OP/map best-z surface stayed
+constant (`best_z=0` in every cell), and Stage-C failed on every arm despite a
+matched-seed oracle gap around `+0.78` to `+0.80`. The script's
+`ORACLE_GAP_PLUS_CONTEXT` ladder line is not accepted as promotion evidence
+here because the stricter v6i16 gates require actual behavior fingerprints and
+context-varying best-z cells.
+
+**Verdict:** capacity + sharp contracts did not produce an interaction effect.
+Do **not** train a router from v6i16. The next fork should change the training
+surface, not keep stacking scalar knobs: harder or asymmetric opponents,
+non-saturating score-margin/tempo objectives, map-pool variation, or contexts
+where defense, escort, interception, and pressure genuinely trade off.
+
+### 3.16 v6i17 surface-pressure diagnostic -- `EVALUATED_FAIL`
+
+**Scientific delta vs v6i16:** v6i16 ruled out louder contracts, sharper
+contracts, larger z-pathway capacity, and the combined capacity + sharp
+contract arm on the current saturated OP8/OP9/OP10 surface. v6i17 tests the
+next hypothesis: the arena is too easy or too symmetric, so the same
+generalist behavior wins without role tradeoffs.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This inherits
+handcrafted z-role contract rewards and v6i16 z-pathway capacity changes, then
+changes the opponent surface. It is not paper-faithful and not a
+Summer-compatible extension.
+
+**Parent:** `v6i16_capacity_sharp_contracts`. Router remains off,
+`balanced_episode` z assignment remains active, `latent_contract_specialist`
+stays enabled at 3x with `variant="sharp"`, z-specific pathways remain
+trainable, and the shared actor trunk remains frozen through
+`v6i9_training_stage = "repertoire"`.
+
+**Resolved-config diff vs v6i16 combined:** exactly `{experiment_id,
+opponent_pool, run_tag}`.
+
+| Field | v6i16 combined | v6i17 |
+|-------|----------------|-------|
+| `experiment_id` | `v6i16` | `v6i17` |
+| `opponent_pool` | `("OP8", "OP9", "OP10")` | `("OP8", "OP9", "OP10", "OP11", "OP12")` |
+| `run_tag` | `v6i16_capacity_sharp_contracts_3x_OP8_OP9_OP10` | `v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12` |
+
+**Launch caveat (2026-07-04):** the first two attempted runs under
+`artifacts/v6i17_surface_pressure_5u_seed1/` and
+`artifacts/v6i17_surface_pressure_5u_seed1_op8_op12/` are invalid as v6i17
+surface evidence. Runtime validation silently filtered the OP11/OP12 preset
+surface back to OP8/OP9/OP10. Fixed by extending the training opponent
+allowlist to preserve OP11 and OP12, pinned by
+`tests/test_v6i17_surface_pressure_diagnostic.py`.
+
+**Corrected 5-update diagnostic (2026-07-04,
+`artifacts/v6i17_surface_pressure_5u_seed1_op8_op12_validated/`):** COMPLETED.
+Warm-started from
+`checkpoints/2v2/final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip`
+with `--load-weights-only`, `--additional-steps 5120`, `n_envs=4`,
+`n_steps=256`, `n_epochs=1`, CUDA. The launch banner and audit confirm
+OP8/OP9/OP10/OP11/OP12 as the active training pool. Mechanism checks passed:
+contract reward live (`reward_contract_specialist_mean=0.1688` final update),
+shared actor frozen (`shared_actor_max_abs_delta=0.0`), router gradients zero
+as intended, balanced episode z assignment active, and OP11/OP12 appeared in
+training telemetry.
+
+**Forced-z fingerprint grid (2026-07-04,
+`artifacts/v6i17_surface_pressure_5u_seed1_op8_op12_validated/forced_z_fingerprint_eps2_op8_op12/`):**
+COMPLETE, SPECIALIST GATE FAILED. Grid: OP8/OP9/OP10/OP11/OP12 x
+`map_b`/`map_b_split_lane_v2` x z0..z3 x 2 episodes = 80 episodes. All
+forced-z cells still won (`WR=100%`). Stage-C failed:
+`oracle_wr=100%`, `best_fixed_wr=100%`, `best_z=0` in every OP/map cell,
+`unique_best_z_count=1`. Behavior fingerprints did not improve versus v6i16:
+mean pair distance `0.0392`, max pair distance `0.0533`, pairs above threshold
+`0`, all z represented. Matched-seed oracle gap increased to `+1.3625`, but
+that is not promotion evidence without behavior fingerprints or context-varying
+best-z cells.
+
+**Verdict:** harder/asymmetric OP11/OP12 surface did not birth specialists
+under the current contract/capacity scaffold. Do **not** train a router from
+v6i17. The next surface fork needs stronger consequence changes than simply
+adding OP11/OP12 to this map surface: non-saturating margin/tempo objectives,
+handicap/asymmetry, shorter-horizon pressure, or map-pool/layout variation
+where different roles cannot all win by the same generalist behavior.
+
+### 3.17 v6i18 margin/tempo surface diagnostic -- `EVALUATED_FAIL` (5-update live + forced-z, 2026-07-04)
+
+**Scientific delta vs v6i17:** v6i17 showed that harder OP11/OP12 opponents
+alone do not break win-rate saturation or force role tradeoffs. v6i18 keeps the
+specialist-birth machinery fixed and changes only the consequence surface: the
+arena now grades score margin, capture tempo, near-cap conversion, enemy flag
+touches, and enemy carrier progress instead of relying on binary win/loss.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This inherits
+handcrafted z-role contract rewards and v6i16 z-pathway capacity changes, then
+adds noncanonical margin/tempo reward pressure. It is not paper-faithful and
+not a Summer-compatible extension.
+
+**Parent:** `v6i17_surface_pressure_diagnostic`. Router remains off,
+`balanced_episode` z assignment remains active, OP8/OP9/OP10/OP11/OP12 remain
+active, `latent_contract_specialist` stays enabled at 3x with
+`variant="sharp"`, z-specific pathways remain trainable, and the shared actor
+trunk remains frozen through `v6i9_training_stage = "repertoire"`.
+
+**Resolved-config diff vs v6i17:** exactly `{env_stalemate_max_steps,
+env_surface_blue_capture_tempo_bonus, env_surface_blue_near_cap_bonus,
+env_surface_red_carrier_progress_penalty, env_surface_red_flag_touch_penalty,
+env_surface_score_margin_coef, experiment_id, max_decision_steps, run_tag}`.
+
+| Field | v6i17 | v6i18 |
+|-------|-------|-------|
+| `experiment_id` | `v6i17` | `v6i18` |
+| `max_decision_steps` | `320` | `240` |
+| `env_stalemate_max_steps` | `120` | `80` |
+| `env_surface_score_margin_coef` | `0.0` | `0.15` |
+| `env_surface_blue_capture_tempo_bonus` | `0.0` | `0.25` |
+| `env_surface_red_flag_touch_penalty` | `0.0` | `0.20` |
+| `env_surface_red_carrier_progress_penalty` | `0.0` | `0.025` |
+| `env_surface_blue_near_cap_bonus` | `0.0` | `0.015` |
+| `run_tag` | `v6i17_surface_pressure_diagnostic_OP8_OP9_OP10_OP11_OP12` | `v6i18_margin_tempo_surface_OP8_OP9_OP10_OP11_OP12` |
+
+**Launch command (completed):**
+
+```powershell
+uv run python rl/train_ppo.py --preset v6i18 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i18_margin_tempo_surface_5u_seed1 --checkpoint-dir artifacts\v6i18_margin_tempo_surface_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Checkpoint:** `artifacts/v6i18_margin_tempo_surface_5u_seed1/final_v6i18_margin_tempo_surface_5u_seed1_2v2.zip`
+
+**Training mechanism gates (final update 21):** PASS — `reward_contract_specialist_mean=0.157`, `shared_actor_max_abs_delta=0.0`, `rollout_win_margin_mean=2.38`, `strategy_wr_spread=0.5` (first non-zero z WR spread in this fork chain), OP8–OP12 present in telemetry, router/q_phi effectively off, balanced z assignment active. Surface coefs resolved in run config (`env_surface_*` nonzero; shorter `max_decision_steps=240`, `env_stalemate_max_steps=80`). Surface components are not logged as separate CSV columns; they flow through the GPU env reward path.
+
+**Forced-z fingerprint eval (completed):**
+
+```powershell
+uv run python experiments/run_forced_z_eval.py --checkpoint artifacts\v6i18_margin_tempo_surface_5u_seed1\final_v6i18_margin_tempo_surface_5u_seed1_2v2.zip --out-dir artifacts\v6i18_margin_tempo_surface_5u_seed1\forced_z_fingerprint_eps2 --opponents OP8 OP9 OP10 OP11 OP12 --episodes 2 --oracle-metric win_margin --device cuda --progress-every 8
+```
+
+**Eval caveat:** canonical forced-z protocol uses `max_decision_steps=400` and does not replay v6i18 surface reward coefs; margin/tempo gates are therefore measured on behavior telemetry and episode outcomes under the standard eval env, not the training surface.
+
+| Gate | Target | v6i18 result | Pass? |
+|------|--------|--------------|-------|
+| `behavior_pair_distance_mean` | `>0.06` | **0.0391** | FAIL |
+| pairs above threshold | ≥1–2 | **0** | FAIL |
+| `unique_best_z_count` | `>1` | **1** (`z0` every cell) | FAIL |
+| forced-z WR | informative only | **100%** all 80 eps | saturated |
+| score margin by z | differs | z0=2.40, z1=2.30, z2=2.65, z3=2.30 (spread 0.35) | weak |
+| time-to-first-score by z | differs | z0=35.4, z1=46.4, z2=47.7, z3=39.5 (spread 12.3 steps) | weak |
+| intercept/escort by z | role ownership | intercept 0.088–0.216, escort 0.260–0.317 | weak |
+
+Stage-C gates: oracle WR advantage 0%, best-z varies = FAIL. Global best fixed-z by margin is z2 (2.65) but per-cell oracle picks z0 everywhere under `win_margin` metric.
+
+**Verdict:** `EVALUATED_FAIL` on promotion gates. Margin/tempo surface changed training telemetry (`strategy_wr_spread`, rollout win margin) but did **not** produce forced-z specialist separation above the v6i14/v6i15 ~0.04 ceiling. The answer to “do margin/tempo consequences create z-specialist separation where harder opponents alone did not?” is **no** at 5 updates.
+
+**Router training:** remains **blocked** (ignore ladder verdict `ORACLE_GAP_PLUS_CONTEXT` from eval script; user gate is margin/tempo/role separation).
+
+**Recommended next fork (per user decision tree):** explicit arena handicaps/asymmetry or real `map_pool` layout variation — **not** another contract or surface coefficient sweep.
+
+**Artifacts:**
+- Training: `artifacts/v6i18_margin_tempo_surface_5u_seed1/`
+- Forced-z: `artifacts/v6i18_margin_tempo_surface_5u_seed1/forced_z_fingerprint_eps2/`
+
+### 3.18 v6i19 map-pool surface diagnostic -- `EVALUATED_FAIL` (2026-07-04)
+
+**Scientific delta vs v6i18:** v6i18 failed on forced-z fingerprints under a fixed
+layout even with margin/tempo surface pressure. v6i19 keeps the v6i18 scaffold
+fixed and adds only per-episode `map_pool` sampling so opponent x map context can
+create layout-driven role tradeoffs.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). Router remains
+off; contracts, z capacity, shared-actor freeze, and surface coefs unchanged.
+
+**Resolved-config diff vs v6i18:** exactly `{experiment_id, map_pool, run_tag}`.
+
+**Training (valid complete):** relaunched 5-update run from v6i9 anchor.
+Checkpoint `artifacts/v6i19_map_pool_surface_5u_seed1/final_v6i19_map_pool_surface_5u_seed1_2v2.zip`.
+Both layouts appeared in episode telemetry (`map_b_split_lane` 19 eps,
+`map_b_split_lane_v2` 13 eps). Map-pool plumbing gate passed.
+
+**Forced-z eval (authoritative, surface-matched):**
+`artifacts/v6i19_map_pool_surface_5u_seed1/forced_z_fingerprint_eps2/`
+(`--inherit-training-config`, `max_decision_steps=240`, OP8–OP12 ×
+`map_b` + `map_b_split_lane_v2`, 2 eps/cell).
+
+| Gate | Result |
+|------|--------|
+| `unique_best_z_count` | **1** (z0 in all 10 opponent×map cells) |
+| `behavior_pair_distance_mean` | **0.0413** (≈ V6I18 0.0412) |
+| `pairs_above_threshold` | **0** |
+| WR | **100%** saturated (all cells) |
+| Global best-fixed z | z2 (margin 2.65); per-cell oracle still z0 |
+| Stage C gate 2 (best-z varies) | **FAIL** |
+
+**Verdict:** map-pool layout variation did **not** break the clone wall. Same
+failure shape as V6I14–V6I18. Ladder `ORACLE_GAP_PLUS_CONTEXT` is **not** a
+router unblock signal.
+
+**Next fork (if continuing specialist-birth line):** explicit arena
+asymmetry/handicap — not more map/reward/surface polishing. Router training
+remains blocked.
+
+### 3.19 v6i20 asymmetry-handicap surface diagnostic -- `EVALUATED_FAIL` (2026-07-04)
+
+**Scientific delta vs v6i19:** v6i19 proved that map-pool infrastructure and
+surface-matched eval work, but layout variation did not break the clone wall.
+v6i20 keeps the v6i19 scaffold fixed and strengthens only asymmetric
+consequence pressure: red flag touches and red carrier progress are more
+expensive, while blue fast-capture and near-cap conversion pressure are
+stronger.
+
+**Fidelity classification:** `DIAGNOSTIC` (non-Summer scaffold). This inherits
+handcrafted z-role contract rewards, v6i16 z-pathway capacity changes,
+v6i18 margin/tempo surface rewards, and v6i19 map-pool sampling. It is not
+paper-faithful and not a Summer-compatible extension.
+
+**Parent:** `v6i19_map_pool_surface_diagnostic`. Router remains off,
+`balanced_episode` z assignment remains active, OP8/OP9/OP10/OP11/OP12 and the
+two-layout `map_pool` remain active, `latent_contract_specialist` stays enabled
+at 3x with `variant="sharp"`, z-specific pathways remain trainable, and the
+shared actor trunk remains frozen through `v6i9_training_stage = "repertoire"`.
+
+**Resolved-config diff vs v6i19:** exactly
+`{env_surface_blue_capture_tempo_bonus, env_surface_blue_near_cap_bonus,
+env_surface_red_carrier_progress_penalty, env_surface_red_flag_touch_penalty,
+experiment_id, run_tag}`.
+
+| Field | v6i19 | v6i20 |
+|-------|-------|-------|
+| `experiment_id` | `v6i19` | `v6i20` |
+| `env_surface_blue_capture_tempo_bonus` | `0.25` | `0.45` |
+| `env_surface_red_flag_touch_penalty` | `0.20` | `0.50` |
+| `env_surface_red_carrier_progress_penalty` | `0.025` | `0.075` |
+| `env_surface_blue_near_cap_bonus` | `0.015` | `0.035` |
+| `run_tag` | `v6i19_map_pool_surface_diagnostic_OP8_OP9_OP10_OP11_OP12` | `v6i20_asymmetry_handicap_surface_OP8_OP9_OP10_OP11_OP12` |
+
+**Training (valid complete):** 5-update run from v6i9 anchor succeeded.
+Checkpoint `artifacts/v6i20_asymmetry_handicap_surface_5u_seed1/final_v6i20_asymmetry_handicap_surface_5u_seed1_2v2.zip`.
+Mechanism gates passed: stronger surface coefs resolved, map pool active,
+`shared_actor_max_abs_delta=0.0`, router gradients zero, contract reward live.
+`strategy_wr_spread=0.5` appeared once on update 20 — **not** promotion
+evidence (5 updates, noisy training-time metric).
+
+**Forced-z eval (authoritative, completed):**
+`artifacts/v6i20_asymmetry_handicap_surface_5u_seed1/forced_z_fingerprint_eps2/`
+(`--inherit-training-config`, `max_decision_steps=240`, stronger v6i20 surface
+coefs inherited).
+
+Grid: OP8..OP12 x `map_b` / `map_b_split_lane_v2` x z0..z3 x 2 episodes =
+80 episodes.
+
+| Gate | Target | v6i20 result | Pass? |
+|------|--------|--------------|-------|
+| `unique_best_z_count` | `>1` | **1** (`z0` every opponent x map cell) | FAIL |
+| `behavior_pair_distance_mean` | `>0.06` | **0.0413** | FAIL |
+| `behavior_pair_distance_max` | above prior ceiling | **0.0570** | FAIL |
+| pairs above threshold | >=1 | **0** | FAIL |
+| forced-z WR | informative only | **100%** all 80 eps | saturated |
+| Stage-C | best-z varies and oracle beats fixed WR | **FAIL** | FAIL |
+
+Tradeoff table by z:
+
+| z | WR | margin | time-to-first-score | intercept-near-carrier | escort | defense pressure |
+|---|----|--------|---------------------|------------------------|--------|------------------|
+| z0 | 1.000 | 2.350 | 35.4 | 0.171 | 0.314 | 0.736 |
+| z1 | 1.000 | 2.150 | 46.4 | 0.207 | 0.265 | 0.733 |
+| z2 | 1.000 | 2.650 | 41.3 | 0.090 | 0.264 | 0.720 |
+| z3 | 1.000 | 2.350 | 39.6 | 0.186 | 0.304 | 0.751 |
+
+Stage-C details: oracle WR `100%`, best-fixed WR `100%`, WR advantage `0%`,
+oracle margin `2.85`, best-fixed margin `2.35`, best fixed z by Stage-C is z0,
+global best fixed z by margin summary is z2. The ladder verdict
+`ORACLE_GAP_PLUS_CONTEXT` is not accepted as a router-unblock signal because
+the strict behavior and context-variation gates failed.
+
+**Verdict:** explicit asymmetric consequence pressure did not break the clone
+wall. V6I20 has the same failure shape as V6I19: the arena/eval plumbing works,
+but the forced-z repertoire still lacks behaviorally distinct, context-varying
+specialists. Router training remains blocked.
+
+**Next fork:** do not run more coefficient polish on this scaffold. If
+continuing the specialist-birth line, move to a stronger intervention:
+explicit environment handicap mechanics, limited shared-layer unfreeze under
+asymmetry, or separate specialist pretraining / role-conditioned scenario
+curricula.
+
+Failure band to beat: V6I18/V6I19 (`distance ≈ 0.04`, `unique_best_z=1`, z0
+everywhere, WR saturated).
+
+### 3.20 v6i21 adaptive OP8-OP12 hardpool calibration -- `IMPLEMENTED` (2026-07-04)
+
+**Scientific delta vs v6i20:** reward/surface polish failed to break the clone
+wall. v6i21 upgrades **OP8-OP12 in place** (same IDs, no OP13-OP17) to adaptive
+hardpool v2: intra-episode memory tracks blue lane preference, escort density,
+overcommit, near-cap patterns, and fast conversions; red roles/routes shift to
+punish repetition (intercept lane bias, escort split pressure, counter on
+overcommit, emergency near-cap collapse).
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine change, not paper-faithful.
+Router remains blocked.
+
+**Resolved-config diff vs v6i20:** exactly `{experiment_id, run_tag}`.
+
+**Comparability note:** pre-v6i21 OP8-OP12 forced-z / WR results are **not**
+directly comparable to post-v6i21 OP8-OP12.
+
+**Implementation:** `gpu_env/_core/_bt_adaptive.py`, profile/dynamics updates in
+`_bt_profiles.py` and `opponent_params.py`. Preset aliases: `v6i21`,
+`v6i21_adaptive_op8_op12_hardpool_calibration`.
+
+**Calibration command (first gate — WR band, not specialist birth):**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21_adaptive_hardpool_calibration
+```
+
+Target: mean blue WR 35-65%, hard cells below 50%, no cell 95%+, red scores
+sometimes. Do **not** launch router or specialist training until calibration
+passes.
+
+**Calibration eval (v6i9 generalist, 2026-07-04):** `EVALUATED_FAIL` — still
+too easy. 10 cells × 25 episodes; mean blue WR **99.2%**; **0/10** cells in
+35–65% band; **10/10** cells ≥95%. Red scores occasionally (0.28–0.92 mean) but
+never threatens wins. Blue margin ~2.6–3.0. OP8–OP12 show no meaningful
+difficulty spread (all saturated). Artifact:
+`artifacts/v6i21_adaptive_hardpool_calibration/calibration_report.json`.
+
+| Cell | map | WR | blue | red |
+|------|-----|-----|------|-----|
+| OP8 | map_b | 100% | 3.00 | 0.40 |
+| OP8 | split_lane_v2 | 96% | 2.76 | 0.44 |
+| OP9 | map_b | 100% | 2.96 | 0.44 |
+| OP9 | split_lane_v2 | 100% | 2.96 | 0.32 |
+| OP10 | map_b | 100% | 2.88 | 0.80 |
+| OP10 | split_lane_v2 | 100% | 3.00 | 0.92 |
+| OP11 | map_b | 100% | 2.88 | 0.32 |
+| OP11 | split_lane_v2 | 96% | 2.96 | 0.32 |
+| OP12 | map_b | 100% | 3.00 | 0.28 |
+| OP12 | split_lane_v2 | 100% | 2.88 | 0.64 |
+
+**Verdict:** OP8–OP12 v2 adaptive hardpool is **not yet hard enough** for the
+already-trained v6i9 champion. Do **not** touch router or z-specialist birth
+until calibration passes.
+
+**v6i21B pressure tuning (2026-07-04):** implemented as an in-place calibration
+patch over the same OP8-OP12 IDs, not a new PPO preset. The patch lowers adaptive
+trigger thresholds, makes near-cap collapse fire earlier, strengthens intercept
+block points, lets OP12 counter-push on blue overcommit before a blue flag grab,
+removes 2v2 sub-base red speed ranges for OP8-OP12, and applies a hardpool-only
+blue carrier speed multiplier of 0.95 while blue carries the red flag. Touched
+files: `gpu_env/_core/_bt_adaptive.py`, `gpu_env/_core/_bt_profiles.py`,
+`gpu_env/_core/_step.py`, `opponent_params.py`. Calibration artifact target:
+`artifacts/v6i21B_adaptive_hardpool_pressure_tuning`.
+
+**v6i21B calibration command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21B_adaptive_hardpool_pressure_tuning
+```
+
+**Calibration eval (v6i9 generalist, v6i21B engine, 2026-07-05):** `EVALUATED_FAIL`
+— marginal improvement only. 10 cells × 25 episodes; mean blue WR **98.0%**
+(vs 99.2% pre-v6i21B); **0/10** in 35–65% band; **9/10** ≥95% (vs 10/10).
+OP12 shows strongest red pressure (1.40–1.60 mean red vs 0.28–0.64 pre-v6i21B);
+OP9 split_lane dropped to 92%. Still Bad Result A. Artifact:
+`artifacts/v6i21B_adaptive_hardpool_pressure_tuning/calibration_report.json`.
+
+| Cell | map | WR | blue | red |
+|------|-----|-----|------|-----|
+| OP8 | map_b | 100% | 2.88 | 0.52 |
+| OP8 | split_lane_v2 | 100% | 2.92 | 0.48 |
+| OP9 | map_b | 96% | 2.84 | 0.68 |
+| OP9 | split_lane_v2 | 92% | 2.68 | 0.76 |
+| OP10 | map_b | 100% | 3.00 | 0.72 |
+| OP10 | split_lane_v2 | 100% | 3.00 | 0.96 |
+| OP11 | map_b | 100% | 3.00 | 0.48 |
+| OP11 | split_lane_v2 | 96% | 2.88 | 0.80 |
+| OP12 | map_b | 100% | 3.00 | 1.60 |
+| OP12 | split_lane_v2 | 96% | 2.96 | 1.40 |
+
+**Calibration eval (v6i20 5u checkpoint, 2026-07-05):** `EVALUATED_FAIL` — mean
+blue WR **99.6%**; **0/10** in-band; **10/10** saturated. Artifact:
+`artifacts/v6i21_adaptive_hardpool_calibration_v6i20/calibration_report.json`.
+
+**Calibration eval (v6i9 repertoire, 2026-07-05):** `EVALUATED_FAIL` — mean
+blue WR **99.2%**; **0/10** in-band; **10/10** saturated. Artifact:
+`artifacts/v6i21_adaptive_hardpool_calibration_v6i9_repertoire/calibration_report.json`.
+
+**Multi-anchor verdict:** OP8–OP12 v2 adaptive hardpool is **not hard enough**
+against any of the three blue anchors (v6i9 generalist, v6i9 repertoire, v6i20
+surface). Saturation is checkpoint-agnostic, not anchor-specific.
+
+**Status:** v6i21B calibrated and failed (98.0% mean, 9/10 saturated). Router and
+specialist birth remain blocked.
+
+### 3.21 v6i21C adaptive hardpool denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21B:** adaptive memory was active but too soft — blue
+still autopilots to ~3 captures. v6i21C strengthens **denial** on the same
+OP8-OP12 IDs: predictive intercept, earlier/larger near-cap collapse with longer
+role locks, dual flag retrieval, stronger cap-lane blocking, aggressive OP12
+counter on overcommit/carrier-loss, physical pressure (red speed 1.10-1.15,
+interceptor near-flag boost 1.22, blue carrier 0.87×, red respawn 0.80×).
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only; router blocked.
+
+**Resolved-config diff vs v6i21:** exactly `{experiment_id, run_tag}`.
+
+**Tier-1 calibration gates:** mean blue WR below 90%; saturated fewer than 5/10;
+at least 1 cell in 35-65%; red_score above 1.0 in a hard cell; blue_score not
+pinned near 3.0.
+
+**Calibration command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21c_adaptive_hardpool_denial_calibration
+```
+
+**Calibration eval (v6i9 generalist, 2026-07-05):** `EVALUATED_FAIL` (tier-1 and
+final). Mean blue WR **96.8%** (down from v6i21B 98.0%, v6i21 99.2%); mean blue
+score **2.81** (denial metric moving — min cell **2.24** on OP9/split_lane).
+**9/10** cells saturated; **0/10** in-band. Best cell: **OP12/split_lane** WR
+**84%**, red **1.96**. Tier-1: passed hard-red gate (2 cells), failed mean WR
+below 90%, saturated fewer than 5, in-band, blue-not-pinned (max still 3.0). Artifact:
+`artifacts/v6i21c_adaptive_hardpool_denial_calibration/calibration_report.json`.
+
+**Status:** calibrated; partial denial progress but arena still saturated. Router
+and specialist birth remain blocked.
+
+### 3.22 v6i21D adaptive hardpool brutal denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21C:** v6i21C is connected but still appears saturated
+in the visible cells. v6i21D is an upper-bound pressure test over the same
+OP8-OP12 IDs: harsher blue carrier speed penalty, real hardpool-only red speed
+overdrive, stronger interceptor near-flag boost, faster red respawn, larger
+near-cap collapse zone, longer collapse/retrieval locks, harder cap-lane
+blocking, and stricter calibration gates.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth, no new OP IDs, no blue checkpoint change.
+
+**Resolved-config diff vs v6i21C:** exactly `{experiment_id, run_tag}`.
+
+**Break-saturation gates for D:** mean blue WR below 85%; no more than 3/10
+cells at 95%+; at least 2 cells below 75%; at least 1 cell with red_score above
+1.0; blue_score not pinned near 3.0 and at least one cell below 2.5.
+
+**10-episode smoke command after v6i21C finishes:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21D_adaptive_hardpool_brutal_denial_smoke10
+```
+
+If blue remains 95-100%, push harder. If blue drops to 0-20%, back off. If blue
+lands roughly 35-80%, run the full 25-episode calibration:
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 25 --device cuda --out-dir artifacts\v6i21D_adaptive_hardpool_brutal_denial_calibration
+```
+
+**Status:** implemented + focused tests passed. v6i21C calibration is still
+running at implementation time, so the D smoke has not been launched yet.
+Router and specialist birth remain blocked.
+
+**10-episode smoke eval (2026-07-05):** `PARTIAL_SUCCESS` — first real pressure
+signal. Mean blue WR **80.0%** (vs 99.2% v6i21 / 98.0% v6i21B / 96.8% v6i21C);
+**4/10** cells in 35-65% band; **5/10** saturated; mean blue score **2.54**.
+In-band cells: OP9 (both maps), OP12 (both maps). Still saturated: OP8 map_b,
+OP10 (both), OP11 (both). Borderline: OP8 split_lane 90%. Artifact:
+`artifacts/v6i21D_adaptive_hardpool_brutal_denial_smoke10/calibration_report.json`.
+
+**Verdict:** denial lever found; grid uneven. Router and specialist birth remain
+blocked. Next: targeted OP8/OP10/OP11 hardening (v6i21E), not router.
+
+### 3.23 v6i21E targeted denial balance calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21D:** v6i21D smoke proved the arena can pressure blue
+but left OP8/OP10/OP11 saturated while OP9/OP12 landed in-band. v6i21E hardens
+only the weak opponents: OP8 carrier-hunter + wider cap-lane collapse, OP10
+earlier escort-break + carrier cutoff intercept, OP11 faster anti-repeat collapse.
+OP9/OP12 engine constants and dynamics unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth, no new OP IDs.
+
+**Resolved-config diff vs v6i21D:** exactly `{experiment_id, run_tag}`.
+
+**10-episode smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21E_targeted_denial_balance_smoke10
+```
+
+Smoke target: mean WR 60-75%, 6+/10 in-band, at most 2/10 saturated. If smoke
+passes balance gates, run full 25-episode calibration before unblocking router.
+
+**Status:** **10-episode smoke `MIXED`/`FAIL`** (2026-07-05). Full 10 cells × 10
+episodes; mean blue WR **80.0%**; **4/10** in 35–65% band; **5/10** saturated;
+mean blue score **2.60**. In-band: OP9 (both), OP12 (both). OP10 map_b improved
+(100%→90%). OP8 100/100 (worse than D on split_lane). OP11 100/100. Tier-1 and
+final pass both false. Artifact:
+`artifacts/v6i21E_targeted_denial_balance_smoke10/calibration_report.json`.
+Superseded for OP8 by v6i21F smoke.
+
+### 3.24 v6i21F OP8 carrier denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21E:** v6i21E smoke showed OP9/OP12 in-band and OP10 map_b
+improving (100%→90%), but OP8 remained 100/100 with rising red scores and blue
+still pinned at 3.0 — red activity without conversion denial. v6i21F makes OP8 a
+pure carrier-hunter / cap-lane denial monster: counter-capture and 2v1 scoring
+disabled, dual intercept on carrier path, wider near-cap collapse, longer
+interceptor locks, lower coordinated-attack probability. OP9–OP12 unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only OP8 patch. No router, no
+PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21E:** exactly `{experiment_id, run_tag}`.
+
+**10-episode smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21F_op8_carrier_denial_smoke10
+```
+
+**Status:** **10-episode smoke `FAIL`** (2026-07-05). Mean WR **80.0%**; **4/10**
+in-band; **5/10** saturated; mean blue **2.59**. OP9/OP12 unchanged from E
+(in-band). OP8 still **100/100** but red scores **collapsed** (0.2/0.1 vs
+0.9/1.2 on E) — denial posture reduced red scoring without breaking blue caps.
+OP11 still 100/100. Tier-1 and final pass false. Artifact:
+`artifacts/v6i21F_op8_carrier_denial_smoke10/calibration_report.json`. OP8
+hypothesis not confirmed; next lever is OP11 (and OP10 split_lane), not more
+global OP8 pressure.
+
+### 3.25 v6i21G easy-cell conversion denial calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21F:** v6i21F made OP8 more carrier-focused but did not
+deny conversion. v6i21G targets the remaining easy cells directly: OP8/OP11
+restore cap-lane body-blocking during emergency collapse, OP10 cuts off the cap
+path instead of blending heavily toward carrier chase, and OP8/OP10/OP11 2v2
+speed/coordination pressure increases. OP9/OP12 are unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21F:** exactly `{experiment_id, run_tag}`.
+
+**10-episode smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21G_easy_cell_conversion_denial_smoke10
+```
+
+**Status:** implemented + focused tests passed. Full 10-cell smoke and a
+patched-cell 3-episode smoke both exceeded tool timeouts without writing a
+report and were stopped by the agent; no G calibration result should be inferred
+from those partial attempts. Router and specialist birth remain blocked.
+
+**Interrupted background smoke partials:** after relaunching G with captured
+stdout, OP8, OP10, and OP11 map_b remained saturated:
+OP8 map_b `100%/3.00/0.10`, OP8 split `100%/3.00/0.10`,
+OP10 map_b `100%/3.00/0.20`, OP10 split `100%/3.00/0.50`,
+OP11 map_b `100%/3.00/1.50`. OP9 stayed in-band (`50%`, `60%`). The run was
+interrupted before final JSON. Conclusion: bespoke OP8/OP10/OP11 geometry still
+fails; use calibrated surrogate shapes.
+
+### 3.26 v6i21H saturation surrogate calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21G:** G confirmed the failed pattern. H replaces the
+remaining saturated custom shapes with already-calibrated pressure shapes:
+OP8 becomes OP9-like fortress pressure, OP10/OP11 become OP12-like counter
+pressure, and the failed OP8 dual-denial, OP10 escort-break, and OP11
+repeat-intercept adaptive route overrides are disabled.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only calibration. No router,
+no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21G:** exactly `{experiment_id, run_tag}`.
+
+**Targeted smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --opponents OP8 OP10 OP11 --out-dir artifacts\v6i21H_saturation_surrogate_patched_cells_smoke10 --progress-every 1
+```
+
+**Status:** implemented + focused tests passed. Evaluation pending.
+
+### 3.27 v6i21I OP8 extreme physical calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21H:** H restored red pressure for OP8 but blue still
+won 100/100. v6i21I makes OP8 an explicit physical upper-bound test: OP8-only
+blue carrier speed multiplier `0.35`, OP8 red speed multiplier `1.60`, OP8
+near-flag interceptor boost `1.85`, and OP8 2v2 speed range `1.35-1.45`.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only OP8 calibration. No
+router, no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21H:** exactly `{experiment_id, run_tag}`.
+
+**OP8-only smoke command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --opponents OP8 --out-dir artifacts\v6i21I_op8_extreme_physical_smoke10 --progress-every 1
+```
+
+**Status:** **OP8-only smoke `PARTIAL_SUCCESS`** (2026-07-05). Extreme physical
+pressure **broke OP8 saturation** for the first time: map_b **80%** WR (blue
+2.90, red 1.90), split_lane **70%** WR (blue 2.80, red 2.00). Mean WR **75%**;
+**0/2** saturated; red scores finally threaten conversions. Not yet in 35–65%
+band; tier-1 and final pass false. Refutes "OP8 is structurally unblockable" —
+issue was insufficient physical pressure, not scoring/tagging geometry. Artifact:
+`artifacts/v6i21I_op8_extreme_physical_smoke10/calibration_report.json`. Next:
+dial OP8 physical knobs toward in-band without overshooting OP9/OP12 balance.
+
+### 3.28 v6i21J hardpool balance calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21I:** OP8I proved OP8 is no longer structurally
+saturated. v6i21J keeps OP8 hard and adds targeted physical pressure to OP10 and
+OP11: OP8 blue carrier `0.30`, OP8 red speed `1.70`, OP8 interceptor boost
+`2.00`; OP10/OP11 blue carrier `0.45`, red speed `1.45`, interceptor boost
+`1.65`. OP9/OP12 unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only hardpool calibration. No
+router, no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21I:** exactly `{experiment_id, run_tag}`.
+
+**Next calibration command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21J_hardpool_balance_smoke10 --progress-every 1
+```
+
+**Target before V6I22:** mean blue WR 50-75%, saturated cells 0-2/10, at least
+5/10 cells in 35-75%, red scores meaningfully, and blue score not pinned at 3.0.
+Router and repertoire-birth training remain blocked until this hardpool
+calibration is acceptable.
+
+**10-episode smoke eval (2026-07-05):** `GOOD_SMOKE` — pool usable. Profile proof
+in report confirms OP8 `0.30/1.70/2.00`, OP10/OP11 `0.45/1.45/1.65`. Mean blue
+WR **64.0%**; **7/10** in-band; **2/10** saturated (OP8 map_b, OP10 split_lane);
+mean blue score **2.43**. OP8 split_lane **50%**; OP9 **50-60%**; OP11 **40-50%**
+(red 2.2-2.5); OP12 **50%** (red 2.1-2.3). Weak spots: OP8 map_b still **100%**,
+OP10 split_lane **100%**. Formal tier-1 fails only on `blue_score_not_pinned`
+(max 3.0). Artifact:
+`artifacts/v6i21J_hardpool_balance_smoke10/calibration_report.json`.
+
+**25-episode calibration eval (2026-07-06):** `TIER1_PASS` — arena usable at n=25.
+Mean blue WR **66.4%**; **6/10** in-band; **2/10** saturated (OP10 both maps);
+mean blue score **2.43** (max **2.80**, min **1.48** — no longer pinned at 3.0).
+OP8 map_b dropped to **76%** (smoke 100%); OP12 split_lane **36%** in-band.
+Weak spot: OP10 still **96-100%**. `calibration_pass_tier1=True`;
+`calibration_pass=False` (mean WR above 65% final band). Artifact:
+`artifacts/v6i21J_hardpool_balance_calibration/calibration_report.json`.
+
+**Status:** hardpool calibration tier-1 passed. Repertoire birth (v6i22) may
+proceed as diagnostic; router remains blocked.
+
+### 3.29 v6i22 adaptive hardpool repertoire birth -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21J:** v6i21J is a calibration preset. v6i22 starts the
+next label-free repertoire-birth fork over the same adaptive hardpool surface:
+router off, `balanced_episode` z assignment, one z held for the episode, shared
+actor trunk frozen by `v6i9_training_stage = "repertoire"`, and z-specific
+modules plus critic trainable.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. It inherits v6 staged/frozen/adapted hardpool machinery, but
+adds no handcrafted z-role contracts, no opponent-ID supervision, no oracle-z
+targets, no router distillation, and no auxiliary label head. The old contract
+specialist scaffold is explicitly off:
+`latent_contract_specialist_enabled = False`,
+`latent_contract_specialist_coef = 0.0`.
+
+**Resolved-config diff vs v6i21J:** exactly `{experiment_id,
+latent_contract_specialist_coef, latent_contract_specialist_enabled,
+latent_contract_specialist_variant, run_tag}`.
+
+**User-requested gate override:** v6i21J calibration evaluation was still pending
+when v6i22 was implemented. Treat v6i22 as a direct diagnostic jump, not as proof
+that the hardpool calibration target already passed.
+
+**First 5-update launch command:**
+
+```powershell
+uv run python rl/train_ppo.py --preset v6i22 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22_repertoire_birth_5u_seed1 --checkpoint-dir artifacts\v6i22_repertoire_birth_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Smoke gates:** banner shows `balanced_episode`; router remains off for forced
+episodes; contract reward columns remain zero/inactive; shared-trunk hash is
+unchanged; z-specific params move; all four z values are sampled; OP8-OP12 and
+both map layouts appear in episode logs.
+
+**Promotion gates:** forced-z evaluation over OP8-OP12 x both maps must show
+real options before any router work: behavior pair distance above the old
+0.04-0.05 ceiling, at least 1-2 pairs above threshold, margin/tempo/behavior
+fingerprints separating by z, and `unique_best_z_count > 1`.
+
+### 3.30 v6i22B context behavior diversity -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i22:** V6I22 produced useful z consequences but not
+strong forced-z behavior fingerprints. The 5-update run passed Stage-C
+(`oracle_WR = 95%`, `best_fixed_WR = 80%`, `unique_best_z_count = 4`) while
+behavior distance stayed below threshold (`mean = 0.0327`, `max = 0.0512`,
+`pairs_above_threshold = 0`). The 20-update continuation kept Stage-C alive
+but behavior distance did not improve (`mean = 0.0289`, `max = 0.0439`,
+`pairs_above_threshold = 0`). V6I22B therefore tests label-free anti-collapse
+pressure instead of more updates.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. Router remains off; one unlabeled z is held per episode;
+contract-specialist rewards stay disabled; no handcrafted z roles, supervised
+strategy labels, oracle best-z targets, opponent-ID actor shortcut, router
+distillation, or router training are added. The new signal is a small
+success-gated behavior-contrast reward from trajectory fingerprints.
+
+**Resolved-config diff vs v6i22 primary arm:** exactly `{experiment_id,
+latent_behavior_contrast_coef, latent_behavior_contrast_margin, run_tag}`.
+The primary arm is `v6i22b` / `v6i22b_behavior_diversity_coef003` with
+`latent_behavior_contrast_coef = 0.03` and
+`latent_behavior_contrast_margin = 0.06`. Sweep arms are `v6i22b_coef001` and
+`v6i22b_coef005`.
+
+**Runtime contract:** balanced-episode z assignments now feed the behavior
+contrast ledger; the contrast bucket is opponent x map at terminal; failed
+episodes do not update the centroid or receive the bonus. This avoids semantic
+z labels while directly targeting the failed behavior-distance gate.
+
+**5-update coefficient sweep commands:**
+
+```powershell
+uv run python rl/train_ppo.py --preset v6i22b_coef001 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22b_div001_5u_seed1 --checkpoint-dir artifacts\v6i22b_div001_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+uv run python rl/train_ppo.py --preset v6i22b --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22b_div003_5u_seed1 --checkpoint-dir artifacts\v6i22b_div003_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+uv run python rl/train_ppo.py --preset v6i22b_coef005 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22b_div005_5u_seed1 --checkpoint-dir artifacts\v6i22b_div005_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Promotion gates:** Stage-C must stay passing, `unique_best_z_count` must stay
+above 1, WR/margin advantage must not collapse, `behavior_pair_distance_mean`
+must beat the V6I22 20-update level and move back above 0.04, and at least one
+arm should approach the 0.06 behavior-distance target or produce an
+above-threshold pair. Router training remains blocked.
+
+**5-update coefficient sweep training completed (2026-07-05):** all three arms
+launched from
+`checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip`
+with `--load-weights-only`, `--additional-steps 5120`, `n_envs=4`,
+`n_steps=256`, `n_epochs=1`, and CUDA. Final checkpoints:
+
+| Arm | Artifact | Final contrast telemetry |
+|-----|----------|--------------------------|
+| `v6i22b_coef001` | `artifacts\v6i22b_div001_5u_seed1\final_v6i22b_div001_5u_seed1_2v2.zip` | `active_frac=1.0`, `distance_mean=0.22215`, `bonus_mean=0.00060`, `reward_behavior_contrast_mean=2.93e-06` |
+| `v6i22b` / `coef003` | `artifacts\v6i22b_div003_5u_seed1\final_v6i22b_div003_5u_seed1_2v2.zip` | `active_frac=1.0`, `distance_mean=0.22215`, `bonus_mean=0.00180`, `reward_behavior_contrast_mean=8.79e-06` |
+| `v6i22b_coef005` | `artifacts\v6i22b_div005_5u_seed1\final_v6i22b_div005_5u_seed1_2v2.zip` | `active_frac=1.0`, `distance_mean=0.22215`, `bonus_mean=0.00300`, `reward_behavior_contrast_mean=1.46e-05` |
+
+Mechanism read: contrast ledger is active and coefficient scaling is correct.
+Training traces were otherwise near-identical across arms, so do not infer
+promotion from training telemetry alone. Next required step is matched forced-z
+fingerprinting for all three final checkpoints over OP8-OP12 x both maps.
+
+**Forced-z fingerprints completed (2026-07-06):** all three arms used the same
+matched protocol as V6I22 20u: OP8-OP12, `map_b` and
+`map_b_split_lane_v2`, four forced z values, `episodes=2` per cell,
+`base_seed=42`, deterministic actions, inherited training reward surface, and
+`max_decision_steps=240`.
+
+| Arm | Stage-C | WR adv | Margin adv | Unique best z | Behavior mean | Behavior max | Pairs above threshold |
+|-----|---------|--------|------------|---------------|---------------|--------------|-----------------------|
+| `v6i22b_coef001` | PASS | +15.0% | +0.80 | 4 | 0.0327 | 0.0512 | 0 |
+| `v6i22b` / `coef003` | PASS | +15.0% | +0.80 | 4 | 0.0327 | 0.0512 | 0 |
+| `v6i22b_coef005` | PASS | +15.0% | +0.80 | 4 | 0.0327 | 0.0512 | 0 |
+
+Best-z surface for all arms:
+`OP8|map_b=z0`, `OP8|map_b_split_lane_v2=z2`, `OP9|map_b=z1`,
+`OP9|map_b_split_lane_v2=z3`, `OP10|map_b=z0`,
+`OP10|map_b_split_lane_v2=z0`, `OP11|map_b=z0`,
+`OP11|map_b_split_lane_v2=z0`, `OP12|map_b=z0`,
+`OP12|map_b_split_lane_v2=z2`.
+
+Verdict: `PROMISING_CONSEQUENCE_LEAD / BEHAVIOR_GATE_FAIL`. V6I22B preserves
+the V6I22 Stage-C consequence surface but does not improve visible behavior
+fingerprints in the 5-update sweep. The anti-collapse reward is live, but the
+coefficient range is too weak or too delayed to change the forced-z behavior
+gate. Router training remains blocked.
+
+### 3.31 v6i22C contextual outcome diversity -- `EVALUATED_FAIL` (2026-07-06)
+
+**Scientific delta vs v6i22:** V6I22B used trajectory behavior fingerprints as
+the anti-collapse reward input and did not move the forced-z behavior gate. V6I22C
+keeps the label-free repertoire-birth scaffold fixed and changes the pressure to
+generic context-conditioned outcomes: successful terminal episodes receive a
+bounded bonus when their score margin differs from other z outcome centroids in
+the same opponent x map bucket.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. Router remains off; one unlabeled z is held per episode;
+`balanced_episode` exposure stays active; contract rewards stay disabled;
+behavior-contrast reward stays disabled; actor receives no opponent ID; no
+supervised labels, role rewards, handcrafted z mapping, oracle best-z target, or
+router distillation is added.
+
+**Resolved-config diff vs v6i22 primary arm:** exactly `{experiment_id,
+latent_outcome_diversity_coef, run_tag}`. The primary arm is `v6i22c` /
+`v6i22c_outcome_diversity_coef003` with
+`latent_outcome_diversity_coef = 0.03`, default margin `1.0`, EMA `0.9`, and
+success-only updates.
+
+**5-update diagnostic completed (2026-07-06):** checkpoint
+`artifacts\v6i22c_outcome_div003_5u_seed1\final_v6i22c_outcome_div003_5u_seed1_2v2.zip`.
+Training: 5 updates, cumulative WR 61.5%, frozen trunk confirmed.
+
+**Forced-z fingerprint (eps2):** Stage-C PASS (oracle margin +0.80, unique
+best-z 4/10). Birth gate FAIL: `behavior_pair_distance_mean = 0.033`,
+`pairs_above_threshold = 0`. Outcome diversity nudged scoreboard variance but
+not playstyle fingerprints.
+
+**Verdict:** `EVALUATED_FAIL` for specialist birth. Stage-C alive. Router
+blocked.
+
+### 3.32 v6i22D strong behavior diversity -- `EVALUATED_FAIL` (2026-07-06)
+
+**Scientific delta vs v6i22B/C:** V6I22 25u (`behavior mean = 0.020`), V6I22B
+sweep coef `<= 0.05` (`behavior mean ~ 0.033`), and V6I22C outcome diversity
+(`behavior mean = 0.033`) all failed the forced-z behavior birth gate. V6I22D
+returns to the behavior-contrast channel with stronger coefficients: primary
+`0.10` (novel) and paired control `0.05`.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. Same label-free scaffold as V6I22B: router off,
+`balanced_episode`, contract disabled, outcome-diversity disabled, trajectory
+fingerprint contrast keyed by opponent x map, success-only updates.
+
+**Resolved-config diff vs v6i22:** exactly `{experiment_id,
+latent_behavior_contrast_coef, latent_behavior_contrast_margin, run_tag}`.
+Primary arm `v6i22d` / `v6i22d_behavior_diversity_coef010` uses
+`latent_behavior_contrast_coef = 0.10`. Sweep arm `v6i22d_coef005` uses
+`0.05` (same coefficient as `v6i22b_coef005`, paired control).
+
+**5-update coefficient sweep completed (2026-07-06):** both arms from v6i9
+anchor, 5 updates each, cumulative WR 61.5%. Contrast reward scaled with coef
+(`1.5e-05` at 0.05, `2.9e-05` at 0.10). Training-time
+`forced_z_behavior_pair_distance_mean` stayed ~0.0155 for both arms.
+
+**Forced-z fingerprints (eps2):** both arms produced **identical** surfaces:
+
+| Arm | Stage-C | Oracle gap | Unique best-z | Behavior mean | Pairs above threshold |
+|-----|---------|------------|---------------|---------------|-----------------------|
+| `v6i22d_coef005` | PASS | +0.80 | 4/10 | 0.0331 | 0 |
+| `v6i22d` / coef010 | PASS | +0.80 | 4/10 | 0.0331 | 0 |
+
+Artifacts:
+`artifacts/v6i22d_div005_5u_seed1/forced_z_fingerprint_eps2/`,
+`artifacts/v6i22d_div010_5u_seed1/forced_z_fingerprint_eps2/`.
+
+**Verdict:** `EVALUATED_FAIL` for specialist birth. Stronger behavior-contrast
+pressure (0.05–0.10) did not move the forced-z behavior gate beyond the V6I22B/C
+ceiling. Stage-C consequence remains alive. Router blocked.
+
+### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
+
+**Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis
+"episode-start context can explain enough return variance for V/A routing"
+(`baseline_r2` plateaued at ~0.03). v6i13 tests the better hypothesis: **the
+first 32 decision steps reveal the missing routing information.** The router now
+waits, observes the opening, then commits.
+
+**Core contract (delayed commit):**
+
+```text
+steps 0–31:  execute a UNIFORMLY sampled warmup latent (no z gets a default edge)
+step 32:     commit one router-selected latent; build opening-window context
+post-commit: hold committed z to terminal; arc_return = POST-COMMIT return
+context:     opening_context = [state_0, state_commit, state_commit - state_0]
+             concatenated with the opponent one-hot (3*GLOBAL_STATE_DIM + 3)
+```
+
+**Fidelity classification:** SUMMER-COMPATIBLE EXTENSION. Preset
+`apply_plan_faithful_latent_v6i13_opening_window_advantage_router` re-parents
+from `v6i12_advantage_router_hardpool` and adds four keys
+(`latent_episode_strategy_warmup_decision_steps=32`,
+`router_warmup_uniform_z=True`, `router_arc_post_commit_only=True`,
+`router_opening_context_mode="initial_commit_delta"`) plus
+`experiment_id`/`run_tag`. The internal PPO router stays disabled exactly as in
+v6i12; the external V/A diagnostic learns only from online post-commit returns.
+No labels, opponent-ID supervision head, forced-z oracle target, hindsight
+best-z target, auxiliary task, or actor training. Aliases include `v6i13`,
+`v6i13_opening_window_advantage_router`,
+`plan_faithful_latent_v6i13_opening_window_advantage_router`. Experiment
+`experiments/run_v6i13_opening_window_advantage_router.py`; reuses the v6i12
+external model (`rl/router/advantage_router.py`) with a 3×-wide opening context.
+Pinned by `tests/test_v6i13_opening_window_advantage_router.py` (6 cases).
+
+**1-update smoke (preserved at
+`artifacts/v6i13_opening_window_advantage_router_smoke_seed1/`):** the first real
+evidence that richer temporal context helps. `baseline_r2 = 0.1266` (vs v6i12's
+0.03 plateau), `advantage_target_std = 0.9317` (vs v6i12's 0.9995), commit locked
+at step 32 (`commit_step_min=max=32`), all pipeline gates clean
+(`records_after=0`, `dup=0`, `terminal_frac=1.0`, all four z, `frozen_actor_ok`).
+Verdict `FLAT` as expected at 1 update (CIs wide with n≈30–44/cell).
+
+**Implementation order (pre-registered):** (1) preserve smoke [done]; (2) run
+5-update mechanism test [RUNNING, `artifacts/v6i13_opening_window_advantage_router_5u_seed1/`];
+(3) add `map_id` to arc records if 5-update is promising; (4) 20-update run;
+(5) held-out delayed-router eval only after ≥ `WEAK_SEPARATION`. Do NOT build a
+GRU/history encoder yet — `[s0, s32, delta]` is the simplest surface; escalate
+only if it fails.
+
+**5-update pass gates:** `baseline_r2 > 0.05` consistently; `adv_std` below
+v6i12, ideally `< 0.95`; ≥2 opponents/cells with reliable advantage gaps;
+A-router not choosing the same z everywhere; all z sampled post-commit; frozen
+actor hash unchanged. Real behavioral gate (later):
+`delayed A-router > cross-episode-shuffled delayed A-router`.
+
+**Next step:** await the running 5-update mechanism test; judge on `baseline_r2`
+consistency (>0.05) and whether advantage gaps begin to separate. `map_id`
+threading is the immediate follow-up if promising.
+
+### 3.11 v6i12 paired-advantage router — `EVALUATED` (20-update diagnostic = FLAT on a VALID dataset; baseline_r2 plateaued at ~0.03)
+
+**Result (2026-07-04, `artifacts/v6i12_advantage_router/summary.json`, seed 1,
+20 updates, 9384 arcs):** `FLAT`, 0/3 opponents reliably separating. The
+dataset is fully valid — `dup_rejected=0` every update, `terminal_frac=1.0`,
+all four z represented (`{2327,2322,2367,2368}`), `min_cell_arcs=742`,
+`frozen_actor_ok=True`. So this is a trustworthy negative, not a tooling
+failure.
+
+The decisive finding is at the **baseline stage, not the advantage stage.**
+`baseline_r2` rose from `+0.0008` (u1) but plateaued at `~0.03` (final
+`+0.031`; oscillated 0.024–0.037 over u14–u20). `advantage_target_std` fell
+only from `0.9995` → `0.984` — a ~1.6 % variance reduction, exactly what
+`sqrt(1 - 0.031)` predicts. Final advantage-gap CIs all include zero (OP8 gap
+`+0.031` CI `[-0.052,+0.110]`; OP9 `+0.023` CI `[-0.077,+0.119]`; OP10 `+0.019`
+CI `[-0.082,+0.124]`), and empirical advantage spreads compressed to ~0.09 as
+per-cell counts grew past 700 (noise-inflated early spreads regressed toward the
+true small effect, same pattern as v6i11).
+
+**Interpretation — sharper diagnosis than v6i11.** v6i12's core bet was that
+episode return variance is dominated by a *context-level* component that
+`V(context)` could absorb, leaving a clean latent residual. The `baseline_r2 ≈
+0.03` refutes that: the 34d episode-start geometry + opponent one-hot is nearly
+uninformative about the eventual episode return. The variance that swamped v6i11
+is therefore **within-context aleatoric variance** — how the episode actually
+unfolds — which *no* baseline conditioned only on episode-start context can
+remove. Double-centering cannot help when the baseline itself has almost nothing
+to explain. The A-router leaned toward a mild global z1/z3 preference rather than
+contextual routing, and its argmax disagreed with the empirical best-z in 2/3
+opponents at the final update.
+
+**Fork taken (per the pre-registered decision rule):** `FLAT` →
+do NOT run the held-out prospective evaluator; the promotion gate requires at
+least `WEAK_SEPARATION`. The next fix is richer context, not more updates or a
+return to PPO-router credit: add `map_id` instrumentation to the arc record and
+give V/A a **history/temporal encoder** (episode-start context alone is too weak
+and too aleatoric). A scalar `A(context, z)` reparameterization and longer V/A
+training are secondary levers. Only after context is enriched does re-running the
+diagnostic make sense.
+
+**Clarity fix (post-run):** `experiments/run_v6i12_advantage_router.py::_PRESET`
+now uses the `v6i12_advantage_router_hardpool` alias so future launch banners /
+run_tags advertise v6i12; this in-flight run's `summary.json` still records the
+v6i11 alias (harmless — the resolved config is identical except
+experiment_id/run_tag, pinned by `test_minimal_diff_vs_v6i11`).
+
+---
+
+**(pre-run notes below, retained for provenance)**
+
+### 3.11-prerun v6i12 paired-advantage router — implementation + smoke
+
+**Scientific delta vs v6i11 (plain English):** v6i11 regressed the *raw*
+normalized episode return `Q(context, z)`; its 15-update diagnostic was a clean
+`FLAT` because the ~2.6–3.9 std of episode-level return variance swamped the
+0.15–0.26 per-z mean differences, so best-vs-second bootstrap CIs included zero.
+v6i12 keeps the identical data-collection contract and adds a double-centering
+external regressor:
+
+```text
+1. Global:  norm_ret = (episode_return - batch_mean) / (batch_std + eps)
+2. Context: a_target = norm_ret - stopgrad(V(context))
+Route: argmax_z A(context, z)
+```
+
+`V(context)` (a `ContextualVBaseline` MLP) absorbs the context-level return
+component; `A(context, z)` (an `AdvantageRouter` MLP) isolates the latent
+residual. This matches the original oracle evidence, which was a within-context
+*paired* contrast, not a raw between-episode mean.
+
+**Fidelity classification:** SUMMER-COMPATIBLE EXTENSION. The v6i12 preset
+(`apply_plan_faithful_latent_v6i12_advantage_router_hardpool`) re-parents from
+`v6i11_q_router_hardpool` with a resolved-config diff of **exactly two keys**
+(`experiment_id`, `run_tag`); the trainer-side arc-collection contract is
+byte-identical (frozen actor, episode-persistent one-z-per-episode, 50 % uniform
+exploration, `latent_arc_credit_coef = router_ent_coef = latent_lam_h =
+latent_lam_p = 0`). All learning is in the EXTERNAL diagnostic model from online
+sampled returns — no forced-z oracle labels, no best-z supervision, no
+opponent-ID prediction head. Pinned by `tests/test_v6i12_advantage_router.py`
+(`test_minimal_diff_vs_v6i11`, 11 cases total).
+
+**Aliases:** `v6i12`, `v6i12_advantage_router`,
+`v6i12_advantage_router_hardpool`,
+`plan_faithful_latent_v6i12_advantage_router_hardpool`. Experiment
+`experiments/run_v6i12_advantage_router.py`; external model
+`rl/router/advantage_router.py` (`ContextualVBaseline`, `AdvantageRouter`,
+`train_advantage_router`, `advantage_gap_ci`, `advantage_matrix_from_replay`).
+
+**1-update smoke (2026-07-03, `artifacts/v6i12_advantage_router_smoke_seed1`):**
+PASSED every pipeline/wiring gate — `records_before=460`,
+`records_after=0`, replay `0→460`, `dup_rejected=0`,
+`terminal_finalized_fraction=1.0`, all four z sampled, V/A losses finite
+(`0.995`/`0.367`), `v_grad_norm=0.047`, `a_grad_norm=0.110`, frozen-actor hash
+unchanged. **Caveat:** the headline variance-reduction metric was null at
+update 1 — `baseline_r2 = 0.0008`, `advantage_target_std = 0.9995` (vs the
+unit-std normalized return). That is expected with only 460 samples over 20
+gradient steps; the mechanism is proven correct by the unit test (drives
+`baseline_r2 > 0.5`, `adv_target_std < 0.9` on context-predictive data). Whether
+the *real* episode-start context can predict episode return is precisely what
+the 20-update run tests.
+
+**Leading indicator to watch:** `baseline_r2` across updates. If it climbs
+above ~0 (V absorbs return variance) and `advantage_target_std` falls below 1.0,
+the double-centering is working and advantage gap CIs may survive. If `baseline_r2`
+stays near zero, that is the "episode-start context alone is too weak/noisy"
+outcome — the next fix is adding `map_id` and possibly a history encoder, NOT
+returning to PPO-router collapse.
+
+**Verdict / promotion contract:** identical 5-state semantics as v6i11
+(`INVALID`/`INSUFFICIENT_DATA`/`FLAT`/`WEAK_SEPARATION`/`SEPARATING`), scored on
+the advantage gap CI (spread threshold lowered to 0.05 because advantages are
+V-centered). `SEPARATING`/`WEAK_SEPARATION` → `SEPARATING_CANDIDATE` only;
+promotion still requires the held-out prospective gate
+(`A-router > cross-episode-shuffled-A-router`, then `> uniform`, then
+approaches/beats fixed-z2). Held-out evaluator to be built only after a
+`WEAK_SEPARATION`-or-better verdict; `map_id` instrumentation deferred until
+after the diagnostic.
+
+**Next step:** await the running 20-update diagnostic
+(`artifacts/v6i12_advantage_router/summary.json`, seed 1). Judge on the
+`baseline_r2` trajectory and whether ≥2 opponents' advantage gap CIs exclude
+zero.
+
+### 3.12 v6i13 opening-window advantage router — `IMPLEMENTED, PENDING_SMOKE`
+
+**Scientific delta vs v6i12:** v6i12 asks the router to explain returns
+from the episode-start context. v6i13 delays commitment until decision
+step 32, after the opening has exposed movement, pressure, first-contact,
+and flag-state deltas. The replay context is
+`[state_0, state_commit, state_commit - state_0]`; the target is
+post-commit return.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`. The preset
+(`apply_plan_faithful_latent_v6i13_opening_window_advantage_router`)
+inherits v6i12 and changes exactly
+`{experiment_id, latent_episode_strategy_warmup_decision_steps,
+router_arc_post_commit_only, router_opening_context_mode,
+router_warmup_uniform_z, run_tag}`. Actor and z-specific repertoire
+parameters remain frozen; the internal router PPO remains disabled; the
+external V/A model still learns only from online sampled returns.
+
+**Mechanism contract:** steps 0..31 use a uniformly sampled warmup latent;
+step 32 commits one router-selected latent; the committed z is held to
+terminal; no warmup arc is inserted into replay; finalized records carry
+`commit_step`, `opening_context`, selected `z`, post-commit `arc_return`,
+opponent id, terminal reason, and `arc_uid`.
+
+**Immediate smoke gates:** commit step reached for most episodes,
+`commit_step` equals 32 for normal terminal records, one post-commit arc
+per completed episode, `terminal_finalized_fraction` near 1.0, all four z
+values sampled, no duplicate arc insertions, frozen actor hash unchanged,
+`baseline_r2 > v6i12 baseline_r2`, and `advantage_target_std < v6i12`.
+
+**Files:** preset and runtime are pinned by
+`tests/test_v6i13_opening_window_advantage_router.py`; diagnostic entry
+point is `experiments/run_v6i13_opening_window_advantage_router.py`.
+
+### 3.9-orig v6i10 episode-router exploration preset (original PENDING_SMOKE notes)
+
+**Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as
+`v6i10_episode_router_explore_hardpool` (aliases `v6i10`,
+`v6i10_episode_router_explore`,
+`latent_v6i10_episode_router_explore_hardpool`,
+`plan_faithful_latent_v6i10_episode_router_explore_hardpool`),
+`SUMMER-COMPATIBLE EXTENSION`, parent
+`v6i9_mapaware_router_feedforward_hardpool`.
+
+**Scientific delta:** simplify router learning to one legal initial
+context, one `z`, one full episode, one return. The v6i9 repertoire
+checkpoint remains the experimental anchor:
+`final_v6i9-mapaware-repertoire-hardpool-refactor-r1-seed1_2v2.zip`.
+Actor and z-specific repertoire parameters stay frozen through
+`v6i9_training_stage = "router"` and `router_freeze_actor = True`.
+
+**Resolved diff vs feedforward parent:** exactly
+`{experiment_id, h_mode, latent_arc_credit_baseline,
+latent_arc_credit_enabled, latent_arc_credit_min_len,
+latent_entropy_anneal_end, latent_entropy_anneal_start,
+latent_entropy_mode, latent_entropy_objective, latent_lam_h,
+latent_lam_h_end, latent_lam_p, latent_resample_every_n,
+latent_strategy_ppo_coef, learning_rate, router_ent_coef,
+router_uniform_exploration_prob, run_tag, strategy_interval}`.
+
+**Mechanism contract:** `latent_resample_every_n = 0`,
+`strategy_interval = 0`, `latent_strategy_ppo_coef = 0.0`,
+`latent_arc_credit_enabled = True`,
+`latent_arc_credit_baseline = "running_mean"`,
+`latent_arc_credit_min_len = 1`, `learning_rate = 1e-4`,
+`router_uniform_exploration_prob = 0.20`, `router_ent_coef = 0.002`,
+`latent_lam_h = latent_lam_h_end = 0.015`,
+`latent_entropy_mode = "marginal"`, and
+`latent_lam_p = 0.0`.
+
+**Immediate smoke gates:** all four z sampled in the behavior policy,
+router gradients positive, frozen actor/z hashes unchanged, episode
+credit finite, running-mean baseline active, and behavior log-probs
+computed under `0.8 * q_phi + 0.2 * Uniform` rather than raw q_phi.
+
+**Five-update mechanism gates:** no deterministic z above 80 percent for
+two consecutive updates, at least two argmax z values, high marginal
+entropy, falling conditional entropy, MI proxy above noise, and no
+exploding logit margin. Hard stop: one z reaches 100 percent argmax for
+two consecutive updates.
 
 ---
 
