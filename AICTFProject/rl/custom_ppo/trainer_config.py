@@ -114,6 +114,10 @@ class TrainerHyperparams:
     latent_behavior_contrast_ema: float
     latent_behavior_contrast_anneal_after_steps: int
     latent_behavior_contrast_anneal_to: float
+    latent_outcome_diversity_coef: float
+    latent_outcome_diversity_margin: float
+    latent_outcome_diversity_ema: float
+    latent_outcome_diversity_success_only: bool
     latent_actor_z_separation_coef: float
     latent_actor_z_separation_start_coef: float
     latent_actor_z_separation_margin: float
@@ -396,6 +400,21 @@ class TrainerHyperparams:
             ),
             latent_behavior_contrast_anneal_to=max(
                 0.0, float(getattr(cfg, "latent_behavior_contrast_anneal_to", 0.0) or 0.0)
+            ),
+            latent_outcome_diversity_coef=(
+                max(0.0, float(getattr(cfg, "latent_outcome_diversity_coef", 0.0) or 0.0))
+                if use_latent and not fixed_latent
+                else 0.0
+            ),
+            latent_outcome_diversity_margin=max(
+                1e-6, float(getattr(cfg, "latent_outcome_diversity_margin", 1.0) or 1.0)
+            ),
+            latent_outcome_diversity_ema=min(
+                max(float(getattr(cfg, "latent_outcome_diversity_ema", 0.9) or 0.0), 0.0),
+                0.999,
+            ),
+            latent_outcome_diversity_success_only=bool(
+                getattr(cfg, "latent_outcome_diversity_success_only", True)
             ),
             latent_actor_z_separation_coef=(
                 max(0.0, float(getattr(cfg, "latent_actor_z_separation_coef", 0.0) or 0.0))

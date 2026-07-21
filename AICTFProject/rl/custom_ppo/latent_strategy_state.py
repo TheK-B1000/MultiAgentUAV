@@ -83,6 +83,7 @@ class LatentStrategyStateCore:
         self.reset_event_refresh_rollout_stats()
         self.reset_sparse_tactical_refresh_rollout_stats()
         self.reset_behavior_contrast_rollout_stats()
+        self.reset_outcome_diversity_rollout_stats()
         self.reset_arc_credit_rollout_state()
         self.reset_macro_rollout_state()
         self.rollout_strategy_episode_records = []
@@ -183,6 +184,7 @@ class LatentStrategyStateCore:
         self.reset_event_refresh_rollout_stats()
         self.reset_sparse_tactical_refresh_rollout_stats()
         self.reset_behavior_contrast_rollout_stats()
+        self.reset_outcome_diversity_rollout_stats()
         self.reset_arc_credit_rollout_state()
         self.reset_macro_rollout_state()
 
@@ -375,6 +377,17 @@ class LatentStrategyStateCore:
         if after <= 0 or int(getattr(trainer, "global_step", 0) or 0) < after:
             return base
         return max(0.0, float(getattr(trainer, "latent_behavior_contrast_anneal_to", 0.0) or 0.0))
+
+    def reset_outcome_diversity_rollout_stats(self) -> None:
+        self.rollout_outcome_diversity_bonus_sum = 0.0
+        self.rollout_outcome_diversity_distance_sum = 0.0
+        self.rollout_outcome_diversity_count = 0
+        self.rollout_outcome_diversity_active_count = 0
+        self.rollout_outcome_diversity_skipped_count = 0
+
+    def outcome_diversity_coef(self) -> float:
+        trainer = self.trainer
+        return max(0.0, float(getattr(trainer, "latent_outcome_diversity_coef", 0.0) or 0.0))
     def _strategy_encoder_params(self) -> list[torch.nn.Parameter]:
         """Return params of q_phi's routing network (``strategy_encoder``).
 
@@ -439,6 +452,8 @@ class LatentStrategyStateCore:
         behavior_telemetry: torch.Tensor,
         z_idx: torch.Tensor,
         dones: np.ndarray,
+        success_mask: torch.Tensor | None = None,
+        context_bucket_ids: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Accumulate behavior and return a terminal contrast bonus per env."""
         trainer = self.trainer
@@ -462,12 +477,17 @@ class LatentStrategyStateCore:
             self.rollout_completed_episode_count += 1
             if not bool(self.episode_forced_z[env_i].detach().cpu().item()):
                 continue
+            if success_mask is not None and not bool(success_mask[env_i].detach().cpu().item()):
+                continue
             self.rollout_forced_z_episode_count += 1
             count = max(1, int(self.episode_behavior_count[env_i].detach().cpu().item()))
             emb = self.episode_behavior_sum[env_i] / float(count)
             emb = memory.normalize(emb, team_size=team_size)
+            bucket_id = int(self.episode_contrast_bucket[env_i].detach().cpu().item())
+            if context_bucket_ids is not None:
+                bucket_id = int(context_bucket_ids[env_i].detach().cpu().item())
             result = memory.score_and_update(
-                bucket_id=int(self.episode_contrast_bucket[env_i].detach().cpu().item()),
+                bucket_id=bucket_id,
                 z=int(z_idx[env_i].detach().cpu().item()),
                 embedding=emb,
                 coef=coef,
@@ -477,6 +497,73 @@ class LatentStrategyStateCore:
             self.rollout_behavior_contrast_distance_sum += float(result.distance)
             self.rollout_behavior_contrast_count += int(result.count)
             self.rollout_behavior_contrast_active_count += int(result.active)
+        return bonus
+
+    def record_outcome_diversity_step(
+        self,
+        *,
+        z_idx: torch.Tensor,
+        dones: np.ndarray,
+        outcome_scores: torch.Tensor,
+        success_mask: torch.Tensor | None = None,
+        context_bucket_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        trainer = self.trainer
+        n_envs = int(z_idx.shape[0])
+        bonus = torch.zeros((n_envs,), dtype=torch.float32, device=trainer.device)
+        memory = getattr(trainer, "latent_outcome_diversity", None)
+        if memory is None:
+            return bonus
+
+        done_t = torch.as_tensor(dones, dtype=torch.bool, device=trainer.device)
+        if not bool(done_t.any().item()):
+            return bonus
+
+        coef = self.outcome_diversity_coef()
+        success_only = bool(getattr(trainer, "latent_outcome_diversity_success_only", True))
+        behavior_memory_active = getattr(trainer, "latent_behavior_contrast", None) is not None
+        for env_i, done_i in enumerate(dones):
+            if not bool(done_i):
+                continue
+            if not behavior_memory_active:
+                self.rollout_completed_episode_count += 1
+            if not bool(self.episode_forced_z[env_i].detach().cpu().item()):
+                self.rollout_outcome_diversity_skipped_count += 1
+                continue
+            if success_only and success_mask is not None and not bool(success_mask[env_i].detach().cpu().item()):
+                self.rollout_outcome_diversity_skipped_count += 1
+                continue
+            if not behavior_memory_active:
+                self.rollout_forced_z_episode_count += 1
+                z_forced = int(z_idx[env_i].detach().cpu().item())
+                self.rollout_forced_z_episode_count_by_z[z_forced] += 1
+                opp_id = 0
+                episode_opp = getattr(self, "episode_strategy_opponent_id", None)
+                if episode_opp is not None:
+                    opp_id = int(
+                        max(
+                            0,
+                            min(
+                                int(episode_opp[env_i].detach().cpu().item()),
+                                SCRIPTED_OPPONENT_MI_COUNT - 1,
+                            ),
+                        )
+                    )
+                self.rollout_forced_episode_count_by_opp_z[opp_id, z_forced] += 1
+            bucket_id = int(self.episode_contrast_bucket[env_i].detach().cpu().item())
+            if context_bucket_ids is not None:
+                bucket_id = int(context_bucket_ids[env_i].detach().cpu().item())
+            result = memory.score_and_update(
+                bucket_id=bucket_id,
+                z=int(z_idx[env_i].detach().cpu().item()),
+                outcome=outcome_scores[env_i].detach(),
+                coef=coef,
+            )
+            bonus[env_i] = result.bonus.to(device=trainer.device)
+            self.rollout_outcome_diversity_bonus_sum += float(result.bonus.detach().cpu().item())
+            self.rollout_outcome_diversity_distance_sum += float(result.distance)
+            self.rollout_outcome_diversity_count += int(result.count)
+            self.rollout_outcome_diversity_active_count += int(result.active)
         return bonus
 
     def behavior_contrast_rollout_stats(self) -> dict[str, float]:
@@ -505,6 +592,21 @@ class LatentStrategyStateCore:
                     self.rollout_forced_episode_count_by_opp_z[o_idx, z_i]
                 )
         return stats
+
+    def outcome_diversity_rollout_stats(self) -> dict[str, float]:
+        count = max(1, int(self.rollout_outcome_diversity_count))
+        forced = max(1, int(self.rollout_forced_z_episode_count))
+        return {
+            "latent_outcome_diversity_bonus_mean": float(self.rollout_outcome_diversity_bonus_sum)
+            / float(forced),
+            "latent_outcome_diversity_distance_mean": float(self.rollout_outcome_diversity_distance_sum)
+            / float(count),
+            "latent_outcome_diversity_active_frac": float(self.rollout_outcome_diversity_active_count)
+            / float(count),
+            "latent_outcome_diversity_skipped_count": float(self.rollout_outcome_diversity_skipped_count),
+            "latent_outcome_diversity_coef": float(self.outcome_diversity_coef()),
+        }
+
     def compute_competence_scores(self) -> tuple[np.ndarray, bool]:
         """Compute sigmoid competence scores for each latent."""
         trainer = self.trainer

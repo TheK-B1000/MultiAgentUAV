@@ -480,6 +480,13 @@ class PPOConfig:
     latent_behavior_contrast_ema: float = 0.9
     latent_behavior_contrast_anneal_after_steps: int = 0
     latent_behavior_contrast_anneal_to: float = 0.0
+    # Label-free outcome diversity for repertoire birth. Successful forced-z
+    # episodes can receive a bounded terminal bonus when their generic outcome
+    # scalar separates from other z outcome centroids in the same context bucket.
+    latent_outcome_diversity_coef: float = 0.0
+    latent_outcome_diversity_margin: float = 1.0
+    latent_outcome_diversity_ema: float = 0.9
+    latent_outcome_diversity_success_only: bool = True
     # v5i9 CSIA extension: detached reward feedback from frozen forced-z
     # evaluation evidence. Default-off so every existing preset reproduces
     # its original reward path unless a preset/CLI explicitly enables it.

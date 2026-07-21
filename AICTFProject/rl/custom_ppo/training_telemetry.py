@@ -626,6 +626,7 @@ class TrainingTelemetry:
             "reward_sparse_points",
             "reward_failure",
             "reward_behavior_contrast",
+            "reward_outcome_diversity",
             "reward_csia",
             "reward_contract_specialist",
             "reward_total",

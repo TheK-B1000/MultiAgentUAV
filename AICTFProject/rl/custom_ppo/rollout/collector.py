@@ -94,6 +94,40 @@ if TYPE_CHECKING:
     from rl.custom_ppo.trainer import CustomPPOTrainer
 
 
+def _stable_map_index(cfg: Any, info: Dict[str, Any]) -> int:
+    ep = info.get("episode_result")
+    er = ep if isinstance(ep, dict) else {}
+    map_layout = str(er.get("map_layout", info.get("map_layout", getattr(cfg, "map_layout", ""))) or "")
+    candidates = [str(x) for x in getattr(cfg, "map_pool", ()) or ()]
+    fallback = str(getattr(cfg, "map_layout", "") or "")
+    if fallback and fallback not in candidates:
+        candidates.append(fallback)
+    if map_layout in candidates:
+        return int(candidates.index(map_layout))
+    return 1000 + sum((idx + 1) * ord(ch) for idx, ch in enumerate(map_layout))
+
+
+def _episode_success(info: Dict[str, Any]) -> bool:
+    ep = info.get("episode_result")
+    if not isinstance(ep, dict):
+        return False
+    if "success" in ep:
+        return bool(int(ep.get("success", 0) or 0))
+    return int(ep.get("blue_score", 0) or 0) > int(ep.get("red_score", 0) or 0)
+
+
+def _episode_outcome_score(info: Dict[str, Any]) -> float:
+    ep = info.get("episode_result")
+    if not isinstance(ep, dict):
+        return 0.0
+    try:
+        blue = float(ep.get("blue_score", 0.0) or 0.0)
+        red = float(ep.get("red_score", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+    return blue - red
+
+
 class RolloutCollector:
     """Owns ``collect_rollout`` and its env-stepping helpers.
 
@@ -188,6 +222,7 @@ class RolloutCollector:
         buffer.register_field("reward_sparse_points")
         buffer.register_field("reward_failure")
         buffer.register_field("reward_behavior_contrast")
+        buffer.register_field("reward_outcome_diversity")
         buffer.register_field("reward_csia")
         buffer.register_field("reward_contract_specialist")
         buffer.register_field("reward_total")
@@ -779,15 +814,65 @@ class RolloutCollector:
                     "via env_factory.build_training_env with a V6I7 config."
                 )
         if self.hparams.use_latent_strategy and beh_t is not None and z_t is not None:
+            contrast_success = torch.as_tensor(
+                [_episode_success(dict(info)) for info in infos],
+                dtype=torch.bool,
+                device=self.device,
+            )
+            contrast_bucket = torch.as_tensor(
+                [
+                    _opponent_id_int_from_info(self.cfg, dict(info)) * 10000
+                    + _stable_map_index(self.cfg, dict(info))
+                    for info in infos
+                ],
+                dtype=torch.long,
+                device=self.device,
+            )
             contrast_bonus = self.latent_state.record_behavior_contrast_step(
                 behavior_telemetry=beh_t,
                 z_idx=z_t,
                 dones=dones,
+                success_mask=contrast_success,
+                context_bucket_ids=contrast_bucket,
             )
             reward_component["reward_behavior_contrast"] = contrast_bonus
             reward_component["reward_total"] = reward_component["reward_total"] + contrast_bonus
         else:
             reward_component["reward_behavior_contrast"] = torch.zeros(
+                (int(env.num_envs),), dtype=torch.float32, device=self.device
+            )
+
+        if self.hparams.use_latent_strategy and z_t is not None:
+            outcome_success = torch.as_tensor(
+                [_episode_success(dict(info)) for info in infos],
+                dtype=torch.bool,
+                device=self.device,
+            )
+            outcome_bucket = torch.as_tensor(
+                [
+                    _opponent_id_int_from_info(self.cfg, dict(info)) * 10000
+                    + _stable_map_index(self.cfg, dict(info))
+                    for info in infos
+                ],
+                dtype=torch.long,
+                device=self.device,
+            )
+            outcome_scores = torch.as_tensor(
+                [_episode_outcome_score(dict(info)) for info in infos],
+                dtype=torch.float32,
+                device=self.device,
+            )
+            outcome_bonus = self.latent_state.record_outcome_diversity_step(
+                z_idx=z_t,
+                dones=dones,
+                outcome_scores=outcome_scores,
+                success_mask=outcome_success,
+                context_bucket_ids=outcome_bucket,
+            )
+            reward_component["reward_outcome_diversity"] = outcome_bonus
+            reward_component["reward_total"] = reward_component["reward_total"] + outcome_bonus
+        else:
+            reward_component["reward_outcome_diversity"] = torch.zeros(
                 (int(env.num_envs),), dtype=torch.float32, device=self.device
             )
 

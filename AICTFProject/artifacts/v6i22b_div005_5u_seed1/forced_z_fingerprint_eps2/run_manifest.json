@@ -1,0 +1,284 @@
+{
+  "checkpoint": "artifacts\\v6i22b_div005_5u_seed1\\final_v6i22b_div005_5u_seed1_2v2.zip",
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
+  ],
+  "maps": [
+    "map_b",
+    "map_b_split_lane_v2"
+  ],
+  "latents": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "episodes_per_cell": 2,
+  "base_seed": 42,
+  "deterministic_actions": true,
+  "max_decision_steps": 240,
+  "env_reward_kwargs": {
+    "stalemate_max_steps": 80,
+    "surface_score_margin_coef": 0.15,
+    "surface_blue_capture_tempo_bonus": 0.45,
+    "surface_red_flag_touch_penalty": 0.5,
+    "surface_red_carrier_progress_penalty": 0.075,
+    "surface_blue_near_cap_bonus": 0.035
+  },
+  "training_run_config": "artifacts\\v6i22b_div005_5u_seed1\\v6i22b_div005_5u_seed1_2v2_run_config.json",
+  "device": "cuda",
+  "collect_behavior_mean": true,
+  "progress_every": 8,
+  "status": "completed",
+  "started_at_utc": "2026-07-06T04:09:10.200858+00:00",
+  "updated_at_utc": "2026-07-06T04:57:45.572780+00:00",
+  "pid": 34444,
+  "completed_conditions": [
+    {
+      "opponent": "OP8",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP8",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP9",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP10",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP11",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 0,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 1,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 2,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 3,
+      "map": "map_b",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    },
+    {
+      "opponent": "OP12",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 2
+    }
+  ],
+  "completed_condition_count": 40,
+  "episode_count": 80
+}

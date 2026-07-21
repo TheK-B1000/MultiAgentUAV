@@ -21,6 +21,54 @@ from typing import Any
 from plot.eval_rollout import run_eval_episodes
 from rl.evaluation.opponent_resolution import set_opponent
 
+
+def _resolved_hardpool_physical_profile() -> dict:
+    """Snapshot active per-OP physical pressure constants from the engine mixin."""
+    from gpu_env._core._bt_adaptive import _BTAdaptiveMixin as m
+
+    return {
+        "calibration_fork": "v6i21j_hardpool_balance",
+        "OP8": {
+            "blue_carrier_speed_mult": float(m._OP8_BLUE_CARRIER_SPEED_MULT),
+            "red_speed_mult": float(m._OP8_RED_SPEED_MULT),
+            "red_interceptor_near_flag_boost": float(m._OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST),
+        },
+        "OP9": {
+            "blue_carrier_speed_mult": float(m._BLUE_CARRIER_SPEED_MULT),
+            "red_speed_mult": None,
+            "red_interceptor_near_flag_boost": float(m._RED_INTERCEPTOR_NEAR_FLAG_BOOST),
+            "note": "OP9 uses pool defaults; no per-OP overdrive in v6i21J",
+        },
+        "OP10": {
+            "blue_carrier_speed_mult": float(m._OP10_BLUE_CARRIER_SPEED_MULT),
+            "red_speed_mult": float(m._OP10_RED_SPEED_MULT),
+            "red_interceptor_near_flag_boost": float(m._OP10_RED_INTERCEPTOR_NEAR_FLAG_BOOST),
+        },
+        "OP11": {
+            "blue_carrier_speed_mult": float(m._OP11_BLUE_CARRIER_SPEED_MULT),
+            "red_speed_mult": float(m._OP11_RED_SPEED_MULT),
+            "red_interceptor_near_flag_boost": float(m._OP11_RED_INTERCEPTOR_NEAR_FLAG_BOOST),
+        },
+        "OP12": {
+            "blue_carrier_speed_mult": float(m._BLUE_CARRIER_SPEED_MULT),
+            "red_speed_mult": None,
+            "red_interceptor_near_flag_boost": float(m._RED_INTERCEPTOR_NEAR_FLAG_BOOST),
+            "note": "OP12 uses pool defaults; unchanged in v6i21J",
+        },
+    }
+
+
+def _print_hardpool_physical_profile(profile: dict) -> None:
+    print("Hardpool physical profile (engine mixin):")
+    for op in ("OP8", "OP9", "OP10", "OP11", "OP12"):
+        row = profile[op]
+        red_speed = row.get("red_speed_mult")
+        red_speed_s = "pool-default" if red_speed is None else f"{red_speed:.2f}"
+        print(
+            f"  {op}: blue_carrier={row['blue_carrier_speed_mult']:.2f} "
+            f"red_speed={red_speed_s} interceptor_boost={row['red_interceptor_near_flag_boost']:.2f}"
+        )
+
 def _make_env(*, map_name: str, seed: int, device: str, max_decision_steps: int = 240) -> Any:
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 
@@ -70,6 +118,8 @@ def main() -> int:
     args = _parse_args()
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    physical_profile = _resolved_hardpool_physical_profile()
+    _print_hardpool_physical_profile(physical_profile)
 
     rows: list[dict] = []
     for opp_idx, opponent in enumerate(args.opponents):
@@ -132,6 +182,7 @@ def main() -> int:
     )
     report = {
         "checkpoint": args.checkpoint,
+        "hardpool_physical_profile": physical_profile,
         "opponents": list(args.opponents),
         "maps": list(args.maps),
         "episodes_per_cell": int(args.episodes),
@@ -155,7 +206,7 @@ def main() -> int:
         },
         "calibration_pass_tier1": tier1_pass,
         "calibration_pass": bool(valid_wr) and TARGET_WR_LOW <= mean_wr <= TARGET_WR_HIGH and saturated == 0,
-        "note": "OP8-OP12 upgraded in-place at v6i21; v6i21E targets OP8/OP10/OP11 balance on v6i21D denial base. Pre-v6i21 OP8-OP12 results not comparable.",
+        "note": "OP8-OP12 upgraded in-place at v6i21; v6i21J balance keeps OP8 hard and adds OP10/OP11 physical pressure. Pre-v6i21 OP8-OP12 results not comparable.",
     }
     out_path = out_dir / "calibration_report.json"
     out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")

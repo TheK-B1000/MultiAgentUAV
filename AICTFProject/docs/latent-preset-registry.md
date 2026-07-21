@@ -194,6 +194,11 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i21g_easy_cell_conversion_denial_calibration` (aliases include `v6i21g`, `v6i21g_easy_cell_conversion_denial`) | `v6i21f_op8_carrier_denial_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Targeted correction after v6i21F failed OP8 and left OP10/OP11 saturated. Restores OP8/OP11 cap-lane body-blocking, makes OP10 cut off conversion instead of chasing, and raises OP8/OP10/OP11 2v2 pressure. OP9/OP12 unchanged. Pinned by `tests/test_v6i21g_easy_cell_conversion_denial_calibration.py`. |
 | `v6i21h_saturation_surrogate_calibration` (aliases include `v6i21h`, `v6i21h_saturation_surrogate`) | `v6i21g_easy_cell_conversion_denial_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Saturation fix after bespoke OP8/OP10/OP11 geometry failed. OP8 reuses OP9-like fortress pressure; OP10/OP11 reuse OP12-like counter pressure; failed custom adaptive route overrides are disabled. Pinned by `tests/test_v6i21h_saturation_surrogate_calibration.py`. |
 | `v6i21i_op8_extreme_physical_calibration` (aliases include `v6i21i`, `v6i21i_op8_extreme_physical`) | `v6i21h_saturation_surrogate_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | OP8-only physical upper-bound test. Crushes blue carrier speed and gives OP8 red explicit overdrive/interceptor boost to test whether OP8 can break saturation at all. Pinned by `tests/test_v6i21i_op8_extreme_physical_calibration.py`. |
+| `v6i21j_hardpool_balance_calibration` (aliases include `v6i21j`, `v6i21j_hardpool_balance`) | `v6i21i_op8_extreme_physical_calibration` | `DIAGNOSTIC` (non-Summer scaffold) | Balance pass after OP8I broke OP8 saturation. Keeps OP8 hard and adds targeted OP10/OP11 carrier slowdown plus red overdrive; OP9/OP12 unchanged. Pinned by `tests/test_v6i21j_hardpool_balance_calibration.py`. |
+| `v6i22_adaptive_hardpool_repertoire_birth` (aliases include `v6i22`, `v6i22_repertoire_birth`) | `v6i21j_hardpool_balance_calibration` | `SUMMER-COMPATIBLE EXTENSION` | Label-free repertoire-birth fork over the calibrated adaptive hardpool. Router remains off, one z is held per episode through balanced episode assignment, and the inherited v6 z-capacity scaffold trains without handcrafted per-z contract rewards, opponent-ID supervision, oracle-z targets, or auxiliary labels. Not paper-faithful because it uses the v6 staged/frozen/adapted hardpool machinery. Pinned by `tests/test_v6i22_adaptive_hardpool_repertoire_birth.py`. |
+| `v6i22b_context_behavior_diversity` (aliases include `v6i22b`, `v6i22b_behavior_diversity_coef003`; sweep arms `coef001`, `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Label-free anti-collapse repertoire-birth fork. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and adds a small success-gated behavior-contrast reward keyed by opponent x map. The signal uses trajectory fingerprints only; it adds no handcrafted z roles, no opponent-ID actor shortcut, no oracle best-z targets, and no router training. Pinned by `tests/test_v6i22b_context_behavior_diversity.py`. |
+| `v6i22c_contextual_outcome_diversity` (aliases include `v6i22c`, `v6i22c_outcome_diversity_coef003`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Label-free outcome-diversity repertoire-birth fork. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and adds a stronger success-gated terminal outcome-diversity reward keyed by opponent x map. The signal uses generic score-margin outcomes only; it adds no handcrafted z roles, no behavior-metric reward targets, no opponent-ID actor shortcut, no oracle best-z targets, and no router training. Pinned by `tests/test_v6i22c_contextual_outcome_diversity.py`. |
+| `v6i22d_strong_behavior_diversity` (aliases include `v6i22d`, `v6i22d_behavior_diversity_coef010`; sweep arm `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Stronger label-free behavior-contrast repertoire-birth fork after V6I22B/C failed the birth gate. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and applies higher behavior-contrast coefficients (`0.10` primary, `0.05` sweep control). Same trajectory-fingerprint signal as V6I22B; no outcome-diversity channel, no handcrafted z roles, no oracle targets, and no router training. Pinned by `tests/test_v6i22d_strong_behavior_diversity.py`. |
 
 ---
 
@@ -1227,6 +1232,244 @@ Engine files: `gpu_env/_core/_bt_adaptive.py`,
 Aliases: `v6i21h`, `v6i21h_saturation_surrogate_calibration`,
 `v6i21h_saturation_surrogate`, `latent_v6i21h_saturation_surrogate_calibration`,
 and `plan_faithful_latent_v6i21h_saturation_surrogate_calibration`.
+
+---
+
+### 6.33 v6i21i_op8_extreme_physical_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21I inherits `v6i21h_saturation_surrogate_calibration` directly. H restored
+red pressure for OP8 but did not break blue WR. I adds OP8-only physical
+pressure: blue carrier speed `0.35`, OP8 red speed `1.60`, OP8 near-flag
+interceptor boost `1.85`, and OP8 2v2 speed range `1.35-1.45`.
+
+**Resolved-config diff vs v6i21H:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i21H | v6i21I |
+|-------|--------|--------|
+| `experiment_id` | `v6i21h` | `v6i21i` |
+| `run_tag` | `v6i21h_saturation_surrogate_calibration` | `v6i21i_op8_extreme_physical_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py`, `gpu_env/_core/_step.py`, and
+`opponent_params.py`.
+
+Aliases: `v6i21i`, `v6i21i_op8_extreme_physical_calibration`,
+`v6i21i_op8_extreme_physical`,
+`latent_v6i21i_op8_extreme_physical_calibration`, and
+`plan_faithful_latent_v6i21i_op8_extreme_physical_calibration`.
+
+---
+
+### 6.34 v6i21j_hardpool_balance_calibration (DIAGNOSTIC -- non-Summer scaffold)
+
+v6i21J inherits `v6i21i_op8_extreme_physical_calibration` directly. I broke OP8
+saturation but left OP8 map_b above the desired band and OP10/OP11 still need
+pressure. J keeps OP8 hard and adds OP10/OP11 physical pressure while leaving
+OP9/OP12 unchanged.
+
+**Resolved-config diff vs v6i21I:** exactly `{experiment_id, run_tag}`.
+
+| Field | v6i21I | v6i21J |
+|-------|--------|--------|
+| `experiment_id` | `v6i21i` | `v6i21j` |
+| `run_tag` | `v6i21i_op8_extreme_physical_calibration` | `v6i21j_hardpool_balance_calibration` |
+
+Engine files: `gpu_env/_core/_bt_adaptive.py` and `gpu_env/_core/_step.py`.
+
+Aliases: `v6i21j`, `v6i21j_hardpool_balance_calibration`,
+`v6i21j_hardpool_balance`, `latent_v6i21j_hardpool_balance_calibration`, and
+`plan_faithful_latent_v6i21j_hardpool_balance_calibration`.
+
+---
+
+### 6.35 v6i22_adaptive_hardpool_repertoire_birth (SUMMER-COMPATIBLE EXTENSION)
+
+v6i22 inherits `v6i21j_hardpool_balance_calibration` directly and turns the
+next fork into a label-free repertoire-birth run instead of another calibration
+or router row. The router is off, `latent_assignment_mode = "balanced_episode"`
+holds one unlabeled z for the whole episode, and `v6i9_training_stage =
+"repertoire"` keeps the shared trunk frozen while z-specific modules and the
+critic remain trainable.
+
+This is **not** a contract-specialist row: the z-indexed contract reward scaffold
+is explicitly disabled. It is also not `PAPER-FAITHFUL`, because it inherits the
+v6 hardpool, staged freeze, and adapter/z-residual machinery. It is
+Summer-compatible in the narrower sense used for this fork: no handcrafted
+strategy labels, no opponent-ID supervision, no oracle-z targets, no router
+distillation, and no auxiliary label head.
+
+**Resolved-config diff vs v6i21J:** exactly `{experiment_id,
+latent_contract_specialist_coef, latent_contract_specialist_enabled,
+latent_contract_specialist_variant, run_tag}`.
+
+| Field | v6i21J | v6i22 |
+|-------|--------|-------|
+| `experiment_id` | `v6i21j` | `v6i22` |
+| `latent_contract_specialist_enabled` | `True` | `False` |
+| `latent_contract_specialist_coef` | `0.75` | `0.0` |
+| `latent_contract_specialist_variant` | `sharp` | `base` |
+| `run_tag` | `v6i21j_hardpool_balance_calibration` | `v6i22_adaptive_hardpool_repertoire_birth_OP8_OP9_OP10_OP11_OP12` |
+
+Aliases: `v6i22`, `v6i22_adaptive_hardpool_repertoire_birth`,
+`v6i22_repertoire_birth`, `latent_v6i22_adaptive_hardpool_repertoire_birth`,
+and `plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth`.
+
+Promotion logic: train a short 5-20 update repertoire-birth diagnostic from the
+v6i9 generalist anchor, then run forced-z fingerprints over OP8-OP12 x both map
+layouts. Router training remains blocked unless forced z produces real options:
+behavior pair distance above the prior 0.04-0.05 ceiling, at least one or two
+pairs above threshold, role/tempo/margin fingerprints separating by z, and
+`unique_best_z_count > 1` by margin, tempo, or WR.
+
+---
+
+### 6.36 v6i22b_context_behavior_diversity (SUMMER-COMPATIBLE EXTENSION)
+
+v6i22B inherits `v6i22_adaptive_hardpool_repertoire_birth` directly. It keeps
+router training off, keeps `latent_assignment_mode = "balanced_episode"`, keeps
+one unlabeled z for the whole episode, keeps the contract-specialist reward
+disabled, and keeps the v6 repertoire-stage freeze/adapters inherited from
+V6I22.
+
+The only scientific delta is label-free anti-collapse pressure: successful
+terminal episodes receive a small behavior-contrast bonus when their trajectory
+fingerprint separates from other z centroids inside the same opponent x map
+context. The signal does not assign roles to z indices. It says only that the
+z branches should not collapse into the same trajectory signature while still
+succeeding.
+
+This remains **not** `PAPER-FAITHFUL`, because it adds a reward-side behavior
+contrast term and inherits the v6 hardpool/staged-freeze machinery. It is
+Summer-compatible for this fork because it adds no handcrafted z-role contracts,
+no supervised strategy labels, no opponent-ID actor shortcut, no oracle best-z
+targets, no router distillation, and no router training.
+
+**Resolved-config diff vs v6i22 primary arm:** exactly `{experiment_id,
+latent_behavior_contrast_coef, latent_behavior_contrast_margin, run_tag}`.
+
+| Field | v6i22 | v6i22B primary |
+|-------|-------|----------------|
+| `experiment_id` | `v6i22` | `v6i22b_coef003` |
+| `latent_behavior_contrast_coef` | `0.0` | `0.03` |
+| `latent_behavior_contrast_margin` | `0.0` | `0.06` |
+| `run_tag` | `v6i22_adaptive_hardpool_repertoire_birth_OP8_OP9_OP10_OP11_OP12` | `v6i22b_context_behavior_diversity_coef003_OP8_OP9_OP10_OP11_OP12` |
+
+Coefficient sweep arms keep the same diff surface and set
+`latent_behavior_contrast_coef` to `0.01`, `0.03`, or `0.05`.
+
+Aliases: `v6i22b`, `v6i22b_context_behavior_diversity`,
+`v6i22b_behavior_diversity_coef003`,
+`latent_v6i22b_context_behavior_diversity`, and
+`plan_faithful_latent_v6i22b_context_behavior_diversity`. Sweep aliases:
+`v6i22b_coef001`, `v6i22b_behavior_diversity_coef001`,
+`latent_v6i22b_context_behavior_diversity_coef001`,
+`plan_faithful_latent_v6i22b_context_behavior_diversity_coef001`,
+`v6i22b_coef005`, `v6i22b_behavior_diversity_coef005`,
+`latent_v6i22b_context_behavior_diversity_coef005`, and
+`plan_faithful_latent_v6i22b_context_behavior_diversity_coef005`.
+
+Promotion logic: run 5-update coefficient diagnostics from the same v6i9
+generalist anchor, then run forced-z fingerprints over OP8-OP12 x both map
+layouts. Continue only an arm that keeps Stage-C passing, preserves positive
+WR/margin advantage, raises behavior pair distance above V6I22's 20-update
+level, and starts moving toward at least one above-threshold behavior pair.
+Router training remains blocked until forced-z behaviors are visibly distinct.
+
+---
+
+### 6.37 v6i22c_contextual_outcome_diversity (SUMMER-COMPATIBLE EXTENSION)
+
+v6i22C inherits `v6i22_adaptive_hardpool_repertoire_birth` directly. It keeps
+router training off, keeps `latent_assignment_mode = "balanced_episode"`, keeps
+one unlabeled z for the whole episode, keeps the contract-specialist reward
+disabled, keeps behavior-contrast reward disabled, and keeps the v6
+repertoire-stage freeze/adapters inherited from V6I22.
+
+The only scientific delta is label-free contextual outcome diversity:
+successful terminal episodes receive a bounded bonus when their generic outcome
+scalar differs from other z outcome centroids inside the same opponent x map
+context. The current scalar is score margin (`blue_score - red_score`). It does
+not use interception, escort, defense, tempo, lane, or other role/fingerprint
+metrics as training targets.
+
+This remains **not** `PAPER-FAITHFUL`, because it adds a reward-side outcome
+diversity term and inherits the v6 hardpool/staged-freeze machinery. It is
+Summer-compatible for this fork because it adds no handcrafted z-role contracts,
+no supervised strategy labels, no opponent-ID actor shortcut, no oracle best-z
+targets, no router distillation, no behavior-role reward, and no router
+training.
+
+**Resolved-config diff vs v6i22 primary arm:** exactly `{experiment_id,
+latent_outcome_diversity_coef, run_tag}`.
+
+| Field | v6i22 | v6i22C primary |
+|-------|-------|----------------|
+| `experiment_id` | `v6i22` | `v6i22c_coef003` |
+| `latent_outcome_diversity_coef` | `0.0` | `0.03` |
+| `run_tag` | `v6i22_adaptive_hardpool_repertoire_birth_OP8_OP9_OP10_OP11_OP12` | `v6i22c_contextual_outcome_diversity_coef003_OP8_OP9_OP10_OP11_OP12` |
+
+Aliases: `v6i22c`, `v6i22c_contextual_outcome_diversity`,
+`v6i22c_outcome_diversity_coef003`,
+`latent_v6i22c_contextual_outcome_diversity`, and
+`plan_faithful_latent_v6i22c_contextual_outcome_diversity`.
+
+Promotion logic: run a 5-update diagnostic from the same v6i9 generalist anchor,
+then run forced-z fingerprints over OP8-OP12 x both map layouts. Continue only
+if Stage-C remains passing, unique best-z stays above one, WR/margin advantage
+does not collapse, and behavior pair distance moves materially above the
+V6I22B ceiling. Router training remains blocked until forced-z behaviors are
+visibly distinct.
+
+---
+
+### 6.38 v6i22d_strong_behavior_diversity (SUMMER-COMPATIBLE EXTENSION)
+
+v6i22D inherits `v6i22_adaptive_hardpool_repertoire_birth` directly. It keeps
+router training off, keeps `latent_assignment_mode = "balanced_episode"`, keeps
+one unlabeled z for the whole episode, keeps the contract-specialist reward
+disabled, and keeps outcome-diversity disabled.
+
+The scientific delta is stronger label-free behavior-contrast pressure after
+V6I22B (coef `<= 0.05`) and V6I22C failed the forced-z behavior birth gate.
+Successful terminal episodes receive a behavior-contrast bonus when their
+trajectory fingerprint separates from other z centroids inside the same
+opponent x map context. The signal uses the same fingerprint features as the
+birth gate (`n_intercept_near_enemy_carrier`, `carrier_escort_count`,
+`num_defenders`, `team_spread`, `objective_entry_timing`,
+`nearest_blue_to_enemy_carrier`, and related trajectory telemetry).
+
+This remains **not** `PAPER-FAITHFUL`. It is Summer-compatible because it adds
+no handcrafted z-role contracts, no supervised strategy labels, no opponent-ID
+actor shortcut, no oracle best-z targets, no router distillation, and no router
+training.
+
+**Resolved-config diff vs v6i22 primary arm:** exactly `{experiment_id,
+latent_behavior_contrast_coef, latent_behavior_contrast_margin, run_tag}`.
+
+| Field | v6i22 | v6i22D primary |
+|-------|-------|----------------|
+| `experiment_id` | `v6i22` | `v6i22d_coef010` |
+| `latent_behavior_contrast_coef` | `0.0` | `0.10` |
+| `latent_behavior_contrast_margin` | `0.0` | `0.06` |
+| `run_tag` | `v6i22_adaptive_hardpool_repertoire_birth_OP8_OP9_OP10_OP11_OP12` | `v6i22d_strong_behavior_diversity_coef010_OP8_OP9_OP10_OP11_OP12` |
+
+Sweep arm `v6i22d_coef005` sets `latent_behavior_contrast_coef = 0.05` (same
+coefficient as `v6i22b_coef005`, included as a paired control under the v6i22D
+line).
+
+Aliases: `v6i22d`, `v6i22d_strong_behavior_diversity`,
+`v6i22d_behavior_diversity_coef010`,
+`latent_v6i22d_strong_behavior_diversity`, and
+`plan_faithful_latent_v6i22d_strong_behavior_diversity`. Sweep aliases:
+`v6i22d_coef005`, `v6i22d_behavior_diversity_coef005`,
+`latent_v6i22d_strong_behavior_diversity_coef005`, and
+`plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005`.
+
+Promotion logic: run 5-update coefficient diagnostics from the same v6i9
+generalist anchor, then run forced-z fingerprints over OP8-OP12 x both map
+layouts. Continue only if Stage-C remains passing, unique best-z stays above
+one, WR/margin advantage does not collapse, and `behavior_pair_distance_mean`
+moves toward `> 0.06` with at least one above-threshold pair. Router training
+remains blocked until forced-z behaviors are visibly distinct.
 
 ---
 

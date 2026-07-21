@@ -140,6 +140,15 @@ class RouterSamplingState:
             new_z = (self.host.balanced_episode_counter + env_index) % K
             z_idx = torch.where(episode_start, new_z, z_idx)
             self.host.current_z = z_idx.clone()
+            if bool(episode_start.any().item()):
+                start_idx = torch.where(episode_start)[0]
+                self.host.episode_forced_z[start_idx] = True
+                self.host.episode_forced_z_id[start_idx] = z_idx.index_select(0, start_idx)
+                self.host.episode_behavior_sum[start_idx] = 0.0
+                self.host.episode_behavior_count[start_idx] = 0
+                self.host.episode_contrast_bucket[start_idx] = strategy_experience_bucket_ids(
+                    global_state.index_select(0, start_idx)
+                ).detach()
             self.host.balanced_episode_counter = torch.where(
                 episode_start,
                 self.host.balanced_episode_counter + 1,

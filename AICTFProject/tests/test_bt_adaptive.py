@@ -57,10 +57,14 @@ class BTAdaptiveProfileTests(unittest.TestCase):
         self.assertLessEqual(profile_for_level(10).intercept_block_base, 0.80)
         self.assertLessEqual(profile_for_level(11).intercept_block_base, 0.80)
 
-    def test_v6i21i_op8_extreme_physical_constants(self) -> None:
-        self.assertLessEqual(_BTAdaptiveMixin._OP8_BLUE_CARRIER_SPEED_MULT, 0.35)
-        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_SPEED_MULT, 1.60)
-        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST, 1.85)
+    def test_v6i21j_hardpool_balance_physical_constants(self) -> None:
+        self.assertLessEqual(_BTAdaptiveMixin._OP8_BLUE_CARRIER_SPEED_MULT, 0.30)
+        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_SPEED_MULT, 1.70)
+        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST, 2.00)
+        self.assertLessEqual(_BTAdaptiveMixin._OP10_BLUE_CARRIER_SPEED_MULT, 0.45)
+        self.assertLessEqual(_BTAdaptiveMixin._OP11_BLUE_CARRIER_SPEED_MULT, 0.45)
+        self.assertGreaterEqual(_BTAdaptiveMixin._OP10_RED_SPEED_MULT, 1.45)
+        self.assertGreaterEqual(_BTAdaptiveMixin._OP11_RED_SPEED_MULT, 1.45)
 
     def test_op8_through_op12_2v2_speed_ranges_boost_red(self) -> None:
         gen = torch.Generator(device="cpu")

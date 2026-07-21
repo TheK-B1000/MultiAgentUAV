@@ -1178,3 +1178,200 @@ def apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration(cfg: PPOC
     cfg.experiment_id = "v6i21i"
     cfg.run_tag = "v6i21i_op8_extreme_physical_calibration"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i21j_hardpool_balance_calibration(cfg: PPOConfig) -> PPOConfig:
+    """V6I21J: OP8/OP10/OP11 hardpool balance calibration.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i21j_hardpool_balance_calibration.
+    Parent preset: v6i21i_op8_extreme_physical_calibration.
+    Classification: DIAGNOSTIC.
+    Research question: after OP8 broke saturation at 70-80% WR, can a balanced
+    OP8/OP10/OP11 physical-pressure pass bring the hardpool closer to the
+    repertoire-birth target without changing OP9/OP12?
+
+    Delta table vs v6i21I:
+      OP8 physical pressure is slightly increased; OP10/OP11 receive targeted
+      carrier slowdown and red overdrive in engine code (``_step.py``,
+      ``_bt_adaptive.py``). experiment_id / run_tag only in resolved config.
+    """
+    cfg = apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration(cfg)
+    cfg.experiment_id = "v6i21j"
+    cfg.run_tag = "v6i21j_hardpool_balance_calibration"
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg: PPOConfig) -> PPOConfig:
+    """V6I22: label-free repertoire birth on the calibrated adaptive hardpool.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22_adaptive_hardpool_repertoire_birth.
+    Parent preset: v6i21j_hardpool_balance_calibration.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: can balanced, episode-persistent z exposure under the
+    calibrated OP8-OP12 hardpool produce forced-z behavioral separation without
+    handcrafted z-role contracts or router training?
+
+    Delta table vs v6i21J:
+      Router objective changed: no router training; forced episodes are excluded.
+      Exploration schedule changed: balanced_episode is held active.
+      Reward changed: contract-specialist rewards are explicitly OFF.
+      Supervision added: no labels, no opponent-ID head, no oracle-z targets.
+      Actor architecture changed: no new V6I22 architecture; inherited v6i16
+      z-capacity scaffold remains a v6 extension.
+
+    This is the Summer-compatible version of the repertoire-birth fork: z has
+    no coded semantics. Promotion requires forced-z fingerprints, not natural
+    rollout telemetry and not router performance.
+    """
+    cfg = apply_plan_faithful_latent_v6i21j_hardpool_balance_calibration(cfg)
+    cfg.latent_assignment_mode = "balanced_episode"
+    cfg.train_router_when_forced = False
+    cfg.train_router_critic_when_forced = False
+    cfg.v6i9_training_stage = "repertoire"
+    cfg.latent_contract_specialist_enabled = False
+    cfg.latent_contract_specialist_coef = 0.0
+    cfg.latent_contract_specialist_variant = "base"
+    cfg.experiment_id = "v6i22"
+    cfg.run_tag = "v6i22_adaptive_hardpool_repertoire_birth_OP8_OP9_OP10_OP11_OP12"
+    return cfg
+
+
+def _apply_v6i22b_behavior_diversity(cfg: PPOConfig, *, coef: float, suffix: str) -> PPOConfig:
+    cfg = apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg)
+    cfg.latent_behavior_contrast_coef = float(coef)
+    cfg.latent_behavior_contrast_margin = 0.06
+    cfg.latent_behavior_contrast_ema = 0.9
+    cfg.latent_behavior_contrast_anneal_after_steps = 0
+    cfg.latent_behavior_contrast_anneal_to = 0.0
+    cfg.experiment_id = f"v6i22b_{suffix}"
+    cfg.run_tag = (
+        "v6i22b_context_behavior_diversity_"
+        f"{suffix}_OP8_OP9_OP10_OP11_OP12"
+    )
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i22b_context_behavior_diversity(cfg: PPOConfig) -> PPOConfig:
+    """V6I22B: label-free context-conditioned behavior anti-collapse.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22b_context_behavior_diversity.
+    Parent preset: v6i22_adaptive_hardpool_repertoire_birth.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: can a small label-free behavior-diversity reward turn
+    V6I22's forced-z consequence differences into stronger forced-z behavior
+    fingerprints without contracts or router training?
+
+    Delta table vs v6i22:
+      Router objective changed: no, router remains off.
+      Exploration schedule changed: no, balanced_episode is preserved.
+      Reward changed: yes, a success-gated behavior-contrast reward is active.
+      Supervision added: no strategy labels, no roles, no oracle best-z targets.
+      Actor architecture changed: no new architecture; inherited v6 scaffold.
+
+    Runtime contract: behavior contrast is computed from trajectory telemetry,
+    keyed by opponent x map at episode terminal, and only successful episodes
+    update or receive the bonus. The signal says only "do not collapse into the
+    same trajectory signature"; it does not assign semantics to z indices.
+    """
+    return _apply_v6i22b_behavior_diversity(cfg, coef=0.03, suffix="coef003")
+
+
+def apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef001(cfg: PPOConfig) -> PPOConfig:
+    """V6I22B coefficient-sweep arm: behavior diversity coefficient 0.01."""
+    return _apply_v6i22b_behavior_diversity(cfg, coef=0.01, suffix="coef001")
+
+
+def apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef005(cfg: PPOConfig) -> PPOConfig:
+    """V6I22B coefficient-sweep arm: behavior diversity coefficient 0.05."""
+    return _apply_v6i22b_behavior_diversity(cfg, coef=0.05, suffix="coef005")
+
+
+def _apply_v6i22d_strong_behavior_diversity(cfg: PPOConfig, *, coef: float, suffix: str) -> PPOConfig:
+    cfg = apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg)
+    cfg.latent_behavior_contrast_coef = float(coef)
+    cfg.latent_behavior_contrast_margin = 0.06
+    cfg.latent_behavior_contrast_ema = 0.9
+    cfg.latent_behavior_contrast_anneal_after_steps = 0
+    cfg.latent_behavior_contrast_anneal_to = 0.0
+    cfg.experiment_id = f"v6i22d_{suffix}"
+    cfg.run_tag = (
+        "v6i22d_strong_behavior_diversity_"
+        f"{suffix}_OP8_OP9_OP10_OP11_OP12"
+    )
+    return cfg
+
+
+def apply_plan_faithful_latent_v6i22d_strong_behavior_diversity(cfg: PPOConfig) -> PPOConfig:
+    """V6I22D: stronger label-free behavior-diversity repertoire birth.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22d_strong_behavior_diversity.
+    Parent preset: v6i22_adaptive_hardpool_repertoire_birth.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: after V6I22B (coef <= 0.05) and V6I22C failed the
+    forced-z behavior birth gate, can stronger behavior-contrast pressure push
+    z branches apart on the birth-gate fingerprint metrics without contracts or
+    router training?
+
+    Delta table vs v6i22:
+      Router objective changed: no, router remains off.
+      Exploration schedule changed: no, balanced_episode is preserved.
+      Reward changed: yes, a stronger success-gated behavior-contrast reward
+      is active.
+      Supervision added: no strategy labels, no roles, no oracle best-z targets.
+      Actor architecture changed: no new architecture; inherited v6 scaffold.
+
+    Runtime contract: same trajectory-fingerprint behavior contrast as V6I22B,
+    keyed by opponent x map at episode terminal, success-only updates. The
+    coefficient sweep targets the previously untested 0.10 arm plus a paired
+    0.05 control (already evaluated under V6I22B naming).
+    """
+    return _apply_v6i22d_strong_behavior_diversity(cfg, coef=0.10, suffix="coef010")
+
+
+def apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005(cfg: PPOConfig) -> PPOConfig:
+    """V6I22D coefficient-sweep arm: behavior diversity coefficient 0.05."""
+    return _apply_v6i22d_strong_behavior_diversity(cfg, coef=0.05, suffix="coef005")
+
+
+def apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity(cfg: PPOConfig) -> PPOConfig:
+    """V6I22C: label-free context-conditioned outcome diversity.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22c_contextual_outcome_diversity.
+    Parent preset: v6i22_adaptive_hardpool_repertoire_birth.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: can stronger generic outcome-diversity credit separate
+    forced-z branches under the calibrated adaptive hardpool without z-role
+    contracts, role-specific rewards, oracle targets, or router training?
+
+    Delta table vs v6i22:
+      Router objective changed: no, router remains off.
+      Exploration schedule changed: no, balanced_episode is preserved.
+      Reward changed: yes, a success-gated terminal outcome-diversity reward
+      is active.
+      Supervision added: no strategy labels, no roles, no oracle best-z targets.
+      Actor architecture changed: no new architecture; inherited v6 scaffold.
+
+    Runtime contract: outcome diversity is computed from generic terminal
+    score margin, keyed by opponent x map at episode terminal, and only
+    successful episodes update or receive the bonus. The signal says only that
+    z branches should not collapse to identical context-conditioned outcome
+    distributions. It never maps z indices to strategic roles.
+    """
+    cfg = apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg)
+    cfg.latent_outcome_diversity_coef = 0.03
+    cfg.latent_outcome_diversity_margin = 1.0
+    cfg.latent_outcome_diversity_ema = 0.9
+    cfg.latent_outcome_diversity_success_only = True
+    cfg.experiment_id = "v6i22c_coef003"
+    cfg.run_tag = "v6i22c_contextual_outcome_diversity_coef003_OP8_OP9_OP10_OP11_OP12"
+    return cfg

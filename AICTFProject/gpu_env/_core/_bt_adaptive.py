@@ -33,6 +33,7 @@ class _BTAdaptiveMixin:
     # v6i21H saturation fix: disable failed OP8/OP10/OP11 bespoke geometry and
     # let profile-level fortress/counter shapes do the work.
     # v6i21I OP8 extreme: physical upper bound for OP8 only.
+    # v6i21J balance: keep OP8 hard and add OP10/OP11 physical pressure.
     _NEAR_CAP_DIST = 12.0
     _OP8_NEAR_CAP_DIST_MULT = 1.45
     _OP8_PREDICTIVE_LEAD_FRAC = 0.32
@@ -50,11 +51,17 @@ class _BTAdaptiveMixin:
     _HIGH_ESCORT_DENSITY = 0.25
     _HIGH_OVERCOMMIT = 0.25
     _BLUE_CARRIER_SPEED_MULT = 0.75
-    _OP8_BLUE_CARRIER_SPEED_MULT = 0.35
+    _OP8_BLUE_CARRIER_SPEED_MULT = 0.30
+    _OP10_BLUE_CARRIER_SPEED_MULT = 0.45
+    _OP11_BLUE_CARRIER_SPEED_MULT = 0.45
     _RED_RESPAWN_MULT = 0.50
-    _OP8_RED_SPEED_MULT = 1.60
+    _OP8_RED_SPEED_MULT = 1.70
+    _OP10_RED_SPEED_MULT = 1.45
+    _OP11_RED_SPEED_MULT = 1.45
     _RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.35
-    _OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.85
+    _OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 2.00
+    _OP10_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.65
+    _OP11_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.65
     _RED_INTERCEPTOR_NEAR_FLAG_DIST = 11.0
     _COLLAPSE_ROLE_LOCK_BONUS = 20
     _INTERCEPT_BLOCK_BOOST_COLLAPSE = 0.50

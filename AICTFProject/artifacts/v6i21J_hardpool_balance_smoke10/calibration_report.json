@@ -1,0 +1,160 @@
+{
+  "checkpoint": "checkpoints\\2v2\\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip",
+  "hardpool_physical_profile": {
+    "calibration_fork": "v6i21j_hardpool_balance",
+    "OP8": {
+      "blue_carrier_speed_mult": 0.3,
+      "red_speed_mult": 1.7,
+      "red_interceptor_near_flag_boost": 2.0
+    },
+    "OP9": {
+      "blue_carrier_speed_mult": 0.75,
+      "red_speed_mult": null,
+      "red_interceptor_near_flag_boost": 1.35,
+      "note": "OP9 uses pool defaults; no per-OP overdrive in v6i21J"
+    },
+    "OP10": {
+      "blue_carrier_speed_mult": 0.45,
+      "red_speed_mult": 1.45,
+      "red_interceptor_near_flag_boost": 1.65
+    },
+    "OP11": {
+      "blue_carrier_speed_mult": 0.45,
+      "red_speed_mult": 1.45,
+      "red_interceptor_near_flag_boost": 1.65
+    },
+    "OP12": {
+      "blue_carrier_speed_mult": 0.75,
+      "red_speed_mult": null,
+      "red_interceptor_near_flag_boost": 1.35,
+      "note": "OP12 uses pool defaults; unchanged in v6i21J"
+    }
+  },
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
+  ],
+  "maps": [
+    "map_b",
+    "map_b_split_lane_v2"
+  ],
+  "episodes_per_cell": 10,
+  "cells": [
+    {
+      "opponent": "OP8",
+      "map": "map_b",
+      "episodes": 10,
+      "win_rate": 1.0,
+      "blue_score_mean": 3.0,
+      "red_score_mean": 2.0,
+      "seed": 42
+    },
+    {
+      "opponent": "OP8",
+      "map": "map_b_split_lane_v2",
+      "episodes": 10,
+      "win_rate": 0.5,
+      "blue_score_mean": 2.5,
+      "red_score_mean": 2.4,
+      "seed": 142
+    },
+    {
+      "opponent": "OP9",
+      "map": "map_b",
+      "episodes": 10,
+      "win_rate": 0.5,
+      "blue_score_mean": 1.6,
+      "red_score_mean": 0.5,
+      "seed": 1042
+    },
+    {
+      "opponent": "OP9",
+      "map": "map_b_split_lane_v2",
+      "episodes": 10,
+      "win_rate": 0.6,
+      "blue_score_mean": 1.7,
+      "red_score_mean": 0.6,
+      "seed": 1142
+    },
+    {
+      "opponent": "OP10",
+      "map": "map_b",
+      "episodes": 10,
+      "win_rate": 0.9,
+      "blue_score_mean": 2.8,
+      "red_score_mean": 0.4,
+      "seed": 2042
+    },
+    {
+      "opponent": "OP10",
+      "map": "map_b_split_lane_v2",
+      "episodes": 10,
+      "win_rate": 1.0,
+      "blue_score_mean": 2.8,
+      "red_score_mean": 0.6,
+      "seed": 2142
+    },
+    {
+      "opponent": "OP11",
+      "map": "map_b",
+      "episodes": 10,
+      "win_rate": 0.5,
+      "blue_score_mean": 2.5,
+      "red_score_mean": 2.2,
+      "seed": 3042
+    },
+    {
+      "opponent": "OP11",
+      "map": "map_b_split_lane_v2",
+      "episodes": 10,
+      "win_rate": 0.4,
+      "blue_score_mean": 2.5,
+      "red_score_mean": 2.5,
+      "seed": 3142
+    },
+    {
+      "opponent": "OP12",
+      "map": "map_b",
+      "episodes": 10,
+      "win_rate": 0.5,
+      "blue_score_mean": 2.5,
+      "red_score_mean": 2.3,
+      "seed": 4042
+    },
+    {
+      "opponent": "OP12",
+      "map": "map_b_split_lane_v2",
+      "episodes": 10,
+      "win_rate": 0.5,
+      "blue_score_mean": 2.4,
+      "red_score_mean": 2.1,
+      "seed": 4142
+    }
+  ],
+  "mean_win_rate": 0.64,
+  "mean_blue_score": 2.43,
+  "max_blue_score": 3.0,
+  "min_blue_score": 1.6,
+  "cells_in_target_band": 7,
+  "cells_below_75_wr": 7,
+  "cells_saturated_95plus": 2,
+  "cells_hard_red_score_gt_1": 6,
+  "target_band": [
+    0.35,
+    0.65
+  ],
+  "tier1_gates": {
+    "mean_wr_below_85": true,
+    "saturated_lte_3": true,
+    "below_75_at_least_2": true,
+    "in_band_at_least_1": true,
+    "hard_red_score_cell": true,
+    "blue_score_not_pinned": false
+  },
+  "calibration_pass_tier1": false,
+  "calibration_pass": false,
+  "note": "OP8-OP12 upgraded in-place at v6i21; v6i21J balance keeps OP8 hard and adds OP10/OP11 physical pressure. Pre-v6i21 OP8-OP12 results not comparable."
+}

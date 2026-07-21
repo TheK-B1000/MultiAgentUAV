@@ -220,6 +220,7 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         "reward_sparse_points_mean",
         "reward_failure_mean",
         "reward_behavior_contrast_mean",
+        "reward_outcome_diversity_mean",
         "reward_csia_mean",
         "reward_contract_specialist_mean",
         "reward_total_mean",

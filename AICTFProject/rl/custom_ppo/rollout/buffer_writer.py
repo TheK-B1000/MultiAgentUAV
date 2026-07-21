@@ -113,6 +113,7 @@ class RolloutStepRecorder:
             reward_sparse_points=rc["reward_sparse_points"],
             reward_failure=rc["reward_failure"],
             reward_behavior_contrast=rc["reward_behavior_contrast"],
+            reward_outcome_diversity=rc["reward_outcome_diversity"],
             reward_csia=rc["reward_csia"],
             reward_contract_specialist=rc["reward_contract_specialist"],
             reward_total=rc["reward_total"],

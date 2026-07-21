@@ -1901,6 +1901,251 @@ issue was insufficient physical pressure, not scoring/tagging geometry. Artifact
 `artifacts/v6i21I_op8_extreme_physical_smoke10/calibration_report.json`. Next:
 dial OP8 physical knobs toward in-band without overshooting OP9/OP12 balance.
 
+### 3.28 v6i21J hardpool balance calibration -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21I:** OP8I proved OP8 is no longer structurally
+saturated. v6i21J keeps OP8 hard and adds targeted physical pressure to OP10 and
+OP11: OP8 blue carrier `0.30`, OP8 red speed `1.70`, OP8 interceptor boost
+`2.00`; OP10/OP11 blue carrier `0.45`, red speed `1.45`, interceptor boost
+`1.65`. OP9/OP12 unchanged.
+
+**Fidelity classification:** `DIAGNOSTIC`. Engine-only hardpool calibration. No
+router, no PPO training, no specialist birth.
+
+**Resolved-config diff vs v6i21I:** exactly `{experiment_id, run_tag}`.
+
+**Next calibration command:**
+
+```powershell
+uv run python experiments/run_v6i21_adaptive_hardpool_calibration.py --checkpoint checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --episodes 10 --device cuda --out-dir artifacts\v6i21J_hardpool_balance_smoke10 --progress-every 1
+```
+
+**Target before V6I22:** mean blue WR 50-75%, saturated cells 0-2/10, at least
+5/10 cells in 35-75%, red scores meaningfully, and blue score not pinned at 3.0.
+Router and repertoire-birth training remain blocked until this hardpool
+calibration is acceptable.
+
+**10-episode smoke eval (2026-07-05):** `GOOD_SMOKE` — pool usable. Profile proof
+in report confirms OP8 `0.30/1.70/2.00`, OP10/OP11 `0.45/1.45/1.65`. Mean blue
+WR **64.0%**; **7/10** in-band; **2/10** saturated (OP8 map_b, OP10 split_lane);
+mean blue score **2.43**. OP8 split_lane **50%**; OP9 **50-60%**; OP11 **40-50%**
+(red 2.2-2.5); OP12 **50%** (red 2.1-2.3). Weak spots: OP8 map_b still **100%**,
+OP10 split_lane **100%**. Formal tier-1 fails only on `blue_score_not_pinned`
+(max 3.0). Artifact:
+`artifacts/v6i21J_hardpool_balance_smoke10/calibration_report.json`.
+
+**25-episode calibration eval (2026-07-06):** `TIER1_PASS` — arena usable at n=25.
+Mean blue WR **66.4%**; **6/10** in-band; **2/10** saturated (OP10 both maps);
+mean blue score **2.43** (max **2.80**, min **1.48** — no longer pinned at 3.0).
+OP8 map_b dropped to **76%** (smoke 100%); OP12 split_lane **36%** in-band.
+Weak spot: OP10 still **96-100%**. `calibration_pass_tier1=True`;
+`calibration_pass=False` (mean WR above 65% final band). Artifact:
+`artifacts/v6i21J_hardpool_balance_calibration/calibration_report.json`.
+
+**Status:** hardpool calibration tier-1 passed. Repertoire birth (v6i22) may
+proceed as diagnostic; router remains blocked.
+
+### 3.29 v6i22 adaptive hardpool repertoire birth -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i21J:** v6i21J is a calibration preset. v6i22 starts the
+next label-free repertoire-birth fork over the same adaptive hardpool surface:
+router off, `balanced_episode` z assignment, one z held for the episode, shared
+actor trunk frozen by `v6i9_training_stage = "repertoire"`, and z-specific
+modules plus critic trainable.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. It inherits v6 staged/frozen/adapted hardpool machinery, but
+adds no handcrafted z-role contracts, no opponent-ID supervision, no oracle-z
+targets, no router distillation, and no auxiliary label head. The old contract
+specialist scaffold is explicitly off:
+`latent_contract_specialist_enabled = False`,
+`latent_contract_specialist_coef = 0.0`.
+
+**Resolved-config diff vs v6i21J:** exactly `{experiment_id,
+latent_contract_specialist_coef, latent_contract_specialist_enabled,
+latent_contract_specialist_variant, run_tag}`.
+
+**User-requested gate override:** v6i21J calibration evaluation was still pending
+when v6i22 was implemented. Treat v6i22 as a direct diagnostic jump, not as proof
+that the hardpool calibration target already passed.
+
+**First 5-update launch command:**
+
+```powershell
+uv run python rl/train_ppo.py --preset v6i22 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22_repertoire_birth_5u_seed1 --checkpoint-dir artifacts\v6i22_repertoire_birth_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Smoke gates:** banner shows `balanced_episode`; router remains off for forced
+episodes; contract reward columns remain zero/inactive; shared-trunk hash is
+unchanged; z-specific params move; all four z values are sampled; OP8-OP12 and
+both map layouts appear in episode logs.
+
+**Promotion gates:** forced-z evaluation over OP8-OP12 x both maps must show
+real options before any router work: behavior pair distance above the old
+0.04-0.05 ceiling, at least 1-2 pairs above threshold, margin/tempo/behavior
+fingerprints separating by z, and `unique_best_z_count > 1`.
+
+### 3.30 v6i22B context behavior diversity -- `IMPLEMENTED` (2026-07-05)
+
+**Scientific delta vs v6i22:** V6I22 produced useful z consequences but not
+strong forced-z behavior fingerprints. The 5-update run passed Stage-C
+(`oracle_WR = 95%`, `best_fixed_WR = 80%`, `unique_best_z_count = 4`) while
+behavior distance stayed below threshold (`mean = 0.0327`, `max = 0.0512`,
+`pairs_above_threshold = 0`). The 20-update continuation kept Stage-C alive
+but behavior distance did not improve (`mean = 0.0289`, `max = 0.0439`,
+`pairs_above_threshold = 0`). V6I22B therefore tests label-free anti-collapse
+pressure instead of more updates.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. Router remains off; one unlabeled z is held per episode;
+contract-specialist rewards stay disabled; no handcrafted z roles, supervised
+strategy labels, oracle best-z targets, opponent-ID actor shortcut, router
+distillation, or router training are added. The new signal is a small
+success-gated behavior-contrast reward from trajectory fingerprints.
+
+**Resolved-config diff vs v6i22 primary arm:** exactly `{experiment_id,
+latent_behavior_contrast_coef, latent_behavior_contrast_margin, run_tag}`.
+The primary arm is `v6i22b` / `v6i22b_behavior_diversity_coef003` with
+`latent_behavior_contrast_coef = 0.03` and
+`latent_behavior_contrast_margin = 0.06`. Sweep arms are `v6i22b_coef001` and
+`v6i22b_coef005`.
+
+**Runtime contract:** balanced-episode z assignments now feed the behavior
+contrast ledger; the contrast bucket is opponent x map at terminal; failed
+episodes do not update the centroid or receive the bonus. This avoids semantic
+z labels while directly targeting the failed behavior-distance gate.
+
+**5-update coefficient sweep commands:**
+
+```powershell
+uv run python rl/train_ppo.py --preset v6i22b_coef001 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22b_div001_5u_seed1 --checkpoint-dir artifacts\v6i22b_div001_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+uv run python rl/train_ppo.py --preset v6i22b --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22b_div003_5u_seed1 --checkpoint-dir artifacts\v6i22b_div003_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+uv run python rl/train_ppo.py --preset v6i22b_coef005 --load checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i22b_div005_5u_seed1 --checkpoint-dir artifacts\v6i22b_div005_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Promotion gates:** Stage-C must stay passing, `unique_best_z_count` must stay
+above 1, WR/margin advantage must not collapse, `behavior_pair_distance_mean`
+must beat the V6I22 20-update level and move back above 0.04, and at least one
+arm should approach the 0.06 behavior-distance target or produce an
+above-threshold pair. Router training remains blocked.
+
+**5-update coefficient sweep training completed (2026-07-05):** all three arms
+launched from
+`checkpoints\2v2\final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip`
+with `--load-weights-only`, `--additional-steps 5120`, `n_envs=4`,
+`n_steps=256`, `n_epochs=1`, and CUDA. Final checkpoints:
+
+| Arm | Artifact | Final contrast telemetry |
+|-----|----------|--------------------------|
+| `v6i22b_coef001` | `artifacts\v6i22b_div001_5u_seed1\final_v6i22b_div001_5u_seed1_2v2.zip` | `active_frac=1.0`, `distance_mean=0.22215`, `bonus_mean=0.00060`, `reward_behavior_contrast_mean=2.93e-06` |
+| `v6i22b` / `coef003` | `artifacts\v6i22b_div003_5u_seed1\final_v6i22b_div003_5u_seed1_2v2.zip` | `active_frac=1.0`, `distance_mean=0.22215`, `bonus_mean=0.00180`, `reward_behavior_contrast_mean=8.79e-06` |
+| `v6i22b_coef005` | `artifacts\v6i22b_div005_5u_seed1\final_v6i22b_div005_5u_seed1_2v2.zip` | `active_frac=1.0`, `distance_mean=0.22215`, `bonus_mean=0.00300`, `reward_behavior_contrast_mean=1.46e-05` |
+
+Mechanism read: contrast ledger is active and coefficient scaling is correct.
+Training traces were otherwise near-identical across arms, so do not infer
+promotion from training telemetry alone. Next required step is matched forced-z
+fingerprinting for all three final checkpoints over OP8-OP12 x both maps.
+
+**Forced-z fingerprints completed (2026-07-06):** all three arms used the same
+matched protocol as V6I22 20u: OP8-OP12, `map_b` and
+`map_b_split_lane_v2`, four forced z values, `episodes=2` per cell,
+`base_seed=42`, deterministic actions, inherited training reward surface, and
+`max_decision_steps=240`.
+
+| Arm | Stage-C | WR adv | Margin adv | Unique best z | Behavior mean | Behavior max | Pairs above threshold |
+|-----|---------|--------|------------|---------------|---------------|--------------|-----------------------|
+| `v6i22b_coef001` | PASS | +15.0% | +0.80 | 4 | 0.0327 | 0.0512 | 0 |
+| `v6i22b` / `coef003` | PASS | +15.0% | +0.80 | 4 | 0.0327 | 0.0512 | 0 |
+| `v6i22b_coef005` | PASS | +15.0% | +0.80 | 4 | 0.0327 | 0.0512 | 0 |
+
+Best-z surface for all arms:
+`OP8|map_b=z0`, `OP8|map_b_split_lane_v2=z2`, `OP9|map_b=z1`,
+`OP9|map_b_split_lane_v2=z3`, `OP10|map_b=z0`,
+`OP10|map_b_split_lane_v2=z0`, `OP11|map_b=z0`,
+`OP11|map_b_split_lane_v2=z0`, `OP12|map_b=z0`,
+`OP12|map_b_split_lane_v2=z2`.
+
+Verdict: `PROMISING_CONSEQUENCE_LEAD / BEHAVIOR_GATE_FAIL`. V6I22B preserves
+the V6I22 Stage-C consequence surface but does not improve visible behavior
+fingerprints in the 5-update sweep. The anti-collapse reward is live, but the
+coefficient range is too weak or too delayed to change the forced-z behavior
+gate. Router training remains blocked.
+
+### 3.31 v6i22C contextual outcome diversity -- `EVALUATED_FAIL` (2026-07-06)
+
+**Scientific delta vs v6i22:** V6I22B used trajectory behavior fingerprints as
+the anti-collapse reward input and did not move the forced-z behavior gate. V6I22C
+keeps the label-free repertoire-birth scaffold fixed and changes the pressure to
+generic context-conditioned outcomes: successful terminal episodes receive a
+bounded bonus when their score margin differs from other z outcome centroids in
+the same opponent x map bucket.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. Router remains off; one unlabeled z is held per episode;
+`balanced_episode` exposure stays active; contract rewards stay disabled;
+behavior-contrast reward stays disabled; actor receives no opponent ID; no
+supervised labels, role rewards, handcrafted z mapping, oracle best-z target, or
+router distillation is added.
+
+**Resolved-config diff vs v6i22 primary arm:** exactly `{experiment_id,
+latent_outcome_diversity_coef, run_tag}`. The primary arm is `v6i22c` /
+`v6i22c_outcome_diversity_coef003` with
+`latent_outcome_diversity_coef = 0.03`, default margin `1.0`, EMA `0.9`, and
+success-only updates.
+
+**5-update diagnostic completed (2026-07-06):** checkpoint
+`artifacts\v6i22c_outcome_div003_5u_seed1\final_v6i22c_outcome_div003_5u_seed1_2v2.zip`.
+Training: 5 updates, cumulative WR 61.5%, frozen trunk confirmed.
+
+**Forced-z fingerprint (eps2):** Stage-C PASS (oracle margin +0.80, unique
+best-z 4/10). Birth gate FAIL: `behavior_pair_distance_mean = 0.033`,
+`pairs_above_threshold = 0`. Outcome diversity nudged scoreboard variance but
+not playstyle fingerprints.
+
+**Verdict:** `EVALUATED_FAIL` for specialist birth. Stage-C alive. Router
+blocked.
+
+### 3.32 v6i22D strong behavior diversity -- `EVALUATED_FAIL` (2026-07-06)
+
+**Scientific delta vs v6i22B/C:** V6I22 25u (`behavior mean = 0.020`), V6I22B
+sweep coef `<= 0.05` (`behavior mean ~ 0.033`), and V6I22C outcome diversity
+(`behavior mean = 0.033`) all failed the forced-z behavior birth gate. V6I22D
+returns to the behavior-contrast channel with stronger coefficients: primary
+`0.10` (novel) and paired control `0.05`.
+
+**Fidelity classification:** `SUMMER-COMPATIBLE EXTENSION`, not
+`PAPER-FAITHFUL`. Same label-free scaffold as V6I22B: router off,
+`balanced_episode`, contract disabled, outcome-diversity disabled, trajectory
+fingerprint contrast keyed by opponent x map, success-only updates.
+
+**Resolved-config diff vs v6i22:** exactly `{experiment_id,
+latent_behavior_contrast_coef, latent_behavior_contrast_margin, run_tag}`.
+Primary arm `v6i22d` / `v6i22d_behavior_diversity_coef010` uses
+`latent_behavior_contrast_coef = 0.10`. Sweep arm `v6i22d_coef005` uses
+`0.05` (same coefficient as `v6i22b_coef005`, paired control).
+
+**5-update coefficient sweep completed (2026-07-06):** both arms from v6i9
+anchor, 5 updates each, cumulative WR 61.5%. Contrast reward scaled with coef
+(`1.5e-05` at 0.05, `2.9e-05` at 0.10). Training-time
+`forced_z_behavior_pair_distance_mean` stayed ~0.0155 for both arms.
+
+**Forced-z fingerprints (eps2):** both arms produced **identical** surfaces:
+
+| Arm | Stage-C | Oracle gap | Unique best-z | Behavior mean | Pairs above threshold |
+|-----|---------|------------|---------------|---------------|-----------------------|
+| `v6i22d_coef005` | PASS | +0.80 | 4/10 | 0.0331 | 0 |
+| `v6i22d` / coef010 | PASS | +0.80 | 4/10 | 0.0331 | 0 |
+
+Artifacts:
+`artifacts/v6i22d_div005_5u_seed1/forced_z_fingerprint_eps2/`,
+`artifacts/v6i22d_div010_5u_seed1/forced_z_fingerprint_eps2/`.
+
+**Verdict:** `EVALUATED_FAIL` for specialist birth. Stronger behavior-contrast
+pressure (0.05–0.10) did not move the forced-z behavior gate beyond the V6I22B/C
+ceiling. Stage-C consequence remains alive. Router blocked.
+
+### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
+
 **Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis
 "episode-start context can explain enough return variance for V/A routing"
 (`baseline_r2` plateaued at ~0.03). v6i13 tests the better hypothesis: **the

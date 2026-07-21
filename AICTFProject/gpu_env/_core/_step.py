@@ -122,11 +122,29 @@ class _StepMixin:
                 dtype=torch.bool,
                 device=self.device,
             )
+            op10_pressure = torch.as_tensor(
+                [str(k).strip().upper() in ("OP10", "OP10_ESCORT") for k in self._opponent_key],
+                dtype=torch.bool,
+                device=self.device,
+            )
+            op11_pressure = torch.as_tensor(
+                [str(k).strip().upper() in ("OP11", "OP11_BT_BALANCED") for k in self._opponent_key],
+                dtype=torch.bool,
+                device=self.device,
+            )
             blue_carrier = self.blue_carrying & self.blue_alive & (~self.blue_tagged)
             blue_carrier_mult = torch.where(
                 op8_pressure[:, None],
                 torch.full_like(blue_speed_cap, float(getattr(self, "_OP8_BLUE_CARRIER_SPEED_MULT", 0.35))),
-                torch.full_like(blue_speed_cap, float(getattr(self, "_BLUE_CARRIER_SPEED_MULT", 0.95))),
+                torch.where(
+                    op10_pressure[:, None],
+                    torch.full_like(blue_speed_cap, float(getattr(self, "_OP10_BLUE_CARRIER_SPEED_MULT", 0.45))),
+                    torch.where(
+                        op11_pressure[:, None],
+                        torch.full_like(blue_speed_cap, float(getattr(self, "_OP11_BLUE_CARRIER_SPEED_MULT", 0.45))),
+                        torch.full_like(blue_speed_cap, float(getattr(self, "_BLUE_CARRIER_SPEED_MULT", 0.95))),
+                    ),
+                ),
             )
             carrier_penalty = torch.where(
                 hardpool_pressure[:, None] & blue_carrier,
@@ -151,12 +169,30 @@ class _StepMixin:
                 dtype=torch.bool,
                 device=self.device,
             )
+            op10_pressure = torch.as_tensor(
+                [str(k).strip().upper() in ("OP10", "OP10_ESCORT") for k in self._opponent_key],
+                dtype=torch.bool,
+                device=self.device,
+            )
+            op11_pressure = torch.as_tensor(
+                [str(k).strip().upper() in ("OP11", "OP11_BT_BALANCED") for k in self._opponent_key],
+                dtype=torch.bool,
+                device=self.device,
+            )
             red_speed_overdrive_mask = hardpool_pressure[:, None].expand_as(self.red_speed)
             if bool(hardpool_pressure.any().item()):
                 op8_speed_mult = torch.where(
                     op8_pressure[:, None],
                     torch.full_like(red_speed_cap, float(getattr(self, "_OP8_RED_SPEED_MULT", 1.60))),
-                    torch.ones_like(red_speed_cap),
+                    torch.where(
+                        op10_pressure[:, None],
+                        torch.full_like(red_speed_cap, float(getattr(self, "_OP10_RED_SPEED_MULT", 1.45))),
+                        torch.where(
+                            op11_pressure[:, None],
+                            torch.full_like(red_speed_cap, float(getattr(self, "_OP11_RED_SPEED_MULT", 1.45))),
+                            torch.ones_like(red_speed_cap),
+                        ),
+                    ),
                 )
                 red_speed_cap = red_speed_cap * op8_speed_mult
                 home = self.red_flag_home
@@ -167,7 +203,15 @@ class _StepMixin:
                 interceptor_boost = torch.where(
                     op8_pressure[:, None],
                     torch.full_like(red_speed_cap, float(getattr(self, "_OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.85))),
-                    torch.full_like(red_speed_cap, float(getattr(self, "_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.22))),
+                    torch.where(
+                        op10_pressure[:, None],
+                        torch.full_like(red_speed_cap, float(getattr(self, "_OP10_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.65))),
+                        torch.where(
+                            op11_pressure[:, None],
+                            torch.full_like(red_speed_cap, float(getattr(self, "_OP11_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.65))),
+                            torch.full_like(red_speed_cap, float(getattr(self, "_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.22))),
+                        ),
+                    ),
                 )
                 int_boost = torch.where(
                     hardpool_pressure[:, None] & near_flag & is_interceptor & self.red_alive,

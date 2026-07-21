@@ -136,6 +136,14 @@ from .v6_router_adapters import (
     apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration,
     apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration,
     apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration,
+    apply_plan_faithful_latent_v6i21j_hardpool_balance_calibration,
+    apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth,
+    apply_plan_faithful_latent_v6i22b_context_behavior_diversity,
+    apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef001,
+    apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef005,
+    apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity,
+    apply_plan_faithful_latent_v6i22d_strong_behavior_diversity,
+    apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
 )
 
 __all__ = [
@@ -257,4 +265,12 @@ __all__ = [
     "apply_plan_faithful_latent_v6i21g_easy_cell_conversion_denial_calibration",
     "apply_plan_faithful_latent_v6i21h_saturation_surrogate_calibration",
     "apply_plan_faithful_latent_v6i21i_op8_extreme_physical_calibration",
+    "apply_plan_faithful_latent_v6i21j_hardpool_balance_calibration",
+    "apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth",
+    "apply_plan_faithful_latent_v6i22b_context_behavior_diversity",
+    "apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef001",
+    "apply_plan_faithful_latent_v6i22b_context_behavior_diversity_coef005",
+    "apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity",
+    "apply_plan_faithful_latent_v6i22d_strong_behavior_diversity",
+    "apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005",
 ]

@@ -424,6 +424,51 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **v6i22C / context-conditioned outcome diversity:** Added
+  `apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity`
+  (aliases `v6i22c`, `v6i22c_contextual_outcome_diversity`,
+  `v6i22c_outcome_diversity_coef003`, and long plan/latent aliases). The
+  preset is a `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. It
+  inherits V6I22's router-off, balanced-episode, contract-disabled
+  repertoire-birth scaffold and adds only a success-gated terminal
+  outcome-diversity reward keyed by opponent x map. The outcome scalar is
+  score margin, not a behavior-role metric. No handcrafted z-role mapping,
+  supervised labels, opponent-ID actor shortcut, oracle best-z targets, router
+  distillation, behavior-role rewards, or router training are added. Added
+  default-off `PPOConfig.latent_outcome_diversity_*` fields, runtime telemetry
+  `reward_outcome_diversity` and `latent_outcome_diversity_*`, focused tests
+  in `tests/test_v6i22c_contextual_outcome_diversity.py`, and extended
+  `tests/test_latent_behavior_contrast.py`.
+- **v6i22B / context-conditioned behavior diversity:** Added
+  `apply_plan_faithful_latent_v6i22b_context_behavior_diversity`
+  (aliases `v6i22b`, `v6i22b_context_behavior_diversity`,
+  `v6i22b_behavior_diversity_coef003`, and long plan/latent aliases) plus
+  coefficient sweep arms `v6i22b_coef001` and `v6i22b_coef005`. The preset is
+  a `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row. It inherits
+  V6I22's router-off, balanced-episode, contract-disabled repertoire-birth
+  scaffold and adds only a small success-gated behavior-contrast reward keyed
+  by opponent x map at terminal. Balanced-episode z assignments now feed the
+  existing contrast ledger; failed episodes do not update centroids or receive
+  the bonus. No handcrafted z roles, supervised strategy labels, opponent-ID
+  actor shortcut, oracle best-z targets, router distillation, or router
+  training are added. Added focused tests in
+  `tests/test_v6i22b_context_behavior_diversity.py` and extended
+  `tests/test_latent_behavior_contrast.py`.
+- **v6i22 / label-free adaptive hardpool repertoire birth:** Added
+  `apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth`
+  (aliases `v6i22`, `v6i22_adaptive_hardpool_repertoire_birth`,
+  `v6i22_repertoire_birth`, and long plan/latent aliases) built directly
+  on `v6i21j_hardpool_balance_calibration`. The preset is a
+  `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful row: it keeps the
+  v6 hardpool/staged-freeze/adapter scaffold but explicitly disables the
+  handcrafted contract-specialist reward (`latent_contract_specialist_enabled
+  = False`, `latent_contract_specialist_coef = 0.0`,
+  `latent_contract_specialist_variant = "base"`). Router training remains
+  off through balanced episode-level z assignment; no opponent-ID
+  supervision, oracle-z target, distillation, auxiliary label head, or
+  z-role contract is added. Added focused tests in
+  `tests/test_v6i22_adaptive_hardpool_repertoire_birth.py`; regenerated
+  `tests/preset_snapshots.json` for the five new aliases.
 - **v6i20 / asymmetry-handicap surface diagnostic:** Registered
   `apply_plan_faithful_latent_v6i20_asymmetry_handicap_surface_diagnostic`
   as an asymmetric consequence-pressure diagnostic over v6i19. Classification:
