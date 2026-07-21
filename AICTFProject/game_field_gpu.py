@@ -668,12 +668,12 @@ class BatchedCTFCore:
             use_key = str(self._opponent_key[env_i]).upper()
             if use_kind == "SNAPSHOT":
                 continue
-            if use_kind not in ("SCRIPTED",) or use_key not in ("OP1", "OP2", "OP3", "OP4"):
-                if use_kind == "SPECIES":
-                    use_kind = "SCRIPTED"
-                    use_key = "OP3"
-                else:
-                    continue
+            if use_kind == "SCRIPTED" and use_key in ("OP1", "OP2", "OP3", "OP4"):
+                pass
+            elif use_kind == "SPECIES" and use_key in ("RUSHER", "CAMPER", "BALANCED"):
+                pass
+            else:
+                continue
             grouped.setdefault((use_kind, use_key), []).append(env_i)
         for (use_kind, use_key), env_list in grouped.items():
             sub_idx = torch.as_tensor(env_list, device=self.device, dtype=torch.int64)
@@ -2907,7 +2907,7 @@ class GPUCTFVecEnv(VecEnv):
                     "opponent_kind": okind,
                     "opponent_snapshot": osnap,
                     "scripted_tag": okey if okind == "scripted" else "",
-                    "species_tag": "BALANCED",
+                    "species_tag": okey if okind == "species" else "",
                     "collisions_per_episode": 0,
                     "collision_events_per_episode": 0,
                     "collision_free_episode": 1,
