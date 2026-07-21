@@ -305,6 +305,7 @@ class BatchedCTFCore:
         self._opponent_kind: List[str] = ["SCRIPTED"] * self.B
         self._opponent_key: List[str] = ["OP1"] * self.B
         self._snapshot_policy_cache: Dict[str, Tuple[float, Optional[Any]]] = {}
+        self._last_red_reward: torch.Tensor = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
         self.rules_profile = str(cfg.rules_profile).upper()
 
         self.blue_scripted = False
@@ -2125,6 +2126,34 @@ class BatchedCTFCore:
         scaled = torch.tanh(raw / max(1e-6, float(self.cfg.reward_scale)))
         return torch.clamp(scaled, -float(self.cfg.reward_clip), float(self.cfg.reward_clip))
 
+    def _red_sparse_reward(
+        self,
+        done: torch.Tensor,
+        blue_cap_env: torch.Tensor,
+        red_cap_env: torch.Tensor,
+        *,
+        capture_bonus: float = 0.1,
+        capture_penalty: float = 0.1,
+    ) -> torch.Tensor:
+        """
+        Sparse red-side reward for training a red exploiter against a frozen blue
+        snapshot (rl/exploiter_env.py). Deliberately simple/antisymmetric to the
+        blue win/loss/draw terms above (win +1 / loss -1 / draw -0.5) plus a small
+        per-capture bonus/penalty — not a mirror of blue's full dense shaping
+        reward, which is out of scope for exploiter training.
+        """
+        red_reward = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
+        red_reward = torch.where(done & (self.red_score > self.blue_score), torch.full_like(red_reward, 1.0), red_reward)
+        red_reward = torch.where(done & (self.red_score < self.blue_score), torch.full_like(red_reward, -1.0), red_reward)
+        red_reward = torch.where(done & (self.red_score == self.blue_score), torch.full_like(red_reward, -0.5), red_reward)
+        red_reward = red_reward + float(capture_bonus) * red_cap_env.to(torch.float32)
+        red_reward = red_reward - float(capture_penalty) * blue_cap_env.to(torch.float32)
+        return red_reward
+
+    def get_last_red_reward(self) -> torch.Tensor:
+        """Red-side reward from the most recent step(), computed by _red_sparse_reward."""
+        return self._last_red_reward
+
     def step(
         self,
         blue_action_flat: torch.Tensor,
@@ -2400,6 +2429,7 @@ class BatchedCTFCore:
             rterm,
         )
         reward = self._reward_total(rterm, roff, rpbrs, rteam, sparse_points, stalemate_trigger)
+        self._last_red_reward = self._red_sparse_reward(done, blue_cap_env, red_cap_env)
         obs_t = self.get_obs_tensors()
         info = self._build_info(dense=rpbrs + rteam, sparse_points=sparse_points, stalemate=stalemate_trigger)
         if tensor_obs:
