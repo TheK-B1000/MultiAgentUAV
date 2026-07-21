@@ -348,6 +348,11 @@ def main() -> None:
     evaluated_mode_order = [m[0] for m in mode_plan]
 
     use_metrics_csv = args.metrics_csv and os.path.isfile(args.metrics_csv)
+    # Pre-existing bug fix: n_episodes was only ever set in the live-eval branch
+    # below, so --metrics-csv always crashed in _metric_se_at. The CSV schema
+    # doesn't carry a per-row episode count, so fall back to --episodes (default
+    # 100) as the SE denominator when replotting from a saved CSV.
+    n_episodes = args.episodes
 
     if use_metrics_csv:
         print(f"Loading metrics from {args.metrics_csv} (no evaluation run).")
@@ -404,6 +409,20 @@ def main() -> None:
                 env.close()
             results_by_mode[mode] = results
 
+    # When replotting from a saved metrics CSV (--metrics-csv), the method column
+    # may contain more than the 3 live-eval defaults (e.g. a "ROA-Star (PFSP)" row
+    # added by plot/eval_roastar.py once a checkpoint exists) -- derive the label
+    # list from what's actually in the CSV instead of hardcoding to model_paths_2v2,
+    # so a 4th (or 5th) method plots correctly without further code changes.
+    method_labels_from_csv: list[str] | None = None
+    if use_metrics_csv:
+        seen: list[str] = []
+        for mode in evaluated_mode_order:
+            for (lbl, _opp) in results_by_mode.get(mode, {}).keys():
+                if lbl not in seen:
+                    seen.append(lbl)
+        method_labels_from_csv = seen
+
     # Optional training AUC (per-run, not per-model; we don't have per-model CSVs by default)
     training_auc: float | None = None
     if args.training_csv and os.path.isfile(args.training_csv):
@@ -419,7 +438,12 @@ def main() -> None:
     table_rows: list[dict] = []
     for mode, _, model_paths in mode_plan:
         results = results_by_mode.get(mode, {})
-        for label, _ in model_paths:
+        # method_labels_from_csv (when replotting from --metrics-csv) may include
+        # methods beyond the static Ours/Jacob/Self-play trio -- use it so extra
+        # rows (e.g. a "ROA-Star (PFSP)" method) aren't silently dropped from the
+        # printed table / --table-out CSV.
+        labels_for_table = method_labels_from_csv or [lbl for lbl, _ in model_paths]
+        for label in labels_for_table:
             r = results.get((label, table_opp), {})
             table_rows.append({
                 "setting": mode,
@@ -501,7 +525,7 @@ def main() -> None:
     if base_out.endswith(".png"):
         base_out = base_out[:-4]
     plot_opp = table_opp
-    method_labels = [m[0] for m in model_paths_2v2]  # Ours, Jacob et al., Self-play (same for 2v2/4v4)
+    method_labels = method_labels_from_csv or [m[0] for m in model_paths_2v2]  # Ours, Jacob et al., Self-play (same for 2v2/4v4)
 
     def _metric_at(res: dict, label: str, opp: str, key: str, default: float = 0.0) -> float:
         return float(res.get((label, opp), {}).get(key, default))
@@ -623,7 +647,7 @@ def main() -> None:
     r3 = results_by_mode.get("3v3", {})
     r4 = results_by_mode.get("4v4", {})
     r5 = results_by_mode.get("5v5", {})
-    labels = [m[0] for m in model_paths_2v2]
+    labels = method_labels_from_csv or [m[0] for m in model_paths_2v2]
 
     def _series_for_metric(metric_key: str) -> tuple[list[tuple[str, list[float]]], list[list[float]]]:
         series: list[tuple[str, list[float]]] = []
