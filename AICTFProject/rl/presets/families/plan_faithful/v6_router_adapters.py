@@ -1375,3 +1375,39 @@ def apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity(cfg: PPOConfi
     cfg.experiment_id = "v6i22c_coef003"
     cfg.run_tag = "v6i22c_contextual_outcome_diversity_coef003_OP8_OP9_OP10_OP11_OP12"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters(cfg: PPOConfig) -> PPOConfig:
+    """V6I22E: fixed-alpha gate-free adapter to break the zero-gradient equilibrium.
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i22e_fixed_alpha_adapters.
+    Parent preset: v6i22_adaptive_hardpool_repertoire_birth.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+    Research question: does replacing zero-init + learned gate with Kaiming init +
+    fixed alpha=0.1 produce meaningful behavioral separation (JSD > 0.05, behavior
+    fingerprint distance > 0.06) that V6I22 failed to achieve?
+
+    Root cause addressed (from adapter divergence diagnostic, 2026-07-21):
+      V6I22 adapters are directionally differentiated (cos_sim ~0) but have
+      negligibly small magnitudes (weight L2 ~0.09-0.13 in 256x256 matrices,
+      max element ~0.002).  The learned gate is stuck at sigmoid(0.08) ~= 0.52
+      and barely moves.  The degenerate equilibrium: zero-init adapter_out=0,
+      so gate gradient = dL/dgate * adapter_out = 0 -- gate cannot learn, adapter
+      contribution stays near zero, trunk completely dominates.
+
+    Delta table vs v6i22:
+      Architecture changed: latent_z_residual_alpha=0.1 enables fixed-alpha mode.
+        Adapter weights use Kaiming uniform init instead of zero-init.
+        latent_adapter_gates is removed (None) -- not a learned parameter.
+      All other hyperparameters: identical to v6i22.
+
+    Gate for advancement: forced-z behavior_pair_distance_mean > 0.06 on the
+    standard fingerprint protocol (8 seeds per z, same context, 4 probe updates).
+    """
+    cfg = apply_plan_faithful_latent_v6i22_adaptive_hardpool_repertoire_birth(cfg)
+    cfg.latent_z_residual_alpha = 0.1
+    cfg.experiment_id = "v6i22e"
+    cfg.run_tag = "v6i22e_fixed_alpha_adapters_OP8_OP9_OP10_OP11_OP12"
+    return cfg

@@ -131,6 +131,7 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
+    apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
 )
 
 __all__ = [
@@ -260,4 +261,5 @@ __all__ = [
     "apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity",
     "apply_plan_faithful_latent_v6i22d_strong_behavior_diversity",
     "apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005",
+    "apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters",
 ]

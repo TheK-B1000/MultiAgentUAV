@@ -854,6 +854,9 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 "latent_z_gate_init": max(
                     0.0, float(getattr(cfg, "latent_z_gate_init", 0.01) or 0.01)
                 ),
+                "latent_z_residual_alpha": max(
+                    0.0, float(getattr(cfg, "latent_z_residual_alpha", 0.0) or 0.0)
+                ),
             }
         )
     model_kwargs.update(

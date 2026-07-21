@@ -234,6 +234,7 @@ class SharedActorCentralizedCritic(nn.Module):
         latent_actor_conditioning: str = "concat",
         enable_latent_z_residual: bool = False,
         latent_z_gate_init: float = 0.01,
+        latent_z_residual_alpha: float = 0.0,
         communication_enabled: bool = False,
         comm_num_symbols: int = 4,
         experiment_id: str = "",
@@ -379,6 +380,7 @@ class SharedActorCentralizedCritic(nn.Module):
             latent_actor_conditioning=latent_actor_conditioning,
             enable_latent_z_residual=bool(enable_latent_z_residual),
             latent_z_gate_init=float(latent_z_gate_init),
+            latent_z_residual_alpha=float(latent_z_residual_alpha),
         )
         critic_extra_dim = self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(

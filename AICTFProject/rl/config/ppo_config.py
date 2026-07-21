@@ -249,6 +249,9 @@ class PPOConfig:
     # V6I7: per-latent residual actor adapters h_z = h + g_z*A_z(h) and logit biases B_z.
     enable_latent_z_residual: bool = False
     latent_z_gate_init: float = 0.01
+    # V6I22E: fixed-alpha gate-free adapters.  When > 0, Kaiming init replaces
+    # zero-init and the learned gate is removed: h_z = h + alpha * A_z(h).
+    latent_z_residual_alpha: float = 0.0
     # V6I1 Phase B/C macro-router and rehearsal controls.
     v6i1_recurrent_selector_hidden: int = 32
     v6i1_macro_strategy_ppo_coef: float = 1.0

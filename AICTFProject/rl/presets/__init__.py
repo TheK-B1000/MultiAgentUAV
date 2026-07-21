@@ -110,6 +110,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
+    apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
@@ -636,6 +637,10 @@ PRESET_REGISTRY = {
     "v6i22d_coef005": apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
     "latent_v6i22d_strong_behavior_diversity_coef005": apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
     "plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005": apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
+    "v6i22e_fixed_alpha_adapters": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    "v6i22e": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    "latent_v6i22e_fixed_alpha_adapters": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    "plan_faithful_latent_v6i22e_fixed_alpha_adapters": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.

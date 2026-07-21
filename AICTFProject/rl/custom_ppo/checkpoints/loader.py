@@ -122,6 +122,10 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "latent_z_gate_init": float(
                     cfg.get("latent_z_gate_init", 0.01) or 0.01
                 ),
+                # V6I22E: fixed-alpha gate-free adapters.
+                "latent_z_residual_alpha": float(
+                    cfg.get("latent_z_residual_alpha", 0.0) or 0.0
+                ),
             }
         )
     return kwargs
