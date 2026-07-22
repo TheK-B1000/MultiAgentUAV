@@ -4,7 +4,7 @@ import unittest
 from unittest import mock
 
 from rl.roastar_league import ROAStarLeague
-from rl.train_ppo_roastar import ExploiterTriggerCallback
+from rl.train_ppo_roastar import ExploiterTriggerCallback, find_latest_snapshot
 
 
 class _FakeModel:
@@ -107,6 +107,25 @@ class ExploiterLifecycleTests(unittest.TestCase):
                 callback.num_timesteps = 1000
                 callback._on_step()
                 mocked_cycle.assert_called_once()
+
+
+class FindLatestSnapshotTests(unittest.TestCase):
+    def test_picks_highest_episode(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tag = "ppo_roastar_pfsp_2v2_seed42"
+            paths = [
+                os.path.join(tmpdir, f"{tag}_league_snapshot_ep030200.zip"),
+                os.path.join(tmpdir, f"{tag}_league_snapshot_ep030600.zip"),
+                os.path.join(tmpdir, f"{tag}_league_snapshot_ep030400.zip"),
+            ]
+            for p in paths:
+                open(p, "wb").close()
+            got = find_latest_snapshot(tmpdir, tag)
+            self.assertEqual(got, paths[1])
+
+    def test_missing_returns_none(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.assertIsNone(find_latest_snapshot(tmpdir, "no_such_tag"))
 
 
 if __name__ == "__main__":

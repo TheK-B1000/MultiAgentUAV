@@ -36,8 +36,17 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import glob
 import os
+import re
+import sys
 from typing import Any, Callable, Dict, Optional
+
+# Allow `python rl/train_ppo_roastar.py ...` (sys.path[0] is rl/, not project root).
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJECT_DIR = os.path.dirname(_SCRIPT_DIR)
+if _PROJECT_DIR not in sys.path:
+    sys.path.insert(0, _PROJECT_DIR)
 
 from stable_baselines3.common.callbacks import BaseCallback
 
@@ -200,6 +209,31 @@ def _patched_train_ppo(
         tp.CallbackList = orig_calllist_cls
 
 
+_SNAPSHOT_EPISODE_RE = re.compile(r"_league_snapshot_ep(\d+)\.zip$")
+
+
+def find_latest_snapshot(checkpoint_dir: str, run_tag: str) -> Optional[str]:
+    """Find the highest-episode league snapshot for a given run_tag, so a run
+    that died externally (killed process, sleep/reboot -- not train_ppo's own
+    OOM/crash handlers, which already save final_*/oom_save_*/crash_save_*) can
+    resume from its most recent weights instead of restarting from scratch."""
+    pattern = os.path.join(checkpoint_dir, f"{run_tag}_league_snapshot_ep*.zip")
+    candidates = glob.glob(pattern)
+    if not candidates:
+        return None
+    best_path: Optional[str] = None
+    best_ep = -1
+    for path in candidates:
+        m = _SNAPSHOT_EPISODE_RE.search(os.path.basename(path))
+        if not m:
+            continue
+        ep = int(m.group(1))
+        if ep > best_ep:
+            best_ep = ep
+            best_path = path
+    return best_path
+
+
 def run(args: argparse.Namespace) -> str:
     """Run one PFSP (or PFSP+exploiter) training job. Returns the path to the
     persisted league-state JSON (win-rate stats, snapshot pool, exploiter
@@ -218,6 +252,23 @@ def run(args: argparse.Namespace) -> str:
     os.makedirs(cfg.checkpoint_dir, exist_ok=True)
     league_state_path = os.path.join(cfg.checkpoint_dir, f"{cfg.run_tag}_league_state.json")
 
+    resume_league_state = bool(args.resume_league_state)
+    if getattr(args, "resume_latest", False) and not cfg.load_path:
+        snap = find_latest_snapshot(cfg.checkpoint_dir, cfg.run_tag)
+        if snap:
+            cfg.load_path = snap
+            _log_line(f"[ROAStar] --resume-latest: resuming main weights from {snap}")
+            if os.path.isfile(league_state_path):
+                resume_league_state = True
+                _log_line(f"[ROAStar] --resume-latest: will restore PFSP league state from {league_state_path}")
+        else:
+            _log_line("[ROAStar] --resume-latest: no league snapshot found; starting fresh")
+
+    if getattr(args, "n_envs", None) is not None:
+        cfg.n_envs = max(1, int(args.n_envs))
+    if getattr(args, "n_steps", None) is not None:
+        cfg.n_steps = max(64, int(args.n_steps))
+
     use_exploiter = (args.mode == "pfsp_exploiter") and not args.disable_exploiter
     extra_cb_factory: Optional[Callable[[ROAStarLeague], BaseCallback]] = None
     if use_exploiter:
@@ -235,7 +286,7 @@ def run(args: argparse.Namespace) -> str:
     with _patched_train_ppo(
         pfsp_p=args.pfsp_p,
         pfsp_floor=args.pfsp_floor,
-        resume_league_state_path=league_state_path if args.resume_league_state else None,
+        resume_league_state_path=league_state_path if resume_league_state else None,
         extra_callback_factory=extra_cb_factory,
     ) as captured:
         tp.train_ppo(cfg)
@@ -260,6 +311,11 @@ def main() -> int:
     parser.add_argument("--checkpoint-dir", default="checkpoints_sb3/2v2")
     parser.add_argument("--run-tag", default=None, help="Default: ppo_roastar_<mode>_<N>v<N>_seed<seed>")
     parser.add_argument("--load", default=None, help="Resume main-agent PPO weights from this checkpoint")
+    parser.add_argument(
+        "--resume-latest",
+        action="store_true",
+        help="Resume from highest-episode <run_tag>_league_snapshot_ep*.zip (and league state JSON if present)",
+    )
     parser.add_argument("--pfsp-p", type=float, default=2.0)
     parser.add_argument("--pfsp-floor", type=float, default=0.05)
     parser.add_argument(
@@ -276,6 +332,18 @@ def main() -> int:
     parser.add_argument("--exploiter-every-episodes", type=int, default=None)
     parser.add_argument("--exploiter-total-steps", type=int, default=100_000)
     parser.add_argument("--exploiter-n-envs", type=int, default=32)
+    parser.add_argument(
+        "--n-envs",
+        type=int,
+        default=None,
+        help="Parallel envs for main agent (default: PPOConfig 8). Use 32 to match ablation matrix.",
+    )
+    parser.add_argument(
+        "--n-steps",
+        type=int,
+        default=None,
+        help="Rollout length per env (default: PPOConfig 2048). Use 512 with --n-envs 32 to match ablations.",
+    )
     args = parser.parse_args()
 
     if args.run_tag is None:

@@ -225,6 +225,18 @@ python rl/train_ppo.py --mode NO_CURRICULUM --fixed-opponent OP3 --max-blue-agen
 
 Checkpoints use tags like `ppo_ablate_no_league_2v2` (matrix) or `ppo_league_rew_no_shaping_2v2` (direct CLI).
 
+### Shared fixed eval (after finals exist)
+
+Training WRs are not comparable across arms (different opponent mixes). Run one shared OP3/OP4 eval:
+
+```bash
+python plot/eval_ablations.py --checkpoint-dir checkpoints_sb3/2v2 --list
+python plot/eval_ablations.py --checkpoint-dir checkpoints_sb3/2v2 --episodes 100 \
+  --out csv/eval_ablation_2v2.csv --per-seed-out csv/eval_ablation_2v2_per_seed.csv \
+  --require-complete
+python plot/plot_eval_metrics.py --metrics-csv csv/eval_ablation_2v2.csv --modes 2v2
+```
+
 Reward presets:
 - `full` — shaped reward (default)
 - `no_shaping` / `sparse` — zero PBRS + team dense bonuses; keep terminal + offense events
