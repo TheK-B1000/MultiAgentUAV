@@ -2233,25 +2233,113 @@ z-conditioned Summer architecture.
 Artifacts: `artifacts/v6i23_popbirth_prereg/` (`ckpt_10u/`, `probes/10u/`,
 `decision_log.json`).
 
-### 3.35 v6i24 full-policy population diagnostic -- `DEFERRED_PATH_C` (2026-07-23)
+### 3.35 v6i24 full-policy population diagnostic -- `ACTIVE` (2026-07-23)
 
-**Status:** `DEFERRED_PATH_C`. Infrastructure exists
-(`experiments/run_v6i24_full_policy_population.py`, shared-core donor
-extraction), but V6I24 is **not** the primary next arm.
+**What V6I24 proves / does not prove (locked 2026-07-23):**
 
-**Why deferred:** Stage-C / oracle gap already shows outcomes can differ by
-`z`. The blocking Summer question is whether geometry→`q_phi(z|c)` can
-*choose* useful latents (latent credit assignment), not whether four
-independent teachers can separate under distinct pressures. Resume Path C
-only if V6I25 counterfactual-router fails to beat best-fixed `z`.
+* **Can prove:** `G_available > 0` for independent teachers under distinct
+  pressures (environment supports niches; external pressure can uncover them).
+  Feasibility gate / teacher generator / strategic upper bound.
+* **Cannot prove:** a single latent PPO discovered and used those strategies.
+  Fixed-`z=0`, router off — four full policies, not Summer end-to-end.
 
-**Scientific delta (plain English):** Path C fallback — K=4 independent
-policies under fixed OP8–OP12×map cell pressures. Parent `v6i21j`; optional
+**Claim distinction:**
+
+* **Claim A (spontaneous latent emergence):** end-to-end `π(a|s,z)` discovers
+  niches. Teacher distillation does **not** prove this. Direct latent PPO
+  remains a final-arm control.
+* **Claim B (population-guided latent strategy learning):** discover
+  repertoire externally → distill into `π(a|s,z)` → route → beat non-latent
+  PPO. V6I24 + distillation can prove Claim B. Preferred honest headline
+  given V6I22–V6I25 negatives.
+
+**Final proof arms (after teacher PASS + distill + router):**
+
+| Arm | Role |
+|-----|------|
+| K=1 PPO | Non-latent baseline |
+| Parameter-matched non-latent PPO | Capacity control |
+| K=4 latent, fixed/random `z` | Capacity-without-routing control |
+| K=4 Summer (learned niches + router) | Full method |
+
+Same steps, maps, opponents, seeds, reward, PPO hparams, eval seeds.
+Five requirements: controllability, competence, `G_available`, `G_realized`,
+`G_latent` (multi-seed CIs). See protocol §7.3 / §8.
+
+**Locked next sequence (2026-07-23):**
+
+```text
+finish current 5u matrix (shared-contract confound; directional only)
+→ classify: promote / stop / inconclusive
+→ print experiment contract
+→ no-contract --micro-probe (2u, OP11/OP12×maps, 8 eps)
+→ promote to 5u+larger eval OR stop Path C
+```
+
+Micro-probe outcomes: **Promote** = multiple cell winners + non-parallel rows + positive oracle point estimate; **Stop** = one policy everywhere or parallel rows; **Inconclusive** = unstable ranks → more eval seeds before more PPO.
+
+**Process rule (2026-07-23):** maximize information per GPU hour.
+See `experiment-and-evaluation-protocol.md` §8 (multi-fidelity ladder).
+Next Path C spend after the current matrix: either stop, or
+`--micro-probe` / `--disable-contract-specialist` — never another full
+5u+32-eps launch without a five-line contract and a micro rejection filter.
+
+**Status:** `ACTIVE` — primary next arm after V6I25 `FAIL_SIGNAL`.
+**Run:** 5u probe launched 2026-07-23
+(`artifacts/v6i24_population_seed1`, shared-core from V6I23 donor, seed 1).
+Init competence gate skipped for this launch (`--skip-init-gate`): prior
+multi-member eval hung mid-episode; lean gate + step-cap fixed in code for
+later probes. Identity still guaranteed by shared-core template copy.
+
+**Interpretation protocol (locked):** decisive quantity is
+`V_context-oracle − V_best-fixed` with paired CI. Per-update train WRs and
+intra-member latent JSD are not the evidence (all members use `fixed_z=0`).
+
+* PASS niches despite shared contract → confirm with
+  `--disable-contract-specialist` (new flag) from identical shared-core init.
+* FAIL → do not declare Path C dead; restart no-contract (shared z=0 contract
+  may have glued policies). Separators then = cell pressures + independent
+  PPO only.
+* One member best everywhere → quality gap, not niches; inspect narrow/hard
+  pressures for competence loss.
+* Varying winners but cross-fit fails → sampling noise; more eval eps only if
+  payoff rows trend.
+
+**Known confound on current 5u:** `latent_contract_specialist_enabled=True`
+inherited from v6i21j (all members get the same z=0 contract). Pressures
+were real (episode CSVs + `training_cell_distribution` in run_config); banner
+previously mis-advertised uniform sampling — fixed to report cell
+distribution when present.
+
+**Why resumed:** V6I25 showed controllability without comparative advantage
+(cross-fitted geometry oracle tied best-fixed `z=2` at 75%, delta 0). The
+broken layer is **actor repertoire**, not router optimization. Independent
+teachers under distinct context pressures are now evidence-justified, not a
+sideways guess.
+
+**Scientific delta (plain English):** Path C — K=4 independent policies
+under fixed OP8–OP12×map cell pressures. Parent `v6i21j`; optional
 `--checkpoint-mode shared-core` from V6I23 donor.
 
-### 3.36 v6i25 counterfactual-router diagnostic -- `IMPLEMENTED` (2026-07-23)
+**Primary success gate (locked):**
 
-**Status:** primary next arm. V6I24 Path C remains `DEFERRED_PATH_C`.
+```text
+Different contexts have different best policies (margin ≥ 0.10 on ≥2 cells)
+AND
+cross-fitted context oracle > best fixed policy
+with paired bootstrap CI excluding zero
+```
+
+Action-JSD / trajectory classifier = supporting evidence only. Hindsight
+per-cell `max_π R` is diagnostic, not the promotion gate.
+
+**Progression after PASS:** distill teachers into `π(a|s,z)` → re-test
+distilled context oracle > best fixed `z` → only then train geometry router.
+
+### 3.36 v6i25 counterfactual-router diagnostic -- `FAIL_SIGNAL` (2026-07-23)
+
+**Status:** closed as smoke `FAIL_SIGNAL` (optional larger-n confirm later).
+V6I24 is now primary.
 
 **Scientific question:** Is the existing Stage-C / oracle gap **predictable
 from episode-start geometry** (permitted Summer context), and can
@@ -2313,6 +2401,35 @@ uv run python experiments/run_v6i25_counterfactual_router_diagnostic.py \
   --output-dir artifacts/v6i25_cf_router_smoke_seed1 \
   --episodes-per-cell 8 --device cuda
 ```
+
+**Smoke result (2026-07-23, 8 eps/cell):** `FAIL_SIGNAL` — decisive for
+this checkpoint.
+
+```text
+Cross-fitted context oracle: 75%
+Best fixed latent z2:         75%
+Available routing gain:        0%
+CI:                            [0%, 0%]
+```
+
+**Interpretation (locked):**
+
+* Controllability: yes (`z0` vs `z2` moves outcomes).
+* Competence: no (`z0` consistently weak).
+* Comparative advantage: no (held-out geometry selection does not beat
+  always-`z2`).
+* Router utilization: not testable — no stable gain to harvest.
+
+Latent structure ≈ one damaged branch + several near-equivalent strong
+general modes — **quality differences, not strategic niches**. Apparent
+cell winners in the raw WR table were mostly ties / 8-game noise; they
+did not survive cross-fitting. Do **not** train the router longer,
+enlarge it, add opponent IDs, increase `K`, or claim an oracle gap proves
+strategies. Collapse framing: on-policy positive feedback from router
+selection + shared team reward (not “PPO argmax credit”).
+
+**Next:** V6I24 repertoire birth (§3.35). Optional 32–64 eps/cell confirm
+of `FAIL_SIGNAL` is fine but not required before resuming Path C.
 
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 

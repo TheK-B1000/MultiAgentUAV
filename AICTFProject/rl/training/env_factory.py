@@ -128,7 +128,13 @@ def build_training_env(
         parts = [f"{k}={v}" for k, v in sorted(reward_kw.items())]
         print("[PPO] GPU env reward overrides: " + ", ".join(parts))
     map_pool = tuple(getattr(cfg, "map_pool", ()) or ())
-    if map_pool:
+    cells = tuple(getattr(cfg, "training_cell_distribution", ()) or ())
+    if cells:
+        print(
+            "[PPO] map_pool: overridden by training_cell_distribution "
+            "(joint opponent×map sampling via pre-reset hook)."
+        )
+    elif map_pool:
         print("[PPO] map_pool (per-episode uniform sample): " + ", ".join(map_pool))
     rrc: RouterRewardConfig | None = None
     if bool(getattr(cfg, "router_reward_enabled", False)):

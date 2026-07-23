@@ -2,7 +2,7 @@
   "mode": "shared-core",
   "seed": 1,
   "n_source": 50,
-  "n_target": 34,
+  "n_target": 30,
   "n_shared_loaded": 21,
   "ignored_latent_keys": [
     "latent_actor.latent_action_heads.0.bias",
@@ -39,10 +39,6 @@
   "shape_mismatch": [],
   "kept_strategy_embedding": true,
   "freshly_initialized_tensors": [
-    "selector_gru.cell.weight_ih",
-    "selector_gru.cell.weight_hh",
-    "selector_gru.cell.bias_ih",
-    "selector_gru.cell.bias_hh",
     "strategy_encoder.net.0.weight",
     "strategy_encoder.net.0.bias",
     "strategy_encoder.net.2.weight",

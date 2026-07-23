@@ -681,7 +681,80 @@ Even before evaluation, the training run must satisfy:
 
 ---
 
-## 8. Resume / reload safety
+## 8. Multi-fidelity diagnostic ladder (information per GPU hour)
+
+**Owner rule:** do not spend a full matched-matrix budget until cheaper
+stages fail to reject the hypothesis. Objective:
+
+> Maximize information gained per GPU hour.
+
+### 7.1 Five-line experiment contract (mandatory before launch)
+
+Before every training command, write and keep:
+
+```text
+Hypothesis:
+Single change:
+Primary metric:
+Failure condition:
+Maximum budget:
+```
+
+Helper:
+
+```text
+uv run python experiments/print_experiment_contract.py \
+  --hypothesis "..." --single-change "..." \
+  --primary-metric "..." --failure "..." --max-budget "..."
+```
+
+One scientific delta only. Confounds discovered mid-run (e.g. inherited
+contract rewards) count as protocol failures, not as “interesting
+ablations,” unless the contract named them.
+
+### 7.2 Promotion stages
+
+| Stage | Purpose | Budget | Promote when |
+|-------|---------|--------|--------------|
+| Config audit | Catch confounds | No training / dry-run | Exactly one delta; sampler banner matches `training_cell_distribution` |
+| Micro probe | Directional separation | 1–2 updates; hardest cells; ≤8 eps | Payoff rows not parallel |
+| Candidate probe | Comparative advantage | 5u; full grid; matched seeds | Positive cross-fitted oracle point estimate |
+| Confirmation | Reliable result | Multi-seed; larger eval | CI excludes zero |
+| Summer conversion | Distill + route | Only after teacher pass | Retain oracle gain |
+| Paper test | vs K=1 PPO | Full budget | Routed latent beats non-latent |
+
+V6I24 micro-probe shortcut:
+
+```text
+uv run python experiments/run_v6i24_full_policy_population.py \
+  --checkpoint <donor.zip> --checkpoint-mode shared-core \
+  --output-dir artifacts/v6i24_micro_seed1 --micro-probe --seed 1
+```
+
+(`--micro-probe` forces contract OFF, 2u/member, OP11/OP12×both maps @ 8
+eps, skips JSD.)
+
+### 7.3 Four primary metrics (do not invent a new finish line)
+
+1. **Repertoire gain** `G_available = V_context-oracle − V_best-fixed`
+2. **Distillation retention** `G_retention = G_available,student / G_available,teachers`
+3. **Routing gain** `G_realized = V_router − V_best-fixed-latent`
+4. **Final latent advantage** `G_latent = V_routed-latent − V_non-latent-PPO`
+
+JSD, classifiers, MI, entropy, embedding L2 **explain** results; they do
+not replace these gates.
+
+### 7.4 After a candidate matrix finishes
+
+* CI passes → one clean multi-seed confirmation, then distill.
+* Point estimate > 0 but CI overlaps 0 → more eval episodes first.
+* Parallel payoff rows → tiny no-contract micro only; if still parallel, stop Path C and redesign pressures.
+* Near-ceiling everywhere → harder eval opponents before architecture changes.
+* One policy dominates all cells → quality gap, not niches.
+
+---
+
+## 9. Resume / reload safety
 
 Any comparison that pauses, kills, or restarts a training run must
 preserve:
@@ -706,7 +779,7 @@ preserve:
 
 ---
 
-## 9. Comparison invariants checklist (compact)
+## 10. Comparison invariants checklist (compact)
 
 Before producing any table cell or claim from a comparison:
 
@@ -725,7 +798,7 @@ Before producing any table cell or claim from a comparison:
 
 ---
 
-## 10. Cross-references
+## 11. Cross-references
 
 | Need                                              | Where to look                                                                       |
 |---------------------------------------------------|-------------------------------------------------------------------------------------|

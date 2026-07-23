@@ -185,6 +185,13 @@ class CustomPPOTrainer:
 
         self.opponent_pool = TrainingOpponentPool.from_hparams(cfg, hparams)
         self.opponent_pool.attach_before_reset_hook(self.env, self)
+        try:
+            from rl.custom_ppo.phase_pod_runtime import attach_phase_pod_hooks
+
+            attach_phase_pod_hooks(self.env, self)
+        except Exception as exc:
+            if str(getattr(cfg, "phase_pod_id", "") or "").strip():
+                raise RuntimeError(f"phase_pod hook attach failed: {exc}") from exc
 
         self.telemetry = TrainingTelemetry(
             cfg=self.cfg,

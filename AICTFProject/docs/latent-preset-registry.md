@@ -201,7 +201,7 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i22d_strong_behavior_diversity` (aliases include `v6i22d`, `v6i22d_behavior_diversity_coef010`; sweep arm `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Stronger label-free behavior-contrast repertoire-birth fork after V6I22B/C failed the birth gate. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and applies higher behavior-contrast coefficients (`0.10` primary, `0.05` sweep control). Same trajectory-fingerprint signal as V6I22B; no outcome-diversity channel, no handcrafted z roles, no oracle targets, and no router training. Pinned by `tests/test_v6i22d_strong_behavior_diversity.py`. |
 | `v6i22e_fixed_alpha_adapters` (aliases include `v6i22e`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Fixed-alpha (`α=0.1`) gate-free residual adapters with Kaiming init to escape the zero-init / stuck-gate magnitude trap. Same hardpool birth scaffold; no soft diversity rewards. Pinned by `tests/test_v6i22e_fixed_alpha.py`. |
 | `v6i23_population_birth` (aliases include `v6i23`) | `v6i22e_fixed_alpha_adapters` | `SUMMER-COMPATIBLE EXTENSION` | Population-style specialist birth: active-z-only residual forward plus independent per-z action heads that are Stage-2 trainable (shared `action_head` stays frozen). Router off; no opponent-ID; no soft diversity rewards. Success gate is CF action-JSD, not paper-faithful. Pinned by `tests/test_v6i23_population_birth.py`. |
-| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C** fallback; **deferred** while V6I25 is primary). K=4 ordinary independent `train_ppo` runs. Fixed OP8–OP12×map cell pressures; frozen return-norm; no PFSP/rotation/`PopulationTrainer`. Resume only if V6I25 `FAIL_SIGNAL` / cannot recover a predictable geometry→z gap. Pinned by `tests/test_v6i24_full_policy_population.py`. |
+| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C**; **ACTIVE** after V6I25 `FAIL_SIGNAL`). K=4 independent teachers under fixed OP8–OP12×map pressures. **Primary gate:** different best policies across cells **and** cross-fitted context oracle > best fixed (CI excludes 0). JSD/classifier supporting only. Pinned by `tests/test_v6i24_full_policy_population.py`. |
 | `v6i25_counterfactual_router` (experiment; no training preset) | V6I23 donor checkpoint | `DIAGNOSTIC` | Counterfactual geometry→`q_phi` diagnostic. Cross-fitted context oracle (not per-episode hindsight); Stage A signal gate; soft `softmax(Q̂/τ)` CE loss; geometry asserts; no opponent-ID in router input. Runner: `experiments/run_v6i25_counterfactual_router_diagnostic.py`. Pinned by `tests/test_v6i25_counterfactual_router.py`. |
 
 ---
@@ -1563,21 +1563,24 @@ Aliases: `v6i24`, `v6i24_full_policy_population`,
 
 **Evaluation gates:**
 
-* *Functional:* CF action-JSD mean `> 0.05` on ≥2 cells, OR
-  leave-one-cell-out trajectory classifier `> 50%`.
-* *Strategic (stricter):* ≥2 cells with different best policies and
-  margin `≥0.10`; max pairwise payoff-row distance `≥0.10`; oracle >
-  best fixed. Smoke 32 eps/cell; confirm promotions at 128.
+* *Primary (comparative advantage):* ≥2 cells with different best policies
+  and margin `≥0.10`; **cross-fitted** context oracle > best fixed on
+  held-out episodes with paired CI excluding zero (matched seeds across
+  members). Hindsight `max_π` gap is diagnostic only.
+* *Supporting:* CF action-JSD mean `> 0.05` on ≥2 cells, OR
+  leave-one-cell-out trajectory classifier `> 50%`; payoff-row distance
+  reported. Smoke 32 eps/cell; confirm promotions at 128.
 
 **Decision tree:**
 
-1. Pass → build V6I24-D distillation.
+1. Primary PASS → build V6I24-D distillation → re-test distilled
+   context oracle > best fixed `z` → then geometry router.
 2. Trend → extend teachers to 100K.
 3. Fail → redesign external training pressures.
 
-**Status (2026-07-23):** `DEFERRED_PATH_C`. Primary next arm is V6I25
-(§6.42). Resume Path C only if the cross-fitted geometry oracle cannot
-beat best-fixed `z`.
+**Status (2026-07-23):** `ACTIVE` (primary). Resumed after V6I25 smoke
+`FAIL_SIGNAL` (§6.42 / tracker §3.36): no geometry-predictable latent
+advantage beyond best-fixed `z2`.
 
 ---
 

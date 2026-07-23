@@ -22,6 +22,11 @@ DEFAULT_OPPONENTS = ("OP8", "OP9", "OP10", "OP11", "OP12")
 
 STEPS_PER_UPDATE = 4 * 256  # n_envs * n_steps
 PROBE_UPDATES = (5, 10, 25)
+# Cheap rejection filter: hardest cells only, tiny train budget.
+MICRO_PROBE_UPDATES = 2
+MICRO_OPPONENTS = ("OP11", "OP12")
+MICRO_MAPS = (MAP_B_SPLIT_LANE, MAP_B_SPLIT_LANE_V2)
+MICRO_EPISODES_PER_CELL = 8
 
 
 @dataclass(frozen=True)

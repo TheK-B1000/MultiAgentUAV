@@ -72,6 +72,7 @@ class V6i24ConfigDiffTests(unittest.TestCase):
         self.assertFalse(cfg.latent_population_birth_active_z_only)
         self.assertFalse(cfg.latent_population_birth_per_z_action_heads)
         self.assertEqual(cfg.latent_strategy_ppo_coef, 0.0)
+        self.assertEqual(cfg.recurrent_selector_hidden_dim, 0)
 
     def test_experiment_id_and_run_tag(self) -> None:
         cfg = _resolve("v6i24")
@@ -94,6 +95,7 @@ class V6i24ConfigDiffTests(unittest.TestCase):
             "opponent_randomize",
             "population_pressure_rotation_interval",
             "population_round_robin_updates_per_cycle",
+            "recurrent_selector_hidden_dim",
             "v6i9_training_stage",
             "experiment_id",
             "run_tag",
@@ -248,8 +250,11 @@ class V6i24SharedCoreTests(unittest.TestCase):
 
 
 class V6i24StrategicGateUnitTests(unittest.TestCase):
-    def test_stricter_payoff_gates(self) -> None:
-        from experiments.run_v6i24_population_eval_gates import evaluate_strategic_separation
+    def test_stricter_payoff_gates_require_cross_fitted_ci(self) -> None:
+        from experiments.run_v6i24_population_eval_gates import (
+            evaluate_cross_fitted_teacher_oracle,
+            evaluate_strategic_separation,
+        )
         import numpy as np
 
         M = np.array(
@@ -261,6 +266,7 @@ class V6i24StrategicGateUnitTests(unittest.TestCase):
             ],
             dtype=np.float64,
         )
+        # Without episode tensor, cross-fitted primary gate stays closed.
         result = evaluate_strategic_separation(
             M,
             ["c0", "c1", "c2", "c3"],
@@ -268,7 +274,42 @@ class V6i24StrategicGateUnitTests(unittest.TestCase):
         )
         self.assertTrue(result["gate_row_distance"])
         self.assertTrue(result["gate_different_best_with_margin"])
-        self.assertTrue(result["gate_oracle_above_fixed"])
+        self.assertFalse(result["gate_cross_fitted_oracle"])
+        self.assertGreater(result["hindsight_oracle_gap"], 0.0)
+
+        # Synthetic matched episodes: cell0 prefers π0, cell1 prefers π1.
+        rng = np.random.default_rng(0)
+        k, c, e = 4, 4, 40
+        returns = np.zeros((k, c, e), dtype=np.float64)
+        returns[0, 0, :] = 1.0
+        returns[1, 1, :] = 1.0
+        returns[0, 1, :] = 0.2
+        returns[1, 0, :] = 0.2
+        returns[2, :, :] = 0.4
+        returns[3, :, :] = 0.3
+        returns += rng.normal(0.0, 0.01, size=returns.shape)
+        cross = evaluate_cross_fitted_teacher_oracle(
+            returns,
+            member_labels=["balanced", "failure", "variance", "complement"],
+            context_labels=["c0", "c1", "c2", "c3"],
+            test_frac=0.25,
+            seed=0,
+            n_bootstrap=200,
+        )
+        self.assertTrue(cross["gate_cross_fitted_oracle"])
+        self.assertGreater(cross["delta"], 0.1)
+
+        full = evaluate_strategic_separation(
+            returns.mean(axis=2),
+            ["c0", "c1", "c2", "c3"],
+            ["balanced", "failure", "variance", "complement"],
+            returns_kce=returns,
+            seed=0,
+            n_bootstrap=200,
+        )
+        self.assertTrue(full["gate_different_best_with_margin"])
+        self.assertTrue(full["gate_cross_fitted_oracle"])
+        self.assertTrue(full["gate_oracle_above_fixed"])
 
 
 if __name__ == "__main__":

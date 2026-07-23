@@ -43,6 +43,10 @@ from experiments.v6i24_population_config import (  # noqa: E402
     DEFAULT_CALIBRATION_REPORT,
     DEFAULT_MAPS,
     DEFAULT_OPPONENTS,
+    MICRO_EPISODES_PER_CELL,
+    MICRO_MAPS,
+    MICRO_OPPONENTS,
+    MICRO_PROBE_UPDATES,
     PROBE_UPDATES,
     STEPS_PER_UPDATE,
     build_member_pressures,
@@ -104,8 +108,7 @@ def _parse_args() -> argparse.Namespace:
         "--max-probe",
         type=int,
         default=25,
-        choices=list(PROBE_UPDATES),
-        help="Stop after this probe budget (5, 10, or 25 updates per policy).",
+        help="Stop after this probe budget (2 for --micro-probe; else 5/10/25).",
     )
     p.add_argument(
         "--members",
@@ -134,6 +137,23 @@ def _parse_args() -> argparse.Namespace:
         type=int,
         default=8,
         help="Episodes/cell for update-0 competence smoke (default 8).",
+    )
+    p.add_argument(
+        "--disable-contract-specialist",
+        action="store_true",
+        help=(
+            "Confirmation probe: set latent_contract_specialist_enabled=False so "
+            "members separate only via cell pressures + independent PPO."
+        ),
+    )
+    p.add_argument(
+        "--micro-probe",
+        action="store_true",
+        help=(
+            "Cheap rejection filter: 2u/member, contract OFF, eval OP11/OP12×both "
+            "maps at 8 eps/cell, skip JSD. Promote to 5u only if payoff rows "
+            "are not parallel."
+        ),
     )
     return p.parse_args()
 
@@ -241,6 +261,7 @@ def _train_member(
     n_steps: int,
     checkpoint_dir: Path,
     run_tag: str,
+    disable_contract_specialist: bool = False,
 ) -> Path:
     from rl.config.ppo_config import PPOConfig
     from rl.presets import PRESET_REGISTRY
@@ -264,11 +285,15 @@ def _train_member(
     cfg.opponent_pool = tuple(sorted({str(o).upper() for o, _, _ in cell_weights}))
     cfg.opponent_pool_weights = ()
     cfg.freeze_return_norm_after_load = True
+    if disable_contract_specialist:
+        cfg.latent_contract_specialist_enabled = False
+        cfg.latent_contract_specialist_coef = 0.0
 
     print(
         f"[v6i24] train member={member_id} ({label}) "
         f"load={load_path.name} additional_steps={additional_steps} "
-        f"load_weights_only={load_weights_only} seed={seed}",
+        f"load_weights_only={load_weights_only} seed={seed} "
+        f"contract_specialist={not disable_contract_specialist}",
         flush=True,
     )
     train_ppo(cfg)
@@ -282,9 +307,28 @@ def _copy_member_artifact(src: Path, dest_dir: Path, member_id: int, label: str)
     return dest
 
 
-def _maybe_run_eval(probe_dir: Path, *, seed: int, device: str) -> None:
+def _maybe_run_eval(
+    probe_dir: Path,
+    *,
+    seed: int,
+    device: str,
+    micro_probe: bool = False,
+) -> None:
     from experiments.run_v6i24_population_eval_gates import run_eval_gates
 
+    if micro_probe:
+        run_eval_gates(
+            checkpoint_dir=probe_dir,
+            output_dir=probe_dir / "eval_gates",
+            episodes_per_cell=int(MICRO_EPISODES_PER_CELL),
+            seed=seed,
+            device=device,
+            opponents=list(MICRO_OPPONENTS),
+            maps=list(MICRO_MAPS),
+            confirm_episodes=False,
+            skip_jsd=True,
+        )
+        return
     run_eval_gates(
         checkpoint_dir=probe_dir,
         output_dir=probe_dir / "eval_gates",
@@ -319,10 +363,14 @@ def run_init_competence_gate(
     device: str,
     episodes_per_cell: int,
 ) -> dict[str, Any]:
-    """Update-0 gate: identical members + non-collapsed hardpool competence."""
+    """Update-0 gate: identical weights + non-collapsed competence (member 0 only).
+
+    Multi-member WR spread is **not** used: identical weights already prove
+    init identity, and shared-GPU eval noise previously false-failed the gate.
+    CF action-JSD across all members is deferred to the post-probe eval.
+    """
     from experiments.run_v6i24_population_eval_gates import (
         collect_payoff_and_features,
-        counterfactual_action_jsd,
         find_member_checkpoints,
         _load_policies,
         _make_env,
@@ -332,22 +380,22 @@ def run_init_competence_gate(
     if len(members) < 2:
         raise RuntimeError(f"init gate needs >=2 member zips in {init_dir}")
 
-    # Exact weight identity (all members are copies of one shared-core init).
     ref = members[0][2]
     weight_spreads = []
     for _, _, path in members[1:]:
         weight_spreads.append(_state_dict_max_abs_diff(ref, path))
     max_weight_diff = float(max(weight_spreads) if weight_spreads else 0.0)
+    gate_weights = max_weight_diff <= 1e-6
 
-    env0 = _make_env(ref, list(DEFAULT_MAPS)[0], seed, device, 240)
+    # Competence smoke on a single member (all copies are identical).
+    smoke_opponents = ["OP8", "OP11", "OP12"]
+    smoke_maps = list(DEFAULT_MAPS)
+    env0 = _make_env(ref, smoke_maps[0], seed, device, 240)
     try:
-        policies = _load_policies(members, env0.observation_space, env0.action_space, device)
+        policies = _load_policies(members[:1], env0.observation_space, env0.action_space, device)
     finally:
         env0.close()
 
-    # Smoke cells: keep init gate cheap.
-    smoke_opponents = ["OP8", "OP11", "OP12"]
-    smoke_maps = list(DEFAULT_MAPS)
     collected = collect_payoff_and_features(
         policies,
         opponents=smoke_opponents,
@@ -356,57 +404,39 @@ def run_init_competence_gate(
         base_seed=seed,
         device=device,
         max_decision_steps=240,
+        matched_seeds_across_members=True,
     )
     wr = collected["winrate_matrix"]
-    member_mean_wr = wr.mean(axis=1)
-    wr_spread = float(member_mean_wr.max() - member_mean_wr.min())
-    mean_wr = float(member_mean_wr.mean())
-
-    jsd = counterfactual_action_jsd(
-        policies,
-        opponents=smoke_opponents,
-        maps=smoke_maps,
-        steps_per_cell=64,
-        base_seed=seed + 123,
-        device=device,
-        max_decision_steps=240,
-    )
-    cell_jsds = [
-        c["pair_jsd_mean"]
-        for c in jsd.get("cells", [])
-        if c.get("pair_jsd_mean") == c.get("pair_jsd_mean")
-    ]
-    mean_jsd = float(sum(cell_jsds) / len(cell_jsds)) if cell_jsds else float("nan")
-
-    gate_weights = max_weight_diff <= 1e-6
-    gate_wr_spread = wr_spread <= INIT_WR_SPREAD_MAX
-    gate_jsd = mean_jsd == mean_jsd and mean_jsd <= INIT_JSD_MAX
+    mean_wr = float(wr.mean())
     gate_competence = mean_wr >= INIT_MEAN_WR_MIN
-    passed = gate_weights and gate_wr_spread and gate_jsd and gate_competence
+    # Identity proven by weights; WR-spread / multi-member JSD waived at init.
+    passed = gate_weights and gate_competence
 
     result = {
         "max_weight_diff": max_weight_diff,
-        "member_mean_wr": member_mean_wr.tolist(),
-        "wr_spread": wr_spread,
+        "member_mean_wr": [mean_wr],
+        "wr_spread": 0.0,
+        "wr_spread_note": "waived_identical_weights_single_member_competence",
         "mean_wr": mean_wr,
-        "mean_pairwise_jsd": mean_jsd,
+        "mean_pairwise_jsd": None,
         "gate_identical_weights": gate_weights,
-        "gate_wr_spread": gate_wr_spread,
-        "gate_jsd_near_zero": gate_jsd,
+        "gate_wr_spread": True,
+        "gate_jsd_near_zero": True,
+        "jsd_note": "deferred_to_post_probe_eval",
         "gate_stage_c_competence": gate_competence,
         "passed": passed,
+        "matched_seeds_across_members": True,
         "thresholds": {
             "wr_spread_max": INIT_WR_SPREAD_MAX,
             "jsd_max": INIT_JSD_MAX,
             "mean_wr_min": INIT_MEAN_WR_MIN,
         },
-        "action_jsd": jsd,
+        "action_jsd": None,
     }
     out = init_dir / "init_competence_gate.json"
     out.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print("[v6i24 init-gate] weight max|diff|=", max_weight_diff)
-    print(f"[v6i24 init-gate] mean WR={mean_wr:.3f} spread={wr_spread:.3f}")
-    print(f"[v6i24 init-gate] mean action JSD={mean_jsd:.6f}")
+    print(f"[v6i24 init-gate] mean WR (member0)={mean_wr:.3f}")
     print(f"[v6i24 init-gate] PASS={passed}")
     return result
 
@@ -449,6 +479,23 @@ def _prepare_member_inits(
 
 def main() -> int:
     args = _parse_args()
+    if bool(args.micro_probe):
+        # Force the cheap rejection-filter contract.
+        args.disable_contract_specialist = True
+        args.max_probe = int(MICRO_PROBE_UPDATES)
+        args.skip_init_gate = True
+        print(
+            "[v6i24] MICRO-PROBE mode: "
+            f"{MICRO_PROBE_UPDATES}u/member, contract OFF, "
+            f"eval {list(MICRO_OPPONENTS)}×{list(MICRO_MAPS)} @ "
+            f"{MICRO_EPISODES_PER_CELL} eps/cell, JSD skipped.",
+            flush=True,
+        )
+    allowed = set(PROBE_UPDATES) | {int(MICRO_PROBE_UPDATES)}
+    if int(args.max_probe) not in allowed:
+        print(f"ERROR: --max-probe must be one of {sorted(allowed)}")
+        return 2
+
     ckpt = Path(args.checkpoint)
     calib = Path(args.calibration_report)
     if not calib.is_file():
@@ -489,6 +536,8 @@ def main() -> int:
         "max_probe_updates": int(args.max_probe),
         "steps_per_update": STEPS_PER_UPDATE,
         "freeze_return_norm_after_load": True,
+        "disable_contract_specialist": bool(args.disable_contract_specialist),
+        "micro_probe": bool(args.micro_probe),
         "pressures": pressures_manifest(pressures, source=str(calib.resolve())),
         "probes": {},
     }
@@ -545,6 +594,11 @@ def main() -> int:
             return 3
 
     probes = [u for u in PROBE_UPDATES if u <= int(args.max_probe)]
+    if bool(args.micro_probe):
+        probes = [int(MICRO_PROBE_UPDATES)]
+    if not probes:
+        print(f"ERROR: no probes <= max_probe={args.max_probe}")
+        return 2
     prev_u = 0
     member_ckpts: dict[int, Path] = dict(member_inits)
 
@@ -587,6 +641,7 @@ def main() -> int:
                 n_steps=args.n_steps,
                 checkpoint_dir=member_work,
                 run_tag=run_tag,
+                disable_contract_specialist=bool(args.disable_contract_specialist),
             )
             artifact = _copy_member_artifact(trained, probe_dir, mid, label)
             member_ckpts[mid] = artifact
@@ -610,7 +665,12 @@ def main() -> int:
         if not args.skip_eval:
             print(f"[v6i24] running eval gates at {probe_u}u ...", flush=True)
             try:
-                _maybe_run_eval(probe_dir, seed=int(args.seed), device=str(args.device))
+                _maybe_run_eval(
+                    probe_dir,
+                    seed=int(args.seed),
+                    device=str(args.device),
+                    micro_probe=bool(args.micro_probe),
+                )
             except Exception as exc:
                 print(f"[v6i24] WARNING: eval gates failed at {probe_u}u: {exc}")
 

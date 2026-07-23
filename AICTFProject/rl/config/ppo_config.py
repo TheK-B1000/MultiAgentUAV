@@ -781,6 +781,12 @@ class PPOConfig:
     latent_contract_specialist_clip: float = 1.0
     latent_contract_specialist_variant: str = "base"
 
+    # --- V6I26: Phase-pod exclusive birth (DIAGNOSTIC / Claim B) ---
+    # When set to one of open_pressure|intercept|escort|defend_lead, the trainer
+    # injects that strategic scenario after every env reset. Empty = disabled.
+    # Not a paper-faithful channel; no z-role reward labels.
+    phase_pod_id: str = ""
+
     # --- V6I9: Multi-Stage Training ---
     # Controls which parameter groups are frozen at optimizer build time.
     #   ""            / "generalist"  — all parameters trainable (Stage 1: map-aware competence)

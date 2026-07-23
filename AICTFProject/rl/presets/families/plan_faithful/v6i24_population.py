@@ -73,6 +73,10 @@ def apply_v6i24_full_policy_population(cfg: PPOConfig) -> PPOConfig:
     if hasattr(cfg, "latent_lam_p_end"):
         cfg.latent_lam_p_end = 0.0
 
+    # Frozen-z teachers do not use q_phi; disable the recurrent selector so the
+    # rollout buffer does not require selector_hidden (fixed-z path omits it).
+    cfg.recurrent_selector_hidden_dim = 0
+
     # Lean diagnostic: do NOT use PopulationTrainer / pressure rotation.
     cfg.population_training_enabled = False
     cfg.population_k = 4

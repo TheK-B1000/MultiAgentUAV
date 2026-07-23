@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 """V6I24 population evaluation gates (lean Path C).
 
-Functional separation
----------------------
-* CF action-JSD on identical raw observation histories (shared env seeds /
-  masks / recurrent history replay), mean > 0.05 on >=2 cells
-  OR held-out-by-cell trajectory classifier accuracy > 50%.
+Primary gate (comparative advantage; locked after V6I25 FAIL_SIGNAL)
+--------------------------------------------------------------------
+* >=2 opponent-map cells have different best policies (margin >= 0.10)
+* Cross-fitted context oracle > best fixed policy on held-out episodes,
+  with paired bootstrap CI excluding zero
+  (π*(c) chosen on train seeds only — not per-episode hindsight max)
 
-Strategic separation (stricter pre-registered gate)
----------------------------------------------------
-* >=2 opponent-map cells have different best policies
-* Best beats runner-up by >=0.10 in those cells
-* Mean payoff-row distance >=0.10 for at least one policy pair
-* Population oracle beats best fixed policy (on the evaluated seed set;
-  confirm promotions with --confirm / 128 eps/cell)
+Supporting evidence (not sufficient alone)
+------------------------------------------
+* CF action-JSD mean > 0.05 on >=2 cells, OR leave-one-cell-out trajectory
+  classifier accuracy > 50%
+* Mean payoff-row distance >= 0.10 for at least one policy pair
 
 Smoke default: 32 episodes/cell. Promotion confirmation: 128.
 """
@@ -35,6 +34,10 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from experiments.v6i24_population_config import DEFAULT_MAPS, DEFAULT_OPPONENTS  # noqa: E402
+from rl.router.counterfactual_router import (  # noqa: E402
+    paired_delta_ci,
+    train_test_split_indices,
+)
 
 CF_JSD_THRESHOLD = 0.05
 CF_JSD_MIN_CELLS = 2
@@ -60,6 +63,11 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--steps-per-jsd-cell", type=int, default=120)
     p.add_argument("--output-dir", default=None)
     p.add_argument("--max-decision-steps", type=int, default=240)
+    p.add_argument(
+        "--skip-jsd",
+        action="store_true",
+        help="Skip CF action-JSD (slim / micro payoff-only scoring).",
+    )
     return p.parse_args()
 
 
@@ -129,6 +137,7 @@ def _episode_return_and_features(
     opponent: str,
     seed: int,
     deterministic: bool,
+    max_steps: int = 400,
 ) -> tuple[float, bool, np.ndarray]:
     """Run one episode; return (blue_score_proxy, win, action_hist features)."""
     import random
@@ -148,7 +157,15 @@ def _episode_return_and_features(
     steps = 0
     blue_score = 0.0
     red_score = 0.0
-    while True:
+    step_cap = max(1, int(max_steps))
+    while steps < step_cap:
+        # Inject real geometry; missing global_state silently zeros the router path.
+        if isinstance(obs, dict):
+            try:
+                obs = dict(obs)
+                obs["global_state"] = env.state()[0]
+            except Exception:
+                pass
         actions, _ = policy.predict(obs, deterministic=deterministic)
         flat = np.asarray(actions).reshape(-1)
         for a in flat:
@@ -185,12 +202,20 @@ def collect_payoff_and_features(
     base_seed: int,
     device: str,
     max_decision_steps: int,
-    matched_seeds_across_members: bool = False,
+    matched_seeds_across_members: bool = True,
 ) -> dict[str, Any]:
+    """Collect matched-seed payoffs. Default: same seed across members per episode.
+
+    Matched seeds are required for the cross-fitted context-oracle vs best-fixed
+    paired comparison (primary V6I24 gate after V6I25).
+    """
     contexts = [f"{o}|{m}" for o in opponents for m in maps]
     k = len(policies)
-    payoff = np.zeros((k, len(contexts)), dtype=np.float64)
-    wins = np.zeros((k, len(contexts)), dtype=np.float64)
+    n_ctx = len(contexts)
+    n_ep = int(episodes_per_cell)
+    payoff = np.zeros((k, n_ctx), dtype=np.float64)
+    wins = np.zeros((k, n_ctx), dtype=np.float64)
+    returns = np.zeros((k, n_ctx, n_ep), dtype=np.float64)
     samples: list[tuple[int, int, np.ndarray]] = []
 
     ref_ckpt = Path(policies[0]["path"])
@@ -198,9 +223,8 @@ def collect_payoff_and_features(
         env = _make_env(ref_ckpt, mp, base_seed + ci, device, max_decision_steps)
         try:
             for ki, entry in enumerate(policies):
-                cell_payoffs = []
                 cell_wins = []
-                for ep in range(episodes_per_cell):
+                for ep in range(n_ep):
                     if matched_seeds_across_members:
                         seed = base_seed + 100 * ci + ep
                     else:
@@ -211,11 +235,12 @@ def collect_payoff_and_features(
                         opponent=opp,
                         seed=seed,
                         deterministic=True,
+                        max_steps=int(max_decision_steps),
                     )
-                    cell_payoffs.append(pay)
+                    returns[ki, ci, ep] = float(pay)
                     cell_wins.append(1.0 if win else 0.0)
                     samples.append((ci, ki, feats))
-                payoff[ki, ci] = float(np.mean(cell_payoffs))
+                payoff[ki, ci] = float(returns[ki, ci].mean())
                 wins[ki, ci] = float(np.mean(cell_wins))
                 print(
                     f"  [{entry['label']}] {opp}|{mp}: "
@@ -229,9 +254,79 @@ def collect_payoff_and_features(
         "contexts": contexts,
         "payoff_matrix": payoff,
         "winrate_matrix": wins,
+        "returns_kce": returns,
         "samples": samples,
         "member_labels": [p["label"] for p in policies],
         "matched_seeds_across_members": bool(matched_seeds_across_members),
+    }
+
+
+def evaluate_cross_fitted_teacher_oracle(
+    returns_kce: np.ndarray,
+    *,
+    member_labels: list[str],
+    context_labels: list[str],
+    test_frac: float = 0.25,
+    seed: int = 0,
+    n_bootstrap: int = 1000,
+) -> dict[str, Any]:
+    """Cross-fitted π*(c) on train episodes; score vs best-fixed on held-out.
+
+    ``returns_kce`` shape ``(K, C, E)`` with matched seeds across members.
+    """
+    r = np.asarray(returns_kce, dtype=np.float64)
+    if r.ndim != 3:
+        raise ValueError(f"returns_kce must be (K,C,E), got {r.shape}")
+    k, c, e = r.shape
+    if e < 2:
+        paired = paired_delta_ci(np.array([]), np.array([]), n_bootstrap=1, seed=seed)
+        return {
+            "context_oracle_mean": float("nan"),
+            "best_fixed_mean": float("nan"),
+            "best_fixed_idx": -1,
+            "best_fixed_member": None,
+            "delta": float("nan"),
+            "ci_low": float("nan"),
+            "ci_high": float("nan"),
+            "gate_cross_fitted_oracle": False,
+            "n_heldout": 0,
+            "pi_star_per_context": [],
+            "note": "need >=2 episodes/cell for train/test split",
+        }
+    train_e, test_e = train_test_split_indices(e, test_frac=test_frac, seed=seed)
+    q_train = r[:, :, train_e].mean(axis=2)  # (K, C)
+    best_fixed_idx = int(np.argmax(q_train.mean(axis=1)))
+    pi_star = np.argmax(q_train, axis=0).astype(np.int64)  # (C,)
+
+    oracle_vals: list[float] = []
+    fixed_vals: list[float] = []
+    for ci in range(c):
+        for ei in test_e:
+            oracle_vals.append(float(r[int(pi_star[ci]), ci, int(ei)]))
+            fixed_vals.append(float(r[best_fixed_idx, ci, int(ei)]))
+    paired = paired_delta_ci(
+        np.asarray(oracle_vals),
+        np.asarray(fixed_vals),
+        n_bootstrap=n_bootstrap,
+        seed=seed + 7,
+    )
+    return {
+        "context_oracle_mean": paired.mean_a,
+        "best_fixed_mean": paired.mean_b,
+        "best_fixed_idx": best_fixed_idx,
+        "best_fixed_member": member_labels[best_fixed_idx],
+        "delta": paired.delta,
+        "ci_low": paired.ci_low,
+        "ci_high": paired.ci_high,
+        "gate_cross_fitted_oracle": bool(paired.ci_excludes_zero_positive),
+        "n_heldout": paired.n,
+        "n_train_episodes": int(train_e.size),
+        "n_test_episodes": int(test_e.size),
+        "pi_star_per_context": [
+            {"context": context_labels[ci], "member": member_labels[int(pi_star[ci])], "idx": int(pi_star[ci])}
+            for ci in range(c)
+        ],
+        "unique_train_best_policies": int(len(set(int(x) for x in pi_star.tolist()))),
     }
 
 
@@ -239,6 +334,11 @@ def evaluate_strategic_separation(
     payoff_matrix: np.ndarray,
     context_labels: list[str],
     member_labels: list[str],
+    *,
+    returns_kce: np.ndarray | None = None,
+    test_frac: float = 0.25,
+    seed: int = 0,
+    n_bootstrap: int = 1000,
 ) -> dict[str, Any]:
     k, c = payoff_matrix.shape
     pairwise = np.zeros((k, k), dtype=np.float64)
@@ -267,42 +367,43 @@ def evaluate_strategic_separation(
                 }
             )
 
-    distinct_best_cells = []
-    # Cells whose best policy differs from the global-mode best, or any pair of
-    # cells with different winners among margin-qualified cells.
-    if cells_with_margin:
-        winners = {row["best_idx"] for row in cells_with_margin}
-        if len(winners) >= MIN_CELLS_DIFFERENT_BEST:
-            distinct_best_cells = cells_with_margin
-        else:
-            # Fall back: count cells with different argmax even if margin soft
-            winners_all = set(int(x) for x in best_per_context.tolist())
-            if len(winners_all) >= MIN_CELLS_DIFFERENT_BEST:
-                for ci in range(c):
-                    col = payoff_matrix[:, ci]
-                    order = np.argsort(-col)
-                    best_i = int(order[0])
-                    second = float(col[order[1]]) if k > 1 else float("-inf")
-                    distinct_best_cells.append(
-                        {
-                            "context": context_labels[ci],
-                            "best": member_labels[best_i],
-                            "best_idx": best_i,
-                            "margin": float(col[best_i] - second),
-                        }
-                    )
-
-    # Stricter gate: at least 2 cells with different best AND margin >= 0.10
+    # Primary niche gate: at least 2 cells with different best AND margin >= 0.10
     margin_winners = {row["best_idx"] for row in cells_with_margin}
     gate_different_best = (
         len(cells_with_margin) >= MIN_CELLS_DIFFERENT_BEST
         and len(margin_winners) >= MIN_CELLS_DIFFERENT_BEST
     )
 
-    oracle_return = float(np.mean(np.max(payoff_matrix, axis=0)))
+    # Diagnostic only: in-sample hindsight max (NOT the primary gate).
+    hindsight_oracle_return = float(np.mean(np.max(payoff_matrix, axis=0)))
     best_fixed_idx = int(np.argmax(np.mean(payoff_matrix, axis=1)))
     best_fixed_return = float(np.mean(payoff_matrix[best_fixed_idx]))
-    oracle_gap = oracle_return - best_fixed_return
+    hindsight_oracle_gap = hindsight_oracle_return - best_fixed_return
+
+    if returns_kce is None:
+        # Backward-compatible unit tests: fall back to cell-mean hindsight
+        # proxy, but mark that the primary cross-fitted gate is unavailable.
+        cross = {
+            "context_oracle_mean": hindsight_oracle_return,
+            "best_fixed_mean": best_fixed_return,
+            "best_fixed_idx": best_fixed_idx,
+            "best_fixed_member": member_labels[best_fixed_idx],
+            "delta": hindsight_oracle_gap,
+            "ci_low": float("nan"),
+            "ci_high": float("nan"),
+            "gate_cross_fitted_oracle": False,
+            "n_heldout": 0,
+            "note": "returns_kce missing; cross-fitted gate unavailable",
+        }
+    else:
+        cross = evaluate_cross_fitted_teacher_oracle(
+            returns_kce,
+            member_labels=member_labels,
+            context_labels=context_labels,
+            test_frac=test_frac,
+            seed=seed,
+            n_bootstrap=n_bootstrap,
+        )
 
     return {
         "payoff_matrix": payoff_matrix.tolist(),
@@ -313,15 +414,19 @@ def evaluate_strategic_separation(
         "best_per_context": best_per_context.tolist(),
         "unique_best_policies": unique_best,
         "cells_with_margin_ge_0_10": cells_with_margin,
-        "oracle_return": oracle_return,
-        "best_fixed_return": best_fixed_return,
-        "best_fixed_member": member_labels[best_fixed_idx],
-        "oracle_gap": oracle_gap,
+        "hindsight_oracle_return": hindsight_oracle_return,
+        "hindsight_oracle_gap": hindsight_oracle_gap,
+        "oracle_return": cross["context_oracle_mean"],
+        "best_fixed_return": cross["best_fixed_mean"],
+        "best_fixed_member": cross["best_fixed_member"],
+        "oracle_gap": cross["delta"],
+        "cross_fitted_oracle": cross,
         "gate_row_distance": max_pair_d >= PAYOFF_ROW_DISTANCE_THRESHOLD,
         "gate_different_best_with_margin": gate_different_best,
-        "gate_oracle_above_fixed": oracle_gap > 0.0,
+        # Primary: cross-fitted CI (V6I25 lesson). Hindsight alone is insufficient.
+        "gate_oracle_above_fixed": bool(cross.get("gate_cross_fitted_oracle")),
+        "gate_cross_fitted_oracle": bool(cross.get("gate_cross_fitted_oracle")),
     }
-
 
 def held_out_trajectory_classifier(
     samples: list[tuple[int, int, np.ndarray]],
@@ -516,24 +621,32 @@ def aggregate_verdict(
     classifier: dict[str, Any],
     strategic: dict[str, Any],
 ) -> dict[str, Any]:
-    functional = bool(jsd.get("gate_jsd")) or bool(classifier.get("gate_classifier"))
-    strategic_pass = all(
+    """Primary = comparative advantage; JSD/classifier are supporting only."""
+    supporting = bool(jsd.get("gate_jsd")) or bool(classifier.get("gate_classifier"))
+    primary = all(
         [
-            strategic.get("gate_row_distance"),
             strategic.get("gate_different_best_with_margin"),
-            strategic.get("gate_oracle_above_fixed"),
+            strategic.get("gate_cross_fitted_oracle"),
         ]
     )
-    overall = functional and strategic_pass
+    # Row distance remains a useful diagnostic but is not required for primary PASS.
+    overall = bool(primary)
     if overall:
         decision = "PASS_BUILD_DISTILLATION"
-    elif functional or strategic.get("max_pairwise_row_distance", 0) > 0.03:
+    elif (
+        supporting
+        or strategic.get("gate_different_best_with_margin")
+        or strategic.get("max_pairwise_row_distance", 0) > 0.03
+        or float(strategic.get("oracle_gap") or 0.0) > 0.0
+    ):
         decision = "TREND_EXTEND_TO_100K"
     else:
         decision = "FAIL_REDESIGN_PRESSURES"
     return {
-        "functional_pass": functional,
-        "strategic_pass": strategic_pass,
+        "functional_pass": supporting,  # supporting evidence alias
+        "supporting_pass": supporting,
+        "primary_pass": primary,
+        "strategic_pass": primary,
         "overall_pass": overall,
         "decision": decision,
     }
@@ -551,6 +664,7 @@ def run_eval_gates(
     steps_per_jsd_cell: int = 120,
     max_decision_steps: int = 240,
     confirm_episodes: bool = False,
+    skip_jsd: bool = False,
 ) -> dict[str, Any]:
     opponents = list(opponents or DEFAULT_OPPONENTS)
     maps = list(maps or DEFAULT_MAPS)
@@ -568,6 +682,7 @@ def run_eval_gates(
     for mid, label, path in members:
         print(f"  member_{mid}_{label}: {path.name}")
     print(f"Episodes/cell: {episodes_per_cell}")
+    print(f"Cells: {len(opponents)}×{len(maps)} opponents×maps")
     print()
 
     env0 = _make_env(members[0][2], maps[0], seed, device, max_decision_steps)
@@ -578,7 +693,7 @@ def run_eval_gates(
     finally:
         env0.close()
 
-    print("--- Payoff / trajectory features ---")
+    print("--- Payoff / trajectory features (matched seeds) ---")
     collected = collect_payoff_and_features(
         policies,
         opponents=opponents,
@@ -587,11 +702,14 @@ def run_eval_gates(
         base_seed=seed,
         device=device,
         max_decision_steps=max_decision_steps,
+        matched_seeds_across_members=True,
     )
     strategic = evaluate_strategic_separation(
         collected["payoff_matrix"],
         collected["contexts"],
         collected["member_labels"],
+        returns_kce=collected["returns_kce"],
+        seed=seed,
     )
     classifier = held_out_trajectory_classifier(
         collected["samples"],
@@ -599,22 +717,33 @@ def run_eval_gates(
         n_cells=len(collected["contexts"]),
     )
 
-    print("--- Counterfactual action-JSD (shared histories) ---")
-    jsd = counterfactual_action_jsd(
-        policies,
-        opponents=opponents,
-        maps=maps,
-        steps_per_cell=steps_per_jsd_cell,
-        base_seed=seed + 777,
-        device=device,
-        max_decision_steps=max_decision_steps,
-    )
+    if skip_jsd:
+        print("--- Counterfactual action-JSD: SKIPPED (micro-probe) ---")
+        jsd = {
+            "cells": [],
+            "cells_with_jsd_gt_0_05": 0,
+            "gate_jsd": False,
+            "skipped": True,
+        }
+    else:
+        print("--- Counterfactual action-JSD (shared histories; supporting) ---")
+        jsd = counterfactual_action_jsd(
+            policies,
+            opponents=opponents,
+            maps=maps,
+            steps_per_cell=steps_per_jsd_cell,
+            base_seed=seed + 777,
+            device=device,
+            max_decision_steps=max_decision_steps,
+        )
 
     verdict = aggregate_verdict(jsd=jsd, classifier=classifier, strategic=strategic)
+    cross = strategic.get("cross_fitted_oracle") or {}
     result = {
         "protocol": "v6i24_population_eval_gates",
         "classification": "DIAGNOSTIC",
         "path": "C_fallback_independent_teachers",
+        "primary_gate": "cross_fitted_context_oracle_gt_best_fixed",
         "checkpoint_dir": str(checkpoint_dir),
         "episodes_per_cell": episodes_per_cell,
         "members": [{"id": m[0], "label": m[1], "path": str(m[2])} for m in members],
@@ -637,12 +766,17 @@ def run_eval_gates(
 
     print()
     print("Gate summary:")
-    print(f"  JSD cells >0.05: {jsd.get('cells_with_jsd_gt_0_05')} (need >={CF_JSD_MIN_CELLS})")
-    print(f"  Classifier acc:  {classifier.get('accuracy')}")
+    print(f"  JSD cells >0.05: {jsd.get('cells_with_jsd_gt_0_05')} (supporting; need >={CF_JSD_MIN_CELLS})")
+    print(f"  Classifier acc:  {classifier.get('accuracy')} (supporting)")
     print(f"  Max row distance:{strategic.get('max_pairwise_row_distance'):.4f}")
-    print(f"  Oracle gap:      {strategic.get('oracle_gap'):.4f}")
-    print(f"  Functional:      {'PASS' if verdict['functional_pass'] else 'FAIL'}")
-    print(f"  Strategic:       {'PASS' if verdict['strategic_pass'] else 'FAIL'}")
+    print(
+        f"  Cross-fit oracle: {cross.get('context_oracle_mean')} "
+        f"best_fixed={cross.get('best_fixed_mean')} "
+        f"delta={cross.get('delta')} CI=[{cross.get('ci_low')},{cross.get('ci_high')}]"
+    )
+    print(f"  Hindsight gap:   {strategic.get('hindsight_oracle_gap'):.4f} (diagnostic only)")
+    print(f"  Primary (niche+CF oracle): {'PASS' if verdict['primary_pass'] else 'FAIL'}")
+    print(f"  Supporting (JSD/clf):      {'PASS' if verdict['supporting_pass'] else 'FAIL'}")
     print(f"  Decision:        {verdict['decision']}")
     print(f"Wrote {out_path}")
     return result
@@ -667,6 +801,7 @@ def main() -> int:
             steps_per_jsd_cell=int(args.steps_per_jsd_cell),
             max_decision_steps=int(args.max_decision_steps),
             confirm_episodes=bool(args.confirm),
+            skip_jsd=bool(args.skip_jsd),
         )
     except Exception as exc:
         print(f"ERROR: {exc}")
