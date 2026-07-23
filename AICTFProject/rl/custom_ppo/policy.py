@@ -235,6 +235,8 @@ class SharedActorCentralizedCritic(nn.Module):
         enable_latent_z_residual: bool = False,
         latent_z_gate_init: float = 0.01,
         latent_z_residual_alpha: float = 0.0,
+        latent_population_birth_active_z_only: bool = False,
+        latent_population_birth_per_z_action_heads: bool = False,
         communication_enabled: bool = False,
         comm_num_symbols: int = 4,
         experiment_id: str = "",
@@ -381,6 +383,12 @@ class SharedActorCentralizedCritic(nn.Module):
             enable_latent_z_residual=bool(enable_latent_z_residual),
             latent_z_gate_init=float(latent_z_gate_init),
             latent_z_residual_alpha=float(latent_z_residual_alpha),
+            latent_population_birth_active_z_only=bool(
+                latent_population_birth_active_z_only
+            ),
+            latent_population_birth_per_z_action_heads=bool(
+                latent_population_birth_per_z_action_heads
+            ),
         )
         critic_extra_dim = self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(

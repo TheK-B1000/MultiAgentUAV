@@ -2144,6 +2144,65 @@ Artifacts:
 pressure (0.05–0.10) did not move the forced-z behavior gate beyond the V6I22B/C
 ceiling. Stage-C consequence remains alive. Router blocked.
 
+### 3.33 v6i22E fixed-alpha adapters -- `EVALUATED_FAIL` (action-JSD) (2026-07-21)
+
+**Scientific delta:** `h_z = h + α A_z(h)` with `α=0.1`, Kaiming init, no
+learned gate. Parent `v6i22`. Classification: `SUMMER-COMPATIBLE EXTENSION`.
+
+**5u result:** adapter weight L2 ~9.2 (was ~0.09); offline `α‖A‖/‖h‖` ~5.8%.
+Forced-z behavior mean ~0.144 (informal >0.06) but formal pairs≥0.35 still 0.
+**CF action-JSD still FAIL** (mean ~0.0002). Magnitude trap confirmed broken;
+shared frozen action_head still prevents stable `π(a|s,z)` separation.
+
+### 3.34 v6i23 population birth -- `IMPLEMENTED` (2026-07-23)
+
+**Scientific delta vs v6i22e:** independent Stage-2-trainable per-z action heads
+plus active-z-only residual forward. Same hardpool, fixed-α, router-off,
+`balanced_episode` scaffold. No soft diversity rewards, no opponent-ID.
+
+**Fidelity:** `SUMMER-COMPATIBLE EXTENSION`, not `PAPER-FAITHFUL`.
+
+**Resolved-config diff vs v6i22e:** exactly `{experiment_id,
+latent_population_birth_active_z_only,
+latent_population_birth_per_z_action_heads, run_tag}`.
+
+**Launch (5u smoke):**
+
+> Note: `checkpoints/2v2/final_v6i9-mapaware-generalist-hardpool-refactor-r1-seed1_2v2.zip`
+> is missing on this machine. Warm-start from the completed V6I22E 5u final
+> (same trunk lineage; per-z heads sync from shared `action_head` on load).
+
+```text
+uv run python rl/train_ppo.py --preset v6i23 --load artifacts\v6i22e_fixed_alpha_adapters_5u_seed1\final_v6i22e_fixed_alpha_adapters_5u_seed1_2v2.zip --load-weights-only --additional-steps 5120 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i23_population_birth_5u_seed1 --checkpoint-dir artifacts\v6i23_population_birth_5u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
+**Gate:** CF action-JSD pair mean > 0.05 on ≥2 oracle cells (or head0 disagree
+> 0.2 with non-tie). Router blocked until gate clears. Pinned by
+`tests/test_v6i23_population_birth.py`. Helper:
+`experiments/run_v6i23_population_birth.py`.
+
+**5u smoke completed (2026-07-23):** warm-start from V6I22E 5u (v6i9 anchor
+missing on disk). Load path: newly initialized `latent_action_heads` synced
+from shared `action_head`; BE PASS (trunk-only bypass). Stage-2 froze 26
+shared-trunk params; per-z heads trainable.
+
+Diagnostic after 5u: head pairwise L2 vs head0 ≈ 0.035–0.040 (moved, but
+small); adapter L2 ≈ 9.2; random-local forced-z logit max-abs ≈ 0.11–0.19.
+
+CF action-JSD probe (10 cells, OP8–OP12 × both split maps):
+`mean_of_cell_jsd_means ≈ 0.00019`, `cells_with_any_pair_above_0_05 = 0`,
+`gate_any_pair_jsd_gt_0_05 = false`. Some head0 disagree values reach ~0.15–0.28
+with near-zero JSD (near-tie flips — same pattern as V6I22E; does **not** clear
+the non-tie gate).
+
+**Verdict so far:** architecture path is live; 5u is insufficient for the CF
+action-JSD birth gate. Next: 25u continuation from this 5u final, then re-probe.
+If still flat → fallback to full separate policies → distill (plan Path B).
+
+```text
+uv run python rl/train_ppo.py --preset v6i23 --load artifacts\v6i23_population_birth_5u_seed1\final_v6i23_population_birth_5u_seed1_2v2.zip --load-weights-only --additional-steps 25600 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i23_population_birth_25u_seed1 --checkpoint-dir artifacts\v6i23_population_birth_25u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
+```
+
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
 **Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis

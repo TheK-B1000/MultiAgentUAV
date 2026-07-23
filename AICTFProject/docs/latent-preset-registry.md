@@ -199,6 +199,8 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i22b_context_behavior_diversity` (aliases include `v6i22b`, `v6i22b_behavior_diversity_coef003`; sweep arms `coef001`, `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Label-free anti-collapse repertoire-birth fork. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and adds a small success-gated behavior-contrast reward keyed by opponent x map. The signal uses trajectory fingerprints only; it adds no handcrafted z roles, no opponent-ID actor shortcut, no oracle best-z targets, and no router training. Pinned by `tests/test_v6i22b_context_behavior_diversity.py`. |
 | `v6i22c_contextual_outcome_diversity` (aliases include `v6i22c`, `v6i22c_outcome_diversity_coef003`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Label-free outcome-diversity repertoire-birth fork. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and adds a stronger success-gated terminal outcome-diversity reward keyed by opponent x map. The signal uses generic score-margin outcomes only; it adds no handcrafted z roles, no behavior-metric reward targets, no opponent-ID actor shortcut, no oracle best-z targets, and no router training. Pinned by `tests/test_v6i22c_contextual_outcome_diversity.py`. |
 | `v6i22d_strong_behavior_diversity` (aliases include `v6i22d`, `v6i22d_behavior_diversity_coef010`; sweep arm `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Stronger label-free behavior-contrast repertoire-birth fork after V6I22B/C failed the birth gate. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and applies higher behavior-contrast coefficients (`0.10` primary, `0.05` sweep control). Same trajectory-fingerprint signal as V6I22B; no outcome-diversity channel, no handcrafted z roles, no oracle targets, and no router training. Pinned by `tests/test_v6i22d_strong_behavior_diversity.py`. |
+| `v6i22e_fixed_alpha_adapters` (aliases include `v6i22e`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Fixed-alpha (`α=0.1`) gate-free residual adapters with Kaiming init to escape the zero-init / stuck-gate magnitude trap. Same hardpool birth scaffold; no soft diversity rewards. Pinned by `tests/test_v6i22e_fixed_alpha.py`. |
+| `v6i23_population_birth` (aliases include `v6i23`) | `v6i22e_fixed_alpha_adapters` | `SUMMER-COMPATIBLE EXTENSION` | Population-style specialist birth: active-z-only residual forward plus independent per-z action heads that are Stage-2 trainable (shared `action_head` stays frozen). Router off; no opponent-ID; no soft diversity rewards. Success gate is CF action-JSD, not paper-faithful. Pinned by `tests/test_v6i23_population_birth.py`. |
 
 ---
 
@@ -1470,6 +1472,42 @@ layouts. Continue only if Stage-C remains passing, unique best-z stays above
 one, WR/margin advantage does not collapse, and `behavior_pair_distance_mean`
 moves toward `> 0.06` with at least one above-threshold pair. Router training
 remains blocked until forced-z behaviors are visibly distinct.
+
+### 6.39 v6i22e_fixed_alpha_adapters (SUMMER-COMPATIBLE EXTENSION)
+
+v6i22E inherits `v6i22_adaptive_hardpool_repertoire_birth` and sets
+`latent_z_residual_alpha = 0.1` (Kaiming adapters, no learned gate).
+
+**Resolved-config diff vs v6i22:** exactly `{experiment_id,
+latent_z_residual_alpha, run_tag}`.
+
+Aliases: `v6i22e`, `v6i22e_fixed_alpha_adapters`,
+`latent_v6i22e_fixed_alpha_adapters`,
+`plan_faithful_latent_v6i22e_fixed_alpha_adapters`.
+
+### 6.40 v6i23_population_birth (SUMMER-COMPATIBLE EXTENSION)
+
+v6i23 inherits `v6i22e_fixed_alpha_adapters` and enables population birth:
+`latent_population_birth_active_z_only = True` and
+`latent_population_birth_per_z_action_heads = True`.
+
+**Resolved-config diff vs v6i22e:** exactly `{experiment_id,
+latent_population_birth_active_z_only,
+latent_population_birth_per_z_action_heads, run_tag}`.
+
+Scientific rationale: Stage-2 freezes the shared `action_head`, so residual
+adapters alone struggled to separate `π(a|s,z)` (CF action-JSD stayed near
+zero after V6I22E). Independent per-z heads are Stage-2 trainable specialists
+under forced `balanced_episode` assignment. Not paper-faithful (concat +
+shared MLP remains the paper actor); Summer-compatible extension only.
+
+Aliases: `v6i23`, `v6i23_population_birth`,
+`latent_v6i23_population_birth`,
+`plan_faithful_latent_v6i23_population_birth`.
+
+Promotion logic: CF action-JSD pair mean `> 0.05` on ≥2 oracle-hot cells
+(or head0 disagree `> 0.2` with non-tie). Router remains blocked until that
+gate clears.
 
 ---
 

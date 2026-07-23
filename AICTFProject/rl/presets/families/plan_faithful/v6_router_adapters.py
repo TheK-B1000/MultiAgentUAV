@@ -1411,3 +1411,41 @@ def apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters(cfg: PPOConfig) -> PP
     cfg.experiment_id = "v6i22e"
     cfg.run_tag = "v6i22e_fixed_alpha_adapters_OP8_OP9_OP10_OP11_OP12"
     return cfg
+
+
+def apply_plan_faithful_latent_v6i23_population_birth(cfg: PPOConfig) -> PPOConfig:
+    """V6I23: Summer-compatible population birth (independent per-z specialists).
+
+    Proposed Preset Review
+    ----------------------
+    Proposed name: v6i23_population_birth.
+    Parent preset: v6i22e_fixed_alpha_adapters.
+    Classification: SUMMER-COMPATIBLE EXTENSION, not PAPER-FAITHFUL.
+
+    Research question: after V6I22–V6I22E failed CF action-JSD despite Stage-C
+    oracle complementarity (adapters moved but shared frozen action_head kept
+    π(a|s,z) near-tied), does giving each z an independent Stage-2-trainable
+    action head under forced balanced_episode assignment produce CF action-JSD
+    pair mean > 0.05 on ≥2 oracle cells (or head0 disagree > 0.2 with non-tie)?
+
+    Scientific delta (plain English): keep the calibrated hardpool + fixed-alpha
+    residual scaffold; add population-style independence — active-z-only residual
+    forward and per-z Linear action heads. Router stays off. No opponent-ID
+    routing, no soft diversity rewards, no FiLM/preference inheritance.
+
+    Delta table vs v6i22e:
+      latent_population_birth_active_z_only = True
+      latent_population_birth_per_z_action_heads = True
+      experiment_id / run_tag updated
+      All other hyperparameters: identical to v6i22e.
+
+    Gate for advancement: CF action-JSD pair mean > 0.05 on ≥2 oracle-hot cells,
+    or head0 argmax disagree > 0.2 with non-tie check. Then freeze specialists
+    and train router. Fallback remains full separate policies → distill.
+    """
+    cfg = apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters(cfg)
+    cfg.latent_population_birth_active_z_only = True
+    cfg.latent_population_birth_per_z_action_heads = True
+    cfg.experiment_id = "v6i23"
+    cfg.run_tag = "v6i23_population_birth_OP8_OP9_OP10_OP11_OP12"
+    return cfg

@@ -370,9 +370,20 @@ def main() -> None:
     print(f"All differentiated : {geo.get('all_differentiated', 'N/A')}")
     print(f"Max |cos_sim|      : {geo.get('max_cos_sim', float('nan')):.4f}")
     print(f"Mean contribution  : {norm.get('mean_adapter_contribution', float('nan')):.4f}")
-    contribution = norm.get("mean_adapter_contribution", 0.0)
+    contribution = norm.get("mean_adapter_contribution", float("nan"))
     differentiated = geo.get("all_differentiated", False)
-    if contribution > 0.01 and differentiated:
+    weight_l2s = geo.get("weight_norms") or []
+    mean_weight_l2 = float(np.mean(weight_l2s)) if weight_l2s else float("nan")
+    print(f"Mean weight L2     : {mean_weight_l2:.4f}")
+    if contribution != contribution:  # NaN — stage 2 skipped
+        print()
+        if differentiated and mean_weight_l2 > 1.0:
+            print("STATUS: PROMISING — adapters differentiated with non-trivial weight L2.")
+            print("        Stage-2 contribution probe skipped; use forced-z / offline ratio.")
+        else:
+            print("STATUS: INCONCLUSIVE — stage-2 contribution probe skipped (NaN).")
+            print("        Re-run with a live rollout buffer or offline contribution probe.")
+    elif contribution > 0.01 and differentiated:
         print()
         print("STATUS: PROMISING — adapters are active and differentiated.")
         print("        Run forced-z fingerprint to check behavior_pair_distance > 0.06.")

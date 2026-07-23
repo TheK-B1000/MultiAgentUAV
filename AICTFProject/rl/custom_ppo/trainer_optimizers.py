@@ -45,6 +45,7 @@ _Z_SPECIFIC_SUBSTRINGS = (
     "latent_adapters",
     "latent_adapter_gates",
     "latent_action_biases",
+    "latent_action_heads",
     "strategy_embedding",
     "z_adapter",
 )

@@ -252,6 +252,12 @@ class PPOConfig:
     # V6I22E: fixed-alpha gate-free adapters.  When > 0, Kaiming init replaces
     # zero-init and the learned gate is removed: h_z = h + alpha * A_z(h).
     latent_z_residual_alpha: float = 0.0
+    # V6I23 population birth (Summer-compatible extension, not paper-faithful):
+    # independent per-z specialists under forced balanced_episode assignment.
+    # Active-z-only residual forward avoids evaluating unused adapters; per-z
+    # action heads are Stage-2 trainable (shared action_head stays frozen).
+    latent_population_birth_active_z_only: bool = False
+    latent_population_birth_per_z_action_heads: bool = False
     # V6I1 Phase B/C macro-router and rehearsal controls.
     v6i1_recurrent_selector_hidden: int = 32
     v6i1_macro_strategy_ppo_coef: float = 1.0

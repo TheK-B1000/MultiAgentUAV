@@ -126,6 +126,13 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "latent_z_residual_alpha": float(
                     cfg.get("latent_z_residual_alpha", 0.0) or 0.0
                 ),
+                # V6I23: population-birth specialist heads / active-z residual.
+                "latent_population_birth_active_z_only": bool(
+                    cfg.get("latent_population_birth_active_z_only", False)
+                ),
+                "latent_population_birth_per_z_action_heads": bool(
+                    cfg.get("latent_population_birth_per_z_action_heads", False)
+                ),
             }
         )
     return kwargs

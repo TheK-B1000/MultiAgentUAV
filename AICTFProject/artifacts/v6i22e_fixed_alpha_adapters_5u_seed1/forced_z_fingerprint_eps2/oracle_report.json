@@ -1,0 +1,10 @@
+{
+  "oracle_metric": "win_margin",
+  "best_fixed_z": 2,
+  "best_fixed_mean": 0.75,
+  "oracle_mean": 1.35,
+  "oracle_gap": 0.6000000000000001,
+  "oracle_gap_std": 1.3143439428094916,
+  "matched_episode_count": 20,
+  "fixed_episode_count": 20
+}

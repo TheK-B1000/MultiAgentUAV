@@ -224,6 +224,7 @@ def _load_model_state_dict_compat(
         "latent_actor.latent_adapters.",
         "latent_actor.latent_adapter_gates",
         "latent_actor.latent_action_biases",
+        "latent_actor.latent_action_heads.",
     )
     allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.z_adapter."))
@@ -264,6 +265,16 @@ def _load_model_state_dict_compat(
         print("[checkpoint compat] Newly initialized parameters (not in checkpoint):")
         for k in sorted(newly_initialized):
             print(f"  {k}")
+        # V6I23: if per-z action heads were not in the checkpoint, copy the loaded
+        # shared action_head so specialists start at trunk-equivalent logits.
+        if any(k.startswith("latent_actor.latent_action_heads.") for k in newly_initialized):
+            la = getattr(model, "latent_actor", None)
+            if la is not None and hasattr(la, "sync_per_z_action_heads_from_shared"):
+                la.sync_per_z_action_heads_from_shared()
+                print(
+                    "[checkpoint compat] Synced latent_action_heads from loaded "
+                    "shared action_head (population-birth start)."
+                )
     if router_reinit or shape_skipped:
         router_missing = [
             k
@@ -356,13 +367,22 @@ def _load_model_state_dict_compat(
             _src_strict = not bool(newly_initialized)
             source_model.load_state_dict(actor_remapped, strict=_src_strict)
 
-            # V6I22E: if adapters are newly initialized (Kaiming) in fixed-alpha mode,
-            # temporarily bypass the adapter contribution so the equivalence check
-            # confirms the shared trunk is intact rather than failing on the fresh adapters.
+            # V6I22E/V6I23: if adapters or per-z heads are newly initialized,
+            # temporarily bypass residual + per-z heads so the equivalence check
+            # confirms the shared trunk is intact.
             _adapter_bypass_set = False
             _fixed_alpha_mode = (
                 bool(newly_initialized)
-                and float(getattr(target_cfg, "latent_z_residual_alpha", 0.0) or 0.0) > 0
+                and (
+                    float(getattr(target_cfg, "latent_z_residual_alpha", 0.0) or 0.0) > 0
+                    or bool(
+                        getattr(
+                            target_cfg,
+                            "latent_population_birth_per_z_action_heads",
+                            False,
+                        )
+                    )
+                )
             )
             if _fixed_alpha_mode:
                 la = getattr(model, "latent_actor", None)
@@ -395,7 +415,7 @@ def _load_model_state_dict_compat(
                     )
             else:
                 if _adapter_bypass_set:
-                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (trunk-only; fixed-alpha adapters bypassed; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (trunk-only; residual/per-z specialists bypassed; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
                 elif outcome == "NOOP_MODULE_ELISION":
                     print(f"[checkpoint compat] Behavioral-equivalence check: PASS (ignored actor extras were inactive/no-op; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
                 else:

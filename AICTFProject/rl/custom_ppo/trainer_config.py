@@ -857,6 +857,12 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 "latent_z_residual_alpha": max(
                     0.0, float(getattr(cfg, "latent_z_residual_alpha", 0.0) or 0.0)
                 ),
+                "latent_population_birth_active_z_only": bool(
+                    getattr(cfg, "latent_population_birth_active_z_only", False)
+                ),
+                "latent_population_birth_per_z_action_heads": bool(
+                    getattr(cfg, "latent_population_birth_per_z_action_heads", False)
+                ),
             }
         )
     model_kwargs.update(

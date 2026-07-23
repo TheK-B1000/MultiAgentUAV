@@ -233,6 +233,8 @@ class LatentConditionedActor(nn.Module):
         enable_latent_z_residual: bool = False,
         latent_z_gate_init: float = 0.01,
         latent_z_residual_alpha: float = 0.0,
+        latent_population_birth_active_z_only: bool = False,
+        latent_population_birth_per_z_action_heads: bool = False,
     ) -> None:
         super().__init__()
         self.local_feature_dim = int(local_feature_dim)
@@ -315,7 +317,15 @@ class LatentConditionedActor(nn.Module):
 
         # V6I8: per-latent residual adapters h_z = h + g_z * A_z(h) and logit biases B_z.
         # V6I22E: fixed-alpha variant h_z = h + alpha * A_z(h) — no learned gate.
+        # V6I23: optional per-z action heads (population birth); Stage-2 trainable.
         self.enable_latent_z_residual = bool(enable_latent_z_residual) and self.latent_k > 0
+        self._population_birth_active_z_only = bool(
+            latent_population_birth_active_z_only
+        ) and self.enable_latent_z_residual
+        use_per_z_heads = (
+            bool(latent_population_birth_per_z_action_heads)
+            and self.enable_latent_z_residual
+        )
         if self.enable_latent_z_residual:
             self.latent_adapters = nn.ModuleList([
                 nn.Linear(self.hidden_dim, self.hidden_dim) for _ in range(self.latent_k)
@@ -336,14 +346,30 @@ class LatentConditionedActor(nn.Module):
                 self.latent_adapter_gates = nn.Parameter(
                     torch.full((self.latent_k,), float(latent_z_gate_init))
                 )
-            # Action-logit biases zero-initialized; learned from task gradient only.
-            self.latent_action_biases = nn.Parameter(
-                torch.zeros(self.latent_k, self.action_dim)
-            )
+            if use_per_z_heads:
+                # Independent specialists: each z owns a full Linear(H, A).
+                # Init as a copy of the shared action_head for near-trunk start;
+                # shared action_head remains for BE bypass / trunk-only probes.
+                self.latent_action_heads = nn.ModuleList([
+                    nn.Linear(self.hidden_dim, self.action_dim)
+                    for _ in range(self.latent_k)
+                ])
+                with torch.no_grad():
+                    for head in self.latent_action_heads:
+                        head.weight.copy_(self.action_head.weight)
+                        head.bias.copy_(self.action_head.bias)
+                self.latent_action_biases = None
+            else:
+                self.latent_action_heads = None
+                # Action-logit biases zero-initialized; learned from task gradient only.
+                self.latent_action_biases = nn.Parameter(
+                    torch.zeros(self.latent_k, self.action_dim)
+                )
         else:
             self.latent_adapters = None
             self.latent_adapter_gates = None
             self.latent_action_biases = None
+            self.latent_action_heads = None
             self._latent_z_alpha = 0.0
 
     def _apply_z_film(self, hidden: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
@@ -362,16 +388,61 @@ class LatentConditionedActor(nn.Module):
         # newly initialized (Kaiming) so the check passes against the pre-adapter trunk.
         if getattr(self, "_residual_bypass_for_compat", False):
             return hidden
-        N = hidden.shape[0]
-        idx = torch.arange(N, device=hidden.device)
-        # Stack (K, N, H) then select per-sample with advanced indexing → (N, H).
-        all_outs = torch.stack([self.latent_adapters[k](hidden) for k in range(self.latent_k)], dim=0)
-        adapter_out = all_outs[z, idx]
+        z = z.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+        if self._population_birth_active_z_only:
+            # Population birth: evaluate only adapters present in the batch.
+            adapter_out = torch.zeros_like(hidden)
+            for k in torch.unique(z).tolist():
+                mask = z == int(k)
+                adapter_out[mask] = self.latent_adapters[int(k)](hidden[mask])
+        else:
+            N = hidden.shape[0]
+            idx = torch.arange(N, device=hidden.device)
+            # Stack (K, N, H) then select per-sample with advanced indexing → (N, H).
+            all_outs = torch.stack(
+                [self.latent_adapters[k](hidden) for k in range(self.latent_k)], dim=0
+            )
+            adapter_out = all_outs[z, idx]
         if self.latent_adapter_gates is None:
             # Fixed-alpha mode (V6I22E): no learned gate.
             return hidden + self._latent_z_alpha * adapter_out
         gate = self.latent_adapter_gates[z].unsqueeze(-1)  # (N, 1)
         return hidden + gate * adapter_out
+
+    def sync_per_z_action_heads_from_shared(self) -> None:
+        """Copy shared ``action_head`` into each per-z head (post-load BE start)."""
+        if self.latent_action_heads is None:
+            return
+        with torch.no_grad():
+            for head in self.latent_action_heads:
+                head.weight.copy_(self.action_head.weight)
+                head.bias.copy_(self.action_head.bias)
+
+    def _logits_from_hidden(
+        self, hidden: torch.Tensor, z: torch.Tensor | None
+    ) -> torch.Tensor:
+        """Shared action head (+ optional biases) or independent per-z heads."""
+        bypass = getattr(self, "_residual_bypass_for_compat", False)
+        if self.latent_action_heads is not None and not bypass:
+            if z is None:
+                raise ValueError("z_idx is required when per-z action heads are enabled.")
+            z = z.long().reshape(-1).clamp(min=0, max=self.latent_k - 1)
+            logits = torch.empty(
+                hidden.shape[0],
+                self.action_dim,
+                device=hidden.device,
+                dtype=hidden.dtype,
+            )
+            for k in torch.unique(z).tolist():
+                mask = z == int(k)
+                logits[mask] = self.latent_action_heads[int(k)](hidden[mask])
+            return logits
+        logits = self.action_head(hidden)
+        if self.latent_action_biases is not None and not bypass:
+            if z is None:
+                raise ValueError("z_idx is required when latent_z_residual is enabled.")
+            logits = logits + self.latent_action_biases[z]
+        return logits
 
     def _apply_actor_z_film(
         self, hidden: torch.Tensor, z_embedding: torch.Tensor
@@ -424,10 +495,7 @@ class LatentConditionedActor(nn.Module):
             hidden2 = self.body[3](hidden2)
 
             hidden2 = self._apply_latent_z_residual(hidden2, z)
-            logits = self.action_head(hidden2)
-            if self.latent_action_biases is not None:
-                logits = logits + self.latent_action_biases[z]
-            return logits
+            return self._logits_from_hidden(hidden2, z)
 
         has_z = (
             (self.strategy_embedding is not None)
@@ -494,12 +562,7 @@ class LatentConditionedActor(nn.Module):
             if z is None:
                 raise ValueError("z_idx is required when latent_z_residual is enabled.")
             hidden = self._apply_latent_z_residual(hidden, z)
-        logits = self.action_head(hidden)
-        if self.latent_action_biases is not None:
-            if z is None:
-                raise ValueError("z_idx is required when latent_z_residual is enabled.")
-            logits = logits + self.latent_action_biases[z]
-        return logits
+        return self._logits_from_hidden(hidden, z)
 
     def trunk_features(
         self, local_features: torch.Tensor, z_idx: torch.Tensor | None = None
