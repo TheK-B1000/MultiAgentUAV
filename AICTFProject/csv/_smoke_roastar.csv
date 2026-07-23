@@ -1,0 +1,2 @@
+setting,method,opponent,n_seeds,n_episodes_per_seed,win_rate_mean,win_rate_std,loss_rate_mean,loss_rate_std,draw_rate_mean,draw_rate_std,match_score_mean,match_score_std,match_score_ci_lo,match_score_ci_hi,success_rate_mean,success_rate_std,mean_steps_mean,mean_steps_std,mean_captures_mean,mean_captures_std,defense_shutout_rate_mean,defense_shutout_rate_std,collision_free_rate_mean,collision_free_rate_std,win_margin_mean,win_margin_std
+2v2,ROA-Star (PFSP),OP3,1,2,100.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,100.0,100.0,100.0,0.0,114.5,0.0,3.0,0.0,0.0,0.0,100.0,0.0,1.0,0.0

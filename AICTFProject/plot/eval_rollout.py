@@ -79,6 +79,27 @@ def _policy_entropy_first_step(model: Any, single_obs: dict) -> float:
         return float(torch.mean(ent).item())
 
 
+def _reseed_env(env: Any, seed: int) -> None:
+    """Force identical episode starts across models by reseeding the GPU core RNG."""
+    core = getattr(env, "core", None)
+    if core is None:
+        return
+    rng = getattr(core, "_rng", None)
+    if rng is not None and hasattr(rng, "manual_seed"):
+        rng.manual_seed(int(seed))
+
+
+def shared_episode_seeds(n_episodes: int, seed_base: int, opponent: str) -> list[int]:
+    """Deterministic per-episode seeds shared by every compared checkpoint.
+
+    OP4 uses a disjoint block so its scenarios never collide with OP3's list.
+    """
+    opp = str(opponent).strip().upper()
+    block = 1_000_000 if opp == "OP4" else 0
+    base = int(seed_base) + block
+    return [base + i for i in range(int(n_episodes))]
+
+
 def run_eval_episodes(
     model_path: str,
     env: Any,
@@ -89,6 +110,7 @@ def run_eval_episodes(
     deterministic: bool = True,
     record_entropy: bool = False,
     progress_every: int = 0,
+    episode_seeds: list[int] | None = None,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -96,6 +118,8 @@ def run_eval_episodes(
     If record_entropy is True, each episode dict includes policy_entropy (first-step mean entropy).
     If progress_every > 0, prints after episode 1, then every progress_every episodes, and on the last
     (flush=True) so long 8v8 runs do not look hung.
+    If episode_seeds is provided (len == n_episodes), each episode is reseeded before reset so
+    every model faces the same initial conditions for episode i.
     """
     from stable_baselines3 import PPO
 
@@ -136,10 +160,21 @@ def run_eval_episodes(
             "Red team may still be using the previous opponent — OP3 vs OP4 results can look identical."
         )
 
+    if episode_seeds is not None and len(episode_seeds) != int(n_episodes):
+        raise ValueError(
+            f"episode_seeds length {len(episode_seeds)} != n_episodes {n_episodes}"
+        )
+
     episodes: list[dict] = []
+    if episode_seeds is not None:
+        _reseed_env(env, int(episode_seeds[0]))
     obs = env.reset()
 
-    for _ in range(n_episodes):
+    for ep_i in range(n_episodes):
+        if episode_seeds is not None:
+            if ep_i > 0:
+                _reseed_env(env, int(episode_seeds[ep_i]))
+                obs = env.reset()
         ep_return = 0.0
         steps = 0
         ep_entropy_first = float("nan")
@@ -212,6 +247,90 @@ def count_wld(episodes: list[dict]) -> tuple[int, int, int]:
     return w, l, d
 
 
+def match_score_from_wld(wins: int, losses: int, draws: int) -> float:
+    """Match Score = (W + 0.5D) / (W+L+D), as a percentage in [0, 100]."""
+    total = int(wins) + int(losses) + int(draws)
+    if total <= 0:
+        return float("nan")
+    return 100.0 * (float(wins) + 0.5 * float(draws)) / float(total)
+
+
+def episode_match_points(episodes: list[dict]) -> np.ndarray:
+    """Per-episode match points: 1.0 win, 0.5 draw, 0.0 loss."""
+    pts = np.empty(len(episodes), dtype=float)
+    for i, e in enumerate(episodes):
+        bs = int(e.get("blue_score", 0))
+        rs = int(e.get("red_score", 0))
+        if bs > rs:
+            pts[i] = 1.0
+        elif bs < rs:
+            pts[i] = 0.0
+        else:
+            pts[i] = 0.5
+    return pts
+
+
+def bootstrap_ci_mean(
+    values: np.ndarray,
+    *,
+    n_boot: int = 2000,
+    alpha: float = 0.05,
+    rng: np.random.Generator | None = None,
+) -> tuple[float, float, float]:
+    """Return (mean, ci_lo, ci_hi) for the mean of ``values`` via percentile bootstrap."""
+    arr = np.asarray(values, dtype=float)
+    arr = arr[np.isfinite(arr)]
+    if arr.size == 0:
+        return float("nan"), float("nan"), float("nan")
+    mean = float(np.mean(arr))
+    if arr.size == 1 or n_boot <= 0:
+        return mean, mean, mean
+    rng = rng or np.random.default_rng(0)
+    n = arr.size
+    boots = np.empty(int(n_boot), dtype=float)
+    for b in range(int(n_boot)):
+        sample = arr[rng.integers(0, n, size=n)]
+        boots[b] = float(np.mean(sample))
+    lo = float(np.quantile(boots, alpha / 2.0))
+    hi = float(np.quantile(boots, 1.0 - alpha / 2.0))
+    return mean, lo, hi
+
+
+def paired_bootstrap_seed_mean(
+    per_seed_points: list[np.ndarray],
+    *,
+    n_boot: int = 2000,
+    alpha: float = 0.05,
+    rng: np.random.Generator | None = None,
+) -> tuple[float, float, float]:
+    """Paired bootstrap over shared episode indices, then mean across seeds.
+
+    Each seed must have the same episode count (identical eval seed list).
+    Returns (mean_match_score_pct, ci_lo_pct, ci_hi_pct).
+    """
+    if not per_seed_points:
+        return float("nan"), float("nan"), float("nan")
+    mats = [np.asarray(p, dtype=float) for p in per_seed_points]
+    n = int(mats[0].size)
+    if n <= 0 or any(m.size != n for m in mats):
+        raise ValueError("paired bootstrap requires equal-length per-seed episode vectors")
+    # Point estimate: mean of seed-level means.
+    seed_means = np.array([float(np.mean(m)) for m in mats], dtype=float)
+    point = float(np.mean(seed_means)) * 100.0
+    if n == 1 or n_boot <= 0:
+        return point, point, point
+    rng = rng or np.random.default_rng(0)
+    boots = np.empty(int(n_boot), dtype=float)
+    stacked = np.stack(mats, axis=0)  # (n_seeds, n_eps)
+    for b in range(int(n_boot)):
+        idx = rng.integers(0, n, size=n)
+        resampled = stacked[:, idx]
+        boots[b] = float(np.mean(np.mean(resampled, axis=1)))
+    lo = float(np.quantile(boots, alpha / 2.0)) * 100.0
+    hi = float(np.quantile(boots, 1.0 - alpha / 2.0)) * 100.0
+    return point, lo, hi
+
+
 def binomial_se(wins: int, total: int) -> float:
     """Binomial standard error of a win-rate percentage: SE = sqrt(p*(1-p)/N) * 100.
 
@@ -231,6 +350,16 @@ def binomial_se(wins: int, total: int) -> float:
 def compute_aggregates(episodes: list[dict]) -> dict:
     """Mean and std (over episodes) for paper-ready tables."""
     base = {
+        "n_episodes": 0,
+        "wins": 0,
+        "losses": 0,
+        "draws": 0,
+        "win_rate": 0.0,
+        "loss_rate": 0.0,
+        "draw_rate": 0.0,
+        "match_score": 0.0,
+        "match_score_ci_lo": 0.0,
+        "match_score_ci_hi": 0.0,
         "success_rate": 0.0,
         "success_rate_std": 0.0,
         "mean_steps": 0.0,
@@ -258,6 +387,15 @@ def compute_aggregates(episodes: list[dict]) -> dict:
     }
     if not episodes:
         return base
+    w, l, d = count_wld(episodes)
+    total = max(1, w + l + d)
+    win_rate = 100.0 * float(w) / float(total)
+    loss_rate = 100.0 * float(l) / float(total)
+    draw_rate = 100.0 * float(d) / float(total)
+    match_score = match_score_from_wld(w, l, d)
+    pts = episode_match_points(episodes)
+    _, ms_lo, ms_hi = bootstrap_ci_mean(pts * 100.0, n_boot=2000, alpha=0.05, rng=np.random.default_rng(0))
+
     arr = np.array(
         [
             [
@@ -317,6 +455,16 @@ def compute_aggregates(episodes: list[dict]) -> dict:
     mean_inter_robot_dist_mean = float(np.mean(midist_valid)) if len(midist_valid) > 0 else np.nan
     mean_inter_robot_dist_std = float(np.std(midist_valid, ddof=1)) if len(midist_valid) > 1 else 0.0
     return {
+        "n_episodes": int(n),
+        "wins": int(w),
+        "losses": int(l),
+        "draws": int(d),
+        "win_rate": win_rate,
+        "loss_rate": loss_rate,
+        "draw_rate": draw_rate,
+        "match_score": match_score,
+        "match_score_ci_lo": ms_lo,
+        "match_score_ci_hi": ms_hi,
         "success_rate": success_rate,
         "success_rate_std": success_rate_std,
         "mean_steps": mean_steps,

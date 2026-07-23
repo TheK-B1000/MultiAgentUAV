@@ -1,0 +1,7 @@
+setting,method,opponent,n_seeds,n_episodes_per_seed,win_rate_mean,win_rate_std,loss_rate_mean,loss_rate_std,draw_rate_mean,draw_rate_std,match_score_mean,match_score_std,match_score_ci_lo,match_score_ci_hi,success_rate_mean,success_rate_std,mean_steps_mean,mean_steps_std,mean_captures_mean,mean_captures_std,defense_shutout_rate_mean,defense_shutout_rate_std,collision_free_rate_mean,collision_free_rate_std,win_margin_mean,win_margin_std
+2v2,ROA-Star (PFSP),OP3,1,100,76.0,0.0,23.0,0.0,1.0,0.0,76.5,0.0,68.5,84.5,76.0,0.0,105.15,0.0,2.55,0.0,0.0,0.0,100.0,0.0,0.61,0.0
+2v2,ROA-Star (PFSP),OP4,1,100,79.0,0.0,18.0,0.0,3.0,0.0,80.5,0.0,73.0,87.5,79.0,0.0,114.61,0.0,2.58,0.0,0.0,0.0,100.0,0.0,0.78,0.0
+3v3,ROA-Star (PFSP),OP3,1,100,79.0,0.0,20.0,0.0,1.0,0.0,79.5,0.0,71.5,87.0,79.0,0.0,128.79,0.0,2.71,0.0,4.0,0.0,100.0,0.0,0.88,0.0
+3v3,ROA-Star (PFSP),OP4,1,100,91.0,0.0,9.0,0.0,0.0,0.0,91.0,0.0,85.0,96.0,91.0,0.0,117.74,0.0,2.89,0.0,20.0,0.0,100.0,0.0,1.65,0.0
+4v4,ROA-Star (PFSP),OP3,1,100,99.0,0.0,1.0,0.0,0.0,0.0,99.0,0.0,97.0,100.0,99.0,0.0,146.47,0.0,2.98,0.0,37.0,0.0,100.0,0.0,2.12,0.0
+4v4,ROA-Star (PFSP),OP4,1,100,84.0,0.0,15.0,0.0,1.0,0.0,84.5,0.0,77.0,91.0,84.0,0.0,134.57,0.0,2.81,0.0,21.0,0.0,100.0,0.0,1.5,0.0

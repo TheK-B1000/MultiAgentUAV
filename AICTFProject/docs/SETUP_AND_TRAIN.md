@@ -237,6 +237,22 @@ python plot/eval_ablations.py --checkpoint-dir checkpoints_sb3/2v2 --episodes 10
 python plot/plot_eval_metrics.py --metrics-csv csv/eval_ablation_2v2.csv --modes 2v2
 ```
 
+### ROA-Star shared frozen eval (paper centerpiece)
+
+Do **not** use training win rates. Evaluate all nine PFSP finals (2v2/3v3/4v4 × seeds 42/43/44)
+against OP3 and OP4 with identical per-episode seeds. Primary metric: Match Score = (W + 0.5D)/(W+L+D).
+
+```bash
+python plot/eval_roastar_matrix.py --list --require-complete
+python plot/eval_roastar_matrix.py --episodes 1000 --require-complete \
+  --out csv/eval_roastar_shared.csv \
+  --per-seed-out csv/eval_roastar_shared_per_seed.csv
+python plot/plot_roastar_shared_eval.py \
+  --metrics-csv csv/eval_roastar_shared.csv \
+  --per-seed-csv csv/eval_roastar_shared_per_seed.csv \
+  --out-dir figures
+```
+
 Reward presets:
 - `full` — shaped reward (default)
 - `no_shaping` / `sparse` — zero PBRS + team dense bonuses; keep terminal + offense events

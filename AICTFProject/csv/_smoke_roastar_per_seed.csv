@@ -1,0 +1,2 @@
+setting,method,seed,opponent,checkpoint,n_episodes,wins,losses,draws,win_rate,loss_rate,draw_rate,match_score,match_score_ci_lo,match_score_ci_hi,success_rate,mean_steps,mean_captures,defense_shutout_rate,collision_free_rate,win_margin_mean,mean_inter_robot_dist_mean
+2v2,ROA-Star (PFSP),42,OP3,final_ppo_roastar_pfsp_2v2_seed42.zip,2,2,0,0,100.0,0.0,0.0,100.0,100.0,100.0,100.0,114.5,3.0,0.0,100.0,1.0,nan
