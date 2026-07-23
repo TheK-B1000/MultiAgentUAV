@@ -1,0 +1,90 @@
+{
+  "locked_at_utc": "2026-07-23T21:47:00Z",
+  "do_not_modify_current_25u_run": true,
+  "headline_claim": "Summer uses response-oracle training to create complementary latent team strategies inside one decentralized PPO policy, then learns a persistent context router that selects among them and outperforms fixed-strategy and matched non-latent PPO agents.",
+  "dropped_claim": "spontaneous symmetric end-to-end emergence",
+  "phase1_stage1_contract": {
+    "initial_policy": "V6I23",
+    "selected_branch": 3,
+    "router": "OFF",
+    "z_selection": "forced z3",
+    "training_target": "smoothed OP11/OP12 regret mixture",
+    "contract_reward": "OFF",
+    "reward": "task only",
+    "inactive_branches": "frozen / active-branch-only",
+    "architecture": {
+      "deep_z_trunks": true,
+      "per_z_action_heads": true,
+      "per_z_value_heads": false,
+      "note": "Current run uses shared z-conditioned critic (z one-hot), not separate value heads. Do not change mid-run. Per-z value heads are a Phase-1 retry option only if tiny-KL basin failure."
+    },
+    "primary_metric": "delta_G = G_after - G_before",
+    "G_definition": "V_cross_fitted_oracle - V_best_fixed_z",
+    "acceptance": [
+      "delta_G > 0",
+      "targeted OP11/OP12 performance improves",
+      "z3 above competence floor",
+      "inactive branches do not drift",
+      "z3 adds nonredundant payoff row"
+    ],
+    "not_acceptance": [
+      "action distribution difference alone",
+      "higher KL alone",
+      "winning one noisy 4-episode cell"
+    ]
+  },
+  "failure_responses_one_each": {
+    "delta_G_gt_0": "Confirm with larger evaluation (Phase 2)",
+    "delta_G_le_0_tiny_KL": "One retry with more branch freedom or budget — literal one retry",
+    "target_up_collapse_elsewhere": "Add fixed general-competence anchor fraction",
+    "large_KL_no_target": "Stop OP×map specialization; move to possession/phase contexts",
+    "two_fair_rounds_flat": "Redesign strategic regimes, not PPO machinery"
+  },
+  "proof_ladder": [
+    "1 Stage-1 creates one latent response: delta_G > 0",
+    "2 Confirm across seeds + larger eval: CI95(delta_G) > 0",
+    "3 Add another response only if G increases again (2–3 specialists enough)",
+    "4 Verify single policy retains repertoire: G_available_internal > 0",
+    "5 Sparse context router: G_realized > 0",
+    "6 Routed LRO-Summer > matched non-latent PPO: G_latent > 0"
+  ],
+  "closed_paths": [
+    "entropy as strategy diversity proof",
+    "persistence as specialization mechanism",
+    "MI/JSD as headline metric",
+    "soft OP×map mixtures as primary birth",
+    "shared contract-specialist rewards",
+    "router before G_available > 0",
+    "4-episode cell winner as success",
+    "more archive searching",
+    "5u probes as final training",
+    "simultaneous reward+router+arch+pool changes",
+    "V6I26a–z coefficient carousel"
+  ],
+  "minimal_ablations": [
+    "No LRO, symmetric latent PPO",
+    "LRO with shared shallow heads",
+    "LRO repertoire with random/fixed router"
+  ],
+  "paper_vs_extension": {
+    "borrows_from_paper": [
+      "history-aware state processing",
+      "population best-response logic",
+      "payoff matrices",
+      "repeated adaptation"
+    ],
+    "paper_does_not_claim": "explicit future-state prediction or choreography",
+    "summer_extensions_beyond_paper": [
+      "latent repertoire via LRO birth",
+      "persistent context router",
+      "event-based sparse re-selection",
+      "optional latent-conditioned future-value heads V_hat(c_t,z)"
+    ],
+    "implicit_vs_explicit_foresight": {
+      "current_ladder_phases_1_to_6": "empirically learned latent values + temporal context = implicit foresight only",
+      "explicit_choreography_requires": "V_hat(c_t,z) or multi-feature future predictors (possession, flag threat, spread, survival, score, return) compared across candidate z",
+      "status": "OPTIONAL post-ladder extension — not a Phase 1–6 gate; do not insert before G_available>0 and G_realized>0"
+    }
+  },
+  "current_run": "artifacts/v6i26_lro_round1_seed1 (25u z3) — do not modify"
+}

@@ -133,6 +133,10 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "latent_population_birth_per_z_action_heads": bool(
                     cfg.get("latent_population_birth_per_z_action_heads", False)
                 ),
+                # V6I26 LRO: deep per-z trunks (last two MLP layers).
+                "latent_lro_deep_branches": bool(
+                    cfg.get("latent_lro_deep_branches", False)
+                ),
             }
         )
     return kwargs

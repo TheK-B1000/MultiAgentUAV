@@ -266,6 +266,10 @@ class PPOConfig:
     # action heads are Stage-2 trainable (shared action_head stays frozen).
     latent_population_birth_active_z_only: bool = False
     latent_population_birth_per_z_action_heads: bool = False
+    # V6I26 Latent Response-Oracle (DIAGNOSTIC / Claim B):
+    # Deep per-z trunks (last two MLP layers) + active-branch-only BR rounds.
+    latent_lro_deep_branches: bool = False
+    latent_lro_active_branch_only: bool = False
     # V6I24 full-policy population diagnostic (DIAGNOSTIC, not PAPER-FAITHFUL):
     # Trains K completely independent policies from the same cloned checkpoint.
     # Each policy has its own actor, critic, optimizer, buffer, and obs-norm.

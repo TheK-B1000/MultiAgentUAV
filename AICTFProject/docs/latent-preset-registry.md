@@ -201,8 +201,9 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i22d_strong_behavior_diversity` (aliases include `v6i22d`, `v6i22d_behavior_diversity_coef010`; sweep arm `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Stronger label-free behavior-contrast repertoire-birth fork after V6I22B/C failed the birth gate. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and applies higher behavior-contrast coefficients (`0.10` primary, `0.05` sweep control). Same trajectory-fingerprint signal as V6I22B; no outcome-diversity channel, no handcrafted z roles, no oracle targets, and no router training. Pinned by `tests/test_v6i22d_strong_behavior_diversity.py`. |
 | `v6i22e_fixed_alpha_adapters` (aliases include `v6i22e`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Fixed-alpha (`α=0.1`) gate-free residual adapters with Kaiming init to escape the zero-init / stuck-gate magnitude trap. Same hardpool birth scaffold; no soft diversity rewards. Pinned by `tests/test_v6i22e_fixed_alpha.py`. |
 | `v6i23_population_birth` (aliases include `v6i23`) | `v6i22e_fixed_alpha_adapters` | `SUMMER-COMPATIBLE EXTENSION` | Population-style specialist birth: active-z-only residual forward plus independent per-z action heads that are Stage-2 trainable (shared `action_head` stays frozen). Router off; no opponent-ID; no soft diversity rewards. Success gate is CF action-JSD, not paper-faithful. Pinned by `tests/test_v6i23_population_birth.py`. |
-| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C**; **ACTIVE** after V6I25 `FAIL_SIGNAL`). K=4 independent teachers under fixed OP8–OP12×map pressures. **Primary gate:** different best policies across cells **and** cross-fitted context oracle > best fixed (CI excludes 0). JSD/classifier supporting only. Pinned by `tests/test_v6i24_full_policy_population.py`. |
+| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C**; soft-contract 5u teachers exist; LRO Stage-0 landscape scan supersedes as primary next spend). K=4 independent teachers under fixed OP8–OP12×map pressures. **Primary gate:** different best policies across cells **and** cross-fitted context oracle > best fixed (CI excludes 0). JSD/classifier supporting only. Pinned by `tests/test_v6i24_full_policy_population.py`. |
 | `v6i25_counterfactual_router` (experiment; no training preset) | V6I23 donor checkpoint | `DIAGNOSTIC` | Counterfactual geometry→`q_phi` diagnostic. Cross-fitted context oracle (not per-episode hindsight); Stage A signal gate; soft `softmax(Q̂/τ)` CE loss; geometry asserts; no opponent-ID in router input. Runner: `experiments/run_v6i25_counterfactual_router_diagnostic.py`. Pinned by `tests/test_v6i25_counterfactual_router.py`. |
+| `v6i26_latent_response_oracle` (aliases include `v6i26`, `v6i26_lro`, `v6i26_phase_pod_population`) | `v6i23_population_birth` | `DIAGNOSTIC` | **LRO-Summer finite proof ladder** (Claim B). Primary claim: response-oracle birth of complementary latent strategies + sparse router that beats fixed-z and matched non-latent PPO. Not spontaneous emergence. Stage-1 gate = `ΔG>0` (cross-fitted). One retry per failure mode; no coefficient carousel. Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`. Pinned by `tests/test_v6i26_latent_response_oracle.py`. |
 
 ---
 
@@ -1578,9 +1579,9 @@ Aliases: `v6i24`, `v6i24_full_policy_population`,
 2. Trend → extend teachers to 100K.
 3. Fail → redesign external training pressures.
 
-**Status (2026-07-23):** `ACTIVE` (primary). Resumed after V6I25 smoke
-`FAIL_SIGNAL` (§6.42 / tracker §3.36): no geometry-predictable latent
-advantage beyond best-fixed `z2`.
+**Status (2026-07-23):** `CLOSED_AS_PRIMARY` — soft 5u Path C retained as
+landscape probe only. Method path is V6I26 LRO (§6.43 / tracker §3.37).
+See `artifacts/v6i24_population_seed1/pathc_close_verdict.json`.
 
 ---
 
@@ -1611,6 +1612,51 @@ per-episode hindsight lookup table.
 
 **Verdicts:** `PASS` / `PARTIAL` / `FAIL_SIGNAL` / `FAIL_ROUTER`
 (see research-progress-tracker §3.36).
+
+---
+
+### 6.43 v6i26_latent_response_oracle (DIAGNOSTIC) — LRO-Summer
+
+**Parent:** `v6i23_population_birth`.
+**Classification:** `DIAGNOSTIC` (Claim B method path; not PAPER-FAITHFUL).
+
+**Scientific delta (plain English):** Stop asking four symmetric latent
+branches to invent different strategies under the same PPO mixture. Treat
+each `z` as an internal response-oracle policy and train it specifically
+against uncovered weaknesses of the current latent population
+(PSRO / VGC-Bench / Conflux-PSRO lesson). No human strategy labels; task
+return and population regret drive which branch updates.
+
+**Resolved-config defining keys vs v6i23:**
+
+* `latent_lro_deep_branches=True` (last-two-layer trunks per z)
+* `latent_lro_active_branch_only=True`
+* `fixed_latent_strategy=True`, `latent_assignment_mode=fixed`
+* `latent_strategy_ppo_coef=0`, router OFF
+* `recurrent_selector_hidden_dim=0`
+* `freeze_return_norm_after_load=True`, `opponent_randomize=True`
+* `experiment_id` / `run_tag` → v6i26 LRO
+
+Contract rewards remain OFF (already on v6i23). Deep trunks sit on top of
+inherited residual adapters + per-z action heads.
+
+**Stages:**
+
+0. Strategic landscape scan (`run_v6i26_strategic_landscape_scan.py`)
+1. LRO birth rounds (`run_v6i26_lro_oracle_round.py`) — one branch BR/round
+2. Sparse router only if `G_available > 0` / niche PASS
+3. Headline vs K=1 / matched non-latent / end-to-end Summer
+
+**Artifacts:** `experiments/v6i26_lro_core.py`,
+`experiments/run_v6i26_strategic_landscape_scan.py`,
+`experiments/run_v6i26_lro_oracle_round.py`,
+`experiments/run_v6i26_distill_and_route.py`,
+`tests/test_v6i26_latent_response_oracle.py`.
+
+Aliases: `v6i26`, `v6i26_lro`, `v6i26_latent_response_oracle`,
+`latent_v6i26_latent_response_oracle`,
+`plan_faithful_latent_v6i26_latent_response_oracle`,
+`v6i26_phase_pod_population` (legacy phase-pod alias → same function).
 
 ---
 

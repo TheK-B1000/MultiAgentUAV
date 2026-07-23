@@ -235,6 +235,7 @@ class LatentConditionedActor(nn.Module):
         latent_z_residual_alpha: float = 0.0,
         latent_population_birth_active_z_only: bool = False,
         latent_population_birth_per_z_action_heads: bool = False,
+        latent_lro_deep_branches: bool = False,
     ) -> None:
         super().__init__()
         self.local_feature_dim = int(local_feature_dim)
@@ -359,8 +360,24 @@ class LatentConditionedActor(nn.Module):
                         head.weight.copy_(self.action_head.weight)
                         head.bias.copy_(self.action_head.bias)
                 self.latent_action_biases = None
+                # V6I26 LRO: optional deep per-z trunks (last two MLP layers).
+                if bool(latent_lro_deep_branches):
+                    self.latent_branch_trunks = nn.ModuleList(
+                        [
+                            nn.Sequential(
+                                nn.Linear(self.hidden_dim, self.hidden_dim),
+                                nn.ReLU(),
+                                nn.Linear(self.hidden_dim, self.hidden_dim),
+                                nn.ReLU(),
+                            )
+                            for _ in range(self.latent_k)
+                        ]
+                    )
+                else:
+                    self.latent_branch_trunks = None
             else:
                 self.latent_action_heads = None
+                self.latent_branch_trunks = None
                 # Action-logit biases zero-initialized; learned from task gradient only.
                 self.latent_action_biases = nn.Parameter(
                     torch.zeros(self.latent_k, self.action_dim)
@@ -370,6 +387,7 @@ class LatentConditionedActor(nn.Module):
             self.latent_adapter_gates = None
             self.latent_action_biases = None
             self.latent_action_heads = None
+            self.latent_branch_trunks = None
             self._latent_z_alpha = 0.0
 
     def _apply_z_film(self, hidden: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
@@ -435,7 +453,11 @@ class LatentConditionedActor(nn.Module):
             )
             for k in torch.unique(z).tolist():
                 mask = z == int(k)
-                logits[mask] = self.latent_action_heads[int(k)](hidden[mask])
+                h = hidden[mask]
+                trunks = getattr(self, "latent_branch_trunks", None)
+                if trunks is not None:
+                    h = trunks[int(k)](h)
+                logits[mask] = self.latent_action_heads[int(k)](h)
             return logits
         logits = self.action_head(hidden)
         if self.latent_action_biases is not None and not bypass:

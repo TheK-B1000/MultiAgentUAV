@@ -1,0 +1,188 @@
+{
+  "experiment": "v6i26_lro_oracle_round",
+  "lro": {
+    "protocol": "v6i26_latent_response_oracle",
+    "claim": "B_population_guided_lro",
+    "classification": "DIAGNOSTIC",
+    "paper_claim": "Summer autonomously discovers a population of task-reward-optimal latent team strategies through response-oracle training, stores them within a single latent-conditioned decentralized policy, and learns a persistent context router that outperforms fixed-strategy and non-latent PPO agents.",
+    "stages": {
+      "0_landscape_scan": "measure archive G_available baseline (informational)",
+      "1_lro_birth": "smoothed regret BR; success = \u0394G>0 + nonredundant + competence floor",
+      "2_sparse_router": "freeze branches; train q_phi with switch cost",
+      "3_headline": "LRO-Summer vs K=1 / matched non-latent / end-to-end Summer"
+    },
+    "stage1_breakthrough": "delta_G_available = G_after - G_before > 0",
+    "stage1_acceptance": [
+      "G_after > G_before",
+      "nonredundant_payoff_row",
+      "competence_above_floor"
+    ],
+    "phase_context_axis": {
+      "protocol": "v6i26_phase_pod_exclusive_birth",
+      "classification": "DIAGNOSTIC",
+      "path": "C_phase_pod_psro",
+      "claim": "B_population_guided",
+      "pods": [
+        {
+          "pod_id": "open_pressure",
+          "member_id": 0,
+          "label": "open_pressure",
+          "description": "No carriers; early scramble \u2014 early pressure / race",
+          "seed_offset": 0
+        },
+        {
+          "pod_id": "intercept",
+          "member_id": 1,
+          "label": "intercept",
+          "description": "Red has flag carrier mid-field \u2014 intercept and deny",
+          "seed_offset": 100
+        },
+        {
+          "pod_id": "escort",
+          "member_id": 2,
+          "label": "escort",
+          "description": "Blue has flag carrier mid-field \u2014 protect and convert",
+          "seed_offset": 200
+        },
+        {
+          "pod_id": "defend_lead",
+          "member_id": 3,
+          "label": "defend_lead",
+          "description": "Blue score lead + late clock \u2014 stall / home defense",
+          "seed_offset": 300
+        }
+      ],
+      "pod_to_z": {
+        "open_pressure": 0,
+        "intercept": 1,
+        "escort": 2,
+        "defend_lead": 3
+      },
+      "note": "Exclusive scenario injection at episode start; no z-role rewards; contract specialist OFF; router OFF during birth."
+    },
+    "pod_to_z": {
+      "open_pressure": 0,
+      "intercept": 1,
+      "escort": 2,
+      "defend_lead": 3
+    },
+    "phase_ids": [
+      "open_pressure",
+      "intercept",
+      "escort",
+      "defend_lead"
+    ]
+  },
+  "landscape_scan": "artifacts\\v6i26_landscape_scan_op8_12_seed1\\landscape_scan.json",
+  "landscape_decision": "PROMOTE_LRO_BIRTH",
+  "breakthrough_criterion": "delta_G_available = G_after - G_before > 0",
+  "acceptance_rule": [
+    "G_after > G_before",
+    "nonredundant_payoff_row",
+    "competence_above_floor"
+  ],
+  "G_before": null,
+  "targeted_regret_mixture": {
+    "target_context": "OP11|map_b_split_lane",
+    "target_context_index": 6,
+    "target_regret": 0.40524999999999994,
+    "raw_target_regret": 0.42999999999999994,
+    "smoothed": true,
+    "episodes_per_cell": 4,
+    "prior_strength": 4.0,
+    "max_mixture_weight": 0.35,
+    "aggregate_by_opponent": true,
+    "mixture_weights": {
+      "OP8|map_b_split_lane": 0.09723525845865039,
+      "OP8|map_b_split_lane_v2": 0.09723525845865039,
+      "OP9|map_b_split_lane": 0.0871066636816395,
+      "OP9|map_b_split_lane_v2": 0.0871066636816395,
+      "OP10|map_b_split_lane": 0.09237749487620683,
+      "OP10|map_b_split_lane_v2": 0.09237749487620683,
+      "OP11|map_b_split_lane": 0.11240780640343818,
+      "OP11|map_b_split_lane_v2": 0.11240780640343818,
+      "OP12|map_b_split_lane": 0.11087277658006506,
+      "OP12|map_b_split_lane_v2": 0.11087277658006506
+    },
+    "mixture_top": [
+      {
+        "context": "OP11|map_b_split_lane",
+        "weight": 0.11240780640343818,
+        "regret": 0.40524999999999994
+      },
+      {
+        "context": "OP11|map_b_split_lane_v2",
+        "weight": 0.11240780640343818,
+        "regret": 0.40524999999999994
+      },
+      {
+        "context": "OP12|map_b_split_lane_v2",
+        "weight": 0.11087277658006506,
+        "regret": 0.3983749999999999
+      }
+    ],
+    "branch_to_train_index": 3,
+    "branch_to_train_label": "p3",
+    "acceptance_requires": [
+      "delta_G_available_gt_0",
+      "nonredundant_payoff_row",
+      "competence_above_floor"
+    ]
+  },
+  "branch_selected": 3,
+  "branch_KL_from_initialization": null,
+  "niche_payoff_improvement": null,
+  "general_competence_change": null,
+  "G_after": null,
+  "delta_G_available": null,
+  "accept_reject": null,
+  "mixture_cells": [
+    {
+      "opponent": "OP11",
+      "map": "map_b_split_lane",
+      "weight": 0.12313356000249884
+    },
+    {
+      "opponent": "OP11",
+      "map": "map_b_split_lane_v2",
+      "weight": 0.12313356000249884
+    },
+    {
+      "opponent": "OP12",
+      "map": "map_b_split_lane",
+      "weight": 0.12145206035483594
+    },
+    {
+      "opponent": "OP12",
+      "map": "map_b_split_lane_v2",
+      "weight": 0.12145206035483594
+    },
+    {
+      "opponent": "OP8",
+      "map": "map_b_split_lane",
+      "weight": 0.10651327443225062
+    },
+    {
+      "opponent": "OP8",
+      "map": "map_b_split_lane_v2",
+      "weight": 0.10651327443225062
+    },
+    {
+      "opponent": "OP10",
+      "map": "map_b_split_lane",
+      "weight": 0.10119199166110607
+    },
+    {
+      "opponent": "OP10",
+      "map": "map_b_split_lane_v2",
+      "weight": 0.10119199166110607
+    },
+    {
+      "opponent": "OP9",
+      "map": "map_b_split_lane",
+      "weight": 0.09541822709861704
+    }
+  ],
+  "updates": 25,
+  "run_tag": "v6i26_lro_z3_r1_25u_seed1"
+}

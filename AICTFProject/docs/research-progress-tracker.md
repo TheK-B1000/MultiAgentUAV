@@ -2266,6 +2266,29 @@ Same steps, maps, opponents, seeds, reward, PPO hparams, eval seeds.
 Five requirements: controllability, competence, `G_available`, `G_realized`,
 `G_latent` (multi-seed CIs). See protocol §7.3 / §8.
 
+**Slim eval of existing 5u teachers (2026-07-23):** oversized 32-ep full-grid
+eval killed; scored `probe_05u` zips on OP11/OP12 × both maps @ 8 matched
+eps, JSD skipped (`eval_gates_slim/`).
+
+```text
+WR matrix (n=8/cell):
+              OP11/m1  OP11/v2  OP12/m1  OP12/v2
+balanced        0.75     0.50     0.75     0.75
+failure_cells   0.75     1.00     0.875    0.875
+high_variance   0.50     0.75     0.625    0.50
+complementary   0.875    0.00     0.75     0.00
+
+Cross-fit oracle = best_fixed = 0.95; delta=0; CI=[0,0]
+Primary: FAIL | Decision: TREND_EXTEND_TO_100K
+Max row distance: 0.67 (driven by complementary collapse on v2)
+Classifier acc: 0.86 (supporting)
+```
+
+Interpretation: not promote. Apparent cell winners exist, but
+`G_available=0` after cross-fitting; complementary is **incompetent** on
+v2 (0%), not a niche. Closest ladder outcome: **stop scaling this
+confounded 5u setup → no-contract micro-probe** (fresh shared-core init).
+
 **Locked next sequence (2026-07-23):**
 
 ```text
@@ -2284,8 +2307,25 @@ Next Path C spend after the current matrix: either stop, or
 `--micro-probe` / `--disable-contract-specialist` — never another full
 5u+32-eps launch without a five-line contract and a micro rejection filter.
 
-**Status:** `ACTIVE` — primary next arm after V6I25 `FAIL_SIGNAL`.
-**Run:** 5u probe launched 2026-07-23
+**Status:** `CLOSED_AS_PRIMARY` (2026-07-23) — soft 5u Path C abandoned as
+the method path. Retained as a landscape / feasibility probe only.
+See `artifacts/v6i24_population_seed1/pathc_close_verdict.json`.
+
+**Soft 5u close (slim OP11/OP12×2 maps, 8 eps/cell):**
+
+| Gate | Result |
+|------|--------|
+| Different best + margin ≥0.10 | PASS (2 unique; 4/4 cells) |
+| Payoff row distance | PASS (max 0.67) |
+| Cross-fitted oracle > best fixed | **FAIL** (0.95 − 0.95 = 0) |
+| Donor→teacher mean KL | 0.011 (tiny; still near generalist basin) |
+| Train success (directional) | π0≈0.59, π1≈0.23, π2≈0.42, π3≈0.67 |
+
+Runner suggested `TREND_EXTEND_TO_100K`. **Rejected:** shared z=0 contract
+confound + tiny KL + zero harvestable `G_available` means more soft PPO
+hours will not answer Claim B. Primary path is **V6I26 LRO** (§3.37).
+
+**Run:** 5u probe
 (`artifacts/v6i24_population_seed1`, shared-core from V6I23 donor, seed 1).
 Init competence gate skipped for this launch (`--skip-init-gate`): prior
 multi-member eval hung mid-episode; lean gate + step-cap fixed in code for
@@ -2335,6 +2375,102 @@ per-cell `max_π R` is diagnostic, not the promotion gate.
 
 **Progression after PASS:** distill teachers into `π(a|s,z)` → re-test
 distilled context oracle > best fixed `z` → only then train geometry router.
+
+**Superseded as primary method path (2026-07-23):** soft Path C remains a
+feasibility / teacher generator. The Claim B breakthrough implementation is
+**V6I26 LRO-Summer** (§3.37): internal response-oracle branches, not four
+external policies with handcrafted pressure mixtures.
+
+### 3.37 v6i26 Latent Response-Oracle Summer (LRO) -- `ACTIVE` (2026-07-23)
+
+**Status:** `ACTIVE` — finite proof ladder (not indefinite Summer polish).
+Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`.
+**Do not modify the current 25u Stage-1 run.**
+
+**Locked headline claim (replaces spontaneous emergence):**
+
+> Summer uses response-oracle training to create complementary latent team
+> strategies inside one decentralized PPO policy, then learns a persistent
+> context router that selects among them and outperforms fixed-strategy and
+> matched non-latent PPO agents.
+
+Strategies remain unlabeled. LRO identifies weaknesses; PPO discovers actions
+from task reward only.
+
+**Finite proof ladder (doors lock behind us):**
+
+```text
+1. Stage 1 creates one latent response     ΔG > 0
+2. Confirm seeds + ≥32 eps/cell            CI95(ΔG) > 0
+3. Add specialists only if G rises again   (2–3 enough; not forced K=4)
+4. Internal repertoire retention           G_available,internal > 0
+5. Sparse context router                   G_realized > 0
+6. Routed LRO vs matched non-latent PPO    G_latent > 0
+```
+
+`G = V_cross-fitted oracle − V_best fixed z`. Everything else is diagnostic.
+
+**Phase 1 Stage-1 contract (current 25u — locked mid-flight):**
+
+```text
+Initial policy: V6I23
+Selected branch: z3
+Router: OFF | forced z3 | contract OFF | task reward only
+Target: smoothed OP11/OP12 regret mixture
+Inactive branches: frozen (active-branch-only)
+Architecture: deep z trunks + per-z action heads
+  (shared z-conditioned critic — no separate value heads this run)
+```
+
+**Accept z3 only if all hold:** `ΔG>0`, targeted OP11/OP12 improves, competence
+floor, inactive branches do not drift, nonredundant payoff row.
+Not enough: KL alone, action JSD alone, one noisy 4-episode cell.
+
+**Failure → one predefined response (no coefficient carousel):**
+
+| Result | One allowed response |
+|--------|----------------------|
+| `ΔG>0` | Phase 2 larger confirm |
+| `ΔG≤0`, tiny KL | **One** retry: more branch freedom/budget |
+| Target↑, collapse elsewhere | Add fixed competence-anchor mixture fraction |
+| Large KL, no target↑ | Stop OP×map; move to possession/phase contexts |
+| Two fair rounds flat | Redesign strategic regimes, not PPO machinery |
+
+**Phase 2 confirm (only if Stage-1 directional PASS):** matched seeds, ≥32
+eps/cell, held-out cells not used for mixture, ≥3 training seeds,
+`CI95(ΔG)>0`. Stage-0 archive `G≈0.32` justifies the experiment only.
+
+**Phase 3–6:** add specialists only if `G` rises again (2–3 enough); retention
+`G_available,internal>0`; sparse router (no opponent ID) → `G_realized>0`;
+headline routed LRO > matched non-latent → `G_latent>0`. Minimal ablations:
+no-LRO / shallow heads / fixed-or-random router.
+
+**Permanently closed as primary fixes:** entropy-as-diversity, persistence-as-
+specialization, MI/JSD headline, soft OP×map birth, contract-specialist glue,
+router before `G_available>0`, 4-eps cell winners, archive fishing, 5u-as-final,
+simultaneous reward+router+arch+pool changes, V6I26a–z carousel.
+
+**Paper vs extension (locked 2026-07-23):** Summer borrows history-aware state
+processing, population BR, payoff matrices, and repeated adaptation. The paper
+does **not** explicitly predict or choreograph future states. Summer’s
+repertoire, persistent router, event-based re-selection, and any
+latent-conditioned `V̂(c_t,z)` (or multi-feature future predictors) are
+**beyond-paper**. Phases 1–6 use only implicit foresight (learned returns +
+temporal context). Explicit future-value choreography is optional **after**
+the ladder gates — not a Stage-1/router prerequisite.
+
+**Stage-0 result (COMPLETE):** `PROMOTE_LRO_BIRTH`, archive
+`G_available_point=0.3175`, 3 unique bests — directional only.
+Stage-1: `artifacts/v6i26_lro_round1_seed1` (z3, 25u) measuring forced-z
+`G_before` now — do not interrupt.
+
+**Vs V6I24:** adaptive task-return response targets; iterative BR; four
+branches in one model; no strategy-specific reward; distill optional only
+after niche PASS.
+
+**Implementation:** preset `v6i26` / `v6i26_lro`,
+`experiments/v6i26_lro_core.py`, runners under `experiments/run_v6i26_*`,
+`tests/test_v6i26_latent_response_oracle.py`.
 
 ### 3.36 v6i25 counterfactual-router diagnostic -- `FAIL_SIGNAL` (2026-07-23)
 

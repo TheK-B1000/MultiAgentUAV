@@ -1,0 +1,42 @@
+{
+  "experiment": "v6i24_path_c_soft_close",
+  "closed_at_utc": "2026-07-23T19:56:00Z",
+  "verdict": "ABANDON_AS_PRIMARY_METHOD",
+  "promote_to_100k": false,
+  "evidence": {
+    "slim_eval": "artifacts/v6i24_population_seed1/probe_05u/eval_gates_slim/v6i24_eval_gates.json",
+    "donor_teacher_kl": "artifacts/v6i24_population_seed1/donor_teacher_kl.json",
+    "landscape_ingest": "artifacts/v6i26_landscape_scan_seed1/landscape_scan.json",
+    "train_success_rates": {
+      "balanced": 0.591,
+      "failure_cells": 0.233,
+      "high_variance": 0.423,
+      "complementary": 0.667
+    }
+  },
+  "gates": {
+    "primary_cross_fitted_oracle": false,
+    "oracle_gap": 0.0,
+    "different_best_with_margin": true,
+    "unique_best_policies": 2,
+    "max_pairwise_row_distance": 0.667,
+    "classifier_acc": 0.859,
+    "global_mean_donor_kl": 0.0112,
+    "donor_kl_interpretation": "moved_check_niches_but_tiny"
+  },
+  "interpretation": [
+    "Raw preference reversals exist (complementary best on OP11|map_b_split_lane; failure_cells best elsewhere; complementary collapses on v2).",
+    "Cross-fitted context oracle does not beat best-fixed (G_available = 0) — niches are not yet harvestable.",
+    "Donor→teacher action KL is tiny (~0.011 mean) — teachers remain near the generalist basin after only 5u under shared z=0 contract.",
+    "Soft Path C is a useful landscape probe, not a Claim B teacher generator to extend to 100k."
+  ],
+  "next": {
+    "primary": "V6I26 LRO-Summer",
+    "do_not": "TREND_EXTEND_TO_100K soft Path C under shared contract",
+    "stage0_extend": [
+      "Broaden landscape scan: OP8–OP10, start geometries, league/ROA snapshots",
+      "Optional: no-contract 2u micro-probe only if needed to separate contract confound from pressure"
+    ],
+    "promote_lro_birth_when": "G_available_point > 0 with niche_signal on expanded contexts"
+  }
+}

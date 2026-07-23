@@ -1,0 +1,87 @@
+{
+  "n_policies": 5,
+  "n_contexts": 10,
+  "unique_best_count": 3,
+  "unique_best_indices": [
+    0,
+    1,
+    2
+  ],
+  "unique_best_labels": [
+    "v6i24_balanced",
+    "v6i24_failure_cells",
+    "v6i24_high_variance"
+  ],
+  "cells_with_margin_ge": 3,
+  "margin_threshold": 0.1,
+  "best_by_context": {
+    "OP8|map_b_split_lane": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.1,
+      "margin_vs_second": 0.025000000000000133
+    },
+    "OP8|map_b_split_lane_v2": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.1375,
+      "margin_vs_second": 0.3749999999999999
+    },
+    "OP9|map_b_split_lane": {
+      "best_policy": "v6i24_balanced",
+      "best_index": 0,
+      "payoff": 0.5625,
+      "margin_vs_second": 0.0
+    },
+    "OP9|map_b_split_lane_v2": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 0.8375,
+      "margin_vs_second": 0.012499999999999956
+    },
+    "OP10|map_b_split_lane": {
+      "best_policy": "v6i24_balanced",
+      "best_index": 0,
+      "payoff": 1.1375,
+      "margin_vs_second": 0.06249999999999978
+    },
+    "OP10|map_b_split_lane_v2": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.1375,
+      "margin_vs_second": 0.012499999999999956
+    },
+    "OP11|map_b_split_lane": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.05,
+      "margin_vs_second": 0.23749999999999993
+    },
+    "OP11|map_b_split_lane_v2": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.1125,
+      "margin_vs_second": 0.0625
+    },
+    "OP12|map_b_split_lane": {
+      "best_policy": "v6i24_high_variance",
+      "best_index": 2,
+      "payoff": 0.7750000000000001,
+      "margin_vs_second": 0.26250000000000007
+    },
+    "OP12|map_b_split_lane_v2": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.1375,
+      "margin_vs_second": 0.08749999999999991
+    }
+  },
+  "best_fixed_index": 0,
+  "best_fixed_label": "v6i24_balanced",
+  "oracle_test_mean": 1.0725,
+  "best_fixed_test_mean": 0.7550000000000001,
+  "G_available_point": 0.3174999999999999,
+  "max_pairwise_row_distance": 0.8968608419999085,
+  "niche_signal": true,
+  "parallel_rows": false
+}
