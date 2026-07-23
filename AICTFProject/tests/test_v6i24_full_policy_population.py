@@ -186,12 +186,72 @@ class V6i24ReturnNormFreezeTests(unittest.TestCase):
         self.assertAlmostEqual(float(out.item()), (4.0 - 2.0) / 2.0, places=5)
 
 
+class V6i24SharedCoreTests(unittest.TestCase):
+    def test_filter_keeps_trunk_discards_adapters(self) -> None:
+        from experiments.v6i24_shared_core import (
+            filter_shared_core_state_dict,
+            is_shared_core_parameter,
+        )
+        import torch
+
+        self.assertTrue(is_shared_core_parameter("actor_cnn.conv.0.weight"))
+        self.assertTrue(is_shared_core_parameter("latent_actor.body.0.weight"))
+        self.assertTrue(is_shared_core_parameter("latent_actor.action_head.weight"))
+        self.assertTrue(is_shared_core_parameter("critic.net.0.weight"))
+        self.assertTrue(is_shared_core_parameter("latent_actor.strategy_embedding.weight"))
+        self.assertFalse(is_shared_core_parameter("latent_actor.latent_adapters.0.weight"))
+        self.assertFalse(is_shared_core_parameter("latent_actor.latent_action_heads.1.weight"))
+        self.assertFalse(is_shared_core_parameter("strategy_encoder.net.0.weight"))
+        self.assertFalse(is_shared_core_parameter("selector_gru.cell.weight_ih"))
+
+        src = {
+            "actor_cnn.conv.0.weight": torch.zeros(1),
+            "latent_actor.latent_adapters.0.weight": torch.zeros(1),
+            "latent_actor.strategy_embedding.weight": torch.zeros(1),
+            "only_in_source": torch.zeros(1),
+        }
+        tgt = {
+            "actor_cnn.conv.0.weight": torch.zeros(1),
+            "latent_actor.strategy_embedding.weight": torch.zeros(1),
+            "latent_actor.latent_adapters.0.weight": torch.zeros(1),
+        }
+        shared, report = filter_shared_core_state_dict(src, tgt)
+        self.assertIn("actor_cnn.conv.0.weight", shared)
+        self.assertIn("latent_actor.strategy_embedding.weight", shared)
+        self.assertNotIn("latent_actor.latent_adapters.0.weight", shared)
+        self.assertTrue(report["kept_strategy_embedding"])
+
+    def test_materialize_shared_core_from_v6i23(self) -> None:
+        from experiments.v6i24_shared_core import materialize_shared_core_member_checkpoint
+
+        donor = Path(
+            "artifacts/v6i23_population_birth_5u_seed1/"
+            "final_v6i23_population_birth_5u_seed1_2v2.zip"
+        )
+        if not donor.is_file():
+            self.skipTest(f"donor missing: {donor}")
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "init.zip"
+            result = materialize_shared_core_member_checkpoint(
+                source_checkpoint=donor,
+                output_path=out,
+                seed=1,
+                mode="shared-core",
+            )
+            self.assertTrue(out.is_file())
+            self.assertGreater(result.report["n_shared_loaded"], 10)
+            self.assertTrue(result.report["kept_strategy_embedding"])
+            # Adapters must have been ignored from donor
+            ignored = set(result.report.get("ignored_latent_keys") or [])
+            self.assertTrue(any("latent_adapters" in k for k in ignored))
+            self.assertTrue(any("latent_action_heads" in k for k in ignored))
+
+
 class V6i24StrategicGateUnitTests(unittest.TestCase):
     def test_stricter_payoff_gates(self) -> None:
         from experiments.run_v6i24_population_eval_gates import evaluate_strategic_separation
         import numpy as np
 
-        # Two clear specialist cells with margin >= 0.10 and distinct winners
         M = np.array(
             [
                 [1.0, 0.2, 0.5, 0.5],

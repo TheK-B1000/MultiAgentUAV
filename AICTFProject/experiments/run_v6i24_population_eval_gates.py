@@ -185,12 +185,12 @@ def collect_payoff_and_features(
     base_seed: int,
     device: str,
     max_decision_steps: int,
+    matched_seeds_across_members: bool = False,
 ) -> dict[str, Any]:
     contexts = [f"{o}|{m}" for o in opponents for m in maps]
     k = len(policies)
     payoff = np.zeros((k, len(contexts)), dtype=np.float64)
     wins = np.zeros((k, len(contexts)), dtype=np.float64)
-    # For classifier: list of (cell_idx, member_idx, feat)
     samples: list[tuple[int, int, np.ndarray]] = []
 
     ref_ckpt = Path(policies[0]["path"])
@@ -201,7 +201,10 @@ def collect_payoff_and_features(
                 cell_payoffs = []
                 cell_wins = []
                 for ep in range(episodes_per_cell):
-                    seed = base_seed + 10_000 * ki + 100 * ci + ep
+                    if matched_seeds_across_members:
+                        seed = base_seed + 100 * ci + ep
+                    else:
+                        seed = base_seed + 10_000 * ki + 100 * ci + ep
                     pay, win, feats = _episode_return_and_features(
                         entry["policy"],
                         env,
@@ -228,6 +231,7 @@ def collect_payoff_and_features(
         "winrate_matrix": wins,
         "samples": samples,
         "member_labels": [p["label"] for p in policies],
+        "matched_seeds_across_members": bool(matched_seeds_across_members),
     }
 
 

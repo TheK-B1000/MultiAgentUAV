@@ -1,0 +1,333 @@
+{
+  "experiment": "v6i24_full_policy_population",
+  "classification": "DIAGNOSTIC",
+  "path": "C_fallback_independent_teachers",
+  "parent_preset": "v6i21j_hardpool_balance_calibration",
+  "checkpoint_mode": "shared-core",
+  "source_checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "requested_checkpoint": "artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "seed": 1,
+  "device": "cuda",
+  "created_at_utc": "2026-07-23T13:09:37.793894+00:00",
+  "max_probe_updates": 5,
+  "steps_per_update": 1024,
+  "freeze_return_norm_after_load": true,
+  "pressures": {
+    "protocol": "v6i24_full_policy_population_fixed_cell_pressures",
+    "classification": "DIAGNOSTIC",
+    "path": "C_fallback_independent_teachers",
+    "calibration_source": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i21J_hardpool_balance_calibration\\calibration_report.json",
+    "fixed_through_updates": 25,
+    "probe_updates": [
+      5,
+      10,
+      25
+    ],
+    "steps_per_update": 1024,
+    "members": [
+      {
+        "member_id": 0,
+        "label": "balanced",
+        "description": "Uniform over OP8-OP12 x both maps",
+        "cell_weights": [
+          [
+            "OP8",
+            "map_b_split_lane",
+            0.1
+          ],
+          [
+            "OP8",
+            "map_b_split_lane_v2",
+            0.1
+          ],
+          [
+            "OP9",
+            "map_b_split_lane",
+            0.1
+          ],
+          [
+            "OP9",
+            "map_b_split_lane_v2",
+            0.1
+          ],
+          [
+            "OP10",
+            "map_b_split_lane",
+            0.1
+          ],
+          [
+            "OP10",
+            "map_b_split_lane_v2",
+            0.1
+          ],
+          [
+            "OP11",
+            "map_b_split_lane",
+            0.1
+          ],
+          [
+            "OP11",
+            "map_b_split_lane_v2",
+            0.1
+          ],
+          [
+            "OP12",
+            "map_b_split_lane",
+            0.1
+          ],
+          [
+            "OP12",
+            "map_b_split_lane_v2",
+            0.1
+          ]
+        ],
+        "seed_offset": 0
+      },
+      {
+        "member_id": 1,
+        "label": "failure_cells",
+        "description": "Weight cells where V6I21J baseline WR is lowest",
+        "cell_weights": [
+          [
+            "OP8",
+            "map_b_split_lane",
+            0.03846153846153846
+          ],
+          [
+            "OP8",
+            "map_b_split_lane_v2",
+            0.15384615384615383
+          ],
+          [
+            "OP9",
+            "map_b_split_lane",
+            0.12927350427350426
+          ],
+          [
+            "OP9",
+            "map_b_split_lane_v2",
+            0.03846153846153846
+          ],
+          [
+            "OP10",
+            "map_b_split_lane",
+            0.0010683760683760702
+          ],
+          [
+            "OP10",
+            "map_b_split_lane_v2",
+            0.0
+          ],
+          [
+            "OP11",
+            "map_b_split_lane",
+            0.10683760683760686
+          ],
+          [
+            "OP11",
+            "map_b_split_lane_v2",
+            0.12927350427350426
+          ],
+          [
+            "OP12",
+            "map_b_split_lane",
+            0.12927350427350426
+          ],
+          [
+            "OP12",
+            "map_b_split_lane_v2",
+            0.27350427350427353
+          ]
+        ],
+        "seed_offset": 100
+      },
+      {
+        "member_id": 2,
+        "label": "high_variance",
+        "description": "Weight high Bernoulli-variance / high red-score cells",
+        "cell_weights": [
+          [
+            "OP8",
+            "map_b_split_lane",
+            0.1211947156806433
+          ],
+          [
+            "OP8",
+            "map_b_split_lane_v2",
+            0.1458931648477886
+          ],
+          [
+            "OP9",
+            "map_b_split_lane",
+            0.0762014168102623
+          ],
+          [
+            "OP9",
+            "map_b_split_lane_v2",
+            0.062320505456634125
+          ],
+          [
+            "OP10",
+            "map_b_split_lane",
+            0.023549684089603683
+          ],
+          [
+            "OP10",
+            "map_b_split_lane_v2",
+            0.0215393452039058
+          ],
+          [
+            "OP11",
+            "map_b_split_lane",
+            0.13210798391728892
+          ],
+          [
+            "OP11",
+            "map_b_split_lane_v2",
+            0.13938349607505265
+          ],
+          [
+            "OP12",
+            "map_b_split_lane",
+            0.13938349607505265
+          ],
+          [
+            "OP12",
+            "map_b_split_lane_v2",
+            0.13842619184376795
+          ]
+        ],
+        "seed_offset": 200
+      },
+      {
+        "member_id": 3,
+        "label": "complementary",
+        "description": "Complement of failure + high-variance weights",
+        "cell_weights": [
+          [
+            "OP8",
+            "map_b_split_lane",
+            0.05117725479740317
+          ],
+          [
+            "OP8",
+            "map_b_split_lane_v2",
+            0.02733911245372653
+          ],
+          [
+            "OP9",
+            "map_b_split_lane",
+            0.039820555493493386
+          ],
+          [
+            "OP9",
+            "map_b_split_lane_v2",
+            0.08077992675840551
+          ],
+          [
+            "OP10",
+            "map_b_split_lane",
+            0.3209433502118523
+          ],
+          [
+            "OP10",
+            "map_b_split_lane_v2",
+            0.3647819392555392
+          ],
+          [
+            "OP11",
+            "map_b_split_lane",
+            0.03426587680633609
+          ],
+          [
+            "OP11",
+            "map_b_split_lane_v2",
+            0.03049038609197299
+          ],
+          [
+            "OP12",
+            "map_b_split_lane",
+            0.03049038609197299
+          ],
+          [
+            "OP12",
+            "map_b_split_lane_v2",
+            0.019911212039297868
+          ]
+        ],
+        "seed_offset": 300
+      }
+    ]
+  },
+  "probes": {},
+  "init": {
+    "mode": "shared-core",
+    "seed": 1,
+    "n_source": 50,
+    "n_target": 34,
+    "n_shared_loaded": 21,
+    "ignored_latent_keys": [
+      "latent_actor.latent_action_heads.0.bias",
+      "latent_actor.latent_action_heads.0.weight",
+      "latent_actor.latent_action_heads.1.bias",
+      "latent_actor.latent_action_heads.1.weight",
+      "latent_actor.latent_action_heads.2.bias",
+      "latent_actor.latent_action_heads.2.weight",
+      "latent_actor.latent_action_heads.3.bias",
+      "latent_actor.latent_action_heads.3.weight",
+      "latent_actor.latent_adapters.0.bias",
+      "latent_actor.latent_adapters.0.weight",
+      "latent_actor.latent_adapters.1.bias",
+      "latent_actor.latent_adapters.1.weight",
+      "latent_actor.latent_adapters.2.bias",
+      "latent_actor.latent_adapters.2.weight",
+      "latent_actor.latent_adapters.3.bias",
+      "latent_actor.latent_adapters.3.weight",
+      "latent_actor.z_adapter.weight",
+      "phase_predictor.bias",
+      "phase_predictor.weight",
+      "selector_gru.cell.bias_hh",
+      "selector_gru.cell.bias_ih",
+      "selector_gru.cell.weight_hh",
+      "selector_gru.cell.weight_ih",
+      "strategy_encoder.net.0.bias",
+      "strategy_encoder.net.0.weight",
+      "strategy_encoder.net.2.bias",
+      "strategy_encoder.net.2.weight",
+      "strategy_encoder.net.4.bias",
+      "strategy_encoder.net.4.weight"
+    ],
+    "missing_in_target": [],
+    "shape_mismatch": [],
+    "kept_strategy_embedding": true,
+    "freshly_initialized_tensors": [
+      "selector_gru.cell.weight_ih",
+      "selector_gru.cell.weight_hh",
+      "selector_gru.cell.bias_ih",
+      "selector_gru.cell.bias_hh",
+      "strategy_encoder.net.0.weight",
+      "strategy_encoder.net.0.bias",
+      "strategy_encoder.net.2.weight",
+      "strategy_encoder.net.2.bias",
+      "strategy_encoder.net.4.weight",
+      "strategy_encoder.net.4.bias",
+      "phase_predictor.weight",
+      "phase_predictor.bias",
+      "latent_actor.z_adapter.weight"
+    ],
+    "ignored_source_tensors_unexpected": [],
+    "source_checkpoint": "artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+    "return_norm": {
+      "mean": -2.6570382216376576,
+      "var": 1.6404638192844356,
+      "count": 10240.000100000001
+    },
+    "template": "artifacts\\v6i24_population_seed1\\init\\_shared_core_template.zip",
+    "members": {
+      "0": "artifacts\\v6i24_population_seed1\\init\\member_0_balanced.zip",
+      "1": "artifacts\\v6i24_population_seed1\\init\\member_1_failure_cells.zip",
+      "2": "artifacts\\v6i24_population_seed1\\init\\member_2_high_variance.zip",
+      "3": "artifacts\\v6i24_population_seed1\\init\\member_3_complementary.zip"
+    }
+  }
+}

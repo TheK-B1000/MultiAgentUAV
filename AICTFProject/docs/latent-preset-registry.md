@@ -201,7 +201,8 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i22d_strong_behavior_diversity` (aliases include `v6i22d`, `v6i22d_behavior_diversity_coef010`; sweep arm `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Stronger label-free behavior-contrast repertoire-birth fork after V6I22B/C failed the birth gate. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and applies higher behavior-contrast coefficients (`0.10` primary, `0.05` sweep control). Same trajectory-fingerprint signal as V6I22B; no outcome-diversity channel, no handcrafted z roles, no oracle targets, and no router training. Pinned by `tests/test_v6i22d_strong_behavior_diversity.py`. |
 | `v6i22e_fixed_alpha_adapters` (aliases include `v6i22e`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Fixed-alpha (`α=0.1`) gate-free residual adapters with Kaiming init to escape the zero-init / stuck-gate magnitude trap. Same hardpool birth scaffold; no soft diversity rewards. Pinned by `tests/test_v6i22e_fixed_alpha.py`. |
 | `v6i23_population_birth` (aliases include `v6i23`) | `v6i22e_fixed_alpha_adapters` | `SUMMER-COMPATIBLE EXTENSION` | Population-style specialist birth: active-z-only residual forward plus independent per-z action heads that are Stage-2 trainable (shared `action_head` stays frozen). Router off; no opponent-ID; no soft diversity rewards. Success gate is CF action-JSD, not paper-faithful. Pinned by `tests/test_v6i23_population_birth.py`. |
-| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C** fallback). K=4 ordinary independent `train_ppo` runs cloned from the V6I21J-competent V6I9 generalist checkpoint. Fixed OP8–OP12×map cell pressures (balanced / failure / high-variance / complementary); both maps always have support; frozen return-norm after load; no PFSP/rotation/`PopulationTrainer`. Gates: CF action-JSD >0.05 on ≥2 cells OR held-out classifier >50%, plus stricter payoff-row separation. Pinned by `tests/test_v6i24_full_policy_population.py`. |
+| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C** fallback; **deferred** while V6I25 is primary). K=4 ordinary independent `train_ppo` runs. Fixed OP8–OP12×map cell pressures; frozen return-norm; no PFSP/rotation/`PopulationTrainer`. Resume only if V6I25 `FAIL_SIGNAL` / cannot recover a predictable geometry→z gap. Pinned by `tests/test_v6i24_full_policy_population.py`. |
+| `v6i25_counterfactual_router` (experiment; no training preset) | V6I23 donor checkpoint | `DIAGNOSTIC` | Counterfactual geometry→`q_phi` diagnostic. Cross-fitted context oracle (not per-episode hindsight); Stage A signal gate; soft `softmax(Q̂/τ)` CE loss; geometry asserts; no opponent-ID in router input. Runner: `experiments/run_v6i25_counterfactual_router_diagnostic.py`. Pinned by `tests/test_v6i25_counterfactual_router.py`. |
 
 ---
 
@@ -1573,6 +1574,40 @@ Aliases: `v6i24`, `v6i24_full_policy_population`,
 1. Pass → build V6I24-D distillation.
 2. Trend → extend teachers to 100K.
 3. Fail → redesign external training pressures.
+
+**Status (2026-07-23):** `DEFERRED_PATH_C`. Primary next arm is V6I25
+(§6.42). Resume Path C only if the cross-fitted geometry oracle cannot
+beat best-fixed `z`.
+
+---
+
+### 6.42 v6i25 counterfactual geometry→z router (DIAGNOSTIC)
+
+**Not a training preset.** Experiment runner + helpers that freeze a V6I23
+donor and train only `q_phi` against counterfactual matched-seed returns.
+
+**Scientific delta:** test whether
+`geometry → z → return` is predictable from permitted episode-start
+`global_state` (no opponent ID), then whether soft-Q training of `q_phi`
+recovers that gap. Separates a genuine latent-selection solution from a
+per-episode hindsight lookup table.
+
+**Corrected contracts:**
+
+* Oracle = **cross-fitted** `z*(c)=argmax_z E_train[R|c,z]`, evaluated on
+  held-out seeds — **not** `max_z R` per episode.
+* Stage A must pass (`context-oracle > best_fixed`, paired CI excludes 0)
+  before Stage B router training.
+* Primary loss = `−Σ softmax(Q̂/τ) log q_φ`; centered-advantage is ablation.
+* Loud failure if `global_state` missing / non-finite / all-zero / unique
+  contexts ≤ 1. Aggregate conflicting opponents under the same geometry.
+
+**Artifacts:** `rl/router/counterfactual_router.py`,
+`experiments/run_v6i25_counterfactual_router_diagnostic.py`,
+`tests/test_v6i25_counterfactual_router.py`.
+
+**Verdicts:** `PASS` / `PARTIAL` / `FAIL_SIGNAL` / `FAIL_ROUTER`
+(see research-progress-tracker §3.36).
 
 ---
 

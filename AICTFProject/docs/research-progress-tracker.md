@@ -2233,45 +2233,86 @@ z-conditioned Summer architecture.
 Artifacts: `artifacts/v6i23_popbirth_prereg/` (`ckpt_10u/`, `probes/10u/`,
 `decision_log.json`).
 
-### 3.35 v6i24 full-policy population diagnostic -- `IMPLEMENTED` (lean Path C; 2026-07-23)
+### 3.35 v6i24 full-policy population diagnostic -- `DEFERRED_PATH_C` (2026-07-23)
 
-**Scientific delta (plain English):** V6I22–V6I23 showed shared-trunk training
-cannot produce functional separation (CF action-JSD ~2e-4). V6I24 tests whether
-K=4 fully independent policies under distinct *fixed* OP8–OP12×map cell
-pressures can birth a real repertoire. This is **Path C** (independent teachers
-→ later distill), not Path B (soft latent anti-collapse).
+**Status:** `DEFERRED_PATH_C`. Infrastructure exists
+(`experiments/run_v6i24_full_policy_population.py`, shared-core donor
+extraction), but V6I24 is **not** the primary next arm.
 
-**Fidelity:** `DIAGNOSTIC`.
+**Why deferred:** Stage-C / oracle gap already shows outcomes can differ by
+`z`. The blocking Summer question is whether geometry→`q_phi(z|c)` can
+*choose* useful latents (latent credit assignment), not whether four
+independent teachers can separate under distinct pressures. Resume Path C
+only if V6I25 counterfactual-router fails to beat best-fixed `z`.
 
-**Ancestry / clone source:** parent config `v6i21j`; checkpoint = V6I21J-
-competent V6I9 generalist zip (not V6I22E/V6I23). Latent concat scaffold
-kept with frozen `z=0` for warm-start compatibility; adapters/router/
-strategy losses off; `v6i9_training_stage=generalist`; return-norm frozen
-after load.
+**Scientific delta (plain English):** Path C fallback — K=4 independent
+policies under fixed OP8–OP12×map cell pressures. Parent `v6i21j`; optional
+`--checkpoint-mode shared-core` from V6I23 donor.
 
-**Pressures (fixed through 25u; both maps always have support):**
+### 3.36 v6i25 counterfactual-router diagnostic -- `IMPLEMENTED` (2026-07-23)
+
+**Status:** primary next arm. V6I24 Path C remains `DEFERRED_PATH_C`.
+
+**Scientific question:** Is the existing Stage-C / oracle gap **predictable
+from episode-start geometry** (permitted Summer context), and can
+`q_phi(z|c)` recover that predictable gap?
 
 ```text
-π0 balanced:        uniform OP8-OP12 x both maps
-π1 failure_cells:   weight lowest V6I21J WR cells
-π2 high_variance:   high Bernoulli-variance / red-score cells
-π3 complementary:   complement of π1+π2
+geometry c → z*(c) → return     (cross-fitted context oracle)
+geometry c → q_phi(z|c) → R     (learned router)
 ```
 
-No OP3–OP7 primary pressure. No PFSP / Nash / snapshot leagues / rotation.
+**Not** the question answered by Path C (four independent teachers).
 
-**Budget:** probes at 5u / 10u / 25u per policy (max initial 25u = 25,600 steps;
-population total at 25u = 102,400). Extend only if separation slopes.
+**Fidelity:** `DIAGNOSTIC` (Summer-compatible intent; not PAPER-FAITHFUL —
+counterfactual all-z labels are unavailable to on-policy PPO).
 
-**Engineering:** four ordinary `train_ppo` runs via
-`experiments/run_v6i24_full_policy_population.py` +
-`experiments/v6i24_population_config.py`. `rl/population/*` is deferred.
+**Corrected protocol (locked):**
 
-**Gates:** CF JSD >0.05 on ≥2 cells OR held-out classifier >50%; AND ≥2 cells
-with different best policy at ≥0.10 margin; max row distance ≥0.10; oracle >
-best fixed. Smoke 32 eps/cell; confirm at 128.
+1. Load V6I23 donor; freeze actor / adapters / per-z heads / critic;
+   **reinitialize `q_phi` fresh**.
+2. Matched-seed forced-`z` table for OP8–OP12 × both maps; capture **real**
+   episode-start `global_state` (fail loudly if missing / non-finite /
+   all-zero / unique contexts ≤ 1). **No opponent ID** in router input;
+   conflicting opponents under the same geometry are averaged into
+   `Q̂(c,z)`.
+3. **Stage A (signal gate):** on train seeds
+   `z*(c)=argmax_z E[R|c,z]`; evaluate `R_heldout(c,z*(c))` vs best-fixed
+   chosen on train. Require paired bootstrap CI for
+   `(context-oracle − best-fixed)` excluding zero. If not → `FAIL_SIGNAL`
+   (stop; do not train router).
+4. **Stage B:** soft targets `p*(z|c)=softmax(Q̂_train(c,z)/τ)`;
+   `L=−Σ p* log q_φ`. Centered-advantage loss retained as ablation helper
+   only. Ignore rows with negligible Q spread.
+5. Held-out: router vs best-fixed vs uniform vs **cross-fitted** context
+   oracle (never per-episode hindsight `max_z R`).
+6. Fresh online rollouts on unused seeds.
 
-**Status:** lean infrastructure implemented. Awaiting anchor zip + 5u×4 smoke.
+**Gap recovery:**
+`(R_router − R_best_fixed) / (R_context-oracle − R_best_fixed)`.
+
+**Verdicts:**
+
+| Verdict | Meaning |
+|---------|---------|
+| `PASS` | Stage A OK **and** router > best_fixed (CI) **and** recovery ≥ 50% |
+| `PARTIAL` | Stage A OK, router > best_fixed, recovery < 50% |
+| `FAIL_SIGNAL` | Context oracle cannot beat best_fixed → resume V6I24 / birth |
+| `FAIL_ROUTER` | Stage A OK but router fails → fix `q_phi` / geometry encoding |
+
+**Donor:** V6I23 Stage-C PASS zip (not V6I24).
+**Implementation:** `rl/router/counterfactual_router.py`,
+`experiments/run_v6i25_counterfactual_router_diagnostic.py`,
+`tests/test_v6i25_counterfactual_router.py`.
+
+**Launch (smoke):**
+
+```text
+uv run python experiments/run_v6i25_counterfactual_router_diagnostic.py \
+  --checkpoint artifacts/v6i23_population_birth_5u_seed1/final_v6i23_population_birth_5u_seed1_2v2.zip \
+  --output-dir artifacts/v6i25_cf_router_smoke_seed1 \
+  --episodes-per-cell 8 --device cuda
+```
 
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
