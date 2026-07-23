@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-03 (UTC-4)
+> **Last updated:** 2026-07-23 (UTC-4)
 
 ---
 
@@ -169,6 +169,22 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §8). PLANNED
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
+
+### 3.0.0 OP6-OP12 strategic BT niches - `IMPLEMENTED, PENDING_EVAL`
+
+**Status:** `IMPLEMENTED, PENDING_EVAL`. The scripted BT opponent pool now
+uses a single active OP6-OP12 strategic-niche registry: OP6 immediate dual
+rush, OP7 deep fortress, OP8 protected carrier escort, OP9 split-lane feint,
+OP10 aggressive interceptor, OP11 adaptive exploiter, and OP12 late
+converter. Old aliases remain compatibility handles but resolve to the new
+identities.
+
+**Boundary:** no reward labels, no oracle z targets, and no physical
+family-clone hardening. The OP8/OP10/OP11 blue-carrier slowdown and red
+overdrive constants are neutralized; separation is intended to come from role
+gates, lock timings, lane usage, mines, escort/intercept/counter logic, and
+adaptive memory for OP11/OP12. Forced-z behavior separation still remains the
+router-readiness gate before making latent-strategy claims.
 
 ### 3.0 v6i9 feedforward running-mean arc-credit A/B (IMPLEMENTED, PENDING_SMOKE)
 
@@ -2459,9 +2475,15 @@ latent-conditioned `V̂(c_t,z)` (or multi-feature future predictors) are
 temporal context). Explicit future-value choreography is optional **after**
 the ladder gates — not a Stage-1/router prerequisite.
 
-**Stage-0 result (COMPLETE):** `PROMOTE_LRO_BIRTH`, archive
-`G_available_point=0.3175`, 3 unique bests — directional only.
-Stage-1: `artifacts/v6i26_lro_round1_seed1` (z3, 25u) measuring forced-z
+**Opponent tag discipline (locked 2026-07-23):** short ``OP6``..``OP12`` are
+aliases only (`OPPONENT_ALIASES`). Audited LRO pool is
+`LRO_AUDITED_OPPONENT_POOL` (seven tags, seven distinct role-gate fingerprints).
+Do not put every registry key into a payoff matrix. Stage-1 redo must use this
+pool end-to-end (`G_before` / train / `G_after` same generation).
+
+**Stage-0 result (COMPLETE, pre-niche redo):** `PROMOTE_LRO_BIRTH`, archive
+`G_available_point=0.3175`, 3 unique bests — directional only; **superseded for
+redo** after strategic-niche opponent rewrite.
 `G_before` now — do not interrupt.
 
 **Vs V6I24:** adaptive task-return response targets; iterative BR; four

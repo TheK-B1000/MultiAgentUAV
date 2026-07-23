@@ -26,7 +26,10 @@ from experiments.v6i26_lro_core import (  # noqa: E402
     select_response_target,
     write_json,
 )
-from experiments.v6i24_population_config import DEFAULT_MAPS, DEFAULT_OPPONENTS  # noqa: E402
+from experiments.v6i24_population_config import DEFAULT_MAPS  # noqa: E402
+from gpu_env._core._bt_profiles import LRO_AUDITED_OPPONENT_POOL  # noqa: E402
+
+DEFAULT_OPPONENTS = tuple(LRO_AUDITED_OPPONENT_POOL)
 
 
 def _parse_args() -> argparse.Namespace:

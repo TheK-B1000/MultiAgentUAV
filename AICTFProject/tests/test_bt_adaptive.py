@@ -1,4 +1,4 @@
-"""Tests for OP8-OP12 adaptive hardpool v2 memory and profiles."""
+"""Tests for OP6-OP12 adaptive memory flags under strategic niches."""
 from __future__ import annotations
 
 import sys
@@ -12,64 +12,33 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from gpu_env._core._bt_adaptive import _BTAdaptiveMixin
-from gpu_env._core._bt_profiles import build_profile_tensors, profile_for_level
+from gpu_env._core._bt_profiles import (
+    LRO_AUDITED_OPPONENT_POOL,
+    build_profile_tensors,
+    profile_for_level,
+)
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 from opponent_params import sample_batched_opponent_params
 
 
 class BTAdaptiveProfileTests(unittest.TestCase):
-    def test_op8_through_op12_adaptive_enabled(self) -> None:
-        for lvl in range(8, 13):
-            self.assertTrue(profile_for_level(lvl).adaptive_enabled, f"level {lvl}")
-
-    def test_op5_through_op7_adaptive_disabled(self) -> None:
-        for lvl in range(5, 8):
+    def test_only_exploiter_and_converter_enable_adaptive(self) -> None:
+        for lvl in range(5, 11):
             self.assertFalse(profile_for_level(lvl).adaptive_enabled, f"level {lvl}")
+        self.assertTrue(profile_for_level(11).adaptive_enabled)
+        self.assertTrue(profile_for_level(12).adaptive_enabled)
 
-    def test_profile_tensors_export_adaptive_flag(self) -> None:
-        keys = ["OP8", "OP9", "OP10", "OP11", "OP12"]
-        prof = build_profile_tensors(keys, device=torch.device("cpu"), batch_size=5)
-        self.assertTrue(bool(prof["adaptive_enabled"].all().item()))
+    def test_profile_tensors_export_adaptive_flag_for_audited_pool(self) -> None:
+        keys = list(LRO_AUDITED_OPPONENT_POOL)
+        prof = build_profile_tensors(keys, device=torch.device("cpu"), batch_size=len(keys))
+        # Indices: OP6..OP10 False; OP11/OP12 True
+        self.assertFalse(bool(prof["adaptive_enabled"][:5].any().item()))
+        self.assertTrue(bool(prof["adaptive_enabled"][5:].all().item()))
 
-    def test_v6i21d_brutal_denial_constants_are_active(self) -> None:
-        self.assertGreaterEqual(_BTAdaptiveMixin._NEAR_CAP_DIST, 12.0)
-        self.assertLessEqual(_BTAdaptiveMixin._REPEAT_LANE_STREAK, 2)
-        self.assertLessEqual(_BTAdaptiveMixin._HIGH_OVERCOMMIT, 0.25)
-        self.assertLessEqual(_BTAdaptiveMixin._BLUE_CARRIER_SPEED_MULT, 0.75)
-        self.assertGreaterEqual(_BTAdaptiveMixin._RED_INTERCEPTOR_NEAR_FLAG_BOOST, 1.35)
-        self.assertLessEqual(_BTAdaptiveMixin._RED_RESPAWN_MULT, 0.50)
-        self.assertGreaterEqual(profile_for_level(8).intercept_block_base, 0.84)
-        self.assertFalse(profile_for_level(8).enable_counter)
-        self.assertFalse(profile_for_level(8).enable_2v1)
-        self.assertGreaterEqual(profile_for_level(9).intercept_block_base, 0.84)
-        self.assertGreaterEqual(profile_for_level(10).intercept_block_base, 0.76)
-        self.assertGreaterEqual(profile_for_level(11).intercept_block_base, 0.76)
-        self.assertGreaterEqual(profile_for_level(12).lock_counter, 30)
-
-    def test_v6i21h_surrogate_saturation_fix_constants(self) -> None:
-        self.assertFalse(_BTAdaptiveMixin._OP8_DUAL_DENIAL_ENABLED)
-        self.assertFalse(_BTAdaptiveMixin._OP10_ESCORT_BREAK_ENABLED)
-        self.assertFalse(_BTAdaptiveMixin._OP11_REPEAT_INTERCEPT_ENABLED)
-        self.assertTrue(profile_for_level(8).enable_mines)
-        self.assertFalse(profile_for_level(8).enable_counter)
-        self.assertTrue(profile_for_level(10).counter_always)
-        self.assertTrue(profile_for_level(11).counter_always)
-        self.assertLessEqual(profile_for_level(10).intercept_block_base, 0.80)
-        self.assertLessEqual(profile_for_level(11).intercept_block_base, 0.80)
-
-    def test_v6i21j_hardpool_balance_physical_constants(self) -> None:
-        self.assertLessEqual(_BTAdaptiveMixin._OP8_BLUE_CARRIER_SPEED_MULT, 0.30)
-        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_SPEED_MULT, 1.70)
-        self.assertGreaterEqual(_BTAdaptiveMixin._OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST, 2.00)
-        self.assertLessEqual(_BTAdaptiveMixin._OP10_BLUE_CARRIER_SPEED_MULT, 0.45)
-        self.assertLessEqual(_BTAdaptiveMixin._OP11_BLUE_CARRIER_SPEED_MULT, 0.45)
-        self.assertGreaterEqual(_BTAdaptiveMixin._OP10_RED_SPEED_MULT, 1.45)
-        self.assertGreaterEqual(_BTAdaptiveMixin._OP11_RED_SPEED_MULT, 1.45)
-
-    def test_op8_through_op12_2v2_speed_ranges_boost_red(self) -> None:
+    def test_matched_2v2_speed_bands_across_niches(self) -> None:
         gen = torch.Generator(device="cpu")
         gen.manual_seed(123)
-        for key in ("OP8", "OP9", "OP10", "OP11", "OP12"):
+        for key in LRO_AUDITED_OPPONENT_POOL:
             params = sample_batched_opponent_params(
                 "SCRIPTED",
                 key,
@@ -78,13 +47,12 @@ class BTAdaptiveProfileTests(unittest.TestCase):
                 device="cpu",
                 generator=gen,
             )
-            if key == "OP8":
-                self.assertGreaterEqual(float(params["speed_mult"].min().item()), 1.35, key)
-                self.assertGreaterEqual(float(params["coordinated_attack"].float().mean().item()), 0.70, key)
-            else:
-                self.assertGreaterEqual(float(params["speed_mult"].min().item()), 1.20, key)
-            if key == "OP10":
-                self.assertLessEqual(float(params["speed_mult"].max().item()), 1.25, key)
+            self.assertGreaterEqual(float(params["speed_mult"].min().item()), 0.90, key)
+            self.assertLessEqual(float(params["speed_mult"].max().item()), 1.05, key)
+
+    def test_adaptive_hardpool_keys_include_audited_tags(self) -> None:
+        for tag in LRO_AUDITED_OPPONENT_POOL:
+            self.assertIn(tag, _BTAdaptiveMixin._ADAPTIVE_HARDPOOL_KEYS)
 
     def test_speed_overdrive_mask_allows_hardpool_red_to_exceed_base_cap(self) -> None:
         env = GPUCTFVecEnv(

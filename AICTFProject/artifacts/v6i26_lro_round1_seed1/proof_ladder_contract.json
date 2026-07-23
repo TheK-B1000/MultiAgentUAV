@@ -86,5 +86,16 @@
       "status": "OPTIONAL post-ladder extension — not a Phase 1–6 gate; do not insert before G_available>0 and G_realized>0"
     }
   },
-  "current_run": "artifacts/v6i26_lro_round1_seed1 (25u z3) — do not modify"
+  "current_run": "artifacts/v6i26_lro_round1_seed1 (25u z3) — do not modify",
+  "stage1_progress_note": {
+    "as_of": "2026-07-23T22:09Z",
+    "status": "measuring_G_before — 25u PPO not started",
+    "forced_z_before": "13/40 conditions (~52/160 episodes)",
+    "gate": "success = delta_G = G_after - G_before > 0; G_after>0 alone is insufficient if G_before already >0",
+    "paper_confirm_metrics": [
+      "raw win rate and score outcomes",
+      "shaped payoff used for LRO targeting"
+    ],
+    "early_cells_are_directional_only": "4 eps/cell; OP11 map1 z3 75% vs others 50% is one-episode noise until locked"
+  }
 }

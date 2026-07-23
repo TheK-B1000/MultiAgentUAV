@@ -77,11 +77,18 @@ def apply_v6i26_latent_response_oracle(cfg: PPOConfig) -> PPOConfig:
 
     cfg.mode = TrainMode.OPPONENT_POOL.value
     cfg.opponent_randomize = True
+    # Audited strategic niches only (one tag per incompatible best-response).
+    from gpu_env._core._bt_profiles import LRO_AUDITED_OPPONENT_POOL
+
+    cfg.opponent_pool = tuple(LRO_AUDITED_OPPONENT_POOL)
     cfg.freeze_return_norm_after_load = True
     cfg.phase_pod_id = ""  # optional; LRO mixtures are payoff-driven
 
     cfg.experiment_id = "v6i26"
-    cfg.run_tag = "v6i26_latent_response_oracle_OP8_OP9_OP10_OP11_OP12"
+    cfg.run_tag = (
+        "v6i26_latent_response_oracle_"
+        + "_".join(LRO_AUDITED_OPPONENT_POOL)
+    )
     return cfg
 
 

@@ -115,43 +115,6 @@ class _StepMixin:
     def _advance_dynamics_phase(self, targets: Dict[str, torch.Tensor], snapshot: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         bscale = self.rt_blue_speed_scale.reshape(self.B, 1).expand_as(self.blue_speed)
         blue_speed_cap = torch.full_like(self.blue_speed, float(self.cfg.max_speed_cps)) * bscale
-        if hasattr(self, "_adaptive_hardpool_pressure_mask"):
-            hardpool_pressure = self._adaptive_hardpool_pressure_mask()
-            op8_pressure = torch.as_tensor(
-                [str(k).strip().upper() in ("OP8", "OP8_INTERCEPTOR") for k in self._opponent_key],
-                dtype=torch.bool,
-                device=self.device,
-            )
-            op10_pressure = torch.as_tensor(
-                [str(k).strip().upper() in ("OP10", "OP10_ESCORT") for k in self._opponent_key],
-                dtype=torch.bool,
-                device=self.device,
-            )
-            op11_pressure = torch.as_tensor(
-                [str(k).strip().upper() in ("OP11", "OP11_BT_BALANCED") for k in self._opponent_key],
-                dtype=torch.bool,
-                device=self.device,
-            )
-            blue_carrier = self.blue_carrying & self.blue_alive & (~self.blue_tagged)
-            blue_carrier_mult = torch.where(
-                op8_pressure[:, None],
-                torch.full_like(blue_speed_cap, float(getattr(self, "_OP8_BLUE_CARRIER_SPEED_MULT", 0.35))),
-                torch.where(
-                    op10_pressure[:, None],
-                    torch.full_like(blue_speed_cap, float(getattr(self, "_OP10_BLUE_CARRIER_SPEED_MULT", 0.45))),
-                    torch.where(
-                        op11_pressure[:, None],
-                        torch.full_like(blue_speed_cap, float(getattr(self, "_OP11_BLUE_CARRIER_SPEED_MULT", 0.45))),
-                        torch.full_like(blue_speed_cap, float(getattr(self, "_BLUE_CARRIER_SPEED_MULT", 0.95))),
-                    ),
-                ),
-            )
-            carrier_penalty = torch.where(
-                hardpool_pressure[:, None] & blue_carrier,
-                blue_carrier_mult,
-                torch.ones_like(blue_speed_cap),
-            )
-            blue_speed_cap = blue_speed_cap * carrier_penalty
         B = self.B
         rm = self.red_speed_mult.reshape(-1).to(device=self.red_speed.device, dtype=self.red_speed.dtype)
         if rm.numel() < B:
@@ -162,65 +125,7 @@ class _StepMixin:
         elif rm.numel() > B:
             rm = rm[:B]
         red_speed_cap = torch.full_like(self.red_speed, float(self.cfg.max_speed_cps)) * rm[:, None]
-        if hasattr(self, "_adaptive_hardpool_pressure_mask") and hasattr(self, "bt_red_role"):
-            hardpool_pressure = self._adaptive_hardpool_pressure_mask()
-            op8_pressure = torch.as_tensor(
-                [str(k).strip().upper() in ("OP8", "OP8_INTERCEPTOR") for k in self._opponent_key],
-                dtype=torch.bool,
-                device=self.device,
-            )
-            op10_pressure = torch.as_tensor(
-                [str(k).strip().upper() in ("OP10", "OP10_ESCORT") for k in self._opponent_key],
-                dtype=torch.bool,
-                device=self.device,
-            )
-            op11_pressure = torch.as_tensor(
-                [str(k).strip().upper() in ("OP11", "OP11_BT_BALANCED") for k in self._opponent_key],
-                dtype=torch.bool,
-                device=self.device,
-            )
-            red_speed_overdrive_mask = hardpool_pressure[:, None].expand_as(self.red_speed)
-            if bool(hardpool_pressure.any().item()):
-                op8_speed_mult = torch.where(
-                    op8_pressure[:, None],
-                    torch.full_like(red_speed_cap, float(getattr(self, "_OP8_RED_SPEED_MULT", 1.60))),
-                    torch.where(
-                        op10_pressure[:, None],
-                        torch.full_like(red_speed_cap, float(getattr(self, "_OP10_RED_SPEED_MULT", 1.45))),
-                        torch.where(
-                            op11_pressure[:, None],
-                            torch.full_like(red_speed_cap, float(getattr(self, "_OP11_RED_SPEED_MULT", 1.45))),
-                            torch.ones_like(red_speed_cap),
-                        ),
-                    ),
-                )
-                red_speed_cap = red_speed_cap * op8_speed_mult
-                home = self.red_flag_home
-                near_flag = torch.sqrt(
-                    (self.red_x - home[:, 0:1]) ** 2 + (self.red_y - home[:, 1:2]) ** 2 + 1e-8
-                ) <= float(getattr(self, "_RED_INTERCEPTOR_NEAR_FLAG_DIST", 8.0))
-                is_interceptor = self.bt_red_role == 3
-                interceptor_boost = torch.where(
-                    op8_pressure[:, None],
-                    torch.full_like(red_speed_cap, float(getattr(self, "_OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.85))),
-                    torch.where(
-                        op10_pressure[:, None],
-                        torch.full_like(red_speed_cap, float(getattr(self, "_OP10_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.65))),
-                        torch.where(
-                            op11_pressure[:, None],
-                            torch.full_like(red_speed_cap, float(getattr(self, "_OP11_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.65))),
-                            torch.full_like(red_speed_cap, float(getattr(self, "_RED_INTERCEPTOR_NEAR_FLAG_BOOST", 1.22))),
-                        ),
-                    ),
-                )
-                int_boost = torch.where(
-                    hardpool_pressure[:, None] & near_flag & is_interceptor & self.red_alive,
-                    interceptor_boost,
-                    torch.ones_like(red_speed_cap),
-                )
-                red_speed_cap = red_speed_cap * int_boost
-        else:
-            red_speed_overdrive_mask = None
+        red_speed_overdrive_mask = None
 
         self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, blue_oob, yaw_cmd_blue = self._integrate_side(
             self.blue_x, self.blue_y, self.blue_heading, self.blue_speed, self.blue_alive, targets["btx"], targets["bty"], speed_cap=blue_speed_cap

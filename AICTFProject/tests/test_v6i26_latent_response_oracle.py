@@ -99,6 +99,7 @@ class V6i26ConfigContractTests(unittest.TestCase):
             "enable_latent_z_residual",
             "latent_population_birth_active_z_only",
             "latent_population_birth_per_z_action_heads",
+            "opponent_pool",
         }
         actual = {k for k in v26 if v26[k] != v23.get(k)}
         unexpected = actual - allowed

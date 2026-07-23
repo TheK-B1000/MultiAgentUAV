@@ -81,7 +81,7 @@
     "nonredundant_payoff_row",
     "competence_above_floor"
   ],
-  "G_before": null,
+  "G_before": 0.19999999999999996,
   "targeted_regret_mixture": {
     "target_context": "OP11|map_b_split_lane",
     "target_context_index": 6,
@@ -184,5 +184,167 @@
     }
   ],
   "updates": 25,
-  "run_tag": "v6i26_lro_z3_r1_25u_seed1"
+  "run_tag": "v6i26_lro_z3_r1_25u_seed1",
+  "G_before_detail": {
+    "summary": {
+      "n_policies": 4,
+      "n_contexts": 10,
+      "unique_best_count": 3,
+      "unique_best_indices": [
+        0,
+        1,
+        3
+      ],
+      "unique_best_labels": [
+        "z0",
+        "z1",
+        "z3"
+      ],
+      "cells_with_margin_ge": 4,
+      "margin_threshold": 0.1,
+      "best_by_context": {
+        "OP10|map_b_split_lane": {
+          "best_policy": "z1",
+          "best_index": 1,
+          "payoff": 3.0,
+          "margin_vs_second": 0.0
+        },
+        "OP10|map_b_split_lane_v2": {
+          "best_policy": "z3",
+          "best_index": 3,
+          "payoff": 3.0,
+          "margin_vs_second": 0.25
+        },
+        "OP11|map_b_split_lane": {
+          "best_policy": "z3",
+          "best_index": 3,
+          "payoff": 0.25,
+          "margin_vs_second": 0.5
+        },
+        "OP11|map_b_split_lane_v2": {
+          "best_policy": "z0",
+          "best_index": 0,
+          "payoff": 0.75,
+          "margin_vs_second": 0.0
+        },
+        "OP12|map_b_split_lane": {
+          "best_policy": "z1",
+          "best_index": 1,
+          "payoff": 0.75,
+          "margin_vs_second": 0.0
+        },
+        "OP12|map_b_split_lane_v2": {
+          "best_policy": "z0",
+          "best_index": 0,
+          "payoff": -0.5,
+          "margin_vs_second": 0.0
+        },
+        "OP8|map_b_split_lane": {
+          "best_policy": "z3",
+          "best_index": 3,
+          "payoff": 1.5,
+          "margin_vs_second": 0.5
+        },
+        "OP8|map_b_split_lane_v2": {
+          "best_policy": "z1",
+          "best_index": 1,
+          "payoff": 1.0,
+          "margin_vs_second": 0.0
+        },
+        "OP9|map_b_split_lane": {
+          "best_policy": "z1",
+          "best_index": 1,
+          "payoff": 1.0,
+          "margin_vs_second": 0.0
+        },
+        "OP9|map_b_split_lane_v2": {
+          "best_policy": "z3",
+          "best_index": 3,
+          "payoff": 2.25,
+          "margin_vs_second": 0.5
+        }
+      },
+      "best_fixed_index": 3,
+      "best_fixed_label": "z3",
+      "oracle_test_mean": 1.3,
+      "best_fixed_test_mean": 1.1,
+      "G_available_point": 0.19999999999999996,
+      "max_pairwise_row_distance": 0.7458216921503196,
+      "niche_signal": true,
+      "parallel_rows": false
+    },
+    "oracle_report": {
+      "oracle_metric": "win_margin",
+      "best_fixed_z": 3,
+      "best_fixed_mean": 1.1,
+      "oracle_mean": 1.575,
+      "oracle_gap": 0.47499999999999987,
+      "oracle_gap_std": 1.2427288521636568,
+      "matched_episode_count": 40,
+      "fixed_episode_count": 40
+    },
+    "payoff_matrix": [
+      [
+        1.5,
+        2.75,
+        -0.25,
+        0.75,
+        -0.5,
+        -0.5,
+        1.0,
+        0.25,
+        0.75,
+        1.75
+      ],
+      [
+        3.0,
+        2.25,
+        -0.75,
+        0.75,
+        0.75,
+        -0.5,
+        0.75,
+        1.0,
+        1.0,
+        1.75
+      ],
+      [
+        3.0,
+        2.25,
+        -0.75,
+        0.0,
+        0.75,
+        -0.5,
+        0.75,
+        1.0,
+        1.0,
+        1.75
+      ],
+      [
+        2.5,
+        3.0,
+        0.25,
+        0.75,
+        0.75,
+        -0.5,
+        1.5,
+        0.0,
+        0.5,
+        2.25
+      ]
+    ],
+    "contexts": [
+      "OP10|map_b_split_lane",
+      "OP10|map_b_split_lane_v2",
+      "OP11|map_b_split_lane",
+      "OP11|map_b_split_lane_v2",
+      "OP12|map_b_split_lane",
+      "OP12|map_b_split_lane_v2",
+      "OP8|map_b_split_lane",
+      "OP8|map_b_split_lane_v2",
+      "OP9|map_b_split_lane",
+      "OP9|map_b_split_lane_v2"
+    ],
+    "forced_z_dir": "artifacts\\v6i26_lro_round1_seed1\\forced_z_before"
+  }
 }

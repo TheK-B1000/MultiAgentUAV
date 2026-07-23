@@ -30,20 +30,17 @@ OP3 vs OP4 (must be clearly different for held-out eval):
     pressure. 4v4 ``bite_v4`` adds extended sync windows (3-7 / 3-6) and small deception
     (0.04-0.12) so OP5 can't be one-strategy solved (target ~30-55% WR on flat 4v4 policies;
     2v2 retains the ``bite_v2`` tuning that ``test_op5_rusher_bounded_2v2`` pins).
-  - OP6 / OP6_TURTLE: Trainable **defensive turtle**. 4v4 is intentionally the **hardest**
-    training opponent — chase-speed band 1.00-1.20 (so red can actually intercept), c=0.70
-    coordination, sync 3-7 / 3-6, heavy mid-field deception 0.25-0.45 (defenders feint, blue
-    can't predict the intercept), role switch 0.18 (shell can shape-shift mid-push). The
-    ``attacker_style=0 / defender_style=1`` identity is preserved (turtle = home shell, not
-    counter-attacker); difficulty comes from the defense *working*, not from offensive pressure.
-  - OP7 / OP7_SWITCHER: Trainable **deceptive switcher**: each episode samples one of several
-    archetypes (slow shell / feint-intercept / volatile dual / coordinated rush). High
-    within-episode variability is expressed through **stochastic role pivots** (``role_switch_prob``)
-    and deception; true flag-triggered FSM logic is not in this module yet.
+  - OP6..OP12: Scripted strategic niches with matched physical speed bands.
+    The BT role gates define the identity: OP6 immediate dual rush, OP7 deep
+    fortress, OP8 protected carrier escort, OP9 split-lane feint, OP10
+    aggressive interceptor, OP11 adaptive exploiter, OP12 late converter.
+    Scalars here align attacker/defender style, role churn, deception, and
+    coordination with those identities without making one family physically
+    faster or slowing blue carriers as the differentiator.
 
   The core uses: red_attacker_style, red_defender_style, red_deception_prob, red_speed_mult,
   red_role_switch_prob, red_coordinated_attack, red_attack_sync_window, so OP3 vs OP4 vs
-  OP5_RUSHER vs OP6 vs OP7 produce different red behavior.
+  OP5_RUSHER vs OP6..OP12 produce different red behavior.
 """
 from __future__ import annotations
 
@@ -151,6 +148,74 @@ def _op7_profile_ranges(n_agents: int) -> Dict[int, Dict[str, Tuple[float, float
     }
 
 
+def _strategic_niche_profile(
+    key: str,
+    n_agents: int,
+) -> Optional[Dict[str, Tuple[float, float] | Tuple[int, int] | float | int]]:
+    """Matched-physics style scalars for audited OP6..OP12 strategic niches.
+
+    Resolves short aliases via ``canonicalize_opponent_key`` so ``OP8`` and
+    ``OP8_INTERCEPTOR`` share one identity. Extra unregistered tags return None.
+    """
+    from gpu_env._core._bt_profiles import (
+        LRO_AUDITED_OPPONENT_POOL,
+        canonicalize_opponent_key,
+    )
+
+    canon = canonicalize_opponent_key(key)
+    if canon not in LRO_AUDITED_OPPONENT_POOL:
+        return None
+    if n_agents >= 8:
+        speed = (0.78, 0.92)
+    elif n_agents >= 4:
+        speed = (0.86, 1.00)
+    else:
+        speed = (0.92, 1.00)
+
+    profiles: Dict[str, Dict[str, Tuple[float, float] | Tuple[int, int] | float | int]] = {
+        "OP6_IMMEDIATE_DUAL_RUSH": {
+            "attacker": 1, "defender": 0, "role": 0.04,
+            "deception": (0.02, 0.10), "coord": 0.82,
+            "sync_coord": (2, 5), "sync_noncoord": (1, 3), "noise": (0.0, 0.03),
+        },
+        "OP7_DEEP_FORTRESS": {
+            "attacker": 0, "defender": 1, "role": 0.03,
+            "deception": (0.10, 0.24), "coord": 0.28,
+            "sync_coord": (1, 3), "sync_noncoord": (1, 2), "noise": (0.0, 0.03),
+        },
+        "OP8_PROTECTED_CARRIER_ESCORT": {
+            "attacker": 1, "defender": 0, "role": 0.08,
+            "deception": (0.04, 0.14), "coord": 0.88,
+            "sync_coord": (2, 5), "sync_noncoord": (1, 3), "noise": (0.0, 0.03),
+        },
+        "OP9_SPLIT_LANE_FEINT": {
+            "attacker": 1, "defender": 1, "role": 0.62,
+            "deception": (0.18, 0.36), "coord": 0.48,
+            "sync_coord": (1, 4), "sync_noncoord": (1, 3), "noise": (0.0, 0.04),
+        },
+        "OP10_AGGRESSIVE_INTERCEPTOR": {
+            "attacker": 0, "defender": 1, "role": 0.07,
+            "deception": (0.06, 0.16), "coord": 0.72,
+            "sync_coord": (2, 5), "sync_noncoord": (1, 3), "noise": (0.0, 0.03),
+        },
+        "OP11_ADAPTIVE_EXPLOITER": {
+            "attacker": 1, "defender": 1, "role": 0.46,
+            "deception": (0.14, 0.30), "coord": 0.64,
+            "sync_coord": (2, 6), "sync_noncoord": (1, 4), "noise": (0.0, 0.04),
+        },
+        "OP12_LATE_CONVERTER": {
+            "attacker": 1, "defender": 1, "role": 0.12,
+            "deception": (0.06, 0.18), "coord": 0.78,
+            "sync_coord": (3, 6), "sync_noncoord": (2, 4), "noise": (0.0, 0.03),
+        },
+    }
+    if canon not in profiles:
+        return None
+    out = dict(profiles[canon])
+    out["speed"] = speed
+    return out
+
+
 def sample_batched_opponent_params(
     kind: str,
     key: str,
@@ -206,10 +271,15 @@ def sample_batched_opponent_params(
     role_switch_prob = 0.0
 
     op3_easy = n_agents > 2
+    niche_profile = _strategic_niche_profile(key, n_agents) if kind == "SCRIPTED" else None
 
     # 2. Evaluate logic tree for bounds
     if kind == "SCRIPTED":
-        if key == "OP1":
+        if niche_profile is not None:
+            # OP6..OP12 are resolved through the audited strategic-niche table
+            # below, so stale legacy branches cannot mutate their identity.
+            pass
+        elif key == "OP1":
             # Pav01-like baseline: Easy Attacker + Easy Defender
             attacker_style = 0
             defender_style = 0
@@ -286,158 +356,6 @@ def sample_batched_opponent_params(
             else:
                 # 2v2 bite_v1: 1.15–1.35, c=0.78, role=0.04 → ~95% flat WR vs OP5; bite_v2 pushes harder.
                 s_low, s_high = 1.20, 1.43
-        elif key in ("OP6_TURTLE", "OP6"):
-            # Defensive turtle: home-anchored shell, low commitment churn, moderate midfield deception.
-            attacker_style = 0
-            defender_style = 1
-            role_switch_prob = 0.09
-            d_low, d_high = 0.10, 0.24
-            c_prob = 0.34
-            sync_c_low, sync_c_high = 2, 5
-            sync_nc_low, sync_nc_high = 2, 4
-            n_low, n_high = 0.0, 0.03
-            if n_agents >= 8:
-                s_low, s_high = 0.64, 0.78
-                c_prob = 0.20
-            elif n_agents >= 4:
-                # 4v4 turtle: the *hardest* training opponent at 4v4. Real chase-speed band
-                # (red can actually intercept blue raiders), heavy coordination, extended
-                # sync windows, and heavy mid-field deception so blue can't predict the
-                # intercept. Style identity (attacker=0/defender=1) preserved — the
-                # turtle is hard because the defense *works*, not because it counter-attacks.
-                s_low, s_high = 1.00, 1.20
-                d_low, d_high = 0.25, 0.45
-                c_prob = 0.70
-                sync_c_low, sync_c_high = 3, 7
-                sync_nc_low, sync_nc_high = 3, 6
-                n_low, n_high = 0.0, 0.05
-                role_switch_prob = 0.18
-            else:
-                s_low, s_high = 0.72, 0.90
-                d_low, d_high = 0.08, 0.22
-                c_prob = 0.28
-        elif key in ("OP7_SWITCHER", "OP7"):
-            # Placeholder scalars; per-episode mixture overwrites tensors in the OP7 block below.
-            attacker_style = 1
-            defender_style = 1
-            role_switch_prob = 0.40
-            s_low, s_high = 0.82, 1.05
-            d_low, d_high = 0.12, 0.28
-            c_prob = 0.35
-            sync_c_low, sync_c_high = 2, 6
-            sync_nc_low, sync_nc_high = 2, 5
-            n_low, n_high = 0.0, 0.04
-        elif key in ("OP8", "OP8_INTERCEPTOR"):
-            # Adaptive interceptor / carrier hunter (hardpool v2, v6i21+):
-            # BT tracks blue lane repetition and shifts intercept coverage.
-            attacker_style = 1
-            defender_style = 1
-            role_switch_prob = 0.02
-            d_low, d_high = 0.04, 0.12
-            c_prob = 0.94
-            sync_c_low, sync_c_high = 2, 5
-            sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.04
-            if n_agents >= 8:
-                s_low, s_high = 0.80, 0.96
-                c_prob = 0.80
-            elif n_agents >= 4:
-                s_low, s_high = 0.94, 1.10
-                d_low, d_high = 0.05, 0.14
-                c_prob = 0.92
-            else:
-                s_low, s_high = 1.35, 1.45
-                d_low, d_high = 0.16, 0.34
-                c_prob = 0.94
-        elif key in ("OP9", "OP9_FORTRESS"):
-            # Adaptive fortress / flag denial: collapses cap lane after fast conversions.
-            attacker_style = 0
-            defender_style = 1
-            role_switch_prob = 0.05
-            d_low, d_high = 0.08, 0.22
-            c_prob = 0.90
-            sync_c_low, sync_c_high = 2, 5
-            sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.04
-            if n_agents >= 8:
-                s_low, s_high = 0.72, 0.88
-                c_prob = 0.75
-            elif n_agents >= 4:
-                s_low, s_high = 0.82, 0.98
-                d_low, d_high = 0.12, 0.26
-                c_prob = 0.88
-            else:
-                s_low, s_high = 1.20, 1.25
-                d_low, d_high = 0.16, 0.34
-                c_prob = 0.94
-        elif key in ("OP10", "OP10_ESCORT"):
-            # Adaptive escort breaker: split pressure when blue stacks escort.
-            attacker_style = 1
-            defender_style = 0
-            role_switch_prob = 0.04
-            d_low, d_high = 0.04, 0.12
-            c_prob = 0.92
-            sync_c_low, sync_c_high = 2, 5
-            sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.04
-            if n_agents >= 8:
-                s_low, s_high = 0.82, 0.98
-                c_prob = 0.78
-            elif n_agents >= 4:
-                s_low, s_high = 0.96, 1.12
-                d_low, d_high = 0.05, 0.14
-                c_prob = 0.90
-            else:
-                s_low, s_high = 1.20, 1.25
-                d_low, d_high = 0.10, 0.24
-                c_prob = 0.94
-        elif key in ("OP11", "OP11_BT_BALANCED"):
-            # Adaptive balanced anti-meta: lane prediction + emergency collapse.
-            attacker_style = 1
-            defender_style = 1
-            role_switch_prob = 0.30
-            d_low, d_high = 0.10, 0.26
-            c_prob = 0.62
-            sync_c_low, sync_c_high = 2, 6
-            sync_nc_low, sync_nc_high = 1, 4
-            n_low, n_high = 0.0, 0.05
-            if n_agents >= 8:
-                s_low, s_high = 0.74, 0.90
-                c_prob = 0.38
-                sync_c_low, sync_c_high = 1, 4
-                sync_nc_low, sync_nc_high = 1, 3
-            elif n_agents >= 4:
-                s_low, s_high = 0.88, 1.06
-                d_low, d_high = 0.12, 0.28
-                c_prob = 0.65
-                sync_c_low, sync_c_high = 2, 6
-                sync_nc_low, sync_nc_high = 2, 5
-            else:
-                s_low, s_high = 1.20, 1.25
-                d_low, d_high = 0.10, 0.24
-                c_prob = 0.94
-                role_switch_prob = 0.06
-        elif key in ("OP12", "OP12_COUNTER"):
-            # Adaptive counter-capture: punishes blue overcommit on enemy half.
-            attacker_style = 1
-            defender_style = 1
-            role_switch_prob = 0.06
-            d_low, d_high = 0.04, 0.14
-            c_prob = 0.84
-            sync_c_low, sync_c_high = 2, 5
-            sync_nc_low, sync_nc_high = 1, 3
-            n_low, n_high = 0.0, 0.04
-            if n_agents >= 8:
-                s_low, s_high = 0.76, 0.92
-                c_prob = 0.65
-            elif n_agents >= 4:
-                s_low, s_high = 0.90, 1.08
-                d_low, d_high = 0.05, 0.16
-                c_prob = 0.86
-            else:
-                s_low, s_high = 1.20, 1.25
-                d_low, d_high = 0.10, 0.24
-                c_prob = 0.94
         elif key == "OP4":
             # Held-out eval opponent: never used in training. Make it deliberately broad and
             # stochastic so robustness matters more than memorizing one scripted style.
@@ -546,6 +464,21 @@ def sample_batched_opponent_params(
         sync_nc_low, sync_nc_high = 3, 7
         n_low, n_high = 0.0, 0.06
 
+    if niche_profile is not None:
+        s_low, s_high = niche_profile["speed"]  # type: ignore[index]
+        d_low, d_high = niche_profile["deception"]  # type: ignore[index]
+        n_low, n_high = niche_profile["noise"]  # type: ignore[index]
+        sync_c_low, sync_c_high = niche_profile["sync_coord"]  # type: ignore[index]
+        sync_nc_low, sync_nc_high = niche_profile["sync_noncoord"]  # type: ignore[index]
+        attacker_style = int(niche_profile["attacker"])  # type: ignore[arg-type]
+        defender_style = int(niche_profile["defender"])  # type: ignore[arg-type]
+        role_switch_prob = float(niche_profile["role"])  # type: ignore[arg-type]
+        c_prob = float(niche_profile["coord"])  # type: ignore[arg-type]
+        if n_agents >= 8:
+            c_prob *= 0.75
+        elif n_agents >= 4:
+            c_prob *= 0.92
+
     # 3. Batch Tensor Generation
     # We generate all parameters at once directly on the target GPU/CPU
     
@@ -606,7 +539,7 @@ def sample_batched_opponent_params(
                 defender_style_t[mask] = defender_style
             else:
                 defender_style_t[mask] = _sample_int(count, 0, 1, device=device, generator=generator)
-    elif kind == "SCRIPTED" and key in ("OP7", "OP7_SWITCHER"):
+    elif kind == "SCRIPTED" and key == "__OP7_LEGACY_SWITCHER_DISABLED__":
         # Trainable deceptive switcher: episode-start archetype (distinct profile table from OP4).
         mode = torch.randint(0, 4, (batch_size,), device=device, generator=generator, dtype=torch.int32)
         profiles = _op7_profile_ranges(n_agents)

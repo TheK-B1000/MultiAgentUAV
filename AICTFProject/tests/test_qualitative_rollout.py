@@ -39,8 +39,8 @@ from tools import qualitative_rollout as qr
 def test_env_opponent_tag_maps_op5_to_op5_rusher():
     assert qr._env_opponent_tag("OP5") == "OP5_RUSHER"
     assert qr._env_opponent_tag("op5") == "OP5_RUSHER"
-    assert qr._env_opponent_tag("OP6") == "OP6_TURTLE"
-    assert qr._env_opponent_tag("OP7") == "OP7_SWITCHER"
+    assert qr._env_opponent_tag("OP6") == "OP6_IMMEDIATE_DUAL_RUSH"
+    assert qr._env_opponent_tag("OP7") == "OP7_DEEP_FORTRESS"
     # Unknowns pass through (uppercased, trimmed) so the env's own validation
     # can flag mismatches.
     assert qr._env_opponent_tag("OP3") == "OP3"

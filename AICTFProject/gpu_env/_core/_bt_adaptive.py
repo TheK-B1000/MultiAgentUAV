@@ -1,9 +1,8 @@
-"""Intra-episode adaptive memory and counter-play for OP8..OP12 hardpool v2.
+"""Intra-episode adaptive memory and counter-play for strategic BT niches.
 
-OP8-OP12 share the same opponent IDs as the pre-v6i21 scripted profiles but
-maintain episode-local counters that track blue attack patterns and shift red
-roles/routes to punish repetition.  Memory resets every episode; no cross-episode
-state is stored.
+OP11 and OP12 use episode-local counters that track blue attack patterns and
+shift red roles/routes to punish repetition. Memory resets every episode; no
+cross-episode state is stored.
 """
 from __future__ import annotations
 
@@ -50,18 +49,19 @@ class _BTAdaptiveMixin:
     _REPEAT_LANE_STREAK = 2
     _HIGH_ESCORT_DENSITY = 0.25
     _HIGH_OVERCOMMIT = 0.25
-    _BLUE_CARRIER_SPEED_MULT = 0.75
-    _OP8_BLUE_CARRIER_SPEED_MULT = 0.30
-    _OP10_BLUE_CARRIER_SPEED_MULT = 0.45
-    _OP11_BLUE_CARRIER_SPEED_MULT = 0.45
-    _RED_RESPAWN_MULT = 0.50
-    _OP8_RED_SPEED_MULT = 1.70
-    _OP10_RED_SPEED_MULT = 1.45
-    _OP11_RED_SPEED_MULT = 1.45
-    _RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.35
-    _OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 2.00
-    _OP10_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.65
-    _OP11_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.65
+    # Strategic niches use behavior gates, not per-family physical handicaps.
+    _BLUE_CARRIER_SPEED_MULT = 1.00
+    _OP8_BLUE_CARRIER_SPEED_MULT = 1.00
+    _OP10_BLUE_CARRIER_SPEED_MULT = 1.00
+    _OP11_BLUE_CARRIER_SPEED_MULT = 1.00
+    _RED_RESPAWN_MULT = 1.00
+    _OP8_RED_SPEED_MULT = 1.00
+    _OP10_RED_SPEED_MULT = 1.00
+    _OP11_RED_SPEED_MULT = 1.00
+    _RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.00
+    _OP8_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.00
+    _OP10_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.00
+    _OP11_RED_INTERCEPTOR_NEAR_FLAG_BOOST = 1.00
     _RED_INTERCEPTOR_NEAR_FLAG_DIST = 11.0
     _COLLAPSE_ROLE_LOCK_BONUS = 20
     _INTERCEPT_BLOCK_BOOST_COLLAPSE = 0.50
@@ -71,16 +71,35 @@ class _BTAdaptiveMixin:
     _DUAL_FLAG_RETR_LOCK = 24
     _ADAPTIVE_HARDPOOL_KEYS = frozenset(
         {
+            # Short aliases
+            "OP6",
+            "OP7",
             "OP8",
-            "OP8_INTERCEPTOR",
             "OP9",
-            "OP9_FORTRESS",
             "OP10",
-            "OP10_ESCORT",
             "OP11",
-            "OP11_BT_BALANCED",
             "OP12",
+            # Audited long names + historical synonyms
+            "OP6_TURTLE",
+            "OP6_IMMEDIATE_DUAL_RUSH",
+            "OP7_SWITCHER",
+            "OP7_FORTRESS",
+            "OP7_DEEP_FORTRESS",
+            "OP8_INTERCEPTOR",
+            "OP8_ESCORT",
+            "OP8_PROTECTED_CARRIER_ESCORT",
+            "OP9_FEINT",
+            "OP9_FORTRESS",
+            "OP9_SPLIT_LANE_FEINT",
+            "OP10_ESCORT",
+            "OP10_INTERCEPTOR",
+            "OP10_AGGRESSIVE_INTERCEPTOR",
+            "OP11_EXPLOITER",
+            "OP11_BT_BALANCED",
+            "OP11_ADAPTIVE_EXPLOITER",
             "OP12_COUNTER",
+            "OP12_CONVERTER",
+            "OP12_LATE_CONVERTER",
         }
     )
 
