@@ -1,0 +1,738 @@
+{
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_popbirth_prereg\\ckpt_10u\\final_v6i23_popbirth_prereg_10u_seed1_2v2.zip",
+  "collect_z": 0,
+  "steps_per_cell": 240,
+  "hypothesis": "per-cell counterfactual action JSD on shared states",
+  "cells": {
+    "OP8|map_b_split_lane": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.00014527321885301112,
+      "pair_jsd_max": 0.0001919648057082668,
+      "pair_jsd_min": 8.093547512544319e-05,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.050209205020920494,
+      "non_tie_argmax_disagree_max": 0.08786610878661087,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.0001919648057082668,
+          "head0_argmax_disagree": 0.09166666865348816,
+          "head0_non_tie_argmax_disagree": 0.08786610878661087,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.18073813617229462,
+          "head0_entropy_mean_zj": 0.18054258823394775
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.000153039931319654,
+          "head0_argmax_disagree": 0.09166666865348816,
+          "head0_non_tie_argmax_disagree": 0.08786610878661087,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.18073813617229462,
+          "head0_entropy_mean_zj": 0.18051733076572418
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 8.093547512544319e-05,
+          "head0_argmax_disagree": 0.05000000447034836,
+          "head0_non_tie_argmax_disagree": 0.0502092050209205,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.18073813617229462,
+          "head0_entropy_mean_zj": 0.18071550130844116
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.00014201641897670925,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.18054258823394775,
+          "head0_entropy_mean_zj": 0.18051733076572418
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00016495892487000674,
+          "head0_argmax_disagree": 0.0416666679084301,
+          "head0_non_tie_argmax_disagree": 0.03765690376569038,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.18054258823394775,
+          "head0_entropy_mean_zj": 0.18071550130844116
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.00013872375711798668,
+          "head0_argmax_disagree": 0.0416666679084301,
+          "head0_non_tie_argmax_disagree": 0.03765690376569038,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.18051733076572418,
+          "head0_entropy_mean_zj": 0.18071550130844116
+        }
+      ]
+    },
+    "OP8|map_b_split_lane_v2": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.00013960147164956047,
+      "pair_jsd_max": 0.0001659756962908432,
+      "pair_jsd_min": 8.27848634799011e-05,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.012500000000000002,
+      "non_tie_argmax_disagree_max": 0.025,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.0001659756962908432,
+          "head0_argmax_disagree": 0.02500000223517418,
+          "head0_non_tie_argmax_disagree": 0.025,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.17903229594230652,
+          "head0_entropy_mean_zj": 0.1788187325000763
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00015627031098119915,
+          "head0_argmax_disagree": 0.02500000223517418,
+          "head0_non_tie_argmax_disagree": 0.025,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.17903229594230652,
+          "head0_entropy_mean_zj": 0.17876465618610382
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 8.27848634799011e-05,
+          "head0_argmax_disagree": 0.02500000223517418,
+          "head0_non_tie_argmax_disagree": 0.025,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.17903229594230652,
+          "head0_entropy_mean_zj": 0.1789950430393219
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.00013640130055136979,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.1788187325000763,
+          "head0_entropy_mean_zj": 0.17876465618610382
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00016399944433942437,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.1788187325000763,
+          "head0_entropy_mean_zj": 0.1789950430393219
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.00013217721425462514,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.17876465618610382,
+          "head0_entropy_mean_zj": 0.1789950430393219
+        }
+      ]
+    },
+    "OP9|map_b_split_lane": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.00022747682184368992,
+      "pair_jsd_max": 0.00029316768632270396,
+      "pair_jsd_min": 0.00013659792602993548,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.0,
+      "non_tie_argmax_disagree_max": 0.0,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.00025886547518894076,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.28011825680732727,
+          "head0_entropy_mean_zj": 0.27980703115463257
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00029316768632270396,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.28011825680732727,
+          "head0_entropy_mean_zj": 0.2796561121940613
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 0.00013659792602993548,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.28011825680732727,
+          "head0_entropy_mean_zj": 0.2800532877445221
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.0002126470353687182,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.27980703115463257,
+          "head0_entropy_mean_zj": 0.2796561121940613
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00021498952992260456,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.27980703115463257,
+          "head0_entropy_mean_zj": 0.2800532877445221
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.0002485932782292366,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.2796561121940613,
+          "head0_entropy_mean_zj": 0.2800532877445221
+        }
+      ]
+    },
+    "OP9|map_b_split_lane_v2": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.0002714860796307524,
+      "pair_jsd_max": 0.00038598605897277594,
+      "pair_jsd_min": 0.0001731229422148317,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.0,
+      "non_tie_argmax_disagree_max": 0.0,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.0002765698009170592,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.38983824849128723,
+          "head0_entropy_mean_zj": 0.3895437717437744
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00038598605897277594,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.38983824849128723,
+          "head0_entropy_mean_zj": 0.3890087306499481
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 0.0001731229422148317,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.38983824849128723,
+          "head0_entropy_mean_zj": 0.3896792232990265
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.0002459266106598079,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.3895437717437744,
+          "head0_entropy_mean_zj": 0.3890087306499481
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00025762521545402706,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.3895437717437744,
+          "head0_entropy_mean_zj": 0.3896792232990265
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.0002896858495660126,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.3890087306499481,
+          "head0_entropy_mean_zj": 0.3896792232990265
+        }
+      ]
+    },
+    "OP10|map_b_split_lane": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.0003066562591508652,
+      "pair_jsd_max": 0.00044819217873737216,
+      "pair_jsd_min": 0.00017360251513309777,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.22315202231520223,
+      "non_tie_argmax_disagree_max": 0.4435146443514644,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.00030876396340318024,
+          "head0_argmax_disagree": 0.44166669249534607,
+          "head0_non_tie_argmax_disagree": 0.4435146443514644,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.3742401599884033,
+          "head0_entropy_mean_zj": 0.37416064739227295
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00044819217873737216,
+          "head0_argmax_disagree": 0.44166669249534607,
+          "head0_non_tie_argmax_disagree": 0.4435146443514644,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.3742401599884033,
+          "head0_entropy_mean_zj": 0.3736419975757599
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 0.00017360251513309777,
+          "head0_argmax_disagree": 0.4375000298023224,
+          "head0_non_tie_argmax_disagree": 0.4351464435146444,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.3742401599884033,
+          "head0_entropy_mean_zj": 0.37422817945480347
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.0003137290186714381,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.37416064739227295,
+          "head0_entropy_mean_zj": 0.3736419975757599
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00025347815244458616,
+          "head0_argmax_disagree": 0.01250000111758709,
+          "head0_non_tie_argmax_disagree": 0.008368200836820083,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.37416064739227295,
+          "head0_entropy_mean_zj": 0.37422817945480347
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.00034217172651551664,
+          "head0_argmax_disagree": 0.01250000111758709,
+          "head0_non_tie_argmax_disagree": 0.008368200836820083,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.3736419975757599,
+          "head0_entropy_mean_zj": 0.37422817945480347
+        }
+      ]
+    },
+    "OP10|map_b_split_lane_v2": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.00017891733053450784,
+      "pair_jsd_max": 0.00022865436039865017,
+      "pair_jsd_min": 9.092404798138887e-05,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.054166666666666675,
+      "non_tie_argmax_disagree_max": 0.1,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.00022865436039865017,
+          "head0_argmax_disagree": 0.10000000894069672,
+          "head0_non_tie_argmax_disagree": 0.1,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.2252669781446457,
+          "head0_entropy_mean_zj": 0.22506730258464813
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00020697388390544802,
+          "head0_argmax_disagree": 0.10000000894069672,
+          "head0_non_tie_argmax_disagree": 0.1,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.2252669781446457,
+          "head0_entropy_mean_zj": 0.2249012291431427
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 9.092404798138887e-05,
+          "head0_argmax_disagree": 0.07500000298023224,
+          "head0_non_tie_argmax_disagree": 0.075,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.2252669781446457,
+          "head0_entropy_mean_zj": 0.22523130476474762
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.00016202361439354718,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.22506730258464813,
+          "head0_entropy_mean_zj": 0.2249012291431427
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00021437757823150605,
+          "head0_argmax_disagree": 0.02500000223517418,
+          "head0_non_tie_argmax_disagree": 0.025,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.22506730258464813,
+          "head0_entropy_mean_zj": 0.22523130476474762
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.0001705504982965067,
+          "head0_argmax_disagree": 0.02500000223517418,
+          "head0_non_tie_argmax_disagree": 0.025,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.2249012291431427,
+          "head0_entropy_mean_zj": 0.22523130476474762
+        }
+      ]
+    },
+    "OP11|map_b_split_lane": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.0001802343722374644,
+      "pair_jsd_max": 0.00021108977671246976,
+      "pair_jsd_min": 8.986009197542444e-05,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.08228730822873083,
+      "non_tie_argmax_disagree_max": 0.14225941422594143,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.00021108977671246976,
+          "head0_argmax_disagree": 0.1458333432674408,
+          "head0_non_tie_argmax_disagree": 0.14225941422594143,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.23850944638252258,
+          "head0_entropy_mean_zj": 0.23835301399230957
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00021100547746755183,
+          "head0_argmax_disagree": 0.1458333432674408,
+          "head0_non_tie_argmax_disagree": 0.14225941422594143,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.23850944638252258,
+          "head0_entropy_mean_zj": 0.23818595707416534
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 8.986009197542444e-05,
+          "head0_argmax_disagree": 0.09166666865348816,
+          "head0_non_tie_argmax_disagree": 0.09205020920502092,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.23850944638252258,
+          "head0_entropy_mean_zj": 0.23850302398204803
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.000179699927684851,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.23835301399230957,
+          "head0_entropy_mean_zj": 0.23818595707416534
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00018861166608985513,
+          "head0_argmax_disagree": 0.0625,
+          "head0_non_tie_argmax_disagree": 0.058577405857740586,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.23835301399230957,
+          "head0_entropy_mean_zj": 0.23850302398204803
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.00020113929349463433,
+          "head0_argmax_disagree": 0.0625,
+          "head0_non_tie_argmax_disagree": 0.058577405857740586,
+          "head0_non_tie_state_frac": 0.9958333969116211,
+          "head0_entropy_mean_zi": 0.23818595707416534,
+          "head0_entropy_mean_zj": 0.23850302398204803
+        }
+      ]
+    },
+    "OP11|map_b_split_lane_v2": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.00018731268088837774,
+      "pair_jsd_max": 0.0002301046479260549,
+      "pair_jsd_min": 0.00010765858314698562,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.016666666666666666,
+      "non_tie_argmax_disagree_max": 0.03333333333333333,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.0002150769141735509,
+          "head0_argmax_disagree": 0.02916666865348816,
+          "head0_non_tie_argmax_disagree": 0.029166666666666667,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.22813843190670013,
+          "head0_entropy_mean_zj": 0.2279215008020401
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.0002301046479260549,
+          "head0_argmax_disagree": 0.02916666865348816,
+          "head0_non_tie_argmax_disagree": 0.029166666666666667,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.22813843190670013,
+          "head0_entropy_mean_zj": 0.22775931656360626
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 0.00010765858314698562,
+          "head0_argmax_disagree": 0.03333333507180214,
+          "head0_non_tie_argmax_disagree": 0.03333333333333333,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.22813843190670013,
+          "head0_entropy_mean_zj": 0.22809182107448578
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.00018086469208355993,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.2279215008020401,
+          "head0_entropy_mean_zj": 0.22775931656360626
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00020545317966025323,
+          "head0_argmax_disagree": 0.004166666883975267,
+          "head0_non_tie_argmax_disagree": 0.004166666666666667,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.2279215008020401,
+          "head0_entropy_mean_zj": 0.22809182107448578
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.00018471806833986193,
+          "head0_argmax_disagree": 0.004166666883975267,
+          "head0_non_tie_argmax_disagree": 0.004166666666666667,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.22775931656360626,
+          "head0_entropy_mean_zj": 0.22809182107448578
+        }
+      ]
+    },
+    "OP12|map_b_split_lane": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.00018317262341345972,
+      "pair_jsd_max": 0.00022044393699616194,
+      "pair_jsd_min": 9.988457895815372e-05,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.06026785714285713,
+      "non_tie_argmax_disagree_max": 0.10267857142857142,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.00022044393699616194,
+          "head0_argmax_disagree": 0.10000000894069672,
+          "head0_non_tie_argmax_disagree": 0.10267857142857142,
+          "head0_non_tie_state_frac": 0.9333333969116211,
+          "head0_entropy_mean_zi": 0.21471001207828522,
+          "head0_entropy_mean_zj": 0.2145247459411621
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00021392639609985054,
+          "head0_argmax_disagree": 0.10000000894069672,
+          "head0_non_tie_argmax_disagree": 0.10267857142857142,
+          "head0_non_tie_state_frac": 0.9333333969116211,
+          "head0_entropy_mean_zi": 0.21471001207828522,
+          "head0_entropy_mean_zj": 0.21453417837619781
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 9.988457895815372e-05,
+          "head0_argmax_disagree": 0.05000000447034836,
+          "head0_non_tie_argmax_disagree": 0.049107142857142856,
+          "head0_non_tie_state_frac": 0.9333333969116211,
+          "head0_entropy_mean_zi": 0.21471001207828522,
+          "head0_entropy_mean_zj": 0.2146986573934555
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.00019070332928095013,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 0.9333333969116211,
+          "head0_entropy_mean_zi": 0.2145247459411621,
+          "head0_entropy_mean_zj": 0.21453417837619781
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.00018909320351667702,
+          "head0_argmax_disagree": 0.05833333730697632,
+          "head0_non_tie_argmax_disagree": 0.05357142857142857,
+          "head0_non_tie_state_frac": 0.9333333969116211,
+          "head0_entropy_mean_zi": 0.2145247459411621,
+          "head0_entropy_mean_zj": 0.2146986573934555
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.0001849842956289649,
+          "head0_argmax_disagree": 0.05833333730697632,
+          "head0_non_tie_argmax_disagree": 0.05357142857142857,
+          "head0_non_tie_state_frac": 0.9333333969116211,
+          "head0_entropy_mean_zi": 0.21453417837619781,
+          "head0_entropy_mean_zj": 0.2146986573934555
+        }
+      ]
+    },
+    "OP12|map_b_split_lane_v2": {
+      "n_states": 240,
+      "pair_jsd_mean": 0.0001656023074853389,
+      "pair_jsd_max": 0.0002032867050729692,
+      "pair_jsd_min": 8.23499503894709e-05,
+      "pairs_above_0_05": 0,
+      "non_tie_argmax_disagree_mean": 0.03541666666666667,
+      "non_tie_argmax_disagree_max": 0.058333333333333334,
+      "non_tie_max_prob_threshold": 0.4,
+      "pairs": [
+        {
+          "z_i": 0,
+          "z_j": 1,
+          "action_jsd_mean": 0.00019962075748480856,
+          "head0_argmax_disagree": 0.05833333730697632,
+          "head0_non_tie_argmax_disagree": 0.058333333333333334,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.199265256524086,
+          "head0_entropy_mean_zj": 0.199056476354599
+        },
+        {
+          "z_i": 0,
+          "z_j": 2,
+          "action_jsd_mean": 0.00018053023086395115,
+          "head0_argmax_disagree": 0.05833333730697632,
+          "head0_non_tie_argmax_disagree": 0.058333333333333334,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.199265256524086,
+          "head0_entropy_mean_zj": 0.19895313680171967
+        },
+        {
+          "z_i": 0,
+          "z_j": 3,
+          "action_jsd_mean": 8.23499503894709e-05,
+          "head0_argmax_disagree": 0.02083333395421505,
+          "head0_non_tie_argmax_disagree": 0.020833333333333332,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.199265256524086,
+          "head0_entropy_mean_zj": 0.19923099875450134
+        },
+        {
+          "z_i": 1,
+          "z_j": 2,
+          "action_jsd_mean": 0.00016362663882318884,
+          "head0_argmax_disagree": 0.0,
+          "head0_non_tie_argmax_disagree": 0.0,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.199056476354599,
+          "head0_entropy_mean_zj": 0.19895313680171967
+        },
+        {
+          "z_i": 1,
+          "z_j": 3,
+          "action_jsd_mean": 0.0002032867050729692,
+          "head0_argmax_disagree": 0.03750000149011612,
+          "head0_non_tie_argmax_disagree": 0.0375,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.199056476354599,
+          "head0_entropy_mean_zj": 0.19923099875450134
+        },
+        {
+          "z_i": 2,
+          "z_j": 3,
+          "action_jsd_mean": 0.00016419956227764487,
+          "head0_argmax_disagree": 0.03750000149011612,
+          "head0_non_tie_argmax_disagree": 0.0375,
+          "head0_non_tie_state_frac": 1.0,
+          "head0_entropy_mean_zi": 0.19895313680171967,
+          "head0_entropy_mean_zj": 0.19923099875450134
+        }
+      ]
+    }
+  },
+  "summary": {
+    "cells": 10,
+    "mean_of_cell_jsd_means": 0.0001985733165687028,
+    "max_of_cell_jsd_maxes": 0.00044819217873737216,
+    "cells_with_any_pair_above_0_05": 0,
+    "gate_any_pair_jsd_gt_0_05": false,
+    "mean_of_cell_non_tie_argmax_disagree": 0.05346663927077107,
+    "max_of_cell_non_tie_argmax_disagree": 0.4435146443514644,
+    "cells_with_non_tie_disagree_gt_0_20": 1
+  }
+}

@@ -1,0 +1,51 @@
+V6I23 pre-registered population-birth diagnostic (5u → 25u total).
+
+Scientific question
+-------------------
+Do independent per-z action heads under a frozen shared trunk need more
+optimization time to separate π(a|s,z), or does the frozen representation
+constrain every specialist to the same behavioral basin?
+
+This is a closed diagnostic — not an open continuation chain. Router stays
+locked. No new diversity losses or architecture changes.
+
+Protocol (locked)
+-----------------
+Start: artifacts/.../v6i23_population_birth_5u_seed1/final_*.zip
+Milestones (birth PPO updates total): 10u, 15u, 25u
+Sampling: forced balanced_episode z
+Trainable: active adapter + active per-z head only (Stage-2 freeze)
+Shared trunk / shared action_head: frozen
+Matched-seed probes at every milestone (same base_seed / cells)
+
+Tracked
+-------
+pairwise head L2, adapter contribution magnitude,
+CF action-JSD mean/max, entropy-aware (non-tie) argmax disagreement,
+forced-z payoff rows / Stage-C / oracle margin / behavior pair distance.
+
+Decision rule
+-------------
+PROMOTE if:
+  CF JSD mean > 0.05 on ≥2 cells with pairs>0.05, OR
+  non-tie argmax disagree > 0.20,
+  AND forced-z payoff rows begin separating.
+
+KEEP_INVESTIGATING if:
+  JSD clearly rising but below threshold, OR
+  trajectory/payoff separation precedes action-JSD.
+
+STOP_EARLY_ESCALATE if (checked at 10u and 15u):
+  JSD stuck ~1e-4..1e-3 AND head L2 rises while actions stay flat.
+  Then escalate to four full independent policies → distill.
+  Do NOT add soft regularizers.
+
+Usage
+-----
+# Full orchestrated run (trains each segment then probes):
+uv run python experiments/run_v6i23_population_birth_prereg_diagnostic.py --run
+
+# Probe-only at an existing milestone checkpoint:
+uv run python experiments/run_v6i23_population_birth_prereg_diagnostic.py \
+    --probe-only --milestone 10 \
+    --checkpoint artifacts/v6i23_popbirth_prereg/ckpt_10u/final_*.zip

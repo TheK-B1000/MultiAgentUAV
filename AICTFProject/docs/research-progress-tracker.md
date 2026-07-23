@@ -2203,6 +2203,76 @@ If still flat → fallback to full separate policies → distill (plan Path B).
 uv run python rl/train_ppo.py --preset v6i23 --load artifacts\v6i23_population_birth_5u_seed1\final_v6i23_population_birth_5u_seed1_2v2.zip --load-weights-only --additional-steps 25600 --n-envs 4 --n-steps 256 --n-epochs 1 --device cuda --run-tag v6i23_population_birth_25u_seed1 --checkpoint-dir artifacts\v6i23_population_birth_25u_seed1 --fresh-metrics-csv --episode-log-every 0 --periodic-checkpoint-steps 0 --no-progress-bar
 ```
 
+**25u continuation:** `ABORTED` — replaced by pre-registered diagnostic
+`v6i23_popbirth_prereg` (milestones 10u / 15u / 25u total, matched-seed
+probes, stop/escalate rule). Open-ended artifact renamed
+`artifacts/v6i23_population_birth_25u_seed1_ABORTED_open_ended/`.
+
+**Pre-registered diagnostic (2026-07-23):** closed test of shared-trunk
+population birth. Router locked. No new diversity losses. Probe CF
+action-JSD (entropy-aware non-tie disagree), geometry (head L2 / adapter
+ratio), and forced-z eps2 at 10u, 15u, 25u. Escalate to four independent
+policies if JSD stays ~1e-4–1e-3 while head L2 rises.
+
+```text
+uv run python experiments/run_v6i23_population_birth_prereg_diagnostic.py --run
+```
+
+**10u milestone (2026-07-23):** completed. Geometry: head pairwise L2 mean
+~0.063 (up from ~0.035 at 5u); adapter α-ratio ~0.065. CF action-JSD mean
+still ~0.00020 (0/10 cells with pair >0.05). Stage-C PASS (oracle gap +0.40,
+unique best-z 2); behavior pair mean 0.084 but formal pairs_above=0.
+
+Auto-script initially emitted `PROMOTE` on a single-cell non-tie disagree
+spike (max 0.44) despite flat JSD — **overridden**. Correct registered
+verdict: `STOP_EARLY_ESCALATE` (head L2 rose while π(a|s,z) stayed near-clone).
+Do not train router. Do not add soft regularizers. Next: four independently
+trained policies → verify payoff/trajectory separation → distill into
+z-conditioned Summer architecture.
+
+Artifacts: `artifacts/v6i23_popbirth_prereg/` (`ckpt_10u/`, `probes/10u/`,
+`decision_log.json`).
+
+### 3.35 v6i24 full-policy population diagnostic -- `IMPLEMENTED` (lean Path C; 2026-07-23)
+
+**Scientific delta (plain English):** V6I22–V6I23 showed shared-trunk training
+cannot produce functional separation (CF action-JSD ~2e-4). V6I24 tests whether
+K=4 fully independent policies under distinct *fixed* OP8–OP12×map cell
+pressures can birth a real repertoire. This is **Path C** (independent teachers
+→ later distill), not Path B (soft latent anti-collapse).
+
+**Fidelity:** `DIAGNOSTIC`.
+
+**Ancestry / clone source:** parent config `v6i21j`; checkpoint = V6I21J-
+competent V6I9 generalist zip (not V6I22E/V6I23). Latent concat scaffold
+kept with frozen `z=0` for warm-start compatibility; adapters/router/
+strategy losses off; `v6i9_training_stage=generalist`; return-norm frozen
+after load.
+
+**Pressures (fixed through 25u; both maps always have support):**
+
+```text
+π0 balanced:        uniform OP8-OP12 x both maps
+π1 failure_cells:   weight lowest V6I21J WR cells
+π2 high_variance:   high Bernoulli-variance / red-score cells
+π3 complementary:   complement of π1+π2
+```
+
+No OP3–OP7 primary pressure. No PFSP / Nash / snapshot leagues / rotation.
+
+**Budget:** probes at 5u / 10u / 25u per policy (max initial 25u = 25,600 steps;
+population total at 25u = 102,400). Extend only if separation slopes.
+
+**Engineering:** four ordinary `train_ppo` runs via
+`experiments/run_v6i24_full_policy_population.py` +
+`experiments/v6i24_population_config.py`. `rl/population/*` is deferred.
+
+**Gates:** CF JSD >0.05 on ≥2 cells OR held-out classifier >50%; AND ≥2 cells
+with different best policy at ≥0.10 margin; max row distance ≥0.10; oracle >
+best fixed. Smoke 32 eps/cell; confirm at 128.
+
+**Status:** lean infrastructure implemented. Awaiting anchor zip + 5u×4 smoke.
+
 ### 3.12-prerun v6i13 delayed-commit opening-window advantage router (implementation + smoke)
 
 **Scientific delta vs v6i12 (plain English):** v6i12 refuted the hypothesis

@@ -75,6 +75,13 @@ def maybe_load_checkpoint(cfg: PPOConfig, trainer: "CustomPPOTrainer") -> None:
     if cfg.load_path and os.path.isfile(cfg.load_path):
         print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
         trainer.load(cfg.load_path)
+        if bool(getattr(cfg, "freeze_return_norm_after_load", False)):
+            trainer.return_norm.freeze()
+            print(
+                "[PPO] freeze_return_norm_after_load: return_norm stats frozen "
+                f"(mean={trainer.return_norm.mean:.6f}, std={trainer.return_norm.std:.6f}, "
+                f"count={trainer.return_norm.count:.0f})"
+            )
 
 
 def maybe_extend_total_timesteps(cfg: PPOConfig, trainer: "CustomPPOTrainer") -> None:

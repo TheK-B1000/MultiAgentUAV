@@ -201,6 +201,7 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i22d_strong_behavior_diversity` (aliases include `v6i22d`, `v6i22d_behavior_diversity_coef010`; sweep arm `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Stronger label-free behavior-contrast repertoire-birth fork after V6I22B/C failed the birth gate. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and applies higher behavior-contrast coefficients (`0.10` primary, `0.05` sweep control). Same trajectory-fingerprint signal as V6I22B; no outcome-diversity channel, no handcrafted z roles, no oracle targets, and no router training. Pinned by `tests/test_v6i22d_strong_behavior_diversity.py`. |
 | `v6i22e_fixed_alpha_adapters` (aliases include `v6i22e`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Fixed-alpha (`α=0.1`) gate-free residual adapters with Kaiming init to escape the zero-init / stuck-gate magnitude trap. Same hardpool birth scaffold; no soft diversity rewards. Pinned by `tests/test_v6i22e_fixed_alpha.py`. |
 | `v6i23_population_birth` (aliases include `v6i23`) | `v6i22e_fixed_alpha_adapters` | `SUMMER-COMPATIBLE EXTENSION` | Population-style specialist birth: active-z-only residual forward plus independent per-z action heads that are Stage-2 trainable (shared `action_head` stays frozen). Router off; no opponent-ID; no soft diversity rewards. Success gate is CF action-JSD, not paper-faithful. Pinned by `tests/test_v6i23_population_birth.py`. |
+| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C** fallback). K=4 ordinary independent `train_ppo` runs cloned from the V6I21J-competent V6I9 generalist checkpoint. Fixed OP8–OP12×map cell pressures (balanced / failure / high-variance / complementary); both maps always have support; frozen return-norm after load; no PFSP/rotation/`PopulationTrainer`. Gates: CF action-JSD >0.05 on ≥2 cells OR held-out classifier >50%, plus stricter payoff-row separation. Pinned by `tests/test_v6i24_full_policy_population.py`. |
 
 ---
 
@@ -1508,6 +1509,70 @@ Aliases: `v6i23`, `v6i23_population_birth`,
 Promotion logic: CF action-JSD pair mean `> 0.05` on ≥2 oracle-hot cells
 (or head0 disagree `> 0.2` with non-tie). Router remains blocked until that
 gate clears.
+
+---
+
+### 6.41 v6i24_full_policy_population (DIAGNOSTIC)
+
+V6I24 is the **Path C fallback** after V6I22–V6I23 demonstrated that
+shared-trunk training cannot produce functional separation:
+
+* V6I22E: adapters moved in weight space (L2 ~9.2) but shared frozen
+  `action_head` kept CF action-JSD at ~0.0002.
+* V6I23: per-z heads pairwise L2 grew to ~0.063 but CF action-JSD
+  stayed pinned at ~0.0002. Shared representation and optimization
+  history pull every specialist into the same functional basin.
+
+**Scientific delta:** four ordinary independent actor-critic policies
+cloned from the same V6I21J-competent checkpoint (documented V6I9
+generalist under the v6i21J arena). No shared gradients across members,
+no adapters, no router training, no PFSP / Nash / snapshot league /
+pressure rotation / distillation in this arm. Latent concat scaffold is
+retained with frozen `z=0` only so the competent checkpoint can
+warm-start without reshaping the actor body.
+
+**Ancestry:** parent configuration and hardpool surface from `v6i21j`.
+Checkpoint source: same V6I21J-competent zip (not V6I22E/V6I23).
+Does NOT inherit latent/adapter/population-birth machinery.
+
+**Resolved-config diff vs v6i21j:** `{enable_latent_z_residual,
+fixed_latent_strategy, freeze_return_norm_after_load,
+latent_assignment_mode, latent_lam_h_end, latent_lam_h_start,
+latent_strategy_ppo_coef, opponent_randomize,
+population_pressure_rotation_interval,
+population_round_robin_updates_per_cycle, v6i9_training_stage,
+experiment_id, run_tag}`. Latent concat scaffold stays on with frozen
+`z=0` so the V6I9/V6I21J checkpoint can warm-start; adapters/router/
+strategy losses are off. `population_training_enabled` stays `False`.
+
+**Fixed cell pressures (from V6I21J calibration WR/variance; both maps):**
+
+| Member | Label | Pressure |
+|--------|-------|----------|
+| π0 | balanced | Uniform OP8–OP12 × both maps |
+| π1 | failure_cells | Weight lowest baseline WR cells |
+| π2 | high_variance | High Bernoulli-variance / red-score cells |
+| π3 | complementary | Complement of π1+π2 |
+
+Budget probes: 5u / 10u / 25u per policy (max initial 25u).
+
+Aliases: `v6i24`, `v6i24_full_policy_population`,
+`latent_v6i24_full_policy_population`,
+`plan_faithful_latent_v6i24_full_policy_population`.
+
+**Evaluation gates:**
+
+* *Functional:* CF action-JSD mean `> 0.05` on ≥2 cells, OR
+  leave-one-cell-out trajectory classifier `> 50%`.
+* *Strategic (stricter):* ≥2 cells with different best policies and
+  margin `≥0.10`; max pairwise payoff-row distance `≥0.10`; oracle >
+  best fixed. Smoke 32 eps/cell; confirm promotions at 128.
+
+**Decision tree:**
+
+1. Pass → build V6I24-D distillation.
+2. Trend → extend teachers to 100K.
+3. Fail → redesign external training pressures.
 
 ---
 

@@ -1,0 +1,88 @@
+{
+  "protocol": "v6i23_population_birth_prereg_to_25u",
+  "classification": "SUMMER-COMPATIBLE EXTENSION (diagnostic)",
+  "router": "disabled",
+  "created_at_utc": "2026-07-23T11:45:21.586677+00:00",
+  "milestones": {
+    "5": {
+      "at_utc": "2026-07-23T11:45:21.587174+00:00",
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+      "jsd_summary": {
+        "cells": 10,
+        "mean_of_cell_jsd_means": 0.0001920912395386646,
+        "max_of_cell_jsd_maxes": 0.0003664112591650337,
+        "cells_with_any_pair_above_0_05": 0,
+        "gate_any_pair_jsd_gt_0_05": false
+      },
+      "decision": "BASELINE_5U_FAIL_GATE",
+      "note": "pre-registered baseline; heads moved, CF JSD flat"
+    },
+    "10": {
+      "at_utc": "2026-07-23T12:31:07.921236+00:00",
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_popbirth_prereg\\ckpt_10u\\final_v6i23_popbirth_prereg_10u_seed1_2v2.zip",
+      "trained_from": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+      "additional_updates": 5,
+      "geometry": {
+        "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_popbirth_prereg\\ckpt_10u\\final_v6i23_popbirth_prereg_10u_seed1_2v2.zip",
+        "head_weight_l2": [
+          4.251570701599121,
+          4.252077579498291,
+          4.251335620880127,
+          4.251578330993652
+        ],
+        "head_pair_l2_vs_z0": [
+          {
+            "pair": "0-1",
+            "weight_l2": 0.06855741143226624
+          },
+          {
+            "pair": "0-2",
+            "weight_l2": 0.061134375631809235
+          },
+          {
+            "pair": "0-3",
+            "weight_l2": 0.060523007065057755
+          }
+        ],
+        "head_pair_l2_mean": 0.06340493137637775,
+        "adapter_weight_l2": [
+          9.270617485046387,
+          9.204535484313965,
+          9.244318008422852,
+          9.25230884552002
+        ],
+        "adapter_weight_l2_mean": 9.242944955825806,
+        "adapter_alpha_norm_ratio_mean": 0.0647234246134758,
+        "active_z_only": true,
+        "per_z_heads": true
+      },
+      "jsd_summary": {
+        "cells": 10,
+        "mean_of_cell_jsd_means": 0.0001985733165687028,
+        "max_of_cell_jsd_maxes": 0.00044819217873737216,
+        "cells_with_any_pair_above_0_05": 0,
+        "gate_any_pair_jsd_gt_0_05": false,
+        "mean_of_cell_non_tie_argmax_disagree": 0.05346663927077107,
+        "max_of_cell_non_tie_argmax_disagree": 0.4435146443514644,
+        "cells_with_non_tie_disagree_gt_0_20": 1
+      },
+      "forced_z": {
+        "stage_c_pass": true,
+        "oracle_gap": 0.40000000000000013,
+        "margin_advantage": 0.40000000000000013,
+        "wr_advantage": 0.09999999999999998,
+        "unique_best_z": 2,
+        "behavior_pair_distance_mean": 0.08400527999836842,
+        "pairs_above_threshold": 0.0
+      },
+      "decision": "STOP_EARLY_ESCALATE",
+      "prev_jsd_mean": 0.0001920912395386646,
+      "decision_note": "AUTO_PROMOTE overridden: CF JSD still ~2e-4 (0 cells >0.05). Non-tie disagree max hit 0.44 on 1 cell only under peaked near-clone policies; head L2 rose (~0.063) while action dists stayed flat -> STOP_EARLY_ESCALATE per prereg rule.",
+      "decision_raw_auto": "PROMOTE"
+    }
+  },
+  "verdict": "STOP_EARLY_ESCALATE",
+  "start_checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "updated_at_utc": "2026-07-23T12:31:07.921236+00:00",
+  "verdict_note": "AUTO_PROMOTE overridden: CF JSD still ~2e-4 (0 cells >0.05). Non-tie disagree max hit 0.44 on 1 cell only under peaked near-clone policies; head L2 rose (~0.063) while action dists stayed flat -> STOP_EARLY_ESCALATE per prereg rule."
+}

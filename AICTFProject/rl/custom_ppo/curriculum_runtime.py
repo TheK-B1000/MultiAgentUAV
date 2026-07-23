@@ -18,6 +18,8 @@ class TrainingOpponentPool:
     tags: list[str]
     weights: Optional[list[float]]
     rng: np.random.Generator
+    # Optional joint (opponent, map, weight) cells. When set, overrides tag-only sampling.
+    cells: Optional[list[tuple[str, str, float]]] = None
 
     @classmethod
     def from_hparams(cls, cfg: Any, hparams: Any) -> TrainingOpponentPool:
@@ -33,11 +35,26 @@ class TrainingOpponentPool:
                 "Opponent pool training (mode=OPPONENT_POOL or opponent_randomize) requires a non-empty "
                 "opponent_pool (e.g. OP1–OP3, OP5–OP7; OP4 optional with --allow-op4-in-training-pool)."
             )
+        raw_cells = tuple(getattr(cfg, "training_cell_distribution", ()) or ())
+        cells: Optional[list[tuple[str, str, float]]] = None
+        if raw_cells:
+            parsed: list[tuple[str, str, float]] = []
+            for entry in raw_cells:
+                if len(entry) != 3:
+                    raise ValueError(
+                        f"training_cell_distribution entries must be (opp, map, weight); got {entry!r}"
+                    )
+                parsed.append((str(entry[0]).upper(), str(entry[1]), float(entry[2])))
+            total = sum(max(0.0, w) for _, _, w in parsed)
+            if total <= 0:
+                raise ValueError("training_cell_distribution weights must sum to > 0")
+            cells = [(o, m, max(0.0, w) / total) for o, m, w in parsed]
         return cls(
             enabled=bool(hparams.opponent_randomize_training),
             tags=tags,
             weights=weights,
             rng=np.random.default_rng(int(getattr(cfg, "seed", 0)) + 901),
+            cells=cells,
         )
 
     def attach_before_reset_hook(self, env: Any, trainer: Any) -> None:
@@ -55,6 +72,7 @@ def _resolve_training_opponent_pool(trainer: Any) -> Any:
         tags=list(getattr(trainer, "_opponent_pool_tags", []) or []),
         weights=getattr(trainer, "_opponent_pool_weights", None),
         rng=getattr(trainer, "_rng_opponent", None),
+        cells=None,
     )
 
 
@@ -107,11 +125,18 @@ def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, 
     pool = _resolve_training_opponent_pool(trainer)
     if not pool.enabled:
         return
+    cells = getattr(pool, "cells", None)
     weights = pool.weights
     for env_i, done_i in enumerate(done):
         if not bool(done_i):
             continue
-        if weights is not None:
+        map_layout = None
+        if cells:
+            probs = [c[2] for c in cells]
+            pick = int(pool.rng.choice(len(cells), p=probs))
+            tag = str(cells[pick][0]).upper()
+            map_layout = str(cells[pick][1])
+        elif weights is not None:
             tag = str(pool.rng.choice(pool.tags, p=weights)).upper()
         else:
             tag = str(pool.rng.choice(pool.tags)).upper()
@@ -119,6 +144,13 @@ def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, 
         try:
             trainer.env.env_method("set_next_opponent", "SCRIPTED", tag, indices=[env_i])
             trainer.env.env_method("set_phase", phase_s, indices=[env_i])
+            if map_layout is not None:
+                trainer.env.env_method("set_next_map_layout", map_layout, indices=[env_i])
         except Exception:
             trainer.env.env_method("set_next_opponent", "SCRIPTED", tag)
             trainer.env.env_method("set_phase", phase_s)
+            if map_layout is not None:
+                try:
+                    trainer.env.env_method("set_next_map_layout", map_layout)
+                except Exception:
+                    pass

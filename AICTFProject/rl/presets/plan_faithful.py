@@ -133,6 +133,7 @@ from rl.presets.families.plan_faithful import (
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
     apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
     apply_plan_faithful_latent_v6i23_population_birth,
+    apply_v6i24_full_policy_population,
 )
 
 __all__ = [
@@ -264,4 +265,5 @@ __all__ = [
     "apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005",
     "apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters",
     "apply_plan_faithful_latent_v6i23_population_birth",
+    "apply_v6i24_full_policy_population",
 ]

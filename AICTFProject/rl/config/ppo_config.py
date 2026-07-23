@@ -96,6 +96,14 @@ class PPOConfig:
     # ``normalize_and_validate_training_config``. Plan-faithful — only changes how often
     # each opponent is sampled, not the opponent definitions.
     opponent_pool_weights: tuple[float, ...] = field(default_factory=tuple)
+    # Optional joint (opponent, map) episode distribution for diagnostics (e.g. V6I24).
+    # Each entry is (opponent_tag, map_layout, weight). When non-empty, the pre-reset
+    # hook samples a cell jointly and overrides both opponent and next map layout.
+    # Weights are normalized to sum 1.0. Empty = legacy independent opponent/map sampling.
+    training_cell_distribution: tuple[tuple[str, str, float], ...] = field(default_factory=tuple)
+    # After loading a checkpoint, freeze return-normalization stats (no further updates).
+    # Used by V6I24 so member policies share identical frozen normalization.
+    freeze_return_norm_after_load: bool = False
     allow_op4_in_training_pool: bool = False
     max_blue_agents: int = 2
     use_deterministic: bool = False
@@ -258,6 +266,14 @@ class PPOConfig:
     # action heads are Stage-2 trainable (shared action_head stays frozen).
     latent_population_birth_active_z_only: bool = False
     latent_population_birth_per_z_action_heads: bool = False
+    # V6I24 full-policy population diagnostic (DIAGNOSTIC, not PAPER-FAITHFUL):
+    # Trains K completely independent policies from the same cloned checkpoint.
+    # Each policy has its own actor, critic, optimizer, buffer, and obs-norm.
+    # No shared gradients, no router, no latent conditioning.
+    population_training_enabled: bool = False
+    population_k: int = 4
+    population_pressure_rotation_interval: int = 10
+    population_round_robin_updates_per_cycle: int = 1
     # V6I1 Phase B/C macro-router and rehearsal controls.
     v6i1_recurrent_selector_hidden: int = 32
     v6i1_macro_strategy_ppo_coef: float = 1.0

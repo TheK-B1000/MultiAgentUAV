@@ -112,6 +112,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
     apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
     apply_plan_faithful_latent_v6i23_population_birth,
+    apply_v6i24_full_policy_population,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
@@ -646,6 +647,10 @@ PRESET_REGISTRY = {
     "v6i23": apply_plan_faithful_latent_v6i23_population_birth,
     "latent_v6i23_population_birth": apply_plan_faithful_latent_v6i23_population_birth,
     "plan_faithful_latent_v6i23_population_birth": apply_plan_faithful_latent_v6i23_population_birth,
+    "v6i24_full_policy_population": apply_v6i24_full_policy_population,
+    "v6i24": apply_v6i24_full_policy_population,
+    "latent_v6i24_full_policy_population": apply_v6i24_full_policy_population,
+    "plan_faithful_latent_v6i24_full_policy_population": apply_v6i24_full_policy_population,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.
