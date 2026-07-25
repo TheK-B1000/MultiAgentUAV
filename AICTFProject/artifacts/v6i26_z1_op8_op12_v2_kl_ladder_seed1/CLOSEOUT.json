@@ -1,0 +1,41 @@
+{
+  "protocol": "v6i26_z1_op8_op12_v2_seed1_closeout",
+  "date": "2026-07-25",
+  "status": "STOPPED_ONE_SEED_WEAK_DIRECTIONAL_SCREEN",
+  "recipe": "z1 OP8/OP12 v2 target-KL ladder, first checkpoint inside locked KL window",
+  "selected_checkpoint": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z1_u4_seed1.zip",
+  "selected_update": 4,
+  "evidence_summary": {
+    "optimization_control": "PASS",
+    "target_margin_direction": "PROMISING",
+    "policy_divergence": "WEAK_TO_MODERATE",
+    "strong_strategy_distinction": "FAIL",
+    "coarse_behavior_gate": "FAIL",
+    "win_rate_complementarity": "NOT_SHOWN",
+    "level_1_acceptance": "NO"
+  },
+  "key_metrics": {
+    "selected_fixed_batch_kl": 0.0011741563212126493,
+    "wr_advantage": 0.0,
+    "margin_advantage": 0.25,
+    "behavior_pair_distance_mean": 0.1298930317424019,
+    "behavior_pair_distance_threshold": 0.35,
+    "z1_vs_z0_logit_l2": 0.52914,
+    "z1_vs_z2_logit_l2": 0.5474,
+    "z1_vs_z3_logit_l2": 0.62896
+  },
+  "blocked_followons": {
+    "router_training": true,
+    "strict_32_episode_confirmation": true,
+    "per_z_value_head_retry": true,
+    "seed2_seed3_replication_for_current_focus": true
+  },
+  "reason": "One-seed evidence shows controlled movement and a small directional margin signal, but not strong policy/behavior separation or win-rate complementarity. User is currently focused on one seed, so the recipe is closed instead of launching replication.",
+  "artifacts": {
+    "level1_classification": "AICTFProject/artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/LEVEL1_CLASSIFICATION.json",
+    "policy_divergence": "AICTFProject/artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/policy_divergence_z1_u4.txt",
+    "kl_ladder_report": "AICTFProject/artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/kl_ladder_report.json",
+    "stage_c_report": "AICTFProject/artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/forced_z_selected/stage_c_report.json",
+    "behavior_report": "AICTFProject/artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/forced_z_selected/behavior_report.json"
+  }
+}

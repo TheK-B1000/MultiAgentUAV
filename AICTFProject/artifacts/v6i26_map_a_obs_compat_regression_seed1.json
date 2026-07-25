@@ -1,0 +1,36 @@
+{
+  "experiment": "v6i26_map_a_obs_compat_regression",
+  "checkpoint": "artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "inferred_obstacle_obs_channel": true,
+  "checks": {
+    "map_a_open_obs_channels": 8,
+    "map_a_open_obstacle_flag": true,
+    "map_a_open_cnn_shape_skipped": false,
+    "map_a_open_load_log_tail": "[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)",
+    "map_b_split_lane_obs_channels": 8,
+    "map_b_split_lane_obstacle_flag": true,
+    "map_b_split_lane_cnn_shape_skipped": false,
+    "map_b_split_lane_load_log_tail": "[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)",
+    "actor_input_dims_identical": true,
+    "map_a_obstacle_max": 0.0,
+    "map_a_obstacle_sum": 0.0,
+    "map_a_obstacle_exactly_zero": true,
+    "map_b_obstacle_max": 1.0,
+    "map_b_obstacle_sum": 36.0,
+    "map_b_obstacle_nonzero": true,
+    "map_b_cnn_weight_max_abs_diff_across_loaders": 0.0,
+    "map_b_cnn_shared_keys": 8,
+    "map_b_behavior_unchanged": true
+  },
+  "pass": true,
+  "gates": {
+    "eight_channels_both_maps": true,
+    "no_cnn_shape_skip_map_a": true,
+    "no_cnn_shape_skip_map_b": true,
+    "map_a_obstacle_exactly_zero": true,
+    "map_b_obstacle_nonzero": true,
+    "obstacle_flag_true_both": true,
+    "map_b_behavior_unchanged": true
+  },
+  "verdict": "PASS"
+}

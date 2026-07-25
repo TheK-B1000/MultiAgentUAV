@@ -1,0 +1,43 @@
+{
+  "protocol": "v6i26_actor_step_target_kl_ladder",
+  "classification": "DIAGNOSTIC",
+  "hypothesis": "2x under-floor and 3x over-ceiling show nonlinear KL vs LR; holding 3x LR fixed and stopping at the first 1u checkpoint whose fixed-batch init\u2192ckpt KL lands in [1e-3, 1e-2] tests whether a safe intermediate movement point exists without changing target, architecture, reward, alpha, opponents, or router.",
+  "locked_surface": {
+    "branch": 0,
+    "target_context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+    "opponent": "OP9_SPLIT_LANE_FEINT",
+    "map": "map_b_split_lane"
+  },
+  "optimizer": {
+    "separate_actor_critic_clip": true,
+    "z_actor_lr_mult": 3.0,
+    "critic_lr_unchanged": true,
+    "base_learning_rate": 0.0005,
+    "lr_schedule_preserves_group_mult": true,
+    "no_further_lr_rung": true
+  },
+  "ladder": {
+    "max_updates": 5,
+    "checkpoint_every_updates": 1,
+    "fixed_batch_kl_min": 0.001,
+    "fixed_batch_kl_max": 0.01,
+    "fixed_batch_protocol": "run_v6i26_logit_control_authority_probe",
+    "selection_rule": "first_checkpoint_inside_kl_window",
+    "evaluate_only_selected_checkpoint": true,
+    "early_stop_when_selected": true
+  },
+  "decision_rule": {
+    "no_rung_enters_window": "FAIL \u2014 no safe intermediate; do not raise LR",
+    "first_rung_above_ceiling": "FAIL \u2014 overshot before landing; do not raise LR",
+    "selected_in_window": "evaluate strategic gates ONLY on that checkpoint; then apply OP9 / anchors / behavior fork"
+  },
+  "do_not": [
+    "treat this as another LR multiplier rung",
+    "evaluate the final 5u ckpt if an earlier rung already entered the window",
+    "retune KL thresholds after seeing ladder results",
+    "raise residual alpha / redesign trunk / add per-z critics",
+    "switch opponents or unlock router",
+    "promote z3 Phase-2 candidate"
+  ],
+  "scientific_boundary": "Niche surface revealed latent payoff variation, but tested LRO procedures have not yet manufactured a statistically valuable and behaviorally distinct strategy. No promotion, no router, no strategy-birth claim yet."
+}

@@ -1,0 +1,39 @@
+{
+  "protocol": "v6i26_level1_classification",
+  "locked_at": "2026-07-25",
+  "candidates": {
+    "z0": "artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/final_v6i26_lro_kl_ladder_z0_u3_seed1.zip",
+    "z3": "artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip"
+  },
+  "gates": {
+    "controlled_movement_z0": {
+      "pass": true,
+      "detail": "KL ladder selected u3 fixed_batch_kl=1.514e-3 in [1e-3,1e-2]"
+    },
+    "cross_checkpoint_policy_distinction": {
+      "pass": true,
+      "logit_L2_mean": 2.91145,
+      "argmax_disagree_all_heads": 1.0,
+      "per_head_JSD": [0.015902, 0.008311, 0.015992, 0.008404],
+      "reading": "Matches distinct band (~2.9 L2); not same-checkpoint clone band (~0.3-0.4)"
+    },
+    "usable_repertoire_legal_selector": {
+      "pass": false,
+      "verdict": "USABLE_REPERTOIRE_HOLD_OR_FAIL",
+      "delta_usable": -0.1,
+      "delta_usable_LCB": -0.2375,
+      "delta_oracle": 0.1,
+      "delta_oracle_LCB": 0.0375,
+      "heldout_picks": {"z0": 80, "z3": 0},
+      "reading": "Hindsight complementarity exists; legal c0 selector never picks z3"
+    }
+  },
+  "level1_verdict": "FAIL",
+  "meaning": "Branches can differ in logits across checkpoints, and hindsight can find some complementarity, but a leakage-free start-context selector cannot realize usable repertoire value. Not a deployable two-strategy cupboard.",
+  "authorized_next": [
+    "do not train router",
+    "do not promote z0/z3 pair",
+    "do not start another LR rung",
+    "next training requires a new locked LRO birth recipe (new weakness / surface), not continuation of this pair"
+  ]
+}

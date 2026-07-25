@@ -1,0 +1,75 @@
+{
+  "checkpoint": "artifacts/v6i23_population_birth_5u_seed1/final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "opponents": [
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7_DEEP_FORTRESS",
+    "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_SPLIT_LANE_FEINT",
+    "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11_ADAPTIVE_EXPLOITER",
+    "OP12_LATE_CONVERTER"
+  ],
+  "maps": [
+    "map_a_open"
+  ],
+  "latents": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "episodes_per_cell": 4,
+  "base_seed": 1,
+  "deterministic_actions": true,
+  "max_decision_steps": 240,
+  "env_reward_kwargs": {
+    "stalemate_max_steps": 80,
+    "surface_score_margin_coef": 0.15,
+    "surface_blue_capture_tempo_bonus": 0.45,
+    "surface_red_flag_touch_penalty": 0.5,
+    "surface_red_carrier_progress_penalty": 0.075,
+    "surface_blue_near_cap_bonus": 0.035
+  },
+  "training_run_config": "artifacts\\v6i23_population_birth_5u_seed1\\v6i23_population_birth_5u_seed1_2v2_run_config.json",
+  "device": "cuda",
+  "collect_behavior_mean": true,
+  "progress_every": 8,
+  "status": "running",
+  "started_at_utc": "2026-07-25T20:21:04.067024+00:00",
+  "updated_at_utc": "2026-07-25T20:26:30.555258+00:00",
+  "pid": 50428,
+  "completed_conditions": [
+    {
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "latent_z": 1,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "latent_z": 2,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "latent_z": 3,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    }
+  ],
+  "completed_condition_count": 5,
+  "episode_count": 20
+}

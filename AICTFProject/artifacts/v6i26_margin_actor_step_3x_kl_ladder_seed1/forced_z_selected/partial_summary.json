@@ -1,6 +1,6 @@
 {
   "status": "running",
-  "updated_at_utc": "2026-07-25T11:49:25.207057+00:00",
+  "updated_at_utc": "2026-07-25T13:23:58.152361+00:00",
   "checkpoint": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z0_u3_seed1.zip",
   "completed_condition_count": 32,
   "expected_condition_count": 32,

@@ -90,9 +90,14 @@ def find_member_checkpoints(checkpoint_dir: Path) -> list[tuple[int, str, Path]]
 def _make_env(checkpoint: Path, map_name: str, seed: int, device: str, max_steps: int):
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
     from rl.custom_ppo.inference import read_custom_ppo_metadata
+    from rl.training.obs_schema import obstacle_obs_channel_for_checkpoint
 
     meta = read_custom_ppo_metadata(str(checkpoint))
     agents = int(meta.get("n_blue", 2))
+    obstacle_kw = {}
+    obstacle = obstacle_obs_channel_for_checkpoint(checkpoint)
+    if obstacle is not None:
+        obstacle_kw["obstacle_obs_channel"] = bool(obstacle)
     cfg = GPUFieldConfig(
         n_envs=1,
         max_blue_agents=agents,
@@ -103,6 +108,7 @@ def _make_env(checkpoint: Path, map_name: str, seed: int, device: str, max_steps
         rules_profile="OURS",
         device=device,
         seed=seed,
+        **obstacle_kw,
     )
     return GPUCTFVecEnv(cfg)
 

@@ -905,6 +905,14 @@ def main() -> int:
     cfg.training_cell_distribution = tuple(cells)
     cfg.opponent_pool = tuple(opponents)
     cfg.freeze_return_norm_after_load = True
+    # Keep 8-channel CNN schema on map_a_open (and mixed pools) for V6I23+ init.
+    cfg.obstacle_obs_channel = True
+    if train_maps:
+        from gpu_env._maps import normalize_map_layout
+
+        normalized_maps = tuple(normalize_map_layout(m) for m in train_maps)
+        cfg.map_layout = normalized_maps[0]
+        cfg.map_pool = normalized_maps
     round_log["preset"] = preset_key
     round_log["latent_lro_separate_actor_critic_clip"] = bool(
         getattr(cfg, "latent_lro_separate_actor_critic_clip", False)

@@ -1,0 +1,40 @@
+{
+  "rungs": [
+    {
+      "update": 1,
+      "checkpoint": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z1_u1_seed1.zip",
+      "alias": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\ckpt_ladder_u1.zip",
+      "fixed_batch_kl": 0.0003005819453392178,
+      "in_window": false,
+      "above_ceiling": false,
+      "below_floor": true
+    },
+    {
+      "update": 2,
+      "checkpoint": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z1_u2_seed1.zip",
+      "alias": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\ckpt_ladder_u2.zip",
+      "fixed_batch_kl": 0.0006304258713498712,
+      "in_window": false,
+      "above_ceiling": false,
+      "below_floor": true
+    },
+    {
+      "update": 3,
+      "checkpoint": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z1_u3_seed1.zip",
+      "alias": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\ckpt_ladder_u3.zip",
+      "fixed_batch_kl": 0.0007363227778114378,
+      "in_window": false,
+      "above_ceiling": false,
+      "below_floor": true
+    },
+    {
+      "update": 4,
+      "checkpoint": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z1_u4_seed1.zip",
+      "alias": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\ckpt_ladder_u4.zip",
+      "fixed_batch_kl": 0.0011741563212126493,
+      "in_window": true,
+      "above_ceiling": false,
+      "below_floor": false
+    }
+  ]
+}

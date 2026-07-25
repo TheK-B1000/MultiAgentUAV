@@ -29,7 +29,6 @@ if str(PROJECT_ROOT) not in sys.path:
 from experiments.v6i26_lro_core import (  # noqa: E402
     ACTOR_STEP_FIXED_BATCH_KL_MAX,
     ACTOR_STEP_FIXED_BATCH_KL_MIN,
-    MARGIN_PILOT_LOCKED,
     select_target_kl_ladder_rung,
     target_kl_ladder_contract,
     write_json,
@@ -82,6 +81,8 @@ def _probe_fixed_batch_kl(
     trained_ckpt: Path,
     out_json: Path,
     branch: int,
+    opponent: str,
+    map_name: str,
     device: str,
     seed: int,
 ) -> float:
@@ -97,9 +98,9 @@ def _probe_fixed_batch_kl(
         "--branch",
         str(branch),
         "--opponent",
-        str(MARGIN_PILOT_LOCKED["opponent"]),
+        str(opponent),
         "--map",
-        str(MARGIN_PILOT_LOCKED["map"]),
+        str(map_name),
         "--device",
         str(device),
         "--seed",
@@ -130,23 +131,19 @@ def main() -> int:
 
     target = json.loads(Path(args.locked_target_json).read_text(encoding="utf-8"))
     branch = int(args.branch)
-    locked = MARGIN_PILOT_LOCKED
-    if branch != int(locked["branch"]):
-        print(f"ERROR: ladder requires branch={locked['branch']}, got {branch}")
+    target_branch = int(target.get("branch_to_train_index"))
+    if branch != target_branch:
+        print(f"ERROR: locked target requires branch={target_branch}, got {branch}")
         return 2
-    if str(target.get("branch_to_train_index")) not in {str(branch), str(float(branch))}:
-        # tolerate int/float JSON; still require explicit lock match on context
-        pass
     tgt_ctx = str(
         (target.get("target_contexts") or [None])[0]
         or target.get("target_context")
         or ""
     )
-    if tgt_ctx and tgt_ctx != locked["target_context"]:
-        print(
-            f"ERROR: locked target mismatch: {tgt_ctx!r} != {locked['target_context']!r}"
-        )
+    if "|" not in tgt_ctx:
+        print(f"ERROR: locked target context must be 'OPPONENT|map', got {tgt_ctx!r}")
         return 2
+    probe_opponent, probe_map = tgt_ctx.split("|", 1)
 
     cells = _mixture_cells(dict(target.get("mixture_weights") or {}))
     if not cells:
@@ -227,6 +224,8 @@ def main() -> int:
             trained_ckpt=ckpt_u,
             out_json=probe_path,
             branch=branch,
+            opponent=probe_opponent,
+            map_name=probe_map,
             device=str(args.device),
             seed=int(args.seed),
         )
@@ -317,9 +316,7 @@ def main() -> int:
     )
     eval_dir = out_dir / "forced_z_selected"
     cmd = [
-        "uv",
-        "run",
-        "python",
+        sys.executable,
         "experiments/run_forced_z_eval.py",
         "--checkpoint",
         str(sel_ckpt),
@@ -339,13 +336,9 @@ def main() -> int:
         "--progress-every",
         "8",
         "--opponents",
-        "OP11_ADAPTIVE_EXPLOITER",
-        "OP12_LATE_CONVERTER",
-        "OP7_DEEP_FORTRESS",
-        "OP9_SPLIT_LANE_FEINT",
+        *opponents,
         "--maps",
-        "map_b_split_lane",
-        "map_b_split_lane_v2",
+        *maps,
     ]
     subprocess.run(cmd, check=True, cwd=str(PROJECT_ROOT))
     report["forced_z_selected_dir"] = str(eval_dir)

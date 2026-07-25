@@ -27,6 +27,16 @@ LRO_CLAIM = "B_population_guided_lro"
 LRO_CONFIRMATION_MIN_EPISODES_PER_CELL = 32
 LRO_CONFIRMATION_MIN_TRAINING_SEEDS = 3
 
+# Default LRO evaluation / birth surface. Includes map_a_open (default arena).
+# Training keeps obstacle_obs_channel=True so V6I23+ 8-channel checkpoints remain
+# loadable when cells are open-arena only (wall plane is zeros on map_a).
+try:
+    from gpu_env._maps import MAP_A_OPEN, MAP_B_SPLIT_LANE, MAP_B_SPLIT_LANE_V2
+
+    LRO_DEFAULT_MAPS = (MAP_A_OPEN, MAP_B_SPLIT_LANE, MAP_B_SPLIT_LANE_V2)
+except Exception:  # noqa: BLE001
+    LRO_DEFAULT_MAPS = ("map_a_open", "map_b_split_lane", "map_b_split_lane_v2")
+
 
 @dataclass(frozen=True)
 class LandscapePolicySpec:
@@ -941,6 +951,8 @@ def lro_manifest() -> dict[str, Any]:
     return {
         "protocol": LRO_PROTOCOL,
         "claim": LRO_CLAIM,
+        "default_maps": list(LRO_DEFAULT_MAPS),
+        "obstacle_obs_channel": True,
         "classification": "DIAGNOSTIC",
         "paper_claim": (
             "Summer uses response-oracle training to create complementary "
@@ -1618,6 +1630,7 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 
 __all__ = [
     "LRO_CLAIM",
+    "LRO_DEFAULT_MAPS",
     "LRO_PROTOCOL",
     "LandscapePolicySpec",
     "accept_lro_round",

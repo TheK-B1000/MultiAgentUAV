@@ -151,6 +151,15 @@ def build_training_env(
             f"flag_w={rrc.flag_cap_weight}, sparse_w={rrc.sparse_weight}, "
             f"scale={rrc.scale}, normalize={rrc.normalize}"
         )
+    obstacle_raw = getattr(cfg, "obstacle_obs_channel", None)
+    obstacle_kw: dict[str, Any] = {}
+    if obstacle_raw is not None:
+        obstacle_kw["obstacle_obs_channel"] = bool(obstacle_raw)
+        print(
+            "[PPO] obstacle_obs_channel override: "
+            f"{bool(obstacle_raw)} "
+            f"(map_layout={str(getattr(cfg, 'map_layout', 'map_a_open')).lower()})"
+        )
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
         n_agents_per_team=max_agents,
@@ -167,6 +176,7 @@ def build_training_env(
         dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
         dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
         router_reward_config=rrc,
+        **obstacle_kw,
         **reward_kw,
     )
     print(

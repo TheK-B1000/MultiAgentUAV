@@ -20,16 +20,17 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from experiments.v6i26_lro_core import (  # noqa: E402
+    LRO_DEFAULT_MAPS,
     default_landscape_policies,
     lro_manifest,
     payoff_tensor_summary,
     select_response_target,
     write_json,
 )
-from experiments.v6i24_population_config import DEFAULT_MAPS  # noqa: E402
 from gpu_env._core._bt_profiles import LRO_AUDITED_OPPONENT_POOL  # noqa: E402
 
 DEFAULT_OPPONENTS = tuple(LRO_AUDITED_OPPONENT_POOL)
+DEFAULT_MAPS = tuple(LRO_DEFAULT_MAPS)
 
 
 def _parse_args() -> argparse.Namespace:

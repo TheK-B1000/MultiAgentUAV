@@ -83,6 +83,10 @@ class PPOConfig:
     map_set: str = "train"
     map_layout: str = "map_a_open"
     map_pool: tuple[str, ...] = field(default_factory=tuple)
+    # None = derive from map_layout / map_pool (GPUFieldConfig). Set True to keep
+    # the 8-channel obstacle plane on map_a_open when continuing map_b-lineage
+    # checkpoints (LRO / V6I23+). The plane is zeros on open arenas.
+    obstacle_obs_channel: Optional[bool] = None
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
     # Uniform random scripted opponent per episode: either mode=OPPONENT_POOL or FIXED_OPPONENT + True.

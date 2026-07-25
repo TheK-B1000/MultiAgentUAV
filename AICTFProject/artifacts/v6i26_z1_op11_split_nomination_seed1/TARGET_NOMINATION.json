@@ -1,0 +1,96 @@
+{
+  "protocol": "v6i26_single_seed_birth_target_nomination",
+  "locked_at": "2026-07-25",
+  "status": "NOMINATED_NOT_LAUNCHED",
+  "source_payoff_matrix": "AICTFProject/artifacts/v6i26_lro_niches_round1_seed1/phase2_confirm/forced_z_before_32/episode_results.csv",
+  "incumbent_distinct_policy": "z3",
+  "failed_recipes": [
+    "z0 OP9 KL ladder: controlled movement, no strategy birth",
+    "z1 OP8/OP12-v2 KL ladder: weak directional refinement, closed"
+  ],
+  "selection_rule": "Find a context where z3 has a calibrated margin weakness against a generalist-cluster branch, excluding the closed OP8/OP12-v2 targets. Require recoverable headroom, competence, and first-in-window KL checkpoint selection if trained.",
+  "headroom_calibration": {
+    "episodes_per_cell": 32,
+    "min_margin_headroom": 0.30448234622923065,
+    "calibration": "max(0.15, 2 * median_cell_se)"
+  },
+  "nominated_birth_problem": {
+    "branch_to_train_index": 1,
+    "branch_to_train_label": "z1",
+    "target_context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+    "reason": "Only non-closed context in the current 32-episode matrix where a generalist-cluster branch exceeds z3 by calibrated margin headroom.",
+    "z3_margin": 1.03125,
+    "z3_wr": 0.875,
+    "branch_margin": 1.34375,
+    "branch_wr": 0.96875,
+    "margin_headroom_vs_z3": 0.3125,
+    "best_z": 1,
+    "best_margin": 1.34375,
+    "best_wr": 0.96875
+  },
+  "proposed_locked_recipe": {
+    "target_contexts": [
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane"
+    ],
+    "anchor_contexts": [
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2",
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2",
+      "OP7_DEEP_FORTRESS|map_b_split_lane"
+    ],
+    "mixture_weights": {
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane": 0.75,
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2": 0.1,
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2": 0.075,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 0.075
+    },
+    "runner": "experiments/run_v6i26_actor_step_kl_ladder.py",
+    "max_updates": 5,
+    "z_actor_lr_mult": 3.0,
+    "selection_rule": "first fixed-batch KL checkpoint in [1e-3, 1e-2]",
+    "immediate_screen_after_selection": [
+      "4 eps/cell selected surface",
+      "action-level divergence z1 vs z0,z2,z3",
+      "two-branch complementarity z1 vs incumbent z3",
+      "competence anchors"
+    ]
+  },
+  "candidate_audit_top": [
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+      "candidate_branch": 1,
+      "candidate_margin": 1.34375,
+      "candidate_wr": 0.96875,
+      "z3_margin": 1.03125,
+      "z3_wr": 0.875,
+      "headroom_vs_z3": 0.3125,
+      "passes": true
+    },
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane",
+      "candidate_branch": 1,
+      "candidate_margin": 1.875,
+      "candidate_wr": 0.96875,
+      "z3_margin": 1.71875,
+      "z3_wr": 0.96875,
+      "headroom_vs_z3": 0.15625,
+      "passes": false
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+      "candidate_branch": 0,
+      "candidate_margin": 1.25,
+      "candidate_wr": 0.9375,
+      "z3_margin": 1.15625,
+      "z3_wr": 0.875,
+      "headroom_vs_z3": 0.09375,
+      "passes": false,
+      "excluded_prior_z1_target": true
+    }
+  ],
+  "authorization": {
+    "training_launched": false,
+    "router_authorized": false,
+    "strict_confirmation_authorized": false,
+    "architecture_change_authorized": false
+  }
+}

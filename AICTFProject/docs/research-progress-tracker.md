@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-24 (UTC-4)
+> **Last updated:** 2026-07-25 (UTC-4)
 
 ---
 
@@ -2403,6 +2403,31 @@ external policies with handcrafted pressure mixtures.
 Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`.
 **Seeds 2–3 mid-flight: do not alter recipe.** Seed-1 Phase-2 causal claim failed.
 
+**Map_a enablement (2026-07-25):** LRO may train/eval on `map_a_open` (default
+arena). Preset forces `obstacle_obs_channel=True` so V6I23+ 8-channel
+checkpoints keep a compatible CNN stem (obstacle plane is zeros on open maps).
+Default landscape/birth surface: `LRO_DEFAULT_MAPS` =
+`(map_a_open, map_b_split_lane, map_b_split_lane_v2)`. Prior map_b-only scans
+remain valid; re-scan if map_a cells should enter target selection.
+
+**Map_a measurement status (2026-07-25, seed-1, infrastructure unlock only):**
+
+* Compat regression `artifacts/v6i26_map_a_obs_compat_regression_seed1.json`:
+  **PASS** — 8ch both maps; map_a obstacle plane exactly zero; map_b nonzero;
+  no CNN shape-skips; CNN weights identical across map_a/map_b loaders.
+* Archive landscape `artifacts/v6i26_landscape_scan_mapa_only_seed1/`:
+  competent policies (v6i24 balanced/failure_cells, v6i23) are **winrate=1.0
+  on all 7 OP cells**; `G_available_point≈0.008`, `niche_signal=false`,
+  `cells_with_margin≥0.1 = 0`. Cross-fitted oracle CI crosses 0
+  (`gate_cross_fitted_oracle=false`). Auto-selected birth branch was the
+  broken `v6i24_complementary` row (wr=0) — **not** a strategy niche.
+  Interpretation: map_a is **not** a birth curriculum by itself (near-saturated
+  for competent policies); keep for generalization / selector geometry only
+  if forced-z shows crossover.
+* Next (running): forced-z z0..z3 on map_a for V6I23; then three-map archive
+  scan `artifacts/v6i26_landscape_scan_mapa_seed1/`. **No training** until
+  crossover or a calibrated uncovered weakness is measured.
+
 **Locked headline claim (replaces spontaneous emergence):**
 
 > Summer uses response-oracle training to create complementary latent team
@@ -2756,6 +2781,133 @@ fork = KL pass + behavior flat → refinement, not strategy birth
 Ignore forced_z_eval Stage-C banner “proceed to router training” — **not
 authorized**. No router, no 10u on specialization grounds, no further LR rung.
 Paper boundary unchanged.
+
+**Usable-selector eval (LOCKED 2026-07-25) — `USABLE_REPERTOIRE_HOLD_OR_FAIL`:**
+`artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/usable_selector_eval_u3.json`
+(z0 KL-ladder u3 vs locked z3 25u; 32 eps/context; leakage-free legal `c0` selector)
+
+```text
+V_z0=1.1875  V_z3=1.2875  best_fixed=1.2875
+V_hindsight_oracle=1.3875  delta_oracle=+0.100  LCB>0  (upper bound only)
+V_legal_selector=1.1875    delta_usable=-0.100  LCB=-0.238  FAIL
+held-out picks: z0=80 / z3=0   (selector never chooses z3)
+selection labels: z3_better=4 / z0_better_or_tie=76
+```
+
+Hindsight complementarity exists; **deployable** repertoire selection does not.
+Do **not** promote, do **not** train router.
+
+**Cross-checkpoint policy distinction (COMPLETE 2026-07-25):**
+`diagnose_v6i26_cross_checkpoint_divergence.py`
+z0(u3) vs z3(25u) on shared obs batch (n=1024):
+
+```text
+logit_L2 mean≈2.91  (distinct band; same-ckpt clones were ~0.3–0.4)
+argmax disagree = 1.0 on all heads
+JSD ≈ 0.008–0.016
+```
+
+Logit distinction **passes**; usable legal-selector **fails**. Combined
+**Level-1 verdict = FAIL** (`LEVEL1_CLASSIFICATION.json`). No authorized
+follow-on training from this pair — next train needs a new locked LRO birth
+recipe, not router / not another LR rung.
+
+**z1 OP8/OP12 v2 target-KL ladder screen (LOCKED 2026-07-25) -- `PROMISING_DIRECTION_NOT_ACCEPT`:**
+`artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/`
+
+Locked target recipe:
+`artifacts/v6i26_z1_op8_op12_v2_locked_recipe_seed1/locked_response_target.json`
+from the existing 32-episode forced-z matrix. Target branch is `z1`; target
+contexts are OP8 protected-carrier escort and OP12 late-converter on
+`map_b_split_lane_v2`; anchors are OP7 split-lane and OP10 split-lane-v2.
+
+```text
+u1 KL=3.01e-4  (below floor)
+u2 KL=6.30e-4  (below floor)
+u3 KL=7.36e-4  (below floor)
+u4 KL=1.17e-3  <- SELECTED (first in [1e-3, 1e-2]); early stop
+screen sample = 4 eps/cell only
+best_fixed_z = z1
+oracle WR = 1.000  best-fixed WR = 1.000  WR advantage = 0.000
+oracle margin = 1.625  best-fixed margin = 1.375  margin advantage = +0.250
+behavior_pair_distance_mean = 0.1299  max = 0.2182  threshold = 0.35
+unique best-z values = [0, 1]
+```
+
+Strict classification artifact:
+`artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/LEVEL1_CLASSIFICATION.json`.
+The run is a movement-controlled screen only. It does **not** prove strategy
+birth: no win-rate improvement over best fixed, no behavior-distance pass, no
+32-episode confirmation, no CI pass, and no multi-seed repetition. Ignore any
+legacy Stage-C router-training banner from this 4-episode path. Router remains
+blocked.
+
+Seed-1 action-level divergence diagnostic:
+`artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/policy_divergence_z1_u4.txt`.
+Same-checkpoint observation batch, n=1024:
+
+```text
+z0 vs z1: logit_L2=0.529  argmax=[0.499,0.500,0.480,0.728]  JSD~1.75e-4..3.18e-4
+z1 vs z2: logit_L2=0.547  argmax=[0.540,0.999,0.777,1.000]  JSD~2.28e-4..3.43e-4
+z1 vs z3: logit_L2=0.629  argmax=[0.459,1.000,0.379,1.000]  JSD~1.44e-4..4.52e-4
+```
+
+Interpretation: z1-u4 is above the local duplicate-policy band (~0.3-0.4 L2)
+but far below the prior strong distinct z3 cross-checkpoint band (~2.9 L2),
+with tiny JSD. Record as weak-to-moderate policy divergence, not a copy, and
+not strategy proof. This partially softens the 7-D behavior failure but does
+not override the failed WR complementarity, small sample count, missing CI, or
+missing replication.
+
+Replication status: no completed z1 seed2/seed3 KL-ladder replicas exist. Only
+the seed1 V6I23 init checkpoint is present under artifacts/checkpoints; the
+older seed2 z3 recipe artifact is marked `ABORTED_BY_PROTOCOL`. A clean
+seed2/seed3 replication therefore needs either matching V6I23 seed2/seed3 init
+checkpoints or an explicit decision that "seed2/seed3" means same seed1 init
+with different rollout/training RNG.
+
+**One-seed closeout (LOCKED 2026-07-25):**
+`artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/CLOSEOUT.json`
+
+```text
+status = STOPPED_ONE_SEED_WEAK_DIRECTIONAL_SCREEN
+optimization control = PASS
+target margin direction = PROMISING
+policy divergence = WEAK_TO_MODERATE
+strong strategy distinction = FAIL
+coarse behavior gate = FAIL
+win-rate complementarity = NOT_SHOWN
+Level 1 = NO
+```
+
+Current one-seed decision: preserve as a negative / weak directional screen.
+Do not launch router training, strict 32-episode confirmation, per-z value-head
+retry, or seed replication from this result alone. The seed2 V6I23 init artifact
+created during replication-prep is not part of this one-seed closeout and should
+not be used to reinterpret seed1.
+
+**Next target nomination (LOCKED 2026-07-25) -- `NOMINATED_NOT_LAUNCHED`:**
+`artifacts/v6i26_z1_op11_split_nomination_seed1/TARGET_NOMINATION.json`
+
+Current 32-episode payoff matrix was rescored with `z3` treated as the incumbent
+distinct policy. The only non-closed context where a generalist-cluster branch
+beats `z3` by calibrated margin headroom is:
+
+```text
+target = OP11_ADAPTIVE_EXPLOITER|map_b_split_lane
+branch = z1
+z3 margin / WR = 1.03125 / 0.875
+z1 margin / WR = 1.34375 / 0.96875
+margin headroom vs z3 = +0.3125
+required headroom = 0.3045
+```
+
+Proposed locked recipe if this is launched later: target OP11 split-lane at
+75%, anchors OP11 split-lane-v2 / OP10 split-lane-v2 / OP7 split-lane at 25%
+total, same 3x actor-step KL ladder, first checkpoint entering `[1e-3, 1e-2]`.
+Immediate screen must include action-level divergence and two-branch
+complementarity against incumbent `z3`. No training launched from this
+nomination.
 
 **Permanent keep — screening vs ACCEPT (locked):**
 

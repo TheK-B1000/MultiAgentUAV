@@ -1,0 +1,9 @@
+{
+  "status": "running",
+  "updated_at_utc": "2026-07-25T15:12:19.686812+00:00",
+  "checkpoint": "artifacts/v6i23_population_birth_5u_seed1/final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "completed_condition_count": 0,
+  "expected_condition_count": 28,
+  "episode_count": 0,
+  "completed_conditions": []
+}

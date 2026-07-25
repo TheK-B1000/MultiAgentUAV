@@ -1,0 +1,105 @@
+{
+  "protocol": "v6i26_locked_lro_birth_recipe",
+  "locked_at": "2026-07-25",
+  "selection_basis": "compatible_split_lane_non_z0_margin_headroom_after_level1_fail",
+  "source_forced_z_before": "artifacts\\v6i26_lro_niches_round1_seed1\\phase2_confirm\\forced_z_before_32\\episode_results.csv",
+  "failed_prior_recipe": "artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/LEVEL1_CLASSIFICATION.json",
+  "reason": "Previous OP9/z0 recipe produced safe KL movement and logit distinction but failed legal usable-selector value; choose a non-z0 stable branch on unfailed compatible cells with strict margin headroom.",
+  "branch_to_train_index": 1,
+  "branch_to_train_label": "z1",
+  "target_context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+  "target_contexts": [
+    "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+    "OP12_LATE_CONVERTER|map_b_split_lane_v2"
+  ],
+  "anchor_contexts": [
+    "OP7_DEEP_FORTRESS|map_b_split_lane",
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2"
+  ],
+  "mixture_weights": {
+    "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2": 0.4,
+    "OP12_LATE_CONVERTER|map_b_split_lane_v2": 0.35,
+    "OP7_DEEP_FORTRESS|map_b_split_lane": 0.125,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2": 0.125
+  },
+  "target_fraction": 0.75,
+  "anchor_fraction": 0.25,
+  "selection_metric": "win_margin",
+  "headroom_calibration": {
+    "n_episodes": 32.0,
+    "se_multiplier": 2.0,
+    "absolute_floor": 0.15,
+    "median_cell_se": 0.15467718656171306,
+    "min_margin_headroom": 0.3093543731234261
+  },
+  "row_mean_winrate": {
+    "z0": 0.7053571428571429,
+    "z1": 0.9330357142857143,
+    "z2": 0.9419642857142857,
+    "z3": 0.9598214285714286
+  },
+  "row_mean_margin": {
+    "z0": 0.6540178571428571,
+    "z1": 1.265625,
+    "z2": 1.2857142857142858,
+    "z3": 1.3504464285714286
+  },
+  "target_cells": [
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+      "branch_margin_headroom": 0.34375,
+      "branch_wr": 0.875,
+      "branch_margin": 1.03125,
+      "best_wr": 1.0,
+      "best_margin": 1.375,
+      "best_z": 3
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+      "branch_margin_headroom": 0.3125,
+      "branch_wr": 0.84375,
+      "branch_margin": 0.9375,
+      "best_wr": 0.9375,
+      "best_margin": 1.25,
+      "best_z": 0
+    }
+  ],
+  "anchor_cells": [
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane",
+      "branch_margin_headroom": 0.0,
+      "branch_wr": 0.96875,
+      "branch_margin": 1.875,
+      "best_wr": 0.96875,
+      "best_margin": 1.875,
+      "best_z": 1
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2",
+      "branch_margin_headroom": 0.15625,
+      "branch_wr": 0.90625,
+      "branch_margin": 1.3125,
+      "best_wr": 0.96875,
+      "best_margin": 1.46875,
+      "best_z": 3
+    }
+  ],
+  "gates": {
+    "branch_not_z0_after_z0_pair_failed": true,
+    "all_targets_margin_headroom_ge_threshold": true,
+    "all_targets_branch_wr_ge_0_50": true,
+    "all_targets_best_wr_ge_0_75": true,
+    "branch_not_best_on_targets": true,
+    "target_mixture_70_80": true,
+    "anchor_mixture_20_30": true,
+    "all_pass": true
+  },
+  "next_protocol": {
+    "runner": "experiments/run_v6i26_actor_step_kl_ladder.py",
+    "max_updates": 5,
+    "checkpoint_every_updates": 1,
+    "z_actor_lr_mult": 3.0,
+    "selection_rule": "first fixed-batch KL checkpoint in [1e-3,1e-2]",
+    "acceptance_boundary": "movement only is not strategy birth; post-eval must show behavior/payoff/usable value before promotion"
+  }
+}

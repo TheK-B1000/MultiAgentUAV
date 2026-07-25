@@ -1636,10 +1636,14 @@ return and population regret drive which branch updates.
 * `latent_strategy_ppo_coef=0`, router OFF
 * `recurrent_selector_hidden_dim=0`
 * `freeze_return_norm_after_load=True`, `opponent_randomize=True`
+* `obstacle_obs_channel=True` — keep the 8-channel obstacle plane when
+  training/eval cells include `map_a_open` so V6I23+ checkpoints do not
+  shape-skip the CNN stem (wall plane is zeros on open arenas)
 * `experiment_id` / `run_tag` → v6i26 LRO
 
 Contract rewards remain OFF (already on v6i23). Deep trunks sit on top of
-inherited residual adapters + per-z action heads.
+inherited residual adapters + per-z action heads. Default LRO map surface is
+`LRO_DEFAULT_MAPS = (map_a_open, map_b_split_lane, map_b_split_lane_v2)`.
 
 **Stages:**
 

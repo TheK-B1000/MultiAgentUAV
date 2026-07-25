@@ -27,6 +27,14 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+# This script's diagnostic print statements use Unicode (arrows, theta, approx)
+# for readability; Windows consoles default to cp1252, which can't encode them
+# and crashes the process mid-print (after the JSON report is already written).
+# UTF-8 stdout/stderr makes this robust regardless of console codepage.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 from experiments.run_v6i24_donor_teacher_kl import _kl_cat  # noqa: E402
 from experiments.run_v6i26_lro_oracle_round import _distribution_logits  # noqa: E402
 from experiments.v6i26_lro_core import write_json  # noqa: E402

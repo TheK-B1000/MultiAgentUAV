@@ -39,6 +39,7 @@ def apply_v6i26_latent_response_oracle(cfg: PPOConfig) -> PPOConfig:
     - latent_lro_active_branch_only → True
     - freeze shared encoder during birth (v6i9_training_stage=repertoire)
     - router OFF; fixed z per episode during birth rounds
+    - obstacle_obs_channel → True (map_a_open keeps 8-ch schema for V6I23+ init)
     - experiment_id/run_tag → v6i26 LRO
 
     ### Fidelity impact
@@ -83,6 +84,9 @@ def apply_v6i26_latent_response_oracle(cfg: PPOConfig) -> PPOConfig:
     cfg.opponent_pool = tuple(LRO_AUDITED_OPPONENT_POOL)
     cfg.freeze_return_norm_after_load = True
     cfg.phase_pod_id = ""  # optional; LRO mixtures are payoff-driven
+    # Keep the 8-channel obstacle plane even when training cells include
+    # map_a_open so V6I23+ checkpoints do not shape-skip the CNN stem.
+    cfg.obstacle_obs_channel = True
 
     cfg.experiment_id = "v6i26"
     cfg.run_tag = (

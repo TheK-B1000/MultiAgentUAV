@@ -100,6 +100,7 @@ class V6i26ConfigContractTests(unittest.TestCase):
             "latent_population_birth_active_z_only",
             "latent_population_birth_per_z_action_heads",
             "opponent_pool",
+            "obstacle_obs_channel",
         }
         actual = {k for k in v26 if v26[k] != v23.get(k)}
         unexpected = actual - allowed
@@ -122,6 +123,36 @@ class V6i26ConfigContractTests(unittest.TestCase):
         self.assertEqual(cfg.latent_episode_strategy_coef, 0.0)
         self.assertFalse(cfg.latent_episode_strategy_ppo)
         self.assertIsNone(getattr(cfg, "latent_episode_strategy_lr", None))
+
+    def test_map_a_keeps_eight_cnn_channels(self) -> None:
+        """LRO must stay on the 8-ch schema so V6I23+ init loads on map_a."""
+        from gpu_env._maps import MAP_A_OPEN
+        from rl.training.env_factory import build_training_env
+        from rl.training.config_validation import normalize_and_validate_training_config
+
+        cfg = _resolve("v6i26")
+        cfg.map_layout = MAP_A_OPEN
+        cfg.map_pool = ()
+        cfg.device = "cpu"
+        cfg.n_envs = 1
+        normalize_and_validate_training_config(cfg)
+        self.assertTrue(cfg.obstacle_obs_channel)
+        env = build_training_env(cfg, initial_phase="PHASE1", initial_opponent_tag="OP8")
+        try:
+            self.assertTrue(bool(env.cfg.obstacle_obs_channel))
+            self.assertEqual(int(env.cfg.num_cnn_channels), 8)
+            self.assertEqual(int(env.observation_space["grid"].shape[1]), 8)
+        finally:
+            env.close()
+
+
+class V6i26MapAObsSchemaTests(unittest.TestCase):
+    def test_default_maps_include_map_a(self) -> None:
+        from experiments.v6i26_lro_core import LRO_DEFAULT_MAPS
+        from gpu_env._maps import MAP_A_OPEN
+
+        self.assertIn(MAP_A_OPEN, LRO_DEFAULT_MAPS)
+        self.assertEqual(LRO_DEFAULT_MAPS[0], MAP_A_OPEN)
 
 
 class V6i26PayoffHelperTests(unittest.TestCase):

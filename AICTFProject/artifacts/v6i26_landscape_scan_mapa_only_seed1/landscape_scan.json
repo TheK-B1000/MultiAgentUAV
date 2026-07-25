@@ -1,0 +1,435 @@
+{
+  "experiment": "v6i26_strategic_landscape_scan",
+  "lro": {
+    "protocol": "v6i26_latent_response_oracle",
+    "claim": "B_population_guided_lro",
+    "default_maps": [
+      "map_a_open",
+      "map_b_split_lane",
+      "map_b_split_lane_v2"
+    ],
+    "obstacle_obs_channel": true,
+    "classification": "DIAGNOSTIC",
+    "paper_claim": "Summer uses response-oracle training to create complementary latent team strategies inside one decentralized PPO policy, then learns a persistent context router that selects among them and outperforms fixed-strategy and matched non-latent PPO agents.",
+    "stages": {
+      "0_landscape_scan": "archive G_before baseline (informational)",
+      "1_one_specialist": "\u0394G>0 for one forced-z BR round (primary)",
+      "2_confirm": "CI95(\u0394G)>0 with \u226532 eps/cell and \u22653 seeds",
+      "3_repertoire": "add branches only if G rises again (2\u20133 enough)",
+      "4_retention": "G_available inside single policy > 0",
+      "5_sparse_router": "G_realized = V_router \u2212 V_best_fixed_z > 0",
+      "6_headline": "G_latent = V_routed_LRO \u2212 V_matched_nonlatent > 0"
+    },
+    "stage1_breakthrough": "delta_G_available = G_after - G_before > 0",
+    "screening_verdict": "4 episodes/cell may produce PROMISING_DIRECTION only; never ACCEPT.",
+    "target_selection": [
+      "measure current forced-z payoff matrix before each response round",
+      "exclude contexts whose current coverage is already saturated",
+      "select uncovered target contexts by headroom below saturation cutoff",
+      "select a stable branch that is not already dominant on the target",
+      "train a fixed target/competence-anchor mixture"
+    ],
+    "stage1_acceptance": [
+      "delta_G > 0",
+      "CI95(delta_G) lower bound > 0",
+      "targeted_mixture_improves",
+      "competence_above_floor",
+      "inactive_branches_no_drift",
+      "nonredundant_payoff_row",
+      "forced_z_behavior_nonredundant",
+      ">= 32 forced-z episodes/cell",
+      "repetition across >= 3 training seeds"
+    ],
+    "checkpoint_diagnostics": [
+      "target_cell_payoff",
+      "competence",
+      "behavior_distance_from_nearest_branch",
+      "branch_KL_from_initialization",
+      "inactive_branch_drift"
+    ],
+    "heldout_confirmation_cells": [
+      "targeted_regret_mixture_cells",
+      "nearby_niche_or_map_cells",
+      "general_competence_anchor_cells"
+    ],
+    "controlled_retry_if_multiseed_fails": "First inspect learning-signal diagnostics and retarget from the current forced-z payoff matrix. Try per-z value heads only if the signal is healthy but the selected branch still collapses into an existing row.",
+    "one_retry_only": true,
+    "closed_paths": [
+      "entropy_as_diversity_proof",
+      "router_before_G_available",
+      "coefficient_carousel",
+      "4eps_cell_winner_as_success"
+    ],
+    "phase_context_axis": {
+      "protocol": "v6i26_phase_pod_exclusive_birth",
+      "classification": "DIAGNOSTIC",
+      "path": "C_phase_pod_psro",
+      "claim": "B_population_guided",
+      "pods": [
+        {
+          "pod_id": "open_pressure",
+          "member_id": 0,
+          "label": "open_pressure",
+          "description": "No carriers; early scramble \u2014 early pressure / race",
+          "seed_offset": 0
+        },
+        {
+          "pod_id": "intercept",
+          "member_id": 1,
+          "label": "intercept",
+          "description": "Red has flag carrier mid-field \u2014 intercept and deny",
+          "seed_offset": 100
+        },
+        {
+          "pod_id": "escort",
+          "member_id": 2,
+          "label": "escort",
+          "description": "Blue has flag carrier mid-field \u2014 protect and convert",
+          "seed_offset": 200
+        },
+        {
+          "pod_id": "defend_lead",
+          "member_id": 3,
+          "label": "defend_lead",
+          "description": "Blue score lead + late clock \u2014 stall / home defense",
+          "seed_offset": 300
+        }
+      ],
+      "pod_to_z": {
+        "open_pressure": 0,
+        "intercept": 1,
+        "escort": 2,
+        "defend_lead": 3
+      },
+      "note": "Exclusive scenario injection at episode start; no z-role rewards; contract specialist OFF; router OFF during birth."
+    },
+    "pod_to_z": {
+      "open_pressure": 0,
+      "intercept": 1,
+      "escort": 2,
+      "defend_lead": 3
+    },
+    "phase_ids": [
+      "open_pressure",
+      "intercept",
+      "escort",
+      "defend_lead"
+    ]
+  },
+  "policies": [
+    {
+      "policy_id": "v6i24_m0",
+      "label": "v6i24_balanced",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_0_balanced.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i24_m1",
+      "label": "v6i24_failure_cells",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_1_failure_cells.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i24_m2",
+      "label": "v6i24_high_variance",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_2_high_variance.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i24_m3",
+      "label": "v6i24_complementary",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_3_complementary.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i23_donor",
+      "label": "v6i23_population_birth",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+      "kind": "checkpoint"
+    }
+  ],
+  "opponents": [
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7_DEEP_FORTRESS",
+    "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_SPLIT_LANE_FEINT",
+    "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11_ADAPTIVE_EXPLOITER",
+    "OP12_LATE_CONVERTER"
+  ],
+  "maps": [
+    "map_a_open"
+  ],
+  "episodes_per_cell": 4,
+  "seed": 1,
+  "payoff_matrix": [
+    [
+      1.05,
+      1.1125,
+      1.05,
+      1.05,
+      1.1,
+      1.0625,
+      1.0875000000000001
+    ],
+    [
+      1.1,
+      1.0875000000000001,
+      1.075,
+      1.1,
+      1.1,
+      1.125,
+      1.0875000000000001
+    ],
+    [
+      0.7749999999999999,
+      1.1,
+      1.05,
+      0.7875000000000001,
+      0.7749999999999999,
+      0.7749999999999999,
+      0.49999999999999994
+    ],
+    [
+      -0.15000000000000002,
+      -0.07500000000000001,
+      -0.15000000000000002,
+      -0.15000000000000002,
+      -0.07500000000000001,
+      -0.15000000000000002,
+      -0.15000000000000002
+    ],
+    [
+      1.05,
+      1.075,
+      1.0625,
+      1.0750000000000002,
+      1.05,
+      1.0625,
+      1.0750000000000002
+    ]
+  ],
+  "winrate_matrix": [
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ],
+    [
+      0.75,
+      1.0,
+      1.0,
+      0.75,
+      0.75,
+      0.75,
+      0.5
+    ],
+    [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  ],
+  "contexts": [
+    "OP6_IMMEDIATE_DUAL_RUSH|map_a_open",
+    "OP7_DEEP_FORTRESS|map_a_open",
+    "OP8_PROTECTED_CARRIER_ESCORT|map_a_open",
+    "OP9_SPLIT_LANE_FEINT|map_a_open",
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_a_open",
+    "OP11_ADAPTIVE_EXPLOITER|map_a_open",
+    "OP12_LATE_CONVERTER|map_a_open"
+  ],
+  "summary": {
+    "n_policies": 5,
+    "n_contexts": 7,
+    "unique_best_count": 2,
+    "unique_best_indices": [
+      0,
+      1
+    ],
+    "unique_best_labels": [
+      "v6i24_balanced",
+      "v6i24_failure_cells"
+    ],
+    "cells_with_margin_ge": 0,
+    "margin_threshold": 0.1,
+    "best_by_context": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_a_open": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.1,
+        "margin_vs_second": 0.050000000000000044
+      },
+      "OP7_DEEP_FORTRESS|map_a_open": {
+        "best_policy": "v6i24_balanced",
+        "best_index": 0,
+        "payoff": 1.1125,
+        "margin_vs_second": 0.012499999999999956
+      },
+      "OP8_PROTECTED_CARRIER_ESCORT|map_a_open": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.075,
+        "margin_vs_second": 0.012499999999999956
+      },
+      "OP9_SPLIT_LANE_FEINT|map_a_open": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.1,
+        "margin_vs_second": 0.02499999999999991
+      },
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a_open": {
+        "best_policy": "v6i24_balanced",
+        "best_index": 0,
+        "payoff": 1.1,
+        "margin_vs_second": 0.0
+      },
+      "OP11_ADAPTIVE_EXPLOITER|map_a_open": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.125,
+        "margin_vs_second": 0.0625
+      },
+      "OP12_LATE_CONVERTER|map_a_open": {
+        "best_policy": "v6i24_balanced",
+        "best_index": 0,
+        "payoff": 1.0875000000000001,
+        "margin_vs_second": 0.0
+      }
+    },
+    "best_fixed_index": 1,
+    "best_fixed_label": "v6i24_failure_cells",
+    "oracle_test_mean": 1.1125,
+    "best_fixed_test_mean": 1.1041666666666667,
+    "G_available_point": 0.008333333333333304,
+    "max_pairwise_row_distance": 1.2256011598113472,
+    "niche_signal": false,
+    "parallel_rows": false
+  },
+  "next_response_target": {
+    "target_context": "OP12_LATE_CONVERTER|map_a_open",
+    "target_context_index": 6,
+    "target_regret": 0.3408928571428572,
+    "raw_target_regret": 0.36750000000000005,
+    "smoothed": true,
+    "episodes_per_cell": 4,
+    "prior_strength": 4.0,
+    "max_mixture_weight": 0.35,
+    "aggregate_by_opponent": true,
+    "mixture_weights": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_a_open": 0.14572536386890922,
+      "OP7_DEEP_FORTRESS|map_a_open": 0.13418558183633633,
+      "OP8_PROTECTED_CARRIER_ESCORT|map_a_open": 0.1348581898643218,
+      "OP9_SPLIT_LANE_FEINT|map_a_open": 0.1446365119386196,
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a_open": 0.14212739181528258,
+      "OP11_ADAPTIVE_EXPLOITER|map_a_open": 0.1479277207092092,
+      "OP12_LATE_CONVERTER|map_a_open": 0.1505392399673213
+    },
+    "mixture_top": [
+      {
+        "context": "OP12_LATE_CONVERTER|map_a_open",
+        "weight": 0.1505392399673213,
+        "regret": 0.3408928571428572
+      },
+      {
+        "context": "OP11_ADAPTIVE_EXPLOITER|map_a_open",
+        "weight": 0.1479277207092092,
+        "regret": 0.3321428571428572
+      },
+      {
+        "context": "OP6_IMMEDIATE_DUAL_RUSH|map_a_open",
+        "weight": 0.14572536386890922,
+        "regret": 0.32464285714285723
+      }
+    ],
+    "branch_to_train_index": 3,
+    "branch_to_train_label": "v6i24_complementary",
+    "acceptance_requires": [
+      "delta_G_available_gt_0",
+      "nonredundant_payoff_row",
+      "competence_above_floor",
+      "forced_z_behavior_nonredundant"
+    ]
+  },
+  "cross_fitted_oracle": {
+    "context_oracle_mean": 1.1,
+    "best_fixed_mean": 1.092857142857143,
+    "best_fixed_idx": 1,
+    "best_fixed_member": "v6i24_failure_cells",
+    "delta": 0.00714285714285715,
+    "ci_low": -0.014285714285714235,
+    "ci_high": 0.0428571428571428,
+    "gate_cross_fitted_oracle": false,
+    "n_heldout": 7,
+    "n_train_episodes": 3,
+    "n_test_episodes": 1,
+    "pi_star_per_context": [
+      {
+        "context": "OP6_IMMEDIATE_DUAL_RUSH|map_a_open",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP7_DEEP_FORTRESS|map_a_open",
+        "member": "v6i24_balanced",
+        "idx": 0
+      },
+      {
+        "context": "OP8_PROTECTED_CARRIER_ESCORT|map_a_open",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP9_SPLIT_LANE_FEINT|map_a_open",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_a_open",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP11_ADAPTIVE_EXPLOITER|map_a_open",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP12_LATE_CONVERTER|map_a_open",
+        "member": "v6i24_balanced",
+        "idx": 0
+      }
+    ],
+    "unique_train_best_policies": 2
+  },
+  "G_available_effective": 0.00714285714285715,
+  "decision": "PROMOTE_LRO_BIRTH",
+  "note": "Positive G_available without full niche_signal; proceed to Stage-1.",
+  "first_true_v6i26_success": "G_available_after > G_available_before"
+}
