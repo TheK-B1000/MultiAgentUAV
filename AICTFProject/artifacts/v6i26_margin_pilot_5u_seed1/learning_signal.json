@@ -1,0 +1,168 @@
+{
+  "status": "NO_USABLE_LEARNING_PRESSURE",
+  "broken_link": "PARAMS_MOVE_KL_FLAT",
+  "meaning": "Active-branch parameters changed but policy KL stayed tiny \u2014 updates have little influence on action probabilities (residual/adapter scale, identity trunk, or insensitive directions).",
+  "next_action": "Probe logit sensitivity of branch trunk / action head; consider raising residual alpha or confirming deep trunks leave identity.",
+  "path": "artifacts\\v6i26_margin_pilot_5u_seed1\\v6i26_lro_z0_r1_5u_seed1_metrics.csv",
+  "n_updates": 5,
+  "branch_idx": 0,
+  "approx_kl": {
+    "n": 5,
+    "mean": 1.847735062862436e-05,
+    "last": 1.4279503375291824e-06,
+    "max": 4.31809457950294e-05
+  },
+  "clip_fraction": {
+    "n": 5,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "entropy": {
+    "n": 5,
+    "mean": 2.636798652013143,
+    "last": 2.644428769747416,
+    "max": 2.7457637389500937
+  },
+  "explained_variance": {
+    "n": 5,
+    "mean": 0.0183106184005737,
+    "last": 0.0272988677024841,
+    "max": 0.0272988677024841
+  },
+  "value_loss": {
+    "n": 5,
+    "mean": 1.061621403694153,
+    "last": 0.896628220876058,
+    "max": 1.1620866656303406
+  },
+  "policy_loss": {
+    "n": 5,
+    "mean": -0.0005388176068663098,
+    "last": -0.0001770729043831,
+    "max": -8.976145181804895e-05
+  },
+  "learning_rate": {
+    "n": 5,
+    "mean": 7.999999999999334e-05,
+    "last": 5e-05,
+    "max": 0.0001333333333333
+  },
+  "grad_norm": {
+    "n": 5,
+    "mean": 1.6390230099360146,
+    "last": 1.3613168398539226,
+    "max": 1.994731724262237
+  },
+  "actor_grad_norm": {
+    "n": 5,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "critic_grad_norm": {
+    "n": 5,
+    "mean": 1.669180637607288,
+    "last": 1.3767774138379103,
+    "max": 2.0341332137741324
+  },
+  "shared_actor_grad_norm": {
+    "n": 5,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "z_branch_trunk_grad_norm": {
+    "n": 0,
+    "mean": null,
+    "last": null,
+    "max": null
+  },
+  "z_action_head_grad_norm": {
+    "n": 0,
+    "mean": null,
+    "last": null,
+    "max": null
+  },
+  "z_adapter_grad_norm": {
+    "n": 0,
+    "mean": null,
+    "last": null,
+    "max": null
+  },
+  "advantage_mean": {
+    "n": 5,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "advantage_std": {
+    "n": 5,
+    "mean": 1.1411534786224364,
+    "last": 1.0954959392547607,
+    "max": 1.240015745162964
+  },
+  "ppo_parameter_delta": {
+    "n": 5,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "shared_actor_max_abs_delta": {
+    "n": 5,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "z_specific_max_abs_delta": {
+    "n": 0,
+    "mean": null,
+    "last": null,
+    "max": null
+  },
+  "branch_adapter_weight_delta": {
+    "n": 5,
+    "mean": 0.00041308887302870005,
+    "last": 0.000254975631833,
+    "max": 0.000736616551876
+  },
+  "branch_trunk_delta": {
+    "n": 0,
+    "mean": null,
+    "last": null,
+    "max": null
+  },
+  "branch_action_head_delta": {
+    "n": 0,
+    "mean": null,
+    "last": null,
+    "max": null
+  },
+  "branch_embedding_delta": {
+    "n": 5,
+    "mean": 0.00044040679931636,
+    "last": 0.0002708435058593,
+    "max": 0.000772476196289
+  },
+  "chain": {
+    "advantages_alive": true,
+    "critic_grad_alive": true,
+    "actor_grad_alive": false,
+    "branch_params_moved": true,
+    "branch_step_tiny": true,
+    "policy_kl_alive": false,
+    "freeze_mask_ok": true,
+    "critic_dominates_joint_grad": true,
+    "peer_branch_adapter_delta_max": 0.0,
+    "branch_param_delta_max": 0.000772476196289
+  },
+  "flags": {
+    "tiny_approx_kl": true,
+    "tiny_clip_fraction": true,
+    "tiny_grad_norm": false,
+    "flat_advantages": false,
+    "actor_grad_near_zero": false,
+    "branch_step_tiny": true,
+    "freeze_mask_ok": true
+  }
+}

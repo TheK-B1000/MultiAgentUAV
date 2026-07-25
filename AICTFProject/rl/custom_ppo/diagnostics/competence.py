@@ -228,20 +228,50 @@ def _v6i8_residual_adapter_stats(runtime: Any, buffer: Any) -> dict[str, float]:
 
 
 def measure_repertoire_grad_norms(model: Any) -> dict[str, float]:
-    """Gradient norms on frozen shared trunk vs trainable critic (after backward)."""
+    """Gradient norms after backward for the LRO learning-signal chain.
+
+    Separates shared-frozen trunk (should be ~0), z-specific actor modules
+    (the intended update path), and critic. Without the z-specific split,
+    a large joint ``grad_norm`` can be misread as actor pressure when it is
+    almost entirely critic.
+    """
     shared_sq = 0.0
+    z_sq = 0.0
     critic_sq = 0.0
+    adapter_sq = 0.0
+    trunk_sq = 0.0
+    head_sq = 0.0
+    embed_sq = 0.0
     for name, param in model.named_parameters():
         if param.grad is None:
             continue
         gsq = float(param.grad.pow(2).sum().item())
         if is_shared_frozen_actor_param(name):
             shared_sq += gsq
+        elif is_z_specific_actor_param(name):
+            z_sq += gsq
+            if "latent_adapters" in name:
+                adapter_sq += gsq
+            elif "latent_branch_trunks" in name:
+                trunk_sq += gsq
+            elif "latent_action_heads" in name:
+                head_sq += gsq
+            elif "strategy_embedding" in name:
+                embed_sq += gsq
         elif "critic" in name and param.requires_grad:
             critic_sq += gsq
+
+    def _norm(sq: float) -> float:
+        return float(sq ** 0.5) if sq > 0.0 else 0.0
+
     return {
-        "shared_actor_grad_norm": float(shared_sq ** 0.5) if shared_sq > 0.0 else 0.0,
-        "critic_grad_norm": float(critic_sq ** 0.5) if critic_sq > 0.0 else 0.0,
+        "shared_actor_grad_norm": _norm(shared_sq),
+        "z_specific_grad_norm": _norm(z_sq),
+        "critic_grad_norm": _norm(critic_sq),
+        "z_adapter_grad_norm": _norm(adapter_sq),
+        "z_branch_trunk_grad_norm": _norm(trunk_sq),
+        "z_action_head_grad_norm": _norm(head_sq),
+        "z_embedding_grad_norm": _norm(embed_sq),
     }
 
 
@@ -270,7 +300,10 @@ def compute_repertoire_parameter_audit(
         return {}
 
     shared_deltas: list[float] = []
+    z_specific_deltas: list[float] = []
     adapter_delta_by_z: dict[int, float] = {}
+    trunk_delta_by_z: dict[int, float] = {}
+    head_delta_by_z: dict[int, float] = {}
     gate_by_z: dict[int, float] = {}
     bias_norm_by_z: dict[int, float] = {}
     bias_delta_by_z: dict[int, float] = {}
@@ -296,10 +329,19 @@ def compute_repertoire_parameter_audit(
         if is_shared_frozen_actor_param(name):
             shared_deltas.append(delta)
         elif is_z_specific_actor_param(name):
+            z_specific_deltas.append(delta)
             if "latent_adapters" in name:
                 for k in range(latent_k):
                     if f"latent_adapters.{k}." in name:
                         adapter_delta_by_z[k] = max(adapter_delta_by_z.get(k, 0.0), delta)
+            if "latent_branch_trunks" in name:
+                for k in range(latent_k):
+                    if f"latent_branch_trunks.{k}." in name:
+                        trunk_delta_by_z[k] = max(trunk_delta_by_z.get(k, 0.0), delta)
+            if "latent_action_heads" in name:
+                for k in range(latent_k):
+                    if f"latent_action_heads.{k}." in name:
+                        head_delta_by_z[k] = max(head_delta_by_z.get(k, 0.0), delta)
             if "strategy_embedding" in name and param.ndim >= 2:
                 for k in range(min(latent_k, int(param.shape[0]))):
                     row_delta = float((param.detach()[k] - prev[k]).abs().max().item())
@@ -311,9 +353,14 @@ def compute_repertoire_parameter_audit(
 
     out: dict[str, float] = {
         "shared_actor_max_abs_delta": float(max(shared_deltas) if shared_deltas else 0.0),
+        "z_specific_max_abs_delta": float(max(z_specific_deltas) if z_specific_deltas else 0.0),
     }
     for k, value in adapter_delta_by_z.items():
         out[f"latent_adapter_weight_delta_z{k}"] = float(value)
+    for k, value in trunk_delta_by_z.items():
+        out[f"latent_branch_trunk_delta_z{k}"] = float(value)
+    for k, value in head_delta_by_z.items():
+        out[f"latent_action_head_delta_z{k}"] = float(value)
     for k, value in gate_by_z.items():
         out[f"latent_adapter_gate_z{k}"] = float(value)
     for k, value in bias_norm_by_z.items():

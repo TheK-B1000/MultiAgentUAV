@@ -840,5 +840,65 @@
   "checkpoint_step_interval": 5120,
   "checkpoint_update_labels": [
     5
-  ]
+  ],
+  "learning_signal": {
+    "status": "NO_USABLE_LEARNING_PRESSURE",
+    "meaning": "Policy KL and clip fraction stayed near zero \u2014 the branch had little economic reason / signal to leave its init basin.",
+    "path": "artifacts\\v6i26_margin_pilot_5u_seed1\\v6i26_lro_z0_r1_5u_seed1_metrics.csv",
+    "n_updates": 5,
+    "approx_kl": {
+      "n": 5,
+      "mean": 1.847735062862436e-05,
+      "last": 1.4279503375291824e-06,
+      "max": 4.31809457950294e-05
+    },
+    "clip_fraction": {
+      "n": 5,
+      "mean": 0.0,
+      "last": 0.0,
+      "max": 0.0
+    },
+    "entropy": {
+      "n": 5,
+      "mean": 2.636798652013143,
+      "last": 2.644428769747416,
+      "max": 2.7457637389500937
+    },
+    "explained_variance": {
+      "n": 5,
+      "mean": 0.0183106184005737,
+      "last": 0.0272988677024841,
+      "max": 0.0272988677024841
+    },
+    "value_loss": {
+      "n": 5,
+      "mean": 1.061621403694153,
+      "last": 0.896628220876058,
+      "max": 1.1620866656303406
+    },
+    "grad_norm": {
+      "n": 5,
+      "mean": 1.6390230099360146,
+      "last": 1.3613168398539226,
+      "max": 1.994731724262237
+    },
+    "advantage_mean": {
+      "n": 5,
+      "mean": 0.0,
+      "last": 0.0,
+      "max": 0.0
+    },
+    "advantage_std": {
+      "n": 5,
+      "mean": 0.0,
+      "last": 0.0,
+      "max": 0.0
+    },
+    "flags": {
+      "tiny_approx_kl": true,
+      "tiny_clip_fraction": true,
+      "tiny_grad_norm": false
+    }
+  },
+  "final_checkpoint": "artifacts\\v6i26_margin_pilot_5u_seed1\\final_v6i26_lro_z0_r1_5u_seed1.zip"
 }

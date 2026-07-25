@@ -730,6 +730,10 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "shared_actor_grad_norm",
             "z_specific_max_abs_delta",
             "z_specific_grad_norm",
+            "z_adapter_grad_norm",
+            "z_branch_trunk_grad_norm",
+            "z_action_head_grad_norm",
+            "z_embedding_grad_norm",
             "router_grad_norm",
             "strategy_encoder_grad_norm",
             "critic_grad_norm",
@@ -746,6 +750,8 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         for z_idx in range(latent_k):
             fields.append(f"latent_adapter_gate_z{z_idx}")
             fields.append(f"latent_adapter_weight_delta_z{z_idx}")
+            fields.append(f"latent_branch_trunk_delta_z{z_idx}")
+            fields.append(f"latent_action_head_delta_z{z_idx}")
             fields.append(f"latent_action_bias_norm_z{z_idx}")
             fields.append(f"latent_action_bias_delta_z{z_idx}")
             fields.append(f"z_embedding_delta_z{z_idx}")

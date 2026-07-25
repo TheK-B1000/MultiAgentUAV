@@ -826,13 +826,18 @@ def main() -> int:
     )
     if metrics_candidates:
         try:
-            learning = summarize_training_learning_signal(metrics_candidates[0])
+            learning = summarize_training_learning_signal(
+                metrics_candidates[0],
+                branch_idx=branch,
+            )
             round_log["learning_signal"] = learning
             write_json(out_dir / "learning_signal.json", learning)
             print(
                 f"  learning_signal={learning.get('status')} "
+                f"broken_link={learning.get('broken_link')} "
                 f"approx_kl_mean={learning.get('approx_kl', {}).get('mean')} "
-                f"clip_mean={learning.get('clip_fraction', {}).get('mean')}",
+                f"clip_mean={learning.get('clip_fraction', {}).get('mean')} "
+                f"adv_std={learning.get('advantage_std', {}).get('mean')}",
                 flush=True,
             )
         except Exception as exc:  # noqa: BLE001

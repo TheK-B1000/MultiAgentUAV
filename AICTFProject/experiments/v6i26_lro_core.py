@@ -1031,11 +1031,16 @@ def cell_means_from_episode_df(
     return out, contexts
 
 
-def summarize_training_learning_signal(metrics_csv: Path | str) -> dict[str, Any]:
+def summarize_training_learning_signal(
+    metrics_csv: Path | str,
+    *,
+    branch_idx: int | None = None,
+) -> dict[str, Any]:
     """Summarize PPO learning-signal columns from an LRO metrics CSV.
 
-    Separates: no usable pressure (tiny KL/grads/clip) vs updates-but-same
-    behavior (needs behavior distance) vs healthy signal.
+    Classifies where the reward→advantage→actor-grad→step→z-params→KL
+    chain breaks, so the next intervention targets the dead link instead of
+    blindly scaling budget or architecture.
     """
     import pandas as pd
 
@@ -1049,18 +1054,56 @@ def summarize_training_learning_signal(metrics_csv: Path | str) -> dict[str, Any
             return np.asarray([], dtype=np.float64)
         return np.asarray(pd.to_numeric(df[name], errors="coerce").dropna(), dtype=np.float64)
 
+    def _first_col(*names: str) -> np.ndarray:
+        for name in names:
+            arr = _col(name)
+            if arr.size:
+                return arr
+        return np.asarray([], dtype=np.float64)
+
     approx_kl = _col("approx_kl")
     clip_frac = _col("clip_fraction")
     entropy = _col("entropy")
     ev = _col("explained_variance")
     value_loss = _col("value_loss")
-    grad = _col("grad_norm")
-    if grad.size == 0:
-        grad = _col("ppo_actor_grad_norm")
-    if grad.size == 0:
-        grad = _col("actor_grad_norm_total")
-    adv_mean = _col("latent_episode_adv_mean")
-    adv_std = _col("latent_episode_adv_std")
+    policy_loss = _col("policy_loss")
+    learning_rate = _col("learning_rate")
+    grad = _first_col("grad_norm", "ppo_actor_grad_norm", "actor_grad_norm_total")
+    actor_grad = _first_col(
+        "z_specific_grad_norm",
+        "actor_grad_norm_ppo",
+        "ppo_actor_grad_norm",
+        "actor_ppo_grad_norm",
+    )
+    critic_grad = _col("critic_grad_norm")
+    shared_grad = _col("shared_actor_grad_norm")
+    trunk_grad = _col("z_branch_trunk_grad_norm")
+    head_grad = _col("z_action_head_grad_norm")
+    adapter_grad = _col("z_adapter_grad_norm")
+    # Prefer rollout GAE std; latent_episode_adv_* is often unused (zeros).
+    adv_std = _first_col(
+        "rollout_adv_std",
+        "latent_arc_advantage_std",
+        "latent_episode_adv_std",
+    )
+    adv_mean = _first_col(
+        "latent_arc_advantage_mean",
+        "latent_episode_adv_mean",
+    )
+    ppo_param_delta = _col("ppo_parameter_delta")
+    shared_delta = _col("shared_actor_max_abs_delta")
+    z_specific_delta = _col("z_specific_max_abs_delta")
+
+    branch = 0 if branch_idx is None else int(branch_idx)
+    branch_adapter_delta = _col(f"latent_adapter_weight_delta_z{branch}")
+    branch_trunk_delta = _col(f"latent_branch_trunk_delta_z{branch}")
+    branch_head_delta = _col(f"latent_action_head_delta_z{branch}")
+    branch_embed_delta = _col(f"z_embedding_delta_z{branch}")
+    peer_adapter_deltas = [
+        _col(f"latent_adapter_weight_delta_z{z}")
+        for z in range(4)
+        if z != branch
+    ]
 
     def _stat(arr: np.ndarray) -> dict[str, float | None]:
         if arr.size == 0:
@@ -1072,46 +1115,211 @@ def summarize_training_learning_signal(metrics_csv: Path | str) -> dict[str, Any
             "max": float(np.max(arr)),
         }
 
-    kl_mean = float(np.mean(approx_kl)) if approx_kl.size else float("nan")
-    clip_mean = float(np.mean(clip_frac)) if clip_frac.size else float("nan")
-    grad_mean = float(np.mean(grad)) if grad.size else float("nan")
+    def _mean_or_nan(arr: np.ndarray) -> float:
+        return float(np.mean(arr)) if arr.size else float("nan")
+
+    def _max_or_nan(arr: np.ndarray) -> float:
+        return float(np.max(arr)) if arr.size else float("nan")
+
+    kl_mean = _mean_or_nan(approx_kl)
+    clip_mean = _mean_or_nan(clip_frac)
+    grad_mean = _mean_or_nan(grad)
+    actor_grad_mean = _mean_or_nan(actor_grad)
+    critic_grad_mean = _mean_or_nan(critic_grad)
+    adv_std_mean = _mean_or_nan(adv_std)
+    branch_delta_max = max(
+        [
+            v
+            for v in (
+                _max_or_nan(branch_adapter_delta),
+                _max_or_nan(branch_trunk_delta),
+                _max_or_nan(branch_head_delta),
+                _max_or_nan(branch_embed_delta),
+            )
+            if v == v
+        ],
+        default=float("nan"),
+    )
+    peer_delta_max = max(
+        [_max_or_nan(arr) for arr in peer_adapter_deltas if arr.size],
+        default=0.0,
+    )
+    shared_delta_max = _max_or_nan(shared_delta)
+
     tiny_kl = bool(approx_kl.size and kl_mean < 1e-3)
     tiny_clip = bool(clip_frac.size and clip_mean < 1e-2)
     tiny_grad = bool(grad.size and grad_mean < 1e-4)
+    flat_adv = bool(adv_std.size and adv_std_mean < 1e-3)
+    # CF-path actor_grad_norm_ppo defaults to 0 when unused; treat as missing
+    # unless z_specific / trunk / head grads are present.
+    actor_grad_observed = bool(
+        _col("z_specific_grad_norm").size
+        or trunk_grad.size
+        or head_grad.size
+        or adapter_grad.size
+    )
+    actor_grad_near_zero = bool(
+        actor_grad_observed and actor_grad.size and actor_grad_mean < 1e-4
+    )
+    critic_dominates = bool(
+        critic_grad.size
+        and grad.size
+        and critic_grad_mean == critic_grad_mean
+        and grad_mean == grad_mean
+        and critic_grad_mean > 0.1
+        and critic_grad_mean >= 0.85 * max(grad_mean, 1e-12)
+    )
+    branch_moved = bool(branch_delta_max == branch_delta_max and branch_delta_max > 1e-6)
+    branch_step_tiny = bool(
+        branch_delta_max == branch_delta_max and branch_delta_max < 1e-3
+    )
+    freeze_mask_ok = bool(
+        (not shared_delta.size or shared_delta_max <= 1e-8)
+        and peer_delta_max <= 1e-8
+    )
 
-    if tiny_kl and tiny_clip:
+    # Decision tree: localize the dead link.
+    if flat_adv:
+        broken_link = "FLAT_ADVANTAGES"
+        code = "NO_USABLE_LEARNING_PRESSURE"
+        meaning = (
+            "Advantage std near zero — PPO has little credit signal about which "
+            "actions were better. Inspect reward / mixture dilution, not capacity."
+        )
+        next_action = (
+            "Audit per-context advantages and target/anchor mixture weights; "
+            "do not scale updates or add per-z critics yet."
+        )
+    elif actor_grad_near_zero and critic_grad_mean == critic_grad_mean and critic_grad_mean > 1e-3:
+        broken_link = "ACTOR_GRAD_NEAR_ZERO"
+        code = "NO_USABLE_LEARNING_PRESSURE"
+        meaning = (
+            "Advantages/critic look alive but z-specific actor gradients are near "
+            "zero — inspect actor loss graph, detach/mask, or routing bypass."
+        )
+        next_action = (
+            "Trace policy_loss → active branch parameters; verify ratios and "
+            "that the forced-z branch modules are on the autograd path."
+        )
+    elif (not branch_moved) and (not tiny_grad) and tiny_kl:
+        broken_link = "ACTOR_STEP_TINY"
+        code = "NO_USABLE_LEARNING_PRESSURE"
+        meaning = (
+            "Gradients exist but active-branch parameters barely moved — LR, "
+            "clipping, optimizer membership, or loss scaling."
+        )
+        next_action = (
+            "Compare effective actor LR and optimizer param groups against the "
+            "active z branch; raise LR only after confirming membership."
+        )
+    elif branch_moved and tiny_kl and tiny_clip:
+        broken_link = "PARAMS_MOVE_KL_FLAT"
+        code = "NO_USABLE_LEARNING_PRESSURE"
+        meaning = (
+            "Active-branch parameters changed but policy KL stayed tiny — "
+            "updates have little influence on action probabilities "
+            "(residual/adapter scale, identity trunk, or insensitive directions)."
+        )
+        next_action = (
+            "Probe logit sensitivity of branch trunk / action head; consider "
+            "raising residual alpha or confirming deep trunks leave identity."
+        )
+    elif tiny_kl and tiny_clip and critic_dominates:
+        broken_link = "CRITIC_DOMINATED_JOINT_GRAD"
+        code = "NO_USABLE_LEARNING_PRESSURE"
+        meaning = (
+            "Reported grad_norm is critic-dominated while policy KL/clip stay "
+            "near zero — do not read joint grad_norm as actor learning pressure."
+        )
+        next_action = (
+            "Use z_specific_grad_norm / branch deltas; keep training paused until "
+            "actor-side pressure is visible."
+        )
+    elif tiny_kl and tiny_clip:
+        broken_link = "POLICY_STUCK_BASIN"
         code = "NO_USABLE_LEARNING_PRESSURE"
         meaning = (
             "Policy KL and clip fraction stayed near zero — the branch had "
             "little economic reason / signal to leave its init basin."
         )
+        next_action = "Re-check target headroom and branch selection before more budget."
     elif (not tiny_kl) and tiny_grad:
+        broken_link = "KL_WITHOUT_GRAD_LOG"
         code = "UPDATES_WITHOUT_GRAD_MAGNITUDE"
         meaning = "KL moved but reported grad norms stayed tiny — check freezing / logging."
+        next_action = "Verify grad telemetry wiring; do not trust empty CF-path defaults."
     else:
+        broken_link = "NONE_SIGNAL_PRESENT"
         code = "SIGNAL_PRESENT_CHECK_BEHAVIOR"
         meaning = (
             "Learning diagnostics are non-degenerate; require behavior distance "
             "and target payoff movement before claiming specialization."
         )
+        next_action = (
+            "Evaluate forced-z OP9 margin / behavior distance before continuing "
+            "to 10u."
+        )
 
     return {
         "status": code,
+        "broken_link": broken_link,
         "meaning": meaning,
+        "next_action": next_action,
         "path": str(path),
         "n_updates": int(len(df)),
+        "branch_idx": branch,
         "approx_kl": _stat(approx_kl),
         "clip_fraction": _stat(clip_frac),
         "entropy": _stat(entropy),
         "explained_variance": _stat(ev),
         "value_loss": _stat(value_loss),
+        "policy_loss": _stat(policy_loss),
+        "learning_rate": _stat(learning_rate),
         "grad_norm": _stat(grad),
+        "actor_grad_norm": _stat(actor_grad),
+        "critic_grad_norm": _stat(critic_grad),
+        "shared_actor_grad_norm": _stat(shared_grad),
+        "z_branch_trunk_grad_norm": _stat(trunk_grad),
+        "z_action_head_grad_norm": _stat(head_grad),
+        "z_adapter_grad_norm": _stat(adapter_grad),
         "advantage_mean": _stat(adv_mean),
         "advantage_std": _stat(adv_std),
+        "ppo_parameter_delta": _stat(ppo_param_delta),
+        "shared_actor_max_abs_delta": _stat(shared_delta),
+        "z_specific_max_abs_delta": _stat(z_specific_delta),
+        "branch_adapter_weight_delta": _stat(branch_adapter_delta),
+        "branch_trunk_delta": _stat(branch_trunk_delta),
+        "branch_action_head_delta": _stat(branch_head_delta),
+        "branch_embedding_delta": _stat(branch_embed_delta),
+        "chain": {
+            "advantages_alive": bool(adv_std.size and not flat_adv),
+            "critic_grad_alive": bool(
+                critic_grad.size and critic_grad_mean == critic_grad_mean and critic_grad_mean > 1e-3
+            ),
+            "actor_grad_alive": bool(
+                actor_grad_observed
+                and actor_grad.size
+                and actor_grad_mean == actor_grad_mean
+                and actor_grad_mean > 1e-4
+            ),
+            "branch_params_moved": branch_moved,
+            "branch_step_tiny": branch_step_tiny,
+            "policy_kl_alive": bool(approx_kl.size and not tiny_kl),
+            "freeze_mask_ok": freeze_mask_ok,
+            "critic_dominates_joint_grad": critic_dominates,
+            "peer_branch_adapter_delta_max": float(peer_delta_max),
+            "branch_param_delta_max": (
+                float(branch_delta_max) if branch_delta_max == branch_delta_max else None
+            ),
+        },
         "flags": {
             "tiny_approx_kl": tiny_kl,
             "tiny_clip_fraction": tiny_clip,
             "tiny_grad_norm": tiny_grad,
+            "flat_advantages": flat_adv,
+            "actor_grad_near_zero": actor_grad_near_zero,
+            "branch_step_tiny": branch_step_tiny,
+            "freeze_mask_ok": freeze_mask_ok,
         },
     }
 

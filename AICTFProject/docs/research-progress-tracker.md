@@ -2575,9 +2575,27 @@ best_wr~0.969  mixture 75/25
 selection_gates.all_pass=true
 ```
 
-5u diagnostic pilot launched (same recipe, no router / no per-z critic):
-`artifacts/v6i26_margin_pilot_5u_seed1/`
-Continue to 10u+ only if learning signal + behavior distance move.
+5u diagnostic pilot training COMPLETE; learning_signal=NO_USABLE_LEARNING_PRESSURE
+with **broken_link=PARAMS_MOVE_KL_FLAT** (chain audit, 2026-07-24).
+
+```text
+reward/adv     : rollout_adv_std ≈ 1.14  (alive; not flat)
+critic         : critic_grad_norm ≈ 1.67 ≈ joint grad_norm  (critic-dominated)
+freeze mask    : shared Δ=0; z1–z3 adapter Δ=0; only z0 moves  (OK)
+z0 step        : adapter/embed max|Δ| ≈ 4e-4–7e-4  (tiny)
+policy         : approx_kl ≈ 1.85e-5, clip=0
+```
+
+Interpretation: advantages exist and the freeze contract is correct; the dead
+link is **after** microscopic z0 updates — they do not move action probabilities
+(residual α=0.1 / identity deep trunks / insensitive directions). Do **not**
+treat joint `grad_norm` as actor pressure. Do **not** auto-continue to 10u.
+Do **not** add per-z critics yet.
+
+Next: probe z0 branch-trunk / action-head logit sensitivity on the 5u ckpt
+(new CSV fields `latent_branch_trunk_delta_z*`, `z_specific_grad_norm` wired for
+the next train). Post-eval resume still needed for OP9 margin / anchors /
+behavior / drift once forced-z_after finishes.
 
 **Permanent keep — screening vs ACCEPT (locked):**
 

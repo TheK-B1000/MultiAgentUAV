@@ -616,6 +616,29 @@ class V6i26CurrentPayoffTargetTests(unittest.TestCase):
             self.assertTrue(summary["flags"]["tiny_approx_kl"])
             write_json(Path(tmp) / "learning_signal.json", summary)
 
+    def test_learning_signal_localizes_params_move_kl_flat(self) -> None:
+        from experiments.v6i26_lro_core import summarize_training_learning_signal
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "metrics.csv"
+            path.write_text(
+                "approx_kl,clip_fraction,entropy,explained_variance,value_loss,"
+                "grad_norm,critic_grad_norm,shared_actor_grad_norm,rollout_adv_std,"
+                "latent_adapter_weight_delta_z0,latent_adapter_weight_delta_z1,"
+                "z_embedding_delta_z0,shared_actor_max_abs_delta,learning_rate,policy_loss\n"
+                "1.85e-5,0.0,2.6,0.02,1.0,1.64,1.67,0.0,1.14,"
+                "0.0004,0.0,0.0004,0.0,8e-5,-0.0005\n"
+                "1.4e-6,0.0,2.6,0.03,0.9,1.36,1.38,0.0,1.10,"
+                "0.00025,0.0,0.00027,0.0,5e-5,-0.0002\n",
+                encoding="utf-8",
+            )
+            summary = summarize_training_learning_signal(path, branch_idx=0)
+            self.assertEqual(summary["broken_link"], "PARAMS_MOVE_KL_FLAT")
+            self.assertTrue(summary["chain"]["advantages_alive"])
+            self.assertTrue(summary["chain"]["freeze_mask_ok"])
+            self.assertTrue(summary["chain"]["branch_params_moved"])
+            self.assertFalse(summary["chain"]["policy_kl_alive"])
+
 
 class V6i26BranchKLLogitsTests(unittest.TestCase):
     def test_distribution_logits_handles_multihead_callable_list(self) -> None:
