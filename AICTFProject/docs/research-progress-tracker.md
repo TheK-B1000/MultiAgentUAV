@@ -2517,26 +2517,35 @@ Do **not** overwrite this zip. Ignore stale
 The 4-eps screen is **not** an `ACCEPT`; it is `PROMISING_DIRECTION` only
 and is treated as **noise / overestimation** after Phase-2.
 
-**Phase-2 seed-1 STRICT CONFIRM — `FAIL` (2026-07-24):**
+**Phase-2 seed-1 STRICT CONFIRM — `FAIL` (LOCKED — decisive reading 2026-07-25):**
 `artifacts/v6i26_lro_niches_round1_seed1/phase2_confirm/phase2_seed1_confirm.json`
 
 ```text
+Numeric promotion:   FAIL
+Strategy separation: FAIL
+Overall:             PHASE2_STRATEGY_HOLD_OR_FAIL
+
 G_before=0.0223  G_after=0.0000  ΔG=-0.0223
-CI95(ΔG)=[-0.183, +0.170]   CI95>0- False
-branch z=3 nearest z=2 dist=0.082 (thresh 0.35); pairs above thresh 0/6
-verdict=PHASE2_HOLD_OR_FAIL
-phase2_strategy_verdict=PHASE2_STRATEGY_HOLD_OR_FAIL
+CI95(ΔG)=[-0.183, +0.170]   CI95_low>0 = False
+branch z=3 nearest z=2 dist=0.0824 (thresh 0.35)  — nearly duplicate
+all-pair behavior mean ≈ 0.12 does NOT rescue the candidate
 ```
+
+Independent failure modes: (1) no reliable repertoire gain under bootstrap;
+(2) no distinct candidate behavior. This is **not** “promising but
+underpowered.” Preserve `z_3` as a **negative** result — stop treating it as
+a specialist. Raw oracle-margin cell variation ≠ promotion statistic `G`.
 
 **Clean interpretation (locked):** niche pool exposed a **pre-existing**
 context-dependent repertoire at init (Stage-C / unique winners / oracle gap
 still stand). This 25u forced-z3 LRO round did **not** improve that repertoire
-or birth a behaviorally distinct `z_3`. Causal claim â€œLRO manufactured or
-strengthened a distinct strategy in seed 1â€ is **false**.
+or birth a behaviorally distinct `z_3`. Causal claim “LRO manufactured or
+strengthened a distinct strategy in seed 1” is **false**.
 
-**Still true:** strategic niche testbed works; init repertoire supported.
-**Failed:** seed-1 LRO improvement; seed-1 distinct strategy birth.
-**Do not:** redesign opponents now; knob carousel; midstream seed 2/3 edits.
+**Paper boundary (locked):** the niche surface revealed latent payoff
+variation, but tested LRO procedures have **not** yet manufactured a
+statistically valuable and behaviorally distinct strategy. No promotion, no
+router, no strategy-birth claim.
 
 **Seeds 2–3 — `ABORTED_BY_PROTOCOL` (2026-07-24):** stopped mid seed-2
 `G_before` (~14/56 cells). Partial artifacts preserved under
@@ -2641,6 +2650,112 @@ Decision:
   all pass → continue THIS ckpt to 10u only
 ```
 
+**Actor-step 5u 2× result (LOCKED NEGATIVE 2026-07-25):**
+
+```text
+recipe         = separate clip + 2× z-actor LR
+dir            = artifacts/v6i26_margin_actor_step_5u_seed1/
+fixed_batch_kl = 7.6e-4   (< 1e-3 gate) FAIL
+approx_kl_mean = 3.4e-5   (above weak floor, still tiny)
+clip_fraction  = 0.0      (safety OK; not required >0)
+entropy        = 2.635    (stable on CSV field `entropy`)
+z0 Δθ max      ≈ 8e-4     (not clearly above weak ~7.7e-4) FAIL
+inactive drift = 0        OK
+learning_pass  = false
+10u            = NO
+```
+
+Preserve checkpoint + reports as a **negative optimizer-control result**.
+Do **not** relaunch the identical 2× recipe. Post-eval may finish for
+documentation only and **cannot** overturn the failed learning gate.
+Separate clip + 2× LR helped slightly vs weak (KL 5.6e-4→7.6e-4) but did not
+clear the predeclared movement gate. No threshold retune, no α/arch/opponent/
+router/critic-head changes from this run.
+
+**Next clean causal test (LOCKED recipe — only mult changes):** fresh 5u from
+the same V6I23 init, `v6i26_actor_step` + `--z-actor-lr-mult 3`, new dir
+`artifacts/v6i26_margin_actor_step_3x_5u_seed1/`. Gates unchanged
+(fixed-batch KL floor `1e-3`, ceiling `1e-2`). LR schedule preserves
+`lr_mult` (`updater.py`).
+
+Ledger hygiene (locked): intentional kills of the duplicate 2× relaunch and
+weak-run post-eval are **not** experiment failures. Only the fresh 3× result
+matters for the causal comparison.
+
+**3× judge order / fork (LOCKED):**
+
+```text
+1. Movement: fixed-batch KL ∈ [1e-3, 1e-2]
+2. Stability: entropy healthy; clip not saturated; z1–z3 unchanged
+3. Strategic: OP9 margin ↑; OP11/OP12 anchors hold
+4. Specialization: z0 behavior distance from peers ↑
+
+KL < 1e-3              → 3× insufficient; no 10u
+KL > 1e-2              → step too large; stop LR escalation; no 10u
+KL OK, OP9 fail        → moves but strategically wrong; stop LR escalation
+KL+OP9, behavior flat  → refinement, not strategy birth
+KL+OP9+behavior pass   → continue THIS exact ckpt to 10u only
+```
+
+**Actor-step 5u 3× result (LOCKED NEGATIVE 2026-07-25 — ceiling):**
+
+```text
+recipe         = separate clip + 3× z-actor LR (z_actor_lr=1.5e-3)
+dir            = artifacts/v6i26_margin_actor_step_3x_5u_seed1/
+fixed_batch_kl = 1.113e-2  (>= floor 1e-3, FAILS ceiling 1e-2
+approx_kl_mean = 3.35e-4
+clip_fraction  ≈ 7.8e-4   (not saturated)
+entropy        = 2.673    (stable)
+z0 Δθ max      ≈ 2.4e-3   (above weak)
+inactive drift = 0        OK
+learning_pass  = false    (ceiling)
+10u            = NO
+LR escalation  = STOP     (step too large; do not climb to 5×)
+```
+
+Movement is no longer the bottleneck (2× under-floor → 3× over-ceiling).
+3× post-eval cannot change the seed-1 Phase-2 strategy verdict and cannot
+authorize continuation (learning-safety gate already failed). Do not retune
+the KL window after seeing this result. Do **not** climb to another LR rung.
+
+**Three clean findings (LOCKED 2026-07-25):**
+
+```text
+Original z3 Phase 2:   no G improvement + behavior redundant
+2× z0 actor step:      movement too small   (KL 7.6e-4)
+3× z0 actor step:      movement too large   (KL 1.113e-2)
+```
+
+Nonlinear KL vs LR (2×→7.6e-4, 3×→1.113e-2) forbids another multiplier rung.
+
+**Next optimizer control (LOCKED — not an LR rung):** target-KL early-stop /
+checkpoint ladder on the same valid OP9/`z0` surface:
+
+```text
+same 3× actor LR (1.5e-3); critic 5e-4; separate clip
+checkpoint every 1u; measure fixed-batch init→ckpt KL
+stop at first checkpoint inside [1e-3, 1e-2]
+evaluate ONLY that predeclared checkpoint
+dir: artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/
+script: experiments/run_v6i26_actor_step_kl_ladder.py
+```
+
+Unchanged: target, architecture, reward, α, opponents, router.
+
+**Target-KL ladder result (LOCKED 2026-07-25):**
+`artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/`
+
+```text
+u1 KL=2.26e-4  (below floor)
+u2 KL=6.93e-4  (below floor)
+u3 KL=1.51e-3  ← SELECTED (first in [1e-3, 1e-2]); early stop
+z0 nearest peer = z2 dist≈0.0018  (≪ 0.35)  behavior FLAT
+fork = KL pass + behavior flat → refinement, not strategy birth
+```
+
+Ignore forced_z_eval Stage-C banner “proceed to router training” — **not
+authorized**. No router, no 10u on specialization grounds, no further LR rung.
+Paper boundary unchanged.
 
 **Permanent keep — screening vs ACCEPT (locked):**
 

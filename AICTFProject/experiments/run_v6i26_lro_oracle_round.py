@@ -70,6 +70,15 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument(
+        "--z-actor-lr-mult",
+        type=float,
+        default=None,
+        help=(
+            "Override latent_lro_z_actor_lr_mult after preset apply "
+            "(actor-step ablation rungs: 2=locked FAIL, next clean test=3)."
+        ),
+    )
+    p.add_argument(
         "--landscape-scan",
         default="artifacts/v6i26_landscape_scan_op8_12_seed1/landscape_scan.json",
         help="Stage-0 scan JSON (payoff tensor for smoothed regret mixture).",
@@ -863,12 +872,24 @@ def main() -> int:
     if preset_key not in PRESET_REGISTRY:
         print(f"ERROR: unknown preset {preset_key!r}")
         return 2
-    if is_actor_step:
-        contract = actor_step_ablation_contract()
-        write_json(out_dir / "actor_step_ablation_contract.json", contract)
-        print("[actor-step] wrote actor_step_ablation_contract.json", flush=True)
-
     cfg = PRESET_REGISTRY[preset_key](PPOConfig())
+    if args.z_actor_lr_mult is not None:
+        mult = float(args.z_actor_lr_mult)
+        if mult <= 0.0:
+            print(f"ERROR: --z-actor-lr-mult must be > 0, got {mult}")
+            return 2
+        cfg.latent_lro_z_actor_lr_mult = mult
+        print(f"[actor-step] override latent_lro_z_actor_lr_mult={mult:g}", flush=True)
+    z_actor_lr_mult = float(getattr(cfg, "latent_lro_z_actor_lr_mult", 1.0) or 1.0)
+    if is_actor_step:
+        contract = actor_step_ablation_contract(z_actor_lr_mult=z_actor_lr_mult)
+        write_json(out_dir / "actor_step_ablation_contract.json", contract)
+        print(
+            f"[actor-step] wrote actor_step_ablation_contract.json "
+            f"(z_actor_lr_mult={z_actor_lr_mult:g})",
+            flush=True,
+        )
+
     cfg.seed = int(args.seed) + 17 * branch
     cfg.device = str(args.device)
     cfg.n_envs = int(args.n_envs)
@@ -888,9 +909,7 @@ def main() -> int:
     round_log["latent_lro_separate_actor_critic_clip"] = bool(
         getattr(cfg, "latent_lro_separate_actor_critic_clip", False)
     )
-    round_log["latent_lro_z_actor_lr_mult"] = float(
-        getattr(cfg, "latent_lro_z_actor_lr_mult", 1.0) or 1.0
-    )
+    round_log["latent_lro_z_actor_lr_mult"] = z_actor_lr_mult
     if int(args.checkpoint_every_updates) > 0:
         cfg.periodic_checkpoint_steps = (
             int(args.checkpoint_every_updates) * int(args.n_envs) * int(args.n_steps)

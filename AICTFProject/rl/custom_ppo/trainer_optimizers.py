@@ -192,8 +192,18 @@ def collect_repertoire_optimizer_groups(
     if mult <= 0.0:
         raise ValueError(f"latent_lro_z_actor_lr_mult must be > 0, got {mult}")
     groups = [
-        {"params": z_params, "lr": base_lr * mult, "name": "z_actor"},
-        {"params": critic_params, "lr": base_lr, "name": "critic"},
+        {
+            "params": z_params,
+            "lr": base_lr * mult,
+            "lr_mult": mult,
+            "name": "z_actor",
+        },
+        {
+            "params": critic_params,
+            "lr": base_lr,
+            "lr_mult": 1.0,
+            "name": "critic",
+        },
     ]
     audit = {
         "n_z_actor_params": len(z_params),

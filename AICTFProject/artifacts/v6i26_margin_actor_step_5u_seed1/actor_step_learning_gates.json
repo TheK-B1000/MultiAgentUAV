@@ -1,0 +1,27 @@
+{
+  "gates": {
+    "fixed_batch_init_to_final_kl_ge_1e-3": false,
+    "training_approx_kl_above_weak_floor": true,
+    "training_approx_kl_finite_non_explosive": true,
+    "clip_fraction_not_saturated": true,
+    "entropy_stable_vs_weak_run": true,
+    "actor_grad_norm_gt_0": true,
+    "critic_grad_norm_gt_0": true,
+    "inactive_branch_delta_approx_zero": true,
+    "z0_param_delta_clearly_above_weak": false
+  },
+  "learning_pass": false,
+  "metrics": {
+    "fixed_batch_init_to_final_kl": 0.0007595538045279682,
+    "approx_kl_mean": 3.377036579574148e-05,
+    "clip_fraction_mean": 0.0,
+    "entropy_mean": 2.6345519383748375,
+    "entropy_field": "entropy",
+    "actor_grad_norm_mean": 0.0020051789202272198,
+    "critic_grad_norm_mean": 1.7059382136435706,
+    "z_specific_max_abs_delta_mean": 0.0007991455495357,
+    "inactive_branch_delta": 0.0,
+    "weak_approx_kl_floor": 1.847735062862436e-05,
+    "weak_entropy_mean": 2.636798652013143
+  }
+}

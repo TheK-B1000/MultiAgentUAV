@@ -840,7 +840,7 @@
   "dry_run": false,
   "preset": "v6i26_actor_step",
   "latent_lro_separate_actor_critic_clip": true,
-  "latent_lro_z_actor_lr_mult": 2.0,
+  "latent_lro_z_actor_lr_mult": 3.0,
   "checkpoint_step_interval": 5120,
   "checkpoint_update_labels": [
     5
@@ -850,44 +850,44 @@
     "broken_link": "PARAMS_MOVE_KL_FLAT",
     "meaning": "Active-branch parameters changed but policy KL stayed tiny \u2014 updates have little influence on action probabilities (residual/adapter scale, identity trunk, or insensitive directions).",
     "next_action": "Probe logit sensitivity of branch trunk / action head; consider raising residual alpha or confirming deep trunks leave identity.",
-    "path": "artifacts\\v6i26_margin_actor_step_5u_seed1\\v6i26_lro_actor_step_z0_r1_5u_seed1_metrics.csv",
+    "path": "artifacts\\v6i26_margin_actor_step_3x_5u_seed1\\v6i26_lro_actor_step_z0_r1_5u_seed1_metrics.csv",
     "n_updates": 5,
     "branch_idx": 0,
     "approx_kl": {
       "n": 5,
-      "mean": 3.377036579574148e-05,
-      "last": 8.754723239690065e-06,
-      "max": 6.600353905620675e-05
+      "mean": 0.00033491868331714,
+      "last": 0.000154711829964,
+      "max": 0.0005991652336282
     },
     "clip_fraction": {
       "n": 5,
-      "mean": 0.0,
+      "mean": 0.0007812499999999801,
       "last": 0.0,
-      "max": 0.0
+      "max": 0.0027669270833333
     },
     "entropy": {
       "n": 5,
-      "mean": 2.6345519383748375,
-      "last": 2.40941600004832,
-      "max": 2.8058427572250366
+      "mean": 2.672699618339539,
+      "last": 2.6014938354492188,
+      "max": 2.74519677956899
     },
     "explained_variance": {
       "n": 5,
-      "mean": 0.020003163814544624,
-      "last": 0.0215621590614318,
-      "max": 0.0285991430282592
+      "mean": 0.01953690052032464,
+      "last": 0.0306837558746337,
+      "max": 0.0306837558746337
     },
     "value_loss": {
       "n": 5,
-      "mean": 1.091340708732605,
-      "last": 1.0955705046653748,
-      "max": 1.1488885283470154
+      "mean": 1.0810735325018566,
+      "last": 0.9322753051916758,
+      "max": 1.226425290107727
     },
     "policy_loss": {
       "n": 5,
-      "mean": -0.00068916341988362,
-      "last": -0.0001298347488045,
-      "max": -0.0001298347488045
+      "mean": -0.0022235408347720206,
+      "last": -0.0009194661397486,
+      "max": -0.0008146790787577
     },
     "learning_rate": {
       "n": 5,
@@ -897,21 +897,21 @@
     },
     "grad_norm": {
       "n": 5,
-      "mean": 1.6752587874730431,
-      "last": 1.902165273825328,
-      "max": 1.902165273825328
+      "mean": 1.5898755232493083,
+      "last": 1.4270660082499187,
+      "max": 1.978473424911499
     },
     "actor_grad_norm": {
       "n": 5,
-      "mean": 0.05275119573799688,
-      "last": 0.0415722063989305,
-      "max": 0.0722370360829462
+      "mean": 0.06073432771703804,
+      "last": 0.0585389721928819,
+      "max": 0.0730401282381851
     },
     "critic_grad_norm": {
       "n": 5,
-      "mean": 1.7059382136435706,
-      "last": 1.9174177850706768,
-      "max": 1.9412343641825565
+      "mean": 1.6207839711109067,
+      "last": 1.4432940326348451,
+      "max": 2.019692745613618
     },
     "shared_actor_grad_norm": {
       "n": 5,
@@ -921,21 +921,21 @@
     },
     "z_branch_trunk_grad_norm": {
       "n": 5,
-      "mean": 0.02865741445818652,
-      "last": 0.0224604862494335,
-      "max": 0.0398132550392864
+      "mean": 0.0305106120462648,
+      "last": 0.0263618931929862,
+      "max": 0.0391523635125236
     },
     "z_action_head_grad_norm": {
       "n": 5,
-      "mean": 0.044277861159038326,
-      "last": 0.0349256324253446,
-      "max": 0.0602338432128972
+      "mean": 0.05251929473052912,
+      "last": 0.0521753776226166,
+      "max": 0.0616056653430161
     },
     "z_adapter_grad_norm": {
       "n": 5,
-      "mean": 0.0020051789202272198,
-      "last": 0.0015748995823322,
-      "max": 0.0027858568546493
+      "mean": 0.00230698193766056,
+      "last": 0.0021110182551724,
+      "max": 0.0028128906878432
     },
     "advantage_mean": {
       "n": 5,
@@ -945,8 +945,8 @@
     },
     "advantage_std": {
       "n": 5,
-      "mean": 1.1583287477493287,
-      "last": 1.1091850996017456,
+      "mean": 1.1690155029296876,
+      "last": 1.111467957496643,
       "max": 1.240015745162964
     },
     "ppo_parameter_delta": {
@@ -963,45 +963,45 @@
     },
     "z_specific_max_abs_delta": {
       "n": 5,
-      "mean": 0.00050768121145662,
-      "last": 0.0003567114472389,
-      "max": 0.0007991455495357
+      "mean": 0.00152296246960756,
+      "last": 0.0010801963508129,
+      "max": 0.0024010185152292
     },
     "branch_adapter_weight_delta": {
       "n": 5,
-      "mean": 0.00047448547556987994,
-      "last": 0.000299944076687,
-      "max": 0.000771727412939
+      "mean": 0.0014343665679916002,
+      "last": 0.0009680137736722,
+      "max": 0.0023244991898536
     },
     "branch_trunk_delta": {
       "n": 5,
-      "mean": 0.00050467735854904,
-      "last": 0.0003425739705562,
-      "max": 0.0007982637616805
+      "mean": 0.00151316002011294,
+      "last": 0.0010468889959156,
+      "max": 0.0023992643691599
     },
     "branch_action_head_delta": {
       "n": 5,
-      "mean": 0.0005051193758845,
-      "last": 0.0003567114472389,
-      "max": 0.0007991455495357
+      "mean": 0.0015219348482787198,
+      "last": 0.0010801963508129,
+      "max": 0.0024010185152292
     },
     "branch_embedding_delta": {
       "n": 5,
-      "mean": 0.00045876055955880007,
-      "last": 0.0002477765083312,
-      "max": 0.0007894039154052
+      "mean": 0.00141382813453668,
+      "last": 0.0008536577224731,
+      "max": 0.00237238407135
     },
     "chain": {
       "advantages_alive": true,
       "critic_grad_alive": true,
       "actor_grad_alive": true,
       "branch_params_moved": true,
-      "branch_step_tiny": true,
+      "branch_step_tiny": false,
       "policy_kl_alive": false,
       "freeze_mask_ok": true,
       "critic_dominates_joint_grad": true,
       "peer_branch_adapter_delta_max": 0.0,
-      "branch_param_delta_max": 0.0007991455495357
+      "branch_param_delta_max": 0.0024010185152292
     },
     "flags": {
       "tiny_approx_kl": true,
@@ -1009,14 +1009,15 @@
       "tiny_grad_norm": false,
       "flat_advantages": false,
       "actor_grad_near_zero": false,
-      "branch_step_tiny": true,
+      "branch_step_tiny": false,
       "freeze_mask_ok": true
     }
   },
-  "final_checkpoint": "artifacts\\v6i26_margin_actor_step_5u_seed1\\final_v6i26_lro_actor_step_z0_r1_5u_seed1.zip",
+  "final_checkpoint": "artifacts\\v6i26_margin_actor_step_3x_5u_seed1\\final_v6i26_lro_actor_step_z0_r1_5u_seed1.zip",
   "actor_step_learning_gates": {
     "gates": {
-      "fixed_batch_init_to_final_kl_ge_1e-3": false,
+      "fixed_batch_init_to_final_kl_ge_1e-3": true,
+      "fixed_batch_init_to_final_kl_le_1e-2": false,
       "training_approx_kl_above_weak_floor": true,
       "training_approx_kl_finite_non_explosive": true,
       "clip_fraction_not_saturated": true,
@@ -1024,21 +1025,23 @@
       "actor_grad_norm_gt_0": true,
       "critic_grad_norm_gt_0": true,
       "inactive_branch_delta_approx_zero": true,
-      "z0_param_delta_clearly_above_weak": false
+      "z0_param_delta_clearly_above_weak": true
     },
     "learning_pass": false,
     "metrics": {
-      "fixed_batch_init_to_final_kl": 0.0007595538045279682,
-      "approx_kl_mean": 3.377036579574148e-05,
-      "clip_fraction_mean": 0.0,
-      "entropy_mean": 2.6345519383748375,
+      "fixed_batch_init_to_final_kl": 0.011131394654512405,
+      "approx_kl_mean": 0.00033491868331714,
+      "clip_fraction_mean": 0.0007812499999999801,
+      "entropy_mean": 2.672699618339539,
       "entropy_field": "entropy",
-      "actor_grad_norm_mean": 0.0020051789202272198,
-      "critic_grad_norm_mean": 1.7059382136435706,
-      "z_specific_max_abs_delta_mean": 0.0007991455495357,
+      "actor_grad_norm_mean": 0.00230698193766056,
+      "critic_grad_norm_mean": 1.6207839711109067,
+      "z_specific_max_abs_delta_mean": 0.0024010185152292,
       "inactive_branch_delta": 0.0,
       "weak_approx_kl_floor": 1.847735062862436e-05,
-      "weak_entropy_mean": 2.636798652013143
+      "weak_entropy_mean": 2.636798652013143,
+      "fixed_batch_kl_floor": 0.001,
+      "fixed_batch_kl_ceiling": 0.01
     }
   },
   "error": "actor_step_learning_gates_failed"

@@ -708,8 +708,41 @@ class V6i26ActorStepAblationTests(unittest.TestCase):
             fixed_batch_kl=2e-3,
         )
         self.assertTrue(out["gates"]["clip_fraction_not_saturated"])
+        self.assertTrue(out["gates"]["fixed_batch_init_to_final_kl_le_1e-2"])
         self.assertTrue(out["learning_pass"])
         self.assertNotIn("clip_fraction_gt_0", out["gates"])
+
+        from experiments.v6i26_lro_core import actor_step_ablation_contract
+
+        c3 = actor_step_ablation_contract(z_actor_lr_mult=3.0)
+        self.assertEqual(c3["optimizer"]["z_actor_lr_mult"], 3.0)
+        self.assertEqual(
+            c3["learning_pressure_gates"]["fixed_batch_init_to_final_kl_max"],
+            1e-2,
+        )
+
+    def test_target_kl_ladder_selects_first_in_window(self) -> None:
+        from experiments.v6i26_lro_core import select_target_kl_ladder_rung
+
+        rungs = [
+            {"update": 1, "fixed_batch_kl": 2e-4},
+            {"update": 2, "fixed_batch_kl": 3e-3},
+            {"update": 3, "fixed_batch_kl": 2e-2},
+        ]
+        out = select_target_kl_ladder_rung(rungs)
+        self.assertEqual(out["status"], "SELECTED")
+        self.assertEqual(out["selected_update"], 2)
+
+    def test_target_kl_ladder_overshoot_before_window(self) -> None:
+        from experiments.v6i26_lro_core import select_target_kl_ladder_rung
+
+        rungs = [
+            {"update": 1, "fixed_batch_kl": 2e-4},
+            {"update": 2, "fixed_batch_kl": 2e-2},
+        ]
+        out = select_target_kl_ladder_rung(rungs)
+        self.assertEqual(out["status"], "OVERSHOOT_BEFORE_WINDOW")
+        self.assertIsNone(out["selected_update"])
 
     def test_separate_clip_does_not_scale_actor_by_critic(self) -> None:
         import torch

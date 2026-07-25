@@ -1,0 +1,31 @@
+{
+  "status": "MOVEMENT_PASS_STRATEGY_FLAT",
+  "protocol": "v6i26_actor_step_target_kl_ladder",
+  "movement": {
+    "selected_update": 3,
+    "fixed_batch_kl": 0.001514,
+    "window": [0.001, 0.01],
+    "early_stop": true,
+    "pass": true
+  },
+  "rungs": {
+    "u1": 0.000226,
+    "u2": 0.000693,
+    "u3": 0.001514
+  },
+  "specialization": {
+    "z0_nearest_neighbor": 2,
+    "z0_nearest_distance": 0.00183,
+    "threshold": 0.35,
+    "pass": false
+  },
+  "fork": "KL_pass_behavior_flat",
+  "meaning": "Safe intermediate movement exists at 3u under fixed 3x LR; useful response refinement, not strategy birth.",
+  "do_not": [
+    "proceed to router (ignore Stage-C banner from forced_z_eval)",
+    "continue to 10u on specialization grounds",
+    "raise another LR rung",
+    "promote Phase-2 z3"
+  ],
+  "selected_checkpoint": "artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/final_v6i26_lro_kl_ladder_z0_u3_seed1.zip"
+}

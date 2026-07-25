@@ -111,8 +111,12 @@ class PPOUpdater:
             )
             lr = float(v6i1_lr_stats.get("actor_lr", lr))
         else:
+            # Preserve per-group relative multipliers (e.g. LRO z-actor lr_mult).
+            # Without this, the linear schedule overwrites group LRs to a single
+            # annealed value and silently cancels latent_lro_z_actor_lr_mult.
             for group in self.optimizer.param_groups:
-                group["lr"] = lr
+                mult = float(group.get("lr_mult", 1.0) or 1.0)
+                group["lr"] = lr * mult
 
         ent_coef = hparams.ent_coef if progress_remaining > 0.75 else 0.5 * hparams.ent_coef
         latent_schedule_total = (

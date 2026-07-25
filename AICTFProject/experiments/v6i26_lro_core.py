@@ -1331,6 +1331,7 @@ def summarize_training_learning_signal(
 ACTOR_STEP_WEAK_APPROX_KL_FLOOR = 1.847735062862436e-05  # margin 5u pilot mean
 ACTOR_STEP_WEAK_ENTROPY_MEAN = 2.636798652013143  # metrics CSV column ``entropy``
 ACTOR_STEP_FIXED_BATCH_KL_MIN = 1e-3
+ACTOR_STEP_FIXED_BATCH_KL_MAX = 1e-2  # safety ceiling; 10x probe KL~0.14 is too large
 ACTOR_STEP_ENTROPY_FIELD = "entropy"  # summed action-head entropy in metrics CSV
 ACTOR_STEP_ENTROPY_TOL = 0.3
 ACTOR_STEP_CLIP_FRAC_MAX = 0.5
@@ -1342,26 +1343,30 @@ MARGIN_PILOT_LOCKED = {
 }
 
 
-def actor_step_ablation_contract() -> dict[str, Any]:
-    """Predeclared pass/fail contract for the actor-step 5u ablation."""
+def actor_step_ablation_contract(*, z_actor_lr_mult: float = 2.0) -> dict[str, Any]:
+    """Predeclared pass/fail contract for an actor-step 5u ablation rung."""
+    mult = float(z_actor_lr_mult)
     return {
         "protocol": "v6i26_actor_step_ablation",
         "classification": "DIAGNOSTIC",
         "hypothesis": (
             "Joint critic-dominated clipping + insufficient z-actor LR caused "
-            "the failed specialization step; separate clip + 2x z-actor LR "
-            "should produce measurable policy movement on the locked OP9/z0 surface."
+            "the failed specialization step; separate clip + "
+            f"{mult:g}x z-actor LR should produce measurable policy movement "
+            "on the locked OP9/z0 surface without leaping policy space."
         ),
         "locked_surface": dict(MARGIN_PILOT_LOCKED),
         "optimizer": {
             "separate_actor_critic_clip": True,
-            "z_actor_lr_mult": 2.0,
+            "z_actor_lr_mult": mult,
             "critic_lr_unchanged": True,
             "base_learning_rate": 5e-4,
             "max_grad_norm_per_group": 0.5,
+            "lr_schedule_preserves_group_mult": True,
         },
         "learning_pressure_gates": {
             "fixed_batch_init_to_final_kl_min": ACTOR_STEP_FIXED_BATCH_KL_MIN,
+            "fixed_batch_init_to_final_kl_max": ACTOR_STEP_FIXED_BATCH_KL_MAX,
             "fixed_batch_protocol": "run_v6i26_logit_control_authority_probe",
             "training_approx_kl_above_weak_floor": ACTOR_STEP_WEAK_APPROX_KL_FLOOR,
             "training_approx_kl_finite_non_explosive_max": 1.0,
@@ -1381,17 +1386,22 @@ def actor_step_ablation_contract() -> dict[str, Any]:
             "z0_behavior_distance_increases": True,
         },
         "decision_rule": {
-            "learning_fail": "stop optimizer ablation",
-            "learning_pass_op9_fail": "active movement, strategically wrong",
-            "learning_op9_pass_behavior_flat": "improved response, not strategy birth",
+            "learning_fail_below_floor": (
+                "if mult < 5: escalate one rung (3->5); else stop optimizer climb"
+            ),
+            "learning_fail_above_ceiling": "stop increasing LR; step too large",
+            "learning_pass_op9_fail": "active movement, strategically wrong — stop LR climb",
+            "learning_op9_pass_behavior_flat": "response refinement, not strategy birth yet",
             "learning_op9_behavior_pass": "continue this exact checkpoint to 10u",
         },
         "do_not": [
-            "continue weak margin 5u checkpoint to 10u",
+            "continue weak or prior actor-step checkpoint to 10u without gates",
+            "relaunch an identical completed multiplier recipe",
             "raise residual alpha as first lever",
             "redesign trunk",
             "add per-z critics",
             "switch to Case B opponents",
+            "retune KL thresholds after seeing results",
         ],
     }
 
@@ -1437,9 +1447,13 @@ def evaluate_actor_step_learning_gates(
             _mean("branch_embedding_delta"),
         )
 
+    fixed_kl = float(fixed_batch_kl)
     gates = {
         "fixed_batch_init_to_final_kl_ge_1e-3": bool(
-            float(fixed_batch_kl) >= ACTOR_STEP_FIXED_BATCH_KL_MIN
+            fixed_kl >= ACTOR_STEP_FIXED_BATCH_KL_MIN
+        ),
+        "fixed_batch_init_to_final_kl_le_1e-2": bool(
+            fixed_kl <= ACTOR_STEP_FIXED_BATCH_KL_MAX
         ),
         "training_approx_kl_above_weak_floor": bool(approx_kl > float(weak_approx_kl_floor)),
         "training_approx_kl_finite_non_explosive": bool(
@@ -1462,6 +1476,7 @@ def evaluate_actor_step_learning_gates(
         gates[k]
         for k in (
             "fixed_batch_init_to_final_kl_ge_1e-3",
+            "fixed_batch_init_to_final_kl_le_1e-2",
             "training_approx_kl_above_weak_floor",
             "training_approx_kl_finite_non_explosive",
             "clip_fraction_not_saturated",
@@ -1476,7 +1491,7 @@ def evaluate_actor_step_learning_gates(
         "gates": gates,
         "learning_pass": bool(learning_pass),
         "metrics": {
-            "fixed_batch_init_to_final_kl": float(fixed_batch_kl),
+            "fixed_batch_init_to_final_kl": fixed_kl,
             "approx_kl_mean": approx_kl,
             "clip_fraction_mean": clip_frac,
             "entropy_mean": entropy,
@@ -1487,7 +1502,112 @@ def evaluate_actor_step_learning_gates(
             "inactive_branch_delta": peer_delta,
             "weak_approx_kl_floor": float(weak_approx_kl_floor),
             "weak_entropy_mean": float(weak_entropy_mean),
+            "fixed_batch_kl_floor": ACTOR_STEP_FIXED_BATCH_KL_MIN,
+            "fixed_batch_kl_ceiling": ACTOR_STEP_FIXED_BATCH_KL_MAX,
         },
+    }
+
+
+def target_kl_ladder_contract(
+    *,
+    z_actor_lr_mult: float = 3.0,
+    max_updates: int = 5,
+    checkpoint_every_updates: int = 1,
+) -> dict[str, Any]:
+    """Predeclared contract for a target-KL early-stop ladder (not an LR rung)."""
+    mult = float(z_actor_lr_mult)
+    return {
+        "protocol": "v6i26_actor_step_target_kl_ladder",
+        "classification": "DIAGNOSTIC",
+        "hypothesis": (
+            "2x under-floor and 3x over-ceiling show nonlinear KL vs LR; "
+            "holding 3x LR fixed and stopping at the first 1u checkpoint whose "
+            "fixed-batch init→ckpt KL lands in [1e-3, 1e-2] tests whether a "
+            "safe intermediate movement point exists without changing target, "
+            "architecture, reward, alpha, opponents, or router."
+        ),
+        "locked_surface": dict(MARGIN_PILOT_LOCKED),
+        "optimizer": {
+            "separate_actor_critic_clip": True,
+            "z_actor_lr_mult": mult,
+            "critic_lr_unchanged": True,
+            "base_learning_rate": 5e-4,
+            "lr_schedule_preserves_group_mult": True,
+            "no_further_lr_rung": True,
+        },
+        "ladder": {
+            "max_updates": int(max_updates),
+            "checkpoint_every_updates": int(checkpoint_every_updates),
+            "fixed_batch_kl_min": ACTOR_STEP_FIXED_BATCH_KL_MIN,
+            "fixed_batch_kl_max": ACTOR_STEP_FIXED_BATCH_KL_MAX,
+            "fixed_batch_protocol": "run_v6i26_logit_control_authority_probe",
+            "selection_rule": "first_checkpoint_inside_kl_window",
+            "evaluate_only_selected_checkpoint": True,
+            "early_stop_when_selected": True,
+        },
+        "decision_rule": {
+            "no_rung_enters_window": "FAIL — no safe intermediate; do not raise LR",
+            "first_rung_above_ceiling": "FAIL — overshot before landing; do not raise LR",
+            "selected_in_window": (
+                "evaluate strategic gates ONLY on that checkpoint; "
+                "then apply OP9 / anchors / behavior fork"
+            ),
+        },
+        "do_not": [
+            "treat this as another LR multiplier rung",
+            "evaluate the final 5u ckpt if an earlier rung already entered the window",
+            "retune KL thresholds after seeing ladder results",
+            "raise residual alpha / redesign trunk / add per-z critics",
+            "switch opponents or unlock router",
+            "promote z3 Phase-2 candidate",
+        ],
+        "scientific_boundary": (
+            "Niche surface revealed latent payoff variation, but tested LRO "
+            "procedures have not yet manufactured a statistically valuable and "
+            "behaviorally distinct strategy. No promotion, no router, no "
+            "strategy-birth claim yet."
+        ),
+    }
+
+
+def select_target_kl_ladder_rung(
+    rungs: list[dict[str, Any]],
+    *,
+    kl_min: float = ACTOR_STEP_FIXED_BATCH_KL_MIN,
+    kl_max: float = ACTOR_STEP_FIXED_BATCH_KL_MAX,
+) -> dict[str, Any]:
+    """Pick the first rung whose fixed-batch KL is inside ``[kl_min, kl_max]``.
+
+    Rungs must be ordered by update index ascending. If a rung exceeds
+    ``kl_max`` before any rung enters the window, selection fails as overshoot.
+    """
+    ordered = sorted(rungs, key=lambda r: int(r.get("update") or 0))
+    for rung in ordered:
+        kl = float(rung.get("fixed_batch_kl") or 0.0)
+        update = int(rung.get("update") or 0)
+        if kl_min <= kl <= kl_max:
+            return {
+                "status": "SELECTED",
+                "selected_update": update,
+                "selected_kl": kl,
+                "reason": "first_checkpoint_inside_kl_window",
+                "rung": rung,
+            }
+        if kl > kl_max:
+            return {
+                "status": "OVERSHOOT_BEFORE_WINDOW",
+                "selected_update": None,
+                "selected_kl": kl,
+                "reason": f"update_{update}_exceeded_ceiling_before_any_in_window",
+                "rung": rung,
+            }
+    last = ordered[-1] if ordered else {}
+    return {
+        "status": "NO_RUNG_IN_WINDOW",
+        "selected_update": None,
+        "selected_kl": float(last.get("fixed_batch_kl") or 0.0) if last else None,
+        "reason": "all_rungs_below_floor_or_empty",
+        "rung": last or None,
     }
 
 
@@ -1515,11 +1635,14 @@ __all__ = [
     "select_margin_response_target",
     "calibrate_margin_headroom_threshold",
     "select_response_target",
+    "select_target_kl_ladder_rung",
     "summarize_training_learning_signal",
+    "target_kl_ladder_contract",
     "write_json",
     "ACTOR_STEP_WEAK_APPROX_KL_FLOOR",
     "ACTOR_STEP_WEAK_ENTROPY_MEAN",
     "ACTOR_STEP_FIXED_BATCH_KL_MIN",
+    "ACTOR_STEP_FIXED_BATCH_KL_MAX",
     "ACTOR_STEP_ENTROPY_FIELD",
     "MARGIN_PILOT_LOCKED",
 ]
