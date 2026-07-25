@@ -1,10 +1,10 @@
 {
   "status": "running",
-  "updated_at_utc": "2026-07-25T02:20:41.586299+00:00",
+  "updated_at_utc": "2026-07-25T02:28:53.339115+00:00",
   "checkpoint": "artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
-  "completed_condition_count": 10,
+  "completed_condition_count": 12,
   "expected_condition_count": 56,
-  "episode_count": 40,
+  "episode_count": 48,
   "completed_conditions": [
     {
       "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
@@ -63,6 +63,18 @@
     {
       "opponent": "OP11_ADAPTIVE_EXPLOITER",
       "latent_z": 1,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 2,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 3,
       "map": "map_b_split_lane",
       "episodes": 4
     }

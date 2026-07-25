@@ -179,6 +179,9 @@ class V6i26PayoffHelperTests(unittest.TestCase):
             payoff_after=payoff,
             branch_idx=1,
             competence_floor=0.30,
+            episodes_per_cell=32,
+            ci95_low_delta_g=0.01,
+            training_seed_count=3,
         )
         self.assertTrue(ok["accepted"])
         self.assertEqual(ok["verdict"], "ACCEPT")
@@ -192,6 +195,35 @@ class V6i26PayoffHelperTests(unittest.TestCase):
         )
         self.assertFalse(bad["accepted"])
         self.assertEqual(bad["verdict"], "REJECT")
+
+    def test_four_episode_positive_screen_is_promising_not_accept(self) -> None:
+        from experiments.v6i26_lro_core import accept_lro_round
+
+        payoff = np.array(
+            [
+                [0.80, 0.20, 0.55, 0.40],
+                [0.25, 0.85, 0.50, 0.45],
+            ],
+            dtype=np.float64,
+        )
+        result = accept_lro_round(
+            g_before=0.0,
+            g_after=0.12,
+            payoff_after=payoff,
+            branch_idx=1,
+            competence_floor=0.30,
+            behavior_distinctness={"branch_behavior_nonredundant": True},
+            require_behavior_distinctness=True,
+            episodes_per_cell=4,
+            ci95_low_delta_g=None,
+            training_seed_count=1,
+        )
+        self.assertTrue(result["screening_pass"])
+        self.assertFalse(result["accepted"])
+        self.assertEqual(result["verdict"], "PROMISING_DIRECTION")
+        self.assertFalse(result["confirmation_episode_count_pass"])
+        self.assertFalse(result["ci95_delta_G_gt_0"])
+        self.assertFalse(result["multi_seed_repetition_pass"])
 
     def test_behavior_distinctness_flags_duplicate_branch(self) -> None:
         from experiments.v6i26_lro_core import behavior_distinctness_summary
@@ -259,6 +291,9 @@ class V6i26PayoffHelperTests(unittest.TestCase):
             competence_floor=0.30,
             behavior_distinctness={"branch_behavior_nonredundant": True},
             require_behavior_distinctness=True,
+            episodes_per_cell=32,
+            ci95_low_delta_g=0.01,
+            training_seed_count=3,
         )
         self.assertTrue(accepted["accepted"])
         self.assertTrue(accepted["behavior_distinctness_pass"])

@@ -2499,18 +2499,19 @@ specialists. Stage-1 must manufacture complementary value inside one latent
 policy. Directional breakthrough = `ΔG = G_after − G_before > 0`; strategy
 acceptance also requires the forced-z behavior nonredundancy gate above.
 
-**Stage-1 Round-1 (2026-07-24) — directional 4-eps ACCEPT, superseded by Phase-2:**
+**Stage-1 Round-1 (2026-07-24) — 4-eps PROMISING_DIRECTION, superseded by Phase-2:**
 
 ```text
 artifacts/v6i26_lro_niches_round1_seed1/ROUND1_LOCK.json
 checkpoint: final_v6i26_lro_z3_r1_25u_seed1.zip
 SHA256: 83B798574E7C084FF7A0DA3F1EA38EAB7A83C37168608A7ADDA35D38D5292AEC
-G_before=0.107  G_after=0.286  ΔG=+0.179   (4 eps/cell — directional only)
+G_before=0.107  G_after=0.286  ΔG=+0.179   (4 eps/cell — PROMISING_DIRECTION only)
 ```
 
 Do **not** overwrite this zip. Ignore stale
 `artifacts/v6i26_lro_round1_niches_seed1`. Router/distill still forbidden.
-The 4-eps `ACCEPT` is treated as **noise / overestimation** after Phase-2.
+The 4-eps screen is **not** an `ACCEPT`; it is `PROMISING_DIRECTION` only
+and is treated as **noise / overestimation** after Phase-2.
 
 **Phase-2 seed-1 STRICT CONFIRM — `FAIL` (2026-07-24):**
 `artifacts/v6i26_lro_niches_round1_seed1/phase2_confirm/phase2_seed1_confirm.json`
@@ -2542,11 +2543,41 @@ strengthened a distinct strategy in seed 1” is **false**.
 | ΔG>0 but behavior redundant | Competence/payoff gain without distinct strategy — Summer strategy claim fails |
 | Seeds 2+3 also fail | **Close** this recipe; do not keep rerunning seeds |
 
-**If multi-seed fails → one controlled capacity retry (locked next attack):**
-per-`z` value head for the response branch; keep niche pool, reward, branch,
-mixture, eval protocol, and 25u budget fixed. Do **not** also double budget.
-Diagnosis branch: behavior distance tiny + flat repertoire gain → branch did
-not leave the generalist basin (shared critic may couple value landscapes).
+**Permanent keep:** strict ≥32-eps/cell causal gate (caught the 4-eps mirage).
+Executable guardrail: Stage-1 screening cannot emit `ACCEPT` from the default
+4 eps/cell path. Real acceptance requires `ΔG > 0`, CI95 lower bound above
+zero, nonredundant payoff row, competence preserved, forced-z behavior distance
+above threshold, and repetition across at least three training seeds.
+
+**Seed-1 failure diagnosis (locked 2026-07-24 — attack order revised):**
+`z_3` was trained on contexts it already mostly solved (OP8/OP10/OP11 near
+ceiling; `z_3` already best fixed globally under 32-eps init). Almost no
+economic reason to invent a new behavior → stayed in generalist basin
+(dist to `z_2` = 0.082). Eval surface also near-saturated (~96% best-fixed
+vs ~99% oracle WR) → little win-rate headroom. Shared critic is **plausible**
+but **not proven** as the main cause.
+
+**If multi-seed fails → ordered next attacks (not a carousel):**
+
+1. **Checkpoint learning diagnostics** (essential before any arch change):
+   policy KL from init `z_3`, actor/critic grad norms, advantage mean/std by
+   target context, clip fraction, entropy, value loss / EV, target-context
+   returns at 5u/10u/15u/20u/25u. Fix the broken KL logger first.
+   Separates: no learning pressure vs updates-but-same-behavior vs transient
+   then collapse.
+2. **Single controlled retry if seeds 2–3 also show tiny behavior distance:**
+   add a per-`z` value head for the response branch. Keep training budget,
+   mixture, reward, branch, opponent/map surface, and eval protocol fixed.
+3. If behavior diverges but payoff does not improve, fix the training target:
+   use current forced-z payoff/headroom instead of archive landscape.
+4. If payoff improves but competence collapses, add a fixed competence anchor
+   mixture, e.g. 75% target / 25% general anchor.
+5. **Harder matched strategic contexts / more sensitive outcomes** only if
+   saturation persists after the controlled retry.
+
+**Do not yet:** train longer alone; diversity reward; change rewards and
+architecture together; opponent redesign as the first move; launch the per-`z`
+value-head retry before seeds 2–3 finish.
 
 **Vs V6I24:** adaptive task-return response targets; iterative BR; four
 branches in one model; no strategy-specific reward; distill optional only

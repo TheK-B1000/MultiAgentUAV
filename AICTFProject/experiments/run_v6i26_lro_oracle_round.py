@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 """V6I26 Stage-1 Latent Response-Oracle birth round.
 
-Breakthrough criterion (locked):
-  ΔG_available = G_after − G_before > 0
+Screening criterion:
+  delta_G_available = G_after - G_before > 0
+
+The default 4 episodes/cell run is screening only. It may emit
+PROMISING_DIRECTION, never ACCEPT.
 
 Acceptance (all required):
   G_after > G_before
+  AND CI95(delta_G) lower bound > 0
   AND branch adds a nonredundant payoff row
   AND competence stays above its floor
   AND forced-z behavior is nonredundant
+  AND >=32 episodes/cell
+  AND repetition across >=3 training seeds
 
-Mixture guardrail: smoothed / opponent-aggregated regret with capped weights —
-do not chase a single 4-episode accident. Final G uses cross-fitted matched-seed
+Mixture guardrail: smoothed / opponent-aggregated regret with capped weights.
+Do not chase a single 4-episode accident. Final G uses cross-fitted matched-seed
 forced-z evaluation on the LRO model itself.
 """
 from __future__ import annotations
@@ -68,6 +74,12 @@ def _parse_args() -> argparse.Namespace:
         help="Override branch z to train (default: from smoothed target).",
     )
     p.add_argument("--eval-episodes-per-cell", type=int, default=4)
+    p.add_argument(
+        "--checkpoint-every-updates",
+        type=int,
+        default=5,
+        help="Save run-relative checkpoints every N PPO updates (0 disables).",
+    )
     p.add_argument(
         "--behavior-distance-threshold",
         type=float,
@@ -374,10 +386,17 @@ def main() -> int:
         "landscape_scan": str(scan_path),
         "landscape_decision": decision,
         "breakthrough_criterion": "delta_G_available = G_after - G_before > 0",
-        "acceptance_rule": [
+        "screening_rule": [
             "G_after > G_before",
             "nonredundant_payoff_row",
             "competence_above_floor",
+            "forced_z_behavior_nonredundant",
+        ],
+        "acceptance_rule": [
+            "screening_rule passes",
+            "eval_episodes_per_cell >= 32",
+            "CI95(delta_G) lower bound > 0",
+            "repetition across >= 3 training seeds",
         ],
         "G_before": None,
         "targeted_regret_mixture": target,
@@ -390,6 +409,15 @@ def main() -> int:
         "accept_reject": None,
         "mixture_cells": [{"opponent": o, "map": m, "weight": w} for o, m, w in cells],
         "updates": int(args.updates),
+        "eval_episodes_per_cell": int(args.eval_episodes_per_cell),
+        "checkpoint_every_updates": int(args.checkpoint_every_updates),
+        "checkpoint_diagnostics": [
+            "target_cell_payoff",
+            "competence",
+            "behavior_distance_from_nearest_branch",
+            "branch_KL_from_initialization",
+            "inactive_branch_drift",
+        ],
         "run_tag": run_tag,
     }
     write_json(out_dir / "stage1_round_log.json", round_log)
@@ -401,7 +429,11 @@ def main() -> int:
     print(f"branch z={branch}  updates={args.updates}  steps={steps}")
     print(f"smoothed target={target.get('target_context')} regret={target.get('target_regret')}")
     print("mixture top:", target.get("mixture_top"))
-    print("acceptance: ΔG>0 AND nonredundant payoff row AND competence floor AND behavior distance")
+    print(
+        "screening: delta_G>0 AND nonredundant payoff row AND competence "
+        "floor AND behavior distance"
+    )
+    print("acceptance: screening + 32 eps/cell + CI95(delta_G)>0 + >=3 training seeds")
     if args.dry_run:
         print("[dry-run] wrote stage1_round_log.json only")
         return 0
@@ -460,6 +492,19 @@ def main() -> int:
     cfg.training_cell_distribution = tuple(cells)
     cfg.opponent_pool = tuple(opponents)
     cfg.freeze_return_norm_after_load = True
+    if int(args.checkpoint_every_updates) > 0:
+        cfg.periodic_checkpoint_steps = (
+            int(args.checkpoint_every_updates) * int(args.n_envs) * int(args.n_steps)
+        )
+        round_log["checkpoint_step_interval"] = int(cfg.periodic_checkpoint_steps)
+        round_log["checkpoint_update_labels"] = list(
+            range(
+                int(args.checkpoint_every_updates),
+                int(args.updates) + 1,
+                int(args.checkpoint_every_updates),
+            )
+        )
+        write_json(out_dir / "stage1_round_log.json", round_log)
 
     print(f"[stage1] training response branch z={branch} ...", flush=True)
     train_ppo(cfg)
@@ -479,7 +524,7 @@ def main() -> int:
         print("Skipping post-eval (--skip-post-eval). Re-run without it to gate.")
         return 0
 
-    print("[stage1] measuring G_after + KL + acceptance...", flush=True)
+    print("[stage1] measuring G_after + KL + screening...", flush=True)
     after = _forced_z_payoff_matrix(
         final_ckpt,
         opponents=opponents,
@@ -523,9 +568,17 @@ def main() -> int:
         competence_floor=float(competence_floor),
         behavior_distinctness=behavior_distinctness,
         require_behavior_distinctness=True,
+        episodes_per_cell=int(args.eval_episodes_per_cell),
+        ci95_low_delta_g=None,
+        training_seed_count=1,
     )
     diagnosis = None
-    if not decision_gate["accepted"]:
+    if decision_gate["verdict"] == "PROMISING_DIRECTION":
+        print(
+            "  screening passed but this is PROMISING_DIRECTION only; "
+            "run Phase-2 confirmation before acceptance."
+        )
+    elif not decision_gate["accepted"]:
         if not decision_gate.get("behavior_distinctness_pass"):
             diagnosis = {
                 "diagnosis_code": "BEHAVIOR_REDUNDANT",
@@ -592,8 +645,9 @@ def main() -> int:
     )
     print(f"verdict={decision_gate['verdict']}")
     print(f"Wrote {out_dir / 'stage1_round_log.json'}")
-    # Exit 4 = rejected this round (informative). Not a kill signal for LRO.
-    return 0 if decision_gate["accepted"] else 4
+    # Exit 4 = rejected this round (informative). Screening candidates exit 0
+    # because the next action is confirmation, not failure handling.
+    return 0 if decision_gate["verdict"] in {"ACCEPT", "PROMISING_DIRECTION"} else 4
 
 
 if __name__ == "__main__":

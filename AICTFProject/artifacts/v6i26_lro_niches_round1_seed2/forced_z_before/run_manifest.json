@@ -37,7 +37,7 @@
   "progress_every": 8,
   "status": "running",
   "started_at_utc": "2026-07-25T02:06:54.544017+00:00",
-  "updated_at_utc": "2026-07-25T02:20:41.579777+00:00",
+  "updated_at_utc": "2026-07-25T02:28:53.335115+00:00",
   "pid": 52176,
   "completed_conditions": [
     {
@@ -99,8 +99,20 @@
       "latent_z": 1,
       "map": "map_b_split_lane",
       "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 2,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 3,
+      "map": "map_b_split_lane",
+      "episodes": 4
     }
   ],
-  "completed_condition_count": 10,
-  "episode_count": 40
+  "completed_condition_count": 12,
+  "episode_count": 48
 }
