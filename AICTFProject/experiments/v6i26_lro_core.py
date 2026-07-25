@@ -256,6 +256,236 @@ def select_response_target(
     }
 
 
+def calibrate_margin_headroom_threshold(
+    margin_std: np.ndarray,
+    *,
+    n_episodes: int,
+    se_multiplier: float = 2.0,
+    absolute_floor: float = 0.15,
+) -> dict[str, float]:
+    """Calibrate recoverable-margin headroom from matched-seed cell variability.
+
+    Uses median cell SE = median(std / sqrt(n)) across finite (z, context) cells,
+    then ``max(absolute_floor, se_multiplier * median_se)``.
+    """
+    std = np.asarray(margin_std, dtype=np.float64)
+    n = max(1, int(n_episodes))
+    se = std / float(np.sqrt(n))
+    finite = se[np.isfinite(se)]
+    if finite.size == 0:
+        median_se = float(absolute_floor)
+    else:
+        median_se = float(np.median(finite))
+    threshold = float(max(float(absolute_floor), float(se_multiplier) * median_se))
+    return {
+        "n_episodes": float(n),
+        "se_multiplier": float(se_multiplier),
+        "absolute_floor": float(absolute_floor),
+        "median_cell_se": median_se,
+        "min_margin_headroom": threshold,
+    }
+
+
+def select_margin_response_target(
+    winrate: np.ndarray,
+    margin: np.ndarray,
+    *,
+    contexts: Sequence[str],
+    policy_labels: Sequence[str],
+    min_margin_headroom: float,
+    wr_competence_floor: float = 0.75,
+    branch_wr_floor: float = 0.50,
+    target_fraction: float = 0.75,
+    max_target_contexts: int = 3,
+) -> dict[str, Any]:
+    """Select LRO targets by recoverable win-margin headroom.
+
+    Primary score for branch ``z`` on context ``c``:
+
+        headroom(z, c) = best_z margin(c) - margin(z, c)
+
+    Winrate is only a competence / safety gate (not the selection objective).
+    TTC and other temporal metrics are intentionally excluded.
+    """
+    wr = np.asarray(winrate, dtype=np.float64)
+    m = np.asarray(margin, dtype=np.float64)
+    if wr.shape != m.shape:
+        raise ValueError(f"winrate/margin shape mismatch: {wr.shape} vs {m.shape}")
+    if m.ndim != 2:
+        raise ValueError(f"margin must be 2D, got {m.shape}")
+    if m.shape[1] != len(contexts):
+        raise ValueError("contexts length must match matrix columns")
+    if m.shape[0] != len(policy_labels):
+        raise ValueError("policy_labels length must match matrix rows")
+    if m.size == 0:
+        raise ValueError("margin matrix is empty")
+
+    finite_m = np.where(np.isfinite(m), m, -np.inf)
+    finite_wr = np.where(np.isfinite(wr), wr, -np.inf)
+    best_margin = finite_m.max(axis=0)
+    best_margin_z = finite_m.argmax(axis=0)
+    best_wr = finite_wr.max(axis=0)
+    best_wr_z = finite_wr.argmax(axis=0)
+    row_wr = np.nanmean(wr, axis=1)
+    wr_floor = float(wr_competence_floor)
+    branch_floor = float(branch_wr_floor)
+    thr = float(min_margin_headroom)
+
+    # Recoverable headroom: how far the candidate trails the best margin.
+    headroom = best_margin[None, :] - m
+    headroom = np.where(np.isfinite(headroom), headroom, -np.inf)
+
+    candidates: list[tuple[float, int, int, float, float]] = []
+    # (headroom, -branch_row_wr, context_idx, branch, best_wr, branch_wr)
+    for ci in range(m.shape[1]):
+        if not np.isfinite(best_wr[ci]) or float(best_wr[ci]) < wr_floor:
+            continue
+        for z in range(m.shape[0]):
+            if int(z) == int(best_margin_z[ci]):
+                continue
+            hr = float(headroom[z, ci])
+            if not np.isfinite(hr) or hr < thr:
+                continue
+            branch_wr = float(wr[z, ci]) if np.isfinite(wr[z, ci]) else float("nan")
+            if not np.isfinite(branch_wr) or branch_wr < branch_floor:
+                # Allow training a weak-on-cell but globally competent branch.
+                if float(row_wr[z]) < branch_floor:
+                    continue
+            candidates.append(
+                (
+                    hr,
+                    float(row_wr[z]),
+                    int(ci),
+                    int(z),
+                    float(best_wr[ci]),
+                    float(branch_wr) if np.isfinite(branch_wr) else float(row_wr[z]),
+                )
+            )
+
+    candidates.sort(key=lambda t: (-t[0], -t[1], str(contexts[t[2]]), t[3]))
+    if not candidates:
+        # Fallback: largest headroom ignoring thresholds (still report gates fail).
+        flat = []
+        for ci in range(m.shape[1]):
+            for z in range(m.shape[0]):
+                if int(z) == int(best_margin_z[ci]):
+                    continue
+                hr = float(headroom[z, ci])
+                if not np.isfinite(hr):
+                    continue
+                flat.append((hr, float(row_wr[z]), int(ci), int(z), float(best_wr[ci]), float(wr[z, ci])))
+        flat.sort(key=lambda t: (-t[0], -t[1], str(contexts[t[2]]), t[3]))
+        if not flat:
+            raise ValueError("no margin-headroom candidates available")
+        candidates = flat
+        selection_viable = False
+    else:
+        selection_viable = True
+
+    primary_hr, _, primary, branch, primary_best_wr, branch_wr_on_target = candidates[0]
+    # Additional target contexts: same branch, next-best recoverable headrooms.
+    extra = [
+        (hr, ci)
+        for hr, _row, ci, z, _bwr, _br in candidates[1:]
+        if int(z) == int(branch) and ci != primary
+    ]
+    extra.sort(key=lambda t: -t[0])
+    target_idx = [primary] + [ci for _, ci in extra[: max(0, int(max_target_contexts) - 1)]]
+    target_idx = list(dict.fromkeys(target_idx))
+
+    # Anchors: high-competence contexts (high best WR + high best margin).
+    anchors = [i for i in range(m.shape[1]) if i not in set(target_idx)]
+    anchors.sort(
+        key=lambda i: (
+            -float(best_wr[i]) if np.isfinite(best_wr[i]) else 0.0,
+            -float(best_margin[i]) if np.isfinite(best_margin[i]) else 0.0,
+            str(contexts[i]),
+        )
+    )
+    anchor_idx = anchors[: min(2, len(anchors))]
+
+    target_mass = float(target_fraction) if anchor_idx else 1.0
+    anchor_mass = max(0.0, 1.0 - target_mass)
+    target_raw = np.asarray(
+        [max(1e-6, float(headroom[branch, i])) for i in target_idx], dtype=np.float64
+    )
+    target_weights = target_raw / max(1e-12, float(target_raw.sum()))
+    mixture: dict[str, float] = {}
+    for i, w in zip(target_idx, target_weights.tolist()):
+        mixture[str(contexts[i])] = float(target_mass * w)
+    if anchor_idx:
+        per_anchor = anchor_mass / float(len(anchor_idx))
+        for i in anchor_idx:
+            mixture[str(contexts[i])] = float(mixture.get(str(contexts[i]), 0.0) + per_anchor)
+    total = sum(mixture.values())
+    if total > 0.0:
+        mixture = {k: float(v / total) for k, v in mixture.items()}
+
+    context_to_idx = {str(ctx): i for i, ctx in enumerate(contexts)}
+    return {
+        "selection_basis": "recoverable_win_margin_headroom",
+        "selection_metric": "win_margin",
+        "min_margin_headroom": thr,
+        "wr_competence_floor": wr_floor,
+        "branch_wr_floor": branch_floor,
+        "target_fraction": float(target_fraction),
+        "selection_viable": bool(selection_viable),
+        "best_wr_by_context": {
+            str(contexts[i]): float(best_wr[i]) for i in range(m.shape[1])
+        },
+        "best_wr_z_by_context": {
+            str(contexts[i]): int(best_wr_z[i]) for i in range(m.shape[1])
+        },
+        "best_margin_by_context": {
+            str(contexts[i]): float(best_margin[i]) for i in range(m.shape[1])
+        },
+        "best_margin_z_by_context": {
+            str(contexts[i]): int(best_margin_z[i]) for i in range(m.shape[1])
+        },
+        "row_mean_winrate": {
+            str(policy_labels[z]): float(row_wr[z]) for z in range(m.shape[0])
+        },
+        "target_context_indices": [int(i) for i in target_idx],
+        "target_contexts": [str(contexts[i]) for i in target_idx],
+        "anchor_context_indices": [int(i) for i in anchor_idx],
+        "anchor_contexts": [str(contexts[i]) for i in anchor_idx],
+        "mixture_weights": mixture,
+        "mixture_top": [
+            {
+                "context": str(ctx),
+                "weight": float(w),
+                "best_wr": float(best_wr[context_to_idx[str(ctx)]]),
+                "best_margin": float(best_margin[context_to_idx[str(ctx)]]),
+                "branch_margin_headroom": float(
+                    headroom[branch, context_to_idx[str(ctx)]]
+                ),
+            }
+            for ctx, w in sorted(mixture.items(), key=lambda item: -item[1])[:3]
+        ],
+        "target_context": str(contexts[primary]),
+        "target_context_index": int(primary),
+        "target_best_wr": float(primary_best_wr),
+        "target_best_margin": float(best_margin[primary]),
+        "target_sensitive_headroom": float(primary_hr),
+        "current_best_z_on_target": int(best_margin_z[primary]),
+        "current_best_wr_z_on_target": int(best_wr_z[primary]),
+        "branch_to_train_index": int(branch),
+        "branch_to_train_label": str(policy_labels[branch]),
+        "branch_margin_on_target": float(m[branch, primary]),
+        "branch_wr_on_target": float(branch_wr_on_target),
+        "branch_row_mean_winrate": float(row_wr[branch]),
+        "n_viable_candidates": int(len(candidates)) if selection_viable else 0,
+        "acceptance_requires": [
+            "delta_G_available_gt_0",
+            "ci95_low_delta_G_gt_0",
+            "nonredundant_payoff_row",
+            "competence_above_floor",
+            "forced_z_behavior_nonredundant",
+            "multi_seed_repetition",
+        ],
+    }
+
+
 def select_current_response_target(
     payoff: np.ndarray,
     *,
@@ -905,6 +1135,8 @@ __all__ = [
     "lro_manifest",
     "payoff_tensor_summary",
     "select_current_response_target",
+    "select_margin_response_target",
+    "calibrate_margin_headroom_threshold",
     "select_response_target",
     "summarize_training_learning_signal",
     "write_json",

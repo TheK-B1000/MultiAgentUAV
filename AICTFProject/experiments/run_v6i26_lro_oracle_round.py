@@ -38,11 +38,13 @@ if str(PROJECT_ROOT) not in sys.path:
 from experiments.v6i26_lro_core import (  # noqa: E402
     accept_lro_round,
     behavior_distinctness_summary,
+    calibrate_margin_headroom_threshold,
     cell_means_from_episode_df,
     diagnose_lro_reject,
     lro_manifest,
     payoff_tensor_summary,
     select_current_response_target,
+    select_margin_response_target,
     select_response_target,
     summarize_training_learning_signal,
     write_json,
@@ -108,6 +110,43 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Min mean payoff for acceptance (default: 0.75 * median init row).",
     )
+    p.add_argument(
+        "--selection-metric",
+        choices=("win_margin", "winrate"),
+        default="win_margin",
+        help=(
+            "Target selection metric. win_margin (default) uses recoverable "
+            "margin headroom with winrate competence gates. winrate uses the "
+            "legacy coverage/saturation selector."
+        ),
+    )
+    p.add_argument(
+        "--wr-competence-floor",
+        type=float,
+        default=0.75,
+        help="Minimum best-latent winrate for a context to be a valid target.",
+    )
+    p.add_argument(
+        "--branch-wr-floor",
+        type=float,
+        default=0.50,
+        help="Minimum candidate-branch winrate (cell or row-mean) to train.",
+    )
+    p.add_argument(
+        "--min-margin-headroom",
+        type=float,
+        default=None,
+        help=(
+            "Minimum recoverable margin headroom (best - candidate). "
+            "Default: calibrated from matched-seed cell SE."
+        ),
+    )
+    p.add_argument(
+        "--margin-se-multiplier",
+        type=float,
+        default=2.0,
+        help="Multiplier on median margin cell SE for headroom calibration.",
+    )
     p.add_argument("--skip-post-eval", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument(
@@ -159,6 +198,17 @@ def _load_forced_z_payoff_matrix(
     winrate, _ = cell_means_from_episode_df(
         df, opponents=opponents, maps=maps, latent_k=latent_k, metric="success"
     )
+    # Per-(z, context) win_margin std for headroom calibration.
+    margin_std = np.full_like(payoff, np.nan, dtype=np.float64)
+    n_eps = 0
+    for zi in range(int(latent_k)):
+        for ci, ctx in enumerate(contexts):
+            opp, mp = ctx.split("|", 1)
+            sub = df[(df["latent_z"] == zi) & (df["opponent"] == opp) & (df["map"] == mp)]
+            if len(sub) == 0:
+                continue
+            n_eps = max(n_eps, int(len(sub)))
+            margin_std[zi, ci] = float(pd.to_numeric(sub["win_margin"], errors="coerce").std(ddof=1))
     labels = [f"z{z}" for z in range(int(latent_k))]
     summary = payoff_tensor_summary(payoff, policy_labels=labels, contexts=contexts)
     oracle_path = out_dir / "oracle_report.json"
@@ -170,6 +220,8 @@ def _load_forced_z_payoff_matrix(
     return {
         "payoff_matrix": payoff,
         "winrate_matrix": winrate,
+        "margin_std_matrix": margin_std,
+        "episodes_per_cell_observed": int(n_eps),
         "contexts": contexts,
         "member_labels": labels,
         "summary": summary,
@@ -533,17 +585,55 @@ def main() -> int:
         means = before["payoff_matrix"].mean(axis=1)
         competence_floor = float(0.75 * float(np.median(means)))
 
-    # Saturation / headroom MUST use winrate (≈[0,1]), not win_margin.
-    current_target = select_current_response_target(
-        before["winrate_matrix"],
-        contexts=before["contexts"],
-        policy_labels=before["member_labels"],
-        saturation_cutoff=float(args.saturation_cutoff),
-        target_fraction=float(args.target_fraction),
-        competence_floor=None,
-    )
-    current_target["selection_metric"] = "winrate_success"
-    current_target["competence_floor_margin"] = float(competence_floor)
+    calibration = None
+    if str(args.selection_metric) == "win_margin":
+        margin_std = before.get("margin_std_matrix")
+        n_obs = int(before.get("episodes_per_cell_observed") or args.eval_episodes_per_cell)
+        if margin_std is None:
+            # Live eval path: approximate SE with a conservative absolute floor only.
+            calibration = calibrate_margin_headroom_threshold(
+                np.full_like(before["payoff_matrix"], np.nan),
+                n_episodes=n_obs,
+                se_multiplier=float(args.margin_se_multiplier),
+                absolute_floor=0.15,
+            )
+        else:
+            calibration = calibrate_margin_headroom_threshold(
+                np.asarray(margin_std, dtype=np.float64),
+                n_episodes=n_obs,
+                se_multiplier=float(args.margin_se_multiplier),
+                absolute_floor=0.15,
+            )
+        min_hr = (
+            float(args.min_margin_headroom)
+            if args.min_margin_headroom is not None
+            else float(calibration["min_margin_headroom"])
+        )
+        current_target = select_margin_response_target(
+            before["winrate_matrix"],
+            before["payoff_matrix"],
+            contexts=before["contexts"],
+            policy_labels=before["member_labels"],
+            min_margin_headroom=min_hr,
+            wr_competence_floor=float(args.wr_competence_floor),
+            branch_wr_floor=float(args.branch_wr_floor),
+            target_fraction=float(args.target_fraction),
+        )
+        current_target["headroom_calibration"] = calibration
+        current_target["competence_floor_margin"] = float(competence_floor)
+    else:
+        # Legacy coverage selector (winrate saturation / headroom).
+        current_target = select_current_response_target(
+            before["winrate_matrix"],
+            contexts=before["contexts"],
+            policy_labels=before["member_labels"],
+            saturation_cutoff=float(args.saturation_cutoff),
+            target_fraction=float(args.target_fraction),
+            competence_floor=None,
+        )
+        current_target["selection_metric"] = "winrate_success"
+        current_target["competence_floor_margin"] = float(competence_floor)
+
     branch = int(args.branch) if args.branch is not None else int(
         current_target["branch_to_train_index"]
     )
@@ -578,20 +668,42 @@ def main() -> int:
         for ctx, w in (current_target.get("mixture_weights") or {}).items()
         if ctx in set(current_target.get("anchor_contexts") or [])
     )
-    target_cov = float(current_target.get("target_coverage") or 0.0)
-    target_headroom = float(current_target.get("target_headroom") or 0.0)
     best_on_target = int(current_target.get("current_best_z_on_target") or -1)
-    n_excluded = len(current_target.get("excluded_saturated_contexts") or [])
     n_contexts = len(before["contexts"])
-    selection_gates = {
-        "target_not_saturated": bool(target_cov < float(args.saturation_cutoff)),
-        "branch_not_dominant_on_target": bool(branch != best_on_target),
-        "branch_has_meaningful_headroom": bool(target_headroom > 0.05),
-        "target_mixture_70_80": bool(0.70 <= target_mass <= 0.80),
-        "anchor_mixture_20_30": bool(0.20 <= anchor_mass <= 0.30),
-        "g_before_uses_selected_cells": True,
-    }
-    selection_gates["all_pass"] = all(selection_gates.values())
+
+    if str(args.selection_metric) == "win_margin":
+        sensitive_hr = float(current_target.get("target_sensitive_headroom") or 0.0)
+        min_hr = float(current_target.get("min_margin_headroom") or 0.0)
+        best_wr = float(current_target.get("target_best_wr") or 0.0)
+        branch_wr = float(current_target.get("branch_wr_on_target") or 0.0)
+        branch_row_wr = float(current_target.get("branch_row_mean_winrate") or 0.0)
+        selection_gates = {
+            "target_metric_win_margin": True,
+            "sensitive_headroom_gt_threshold": bool(sensitive_hr >= min_hr),
+            "branch_not_dominant_on_target": bool(branch != best_on_target),
+            "branch_competent_enough": bool(
+                branch_wr >= float(args.branch_wr_floor)
+                or branch_row_wr >= float(args.branch_wr_floor)
+            ),
+            "wr_competence_floor_passes": bool(best_wr >= float(args.wr_competence_floor)),
+            "target_mixture_70_80": bool(0.70 <= target_mass <= 0.80),
+            "anchor_mixture_20_30": bool(0.20 <= anchor_mass <= 0.30),
+            "g_before_uses_selected_cells": True,
+            "selection_viable": bool(current_target.get("selection_viable")),
+        }
+    else:
+        target_cov = float(current_target.get("target_coverage") or 0.0)
+        target_headroom = float(current_target.get("target_headroom") or 0.0)
+        n_excluded = len(current_target.get("excluded_saturated_contexts") or [])
+        selection_gates = {
+            "target_not_saturated": bool(target_cov < float(args.saturation_cutoff)),
+            "branch_not_dominant_on_target": bool(branch != best_on_target),
+            "branch_has_meaningful_headroom": bool(target_headroom > 0.05),
+            "target_mixture_70_80": bool(0.70 <= target_mass <= 0.80),
+            "anchor_mixture_20_30": bool(0.20 <= anchor_mass <= 0.30),
+            "g_before_uses_selected_cells": True,
+        }
+    selection_gates["all_pass"] = all(bool(v) for v in selection_gates.values())
 
     round_log.update(
         {
@@ -615,6 +727,7 @@ def main() -> int:
                 {"opponent": o, "map": m, "weight": w} for o, m, w in cells
             ],
             "selection_gates": selection_gates,
+            "selection_metric": str(args.selection_metric),
             "target_mixture_mass": float(target_mass),
             "anchor_mixture_mass": float(anchor_mass),
             "run_tag": run_tag,
@@ -632,14 +745,26 @@ def main() -> int:
         f"  selected branch z={branch} target={current_target.get('target_context')}",
         flush=True,
     )
+    if str(args.selection_metric) == "win_margin":
+        print(
+            f"  metric=win_margin sensitive_headroom="
+            f"{float(current_target.get('target_sensitive_headroom') or 0):.4f} "
+            f"threshold={float(current_target.get('min_margin_headroom') or 0):.4f} "
+            f"best_wr={float(current_target.get('target_best_wr') or 0):.4f} "
+            f"best_z={best_on_target}",
+            flush=True,
+        )
+        if calibration is not None:
+            print(f"  headroom_calibration={calibration}", flush=True)
+    else:
+        print(
+            f"  target_coverage={float(current_target.get('target_coverage') or 0):.4f} "
+            f"headroom={float(current_target.get('target_headroom') or 0):.4f} "
+            f"best_z_on_target={best_on_target} excluded={n_excluded}/{n_contexts}",
+            flush=True,
+        )
     print(
-        f"  target_coverage={target_cov:.4f} headroom={target_headroom:.4f} "
-        f"best_z_on_target={best_on_target}",
-        flush=True,
-    )
-    print(
-        f"  mixture target_mass={target_mass:.3f} anchor_mass={anchor_mass:.3f} "
-        f"excluded_saturated={n_excluded}/{n_contexts}",
+        f"  mixture target_mass={target_mass:.3f} anchor_mass={anchor_mass:.3f}",
         flush=True,
     )
     print(f"  mixture_top={current_target.get('mixture_top')}", flush=True)

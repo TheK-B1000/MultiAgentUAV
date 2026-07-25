@@ -2550,32 +2550,34 @@ replicating.
 **Next compute (locked -- do this, not finish flawed seeds):**
 
 ```text
-1. Fix and verify branch-KL logging          DONE (MultiHead logits helper + unit test)
-2. Add advantage/grad/clip/entropy/value diagnostics  DONE
-3. Recompute weaknesses from 32-eps current matrix      DONE
-4. Exclude saturated contexts                           DONE (13/14 @ winrate 0.90)
-5. Select context+branch from headroom                  DONE (fallback: z2 / OP9 v2)
-6. Run one 5u diagnostic pilot                          NEXT
-7. Continue to 25u only if the branch is actually separating
+1. Fix/verify branch-KL + learning diagnostics     DONE
+2. WR-based saturated exclusion dry-run            DONE (gates FAILED; correct refuse)
+3. Read-only headroom audit (WR + margins)         DONE -> Case A
+4. If useful sensitive headroom: select by margin/score (WR safety gate)
+5. Else build harder matched strategic contexts (~60-80% best WR)
+6. Lock new surface -> fresh forced-z baseline -> unsaturated target -> 5u only
 ```
 
-Seed-1 learning-signal autopsy:
-`artifacts/v6i26_lro_niches_round1_seed1/learning_signal_seed1.json`
-`status=NO_USABLE_LEARNING_PRESSURE` (approx_kl mean~2.6e-4, clip~0.0013;
-grad_norm~0.98 so grads exist but policy barely moves).
+**Margin-sensitive selector (2026-07-24):**
+Primary metric = recoverable headroom ``best_margin - candidate_margin``;
+WR is competence/safety only; TTC descriptive only.
+Threshold calibrated from matched-seed median cell SE
+(``max(0.15, 2 * median_se)``).
 
-Current 32-eps retarget artifact:
-`artifacts/.../phase2_confirm/current_payoff_target_from_before32.json`
-At saturation_cutoff=0.90 on winrate, **all** cells are saturated; selector
-falls back to least-covered `OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2`
-(coverage=0.9375, headroom=0) and branch **z=2** (not auto-z3). Confirms
-almost no remaining winrate headroom on the current niche pool at init.
+Dry-run on before_32:
+`artifacts/v6i26_margin_selector_dryrun_seed1/`
 
-Oracle-round wiring: selection uses **winrate** (not win_margin); supports
-`--reuse-forced-z-before`. Checkpoint diagnostics must answer: meaningful
-advantage- nonzero actor grads- KL rising- behavior distance rising- target
-payoff moving- inactive latents stable- If flat, stop; do not spend another
-25u+eval.
+```text
+target=OP9_SPLIT_LANE_FEINT|map_b_split_lane
+branch=z0  best_margin_z=3
+sensitive_headroom=1.4375  threshold~0.309
+best_wr~0.969  mixture 75/25
+selection_gates.all_pass=true
+```
+
+5u diagnostic pilot launched (same recipe, no router / no per-z critic):
+`artifacts/v6i26_margin_pilot_5u_seed1/`
+Continue to 10u+ only if learning signal + behavior distance move.
 
 **Permanent keep — screening vs ACCEPT (locked):**
 

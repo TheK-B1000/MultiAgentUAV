@@ -494,6 +494,68 @@ class V6i26DeepBranchArchitectureTests(unittest.TestCase):
         self.assertTrue(torch.allclose(branched_logits, shared_logits, atol=1e-6))
 
 
+class V6i26MarginHeadroomTargetTests(unittest.TestCase):
+    def test_selects_recoverable_margin_not_tiny_gap(self) -> None:
+        from experiments.v6i26_lro_core import (
+            calibrate_margin_headroom_threshold,
+            select_margin_response_target,
+        )
+
+        # Context0: big recoverable gap for z0 vs best z3
+        # Context1: tiny gap only
+        winrate = np.array(
+            [
+                [0.90, 0.95],
+                [0.95, 0.95],
+                [0.95, 0.95],
+                [0.96, 0.96],
+            ],
+            dtype=np.float64,
+        )
+        margin = np.array(
+            [
+                [0.65, 1.38],
+                [1.00, 1.40],
+                [1.10, 1.42],
+                [1.45, 1.45],
+            ],
+            dtype=np.float64,
+        )
+        calib = calibrate_margin_headroom_threshold(
+            np.full_like(margin, 0.4),
+            n_episodes=32,
+            se_multiplier=2.0,
+            absolute_floor=0.15,
+        )
+        target = select_margin_response_target(
+            winrate,
+            margin,
+            contexts=["OP_A|map_a", "OP_B|map_a"],
+            policy_labels=["z0", "z1", "z2", "z3"],
+            min_margin_headroom=float(calib["min_margin_headroom"]),
+            wr_competence_floor=0.75,
+            branch_wr_floor=0.50,
+            target_fraction=0.75,
+        )
+        self.assertEqual(target["selection_metric"], "win_margin")
+        self.assertTrue(target["selection_viable"])
+        self.assertEqual(target["target_context"], "OP_A|map_a")
+        self.assertEqual(target["branch_to_train_index"], 0)
+        self.assertAlmostEqual(target["target_sensitive_headroom"], 0.80, places=5)
+        self.assertNotEqual(target["branch_to_train_index"], target["current_best_z_on_target"])
+        self.assertGreaterEqual(target["target_best_wr"], 0.75)
+
+    def test_calibration_uses_se_floor(self) -> None:
+        from experiments.v6i26_lro_core import calibrate_margin_headroom_threshold
+
+        std = np.array([[0.2, 0.2], [0.2, 0.2]], dtype=np.float64)
+        calib = calibrate_margin_headroom_threshold(
+            std, n_episodes=32, se_multiplier=2.0, absolute_floor=0.15
+        )
+        # SE = 0.2/sqrt(32)≈0.035; 2*SE≈0.07 < floor 0.15
+        self.assertAlmostEqual(calib["min_margin_headroom"], 0.15, places=5)
+
+
 class V6i26CurrentPayoffTargetTests(unittest.TestCase):
     def test_excludes_saturated_and_avoids_best_branch(self) -> None:
         from experiments.v6i26_lro_core import select_current_response_target

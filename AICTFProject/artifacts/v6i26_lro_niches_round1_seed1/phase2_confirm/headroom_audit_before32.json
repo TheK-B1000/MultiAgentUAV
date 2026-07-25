@@ -1,0 +1,870 @@
+{
+  "source_csv": "artifacts\\v6i26_lro_niches_round1_seed1\\phase2_confirm\\forced_z_before_32\\episode_results.csv",
+  "episodes_per_cell": 32,
+  "winrate_saturation_cutoff": 0.9,
+  "n_contexts": 14,
+  "summary": {
+    "n_winrate_saturated": 14,
+    "frac_winrate_saturated": 1.0,
+    "n_margin_informative": 14,
+    "n_saturated_with_informative_margin": 14,
+    "frac_saturated_with_informative_margin": 1.0,
+    "n_latents_differ_despite_sat_wr": 14,
+    "mean_best_wr": 0.9709821428571429,
+    "mean_wr_headroom_to_1": 0.029017857142857144,
+    "mean_margin_gap_best_minus_second": 0.09821428571428571,
+    "median_best_wr": 0.96875,
+    "median_margin_gap": 0.078125,
+    "median_pairwise_margin_gap": 0.65625
+  },
+  "case": "A_WINRATE_SATURATED_MARGINS_DIFFER",
+  "recommendation": "Case A primary: retarget selector on win_margin (and score gap) while keeping winrate as competence/safety gate. Do not lower WR saturation cutoff alone. Do not launch 5u until a dry-run shows unsaturated sensitive headroom. If margin-based selection still yields only high absolute margins, escalate to Case B: harder matched-physics strategic contexts calibrated to ~60-80% best WR.",
+  "do_not_launch_5u_pilot": true,
+  "cells": [
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "map": "map_b_split_lane",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.59375,
+        "z1": 0.90625,
+        "z2": 0.9375,
+        "z3": 0.96875
+      },
+      "win_margin_by_z": {
+        "z0": 0.3125,
+        "z1": 0.96875,
+        "z2": 1.0625,
+        "z3": 1.1875
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.554130811947682,
+        "z1": 0.7398506824069736,
+        "z2": 0.6690146823211658,
+        "z3": 0.5922891621605981
+      },
+      "score_gap_by_z": {
+        "z0": 0.3125,
+        "z1": 0.96875,
+        "z2": 1.0625,
+        "z3": 1.1875
+      },
+      "time_to_first_score_by_z": {
+        "z0": 36.71875,
+        "z1": 34.75,
+        "z2": 34.75,
+        "z3": 34.6875
+      },
+      "best_wr_z": 3,
+      "runner_up_wr_z": 2,
+      "best_wr": 0.96875,
+      "runner_up_wr": 0.9375,
+      "wr_gap_best_minus_second": 0.03125,
+      "wr_headroom_to_1": 0.03125,
+      "best_wr_binomial_se": 0.030757843257858637,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.1875,
+      "runner_up_margin": 1.0625,
+      "margin_gap_best_minus_second": 0.125,
+      "pairwise_max_abs_wr_gap": 0.375,
+      "pairwise_max_abs_margin_gap": 0.875,
+      "ttc_range_across_z": 2.03125,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2",
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "map": "map_b_split_lane_v2",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.71875,
+        "z1": 0.96875,
+        "z2": 0.96875,
+        "z3": 0.96875
+      },
+      "win_margin_by_z": {
+        "z0": 0.53125,
+        "z1": 1.21875,
+        "z2": 1.21875,
+        "z3": 1.25
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.3194420863966856,
+        "z1": 0.4908435793150795,
+        "z2": 0.4908435793150795,
+        "z3": 0.508000508000762
+      },
+      "score_gap_by_z": {
+        "z0": 0.53125,
+        "z1": 1.21875,
+        "z2": 1.21875,
+        "z3": 1.25
+      },
+      "time_to_first_score_by_z": {
+        "z0": 31.875,
+        "z1": 31.59375,
+        "z2": 31.625,
+        "z3": 31.40625
+      },
+      "best_wr_z": 1,
+      "runner_up_wr_z": 2,
+      "best_wr": 0.96875,
+      "runner_up_wr": 0.96875,
+      "wr_gap_best_minus_second": 0.0,
+      "wr_headroom_to_1": 0.03125,
+      "best_wr_binomial_se": 0.030757843257858637,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 1,
+      "best_margin": 1.25,
+      "runner_up_margin": 1.21875,
+      "margin_gap_best_minus_second": 0.03125,
+      "pairwise_max_abs_wr_gap": 0.25,
+      "pairwise_max_abs_margin_gap": 0.71875,
+      "ttc_range_across_z": 0.46875,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane",
+      "opponent": "OP7_DEEP_FORTRESS",
+      "map": "map_b_split_lane",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.84375,
+        "z1": 0.96875,
+        "z2": 0.96875,
+        "z3": 0.96875
+      },
+      "win_margin_by_z": {
+        "z0": 1.21875,
+        "z1": 1.875,
+        "z2": 1.875,
+        "z3": 1.71875
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.1283552117444966,
+        "z1": 0.9418581497197699,
+        "z2": 0.9418581497197699,
+        "z3": 0.9583041136265399
+      },
+      "score_gap_by_z": {
+        "z0": 1.21875,
+        "z1": 1.875,
+        "z2": 1.875,
+        "z3": 1.71875
+      },
+      "time_to_first_score_by_z": {
+        "z0": 38.71875,
+        "z1": 33.1875,
+        "z2": 33.1875,
+        "z3": 33.03125
+      },
+      "best_wr_z": 1,
+      "runner_up_wr_z": 2,
+      "best_wr": 0.96875,
+      "runner_up_wr": 0.96875,
+      "wr_gap_best_minus_second": 0.0,
+      "wr_headroom_to_1": 0.03125,
+      "best_wr_binomial_se": 0.030757843257858637,
+      "best_margin_z": 1,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.875,
+      "runner_up_margin": 1.875,
+      "margin_gap_best_minus_second": 0.0,
+      "pairwise_max_abs_wr_gap": 0.125,
+      "pairwise_max_abs_margin_gap": 0.65625,
+      "ttc_range_across_z": 5.6875,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane_v2",
+      "opponent": "OP7_DEEP_FORTRESS",
+      "map": "map_b_split_lane_v2",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 1.0,
+        "z1": 1.0,
+        "z2": 1.0,
+        "z3": 1.0
+      },
+      "win_margin_by_z": {
+        "z0": 1.71875,
+        "z1": 1.96875,
+        "z2": 1.96875,
+        "z3": 1.90625
+      },
+      "win_margin_std_by_z": {
+        "z0": 0.5226714875243987,
+        "z1": 0.646797320799606,
+        "z2": 0.646797320799606,
+        "z3": 0.640532792341279
+      },
+      "score_gap_by_z": {
+        "z0": 1.71875,
+        "z1": 1.96875,
+        "z2": 1.96875,
+        "z3": 1.90625
+      },
+      "time_to_first_score_by_z": {
+        "z0": 33.53125,
+        "z1": 33.1875,
+        "z2": 33.1875,
+        "z3": 32.8125
+      },
+      "best_wr_z": 0,
+      "runner_up_wr_z": 1,
+      "best_wr": 1.0,
+      "runner_up_wr": 1.0,
+      "wr_gap_best_minus_second": 0.0,
+      "wr_headroom_to_1": 0.0,
+      "best_wr_binomial_se": 0.0,
+      "best_margin_z": 1,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.96875,
+      "runner_up_margin": 1.96875,
+      "margin_gap_best_minus_second": 0.0,
+      "pairwise_max_abs_wr_gap": 0.0,
+      "pairwise_max_abs_margin_gap": 0.25,
+      "ttc_range_across_z": 0.71875,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane",
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "map": "map_b_split_lane",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.53125,
+        "z1": 1.0,
+        "z2": 1.0,
+        "z3": 1.0
+      },
+      "win_margin_by_z": {
+        "z0": 0.15625,
+        "z1": 1.25,
+        "z2": 1.25,
+        "z3": 1.28125
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.3466655355046884,
+        "z1": 0.43994134506405985,
+        "z2": 0.43994134506405985,
+        "z3": 0.45680340939917435
+      },
+      "score_gap_by_z": {
+        "z0": 0.15625,
+        "z1": 1.25,
+        "z2": 1.25,
+        "z3": 1.28125
+      },
+      "time_to_first_score_by_z": {
+        "z0": 37.59375,
+        "z1": 34.0625,
+        "z2": 34.0625,
+        "z3": 34.09375
+      },
+      "best_wr_z": 1,
+      "runner_up_wr_z": 2,
+      "best_wr": 1.0,
+      "runner_up_wr": 1.0,
+      "wr_gap_best_minus_second": 0.0,
+      "wr_headroom_to_1": 0.0,
+      "best_wr_binomial_se": 0.0,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 1,
+      "best_margin": 1.28125,
+      "runner_up_margin": 1.25,
+      "margin_gap_best_minus_second": 0.03125,
+      "pairwise_max_abs_wr_gap": 0.46875,
+      "pairwise_max_abs_margin_gap": 1.125,
+      "ttc_range_across_z": 3.53125,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "map": "map_b_split_lane_v2",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.84375,
+        "z1": 0.875,
+        "z2": 0.90625,
+        "z3": 1.0
+      },
+      "win_margin_by_z": {
+        "z0": 0.84375,
+        "z1": 1.03125,
+        "z2": 1.125,
+        "z3": 1.375
+      },
+      "win_margin_std_by_z": {
+        "z0": 0.9196554403863755,
+        "z1": 0.89746506805953,
+        "z2": 0.7513428837969107,
+        "z3": 0.4918693768379647
+      },
+      "score_gap_by_z": {
+        "z0": 0.84375,
+        "z1": 1.03125,
+        "z2": 1.125,
+        "z3": 1.375
+      },
+      "time_to_first_score_by_z": {
+        "z0": 30.59375,
+        "z1": 30.375,
+        "z2": 30.375,
+        "z3": 30.53125
+      },
+      "best_wr_z": 3,
+      "runner_up_wr_z": 2,
+      "best_wr": 1.0,
+      "runner_up_wr": 0.90625,
+      "wr_gap_best_minus_second": 0.09375,
+      "wr_headroom_to_1": 0.0,
+      "best_wr_binomial_se": 0.0,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.375,
+      "runner_up_margin": 1.125,
+      "margin_gap_best_minus_second": 0.25,
+      "pairwise_max_abs_wr_gap": 0.15625,
+      "pairwise_max_abs_margin_gap": 0.53125,
+      "ttc_range_across_z": 0.21875,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "map": "map_b_split_lane",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.4375,
+        "z1": 0.90625,
+        "z2": 0.9375,
+        "z3": 0.96875
+      },
+      "win_margin_by_z": {
+        "z0": -0.0625,
+        "z1": 1.09375,
+        "z2": 1.15625,
+        "z3": 1.375
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.2684127749837335,
+        "z1": 0.9283830897266078,
+        "z2": 0.8466013648510979,
+        "z3": 0.6090712125322324
+      },
+      "score_gap_by_z": {
+        "z0": -0.0625,
+        "z1": 1.09375,
+        "z2": 1.15625,
+        "z3": 1.375
+      },
+      "time_to_first_score_by_z": {
+        "z0": 40.8125,
+        "z1": 36.25,
+        "z2": 36.25,
+        "z3": 34.46875
+      },
+      "best_wr_z": 3,
+      "runner_up_wr_z": 2,
+      "best_wr": 0.96875,
+      "runner_up_wr": 0.9375,
+      "wr_gap_best_minus_second": 0.03125,
+      "wr_headroom_to_1": 0.03125,
+      "best_wr_binomial_se": 0.030757843257858637,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.375,
+      "runner_up_margin": 1.15625,
+      "margin_gap_best_minus_second": 0.21875,
+      "pairwise_max_abs_wr_gap": 0.53125,
+      "pairwise_max_abs_margin_gap": 1.4375,
+      "ttc_range_across_z": 6.34375,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2",
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "map": "map_b_split_lane_v2",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.6875,
+        "z1": 0.90625,
+        "z2": 0.90625,
+        "z3": 0.9375
+      },
+      "win_margin_by_z": {
+        "z0": 0.5625,
+        "z1": 1.21875,
+        "z2": 1.21875,
+        "z3": 1.21875
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.4797013648139472,
+        "z1": 0.9064064103067461,
+        "z2": 0.9064064103067461,
+        "z3": 0.8700899100741849
+      },
+      "score_gap_by_z": {
+        "z0": 0.5625,
+        "z1": 1.21875,
+        "z2": 1.21875,
+        "z3": 1.21875
+      },
+      "time_to_first_score_by_z": {
+        "z0": 36.5625,
+        "z1": 38.1875,
+        "z2": 38.21875,
+        "z3": 37.0
+      },
+      "best_wr_z": 3,
+      "runner_up_wr_z": 1,
+      "best_wr": 0.9375,
+      "runner_up_wr": 0.90625,
+      "wr_gap_best_minus_second": 0.03125,
+      "wr_headroom_to_1": 0.0625,
+      "best_wr_binomial_se": 0.0427908248050911,
+      "best_margin_z": 1,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.21875,
+      "runner_up_margin": 1.21875,
+      "margin_gap_best_minus_second": 0.0,
+      "pairwise_max_abs_wr_gap": 0.25,
+      "pairwise_max_abs_margin_gap": 0.65625,
+      "ttc_range_across_z": 1.65625,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane",
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "map": "map_b_split_lane",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.78125,
+        "z1": 0.90625,
+        "z2": 0.90625,
+        "z3": 0.9375
+      },
+      "win_margin_by_z": {
+        "z0": 0.84375,
+        "z1": 1.125,
+        "z2": 1.125,
+        "z3": 1.28125
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.370410228197523,
+        "z1": 1.0080322575483707,
+        "z2": 1.0080322575483707,
+        "z3": 0.8513509188911317
+      },
+      "score_gap_by_z": {
+        "z0": 0.84375,
+        "z1": 1.125,
+        "z2": 1.125,
+        "z3": 1.28125
+      },
+      "time_to_first_score_by_z": {
+        "z0": 40.4375,
+        "z1": 33.09375,
+        "z2": 33.09375,
+        "z3": 32.78125
+      },
+      "best_wr_z": 3,
+      "runner_up_wr_z": 1,
+      "best_wr": 0.9375,
+      "runner_up_wr": 0.90625,
+      "wr_gap_best_minus_second": 0.03125,
+      "wr_headroom_to_1": 0.0625,
+      "best_wr_binomial_se": 0.0427908248050911,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 1,
+      "best_margin": 1.28125,
+      "runner_up_margin": 1.125,
+      "margin_gap_best_minus_second": 0.15625,
+      "pairwise_max_abs_wr_gap": 0.15625,
+      "pairwise_max_abs_margin_gap": 0.4375,
+      "ttc_range_across_z": 7.65625,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2",
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "map": "map_b_split_lane_v2",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.84375,
+        "z1": 0.90625,
+        "z2": 0.90625,
+        "z3": 0.96875
+      },
+      "win_margin_by_z": {
+        "z0": 0.9375,
+        "z1": 1.3125,
+        "z2": 1.3125,
+        "z3": 1.46875
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.0453429750487975,
+        "z1": 1.0906494070196242,
+        "z2": 1.0906494070196242,
+        "z3": 0.9152604071537377
+      },
+      "score_gap_by_z": {
+        "z0": 0.9375,
+        "z1": 1.3125,
+        "z2": 1.3125,
+        "z3": 1.46875
+      },
+      "time_to_first_score_by_z": {
+        "z0": 31.0625,
+        "z1": 31.9375,
+        "z2": 33.09375,
+        "z3": 31.5625
+      },
+      "best_wr_z": 3,
+      "runner_up_wr_z": 1,
+      "best_wr": 0.96875,
+      "runner_up_wr": 0.90625,
+      "wr_gap_best_minus_second": 0.0625,
+      "wr_headroom_to_1": 0.03125,
+      "best_wr_binomial_se": 0.030757843257858637,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 1,
+      "best_margin": 1.46875,
+      "runner_up_margin": 1.3125,
+      "margin_gap_best_minus_second": 0.15625,
+      "pairwise_max_abs_wr_gap": 0.125,
+      "pairwise_max_abs_margin_gap": 0.53125,
+      "ttc_range_across_z": 2.03125,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "map": "map_b_split_lane",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.5,
+        "z1": 0.96875,
+        "z2": 0.96875,
+        "z3": 0.875
+      },
+      "win_margin_by_z": {
+        "z0": 0.0625,
+        "z1": 1.34375,
+        "z2": 1.28125,
+        "z3": 1.03125
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.4127872245796547,
+        "z1": 0.7006621292426463,
+        "z2": 0.6831792378049423,
+        "z3": 0.9994958406536122
+      },
+      "score_gap_by_z": {
+        "z0": 0.0625,
+        "z1": 1.34375,
+        "z2": 1.28125,
+        "z3": 1.03125
+      },
+      "time_to_first_score_by_z": {
+        "z0": 38.67741935483871,
+        "z1": 37.28125,
+        "z2": 37.28125,
+        "z3": 35.90625
+      },
+      "best_wr_z": 1,
+      "runner_up_wr_z": 2,
+      "best_wr": 0.96875,
+      "runner_up_wr": 0.96875,
+      "wr_gap_best_minus_second": 0.0,
+      "wr_headroom_to_1": 0.03125,
+      "best_wr_binomial_se": 0.030757843257858637,
+      "best_margin_z": 1,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.34375,
+      "runner_up_margin": 1.28125,
+      "margin_gap_best_minus_second": 0.0625,
+      "pairwise_max_abs_wr_gap": 0.46875,
+      "pairwise_max_abs_margin_gap": 1.28125,
+      "ttc_range_across_z": 2.7711693548387117,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2",
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "map": "map_b_split_lane_v2",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.75,
+        "z1": 1.0,
+        "z2": 1.0,
+        "z3": 1.0
+      },
+      "win_margin_by_z": {
+        "z0": 0.875,
+        "z1": 1.375,
+        "z2": 1.375,
+        "z3": 1.375
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.2636353087613479,
+        "z1": 0.4918693768379647,
+        "z2": 0.4918693768379647,
+        "z3": 0.4918693768379647
+      },
+      "score_gap_by_z": {
+        "z0": 0.875,
+        "z1": 1.375,
+        "z2": 1.375,
+        "z3": 1.375
+      },
+      "time_to_first_score_by_z": {
+        "z0": 33.875,
+        "z1": 33.375,
+        "z2": 33.4375,
+        "z3": 32.375
+      },
+      "best_wr_z": 1,
+      "runner_up_wr_z": 2,
+      "best_wr": 1.0,
+      "runner_up_wr": 1.0,
+      "wr_gap_best_minus_second": 0.0,
+      "wr_headroom_to_1": 0.0,
+      "best_wr_binomial_se": 0.0,
+      "best_margin_z": 1,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.375,
+      "runner_up_margin": 1.375,
+      "margin_gap_best_minus_second": 0.0,
+      "pairwise_max_abs_wr_gap": 0.25,
+      "pairwise_max_abs_margin_gap": 0.5,
+      "ttc_range_across_z": 1.5,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane",
+      "opponent": "OP12_LATE_CONVERTER",
+      "map": "map_b_split_lane",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.40625,
+        "z1": 0.90625,
+        "z2": 0.90625,
+        "z3": 0.96875
+      },
+      "win_margin_by_z": {
+        "z0": -0.09375,
+        "z1": 1.0,
+        "z2": 1.03125,
+        "z3": 1.28125
+      },
+      "win_margin_std_by_z": {
+        "z0": 1.552508376165654,
+        "z1": 0.762000762001143,
+        "z2": 0.7822372794046079,
+        "z3": 0.6342063874918668
+      },
+      "score_gap_by_z": {
+        "z0": -0.09375,
+        "z1": 1.0,
+        "z2": 1.03125,
+        "z3": 1.28125
+      },
+      "time_to_first_score_by_z": {
+        "z0": 37.84375,
+        "z1": 33.75,
+        "z2": 33.75,
+        "z3": 34.625
+      },
+      "best_wr_z": 3,
+      "runner_up_wr_z": 1,
+      "best_wr": 0.96875,
+      "runner_up_wr": 0.90625,
+      "wr_gap_best_minus_second": 0.0625,
+      "wr_headroom_to_1": 0.03125,
+      "best_wr_binomial_se": 0.030757843257858637,
+      "best_margin_z": 3,
+      "runner_up_margin_z": 2,
+      "best_margin": 1.28125,
+      "runner_up_margin": 1.03125,
+      "margin_gap_best_minus_second": 0.25,
+      "pairwise_max_abs_wr_gap": 0.5625,
+      "pairwise_max_abs_margin_gap": 1.375,
+      "ttc_range_across_z": 4.09375,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+      "opponent": "OP12_LATE_CONVERTER",
+      "map": "map_b_split_lane_v2",
+      "n_episodes_per_z": 32,
+      "winrate_by_z": {
+        "z0": 0.9375,
+        "z1": 0.84375,
+        "z2": 0.875,
+        "z3": 0.875
+      },
+      "win_margin_by_z": {
+        "z0": 1.25,
+        "z1": 0.9375,
+        "z2": 1.0,
+        "z3": 1.15625
+      },
+      "win_margin_std_by_z": {
+        "z0": 0.8032193289024988,
+        "z1": 0.9482581654734625,
+        "z2": 0.8798826901281197,
+        "z3": 0.8838834764831844
+      },
+      "score_gap_by_z": {
+        "z0": 1.25,
+        "z1": 0.9375,
+        "z2": 1.0,
+        "z3": 1.15625
+      },
+      "time_to_first_score_by_z": {
+        "z0": 32.53125,
+        "z1": 34.3125,
+        "z2": 34.25,
+        "z3": 34.5625
+      },
+      "best_wr_z": 0,
+      "runner_up_wr_z": 2,
+      "best_wr": 0.9375,
+      "runner_up_wr": 0.875,
+      "wr_gap_best_minus_second": 0.0625,
+      "wr_headroom_to_1": 0.0625,
+      "best_wr_binomial_se": 0.0427908248050911,
+      "best_margin_z": 0,
+      "runner_up_margin_z": 3,
+      "best_margin": 1.25,
+      "runner_up_margin": 1.15625,
+      "margin_gap_best_minus_second": 0.09375,
+      "pairwise_max_abs_wr_gap": 0.09375,
+      "pairwise_max_abs_margin_gap": 0.3125,
+      "ttc_range_across_z": 2.03125,
+      "winrate_saturated_ge_0.90": true,
+      "margin_still_informative": true,
+      "latents_differ_despite_sat_wr": true
+    }
+  ],
+  "least_covered_contexts": [
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2",
+      "best_wr": 0.9375,
+      "best_margin": 1.21875,
+      "margin_gap": 0.0,
+      "pairwise_margin": 0.65625
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane",
+      "best_wr": 0.9375,
+      "best_margin": 1.28125,
+      "margin_gap": 0.15625,
+      "pairwise_margin": 0.4375
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+      "best_wr": 0.9375,
+      "best_margin": 1.25,
+      "margin_gap": 0.09375,
+      "pairwise_margin": 0.3125
+    },
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+      "best_wr": 0.96875,
+      "best_margin": 1.375,
+      "margin_gap": 0.21875,
+      "pairwise_margin": 1.4375
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane",
+      "best_wr": 0.96875,
+      "best_margin": 1.28125,
+      "margin_gap": 0.25,
+      "pairwise_margin": 1.375
+    }
+  ],
+  "most_margin_spread_among_sat_wr": [
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+      "best_wr": 0.96875,
+      "pairwise_margin": 1.4375,
+      "margin_gap": 0.21875,
+      "best_margin_z": 3,
+      "best_wr_z": 3
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane",
+      "best_wr": 0.96875,
+      "pairwise_margin": 1.375,
+      "margin_gap": 0.25,
+      "best_margin_z": 3,
+      "best_wr_z": 3
+    },
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+      "best_wr": 0.96875,
+      "pairwise_margin": 1.28125,
+      "margin_gap": 0.0625,
+      "best_margin_z": 1,
+      "best_wr_z": 1
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane",
+      "best_wr": 1.0,
+      "pairwise_margin": 1.125,
+      "margin_gap": 0.03125,
+      "best_margin_z": 3,
+      "best_wr_z": 1
+    },
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+      "best_wr": 0.96875,
+      "pairwise_margin": 0.875,
+      "margin_gap": 0.125,
+      "best_margin_z": 3,
+      "best_wr_z": 3
+    }
+  ],
+  "case_caveat": "All 14/14 contexts have best_wr>=0.90 (mean best_wr~0.971). Latents still differ on win_margin (median pairwise max abs gap~0.66), but best-vs-second margin gaps are modest (median~0.078) and absolute best margins remain high (~1.19-1.97). time_to_first_score ranges across z are tiny (median~2 steps), so TTC is not a useful selection axis here. Next: try margin-sensitive selection with WR competence gate; if selected targets still lack real improvement room, escalate to Case B harder contexts.",
+  "next_ladder": [
+    "audit margin and temporal headroom (DONE)",
+    "if useful headroom exists, select by sensitive outcome",
+    "otherwise build harder matched strategic contexts",
+    "lock the new evaluation surface",
+    "run a fresh forced-z baseline",
+    "require an unsaturated target and branch headroom",
+    "launch only a 5u diagnostic pilot"
+  ]
+}
