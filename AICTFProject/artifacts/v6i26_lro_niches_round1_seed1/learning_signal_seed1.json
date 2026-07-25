@@ -1,0 +1,59 @@
+{
+  "status": "NO_USABLE_LEARNING_PRESSURE",
+  "meaning": "Policy KL and clip fraction stayed near zero \u2014 the branch had little economic reason / signal to leave its init basin.",
+  "path": "artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_metrics.csv",
+  "n_updates": 25,
+  "approx_kl": {
+    "n": 25,
+    "mean": 0.00025694773532448055,
+    "last": 6.456626579165459e-06,
+    "max": 0.0017325867374893
+  },
+  "clip_fraction": {
+    "n": 25,
+    "mean": 0.0013216145833333198,
+    "last": 0.0,
+    "max": 0.0205078125
+  },
+  "entropy": {
+    "n": 25,
+    "mean": 2.6305209048589067,
+    "last": 2.5354613860448203,
+    "max": 2.7308373053868613
+  },
+  "explained_variance": {
+    "n": 25,
+    "mean": 0.25358494997024533,
+    "last": 0.4655565023422241,
+    "max": 0.4803133010864258
+  },
+  "value_loss": {
+    "n": 25,
+    "mean": 0.4960325461626052,
+    "last": 0.2021888817350069,
+    "max": 1.0872478485107422
+  },
+  "grad_norm": {
+    "n": 25,
+    "mean": 0.9816138800978659,
+    "last": 1.7106273372968035,
+    "max": 2.7749202648798623
+  },
+  "advantage_mean": {
+    "n": 25,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "advantage_std": {
+    "n": 25,
+    "mean": 0.0,
+    "last": 0.0,
+    "max": 0.0
+  },
+  "flags": {
+    "tiny_approx_kl": true,
+    "tiny_clip_fraction": true,
+    "tiny_grad_norm": false
+  }
+}

@@ -256,6 +256,160 @@ def select_response_target(
     }
 
 
+def select_current_response_target(
+    payoff: np.ndarray,
+    *,
+    contexts: Sequence[str],
+    policy_labels: Sequence[str],
+    saturation_cutoff: float = 0.90,
+    target_fraction: float = 0.75,
+    competence_floor: float | None = None,
+    max_target_contexts: int = 3,
+) -> dict[str, Any]:
+    """Select the next LRO target from the current forced-z coverage matrix.
+
+    Archive landscape scans define the evaluation surface; this selector chooses
+    the weakness and the branch from the **current** forced-z table.
+
+    ``payoff`` MUST be a coverage metric on roughly ``[0, 1]`` (typically
+    winrate / ``success``). Do **not** pass ``win_margin`` — a 0.90 saturation
+    cutoff is meaningless on unbounded margins.
+    """
+    p = np.asarray(payoff, dtype=np.float64)
+    if p.ndim != 2:
+        raise ValueError(f"payoff must be 2D, got {p.shape}")
+    if p.shape[1] != len(contexts):
+        raise ValueError("contexts length must match payoff columns")
+    if p.shape[0] != len(policy_labels):
+        raise ValueError("policy_labels length must match payoff rows")
+    if p.size == 0:
+        raise ValueError("payoff matrix is empty")
+
+    finite = np.where(np.isfinite(p), p, -np.inf)
+    coverage = finite.max(axis=0)
+    best_z = finite.argmax(axis=0)
+    row_means = np.nanmean(p, axis=1)
+    median_row = float(np.nanmedian(row_means))
+    floor = median_row if competence_floor is None else float(competence_floor)
+    stable = row_means >= floor
+
+    headroom = np.maximum(0.0, float(saturation_cutoff) - coverage)
+    eligible = [
+        i
+        for i, cov in enumerate(coverage.tolist())
+        if np.isfinite(cov) and cov < float(saturation_cutoff)
+    ]
+    if not eligible:
+        eligible = [int(np.argmin(coverage))]
+    target_scores = [(i, float(headroom[i]), float(coverage[i])) for i in eligible]
+    target_scores.sort(key=lambda item: (-item[1], item[2], str(contexts[item[0]])))
+    target_idx = [i for i, _, _ in target_scores[: max(1, int(max_target_contexts))]]
+
+    primary = int(target_idx[0])
+    dominant_counts = np.bincount(best_z.astype(np.int64), minlength=p.shape[0])
+    branch_candidates = [
+        z
+        for z in range(p.shape[0])
+        if z != int(best_z[primary]) and bool(stable[z]) and int(dominant_counts[z]) == 0
+    ]
+    if not branch_candidates:
+        branch_candidates = [
+            z
+            for z in range(p.shape[0])
+            if z != int(best_z[primary]) and bool(stable[z])
+        ]
+    if not branch_candidates:
+        branch_candidates = [z for z in range(p.shape[0]) if z != int(best_z[primary])]
+    if not branch_candidates:
+        branch_candidates = [int(best_z[primary])]
+    branch = max(
+        branch_candidates,
+        key=lambda z: (float(row_means[z]), -float(finite[z, primary]), -int(z)),
+    )
+
+    anchors = [i for i in range(p.shape[1]) if i not in set(target_idx)]
+    anchors.sort(key=lambda i: (-float(np.nanmean(p[:, i])), str(contexts[i])))
+    anchor_idx = anchors[: min(2, len(anchors))]
+
+    target_mass = float(target_fraction) if anchor_idx else 1.0
+    anchor_mass = max(0.0, 1.0 - target_mass)
+    target_raw = np.asarray([max(1e-6, float(headroom[i])) for i in target_idx], dtype=np.float64)
+    target_weights = target_raw / max(1e-12, float(target_raw.sum()))
+
+    mixture: dict[str, float] = {}
+    for i, w in zip(target_idx, target_weights.tolist()):
+        mixture[str(contexts[i])] = float(target_mass * w)
+    if anchor_idx:
+        per_anchor = anchor_mass / float(len(anchor_idx))
+        for i in anchor_idx:
+            mixture[str(contexts[i])] = float(mixture.get(str(contexts[i]), 0.0) + per_anchor)
+
+    total = sum(mixture.values())
+    if total > 0.0:
+        mixture = {k: float(v / total) for k, v in mixture.items()}
+
+    context_to_idx = {str(ctx): i for i, ctx in enumerate(contexts)}
+    saturated = [
+        {
+            "context": str(contexts[i]),
+            "coverage": float(coverage[i]),
+            "best_z": int(best_z[i]),
+        }
+        for i in range(p.shape[1])
+        if i not in eligible
+    ]
+    return {
+        "selection_basis": "current_forced_z_payoff",
+        "saturation_cutoff": float(saturation_cutoff),
+        "target_fraction": float(target_fraction),
+        "competence_floor": floor,
+        "coverage_by_context": {
+            str(contexts[i]): float(coverage[i]) for i in range(p.shape[1])
+        },
+        "best_z_by_context": {
+            str(contexts[i]): int(best_z[i]) for i in range(p.shape[1])
+        },
+        "row_mean_payoff": {
+            str(policy_labels[z]): float(row_means[z]) for z in range(p.shape[0])
+        },
+        "dominant_context_count_by_branch": {
+            str(policy_labels[z]): int(dominant_counts[z]) for z in range(p.shape[0])
+        },
+        "stable_branch_indices": [int(z) for z in range(p.shape[0]) if bool(stable[z])],
+        "excluded_saturated_contexts": saturated,
+        "target_context_indices": [int(i) for i in target_idx],
+        "target_contexts": [str(contexts[i]) for i in target_idx],
+        "anchor_context_indices": [int(i) for i in anchor_idx],
+        "anchor_contexts": [str(contexts[i]) for i in anchor_idx],
+        "mixture_weights": mixture,
+        "mixture_top": [
+            {
+                "context": str(ctx),
+                "weight": float(w),
+                "coverage": float(coverage[context_to_idx[str(ctx)]]),
+            }
+            for ctx, w in sorted(mixture.items(), key=lambda item: -item[1])[:3]
+        ],
+        "target_context": str(contexts[primary]),
+        "target_context_index": primary,
+        "target_coverage": float(coverage[primary]),
+        "target_headroom": float(headroom[primary]),
+        "current_best_z_on_target": int(best_z[primary]),
+        "branch_to_train_index": int(branch),
+        "branch_to_train_label": str(policy_labels[branch]),
+        "branch_payoff_on_target": float(p[branch, primary]),
+        "branch_row_mean_payoff": float(row_means[branch]),
+        "acceptance_requires": [
+            "delta_G_available_gt_0",
+            "ci95_low_delta_G_gt_0",
+            "nonredundant_payoff_row",
+            "competence_above_floor",
+            "forced_z_behavior_nonredundant",
+            "multi_seed_repetition",
+        ],
+    }
+
+
 def branch_row_redundant(
     payoff: np.ndarray,
     branch_idx: int,
@@ -488,6 +642,7 @@ def accept_lro_round(
     }
 
 
+
 def diagnose_lro_reject(
     *,
     branch_kl: float,
@@ -576,6 +731,13 @@ def lro_manifest() -> dict[str, Any]:
         "screening_verdict": (
             "4 episodes/cell may produce PROMISING_DIRECTION only; never ACCEPT."
         ),
+        "target_selection": [
+            "measure current forced-z payoff matrix before each response round",
+            "exclude contexts whose current coverage is already saturated",
+            "select uncovered target contexts by headroom below saturation cutoff",
+            "select a stable branch that is not already dominant on the target",
+            "train a fixed target/competence-anchor mixture",
+        ],
         "stage1_acceptance": [
             "delta_G > 0",
             "CI95(delta_G) lower bound > 0",
@@ -600,8 +762,9 @@ def lro_manifest() -> dict[str, Any]:
             "general_competence_anchor_cells",
         ],
         "controlled_retry_if_multiseed_fails": (
-            "per-z value head only; keep reward, mixture, branch, eval protocol, "
-            "and 25u budget fixed."
+            "First inspect learning-signal diagnostics and retarget from the current "
+            "forced-z payoff matrix. Try per-z value heads only if the signal is "
+            "healthy but the selected branch still collapses into an existing row."
         ),
         "one_retry_only": True,
         "closed_paths": [
@@ -613,6 +776,113 @@ def lro_manifest() -> dict[str, Any]:
         "phase_context_axis": phase_pods_manifest(),
         "pod_to_z": dict(POD_TO_Z),
         "phase_ids": list(PHASE_POD_IDS),
+    }
+
+
+def cell_means_from_episode_df(
+    df: Any,
+    *,
+    opponents: Sequence[str],
+    maps: Sequence[str],
+    latent_k: int = 4,
+    metric: str = "success",
+) -> tuple[np.ndarray, list[str]]:
+    """Build a (K x C) cell-mean matrix from forced-z episode_results rows."""
+    contexts = [f"{o}|{m}" for o in opponents for m in maps]
+    out = np.zeros((int(latent_k), len(contexts)), dtype=np.float64)
+    for zi in range(int(latent_k)):
+        for ci, ctx in enumerate(contexts):
+            opp, mp = ctx.split("|", 1)
+            sub = df[(df["latent_z"] == zi) & (df["opponent"] == opp) & (df["map"] == mp)]
+            if len(sub) == 0:
+                out[zi, ci] = float("nan")
+            else:
+                out[zi, ci] = float(sub[metric].mean())
+    return out, contexts
+
+
+def summarize_training_learning_signal(metrics_csv: Path | str) -> dict[str, Any]:
+    """Summarize PPO learning-signal columns from an LRO metrics CSV.
+
+    Separates: no usable pressure (tiny KL/grads/clip) vs updates-but-same
+    behavior (needs behavior distance) vs healthy signal.
+    """
+    import pandas as pd
+
+    path = Path(metrics_csv)
+    df = pd.read_csv(path)
+    if len(df) == 0:
+        return {"status": "EMPTY", "path": str(path)}
+
+    def _col(name: str) -> np.ndarray:
+        if name not in df.columns:
+            return np.asarray([], dtype=np.float64)
+        return np.asarray(pd.to_numeric(df[name], errors="coerce").dropna(), dtype=np.float64)
+
+    approx_kl = _col("approx_kl")
+    clip_frac = _col("clip_fraction")
+    entropy = _col("entropy")
+    ev = _col("explained_variance")
+    value_loss = _col("value_loss")
+    grad = _col("grad_norm")
+    if grad.size == 0:
+        grad = _col("ppo_actor_grad_norm")
+    if grad.size == 0:
+        grad = _col("actor_grad_norm_total")
+    adv_mean = _col("latent_episode_adv_mean")
+    adv_std = _col("latent_episode_adv_std")
+
+    def _stat(arr: np.ndarray) -> dict[str, float | None]:
+        if arr.size == 0:
+            return {"n": 0, "mean": None, "last": None, "max": None}
+        return {
+            "n": int(arr.size),
+            "mean": float(np.mean(arr)),
+            "last": float(arr[-1]),
+            "max": float(np.max(arr)),
+        }
+
+    kl_mean = float(np.mean(approx_kl)) if approx_kl.size else float("nan")
+    clip_mean = float(np.mean(clip_frac)) if clip_frac.size else float("nan")
+    grad_mean = float(np.mean(grad)) if grad.size else float("nan")
+    tiny_kl = bool(approx_kl.size and kl_mean < 1e-3)
+    tiny_clip = bool(clip_frac.size and clip_mean < 1e-2)
+    tiny_grad = bool(grad.size and grad_mean < 1e-4)
+
+    if tiny_kl and tiny_clip:
+        code = "NO_USABLE_LEARNING_PRESSURE"
+        meaning = (
+            "Policy KL and clip fraction stayed near zero — the branch had "
+            "little economic reason / signal to leave its init basin."
+        )
+    elif (not tiny_kl) and tiny_grad:
+        code = "UPDATES_WITHOUT_GRAD_MAGNITUDE"
+        meaning = "KL moved but reported grad norms stayed tiny — check freezing / logging."
+    else:
+        code = "SIGNAL_PRESENT_CHECK_BEHAVIOR"
+        meaning = (
+            "Learning diagnostics are non-degenerate; require behavior distance "
+            "and target payoff movement before claiming specialization."
+        )
+
+    return {
+        "status": code,
+        "meaning": meaning,
+        "path": str(path),
+        "n_updates": int(len(df)),
+        "approx_kl": _stat(approx_kl),
+        "clip_fraction": _stat(clip_frac),
+        "entropy": _stat(entropy),
+        "explained_variance": _stat(ev),
+        "value_loss": _stat(value_loss),
+        "grad_norm": _stat(grad),
+        "advantage_mean": _stat(adv_mean),
+        "advantage_std": _stat(adv_std),
+        "flags": {
+            "tiny_approx_kl": tiny_kl,
+            "tiny_clip_fraction": tiny_clip,
+            "tiny_grad_norm": tiny_grad,
+        },
     }
 
 
@@ -628,11 +898,14 @@ __all__ = [
     "accept_lro_round",
     "behavior_distinctness_summary",
     "branch_row_redundant",
+    "cell_means_from_episode_df",
     "classify_phase_from_core",
     "default_landscape_policies",
     "diagnose_lro_reject",
     "lro_manifest",
     "payoff_tensor_summary",
+    "select_current_response_target",
     "select_response_target",
+    "summarize_training_learning_signal",
     "write_json",
 ]

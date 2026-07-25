@@ -1,0 +1,9 @@
+{
+  "target_not_saturated": false,
+  "branch_not_dominant_on_target": true,
+  "branch_has_meaningful_headroom": false,
+  "target_mixture_70_80": true,
+  "anchor_mixture_20_30": true,
+  "g_before_uses_selected_cells": true,
+  "all_pass": false
+}

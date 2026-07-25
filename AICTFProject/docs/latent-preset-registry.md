@@ -203,7 +203,7 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i23_population_birth` (aliases include `v6i23`) | `v6i22e_fixed_alpha_adapters` | `SUMMER-COMPATIBLE EXTENSION` | Population-style specialist birth: active-z-only residual forward plus independent per-z action heads that are Stage-2 trainable (shared `action_head` stays frozen). Router off; no opponent-ID; no soft diversity rewards. Success gate is CF action-JSD, not paper-faithful. Pinned by `tests/test_v6i23_population_birth.py`. |
 | `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C**; soft-contract 5u teachers exist; LRO Stage-0 landscape scan supersedes as primary next spend). K=4 independent teachers under fixed OP8–OP12×map pressures. **Primary gate:** different best policies across cells **and** cross-fitted context oracle > best fixed (CI excludes 0). JSD/classifier supporting only. Pinned by `tests/test_v6i24_full_policy_population.py`. |
 | `v6i25_counterfactual_router` (experiment; no training preset) | V6I23 donor checkpoint | `DIAGNOSTIC` | Counterfactual geometry→`q_phi` diagnostic. Cross-fitted context oracle (not per-episode hindsight); Stage A signal gate; soft `softmax(Q̂/τ)` CE loss; geometry asserts; no opponent-ID in router input. Runner: `experiments/run_v6i25_counterfactual_router_diagnostic.py`. Pinned by `tests/test_v6i25_counterfactual_router.py`. |
-| `v6i26_latent_response_oracle` (aliases include `v6i26`, `v6i26_lro`, `v6i26_phase_pod_population`) | `v6i23_population_birth` | `DIAGNOSTIC` | **LRO-Summer finite proof ladder** (Claim B). Primary claim: response-oracle birth of complementary latent strategies + sparse router that beats fixed-z and matched non-latent PPO. Not spontaneous emergence. Stage-1 at 4 eps/cell is screening only and may emit `PROMISING_DIRECTION`, never `ACCEPT`. Strategy acceptance requires `ΔG>0`, CI95 lower bound above zero, nonredundant payoff row, competence floor, forced-z behavior nonredundancy, ≥32 eps/cell, and ≥3 training seeds. One retry per failure mode; no coefficient carousel. Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`. Pinned by `tests/test_v6i26_latent_response_oracle.py`. |
+| `v6i26_latent_response_oracle` (aliases include `v6i26`, `v6i26_lro`, `v6i26_phase_pod_population`) | `v6i23_population_birth` | `DIAGNOSTIC` | **LRO-Summer finite proof ladder** (Claim B). Primary claim: response-oracle birth of complementary latent strategies + sparse router that beats fixed-z and matched non-latent PPO. Not spontaneous emergence. Stage-1 at 4 eps/cell is screening only and may emit `PROMISING_DIRECTION`, never `ACCEPT`. Each response round selects its branch and target/anchor mixture from the current forced-z payoff matrix, excluding saturated cells instead of repeatedly assigning `z3`. Strategy acceptance requires `ΔG>0`, CI95 lower bound above zero, nonredundant payoff row, competence floor, forced-z behavior nonredundancy, ≥32 eps/cell, and ≥3 training seeds. One retry per failure mode; no coefficient carousel. Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`. Pinned by `tests/test_v6i26_latent_response_oracle.py`. |
 
 ---
 
@@ -1643,8 +1643,10 @@ inherited residual adapters + per-z action heads.
 **Stages:**
 
 0. Strategic landscape scan (`run_v6i26_strategic_landscape_scan.py`)
-1. LRO birth rounds (`run_v6i26_lro_oracle_round.py`) — one branch BR/round;
-   4 eps/cell screens can only nominate `PROMISING_DIRECTION`
+1. LRO birth rounds (`run_v6i26_lro_oracle_round.py`) — one selected branch
+   BR/round; branch and target/anchor mixture come from the current forced-z
+   payoff matrix, saturated cells are excluded, and 4 eps/cell screens can only
+   nominate `PROMISING_DIRECTION`
 2. Confirmation — ≥32 eps/cell, CI95(`ΔG`) lower bound > 0, behavior
    distance pass, competence pass, nonredundant payoff row, and ≥3 seeds
 3. Sparse router only if confirmed `G_available > 0` / niche PASS

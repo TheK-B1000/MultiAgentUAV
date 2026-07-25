@@ -225,6 +225,68 @@ class V6i26PayoffHelperTests(unittest.TestCase):
         self.assertFalse(result["ci95_delta_G_gt_0"])
         self.assertFalse(result["multi_seed_repetition_pass"])
 
+    def test_current_response_selector_excludes_saturated_contexts(self) -> None:
+        from experiments.v6i26_lro_core import select_current_response_target
+
+        payoff = np.array(
+            [
+                [0.95, 0.40, 0.78, 0.70],
+                [0.96, 0.45, 0.80, 0.68],
+                [0.94, 0.48, 0.82, 0.72],
+                [0.97, 0.49, 0.81, 0.74],
+            ],
+            dtype=np.float64,
+        )
+        contexts = ["OP8|m1", "OP9|m1", "OP10|m1", "OP11|m1"]
+        target = select_current_response_target(
+            payoff,
+            contexts=contexts,
+            policy_labels=["z0", "z1", "z2", "z3"],
+            saturation_cutoff=0.90,
+            target_fraction=0.75,
+            competence_floor=0.70,
+        )
+
+        self.assertEqual(target["selection_basis"], "current_forced_z_payoff")
+        self.assertEqual(target["target_context"], "OP9|m1")
+        self.assertIn("OP8|m1", {c["context"] for c in target["excluded_saturated_contexts"]})
+        self.assertNotEqual(
+            target["branch_to_train_index"],
+            target["current_best_z_on_target"],
+        )
+        self.assertIn(target["branch_to_train_index"], target["stable_branch_indices"])
+        self.assertAlmostEqual(sum(target["mixture_weights"].values()), 1.0, places=6)
+        target_mass = sum(
+            target["mixture_weights"][ctx] for ctx in target["target_contexts"]
+        )
+        anchor_mass = sum(
+            target["mixture_weights"][ctx] for ctx in target["anchor_contexts"]
+        )
+        self.assertAlmostEqual(target_mass, 0.75, places=6)
+        self.assertAlmostEqual(anchor_mass, 0.25, places=6)
+
+    def test_current_response_selector_falls_back_when_all_cells_saturated(self) -> None:
+        from experiments.v6i26_lro_core import select_current_response_target
+
+        payoff = np.array(
+            [
+                [0.91, 0.95],
+                [0.93, 0.94],
+                [0.92, 0.96],
+                [0.94, 0.97],
+            ],
+            dtype=np.float64,
+        )
+        target = select_current_response_target(
+            payoff,
+            contexts=["OP8|m1", "OP9|m1"],
+            policy_labels=["z0", "z1", "z2", "z3"],
+            saturation_cutoff=0.90,
+        )
+
+        self.assertEqual(target["target_context"], "OP8|m1")
+        self.assertEqual(len(target["excluded_saturated_contexts"]), 1)
+
     def test_behavior_distinctness_flags_duplicate_branch(self) -> None:
         from experiments.v6i26_lro_core import behavior_distinctness_summary
         from rl.forced_z_behavior_vectors import FORCED_Z_BEHAVIOR_VECTOR_NAMES
@@ -430,6 +492,89 @@ class V6i26DeepBranchArchitectureTests(unittest.TestCase):
         branched_logits = actor(obs, z_idx=z)
 
         self.assertTrue(torch.allclose(branched_logits, shared_logits, atol=1e-6))
+
+
+class V6i26CurrentPayoffTargetTests(unittest.TestCase):
+    def test_excludes_saturated_and_avoids_best_branch(self) -> None:
+        from experiments.v6i26_lro_core import select_current_response_target
+
+        # winrate matrix: z3 saturates most cells; uncovered OP11|map_a.
+        winrate = np.array(
+            [
+                [0.50, 0.55, 0.40, 0.95],
+                [0.60, 0.58, 0.35, 0.96],
+                [0.70, 0.72, 0.30, 0.97],
+                [0.95, 0.96, 0.20, 0.98],
+            ],
+            dtype=np.float64,
+        )
+        contexts = [
+            "OP8|map_a",
+            "OP10|map_a",
+            "OP11|map_a",
+            "OP12|map_a",
+        ]
+        labels = ["z0", "z1", "z2", "z3"]
+        target = select_current_response_target(
+            winrate,
+            contexts=contexts,
+            policy_labels=labels,
+            saturation_cutoff=0.90,
+            target_fraction=0.75,
+        )
+        self.assertEqual(target["selection_basis"], "current_forced_z_payoff")
+        self.assertEqual(target["target_context"], "OP11|map_a")
+        self.assertEqual(target["current_best_z_on_target"], 0)
+        self.assertNotEqual(
+            target["branch_to_train_index"], target["current_best_z_on_target"]
+        )
+        excluded = {row["context"] for row in target["excluded_saturated_contexts"]}
+        self.assertIn("OP8|map_a", excluded)
+        self.assertIn("OP10|map_a", excluded)
+        self.assertIn("OP12|map_a", excluded)
+        self.assertNotIn("OP11|map_a", excluded)
+
+    def test_learning_signal_flags_tiny_kl(self) -> None:
+        from experiments.v6i26_lro_core import (
+            summarize_training_learning_signal,
+            write_json,
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "metrics.csv"
+            path.write_text(
+                "approx_kl,clip_fraction,entropy,explained_variance,value_loss,grad_norm,"
+                "latent_episode_adv_mean,latent_episode_adv_std\n"
+                "1e-6,0.0,2.5,0.2,0.4,1e-5,0.01,0.5\n"
+                "2e-6,0.0,2.4,0.3,0.3,2e-5,0.02,0.4\n",
+                encoding="utf-8",
+            )
+            summary = summarize_training_learning_signal(path)
+            self.assertEqual(summary["status"], "NO_USABLE_LEARNING_PRESSURE")
+            self.assertTrue(summary["flags"]["tiny_approx_kl"])
+            write_json(Path(tmp) / "learning_signal.json", summary)
+
+
+class V6i26BranchKLLogitsTests(unittest.TestCase):
+    def test_distribution_logits_handles_multihead_callable_list(self) -> None:
+        import torch
+        from experiments.run_v6i26_lro_oracle_round import _distribution_logits
+
+        class _Head:
+            def __init__(self, logits: torch.Tensor) -> None:
+                self.logits = logits
+
+        class _MultiHead:
+            def __init__(self) -> None:
+                self.heads = [_Head(torch.zeros(2, 3)), _Head(torch.ones(2, 4))]
+
+            def logits(self):
+                return [h.logits for h in self.heads]
+
+        out = _distribution_logits(_MultiHead())
+        self.assertIsNotNone(out)
+        assert out is not None
+        self.assertEqual(tuple(out.shape), (2, 7))
 
 
 if __name__ == "__main__":

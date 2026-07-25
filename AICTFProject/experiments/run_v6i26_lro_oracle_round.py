@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """V6I26 Stage-1 Latent Response-Oracle birth round.
 
 Screening criterion:
@@ -16,9 +16,10 @@ Acceptance (all required):
   AND >=32 episodes/cell
   AND repetition across >=3 training seeds
 
-Mixture guardrail: smoothed / opponent-aggregated regret with capped weights.
-Do not chase a single 4-episode accident. Final G uses cross-fitted matched-seed
-forced-z evaluation on the LRO model itself.
+Target selection guardrail: the archive landscape defines the evaluation
+surface, but the branch and target/anchor mixture are selected from the current
+forced-z payoff matrix. Do not chase a single 4-episode accident. Final G uses
+cross-fitted matched-seed forced-z evaluation on the LRO model itself.
 """
 from __future__ import annotations
 
@@ -37,10 +38,13 @@ if str(PROJECT_ROOT) not in sys.path:
 from experiments.v6i26_lro_core import (  # noqa: E402
     accept_lro_round,
     behavior_distinctness_summary,
+    cell_means_from_episode_df,
     diagnose_lro_reject,
     lro_manifest,
     payoff_tensor_summary,
+    select_current_response_target,
     select_response_target,
+    summarize_training_learning_signal,
     write_json,
 )
 
@@ -71,9 +75,21 @@ def _parse_args() -> argparse.Namespace:
         "--branch",
         type=int,
         default=None,
-        help="Override branch z to train (default: from smoothed target).",
+        help="Override branch z to train (default: selected from current forced-z payoff).",
     )
     p.add_argument("--eval-episodes-per-cell", type=int, default=4)
+    p.add_argument(
+        "--saturation-cutoff",
+        type=float,
+        default=0.90,
+        help="Exclude current forced-z contexts with coverage at or above this payoff.",
+    )
+    p.add_argument(
+        "--target-fraction",
+        type=float,
+        default=0.75,
+        help="Training mixture mass assigned to uncovered target contexts.",
+    )
     p.add_argument(
         "--checkpoint-every-updates",
         type=int,
@@ -94,6 +110,14 @@ def _parse_args() -> argparse.Namespace:
     )
     p.add_argument("--skip-post-eval", action="store_true")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument(
+        "--reuse-forced-z-before",
+        default=None,
+        help=(
+            "Reuse an existing forced-z out-dir (episode_results.csv) for current "
+            "payoff selection / G_before instead of re-running eval."
+        ),
+    )
     return p.parse_args()
 
 
@@ -105,6 +129,57 @@ def _mixture_cells(mixture: dict) -> list[tuple[str, str, float]]:
         opp, mp = ctx.split("|", 1)
         cells.append((opp.upper(), mp, float(w)))
     return cells
+
+
+def _subset_payoff_matrix(payoff: np.ndarray, contexts: list[str], selected: list[str]) -> np.ndarray:
+    index = {str(ctx): i for i, ctx in enumerate(contexts)}
+    missing = [ctx for ctx in selected if str(ctx) not in index]
+    if missing:
+        raise ValueError(f"selected contexts missing from payoff matrix: {missing}")
+    return np.asarray(payoff, dtype=np.float64)[:, [index[str(ctx)] for ctx in selected]]
+
+
+def _load_forced_z_payoff_matrix(
+    out_dir: Path,
+    *,
+    opponents: list[str],
+    maps: list[str],
+    latent_k: int = 4,
+) -> dict:
+    """Rebuild payoff/winrate matrices from an existing forced-z out-dir."""
+    import pandas as pd
+
+    csv_path = out_dir / "episode_results.csv"
+    if not csv_path.is_file():
+        raise FileNotFoundError(f"missing episode_results.csv under {out_dir}")
+    df = pd.read_csv(csv_path)
+    payoff, contexts = cell_means_from_episode_df(
+        df, opponents=opponents, maps=maps, latent_k=latent_k, metric="win_margin"
+    )
+    winrate, _ = cell_means_from_episode_df(
+        df, opponents=opponents, maps=maps, latent_k=latent_k, metric="success"
+    )
+    labels = [f"z{z}" for z in range(int(latent_k))]
+    summary = payoff_tensor_summary(payoff, policy_labels=labels, contexts=contexts)
+    oracle_path = out_dir / "oracle_report.json"
+    oracle = json.loads(oracle_path.read_text(encoding="utf-8")) if oracle_path.is_file() else {}
+    behavior_path = out_dir / "behavior_report.json"
+    behavior_report = (
+        json.loads(behavior_path.read_text(encoding="utf-8")) if behavior_path.is_file() else None
+    )
+    return {
+        "payoff_matrix": payoff,
+        "winrate_matrix": winrate,
+        "contexts": contexts,
+        "member_labels": labels,
+        "summary": summary,
+        "oracle_report": oracle,
+        "behavior_report": behavior_report,
+        "behavior_report_path": str(behavior_path) if behavior_path.is_file() else None,
+        "G_available": float(summary["G_available_point"]),
+        "forced_z_dir": str(out_dir),
+        "reused": True,
+    }
 
 
 def _forced_z_payoff_matrix(
@@ -330,13 +405,13 @@ def main() -> int:
     contexts = list(scan.get("contexts") or [])
     labels = list(scan.get("policy_labels") or scan.get("member_labels") or [])
     if payoff.size == 0 or not contexts:
-        # Fall back to precomputed target (legacy).
-        target = dict(scan.get("next_response_target") or {})
+        # Fall back to precomputed landscape surface (legacy).
+        landscape_target = dict(scan.get("next_response_target") or {})
     else:
         if not labels:
             labels = [f"p{i}" for i in range(payoff.shape[0])]
         eps = int(scan.get("episodes_per_cell") or args.eval_episodes_per_cell)
-        target = select_response_target(
+        landscape_target = select_response_target(
             payoff,
             contexts=contexts,
             policy_labels=labels,
@@ -346,45 +421,28 @@ def main() -> int:
             aggregate_by_opponent=True,
         )
 
-    branch = int(args.branch) if args.branch is not None else int(
-        target.get("branch_to_train_index", 0)
-    )
-    # Map archive policy index → latent z slot (same K=4 indexing by default).
-    branch = int(branch) % 4
-    mixture = dict(target.get("mixture_weights") or {})
-    cells = _mixture_cells(mixture)
-    if not cells:
-        print("ERROR: empty smoothed mixture")
+    surface_contexts = [str(ctx) for ctx in contexts]
+    if not surface_contexts:
+        surface_contexts = list((landscape_target.get("mixture_weights") or {}).keys())
+    surface_cells = _mixture_cells({ctx: 1.0 for ctx in surface_contexts})
+    if not surface_cells:
+        print("ERROR: empty landscape evaluation surface")
         return 2
-
-    # Keep only cells with material weight to avoid near-zero noise cells in PPO.
-    cells_sorted = sorted(cells, key=lambda t: -t[2])
-    mass = 0.0
-    trimmed: list[tuple[str, str, float]] = []
-    for o, m, w in cells_sorted:
-        if w < 0.05 and trimmed:
-            continue
-        trimmed.append((o, m, w))
-        mass += w
-        if mass >= 0.90 and len(trimmed) >= 2:
-            break
-    if len(trimmed) >= 2:
-        s = sum(w for _, _, w in trimmed)
-        cells = [(o, m, w / s) for o, m, w in trimmed]
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     steps = int(args.updates) * int(args.n_envs) * int(args.n_steps)
-    run_tag = f"v6i26_lro_z{branch}_r1_{args.updates}u_seed{args.seed}"
 
-    opponents = sorted({o for o, _, _ in cells})
-    maps = sorted({m for _, m, _ in cells})
+    opponents = sorted({o for o, _, _ in surface_cells})
+    maps = sorted({m for _, m, _ in surface_cells})
 
     round_log: dict = {
         "experiment": "v6i26_lro_oracle_round",
         "lro": lro_manifest(),
         "landscape_scan": str(scan_path),
         "landscape_decision": decision,
+        "landscape_target": landscape_target,
+        "selection_source": "current_forced_z_payoff_after_G_before",
         "breakthrough_criterion": "delta_G_available = G_after - G_before > 0",
         "screening_rule": [
             "G_after > G_before",
@@ -399,15 +457,21 @@ def main() -> int:
             "repetition across >= 3 training seeds",
         ],
         "G_before": None,
-        "targeted_regret_mixture": target,
-        "branch_selected": branch,
+        "G_before_full_surface": None,
+        "targeted_regret_mixture": None,
+        "branch_selected": None,
         "branch_KL_from_initialization": None,
         "niche_payoff_improvement": None,
         "general_competence_change": None,
         "G_after": None,
         "delta_G_available": None,
         "accept_reject": None,
-        "mixture_cells": [{"opponent": o, "map": m, "weight": w} for o, m, w in cells],
+        "evaluation_surface_cells": [
+            {"opponent": o, "map": m, "weight": w} for o, m, w in surface_cells
+        ],
+        "mixture_cells": [],
+        "saturation_cutoff": float(args.saturation_cutoff),
+        "target_fraction": float(args.target_fraction),
         "updates": int(args.updates),
         "eval_episodes_per_cell": int(args.eval_episodes_per_cell),
         "checkpoint_every_updates": int(args.checkpoint_every_updates),
@@ -418,7 +482,7 @@ def main() -> int:
             "branch_KL_from_initialization",
             "inactive_branch_drift",
         ],
-        "run_tag": run_tag,
+        "run_tag": None,
     }
     write_json(out_dir / "stage1_round_log.json", round_log)
 
@@ -426,51 +490,174 @@ def main() -> int:
     print("V6I26 Stage-1 LRO (manufacture / refine)")
     print("=" * 72)
     print(f"decision={decision}")
-    print(f"branch z={branch}  updates={args.updates}  steps={steps}")
-    print(f"smoothed target={target.get('target_context')} regret={target.get('target_regret')}")
-    print("mixture top:", target.get("mixture_top"))
+    print(f"updates={args.updates}  steps={steps}")
+    print("current forced-z payoff will choose branch and target mixture after G_before")
+    print("landscape mixture top:", landscape_target.get("mixture_top"))
     print(
         "screening: delta_G>0 AND nonredundant payoff row AND competence "
         "floor AND behavior distance"
     )
     print("acceptance: screening + 32 eps/cell + CI95(delta_G)>0 + >=3 training seeds")
-    if args.dry_run:
-        print("[dry-run] wrote stage1_round_log.json only")
-        return 0
 
     ckpt = Path(args.checkpoint)
-    if not ckpt.is_file():
+    if not ckpt.is_file() and not args.dry_run:
         print(f"ERROR: checkpoint missing: {ckpt}")
+        return 2
+    if args.dry_run and not ckpt.is_file() and args.reuse_forced_z_before is None:
+        print("ERROR: dry-run without --reuse-forced-z-before still needs a checkpoint")
         return 2
 
     # --- G_before on the LRO init model (forced-z), not archive teachers ---
-    print("[stage1] measuring G_before on init checkpoint (forced-z)...", flush=True)
-    before = _forced_z_payoff_matrix(
-        ckpt,
-        opponents=opponents,
-        maps=maps,
-        episodes_per_cell=int(args.eval_episodes_per_cell),
-        seed=int(args.seed),
-        device=str(args.device),
-        out_dir=out_dir / "forced_z_before",
-    )
-    g_before = float(before["G_available"])
-    round_log["G_before"] = g_before
-    round_log["G_before_detail"] = {
-        "summary": before["summary"],
-        "oracle_report": before.get("oracle_report"),
-        "payoff_matrix": before["payoff_matrix"].tolist(),
-        "contexts": before["contexts"],
-        "forced_z_dir": before.get("forced_z_dir"),
-    }
-    write_json(out_dir / "stage1_round_log.json", round_log)
-    print(f"  G_before={g_before:.4f}", flush=True)
-
+    reuse_dir = Path(args.reuse_forced_z_before) if args.reuse_forced_z_before else None
+    if reuse_dir is not None:
+        print(f"[stage1] reusing forced-z before from {reuse_dir} ...", flush=True)
+        before = _load_forced_z_payoff_matrix(
+            reuse_dir, opponents=opponents, maps=maps
+        )
+    else:
+        if args.dry_run:
+            print("ERROR: dry-run without --reuse-forced-z-before would require a full eval")
+            return 2
+        print("[stage1] measuring G_before on init checkpoint (forced-z)...", flush=True)
+        before = _forced_z_payoff_matrix(
+            ckpt,
+            opponents=opponents,
+            maps=maps,
+            episodes_per_cell=int(args.eval_episodes_per_cell),
+            seed=int(args.seed),
+            device=str(args.device),
+            out_dir=out_dir / "forced_z_before",
+        )
     competence_floor = args.competence_floor
     if competence_floor is None:
         means = before["payoff_matrix"].mean(axis=1)
         competence_floor = float(0.75 * float(np.median(means)))
-    round_log["competence_floor"] = float(competence_floor)
+
+    # Saturation / headroom MUST use winrate (≈[0,1]), not win_margin.
+    current_target = select_current_response_target(
+        before["winrate_matrix"],
+        contexts=before["contexts"],
+        policy_labels=before["member_labels"],
+        saturation_cutoff=float(args.saturation_cutoff),
+        target_fraction=float(args.target_fraction),
+        competence_floor=None,
+    )
+    current_target["selection_metric"] = "winrate_success"
+    current_target["competence_floor_margin"] = float(competence_floor)
+    branch = int(args.branch) if args.branch is not None else int(
+        current_target["branch_to_train_index"]
+    )
+    branch = int(branch) % 4
+    if args.branch is not None:
+        current_target["branch_override"] = True
+        current_target["branch_to_train_index"] = branch
+        current_target["branch_to_train_label"] = f"z{branch}"
+    cells = _mixture_cells(dict(current_target.get("mixture_weights") or {}))
+    if not cells:
+        print("ERROR: empty current-payoff response mixture")
+        return 2
+    train_opponents = sorted({o for o, _, _ in cells})
+    train_maps = sorted({m for _, m, _ in cells})
+    selected_contexts = [f"{o}|{m}" for o, m, _ in cells]
+    pay_b = _subset_payoff_matrix(before["payoff_matrix"], before["contexts"], selected_contexts)
+    before_selected_summary = payoff_tensor_summary(
+        pay_b,
+        policy_labels=before["member_labels"],
+        contexts=selected_contexts,
+    )
+    g_before = float(before_selected_summary["G_available_point"])
+    run_tag = f"v6i26_lro_z{branch}_r1_{args.updates}u_seed{args.seed}"
+
+    target_mass = sum(
+        float(w)
+        for ctx, w in (current_target.get("mixture_weights") or {}).items()
+        if ctx in set(current_target.get("target_contexts") or [])
+    )
+    anchor_mass = sum(
+        float(w)
+        for ctx, w in (current_target.get("mixture_weights") or {}).items()
+        if ctx in set(current_target.get("anchor_contexts") or [])
+    )
+    target_cov = float(current_target.get("target_coverage") or 0.0)
+    target_headroom = float(current_target.get("target_headroom") or 0.0)
+    best_on_target = int(current_target.get("current_best_z_on_target") or -1)
+    n_excluded = len(current_target.get("excluded_saturated_contexts") or [])
+    n_contexts = len(before["contexts"])
+    selection_gates = {
+        "target_not_saturated": bool(target_cov < float(args.saturation_cutoff)),
+        "branch_not_dominant_on_target": bool(branch != best_on_target),
+        "branch_has_meaningful_headroom": bool(target_headroom > 0.05),
+        "target_mixture_70_80": bool(0.70 <= target_mass <= 0.80),
+        "anchor_mixture_20_30": bool(0.20 <= anchor_mass <= 0.30),
+        "g_before_uses_selected_cells": True,
+    }
+    selection_gates["all_pass"] = all(selection_gates.values())
+
+    round_log.update(
+        {
+            "G_before": g_before,
+            "G_before_full_surface": float(before["G_available"]),
+            "G_before_detail": {
+                "summary": before_selected_summary,
+                "full_surface_summary": before["summary"],
+                "oracle_report": before.get("oracle_report"),
+                "payoff_matrix": pay_b.tolist(),
+                "full_surface_payoff_matrix": before["payoff_matrix"].tolist(),
+                "winrate_matrix": before["winrate_matrix"].tolist(),
+                "contexts": selected_contexts,
+                "full_surface_contexts": before["contexts"],
+                "forced_z_dir": before.get("forced_z_dir"),
+                "reused": bool(before.get("reused")),
+            },
+            "targeted_regret_mixture": current_target,
+            "branch_selected": branch,
+            "mixture_cells": [
+                {"opponent": o, "map": m, "weight": w} for o, m, w in cells
+            ],
+            "selection_gates": selection_gates,
+            "target_mixture_mass": float(target_mass),
+            "anchor_mixture_mass": float(anchor_mass),
+            "run_tag": run_tag,
+            "competence_floor": float(competence_floor),
+            "dry_run": bool(args.dry_run),
+        }
+    )
+    write_json(out_dir / "stage1_round_log.json", round_log)
+    write_json(out_dir / "current_response_target.json", current_target)
+    write_json(out_dir / "selection_gates.json", selection_gates)
+
+    print(f"  G_before_selected={g_before:.4f}", flush=True)
+    print(f"  G_before_full_surface={float(before['G_available']):.4f}", flush=True)
+    print(
+        f"  selected branch z={branch} target={current_target.get('target_context')}",
+        flush=True,
+    )
+    print(
+        f"  target_coverage={target_cov:.4f} headroom={target_headroom:.4f} "
+        f"best_z_on_target={best_on_target}",
+        flush=True,
+    )
+    print(
+        f"  mixture target_mass={target_mass:.3f} anchor_mass={anchor_mass:.3f} "
+        f"excluded_saturated={n_excluded}/{n_contexts}",
+        flush=True,
+    )
+    print(f"  mixture_top={current_target.get('mixture_top')}", flush=True)
+    print(f"  selection_gates={selection_gates}", flush=True)
+
+    if args.dry_run:
+        print("[dry-run] selection complete; skipping training/eval")
+        return 0 if selection_gates["all_pass"] else 1
+
+    if not selection_gates["all_pass"]:
+        print("ERROR: selection gates failed — refusing to train on a saturated/ill-posed target")
+        round_log["accept_reject"] = "REJECT"
+        round_log["error"] = "selection_gates_failed"
+        write_json(out_dir / "stage1_round_log.json", round_log)
+        return 1
+
+    opponents = train_opponents
+    maps = train_maps
 
     from rl.config.ppo_config import PPOConfig
     from rl.presets import PRESET_REGISTRY
@@ -509,6 +696,23 @@ def main() -> int:
     print(f"[stage1] training response branch z={branch} ...", flush=True)
     train_ppo(cfg)
 
+    metrics_candidates = sorted(out_dir.glob(f"*{run_tag}*metrics*.csv")) + sorted(
+        out_dir.glob("*metrics*.csv")
+    )
+    if metrics_candidates:
+        try:
+            learning = summarize_training_learning_signal(metrics_candidates[0])
+            round_log["learning_signal"] = learning
+            write_json(out_dir / "learning_signal.json", learning)
+            print(
+                f"  learning_signal={learning.get('status')} "
+                f"approx_kl_mean={learning.get('approx_kl', {}).get('mean')} "
+                f"clip_mean={learning.get('clip_fraction', {}).get('mean')}",
+                flush=True,
+            )
+        except Exception as exc:  # noqa: BLE001
+            round_log["learning_signal_error"] = str(exc)
+
     finals = sorted(out_dir.glob(f"final_{run_tag}*.zip"))
     final_ckpt = finals[-1] if finals else None
     round_log["final_checkpoint"] = str(final_ckpt) if final_ckpt else None
@@ -535,7 +739,7 @@ def main() -> int:
         out_dir=out_dir / "forced_z_after",
     )
     g_after = float(after["G_available"])
-    pay_b = before["payoff_matrix"]
+    pay_b = _subset_payoff_matrix(before["payoff_matrix"], before["contexts"], after["contexts"])
     pay_a = after["payoff_matrix"]
     niche_imp = float(pay_a[branch].max() - pay_b[branch].max())
     competence_change = float(pay_a[branch].mean() - pay_b[branch].mean())
