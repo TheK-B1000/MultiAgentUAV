@@ -1,0 +1,58 @@
+{
+  "status": "running",
+  "updated_at_utc": "2026-07-24T23:59:20.615796+00:00",
+  "checkpoint": "artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip",
+  "completed_condition_count": 8,
+  "expected_condition_count": 8,
+  "episode_count": 256,
+  "completed_conditions": [
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 0,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 1,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 2,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 3,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    }
+  ]
+}

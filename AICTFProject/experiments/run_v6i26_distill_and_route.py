@@ -51,6 +51,18 @@ def _parse_args() -> argparse.Namespace:
 
 
 def _gate_allows(payload: dict) -> tuple[bool, str]:
+    acceptance = payload.get("acceptance")
+    if isinstance(acceptance, dict) and "behavior_distinctness_required" in acceptance:
+        return _gate_allows(acceptance)
+    strategy_verdict = payload.get("phase2_strategy_verdict")
+    if strategy_verdict is not None:
+        if strategy_verdict == "PHASE2_STRATEGY_PASS":
+            return True, "phase2_strategy_verdict=PHASE2_STRATEGY_PASS"
+        return False, f"phase2_strategy_verdict={strategy_verdict}"
+    if "behavior_distinctness_required" in payload:
+        if bool(payload.get("accepted")) and bool(payload.get("branch_behavior_nonredundant")):
+            return True, "accepted LRO branch with behavior distinctness"
+        return False, "accepted branch lacks forced-z behavior distinctness"
     summary = payload.get("summary") or {}
     if bool(summary.get("niche_signal")):
         return True, "landscape niche_signal"

@@ -225,6 +225,7 @@ def _load_model_state_dict_compat(
         "latent_actor.latent_adapter_gates",
         "latent_actor.latent_action_biases",
         "latent_actor.latent_action_heads.",
+        "latent_actor.latent_branch_trunks.",
     )
     allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.z_adapter."))
@@ -274,6 +275,14 @@ def _load_model_state_dict_compat(
                 print(
                     "[checkpoint compat] Synced latent_action_heads from loaded "
                     "shared action_head (population-birth start)."
+                )
+        if any(k.startswith("latent_actor.latent_branch_trunks.") for k in newly_initialized):
+            la = getattr(model, "latent_actor", None)
+            if la is not None and hasattr(la, "sync_latent_branch_trunks_to_identity"):
+                la.sync_latent_branch_trunks_to_identity()
+                print(
+                    "[checkpoint compat] Initialized latent_branch_trunks as "
+                    "identity transforms (LRO deep-branch start)."
                 )
     if router_reinit or shape_skipped:
         router_missing = [

@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-23 (UTC-4)
+> **Last updated:** 2026-07-24 (UTC-4)
 
 ---
 
@@ -2401,7 +2401,7 @@ external policies with handcrafted pressure mixtures.
 
 **Status:** `ACTIVE` — finite proof ladder (not indefinite Summer polish).
 Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`.
-**Do not modify the current 25u Stage-1 run.**
+**Seeds 2–3 mid-flight: do not alter recipe.** Seed-1 Phase-2 causal claim failed.
 
 **Locked headline claim (replaces spontaneous emergence):**
 
@@ -2439,7 +2439,8 @@ Architecture: deep z trunks + per-z action heads
 ```
 
 **Accept z3 only if all hold:** `ΔG>0`, targeted OP11/OP12 improves, competence
-floor, inactive branches do not drift, nonredundant payoff row.
+floor, inactive branches do not drift, nonredundant payoff row, forced-z behavior
+nonredundancy.
 Not enough: KL alone, action JSD alone, one noisy 4-episode cell.
 
 **Failure → one predefined response (no coefficient carousel):**
@@ -2481,10 +2482,71 @@ aliases only (`OPPONENT_ALIASES`). Audited LRO pool is
 Do not put every registry key into a payoff matrix. Stage-1 redo must use this
 pool end-to-end (`G_before` / train / `G_after` same generation).
 
-**Stage-0 result (COMPLETE, pre-niche redo):** `PROMOTE_LRO_BIRTH`, archive
-`G_available_point=0.3175`, 3 unique bests — directional only; **superseded for
-redo** after strategic-niche opponent rewrite.
-`G_before` now — do not interrupt.
+**Stage-0 niches redo (COMPLETE 2026-07-24):**
+`artifacts/v6i26_landscape_scan_niches_seed1/landscape_scan.json`
+
+```text
+unique_best=3 (balanced, failure_cells, high_variance)
+G_available_point=0.0089
+G_available_effective=-0.075
+max_row_distance=1.13  (competence gap, not repertoire)
+decision=MANUFACTURE_VIA_LRO_STAGE1
+```
+
+Reading: niche opponents work as distinct tests; archive is quality tiers
+(strong generalist `balanced`, weak/broken others), not opponent-specific
+specialists. Stage-1 must manufacture complementary value inside one latent
+policy. Directional breakthrough = `ΔG = G_after − G_before > 0`; strategy
+acceptance also requires the forced-z behavior nonredundancy gate above.
+
+**Stage-1 Round-1 (2026-07-24) — directional 4-eps ACCEPT, superseded by Phase-2:**
+
+```text
+artifacts/v6i26_lro_niches_round1_seed1/ROUND1_LOCK.json
+checkpoint: final_v6i26_lro_z3_r1_25u_seed1.zip
+SHA256: 83B798574E7C084FF7A0DA3F1EA38EAB7A83C37168608A7ADDA35D38D5292AEC
+G_before=0.107  G_after=0.286  ΔG=+0.179   (4 eps/cell — directional only)
+```
+
+Do **not** overwrite this zip. Ignore stale
+`artifacts/v6i26_lro_round1_niches_seed1`. Router/distill still forbidden.
+The 4-eps `ACCEPT` is treated as **noise / overestimation** after Phase-2.
+
+**Phase-2 seed-1 STRICT CONFIRM — `FAIL` (2026-07-24):**
+`artifacts/v6i26_lro_niches_round1_seed1/phase2_confirm/phase2_seed1_confirm.json`
+
+```text
+G_before=0.0223  G_after=0.0000  ΔG=-0.0223
+CI95(ΔG)=[-0.183, +0.170]   CI95>0? False
+branch z=3 nearest z=2 dist=0.082 (thresh 0.35); pairs above thresh 0/6
+verdict=PHASE2_HOLD_OR_FAIL
+phase2_strategy_verdict=PHASE2_STRATEGY_HOLD_OR_FAIL
+```
+
+**Clean interpretation (locked):** niche pool exposed a **pre-existing**
+context-dependent repertoire at init (Stage-C / unique winners / oracle gap
+still stand). This 25u forced-z3 LRO round did **not** improve that repertoire
+or birth a behaviorally distinct `z_3`. Causal claim “LRO manufactured or
+strengthened a distinct strategy in seed 1” is **false**.
+
+**Still true:** strategic niche testbed works; init repertoire supported.
+**Failed:** seed-1 LRO improvement; seed-1 distinct strategy birth.
+**Do not:** redesign opponents now; knob carousel; midstream seed 2/3 edits.
+
+**Seeds 2–3 (RUNNING — do not alter):** same recipe
+(`forced z3`, 25u, shared z-conditioned critic, current mixture). Interpret:
+
+| Outcome | Reading |
+|---------|---------|
+| Seeds 2+3 pass causal + behavior | Mechanism sometimes works; report seed sensitivity, not robust birth |
+| ΔG>0 but behavior redundant | Competence/payoff gain without distinct strategy — Summer strategy claim fails |
+| Seeds 2+3 also fail | **Close** this recipe; do not keep rerunning seeds |
+
+**If multi-seed fails → one controlled capacity retry (locked next attack):**
+per-`z` value head for the response branch; keep niche pool, reward, branch,
+mixture, eval protocol, and 25u budget fixed. Do **not** also double budget.
+Diagnosis branch: behavior distance tiny + flat repertoire gain → branch did
+not leave the generalist basin (shared critic may couple value landscapes).
 
 **Vs V6I24:** adaptive task-return response targets; iterative BR; four
 branches in one model; no strategy-specific reward; distill optional only

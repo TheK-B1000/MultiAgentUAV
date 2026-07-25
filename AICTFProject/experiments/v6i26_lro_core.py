@@ -24,6 +24,8 @@ from experiments.v6i26_phase_pods import (
 
 LRO_PROTOCOL = "v6i26_latent_response_oracle"
 LRO_CLAIM = "B_population_guided_lro"
+LRO_CONFIRMATION_MIN_EPISODES_PER_CELL = 32
+LRO_CONFIRMATION_MIN_TRAINING_SEEDS = 3
 
 
 @dataclass(frozen=True)
@@ -249,6 +251,7 @@ def select_response_target(
             "delta_G_available_gt_0",
             "nonredundant_payoff_row",
             "competence_above_floor",
+            "forced_z_behavior_nonredundant",
         ],
     }
 
@@ -275,6 +278,119 @@ def branch_row_redundant(
     return False
 
 
+def behavior_distinctness_summary(
+    behavior_report: dict[str, Any] | None,
+    *,
+    branch_idx: int,
+    min_branch_distance: float | None = None,
+) -> dict[str, Any]:
+    """Summarize whether the candidate branch realizes distinct forced-z behavior."""
+    from rl.forced_z_behavior_vectors import (
+        DEFAULT_BEHAVIOR_PAIR_THRESHOLD,
+        FORCED_Z_BEHAVIOR_VECTOR_NAMES,
+        normalize_behavior_vectors,
+    )
+
+    threshold = (
+        float(DEFAULT_BEHAVIOR_PAIR_THRESHOLD)
+        if min_branch_distance is None
+        else float(min_branch_distance)
+    )
+    branch = int(branch_idx)
+    invalid = {
+        "behavior_measurement_valid": False,
+        "behavior_distance_threshold": threshold,
+        "branch_idx": branch,
+        "branch_behavior_nonredundant": False,
+        "verdict": "BEHAVIOR_DISTINCT_FAIL",
+    }
+    if not isinstance(behavior_report, dict):
+        return {**invalid, "reason": "missing_behavior_report"}
+    per_z = behavior_report.get("per_z_behavior_vectors")
+    if not isinstance(per_z, dict) or not per_z:
+        return {**invalid, "reason": "missing_per_z_behavior_vectors"}
+
+    indexed: list[tuple[int, np.ndarray]] = []
+    for key, values in per_z.items():
+        label = str(key)
+        if not label.startswith("z") or not isinstance(values, dict):
+            continue
+        try:
+            z_idx = int(label[1:])
+        except ValueError:
+            continue
+        raw = np.asarray(
+            [float(values.get(name, np.nan)) for name in FORCED_Z_BEHAVIOR_VECTOR_NAMES],
+            dtype=np.float64,
+        )
+        if raw.shape[0] == len(FORCED_Z_BEHAVIOR_VECTOR_NAMES) and np.isfinite(raw).all():
+            indexed.append((z_idx, raw))
+
+    indexed.sort(key=lambda item: item[0])
+    if len(indexed) < 2:
+        return {**invalid, "reason": "need_at_least_two_valid_z_vectors"}
+    z_indices = [int(z) for z, _ in indexed]
+    if branch not in z_indices:
+        return {
+            **invalid,
+            "valid_z_indices": z_indices,
+            "reason": "branch_vector_missing",
+        }
+
+    normalized = normalize_behavior_vectors([raw for _, raw in indexed], source="telemetry")
+    branch_pos = z_indices.index(branch)
+    pairs: list[dict[str, Any]] = []
+    distances: list[float] = []
+    branch_pairs: list[dict[str, Any]] = []
+    for i in range(len(normalized)):
+        for j in range(i + 1, len(normalized)):
+            dist = float(np.linalg.norm(normalized[i] - normalized[j]))
+            pair = {
+                "z_i": z_indices[i],
+                "z_j": z_indices[j],
+                "distance": dist,
+                "above_threshold": bool(dist >= threshold),
+            }
+            pairs.append(pair)
+            distances.append(dist)
+            if i == branch_pos or j == branch_pos:
+                branch_pairs.append(pair)
+
+    if not branch_pairs:
+        return {
+            **invalid,
+            "valid_z_indices": z_indices,
+            "reason": "branch_has_no_behavior_neighbor",
+        }
+    nearest = min(branch_pairs, key=lambda pair: float(pair["distance"]))
+    nearest_neighbor = (
+        int(nearest["z_j"]) if int(nearest["z_i"]) == branch else int(nearest["z_i"])
+    )
+    nearest_distance = float(nearest["distance"])
+    branch_nonredundant = bool(nearest_distance >= threshold)
+    return {
+        "behavior_measurement_valid": True,
+        "behavior_distance_threshold": threshold,
+        "behavior_vector_names": list(FORCED_Z_BEHAVIOR_VECTOR_NAMES),
+        "valid_z_indices": z_indices,
+        "branch_idx": branch,
+        "branch_nearest_behavior_distance": nearest_distance,
+        "branch_nearest_behavior_neighbor": nearest_neighbor,
+        "branch_behavior_nonredundant": branch_nonredundant,
+        "behavior_pair_count": len(distances),
+        "behavior_pair_distance_min": float(min(distances)) if distances else None,
+        "behavior_pair_distance_mean": float(np.mean(distances)) if distances else None,
+        "behavior_pair_distance_max": float(max(distances)) if distances else None,
+        "behavior_pairs_above_threshold": int(sum(d >= threshold for d in distances)),
+        "behavior_pairs": pairs,
+        "verdict": (
+            "BEHAVIOR_DISTINCT_PASS"
+            if branch_nonredundant
+            else "BEHAVIOR_DISTINCT_FAIL"
+        ),
+    }
+
+
 def accept_lro_round(
     *,
     g_before: float,
@@ -283,8 +399,19 @@ def accept_lro_round(
     branch_idx: int,
     competence_floor: float,
     min_row_distance: float = 0.08,
+    behavior_distinctness: dict[str, Any] | None = None,
+    require_behavior_distinctness: bool = False,
+    episodes_per_cell: int | None = None,
+    ci95_low_delta_g: float | None = None,
+    training_seed_count: int | None = None,
+    min_confirmation_episodes_per_cell: int = LRO_CONFIRMATION_MIN_EPISODES_PER_CELL,
+    min_training_seeds: int = LRO_CONFIRMATION_MIN_TRAINING_SEEDS,
 ) -> dict[str, Any]:
-    """Locked Stage-1 acceptance: ΔG > 0 AND nonredundant AND competence floor."""
+    """Locked LRO acceptance.
+
+    Small forced-z sweeps are screening only. They can nominate a branch as
+    ``PROMISING_DIRECTION`` but cannot approve a strategy birth.
+    """
     p = np.asarray(payoff_after, dtype=np.float64)
     b = int(branch_idx)
     branch_mean = float(p[b].mean()) if p.size else float("nan")
@@ -300,7 +427,29 @@ def accept_lro_round(
     delta_ok = bool(delta_g > 0.0)
     competence_ok = bool(branch_mean >= float(competence_floor))
     nonredundant_ok = not redundant
-    accepted = bool(delta_ok and competence_ok and nonredundant_ok)
+    behavior_required = bool(require_behavior_distinctness)
+    branch_behavior_nonredundant = (
+        None
+        if behavior_distinctness is None
+        else bool(behavior_distinctness.get("branch_behavior_nonredundant"))
+    )
+    behavior_ok = bool(branch_behavior_nonredundant) if behavior_required else True
+    screening_ok = bool(delta_ok and competence_ok and nonredundant_ok and behavior_ok)
+    eps_cell = None if episodes_per_cell is None else int(episodes_per_cell)
+    seed_count = None if training_seed_count is None else int(training_seed_count)
+    ci_low = None if ci95_low_delta_g is None else float(ci95_low_delta_g)
+    confirmation_episode_ok = bool(
+        eps_cell is not None and eps_cell >= int(min_confirmation_episodes_per_cell)
+    )
+    ci_ok = bool(ci_low is not None and ci_low > 0.0)
+    multi_seed_ok = bool(seed_count is not None and seed_count >= int(min_training_seeds))
+    accepted = bool(screening_ok and confirmation_episode_ok and ci_ok and multi_seed_ok)
+    if accepted:
+        verdict = "ACCEPT"
+    elif screening_ok:
+        verdict = "PROMISING_DIRECTION"
+    else:
+        verdict = "REJECT"
     return {
         "G_before": float(g_before),
         "G_after": float(g_after),
@@ -310,10 +459,32 @@ def accept_lro_round(
         "competence_floor": float(competence_floor),
         "best_on_context_indices": best_contexts,
         "nonredundant_payoff_row": nonredundant_ok,
+        "branch_behavior_nonredundant": branch_behavior_nonredundant,
+        "behavior_distinctness_required": behavior_required,
+        "behavior_distinctness_pass": behavior_ok,
+        "behavior_distinctness": behavior_distinctness,
         "competence_above_floor": competence_ok,
         "delta_G_gt_0": delta_ok,
+        "screening_pass": screening_ok,
+        "episodes_per_cell": eps_cell,
+        "min_confirmation_episodes_per_cell": int(min_confirmation_episodes_per_cell),
+        "confirmation_episode_count_pass": confirmation_episode_ok,
+        "ci95_low_delta_G": ci_low,
+        "ci95_delta_G_gt_0": ci_ok,
+        "training_seed_count": seed_count,
+        "min_training_seeds": int(min_training_seeds),
+        "multi_seed_repetition_pass": multi_seed_ok,
         "accepted": accepted,
-        "verdict": "ACCEPT" if accepted else "REJECT",
+        "verdict": verdict,
+        "real_acceptance_requires": [
+            "delta_G_gt_0",
+            "ci95_low_delta_G_gt_0",
+            "nonredundant_payoff_row",
+            "competence_above_floor",
+            "forced_z_behavior_nonredundant",
+            f"episodes_per_cell >= {int(min_confirmation_episodes_per_cell)}",
+            f"training_seed_count >= {int(min_training_seeds)}",
+        ],
     }
 
 
@@ -402,13 +573,36 @@ def lro_manifest() -> dict[str, Any]:
             "6_headline": "G_latent = V_routed_LRO − V_matched_nonlatent > 0",
         },
         "stage1_breakthrough": "delta_G_available = G_after - G_before > 0",
+        "screening_verdict": (
+            "4 episodes/cell may produce PROMISING_DIRECTION only; never ACCEPT."
+        ),
         "stage1_acceptance": [
             "delta_G > 0",
+            "CI95(delta_G) lower bound > 0",
             "targeted_mixture_improves",
             "competence_above_floor",
             "inactive_branches_no_drift",
             "nonredundant_payoff_row",
+            "forced_z_behavior_nonredundant",
+            ">= 32 forced-z episodes/cell",
+            "repetition across >= 3 training seeds",
         ],
+        "checkpoint_diagnostics": [
+            "target_cell_payoff",
+            "competence",
+            "behavior_distance_from_nearest_branch",
+            "branch_KL_from_initialization",
+            "inactive_branch_drift",
+        ],
+        "heldout_confirmation_cells": [
+            "targeted_regret_mixture_cells",
+            "nearby_niche_or_map_cells",
+            "general_competence_anchor_cells",
+        ],
+        "controlled_retry_if_multiseed_fails": (
+            "per-z value head only; keep reward, mixture, branch, eval protocol, "
+            "and 25u budget fixed."
+        ),
         "one_retry_only": True,
         "closed_paths": [
             "entropy_as_diversity_proof",
@@ -432,6 +626,7 @@ __all__ = [
     "LRO_PROTOCOL",
     "LandscapePolicySpec",
     "accept_lro_round",
+    "behavior_distinctness_summary",
     "branch_row_redundant",
     "classify_phase_from_core",
     "default_landscape_policies",

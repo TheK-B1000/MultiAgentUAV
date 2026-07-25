@@ -1,0 +1,103 @@
+{
+  "locked_at_utc": "2026-07-24T12:25:00Z",
+  "status": "ROUND1_DIRECTIONAL_ACCEPT_LOCKED",
+  "do_not_overwrite_or_continue_training": true,
+  "stale_ignore": "artifacts/v6i26_lro_round1_niches_seed1",
+  "headline": "First directional LRO breakthrough: z3 response training raised G_available",
+  "primary_result": {
+    "G_before": 0.10714285714285698,
+    "G_after": 0.2857142857142856,
+    "delta_G": 0.1785714285714286,
+    "niche_payoff_improvement": 0.25,
+    "general_competence_change": 0.017857142857142794,
+    "branch": 3,
+    "verdict": "ACCEPT",
+    "episodes_per_cell": 4,
+    "note": "Directional only — Phase 2 requires CI95(delta_G)>0 at >=32 eps/cell and >=3 seeds"
+  },
+  "checkpoint": {
+    "path": "artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip",
+    "sha256": "83B798574E7C084FF7A0DA3F1EA38EAB7A83C37168608A7ADDA35D38D5292AEC",
+    "init_donor": "artifacts/v6i23_population_birth_5u_seed1/final_v6i23_population_birth_5u_seed1_2v2.zip"
+  },
+  "git": {
+    "branch": "consequence-surface",
+    "commit_at_lock": "e87522d25dda5d4829b26489b91d02cf7dca3707",
+    "note": "Working tree had uncommitted LRO/opponent changes at lock time; preserve this artifact dir and acceptance JSON as scientific source of truth"
+  },
+  "artifacts": {
+    "acceptance": "artifacts/v6i26_lro_niches_round1_seed1/acceptance.json",
+    "stage1_round_log": "artifacts/v6i26_lro_niches_round1_seed1/stage1_round_log.json",
+    "run_config": "artifacts/v6i26_lro_niches_round1_seed1/v6i26_lro_z3_r1_25u_seed1_run_config.json",
+    "forced_z_before": "artifacts/v6i26_lro_niches_round1_seed1/forced_z_before/",
+    "forced_z_after": "artifacts/v6i26_lro_niches_round1_seed1/forced_z_after/",
+    "landscape_scan": "artifacts/v6i26_landscape_scan_niches_seed1/landscape_scan.json"
+  },
+  "evaluation_protocol": {
+    "base_seed": 1,
+    "deterministic_actions": true,
+    "oracle_metric": "win_margin",
+    "max_decision_steps": 240,
+    "maps": ["map_b_split_lane", "map_b_split_lane_v2"],
+    "cell_seed": "base+1000*opp_idx+100*map_idx",
+    "episode_seed": "cell_seed+ep_idx"
+  },
+  "audited_opponent_pool": [
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7_DEEP_FORTRESS",
+    "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_SPLIT_LANE_FEINT",
+    "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11_ADAPTIVE_EXPLOITER",
+    "OP12_LATE_CONVERTER"
+  ],
+  "opponent_profile_fingerprint": {
+    "OP6_IMMEDIATE_DUAL_RUSH": {"gates_escort_counter_always_mines_2v1": [false, true, true, false, false], "adaptive": false},
+    "OP7_DEEP_FORTRESS": {"gates_escort_counter_always_mines_2v1": [false, false, false, true, false], "adaptive": false},
+    "OP8_PROTECTED_CARRIER_ESCORT": {"gates_escort_counter_always_mines_2v1": [true, true, false, false, true], "adaptive": false},
+    "OP9_SPLIT_LANE_FEINT": {"gates_escort_counter_always_mines_2v1": [false, true, false, false, false], "adaptive": false},
+    "OP10_AGGRESSIVE_INTERCEPTOR": {"gates_escort_counter_always_mines_2v1": [false, false, false, false, false], "adaptive": false},
+    "OP11_ADAPTIVE_EXPLOITER": {"gates_escort_counter_always_mines_2v1": [true, true, true, false, true], "adaptive": true},
+    "OP12_LATE_CONVERTER": {"gates_escort_counter_always_mines_2v1": [true, true, true, false, false], "adaptive": true}
+  },
+  "training_recipe": {
+    "preset": "v6i26",
+    "updates": 25,
+    "branch": 3,
+    "router": "OFF",
+    "contract_reward": "OFF",
+    "task_reward_only": true,
+    "inactive_branches": "frozen / active-branch-only",
+    "deep_z_trunks": true
+  },
+  "honest_status": {
+    "not_yet": "multiple proven strategies / semantic labels / LRO ΔG at 32eps / multi-seed",
+    "is": "context-dependent latent repertoire strongly indicated on INIT at 32 eps/cell",
+    "init_32eps_oracle": {
+      "oracle_mean_win_margin": 1.6004,
+      "best_fixed_z": 3,
+      "best_fixed_mean": 1.3504,
+      "oracle_gap": 0.25,
+      "unique_best_z_cells": 3,
+      "practical_split": "z3≈rush/intercept/feint/convert; z1≈fortress/escort/exploiter; z0=narrow; z2=no unique niche"
+    },
+    "evidence_round1_4eps": "delta_G=+0.179 directional; competence + nonredundant gates passed",
+    "important_confirm_cells": [
+      "OP8_PROTECTED_CARRIER_ESCORT",
+      "OP10_AGGRESSIVE_INTERCEPTOR",
+      "OP11_ADAPTIVE_EXPLOITER"
+    ],
+    "op6_note": "saturation alone is not strategy proof; opponent-conditioned reversals are"
+  },
+  "next_gates": {
+    "phase2_seed1_32eps": "CI95(delta_G)>0 matched bootstrap",
+    "phase2_seeds_2_3": "same locked recipe, delta_G>0 each",
+    "aggregate": "CI95 across seeds > 0",
+    "not_yet": ["router", "distill", "continue training this zip", "Phase 3 second specialist"]
+  },
+  "kl_diagnostic": {
+    "seed1_status": "NaN — logger bug (MultiHeadActionDistribution.logits is a method returning list)",
+    "fix": "applied in run_v6i26_lro_oracle_round.py for seeds 2+",
+    "do_not_rerun_seed1_solely_for_kl": true
+  }
+}

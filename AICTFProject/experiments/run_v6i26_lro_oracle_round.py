@@ -8,6 +8,7 @@ Acceptance (all required):
   G_after > G_before
   AND branch adds a nonredundant payoff row
   AND competence stays above its floor
+  AND forced-z behavior is nonredundant
 
 Mixture guardrail: smoothed / opponent-aggregated regret with capped weights —
 do not chase a single 4-episode accident. Final G uses cross-fitted matched-seed
@@ -29,6 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from experiments.v6i26_lro_core import (  # noqa: E402
     accept_lro_round,
+    behavior_distinctness_summary,
     diagnose_lro_reject,
     lro_manifest,
     payoff_tensor_summary,
@@ -66,6 +68,12 @@ def _parse_args() -> argparse.Namespace:
         help="Override branch z to train (default: from smoothed target).",
     )
     p.add_argument("--eval-episodes-per-cell", type=int, default=4)
+    p.add_argument(
+        "--behavior-distance-threshold",
+        type=float,
+        default=None,
+        help="Forced-z behavior distance required for the trained branch.",
+    )
     p.add_argument(
         "--competence-floor",
         type=float,
@@ -163,6 +171,10 @@ def _forced_z_payoff_matrix(
     oracle = {}
     if oracle_path.is_file():
         oracle = json.loads(oracle_path.read_text(encoding="utf-8"))
+    behavior_path = out_dir / "behavior_report.json"
+    behavior_report = None
+    if behavior_path.is_file():
+        behavior_report = json.loads(behavior_path.read_text(encoding="utf-8"))
     # Locked G: context-holdout point estimate (cross-fitted style).
     g = float(summary["G_available_point"])
     return {
@@ -172,9 +184,41 @@ def _forced_z_payoff_matrix(
         "member_labels": labels,
         "summary": summary,
         "oracle_report": oracle,
+        "behavior_report": behavior_report,
+        "behavior_report_path": str(behavior_path) if behavior_path.is_file() else None,
         "G_available": g,
         "forced_z_dir": str(out_dir),
     }
+
+
+def _distribution_logits(dist: object) -> "torch.Tensor | None":
+    """Resolve concatenated action logits from a MultiHead / Categorical dist."""
+    import torch
+
+    logits = getattr(dist, "logits", None)
+    if callable(logits):
+        try:
+            logits = logits()
+        except TypeError:
+            return None
+    if logits is None:
+        inner = getattr(dist, "distribution", None)
+        if inner is not None:
+            return _distribution_logits(inner)
+        heads = getattr(dist, "heads", None)
+        if heads is not None:
+            try:
+                return torch.cat([h.logits for h in heads], dim=-1)
+            except Exception:  # noqa: BLE001
+                return None
+    if isinstance(logits, torch.Tensor):
+        return logits
+    if isinstance(logits, (list, tuple)) and logits:
+        try:
+            return torch.cat(list(logits), dim=-1)
+        except Exception:  # noqa: BLE001
+            return None
+    return None
 
 
 def _branch_kl_from_init(
@@ -238,10 +282,21 @@ def _branch_kl_from_init(
                 mt = getattr(tr_pol, "policy", tr_pol)
                 if not hasattr(mi, "get_distribution") or not hasattr(mt, "get_distribution"):
                     continue
-                di = mi.get_distribution(obs)
-                dt = mt.get_distribution(obs)
-                logits_i = getattr(di, "logits", None)
-                logits_t = getattr(dt, "logits", None)
+                # Force branch z on the observation path when supported.
+                z = torch.full(
+                    (int(obs["grid"].shape[0]),),
+                    int(branch_z),
+                    device=obs["grid"].device,
+                    dtype=torch.long,
+                )
+                try:
+                    di = mi.get_distribution(obs, z_idx=z)
+                    dt = mt.get_distribution(obs, z_idx=z)
+                except TypeError:
+                    di = mi.get_distribution(obs)
+                    dt = mt.get_distribution(obs)
+                logits_i = _distribution_logits(di)
+                logits_t = _distribution_logits(dt)
                 if logits_i is None or logits_t is None:
                     continue
                 kls.append(float(_kl_cat(logits_i, logits_t).mean().item()))
@@ -346,7 +401,7 @@ def main() -> int:
     print(f"branch z={branch}  updates={args.updates}  steps={steps}")
     print(f"smoothed target={target.get('target_context')} regret={target.get('target_regret')}")
     print("mixture top:", target.get("mixture_top"))
-    print("acceptance: ΔG>0 AND nonredundant AND competence floor")
+    print("acceptance: ΔG>0 AND nonredundant payoff row AND competence floor AND behavior distance")
     if args.dry_run:
         print("[dry-run] wrote stage1_round_log.json only")
         return 0
@@ -455,21 +510,48 @@ def main() -> int:
         kl = float("nan")
         round_log["branch_KL_error"] = str(exc)
 
+    behavior_distinctness = behavior_distinctness_summary(
+        after.get("behavior_report"),
+        branch_idx=branch,
+        min_branch_distance=args.behavior_distance_threshold,
+    )
     decision_gate = accept_lro_round(
         g_before=g_before,
         g_after=g_after,
         payoff_after=pay_a,
         branch_idx=branch,
         competence_floor=float(competence_floor),
+        behavior_distinctness=behavior_distinctness,
+        require_behavior_distinctness=True,
     )
     diagnosis = None
     if not decision_gate["accepted"]:
-        diagnosis = diagnose_lro_reject(
-            branch_kl=float(kl) if kl == kl else float("nan"),
-            niche_payoff_improvement=niche_imp,
-            general_competence_change=competence_change,
-            delta_g=float(g_after - g_before),
-        )
+        if not decision_gate.get("behavior_distinctness_pass"):
+            diagnosis = {
+                "diagnosis_code": "BEHAVIOR_REDUNDANT",
+                "meaning": (
+                    "The branch did not clear forced-z behavior distance, "
+                    "so the payoff change is not accepted as a distinct strategy."
+                ),
+                "next_action": (
+                    "Broaden or retarget the response mixture; do not train the router yet."
+                ),
+                "signals": {
+                    "branch_idx": branch,
+                    "behavior_distinctness": behavior_distinctness,
+                    "delta_G_available": float(g_after - g_before),
+                    "niche_payoff_improvement": niche_imp,
+                    "general_competence_change": competence_change,
+                },
+                "escalate_to_task_niches": False,
+            }
+        else:
+            diagnosis = diagnose_lro_reject(
+                branch_kl=float(kl) if kl == kl else float("nan"),
+                niche_payoff_improvement=niche_imp,
+                general_competence_change=competence_change,
+                delta_g=float(g_after - g_before),
+            )
         print(f"  diagnosis={diagnosis['diagnosis_code']}: {diagnosis['meaning']}")
         print(f"  next={diagnosis['next_action']}")
         print("  note: one reject does not kill LRO — diagnose then adjust BR.")
@@ -482,6 +564,7 @@ def main() -> int:
             "niche_payoff_improvement": niche_imp,
             "general_competence_change": competence_change,
             "accept_reject": decision_gate["verdict"],
+            "behavior_distinctness": behavior_distinctness,
             "acceptance": decision_gate,
             "rejection_diagnosis": diagnosis,
             "G_after_detail": {
@@ -490,6 +573,7 @@ def main() -> int:
                 "payoff_matrix": pay_a.tolist(),
                 "contexts": after["contexts"],
                 "forced_z_dir": after.get("forced_z_dir"),
+                "behavior_report_path": after.get("behavior_report_path"),
             },
         }
     )
@@ -501,6 +585,11 @@ def main() -> int:
     print("--- Stage-1 result ---")
     print(f"G_before={g_before:.4f}  G_after={g_after:.4f}  ΔG={g_after - g_before:.4f}")
     print(f"branch_KL≈{kl:.4f}  niche_imp={niche_imp:.4f}  competence_Δ={competence_change:.4f}")
+    print(
+        "behavior_nearest="
+        f"{behavior_distinctness.get('branch_nearest_behavior_distance')} "
+        f"pass={decision_gate.get('behavior_distinctness_pass')}"
+    )
     print(f"verdict={decision_gate['verdict']}")
     print(f"Wrote {out_dir / 'stage1_round_log.json'}")
     # Exit 4 = rejected this round (informative). Not a kill signal for LRO.

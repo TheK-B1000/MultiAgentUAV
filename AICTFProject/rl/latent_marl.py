@@ -436,6 +436,20 @@ class LatentConditionedActor(nn.Module):
                 head.weight.copy_(self.action_head.weight)
                 head.bias.copy_(self.action_head.bias)
 
+    def sync_latent_branch_trunks_to_identity(self) -> None:
+        """Initialize deep per-z trunks as identity on post-ReLU hidden features."""
+        if self.latent_branch_trunks is None:
+            return
+        with torch.no_grad():
+            eye = torch.eye(self.hidden_dim)
+            for trunk in self.latent_branch_trunks:
+                first = trunk[0]
+                second = trunk[2]
+                first.weight.copy_(eye.to(device=first.weight.device, dtype=first.weight.dtype))
+                first.bias.zero_()
+                second.weight.copy_(eye.to(device=second.weight.device, dtype=second.weight.dtype))
+                second.bias.zero_()
+
     def _logits_from_hidden(
         self, hidden: torch.Tensor, z: torch.Tensor | None
     ) -> torch.Tensor:

@@ -193,6 +193,76 @@ class V6i26PayoffHelperTests(unittest.TestCase):
         self.assertFalse(bad["accepted"])
         self.assertEqual(bad["verdict"], "REJECT")
 
+    def test_behavior_distinctness_flags_duplicate_branch(self) -> None:
+        from experiments.v6i26_lro_core import behavior_distinctness_summary
+        from rl.forced_z_behavior_vectors import FORCED_Z_BEHAVIOR_VECTOR_NAMES
+
+        names = FORCED_Z_BEHAVIOR_VECTOR_NAMES
+
+        def vec(values: tuple[float, ...]) -> dict[str, float]:
+            return {name: float(values[i]) for i, name in enumerate(names)}
+
+        report = {
+            "forced_z_behavior_vector_names": list(names),
+            "per_z_behavior_vectors": {
+                "z0": vec((0.05, 0.90, 0.10, 0.10, 0.10, 0.10, 0.10)),
+                "z1": vec((0.20, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20)),
+                "z2": vec((0.20, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20)),
+                "z3": vec((0.90, 0.05, 0.90, 0.90, 1.20, 0.90, 0.90)),
+            },
+        }
+
+        duplicate = behavior_distinctness_summary(
+            report,
+            branch_idx=2,
+            min_branch_distance=0.20,
+        )
+        self.assertFalse(duplicate["branch_behavior_nonredundant"])
+        self.assertEqual(duplicate["branch_nearest_behavior_neighbor"], 1)
+
+        distinct = behavior_distinctness_summary(
+            report,
+            branch_idx=3,
+            min_branch_distance=0.20,
+        )
+        self.assertTrue(distinct["branch_behavior_nonredundant"])
+        self.assertEqual(distinct["verdict"], "BEHAVIOR_DISTINCT_PASS")
+
+    def test_accept_can_require_behavior_distinctness(self) -> None:
+        from experiments.v6i26_lro_core import accept_lro_round
+
+        payoff = np.array(
+            [
+                [0.80, 0.20, 0.55, 0.40],
+                [0.25, 0.85, 0.50, 0.45],
+            ],
+            dtype=np.float64,
+        )
+        rejected = accept_lro_round(
+            g_before=0.0,
+            g_after=0.12,
+            payoff_after=payoff,
+            branch_idx=1,
+            competence_floor=0.30,
+            behavior_distinctness={"branch_behavior_nonredundant": False},
+            require_behavior_distinctness=True,
+        )
+        self.assertFalse(rejected["accepted"])
+        self.assertFalse(rejected["behavior_distinctness_pass"])
+        self.assertEqual(rejected["verdict"], "REJECT")
+
+        accepted = accept_lro_round(
+            g_before=0.0,
+            g_after=0.12,
+            payoff_after=payoff,
+            branch_idx=1,
+            competence_floor=0.30,
+            behavior_distinctness={"branch_behavior_nonredundant": True},
+            require_behavior_distinctness=True,
+        )
+        self.assertTrue(accepted["accepted"])
+        self.assertTrue(accepted["behavior_distinctness_pass"])
+
     def test_niche_signal_when_specialists_exist(self) -> None:
         from experiments.v6i26_lro_core import (
             payoff_tensor_summary,
@@ -259,6 +329,24 @@ class V6i26DistillGateTests(unittest.TestCase):
         self.assertTrue(ok)
         self.assertIn("niche_signal", reason)
 
+    def test_distill_requires_strategy_pass_when_present(self) -> None:
+        from experiments.run_v6i26_distill_and_route import _gate_allows
+
+        ok, reason = _gate_allows(
+            {
+                "phase2_strategy_verdict": "PHASE2_STRATEGY_HOLD_OR_FAIL",
+                "summary": {"niche_signal": True},
+            }
+        )
+        self.assertFalse(ok)
+        self.assertIn("phase2_strategy_verdict", reason)
+
+        ok, reason = _gate_allows(
+            {"phase2_strategy_verdict": "PHASE2_STRATEGY_PASS"}
+        )
+        self.assertTrue(ok)
+        self.assertIn("PHASE2_STRATEGY_PASS", reason)
+
 
 class V6i26DeepBranchArchitectureTests(unittest.TestCase):
     def test_latent_branch_trunks_created_when_flag_set(self) -> None:
@@ -281,6 +369,32 @@ class V6i26DeepBranchArchitectureTests(unittest.TestCase):
         obs = torch.randn(4, 16)
         logits = actor(obs, z_idx=z)
         self.assertEqual(tuple(logits.shape), (4, 5))
+
+    def test_latent_branch_trunks_identity_sync_preserves_logits(self) -> None:
+        import torch
+        from rl.latent_marl import LatentConditionedActor
+
+        actor = LatentConditionedActor(
+            local_feature_dim=16,
+            latent_k=4,
+            action_dim=5,
+            z_embed_dim=8,
+            hidden_dim=32,
+            enable_latent_z_residual=True,
+            latent_population_birth_per_z_action_heads=True,
+            latent_lro_deep_branches=True,
+        )
+        actor.sync_per_z_action_heads_from_shared()
+        actor._residual_bypass_for_compat = True
+        obs = torch.randn(8, 16)
+        z = torch.tensor([0, 1, 2, 3, 0, 1, 2, 3], dtype=torch.long)
+        shared_logits = actor(obs, z_idx=z)
+
+        actor._residual_bypass_for_compat = False
+        actor.sync_latent_branch_trunks_to_identity()
+        branched_logits = actor(obs, z_idx=z)
+
+        self.assertTrue(torch.allclose(branched_logits, shared_logits, atol=1e-6))
 
 
 if __name__ == "__main__":

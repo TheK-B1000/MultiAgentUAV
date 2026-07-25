@@ -18,6 +18,8 @@ from gpu_env._core._bt_profiles import (
     profile_for_opponent_key,
     role_gate_fingerprint,
 )
+from rl.config.ppo_config import PPOConfig, TrainMode
+from rl.training.config_validation import normalize_and_validate_training_config
 
 
 EXPECTED_ROLE_GATES = {
@@ -97,6 +99,16 @@ class OpponentAliasDisciplineTests(unittest.TestCase):
                 ).name,
                 msg=short,
             )
+
+    def test_training_config_accepts_audited_long_names(self) -> None:
+        cfg = PPOConfig()
+        cfg.mode = TrainMode.OPPONENT_POOL.value
+        cfg.opponent_randomize = True
+        cfg.opponent_pool = tuple(LRO_AUDITED_OPPONENT_POOL)
+
+        out = normalize_and_validate_training_config(cfg)
+
+        self.assertEqual(tuple(out.opponent_pool), tuple(LRO_AUDITED_OPPONENT_POOL))
 
     def test_niche_identities_match_table(self) -> None:
         self.assertEqual(profile_for_level(6).name, "OP6_IMMEDIATE_DUAL_RUSH")

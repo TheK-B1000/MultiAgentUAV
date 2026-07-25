@@ -1,0 +1,706 @@
+[parallel] 7 opponent partitions, max_concurrent=4
+[parallel] canonical opponent order (index -> seed offset): [(0, 'OP6_IMMEDIATE_DUAL_RUSH', 1), (1, 'OP7_DEEP_FORTRESS', 1001), (2, 'OP8_PROTECTED_CARRIER_ESCORT', 2001), (3, 'OP9_SPLIT_LANE_FEINT', 3001), (4, 'OP10_AGGRESSIVE_INTERCEPTOR', 4001), (5, 'OP11_ADAPTIVE_EXPLOITER', 5001), (6, 'OP12_LATE_CONVERTER', 6001)]
+[parallel] launching opp00_OP6_IMMEDIATE_DUAL_RUSH: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --checkpoint artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip --out-dir artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp00_OP6_IMMEDIATE_DUAL_RUSH --episodes 32 --device cuda --base-seed 1 --oracle-metric win_margin --progress-every 8 --opponents OP6_IMMEDIATE_DUAL_RUSH --maps map_b_split_lane map_b_split_lane_v2 --max-decision-steps 240 --inherit-training-config
+[parallel] launching opp01_OP7_DEEP_FORTRESS: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --checkpoint artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip --out-dir artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp01_OP7_DEEP_FORTRESS --episodes 32 --device cuda --base-seed 1001 --oracle-metric win_margin --progress-every 8 --opponents OP7_DEEP_FORTRESS --maps map_b_split_lane map_b_split_lane_v2 --max-decision-steps 240 --inherit-training-config
+[parallel] launching opp02_OP8_PROTECTED_CARRIER_ESCORT: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --checkpoint artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip --out-dir artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp02_OP8_PROTECTED_CARRIER_ESCORT --episodes 32 --device cuda --base-seed 2001 --oracle-metric win_margin --progress-every 8 --opponents OP8_PROTECTED_CARRIER_ESCORT --maps map_b_split_lane map_b_split_lane_v2 --max-decision-steps 240 --inherit-training-config
+[parallel] launching opp03_OP9_SPLIT_LANE_FEINT: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --checkpoint artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip --out-dir artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp03_OP9_SPLIT_LANE_FEINT --episodes 32 --device cuda --base-seed 3001 --oracle-metric win_margin --progress-every 8 --opponents OP9_SPLIT_LANE_FEINT --maps map_b_split_lane map_b_split_lane_v2 --max-decision-steps 240 --inherit-training-config
+Forced-z protocol: base_seed=1001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=1001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip
+Episodes   : 32 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+Forced-z protocol: base_seed=3001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=3001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip
+Episodes   : 32 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+Forced-z protocol: base_seed=2001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=2001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip
+Episodes   : 32 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+Forced-z protocol: base_seed=1, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=1, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip
+Episodes   : 32 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 1/32
+  episode 1/32
+  episode 1/32
+  episode 8/32
+  episode 8/32
+  episode 8/32
+  episode 8/32
+  episode 16/32
+  episode 16/32
+  episode 16/32
+  episode 16/32
+  episode 24/32
+  episode 24/32
+  episode 24/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=0 map_b_split_lane: WR=84.4% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=0 map_b_split_lane: WR=59.4% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=0 map_b_split_lane: WR=53.1% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 1/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=0 map_b_split_lane: WR=68.8% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 1/32
+  episode 8/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=1 map_b_split_lane: WR=96.9% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=1 map_b_split_lane: WR=100.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=1 map_b_split_lane: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 1/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=1 map_b_split_lane: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=2 map_b_split_lane: WR=96.9% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=2 map_b_split_lane: WR=93.8% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=2 map_b_split_lane: WR=100.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 1/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=2 map_b_split_lane: WR=93.8% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 8/32
+  episode 1/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 16/32
+  episode 24/32
+  episode 24/32
+  episode 24/32
+  episode 16/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=3 map_b_split_lane: WR=100.0% (32 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=3 map_b_split_lane: WR=96.9% (32 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 24/32
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=3 map_b_split_lane: WR=100.0% (32 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 1/32
+  episode 1/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=3 map_b_split_lane: WR=93.8% (32 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 8/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=0 map_b_split_lane_v2: WR=100.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 16/32
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=0 map_b_split_lane_v2: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 1/32
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=0 map_b_split_lane_v2: WR=84.4% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=0 map_b_split_lane_v2: WR=81.2% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=1 map_b_split_lane_v2: WR=100.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 24/32
+  episode 1/32
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=1 map_b_split_lane_v2: WR=96.9% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 16/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=1 map_b_split_lane_v2: WR=87.5% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 24/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 16/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=1 map_b_split_lane_v2: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 24/32
+  episode 1/32
+  episode 24/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=2 map_b_split_lane_v2: WR=100.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=2 map_b_split_lane_v2: WR=96.9% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=2 map_b_split_lane_v2: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 1/32
+  episode 16/32
+  episode 8/32
+  episode 8/32
+  episode 16/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=2 map_b_split_lane_v2: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP7_DEEP_FORTRESS z=3 map_b_split_lane_v2: WR=100.0% (32 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=100.0%  margin=+2.17
+  Best-fixed WR=100.0%  margin=+1.94  (z=3)
+  WR advantage   : +0.0%
+  Margin advantage: +0.23
+  Best z per cell : {'OP7_DEEP_FORTRESS|map_b_split_lane': 3, 'OP7_DEEP_FORTRESS|map_b_split_lane_v2': 0}
+  Unique best-z   : [0, 3] (2 cells)
+
+  Gate 1 (oracle > best-fixed WR): FAIL
+  Gate 2 (best z varies across map×opp cells): PASS
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z3  win_margin=1.9375
+Hindsight oracle     : win_margin=2.1719
+Oracle gap           : +0.2344
+Best z per map×opp   : {'OP7_DEEP_FORTRESS|map_b_split_lane': 3, 'OP7_DEEP_FORTRESS|map_b_split_lane_v2': 0}
+Unique best-z cells  : 2 / 2
+Best z by start-phase: 2 contexts, 2 unique winners
+Behavior pair mean   : 0.1050
+
+LADDER VERDICT: ORACLE_GAP_PLUS_CONTEXT — proceed to router training
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp01_OP7_DEEP_FORTRESS
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] opp01_OP7_DEEP_FORTRESS finished: OK
+[parallel] launching opp04_OP10_AGGRESSIVE_INTERCEPTOR: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --checkpoint artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip --out-dir artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp04_OP10_AGGRESSIVE_INTERCEPTOR --episodes 32 --device cuda --base-seed 4001 --oracle-metric win_margin --progress-every 8 --opponents OP10_AGGRESSIVE_INTERCEPTOR --maps map_b_split_lane map_b_split_lane_v2 --max-decision-steps 240 --inherit-training-config
+Forced-z protocol: base_seed=4001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=4001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip
+Episodes   : 32 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 32/32
+  [reuse] OP6_IMMEDIATE_DUAL_RUSH z=3 map_b_split_lane_v2: WR=96.9% (32 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=96.9%  margin=+1.38
+  Best-fixed WR=96.9%  margin=+1.19  (z=3)
+  WR advantage   : +0.0%
+  Margin advantage: +0.19
+  Best z per cell : {'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane': 3, 'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2': 1}
+  Unique best-z   : [1, 3] (2 cells)
+
+  Gate 1 (oracle > best-fixed WR): FAIL
+  Gate 2 (best z varies across map×opp cells): PASS
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z3  win_margin=1.1875
+Hindsight oracle     : win_margin=1.3750
+Oracle gap           : +0.1875
+Best z per map×opp   : {'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane': 3, 'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2': 1}
+Unique best-z cells  : 2 / 2
+Best z by start-phase: 2 contexts, 1 unique winners
+Behavior pair mean   : 0.1295
+
+LADDER VERDICT: ORACLE_GAP_ONLY — complementarity exists; routing may be difficult
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp00_OP6_IMMEDIATE_DUAL_RUSH
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] opp00_OP6_IMMEDIATE_DUAL_RUSH finished: OK
+[parallel] launching opp05_OP11_ADAPTIVE_EXPLOITER: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --checkpoint artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip --out-dir artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp05_OP11_ADAPTIVE_EXPLOITER --episodes 32 --device cuda --base-seed 5001 --oracle-metric win_margin --progress-every 8 --opponents OP11_ADAPTIVE_EXPLOITER --maps map_b_split_lane map_b_split_lane_v2 --max-decision-steps 240 --inherit-training-config
+Forced-z protocol: base_seed=5001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=5001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip
+Episodes   : 32 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP8_PROTECTED_CARRIER_ESCORT z=3 map_b_split_lane_v2: WR=96.9% (32 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=100.0%  margin=+1.50
+  Best-fixed WR=98.4%  margin=+1.25  (z=3)
+  WR advantage   : +1.6%
+  Margin advantage: +0.25
+  Best z per cell : {'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane': 1, 'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2': 3}
+  Unique best-z   : [1, 3] (2 cells)
+
+  Gate 1 (oracle > best-fixed WR): PASS
+  Gate 2 (best z varies across map×opp cells): PASS
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z3  win_margin=1.2500
+Hindsight oracle     : win_margin=1.5000
+Oracle gap           : +0.2500
+Best z per map×opp   : {'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane': 1, 'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2': 3}
+Unique best-z cells  : 2 / 2
+Best z by start-phase: 2 contexts, 2 unique winners
+Behavior pair mean   : 0.1178
+
+LADDER VERDICT: ORACLE_GAP_PLUS_CONTEXT — proceed to router training
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp02_OP8_PROTECTED_CARRIER_ESCORT
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] opp02_OP8_PROTECTED_CARRIER_ESCORT finished: OK
+[parallel] launching opp06_OP12_LATE_CONVERTER: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --checkpoint artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip --out-dir artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp06_OP12_LATE_CONVERTER --episodes 32 --device cuda --base-seed 6001 --oracle-metric win_margin --progress-every 8 --opponents OP12_LATE_CONVERTER --maps map_b_split_lane map_b_split_lane_v2 --max-decision-steps 240 --inherit-training-config
+Forced-z protocol: base_seed=6001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=6001, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip
+Episodes   : 32 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 8/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 16/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP9_SPLIT_LANE_FEINT z=3 map_b_split_lane_v2: WR=93.8% (32 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=96.9%  margin=+1.47
+  Best-fixed WR=93.8%  margin=+1.28  (z=3)
+  WR advantage   : +3.1%
+  Margin advantage: +0.19
+  Best z per cell : {'OP9_SPLIT_LANE_FEINT|map_b_split_lane': 2, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2': 3}
+  Unique best-z   : [2, 3] (2 cells)
+
+  Gate 1 (oracle > best-fixed WR): PASS
+  Gate 2 (best z varies across map×opp cells): PASS
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z3  win_margin=1.2812
+Hindsight oracle     : win_margin=1.4688
+Oracle gap           : +0.1875
+Best z per map×opp   : {'OP9_SPLIT_LANE_FEINT|map_b_split_lane': 2, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2': 3}
+Unique best-z cells  : 2 / 2
+Best z by start-phase: 2 contexts, 1 unique winners
+Behavior pair mean   : 0.1265
+
+LADDER VERDICT: ORACLE_GAP_ONLY — complementarity exists; routing may be difficult
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp03_OP9_SPLIT_LANE_FEINT
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] opp03_OP9_SPLIT_LANE_FEINT finished: OK
+  episode 24/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=0 map_b_split_lane: WR=75.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=0 map_b_split_lane: WR=62.5% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=0 map_b_split_lane: WR=68.8% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 1/32
+  episode 8/32
+  episode 8/32
+  episode 16/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=1 map_b_split_lane: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=1 map_b_split_lane: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 1/32
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=1 map_b_split_lane: WR=96.9% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=2 map_b_split_lane: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=2 map_b_split_lane: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 1/32
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=2 map_b_split_lane: WR=93.8% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 24/32
+  episode 16/32
+  episode 16/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=3 map_b_split_lane: WR=93.8% (32 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 24/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=3 map_b_split_lane: WR=93.8% (32 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=3 map_b_split_lane: WR=96.9% (32 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 32 episodes
+  episode 16/32
+  episode 1/32
+  episode 8/32
+  episode 8/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=0 map_b_split_lane_v2: WR=84.4% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 24/32
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=0 map_b_split_lane_v2: WR=87.5% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 8/32
+  episode 1/32
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=0 map_b_split_lane_v2: WR=93.8% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=1 map_b_split_lane_v2: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=1 map_b_split_lane_v2: WR=84.4% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=1 map_b_split_lane_v2: WR=100.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=2 map_b_split_lane_v2: WR=90.6% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=2 map_b_split_lane_v2: WR=87.5% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=2 map_b_split_lane_v2: WR=100.0% (32 eps)
+  checkpoint loaded; 32 episodes
+  episode 1/32
+  episode 8/32
+  episode 16/32
+  episode 8/32
+  episode 16/32
+  episode 24/32
+  episode 16/32
+  episode 24/32
+  episode 32/32
+  [reuse] OP10_AGGRESSIVE_INTERCEPTOR z=3 map_b_split_lane_v2: WR=96.9% (32 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=98.4%  margin=+1.64
+  Best-fixed WR=95.3%  margin=+1.39  (z=3)
+  WR advantage   : +3.1%
+  Margin advantage: +0.25
+  Best z per cell : {'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane': 3, 'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2': 3}
+  Unique best-z   : [3] (1 cells)
+
+  Gate 1 (oracle > best-fixed WR): PASS
+  Gate 2 (best z varies across map×opp cells): FAIL
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z3  win_margin=1.3906
+Hindsight oracle     : win_margin=1.6406
+Oracle gap           : +0.2500
+Best z per map×opp   : {'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane': 3, 'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2': 3}
+Unique best-z cells  : 1 / 2
+Best z by start-phase: 2 contexts, 1 unique winners
+Behavior pair mean   : 0.1241
+
+LADDER VERDICT: ORACLE_GAP_ONLY — complementarity exists; routing may be difficult
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp04_OP10_AGGRESSIVE_INTERCEPTOR
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] opp04_OP10_AGGRESSIVE_INTERCEPTOR finished: OK
+  episode 24/32
+  episode 32/32
+  [reuse] OP12_LATE_CONVERTER z=3 map_b_split_lane_v2: WR=93.8% (32 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=100.0%  margin=+1.45
+  Best-fixed WR=93.8%  margin=+1.12  (z=3)
+  WR advantage   : +6.2%
+  Margin advantage: +0.33
+  Best z per cell : {'OP12_LATE_CONVERTER|map_b_split_lane': 3, 'OP12_LATE_CONVERTER|map_b_split_lane_v2': 3}
+  Unique best-z   : [3] (1 cells)
+
+  Gate 1 (oracle > best-fixed WR): PASS
+  Gate 2 (best z varies across map×opp cells): FAIL
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z3  win_margin=1.1250
+Hindsight oracle     : win_margin=1.4531
+Oracle gap           : +0.3281
+Best z per map×opp   : {'OP12_LATE_CONVERTER|map_b_split_lane': 3, 'OP12_LATE_CONVERTER|map_b_split_lane_v2': 3}
+Unique best-z cells  : 1 / 2
+Best z by start-phase: 2 contexts, 2 unique winners
+Behavior pair mean   : 0.1228
+
+LADDER VERDICT: ORACLE_GAP_PLUS_CONTEXT — proceed to router training
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp06_OP12_LATE_CONVERTER
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] opp06_OP12_LATE_CONVERTER finished: OK
+  episode 32/32
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=3 map_b_split_lane_v2: WR=100.0% (32 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=98.4%  margin=+1.53
+  Best-fixed WR=98.4%  margin=+1.34  (z=1)
+  WR advantage   : +0.0%
+  Margin advantage: +0.19
+  Best z per cell : {'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane': 1, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2': 1}
+  Unique best-z   : [1] (1 cells)
+
+  Gate 1 (oracle > best-fixed WR): FAIL
+  Gate 2 (best z varies across map×opp cells): FAIL
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z1  win_margin=1.3438
+Hindsight oracle     : win_margin=1.5312
+Oracle gap           : +0.1875
+Best z per map×opp   : {'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane': 1, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2': 1}
+Unique best-z cells  : 1 / 2
+Best z by start-phase: 2 contexts, 2 unique winners
+Behavior pair mean   : 0.1244
+
+LADDER VERDICT: ORACLE_GAP_PLUS_CONTEXT — proceed to router training
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\_parallel_partitions\opp05_OP11_ADAPTIVE_EXPLOITER
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] opp05_OP11_ADAPTIVE_EXPLOITER finished: OK
+[parallel] merged 1792 episode rows -> artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32\episode_results.csv
+[parallel] regenerating reports: K:\MultiAgentUAV\AICTFProject\.venv\Scripts\python.exe K:\MultiAgentUAV\AICTFProject\experiments\run_forced_z_eval.py --from-run artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32 --analyze-only --oracle-metric win_margin
+
+--- Stage C Gate ---
+  Oracle-z   WR=98.7%  margin=+1.59
+  Best-fixed WR=96.7%  margin=+1.36  (z=3)
+  WR advantage   : +2.0%
+  Margin advantage: +0.23
+  Best z per cell : {'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane': 3, 'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2': 1, 'OP7_DEEP_FORTRESS|map_b_split_lane': 3, 'OP7_DEEP_FORTRESS|map_b_split_lane_v2': 0, 'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane': 1, 'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2': 3, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane': 2, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2': 3, 'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane': 3, 'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2': 3, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane': 1, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2': 1, 'OP12_LATE_CONVERTER|map_b_split_lane': 3, 'OP12_LATE_CONVERTER|map_b_split_lane_v2': 3}
+  Unique best-z   : [0, 1, 2, 3] (4 cells)
+
+  Gate 1 (oracle > best-fixed WR): PASS
+  Gate 2 (best z varies across map×opp cells): PASS
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z3  win_margin=1.3594
+Hindsight oracle     : win_margin=1.5915
+Oracle gap           : +0.2321
+Best z per map×opp   : {'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane': 3, 'OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2': 1, 'OP7_DEEP_FORTRESS|map_b_split_lane': 3, 'OP7_DEEP_FORTRESS|map_b_split_lane_v2': 0, 'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane': 1, 'OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2': 3, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane': 2, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2': 3, 'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane': 3, 'OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2': 3, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane': 1, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2': 1, 'OP12_LATE_CONVERTER|map_b_split_lane': 3, 'OP12_LATE_CONVERTER|map_b_split_lane_v2': 3}
+Unique best-z cells  : 4 / 14
+Best z by start-phase: 14 contexts, 3 unique winners
+Behavior pair mean   : 0.1208
+
+LADDER VERDICT: ORACLE_GAP_PLUS_CONTEXT — proceed to router training
+
+Artifacts in: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json
+[parallel] done. Merged run ready at: artifacts\v6i26_lro_niches_round1_seed1\phase2_confirm\forced_z_after_32
