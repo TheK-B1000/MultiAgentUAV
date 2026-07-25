@@ -114,6 +114,7 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i23_population_birth,
     apply_v6i24_full_policy_population,
     apply_v6i26_latent_response_oracle,
+    apply_v6i26_lro_actor_step_ablation,
     apply_v6i26_phase_pod_population,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
@@ -659,6 +660,9 @@ PRESET_REGISTRY = {
     "latent_v6i26_latent_response_oracle": apply_v6i26_latent_response_oracle,
     "plan_faithful_latent_v6i26_latent_response_oracle": apply_v6i26_latent_response_oracle,
     "v6i26_phase_pod_population": apply_v6i26_phase_pod_population,
+    "v6i26_lro_actor_step_ablation": apply_v6i26_lro_actor_step_ablation,
+    "v6i26_actor_step": apply_v6i26_lro_actor_step_ablation,
+    "v6i26_actor_step_ablation": apply_v6i26_lro_actor_step_ablation,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.

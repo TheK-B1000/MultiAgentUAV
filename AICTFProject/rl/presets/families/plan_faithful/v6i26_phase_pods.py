@@ -92,5 +92,31 @@ def apply_v6i26_latent_response_oracle(cfg: PPOConfig) -> PPOConfig:
     return cfg
 
 
+def apply_v6i26_lro_actor_step_ablation(cfg: PPOConfig) -> PPOConfig:
+    """V6I26 actor-step ablation: separate z-actor/critic clip + 2× z-actor LR.
+
+    Classification: DIAGNOSTIC.
+    Parent: v6i26_latent_response_oracle.
+
+    Scientific delta (plain English)
+    --------------------------------
+    The margin 5u pilot showed a valid z0 update direction but microscopic
+    policy movement under joint critic-dominated clipping. This preset keeps
+    the LRO surface locked and only changes optimizer control:
+      - separate grad clipping for z-specific actor vs critic
+      - z-actor LR = 2 × base learning_rate; critic LR unchanged
+    """
+    from gpu_env._core._bt_profiles import LRO_AUDITED_OPPONENT_POOL
+
+    cfg = apply_v6i26_latent_response_oracle(cfg)
+    cfg.latent_lro_separate_actor_critic_clip = True
+    cfg.latent_lro_z_actor_lr_mult = 2.0
+    cfg.experiment_id = "v6i26_actor_step"
+    cfg.run_tag = (
+        "v6i26_lro_actor_step_ablation_" + "_".join(LRO_AUDITED_OPPONENT_POOL)
+    )
+    return cfg
+
+
 # Back-compat alias used by earlier phase-pod scaffolding.
 apply_v6i26_phase_pod_population = apply_v6i26_latent_response_oracle

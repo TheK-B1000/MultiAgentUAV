@@ -662,5 +662,73 @@ class V6i26BranchKLLogitsTests(unittest.TestCase):
         self.assertEqual(tuple(out.shape), (2, 7))
 
 
+class V6i26ActorStepAblationTests(unittest.TestCase):
+    def test_preset_minimal_diff_vs_v6i26(self) -> None:
+        parent = asdict(_resolve("v6i26"))
+        child = asdict(_resolve("v6i26_actor_step"))
+        diff = {k for k in parent if parent[k] != child[k]}
+        self.assertEqual(
+            diff,
+            {
+                "experiment_id",
+                "run_tag",
+                "latent_lro_separate_actor_critic_clip",
+                "latent_lro_z_actor_lr_mult",
+            },
+        )
+        self.assertTrue(child["latent_lro_separate_actor_critic_clip"])
+        self.assertEqual(child["latent_lro_z_actor_lr_mult"], 2.0)
+
+    def test_alias_equality(self) -> None:
+        aliases = [
+            "v6i26_actor_step",
+            "v6i26_actor_step_ablation",
+            "v6i26_lro_actor_step_ablation",
+        ]
+        configs = [asdict(_resolve(a)) for a in aliases]
+        for cfg in configs[1:]:
+            self.assertEqual(configs[0], cfg)
+
+    def test_learning_gates_do_not_require_nonzero_clip(self) -> None:
+        from experiments.v6i26_lro_core import evaluate_actor_step_learning_gates
+
+        learning = {
+            "approx_kl": {"mean": 2e-3},
+            "clip_fraction": {"mean": 0.0},
+            "entropy": {"mean": 2.64},
+            "critic_grad_norm": {"mean": 1.2},
+            "actor_grad_norm": {"mean": 0.4},
+            "chain": {
+                "peer_branch_adapter_delta_max": 0.0,
+                "branch_param_delta_max": 0.05,
+            },
+        }
+        out = evaluate_actor_step_learning_gates(
+            learning_signal=learning,
+            fixed_batch_kl=2e-3,
+        )
+        self.assertTrue(out["gates"]["clip_fraction_not_saturated"])
+        self.assertTrue(out["learning_pass"])
+        self.assertNotIn("clip_fraction_gt_0", out["gates"])
+
+    def test_separate_clip_does_not_scale_actor_by_critic(self) -> None:
+        import torch
+        from rl.custom_ppo.update.optimizer_stepper import clip_named_param_groups
+
+        actor = [torch.nn.Parameter(torch.zeros(4))]
+        critic = [torch.nn.Parameter(torch.zeros(4))]
+        # Actor pre-clip norm = 2.0; critic pre-clip norm = 20.0.
+        actor[0].grad = torch.ones_like(actor[0])
+        critic[0].grad = torch.ones_like(critic[0]) * 10.0
+        a_gn, c_gn = clip_named_param_groups(
+            actor_params=actor, critic_params=critic, max_norm=0.5
+        )
+        self.assertAlmostEqual(a_gn, 2.0, places=5)
+        self.assertAlmostEqual(c_gn, 20.0, places=4)
+        # Separate clip keeps actor at max_norm=0.5 (not crushed by critic's 20).
+        self.assertAlmostEqual(float(actor[0].grad.norm().item()), 0.5, places=5)
+        self.assertAlmostEqual(float(critic[0].grad.norm().item()), 0.5, places=5)
+
+
 if __name__ == "__main__":
     unittest.main()

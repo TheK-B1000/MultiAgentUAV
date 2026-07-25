@@ -1324,6 +1324,173 @@ def summarize_training_learning_signal(
     }
 
 
+# ---------------------------------------------------------------------------
+# Actor-step ablation gates (optimizer-control retry)
+# ---------------------------------------------------------------------------
+
+ACTOR_STEP_WEAK_APPROX_KL_FLOOR = 1.847735062862436e-05  # margin 5u pilot mean
+ACTOR_STEP_WEAK_ENTROPY_MEAN = 2.636798652013143  # metrics CSV column ``entropy``
+ACTOR_STEP_FIXED_BATCH_KL_MIN = 1e-3
+ACTOR_STEP_ENTROPY_FIELD = "entropy"  # summed action-head entropy in metrics CSV
+ACTOR_STEP_ENTROPY_TOL = 0.3
+ACTOR_STEP_CLIP_FRAC_MAX = 0.5
+MARGIN_PILOT_LOCKED = {
+    "branch": 0,
+    "target_context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+    "opponent": "OP9_SPLIT_LANE_FEINT",
+    "map": "map_b_split_lane",
+}
+
+
+def actor_step_ablation_contract() -> dict[str, Any]:
+    """Predeclared pass/fail contract for the actor-step 5u ablation."""
+    return {
+        "protocol": "v6i26_actor_step_ablation",
+        "classification": "DIAGNOSTIC",
+        "hypothesis": (
+            "Joint critic-dominated clipping + insufficient z-actor LR caused "
+            "the failed specialization step; separate clip + 2x z-actor LR "
+            "should produce measurable policy movement on the locked OP9/z0 surface."
+        ),
+        "locked_surface": dict(MARGIN_PILOT_LOCKED),
+        "optimizer": {
+            "separate_actor_critic_clip": True,
+            "z_actor_lr_mult": 2.0,
+            "critic_lr_unchanged": True,
+            "base_learning_rate": 5e-4,
+            "max_grad_norm_per_group": 0.5,
+        },
+        "learning_pressure_gates": {
+            "fixed_batch_init_to_final_kl_min": ACTOR_STEP_FIXED_BATCH_KL_MIN,
+            "fixed_batch_protocol": "run_v6i26_logit_control_authority_probe",
+            "training_approx_kl_above_weak_floor": ACTOR_STEP_WEAK_APPROX_KL_FLOOR,
+            "training_approx_kl_finite_non_explosive_max": 1.0,
+            "clip_fraction_safety_max_mean": ACTOR_STEP_CLIP_FRAC_MAX,
+            "clip_fraction_require_nonzero": False,
+            "entropy_field": ACTOR_STEP_ENTROPY_FIELD,
+            "entropy_aggregation": "policy entropy from metrics CSV (summed action heads)",
+            "entropy_weak_run_mean": ACTOR_STEP_WEAK_ENTROPY_MEAN,
+            "entropy_tolerance": ACTOR_STEP_ENTROPY_TOL,
+            "inactive_branch_delta_approx_zero": True,
+            "actor_grad_norm_gt_0": True,
+            "critic_grad_norm_gt_0": True,
+        },
+        "strategic_gates": {
+            "op9_margin_improves_directionally": True,
+            "op11_op12_anchors_hold": True,
+            "z0_behavior_distance_increases": True,
+        },
+        "decision_rule": {
+            "learning_fail": "stop optimizer ablation",
+            "learning_pass_op9_fail": "active movement, strategically wrong",
+            "learning_op9_pass_behavior_flat": "improved response, not strategy birth",
+            "learning_op9_behavior_pass": "continue this exact checkpoint to 10u",
+        },
+        "do_not": [
+            "continue weak margin 5u checkpoint to 10u",
+            "raise residual alpha as first lever",
+            "redesign trunk",
+            "add per-z critics",
+            "switch to Case B opponents",
+        ],
+    }
+
+
+def evaluate_actor_step_learning_gates(
+    *,
+    learning_signal: dict[str, Any],
+    fixed_batch_kl: float,
+    weak_approx_kl_floor: float = ACTOR_STEP_WEAK_APPROX_KL_FLOOR,
+    weak_entropy_mean: float = ACTOR_STEP_WEAK_ENTROPY_MEAN,
+) -> dict[str, Any]:
+    """Evaluate learning-pressure gates for the actor-step ablation."""
+
+    def _mean(block: str, default: float = 0.0) -> float:
+        node = learning_signal.get(block) or {}
+        if isinstance(node, dict) and node.get("mean") is not None:
+            return float(node["mean"])
+        return float(default)
+
+    approx_kl = _mean("approx_kl")
+    clip_frac = _mean("clip_fraction")
+    entropy = _mean("entropy", weak_entropy_mean)
+    actor_gn = _mean("z_specific_grad_norm")
+    if actor_gn <= 0.0:
+        actor_gn = _mean("z_adapter_grad_norm")
+    if actor_gn <= 0.0:
+        actor_gn = _mean("z_branch_trunk_grad_norm")
+    if actor_gn <= 0.0:
+        actor_gn = _mean("z_action_head_grad_norm")
+    if actor_gn <= 0.0:
+        actor_gn = _mean("actor_grad_norm")
+    critic_gn = _mean("critic_grad_norm")
+    chain = learning_signal.get("chain") or {}
+    peer_delta = float(chain.get("peer_branch_adapter_delta_max") or 0.0)
+    z_delta = float(chain.get("branch_param_delta_max") or 0.0)
+    if z_delta <= 0.0:
+        z_delta = _mean("z_specific_max_abs_delta")
+    if z_delta <= 0.0:
+        z_delta = max(
+            _mean("branch_adapter_weight_delta"),
+            _mean("branch_trunk_delta"),
+            _mean("branch_action_head_delta"),
+            _mean("branch_embedding_delta"),
+        )
+
+    gates = {
+        "fixed_batch_init_to_final_kl_ge_1e-3": bool(
+            float(fixed_batch_kl) >= ACTOR_STEP_FIXED_BATCH_KL_MIN
+        ),
+        "training_approx_kl_above_weak_floor": bool(approx_kl > float(weak_approx_kl_floor)),
+        "training_approx_kl_finite_non_explosive": bool(
+            np.isfinite(approx_kl) and approx_kl < 1.0
+        ),
+        "clip_fraction_not_saturated": bool(
+            np.isfinite(clip_frac) and clip_frac < ACTOR_STEP_CLIP_FRAC_MAX
+        ),
+        "entropy_stable_vs_weak_run": bool(
+            abs(entropy - float(weak_entropy_mean)) <= ACTOR_STEP_ENTROPY_TOL
+        ),
+        "actor_grad_norm_gt_0": bool(actor_gn > 0.0 or z_delta > 0.0),
+        "critic_grad_norm_gt_0": bool(critic_gn > 0.0),
+        "inactive_branch_delta_approx_zero": bool(peer_delta < 1e-5),
+        "z0_param_delta_clearly_above_weak": bool(z_delta > 1e-3),
+    }
+    # clip_fraction > 0 is intentionally NOT required.
+    # z0_param_delta_clearly_above_weak: weak pilot max ~7.7e-4.
+    learning_pass = all(
+        gates[k]
+        for k in (
+            "fixed_batch_init_to_final_kl_ge_1e-3",
+            "training_approx_kl_above_weak_floor",
+            "training_approx_kl_finite_non_explosive",
+            "clip_fraction_not_saturated",
+            "entropy_stable_vs_weak_run",
+            "actor_grad_norm_gt_0",
+            "critic_grad_norm_gt_0",
+            "inactive_branch_delta_approx_zero",
+            "z0_param_delta_clearly_above_weak",
+        )
+    )
+    return {
+        "gates": gates,
+        "learning_pass": bool(learning_pass),
+        "metrics": {
+            "fixed_batch_init_to_final_kl": float(fixed_batch_kl),
+            "approx_kl_mean": approx_kl,
+            "clip_fraction_mean": clip_frac,
+            "entropy_mean": entropy,
+            "entropy_field": ACTOR_STEP_ENTROPY_FIELD,
+            "actor_grad_norm_mean": actor_gn,
+            "critic_grad_norm_mean": critic_gn,
+            "z_specific_max_abs_delta_mean": z_delta,
+            "inactive_branch_delta": peer_delta,
+            "weak_approx_kl_floor": float(weak_approx_kl_floor),
+            "weak_entropy_mean": float(weak_entropy_mean),
+        },
+    }
+
+
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -1334,12 +1501,14 @@ __all__ = [
     "LRO_PROTOCOL",
     "LandscapePolicySpec",
     "accept_lro_round",
+    "actor_step_ablation_contract",
     "behavior_distinctness_summary",
     "branch_row_redundant",
     "cell_means_from_episode_df",
     "classify_phase_from_core",
     "default_landscape_policies",
     "diagnose_lro_reject",
+    "evaluate_actor_step_learning_gates",
     "lro_manifest",
     "payoff_tensor_summary",
     "select_current_response_target",
@@ -1348,4 +1517,9 @@ __all__ = [
     "select_response_target",
     "summarize_training_learning_signal",
     "write_json",
+    "ACTOR_STEP_WEAK_APPROX_KL_FLOOR",
+    "ACTOR_STEP_WEAK_ENTROPY_MEAN",
+    "ACTOR_STEP_FIXED_BATCH_KL_MIN",
+    "ACTOR_STEP_ENTROPY_FIELD",
+    "MARGIN_PILOT_LOCKED",
 ]

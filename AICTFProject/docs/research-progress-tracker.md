@@ -2586,16 +2586,61 @@ z0 step        : adapter/embed max|Δ| ≈ 4e-4–7e-4  (tiny)
 policy         : approx_kl ≈ 1.85e-5, clip=0
 ```
 
-Interpretation: advantages exist and the freeze contract is correct; the dead
-link is **after** microscopic z0 updates — they do not move action probabilities
-(residual α=0.1 / identity deep trunks / insensitive directions). Do **not**
-treat joint `grad_norm` as actor pressure. Do **not** auto-continue to 10u.
-Do **not** add per-z critics yet.
+**Logit control-authority probe (COMPLETE 2026-07-25):**
+`artifacts/v6i26_margin_pilot_5u_seed1/logit_control_authority_probe.json`
+Script: `experiments/run_v6i26_logit_control_authority_probe.py`
+Fixed OP9 obs batch (n=128); trunk baseline = identity (absent from init ckpt).
 
-Next: probe z0 branch-trunk / action-head logit sensitivity on the 5u ckpt
-(new CSV fields `latent_branch_trunk_delta_z*`, `z_specific_grad_norm` wired for
-the next train). Post-eval resume still needed for OP9 margin / anchors /
-behavior / drift once forced-z_after finishes.
+```text
+init→trained KL ≈ 5.5e-4   argmax_disagree ≈ 0.47
+module 1× replay (isolated on trained graph):
+  trunk   dθ=0.230  KL=2.0e-4  authority≈0.93   (MOVED; not dead identity)
+  head    dθ=0.114  KL=8.8e-5  authority≈1.22   (healthy)
+  adapter dθ=0.054  KL≈1e-7    authority≈0.08   (α=0.1 throttles this path)
+  embed   dθ=0.005  KL≈0
+  combined 1× KL=5.6e-4
+scaled combined: 0.5×→1.4e-4, 1×→5.6e-4, 2×→2.3e-3, 5×→1.9e-2, 10×→0.14
+α forward sweep vs birth: 0.0→5.3e-4 … 1.0→1.1e-3  (mild; not primary)
+reading=VALID_DIRECTION_OPTIMIZER_STEP_TOO_SMALL
+inactive trunks z1–z3 still exactly identity (freeze OK)
+```
+
+Interpretation update: the update **direction** is logit-valid and scales
+smoothly; the 5u step is simply too small for usable policy KL. Deep trunk is
+**not** stuck at identity on z0. Residual α is a secondary throttle on the
+adapter only — most movement already went to trunk+head. Do **not** auto-
+continue to 10u. Do **not** add per-z critics yet. Do **not** treat this as a
+KL-logger bug (1× replay matches birth→trained KL).
+
+**Preferred next single retry (after post-eval docs):** actor-step / LR (or
+separate actor clipping) ablation — not higher-α first, not trunk redesign.
+Post-eval `forced_z_after` still finishing for OP9 margin / anchors / behavior /
+drift documentation only.
+
+**Actor-step ablation contract (LOCKED 2026-07-25 — revised gates):**
+Preset `v6i26_actor_step` = separate z-actor/critic clip + 2× z-actor LR.
+Fresh 5u from V6I23 init on locked OP9/`z0` surface
+(`artifacts/v6i26_margin_actor_step_5u_seed1/`).
+
+```text
+Learning pressure (primary = fixed-batch probe KL, not training≈probe equality):
+  fixed_batch_init→final_kl >= 1e-3   (authority-probe protocol)
+  training approx_kl > weak floor 1.85e-5; finite; not explosive (<1)
+  clip_fraction < 0.5 (safety; NOT required >0)
+  entropy field = metrics CSV ``entropy`` (summed action heads)
+    stable vs weak mean 2.637 ± 0.3
+  actor/critic grads > 0; z0 Δθ clearly above weak; inactive Δ≈0
+
+Strategic:
+  OP9 margin improves; OP11/OP12 hold; z0 behavior distance increases
+
+Decision:
+  learning fail → stop optimizer ablation
+  learning pass, OP9 fail → active but strategically wrong
+  learning+OP9, behavior flat → response not strategy birth
+  all pass → continue THIS ckpt to 10u only
+```
+
 
 **Permanent keep — screening vs ACCEPT (locked):**
 

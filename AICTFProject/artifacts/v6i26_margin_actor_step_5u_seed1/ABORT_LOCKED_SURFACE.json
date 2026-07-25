@@ -1,0 +1,17 @@
+{
+  "error": "locked_margin_surface_mismatch",
+  "mismatches": [
+    "selector_branch=z-1 != locked=z0"
+  ],
+  "selected": {
+    "branch": -1,
+    "target_context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+    "cli_branch": 0
+  },
+  "locked": {
+    "branch": 0,
+    "target_context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+    "opponent": "OP9_SPLIT_LANE_FEINT",
+    "map": "map_b_split_lane"
+  }
+}

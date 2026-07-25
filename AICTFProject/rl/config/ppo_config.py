@@ -270,6 +270,11 @@ class PPOConfig:
     # Deep per-z trunks (last two MLP layers) + active-branch-only BR rounds.
     latent_lro_deep_branches: bool = False
     latent_lro_active_branch_only: bool = False
+    # V6I26 actor-step ablation (DIAGNOSTIC): repertoire shared Adam with
+    # separate z-actor vs critic grad clipping, and optional z-actor LR mult.
+    # Defaults preserve the joint-clip / single-LR behavior of the weak 5u pilot.
+    latent_lro_separate_actor_critic_clip: bool = False
+    latent_lro_z_actor_lr_mult: float = 1.0
     # V6I24 full-policy population diagnostic (DIAGNOSTIC, not PAPER-FAITHFUL):
     # Trains K completely independent policies from the same cloned checkpoint.
     # Each policy has its own actor, critic, optimizer, buffer, and obs-norm.

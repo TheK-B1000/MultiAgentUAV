@@ -101,6 +101,110 @@ def freeze_z_specific_parameters(model: torch.nn.Module) -> int:
     return frozen
 
 
+def _inactive_lro_branch_param(name: str, *, active_z: int, latent_k: int) -> bool:
+    """True if ``name`` is a per-z specialist tensor for an inactive branch."""
+    for sub in (
+        "latent_adapters.",
+        "latent_action_heads.",
+        "latent_branch_trunks.",
+        "latent_action_biases.",
+    ):
+        if sub in name:
+            # e.g. latent_actor.latent_adapters.2.weight
+            try:
+                after = name.split(sub, 1)[1]
+                z_idx = int(after.split(".", 1)[0])
+            except (IndexError, ValueError):
+                return False
+            return int(z_idx) != int(active_z)
+    # strategy_embedding is a single Parameter; freeze via embedding index is
+    # not possible with requires_grad — inactive rows simply receive no grads
+    # under forced-z. Treat the whole embedding as z-specific (active group).
+    del latent_k
+    return False
+
+
+def freeze_inactive_lro_branch_parameters(
+    model: torch.nn.Module,
+    *,
+    active_z: int,
+    latent_k: int,
+) -> int:
+    """Freeze specialist modules for every z ≠ active_z (LRO active-branch-only)."""
+    frozen = 0
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+        if _inactive_lro_branch_param(name, active_z=int(active_z), latent_k=int(latent_k)):
+            param.requires_grad_(False)
+            frozen += 1
+    return frozen
+
+
+def collect_repertoire_optimizer_groups(
+    model: torch.nn.Module,
+    *,
+    learning_rate: float,
+    z_actor_lr_mult: float = 1.0,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Build disjoint Adam param groups for repertoire (z-actor vs critic).
+
+    Assertions:
+      - groups are disjoint
+      - every trainable parameter appears exactly once
+      - frozen/shared parameters appear in neither group
+      - z-specific trainable tensors are in the actor group
+    """
+    z_params: list[torch.nn.Parameter] = []
+    critic_params: list[torch.nn.Parameter] = []
+    other_trainable: list[tuple[str, torch.nn.Parameter]] = []
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue
+        if is_z_specific_actor_param(name):
+            z_params.append(param)
+        elif "critic" in name:
+            critic_params.append(param)
+        else:
+            other_trainable.append((name, param))
+    if other_trainable:
+        names = ", ".join(n for n, _ in other_trainable[:8])
+        raise RuntimeError(
+            "Repertoire optimizer groups found unexpected trainable params "
+            f"(expected only z-specific actor + critic): {names}"
+        )
+    z_ids = {id(p) for p in z_params}
+    c_ids = {id(p) for p in critic_params}
+    if z_ids & c_ids:
+        raise RuntimeError("Repertoire optimizer groups are not disjoint.")
+    trainable = [p for p in model.parameters() if p.requires_grad]
+    covered = z_ids | c_ids
+    if len(covered) != len(trainable) or any(id(p) not in covered for p in trainable):
+        raise RuntimeError(
+            "Repertoire optimizer groups must cover every trainable parameter exactly once."
+        )
+    if not z_params:
+        raise RuntimeError("Repertoire z-actor param group is empty.")
+    if not critic_params:
+        raise RuntimeError("Repertoire critic param group is empty.")
+    base_lr = float(learning_rate)
+    mult = float(z_actor_lr_mult)
+    if mult <= 0.0:
+        raise ValueError(f"latent_lro_z_actor_lr_mult must be > 0, got {mult}")
+    groups = [
+        {"params": z_params, "lr": base_lr * mult, "name": "z_actor"},
+        {"params": critic_params, "lr": base_lr, "name": "critic"},
+    ]
+    audit = {
+        "n_z_actor_params": len(z_params),
+        "n_critic_params": len(critic_params),
+        "z_actor_lr": base_lr * mult,
+        "critic_lr": base_lr,
+        "z_actor_lr_mult": mult,
+    }
+    return groups, audit
+
+
 def _collect_params(model: torch.nn.Module, name_parts: tuple[str, ...]) -> list[torch.nn.Parameter]:
     params: list[torch.nn.Parameter] = []
     for name, param in model.named_parameters():
@@ -163,6 +267,16 @@ class TrainerOptimizerBundle:
         if stage == "repertoire":
             n = freeze_shared_trunk_train_z_only(model)
             print(f"[V6I9 repertoire] Froze {n} shared-trunk params; z-specific modules remain trainable.")
+            if bool(getattr(cfg, "latent_lro_active_branch_only", False)):
+                active_z = int(getattr(cfg, "fixed_latent_strategy_id", 0) or 0)
+                latent_k = int(getattr(model, "latent_k", getattr(cfg, "latent_k", 4)) or 4)
+                n_inactive = freeze_inactive_lro_branch_parameters(
+                    model, active_z=active_z, latent_k=latent_k
+                )
+                print(
+                    f"[V6I26 LRO] Froze {n_inactive} inactive-branch params; "
+                    f"active_z={active_z}."
+                )
         elif stage == "router":
             freeze_actor_parameters(model)
             n = freeze_z_specific_parameters(model)
@@ -171,6 +285,34 @@ class TrainerOptimizerBundle:
             freeze_actor_parameters(model)
         if is_staged_v6i1_curriculum(cfg):
             return cls._build_v6i1(model=model, cfg=cfg, hparams=hparams)
+
+        separate_clip = bool(getattr(cfg, "latent_lro_separate_actor_critic_clip", False))
+        z_lr_mult = float(getattr(cfg, "latent_lro_z_actor_lr_mult", 1.0) or 1.0)
+        use_repertoire_groups = stage == "repertoire" and (
+            separate_clip or abs(z_lr_mult - 1.0) > 1e-12
+        )
+        if use_repertoire_groups:
+            groups, audit = collect_repertoire_optimizer_groups(
+                model,
+                learning_rate=float(hparams.learning_rate),
+                z_actor_lr_mult=z_lr_mult,
+            )
+            shared = torch.optim.Adam(groups, eps=1e-5)
+            print(
+                f"[V6I26 actor-step] repertoire Adam groups: "
+                f"z_actor_lr={audit['z_actor_lr']:.3e} "
+                f"critic_lr={audit['critic_lr']:.3e} "
+                f"n_z={audit['n_z_actor_params']} n_critic={audit['n_critic_params']} "
+                f"separate_clip={separate_clip}"
+            )
+            return cls(
+                primary=shared,
+                actor=shared,
+                critic=shared,
+                router=_maybe_build_latent_router_optimizer(model, hparams=hparams),
+                v6i1_three_optimizer_mode=False,
+            )
+
         shared_params = [p for p in model.parameters() if p.requires_grad]
         shared = torch.optim.Adam(shared_params, lr=float(hparams.learning_rate), eps=1e-5)
         return cls(
@@ -257,7 +399,9 @@ __all__ = [
     "TrainerOptimizerBundle",
     "collect_actor_optimizer_parameters",
     "collect_actor_parameters",
+    "collect_repertoire_optimizer_groups",
     "freeze_actor_parameters",
+    "freeze_inactive_lro_branch_parameters",
     "freeze_shared_trunk_train_z_only",
     "freeze_z_specific_parameters",
     "is_shared_frozen_actor_param",

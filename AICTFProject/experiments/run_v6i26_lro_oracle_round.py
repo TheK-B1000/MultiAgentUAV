@@ -37,11 +37,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from experiments.v6i26_lro_core import (  # noqa: E402
     accept_lro_round,
+    actor_step_ablation_contract,
     behavior_distinctness_summary,
     calibrate_margin_headroom_threshold,
     cell_means_from_episode_df,
     diagnose_lro_reject,
+    evaluate_actor_step_learning_gates,
     lro_manifest,
+    MARGIN_PILOT_LOCKED,
     payoff_tensor_summary,
     select_current_response_target,
     select_margin_response_target,
@@ -53,6 +56,19 @@ from experiments.v6i26_lro_core import (  # noqa: E402
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="V6I26 LRO oracle birth round")
+    p.add_argument(
+        "--preset",
+        default="v6i26",
+        help="Training preset key (v6i26 or v6i26_actor_step for optimizer ablation).",
+    )
+    p.add_argument(
+        "--lock-margin-surface",
+        action="store_true",
+        help=(
+            "Abort unless selected branch/target match the locked OP9|z0 margin "
+            "pilot surface (required for actor-step ablation)."
+        ),
+    )
     p.add_argument(
         "--landscape-scan",
         default="artifacts/v6i26_landscape_scan_op8_12_seed1/landscape_scan.json",
@@ -642,6 +658,58 @@ def main() -> int:
         current_target["branch_override"] = True
         current_target["branch_to_train_index"] = branch
         current_target["branch_to_train_label"] = f"z{branch}"
+
+    preset_key = str(args.preset)
+    is_actor_step = preset_key in {
+        "v6i26_actor_step",
+        "v6i26_actor_step_ablation",
+        "v6i26_lro_actor_step_ablation",
+    }
+    lock_surface = bool(args.lock_margin_surface) or is_actor_step
+    if lock_surface:
+        locked = MARGIN_PILOT_LOCKED
+        selected_target = str(current_target.get("target_context") or "")
+        raw_sel_branch = current_target.get("branch_to_train_index")
+        selected_branch = int(raw_sel_branch) if raw_sel_branch is not None else -1
+        cli_branch = int(args.branch) if args.branch is not None else None
+        mismatches = []
+        if selected_branch != int(locked["branch"]):
+            mismatches.append(
+                f"selector_branch=z{selected_branch} != locked=z{locked['branch']}"
+            )
+        if cli_branch is not None and cli_branch != int(locked["branch"]):
+            mismatches.append(
+                f"cli_branch=z{cli_branch} != locked=z{locked['branch']}"
+            )
+        if selected_target != str(locked["target_context"]):
+            mismatches.append(
+                f"target={selected_target!r} != locked={locked['target_context']!r}"
+            )
+        if mismatches:
+            print("ERROR: locked margin surface mismatch — aborting diagnostic")
+            for m in mismatches:
+                print(f"  - {m}")
+            round_log = {
+                "error": "locked_margin_surface_mismatch",
+                "mismatches": mismatches,
+                "selected": {
+                    "branch": selected_branch,
+                    "target_context": selected_target,
+                    "cli_branch": cli_branch,
+                },
+                "locked": locked,
+            }
+            write_json(out_dir / "ABORT_LOCKED_SURFACE.json", round_log)
+            return 2
+        if cli_branch is None:
+            print(
+                "ERROR: actor-step / locked-surface runs require explicit --branch 0"
+            )
+            return 2
+        branch = int(locked["branch"])
+        current_target["branch_to_train_index"] = branch
+        current_target["branch_to_train_label"] = f"z{branch}"
+
     cells = _mixture_cells(dict(current_target.get("mixture_weights") or {}))
     if not cells:
         print("ERROR: empty current-payoff response mixture")
@@ -656,7 +724,11 @@ def main() -> int:
         contexts=selected_contexts,
     )
     g_before = float(before_selected_summary["G_available_point"])
-    run_tag = f"v6i26_lro_z{branch}_r1_{args.updates}u_seed{args.seed}"
+    run_tag = (
+        f"v6i26_lro_actor_step_z{branch}_r1_{args.updates}u_seed{args.seed}"
+        if is_actor_step
+        else f"v6i26_lro_z{branch}_r1_{args.updates}u_seed{args.seed}"
+    )
 
     target_mass = sum(
         float(w)
@@ -788,7 +860,15 @@ def main() -> int:
     from rl.presets import PRESET_REGISTRY
     from rl.train_ppo import train_ppo
 
-    cfg = PRESET_REGISTRY["v6i26"](PPOConfig())
+    if preset_key not in PRESET_REGISTRY:
+        print(f"ERROR: unknown preset {preset_key!r}")
+        return 2
+    if is_actor_step:
+        contract = actor_step_ablation_contract()
+        write_json(out_dir / "actor_step_ablation_contract.json", contract)
+        print("[actor-step] wrote actor_step_ablation_contract.json", flush=True)
+
+    cfg = PRESET_REGISTRY[preset_key](PPOConfig())
     cfg.seed = int(args.seed) + 17 * branch
     cfg.device = str(args.device)
     cfg.n_envs = int(args.n_envs)
@@ -804,6 +884,13 @@ def main() -> int:
     cfg.training_cell_distribution = tuple(cells)
     cfg.opponent_pool = tuple(opponents)
     cfg.freeze_return_norm_after_load = True
+    round_log["preset"] = preset_key
+    round_log["latent_lro_separate_actor_critic_clip"] = bool(
+        getattr(cfg, "latent_lro_separate_actor_critic_clip", False)
+    )
+    round_log["latent_lro_z_actor_lr_mult"] = float(
+        getattr(cfg, "latent_lro_z_actor_lr_mult", 1.0) or 1.0
+    )
     if int(args.checkpoint_every_updates) > 0:
         cfg.periodic_checkpoint_steps = (
             int(args.checkpoint_every_updates) * int(args.n_envs) * int(args.n_steps)
@@ -824,6 +911,7 @@ def main() -> int:
     metrics_candidates = sorted(out_dir.glob(f"*{run_tag}*metrics*.csv")) + sorted(
         out_dir.glob("*metrics*.csv")
     )
+    learning = None
     if metrics_candidates:
         try:
             learning = summarize_training_learning_signal(
@@ -853,6 +941,67 @@ def main() -> int:
         round_log["error"] = "missing_final_checkpoint"
         write_json(out_dir / "stage1_round_log.json", round_log)
         return 3
+
+    if is_actor_step and learning is not None:
+        print("[actor-step] fixed-batch init→final KL (authority-probe protocol)...", flush=True)
+        try:
+            import subprocess
+
+            probe_out = out_dir / "logit_control_authority_probe.json"
+            cmd = [
+                sys.executable,
+                str(SCRIPT_DIR / "run_v6i26_logit_control_authority_probe.py"),
+                "--init-checkpoint",
+                str(ckpt),
+                "--trained-checkpoint",
+                str(final_ckpt),
+                "--output",
+                str(probe_out),
+                "--branch",
+                str(branch),
+                "--opponent",
+                str(MARGIN_PILOT_LOCKED["opponent"]),
+                "--map",
+                str(MARGIN_PILOT_LOCKED["map"]),
+                "--device",
+                str(args.device),
+                "--seed",
+                str(args.seed),
+                "--n-obs",
+                "128",
+            ]
+            subprocess.run(cmd, check=True, cwd=str(PROJECT_ROOT))
+            probe = json.loads(probe_out.read_text(encoding="utf-8"))
+            fixed_kl = float(
+                (probe.get("birth_graph_vs_trained") or probe.get("checkpoint_compare_init_vs_trained") or {})
+                .get("mean_kl")
+                or 0.0
+            )
+            gates = evaluate_actor_step_learning_gates(
+                learning_signal=learning,
+                fixed_batch_kl=fixed_kl,
+            )
+            round_log["actor_step_learning_gates"] = gates
+            write_json(out_dir / "actor_step_learning_gates.json", gates)
+            print(
+                f"  fixed_batch_kl={fixed_kl:.3e} learning_pass={gates.get('learning_pass')}",
+                flush=True,
+            )
+            if not gates.get("learning_pass"):
+                print(
+                    "[actor-step] LEARNING GATES FAILED — stop optimizer ablation; "
+                    "do not continue to 10u.",
+                    flush=True,
+                )
+                round_log["accept_reject"] = "REJECT"
+                round_log["error"] = "actor_step_learning_gates_failed"
+                write_json(out_dir / "stage1_round_log.json", round_log)
+                # Still run post-eval for documentation unless skipped.
+        except Exception as exc:  # noqa: BLE001
+            round_log["actor_step_probe_error"] = str(exc)
+            write_json(out_dir / "stage1_round_log.json", round_log)
+            print(f"ERROR: actor-step fixed-batch probe failed: {exc}")
+            return 4
 
     if args.skip_post_eval:
         print("Skipping post-eval (--skip-post-eval). Re-run without it to gate.")
