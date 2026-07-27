@@ -1,0 +1,51 @@
+﻿{
+    "protocol":  "scripted_blue_red_first_block_checkpoint",
+    "status":  "STOPPED_UNIVERSALLY_HOSTILE_CELL_WARNING",
+    "stopped_at_utc":  "2026-07-26T17:15:48.2308122Z",
+    "run_dir":  "AICTFProject/artifacts/scripted_style_payoff_matrix_20260726_fixed",
+    "completed_rows":  64,
+    "expected_rows":  896,
+    "evaluated_red_style":  "OP6_IMMEDIATE_DUAL_RUSH",
+    "evaluated_map":  "map_b_split_lane",
+    "matched_episode_seeds":  16,
+    "evidence":  [
+                     {
+                         "blue_style":  "BLUE_RUSH",
+                         "n":  16,
+                         "wins":  0,
+                         "win_rate":  0,
+                         "mean_margin":  -2.3125,
+                         "min_margin":  -3,
+                         "max_margin":  -1
+                     },
+                     {
+                         "blue_style":  "BLUE_TURTLE",
+                         "n":  16,
+                         "wins":  0,
+                         "win_rate":  0,
+                         "mean_margin":  -2.375,
+                         "min_margin":  -3,
+                         "max_margin":  -1
+                     },
+                     {
+                         "blue_style":  "BLUE_SPLIT",
+                         "n":  16,
+                         "wins":  0,
+                         "win_rate":  0,
+                         "mean_margin":  -2.75,
+                         "min_margin":  -3,
+                         "max_margin":  -1
+                     },
+                     {
+                         "blue_style":  "BLUE_ESCORT",
+                         "n":  16,
+                         "wins":  0,
+                         "win_rate":  0,
+                         "mean_margin":  -2.75,
+                         "min_margin":  -3,
+                         "max_margin":  -1
+                     }
+                 ],
+    "interpretation":  "All four scripted blue styles lost all 16 matched episodes on OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane. This is evidence of a universally hostile cell, not crossover. Full pool run stopped before spending remaining budget.",
+    "decision":  "Pause full matrix. Calibrate OP6/map_b or verify scripted-blue strength before treating this pool as a specialization test."
+}

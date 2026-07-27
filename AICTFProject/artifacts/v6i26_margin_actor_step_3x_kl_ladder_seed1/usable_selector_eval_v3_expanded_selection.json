@@ -1,0 +1,47 @@
+{
+  "protocol": "v6i26_usable_selector_eval_v2",
+  "raw_csv": "artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/usable_selector_raw_units_v2.csv",
+  "extra_selection_csv": "artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/usable_selector_extra_selection_units.csv",
+  "n_matched_units": 160,
+  "n_selection_units_primary": 80,
+  "n_selection_units_total": 400,
+  "n_heldout_units": 80,
+  "advantage_summary": {
+    "mean": -0.04375,
+    "std": 0.5952612346692837,
+    "frac_z0_better": 0.09375,
+    "frac_tie": 0.80625
+  },
+  "selection_split_label_balance": {
+    "n_z3_better": 29,
+    "n_z0_better_or_tie": 371
+  },
+  "chosen_selector": "always_z0",
+  "heldout_selector_picks": {
+    "n_picked_z0": 80,
+    "n_picked_z3": 0
+  },
+  "V_z0": 1.1875,
+  "V_z3": 1.2875,
+  "V_legal_selector": 1.1875,
+  "V_hindsight_oracle": 1.3875,
+  "best_fixed": 1.2875,
+  "delta_usable": -0.10000000000000009,
+  "delta_oracle": 0.09999999999999987,
+  "n_held_out_units": 80,
+  "bootstrap_n": 2000,
+  "delta_usable_CI95": [
+    -0.2499999999999999,
+    0.0
+  ],
+  "delta_usable_LCB": -0.2499999999999999,
+  "delta_usable_LCB_gt_0": false,
+  "delta_oracle_CI95": [
+    0.03749999999999987,
+    0.17499999999999982
+  ],
+  "delta_oracle_LCB": 0.03749999999999987,
+  "delta_oracle_LCB_gt_0": true,
+  "promotion_rule": "delta_usable_LCB_gt_0 (policy-distinction gate evaluated separately)",
+  "verdict": "USABLE_REPERTOIRE_HOLD_OR_FAIL"
+}

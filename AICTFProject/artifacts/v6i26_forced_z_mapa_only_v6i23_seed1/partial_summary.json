@@ -1,10 +1,10 @@
 {
   "status": "running",
-  "updated_at_utc": "2026-07-25T20:26:30.567257+00:00",
+  "updated_at_utc": "2026-07-25T20:47:26.847808+00:00",
   "checkpoint": "artifacts/v6i23_population_birth_5u_seed1/final_v6i23_population_birth_5u_seed1_2v2.zip",
-  "completed_condition_count": 5,
+  "completed_condition_count": 28,
   "expected_condition_count": 28,
-  "episode_count": 20,
+  "episode_count": 112,
   "completed_conditions": [
     {
       "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
@@ -33,6 +33,144 @@
     {
       "opponent": "OP7_DEEP_FORTRESS",
       "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 1,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 2,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP7_DEEP_FORTRESS",
+      "latent_z": 3,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 1,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 2,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 3,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "latent_z": 1,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "latent_z": 2,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "latent_z": 3,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "latent_z": 1,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "latent_z": 2,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "latent_z": 3,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 1,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 2,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 3,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP12_LATE_CONVERTER",
+      "latent_z": 0,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP12_LATE_CONVERTER",
+      "latent_z": 1,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP12_LATE_CONVERTER",
+      "latent_z": 2,
+      "map": "map_a_open",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP12_LATE_CONVERTER",
+      "latent_z": 3,
       "map": "map_a_open",
       "episodes": 4
     }

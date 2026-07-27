@@ -18,6 +18,7 @@ from gpu_env._core._bt_profiles import (
     profile_for_opponent_key,
     role_gate_fingerprint,
 )
+from gpu_env._core._scripted_red import bt_dispatch_level_for_opponent_key
 from rl.config.ppo_config import PPOConfig, TrainMode
 from rl.training.config_validation import normalize_and_validate_training_config
 
@@ -100,6 +101,25 @@ class OpponentAliasDisciplineTests(unittest.TestCase):
                 msg=short,
             )
 
+    def test_audited_long_names_route_to_bt_dispatch_levels(self) -> None:
+        expected = {
+            "OP6_IMMEDIATE_DUAL_RUSH": 6,
+            "OP7_DEEP_FORTRESS": 7,
+            "OP8_PROTECTED_CARRIER_ESCORT": 8,
+            "OP9_SPLIT_LANE_FEINT": 9,
+            "OP10_AGGRESSIVE_INTERCEPTOR": 10,
+            "OP11_ADAPTIVE_EXPLOITER": 11,
+            "OP12_LATE_CONVERTER": 12,
+        }
+        for name, level in expected.items():
+            with self.subTest(name=name):
+                self.assertEqual(bt_dispatch_level_for_opponent_key(name), level)
+
+    def test_legacy_non_pool_opponents_do_not_enter_bt_dispatch(self) -> None:
+        self.assertIsNone(bt_dispatch_level_for_opponent_key("OP5"))
+        self.assertIsNone(bt_dispatch_level_for_opponent_key("OP5_RUSHER"))
+        self.assertIsNone(bt_dispatch_level_for_opponent_key("UNKNOWN"))
+
     def test_training_config_accepts_audited_long_names(self) -> None:
         cfg = PPOConfig()
         cfg.mode = TrainMode.OPPONENT_POOL.value
@@ -113,7 +133,13 @@ class OpponentAliasDisciplineTests(unittest.TestCase):
     def test_niche_identities_match_table(self) -> None:
         self.assertEqual(profile_for_level(6).name, "OP6_IMMEDIATE_DUAL_RUSH")
         self.assertFalse(profile_for_level(6).enable_escort)
+        self.assertTrue(profile_for_level(6).enable_counter)
         self.assertTrue(profile_for_level(6).counter_always)
+        self.assertEqual(profile_for_level(6).min_alive_for_defender, 3)
+        self.assertGreaterEqual(profile_for_level(6).lock_attacker, 20)
+        self.assertLessEqual(profile_for_level(6).threat_radius, 2.5)
+        self.assertLessEqual(profile_for_level(6).lane_amplitude_frac, 0.10)
+        self.assertLessEqual(profile_for_level(6).intercept_feasibility_ratio, 0.50)
         self.assertEqual(profile_for_level(7).name, "OP7_DEEP_FORTRESS")
         self.assertTrue(profile_for_level(7).enable_mines)
         self.assertFalse(profile_for_level(7).enable_counter)

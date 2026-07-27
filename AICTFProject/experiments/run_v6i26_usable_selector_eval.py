@@ -259,7 +259,7 @@ def cmd_collect(args: argparse.Namespace) -> int:
 # analyze
 # ---------------------------------------------------------------------------
 
-def _load_raw_units(path: Path) -> tuple[list[tuple[str, str, int]], np.ndarray, np.ndarray, np.ndarray]:
+def _load_raw_units(path: Path, feature_column: str = "c0_json") -> tuple[list[tuple[str, str, int]], np.ndarray, np.ndarray, np.ndarray]:
     units: list[tuple[str, str, int]] = []
     c0_list: list[np.ndarray] = []
     z0_list: list[float] = []
@@ -267,7 +267,7 @@ def _load_raw_units(path: Path) -> tuple[list[tuple[str, str, int]], np.ndarray,
     with path.open(newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             units.append((row["opponent"], row["map"], int(row["episode_index"])))
-            c0_list.append(np.asarray(json.loads(row["c0_json"]), dtype=np.float64))
+            c0_list.append(np.asarray(json.loads(row[feature_column]), dtype=np.float64))
             z0_list.append(float(row["outcome_z0"]))
             z3_list.append(float(row["outcome_z3"]))
     return units, np.stack(c0_list, axis=0), np.asarray(z0_list), np.asarray(z3_list)
@@ -414,22 +414,38 @@ def _paired_bootstrap(
 
 
 def cmd_analyze(args: argparse.Namespace) -> int:
-    units, c0_arr, outcomes_z0, outcomes_z3 = _load_raw_units(Path(args.raw_csv))
-    print(f"Loaded {len(units)} raw matched units from {args.raw_csv}")
+    units, c0_arr, outcomes_z0, outcomes_z3 = _load_raw_units(Path(args.raw_csv), feature_column=args.feature_column)
+    print(f"Loaded {len(units)} raw matched units from {args.raw_csv} (feature_column={args.feature_column!r})")
     advantage = outcomes_z0 - outcomes_z3  # A = R(z0) - R(z3)
     print(f"Advantage A=R(z0)-R(z3): mean={advantage.mean():.4f} std={advantage.std():.4f} "
           f"frac_z0_better={(advantage > 0).mean():.3f} frac_tie={(advantage == 0).mean():.3f}")
 
+    # Held-out split is derived from the PRIMARY raw CSV only, and frozen from
+    # this point on -- extra selection-only data (below) is never eligible to
+    # land in held-out, so the promotion test at the end still evaluates on
+    # exactly the same untouched split as every prior run of this script.
     selection_idx, heldout_idx = _deterministic_split(units)
-    print(f"Selection split: {len(selection_idx)} units | Held-out split: {len(heldout_idx)} units")
+    print(f"Selection split (primary file): {len(selection_idx)} units | "
+          f"Held-out split (frozen): {len(heldout_idx)} units")
 
-    label01_sel = (outcomes_z3[selection_idx] > outcomes_z0[selection_idx]).astype(int)  # 1 = z3 better
-    print(f"Selection split label balance: z3_better={int(label01_sel.sum())} "
-          f"z0_better_or_tie={int(len(label01_sel) - label01_sel.sum())}")
+    c0_sel, z0_sel, z3_sel, adv_sel = c0_arr[selection_idx], outcomes_z0[selection_idx], outcomes_z3[selection_idx], advantage[selection_idx]
+
+    if args.extra_selection_csv:
+        extra_units, extra_c0, extra_z0, extra_z3 = _load_raw_units(Path(args.extra_selection_csv), feature_column=args.feature_column)
+        extra_adv = extra_z0 - extra_z3
+        print(f"Extra selection-only data: {len(extra_units)} units from {args.extra_selection_csv} "
+              f"(added to selection pool only; held-out split above is unaffected)")
+        c0_sel = np.concatenate([c0_sel, extra_c0], axis=0)
+        z0_sel = np.concatenate([z0_sel, extra_z0], axis=0)
+        z3_sel = np.concatenate([z3_sel, extra_z3], axis=0)
+        adv_sel = np.concatenate([adv_sel, extra_adv], axis=0)
+
+    label01_sel = (z3_sel > z0_sel).astype(int)  # 1 = z3 better
+    print(f"Selection pool (after any extra data): n={len(label01_sel)}  "
+          f"z3_better={int(label01_sel.sum())} z0_better_or_tie={int(len(label01_sel) - label01_sel.sum())}")
 
     best_name, best_selector = _select_best_via_nested_cv(
-        c0_arr[selection_idx], label01_sel, advantage[selection_idx],
-        outcomes_z0[selection_idx], outcomes_z3[selection_idx],
+        c0_sel, label01_sel, adv_sel, z0_sel, z3_sel,
         n_folds=int(args.cv_folds), seed=int(args.seed),
     )
     print(f"\nChosen selector (nested CV, selection split only): {best_name}")
@@ -445,8 +461,10 @@ def cmd_analyze(args: argparse.Namespace) -> int:
     report = {
         "protocol": "v6i26_usable_selector_eval_v2",
         "raw_csv": str(args.raw_csv),
+        "extra_selection_csv": str(args.extra_selection_csv) if args.extra_selection_csv else None,
         "n_matched_units": len(units),
-        "n_selection_units": int(len(selection_idx)),
+        "n_selection_units_primary": int(len(selection_idx)),
+        "n_selection_units_total": int(len(label01_sel)),
         "n_heldout_units": int(len(heldout_idx)),
         "advantage_summary": {
             "mean": float(advantage.mean()), "std": float(advantage.std()),
@@ -497,7 +515,14 @@ def _parse_args() -> argparse.Namespace:
     pc.set_defaults(func=cmd_collect)
 
     pa = sub.add_parser("analyze")
-    pa.add_argument("--raw-csv", required=True)
+    pa.add_argument("--raw-csv", required=True, help="Primary raw CSV; defines the frozen held-out split")
+    pa.add_argument("--extra-selection-csv", default=None,
+                     help="Optional additional raw CSV whose units are added to the SELECTION pool only "
+                          "(never eligible for held-out) -- for growing selection data without touching "
+                          "the frozen held-out split from the primary file")
+    pa.add_argument("--feature-column", default="c0_json",
+                     help="CSV column holding the JSON feature vector (c0 for Level 1a, context_json for "
+                          "Level 1b) -- must match between --raw-csv and --extra-selection-csv")
     pa.add_argument("--cv-folds", type=int, default=5)
     pa.add_argument("--bootstrap-samples", type=int, default=2000)
     pa.add_argument("--seed", type=int, default=0)

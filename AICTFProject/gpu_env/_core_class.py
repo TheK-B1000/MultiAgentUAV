@@ -8,6 +8,7 @@ from ._core._mines import _MinesMixin
 from ._core._observations import _ObservationsMixin
 from ._core._rewards import _RewardsMixin
 from ._core._rules import _RulesMixin
+from ._core._scripted_blue_styles import _ScriptedBlueStylesMixin
 from ._core._scripted_red import _ScriptedRedMixin
 from ._core._state import _StateMixin
 from ._core._step import _StepMixin
@@ -18,6 +19,7 @@ class BatchedCTFCore(
     _StateMixin,
     _DynamicsMixin,
     _BTRedMixin,
+    _ScriptedBlueStylesMixin,
     _ScriptedRedMixin,
     _MinesMixin,
     _RulesMixin,

@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-25 (UTC-4)
+> **Last updated:** 2026-07-26 (UTC-4)
 
 ---
 
@@ -185,6 +185,227 @@ overdrive constants are neutralized; separation is intended to come from role
 gates, lock timings, lane usage, mines, escort/intercept/counter logic, and
 adaptive memory for OP11/OP12. Forced-z behavior separation still remains the
 router-readiness gate before making latent-strategy claims.
+
+**OP6 calibration status (2026-07-26):** full scripted-style matrix collection
+is paused. The first OP6/map_b block initially showed OP6 as universally hard,
+so the current work is single-cell calibration rather than pool evaluation.
+The OP6 long-name dispatch path is fixed and covered by tests. BLUE_RUSH,
+BLUE_TURTLE, BLUE_SPLIT, and BLUE_ESCORT trajectory probes now validate their
+intended coarse behaviors.
+
+Current best development screen:
+`artifacts/op6_failure_timeline_dev11_tag_counts_8seed`, OP6/map_b, 8 paired
+development seeds, all four blue styles. TURTLE is the best response but not
+yet an accepted counter: WR 1/8, mean margin -1.125. It is clearly better than
+RUSH (-1.875), ESCORT (-2.125), and SPLIT (-2.625), and delays first red
+capture to ~109.3 decision steps vs ~35-43 for the exposed styles.
+
+The earlier "zero red deaths" interpretation was incomplete because tags do
+not flip `red_alive`. The corrected diagnostic records tag transitions:
+TURTLE averages 7.625 red tags and 2.875 red-carrier tags per episode. The
+remaining OP6 problem is therefore not failed contact mechanics; turtle is
+stopping carriers but OP6 still converts enough after tags/resets/respawns to
+keep payoff slightly negative.
+
+Post-tag counterattack development screen:
+`artifacts/op6_failure_timeline_dev12_turtle_post_tag_counter_8seed` added a
+BLUE_TURTLE-only 20-step counter window after a red-carrier tag or stopped
+dual rush. Agent 0 remains defensive while agent 1 attacks the red flag unless
+the blue flag is threatened again. No OP6, reward, speed, tag, PPO, LRO, or
+router changes were made.
+
+Result: TURTLE remains best and improves from mean margin -1.125 to -0.75 on
+the same 8 paired development seeds. Post-tag counterattack launch and blue
+flag-touch counts both average 2.125 per episode. However, red re-enters blue
+territory about 1.0 step after carrier tags, while blue reaches the red flag
+about 26.3 steps later, so blue still never captures before the next meaningful
+red attack in this screen. The trajectory-style gate still passes: TURTLE keeps
+the highest home-half occupancy and does not collapse into BLUE_RUSH.
+
+Next OP6 step: do not tune contact. The current bottleneck is the post-tag
+window being too short in practice because red pressure resumes immediately.
+Choose one controlled follow-up: either make the turtle counter window trigger
+earlier on first successful carrier stop/flag denial, or add an OP6-specific
+post-failure regroup before the next dual rush. Do not change both in one run.
+Do not resume the full matrix until OP6 passes a held-out payoff trade-off
+check.
+
+OP6 regroup follow-up:
+`artifacts/op6_failure_timeline_dev13_op6_regroup_8seed` added an OP6-only
+post-failure regroup after carrier tags or broad two-attacker stops. That
+implementation overcorrected: TURTLE home-half occupancy fell from about 0.50
+to about 0.30 and the trajectory gate failed. Treat dev13 as invalid for payoff
+interpretation.
+
+`artifacts/op6_failure_timeline_dev13c_op6_carrier_regroup_cooldown_8seed`
+narrows the trigger to red-carrier tags only and prevents renewal while the
+30-step regroup/cooldown is active. This preserves the style gate:
+TURTLE remains the highest home-half style. The result is still not an OP6
+pass: TURTLE mean margin is -0.875, WR 1/8, red first capture about 95.7 steps,
+and blue captures before red reentry in 0.0 post-tag events. Regroup is active
+for TURTLE (about 66.25 steps/episode) and creates blue flag touches during
+regroup, but not enough captures. This is a valid negative/weak result for the
+regroup hypothesis at 30 steps.
+
+Interpretation: the missing factor is probably not the existence of a failed
+rush tempo cost. The counterattacking blue agent still does not convert the
+window efficiently. Next OP6 work should inspect why the TURTLE attacker fails
+to score during regroup before increasing delay or changing OP6 again.
+
+**OP6 held-out confirmation screen (dev12 frozen):**
+`artifacts/op6_failure_timeline_dev12_heldout16_seed361001`, 16 disjoint
+paired seeds, OP6/map_b only. The OP6 regroup experiment was reverted; regroup
+metrics are zero in this artifact. BLUE_TURTLE keeps the intended defensive
+identity: the held-out trajectory gate passes and TURTLE has the highest
+home-half occupancy.
+
+Held-out margins:
+
+```text
+BLUE_TURTLE  WR=0/16   mean_margin=-1.5000
+BLUE_SPLIT   WR=1/16   mean_margin=-2.0625
+BLUE_ESCORT  WR=0/16   mean_margin=-2.1875
+BLUE_RUSH    WR=1/16   mean_margin=-2.4375
+```
+
+TURTLE delays first red capture to about 77.1 steps, versus about 36.4 for
+SPLIT, 47.4 for RUSH, and 52.2 for ESCORT. It also produces many more red
+carrier tags (2.625/episode) than the exposed styles.
+
+Paired margin advantage on the 16 matched seeds:
+
+```text
+TURTLE - RUSH    mean +0.9375, bootstrap 95% CI [ +0.3750, +1.5000 ]
+TURTLE - ESCORT  mean +0.6875, bootstrap 95% CI [ +0.0625, +1.3750 ]
+TURTLE - SPLIT   mean +0.5625, bootstrap 95% CI [ -0.3125, +1.3125 ]
+pooled vs others mean +0.7292, bootstrap 95% CI [ +0.3333, +1.1042 ]
+```
+
+Decision: OP6 is a **provisional defensive niche**, not a fully accepted
+single-cell lock. It passes the intended "TURTLE avoids the larger loss"
+criterion against RUSH and ESCORT and pooled alternatives, but the individual
+TURTLE-vs-SPLIT CI is not above zero at 16 held-out seeds. Do not spend more
+development tuning on OP6 now. Move to OP7 calibration; revisit OP6 only if
+the final pool-level cross-style statistic needs stronger separation.
+
+**OP7 development screen (2026-07-26):**
+`artifacts/op7_failure_timeline_dev1_8seed`, OP7/map_b, 8 paired development
+seeds. Locked intended contract before tuning: OP7_DEEP_FORTRESS should punish
+RUSH and concentrated ESCORT, while SPLIT or patient pressure should be the
+best response because deep concentration leaves lanes/sustained pressure
+vulnerable.
+
+Current result does not show that contract:
+
+```text
+BLUE_TURTLE  WR=0/8  mean_margin=-0.125
+BLUE_RUSH    WR=0/8  mean_margin=-0.250
+BLUE_SPLIT   WR=0/8  mean_margin=-0.375
+BLUE_ESCORT  WR=0/8  mean_margin=-0.750
+```
+
+Margins are too compressed and TURTLE is slightly best instead of SPLIT.
+Paired TURTLE advantages are small: +0.125 vs RUSH, +0.250 vs SPLIT, +0.625
+vs ESCORT. The OP7 trajectory gate also failed one style check because SPLIT
+crossed midfield one step before RUSH on the probe seed, although TURTLE,
+SPLIT, and ESCORT otherwise retained their expected signatures.
+
+Decision: do not run OP7 held-out confirmation yet. OP7 needs calibration.
+First inspect whether OP7 is truly a deep fortress under the audited long-name
+BT path, then make one controlled OP7 decision-structure change that makes
+deep concentration punish direct/concentrated attacks while exposing lanes to
+SPLIT/patient pressure. Do not change blue scripts, rewards, PPO, LRO, or the
+full matrix budget.
+
+`artifacts/op7_failure_timeline_dev2_lane_commit_8seed` tested the first
+OP7-only lane-commitment hysteresis change. This attempt is rejected and was
+reverted. It made OP7 broadly exploitable instead of selectively vulnerable:
+RUSH WR 8/8 mean margin +3.0, ESCORT WR 8/8 mean margin +2.875, SPLIT WR 8/8
+mean margin +2.625, TURTLE WR 5/8 mean margin +1.125. The trajectory gate also
+failed after this change: TURTLE no longer had highest home-half occupancy and
+SPLIT no longer had greatest lateral separation on the probe seed.
+
+Interpretation: freezing one defender as a flag anchor plus one lane defender
+removed too much fortress coverage. The next OP7 change, if attempted, should
+not disable normal fortress defense globally. It should first instrument red
+lane assignment/retargeting under SPLIT, then introduce a narrower lateral
+retarget delay only after a single-lane overcommit is observed.
+
+`artifacts/op7_baseline_lane_audit_dev1b_8seed` reran unchanged OP7 with
+defender-assignment/open-lane telemetry. This audit points away from "no lane
+opening exists." SPLIT creates substantial open-lane opportunity:
+
+```text
+BLUE_SPLIT uncovered-lane steps:          40.375 mean
+BLUE_SPLIT max consecutive uncovered:     10.5 mean
+BLUE_SPLIT uncovered progress past mid:   4.11 cells mean
+BLUE_SPLIT flag touch during uncovered:   6.625 mean
+BLUE_SPLIT min blue0/red-flag distance:   0.0
+BLUE_SPLIT min blue1/red-flag distance:   0.0
+```
+
+Red target telemetry also shows frequent same-blue targeting under SPLIT
+(`both_red_target_same_blue_steps` about 62.5), so OP7 already creates the
+structural opening the contract wanted. SPLIT fails despite reaching the flag
+area and touching during uncovered windows. Therefore the next OP7 change
+should not weaken OP7 further or add retarget delay yet. The immediate next
+diagnostic should inspect why BLUE_SPLIT fails to convert existing openings:
+carrier pickup/capture contact timing, whether the free attacker is tagged
+after touching, whether return routing crosses into the defended lane, and
+whether both split agents collapse after flag contact.
+
+`artifacts/op7_split_touch_funnel_dev1_8seed` reran unchanged OP7 with a
+BLUE_SPLIT touch-to-capture funnel and an event-level
+`split_pickup_events.csv`. This clears the first conversion stage: SPLIT is not
+merely grazing the flag. It averaged 8.125 distinct flag touches and 7.0
+successful pickups per episode, with about 1.17 touches per pickup. The failure
+is after possession: capture-given-pickup was 0.0, carrier lifetime averaged
+about 6.45 steps, max return progress averaged about 4.46 cells, and carrier
+loss was almost always tag (`53/56` pickup events; 3 other losses). Red
+retarget latency after pickup was effectively immediate (mean about 0.10
+steps). Separation also shrank after pickup (`8.72` before vs `6.03` after),
+with non-carrier support/convergence present in several pickups.
+
+Interpretation: OP7 should not be weakened. The fortress already exposes the
+opposite lane and SPLIT converts touches into pickups. The bottleneck is
+BLUE_SPLIT post-pickup escape/support behavior under immediate red retargeting.
+The next controlled change, if made, should be BLUE_SPLIT-only: preserve lane
+separation after pickup, route the carrier through the least-defended legal
+return lane, and make the non-carrier distract/intercept rather than collapse
+into escort. Keep OP7, rewards, PPO, LRO, and the full matrix blocked.
+
+`artifacts/op7_split_post_pickup_route_lock_dev2_8seed` tested that
+BLUE_SPLIT-only first change: at pickup, the carrier scores upper/lower return
+lanes by defender clearance and path length, locks the selected route briefly,
+and the non-carrier remains on the opposite lane instead of converging into an
+escort. OP7, rewards, tag rules, PPO, LRO, and the other blue styles were
+unchanged.
+
+Compared with the unchanged OP7 funnel, the intended extraction metrics moved:
+
+```text
+SPLIT mean margin:              -0.375 -> +1.000
+SPLIT WR:                        0/8   -> 5/8
+capture given pickup:            0.000 -> 0.160
+carrier lifetime after pickup:   6.45  -> 9.64 steps
+max return progress:             4.46  -> 6.64 cells
+carrier tag losses:              53/56 -> 45/57 events
+mean separation after pickup:    6.03  -> 8.89
+```
+
+RUSH, TURTLE, and ESCORT margins stayed unchanged in this matched run, so the
+payoff improvement is localized to SPLIT extraction rather than a general OP7
+weakening. However, the existing single-seed trajectory gate still reports
+overall FAIL because SPLIT becomes the most aggressive style by the gate's
+early aggregate after pickups start. The style-specific checks that matter for
+this change pass: SPLIT remains the most laterally separated style and ESCORT
+remains the closest carrier-teammate style.
+
+Decision: route-lock extraction is a promising OP7/SPLIT development result,
+not a held-out acceptance. Before confirming OP7, either update the trajectory
+gate to separate pre-pickup aggression from post-pickup extraction, or inspect
+matched trajectory traces to ensure SPLIT still has two-lane identity before
+flag pickup. Do not weaken OP7.
 
 ### 3.0 v6i9 feedforward running-mean arc-credit A/B (IMPLEMENTED, PENDING_SMOKE)
 
@@ -2413,8 +2634,12 @@ remain valid; re-scan if map_a cells should enter target selection.
 **Map_a measurement status (2026-07-25, seed-1, infrastructure unlock only):**
 
 * Compat regression `artifacts/v6i26_map_a_obs_compat_regression_seed1.json`:
-  **PASS** — 8ch both maps; map_a obstacle plane exactly zero; map_b nonzero;
-  no CNN shape-skips; CNN weights identical across map_a/map_b loaders.
+  **PASS** (after fixing diagnostic wrapper access:
+  `CustomPPOInferencePolicy.model.state_dict()`, not the wrapper). 8ch both
+  maps; map_a obstacle plane exactly zero; map_b nonzero; no CNN shape-skips;
+  CNN weights identical across map_a/map_b loaders. First attempt FAILED only
+  due to that script bug — not an obs-schema failure. Runtime landscape loads
+  also report Behavioral-equivalence PASS with no shape-skipped CNN keys.
 * Archive landscape `artifacts/v6i26_landscape_scan_mapa_only_seed1/`:
   competent policies (v6i24 balanced/failure_cells, v6i23) are **winrate=1.0
   on all 7 OP cells**; `G_available_point≈0.008`, `niche_signal=false`,
@@ -2427,6 +2652,36 @@ remain valid; re-scan if map_a cells should enter target selection.
 * Next (running): forced-z z0..z3 on map_a for V6I23; then three-map archive
   scan `artifacts/v6i26_landscape_scan_mapa_seed1/`. **No training** until
   crossover or a calibrated uncovered weakness is measured.
+
+**Forced-z V6I23 on map_a only** (`artifacts/v6i26_forced_z_mapa_only_v6i23_seed1/`,
+4 eps/cell, seed-1):
+
+* Winrates mostly 1.0; OP6/OP9 at 0.75 for some z.
+* **z0 and z3 are payoff-identical** on every OP cell (same WR and margin).
+  z1≈z2 and slightly better on OP6/OP9. No z0↔z3 crossover.
+* Stage-C Gate1 FAIL (oracle WR = best-fixed WR = 96.4%); margin gap ≈0.036.
+* Unique best-z across cells: `{0,1}` only; z3 never uniquely best.
+* Behavior pair mean ≈0.093 (some action distinction; not payoff complementarity).
+* Decision: **do not launch birth on map_a**; **do not claim selector unlock
+  from z0/z3** on this surface. Soft z0 vs z1 preference on OP6/OP9 is
+  screening-only (4 eps). Three-map archive scan still running for
+  cross-geometry candidate surface.
+
+**Three-map archive scan complete** (`artifacts/v6i26_landscape_scan_mapa_seed1/`,
+seed-1, 4 eps/cell):
+
+* Formal decision string: `MANUFACTURE_VIA_LRO_STAGE1` (archives not harvestable;
+  cross-fitted Δ negative, `gate_cross_fitted_oracle=false`).
+* **map_a_open:** strong policies saturated — `balanced` and `v6i23` mean WR=1.0
+  on all 7 OP cells; all best-vs-second margins `<0.1`. Useful for
+  generalization / selector geometry, **not** an LRO birth curriculum.
+* **map_b_split_lane:** real headroom — 5/7 cells have margin ≥0.1;
+  `failure_cells` collapses (mean WR≈0.11); `balanced` vs `high_variance`
+  unique-best split. This is where archive niches live.
+* **map_b_split_lane_v2:** milder; margins mostly tiny; balanced often best.
+* Map preference reversals exist (who is argmax changes map_a↔map_b) but
+  map_a side is near-tied among strong policies — do not treat as causal
+  complementarity for birth. **No training launched from this unlock.**
 
 **Locked headline claim (replaces spontaneous emergence):**
 
@@ -3379,6 +3634,48 @@ two consecutive updates.
 
 ## 6. Recommended next experiments (priority-ordered)
 
+### 0. Pool admissibility screen (NEW 2026-07-26) — before any more latent GPU
+
+**Status:** analysis module + blue style stubs + collector implemented; matrix
+run pending.
+
+* Module: `experiments/payoff_matrix_analysis.py`
+* Collector: `experiments/run_scripted_style_payoff_matrix.py`
+* Blue styles: `gpu_env/_core/_scripted_blue_styles.py`
+* Gate: cross-fitted `delta_pool = V_selective − V_best_fixed`, LCB > 0
+  (clustered bootstrap; same frozen-selector discipline as branch
+  `delta_oracle`). In-sample max alone is winner's-curse biased and must
+  not be used.
+* Pinned by `tests/test_payoff_matrix_analysis.py` (saturated FAIL /
+  counter-structure LCB PASS).
+* Next: run the matched-seed scripted-blue × scripted-red matrix
+  (`seed = f(red, map, ep)` only). Run the old LRO pool and any candidate
+  counter-pool through the same collector. Do not retrain latents until a pool
+  clears `delta_pool_lcb_positive`.
+* Scripted WR band target 0.35–0.55; re-check saturation after first
+  trained-blue run.
+
+**First collector run checkpoint (2026-07-26):**
+`artifacts/scripted_style_payoff_matrix_20260726_fixed/FIRST_BLOCK_CHECKPOINT.json`
+
+The full 896-row matrix was stopped after the first red/map block reached 16
+fully matched seeds:
+
+```text
+red/map = OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane
+BLUE_RUSH    WR=0/16  mean_margin=-2.3125
+BLUE_TURTLE  WR=0/16  mean_margin=-2.3750
+BLUE_SPLIT   WR=0/16  mean_margin=-2.7500
+BLUE_ESCORT  WR=0/16  mean_margin=-2.7500
+```
+
+Verdict: collector health PASS, crossover evidence none, OP6/map_b is a
+`UNIVERSALLY_HOSTILE_CELL_WARNING`. This is a calibration problem, not a pool
+admissibility result. Do not spend the remaining matrix budget until OP6/map_b
+is weakened or the scripted-blue controllers are verified against easier cells.
+
+---
+
 ### V6I2 staged gate protocol (frozen — confirmatory run pending)
 
 | Step | Status |
@@ -3489,6 +3786,124 @@ gate fingerprint `9ef168d941f046fb`).
    comparison.
 9. **v5i6/v5i7 multi-seed.** Add seeds 1 and 2 only after seed 0 passes the
    router-quality and no-loss checks.
+
+### Scripted-style opponent-pool calibration (2026-07-26)
+
+The 896-row scripted-blue x scripted-red payoff-matrix run remains stopped
+after the first OP6/map_b block. The initial clean matched block showed
+`OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane` was universally hostile:
+16 matched episode seeds x four blue styles, all four styles at 0/16 wins,
+with BLUE_RUSH only least negative by margin. This is calibration evidence,
+not crossover evidence.
+
+Follow-up calibration found a dispatch bug: canonical audited long names such
+as `OP6_IMMEDIATE_DUAL_RUSH` were not routed through the BT profile path in
+`gpu_env/_core/_scripted_red.py`; the matrix was exercising the legacy
+scripted fallback for those names. Dispatch now canonicalizes opponent keys
+and routes OP6-OP12 through BT targets. Focused tests passed:
+`python -m unittest AICTFProject.tests.test_bt_strategic_niches AICTFProject.tests.test_scripted_style_payoff_matrix`.
+
+The blue probe trajectory gate now passes on
+`OP6_IMMEDIATE_DUAL_RUSH x map_b_split_lane`: RUSH crosses midfield first,
+TURTLE has highest home-half occupancy, SPLIT has greatest y-separation, and
+ESCORT has smallest carrier-teammate distance.
+
+Current OP6 development rerun:
+`artifacts/scripted_style_op6_mapb_calibration_dev4_probe_fixed`.
+Result: OP6/map_b still fails the intended trade-off. All four styles remain
+0/16 wins; mean margins were BLUE_RUSH -2.1875, BLUE_ESCORT -2.3750,
+BLUE_SPLIT -2.6250, BLUE_TURTLE -2.8125. The next step is still OP6
+calibration only. Do not resume the full pool, do not train PPO/LRO, and do
+not treat this as evidence of crossover.
+
+**OP6 failure timeline diagnostic:**
+`artifacts/op6_failure_timeline_dev1` ran the same 16 paired episode seeds
+across all four scripted-blue styles. Classification:
+`CASE_1_TURTLE_CANNOT_STOP_INITIAL_RUSH`.
+
+Key turtle evidence: mean first red midfield crossing 5.75 steps, both red
+agents in blue territory 8.375, first red flag touch 14.25, first red capture
+40.375. Mean blue counterattack start was 15.6875 and first blue flag touch
+22.4375, but red deaths, blue deaths, red carrier deaths, and blue carrier
+deaths were all exactly 0.0 across the block. The failure is not failed-rush
+recovery yet; turtle is not mechanically intercepting the initial dual rush.
+
+Next OP6 work should tune the first-rush interception geometry/combat
+opportunity before adding recovery-window logic. The intended contract remains:
+OP6 punishes BLUE_RUSH and BLUE_ESCORT, is countered by BLUE_TURTLE, and is
+mixed against BLUE_SPLIT.
+
+**Pre-touch interception geometry follow-up:**
+`artifacts/op6_failure_timeline_dev2_intercept_geometry` added minimum
+red-to-blue distance, one-/two-defender tag-range steps, turtle target counts,
+and path-crossing counts before first red flag touch. Turtle's closest
+red-to-blue distance was meaningful (`mean_pre_touch_min_any_red_to_blue` about
+1.30 cells), but two-defender tag pressure was 0.0 steps and path crossing was
+near-zero. This separated "not close enough to matter" from "combat trigger
+not sustained."
+
+`artifacts/op6_failure_timeline_dev4_turtle_collapse_8seed` tested a
+development turtle-only layered-defense probe that collapses both defenders on
+the urgent inbound rusher. The trajectory gate still passed and
+two-defender pressure increased to about 3.375 pre-touch steps, with closest
+distance about 0.73 cells, but red deaths and carrier deaths stayed 0.0 and
+TURTLE remained 0/8. The current failure is therefore sustained-contact
+duration under the two-defender tag-channel rule, not absence of proximity.
+
+An OP6 direct-carrier-return experiment was also tested in
+`artifacts/op6_failure_timeline_dev5_op6_direct_return_8seed`; it worsened
+TURTLE (`mean_margin=-3.0`) and was reverted. Do not use that as the next OP6
+tuning direction.
+
+**Tag-mechanics isolation:**
+`tests/test_aquaticus_tag_mechanics.py` now micro-tests the actual Aquaticus
+tag channel. Two blue defenders held in range of one target red kill exactly
+after 3 consecutive decision steps; moving one defender out resets the red tag
+accumulator to 0.0. Focused validation:
+`python -m unittest AICTFProject.tests.test_aquaticus_tag_mechanics AICTFProject.tests.test_bt_strategic_niches AICTFProject.tests.test_scripted_style_payoff_matrix`
+passed 15 tests.
+
+`artifacts/op6_failure_timeline_dev7_exact_tag_pressure_8seed` aligned the
+diagnostic pressure definition with the game rule (`blue_can_tag`,
+`red_targetable`, and tag radius). Current turtle gets proximity but not enough
+consecutive qualifying pressure: mean max consecutive dual-defender contact is
+1.625 steps, while the kill threshold is 3 consecutive steps; mean max red tag
+accumulator is about 0.43/0.56 seconds for red0/red1, below the 1.0 second
+threshold. Red deaths remain 0.0. Next controller work should add target-lock
+hysteresis and a true pinch that lowers relative velocity, rather than further
+generic proximity tuning.
+
+`artifacts/op6_failure_timeline_dev11_tag_counts_8seed` corrected the tag
+measurement. The target-lock/pinch fix produced real defensive stops:
+TURTLE averaged 7.625 red tags and 2.875 red-carrier tags per episode, despite
+`red_alive` never flipping. TURTLE remained the best probe on the 8 development
+seeds (WR 1/8, mean margin -1.125), while RUSH/ESCORT/SPLIT stayed 0/8 with
+worse margins. Red first capture was delayed to about 109 steps for TURTLE
+versus about 35-44 steps for the exposed styles.
+
+`artifacts/op6_failure_timeline_dev12_turtle_post_tag_counter_8seed` tested a
+single blue-side post-tag counter window. TURTLE improved to mean margin -0.75
+on the same seeds and still passed the style trajectory gate. The new
+post-tag metrics show the window is real but too late to finish: TURTLE
+averages 2.125 post-tag counter launches and 2.125 post-tag blue flag touches
+per episode, but red re-enters blue territory after about 1.0 step while blue
+needs about 26.3 steps to touch the red flag. Blue captures before renewed red
+pressure in 0.0 post-tag events.
+
+Treat this as an emerging OP6 payoff niche, not OP6 acceptance. The remaining
+problem is no longer contact or first counter launch; it is the size of the
+failed-rush exploitation window.
+
+`artifacts/op6_failure_timeline_dev13c_op6_carrier_regroup_cooldown_8seed`
+tested the OP6-specific failed-rush regroup with carrier-stop-only triggering,
+no active-window renewal, and a 30-step cooldown. The style trajectory gate
+passed, but payoff did not improve beyond dev12: TURTLE mean margin was -0.875
+with WR 1/8. This does not support making the regroup window larger yet. The
+next diagnostic should inspect TURTLE's counterattacker path/cancellation and
+red-flag approach during regroup.
+
+The regroup code was reverted after dev13c. Frozen OP6 status is now based on
+the dev12 behavior plus the held-out confirmation screen above.
 
 ---
 

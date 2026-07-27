@@ -63,6 +63,7 @@ class _CoreStateMixin:
         self.rules_profile = str(cfg.rules_profile).upper()
 
         self.blue_scripted = False
+        self._blue_style_id = 0  # 0 = no style (legacy generic blue brain); see _scripted_blue_styles.py
 
         self._build_macro_targets()
         self._alloc_state()

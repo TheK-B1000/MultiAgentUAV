@@ -173,6 +173,8 @@ BT_PROFILES: Dict[int, BTProfile] = {
         intercept_feasibility_ratio=0.85,
     ),
     # OP6_TURTLE - Immediate dual rush (historical tag; identity = dual rush).
+    # Matchup contract: punish exposed blue home flags, but leave red rear
+    # defense thin enough that a disciplined turtle/intercept counter can matter.
     6: _profile(
         6,
         "OP6_IMMEDIATE_DUAL_RUSH",
@@ -185,16 +187,16 @@ BT_PROFILES: Dict[int, BTProfile] = {
         enable_2v1=False,
         enable_mines=False,
         min_alive_for_defender=3,
-        lock_attacker=3,
-        lock_intercept=4,
+        lock_attacker=24,
+        lock_intercept=18,
         lock_defender=4,
-        lock_counter=6,
+        lock_counter=24,
         lock_flag_retr=5,
         defender_zone_frac=0.35,
-        threat_radius=7.0,
-        lane_amplitude_frac=0.42,
+        threat_radius=2.0,
+        lane_amplitude_frac=0.08,
         intercept_block_base=0.40,
-        intercept_feasibility_ratio=0.95,
+        intercept_feasibility_ratio=0.45,
         adaptive_enabled=False,
     ),
     # OP7_SWITCHER - Deep fortress (historical tag; identity = fortress).

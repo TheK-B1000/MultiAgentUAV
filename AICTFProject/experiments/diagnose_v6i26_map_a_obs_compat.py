@@ -135,10 +135,23 @@ def main() -> int:
 
         # map_b behavior unchanged: both loaders see identical 8-ch spaces, so
         # observation-CNN stems must match exactly (no map-dependent remapping).
+        def _unwrap_nn_module(pol):
+            """CustomPPOInferencePolicy wraps the torch module at ``.model``."""
+            if hasattr(pol, "state_dict") and callable(getattr(pol, "state_dict")):
+                return pol
+            inner = getattr(pol, "model", None)
+            if inner is not None and hasattr(inner, "state_dict"):
+                return inner
+            inner = getattr(pol, "policy", None)
+            if inner is not None and hasattr(inner, "state_dict"):
+                return inner
+            raise TypeError(
+                f"cannot unwrap torch module from {type(pol).__name__}; "
+                "expected CustomPPOInferencePolicy.model"
+            )
+
         def _cnn_weights(pol):
-            model = getattr(pol, "model", None)
-            if model is None:
-                model = getattr(pol, "policy", pol)
+            model = _unwrap_nn_module(pol)
             out = {}
             for name, tensor in model.state_dict().items():
                 if "cnn" in name.lower() or "conv" in name.lower():
