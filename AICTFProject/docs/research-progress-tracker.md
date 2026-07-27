@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-26 (UTC-4)
+> **Last updated:** 2026-07-27 (UTC-4)
 
 ---
 
@@ -707,6 +707,11 @@ looking for RUSH and ESCORT niches. If neither appears, redesign specific
 opponents to punish concentrated pushes (favor RUSH) and punish split
 pressure (favor ESCORT) rather than accepting a two-style pool. A style
 should become a specialist somewhere, not just lose everywhere it's tried.
+Precise gate: require four protected style niches before launching the K=4
+latent-birth campaign. Diagnostics may continue, but no expensive K=4
+PPO/LRO birth campaign starts until TURTLE, SPLIT, RUSH, and ESCORT each have
+at least one statistically supported protected niche and the complete pool has
+`LCB(delta_pool) > 0`.
 
 **OP11 development screen (2026-07-27):** `artifacts/op11_dev1_8seed`,
 OP11_ADAPTIVE_EXPLOITER/map_b_split_lane, 8 paired development seeds
@@ -725,6 +730,19 @@ reallocate quickly enough to cover BOTH SPLIT lanes, which would finally
 break SPLIT's run. If SPLIT's margin collapses here while nothing else picks
 it up, that supports redesigning OP11/12 deliberately per the direction
 above, rather than continuing to search for a natural non-SPLIT niche.
+
+OP11 is now treated as DEVELOPMENT / TUNING ONLY for a missing protected
+style, preferably ESCORT. If SPLIT remains best, do not accept OP11 as another
+SPLIT matchup; tune OP11 to punish split play and expose an escort-compatible
+weakness before held-out confirmation.
+
+**OP12 development target (2026-07-27):** OP12_LATE_CONVERTER is the current
+RUSH-candidate. Locked hypothesis before tuning: OP12's late conversion should
+punish slow, passive, or over-defensive blue styles; its intended exploitable
+weakness is early tempo before the late conversion loop stabilizes. Candidate
+best response is BLUE_RUSH. This is DEVELOPMENT / TUNING ONLY until a frozen
+OP12 variant clears held-out paired seeds with BLUE_RUSH uniquely best and
+beating SPLIT by a positive paired CI.
 `v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases
 `v6i9_arc_credit_feedforward`,
 `plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`),
@@ -3951,22 +3969,55 @@ two consecutive updates.
 
 ### 0. Pool admissibility screen (NEW 2026-07-26) — before any more latent GPU
 
-**Status:** analysis module + blue style stubs + collector implemented; matrix
-run pending.
+**Status:** analysis module + collector live; OP6–OP10 joint acceptance matrix
+queued behind OP11/OP12 calibration.
+
+**Exact question (locked 2026-07-27):**
+
+> Do OP6–OP10 force blue to need different strategies, or can one strategy
+> beat almost all of them?
+
+Judge by **blue best-response diversity**, not red BT structural diversity.
+Ideal sketch (not required 1:1): OP6→TURTLE, OP7→RUSH, OP8→ESCORT, OP9→SPLIT,
+OP10→another protected style. Failure pattern that rejects the pool for K=4:
+
+```text
+OP6 → TURTLE
+OP7–OP10 → SPLIT
+```
+
+That supports only two useful niches regardless of how different the BTs look.
+
+**Acceptance test:**
+
+1. Run `BLUE_RUSH`, `BLUE_TURTLE`, `BLUE_SPLIT`, `BLUE_ESCORT` × OP6–OP10.
+2. Paired seeds: `seed = f(red, map, ep)` only.
+3. Report win margin, WR, ties; unique best response per red.
+4. Every blue style must be uniquely best in ≥1 context (`all_blues_protected`).
+5. Cross-fitted `delta_pool = V_selective − V_best_fixed`; require `LCB > 0`.
+6. Command shape:
+
+```text
+python experiments/run_scripted_style_payoff_matrix.py \
+  --out-dir artifacts/op6_op10_br_diversity_acceptance_16seed \
+  --episodes 16 --base-seed 661001 \
+  --reds OP6_IMMEDIATE_DUAL_RUSH OP7_DEEP_FORTRESS \
+         OP8_PROTECTED_CARRIER_ESCORT OP9_SPLIT_LANE_FEINT \
+         OP10_AGGRESSIVE_INTERCEPTOR \
+  --maps map_b_split_lane --device cuda --max-decision-steps 240 \
+  --n-boot 2000 --analysis-seed 17 --min-br-diversity 4 --progress-every 8
+```
 
 * Module: `experiments/payoff_matrix_analysis.py`
 * Collector: `experiments/run_scripted_style_payoff_matrix.py`
 * Blue styles: `gpu_env/_core/_scripted_blue_styles.py`
-* Gate: cross-fitted `delta_pool = V_selective − V_best_fixed`, LCB > 0
+* Gate: cross-fitted `delta_pool` LCB > 0 **and** `all_blues_protected`
   (clustered bootstrap; same frozen-selector discipline as branch
   `delta_oracle`). In-sample max alone is winner's-curse biased and must
-  not be used.
+  not be used. `--min-br-diversity 4` for the four-style repertoire claim.
 * Pinned by `tests/test_payoff_matrix_analysis.py` (saturated FAIL /
-  counter-structure LCB PASS).
-* Next: run the matched-seed scripted-blue × scripted-red matrix
-  (`seed = f(red, map, ep)` only). Run the old LRO pool and any candidate
-  counter-pool through the same collector. Do not retrain latents until a pool
-  clears `delta_pool_lcb_positive`.
+  counter-structure LCB PASS / two-niche SPLIT pattern FAIL).
+* Do not retrain latents until a pool clears these gates.
 * Scripted WR band target 0.35–0.55; re-check saturation after first
   trained-blue run.
 

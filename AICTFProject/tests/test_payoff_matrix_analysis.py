@@ -57,14 +57,44 @@ class PayoffMatrixCrossfitGateTests(unittest.TestCase):
             seed=0,
             wr_band=(0.0, 1.0),
             max_tie_rate=1.0,
+            min_br_diversity=4,
         )
         self.assertTrue(rep.gates["delta_pool_lcb_positive"])
         self.assertGreater(rep.delta_pool_lcb, 0.0)
         self.assertGreaterEqual(rep.br_diversity, 2)
+        self.assertTrue(rep.gates["all_blues_protected"])
+        self.assertEqual(rep.unprotected_blues, [])
         self.assertIsNone(rep.dominating_blue_style)
         # Full admissible may still fail no_degenerate_red depending on noise;
-        # the load-bearing gate is delta_pool_lcb_positive.
+        # the load-bearing gates are delta_pool_lcb_positive + all_blues_protected.
         self.assertTrue(rep.gates["delta_pool_lcb_positive"])
+
+    def test_two_niche_split_pattern_fails_all_blues_protected(self) -> None:
+        # OP6→TURTLE, OP7–OP10→SPLIT: only two useful niches.
+        n = 32
+        cells = {}
+        reds = ("op6", "op7", "op8", "op9", "op10")
+        for r in reds:
+            turtle = 1.0 if r == "op6" else -0.5
+            split = -0.5 if r == "op6" else 1.0
+            cells[("BLUE_TURTLE", r)] = [turtle] * n
+            cells[("BLUE_SPLIT", r)] = [split] * n
+            cells[("BLUE_RUSH", r)] = [-1.0] * n
+            cells[("BLUE_ESCORT", r)] = [-1.0] * n
+        rep = analyze_pool(
+            cells,
+            n_boot=200,
+            seed=1,
+            wr_band=(0.0, 1.0),
+            max_tie_rate=1.0,
+            min_br_diversity=4,
+        )
+        self.assertEqual(rep.br_diversity, 2)
+        self.assertFalse(rep.gates["all_blues_protected"])
+        self.assertIn("BLUE_RUSH", rep.unprotected_blues)
+        self.assertIn("BLUE_ESCORT", rep.unprotected_blues)
+        self.assertFalse(rep.gates["best_response_diversity"])
+        self.assertFalse(rep.admissible)
 
     def test_dominating_row_forces_zero_structure(self) -> None:
         # rush strictly dominates every column.

@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """Pool admissibility analysis for the scripted-blue × scripted-red payoff matrix.
 
-Answers one question about an opponent pool before any latent / router / PPO
-work is spent on it:
+Answers one exact question about an opponent pool before any latent / router /
+PPO work is spent on it:
 
-    Does this pool make a strategy REPERTOIRE economically necessary?
+    Do these reds force blue to need different strategies, or can one
+    strategy beat almost all of them?
+
+Structural BT diversity is not enough. Opponents are good for K distinct
+latents only when the scripted-blue payoff matrix shows real crossover:
+different blues uniquely best against different reds, and
+``LCB(delta_pool) > 0``.
 
 Headline statistic ``delta_pool`` — pool-level analogue of the V6I26 branch
 ``delta_oracle`` gate:
@@ -85,6 +91,7 @@ class PoolReport:
     best_response_by_red: dict[str, str]
     br_diversity: int
     dominating_blue_style: str | None
+    unprotected_blues: list[str]
     degenerate_red_styles: list[str]
 
     best_blue_overall_wr: float
@@ -245,6 +252,7 @@ def analyze_pool(
 
     br = {r: blues[int(np.argmax(per_red[r].mean(axis=1)))] for r in reds}
     br_diversity = len(set(br.values()))
+    unprotected = [b for b in blues if b not in set(br.values())]
 
     mbar = np.column_stack([per_red[r].mean(axis=1) for r in reds])
     dominating = None
@@ -274,10 +282,14 @@ def analyze_pool(
     )
     tie_rate = float(np.mean([(per_red[r] == 0).mean() for r in reds]))
 
+    # Judge by blue best-response diversity, not red BT structural diversity.
+    # For K latent specialists, every blue style must be uniquely best somewhere
+    # and LCB(delta_pool) must clear zero (oracle gain over best fixed style).
     gates = {
         "delta_pool_lcb_positive": bool(float(lo) > 0.0),
         "no_dominating_blue_style": dominating is None,
         "best_response_diversity": br_diversity >= int(min_br_diversity),
+        "all_blues_protected": len(unprotected) == 0,
         "best_blue_wr_in_band": bool(wr_band[0] <= best_blue_wr <= wr_band[1]),
         "tie_rate_under_threshold": bool(tie_rate <= float(max_tie_rate)),
         "no_degenerate_red_styles": len(degenerate) == 0,
@@ -301,6 +313,7 @@ def analyze_pool(
         best_response_by_red=br,
         br_diversity=int(br_diversity),
         dominating_blue_style=dominating,
+        unprotected_blues=list(unprotected),
         degenerate_red_styles=list(degenerate),
         best_blue_overall_wr=best_blue_wr,
         tie_rate=tie_rate,
@@ -349,6 +362,11 @@ def format_report(rep: PoolReport) -> str:
     lines.append(f"  distinct best responses: {rep.br_diversity}/{len(rep.reds)}")
     if rep.dominating_blue_style:
         lines.append(f"  DOMINATING blue style: {rep.dominating_blue_style}")
+    if rep.unprotected_blues:
+        lines.append(
+            "  unprotected blues (never uniquely best): "
+            + ", ".join(rep.unprotected_blues)
+        )
     if rep.degenerate_red_styles:
         lines.append(f"  degenerate red presets: {rep.degenerate_red_styles}")
     lines.append("")
@@ -363,7 +381,11 @@ def format_report(rep: PoolReport) -> str:
     lines.append("")
     lines.append(f"POOL ADMISSIBLE: {rep.admissible}")
     if not rep.admissible:
-        lines.append("  -> iterate the red presets. Do not train latents on this pool.")
+        lines.append(
+            "  -> iterate the red presets until blue best-response diversity "
+            "clears (all blues protected + LCB(delta_pool)>0). "
+            "Do not train latents on this pool."
+        )
     return "\n".join(lines)
 
 

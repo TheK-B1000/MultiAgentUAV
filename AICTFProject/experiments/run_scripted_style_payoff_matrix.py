@@ -85,6 +85,16 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--max-decision-steps", type=int, default=240)
     p.add_argument("--n-boot", type=int, default=1000)
     p.add_argument("--analysis-seed", type=int, default=0)
+    p.add_argument(
+        "--min-br-diversity",
+        type=int,
+        default=2,
+        help=(
+            "Minimum distinct blue best-responses across red columns. "
+            "For OP6-OP10 K=4 repertoire acceptance use 4 (every blue must "
+            "be uniquely best somewhere)."
+        ),
+    )
     p.add_argument("--progress-every", type=int, default=25)
     return p.parse_args()
 
@@ -425,6 +435,7 @@ def main() -> int:
         cells,
         n_boot=int(args.n_boot),
         seed=int(args.analysis_seed),
+        min_br_diversity=int(args.min_br_diversity),
     )
     (out_dir / POOL_REPORT_TXT).write_text(format_report(report) + "\n", encoding="utf-8")
     (out_dir / POOL_REPORT_JSON).write_text(json.dumps(asdict(report), indent=2) + "\n", encoding="utf-8")
