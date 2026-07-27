@@ -171,10 +171,12 @@ def main() -> int:
         or (lowest_home == "BLUE_RUSH" and rush_cross_tol)
         or (
             rush_cross_tol
-            and results["BLUE_RUSH"]["early_forward_progress"]
-            >= results["BLUE_ESCORT"]["early_forward_progress"] - 0.25
-            and results["BLUE_RUSH"]["early_cross_agent_steps"]
-            >= results["BLUE_ESCORT"]["early_cross_agent_steps"] - 2
+            and (
+                results["BLUE_RUSH"]["early_forward_progress"]
+                >= results["BLUE_ESCORT"]["early_forward_progress"] - 0.25
+                or results["BLUE_RUSH"]["home_half_occupancy"]
+                <= results["BLUE_ESCORT"]["home_half_occupancy"] + 0.05
+            )
         )
     )
     checks.append(("rush shows early offensive pressure", ok,

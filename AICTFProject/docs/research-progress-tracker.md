@@ -407,7 +407,243 @@ gate to separate pre-pickup aggression from post-pickup extraction, or inspect
 matched trajectory traces to ensure SPLIT still has two-lane identity before
 flag pickup. Do not weaken OP7.
 
-### 3.0 v6i9 feedforward running-mean arc-credit A/B (IMPLEMENTED, PENDING_SMOKE)
+`diagnose_v6i26_blue_style_trajectories.py` is now phase-aware for this gate:
+RUSH/TURTLE/SPLIT identity is checked before first successful pickup where
+that phase is meaningful, while post-pickup checks verify that SPLIT remains
+less clustered than ESCORT instead of treating extraction aggression as a style
+violation. On OP7/map_b seed 360726 the updated gate passes: SPLIT has the
+highest pre-pickup y-separation and simultaneous lane penetration, TURTLE has
+the highest home-half occupancy, ESCORT has the smallest carrier-teammate
+distance, and SPLIT remains much less clustered than ESCORT while carrying.
+
+**OP7 held-out confirmation screen (route-lock frozen):**
+`artifacts/op7_split_route_lock_heldout16_seed461001`, 16 disjoint paired
+seeds, unchanged OP7/map_b. The attempted 32-seed run exceeded runtime budget
+without finalizing artifacts and was stopped; this 16-seed run completed and is
+the current held-out evidence.
+
+Held-out margins:
+
+```text
+BLUE_SPLIT   WR=8/16   mean_margin=+0.9375
+BLUE_RUSH    WR=0/16   mean_margin=-0.2500
+BLUE_TURTLE  WR=0/16   mean_margin=-0.4375
+BLUE_ESCORT  WR=0/16   mean_margin=-0.7500
+```
+
+Paired SPLIT margin advantage on the 16 matched seeds:
+
+```text
+SPLIT - RUSH    mean +1.1875, bootstrap 95% CI [ +0.5000, +1.8750 ]
+SPLIT - TURTLE  mean +1.3750, bootstrap 95% CI [ +0.7500, +2.0625 ]
+SPLIT - ESCORT  mean +1.6875, bootstrap 95% CI [ +1.0625, +2.3125 ]
+pooled vs others mean +1.4167, bootstrap 95% CI [ +1.0417, +1.7917 ]
+```
+
+Extraction metrics also hold out: SPLIT averages 6.625 pickups/episode,
+capture-given-pickup about 0.204, carrier lifetime about 11.74 steps, max
+return progress about 7.37 cells, and post-pickup separation about 9.26. This
+supports OP7 as a SPLIT niche under the current scripted-probe protocol.
+
+Decision: OP7 is **ACCEPTED** as a held-out SPLIT niche for the pool matrix.
+Preferred scripted response is BLUE_SPLIT; held-out evidence PASS; phase-aware
+style identity PASS; runtime behavior FROZEN. Do not tune OP7 further unless
+the later pool-level statistic shows insufficient distributed crossover.
+
+Current strategic surface:
+
+```text
+OP6: provisional TURTLE niche
+OP7: ACCEPTED SPLIT niche
+OP8-OP12: pending
+```
+
+Next calibration target: OP8_PROTECTED_CARRIER_ESCORT.
+
+Locked OP8 hypothesis before baseline:
+
+```text
+OP8 strength: protected, concentrated carrier push
+Punishes: fragmented or isolated defense
+Structural weakness: red agents cluster around the carrier, leaving the red
+flag and alternate lanes exposed
+Candidate best response: BLUE_RUSH
+```
+
+BLUE_RUSH is only the predeclared hypothesis, not a required answer. The
+acceptance condition remains: one style is significantly better against OP8,
+at least one other style remains meaningfully worse, and the result survives
+held-out paired seeds. Use the same sequence: run unchanged OP8 on 8 paired
+development seeds, confirm trajectory gates, diagnose the failure stage, make
+at most one localized change, confirm on 16 disjoint paired seeds, then freeze
+or reject.
+
+OP8 baseline result: the predeclared BLUE_RUSH hypothesis is rejected. The
+unchanged OP8 surface instead strongly favors BLUE_SPLIT, likely because the
+protected escort cluster leaves alternate lanes and red-base pressure exposed.
+No OP8 or blue-controller tuning was required after the baseline screen.
+
+Development screen:
+`artifacts/op8_baseline_dev1_8seed`, 8 paired seeds, unchanged OP8/map_b.
+
+```text
+BLUE_SPLIT   WR=8/8   mean_margin=+2.500
+BLUE_RUSH    WR=0/8   mean_margin=+0.000
+BLUE_TURTLE  WR=0/8   mean_margin=-0.125
+BLUE_ESCORT  WR=0/8   mean_margin=-0.375
+```
+
+Paired development CIs all favored SPLIT: SPLIT-RUSH mean +2.5 with 95% CI
+[+1.75,+3.0], SPLIT-TURTLE +2.625 CI [+2.0,+3.25], SPLIT-ESCORT +2.875 CI
+[+2.5,+3.25]. Trajectory gates pass after the phase-aware diagnostic update.
+
+Held-out confirmation:
+`artifacts/op8_baseline_heldout16_seed561001`, 16 disjoint paired seeds,
+unchanged OP8/map_b.
+
+```text
+BLUE_SPLIT   WR=15/16  mean_margin=+2.4375
+BLUE_RUSH    WR=0/16   mean_margin=+0.0000
+BLUE_TURTLE  WR=0/16   mean_margin=-0.0625
+BLUE_ESCORT  WR=2/16   mean_margin=-0.1250
+```
+
+Paired SPLIT margin advantage on the 16 matched seeds:
+
+```text
+SPLIT - RUSH    mean +2.4375, bootstrap 95% CI [ +1.9375, +2.8750 ]
+SPLIT - TURTLE  mean +2.5000, bootstrap 95% CI [ +2.0000, +2.9375 ]
+SPLIT - ESCORT  mean +2.5625, bootstrap 95% CI [ +2.0625, +3.0000 ]
+pooled vs others mean +2.5000, bootstrap 95% CI [ +2.2083, +2.7708 ]
+```
+
+Decision: OP8 is **ACCEPTED** as a held-out SPLIT niche for the pool matrix.
+Preferred scripted response is BLUE_SPLIT; held-out evidence PASS; style
+identity PASS; runtime behavior FROZEN. This means OP7 and OP8 currently share
+the same preferred scripted response, so the pool still needs OP9-OP12 to add
+different preferred styles before claiming broad distributed crossover.
+
+**OP9 development screen (2026-07-27):** `artifacts/op9_dev1_8seed`,
+OP9_SPLIT_LANE_FEINT/map_b_split_lane, 8 paired development seeds
+(base-seed 501001). Worked out of documented sequence order (OP8 is still
+pending) per explicit direction.
+
+Locked intended contract before tuning, from the BT profile
+(`gpu_env/_core/_bt_profiles.py`, profile 9): `enable_defender=True`,
+`enable_intercept=True`, `intercept_feasibility_ratio=0.88` (defender only
+commits to an intercept when it is quite confident, unlike OP7's more
+reflexive coverage), `enable_counter=True` but `counter_when_trailing=True`
+only (no proactive counter-press), `lane_amplitude_frac=0.55` (OP9's own
+attacker swings between lanes far more than OP7/OP8's profiles -- the "feint"
+in its name). Hypothesis: OP9 should punish a style that reactively chases or
+tracks the feint (TURTLE's intercept logic could get drawn out of position by
+a fake), while a style that does not react to the feint at all -- either
+committing directly regardless of red's movement (RUSH) or pressuring both
+lanes simultaneously so no single feint matters (SPLIT, possibly re-exposing
+the same lane-overload mechanism that worked for OP7) -- should do better.
+This is a hypothesis to test, not an assumed result: OP7's own contract
+("SPLIT should win") was initially wrong-looking in its first dev screen
+(TURTLE was marginally ahead) before the real mechanism was found, so the
+dev-screen numbers below are what actually drives the next step, not this
+paragraph.
+
+OP9 baseline result: unlike OP7, no calibration was needed. The unchanged OP9
+surface already shows a clean, decisive, mechanistically obvious split: RUSH
+and TURTLE produce an exact 0-0 stalemate on every single development seed
+(OP9's defender appears to fully lock down any single, undivided threat given
+its high `intercept_feasibility_ratio`), ESCORT is a wash, and SPLIT converts
+consistently by 2-3 points every episode. No OP9 or blue-controller tuning was
+attempted or required.
+
+Development screen: `artifacts/op9_dev1_8seed`, 8 paired seeds, unchanged
+OP9/map_b_split_lane, base-seed 501001.
+
+```text
+BLUE_SPLIT   WR=8/8   mean_margin=+2.125
+BLUE_ESCORT  WR=1/8   mean_margin=+0.000
+BLUE_RUSH    WR=0/8   mean_margin=+0.000
+BLUE_TURTLE  WR=0/8   mean_margin=+0.000
+```
+
+Raw scores confirm this is a real mechanism, not a scoring artifact: RUSH and
+TURTLE are literal 0-0 on all 8 seeds; ESCORT has one win (1-0), one loss
+(1-2), rest 0-0; SPLIT wins every seed by (3,1)/(3,0)/(2,1)/(2,0)-style
+margins.
+
+Held-out confirmation: `artifacts/op9_split_heldout16_seed511001`, 16
+disjoint paired seeds (base-seed 511001, no overlap with the dev screen),
+unchanged OP9/map_b_split_lane.
+
+```text
+BLUE_SPLIT   WR=16/16  mean_margin=+2.6250
+BLUE_RUSH    WR=0/16   mean_margin=-0.0625
+BLUE_TURTLE  WR=0/16   mean_margin=-0.1875
+BLUE_ESCORT  WR=2/16   mean_margin=-0.0625
+```
+
+Paired SPLIT margin advantage on the 16 matched held-out seeds:
+
+```text
+SPLIT - RUSH     mean +2.6875, bootstrap 95% CI [ +2.3125, +3.0000 ]
+SPLIT - TURTLE   mean +2.8125, bootstrap 95% CI [ +2.3750, +3.2500 ]
+SPLIT - ESCORT   mean +2.6875, bootstrap 95% CI [ +2.1875, +3.1875 ]
+pooled vs others mean +2.7292, bootstrap 95% CI [ +2.3333, +3.1042 ]
+```
+
+Decision: OP9 is **ACCEPTED** as a held-out SPLIT niche for the pool matrix.
+Preferred scripted response is BLUE_SPLIT; held-out evidence PASS (stronger
+than OP7/OP8: 16/16 WR vs their 8/16 and 15/16); style identity PASS (SPLIT's
+existing signatures were not touched -- no controller change was made or
+needed); runtime behavior FROZEN. Do not tune OP9 further.
+
+**Cross-opponent concern, now with three data points instead of two:** OP7,
+OP8, and OP9 all currently share BLUE_SPLIT as their held-out-confirmed
+preferred response. Only OP6 (provisional, TURTLE, not yet fully accepted)
+points a different direction so far. Three SPLIT niches out of the four
+opponents examined is no longer a coincidence to shrug off -- it raises a
+real possibility that SPLIT is simply the strongest all-around scripted style
+against this whole BT-opponent family (dual, spread pressure beating any
+single-target-tracking defender), rather than each opponent demanding a
+genuinely distinct response. If OP10-OP12 also converge on SPLIT, the correct
+conclusion is not "four niches" but "one dominant style, zero pool-level
+crossover" -- exactly what the `no_dominating_blue_style` /
+`best_response_diversity` gates are already flagging FAIL on every
+individual-opponent run above (those gates need multiple red presets scored
+together to be meaningful, not a single-opponent run in isolation -- but the
+individual FAILs are consistent with, not contradicted by, this concern).
+Do not treat OP9 as evidence of pool-level crossover by itself; it is
+evidence that OP9, individually, is a real (not noise) SPLIT-favorable
+opponent. The pool-level crossover question stays open until OP10-OP12 are
+examined and at least one of them prefers a style other than SPLIT.
+
+**OP10 development screen (2026-07-27):** `artifacts/op10_dev1_8seed`,
+OP10_AGGRESSIVE_INTERCEPTOR/map_b_split_lane, 8 paired development seeds
+(base-seed 521001).
+
+Locked intended contract before tuning, from the BT profile (profile 10):
+`enable_counter=False` (no counter-attack at all -- purely defense/intercept,
+unlike OP9/OP11), `intercept_feasibility_ratio=0.70` (commits to intercepting
+MORE readily than OP9's 0.88 -- less picky, not waiting for high confidence),
+`lock_intercept=28` (very long commitment once locked on a target, vs OP9's
+shorter, unspecified lock), `intercept_block_base=0.88` with
+`intercept_block_trailing_bonus=0.36` (very strong blocking once committed),
+`threat_radius=11.0` (wide detection), `lane_amplitude_frac=0.24` (narrow --
+little of OP9's feinting behavior). Hypothesis: OP10's identity is "commit
+early and hard to whatever looks like the threat, then stay locked a long
+time." That should make it a strong stalemate/lockdown opponent against a
+SINGLE clearly-identifiable threat (RUSH, ESCORT's concentrated push) --
+similar to how OP9's defender stalemated RUSH/TURTLE -- but the 28-step lock
+duration is a bigger liability against two genuinely independent threats than
+OP9's shorter commitment was: once OP10 locks onto one SPLIT lane, the other
+lane should have an unusually long uncontested window. Restating the
+standing caveat: this is the hypothesis to test, not an assumed result, and
+OP7/OP8/OP9 all confirming SPLIT means the base rate for "SPLIT wins again"
+is now high enough that a clean SPLIT win here would be the LEAST
+informative outcome for the pool-level crossover question -- watch
+specifically for whether RUSH or TURTLE actually punishes OP10, since that
+is what would matter most right now.
+
+
 
 **Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as
 `v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases

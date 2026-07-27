@@ -1,0 +1,32 @@
+{
+  "protocol": "v6i26_branch_landscape_scan_confirm",
+  "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+  "map": "map_b_split_lane",
+  "branch_a": "z0",
+  "branch_b": "z3",
+  "n_matched_units": 16,
+  "V_z0": 2.25,
+  "V_z3": 2.3125,
+  "frac_tie": 0.8125,
+  "V_legal_selector": 2.375,
+  "V_hindsight_oracle": 2.375,
+  "best_fixed": 2.3125,
+  "delta_usable": 0.0625,
+  "delta_oracle": 0.0625,
+  "n_held_out_units": 16,
+  "bootstrap_n": 2000,
+  "delta_usable_CI95": [
+    0.0,
+    0.125
+  ],
+  "delta_usable_LCB": 0.0,
+  "delta_usable_LCB_gt_0": false,
+  "delta_oracle_CI95": [
+    0.0,
+    0.125
+  ],
+  "delta_oracle_LCB": 0.0,
+  "delta_oracle_LCB_gt_0": false,
+  "nontrivial_wins_both_branches": true,
+  "verdict": "HOLD_OR_FAIL"
+}
