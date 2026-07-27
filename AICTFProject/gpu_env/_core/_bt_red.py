@@ -308,9 +308,23 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         # Boolean mask: which agents are eligible to change role this tick.
         can_change = (lock <= 0) & self.red_alive & (~self.red_tagged)  # [B, Nr]
+        op12_opening = (
+            (prof["bt_level"] == 12)
+            & (self.sim_step_count.to(torch.int32) < 20)
+            & (~bb.get("adapt_split_pressure", torch.zeros((B,), dtype=torch.bool, device=device)))
+        )
+        late_or_not_op12 = ~op12_opening
+        opening_slots = op12_opening[:, None] & self.red_alive & (~self.red_tagged)
+        roles = torch.where(
+            opening_slots,
+            torch.full_like(roles, ROLE_ATTACKER),
+            roles,
+        )
+        lock = torch.where(opening_slots, torch.zeros_like(lock), lock)
+        can_change = can_change | opening_slots
 
         # ── Priority 1: flag retrieval ───────────────────────────────────
-        need_retr = (~bb["own_flag_at_home"]) & prof["enable_flag_retr"]
+        need_retr = (~bb["own_flag_at_home"]) & prof["enable_flag_retr"] & late_or_not_op12
         if need_retr.any():
             # Pick the closest eligible agent per env.
             flag_dx = self.red_x - bb["red_flag_pos"][:, 0:1]
@@ -352,7 +366,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         # ── Priority 3: intercept enemy carrier (feasible) ───────────────
         e_carry = bb["blue_carry_any"]
-        feas    = bb["intercept_feasible"] & prof["enable_intercept"]
+        feas    = bb["intercept_feasible"] & prof["enable_intercept"] & late_or_not_op12
         if (e_carry & feas).any():
             # Among feasible agents, pick the one closest to intercept midpoint.
             feas_per = bb["intercept_feasible_per_agent"]  # [B, Nr]
@@ -380,6 +394,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
             prof["enable_counter"]
             & e_carry
             & (~feas)
+            & late_or_not_op12
             & (prof["counter_always"] | (prof["counter_when_trailing"] & bb["trailing"]))
         )
         if counter_ok.any():
@@ -404,6 +419,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
         need_def = (
             prof["enable_defender"]
             & bb["any_intruder"]
+            & late_or_not_op12
             & (bb["alive_count"] >= prof["min_alive_for_defender"])
         )
         if need_def.any():

@@ -117,6 +117,16 @@ class _BTAdaptiveMixin:
         self.bt_adapt_attack_lane_bot_frac = torch.zeros((B,), dtype=f32, device=dev)
         self.bt_adapt_escort_density = torch.zeros((B,), dtype=f32, device=dev)
         self.bt_adapt_overcommit = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_split_pressure_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_split_first_trigger_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_adapt_split_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_split_max_lateral_sep = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_split_max_teammate_dist = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_opening_escort_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_opening_escort_first_trigger_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_adapt_opening_escort_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_prev_blue_x = torch.zeros((B, self.Nb), dtype=f32, device=dev)
+        self.bt_adapt_prev_blue_valid = torch.zeros((B,), dtype=torch.bool, device=dev)
         self.bt_adapt_fast_conversion_count = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_adapt_blue_first_touch_step = torch.full((B,), -1, dtype=i32, device=dev)
         self.bt_adapt_carrier_x_ema = torch.zeros((B,), dtype=f32, device=dev)
@@ -136,6 +146,16 @@ class _BTAdaptiveMixin:
         self.bt_adapt_attack_lane_bot_frac[idx] = 0.0
         self.bt_adapt_escort_density[idx] = 0.0
         self.bt_adapt_overcommit[idx] = 0.0
+        self.bt_adapt_split_pressure_ticks[idx] = 0
+        self.bt_adapt_split_first_trigger_step[idx] = -1
+        self.bt_adapt_split_active_steps[idx] = 0
+        self.bt_adapt_split_max_lateral_sep[idx] = 0.0
+        self.bt_adapt_split_max_teammate_dist[idx] = 0.0
+        self.bt_adapt_opening_escort_ticks[idx] = 0
+        self.bt_adapt_opening_escort_first_trigger_step[idx] = -1
+        self.bt_adapt_opening_escort_active_steps[idx] = 0
+        self.bt_adapt_prev_blue_x[idx] = 0.0
+        self.bt_adapt_prev_blue_valid[idx] = False
         self.bt_adapt_fast_conversion_count[idx] = 0
         self.bt_adapt_blue_first_touch_step[idx] = -1
         self.bt_adapt_carrier_x_ema[idx] = 0.0
@@ -173,6 +193,18 @@ class _BTAdaptiveMixin:
         bt = prof["bt_level"]
         thresh = torch.ones_like(bt, dtype=torch.int32)
         return torch.where((bt == 8) | (bt == 11), torch.zeros_like(thresh), thresh)
+
+    def _split_pressure_ticks_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """OP12 reacts after sustained simultaneous two-lane pressure."""
+        bt = prof["bt_level"]
+        thresh = torch.full_like(bt, 4, dtype=torch.int32)
+        return torch.where(bt == 12, torch.full_like(thresh, 4), thresh)
+
+    def _opening_escort_ticks_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """OP12 recognizes sustained pre-pickup lead/support pressure."""
+        bt = prof["bt_level"]
+        thresh = torch.full_like(bt, 3, dtype=torch.int32)
+        return torch.where(bt == 12, torch.full_like(thresh, 3), thresh)
 
     def _update_adaptive_memory(self, prof: Dict[str, torch.Tensor]) -> None:
         """Track blue patterns each step for adaptive hardpool opponents."""
@@ -257,6 +289,110 @@ class _BTAdaptiveMixin:
             self.bt_adapt_overcommit,
         )
 
+        if self.Nb >= 2:
+            offensive_buffer = 3.0
+            blue0_off = blue_alive[:, 0] & (self.blue_x[:, 0] > midline - offensive_buffer)
+            blue1_off = blue_alive[:, 1] & (self.blue_x[:, 1] > midline - offensive_buffer)
+            lateral_sep = torch.abs(self.blue_y[:, 0] - self.blue_y[:, 1])
+            dx01 = self.blue_x[:, 0] - self.blue_x[:, 1]
+            dy01 = self.blue_y[:, 0] - self.blue_y[:, 1]
+            teammate_dist = torch.sqrt(dx01 ** 2 + dy01 ** 2 + 1e-8)
+            self.bt_adapt_split_max_lateral_sep = torch.where(
+                active,
+                torch.maximum(self.bt_adapt_split_max_lateral_sep, lateral_sep),
+                self.bt_adapt_split_max_lateral_sep,
+            )
+            self.bt_adapt_split_max_teammate_dist = torch.where(
+                active,
+                torch.maximum(self.bt_adapt_split_max_teammate_dist, teammate_dist),
+                self.bt_adapt_split_max_teammate_dist,
+            )
+            opposite_lanes = (
+                ((self.blue_y[:, 0] > center_y) & (self.blue_y[:, 1] <= center_y))
+                | ((self.blue_y[:, 1] > center_y) & (self.blue_y[:, 0] <= center_y))
+            )
+            split_pressure_now = (
+                blue0_off
+                & blue1_off
+                & opposite_lanes
+                & (lateral_sep >= float(self.rows) * 0.55)
+                & (teammate_dist >= 12.0)
+            )
+            opening_phase = self.sim_step_count.to(torch.int32) < 20
+            no_pickup_yet = ~blue_carry_any
+            lead_x = torch.maximum(self.blue_x[:, 0], self.blue_x[:, 1])
+            trail_x = torch.minimum(self.blue_x[:, 0], self.blue_x[:, 1])
+            lead_forward = lead_x > midline - 3.0
+            trailer_committed = trail_x > midline - 12.0
+            lead_follow = torch.abs(dx01) >= 0.5
+            mean_forward_delta = (self.blue_x[:, :2] - self.bt_adapt_prev_blue_x[:, :2]).mean(dim=1)
+            slow_support_push = self.bt_adapt_prev_blue_valid & (mean_forward_delta <= 0.58)
+            opening_escort_now = (
+                (prof["bt_level"] == 12)
+                & opening_phase
+                & no_pickup_yet
+                & lead_forward
+                & trailer_committed
+                & (teammate_dist <= 3.0)
+                & (lateral_sep <= 2.25)
+                & lead_follow
+                & slow_support_push
+            )
+        else:
+            split_pressure_now = torch.zeros((B,), dtype=torch.bool, device=device)
+            opening_escort_now = torch.zeros((B,), dtype=torch.bool, device=device)
+        split_ticks = torch.where(
+            active & split_pressure_now,
+            self.bt_adapt_split_pressure_ticks + 1,
+            torch.zeros_like(self.bt_adapt_split_pressure_ticks),
+        )
+        self.bt_adapt_split_pressure_ticks = torch.where(
+            active,
+            split_ticks,
+            self.bt_adapt_split_pressure_ticks,
+        )
+        split_pressure_active = active & (
+            self.bt_adapt_split_pressure_ticks >= self._split_pressure_ticks_threshold(prof)
+        )
+        new_split_trigger = split_pressure_active & (self.bt_adapt_split_first_trigger_step < 0)
+        self.bt_adapt_split_first_trigger_step = torch.where(
+            new_split_trigger,
+            self.sim_step_count.to(torch.int32),
+            self.bt_adapt_split_first_trigger_step,
+        )
+        self.bt_adapt_split_active_steps += split_pressure_active.to(torch.int32)
+
+        opening_escort_ticks = torch.where(
+            active & opening_escort_now,
+            self.bt_adapt_opening_escort_ticks + 1,
+            torch.zeros_like(self.bt_adapt_opening_escort_ticks),
+        )
+        self.bt_adapt_opening_escort_ticks = torch.where(
+            active,
+            opening_escort_ticks,
+            self.bt_adapt_opening_escort_ticks,
+        )
+        opening_escort_active = active & (
+            self.bt_adapt_opening_escort_ticks >= self._opening_escort_ticks_threshold(prof)
+        )
+        new_escort_trigger = opening_escort_active & (self.bt_adapt_opening_escort_first_trigger_step < 0)
+        self.bt_adapt_opening_escort_first_trigger_step = torch.where(
+            new_escort_trigger,
+            self.sim_step_count.to(torch.int32),
+            self.bt_adapt_opening_escort_first_trigger_step,
+        )
+        self.bt_adapt_opening_escort_active_steps += opening_escort_active.to(torch.int32)
+        self.bt_adapt_prev_blue_x = torch.where(
+            active[:, None],
+            self.blue_x,
+            self.bt_adapt_prev_blue_x,
+        )
+        self.bt_adapt_prev_blue_valid = torch.where(
+            active,
+            torch.ones_like(self.bt_adapt_prev_blue_valid),
+            self.bt_adapt_prev_blue_valid,
+        )
+
         home_dx = self.blue_flag_home[:, 0] - ec_x
         home_dy = self.blue_flag_home[:, 1] - ec_y
         ec_home_dist = torch.sqrt(home_dx ** 2 + home_dy ** 2 + 1e-8)
@@ -315,6 +451,12 @@ class _BTAdaptiveMixin:
         )
         high_escort = active & (self.bt_adapt_escort_density >= self._high_escort_threshold(prof))
         high_overcommit = active & (self.bt_adapt_overcommit >= self._HIGH_OVERCOMMIT)
+        split_pressure = active & (
+            self.bt_adapt_split_pressure_ticks >= self._split_pressure_ticks_threshold(prof)
+        )
+        opening_escort = active & (
+            self.bt_adapt_opening_escort_ticks >= self._opening_escort_ticks_threshold(prof)
+        )
         fast_blue = active & (self.bt_adapt_fast_conversion_count >= 1)
 
         bb.update(
@@ -323,7 +465,9 @@ class _BTAdaptiveMixin:
             adapt_emergency_collapse=emergency_collapse,
             adapt_repeat_lane=repeat_lane,
             adapt_high_escort=high_escort,
+            adapt_opening_escort=opening_escort,
             adapt_high_overcommit=high_overcommit,
+            adapt_split_pressure=split_pressure,
             adapt_fast_conversion=fast_blue,
             adapt_blue_carrier_lost=getattr(self, "bt_adapt_blue_carrier_lost", torch.zeros((self.B,), dtype=torch.bool, device=self.device)),
             adapt_intercept_block_boost=torch.where(
@@ -355,7 +499,13 @@ class _BTAdaptiveMixin:
         lock = self.bt_role_lock_ticks.clone()
         eligible = self.red_alive & (~self.red_tagged)
         active = bb["adaptive_active"]
-        emergency_collapse = bb["adapt_emergency_collapse"]
+        op12_opening = (
+            (prof["bt_level"] == 12)
+            & (self.sim_step_count.to(torch.int32) < 20)
+            & (~bb.get("adapt_split_pressure", torch.zeros((B,), dtype=torch.bool, device=device)))
+        )
+        late_or_not_op12 = ~op12_opening
+        emergency_collapse = bb["adapt_emergency_collapse"] & late_or_not_op12
         collapse_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
 
         # Dual flag retrieval when own flag is loose and blue just lost carrier pressure.
@@ -363,6 +513,7 @@ class _BTAdaptiveMixin:
             active
             & (~bb["own_flag_at_home"])
             & prof["enable_flag_retr"]
+            & late_or_not_op12
             & (bb.get("adapt_blue_carrier_lost", torch.zeros((B,), dtype=torch.bool, device=device)) | emergency_collapse)
         )
         if need_dual_retr.any():
@@ -414,6 +565,7 @@ class _BTAdaptiveMixin:
             (bb["adapt_high_overcommit"] | bb.get("adapt_blue_carrier_lost", torch.zeros((B,), dtype=torch.bool, device=device)))
             & prof["enable_counter"]
             & is_op12ish
+            & late_or_not_op12
         )
         if counter_push.any():
             efx = bb["blue_flag_pos"][:, 0:1]
@@ -429,6 +581,100 @@ class _BTAdaptiveMixin:
                     out[:, j],
                 )
                 lock[:, j] = torch.where(assign, prof["lock_counter"], lock[:, j])
+
+        live_opening_escort = torch.zeros((B,), dtype=torch.bool, device=device)
+        if self.Nb >= 2:
+            midline = float(self.cols) * 0.5
+            lead_x = torch.maximum(self.blue_x[:, 0], self.blue_x[:, 1])
+            trail_x = torch.minimum(self.blue_x[:, 0], self.blue_x[:, 1])
+            dx01 = self.blue_x[:, 0] - self.blue_x[:, 1]
+            dy01 = self.blue_y[:, 0] - self.blue_y[:, 1]
+            lateral_sep = torch.abs(dy01)
+            teammate_dist = torch.sqrt(dx01 ** 2 + dy01 ** 2 + 1e-8)
+            blue_alive = self.blue_alive & (~self.blue_tagged)
+            live_opening_escort = (
+                is_op12ish
+                & (self.sim_step_count.to(torch.int32) < 20)
+                & (~bb["blue_carry_any"])
+                & blue_alive[:, 0]
+                & blue_alive[:, 1]
+                & (lead_x > midline - 3.0)
+                & (trail_x > midline - 12.0)
+                & (teammate_dist <= 3.0)
+                & (lateral_sep <= 2.25)
+                & (torch.abs(dx01) >= 0.5)
+            )
+            live_ticks = torch.where(
+                live_opening_escort,
+                self.bt_adapt_opening_escort_ticks + 1,
+                torch.zeros_like(self.bt_adapt_opening_escort_ticks),
+            )
+            self.bt_adapt_opening_escort_ticks = torch.where(
+                is_op12ish,
+                live_ticks,
+                self.bt_adapt_opening_escort_ticks,
+            )
+            live_opening_escort = live_opening_escort & (
+                self.bt_adapt_opening_escort_ticks >= self._opening_escort_ticks_threshold(prof)
+            )
+            new_live_escort = live_opening_escort & (self.bt_adapt_opening_escort_first_trigger_step < 0)
+            self.bt_adapt_opening_escort_first_trigger_step = torch.where(
+                new_live_escort,
+                self.sim_step_count.to(torch.int32),
+                self.bt_adapt_opening_escort_first_trigger_step,
+            )
+            self.bt_adapt_opening_escort_active_steps += live_opening_escort.to(torch.int32)
+
+        # OP12 opening anti-escort: pre-pickup close lead/support formations
+        # are disrupted without collapsing both red agents onto the lead runner.
+        opening_escort = (
+            is_op12ish
+            & (
+                bb.get("adapt_opening_escort", torch.zeros((B,), dtype=torch.bool, device=device))
+                | live_opening_escort
+            )
+            & (~bb["blue_carry_any"])
+        )
+        if opening_escort.any() and self.Nb >= 2:
+            blue_trailer = torch.where(
+                self.blue_x[:, 0] <= self.blue_x[:, 1],
+                torch.zeros((B,), dtype=torch.int64, device=device),
+                torch.ones((B,), dtype=torch.int64, device=device),
+            )
+            tx = self.blue_x[torch.arange(B, device=device), blue_trailer]
+            ty = self.blue_y[torch.arange(B, device=device), blue_trailer]
+            trailer_dist = torch.sqrt((self.red_x - tx[:, None]) ** 2 + (self.red_y - ty[:, None]) ** 2 + 1e-8)
+            trailer_dist = torch.where(eligible, trailer_dist, trailer_dist.new_full((), 1e9))
+            disruptor = torch.argmin(trailer_dist, dim=1)
+
+            home_x = bb["blue_flag_pos"][:, 0:1]
+            home_y = bb["blue_flag_pos"][:, 1:2]
+            home_dist = torch.sqrt((self.red_x - home_x) ** 2 + (self.red_y - home_y) ** 2 + 1e-8)
+            home_dist = torch.where(eligible, home_dist, home_dist.new_full((), 1e9))
+            raider = torch.argmin(home_dist, dim=1)
+            conflict = raider == disruptor
+            if self.Nr >= 2:
+                home_dist_alt = home_dist.clone()
+                home_dist_alt[torch.arange(B, device=device), disruptor] = 1e9
+                raider = torch.where(conflict, torch.argmin(home_dist_alt, dim=1), raider)
+
+            escort_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
+            for j in range(Nr):
+                disrupt = opening_escort & prof["enable_intercept"] & (disruptor == j) & eligible[:, j]
+                out[:, j] = torch.where(
+                    disrupt,
+                    torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
+                    out[:, j],
+                )
+                lock[:, j] = torch.where(disrupt, escort_lock, lock[:, j])
+
+                raid = opening_escort & prof["enable_counter"] & (raider == j) & eligible[:, j]
+                out[:, j] = torch.where(
+                    raid,
+                    torch.full((B,), ROLE_COUNTER, dtype=torch.int32, device=device),
+                    out[:, j],
+                )
+                lock[:, j] = torch.where(raid, prof["lock_counter"], lock[:, j])
 
         # OP10 split pressure when blue stacks escort; also cut off the carrier.
         is_op10 = prof["bt_level"] == 10
@@ -496,6 +742,48 @@ class _BTAdaptiveMixin:
                     out[:, j],
                 )
                 lock[:, j] = torch.where(assign, lane_lock, lock[:, j])
+
+        # OP12 anti-split conversion: if Blue creates simultaneous two-lane
+        # pressure and gets possession, commit an extra interceptor to the
+        # carrier lane. Direct clustered rushes do not satisfy this trigger.
+        is_op12 = prof["bt_level"] == 12
+        split_denial = (
+            is_op12
+            & bb.get("adapt_split_pressure", torch.zeros((B,), dtype=torch.bool, device=device))
+            & bb["blue_carry_any"]
+            & prof["enable_intercept"]
+        )
+        if split_denial.any():
+            split_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
+            for j in range(Nr):
+                assign = split_denial & eligible[:, j]
+                out[:, j] = torch.where(
+                    assign,
+                    torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
+                    out[:, j],
+                )
+                lock[:, j] = torch.where(assign, split_lock, lock[:, j])
+
+        # OP12 anti-escort conversion: clustered carrier support is not the
+        # intended exploit of the opening. Collapse only after Blue is carrying
+        # with high local teammate density; RUSH should not satisfy this unless
+        # it turns into an escort-like cluster after pickup.
+        escort_denial = (
+            is_op12
+            & bb["adapt_high_escort"]
+            & bb["blue_carry_any"]
+            & prof["enable_intercept"]
+        )
+        if escort_denial.any():
+            escort_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
+            for j in range(Nr):
+                assign = escort_denial & eligible[:, j]
+                out[:, j] = torch.where(
+                    assign,
+                    torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
+                    out[:, j],
+                )
+                lock[:, j] = torch.where(assign, escort_lock, lock[:, j])
 
         # OP8 pure carrier denial: both agents intercept; no counter-scoring while blue carries.
         is_op8 = prof["bt_level"] == 8
@@ -571,6 +859,16 @@ class _BTAdaptiveMixin:
         is_lane_op = (bt_level == 8) | (bt_level == 11)
         is_op10 = bt_level == 10
         is_op11 = bt_level == 11
+        split_denial_route = (bt_level == 12) & bb.get(
+            "adapt_split_pressure",
+            torch.zeros((B,), dtype=torch.bool, device=device),
+        )
+        op12_opening = (
+            (bt_level == 12)
+            & (self.sim_step_count.to(torch.int32) < 20)
+            & (~split_denial_route)
+        )
+        emergency_collapse = bb["adapt_emergency_collapse"] & (~op12_opening)
         cap_lane_body = torch.where(
             is_op8,
             torch.full((B,), self._OP8_CAP_LANE_BODY_FRAC, device=device),
@@ -614,6 +912,12 @@ class _BTAdaptiveMixin:
             body_bx = ec_x + (home_x - ec_x) * self._OP8_CAP_BODY_X_FRAC
             bx = torch.where(op8_int & (j == 1), body_bx, bx)
             by = torch.where(op8_int & (j == 1), home_y, by)
+            split_int = split_denial_route & int_mask
+            split_body_bx = ec_x + (home_x - ec_x) * self._OP8_CAP_BODY_X_FRAC
+            bx = torch.where(split_int & (j == 0), pred_x + (home_x - pred_x) * block_frac, bx)
+            by = torch.where(split_int & (j == 0), pred_y + (home_y - pred_y) * block_frac, by)
+            bx = torch.where(split_int & (j == 1), split_body_bx, bx)
+            by = torch.where(split_int & (j == 1), home_y, by)
             by = torch.where(
                 repeat & is_lane_op,
                 torch.where(
@@ -624,7 +928,7 @@ class _BTAdaptiveMixin:
                 by,
             )
             by = torch.where(
-                bb["adapt_emergency_collapse"],
+                emergency_collapse,
                 bb["ec_y"] + (home_y - bb["ec_y"]) * cap_lane_body,
                 by,
             )

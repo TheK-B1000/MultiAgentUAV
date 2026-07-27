@@ -1,6 +1,6 @@
 {
   "protocol": "scripted_blue_red_pool_admissibility",
-  "status": "running",
+  "status": "completed",
   "started_at_utc": "2026-07-27T14:01:51.096382+00:00",
   "blue_styles": [
     "BLUE_RUSH",
@@ -30,5 +30,7 @@
     "loaded_existing_rows": 0,
     "accepted_existing_rows": 0,
     "duplicate_or_invalid_existing_rows": 0
-  }
+  },
+  "completed_at_utc": "2026-07-27T14:50:52.964946+00:00",
+  "completed_episode_rows": 64
 }

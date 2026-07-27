@@ -743,6 +743,54 @@ weakness is early tempo before the late conversion loop stabilizes. Candidate
 best response is BLUE_RUSH. This is DEVELOPMENT / TUNING ONLY until a frozen
 OP12 variant clears held-out paired seeds with BLUE_RUSH uniquely best and
 beating SPLIT by a positive paired CI.
+
+**OP12 development screens (2026-07-27):** baseline dev1
+`artifacts/op12_dev1_8seed` rejected the RUSH hypothesis: SPLIT was best
+(`+1.125`, WR 7/8), TURTLE second (`+0.625`), RUSH negative (`-0.500`),
+ESCORT negative (`-0.375`). Single-column `delta_pool` is zero by definition
+and is not a pool result.
+
+The first OP12-only anti-SPLIT attempt added an observable-position split
+detector and post-trigger carrier-denial response. Dev4
+`artifacts/op12_dev4_structural_split_detector_8seed` is rejected as a payoff
+result: SPLIT became even stronger (`+1.375`, WR 8/8) and RUSH stayed negative
+(`-0.500`). Telemetry showed the detector was over-broad, firing on RUSH in
+7/8 episodes (`mean_trigger=14.43`, active steps `5.88`) as well as SPLIT in
+8/8 episodes (`mean_trigger=13.62`, active steps `23.0`). The runner now logs
+detector trigger step, active steps, max lateral separation, max teammate
+distance, conversion first step, and intercept attempts from in-episode state
+instead of terminal reset state.
+
+Dev5 `artifacts/op12_dev5_tight_split_detector_8seed` fixed detector
+selectivity but not payoff. The tightened detector fired for SPLIT in 8/8
+episodes (`mean_trigger=20.38`, active steps `6.88`) and for RUSH/TURTLE/ESCORT
+in 0/8, so the structural classifier is doing the intended job. Payoff still
+failed the RUSH niche: SPLIT remained best (`+1.375`, WR 7/8), TURTLE second
+(`+0.625`), RUSH negative (`-0.500`), ESCORT negative (`-0.375`).
+
+Dev6 `artifacts/op12_dev6_split_dual_denial_8seed` strengthened only the
+post-trigger OP12 response by committing both red agents to carrier denial
+after split evidence. This moved SPLIT directionally down (`+1.375` -> `+1.000`,
+WR `7/8` -> `6/8`) while keeping detector selectivity clean (SPLIT 8/8,
+RUSH/TURTLE/ESCORT 0/8). It still failed the RUSH-niche goal: RUSH stayed
+negative (`-0.500`) and SPLIT remained uniquely best. Classification:
+detector correctness PASS, anti-SPLIT punishment DIRECTIONAL_BUT_INSUFFICIENT,
+early RUSH vulnerability FAIL. Do not run held-out OP12 confirmation yet.
+
+Dev8 `artifacts/op12_dev8_opening_gate_4seed` added an OP12-only opening gate
+that suppresses generic retrieval/intercept/counter/defender behavior before
+step 20 unless the split detector has fired. This created the missing early
+tempo window but overcorrected: RUSH improved to `+0.750`, but SPLIT and ESCORT
+both reached `+1.500` and TURTLE reached `+1.250`. Classification:
+early vulnerability EXISTS, but it is too general and not RUSH-protected.
+
+Current unconfirmed code candidate adds OP12-only post-pickup denial for
+escort-like carrier clusters while leaving the split detector frozen. Focused
+tests pass. A one-seed probe showed RUSH `+3`, SPLIT draw, TURTLE `-1`, but
+ESCORT also `+3`, so the escort-cluster denial is not yet sufficient evidence
+for a RUSH niche. Next OP12 step should diagnose/strengthen the post-pickup
+anti-ESCORT response or narrow the opening so it rewards direct RUSH timing
+without giving ESCORT the same conversion path.
 `v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases
 `v6i9_arc_credit_feedforward`,
 `plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`),
@@ -4270,6 +4318,61 @@ red-flag approach during regroup.
 
 The regroup code was reverted after dev13c. Frozen OP6 status is now based on
 the dev12 behavior plus the held-out confirmation screen above.
+
+**OP12 opening audit (2026-07-27):**
+`artifacts/op12_opening_audit_rush_vs_escort_8seed` compares current
+BLUE_RUSH and BLUE_ESCORT against frozen OP12 on the same 8 paired seeds. This
+is a development diagnostic only, not a payoff confirmation.
+
+Result: the OP12 opening vulnerability exists, but it is too generic. RUSH and
+ESCORT are behaviorally distinguishable during the first 20 steps, yet both
+reach the red flag and score on essentially the same tempo. RUSH crosses
+midfield slightly earlier and faster, while ESCORT stays more clustered:
+
+```text
+BLUE_RUSH:
+  first midfield any/both      7.625 / 9.750
+  first flag touch / pickup   14.625 / 15.125
+  first blue score            42.125
+  opening teammate dist        4.694
+  opening lane sep             4.026
+  opening forward velocity     0.667
+  opening clustered frac       0.763
+
+BLUE_ESCORT:
+  first midfield any/both      8.500 / 15.250
+  first flag touch / pickup   14.625 / 15.250
+  first blue score            44.750
+  opening teammate dist        3.679
+  opening lane sep             2.199
+  opening forward velocity     0.560
+  opening clustered frac       0.863
+```
+
+Interpretation: this is not a blue-probe collapse. ESCORT is more compact and
+slower to get both agents across midfield, so OP12 can in principle classify it
+before pickup. The current failure is that the opening gate gives both styles
+nearly equal flag access before OP12 distinguishes close support from raw
+tempo. Next OP12 change should move anti-ESCORT recognition into the pre-pickup
+opening phase and keep the SPLIT detector frozen. Do not run held-out OP12
+confirmation yet; protected RUSH niche remains FAIL.
+
+OP12 opening-escort detector follow-up:
+`artifacts/op12_dev9h_opening_escort_detector_probe_2seed` is a telemetry smoke
+after adding an opening-only pre-pickup lead/support detector and localized
+response. Focused unit tests pass, but live detector telemetry does **not** yet
+fire in the environment:
+
+```text
+BLUE_RUSH   core escort triggers 0/2, external detector triggers 1/2
+BLUE_ESCORT core escort triggers 0/2, external detector triggers 2/2
+```
+
+Decision: do not run the 4-seed payoff pilot yet. The offline/diagnostic
+geometry can see the ESCORT structure, but the core adaptive role path is not
+recording the new detector in live episodes. Next OP12 work should inspect why
+the BT adaptive detector state is not updating from the live role-assignment
+path before tuning thresholds or interpreting payoff.
 
 ---
 

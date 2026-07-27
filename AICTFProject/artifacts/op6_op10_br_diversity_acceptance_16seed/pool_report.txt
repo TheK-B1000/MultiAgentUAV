@@ -1,0 +1,42 @@
+Mean win margin  (rows = blue style, cols = red preset)
+             OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_laneOP6_IMMEDIATE_DUAL_RUSH|map_b_split_laneOP7_DEEP_FORTRESS|map_b_split_laneOP8_PROTECTED_CARRIER_ESCORT|map_b_split_laneOP9_SPLIT_LANE_FEINT|map_b_split_lane
+BLUE_ESCORT             -0.1250           -2.5000           -0.6875           -0.1875           -0.2500
+BLUE_RUSH               -0.6875           -2.4375           -0.2500            0.0000           -0.0625
+BLUE_SPLIT               0.6875            1.1250            1.5000            2.8125            2.9375
+BLUE_TURTLE             -0.6875           -1.0625           -0.2500            0.0000           -0.1875
+
+Win rate
+             OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_laneOP6_IMMEDIATE_DUAL_RUSH|map_b_split_laneOP7_DEEP_FORTRESS|map_b_split_laneOP8_PROTECTED_CARRIER_ESCORT|map_b_split_laneOP9_SPLIT_LANE_FEINT|map_b_split_lane
+BLUE_ESCORT               0.125             0.000             0.000             0.000             0.062
+BLUE_RUSH                 0.000             0.000             0.000             0.000             0.000
+BLUE_SPLIT                0.375             0.875             0.688             1.000             1.000
+BLUE_TURTLE               0.062             0.125             0.000             0.000             0.000
+
+V_selective (cross-fit)  = 1.8093   (insample=1.8125)
+V_best_fixed (cross-fit) = 1.8125   (insample=1.8125, style=BLUE_SPLIT)
+delta_pool              = -0.0032   CI95=[-0.0500, 0.0000]  LCB=-0.0500
+V_hindsight             = 1.8750   (per-episode upper bound, NOT a gate)
+
+Best response by red preset:
+  OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane -> BLUE_SPLIT
+  OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane -> BLUE_SPLIT
+  OP7_DEEP_FORTRESS|map_b_split_lane -> BLUE_SPLIT
+  OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane -> BLUE_SPLIT
+  OP9_SPLIT_LANE_FEINT|map_b_split_lane -> BLUE_SPLIT
+  distinct best responses: 1/5
+  DOMINATING blue style: BLUE_SPLIT
+  unprotected blues (never uniquely best): BLUE_ESCORT, BLUE_RUSH, BLUE_TURTLE
+
+best blue overall WR = 0.788   tie rate = 0.484
+
+Gates:
+  [FAIL] delta_pool_lcb_positive
+  [FAIL] no_dominating_blue_style
+  [FAIL] best_response_diversity
+  [FAIL] all_blues_protected
+  [FAIL] best_blue_wr_in_band
+  [FAIL] tie_rate_under_threshold
+  [PASS] no_degenerate_red_styles
+
+POOL ADMISSIBLE: False
+  -> iterate the red presets until blue best-response diversity clears (all blues protected + LCB(delta_pool)>0). Do not train latents on this pool.

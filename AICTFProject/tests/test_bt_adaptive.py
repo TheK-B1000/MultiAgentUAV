@@ -12,6 +12,7 @@ if str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
 from gpu_env._core._bt_adaptive import _BTAdaptiveMixin
+from gpu_env._core._bt_red import ROLE_ATTACKER, ROLE_INTERCEPTOR
 from gpu_env._core._bt_profiles import (
     LRO_AUDITED_OPPONENT_POOL,
     build_profile_tensors,
@@ -19,6 +20,74 @@ from gpu_env._core._bt_profiles import (
 )
 from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
 from opponent_params import sample_batched_opponent_params
+
+
+def _core(opponent: str = "OP12"):
+    env = GPUCTFVecEnv(
+        GPUFieldConfig(
+            n_envs=1,
+            max_blue_agents=2,
+            max_red_agents=2,
+            map_layout="map_b_split_lane",
+            max_decision_steps=64,
+            aquaticus_profile=True,
+            rules_profile="OURS",
+            device="cpu",
+            seed=123,
+        )
+    )
+    env.reset()
+    core = env.core
+    core._opponent_key[0] = opponent
+    core.blue_alive[0] = True
+    core.red_alive[0] = True
+    core.blue_tagged[0] = False
+    core.red_tagged[0] = False
+    return core, env
+
+
+def _op12_profile(core) -> dict[str, torch.Tensor]:
+    return build_profile_tensors(
+        ["OP12_LATE_CONVERTER"],
+        device=core.device,
+        batch_size=1,
+    )
+
+
+def _advance_adaptive_memory(core, prof: dict[str, torch.Tensor], steps: int) -> None:
+    for t in range(steps):
+        core.sim_step_count[0] = t
+        core._update_adaptive_memory(prof)
+
+
+def _run_live_op12_style(style: str, steps: int = 20, seed: int = 551001):
+    env = GPUCTFVecEnv(
+        GPUFieldConfig(
+            n_envs=1,
+            max_blue_agents=2,
+            max_red_agents=2,
+            map_layout="map_b_split_lane",
+            max_decision_steps=64,
+            aquaticus_profile=True,
+            rules_profile="OURS",
+            device="cpu",
+            seed=seed,
+        )
+    )
+    env.env_method("set_phase", "OP12_LATE_CONVERTER")
+    env.env_method("set_next_opponent", "SCRIPTED", "OP12_LATE_CONVERTER")
+    env.reset()
+    core = env.core
+    env.env_method("set_phase", "OP12_LATE_CONVERTER")
+    env.env_method("set_next_opponent", "SCRIPTED", "OP12_LATE_CONVERTER")
+    core.blue_scripted = True
+    core.set_blue_style(style)
+    action = env.action_space.sample()
+    zero_action = torch.zeros_like(torch.as_tensor(action)).cpu().numpy()
+    for _ in range(steps):
+        env.step_async(zero_action)
+        env.step_wait()
+    return core, env
 
 
 class BTAdaptiveProfileTests(unittest.TestCase):
@@ -90,6 +159,165 @@ class BTAdaptiveProfileTests(unittest.TestCase):
                 speed_overdrive_mask=mask,
             )
             self.assertGreater(float(speed2.max().item()), float(env.cfg.max_speed_cps))
+        finally:
+            env.close()
+
+    def test_op12_split_detector_requires_separated_opposite_lanes(self) -> None:
+        core, env = _core("OP12")
+        try:
+            prof = _op12_profile(core)
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 3.0
+            core.blue_x[0, 1] = midline + 4.0
+            core.blue_y[0, 0] = center_y - float(core.rows) * 0.35
+            core.blue_y[0, 1] = center_y + float(core.rows) * 0.35
+
+            _advance_adaptive_memory(core, prof, 4)
+
+            self.assertEqual(int(core.bt_adapt_split_pressure_ticks[0].item()), 4)
+            self.assertEqual(int(core.bt_adapt_split_first_trigger_step[0].item()), 3)
+            self.assertGreater(int(core.bt_adapt_split_active_steps[0].item()), 0)
+        finally:
+            env.close()
+
+    def test_op12_split_detector_does_not_trigger_on_clustered_rush(self) -> None:
+        core, env = _core("OP12")
+        try:
+            prof = _op12_profile(core)
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 4.0
+            core.blue_x[0, 1] = midline + 5.0
+            core.blue_y[0, 0] = center_y - 0.5
+            core.blue_y[0, 1] = center_y + 0.5
+
+            _advance_adaptive_memory(core, prof, 4)
+
+            self.assertEqual(int(core.bt_adapt_split_pressure_ticks[0].item()), 0)
+            self.assertEqual(int(core.bt_adapt_split_first_trigger_step[0].item()), -1)
+            self.assertEqual(int(core.bt_adapt_split_active_steps[0].item()), 0)
+        finally:
+            env.close()
+
+    def test_op12_split_detector_resets_between_episodes(self) -> None:
+        core, env = _core("OP12")
+        try:
+            prof = _op12_profile(core)
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 3.0
+            core.blue_x[0, 1] = midline + 4.0
+            core.blue_y[0, 0] = center_y - float(core.rows) * 0.35
+            core.blue_y[0, 1] = center_y + float(core.rows) * 0.35
+            _advance_adaptive_memory(core, prof, 8)
+
+            core._reset_adaptive_memory(torch.tensor([True], device=core.device))
+
+            self.assertEqual(int(core.bt_adapt_split_pressure_ticks[0].item()), 0)
+            self.assertEqual(int(core.bt_adapt_split_first_trigger_step[0].item()), -1)
+            self.assertEqual(int(core.bt_adapt_split_active_steps[0].item()), 0)
+            self.assertEqual(float(core.bt_adapt_split_max_lateral_sep[0].item()), 0.0)
+            self.assertEqual(float(core.bt_adapt_split_max_teammate_dist[0].item()), 0.0)
+        finally:
+            env.close()
+
+    def test_op12_opening_escort_detector_triggers_on_lead_support(self) -> None:
+        core, env = _core("OP12")
+        try:
+            prof = _op12_profile(core)
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 4.0
+            core.blue_x[0, 1] = midline + 2.0
+            core.blue_y[0, 0] = center_y + 0.75
+            core.blue_y[0, 1] = center_y - 0.75
+            core.sim_step_count[0] = 0
+
+            _advance_adaptive_memory(core, prof, 3)
+
+            self.assertEqual(int(core.bt_adapt_opening_escort_ticks[0].item()), 3)
+            self.assertEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), 2)
+            self.assertGreater(int(core.bt_adapt_opening_escort_active_steps[0].item()), 0)
+        finally:
+            env.close()
+
+    def test_op12_opening_escort_detector_does_not_trigger_on_wider_rush(self) -> None:
+        core, env = _core("OP12")
+        try:
+            prof = _op12_profile(core)
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 4.0
+            core.blue_x[0, 1] = midline + 1.0
+            core.blue_y[0, 0] = center_y + 2.2
+            core.blue_y[0, 1] = center_y - 2.2
+            core.sim_step_count[0] = 0
+
+            _advance_adaptive_memory(core, prof, 3)
+
+            self.assertEqual(int(core.bt_adapt_opening_escort_ticks[0].item()), 0)
+            self.assertEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), -1)
+            self.assertEqual(int(core.bt_adapt_opening_escort_active_steps[0].item()), 0)
+        finally:
+            env.close()
+
+    def test_op12_opening_escort_detector_resets_between_episodes(self) -> None:
+        core, env = _core("OP12")
+        try:
+            prof = _op12_profile(core)
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 4.0
+            core.blue_x[0, 1] = midline + 1.0
+            core.blue_y[0, 0] = center_y + 0.75
+            core.blue_y[0, 1] = center_y - 0.75
+            _advance_adaptive_memory(core, prof, 3)
+
+            core._reset_adaptive_memory(torch.tensor([True], device=core.device))
+
+            self.assertEqual(int(core.bt_adapt_opening_escort_ticks[0].item()), 0)
+            self.assertEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), -1)
+            self.assertEqual(int(core.bt_adapt_opening_escort_active_steps[0].item()), 0)
+        finally:
+            env.close()
+
+    def test_live_op12_opening_escort_detector_activates_for_escort_not_rush(self) -> None:
+        core, env = _run_live_op12_style("BLUE_ESCORT", steps=20)
+        try:
+            self.assertGreaterEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), 0)
+            self.assertLess(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), 20)
+        finally:
+            env.close()
+
+        core, env = _run_live_op12_style("BLUE_RUSH", steps=20, seed=551002)
+        try:
+            self.assertEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), -1)
+        finally:
+            env.close()
+
+    def test_op12_opening_delays_carrier_intercept_until_late_phase(self) -> None:
+        core, env = _core("OP12")
+        try:
+            core.blue_carrying[0, 0] = True
+            core.blue_x[0, 0] = 12.0
+            core.blue_y[0, 0] = 10.0
+            core.blue_flag_home[0, 0] = 1.0
+            core.blue_flag_home[0, 1] = 10.0
+            core.red_x[0, 0] = 16.0
+            core.red_y[0, 0] = 10.0
+            core.red_x[0, 1] = 18.0
+            core.red_y[0, 1] = 12.0
+
+            core.sim_step_count[0] = 5
+            core._get_bt_targets()
+            self.assertNotIn(ROLE_INTERCEPTOR, core.bt_red_role[0].tolist())
+            self.assertIn(ROLE_ATTACKER, core.bt_red_role[0].tolist())
+
+            core.bt_role_lock_ticks[0] = 0
+            core.sim_step_count[0] = 25
+            core._get_bt_targets()
+            self.assertIn(ROLE_INTERCEPTOR, core.bt_red_role[0].tolist())
         finally:
             env.close()
 

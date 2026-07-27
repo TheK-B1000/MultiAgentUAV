@@ -1,0 +1,36 @@
+{
+  "protocol": "scripted_blue_red_pool_admissibility",
+  "status": "completed",
+  "started_at_utc": "2026-07-27T17:07:37.979180+00:00",
+  "blue_styles": [
+    "BLUE_RUSH",
+    "BLUE_TURTLE",
+    "BLUE_SPLIT",
+    "BLUE_ESCORT"
+  ],
+  "reds": [
+    "OP12_LATE_CONVERTER"
+  ],
+  "maps": [
+    "map_b_split_lane"
+  ],
+  "episodes_per_cell": 4,
+  "base_seed": 551001,
+  "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
+  "max_decision_steps": 240,
+  "device": "cuda",
+  "expected_episode_rows": 16,
+  "artifacts": [
+    "episode_results.csv",
+    "pool_report.json",
+    "pool_report.txt",
+    "partial_summary.json"
+  ],
+  "resume": {
+    "loaded_existing_rows": 0,
+    "accepted_existing_rows": 0,
+    "duplicate_or_invalid_existing_rows": 0
+  },
+  "completed_at_utc": "2026-07-27T17:17:38.893339+00:00",
+  "completed_episode_rows": 16
+}

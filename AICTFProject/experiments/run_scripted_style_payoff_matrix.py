@@ -70,6 +70,14 @@ ROW_FIELDS = [
     "time_to_first_score",
     "collision_free",
     "zone_coverage",
+    "split_detector_first_trigger_step",
+    "split_detector_active_steps",
+    "split_detector_max_lateral_sep",
+    "split_detector_max_teammate_dist",
+    "escort_detector_first_trigger_step",
+    "escort_detector_active_steps",
+    "conversion_phase_first_step",
+    "carrier_intercept_attempts",
 ]
 
 
@@ -133,11 +141,12 @@ def _episode_result_row(
     episode_seed: int,
     episode_result: dict[str, Any],
     reward_return: float,
+    extra_telemetry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     blue_score = int(episode_result.get("blue_score", 0))
     red_score = int(episode_result.get("red_score", 0))
     win_margin = blue_score - red_score
-    return {
+    row = {
         "blue_style": blue_style,
         "red_style": red_style,
         "map": map_name,
@@ -154,6 +163,70 @@ def _episode_result_row(
         "collision_free": int(episode_result.get("collision_free_episode", 1)),
         "zone_coverage": float(episode_result.get("zone_coverage", 0.0)),
     }
+    if extra_telemetry:
+        row.update(extra_telemetry)
+    return row
+
+
+def _scalar_core_int(core: Any, attr: str, default: int = -1) -> int:
+    val = getattr(core, attr, None)
+    if val is None:
+        return int(default)
+    try:
+        return int(val[0].item())
+    except Exception:
+        return int(default)
+
+
+def _scalar_core_float(core: Any, attr: str, default: float = 0.0) -> float:
+    val = getattr(core, attr, None)
+    if val is None:
+        return float(default)
+    try:
+        return float(val[0].item())
+    except Exception:
+        return float(default)
+
+
+def _core_detector_telemetry(core: Any) -> dict[str, int | float]:
+    first_trigger = _scalar_core_int(core, "bt_adapt_split_first_trigger_step", -1)
+    return {
+        "split_detector_first_trigger_step": first_trigger,
+        "split_detector_active_steps": _scalar_core_int(core, "bt_adapt_split_active_steps", 0),
+        "split_detector_max_lateral_sep": _scalar_core_float(core, "bt_adapt_split_max_lateral_sep", 0.0),
+        "split_detector_max_teammate_dist": _scalar_core_float(core, "bt_adapt_split_max_teammate_dist", 0.0),
+        "escort_detector_first_trigger_step": _scalar_core_int(
+            core, "bt_adapt_opening_escort_first_trigger_step", -1
+        ),
+        "escort_detector_active_steps": _scalar_core_int(core, "bt_adapt_opening_escort_active_steps", 0),
+        "conversion_phase_first_step": first_trigger,
+        "carrier_intercept_attempts": _scalar_core_int(core, "bt_tel_intercept_attempts", 0),
+    }
+
+
+def _merge_detector_telemetry(
+    current: dict[str, int | float],
+    sample: dict[str, int | float],
+) -> dict[str, int | float]:
+    out = dict(current)
+    for key in ("split_detector_first_trigger_step", "escort_detector_first_trigger_step"):
+        cur = int(out.get(key, -1))
+        val = int(sample.get(key, -1))
+        if cur < 0 and val >= 0:
+            out[key] = val
+        elif cur >= 0 and val >= 0:
+            out[key] = min(cur, val)
+    for key in (
+        "split_detector_active_steps",
+        "escort_detector_active_steps",
+        "split_detector_max_lateral_sep",
+        "split_detector_max_teammate_dist",
+        "carrier_intercept_attempts",
+    ):
+        out[key] = max(float(out.get(key, 0)), float(sample.get(key, 0)))
+    first_split = int(out.get("split_detector_first_trigger_step", -1))
+    out["conversion_phase_first_step"] = first_split
+    return out
 
 
 def _run_one_episode(
@@ -179,15 +252,30 @@ def _run_one_episode(
         core.blue_scripted = True
         core.set_blue_style(blue_style)
         env.reset()
+        env.env_method("set_phase", red_style)
+        env.env_method("set_next_opponent", "SCRIPTED", red_style)
+        core.blue_scripted = True
+        core.set_blue_style(blue_style)
 
         ep_return = 0.0
         last_info: dict[str, Any] = {}
+        detector_telemetry: dict[str, int | float] = {
+            "split_detector_first_trigger_step": -1,
+            "split_detector_active_steps": 0,
+            "split_detector_max_lateral_sep": 0.0,
+            "split_detector_max_teammate_dist": 0.0,
+            "escort_detector_first_trigger_step": -1,
+            "escort_detector_active_steps": 0,
+            "conversion_phase_first_step": -1,
+            "carrier_intercept_attempts": 0,
+        }
         for _ in range(int(max_decision_steps) + 5):
             action = _zero_action(env)
             env.step_async(action)
             _, reward, done, infos = env.step_wait()
             ep_return += float(reward[0])
             last_info = infos[0] if infos else {}
+            detector_telemetry = _merge_detector_telemetry(detector_telemetry, _core_detector_telemetry(core))
             if bool(done.any()):
                 ep_res = last_info.get("episode_result", last_info)
                 return _episode_result_row(
@@ -198,6 +286,7 @@ def _run_one_episode(
                     episode_seed=episode_seed,
                     episode_result=dict(ep_res),
                     reward_return=ep_return,
+                    extra_telemetry=detector_telemetry,
                 )
         raise RuntimeError(
             f"episode did not terminate: blue={blue_style} red={red_style} map={map_name} seed={episode_seed}"
@@ -289,9 +378,38 @@ def _append_episode_row(path: Path, row: dict[str, Any]) -> None:
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    """Atomic-ish JSON write with Windows-friendly retries.
+
+    Antivirus / Indexer / concurrent readers often hold ``path`` briefly on
+    Windows, so ``Path.replace`` can raise ``PermissionError``. Progress
+    writes must not abort a multi-hour matrix for that.
+    """
+    import time
+
+    text = json.dumps(payload, indent=2) + "\n"
     tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    last_err: Exception | None = None
+    for attempt in range(8):
+        try:
+            tmp.write_text(text, encoding="utf-8")
+            try:
+                tmp.replace(path)
+            except PermissionError:
+                # Fall back to in-place overwrite when replace is locked.
+                path.write_text(text, encoding="utf-8")
+                try:
+                    tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            return
+        except (PermissionError, OSError) as exc:
+            last_err = exc
+            time.sleep(0.05 * (2**attempt))
+    # Last resort: non-atomic overwrite so the episode loop can continue.
+    try:
+        path.write_text(text, encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001 — surface both failures
+        raise RuntimeError(f"failed to write {path}: {last_err}; fallback: {exc}") from exc
 
 
 def _write_progress(
