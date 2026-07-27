@@ -643,9 +643,88 @@ informative outcome for the pool-level crossover question -- watch
 specifically for whether RUSH or TURTLE actually punishes OP10, since that
 is what would matter most right now.
 
+Development screen result:
 
+```text
+BLUE_SPLIT   WR=4/8   mean_margin=+0.875
+BLUE_ESCORT  WR=1/8   mean_margin=+0.125
+BLUE_TURTLE  WR=0/8   mean_margin=-0.375
+BLUE_RUSH    WR=0/8   mean_margin=-0.875
+```
 
-**Status:** `IMPLEMENTED, PENDING_SMOKE`. Preset committed as
+Notably weaker/more contested than OP7-9: SPLIT wins only half the time here,
+not near-100%, and RUSH is clearly punished hardest (-0.875, matching the
+"long lock shuts down a single obvious threat" half of the hypothesis). No
+OP10 or blue-controller tuning was attempted -- the spread was already wide
+enough (best vs worst = 1.75) to warrant going straight to confirmation
+rather than more dev iteration, matching the OP9 precedent.
+
+Held-out confirmation: `artifacts/op10_split_heldout16_seed531001`, 16
+disjoint paired seeds (base-seed 531001), unchanged OP10/map_b_split_lane.
+
+```text
+BLUE_SPLIT   WR=12/16  mean_margin=+1.6250
+BLUE_ESCORT  WR=0/16   mean_margin=-0.4375
+BLUE_TURTLE  WR=0/16   mean_margin=-0.6875
+BLUE_RUSH    WR=0/16   mean_margin=-0.8750
+```
+
+```text
+SPLIT - RUSH     mean +2.5000, bootstrap 95% CI [ +1.7500, +3.1875 ]
+SPLIT - TURTLE   mean +2.3125, bootstrap 95% CI [ +1.7500, +2.8750 ]
+SPLIT - ESCORT   mean +2.0625, bootstrap 95% CI [ +1.4375, +2.6875 ]
+pooled vs others mean +2.2917, bootstrap 95% CI [ +1.7078, +2.8542 ]
+```
+
+Decision: OP10 is **ACCEPTED** as a held-out SPLIT niche for the pool matrix.
+Held-out evidence PASS (WR rose from dev's 50% to held-out's 75%, and every
+paired CI clears zero comfortably); no controller change made or needed;
+runtime behavior FROZEN.
+
+**Cross-opponent concern, escalated: four for four.** OP7, OP8, OP9, and now
+OP10 all confirm BLUE_SPLIT as their held-out preferred response. Only OP6
+(provisional TURTLE, never fully accepted) points anywhere else, and even
+that one never passed a full 16-seed held-out screen. At four consecutive
+confirmed SPLIT niches, "SPLIT is just the strongest all-around scripted
+style against this opponent family" is no longer a concern to flag for
+later -- it is the more likely reading of the evidence than "each opponent
+creates a genuinely distinct niche." OP10's own numbers are consistent with
+this: the identity that was supposed to make it a *harder* matchup for SPLIT
+(a long, sticky lock) only weakened SPLIT's margin, it did not create an
+opening for a different style to win instead. Before running OP11 or OP12
+under the assumption that this exercise is still discovering distinct
+niches, it is worth deciding explicitly whether the goal has quietly shifted
+to "confirm SPLIT is pool-dominant" (a real, useful, but different finding
+than the Summer plan's crossover claim) versus continuing to search OP11/12
+for the first non-SPLIT confirmed niche.
+
+**Direction (2026-07-27):** end goal is still four distinct latent
+strategies (TURTLE/SPLIT/RUSH/ESCORT), each protected somewhere in the pool
+-- not just four occupied latent IDs. Current state: OP6 provisional TURTLE,
+OP7-OP10 confirmed SPLIT, OP11-OP12 unknown. That is only two candidate
+niches. Finish OP11 and OP12 first (as originally sequenced) specifically
+looking for RUSH and ESCORT niches. If neither appears, redesign specific
+opponents to punish concentrated pushes (favor RUSH) and punish split
+pressure (favor ESCORT) rather than accepting a two-style pool. A style
+should become a specialist somewhere, not just lose everywhere it's tried.
+
+**OP11 development screen (2026-07-27):** `artifacts/op11_dev1_8seed`,
+OP11_ADAPTIVE_EXPLOITER/map_b_split_lane, 8 paired development seeds
+(base-seed 541001).
+
+Locked intended contract before tuning, from the BT profile (profile 11):
+`adaptive_enabled=True` (the only profile with this flag -- OP11 is meant to
+be the hardest, most reactive opponent), `enable_2v1=True` (can commit both
+red agents to double-team a single identified threat -- OP6-OP10 cannot),
+`enable_counter=True` with `counter_always=True` (proactive counter-press,
+not just when trailing), short locks throughout (4-8 steps, vs OP10's 28) --
+reactive/flexible, not sticky. Hypothesis: the 2v1 mechanism should be able
+to double-team a SINGLE concentrated threat (RUSH, ESCORT) hard, which is bad
+news for those two styles specifically -- but it may also be able to
+reallocate quickly enough to cover BOTH SPLIT lanes, which would finally
+break SPLIT's run. If SPLIT's margin collapses here while nothing else picks
+it up, that supports redesigning OP11/12 deliberately per the direction
+above, rather than continuing to search for a natural non-SPLIT niche.
 `v6i9_arc_credit_running_mean_feedforward_hardpool` (aliases
 `v6i9_arc_credit_feedforward`,
 `plan_faithful_latent_v6i9_arc_credit_running_mean_feedforward_hardpool`),

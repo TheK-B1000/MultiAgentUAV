@@ -1,7 +1,7 @@
 {
   "protocol": "scripted_blue_red_pool_admissibility",
-  "status": "running",
-  "started_at_utc": "2026-07-27T13:26:41.678155+00:00",
+  "status": "completed",
+  "started_at_utc": "2026-07-27T12:33:19.221115+00:00",
   "blue_styles": [
     "BLUE_RUSH",
     "BLUE_TURTLE",
@@ -9,28 +9,23 @@
     "BLUE_ESCORT"
   ],
   "reds": [
-    "OP6_IMMEDIATE_DUAL_RUSH",
-    "OP7_DEEP_FORTRESS",
-    "OP8_PROTECTED_CARRIER_ESCORT"
+    "OP10_AGGRESSIVE_INTERCEPTOR"
   ],
   "maps": [
     "map_b_split_lane"
   ],
   "episodes_per_cell": 16,
-  "base_seed": 661001,
+  "base_seed": 531001,
   "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
   "max_decision_steps": 240,
   "device": "cuda",
-  "expected_episode_rows": 192,
+  "expected_episode_rows": 64,
   "artifacts": [
     "episode_results.csv",
     "pool_report.json",
     "pool_report.txt",
     "partial_summary.json"
   ],
-  "resume": {
-    "loaded_existing_rows": 108,
-    "accepted_existing_rows": 108,
-    "duplicate_or_invalid_existing_rows": 0
-  }
+  "completed_at_utc": "2026-07-27T13:19:56.736885+00:00",
+  "completed_episode_rows": 64
 }

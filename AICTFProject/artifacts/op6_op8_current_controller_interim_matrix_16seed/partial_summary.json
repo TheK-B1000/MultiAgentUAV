@@ -1,23 +1,27 @@
-{
-  "status": "running",
-  "updated_at_utc": "2026-07-27T12:31:45.897517+00:00",
-  "completed_episode_rows": 64,
-  "expected_episode_rows": 192,
-  "last_row": {
-    "blue_style": "BLUE_ESCORT",
-    "red_style": "OP6_IMMEDIATE_DUAL_RUSH",
-    "map": "map_b_split_lane",
-    "episode_index": 15,
-    "episode_seed": 661016,
-    "success": 0,
-    "blue_score": 0,
-    "red_score": 3,
-    "win_margin": -3,
-    "steps": 131,
-    "return": -5.3460416173620615,
-    "outcome": "loss",
-    "time_to_first_score": 38.0,
-    "collision_free": 0,
-    "zone_coverage": 0.5600000023841858
-  }
+﻿{
+    "status":  "INTERRUPTED_RESUMABLE",
+    "updated_at_utc":  "2026-07-27T13:28:35.3253601Z",
+    "completed_episode_rows":  109,
+    "expected_episode_rows":  192,
+    "missing_episode_rows":  83,
+    "skipped_existing_rows":  108,
+    "duplicate_or_invalid_existing_rows":  0,
+    "last_row":  {
+                     "blue_style":  "BLUE_RUSH",
+                     "red_style":  "OP7_DEEP_FORTRESS",
+                     "map":  "map_b_split_lane",
+                     "episode_index":  11,
+                     "episode_seed":  761012,
+                     "success":  0,
+                     "blue_score":  0,
+                     "red_score":  0,
+                     "win_margin":  0,
+                     "steps":  240,
+                     "return":  -17.14700547073153,
+                     "outcome":  "draw",
+                     "time_to_first_score":  null,
+                     "collision_free":  1,
+                     "zone_coverage":  0.5600000023841858
+                 },
+    "note":  "Stopped intentionally after priority shifted to OP11/OP12; existing rows are resumable and must not be treated as a completed pool result."
 }

@@ -1,0 +1,23 @@
+{
+  "status": "running",
+  "updated_at_utc": "2026-07-27T13:06:40.485923+00:00",
+  "completed_episode_rows": 108,
+  "expected_episode_rows": 192,
+  "last_row": {
+    "blue_style": "BLUE_ESCORT",
+    "red_style": "OP7_DEEP_FORTRESS",
+    "map": "map_b_split_lane",
+    "episode_index": 10,
+    "episode_seed": 761011,
+    "success": 0,
+    "blue_score": 1,
+    "red_score": 2,
+    "win_margin": -1,
+    "steps": 240,
+    "return": -14.955835668399232,
+    "outcome": "loss",
+    "time_to_first_score": 74.0,
+    "collision_free": 0,
+    "zone_coverage": 0.6800000071525574
+  }
+}

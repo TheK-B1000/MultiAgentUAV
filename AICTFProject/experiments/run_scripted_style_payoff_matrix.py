@@ -205,6 +205,63 @@ def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+def _load_existing_rows(path: Path) -> list[dict[str, Any]]:
+    if not path.exists() or path.stat().st_size == 0:
+        return []
+    with path.open("r", newline="", encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def _row_key(row: dict[str, Any]) -> tuple[str, str, str, int]:
+    return (
+        str(row["blue_style"]),
+        str(row["red_style"]),
+        str(row["map"]),
+        int(row["episode_index"]),
+    )
+
+
+def _expected_keys(args: argparse.Namespace) -> set[tuple[str, str, str, int]]:
+    return {
+        (str(blue), str(red), str(map_name), int(ep_i))
+        for red in args.reds
+        for map_name in args.maps
+        for ep_i in range(int(args.episodes))
+        for blue in args.blue_styles
+    }
+
+
+def _existing_complete_rows(
+    rows: list[dict[str, Any]],
+    expected: set[tuple[str, str, str, int]],
+) -> tuple[list[dict[str, Any]], dict[tuple[str, str, str, int], dict[str, Any]], list[dict[str, Any]]]:
+    seen: dict[tuple[str, str, str, int], dict[str, Any]] = {}
+    duplicates: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            key = _row_key(row)
+        except (KeyError, TypeError, ValueError):
+            duplicates.append(row)
+            continue
+        if key not in expected:
+            duplicates.append(row)
+            continue
+        if key in seen:
+            duplicates.append(row)
+            continue
+        seen[key] = row
+    ordered = sorted(
+        seen.values(),
+        key=lambda r: (
+            str(r["red_style"]),
+            str(r["map"]),
+            int(r["episode_index"]),
+            str(r["blue_style"]),
+        ),
+    )
+    return ordered, seen, duplicates
+
+
 def _init_episode_csv(path: Path) -> None:
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=ROW_FIELDS)
@@ -227,6 +284,33 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+def _write_progress(
+    path: Path,
+    *,
+    status: str,
+    completed: int,
+    expected: int,
+    skipped_existing: int,
+    duplicate_or_invalid_rows: int,
+    last_row: dict[str, Any] | None = None,
+    error: str | None = None,
+) -> None:
+    payload: dict[str, Any] = {
+        "status": status,
+        "updated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "completed_episode_rows": int(completed),
+        "expected_episode_rows": int(expected),
+        "missing_episode_rows": int(max(0, expected - completed)),
+        "skipped_existing_rows": int(skipped_existing),
+        "duplicate_or_invalid_existing_rows": int(duplicate_or_invalid_rows),
+    }
+    if last_row is not None:
+        payload["last_row"] = last_row
+    if error is not None:
+        payload["error"] = error
+    _write_json(path, payload)
+
+
 def _red_key(row: dict[str, Any]) -> str:
     return f"{row['red_style']}|{row['map']}"
 
@@ -247,12 +331,17 @@ def main() -> int:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    rows: list[dict[str, Any]] = []
     total = len(args.blue_styles) * len(args.reds) * len(args.maps) * int(args.episodes)
-    count = 0
     started_at = datetime.now(timezone.utc).isoformat()
     episode_csv = out_dir / EPISODE_RESULTS_CSV
-    _init_episode_csv(episode_csv)
+    expected_keys = _expected_keys(args)
+    loaded_rows = _load_existing_rows(episode_csv)
+    rows, completed_by_key, duplicate_rows = _existing_complete_rows(loaded_rows, expected_keys)
+    if rows:
+        _write_rows(episode_csv, rows)
+    else:
+        _init_episode_csv(episode_csv)
+    count = len(rows)
     manifest_base = {
         "protocol": "scripted_blue_red_pool_admissibility",
         "status": "running",
@@ -267,38 +356,69 @@ def main() -> int:
         "device": str(args.device),
         "expected_episode_rows": int(total),
         "artifacts": [EPISODE_RESULTS_CSV, POOL_REPORT_JSON, POOL_REPORT_TXT, PARTIAL_SUMMARY_JSON],
+        "resume": {
+            "loaded_existing_rows": int(len(loaded_rows)),
+            "accepted_existing_rows": int(len(rows)),
+            "duplicate_or_invalid_existing_rows": int(len(duplicate_rows)),
+        },
     }
     _write_json(out_dir / RUN_MANIFEST_JSON, manifest_base)
+    initial_status = "COMPLETED" if count == total else ("INTERRUPTED_RESUMABLE" if count > 0 else "RUNNING")
+    _write_progress(
+        out_dir / PARTIAL_SUMMARY_JSON,
+        status=initial_status,
+        completed=count,
+        expected=total,
+        skipped_existing=count,
+        duplicate_or_invalid_rows=len(duplicate_rows),
+        last_row=rows[-1] if rows else None,
+    )
 
-    for red_i, red_style in enumerate(args.reds):
-        for map_i, map_name in enumerate(args.maps):
-            for ep_i in range(int(args.episodes)):
-                seed = _episode_seed(int(args.base_seed), red_i, map_i, ep_i)
-                for blue_style in args.blue_styles:
-                    row = _run_one_episode(
-                        blue_style=str(blue_style),
-                        red_style=str(red_style),
-                        map_name=str(map_name),
-                        episode_index=ep_i,
-                        episode_seed=seed,
-                        max_decision_steps=int(args.max_decision_steps),
-                        device=str(args.device),
-                    )
-                    rows.append(row)
-                    _append_episode_row(episode_csv, row)
-                    count += 1
-                    _write_json(
-                        out_dir / PARTIAL_SUMMARY_JSON,
-                        {
-                            "status": "running",
-                            "updated_at_utc": datetime.now(timezone.utc).isoformat(),
-                            "completed_episode_rows": int(count),
-                            "expected_episode_rows": int(total),
-                            "last_row": row,
-                        },
-                    )
-                    if int(args.progress_every) > 0 and count % int(args.progress_every) == 0:
-                        print(f"[scripted-style matrix] {count}/{total} episodes", flush=True)
+    try:
+        for red_i, red_style in enumerate(args.reds):
+            for map_i, map_name in enumerate(args.maps):
+                for ep_i in range(int(args.episodes)):
+                    seed = _episode_seed(int(args.base_seed), red_i, map_i, ep_i)
+                    for blue_style in args.blue_styles:
+                        key = (str(blue_style), str(red_style), str(map_name), int(ep_i))
+                        if key in completed_by_key:
+                            continue
+                        row = _run_one_episode(
+                            blue_style=str(blue_style),
+                            red_style=str(red_style),
+                            map_name=str(map_name),
+                            episode_index=ep_i,
+                            episode_seed=seed,
+                            max_decision_steps=int(args.max_decision_steps),
+                            device=str(args.device),
+                        )
+                        rows.append(row)
+                        completed_by_key[key] = row
+                        _append_episode_row(episode_csv, row)
+                        count += 1
+                        _write_progress(
+                            out_dir / PARTIAL_SUMMARY_JSON,
+                            status="RUNNING" if count < total else "COMPLETED",
+                            completed=count,
+                            expected=total,
+                            skipped_existing=len(loaded_rows),
+                            duplicate_or_invalid_rows=len(duplicate_rows),
+                            last_row=row,
+                        )
+                        if int(args.progress_every) > 0 and count % int(args.progress_every) == 0:
+                            print(f"[scripted-style matrix] {count}/{total} episodes", flush=True)
+    except Exception as exc:
+        _write_progress(
+            out_dir / PARTIAL_SUMMARY_JSON,
+            status="FAILED",
+            completed=len(completed_by_key),
+            expected=total,
+            skipped_existing=len(loaded_rows),
+            duplicate_or_invalid_rows=len(duplicate_rows),
+            last_row=rows[-1] if rows else None,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+        raise
 
     cells = cells_from_rows(_analysis_rows(rows))
     report = analyze_pool(
