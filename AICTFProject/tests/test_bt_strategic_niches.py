@@ -24,13 +24,14 @@ from rl.training.config_validation import normalize_and_validate_training_config
 
 
 EXPECTED_ROLE_GATES = {
-    6: (False, True, True, False, False),
-    7: (False, False, False, True, False),
-    8: (True, True, False, False, True),
-    9: (False, True, False, False, False),
-    10: (False, False, False, False, False),
-    11: (True, True, True, False, True),
-    12: (True, True, True, False, False),
+    # (escort, counter, counter_always, mines, 2v1, intercept)
+    6: (False, False, False, False, False, False),  # dual-assault TURTLE host
+    7: (False, False, False, True, False, True),
+    8: (True, True, False, False, True, True),
+    9: (False, True, False, False, False, True),
+    10: (False, False, False, False, False, True),  # pure interceptor
+    11: (True, True, True, False, True, True),
+    12: (True, True, True, False, False, True),
 }
 
 
@@ -133,13 +134,13 @@ class OpponentAliasDisciplineTests(unittest.TestCase):
     def test_niche_identities_match_table(self) -> None:
         self.assertEqual(profile_for_level(6).name, "OP6_IMMEDIATE_DUAL_RUSH")
         self.assertFalse(profile_for_level(6).enable_escort)
-        self.assertTrue(profile_for_level(6).enable_counter)
-        self.assertTrue(profile_for_level(6).counter_always)
-        self.assertEqual(profile_for_level(6).min_alive_for_defender, 2)
+        self.assertFalse(profile_for_level(6).enable_intercept)
+        self.assertFalse(profile_for_level(6).enable_counter)
+        self.assertFalse(profile_for_level(6).counter_always)
+        self.assertEqual(profile_for_level(6).min_alive_for_defender, 3)
         self.assertGreaterEqual(profile_for_level(6).lock_attacker, 20)
-        self.assertLessEqual(profile_for_level(6).threat_radius, 2.5)
-        self.assertLessEqual(profile_for_level(6).lane_amplitude_frac, 0.10)
-        self.assertLessEqual(profile_for_level(6).intercept_feasibility_ratio, 0.50)
+        self.assertLessEqual(profile_for_level(6).threat_radius, 0.5)
+        self.assertGreaterEqual(profile_for_level(6).lane_amplitude_frac, 0.35)
         self.assertEqual(profile_for_level(7).name, "OP7_DEEP_FORTRESS")
         self.assertTrue(profile_for_level(7).enable_mines)
         self.assertFalse(profile_for_level(7).enable_counter)

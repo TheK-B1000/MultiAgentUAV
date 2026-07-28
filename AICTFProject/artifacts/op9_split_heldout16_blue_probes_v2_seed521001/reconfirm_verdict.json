@@ -2,8 +2,8 @@
   "verdict": "RECONFIRM_PASS",
   "protocol": "BLUE_PROBES_V2",
   "base_seed": 521001,
-  "prior_heldout_seed": 511001,
   "n_episodes": 16,
+  "intended_best": "BLUE_SPLIT",
   "means": {
     "BLUE_ESCORT": 0.125,
     "BLUE_RUSH": 0.0,
@@ -17,7 +17,7 @@
     "BLUE_TURTLE": 0.0
   },
   "uniquely_best": "BLUE_SPLIT",
-  "paired_split_advantages": {
+  "paired_advantages": {
     "BLUE_ESCORT": {
       "mean": 2.6875,
       "ci95": [
@@ -59,5 +59,6 @@
       2.875
     ],
     "clear": true
-  }
+  },
+  "episode_csv": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\op9_split_heldout16_blue_probes_v2_seed521001\\episode_results.csv"
 }

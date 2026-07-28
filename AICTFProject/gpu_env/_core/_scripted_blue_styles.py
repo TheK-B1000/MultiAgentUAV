@@ -172,8 +172,17 @@ class _ScriptedBlueStylesMixin:
                 pair_dist = torch.sqrt((carrier_x - other_x) ** 2 + (carrier_y - other_y) ** 2 + 1e-8)
                 carrier_wait = (pair_dist > 2.0) & own_carrying.any(dim=1)
                 carrier_slot = torch.arange(N, device=self.device)[None, :] == carrier_idx[:, None]
-                follow_x = torch.clamp(carrier_x + 1.5, 0.0, max_x)
-                follow_y = carrier_y
+                # Protective follow: track the carrier's evasion waypoint so the
+                # escort stays between carrier and threats on the return trip.
+                # OP12 commit 861696f briefly replaced this with
+                # ``carrier_x + 1.5`` to tighten detector geometry; that made
+                # ESCORT collapse against OP11 (held-out second place +1.38
+                # became development last place -1.125 with blue_score=0 on
+                # all 8 matched seeds) because the escort stopped covering the
+                # actual escape path. Compactness for detectors still comes
+                # from pre-pickup shield_dist and the carrier_wait gate above.
+                follow_x = evade_tx[idx_env, carrier_idx]
+                follow_y = evade_ty[idx_env, carrier_idx]
                 escort_follow = own_carrying.any(dim=1)[:, None] & (~own_carrying)
                 target_x = torch.where(carrier_wait[:, None] & carrier_slot, other_x[:, None], target_x)
                 target_y = torch.where(carrier_wait[:, None] & carrier_slot, other_y[:, None], target_y)
@@ -303,6 +312,9 @@ class _ScriptedBlueStylesMixin:
         counter_window_active = (ticks > 0) & (~any_intruder) & (~red_carry_any) & (~active_accum_any)
         counter_unlocked = (rush_contained | counter_window_active) & (~active_accum_any)
         efx, efy = enemy_flag_pos[:, 0], enemy_flag_pos[:, 1]
+        # Keep agent 0 on defense; only agent 1 converts. Dual-agent counter was
+        # tried (dev17) and rejected: tags are temporary, so both blues leaving
+        # home lets untagged reds score into an empty base.
         t0x = t0x_patrol
         t0y = t0y_patrol
         t1x = torch.where(counter_unlocked, efx, t1x_patrol)

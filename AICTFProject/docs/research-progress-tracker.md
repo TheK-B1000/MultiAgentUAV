@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-27 (UTC-4)
+> **Last updated:** 2026-07-28 (UTC-4)
 
 ---
 
@@ -287,6 +287,43 @@ criterion against RUSH and ESCORT and pooled alternatives, but the individual
 TURTLE-vs-SPLIT CI is not above zero at 16 held-out seeds. Do not spend more
 development tuning on OP6 now. Move to OP7 calibration; revisit OP6 only if
 the final pool-level cross-style statistic needs stronger separation.
+
+**OP6 BLUE_PROBES_V2 revisit (2026-07-28) — TURTLE niche still flipped.**
+
+Joint-matrix flip: SPLIT +1.13 vs TURTLE −1.06
+(`artifacts/op6_op10_br_diversity_acceptance_16seed`). Fresh BLUE_PROBES_V2
+baseline `artifacts/op6_blue_v2_baseline_dev1_8seed` (8 paired seeds, base
+701001, map_b_split_lane):
+
+```text
+BLUE_SPLIT   WR=6/8  mean_margin=+0.500
+BLUE_TURTLE  WR=0/8  mean_margin=-1.000
+BLUE_RUSH    WR=0/8  mean_margin=-2.375
+BLUE_ESCORT  WR=0/8  mean_margin=-2.625
+```
+
+Cause: OP7 route-lock made SPLIT convert on OP6's empty rear
+(`min_alive_for_defender=3` / Nr=2 → never peels), while TURTLE only delays
+red scoring. Structural lesson from today's attempts: **any response that
+abandons both dual-rushers when blue invades or carries softens red scoring
+and helps empty-home SPLIT**.
+
+```text
+dev14 peel-ONE dual-invasion:   SPLIT +1.875  TURTLE -1.500  REJECT
+dev15 peel-BOTH dual-invasion:  interim SPLIT +2; abandoned
+dev16 dual carrier-deny:        SPLIT +0.750  TURTLE -0.500  REJECT as niche
+dev17 TURTLE dual-agent counter: REJECT (tags temporary → empty-home score)
+dev19 peel-ONE carrier-deny:    SPLIT +0.625  TURTLE -0.500  KEEP partial
+dev20 true dual-assault (no peel, opposite lanes): SPLIT +2.250  TURTLE +0.000  REJECT
+  (RUSH/ESCORT also improve; this over-punishes "both leave home" generally and
+   does not create TURTLE uniqueness)
+```
+
+Current code: OP6 peels exactly one interceptor on `blue_carry` (feasibility
+ignored); other agent keeps dual-rushing. Gap TURTLE−SPLIT −1.50 → −1.125;
+SPLIT still uniquely best. Next: timeline of SPLIT escape under single deny,
+then harden that one interceptor or find a TURTLE conversion that does not
+abandon home. Do not held-out until TURTLE uniquely best with CI > 0 vs SPLIT.
 
 **OP7 development screen (2026-07-26):**
 `artifacts/op7_failure_timeline_dev1_8seed`, OP7/map_b, 8 paired development
@@ -723,73 +760,148 @@ to "confirm SPLIT is pool-dominant" (a real, useful, but different finding
 than the Summer plan's crossover claim) versus continuing to search OP11/12
 for the first non-SPLIT confirmed niche.
 
-**Direction (2026-07-27, locked sequence):** Stop all new latent training and
-router work. Immediate job is to **build a payoff surface where four blue
-strategies are actually necessary**.
+**Direction (2026-07-28, locked — engineer three payoff contracts):** Stop
+searching for “the right preset.” SPLIT exploits almost every opponent; the
+missing niches need **legal, observable, opponent-specific causal traps**.
+Latent / router work remains stopped.
 
-**Canonical four-niche assignment (robustness OPs optional later):**
-
-```text
-OP6  → TURTLE niche
-OP9  → SPLIT niche   (**RECONFIRM_PASS** under BLUE_PROBES_V2, seed 521001)
-OP11 → ESCORT niche  (parallel session: make ESCORT uniquely best)
-OP12 → RUSH niche    (parallel session: make RUSH uniquely best)
-```
-
-OP7 / OP8 / OP10 do **not** each need a unique blue best response; keep them as
-later robustness / generalization opponents only.
-
-**Per-niche acceptance (dev seeds → freeze → untouched held-out paired seeds):**
-intended blue must (1) be uniquely best, (2) beat SPLIT and other styles by a
-meaningful margin, (3) have paired CI above zero vs competitors, (4) not win
-only because the red was weakened overall, (5) still lose somewhere to another
-style (trade-off preserved). Target crossover sketch:
-
-| Blue   | OP6 | OP9 | OP11 | OP12 |
-|--------|----:|----:|-----:|-----:|
-| RUSH   | low | low |  low | **best** |
-| TURTLE | **best** | low | low | low |
-| SPLIT  | low | **best** | low | low |
-| ESCORT | low | low | **best** | low |
-
-**After all four niches pass independently:** full paired-seed matrix; require
-`LCB95(delta_pool) > 0` with `all_blues_protected`. Sample training by niche
-(25% each of TURTLE/SPLIT/ESCORT/RUSH), not by raw opponent count.
-
-**Before LRO:** train four independent PPO specialists (one per niche), build
-their payoff matrix, require external PPO oracle > best single PPO. If learned
-policies do not cross over, the issue is still env / obs / reward — do not blame
-latent architecture.
-
-**Then K=4 LRO:** birth one z per niche (freeze others); each must show
-controlled movement, action distinction, target-niche improvement, **worse
-elsewhere**, and positive multi-latent oracle over best fixed latent. Only then
-router training, then matched non-latent PPO comparison.
-
-**Exact sequence:**
+**Target board:**
 
 ```text
-1. OP11 → ESCORT niche
-2. OP12 → RUSH niche
-3. OP6  → TURTLE niche (revisit after blue/controller freezes)
-4. OP9  → confirm SPLIT niche
-5. Full scripted matrix + LCB(delta_pool)>0
-6. Independent PPO specialist matrix
-7. Positive learned-policy oracle
-8. K=4 LRO births with balanced niche sampling
-9. Forced-z four-branch crossover
-10. Router training
-11. Compare against matched non-latent PPO
+SPLIT  → OP9:  LOCKED / FROZEN
+RUSH   → OP8 formation-opening redesign (do not reopen OP12; no OP13)
+TURTLE → OP6 dual-assault redesign
+ESCORT → OP11 isolation-pressure redesign
 ```
 
-**LRO scope reminder:** LRO preserves specialists once niches exist; it does
-not create niches when one style already wins everywhere. Separation of
-problems: red pool creates trade-offs → PPO learns responses → LRO preserves
-branches → router chooses.
+OP7 / OP10: no more SPLIT-niche goals (optional robustness later only).
+OP12: RUSH budget closed — leave alone.
 
-**Immediate focus:** make OP11 and OP12 pass their ESCORT and RUSH held-out
-niche gates. Everything downstream depends on those payoff teeth being real.
-No expensive K=4 PPO/LRO birth / router campaign until steps 1–7 clear.
+**OP9 freeze (absolute):** no changes to OP9, `BLUE_PROBES_V2`, or shared BT
+defaults. Any new helper logic must be **opt-in**, **opponent-specific**,
+**disabled for OP9**, and tested to prove OP9’s execution path is unchanged.
+
+---
+
+### Contract A — OP8 RUSH host (formation opening)
+
+OP8-only redesign. Early game: red carrier/protector formation is still
+deploying; home defense is temporarily incomplete. After a fixed **legal**
+trigger (sim-step wall-clock, or blue already carrying — **never** hidden
+blue style ID): red gains stable escort, interception, and counter pressure.
+
+```text
+RUSH:   shortest route; scores before formation is ready
+SPLIT:  lane setup takes too long
+ESCORT: coordination is too slow
+TURTLE: ignores the opening
+```
+
+Implementation (round 2): `_OP8_FORMATION_OPENING_STEPS=18` in
+`gpu_env/_core/_bt_adaptive.py`; gate in `_bt_assign_roles` is
+`bt_level==8` only; opening routes stage at midfield rally (not dual-rush).
+Round-1 (`steps=28`, dual-ATTACKER) failed micro-gates: SPLIT/ESCORT also
+picked up before T; mutual race → all margins 0
+(`artifacts/op8_formation_microgates_dev8`). Round-2 (`steps=18`, midfield
+staging): RUSH/SPLIT/TURTLE pickup timing improved
+(`artifacts/op8_formation_microgates_r2_dev4`), but paired 8-seed matrix
+`artifacts/op8_rush_dev8_r2` **FAIL** — SPLIT uniquely best (+2.25 WR 8/8),
+RUSH 0.00, ESCORT −0.25. Two redesign rounds spent.
+Tests: `tests/test_op8_formation_opening.py`. Micro-gates:
+`experiments/diagnose_op8_formation_microgates.py`.
+
+**Micro-gates (before full matrix):** RUSH first pickup usually before
+activation; SPLIT/ESCORT usually after; TURTLE rarely threatens in opening.
+
+**Promotion:** RUSH uniquely best; `RUSH − best_other ≥ +0.5` mean margin
+(practical floor unless protocol says otherwise); paired CI LCB > 0.
+Then freeze → fresh 16-seed held-out → lock only when all paired CIs clear.
+Max **two** bounded redesign rounds.
+
+### Contract B — OP6 TURTLE (dual-assault)
+
+Keep OP6’s identity (immediate dual red rush). Do **not** make OP6 “generally
+stronger” or add generic anti-SPLIT detection. Punish blue teams that send
+**both** agents away from home:
+
+* two independent red attack lanes;
+* stable offensive assignments (not reactive role churn);
+* rapid resume after tags/resets;
+* do not collapse both reds onto one nearby blue;
+* minimal defense so the match stays offense-vs-defense.
+
+```text
+RUSH:   abandons home → loses the race
+SPLIT:  two threats but home insufficiently defended vs dual assault
+ESCORT: concentrates on one carrier → cannot cover both red lanes
+TURTLE: anchor + patrol deny both; counter scores
+```
+
+**Micro-gates:** time both reds enter blue territory; % time two independent
+red threats active; red first-score rate when both blues leave home vs when
+one anchor remains; role/lane persistence.
+
+**Promotion:** TURTLE uniquely best; critical **TURTLE > SPLIT**; paired CIs
+clear. Max **two** bounded redesign rounds.
+
+### Contract C — OP11 ESCORT (isolation pressure)
+
+Punish **separated** blue attackers, not “more aggression.” Observable
+geometry only:
+
+```text
+pair separated beyond threshold + both committed
+  → stable red pressure on each isolated blue
+carrier with close same-corridor support
+  → normal defender/interceptor structure
+```
+
+Do not directly punish the protector — the protector must have real value.
+
+```text
+SPLIT:  each isolated attacker contained
+RUSH:   fast but weak post-pickup protection
+TURTLE: not enough offense
+ESCORT: protector disrupts interceptor; carrier returns
+```
+
+**Micro-gates:** higher tag rate on isolated blues; lower return success for
+separated carriers; higher return success for supported carriers; stable red
+assignments in isolation mode.
+
+**Promotion:** decisive **ESCORT > SPLIT** (also > RUSH, > TURTLE); paired CIs
+clear. Instrumentation / smaller gaps without unique-best do **not** count.
+Max **two** bounded redesign rounds. No shared behavior with OP6 / RUSH host.
+
+---
+
+**Per-host execution loop:**
+
+```text
+1. Define one causal contract
+2. Micro-tests proving the mechanism
+3. Paired 8-seed development matrix
+4. At most two bounded redesign rounds
+5. If uniquely best → freeze
+6. Fresh paired 16-seed held-out
+7. Lock only when all paired CIs clear zero
+```
+
+**Recommended execution order:**
+
+```text
+A. OP8 RUSH formation-opening redesign
+B. OP6 TURTLE dual-assault redesign
+C. OP11 ESCORT isolation-pressure redesign
+```
+
+OP11 may continue in a separate branch, but **no shared changes** across hosts.
+
+**After all four niches locked:** full paired matrix → `LCB95(delta_pool)>0`
++ `all_blues_protected`; niche-balanced sampling 25% each; then independent
+PPO specialists → learned oracle; then K=4 LRO / forced-z / router.
+
+**Immediate focus:** start **A (OP8 → RUSH)**. OP9 stays cemented. No OP13.
 
 **OP11 development screen (2026-07-27):** `artifacts/op11_dev1_8seed`,
 OP11_ADAPTIVE_EXPLOITER/map_b_split_lane, 8 paired development seeds
@@ -810,9 +922,12 @@ it up, that supports redesigning OP11/12 deliberately per the direction
 above, rather than continuing to search for a natural non-SPLIT niche.
 
 OP11 is now treated as DEVELOPMENT / TUNING ONLY for a missing protected
-style, preferably ESCORT. If SPLIT remains best, do not accept OP11 as another
-SPLIT matchup; tune OP11 to punish split play and expose an escort-compatible
-weakness before held-out confirmation.
+style: ESCORT. Progress requires payoff inversion — ESCORT uniquely best with
+paired CI clear vs SPLIT (critical), RUSH, and TURTLE. Instrumentation or
+margin-gap reductions without that inversion do not count. If SPLIT remains
+best, do not accept OP11 as another SPLIT matchup; tune OP11 to punish split
+play and expose an escort-compatible weakness before held-out confirmation.
+Do not change shared paths that would disturb frozen OP9.
 
 **OP12 development target (2026-07-27):** OP12_LATE_CONVERTER is the current
 RUSH-candidate. Locked hypothesis before tuning: OP12's late conversion should
@@ -4098,20 +4213,37 @@ two consecutive updates.
 **Status:** latent training and router work **STOPPED**. Immediate work is
 scripted niche construction only.
 
-**Canonical niches:** OP6→TURTLE, OP9→SPLIT, OP11→ESCORT, OP12→RUSH.
-OP7/OP8/OP10 = optional later robustness, not unique-BR requirements.
+**Canonical niches (2026-07-28 contract engineering):**
+`SPLIT→OP9 LOCKED/FROZEN`.
+`RUSH→OP8 formation-opening redesign` (OP12 closed; no OP13).
+`TURTLE→OP6 dual-assault redesign`.
+`ESCORT→OP11 isolation-pressure redesign`.
+OP7/OP10: not SPLIT goals. New helpers: opt-in, opponent-specific,
+disabled for OP9, with OP9 path-unchanged proof.
+
+**Execution order:** A OP8 RUSH → B OP6 TURTLE → C OP11 ESCORT.
+Per host: micro-gates → 8-seed ≤2 rounds → freeze → 16-seed held-out →
+paired CI lock. Floors: uniquely best; RUSH margin ≥ +0.5 vs best other
+(practical); critical comparisons TURTLE>SPLIT and ESCORT>SPLIT.
 
 **Current blocker evidence:** OP6–OP10 joint acceptance
 (`artifacts/op6_op10_br_diversity_acceptance_16seed`) FAIL — SPLIT uniquely
-best on all five; `LCB(delta_pool) ≤ 0`.
+best on all five; `LCB(delta_pool) ≤ 0`. OP9 alone is LOCKED under
+BLUE_PROBES_V2 (`artifacts/op9_split_heldout16_blue_probes_v2_seed521001`,
+`RECONFIRM_PASS`) but that is one corner, not pool crossover. OP6 TURTLE
+revisit (2026-07-28): baseline SPLIT +0.50 / TURTLE −1.00; best partial is
+single carrier-deny (`op6_dev19_single_carrier_deny_8seed`) SPLIT +0.625 /
+TURTLE −0.500 — still flipped. Dual-rush abandon responses REJECTED.
 
-**Now:** parallel OP11 (ESCORT) and OP12 (RUSH) held-out niche gates, then
-revisit OP6 TURTLE, confirm OP9 SPLIT, then full four-column matrix +
-`LCB95(delta_pool)>0`, then independent PPO specialist oracle, then LRO.
+**Now:** Contract A OP8 RUSH round-2 **FAIL** (`artifacts/op8_rush_dev8_r2`:
+SPLIT +2.25 uniquely best; RUSH 0.00). Two redesign rounds spent — freeze or
+abandon OP8-as-RUSH unless a new axis is authorized. Meanwhile B OP6 TURTLE
+(continue from single carrier-deny partial; do not abandon dual rush) → C
+OP11 ESCORT. Do not retune OP9.
 
 **Exact question for the four-column pool:**
 
-> Do OP6/OP9/OP11/OP12 force blue to need different strategies, or can one
+> Do the four niche hosts force blue to need different strategies, or can one
 > strategy beat almost all of them?
 
 Judge by blue best-response diversity + `LCB(delta_pool)>0`, not red BT
@@ -4119,11 +4251,13 @@ fingerprints. Sample future training 25% per niche.
 
 * Module: `experiments/payoff_matrix_analysis.py`
 * Collector: `experiments/run_scripted_style_payoff_matrix.py`
+* Niche CI helper: `experiments/analyze_niche_heldout_reconfirm.py`
+  (invoke with `AICTFProject\.venv\Scripts\python.exe`, not bare `python`)
 * Blue styles: `gpu_env/_core/_scripted_blue_styles.py`
 * Gates: `all_blues_protected` + `delta_pool_lcb_positive` (+ support gates);
   `--min-br-diversity 4` for the four-style claim.
 * Pinned by `tests/test_payoff_matrix_analysis.py`.
-* Do not retrain latents until steps 1–7 of the Direction lock clear.
+* Do not retrain latents until four niches + steps 5–7 of the Direction lock clear.
 
 **First collector run checkpoint (2026-07-26):**
 `artifacts/scripted_style_payoff_matrix_20260726_fixed/FIRST_BLOCK_CHECKPOINT.json`
@@ -5356,6 +5490,164 @@ should be kept -- they make OP12 a better-calibrated opponent regardless of
 whether it ends up carrying the RUSH niche. The RUSH niche itself needs a
 different opponent; that opponent choice and any further OP6/OP7-OP10
 re-validation is open, pending user direction.
+
+## OP6 unmodified development screen -- RUSH-candidate check (2026-07-28)
+
+Structural read of the BT profiles (before any run) flagged OP6 as the
+strongest RUSH candidate among OP6-OP10: lowest `intercept_block_base`
+(0.40), lowest `intercept_feasibility_ratio` (0.45), smallest
+`threat_radius` (2.0), and long, slow-to-adapt locks (`lock_intercept=18`,
+`lock_defender=16`) -- weak/late initial reaction, opposite of OP9's
+near-instant 3-4 step reassignment that makes it such a tight SPLIT niche.
+Per explicit instruction, this was **not** acted on directly -- the
+unmodified OP6 8-seed development screen was run first, same protocol
+shape as the locked OP9 confirmation (`map_b_split_lane`, `BLUE_PROBES_V2`,
+paired seeds, `max_decision_steps=240`): `artifacts/op6_dev1_8seed`,
+base-seed 561001, `OP6_IMMEDIATE_DUAL_RUSH`, no OP6 tuning.
+
+```text
+             mean margin   win rate
+BLUE_ESCORT     -2.250       0/8
+BLUE_RUSH       -2.000       0/8
+BLUE_SPLIT      +1.625       8/8
+BLUE_TURTLE     -1.250       1/8
+```
+
+Paired per-seed (RUSH margin vs the others, same 8 seeds 561001-561008):
+
+```text
+ep  seed     RUSH  TURTLE  SPLIT   R-T   R-S
+0   561001    -2     -1      1     -1    -3
+1   561002    -1     -3      2      2    -3
+2   561003    -2     -3      2      1    -4
+3   561004    -2     -1      2     -1    -4
+4   561005    -2      1      2     -3    -4
+5   561006    -3     -1      2     -2    -5
+6   561007    -2     -1      1     -1    -3
+7   561008    -2     -1      1     -1    -3
+
+mean(RUSH-TURTLE) = -0.750   (RUSH is worse than TURTLE, not better)
+mean(RUSH-SPLIT)  = -3.625   (RUSH is far worse than SPLIT)
+```
+
+No exact ties for any style (0/8 each). `time_to_first_score` for SPLIT is
+consistently fast (38-56 steps, every episode); RUSH's is inconsistent and
+often later (39-145 steps) despite RUSH being nominally the "fast" style --
+OP6's own immediate dual-rush identity apparently trades evenly or wins
+against a mirrored blue rush (two aggressive teams racing head-on, not the
+one-sided opening RUSH needs), while SPLIT's two-lane approach exploits
+OP6's narrow `lane_amplitude_frac` (0.08) and tiny `threat_radius` (2.0) --
+OP6's own agents barely react/adapt to a stretched two-front threat.
+
+**Result: the structural hypothesis was wrong.** SPLIT is not just
+competitive, it is a clean sweep (8/8, +1.625, best `time_to_first_score`
+every episode); RUSH is statistically tied for OP6's *worst* matchup with
+ESCORT, and is on average worse than even TURTLE (which itself only wins
+1/8). Per the locked decision tree: **SPLIT is uniquely best -> OP6
+supports neither the RUSH niche nor the TURTLE niche under the current
+probes.** The tracker's earlier "OP6: provisional TURTLE niche" label is
+superseded by this result and should not be relied on going forward -- it
+was never run through the full 4-style screen before now.
+
+**Cross-opponent pattern, now six opponents deep.** OP6, OP7, OP8, OP9,
+OP10 are all SPLIT-dominant by direct measurement, and OP12 (RUSH-niche
+redesign, closed above) also had BLUE_SPLIT as its best response even
+after two full redesign rounds. Only OP11 (ESCORT redesign, paused
+mid-investigation) is not currently a confirmed SPLIT niche. This is no
+longer a per-opponent tuning question -- SPLIT is winning across
+essentially the entire OP6-OP12 family regardless of each opponent's
+distinct BT identity (fortress, interceptor, escort, feint, dual-rush,
+late-converter). Worth flagging explicitly before spending further budget
+on a seventh single-opponent redesign attempt for RUSH: either (a) the
+shared BT framework has some general property SPLIT reliably exploits
+(e.g. `_bt_assign_roles`'s single-nearest-threat framing throughout, the
+same shape as the ESCORT-geometry bug found for OP12), or (b) the RUSH
+blue-style script itself (`_blue_rush_targets`) is comparatively weak/naive
+relative to `_blue_split_targets`, independent of which red opponent it
+faces. Recommend investigating that shared-mechanism question before
+picking another individual opponent to redesign for RUSH.
+
+## OP7 RUSH-host redesign attempt (2026-07-28) -- three attempts, all rejected, OP7 left unmodified
+
+Per explicit direction to stop searching outside OP6-OP12 and instead pick
+a RUSH host from OP7/OP8/OP10, ranked by existing held-out data:
+
+```text
+             RUSH margin   best style (SPLIT)   gap = best - RUSH
+OP7             -0.2500          +0.9375              1.1875   <- smallest, chosen
+OP8              0.0000          +2.4375              2.4375
+OP10            -0.8750          +1.6250              2.5000
+```
+
+**Diagnosis (event trace, `scratchpad/trace_op7_vs_rush.py`, seeds
+461001-461004, OP7's own frozen base_seed):** OP7's DEFENDER commits within
+9-10 steps of episode start and both agents sit at
+`['DEFENDER','DEFENDER']` for nearly the whole episode, insta-tagging
+RUSH's carrier every pickup (e.g. pickup t=15 -> tagged t=21, repeated
+3-5x/episode). Root cause is deeper than "camps the flag":
+`_bt_route_target`'s DEFENDER branch only uses the zone/orbit position
+BEFORE `any_intruder` is first true; the instant an intruder is detected
+(which is also what triggers DEFENDER's Priority-5 assignment in
+`_bt_assign_roles`), its target becomes the intruder's own current
+position directly -- a direct chase, not a camped zone. RUSH's first
+action (entering red's territory) trips this immediately.
+
+**Attempt 1:** reused the shared `opening_active` mechanism (OP8/OP12's
+existing pattern) to force both OP7 agents to `ROLE_ATTACKER` for the
+first 20 steps. Isolated 8-seed dev screen
+(`artifacts/op7_rush_opening_dev1_8seed`, base_seed 461001): RUSH -0.25 ->
+**-1.00, worse**. TURTLE also worse (-0.75). SPLIT/ESCORT roughly flat.
+
+**Attempt 2:** gated only the Priority-5 DEFENDER condition directly
+(`need_def & late_or_ready_op7`) instead of the blanket force+unlock, on
+the theory that avoiding the explicit force/relock would avoid an
+unintended side effect. Isolated 8-seed screen
+(`artifacts/op7_rush_opening_dev2_8seed`): **bit-identical to attempt 1**
+across all four styles. A follow-up trace explained why: with no other
+priority capable of firing that early (FLAG_RETR/ESCORT/INTERCEPTOR/COUNTER
+all require preconditions that can't be true yet), gating DEFENDER alone
+is behaviorally identical to force-forced ATTACKER -- there was no real
+difference between the two mechanisms to begin with. The trace also showed
+the actual failure mode: `ROLE_ATTACKER` for OP7 is not idle, it is
+"actively rush blue's flag" -- both attempts accidentally handed OP7 a
+genuine early-offense option it normally never takes at all (OP7 is a
+pure defense-first fortress with no attacker identity). RUSH did start
+scoring for the first time (0/4 -> 2/4 traced episodes had at least one
+blue score, vs 0/4 in the unmodified baseline trace), but OP7's own attack
+converted just as fast or faster (red scored in 3/4 traced episodes,
+twice in one) -- matched-speed mutual aggression favors whichever side
+converts faster, the same reason OP6's own "immediate dual rush" identity
+hurts blue's RUSH rather than helping it. **Both attempts reverted.**
+
+**Attempt 3 (reasoned through, not executed):** widen DEFENDER's
+`defender_zone_frac`/`defender_orbit_radius` during the opening instead of
+suppressing the role, so OP7 never gets an offensive alternative. Not run:
+per the diagnosis above, the zone/orbit position is only consulted BEFORE
+`any_intruder` is first true, and RUSH trips that condition on its very
+first action -- DEFENDER never spends any time patrolling the zone once
+RUSH exists to chase instead. Widening the zone would not change the
+direct-chase behavior that actually stops RUSH. Implementing and running
+this would have been testing a change already shown not to touch the
+relevant mechanism.
+
+**Decision: OP7 is left UNMODIFIED**, restored to its original frozen
+SPLIT-niche state (verified via syntax check + grep that no OP7-specific
+logic remains in `_bt_red.py`, only explanatory comments). OP7's
+"fortress" identity -- chase any detected intruder directly the instant
+it's detected, with no attacker alternative at all -- is fundamentally
+harder to carve a real RUSH opening out of than OP12's identity was,
+because every mechanism tried either (a) hands OP7 a symmetric offensive
+option that wins the resulting mutual-aggression race, or (b) doesn't
+actually touch the direct-chase behavior at all.
+
+**Running tally: RUSH has now failed to become uniquely best against
+THREE separate hosts** (OP6, unmodified; OP12, two full redesign rounds;
+OP7, three redesign attempts). Combined with the six-opponent SPLIT
+dominance pattern noted above, this is a second data point suggesting the
+difficulty may not be fully explained by "wrong opponent" -- worth
+weighing against the shared-BT-framework / RUSH-blue-script-competence
+question already flagged, rather than proceeding straight to OP8 on the
+same per-opponent-tuning assumption that failed three times running.
 
 ---
 

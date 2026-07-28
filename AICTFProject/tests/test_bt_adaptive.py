@@ -401,17 +401,39 @@ class BTAdaptiveProfileTests(unittest.TestCase):
             core.blue_y[0, 0] = center_y + 2.0
             core.blue_x[0, 1] = 15.0
             core.blue_y[0, 1] = center_y + 2.5
+            core.blue_flag_home[0, 0] = 1.0
+            core.blue_flag_home[0, 1] = center_y
             core.red_flag_pos[0, 0] = float(core.cols - 2)
             core.red_flag_pos[0, 1] = center_y
+            # Put a live red threat so carrier evasion is well-defined.
+            core.red_alive[0] = True
+            core.red_tagged[0] = False
+            core.red_x[0, 0] = 12.0
+            core.red_y[0, 0] = center_y + 2.0
 
             core.set_blue_style("BLUE_RUSH")
             rush_x, rush_y = core._assign_blue_style_targets()
             core.set_blue_style("BLUE_ESCORT")
             escort_x, escort_y = core._assign_blue_style_targets()
 
+            # RUSH non-carrier peels to the opposite pressure lane.
             self.assertLess(float(rush_y[0, 1].item()), max_y * 0.25)
-            self.assertAlmostEqual(float(escort_y[0, 1].item()), float(core.blue_y[0, 0].item()), places=4)
-            self.assertAlmostEqual(float(escort_x[0, 1].item()), float(core.blue_x[0, 0].item()) + 1.5, places=4)
+            # ESCORT non-carrier follows the carrier's evasion waypoint (not a
+            # fixed +1.5 offset -- that broke OP11 ESCORT payoff).
+            self.assertNotAlmostEqual(float(escort_y[0, 1].item()), float(rush_y[0, 1].item()), places=2)
+            evade_tx, evade_ty = core._carrier_evasion_target(
+                core.blue_x,
+                core.blue_y,
+                core.blue_flag_home[:, 0],
+                core.blue_flag_home[:, 1],
+                core.red_x,
+                core.red_y,
+                core.red_alive,
+                core.blue_carrying,
+                side="blue",
+            )
+            self.assertAlmostEqual(float(escort_x[0, 1].item()), float(evade_tx[0, 0].item()), places=3)
+            self.assertAlmostEqual(float(escort_y[0, 1].item()), float(evade_ty[0, 0].item()), places=3)
         finally:
             env.close()
 
@@ -488,18 +510,16 @@ class BTAdaptiveProfileTests(unittest.TestCase):
         finally:
             env.close()
 
-    def test_op11_split_isolate_index_marks_after_latch(self) -> None:
+    def test_op11_split_isolate_contains_both_lanes_after_pickup(self) -> None:
         core, env = _core("OP11")
         try:
-            midline = float(core.cols) * 0.5
             center_y = float(core.rows) * 0.5
-            # Force the latch without waiting on live geometry.
             core.bt_adapt_split_first_trigger_step[0] = 0
-            core.blue_carrying[0, 0] = False
+            core.blue_carrying[0, 0] = True
             core.blue_x[0, 0] = 14.0
-            core.blue_y[0, 0] = center_y - 4.0
-            core.blue_x[0, 1] = 12.0
-            core.blue_y[0, 1] = center_y + 4.0
+            core.blue_y[0, 0] = center_y
+            core.blue_x[0, 1] = 10.0
+            core.blue_y[0, 1] = center_y + float(core.rows) * 0.40
             core.red_x[0, 0] = 18.0
             core.red_y[0, 0] = center_y - 3.0
             core.red_x[0, 1] = 18.0
@@ -509,11 +529,12 @@ class BTAdaptiveProfileTests(unittest.TestCase):
 
             tx, ty = core._get_bt_targets()
             self.assertTrue((core.bt_red_role[0] == ROLE_INTERCEPTOR).all().item())
-            # Index 1:1 chase: red[j] tracks blue[j]'s current position.
-            self.assertAlmostEqual(float(tx[0, 0].item()), 14.0, delta=0.5)
-            self.assertAlmostEqual(float(ty[0, 0].item()), center_y - 4.0, delta=0.5)
-            self.assertAlmostEqual(float(tx[0, 1].item()), 12.0, delta=0.5)
-            self.assertAlmostEqual(float(ty[0, 1].item()), center_y + 4.0, delta=0.5)
+            targets = {(round(float(tx[0, j].item()), 3), round(float(ty[0, j].item()), 3)) for j in range(2)}
+            expected = {
+                (round(float(core.blue_x[0, 0].item()), 3), round(float(core.blue_y[0, 0].item()), 3)),
+                (round(float(core.blue_x[0, 1].item()), 3), round(float(core.blue_y[0, 1].item()), 3)),
+            }
+            self.assertEqual(targets, expected)
         finally:
             env.close()
 

@@ -43,6 +43,14 @@ class _BTAdaptiveMixin:
     _OP8_CAP_LANE_BODY_FRAC = 0.95
     _OP11_CAP_LANE_BODY_FRAC = 0.85
     _OP8_DUAL_DENIAL_ENABLED = False
+    # Contract A (2026-07-28): OP8 RUSH host — carrier/protector formation
+    # still deploying. Opening is OP8-only (bt_level==8); OP9 never enters.
+    # Legal triggers only: wall-clock sim steps, or blue already carrying
+    # (emergency fortify). Never gated on blue style ID.
+    # Round-2: shortened from 28 after micro-gates showed SPLIT/ESCORT also
+    # clearing a 28-step empty-home window; staging routes (not dual-rush)
+    # keep home soft without mutual 0-0 races.
+    _OP8_FORMATION_OPENING_STEPS = 18
     _OP10_ESCORT_BREAK_ENABLED = False
     _OP11_REPEAT_INTERCEPT_ENABLED = False
     _FAST_CONVERSION_STEPS = 70
@@ -664,13 +672,18 @@ class _BTAdaptiveMixin:
         lock = self.bt_role_lock_ticks.clone()
         eligible = self.red_alive & (~self.red_tagged)
         active = bb["adaptive_active"]
+        op8_opening = (
+            (prof["bt_level"] == 8)
+            & (self.sim_step_count.to(torch.int32) < int(self._OP8_FORMATION_OPENING_STEPS))
+            & (~bb["blue_carry_any"])
+        )
         op12_opening = (
             (prof["bt_level"] == 12)
             & (self.sim_step_count.to(torch.int32) < 20)
             & (~bb.get("adapt_split_pressure", torch.zeros((B,), dtype=torch.bool, device=device)))
         )
-        late_or_not_op12 = ~op12_opening
-        emergency_collapse = bb["adapt_emergency_collapse"] & late_or_not_op12
+        late_or_ready = ~(op8_opening | op12_opening)
+        emergency_collapse = bb["adapt_emergency_collapse"] & late_or_ready
         collapse_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
 
         # Dual flag retrieval when own flag is loose and blue just lost carrier pressure.
@@ -678,7 +691,7 @@ class _BTAdaptiveMixin:
             active
             & (~bb["own_flag_at_home"])
             & prof["enable_flag_retr"]
-            & late_or_not_op12
+            & late_or_ready
             & (bb.get("adapt_blue_carrier_lost", torch.zeros((B,), dtype=torch.bool, device=device)) | emergency_collapse)
         )
         if need_dual_retr.any():
@@ -730,7 +743,7 @@ class _BTAdaptiveMixin:
             (bb["adapt_high_overcommit"] | bb.get("adapt_blue_carrier_lost", torch.zeros((B,), dtype=torch.bool, device=device)))
             & prof["enable_counter"]
             & is_op12ish
-            & late_or_not_op12
+            & late_or_ready
         )
         if counter_push.any():
             efx = bb["blue_flag_pos"][:, 0:1]
@@ -1079,6 +1092,7 @@ class _BTAdaptiveMixin:
         # route-only and is applied in _bt_apply_adaptive_route_overrides.
 
         # OP8 pure carrier denial: both agents intercept; no counter-scoring while blue carries.
+        # Opening already ends on blue_carry_any, so this only fires post-formation.
         is_op8 = prof["bt_level"] == 8
         op8_denial = (
             bool(self._OP8_DUAL_DENIAL_ENABLED)
@@ -1182,7 +1196,17 @@ class _BTAdaptiveMixin:
         ).clamp(max=0.98)
         bt_level = prof["bt_level"]
         is_op8 = bt_level == 8
-        block_frac = block_frac + torch.where(is_op8, self._OP8_INTERCEPT_BLOCK_EXTRA, 0.0)
+        op8_opening = (
+            is_op8
+            & (self.sim_step_count.to(torch.int32) < int(self._OP8_FORMATION_OPENING_STEPS))
+            & (~bb["blue_carry_any"])
+        )
+        # OP8 intercept extras apply only after formation is ready.
+        block_frac = block_frac + torch.where(
+            is_op8 & (~op8_opening),
+            self._OP8_INTERCEPT_BLOCK_EXTRA,
+            0.0,
+        )
         block_frac = block_frac.clamp(max=0.98)
         lane_y = bb["adapt_preferred_lane_y"]
         repeat = bb["adapt_repeat_lane"]
@@ -1209,9 +1233,12 @@ class _BTAdaptiveMixin:
             & (self.sim_step_count.to(torch.int32) < 20)
             & (~split_denial_route)
         )
-        emergency_collapse = bb["adapt_emergency_collapse"] & (~op12_opening)
+        opening_active = op8_opening | op12_opening
+        emergency_collapse = bb["adapt_emergency_collapse"] & (~opening_active)
+        # Post-formation OP8 only for cap-lane geometry extras.
+        is_op8_ready = is_op8 & (~op8_opening)
         cap_lane_body = torch.where(
-            is_op8,
+            is_op8_ready,
             torch.full((B,), self._OP8_CAP_LANE_BODY_FRAC, device=device),
             torch.where(
                 is_op11,
@@ -1347,22 +1374,48 @@ class _BTAdaptiveMixin:
         # write-up and the resulting decision to close OP12 as a failed
         # RUSH-niche candidate per the hard two-round budget.
 
-        # OP11 split-lane isolation route (post-dev4 revision, 2026-07-28):
-        # Dev4 tried geometric 1:1 + predictive approach cutoff + dual
-        # carrier denial with threshold=1. That FAILED the ESCORT niche:
-        # SPLIT rose +1.25→+2.75 and ESCORT collapsed +0.50→-1.125 even
-        # though ESCORT's latch rate stayed 0/8 (so the damage was not a
-        # simple false-latch of ESCORT). Reverted to the proven selective
-        # latch (threshold=2) plus index 1:1 chase. The remaining ESCORT-
-        # niche work is a SEPARATE, isolated post-pickup dual-deny that
-        # must be measured against this restored baseline before any
-        # further pre-pickup route changes.
+        # OP11 split-lane isolation route (ESCORT crossover engineering):
+        # keep the selective latch, then contain BOTH blue agents rather than
+        # tunneling both reds onto one target. This punishes isolated lanes
+        # (SPLIT) while ESCORT stays outside the latch gate.
         op11_split_isolate = is_op11 & (self.bt_adapt_split_first_trigger_step >= 0)
-        if op11_split_isolate.any() and self.Nb >= 2:
-            for j in range(min(Nr, self.Nb)):
-                mark = op11_split_isolate & (roles[:, j] == ROLE_INTERCEPTOR)
-                tx[:, j] = torch.where(mark, torch.clamp(self.blue_x[:, j], 0.0, max_x), tx[:, j])
-                ty[:, j] = torch.where(mark, torch.clamp(self.blue_y[:, j], 0.0, max_y), ty[:, j])
+        if op11_split_isolate.any() and Nr >= 2 and self.Nb >= 2:
+            idx = torch.arange(B, device=device)
+            # Cheapest 2x2 assignment each step: identity (r0->b0, r1->b1)
+            # versus crossed (r0->b1, r1->b0).
+            d00 = torch.sqrt((self.red_x[:, 0] - self.blue_x[:, 0]) ** 2 + (self.red_y[:, 0] - self.blue_y[:, 0]) ** 2 + 1e-8)
+            d01 = torch.sqrt((self.red_x[:, 0] - self.blue_x[:, 1]) ** 2 + (self.red_y[:, 0] - self.blue_y[:, 1]) ** 2 + 1e-8)
+            d10 = torch.sqrt((self.red_x[:, 1] - self.blue_x[:, 0]) ** 2 + (self.red_y[:, 1] - self.blue_y[:, 0]) ** 2 + 1e-8)
+            d11 = torch.sqrt((self.red_x[:, 1] - self.blue_x[:, 1]) ** 2 + (self.red_y[:, 1] - self.blue_y[:, 1]) ** 2 + 1e-8)
+            use_cross = (d01 + d10) < (d00 + d11)
+            mark0 = torch.where(use_cross, torch.ones_like(idx), torch.zeros_like(idx))
+            mark1 = torch.where(use_cross, torch.zeros_like(idx), torch.ones_like(idx))
+            marked_blue_idx = torch.stack([mark0, mark1], dim=1)
+
+            # Post-pickup: one red tracks carrier, the other tracks supporter.
+            carrier_idx = bb["blue_carrier_idx"].clamp(min=0)
+            support_idx = torch.where(carrier_idx == 0, torch.ones_like(carrier_idx), torch.zeros_like(carrier_idx))
+            r0_to_carrier = torch.sqrt((self.red_x[:, 0] - self.blue_x[idx, carrier_idx]) ** 2 + (self.red_y[:, 0] - self.blue_y[idx, carrier_idx]) ** 2 + 1e-8)
+            r1_to_carrier = torch.sqrt((self.red_x[:, 1] - self.blue_x[idx, carrier_idx]) ** 2 + (self.red_y[:, 1] - self.blue_y[idx, carrier_idx]) ** 2 + 1e-8)
+            red0_is_carrier = r0_to_carrier <= r1_to_carrier
+            post_idx0 = torch.where(red0_is_carrier, carrier_idx, support_idx)
+            post_idx1 = torch.where(red0_is_carrier, support_idx, carrier_idx)
+            post_blue_idx = torch.stack([post_idx0, post_idx1], dim=1)
+
+            for j in range(2):
+                int_j = op11_split_isolate & (roles[:, j] == ROLE_INTERCEPTOR)
+                target_pre = marked_blue_idx[:, j]
+                target_post = post_blue_idx[:, j]
+                pre = int_j & (~bb["blue_carry_any"])
+                post = int_j & bb["blue_carry_any"]
+                pre_x = self.blue_x[idx, target_pre]
+                pre_y = self.blue_y[idx, target_pre]
+                post_x = self.blue_x[idx, target_post]
+                post_y = self.blue_y[idx, target_post]
+                tx[:, j] = torch.where(pre, torch.clamp(pre_x, 0.0, max_x), tx[:, j])
+                ty[:, j] = torch.where(pre, torch.clamp(pre_y, 0.0, max_y), ty[:, j])
+                tx[:, j] = torch.where(post, torch.clamp(post_x, 0.0, max_x), tx[:, j])
+                ty[:, j] = torch.where(post, torch.clamp(post_y, 0.0, max_y), ty[:, j])
 
         return tx, ty
 

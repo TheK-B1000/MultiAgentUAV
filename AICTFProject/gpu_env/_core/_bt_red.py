@@ -310,13 +310,62 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         # Boolean mask: which agents are eligible to change role this tick.
         can_change = (lock <= 0) & self.red_alive & (~self.red_tagged)  # [B, Nr]
+        # Opening windows are opponent-specific (level-gated). OP9 never enters.
+        # Legal signals only: sim_step_count, blue_carry_any, adapt_split_pressure.
+        op8_opening = (
+            (prof["bt_level"] == 8)
+            & (self.sim_step_count.to(torch.int32) < int(self._OP8_FORMATION_OPENING_STEPS))
+            & (~bb["blue_carry_any"])
+        )
         op12_opening = (
             (prof["bt_level"] == 12)
             & (self.sim_step_count.to(torch.int32) < 20)
             & (~bb.get("adapt_split_pressure", torch.zeros((B,), dtype=torch.bool, device=device)))
         )
-        late_or_not_op12 = ~op12_opening
-        opening_slots = op12_opening[:, None] & self.red_alive & (~self.red_tagged)
+        opening_active = op8_opening | op12_opening
+        late_or_ready = ~opening_active
+        # OP7 RUSH-host redesign (2026-07-28): unmodified-OP7 held-out data
+        # already had BLUE_RUSH nearly break-even (-0.25 margin, WR 0/16) --
+        # the smallest gap to SPLIT of any OP7/OP8/OP10 candidate. A 4-seed
+        # event trace (scratchpad trace_op7_vs_rush.py, seeds 461001-461004,
+        # OP7's own frozen base_seed) showed why: OP7's DEFENDER commits
+        # within 9-10 steps of episode start (defender_zone_frac=0.05 camps
+        # almost exactly on the flag) and insta-tags RUSH's carrier every
+        # single pickup attempt.
+        #
+        # Attempts 1 and 2 both suppressed DEFENDER (via the shared
+        # opening_active force-to-ATTACKER mechanism, and via a targeted
+        # gate on the Priority-5 condition alone) so red's agents sat idle
+        # at ROLE_ATTACKER during the window. Bit-identical results for
+        # both (RUSH -0.25 -> -1.00, WORSE): a follow-up trace showed why --
+        # ATTACKER for OP7 is not "idle," it is "actively rush blue's own
+        # flag" (the reset-default role IS the offensive role), so both
+        # attempts accidentally handed OP7 a real early-rush option it
+        # normally never takes at all. RUSH did start scoring sometimes for
+        # the first time (0/4 -> 2/4 traced episodes), but OP7's own attack
+        # converted just as fast or faster (matched-speed mutual aggression
+        # favors whichever side converts faster, same reason OP6's own
+        # dual-rush identity hurts blue's RUSH). Reverted; no opening-window
+        # role suppression for OP7.
+        #
+        # A third idea (widen DEFENDER's patrol zone_frac/orbit during the
+        # window instead of suppressing the role) was reasoned through and
+        # NOT implemented: DEFENDER's route (_bt_route_target below) only
+        # uses the zone/orbit position BEFORE any_intruder is first true --
+        # the moment an intruder is detected (which is also what triggers
+        # DEFENDER's assignment in the first place, Priority 5 above), its
+        # target becomes the intruder's OWN current position directly (a
+        # direct chase, not a camped zone). RUSH's first action is entering
+        # red's territory, which trips any_intruder immediately -- so a
+        # wider zone/orbit would never actually matter; DEFENDER never
+        # spends any time patrolling it once RUSH exists. OP7's fortress
+        # identity is fundamentally "chase any detected intruder directly,"
+        # not "camp a zone," which is a harder shape to carve a real RUSH
+        # opening out of without either giving OP7 an offensive alternative
+        # (attempts 1/2) or inventing a new passive/idle role state
+        # (out of scope for one bounded change). OP7 is left UNMODIFIED,
+        # matching its original frozen SPLIT-niche state.
+        opening_slots = opening_active[:, None] & self.red_alive & (~self.red_tagged)
         roles = torch.where(
             opening_slots,
             torch.full_like(roles, ROLE_ATTACKER),
@@ -326,7 +375,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
         can_change = can_change | opening_slots
 
         # ── Priority 1: flag retrieval ───────────────────────────────────
-        need_retr = (~bb["own_flag_at_home"]) & prof["enable_flag_retr"] & late_or_not_op12
+        need_retr = (~bb["own_flag_at_home"]) & prof["enable_flag_retr"] & late_or_ready
         if need_retr.any():
             # Pick the closest eligible agent per env.
             flag_dx = self.red_x - bb["red_flag_pos"][:, 0:1]
@@ -343,18 +392,12 @@ class _BTRedMixin(_BTAdaptiveMixin):
                 can_change[:, j] = can_change[:, j] & (~assign)
 
         # ── Priority 2: escort own carrier ───────────────────────────────
-        # OP12 stage-1 RUSH window (2026-07-28): during op12_opening, both
-        # agents are forced ATTACKER above, but this priority previously
-        # applied regardless of phase -- meaning if either OP12 agent grabbed
-        # blue's flag during the opening, the OTHER instantly became its
-        # ESCORT (protected return trip), an efficient attacker+escort combo
-        # with no analogous protection for blue's RUSH. Gating this on
-        # late_or_not_op12 (same time-based, opponent-agnostic signal already
-        # used for FLAG_RETR/INTERCEPTOR above -- not the blue style ID)
-        # leaves OP12's own opening carrier unescorted, so a real early
-        # window exists for RUSH to exploit rather than one immediately
-        # closed by OP12's own coordinated conversion.
-        have_carrier = bb["red_carry_any"] & prof["enable_escort"] & late_or_not_op12
+        # Opening windows (OP8 formation / OP12 stage-1) force ATTACKER above
+        # and suppress escort so red does not instantly convert its own
+        # opening pickup into a protected return. Gating uses legal state
+        # only (level + time / blue_carry / adapt_split_pressure) — never
+        # blue style ID. OP9 is excluded by level gates.
+        have_carrier = bb["red_carry_any"] & prof["enable_escort"] & late_or_ready
         if have_carrier.any():
             rc_idx = bb["red_carrier_idx"].clamp(min=0)
             carr_x = self.red_x[idx_env, rc_idx]
@@ -379,7 +422,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         # ── Priority 3: intercept enemy carrier (feasible) ───────────────
         e_carry = bb["blue_carry_any"]
-        feas    = bb["intercept_feasible"] & prof["enable_intercept"] & late_or_not_op12
+        feas    = bb["intercept_feasible"] & prof["enable_intercept"] & late_or_ready
         if (e_carry & feas).any():
             # Among feasible agents, pick the one closest to intercept midpoint.
             feas_per = bb["intercept_feasible_per_agent"]  # [B, Nr]
@@ -407,7 +450,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
             prof["enable_counter"]
             & e_carry
             & (~feas)
-            & late_or_not_op12
+            & late_or_ready
             & (prof["counter_always"] | (prof["counter_when_trailing"] & bb["trailing"]))
         )
         if counter_ok.any():
@@ -429,29 +472,17 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         # ── Priority 5: defender ─────────────────────────────────────────
         # Assign one agent to defend when intruders exist and enough agents alive.
-        # OP6 dual-invasion full recall (2026-07-28): peel-ONE (dev14) softened
-        # dual-rush scoring and made SPLIT *stronger* (+0.50 → +2.00). Peel BOTH
-        # eligible agents when >=2 blues are on red's half so SPLIT's two-lane
-        # invasion is contested in force, while a lone TURTLE counterattacker
-        # (intruder_count < 2) still faces the full dual rush.
-        op6_mask = prof["bt_level"] == 6
-        def_intrusion = torch.where(
-            op6_mask,
-            bb["intruder_count"] >= 2,
-            bb["any_intruder"],
-        )
         need_def = (
             prof["enable_defender"]
-            & def_intrusion
-            & late_or_not_op12
+            & bb["any_intruder"]
+            & late_or_ready
             & (bb["alive_count"] >= prof["min_alive_for_defender"])
         )
         if need_def.any():
+            # Pick agent closest to own flag.
             rfh_x = bb["red_flag_home"][:, 0:1]
             rfh_y = bb["red_flag_home"][:, 1:2]
             home_dist = torch.sqrt((self.red_x - rfh_x) ** 2 + (self.red_y - rfh_y) ** 2 + 1e-8)
-            # Non-OP6: one defender (closest to own flag). OP6 dual-invasion:
-            # every eligible agent recalls to DEFENDER.
             home_dist_m = torch.where(
                 can_change & need_def[:, None],
                 home_dist, home_dist.new_full((), 1e9).expand_as(home_dist)
@@ -459,9 +490,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
             def_agent = torch.argmin(home_dist_m, dim=1)
             for j in range(Nr):
                 is_j = (def_agent == j)
-                assign_one = need_def & is_j & can_change[:, j]
-                assign_all = need_def & op6_mask & can_change[:, j]
-                assign = assign_all | assign_one
+                assign = need_def & is_j & can_change[:, j]
                 roles[:, j] = torch.where(assign, torch.full((B,), ROLE_DEFENDER, dtype=torch.int32, device=device), roles[:, j])
                 lock[:, j]  = torch.where(assign, prof["lock_defender"], lock[:, j])
                 can_change[:, j] = can_change[:, j] & (~assign)
@@ -493,6 +522,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
                 close_to_enemy = (min_dist_val[:, j] < close_thresh)
                 assign = (
                     prof["enable_2v1"]
+                    & late_or_ready
                     & partner_shares & close_to_enemy & can_change[:, j]
                     & self.red_alive[:, j]
                     # Only promote to wing if the agent is already in attacker mode
@@ -560,6 +590,10 @@ class _BTRedMixin(_BTAdaptiveMixin):
         lane_mid = torch.full((B,), center_y, device=device)
         lane_amp = max_y * prof["lane_amplitude_frac"]
         lane_y_pref = torch.clamp(lane_mid + self.red_script_lane_sign * lane_amp, 0.0, max_y)
+        # OP6 dual-assault (Contract B): the two attackers take opposite lanes.
+        # Shared red_script_lane_sign alone would put both on the same corridor.
+        op6_mask = prof["bt_level"] == 6
+        lane_y_opp = torch.clamp(lane_mid - self.red_script_lane_sign * lane_amp, 0.0, max_y)
 
         # OP9-style late-game pressure: evasion only when trailing near end of match.
         late_press = bb["late_game"] & bb["trailing"] & prof["late_game_evasion_unlock"]
@@ -571,6 +605,12 @@ class _BTRedMixin(_BTAdaptiveMixin):
             rx = self.red_x[:, j]
             ry = self.red_y[:, j]
             role_j = roles[:, j]  # [B]
+            # Agent 0 keeps script lane; agent 1 takes the opposite corridor under OP6.
+            atk_lane_y = torch.where(
+                op6_mask & (j == 1),
+                lane_y_opp,
+                lane_y_pref,
+            )
 
             tx = torch.zeros((B,), device=device)
             ty = torch.zeros((B,), device=device)
@@ -582,7 +622,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
             dist_to_flag = torch.sqrt((rx - efx) ** 2 + (ry - efy) ** 2 + 1e-8)
             # Use lane waypoint when far from flag; converge directly when close.
             atk_tx = torch.where(dist_to_flag > 4.0, efx, efx)
-            atk_ty = torch.where(dist_to_flag > 4.0, lane_y_pref, efy)
+            atk_ty = torch.where(dist_to_flag > 4.0, atk_lane_y, efy)
             # Tangent evasion from nearest blue agent.
             atk_tx, atk_ty = self._bt_tangent_evade(
                 rx, ry, atk_tx, atk_ty, threat_radius, max_x, max_y,
@@ -720,6 +760,31 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
             target_x[:, j] = tx
             target_y[:, j] = ty
+
+        # OP8 Contract A round-2: during formation opening, stage at midfield
+        # carrier/protector rally points instead of dual-rushing the blue flag.
+        # Home defense stays incomplete (no DEFENDER/INTERCEPTOR), but reds are
+        # not both deep in blue territory — that mutual race caused 0-0 timeouts
+        # in round-1 micro-gates. OP8-only; OP9 never enters.
+        op8_opening = (
+            (prof["bt_level"] == 8)
+            & (self.sim_step_count.to(torch.int32) < int(self._OP8_FORMATION_OPENING_STEPS))
+            & (~bb["blue_carry_any"])
+        )
+        if op8_opening.any():
+            rfh_x = bb["red_flag_home"][:, 0]
+            midline = bb["midline"]
+            # Stage just on the red side of midfield, split upper/lower lanes.
+            stage_x = rfh_x + (midline - rfh_x) * 0.72
+            stage_y0 = torch.full((B,), float(self.rows) * 0.28, device=device)
+            stage_y1 = torch.full((B,), float(self.rows) * 0.72, device=device)
+            opening_slots = op8_opening[:, None] & self.red_alive & (~self.red_tagged)
+            target_x = torch.where(opening_slots, stage_x[:, None].expand(B, Nr), target_x)
+            for j in range(Nr):
+                stage_y = stage_y0 if j % 2 == 0 else stage_y1
+                target_y[:, j] = torch.where(opening_slots[:, j], stage_y, target_y[:, j])
+            target_x = torch.clamp(target_x, 0.0, max_x)
+            target_y = torch.clamp(target_y, 0.0, max_y)
 
         # ── Carrier evasion override (any role carrying a flag) ──────────
         # Carriers always use multi-threat tangent routing toward home;

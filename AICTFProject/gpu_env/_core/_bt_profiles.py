@@ -172,33 +172,34 @@ BT_PROFILES: Dict[int, BTProfile] = {
         lane_amplitude_frac=0.22,
         intercept_feasibility_ratio=0.85,
     ),
-    # OP6_TURTLE - Immediate dual rush (historical tag; identity = dual rush).
-    # Matchup contract: punish exposed blue home flags; on dual blue invasion
-    # both reds recall to DEFENDER (see _bt_assign_roles) so SPLIT cannot
-    # freely score on an empty red base, while a single TURTLE counterattacker
-    # still faces the dual rush with no peel.
+    # OP6 - Immediate dual assault (TURTLE niche host).
+    # Relentless two-lane offense: both reds stay ATTACKER on opposite lanes.
+    # Punishes blues that abandon home (RUSH/SPLIT/ESCORT). TURTLE anchors
+    # one agent and counters into the empty red rear. No intercept/counter
+    # peel — those softens dual-rush scoring and helped SPLIT (dev14-19).
     6: _profile(
         6,
         "OP6_IMMEDIATE_DUAL_RUSH",
         enable_escort=False,
-        enable_intercept=True,
-        enable_counter=True,
-        counter_always=True,
-        counter_when_trailing=True,
+        enable_intercept=False,
+        enable_counter=False,
+        counter_always=False,
+        counter_when_trailing=False,
         enable_defender=True,
         enable_2v1=False,
         enable_mines=False,
-        # Was 3 (impossible with Nr=2 → never defended). Dual-invasion gate in
-        # _bt_assign_roles keeps single-intruder counters from peeling.
-        min_alive_for_defender=2,
-        lock_attacker=24,
-        lock_intercept=18,
-        lock_defender=16,
-        lock_counter=24,
+        # Defender never fires with Nr=2; kept only for profile shape.
+        min_alive_for_defender=3,
+        lock_attacker=28,
+        lock_intercept=4,
+        lock_defender=4,
+        lock_counter=4,
         lock_flag_retr=5,
         defender_zone_frac=0.35,
-        threat_radius=2.0,
-        lane_amplitude_frac=0.08,
+        # No chase-collapse onto one blue; pure flag dual-assault.
+        threat_radius=0.0,
+        # Wide opposite-lane corridors (see _bt_route_target OP6 branch).
+        lane_amplitude_frac=0.42,
         intercept_block_base=0.40,
         intercept_feasibility_ratio=0.45,
         adaptive_enabled=False,
@@ -232,7 +233,11 @@ BT_PROFILES: Dict[int, BTProfile] = {
         mine_approach_lead_steps=28,
         adaptive_enabled=False,
     ),
-    # OP8_INTERCEPTOR - Protected carrier escort.
+    # OP8_INTERCEPTOR - Protected carrier escort (RUSH niche host, Contract A).
+    # Matchup contract: brief early window while carrier/protector formation
+    # deploys (home defense incomplete); after legal trigger, sticky escort /
+    # intercept / counter. Opening gate is OP8-only in _bt_assign_roles
+    # (bt_level==8); does not touch OP9. Profile fingerprint unchanged.
     8: _profile(
         8,
         "OP8_PROTECTED_CARRIER_ESCORT",
@@ -390,7 +395,7 @@ def resolve_bt_levels(opponent_keys: Tuple[str, ...] | list[str]) -> list[int]:
     return out
 
 
-def role_gate_fingerprint(level: int) -> Tuple[bool, bool, bool, bool, bool]:
+def role_gate_fingerprint(level: int) -> Tuple[bool, bool, bool, bool, bool, bool]:
     """Structural niche fingerprint (decision structure, not physics)."""
     p = profile_for_level(level)
     return (
@@ -399,6 +404,7 @@ def role_gate_fingerprint(level: int) -> Tuple[bool, bool, bool, bool, bool]:
         bool(p.counter_always),
         bool(p.enable_mines),
         bool(p.enable_2v1),
+        bool(p.enable_intercept),
     )
 
 
