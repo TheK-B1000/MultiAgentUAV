@@ -698,20 +698,73 @@ to "confirm SPLIT is pool-dominant" (a real, useful, but different finding
 than the Summer plan's crossover claim) versus continuing to search OP11/12
 for the first non-SPLIT confirmed niche.
 
-**Direction (2026-07-27):** end goal is still four distinct latent
-strategies (TURTLE/SPLIT/RUSH/ESCORT), each protected somewhere in the pool
--- not just four occupied latent IDs. Current state: OP6 provisional TURTLE,
-OP7-OP10 confirmed SPLIT, OP11-OP12 unknown. That is only two candidate
-niches. Finish OP11 and OP12 first (as originally sequenced) specifically
-looking for RUSH and ESCORT niches. If neither appears, redesign specific
-opponents to punish concentrated pushes (favor RUSH) and punish split
-pressure (favor ESCORT) rather than accepting a two-style pool. A style
-should become a specialist somewhere, not just lose everywhere it's tried.
-Precise gate: require four protected style niches before launching the K=4
-latent-birth campaign. Diagnostics may continue, but no expensive K=4
-PPO/LRO birth campaign starts until TURTLE, SPLIT, RUSH, and ESCORT each have
-at least one statistically supported protected niche and the complete pool has
-`LCB(delta_pool) > 0`.
+**Direction (2026-07-27, locked sequence):** Stop all new latent training and
+router work. Immediate job is to **build a payoff surface where four blue
+strategies are actually necessary**.
+
+**Canonical four-niche assignment (robustness OPs optional later):**
+
+```text
+OP6  → TURTLE niche
+OP9  → SPLIT niche   (already strong; confirm after others freeze)
+OP11 → ESCORT niche  (parallel session: make ESCORT uniquely best)
+OP12 → RUSH niche    (parallel session: make RUSH uniquely best)
+```
+
+OP7 / OP8 / OP10 do **not** each need a unique blue best response; keep them as
+later robustness / generalization opponents only.
+
+**Per-niche acceptance (dev seeds → freeze → untouched held-out paired seeds):**
+intended blue must (1) be uniquely best, (2) beat SPLIT and other styles by a
+meaningful margin, (3) have paired CI above zero vs competitors, (4) not win
+only because the red was weakened overall, (5) still lose somewhere to another
+style (trade-off preserved). Target crossover sketch:
+
+| Blue   | OP6 | OP9 | OP11 | OP12 |
+|--------|----:|----:|-----:|-----:|
+| RUSH   | low | low |  low | **best** |
+| TURTLE | **best** | low | low | low |
+| SPLIT  | low | **best** | low | low |
+| ESCORT | low | low | **best** | low |
+
+**After all four niches pass independently:** full paired-seed matrix; require
+`LCB95(delta_pool) > 0` with `all_blues_protected`. Sample training by niche
+(25% each of TURTLE/SPLIT/ESCORT/RUSH), not by raw opponent count.
+
+**Before LRO:** train four independent PPO specialists (one per niche), build
+their payoff matrix, require external PPO oracle > best single PPO. If learned
+policies do not cross over, the issue is still env / obs / reward — do not blame
+latent architecture.
+
+**Then K=4 LRO:** birth one z per niche (freeze others); each must show
+controlled movement, action distinction, target-niche improvement, **worse
+elsewhere**, and positive multi-latent oracle over best fixed latent. Only then
+router training, then matched non-latent PPO comparison.
+
+**Exact sequence:**
+
+```text
+1. OP11 → ESCORT niche
+2. OP12 → RUSH niche
+3. OP6  → TURTLE niche (revisit after blue/controller freezes)
+4. OP9  → confirm SPLIT niche
+5. Full scripted matrix + LCB(delta_pool)>0
+6. Independent PPO specialist matrix
+7. Positive learned-policy oracle
+8. K=4 LRO births with balanced niche sampling
+9. Forced-z four-branch crossover
+10. Router training
+11. Compare against matched non-latent PPO
+```
+
+**LRO scope reminder:** LRO preserves specialists once niches exist; it does
+not create niches when one style already wins everywhere. Separation of
+problems: red pool creates trade-offs → PPO learns responses → LRO preserves
+branches → router chooses.
+
+**Immediate focus:** make OP11 and OP12 pass their ESCORT and RUSH held-out
+niche gates. Everything downstream depends on those payoff teeth being real.
+No expensive K=4 PPO/LRO birth / router campaign until steps 1–7 clear.
 
 **OP11 development screen (2026-07-27):** `artifacts/op11_dev1_8seed`,
 OP11_ADAPTIVE_EXPLOITER/map_b_split_lane, 8 paired development seeds
@@ -4015,59 +4068,37 @@ two consecutive updates.
 
 ## 6. Recommended next experiments (priority-ordered)
 
-### 0. Pool admissibility screen (NEW 2026-07-26) — before any more latent GPU
+### 0. Four-niche payoff surface (LOCKED 2026-07-27) — before any latent / router GPU
 
-**Status:** analysis module + collector live; OP6–OP10 joint acceptance matrix
-queued behind OP11/OP12 calibration.
+**Status:** latent training and router work **STOPPED**. Immediate work is
+scripted niche construction only.
 
-**Exact question (locked 2026-07-27):**
+**Canonical niches:** OP6→TURTLE, OP9→SPLIT, OP11→ESCORT, OP12→RUSH.
+OP7/OP8/OP10 = optional later robustness, not unique-BR requirements.
 
-> Do OP6–OP10 force blue to need different strategies, or can one strategy
-> beat almost all of them?
+**Current blocker evidence:** OP6–OP10 joint acceptance
+(`artifacts/op6_op10_br_diversity_acceptance_16seed`) FAIL — SPLIT uniquely
+best on all five; `LCB(delta_pool) ≤ 0`.
 
-Judge by **blue best-response diversity**, not red BT structural diversity.
-Ideal sketch (not required 1:1): OP6→TURTLE, OP7→RUSH, OP8→ESCORT, OP9→SPLIT,
-OP10→another protected style. Failure pattern that rejects the pool for K=4:
+**Now:** parallel OP11 (ESCORT) and OP12 (RUSH) held-out niche gates, then
+revisit OP6 TURTLE, confirm OP9 SPLIT, then full four-column matrix +
+`LCB95(delta_pool)>0`, then independent PPO specialist oracle, then LRO.
 
-```text
-OP6 → TURTLE
-OP7–OP10 → SPLIT
-```
+**Exact question for the four-column pool:**
 
-That supports only two useful niches regardless of how different the BTs look.
+> Do OP6/OP9/OP11/OP12 force blue to need different strategies, or can one
+> strategy beat almost all of them?
 
-**Acceptance test:**
-
-1. Run `BLUE_RUSH`, `BLUE_TURTLE`, `BLUE_SPLIT`, `BLUE_ESCORT` × OP6–OP10.
-2. Paired seeds: `seed = f(red, map, ep)` only.
-3. Report win margin, WR, ties; unique best response per red.
-4. Every blue style must be uniquely best in ≥1 context (`all_blues_protected`).
-5. Cross-fitted `delta_pool = V_selective − V_best_fixed`; require `LCB > 0`.
-6. Command shape:
-
-```text
-python experiments/run_scripted_style_payoff_matrix.py \
-  --out-dir artifacts/op6_op10_br_diversity_acceptance_16seed \
-  --episodes 16 --base-seed 661001 \
-  --reds OP6_IMMEDIATE_DUAL_RUSH OP7_DEEP_FORTRESS \
-         OP8_PROTECTED_CARRIER_ESCORT OP9_SPLIT_LANE_FEINT \
-         OP10_AGGRESSIVE_INTERCEPTOR \
-  --maps map_b_split_lane --device cuda --max-decision-steps 240 \
-  --n-boot 2000 --analysis-seed 17 --min-br-diversity 4 --progress-every 8
-```
+Judge by blue best-response diversity + `LCB(delta_pool)>0`, not red BT
+fingerprints. Sample future training 25% per niche.
 
 * Module: `experiments/payoff_matrix_analysis.py`
 * Collector: `experiments/run_scripted_style_payoff_matrix.py`
 * Blue styles: `gpu_env/_core/_scripted_blue_styles.py`
-* Gate: cross-fitted `delta_pool` LCB > 0 **and** `all_blues_protected`
-  (clustered bootstrap; same frozen-selector discipline as branch
-  `delta_oracle`). In-sample max alone is winner's-curse biased and must
-  not be used. `--min-br-diversity 4` for the four-style repertoire claim.
-* Pinned by `tests/test_payoff_matrix_analysis.py` (saturated FAIL /
-  counter-structure LCB PASS / two-niche SPLIT pattern FAIL).
-* Do not retrain latents until a pool clears these gates.
-* Scripted WR band target 0.35–0.55; re-check saturation after first
-  trained-blue run.
+* Gates: `all_blues_protected` + `delta_pool_lcb_positive` (+ support gates);
+  `--min-br-diversity 4` for the four-style claim.
+* Pinned by `tests/test_payoff_matrix_analysis.py`.
+* Do not retrain latents until steps 1–7 of the Direction lock clear.
 
 **First collector run checkpoint (2026-07-26):**
 `artifacts/scripted_style_payoff_matrix_20260726_fixed/FIRST_BLOCK_CHECKPOINT.json`
@@ -4373,6 +4404,567 @@ geometry can see the ESCORT structure, but the core adaptive role path is not
 recording the new detector in live episodes. Next OP12 work should inspect why
 the BT adaptive detector state is not updating from the live role-assignment
 path before tuning thresholds or interpreting payoff.
+
+OP12 detector wiring follow-up:
+`artifacts/op12_dev9p_opening_escort_detector_probe_8seed_max40` verifies the
+core detector now records live in-episode events after fixing telemetry
+accumulation and moving opening-escort persistence ownership to the BT role
+path. Focused validation passes:
+`python -m unittest AICTFProject.tests.test_bt_adaptive AICTFProject.tests.test_scripted_style_payoff_matrix`
+ran 16 tests OK.
+
+Current detector correctness:
+
+```text
+BLUE_ESCORT core escort trigger: 7/8, mean first trigger step 7.86
+BLUE_RUSH   core escort trigger: 4/8, mean first trigger step 6.25
+SPLIT detector on RUSH/ESCORT: 0/8 and 0/8
+```
+
+Decision: wiring/update-order bug is fixed, but OP12 pre-pickup ESCORT
+recognition is still too broad. Do not run payoff yet. The next OP12 step is
+not response tuning; it is adding a stronger live discriminator that reduces
+RUSH false positives while preserving early ESCORT triggers. The audit suggests
+forward velocity is useful in aggregate, but the first live velocity attempt was
+not stable at the BT decision point.
+
+OP12 history-score detector follow-up:
+`artifacts/op12_dev10b_history_score_detector_probe_8seed_max40` replaces the
+single hard predicate with a short-history score over compactness, lane
+narrowness, stable leader/follower ordering, shared heading, and excessive
+forward-speed penalty. This is still detector development only.
+
+Current score separation:
+
+```text
+BLUE_ESCORT mean score: 3.376
+BLUE_RUSH   mean score: 2.758
+```
+
+The score separates ESCORT from RUSH better than the previous binary geometry
+gate, and RUSH no longer triggers the core escort detector in the 8-seed
+opening-only probe. However, ESCORT also does not yet satisfy the 3-consecutive
+activation gate before pickup, so the detector is **not accepted**. Focused
+validation passes:
+`python -m unittest AICTFProject.tests.test_bt_adaptive AICTFProject.tests.test_scripted_style_payoff_matrix`
+ran 16 tests OK.
+
+Decision: keep payoff blocked. Next OP12 work should tune the score activation
+gate, not the red response, using the existing component telemetry. Do not move
+to payoff until ESCORT triggers at least 7/8 and RUSH triggers at most 1/8 on
+development seeds.
+
+OP12 activation-gate sweep:
+`artifacts/op12_dev11_escort_gate_sweep_8seed` evaluates predeclared detector
+gates over live opening score traces: threshold with 3 consecutive steps,
+threshold with 2 consecutive steps, 2-of-last-3, and rolling 5-step evidence.
+Inputs are detector-only traces before pickup; no payoff run was launched.
+
+Result: no usable operating point.
+
+```text
+Decision: NO_USABLE_OPERATING_POINT
+
+Max score ranges by style:
+BLUE_RUSH   1.443-2.900
+BLUE_ESCORT 2.259-3.189
+BLUE_SPLIT  1.149-2.931
+BLUE_TURTLE 2.498-3.653
+```
+
+Interpretation: the current compactness/lane/leader/heading/speed score is not
+sufficient. It separates ESCORT from RUSH on mean score, but the tails overlap
+and TURTLE produces high scores because slow, compact motion can look
+escort-like without being an offensive convoy. Do not tune the threshold/window
+further on this score. The next detector feature should explicitly include
+offensive convoy progress, such as leader nearing the red flag while the
+follower remains behind within a controlled offset, or a projected same-corridor
+flag approach. Response tuning and payoff remain blocked.
+
+OP12 semantic convoy detector attempt:
+`artifacts/op12_dev12f_convoy_speed_probe_4seed_max40` tested a conjunctive
+state-machine detector with offensive progress, same-corridor movement, stable
+leader/follower geometry, and a moderate centroid-speed clause. Focused tests
+still pass (`python -m unittest AICTFProject.tests.test_bt_adaptive
+AICTFProject.tests.test_scripted_style_payoff_matrix`, 16 tests OK), but the
+development probe did not produce a usable activation pattern:
+
+```text
+BLUE_RUSH   escort triggers 0/4
+BLUE_ESCORT escort triggers 0/4
+```
+
+Interpretation: the moderate-speed clause removes RUSH false positives but also
+kills ESCORT recall at the live BT decision point. This confirms the issue is
+not threshold tuning alone. The next OP12 detector should use a more direct
+carrier/flag-route semantic feature, such as lead agent projected to the red
+flag corridor with the follower trailing behind that route, or accept a
+two-stage detector where pre-pickup only raises suspicion and post-pickup
+confirms escort. Payoff and response tuning remain blocked.
+
+OP12 convoy gap-stability probe:
+`artifacts/op12_dev12g_convoy_gap_stability_probe_4seed_max40` replaced the
+moderate-speed activation clause with semantic gap stability: offensive pair,
+same corridor, stable leader/follower ordering, and controlled longitudinal-gap
+jitter. Focused validation still passes:
+`python -m unittest AICTFProject.tests.test_bt_adaptive AICTFProject.tests.test_scripted_style_payoff_matrix`
+ran 16 tests OK.
+
+```text
+BLUE_RUSH   escort triggers 2/4
+BLUE_ESCORT escort triggers 3/4
+```
+
+Interpretation: gap stability restores some ESCORT recall, but the pre-pickup
+convoy signal still false-triggers on RUSH. Treat this as evidence that
+pre-pickup convoy semantics alone are not clean enough on the live OP12 route.
+The next controlled implementation should be the two-stage detector: pre-pickup
+convoy raises suspicion only; post-pickup carrier plus trailing protector
+confirms ESCORT. Do not enable payoff or tune OP12's punitive response until
+the detector-only gate passes.
+
+OP12 two-stage escort detector wiring:
+Implemented detector-only two-stage telemetry in `_bt_adaptive.py`.
+Pre-pickup convoy evidence now remains suspicion-only and no longer drives the
+opening anti-escort hard response. Post-pickup carrier/protector confirmation
+logs:
+
+```text
+escort_confirmation_step
+escort_confirmation_active_steps
+escort_confirmation_carrier_id
+escort_confirmation_protector_id
+escort_confirmation_distance
+escort_confirmation_same_corridor_steps
+escort_confirmation_to_episode_end_steps
+pickup_to_confirmation_steps
+```
+
+Telemetry schema was added to both
+`experiments/diagnose_op12_opening_trajectory.py` and
+`experiments/run_scripted_style_payoff_matrix.py`. Focused validation passes:
+`python -m unittest AICTFProject.tests.test_bt_adaptive AICTFProject.tests.test_scripted_style_payoff_matrix`
+ran 18 tests OK.
+
+Detector smoke:
+`artifacts/op12_dev13b_two_stage_escort_detector_smoke_1seed_max40`
+
+```text
+BLUE_RUSH   suspicion step 8, confirmation step 20
+BLUE_ESCORT suspicion step 6, confirmation step 32
+```
+
+Interpretation: the two-stage plumbing is live, but the current confirmation
+rule is **not accepted**. On this seed it still false-confirms RUSH and confirms
+ESCORT too late to be a reliable strategic counter. OP12 hard anti-escort
+response remains disabled; payoff and response tuning remain blocked. Next
+detector iteration should add a stronger post-pickup protector semantic, such
+as defender-relative screening or non-carrier abandoning independent scoring,
+rather than re-enabling a hard response.
+
+OP12 post-pickup RUSH/ESCORT separability check:
+`artifacts/op12_dev14_rush_escort_post_pickup_overlap_smoke_1seed_max40` added
+detector-free post-pickup trajectory metrics to
+`diagnose_op12_opening_trajectory.py`. On the smoke seed, RUSH and ESCORT are
+actually separable after pickup:
+
+```text
+BLUE_RUSH:
+  same-corridor frac:   0.227
+  shadowing frac:       0.227
+  independent frac:     0.364
+
+BLUE_ESCORT:
+  same-corridor frac:   1.000
+  shadowing frac:       0.857
+  independent frac:     0.000
+```
+
+The previous confirmation rule was using the wrong semantic shape. It
+overweighted a trailing/leader condition that ESCORT does not consistently
+satisfy after pickup, while RUSH can briefly satisfy it.
+
+OP12 two-stage confirmation update:
+`artifacts/op12_dev14c_post_pickup_confirm_probe_4seed_max40` replaces the
+post-pickup confirmation rule with sustained close same-corridor carrier
+support: six consecutive carrier/protector ticks with controlled distance and
+same route corridor. Focused validation passes:
+`python -m unittest AICTFProject.tests.test_bt_adaptive AICTFProject.tests.test_scripted_style_payoff_matrix`
+ran 18 tests OK.
+
+Detector-only development result:
+
+```text
+BLUE_RUSH   confirmation: 0/4
+BLUE_ESCORT confirmation: 3/4
+mean ESCORT confirmation step: 19.67
+mean pickup-to-confirmation:   5.00
+mean response-time remaining:  20.33 steps
+```
+
+Interpretation: post-pickup style separability is now demonstrated on a small
+development slice, and the hard RUSH false-confirmation failure is fixed for
+these seeds. This is still not the detector acceptance gate. Next run should
+evaluate detector-only on all four blue styles, with the current gate:
+ESCORT confirmation at least 7/8, RUSH 0/8, TURTLE 0/8, SPLIT at most 1/8, and
+enough confirmation-to-capture/episode time for a response to matter. OP12 hard
+anti-escort response remains disabled until that gate passes.
+
+OP12 full four-style detector-only development gate:
+`artifacts/op12_dev15_full_detector_gate_8seed_max40` ran OP12 against all four
+blue scripted styles on the same eight paired development seeds. This remains
+detector-only; OP12 hard anti-escort response is still disabled and no payoff
+acceptance is inferred.
+
+Predeclared gate:
+
+```text
+BLUE_ESCORT confirmation >= 7/8
+BLUE_RUSH confirmation   = 0/8
+BLUE_TURTLE confirmation = 0/8
+BLUE_SPLIT confirmation  <= 1/8
+useful response time remains after confirmation
+```
+
+Observed:
+
+```text
+BLUE_ESCORT confirmation: 6/8, mean step 25.17
+BLUE_RUSH confirmation:   1/8, mean step 23.00
+BLUE_TURTLE confirmation: 0/8
+BLUE_SPLIT confirmation:  0/8
+ESCORT pickup -> confirmation: 9.50 steps
+ESCORT remaining response time in max40 smoke: 14.83 steps
+```
+
+Verdict: **FAIL / CLOSE**. The detector now rejects TURTLE and SPLIT and is
+mostly selective for ESCORT, but it misses the 7/8 ESCORT recall gate and still
+has one RUSH false confirmation. Do not freeze the detector and do not enable
+the OP12 anti-escort response. Next diagnostic should inspect the one RUSH false
+confirmation and the two ESCORT misses at row/trajectory level before changing
+any thresholds.
+
+OP12 dev15 failure inspection and targeted detector revision:
+The three dev15 failures were isolated to:
+
+```text
+BLUE_RUSH seed 551005:
+  false-confirmed after six loose same-corridor ticks
+  support distance mostly 3.08-3.66 cells
+  post-pickup independent frac 0.368
+
+BLUE_ESCORT seed 551003:
+  missed because protector was far from carrier for most of the return
+  support distance 10-12 cells early after pickup
+  classification: scripted ESCORT failed to form an escort promptly
+
+BLUE_ESCORT seed 551006:
+  missed despite clear close support
+  old rule reset because agents became too close / narrowly missed six ticks
+  classification: detector rule defect
+```
+
+One targeted detector change was made: post-pickup confirmation now requires
+five sustained ticks of closer same-corridor carrier support, with support
+distance narrowed from `[1.0, 4.0]` to `[0.75, 3.0]`. This rejects the loose
+RUSH false-positive formation and admits the close-support ESCORT miss without
+adding a broader rule family.
+
+OP12 full four-style detector-only development gate after targeted revision:
+`artifacts/op12_dev16_full_detector_gate_tight_support_8seed_max40`
+
+```text
+BLUE_ESCORT confirmation: 8/8
+BLUE_RUSH confirmation:   0/8
+BLUE_TURTLE confirmation: 0/8
+BLUE_SPLIT confirmation:  0/8
+ESCORT pickup -> confirmation: 11.25 steps
+ESCORT remaining response time in max40 smoke: 13.38 steps
+```
+
+Verdict: **DEVELOPMENT DETECTOR CANDIDATE PASS**. Do not enable OP12's hard
+anti-escort response yet. Freeze the detector rules/thresholds for the next
+step and run fresh detector-only held-out seeds. Only if held-out also passes
+should OP12 anti-escort response be enabled for a payoff development pilot.
+
+OP12 frozen detector held-out gate:
+`artifacts/op12_dev17_heldout_detector_gate_16seed_max40` evaluated the frozen
+dev16 detector rules on 16 fresh paired seeds across all four blue styles.
+No threshold edits were made after viewing this result; OP12 hard anti-escort
+response remains disabled.
+
+Predeclared held-out gate:
+
+```text
+BLUE_ESCORT confirmation >= 14/16
+BLUE_RUSH confirmation   = 0/16
+BLUE_TURTLE confirmation = 0/16
+BLUE_SPLIT confirmation  <= 1/16
+useful response time remains after confirmation
+```
+
+Observed:
+
+```text
+BLUE_ESCORT confirmation: 13/16
+BLUE_RUSH confirmation:    3/16
+BLUE_TURTLE confirmation:  0/16
+BLUE_SPLIT confirmation:   0/16
+ESCORT pickup -> confirmation: 9.08 steps
+ESCORT remaining response time in max40 smoke: 14.38 steps
+```
+
+Verdict: **HELD-OUT FAIL**. The detector generalizes well against TURTLE and
+SPLIT, but not sufficiently against RUSH, and ESCORT recall is just below the
+held-out gate. Do not freeze or enable the response. Next step is to classify
+the three RUSH false confirmations and three ESCORT misses on held-out rows.
+If they reveal genuine RUSH/ESCORT trajectory overlap, fix the scripted blue
+controllers or stop OP12 detector tuning; if they reveal one shared detector
+mechanism, make at most one more targeted revision and restart development
+validation before another held-out attempt.
+
+OP12 dev17 held-out failure trace classification:
+Per-step traces of the six failed rows show no single clean detector-threshold
+defect.
+
+RUSH false confirmations:
+
+```text
+BLUE_RUSH seed 552006: sustained carrier-shadowing run, ticks reached 5
+BLUE_RUSH seed 552009: sustained carrier-shadowing run, ticks reached 5
+BLUE_RUSH seed 552015: sustained carrier-shadowing run, ticks reached 5
+```
+
+In all three false positives, the RUSH non-carrier genuinely stayed in the same
+return corridor with the carrier for five or more steps. This is behavioral
+overlap, not just detector noise.
+
+ESCORT misses:
+
+```text
+BLUE_ESCORT seed 552003: protector remained far from carrier for most of return
+BLUE_ESCORT seed 552005: close support was fragmented by heading/distance resets
+BLUE_ESCORT seed 552012: close support fragmented; never sustained confirmation
+```
+
+Interpretation: OP12's current detector is seeing the trajectories honestly.
+The remaining failure is that BLUE_RUSH sometimes behaves like ESCORT after
+pickup, while BLUE_ESCORT sometimes fails to maintain a stable escort. Do not
+continue threshold tuning on OP12. Next controlled change should sharpen the
+scripted blue probes:
+
+```text
+BLUE_RUSH non-carrier: no carrier shadowing; take independent/off-lane pressure
+BLUE_ESCORT non-carrier: maintain close same-corridor support after pickup
+```
+
+Changing these probes invalidates direct comparison with older scripted-matrix
+results that used the previous BLUE_RUSH/BLUE_ESCORT definitions, so affected
+OP6-OP12 calibration rows must be rerun under the new frozen blue-controller
+version before pool claims.
+
+BLUE_RUSH / BLUE_ESCORT probe sharpening:
+Updated `_scripted_blue_styles.py` so RUSH and ESCORT stay behaviorally
+persistent after pickup:
+
+```text
+BLUE_RUSH non-carrier:
+  moves to the opposite lane and keeps pressuring the red flag
+  no carrier-shadowing target
+
+BLUE_ESCORT non-carrier:
+  targets a close same-corridor carrier offset
+  stays with the carrier instead of chasing the carrier's evasion target
+```
+
+The OP12 post-pickup confirmation condition was also simplified after the probe
+change: close same-corridor support no longer requires matching instantaneous
+heading, because a tight convoy can turn around obstacles while still
+protecting the carrier. Focused validation passes:
+`python -m unittest AICTFProject.tests.test_bt_adaptive AICTFProject.tests.test_scripted_style_payoff_matrix`
+ran 19 tests OK.
+
+Sanity detector-only screen with new blue-controller definitions:
+`artifacts/op12_dev19_new_blue_no_heading_confirm_sanity_4seed_max40`
+
+```text
+BLUE_ESCORT confirmation: 4/4
+BLUE_RUSH confirmation:   0/4
+BLUE_TURTLE confirmation: 0/4
+BLUE_SPLIT confirmation:  0/4
+ESCORT pickup -> confirmation: 4.50 steps
+ESCORT remaining response time in max40 smoke: 20.25 steps
+```
+
+Interpretation: the measuring instrument is now much cleaner. This is only a
+small development sanity screen, not a freeze. Next step is a full 8-seed
+development detector gate under the new blue-controller version, then fresh
+held-out seeds if that passes.
+
+OP12 full detector-only development gate with sharpened blue controllers:
+`artifacts/op12_dev20_new_blue_detector_gate_8seed_max40`
+
+```text
+BLUE_ESCORT confirmation: 8/8
+BLUE_RUSH confirmation:   0/8
+BLUE_TURTLE confirmation: 0/8
+BLUE_SPLIT confirmation:  0/8
+ESCORT pickup -> confirmation: 4.38 steps
+ESCORT remaining response time in max40 smoke: 20.63 steps
+```
+
+RUSH post-pickup behavior is now clearly independent:
+
+```text
+BLUE_RUSH post-pickup independent frac: 0.772
+BLUE_RUSH post-pickup same-corridor frac: 0.125
+BLUE_ESCORT post-pickup shadowing frac: 0.951
+BLUE_ESCORT post-pickup independent frac: 0.000
+```
+
+Verdict: **DEVELOPMENT PASS under new blue-controller version**. Do not enable
+OP12 hard anti-escort response yet. Freeze the updated RUSH/ESCORT controller
+definitions and detector rules for a fresh detector-only held-out gate. Older
+scripted payoff matrices remain historical and must not be mixed with this
+new blue-controller version.
+
+OP12 BLUE_PROBES_V2 detector-only held-out gate:
+`artifacts/op12_dev21_blue_v2_heldout_detector_gate_16seed_max40` evaluated the
+frozen BLUE_PROBES_V2 RUSH/ESCORT controller definitions and frozen OP12
+detector rules on 16 fresh paired seeds across all four blue styles. Artifact
+rows and summary include `blue_probe_protocol = BLUE_PROBES_V2`.
+
+Predeclared gate:
+
+```text
+BLUE_ESCORT confirmation >= 14/16
+BLUE_RUSH confirmation   = 0/16
+BLUE_TURTLE confirmation = 0/16
+BLUE_SPLIT confirmation  <= 1/16
+useful response time remains after confirmation
+```
+
+Observed:
+
+```text
+BLUE_ESCORT confirmation: 16/16
+BLUE_RUSH confirmation:    0/16
+BLUE_TURTLE confirmation:  0/16
+BLUE_SPLIT confirmation:   0/16
+ESCORT pickup -> confirmation: 5.13 steps
+ESCORT remaining response time in max40 smoke: 19.19 steps
+```
+
+Verdict: **HELD-OUT DETECTOR PASS**. OP12 can legally recognize the BLUE_PROBES_V2
+ESCORT formation without confusing it with RUSH, TURTLE, or SPLIT. This still
+does not prove an OP12 RUSH payoff niche. Next step is to enable the smallest
+OP12-only anti-escort response and run a payoff development pilot asking whether
+BLUE_RUSH becomes uniquely best. Do not mix pre-BLUE_PROBES_V2 scripted payoff
+matrices with this protocol.
+
+OP12 confirmed-ESCORT response ablation:
+`artifacts/op12_dev22_response_off_8seed` and
+`artifacts/op12_dev22_response_on_8seed` used identical paired seeds
+(`base_seed=556001`), OP12/map_b only, all four BLUE_PROBES_V2 styles, and
+240 decision steps. The response was opt-in through
+`--op12-confirmed-escort-response`; default OP12 remains detector-only.
+
+Mean margins:
+
+```text
+            response OFF   response ON   delta
+BLUE_ESCORT       -2.125        0.000    +2.125
+BLUE_RUSH         -0.750       -0.625    +0.125
+BLUE_SPLIT         1.250        1.250     0.000
+BLUE_TURTLE        0.875        0.750    -0.125
+```
+
+Paired seed deltas show BLUE_ESCORT improved on 7/8 seeds when the response was
+enabled. SPLIT stayed best at +1.250 mean margin and 8/8 wins. RUSH remained
+negative and did not become uniquely best. The full 240-step horizon also showed
+late RUSH/TURTLE escort confirmations that were absent in the max-40 detector
+gate, so the detector remains clean for early response timing but not for
+unbounded full-episode hard response.
+
+Verdict: **RESPONSE ABLATION FAIL, OP12 RUSH NICHE UNPROVEN**. The detector
+stays accepted; the current hard response is rejected because it helps ESCORT
+instead of punishing it. Next OP12 change should alter the response mechanics
+only, not the detector: target the protector/carrier separation in a way that
+reduces carrier survival or pickup conversion instead of accidentally creating
+a safer escort return.
+
+OP12 response-failure trace:
+`artifacts/op12_dev23_response_trace_escort_ep0_ep7` traced paired ESCORT
+episodes 0 and 7 from dev22, where response ON improved BLUE_ESCORT by +3
+margin points on each seed.
+
+First causal divergence after confirmation:
+
+```text
+response OFF: red roles usually INTERCEPTOR + COUNTER
+response ON:  red roles switch to INTERCEPTOR + INTERCEPTOR
+```
+
+In the traced seeds, OFF's default OP12 behavior kept one red agent in counter
+pressure while the other handled carrier denial. ON replaced that useful
+counter role with a second interceptor/protector-targeting maneuver. The
+result was more containment near the carrier but less scoreboard pressure and
+less disruption of ESCORT's episode-level plan.
+
+Diagnosis: the failed response is not too weak; it displaces a good default
+role. Next OP12 response should preserve the primary carrier interceptor and
+the default counter/return-lane pressure. Do not chase the protector directly
+unless a later trace shows the protector is the actual blocker. A safer next
+design is:
+
+```text
+confirmed ESCORT
+-> keep existing carrier-intercept role
+-> keep or bias the other red agent's counter/return-lane pressure
+-> optionally increase carrier priority without changing both roles
+```
+
+OP12 route-only response ablation:
+`artifacts/op12_dev24_route_only_response_trace_escort_ep0_ep7` first verified
+the modifier-only response on the two ESCORT seeds where dev22 helped ESCORT by
++3 margin. The new route-only response preserved the early default
+`INTERCEPTOR + COUNTER` pattern and removed the large accidental ESCORT boost:
+
+```text
+episode 0: OFF -3, ON -3, delta 0
+episode 7: OFF -2, ON -2, delta 0
+```
+
+Then `artifacts/op12_dev25_route_only_response_on_8seed` reran the full
+8-seed response-ON development ablation against the same response-OFF baseline
+from `artifacts/op12_dev22_response_off_8seed`.
+
+Mean margins:
+
+```text
+            response OFF   route-only ON   delta
+BLUE_ESCORT       -2.125          -1.750   +0.375
+BLUE_RUSH         -0.750          -0.750    0.000
+BLUE_SPLIT         1.250           1.250    0.000
+BLUE_TURTLE        0.875           1.000   +0.125
+```
+
+Paired deltas:
+
+```text
+RUSH:   unchanged on 8/8 seeds
+SPLIT:  unchanged on 8/8 seeds
+TURTLE: +1 on one late-confirmed seed, otherwise unchanged
+ESCORT: mean delta +0.375; still improved overall
+```
+
+Verdict: **ROUTE-ONLY RESPONSE SAFER BUT STILL REJECTED**. It fixed the
+dev22 role-replacement bug, but it did not selectively hurt ESCORT. The current
+response should not be promoted to payoff confirmation. Next OP12 work should
+not touch the detector or replace roles; it should inspect the ESCORT seeds
+where route-only ON still improved (`episode_index` 2, 3, 6) and identify
+whether the carrier-lane bias delays red scoring, moves the interceptor to a
+worse intercept point, or creates extra flag-retrieval churn.
 
 ---
 

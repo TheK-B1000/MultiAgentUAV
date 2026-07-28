@@ -143,6 +143,21 @@ class _ScriptedBlueStylesMixin:
                 )
                 target_x = torch.where(own_carrying, evade_tx, target_x)
                 target_y = torch.where(own_carrying, evade_ty, target_y)
+            if style_id == _STYLE_ID["BLUE_RUSH"]:
+                carrier_idx = torch.argmax(own_carrying.to(torch.int64), dim=1)
+                other_idx = torch.where(
+                    carrier_idx == 0,
+                    torch.ones_like(carrier_idx),
+                    torch.zeros_like(carrier_idx),
+                )
+                carrier_y = own_y[idx_env, carrier_idx]
+                upper_lane_y = torch.full((B,), max_y * 0.90, dtype=own_y.dtype, device=own_y.device)
+                lower_lane_y = torch.full((B,), max_y * 0.10, dtype=own_y.dtype, device=own_y.device)
+                pressure_lane_y = torch.where(carrier_y >= max_y * 0.5, lower_lane_y, upper_lane_y)
+                noncarrier_slot = torch.arange(N, device=self.device)[None, :] == other_idx[:, None]
+                rush_pressure = own_carrying.any(dim=1)[:, None] & noncarrier_slot
+                target_x = torch.where(rush_pressure, enemy_flag_pos[:, 0:1], target_x)
+                target_y = torch.where(rush_pressure, pressure_lane_y[:, None], target_y)
             if style_id == _STYLE_ID["BLUE_ESCORT"]:
                 carrier_idx = torch.argmax(own_carrying.to(torch.int64), dim=1)
                 other_idx = torch.where(
@@ -157,8 +172,8 @@ class _ScriptedBlueStylesMixin:
                 pair_dist = torch.sqrt((carrier_x - other_x) ** 2 + (carrier_y - other_y) ** 2 + 1e-8)
                 carrier_wait = (pair_dist > 2.0) & own_carrying.any(dim=1)
                 carrier_slot = torch.arange(N, device=self.device)[None, :] == carrier_idx[:, None]
-                follow_x = evade_tx[idx_env, carrier_idx]
-                follow_y = evade_ty[idx_env, carrier_idx]
+                follow_x = torch.clamp(carrier_x + 1.5, 0.0, max_x)
+                follow_y = carrier_y
                 escort_follow = own_carrying.any(dim=1)[:, None] & (~own_carrying)
                 target_x = torch.where(carrier_wait[:, None] & carrier_slot, other_x[:, None], target_x)
                 target_y = torch.where(carrier_wait[:, None] & carrier_slot, other_y[:, None], target_y)

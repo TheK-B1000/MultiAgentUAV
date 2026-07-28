@@ -225,7 +225,6 @@ class BTAdaptiveProfileTests(unittest.TestCase):
     def test_op12_opening_escort_detector_triggers_on_lead_support(self) -> None:
         core, env = _core("OP12")
         try:
-            prof = _op12_profile(core)
             midline = float(core.cols) * 0.5
             center_y = float(core.rows) * 0.5
             core.blue_x[0, 0] = midline + 4.0
@@ -234,10 +233,14 @@ class BTAdaptiveProfileTests(unittest.TestCase):
             core.blue_y[0, 1] = center_y - 0.75
             core.sim_step_count[0] = 0
 
-            _advance_adaptive_memory(core, prof, 3)
+            for t in range(8):
+                core.sim_step_count[0] = t
+                core.blue_x[0, 0] += 0.45
+                core.blue_x[0, 1] += 0.45
+                core._get_bt_targets()
 
-            self.assertEqual(int(core.bt_adapt_opening_escort_ticks[0].item()), 3)
-            self.assertEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), 2)
+            self.assertGreaterEqual(int(core.bt_adapt_opening_escort_ticks[0].item()), 3)
+            self.assertGreaterEqual(float(core.bt_adapt_opening_escort_score[0].item()), 3.0)
             self.assertGreater(int(core.bt_adapt_opening_escort_active_steps[0].item()), 0)
         finally:
             env.close()
@@ -245,7 +248,6 @@ class BTAdaptiveProfileTests(unittest.TestCase):
     def test_op12_opening_escort_detector_does_not_trigger_on_wider_rush(self) -> None:
         core, env = _core("OP12")
         try:
-            prof = _op12_profile(core)
             midline = float(core.cols) * 0.5
             center_y = float(core.rows) * 0.5
             core.blue_x[0, 0] = midline + 4.0
@@ -254,7 +256,11 @@ class BTAdaptiveProfileTests(unittest.TestCase):
             core.blue_y[0, 1] = center_y - 2.2
             core.sim_step_count[0] = 0
 
-            _advance_adaptive_memory(core, prof, 3)
+            for t in range(8):
+                core.sim_step_count[0] = t
+                core.blue_x[0, 0] += 0.75
+                core.blue_x[0, 1] += 0.75
+                core._get_bt_targets()
 
             self.assertEqual(int(core.bt_adapt_opening_escort_ticks[0].item()), 0)
             self.assertEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), -1)
@@ -282,17 +288,130 @@ class BTAdaptiveProfileTests(unittest.TestCase):
         finally:
             env.close()
 
-    def test_live_op12_opening_escort_detector_activates_for_escort_not_rush(self) -> None:
-        core, env = _run_live_op12_style("BLUE_ESCORT", steps=20)
+    def test_live_op12_opening_escort_score_separates_escort_from_rush(self) -> None:
+        core, env = _run_live_op12_style("BLUE_ESCORT", steps=20, seed=551002)
         try:
-            self.assertGreaterEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), 0)
-            self.assertLess(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), 20)
+            escort_score = float(core.bt_adapt_opening_escort_score[0].item())
         finally:
             env.close()
 
         core, env = _run_live_op12_style("BLUE_RUSH", steps=20, seed=551002)
         try:
+            rush_score = float(core.bt_adapt_opening_escort_score[0].item())
             self.assertEqual(int(core.bt_adapt_opening_escort_first_trigger_step[0].item()), -1)
+        finally:
+            env.close()
+        self.assertGreater(escort_score, rush_score)
+
+    def test_op12_role_path_updates_opening_escort_detector(self) -> None:
+        core, env = _core("OP12")
+        try:
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 4.0
+            core.blue_x[0, 1] = midline + 2.0
+            core.blue_y[0, 0] = center_y + 0.75
+            core.blue_y[0, 1] = center_y - 0.75
+            core.blue_carrying[0] = False
+            core.blue_alive[0] = True
+            core.blue_tagged[0] = False
+            core.red_alive[0] = True
+            core.red_tagged[0] = False
+
+            for t in range(5):
+                core.sim_step_count[0] = t
+                core.blue_x[0, 0] += 0.45
+                core.blue_x[0, 1] += 0.45
+                core._get_bt_targets()
+
+            self.assertGreater(float(core.bt_adapt_opening_escort_score[0].item()), 0.0)
+        finally:
+            env.close()
+
+    def test_op12_opening_escort_suspicion_does_not_force_intercept(self) -> None:
+        core, env = _core("OP12")
+        try:
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 4.0
+            core.blue_x[0, 1] = midline + 2.0
+            core.blue_y[0, 0] = center_y + 0.75
+            core.blue_y[0, 1] = center_y - 0.75
+            core.blue_carrying[0] = False
+            core.blue_alive[0] = True
+            core.blue_tagged[0] = False
+            core.red_alive[0] = True
+            core.red_tagged[0] = False
+
+            for t in range(8):
+                core.bt_role_lock_ticks[0] = 0
+                core.sim_step_count[0] = t
+                core.blue_x[0, 0] += 0.45
+                core.blue_x[0, 1] += 0.45
+                core._get_bt_targets()
+
+            self.assertGreaterEqual(int(core.bt_adapt_opening_escort_ticks[0].item()), 2)
+            self.assertEqual(int(core.bt_adapt_escort_confirm_first_step[0].item()), -1)
+            self.assertNotIn(ROLE_INTERCEPTOR, core.bt_red_role[0].tolist())
+        finally:
+            env.close()
+
+    def test_op12_post_pickup_escort_confirmation_triggers_on_carrier_support(self) -> None:
+        core, env = _core("OP12")
+        try:
+            center_y = float(core.rows) * 0.5
+            core.blue_alive[0] = True
+            core.blue_tagged[0] = False
+            core.red_alive[0] = True
+            core.red_tagged[0] = False
+            core.blue_flag_home[0, 0] = 1.0
+            core.blue_flag_home[0, 1] = center_y
+            core.blue_carrying[0] = False
+            core.blue_x[0, 0] = 21.0
+            core.blue_x[0, 1] = 23.5
+            core.blue_y[0, 0] = center_y
+            core.blue_y[0, 1] = center_y + 1.0
+            core._get_bt_targets()
+
+            core.blue_carrying[0, 0] = True
+            for t in range(1, 9):
+                core.bt_role_lock_ticks[0] = 0
+                core.sim_step_count[0] = t
+                core.blue_x[0, 0] -= 0.5
+                core.blue_x[0, 1] -= 0.5
+                core._get_bt_targets()
+
+            self.assertGreaterEqual(int(core.bt_adapt_escort_confirm_ticks[0].item()), 5)
+            self.assertGreaterEqual(int(core.bt_adapt_escort_confirm_first_step[0].item()), 0)
+            self.assertEqual(int(core.bt_adapt_escort_confirm_carrier_id[0].item()), 0)
+            self.assertEqual(int(core.bt_adapt_escort_confirm_protector_id[0].item()), 1)
+        finally:
+            env.close()
+
+    def test_blue_rush_and_escort_post_pickup_targets_are_separable(self) -> None:
+        core, env = _core("OP12")
+        try:
+            center_y = float(core.rows) * 0.5
+            max_y = float(core.rows - 1)
+            core.blue_alive[0] = True
+            core.blue_tagged[0] = False
+            core.blue_carrying[0] = False
+            core.blue_carrying[0, 0] = True
+            core.blue_x[0, 0] = 14.0
+            core.blue_y[0, 0] = center_y + 2.0
+            core.blue_x[0, 1] = 15.0
+            core.blue_y[0, 1] = center_y + 2.5
+            core.red_flag_pos[0, 0] = float(core.cols - 2)
+            core.red_flag_pos[0, 1] = center_y
+
+            core.set_blue_style("BLUE_RUSH")
+            rush_x, rush_y = core._assign_blue_style_targets()
+            core.set_blue_style("BLUE_ESCORT")
+            escort_x, escort_y = core._assign_blue_style_targets()
+
+            self.assertLess(float(rush_y[0, 1].item()), max_y * 0.25)
+            self.assertAlmostEqual(float(escort_y[0, 1].item()), float(core.blue_y[0, 0].item()), places=4)
+            self.assertAlmostEqual(float(escort_x[0, 1].item()), float(core.blue_x[0, 0].item()) + 1.5, places=4)
         finally:
             env.close()
 

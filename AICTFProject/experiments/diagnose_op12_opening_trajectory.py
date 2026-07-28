@@ -1,7 +1,7 @@
-"""Audit OP12 opening behavior for BLUE_RUSH vs BLUE_ESCORT.
+"""Audit OP12 detector behavior for scripted blue styles.
 
-This diagnostic intentionally does not tune OP12. It measures whether the two
-candidate offensive probes are separable during the first opening window.
+This diagnostic intentionally does not tune OP12. It measures whether detector
+signals can distinguish blue formations before any payoff interpretation.
 """
 
 from __future__ import annotations
@@ -22,6 +22,8 @@ from experiments.run_scripted_style_payoff_matrix import _make_env, _zero_action
 
 
 BLUE_STYLES = ("BLUE_RUSH", "BLUE_ESCORT")
+ALL_BLUE_STYLES = ("BLUE_RUSH", "BLUE_TURTLE", "BLUE_SPLIT", "BLUE_ESCORT")
+BLUE_PROBE_PROTOCOL = "BLUE_PROBES_V2"
 RED_PRESET = "OP12_LATE_CONVERTER"
 MAP_NAME = "map_b_split_lane"
 
@@ -110,9 +112,30 @@ def run_episode(blue_style: str, episode_index: int, base_seed: int, opening_ste
     split_detector_active_steps = 0
     escort_detector_first_trigger_step = -1
     escort_detector_active_steps = 0
+    escort_detector_score = 0.0
+    escort_detector_compact = 0.0
+    escort_detector_narrow = 0.0
+    escort_detector_leader = 0.0
+    escort_detector_heading = 0.0
+    escort_detector_speed_penalty = 0.0
+    convoy_offensive_seen = 0
+    convoy_corridor_seen = 0
+    convoy_leader_seen = 0
+    convoy_reject_seen = 0
+    escort_confirmation_step = -1
+    escort_confirmation_active_steps = 0
+    escort_confirmation_carrier_id = -1
+    escort_confirmation_protector_id = -1
+    escort_confirmation_distance = 0.0
+    escort_confirmation_same_corridor_steps = 0
+    escort_confirmation_to_episode_end_steps = 0
     external_escort_ticks = 0
     external_escort_first_trigger_step = None
     external_escort_active_steps = 0
+    external_prev_xs = None
+    external_prev_ys = None
+    external_leader_sign = 0
+    external_leader_streak = 0
 
     prev_xs = None
     blue_score0 = int(_as_float(getattr(core, "blue_score", 0)))
@@ -129,6 +152,17 @@ def run_episode(blue_style: str, episode_index: int, base_seed: int, opening_ste
     pre_pickup_lane_sep = []
     pre_pickup_clustered = 0
     pre_pickup_steps = 0
+
+    post_pickup_steps = 0
+    post_pickup_teammate_dist = []
+    post_pickup_lane_sep = []
+    post_pickup_same_corridor = 0
+    post_pickup_shadowing = 0
+    post_pickup_independent = 0
+    post_pickup_trailing = 0
+    post_pickup_stable_carrier_protector = 0
+    post_pickup_carrier_id = -1
+    post_pickup_protector_id = -1
 
     try:
         for step in range(max_steps):
@@ -170,23 +204,74 @@ def run_episode(blue_style: str, episode_index: int, base_seed: int, opening_ste
                 if dist < 6.0:
                     pre_pickup_clustered += 1
 
+            carrying = [bool(core.blue_carrying[0, i].item()) for i in range(2)]
+            if any(carrying) and both_alive:
+                carrier_id = 0 if carrying[0] else 1
+                protector_id = 1 - carrier_id
+                post_pickup_carrier_id = carrier_id
+                post_pickup_protector_id = protector_id
+                post_pickup_steps += 1
+                post_pickup_teammate_dist.append(dist)
+                post_pickup_lane_sep.append(lane_sep)
+                if lane_sep <= 3.0:
+                    post_pickup_same_corridor += 1
+                protector_behind_or_beside = xs[protector_id] >= xs[carrier_id] - 0.75
+                controlled_distance = 1.0 <= dist <= 4.0
+                if protector_behind_or_beside:
+                    post_pickup_trailing += 1
+                if lane_sep <= 3.0 and controlled_distance:
+                    post_pickup_shadowing += 1
+                if lane_sep > 4.5 or dist > 7.0:
+                    post_pickup_independent += 1
+                if protector_behind_or_beside and lane_sep <= 3.0 and controlled_distance:
+                    post_pickup_stable_carrier_protector += 1
+
             lead_x = max(xs)
             trail_x = min(xs)
+            dx01 = xs[0] - xs[1]
+            dy01 = ys[0] - ys[1]
+            leader_sign = 1 if dx01 > 0.5 else (-1 if dx01 < -0.5 else 0)
+            external_leader_streak = (
+                external_leader_streak + 1
+                if leader_sign != 0 and leader_sign == external_leader_sign
+                else (1 if leader_sign != 0 else 0)
+            )
+            external_leader_sign = leader_sign
+            if external_prev_xs is None:
+                heading_sim = 0.0
+                speed_penalty = 0.0
+            else:
+                step_dx0 = xs[0] - external_prev_xs[0]
+                step_dx1 = xs[1] - external_prev_xs[1]
+                step_dy0 = ys[0] - external_prev_ys[0]
+                step_dy1 = ys[1] - external_prev_ys[1]
+                speed0 = math.hypot(step_dx0, step_dy0)
+                speed1 = math.hypot(step_dx1, step_dy1)
+                dot = step_dx0 * step_dx1 + step_dy0 * step_dy1
+                heading_sim = max(0.0, min(1.0, (dot / max(speed0 * speed1, 1e-8) + 1.0) * 0.5))
+                avg_forward = (step_dx0 + step_dx1) * 0.5
+                speed_penalty = max(0.0, min(1.0, (avg_forward - 0.58) / 0.25))
+            compact = max(0.0, min(1.0, (5.5 - dist) / 5.5))
+            narrow = max(0.0, min(1.0, (3.5 - lane_sep) / 3.5))
+            leader_component = max(0.0, min(1.0, external_leader_streak / 4.0))
+            external_score = compact + narrow + leader_component + heading_sim - speed_penalty
             external_escort_now = (
                 step < opening_steps
                 and first_pickup is None
                 and both_alive
                 and lead_x > midfield - 3.0
                 and trail_x > midfield - 12.0
-                and dist <= 3.0
-                and lane_sep <= 2.25
-                and abs(xs[0] - xs[1]) >= 0.5
+                and external_prev_xs is not None
+                and abs(dx01) >= 0.5
+                and external_score >= 3.00
             )
             external_escort_ticks = external_escort_ticks + 1 if external_escort_now else 0
             if external_escort_ticks >= 3:
                 external_escort_active_steps += 1
                 if external_escort_first_trigger_step is None:
                     external_escort_first_trigger_step = step
+            external_prev_xs = list(xs)
+            external_prev_ys = list(ys)
 
             prev_xs = xs
             env.step_async(_zero_action(env))
@@ -217,6 +302,49 @@ def run_episode(blue_style: str, episode_index: int, base_seed: int, opening_ste
                 escort_detector_active_steps,
                 _core_int(core, "bt_adapt_opening_escort_active_steps", 0),
             )
+            escort_detector_score = max(escort_detector_score, _as_float(getattr(core, "bt_adapt_opening_escort_score", 0.0)))
+            escort_detector_compact = max(escort_detector_compact, _as_float(getattr(core, "bt_adapt_opening_escort_compact", 0.0)))
+            escort_detector_narrow = max(escort_detector_narrow, _as_float(getattr(core, "bt_adapt_opening_escort_narrow", 0.0)))
+            escort_detector_leader = max(escort_detector_leader, _as_float(getattr(core, "bt_adapt_opening_escort_leader", 0.0)))
+            escort_detector_heading = max(escort_detector_heading, _as_float(getattr(core, "bt_adapt_opening_escort_heading", 0.0)))
+            escort_detector_speed_penalty = max(
+                escort_detector_speed_penalty,
+                _as_float(getattr(core, "bt_adapt_opening_escort_speed_penalty", 0.0)),
+            )
+            convoy_offensive_seen = max(convoy_offensive_seen, _core_int(core, "bt_adapt_convoy_offensive_active", 0))
+            convoy_corridor_seen = max(convoy_corridor_seen, _core_int(core, "bt_adapt_convoy_corridor_active", 0))
+            convoy_leader_seen = max(convoy_leader_seen, _core_int(core, "bt_adapt_convoy_leader_active", 0))
+            convoy_reject_seen = max(convoy_reject_seen, _core_int(core, "bt_adapt_convoy_reject_rush", 0))
+            confirmation_now = _core_int(core, "bt_adapt_escort_confirm_first_step", -1)
+            escort_confirmation_step = (
+                confirmation_now
+                if escort_confirmation_step < 0 and confirmation_now >= 0
+                else escort_confirmation_step
+            )
+            escort_confirmation_active_steps = max(
+                escort_confirmation_active_steps,
+                _core_int(core, "bt_adapt_escort_confirm_active_steps", 0),
+            )
+            escort_confirmation_carrier_id = max(
+                escort_confirmation_carrier_id,
+                _core_int(core, "bt_adapt_escort_confirm_carrier_id", -1),
+            )
+            escort_confirmation_protector_id = max(
+                escort_confirmation_protector_id,
+                _core_int(core, "bt_adapt_escort_confirm_protector_id", -1),
+            )
+            escort_confirmation_distance = max(
+                escort_confirmation_distance,
+                _as_float(getattr(core, "bt_adapt_escort_confirm_distance", 0.0)),
+            )
+            escort_confirmation_same_corridor_steps = max(
+                escort_confirmation_same_corridor_steps,
+                _core_int(core, "bt_adapt_escort_confirm_same_corridor_steps", 0),
+            )
+            escort_confirmation_to_episode_end_steps = max(
+                escort_confirmation_to_episode_end_steps,
+                _core_int(core, "bt_adapt_escort_confirm_to_end_steps", 0),
+            )
             if bool(dones.any()):
                 break
     finally:
@@ -225,6 +353,7 @@ def run_episode(blue_style: str, episode_index: int, base_seed: int, opening_ste
     leader_total = opening_same_leader[0] + opening_same_leader[1]
     return {
         "blue_style": blue_style,
+        "blue_probe_protocol": BLUE_PROBE_PROTOCOL,
         "red_preset": RED_PRESET,
         "core_opponent_key": str(getattr(core, "_opponent_key", "")),
         "map": MAP_NAME,
@@ -241,6 +370,28 @@ def run_episode(blue_style: str, episode_index: int, base_seed: int, opening_ste
         "split_detector_active_steps": split_detector_active_steps,
         "escort_detector_first_trigger_step": escort_detector_first_trigger_step,
         "escort_detector_active_steps": escort_detector_active_steps,
+        "escort_detector_score": escort_detector_score,
+        "escort_detector_compact": escort_detector_compact,
+        "escort_detector_narrow": escort_detector_narrow,
+        "escort_detector_leader": escort_detector_leader,
+        "escort_detector_heading": escort_detector_heading,
+        "escort_detector_speed_penalty": escort_detector_speed_penalty,
+        "convoy_offensive_seen": convoy_offensive_seen,
+        "convoy_corridor_seen": convoy_corridor_seen,
+        "convoy_leader_seen": convoy_leader_seen,
+        "convoy_reject_seen": convoy_reject_seen,
+        "escort_confirmation_step": escort_confirmation_step,
+        "escort_confirmation_active_steps": escort_confirmation_active_steps,
+        "escort_confirmation_carrier_id": escort_confirmation_carrier_id,
+        "escort_confirmation_protector_id": escort_confirmation_protector_id,
+        "escort_confirmation_distance": escort_confirmation_distance,
+        "escort_confirmation_same_corridor_steps": escort_confirmation_same_corridor_steps,
+        "escort_confirmation_to_episode_end_steps": escort_confirmation_to_episode_end_steps,
+        "pickup_to_confirmation_steps": (
+            escort_confirmation_step - first_pickup
+            if first_pickup is not None and escort_confirmation_step >= 0
+            else None
+        ),
         "external_escort_first_trigger_step": _first_or_none(external_escort_first_trigger_step),
         "external_escort_active_steps": external_escort_active_steps,
         "opening_mean_teammate_dist": mean(opening_dist) if opening_dist else None,
@@ -252,6 +403,26 @@ def run_episode(blue_style: str, episode_index: int, base_seed: int, opening_ste
         "pre_pickup_mean_teammate_dist": mean(pre_pickup_dist) if pre_pickup_dist else None,
         "pre_pickup_mean_lane_sep": mean(pre_pickup_lane_sep) if pre_pickup_lane_sep else None,
         "pre_pickup_clustered_frac": pre_pickup_clustered / pre_pickup_steps if pre_pickup_steps else None,
+        "post_pickup_steps": post_pickup_steps,
+        "post_pickup_carrier_id": post_pickup_carrier_id,
+        "post_pickup_protector_id": post_pickup_protector_id,
+        "post_pickup_mean_teammate_dist": mean(post_pickup_teammate_dist) if post_pickup_teammate_dist else None,
+        "post_pickup_mean_lane_sep": mean(post_pickup_lane_sep) if post_pickup_lane_sep else None,
+        "post_pickup_same_corridor_frac": (
+            post_pickup_same_corridor / post_pickup_steps if post_pickup_steps else None
+        ),
+        "post_pickup_shadowing_frac": (
+            post_pickup_shadowing / post_pickup_steps if post_pickup_steps else None
+        ),
+        "post_pickup_independent_frac": (
+            post_pickup_independent / post_pickup_steps if post_pickup_steps else None
+        ),
+        "post_pickup_trailing_frac": (
+            post_pickup_trailing / post_pickup_steps if post_pickup_steps else None
+        ),
+        "post_pickup_stable_carrier_protector_frac": (
+            post_pickup_stable_carrier_protector / post_pickup_steps if post_pickup_steps else None
+        ),
     }
 
 
@@ -260,9 +431,9 @@ def _mean_present(rows, key):
     return mean(vals) if vals else None
 
 
-def summarize(rows):
+def summarize(rows, blue_styles=BLUE_STYLES):
     by_style = {}
-    for style in BLUE_STYLES:
+    for style in blue_styles:
         style_rows = [row for row in rows if row["blue_style"] == style]
         by_style[style] = {
             "n": len(style_rows),
@@ -285,6 +456,39 @@ def summarize(rows):
             "escort_detector_trigger_episodes": sum(
                 1 for row in style_rows if row["escort_detector_first_trigger_step"] >= 0
             ),
+            "mean_escort_detector_score": _mean_present(style_rows, "escort_detector_score"),
+            "mean_escort_detector_compact": _mean_present(style_rows, "escort_detector_compact"),
+            "mean_escort_detector_narrow": _mean_present(style_rows, "escort_detector_narrow"),
+            "mean_escort_detector_leader": _mean_present(style_rows, "escort_detector_leader"),
+            "mean_escort_detector_heading": _mean_present(style_rows, "escort_detector_heading"),
+            "mean_escort_detector_speed_penalty": _mean_present(style_rows, "escort_detector_speed_penalty"),
+            "convoy_offensive_episodes": sum(1 for row in style_rows if int(row["convoy_offensive_seen"]) > 0),
+            "convoy_corridor_episodes": sum(1 for row in style_rows if int(row["convoy_corridor_seen"]) > 0),
+            "convoy_leader_episodes": sum(1 for row in style_rows if int(row["convoy_leader_seen"]) > 0),
+            "convoy_reject_episodes": sum(1 for row in style_rows if int(row["convoy_reject_seen"]) > 0),
+            "mean_escort_confirmation_step": _mean_present(
+                [row for row in style_rows if row["escort_confirmation_step"] >= 0],
+                "escort_confirmation_step",
+            ),
+            "escort_confirmation_episodes": sum(
+                1 for row in style_rows if row["escort_confirmation_step"] >= 0
+            ),
+            "mean_pickup_to_confirmation_steps": _mean_present(
+                [row for row in style_rows if row["pickup_to_confirmation_steps"] is not None],
+                "pickup_to_confirmation_steps",
+            ),
+            "mean_escort_confirmation_distance": _mean_present(
+                style_rows,
+                "escort_confirmation_distance",
+            ),
+            "mean_escort_confirmation_same_corridor_steps": _mean_present(
+                style_rows,
+                "escort_confirmation_same_corridor_steps",
+            ),
+            "mean_escort_confirmation_to_episode_end_steps": _mean_present(
+                [row for row in style_rows if row["escort_confirmation_step"] >= 0],
+                "escort_confirmation_to_episode_end_steps",
+            ),
             "mean_external_escort_first_trigger_step": _mean_present(
                 [row for row in style_rows if row["external_escort_first_trigger_step"] is not None],
                 "external_escort_first_trigger_step",
@@ -301,12 +505,24 @@ def summarize(rows):
             "mean_pre_pickup_teammate_dist": _mean_present(style_rows, "pre_pickup_mean_teammate_dist"),
             "mean_pre_pickup_lane_sep": _mean_present(style_rows, "pre_pickup_mean_lane_sep"),
             "mean_pre_pickup_clustered_frac": _mean_present(style_rows, "pre_pickup_clustered_frac"),
+            "mean_post_pickup_steps": _mean_present(style_rows, "post_pickup_steps"),
+            "mean_post_pickup_teammate_dist": _mean_present(style_rows, "post_pickup_mean_teammate_dist"),
+            "mean_post_pickup_lane_sep": _mean_present(style_rows, "post_pickup_mean_lane_sep"),
+            "mean_post_pickup_same_corridor_frac": _mean_present(style_rows, "post_pickup_same_corridor_frac"),
+            "mean_post_pickup_shadowing_frac": _mean_present(style_rows, "post_pickup_shadowing_frac"),
+            "mean_post_pickup_independent_frac": _mean_present(style_rows, "post_pickup_independent_frac"),
+            "mean_post_pickup_trailing_frac": _mean_present(style_rows, "post_pickup_trailing_frac"),
+            "mean_post_pickup_stable_carrier_protector_frac": _mean_present(
+                style_rows,
+                "post_pickup_stable_carrier_protector_frac",
+            ),
             "pickup_episodes": sum(1 for row in style_rows if row["time_first_pickup"] is not None),
             "blue_score_episodes": sum(1 for row in style_rows if row["time_first_blue_score"] is not None),
         }
     return {
         "red_preset": RED_PRESET,
         "map": MAP_NAME,
+        "blue_probe_protocol": BLUE_PROBE_PROTOCOL,
         "styles": by_style,
         "interpretation": {
             "purpose": "opening behavior audit only; not a payoff confirmation",
@@ -322,13 +538,15 @@ def main():
     parser.add_argument("--opening-steps", type=int, default=20)
     parser.add_argument("--max-steps", type=int, default=240)
     parser.add_argument("--device", default="cpu")
+    parser.add_argument("--blue-styles", nargs="+", default=list(BLUE_STYLES))
     parser.add_argument("--out-dir", default="AICTFProject/artifacts/op12_opening_audit_rush_vs_escort_8seed")
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rows = []
-    for blue_style in BLUE_STYLES:
+    blue_styles = tuple(args.blue_styles)
+    for blue_style in blue_styles:
         for episode_index in range(args.episodes):
             row = run_episode(
                 blue_style,
@@ -352,7 +570,7 @@ def main():
         writer.writeheader()
         writer.writerows(rows)
 
-    summary = summarize(rows)
+    summary = summarize(rows, blue_styles)
     summary_path = out_dir / "opening_summary.json"
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2), flush=True)

@@ -53,9 +53,12 @@ POOL_REPORT_JSON = "pool_report.json"
 POOL_REPORT_TXT = "pool_report.txt"
 RUN_MANIFEST_JSON = "run_manifest.json"
 PARTIAL_SUMMARY_JSON = "partial_summary.json"
+BLUE_PROBE_PROTOCOL = "BLUE_PROBES_V2"
 
 ROW_FIELDS = [
     "blue_style",
+    "blue_probe_protocol",
+    "op12_confirmed_escort_response_enabled",
     "red_style",
     "map",
     "episode_index",
@@ -76,6 +79,28 @@ ROW_FIELDS = [
     "split_detector_max_teammate_dist",
     "escort_detector_first_trigger_step",
     "escort_detector_active_steps",
+    "escort_detector_score",
+    "escort_detector_compact",
+    "escort_detector_narrow",
+    "escort_detector_leader",
+    "escort_detector_heading",
+    "escort_detector_speed_penalty",
+    "convoy_offensive_active",
+    "convoy_corridor_active",
+    "convoy_leader_active",
+    "convoy_reject_rush",
+    "convoy_leader_id",
+    "convoy_longitudinal_gap",
+    "convoy_lateral_gap",
+    "convoy_heading_similarity",
+    "convoy_centroid_forward_speed",
+    "escort_confirmation_step",
+    "escort_confirmation_active_steps",
+    "escort_confirmation_carrier_id",
+    "escort_confirmation_protector_id",
+    "escort_confirmation_distance",
+    "escort_confirmation_same_corridor_steps",
+    "escort_confirmation_to_episode_end_steps",
     "conversion_phase_first_step",
     "carrier_intercept_attempts",
 ]
@@ -94,6 +119,11 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--n-boot", type=int, default=1000)
     p.add_argument("--analysis-seed", type=int, default=0)
     p.add_argument(
+        "--analyze-only",
+        action="store_true",
+        help="Regenerate reports from an existing complete episode_results.csv without collecting episodes.",
+    )
+    p.add_argument(
         "--min-br-diversity",
         type=int,
         default=2,
@@ -104,6 +134,11 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     p.add_argument("--progress-every", type=int, default=25)
+    p.add_argument(
+        "--op12-confirmed-escort-response",
+        action="store_true",
+        help="Enable the frozen OP12 confirmed-ESCORT carrier/protector response for causal ablations.",
+    )
     return p.parse_args()
 
 
@@ -148,6 +183,10 @@ def _episode_result_row(
     win_margin = blue_score - red_score
     row = {
         "blue_style": blue_style,
+        "blue_probe_protocol": BLUE_PROBE_PROTOCOL,
+        "op12_confirmed_escort_response_enabled": int(
+            bool(extra_telemetry.get("op12_confirmed_escort_response_enabled", 0)) if extra_telemetry else False
+        ),
         "red_style": red_style,
         "map": map_name,
         "episode_index": int(episode_index),
@@ -199,6 +238,28 @@ def _core_detector_telemetry(core: Any) -> dict[str, int | float]:
             core, "bt_adapt_opening_escort_first_trigger_step", -1
         ),
         "escort_detector_active_steps": _scalar_core_int(core, "bt_adapt_opening_escort_active_steps", 0),
+        "escort_detector_score": _scalar_core_float(core, "bt_adapt_opening_escort_score", 0.0),
+        "escort_detector_compact": _scalar_core_float(core, "bt_adapt_opening_escort_compact", 0.0),
+        "escort_detector_narrow": _scalar_core_float(core, "bt_adapt_opening_escort_narrow", 0.0),
+        "escort_detector_leader": _scalar_core_float(core, "bt_adapt_opening_escort_leader", 0.0),
+        "escort_detector_heading": _scalar_core_float(core, "bt_adapt_opening_escort_heading", 0.0),
+        "escort_detector_speed_penalty": _scalar_core_float(core, "bt_adapt_opening_escort_speed_penalty", 0.0),
+        "convoy_offensive_active": _scalar_core_int(core, "bt_adapt_convoy_offensive_active", 0),
+        "convoy_corridor_active": _scalar_core_int(core, "bt_adapt_convoy_corridor_active", 0),
+        "convoy_leader_active": _scalar_core_int(core, "bt_adapt_convoy_leader_active", 0),
+        "convoy_reject_rush": _scalar_core_int(core, "bt_adapt_convoy_reject_rush", 0),
+        "convoy_leader_id": _scalar_core_int(core, "bt_adapt_convoy_leader_id", -1),
+        "convoy_longitudinal_gap": _scalar_core_float(core, "bt_adapt_convoy_longitudinal_gap", 0.0),
+        "convoy_lateral_gap": _scalar_core_float(core, "bt_adapt_convoy_lateral_gap", 0.0),
+        "convoy_heading_similarity": _scalar_core_float(core, "bt_adapt_convoy_heading_similarity", 0.0),
+        "convoy_centroid_forward_speed": _scalar_core_float(core, "bt_adapt_convoy_centroid_forward_speed", 0.0),
+        "escort_confirmation_step": _scalar_core_int(core, "bt_adapt_escort_confirm_first_step", -1),
+        "escort_confirmation_active_steps": _scalar_core_int(core, "bt_adapt_escort_confirm_active_steps", 0),
+        "escort_confirmation_carrier_id": _scalar_core_int(core, "bt_adapt_escort_confirm_carrier_id", -1),
+        "escort_confirmation_protector_id": _scalar_core_int(core, "bt_adapt_escort_confirm_protector_id", -1),
+        "escort_confirmation_distance": _scalar_core_float(core, "bt_adapt_escort_confirm_distance", 0.0),
+        "escort_confirmation_same_corridor_steps": _scalar_core_int(core, "bt_adapt_escort_confirm_same_corridor_steps", 0),
+        "escort_confirmation_to_episode_end_steps": _scalar_core_int(core, "bt_adapt_escort_confirm_to_end_steps", 0),
         "conversion_phase_first_step": first_trigger,
         "carrier_intercept_attempts": _scalar_core_int(core, "bt_tel_intercept_attempts", 0),
     }
@@ -209,7 +270,7 @@ def _merge_detector_telemetry(
     sample: dict[str, int | float],
 ) -> dict[str, int | float]:
     out = dict(current)
-    for key in ("split_detector_first_trigger_step", "escort_detector_first_trigger_step"):
+    for key in ("split_detector_first_trigger_step", "escort_detector_first_trigger_step", "escort_confirmation_step"):
         cur = int(out.get(key, -1))
         val = int(sample.get(key, -1))
         if cur < 0 and val >= 0:
@@ -222,6 +283,24 @@ def _merge_detector_telemetry(
         "split_detector_max_lateral_sep",
         "split_detector_max_teammate_dist",
         "carrier_intercept_attempts",
+        "escort_detector_score",
+        "escort_detector_compact",
+        "escort_detector_narrow",
+        "escort_detector_leader",
+        "escort_detector_heading",
+        "escort_detector_speed_penalty",
+        "convoy_offensive_active",
+        "convoy_corridor_active",
+        "convoy_leader_active",
+        "convoy_reject_rush",
+        "convoy_longitudinal_gap",
+        "convoy_lateral_gap",
+        "convoy_heading_similarity",
+        "convoy_centroid_forward_speed",
+        "escort_confirmation_active_steps",
+        "escort_confirmation_distance",
+        "escort_confirmation_same_corridor_steps",
+        "escort_confirmation_to_episode_end_steps",
     ):
         out[key] = max(float(out.get(key, 0)), float(sample.get(key, 0)))
     first_split = int(out.get("split_detector_first_trigger_step", -1))
@@ -238,6 +317,7 @@ def _run_one_episode(
     episode_seed: int,
     max_decision_steps: int,
     device: str,
+    op12_confirmed_escort_response_enabled: bool,
 ) -> dict[str, Any]:
     env = _make_env(
         map_name=map_name,
@@ -247,11 +327,13 @@ def _run_one_episode(
     )
     try:
         core = env.core
+        core.op12_confirmed_escort_response_enabled = bool(op12_confirmed_escort_response_enabled)
         env.env_method("set_phase", red_style)
         env.env_method("set_next_opponent", "SCRIPTED", red_style)
         core.blue_scripted = True
         core.set_blue_style(blue_style)
         env.reset()
+        core.op12_confirmed_escort_response_enabled = bool(op12_confirmed_escort_response_enabled)
         env.env_method("set_phase", red_style)
         env.env_method("set_next_opponent", "SCRIPTED", red_style)
         core.blue_scripted = True
@@ -260,12 +342,35 @@ def _run_one_episode(
         ep_return = 0.0
         last_info: dict[str, Any] = {}
         detector_telemetry: dict[str, int | float] = {
+            "op12_confirmed_escort_response_enabled": int(bool(op12_confirmed_escort_response_enabled)),
             "split_detector_first_trigger_step": -1,
             "split_detector_active_steps": 0,
             "split_detector_max_lateral_sep": 0.0,
             "split_detector_max_teammate_dist": 0.0,
             "escort_detector_first_trigger_step": -1,
             "escort_detector_active_steps": 0,
+            "escort_detector_score": 0.0,
+            "escort_detector_compact": 0.0,
+            "escort_detector_narrow": 0.0,
+            "escort_detector_leader": 0.0,
+            "escort_detector_heading": 0.0,
+            "escort_detector_speed_penalty": 0.0,
+            "convoy_offensive_active": 0,
+            "convoy_corridor_active": 0,
+            "convoy_leader_active": 0,
+            "convoy_reject_rush": 0,
+            "convoy_leader_id": -1,
+            "convoy_longitudinal_gap": 0.0,
+            "convoy_lateral_gap": 0.0,
+            "convoy_heading_similarity": 0.0,
+            "convoy_centroid_forward_speed": 0.0,
+            "escort_confirmation_step": -1,
+            "escort_confirmation_active_steps": 0,
+            "escort_confirmation_carrier_id": -1,
+            "escort_confirmation_protector_id": -1,
+            "escort_confirmation_distance": 0.0,
+            "escort_confirmation_same_corridor_steps": 0,
+            "escort_confirmation_to_episode_end_steps": 0,
             "conversion_phase_first_step": -1,
             "carrier_intercept_attempts": 0,
         }
@@ -470,14 +575,51 @@ def main() -> int:
     else:
         _init_episode_csv(episode_csv)
     count = len(rows)
+    if bool(args.analyze_only):
+        if count != total:
+            _write_progress(
+                out_dir / PARTIAL_SUMMARY_JSON,
+                status="INTERRUPTED_RESUMABLE" if count > 0 else "FAILED",
+                completed=count,
+                expected=total,
+                skipped_existing=len(loaded_rows),
+                duplicate_or_invalid_rows=len(duplicate_rows),
+                last_row=rows[-1] if rows else None,
+                error="analyze-only requires a complete episode_results.csv",
+            )
+            print(f"Cannot analyze incomplete CSV: {count}/{total} rows", file=sys.stderr)
+            return 2
+        cells = cells_from_rows(rows)
+        report = analyze_pool(
+            cells,
+            n_boot=int(args.n_boot),
+            seed=int(args.analysis_seed),
+            min_br_diversity=int(args.min_br_diversity),
+        )
+        (out_dir / POOL_REPORT_TXT).write_text(format_report(report) + "\n", encoding="utf-8")
+        (out_dir / POOL_REPORT_JSON).write_text(json.dumps(asdict(report), indent=2) + "\n", encoding="utf-8")
+        _write_progress(
+            out_dir / PARTIAL_SUMMARY_JSON,
+            status="COMPLETED",
+            completed=count,
+            expected=total,
+            skipped_existing=len(loaded_rows),
+            duplicate_or_invalid_rows=len(duplicate_rows),
+            last_row=rows[-1] if rows else None,
+        )
+        print(format_report(report))
+        print(f"\nArtifacts in: {out_dir}", flush=True)
+        return 0
     manifest_base = {
         "protocol": "scripted_blue_red_pool_admissibility",
+        "blue_probe_protocol": BLUE_PROBE_PROTOCOL,
         "status": "running",
         "started_at_utc": started_at,
         "blue_styles": list(args.blue_styles),
         "reds": list(args.reds),
         "maps": list(args.maps),
         "episodes_per_cell": int(args.episodes),
+        "op12_confirmed_escort_response_enabled": bool(args.op12_confirmed_escort_response),
         "base_seed": int(args.base_seed),
         "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
         "max_decision_steps": int(args.max_decision_steps),
@@ -519,6 +661,7 @@ def main() -> int:
                             episode_seed=seed,
                             max_decision_steps=int(args.max_decision_steps),
                             device=str(args.device),
+                            op12_confirmed_escort_response_enabled=bool(args.op12_confirmed_escort_response),
                         )
                         rows.append(row)
                         completed_by_key[key] = row

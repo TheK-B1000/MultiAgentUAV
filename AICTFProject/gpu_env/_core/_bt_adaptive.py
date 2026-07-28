@@ -126,7 +126,38 @@ class _BTAdaptiveMixin:
         self.bt_adapt_opening_escort_first_trigger_step = torch.full((B,), -1, dtype=i32, device=dev)
         self.bt_adapt_opening_escort_active_steps = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_adapt_prev_blue_x = torch.zeros((B, self.Nb), dtype=f32, device=dev)
+        self.bt_adapt_prev_blue_y = torch.zeros((B, self.Nb), dtype=f32, device=dev)
         self.bt_adapt_prev_blue_valid = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.bt_adapt_opening_escort_score = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_opening_escort_compact = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_opening_escort_narrow = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_opening_escort_leader = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_opening_escort_heading = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_opening_escort_speed_penalty = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_opening_escort_leader_sign = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_opening_escort_leader_streak = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_convoy_offensive_active = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.bt_adapt_convoy_corridor_active = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.bt_adapt_convoy_leader_active = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.bt_adapt_convoy_reject_rush = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.bt_adapt_convoy_leader_id = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_adapt_convoy_evidence_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_convoy_longitudinal_gap = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_convoy_prev_longitudinal_gap = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_convoy_gap_stable = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.bt_adapt_convoy_lateral_gap = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_convoy_heading_similarity = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_convoy_centroid_forward_speed = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_prev_centroid_flag_dist = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_prev_centroid_valid = torch.zeros((B,), dtype=torch.bool, device=dev)
+        self.bt_adapt_escort_confirm_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_escort_confirm_first_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_adapt_escort_confirm_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_escort_confirm_carrier_id = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_adapt_escort_confirm_protector_id = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_adapt_escort_confirm_distance = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_adapt_escort_confirm_same_corridor_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_adapt_escort_confirm_to_end_steps = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_adapt_fast_conversion_count = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_adapt_blue_first_touch_step = torch.full((B,), -1, dtype=i32, device=dev)
         self.bt_adapt_carrier_x_ema = torch.zeros((B,), dtype=f32, device=dev)
@@ -155,7 +186,38 @@ class _BTAdaptiveMixin:
         self.bt_adapt_opening_escort_first_trigger_step[idx] = -1
         self.bt_adapt_opening_escort_active_steps[idx] = 0
         self.bt_adapt_prev_blue_x[idx] = 0.0
+        self.bt_adapt_prev_blue_y[idx] = 0.0
         self.bt_adapt_prev_blue_valid[idx] = False
+        self.bt_adapt_opening_escort_score[idx] = 0.0
+        self.bt_adapt_opening_escort_compact[idx] = 0.0
+        self.bt_adapt_opening_escort_narrow[idx] = 0.0
+        self.bt_adapt_opening_escort_leader[idx] = 0.0
+        self.bt_adapt_opening_escort_heading[idx] = 0.0
+        self.bt_adapt_opening_escort_speed_penalty[idx] = 0.0
+        self.bt_adapt_opening_escort_leader_sign[idx] = 0
+        self.bt_adapt_opening_escort_leader_streak[idx] = 0
+        self.bt_adapt_convoy_offensive_active[idx] = False
+        self.bt_adapt_convoy_corridor_active[idx] = False
+        self.bt_adapt_convoy_leader_active[idx] = False
+        self.bt_adapt_convoy_reject_rush[idx] = False
+        self.bt_adapt_convoy_leader_id[idx] = -1
+        self.bt_adapt_convoy_evidence_ticks[idx] = 0
+        self.bt_adapt_convoy_longitudinal_gap[idx] = 0.0
+        self.bt_adapt_convoy_prev_longitudinal_gap[idx] = 0.0
+        self.bt_adapt_convoy_gap_stable[idx] = False
+        self.bt_adapt_convoy_lateral_gap[idx] = 0.0
+        self.bt_adapt_convoy_heading_similarity[idx] = 0.0
+        self.bt_adapt_convoy_centroid_forward_speed[idx] = 0.0
+        self.bt_adapt_prev_centroid_flag_dist[idx] = 0.0
+        self.bt_adapt_prev_centroid_valid[idx] = False
+        self.bt_adapt_escort_confirm_ticks[idx] = 0
+        self.bt_adapt_escort_confirm_first_step[idx] = -1
+        self.bt_adapt_escort_confirm_active_steps[idx] = 0
+        self.bt_adapt_escort_confirm_carrier_id[idx] = -1
+        self.bt_adapt_escort_confirm_protector_id[idx] = -1
+        self.bt_adapt_escort_confirm_distance[idx] = 0.0
+        self.bt_adapt_escort_confirm_same_corridor_steps[idx] = 0
+        self.bt_adapt_escort_confirm_to_end_steps[idx] = 0
         self.bt_adapt_fast_conversion_count[idx] = 0
         self.bt_adapt_blue_first_touch_step[idx] = -1
         self.bt_adapt_carrier_x_ema[idx] = 0.0
@@ -195,16 +257,28 @@ class _BTAdaptiveMixin:
         return torch.where((bt == 8) | (bt == 11), torch.zeros_like(thresh), thresh)
 
     def _split_pressure_ticks_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """OP12 reacts after sustained simultaneous two-lane pressure."""
+        """OP12 reacts after sustained simultaneous two-lane pressure. OP11's
+        split-lane isolation (_bt_adaptive.py's op11_split_isolate branches)
+        latches for the rest of the episode once triggered, so it should
+        trigger EARLIER than OP12's reactive, non-latching response --
+        lower threshold only for bt_level==11, OP12's value is untouched."""
         bt = prof["bt_level"]
         thresh = torch.full_like(bt, 4, dtype=torch.int32)
-        return torch.where(bt == 12, torch.full_like(thresh, 4), thresh)
+        thresh = torch.where(bt == 12, torch.full_like(thresh, 4), thresh)
+        thresh = torch.where(bt == 11, torch.full_like(thresh, 2), thresh)
+        return thresh
 
     def _opening_escort_ticks_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
         """OP12 recognizes sustained pre-pickup lead/support pressure."""
         bt = prof["bt_level"]
-        thresh = torch.full_like(bt, 3, dtype=torch.int32)
-        return torch.where(bt == 12, torch.full_like(thresh, 3), thresh)
+        thresh = torch.full_like(bt, 2, dtype=torch.int32)
+        return torch.where(bt == 12, torch.full_like(thresh, 2), thresh)
+
+    def _escort_confirm_ticks_threshold(self, prof: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """OP12 confirms ESCORT only after sustained post-pickup support."""
+        bt = prof["bt_level"]
+        thresh = torch.full_like(bt, 5, dtype=torch.int32)
+        return torch.where(bt == 12, torch.full_like(thresh, 5), thresh)
 
     def _update_adaptive_memory(self, prof: Dict[str, torch.Tensor]) -> None:
         """Track blue patterns each step for adaptive hardpool opponents."""
@@ -282,6 +356,91 @@ class _BTAdaptiveMixin:
                 self.bt_adapt_escort_density,
             )
 
+            if self.Nb >= 2:
+                is_op12 = prof["bt_level"] == 12
+                other_idx = torch.where(blue_ci == 0, torch.ones_like(blue_ci), torch.zeros_like(blue_ci))
+                protector_alive = blue_alive[idx_env, other_idx]
+                carrier_x = self.blue_x[idx_env, blue_ci]
+                carrier_y = self.blue_y[idx_env, blue_ci]
+                protector_x = self.blue_x[idx_env, other_idx]
+                protector_y = self.blue_y[idx_env, other_idx]
+                cp_dx = protector_x - carrier_x
+                cp_dy = protector_y - carrier_y
+                cp_dist = torch.sqrt(cp_dx ** 2 + cp_dy ** 2 + 1e-8)
+                carrier_step_x = carrier_x - self.bt_adapt_prev_blue_x[idx_env, blue_ci]
+                carrier_step_y = carrier_y - self.bt_adapt_prev_blue_y[idx_env, blue_ci]
+                protector_step_x = protector_x - self.bt_adapt_prev_blue_x[idx_env, other_idx]
+                protector_step_y = protector_y - self.bt_adapt_prev_blue_y[idx_env, other_idx]
+                carrier_speed = torch.sqrt(carrier_step_x ** 2 + carrier_step_y ** 2 + 1e-8)
+                protector_speed = torch.sqrt(protector_step_x ** 2 + protector_step_y ** 2 + 1e-8)
+                heading_dot = carrier_step_x * protector_step_x + carrier_step_y * protector_step_y
+                heading_norm = torch.sqrt((carrier_speed * protector_speed) ** 2 + 1e-8)
+                heading_sim = torch.clamp((heading_dot / heading_norm + 1.0) * 0.5, 0.0, 1.0)
+                support_distance = (cp_dist >= 0.75) & (cp_dist <= 3.0)
+                same_corridor = torch.abs(cp_dy) <= 3.0
+                confirmed_now = (
+                    active
+                    & is_op12
+                    & blue_carry_any
+                    & protector_alive
+                    & self.bt_adapt_prev_blue_valid
+                    & support_distance
+                    & same_corridor
+                )
+                confirm_ticks = torch.where(
+                    confirmed_now,
+                    self.bt_adapt_escort_confirm_ticks + 1,
+                    torch.zeros_like(self.bt_adapt_escort_confirm_ticks),
+                )
+                self.bt_adapt_escort_confirm_ticks = torch.where(is_op12, confirm_ticks, self.bt_adapt_escort_confirm_ticks)
+                confirm_active = is_op12 & (
+                    self.bt_adapt_escort_confirm_ticks >= self._escort_confirm_ticks_threshold(prof)
+                )
+                first_confirm = confirm_active & (self.bt_adapt_escort_confirm_first_step < 0)
+                self.bt_adapt_escort_confirm_first_step = torch.where(
+                    first_confirm,
+                    self.sim_step_count.to(torch.int32),
+                    self.bt_adapt_escort_confirm_first_step,
+                )
+                self.bt_adapt_escort_confirm_active_steps += confirm_active.to(torch.int32)
+                self.bt_adapt_escort_confirm_carrier_id = torch.where(
+                    is_op12 & blue_carry_any,
+                    blue_ci.to(torch.int32),
+                    self.bt_adapt_escort_confirm_carrier_id,
+                )
+                self.bt_adapt_escort_confirm_protector_id = torch.where(
+                    is_op12 & blue_carry_any,
+                    other_idx.to(torch.int32),
+                    self.bt_adapt_escort_confirm_protector_id,
+                )
+                self.bt_adapt_escort_confirm_distance = torch.where(
+                    is_op12 & blue_carry_any,
+                    cp_dist,
+                    self.bt_adapt_escort_confirm_distance,
+                )
+                same_corridor_ticks = torch.where(
+                    is_op12 & same_corridor,
+                    self.bt_adapt_escort_confirm_same_corridor_steps + 1,
+                    torch.zeros_like(self.bt_adapt_escort_confirm_same_corridor_steps),
+                )
+                self.bt_adapt_escort_confirm_same_corridor_steps = torch.where(
+                    is_op12,
+                    same_corridor_ticks,
+                    self.bt_adapt_escort_confirm_same_corridor_steps,
+                )
+                self.bt_adapt_escort_confirm_to_end_steps = torch.where(
+                    first_confirm,
+                    torch.clamp(
+                        torch.full_like(
+                            self.sim_step_count.to(torch.int32),
+                            int(getattr(self, "max_steps", 0)),
+                        )
+                        - self.sim_step_count.to(torch.int32),
+                        min=0,
+                    ),
+                    self.bt_adapt_escort_confirm_to_end_steps,
+                )
+
         over = blue_on_enemy.sum(dim=1).float() / blue_alive.sum(dim=1).float().clamp(min=1.0)
         self.bt_adapt_overcommit = torch.where(
             active,
@@ -326,14 +485,14 @@ class _BTAdaptiveMixin:
             trailer_committed = trail_x > midline - 12.0
             lead_follow = torch.abs(dx01) >= 0.5
             mean_forward_delta = (self.blue_x[:, :2] - self.bt_adapt_prev_blue_x[:, :2]).mean(dim=1)
-            slow_support_push = self.bt_adapt_prev_blue_valid & (mean_forward_delta <= 0.58)
+            slow_support_push = self.bt_adapt_prev_blue_valid & (mean_forward_delta <= 0.65)
             opening_escort_now = (
                 (prof["bt_level"] == 12)
                 & opening_phase
                 & no_pickup_yet
                 & lead_forward
                 & trailer_committed
-                & (teammate_dist <= 3.0)
+                & (teammate_dist <= 4.0)
                 & (lateral_sep <= 2.25)
                 & lead_follow
                 & slow_support_push
@@ -362,16 +521,7 @@ class _BTAdaptiveMixin:
         )
         self.bt_adapt_split_active_steps += split_pressure_active.to(torch.int32)
 
-        opening_escort_ticks = torch.where(
-            active & opening_escort_now,
-            self.bt_adapt_opening_escort_ticks + 1,
-            torch.zeros_like(self.bt_adapt_opening_escort_ticks),
-        )
-        self.bt_adapt_opening_escort_ticks = torch.where(
-            active,
-            opening_escort_ticks,
-            self.bt_adapt_opening_escort_ticks,
-        )
+        opening_escort_ticks = self.bt_adapt_opening_escort_ticks
         opening_escort_active = active & (
             self.bt_adapt_opening_escort_ticks >= self._opening_escort_ticks_threshold(prof)
         )
@@ -382,17 +532,6 @@ class _BTAdaptiveMixin:
             self.bt_adapt_opening_escort_first_trigger_step,
         )
         self.bt_adapt_opening_escort_active_steps += opening_escort_active.to(torch.int32)
-        self.bt_adapt_prev_blue_x = torch.where(
-            active[:, None],
-            self.blue_x,
-            self.bt_adapt_prev_blue_x,
-        )
-        self.bt_adapt_prev_blue_valid = torch.where(
-            active,
-            torch.ones_like(self.bt_adapt_prev_blue_valid),
-            self.bt_adapt_prev_blue_valid,
-        )
-
         home_dx = self.blue_flag_home[:, 0] - ec_x
         home_dy = self.blue_flag_home[:, 1] - ec_y
         ec_home_dist = torch.sqrt(home_dx ** 2 + home_dy ** 2 + 1e-8)
@@ -457,6 +596,9 @@ class _BTAdaptiveMixin:
         opening_escort = active & (
             self.bt_adapt_opening_escort_ticks >= self._opening_escort_ticks_threshold(prof)
         )
+        confirmed_escort = active & (
+            self.bt_adapt_escort_confirm_ticks >= self._escort_confirm_ticks_threshold(prof)
+        )
         fast_blue = active & (self.bt_adapt_fast_conversion_count >= 1)
 
         bb.update(
@@ -466,6 +608,7 @@ class _BTAdaptiveMixin:
             adapt_repeat_lane=repeat_lane,
             adapt_high_escort=high_escort,
             adapt_opening_escort=opening_escort,
+            adapt_confirmed_escort=confirmed_escort,
             adapt_high_overcommit=high_overcommit,
             adapt_split_pressure=split_pressure,
             adapt_fast_conversion=fast_blue,
@@ -583,6 +726,8 @@ class _BTAdaptiveMixin:
                 lock[:, j] = torch.where(assign, prof["lock_counter"], lock[:, j])
 
         live_opening_escort = torch.zeros((B,), dtype=torch.bool, device=device)
+        # Role selection sees the current formation used for this target
+        # update; keep this path close/narrow so raw RUSH is not punished.
         if self.Nb >= 2:
             midline = float(self.cols) * 0.5
             lead_x = torch.maximum(self.blue_x[:, 0], self.blue_x[:, 1])
@@ -592,17 +737,103 @@ class _BTAdaptiveMixin:
             lateral_sep = torch.abs(dy01)
             teammate_dist = torch.sqrt(dx01 ** 2 + dy01 ** 2 + 1e-8)
             blue_alive = self.blue_alive & (~self.blue_tagged)
+            step_dx = self.blue_x[:, :2] - self.bt_adapt_prev_blue_x[:, :2]
+            step_dy = self.blue_y[:, :2] - self.bt_adapt_prev_blue_y[:, :2]
+            speed0 = torch.sqrt(step_dx[:, 0] ** 2 + step_dy[:, 0] ** 2 + 1e-8)
+            speed1 = torch.sqrt(step_dx[:, 1] ** 2 + step_dy[:, 1] ** 2 + 1e-8)
+            avg_forward = step_dx.mean(dim=1)
+            centroid_x = self.blue_x[:, :2].mean(dim=1)
+            centroid_y = self.blue_y[:, :2].mean(dim=1)
+            red_flag_dx = self.red_flag_pos[:, 0] - centroid_x
+            red_flag_dy = self.red_flag_pos[:, 1] - centroid_y
+            centroid_flag_dist = torch.sqrt(red_flag_dx ** 2 + red_flag_dy ** 2 + 1e-8)
+            centroid_speed = torch.sqrt((step_dx.mean(dim=1)) ** 2 + (step_dy.mean(dim=1)) ** 2 + 1e-8)
+            heading_dot = step_dx[:, 0] * step_dx[:, 1] + step_dy[:, 0] * step_dy[:, 1]
+            heading_norm = torch.sqrt((speed0 * speed1) ** 2 + 1e-8)
+            heading_sim = torch.clamp((heading_dot / heading_norm + 1.0) * 0.5, 0.0, 1.0)
+            leader_sign = torch.where(
+                dx01 > 0.5,
+                torch.ones((B,), dtype=torch.int32, device=device),
+                torch.where(dx01 < -0.5, -torch.ones((B,), dtype=torch.int32, device=device), torch.zeros((B,), dtype=torch.int32, device=device)),
+            )
+            same_leader = (leader_sign == self.bt_adapt_opening_escort_leader_sign) & (leader_sign != 0)
+            leader_streak = torch.where(
+                same_leader,
+                self.bt_adapt_opening_escort_leader_streak + 1,
+                torch.where(leader_sign != 0, torch.ones_like(self.bt_adapt_opening_escort_leader_streak), torch.zeros_like(self.bt_adapt_opening_escort_leader_streak)),
+            )
+            self.bt_adapt_opening_escort_leader_streak = torch.where(is_op12ish, leader_streak, self.bt_adapt_opening_escort_leader_streak)
+            self.bt_adapt_opening_escort_leader_sign = torch.where(is_op12ish, leader_sign, self.bt_adapt_opening_escort_leader_sign)
+
+            compact = torch.clamp((5.5 - teammate_dist) / 5.5, 0.0, 1.0)
+            narrow = torch.clamp((3.5 - lateral_sep) / 3.5, 0.0, 1.0)
+            leader_component = torch.clamp(self.bt_adapt_opening_escort_leader_streak.to(torch.float32) / 4.0, 0.0, 1.0)
+            speed_penalty = torch.clamp((avg_forward - 0.58) / 0.25, 0.0, 1.0)
+            escort_score = compact + narrow + leader_component + heading_sim - speed_penalty
+            self.bt_adapt_opening_escort_score = torch.where(is_op12ish, escort_score, self.bt_adapt_opening_escort_score)
+            self.bt_adapt_opening_escort_compact = torch.where(is_op12ish, compact, self.bt_adapt_opening_escort_compact)
+            self.bt_adapt_opening_escort_narrow = torch.where(is_op12ish, narrow, self.bt_adapt_opening_escort_narrow)
+            self.bt_adapt_opening_escort_leader = torch.where(is_op12ish, leader_component, self.bt_adapt_opening_escort_leader)
+            self.bt_adapt_opening_escort_heading = torch.where(is_op12ish, heading_sim, self.bt_adapt_opening_escort_heading)
+            self.bt_adapt_opening_escort_speed_penalty = torch.where(is_op12ish, speed_penalty, self.bt_adapt_opening_escort_speed_penalty)
+            distance_decreasing = self.bt_adapt_prev_centroid_valid & (
+                centroid_flag_dist < self.bt_adapt_prev_centroid_flag_dist - 0.05
+            )
+            offensive_pair = (
+                (lead_x > midline - 3.0)
+                & (trail_x > midline - 12.0)
+                & (avg_forward > 0.20)
+                & distance_decreasing
+            )
+            same_corridor = (lateral_sep <= 2.75) & (heading_sim >= 0.88)
+            longitudinal_gap = torch.abs(dx01)
+            stable_leader_follower = (
+                (longitudinal_gap >= 1.0)
+                & (longitudinal_gap <= 5.5)
+                & (leader_streak >= 3)
+            )
+            gap_stable = (
+                self.bt_adapt_prev_blue_valid
+                & (self.bt_adapt_convoy_prev_longitudinal_gap > 0.0)
+                & (torch.abs(longitudinal_gap - self.bt_adapt_convoy_prev_longitudinal_gap) <= 1.25)
+            )
+            reject_dual_rush = (
+                (longitudinal_gap < 1.0)
+                | (leader_streak < 3)
+            )
+            convoy_evidence = offensive_pair & same_corridor & stable_leader_follower & gap_stable
+            evidence_ticks = torch.where(
+                convoy_evidence,
+                self.bt_adapt_convoy_evidence_ticks + 1,
+                torch.zeros_like(self.bt_adapt_convoy_evidence_ticks),
+            )
+            self.bt_adapt_convoy_evidence_ticks = torch.where(
+                is_op12ish,
+                evidence_ticks,
+                self.bt_adapt_convoy_evidence_ticks,
+            )
+            self.bt_adapt_convoy_offensive_active = torch.where(is_op12ish, offensive_pair, self.bt_adapt_convoy_offensive_active)
+            self.bt_adapt_convoy_corridor_active = torch.where(is_op12ish, same_corridor, self.bt_adapt_convoy_corridor_active)
+            self.bt_adapt_convoy_leader_active = torch.where(is_op12ish, stable_leader_follower, self.bt_adapt_convoy_leader_active)
+            self.bt_adapt_convoy_reject_rush = torch.where(is_op12ish, reject_dual_rush, self.bt_adapt_convoy_reject_rush)
+            self.bt_adapt_convoy_leader_id = torch.where(
+                is_op12ish,
+                torch.where(leader_sign > 0, torch.zeros_like(leader_sign), torch.where(leader_sign < 0, torch.ones_like(leader_sign), -torch.ones_like(leader_sign))),
+                self.bt_adapt_convoy_leader_id,
+            )
+            self.bt_adapt_convoy_longitudinal_gap = torch.where(is_op12ish, longitudinal_gap, self.bt_adapt_convoy_longitudinal_gap)
+            self.bt_adapt_convoy_gap_stable = torch.where(is_op12ish, gap_stable, self.bt_adapt_convoy_gap_stable)
+            self.bt_adapt_convoy_lateral_gap = torch.where(is_op12ish, lateral_sep, self.bt_adapt_convoy_lateral_gap)
+            self.bt_adapt_convoy_heading_similarity = torch.where(is_op12ish, heading_sim, self.bt_adapt_convoy_heading_similarity)
+            self.bt_adapt_convoy_centroid_forward_speed = torch.where(is_op12ish, avg_forward, self.bt_adapt_convoy_centroid_forward_speed)
             live_opening_escort = (
                 is_op12ish
                 & (self.sim_step_count.to(torch.int32) < 20)
                 & (~bb["blue_carry_any"])
                 & blue_alive[:, 0]
                 & blue_alive[:, 1]
-                & (lead_x > midline - 3.0)
-                & (trail_x > midline - 12.0)
-                & (teammate_dist <= 3.0)
-                & (lateral_sep <= 2.25)
-                & (torch.abs(dx01) >= 0.5)
+                & self.bt_adapt_prev_blue_valid
+                & (self.bt_adapt_convoy_evidence_ticks >= 1)
             )
             live_ticks = torch.where(
                 live_opening_escort,
@@ -624,9 +855,41 @@ class _BTAdaptiveMixin:
                 self.bt_adapt_opening_escort_first_trigger_step,
             )
             self.bt_adapt_opening_escort_active_steps += live_opening_escort.to(torch.int32)
+            self.bt_adapt_prev_blue_x = torch.where(
+                is_op12ish[:, None],
+                self.blue_x,
+                self.bt_adapt_prev_blue_x,
+            )
+            self.bt_adapt_prev_blue_y = torch.where(
+                is_op12ish[:, None],
+                self.blue_y,
+                self.bt_adapt_prev_blue_y,
+            )
+            self.bt_adapt_prev_blue_valid = torch.where(
+                is_op12ish,
+                torch.ones_like(self.bt_adapt_prev_blue_valid),
+                self.bt_adapt_prev_blue_valid,
+            )
+            self.bt_adapt_prev_centroid_flag_dist = torch.where(
+                is_op12ish,
+                centroid_flag_dist,
+                self.bt_adapt_prev_centroid_flag_dist,
+            )
+            self.bt_adapt_convoy_prev_longitudinal_gap = torch.where(
+                is_op12ish,
+                longitudinal_gap,
+                self.bt_adapt_convoy_prev_longitudinal_gap,
+            )
+            self.bt_adapt_prev_centroid_valid = torch.where(
+                is_op12ish,
+                torch.ones_like(self.bt_adapt_prev_centroid_valid),
+                self.bt_adapt_prev_centroid_valid,
+            )
 
-        # OP12 opening anti-escort: pre-pickup close lead/support formations
-        # are disrupted without collapsing both red agents onto the lead runner.
+        # OP12 opening escort detector is suspicion-only. Before pickup, RUSH
+        # and ESCORT can look identical often enough that a hard response would
+        # punish the intended RUSH niche. Hard anti-escort behavior waits for
+        # post-pickup confirmation below.
         opening_escort = (
             is_op12ish
             & (
@@ -635,7 +898,8 @@ class _BTAdaptiveMixin:
             )
             & (~bb["blue_carry_any"])
         )
-        if opening_escort.any() and self.Nb >= 2:
+        opening_escort_prepare = torch.zeros((B,), dtype=torch.bool, device=device)
+        if opening_escort_prepare.any() and self.Nb >= 2:
             blue_trailer = torch.where(
                 self.blue_x[:, 0] <= self.blue_x[:, 1],
                 torch.zeros((B,), dtype=torch.int64, device=device),
@@ -764,26 +1028,9 @@ class _BTAdaptiveMixin:
                 )
                 lock[:, j] = torch.where(assign, split_lock, lock[:, j])
 
-        # OP12 anti-escort conversion: clustered carrier support is not the
-        # intended exploit of the opening. Collapse only after Blue is carrying
-        # with high local teammate density; RUSH should not satisfy this unless
-        # it turns into an escort-like cluster after pickup.
-        escort_denial = (
-            is_op12
-            & bb["adapt_high_escort"]
-            & bb["blue_carry_any"]
-            & prof["enable_intercept"]
-        )
-        if escort_denial.any():
-            escort_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
-            for j in range(Nr):
-                assign = escort_denial & eligible[:, j]
-                out[:, j] = torch.where(
-                    assign,
-                    torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
-                    out[:, j],
-                )
-                lock[:, j] = torch.where(assign, escort_lock, lock[:, j])
+        # OP12 confirmed-escort response deliberately does not replace roles.
+        # dev22 showed INTERCEPTOR+COUNTER was useful; the opt-in response is
+        # route-only and is applied in _bt_apply_adaptive_route_overrides.
 
         # OP8 pure carrier denial: both agents intercept; no counter-scoring while blue carries.
         is_op8 = prof["bt_level"] == 8
@@ -820,6 +1067,43 @@ class _BTAdaptiveMixin:
                     )
                     lock[:, j] = torch.where(assign, denial_lock, lock[:, j])
                     denial_eligible[:, j] = denial_eligible[:, j] & (~assign)
+
+        # OP11 split-lane isolation: unlike OP12's split_denial above (gated
+        # on blue_carry_any -- reactive, carrier-only), this fires as soon as
+        # persistent wide-lateral-separation split pressure is detected,
+        # BEFORE any pickup. SPLIT's structural exploit is an uncovered lane
+        # at approach time, not just during the carrier's return trip, so
+        # denial has to start before the flag is grabbed to matter. Route-
+        # level 1:1 marking (red[j] -> blue[j]) is applied in
+        # _bt_apply_adaptive_route_overrides; this block only sets the role
+        # + lock so that routing loop can see it. Deliberately does not touch
+        # high_escort/escort_denial, so a concentrated carrier-and-escort
+        # blue formation still faces the unmodified (already
+        # escort-vulnerable) OP11 behavior -- teammate_dist>=12.0 in the
+        # split_pressure_now gate already excludes a tight escort formation.
+        #
+        # LATCHED, not live: bt_adapt_split_pressure_ticks flickers back to 0
+        # on any single step where the strict simultaneous geometric test
+        # fails (blue accelerates/decelerates, obstacle avoidance, etc.), so
+        # gating on the live adapt_split_pressure signal only isolates for a
+        # few steps at a time and lets SPLIT operate freely in between.
+        # bt_adapt_split_first_trigger_step is set once (>=0) the first time
+        # the threshold is crossed and never resets within the episode --
+        # exactly the PERSISTENT signal the task calls for. Once split play
+        # has been proven this episode, stay in isolation mode for the rest
+        # of it.
+        is_op11 = prof["bt_level"] == 11
+        op11_split_isolate = is_op11 & (self.bt_adapt_split_first_trigger_step >= 0)
+        if op11_split_isolate.any() and Nr >= 2 and self.Nb >= 2:
+            isolate_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
+            for j in range(min(Nr, self.Nb)):
+                assign = op11_split_isolate & eligible[:, j]
+                out[:, j] = torch.where(
+                    assign,
+                    torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
+                    out[:, j],
+                )
+                lock[:, j] = torch.where(assign, isolate_lock, lock[:, j])
 
         active_mask = active[:, None]
         out = torch.where(active_mask, out, roles)
@@ -862,6 +1146,12 @@ class _BTAdaptiveMixin:
         split_denial_route = (bt_level == 12) & bb.get(
             "adapt_split_pressure",
             torch.zeros((B,), dtype=torch.bool, device=device),
+        )
+        escort_denial_route = (
+            bool(getattr(self, "op12_confirmed_escort_response_enabled", False))
+            & (bt_level == 12)
+            & bb.get("adapt_confirmed_escort", torch.zeros((B,), dtype=torch.bool, device=device))
+            & bb["blue_carry_any"]
         )
         op12_opening = (
             (bt_level == 12)
@@ -918,6 +1208,11 @@ class _BTAdaptiveMixin:
             by = torch.where(split_int & (j == 0), pred_y + (home_y - pred_y) * block_frac, by)
             bx = torch.where(split_int & (j == 1), split_body_bx, bx)
             by = torch.where(split_int & (j == 1), home_y, by)
+            escort_carrier = escort_denial_route & int_mask
+            escort_bx = ec_x + (home_x - ec_x) * 0.35
+            escort_by = ec_y + (home_y - ec_y) * 0.35
+            bx = torch.where(escort_carrier, escort_bx, bx)
+            by = torch.where(escort_carrier, escort_by, by)
             by = torch.where(
                 repeat & is_lane_op,
                 torch.where(
@@ -934,6 +1229,29 @@ class _BTAdaptiveMixin:
             )
             tx[:, j] = torch.where(int_mask, torch.clamp(bx, 0.0, max_x), tx[:, j])
             ty[:, j] = torch.where(int_mask, torch.clamp(by, 0.0, max_y), ty[:, j])
+
+        # OP11 split-lane isolation route: direct 1:1 marking (red[j] tracks
+        # blue[j]'s CURRENT position), overriding whatever the generic
+        # interceptor routing above computed for these two agents. Applies
+        # regardless of blue_carry_any (unlike the split_int/OP12 branch
+        # above), so it closes the uncovered lane before pickup and then
+        # naturally continues marking whichever agent becomes the carrier
+        # (isolate pre-pickup and exploit-unprotected-carrier post-pickup
+        # fall out of the SAME rule, no separate carrier-specific logic
+        # needed). LATCHED on bt_adapt_split_first_trigger_step (see the
+        # matching role-override block above for why the live
+        # adapt_split_pressure signal flickers too much to rely on) --
+        # once split play is proven this episode, 1:1 marking holds for the
+        # rest of it, including through a later escort-formation return
+        # trip (this is a real behavior change from "falls away on its
+        # own": the dev/held-out screen below is what actually decides
+        # whether that costs ESCORT's separately-confirmed vulnerability).
+        op11_split_isolate = is_op11 & (self.bt_adapt_split_first_trigger_step >= 0)
+        if op11_split_isolate.any() and self.Nb >= 2:
+            for j in range(min(Nr, self.Nb)):
+                mark = op11_split_isolate & (roles[:, j] == ROLE_INTERCEPTOR)
+                tx[:, j] = torch.where(mark, torch.clamp(self.blue_x[:, j], 0.0, max_x), tx[:, j])
+                ty[:, j] = torch.where(mark, torch.clamp(self.blue_y[:, j], 0.0, max_y), ty[:, j])
 
         return tx, ty
 
