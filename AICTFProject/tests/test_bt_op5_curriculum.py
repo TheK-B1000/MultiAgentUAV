@@ -241,14 +241,16 @@ class TestInterceptorFeasibleOP8(unittest.TestCase):
 
 
 class TestDefenderRoleOP6(unittest.TestCase):
-    def test_defender_when_intruder_on_own_half(self) -> None:
+    def test_dual_assault_does_not_peel_defender_with_nr2(self) -> None:
+        """OP6 keeps both agents attacking; defender gate requires 3 alive."""
         core, _ = _make_core("OP6")
         midline = float(core.cols) * 0.5
         core.blue_x[0, 0] = midline + 2.0
         core.blue_y[0, 0] = 10.0
         core.bt_role_lock_ticks[0] = 0
         roles, _, _ = _run_bt(core, "OP6")
-        self.assertIn(ROLE_DEFENDER, roles)
+        self.assertNotIn(ROLE_DEFENDER, roles)
+        self.assertEqual(roles, [ROLE_ATTACKER, ROLE_ATTACKER])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,38 @@
+Mean win margin  (rows = blue style, cols = red preset)
+             OP11_ADAPTIVE_EXPLOITER|map_b_split_lane
+BLUE_ESCORT              0.8750
+BLUE_RUSH                0.3750
+BLUE_SPLIT               1.5000
+BLUE_TURTLE              0.0000
+
+Win rate
+             OP11_ADAPTIVE_EXPLOITER|map_b_split_lane
+BLUE_ESCORT               0.688
+BLUE_RUSH                 0.500
+BLUE_SPLIT                0.750
+BLUE_TURTLE               0.125
+
+V_selective (cross-fit)  = 1.3787   (insample=1.5000)
+V_best_fixed (cross-fit) = 1.3787   (insample=1.5000, style=BLUE_SPLIT)
+delta_pool              = 0.0000   CI95=[0.0000, 0.0000]  LCB=0.0000
+V_hindsight             = 1.8750   (per-episode upper bound, NOT a gate)
+
+Best response by red preset:
+  OP11_ADAPTIVE_EXPLOITER|map_b_split_lane -> BLUE_SPLIT
+  distinct best responses: 1/1
+  DOMINATING blue style: BLUE_SPLIT
+  unprotected blues (never uniquely best): BLUE_ESCORT, BLUE_RUSH, BLUE_TURTLE
+
+best blue overall WR = 0.750   tie rate = 0.391
+
+Gates:
+  [FAIL] delta_pool_lcb_positive
+  [FAIL] no_dominating_blue_style
+  [FAIL] best_response_diversity
+  [FAIL] all_blues_protected
+  [FAIL] best_blue_wr_in_band
+  [PASS] tie_rate_under_threshold
+  [PASS] no_degenerate_red_styles
+
+POOL ADMISSIBLE: False
+  -> iterate the red presets until blue best-response diversity clears (all blues protected + LCB(delta_pool)>0). Do not train latents on this pool.

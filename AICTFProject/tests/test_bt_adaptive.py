@@ -416,10 +416,13 @@ class BTAdaptiveProfileTests(unittest.TestCase):
             core.set_blue_style("BLUE_ESCORT")
             escort_x, escort_y = core._assign_blue_style_targets()
 
-            # RUSH non-carrier peels to the opposite pressure lane.
-            self.assertLess(float(rush_y[0, 1].item()), max_y * 0.25)
-            # ESCORT non-carrier follows the carrier's evasion waypoint (not a
-            # fixed +1.5 offset -- that broke OP11 ESCORT payoff).
+            # V3 RUSH: carrier returns directly home; non-carrier screens
+            # between carrier and nearest threat (not a wide SPLIT lane).
+            self.assertAlmostEqual(float(rush_x[0, 0].item()), 1.0, places=3)
+            self.assertAlmostEqual(float(rush_y[0, 0].item()), center_y, places=3)
+            self.assertGreater(float(rush_y[0, 1].item()), max_y * 0.25)
+            self.assertLess(float(rush_y[0, 1].item()), max_y * 0.75)
+            # ESCORT non-carrier follows the carrier's evasion waypoint.
             self.assertNotAlmostEqual(float(escort_y[0, 1].item()), float(rush_y[0, 1].item()), places=2)
             evade_tx, evade_ty = core._carrier_evasion_target(
                 core.blue_x,

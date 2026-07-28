@@ -105,7 +105,20 @@ class _ScriptedBlueStylesMixin:
             target_x = enemy_flag_pos[:, 0:1].expand(B, N).clone()
             target_y = enemy_flag_pos[:, 1:2].expand(B, N).clone()
         elif style_id == _STYLE_ID["BLUE_RUSH"]:
-            target_x, target_y = self._blue_rush_targets(own_x, own_y, enemy_x, enemy_y, enemy_alive, enemy_flag_pos, idx_env)
+            # BLUE_PROBES_V3: full pre/post-pickup RUSH lives in
+            # ``_blue_rush_targets`` (direct return + screening blocker).
+            target_x, target_y = self._blue_rush_targets(
+                own_x,
+                own_y,
+                enemy_x,
+                enemy_y,
+                enemy_alive,
+                enemy_flag_pos,
+                own_flag_home,
+                own_carrying,
+                own_alive,
+                idx_env,
+            )
         elif style_id == _STYLE_ID["BLUE_TURTLE"]:
             target_x, target_y = self._blue_turtle_targets(own_x, own_y, own_flag_home, enemy_x, enemy_y, enemy_alive, enemy_tagged, enemy_flag_pos, midline, idx_env)
         elif style_id == _STYLE_ID["BLUE_SPLIT"]:
@@ -118,8 +131,10 @@ class _ScriptedBlueStylesMixin:
 
         # Shared rule: carrying the enemy flag -> returning it takes priority,
         # for every style, via the same multi-threat evasion router legacy
-        # carriers already use.
-        if own_carrying.any():
+        # carriers already use. RUSH (V3) is excluded: its carrier uses a
+        # direct home return and its non-carrier is a screening blocker,
+        # both computed inside ``_blue_rush_targets``.
+        if own_carrying.any() and style_id != _STYLE_ID["BLUE_RUSH"]:
             if style_id == _STYLE_ID["BLUE_SPLIT"]:
                 target_x, target_y = self._blue_split_post_pickup_targets(
                     target_x,
@@ -143,21 +158,6 @@ class _ScriptedBlueStylesMixin:
                 )
                 target_x = torch.where(own_carrying, evade_tx, target_x)
                 target_y = torch.where(own_carrying, evade_ty, target_y)
-            if style_id == _STYLE_ID["BLUE_RUSH"]:
-                carrier_idx = torch.argmax(own_carrying.to(torch.int64), dim=1)
-                other_idx = torch.where(
-                    carrier_idx == 0,
-                    torch.ones_like(carrier_idx),
-                    torch.zeros_like(carrier_idx),
-                )
-                carrier_y = own_y[idx_env, carrier_idx]
-                upper_lane_y = torch.full((B,), max_y * 0.90, dtype=own_y.dtype, device=own_y.device)
-                lower_lane_y = torch.full((B,), max_y * 0.10, dtype=own_y.dtype, device=own_y.device)
-                pressure_lane_y = torch.where(carrier_y >= max_y * 0.5, lower_lane_y, upper_lane_y)
-                noncarrier_slot = torch.arange(N, device=self.device)[None, :] == other_idx[:, None]
-                rush_pressure = own_carrying.any(dim=1)[:, None] & noncarrier_slot
-                target_x = torch.where(rush_pressure, enemy_flag_pos[:, 0:1], target_x)
-                target_y = torch.where(rush_pressure, pressure_lane_y[:, None], target_y)
             if style_id == _STYLE_ID["BLUE_ESCORT"]:
                 carrier_idx = torch.argmax(own_carrying.to(torch.int64), dim=1)
                 other_idx = torch.where(
@@ -201,17 +201,90 @@ class _ScriptedBlueStylesMixin:
         return target_x, target_y
 
     # ------------------------------------------------------------------
-    # BLUE_RUSH: both agents commit directly to the enemy flag. No lane
-    # offsets, no defender pressure, no tangent evasion -- direct routing
-    # except for the shared carrying-priority override above.
+    # BLUE_RUSH (BLUE_PROBES_V3): concentrated breakthrough.
+    # Pre-pickup: agent 0 takes the shortest direct route to the flag
+    # (persistent); agent 1 rushes the same corridor with a tight offset
+    # (not a wide SPLIT lane, not an ESCORT shield).
+    # Post-pickup: carrier returns directly home; non-carrier is a
+    # screening blocker — interposes toward the nearest interceptor and
+    # pushes ahead on the return lane, then continues pressure. Does not
+    # trail the carrier like ESCORT.
     # ------------------------------------------------------------------
-    def _blue_rush_targets(self, own_x, own_y, enemy_x, enemy_y, enemy_alive, enemy_flag_pos, idx_env):
-        efx, efy = enemy_flag_pos[:, 0], enemy_flag_pos[:, 1]
+    def _blue_rush_targets(
+        self,
+        own_x,
+        own_y,
+        enemy_x,
+        enemy_y,
+        enemy_alive,
+        enemy_flag_pos,
+        own_flag_home,
+        own_carrying,
+        own_alive,
+        idx_env,
+    ):
+        B, N = own_x.shape
+        device = own_x.device
+        max_x = float(max(0, self.cols - 1))
         max_y = float(max(0, self.rows - 1))
+        efx, efy = enemy_flag_pos[:, 0], enemy_flag_pos[:, 1]
+        hx, hy = own_flag_home[:, 0], own_flag_home[:, 1]
+
+        # Pre-pickup concentrated dual rush (tight offset, not 0.1/0.9 lanes).
+        rush_offset = 1.5
         t0x, t0y = efx, efy
         t1x = efx
-        t1y = torch.clamp(efy + 4.0, 0.0, max_y)
-        return torch.stack([t0x, t1x], dim=1), torch.stack([t0y, t1y], dim=1)
+        t1y = torch.clamp(efy + rush_offset, 0.0, max_y)
+        target_x = torch.stack([t0x, t1x], dim=1)
+        target_y = torch.stack([t0y, t1y], dim=1)
+
+        any_carrying = own_carrying.any(dim=1)
+        if not bool(any_carrying.any().item()):
+            return target_x, target_y
+
+        carrier_idx = torch.argmax(own_carrying.to(torch.int64), dim=1)
+        other_idx = 1 - carrier_idx
+        carr_x = own_x[idx_env, carrier_idx]
+        carr_y = own_y[idx_env, carrier_idx]
+
+        # Carrier: immediate direct return (no wide evasion detour).
+        c_tx = hx
+        c_ty = hy
+
+        # Screener: interpose between carrier and nearest live threat, then
+        # push ahead toward home so the escape corridor clears briefly.
+        dxx = carr_x[:, None] - enemy_x
+        dyy = carr_y[:, None] - enemy_y
+        dd = torch.sqrt(dxx * dxx + dyy * dyy + 1e-8)
+        big = torch.full_like(dd, 1e9)
+        dd_live = torch.where(enemy_alive, dd, big)
+        near = torch.argmin(dd_live, dim=1)
+        nex = enemy_x[idx_env, near]
+        ney = enemy_y[idx_env, near]
+        inter_x = 0.55 * carr_x + 0.45 * nex
+        inter_y = 0.55 * carr_y + 0.45 * ney
+        home_dx = hx - carr_x
+        home_dy = hy - carr_y
+        home_n = torch.sqrt(home_dx * home_dx + home_dy * home_dy + 1e-8)
+        ahead = 2.5
+        screen_x = torch.clamp(inter_x + (home_dx / home_n) * ahead, 0.0, max_x)
+        screen_y = torch.clamp(inter_y + (home_dy / home_n) * ahead, 0.0, max_y)
+        # No live interceptor: keep forward pressure on the flag corridor
+        # (still concentrated; not an independent SPLIT lane).
+        any_enemy = enemy_alive.any(dim=1)
+        screen_x = torch.where(any_enemy, screen_x, efx)
+        screen_y = torch.where(any_enemy, screen_y, torch.clamp(efy + rush_offset, 0.0, max_y))
+
+        agent_ids = torch.arange(N, device=device)[None, :]
+        carrier_slot = agent_ids == carrier_idx[:, None]
+        other_slot = agent_ids == other_idx[:, None]
+        carry_m = any_carrying[:, None]
+        target_x = torch.where(carry_m & carrier_slot, c_tx[:, None], target_x)
+        target_y = torch.where(carry_m & carrier_slot, c_ty[:, None], target_y)
+        other_alive = carry_m & other_slot & own_alive
+        target_x = torch.where(other_alive, screen_x[:, None], target_x)
+        target_y = torch.where(other_alive, screen_y[:, None], target_y)
+        return target_x, target_y
 
     # ------------------------------------------------------------------
     # BLUE_TURTLE: agent 0 anchors near home; agent 1 patrols the own half

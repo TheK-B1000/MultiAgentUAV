@@ -47,13 +47,16 @@ DEFAULT_REDS = (
     "OP11_ADAPTIVE_EXPLOITER",
     "OP12_LATE_CONVERTER",
 )
-DEFAULT_MAPS = ("map_b_split_lane", "map_b_split_lane_v2")
+# Four-niche proof surface uses the open default only. Other layouts may be
+# collected later for robustness, but must not be mixed into niche acceptance.
+DEFAULT_MAPS = ("map_a",)
+NICHE_CANONICAL_MAP = "map_a"
 EPISODE_RESULTS_CSV = "episode_results.csv"
 POOL_REPORT_JSON = "pool_report.json"
 POOL_REPORT_TXT = "pool_report.txt"
 RUN_MANIFEST_JSON = "run_manifest.json"
 PARTIAL_SUMMARY_JSON = "partial_summary.json"
-BLUE_PROBE_PROTOCOL = "BLUE_PROBES_V2"
+BLUE_PROBE_PROTOCOL = "BLUE_PROBES_V3"
 
 ROW_FIELDS = [
     "blue_style",
@@ -618,6 +621,11 @@ def main() -> int:
         "blue_styles": list(args.blue_styles),
         "reds": list(args.reds),
         "maps": list(args.maps),
+        "niche_canonical_map": NICHE_CANONICAL_MAP,
+        "niche_map_contract": (
+            "Four-niche acceptance evidence requires map_a only; "
+            "other maps are robustness-only and must not be mixed."
+        ),
         "episodes_per_cell": int(args.episodes),
         "op12_confirmed_escort_response_enabled": bool(args.op12_confirmed_escort_response),
         "base_seed": int(args.base_seed),
@@ -632,6 +640,14 @@ def main() -> int:
             "duplicate_or_invalid_existing_rows": int(len(duplicate_rows)),
         },
     }
+    non_canonical = [m for m in args.maps if str(m) not in (NICHE_CANONICAL_MAP, "map_a_open", "a", "open")]
+    if non_canonical:
+        print(
+            "[niche-map-contract] WARNING: maps "
+            f"{non_canonical} are outside canonical {NICHE_CANONICAL_MAP}; "
+            "do not mix these rows into four-niche acceptance evidence.",
+            flush=True,
+        )
     _write_json(out_dir / RUN_MANIFEST_JSON, manifest_base)
     initial_status = "COMPLETED" if count == total else ("INTERRUPTED_RESUMABLE" if count > 0 else "RUNNING")
     _write_progress(

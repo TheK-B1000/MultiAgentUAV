@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import unittest
 
-from experiments.run_scripted_style_payoff_matrix import _analysis_rows, _episode_seed
+from experiments.run_scripted_style_payoff_matrix import (
+    DEFAULT_MAPS,
+    NICHE_CANONICAL_MAP,
+    _analysis_rows,
+    _episode_seed,
+)
 
 
 class ScriptedStylePayoffMatrixTests(unittest.TestCase):
+    def test_niche_canonical_map_default_is_map_a(self) -> None:
+        self.assertEqual(NICHE_CANONICAL_MAP, "map_a")
+        self.assertEqual(DEFAULT_MAPS, ("map_a",))
+
     def test_episode_seed_is_independent_of_blue_style(self) -> None:
         seed_a = _episode_seed(260726, red_index=2, map_index=1, episode_index=7)
         seed_b = _episode_seed(260726, red_index=2, map_index=1, episode_index=7)

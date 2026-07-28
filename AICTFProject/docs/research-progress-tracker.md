@@ -319,11 +319,28 @@ dev20 true dual-assault (no peel, opposite lanes): SPLIT +2.250  TURTLE +0.000  
    does not create TURTLE uniqueness)
 ```
 
-Current code: OP6 peels exactly one interceptor on `blue_carry` (feasibility
-ignored); other agent keeps dual-rushing. Gap TURTLE−SPLIT −1.50 → −1.125;
-SPLIT still uniquely best. Next: timeline of SPLIT escape under single deny,
-then harden that one interceptor or find a TURTLE conversion that does not
-abandon home. Do not held-out until TURTLE uniquely best with CI > 0 vs SPLIT.
+Current code (2026-07-28 Contract B defend-then-counter): OP6 keeps dual-lane
+assault (`enable_intercept=False`, `min_alive_for_defender=3`) plus an OP6-only
+failed-assault recovery state. Canonical map is **`map_a`** (locked four-niche
+contract). Legal triggers: committed dual-rush tag on blue's half, carrier
+stop, or flag loss, gated on a non-carrier blue near-home anchor. Recovering
+agent stays ATTACKER, takes a midfield redeploy route, recovery ticks pause
+while tagged, and team FLAG_RETR is suppressed while the window is active.
+No blue-style ID. Unit tests in `tests/test_op6_failed_assault_recovery.py`.
+Micro-gates: `experiments/diagnose_op6_recovery_microgates.py` (default
+`--map map_a`).
+
+```text
+dev21–dev25 on map_b_split_lane: historical only (wrong map for niche lock)
+dev26 map_a (`artifacts/op6_recovery_microgates_dev26_map_a`): micro_gates FAIL
+  TURTLE recovery arms most (4.4 act, 98 steps; 3/8 recovery-score seeds)
+  SPLIT recovery rarer (0.25) — anchor gate works directionally
+  but payoff inverted: RUSH +2.88, ESCORT +2.50, SPLIT +2.00, TURTLE +1.00
+  red first-score rate 0 across styles; TURTLE−SPLIT = −1.0
+```
+
+Do not buff BLUE_TURTLE / BLUE_PROBES_V2 / OP9. Do not held-out until TURTLE
+uniquely best with recovery-window conversion and TURTLE−SPLIT ≳ +0.5.
 
 **OP7 development screen (2026-07-26):**
 `artifacts/op7_failure_timeline_dev1_8seed`, OP7/map_b, 8 paired development
@@ -777,9 +794,9 @@ ESCORT → OP11 isolation-pressure redesign
 OP7 / OP10: no more SPLIT-niche goals (optional robustness later only).
 OP12: RUSH budget closed — leave alone.
 
-**OP9 freeze (absolute):** no changes to OP9, `BLUE_PROBES_V2`, or shared BT
-defaults. Any new helper logic must be **opt-in**, **opponent-specific**,
-**disabled for OP9**, and tested to prove OP9’s execution path is unchanged.
+**OP9 freeze (absolute for red BT):** no changes to OP9 red profile or shared
+BT defaults. Blue probe protocol may advance (`BLUE_PROBES_V3`) when RUSH is
+repaired; OP9 SPLIT must then be **reconfirmed** under the new protocol.
 
 ---
 
@@ -818,7 +835,11 @@ activation; SPLIT/ESCORT usually after; TURTLE rarely threatens in opening.
 Then freeze → fresh 16-seed held-out → lock only when all paired CIs clear.
 Max **two** bounded redesign rounds.
 
-### Contract B — OP6 TURTLE (dual-assault)
+**Pivot (2026-07-28):** pause OP8 redesign. RUSH under V2 picked up but
+could not extract (`op8_rush_dev8_r2` RUSH margin 0). `BLUE_PROBES_V3`
+repairs `_blue_rush_targets` only (direct return + screening blocker).
+Competence gate: `experiments/run_blue_probes_v3_rush_competence_gate.py`.
+Then rerun **unchanged** OP8; then reconfirm OP9 under V3.
 
 Keep OP6’s identity (immediate dual red rush). Do **not** make OP6 “generally
 stronger” or add generic anti-SPLIT detection. Punish blue teams that send
@@ -928,6 +949,160 @@ margin-gap reductions without that inversion do not count. If SPLIT remains
 best, do not accept OP11 as another SPLIT matchup; tune OP11 to punish split
 play and expose an escort-compatible weakness before held-out confirmation.
 Do not change shared paths that would disturb frozen OP9.
+
+**OP11 ESCORT held-out confirmation (2026-07-28) — FAIL:**
+`artifacts/op11_escort_heldout16_seed561001`, 16 disjoint paired seeds
+(base-seed 561001; no overlap with dev `541001` or the earlier premature
+held-out `551001`), frozen lane-containment OP11 + restored ESCORT
+evade-follow. Device: cpu (CUDA allocator unstable that session).
+
+Dev10 CPU screen had looked like an ESCORT crossover
+(`artifacts/op11_dev10_lane_containment_8seed_cpu`): ESCORT +0.625 uniquely
+best over SPLIT +0.500 / RUSH 0 / TURTLE 0. Held-out did **not** confirm:
+
+```text
+BLUE_ESCORT  WR=11/16  mean_margin=+0.8750
+BLUE_SPLIT   WR=12/16  mean_margin=+1.5000
+BLUE_RUSH    WR= 8/16  mean_margin=+0.3750
+BLUE_TURTLE  WR= 2/16  mean_margin=+0.0000
+```
+
+Paired ESCORT margin advantage on the 16 matched held-out seeds:
+
+```text
+ESCORT - SPLIT   mean -0.6250, bootstrap 95% CI [ -1.4375, +0.0641 ]
+ESCORT - RUSH    mean +0.5000, bootstrap 95% CI [ -0.0625, +1.1250 ]
+ESCORT - TURTLE  mean +0.8750, bootstrap 95% CI [ +0.3125, +1.4375 ]
+```
+
+Detector selectivity on held-out: SPLIT trigger 15/16, ESCORT 0/16, RUSH
+7/16 (false latch still too high), TURTLE 2/16. Best response remains
+BLUE_SPLIT; ESCORT is second, not unique. Only ESCORT-vs-TURTLE clears a
+positive paired CI.
+
+Decision: OP11 is **NOT ACCEPTED** as an ESCORT niche. Dev crossover was
+seed-local. Do not freeze. Next OP11 work must further punish SPLIT (and
+reduce RUSH false latch) until ESCORT is uniquely best on a *new* held-out
+seed set; do not reuse 561001 for tuning.
+
+**Map confound (2026-07-28):** All OP11 ESCORT screens above
+(dev1–dev10, held-out `561001`) used `--maps map_b_split_lane`. That layout
+is a corridor / dual-lane geometry that structurally favors `BLUE_SPLIT`.
+Under the locked four-niche map contract (`map = map_a` for every niche
+host; see §6.0), those rows are historical only and do **not** count toward
+ESCORT acceptance. OP11 rescue continues on `map_a` only.
+
+**OP11 salvage interpretation (2026-07-28) — locked:**
+Held-out `561001` is a salvageable FAIL (ESCORT +0.875 vs SPLIT +1.500;
+paired ESCORT−SPLIT CI upper edge +0.06), not a collapse. Detector /
+instrumentation remains useful; Dev10 crossover was development-only;
+`561001` is permanently retired and must never be reused for tuning.
+OP11→ESCORT remains unproven.
+
+**OP11 rescue plan (map_a, Phase-1 first):**
+1. Diagnose on fresh Dev-A seeds (`571001`, `map_a`) via
+   `experiments/diagnose_op11_isolation_failure.py` — rank failure modes
+   A–E before any redesign.
+2. Build OP11-only stable isolation state (two-threat coverage, locked
+   roles) only after Phase-1 names the dominant mode; preserve ESCORT
+   (no dual collapse onto convoy / no protector chase).
+3. Micro-gates (selectivity + OFF/ON) before another payoff matrix.
+4. Evidence ladder: Dev-A (8) → freeze → Dev-B (8 new) → held-out 16
+   (new seed; never `561001`). Max two redesign rounds. OP9 path
+   untouched; BLUE_PROBES_V3 frozen.
+
+**OP11 map_a baseline (2026-07-28) — locked interpretation:**
+`artifacts/op11_dev11_mapa_baseline_8seed`, OP11/map_a, 8 paired seeds
+(base-seed 541001, pre-rescue sanity block). `map_a` removed the fake
+“SPLIT wins everything” pattern from `map_b_split_lane`. OP11 is **not** an
+ESCORT niche yet for a different reason: **saturation** — too easy for every
+aggressive style.
+
+```text
+BLUE_ESCORT  +2.875  WR 8/8
+BLUE_RUSH    +2.875  WR 8/8
+BLUE_SPLIT   +2.750  WR 8/8
+BLUE_TURTLE  +0.500  WR 4/8
+```
+
+Single-red matrix: `delta_pool=0` is automatic (one column). Meaningful
+evidence is paired gaps on matched seeds:
+
+```text
+ESCORT − RUSH    = 0.000
+ESCORT − SPLIT   = +0.125
+ESCORT − TURTLE  = +2.375
+```
+
+First two gaps are nowhere near niche lock. ESCORT is not losing to SPLIT;
+it is tied with RUSH and almost tied with SPLIT. Do **not** globally
+strengthen OP11 (would lower ESCORT with everything else). Target:
+distinguish **supported offense** (ESCORT) from **unsupported offense**
+(RUSH) and **separated offense** (SPLIT):
+
+```text
+SPLIT  → isolated attackers punished
+RUSH   → unsupported carrier return punished
+ESCORT → protector disrupts interception; preserve conversion edge
+TURTLE → already weak; no special work
+```
+
+Next micro-gates (Phase-1 diagnostic + future OFF/ON ablation):
+
+```text
+SPLIT separation/isolation trigger:  frequent (target ≥6/8)
+RUSH unsupported-carrier trigger:    frequent (target ≥6/8)
+ESCORT false isolation trigger:      rare (target ≤2/8)
+TURTLE triggers:                     rare / irrelevant
+```
+
+Then OP11-only stable response: cover both SPLIT threats without role
+churn; intercept unsupported RUSH carrier aggressively; do not chase or
+directly punish ESCORT protector.
+
+Phase-1 diagnostic running: `artifacts/op11_phase1_isolation_diag_mapa_seed571001`
+(fresh `571001`, map_a). No redesign until failure modes ranked.
+
+**OP11 Phase-1 diagnostic complete (2026-07-28) — locked:**
+
+```text
+SPLIT detector:       PASS (7/8 latch; 0/24 false latches on ESCORT/RUSH/TURTLE)
+Current response:     FAIL (~68% latch steps chasing “protector” target — mode D)
+Payoff on 571001:     inconclusive (all styles margin 0; no crossover)
+```
+
+Geometry recognition works (SPLIT teammate dist ~11.1 vs ESCORT ~2.1). Once
+latched, OP11 overcommits to one blue agent instead of controlling two
+separated threats.
+
+**Locked actions (do not revert until map_a matrix reviewed):**
+
+```text
+OP11 SPLIT latch:             KEEP — thresholds generalize; do not tune
+Protector-chase response:     REJECT / disable in next OP11 redesign round
+Unsupported-carrier (RUSH):   DEFER — RUSH support-near ~96%; proximity cannot
+                              distinguish RUSH from ESCORT; needs stricter
+                              semantics (same-corridor, blocking, ahead-of-carrier)
+OP11 → ESCORT niche:          still unproven — wait for full map_a matrix
+```
+
+Do **not** change OP11 further until canonical OP6–OP12 × four-style map_a
+baseline completes. OP11's problem may be global weakness; style-specific
+isolation cannot create a clean ESCORT niche if RUSH/SPLIT/ESCORT all score
+freely.
+
+**Next (running):** unchanged baseline
+`artifacts/scripted_style_payoff_matrix_mapa_baseline_8seed`, OP6–OP12 ×
+RUSH/TURTLE/SPLIT/ESCORT × map_a, 8 paired seeds (base-seed `581001`), no
+experimental response flags. Full map_a matrix is the compass; all prior
+`map_b_split_lane` host conclusions remain historical only.
+
+Per-red report (post-collection): mean margin + WR by blue; uniquely best
+style; paired gap vs runner-up; first pickup / first score timing;
+saturation rate (aggressive styles all near-max). Matrix may show: (A) niches
+already exist → confirm on held-out; (B) saturation like OP11 → selective
+strengthen; (C) one style dominates → audit blue controller; (D) small gaps
+→ pick closest natural hosts for bounded redesigns.
 
 **OP12 development target (2026-07-27):** OP12_LATE_CONVERTER is the current
 RUSH-candidate. Locked hypothesis before tuning: OP12's late conversion should
@@ -4213,6 +4388,16 @@ two consecutive updates.
 **Status:** latent training and router work **STOPPED**. Immediate work is
 scripted niche construction only.
 
+**Canonical map (LOCKED 2026-07-28):** `map = map_a` for every niche
+experiment — OP6 TURTLE, OP9 SPLIT confirmation, OP11 ESCORT, RUSH-host
+work, full payoff matrices, development / validation / held-out runs.
+Record `map_a` in every CSV row and manifest. Do not mix other maps into
+main niche acceptance evidence; other layouts are robustness-only and
+reported separately. Protocol owner:
+[`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md) §1.1.
+Collector default: `experiments/run_scripted_style_payoff_matrix.py`
+`DEFAULT_MAPS = ("map_a",)`.
+
 **Canonical niches (2026-07-28 contract engineering):**
 `SPLIT→OP9 LOCKED/FROZEN`.
 `RUSH→OP8 formation-opening redesign` (OP12 closed; no OP13).
@@ -4220,6 +4405,34 @@ scripted niche construction only.
 `ESCORT→OP11 isolation-pressure redesign`.
 OP7/OP10: not SPLIT goals. New helpers: opt-in, opponent-specific,
 disabled for OP9, with OP9 path-unchanged proof.
+
+**Canonical board on `map_a` (2026-07-28) — all prior `map_b_split_lane`
+host conclusions are historical only:**
+
+```text
+SPLIT  → unconfirmed on map_a (OP9 lock was map_b_split_lane)
+ESCORT → OP11 promising but saturated (+2.875, tied RUSH/SPLIT)
+RUSH   → unconfirmed on map_a
+TURTLE → unconfirmed on map_a
+```
+
+After OP11 Phase-1 diagnostic completes, run the full unchanged
+OP6–OP12 × four-style baseline on `map_a` (fresh seed, e.g. `581001`,
+8 paired seeds minimum) before resuming per-host tuning. The split-lane
+map was tilting the table; map_a is level ground for measuring whether
+missing niches already exist.
+
+**Running (2026-07-28):** `artifacts/scripted_style_payoff_matrix_mapa_baseline_8seed`,
+OP6–OP12 × four blues × map_a, 8 paired seeds (`581001`), no experimental
+flags. Per-red report via `experiments/analyze_mapa_payoff_baseline.py`.
+
+Suggested collector:
+
+```powershell
+uv run python experiments/run_scripted_style_payoff_matrix.py `
+  --out-dir artifacts/scripted_style_payoff_matrix_mapa_baseline_8seed `
+  --episodes 8 --base-seed 581001 --device cpu --maps map_a
+```
 
 **Execution order:** A OP8 RUSH → B OP6 TURTLE → C OP11 ESCORT.
 Per host: micro-gates → 8-seed ≤2 rounds → freeze → 16-seed held-out →
@@ -4235,11 +4448,12 @@ revisit (2026-07-28): baseline SPLIT +0.50 / TURTLE −1.00; best partial is
 single carrier-deny (`op6_dev19_single_carrier_deny_8seed`) SPLIT +0.625 /
 TURTLE −0.500 — still flipped. Dual-rush abandon responses REJECTED.
 
-**Now:** Contract A OP8 RUSH round-2 **FAIL** (`artifacts/op8_rush_dev8_r2`:
-SPLIT +2.25 uniquely best; RUSH 0.00). Two redesign rounds spent — freeze or
-abandon OP8-as-RUSH unless a new axis is authorized. Meanwhile B OP6 TURTLE
-(continue from single carrier-deny partial; do not abandon dual rush) → C
-OP11 ESCORT. Do not retune OP9.
+**Now:** `BLUE_PROBES_V3` competence gate **PASS**
+(`artifacts/blue_probes_v3_rush_competence_gate`: RUSH scores 8/8 vs OP5,
+pickup earlier than SPLIT 8/8). Unchanged OP8 under V3
+(`artifacts/op8_rush_dev8_v3`): RUSH uniquely best (+2.50) but
+`RUSH−SPLIT=+0.25` below ~+0.5 floor — do not lock OP8 yet. OP9 V3
+reconfirm running (`artifacts/op9_split_heldout16_blue_probes_v3_seed531001`).
 
 **Exact question for the four-column pool:**
 

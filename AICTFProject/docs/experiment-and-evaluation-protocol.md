@@ -53,6 +53,29 @@ new launch in the v5 / v4 ladder must match it except for `--preset` and
 `map_b_split_lane_v2`. Compare map-specific rows only against matched-map
 controls.
 
+### 1.1 Four-niche scripted payoff surface — map contract (LOCKED 2026-07-28)
+
+All niche-construction and niche-acceptance evidence for the four-column
+pool uses the open default map only:
+
+```text
+map = map_a
+```
+
+This applies to OP6 TURTLE work, OP9 SPLIT confirmation, OP11 ESCORT work,
+RUSH-host experiments, full scripted payoff matrices, development screens,
+validation screens, and held-out reconfirmations. Record `map_a` explicitly
+in every episode CSV row and run manifest (`experiments/run_scripted_style_payoff_matrix.py`
+defaults `--maps` to `map_a`; `map_a` aliases to `map_a_open` in the env).
+
+Do **not** combine `map_b` / `map_b_split_lane` / `map_b_split_lane_v2` (or
+any other layout) rows into the main niche acceptance tables, paired CIs,
+or `delta_pool` claims. Those layouts may be run later as robustness
+checks only, reported separately, and never mixed with the `map_a` proof.
+
+Prior niche screens collected on non-`map_a` layouts remain historical
+diagnostics; they do not count toward four-niche lock.
+
 ---
 
 ## 2. Launch protocol

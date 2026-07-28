@@ -87,6 +87,12 @@ class _BTRedMixin(_BTAdaptiveMixin):
     ``_alloc_bt_telemetry``.
     """
 
+    # OP6 failed-assault recovery window (sim steps after a legal failure).
+    # Long enough for TURTLE's counter agent to reach red's flag; short enough
+    # that empty-home styles still lose the dual-assault race before recovery
+    # becomes the dominant tempo.
+    _OP6_RECOVERY_DURATION = 36
+
     def _bt_opponent_mask(self) -> torch.Tensor:
         """True for env rows whose opponent uses the BT tactical brain."""
         return torch.as_tensor(
@@ -129,6 +135,14 @@ class _BTRedMixin(_BTAdaptiveMixin):
         # Branch label cache: integer code for which BT branch fired last step.
         # Branch codes match role constants above.
         self.bt_active_branch = torch.full((B, N), ROLE_ATTACKER, dtype=i32, device=dev)
+        # OP6 failed-assault recovery (Contract B defend-then-counter trap).
+        # Per-agent countdown after a legal failed incursion; OP6-only.
+        self.bt_op6_recovery_ticks = torch.zeros((B, N), dtype=i32, device=dev)
+        self.bt_op6_prev_red_tagged = torch.zeros((B, N), dtype=torch.bool, device=dev)
+        self.bt_op6_prev_red_carrying = torch.zeros((B, N), dtype=torch.bool, device=dev)
+        self.bt_op6_failed_incursions = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op6_recovery_activations = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op6_recovery_active_steps = torch.zeros((B,), dtype=i32, device=dev)
         self._alloc_adaptive_memory(B, dev)
 
     def _reset_bt_telemetry(self, env_mask: torch.Tensor) -> None:
@@ -153,6 +167,12 @@ class _BTRedMixin(_BTAdaptiveMixin):
         self.bt_last_x[idx]            = 0.0
         self.bt_last_y[idx]            = 0.0
         self.bt_active_branch[idx]     = ROLE_ATTACKER
+        self.bt_op6_recovery_ticks[idx] = 0
+        self.bt_op6_prev_red_tagged[idx] = False
+        self.bt_op6_prev_red_carrying[idx] = False
+        self.bt_op6_failed_incursions[idx] = 0
+        self.bt_op6_recovery_activations[idx] = 0
+        self.bt_op6_recovery_active_steps[idx] = 0
         self._reset_adaptive_memory(env_mask)
 
     # ──────────────────────────────────────────────────────────────────────
@@ -281,6 +301,99 @@ class _BTRedMixin(_BTAdaptiveMixin):
         )
 
     # ──────────────────────────────────────────────────────────────────────
+    # OP6 failed-assault recovery (defend-then-counter trap)
+    # ──────────────────────────────────────────────────────────────────────
+    def _bt_update_op6_recovery(self, bb: dict, prof: Dict[str, torch.Tensor]) -> None:
+        """Advance OP6 per-agent recovery windows from legal failure events.
+
+        Triggers (no blue-style ID):
+          * newly tagged while on blue's half (failed incursion / assault stop)
+          * lost the flag / carrier stop (was carrying, now not)
+
+        Carrier-only triggers (dev22) never armed vs TURTLE, which tags before
+        pickup. Broad tags without renewal (dev21 renew) left OP6 soft for every
+        style. This version keeps the assault-stop trigger but does not renew
+        an active window.
+
+        While recovery ticks remain, the agent keeps ATTACKER identity but is
+        routed through a midfield redeploy waypoint so OP6 cannot instantly
+        re-assault or peel to defense — leaving home temporarily exposed.
+        """
+        op6 = prof["bt_level"] == 6
+        if not bool(op6.any().item()):
+            # Still tick down any leftover state if opponent keys changed mid-run.
+            self.bt_op6_recovery_ticks = torch.clamp(self.bt_op6_recovery_ticks - 1, min=0)
+            return
+
+        midline = float(bb["midline"])
+        on_blue_half = self.red_x < midline
+        newly_tagged = (~self.bt_op6_prev_red_tagged) & self.red_tagged
+        was_carrying = self.bt_op6_prev_red_carrying
+        lost_flag = was_carrying & (~self.red_carrying)
+        carrier_stopped = newly_tagged & was_carrying
+        # Assault-stop tags only count when the dual rush is committed
+        # (both alive reds on blue's half).
+        both_committed = (
+            (self.red_alive & on_blue_half).sum(dim=1) >= 2
+        )
+        assault_stop = newly_tagged & on_blue_half & both_committed[:, None]
+        # Home-exposure recovery only when blue still has a non-carrier
+        # defensive anchor near its own flag. TURTLE keeps one; RUSH/SPLIT
+        # that abandon home (or only return as carriers) do not receive the
+        # redeploy gift. Legal geometry only — not style ID.
+        home_x = self.blue_flag_home[:, 0:1]
+        near_home = (self.blue_x - home_x).abs() <= 6.0
+        blue_has_anchor = (
+            self.blue_alive
+            & (~self.blue_carrying)
+            & (self.blue_x < midline)
+            & near_home
+        ).any(dim=1)
+        fail = (
+            (assault_stop | lost_flag | carrier_stopped)
+            & op6[:, None]
+            & self.red_alive
+            & blue_has_anchor[:, None]
+        )
+
+        duration = int(self._OP6_RECOVERY_DURATION)
+        ticks = self.bt_op6_recovery_ticks
+        # Edge-trigger only when entering; no renew while window active.
+        # Do not burn the window while tagged/frozen — the redeploy delay must
+        # apply after the agent is free to move again (otherwise TURTLE's
+        # counter window expires during the tag freeze).
+        entering = fail & (ticks <= 0)
+        untagged = ~self.red_tagged
+        ticks = torch.where(
+            entering,
+            torch.full_like(ticks, duration),
+            torch.where(
+                untagged,
+                torch.clamp(ticks - 1, min=0),
+                ticks,
+            ),
+        )
+        # If blue abandons its anchor mid-window, cancel recovery so dual
+        # assault resumes against empty-home styles.
+        ticks = torch.where(blue_has_anchor[:, None], ticks, torch.zeros_like(ticks))
+        # Non-OP6 envs never carry recovery state.
+        ticks = torch.where(op6[:, None], ticks, torch.zeros_like(ticks))
+
+        active = ticks > 0
+        self.bt_op6_failed_incursions = (
+            self.bt_op6_failed_incursions + fail.any(dim=1).to(torch.int32)
+        )
+        self.bt_op6_recovery_activations = (
+            self.bt_op6_recovery_activations + entering.any(dim=1).to(torch.int32)
+        )
+        self.bt_op6_recovery_active_steps = (
+            self.bt_op6_recovery_active_steps + active.any(dim=1).to(torch.int32)
+        )
+        self.bt_op6_recovery_ticks = ticks.detach()
+        self.bt_op6_prev_red_tagged = self.red_tagged.detach().clone()
+        self.bt_op6_prev_red_carrying = self.red_carrying.detach().clone()
+
+    # ──────────────────────────────────────────────────────────────────────
     # Role assignment: utility-based, with hysteresis
     # ──────────────────────────────────────────────────────────────────────
     def _bt_assign_roles(self, bb: dict) -> torch.Tensor:
@@ -374,8 +487,32 @@ class _BTRedMixin(_BTAdaptiveMixin):
         lock = torch.where(opening_slots, torch.zeros_like(lock), lock)
         can_change = can_change | opening_slots
 
+        # OP6 failed-assault recovery: keep ATTACKER identity; block peel to
+        # DEFENDER / INTERCEPTOR / FLAG_RETR / etc. for the recovering agent.
+        recovering = (self.bt_op6_recovery_ticks > 0) & self.red_alive
+        roles = torch.where(
+            recovering,
+            torch.full_like(roles, ROLE_ATTACKER),
+            roles,
+        )
+        lock = torch.where(
+            recovering,
+            torch.maximum(lock, self.bt_op6_recovery_ticks),
+            lock,
+        )
+        can_change = can_change & (~recovering)
+        # While recovering under a blue home-anchor, suppress team FLAG_RETR so
+        # the dual-rusher partner does not instantly cover the rear that
+        # TURTLE's counter needs. Empty-home blues cancel recovery (no suppress).
+        any_op6_recovery = recovering.any(dim=1) & (prof["bt_level"] == 6)
+
         # ── Priority 1: flag retrieval ───────────────────────────────────
-        need_retr = (~bb["own_flag_at_home"]) & prof["enable_flag_retr"] & late_or_ready
+        need_retr = (
+            (~bb["own_flag_at_home"])
+            & prof["enable_flag_retr"]
+            & late_or_ready
+            & (~any_op6_recovery)
+        )
         if need_retr.any():
             # Pick the closest eligible agent per env.
             flag_dx = self.red_x - bb["red_flag_pos"][:, 0:1]
@@ -629,6 +766,22 @@ class _BTRedMixin(_BTAdaptiveMixin):
             )
             tx = torch.where(role_j == ROLE_ATTACKER, atk_tx, tx)
             ty = torch.where(role_j == ROLE_ATTACKER, atk_ty, ty)
+
+            # OP6 failed-assault recovery route: midfield redeploy on red's half
+            # (not own flag home). Burns assault tempo and leaves home exposed
+            # while ATTACKER identity stays stable. Legal state only.
+            recovering_j = (
+                (self.bt_op6_recovery_ticks[:, j] > 0)
+                & self.red_alive[:, j]
+                & (~self.red_tagged[:, j])
+                & op6_mask
+            )
+            mid = bb["midline"]
+            # Red home is typically x > midline; stage just past midfield.
+            stage_x = mid + 0.20 * (max_x - mid)
+            stage_y = atk_lane_y
+            tx = torch.where(recovering_j & (role_j == ROLE_ATTACKER), stage_x, tx)
+            ty = torch.where(recovering_j & (role_j == ROLE_ATTACKER), stage_y, ty)
 
             # ── DEFENDER ─────────────────────────────────────────────────
             # If enemy carrier exists: chase carrier directly.
@@ -1141,6 +1294,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
         prev_roles = self.bt_red_role.clone()
         bb = self._build_team_blackboard(prof)
         bb = self._extend_blackboard_adaptive(bb, prof)
+        self._bt_update_op6_recovery(bb, prof)
         roles = self._bt_assign_roles(bb)
         roles = self._bt_apply_adaptive_role_overrides(bb, roles, prof)
         self._bt_update_telemetry(bb, roles, prev_roles)

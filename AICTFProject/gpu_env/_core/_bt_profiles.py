@@ -172,11 +172,13 @@ BT_PROFILES: Dict[int, BTProfile] = {
         lane_amplitude_frac=0.22,
         intercept_feasibility_ratio=0.85,
     ),
-    # OP6 - Immediate dual assault (TURTLE niche host).
-    # Relentless two-lane offense: both reds stay ATTACKER on opposite lanes.
-    # Punishes blues that abandon home (RUSH/SPLIT/ESCORT). TURTLE anchors
-    # one agent and counters into the empty red rear. No intercept/counter
-    # peel — those softens dual-rush scoring and helped SPLIT (dev14-19).
+    # OP6 - Immediate dual assault + failed-assault recovery (TURTLE niche).
+    # Relentless two-lane offense punishes blues that abandon home
+    # (RUSH/SPLIT/ESCORT). After a legal failed incursion (tag / flag loss
+    # on blue's half), OP6-only recovery keeps ATTACKER identity, routes
+    # through midfield redeploy (not home defense), and leaves the rear
+    # temporarily exposed so TURTLE's counter can convert. No intercept/
+    # counter peel — those softened dual-rush scoring (dev14-19).
     6: _profile(
         6,
         "OP6_IMMEDIATE_DUAL_RUSH",

@@ -75,7 +75,7 @@ def main() -> int:
     p.add_argument("--out-json", type=Path, default=None)
     p.add_argument("--n-boot", type=int, default=4000)
     p.add_argument("--seed", type=int, default=17)
-    p.add_argument("--protocol", default="BLUE_PROBES_V2")
+    p.add_argument("--protocol", default="BLUE_PROBES_V3")
     p.add_argument("--base-seed", type=int, default=None)
     args = p.parse_args()
 
