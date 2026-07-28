@@ -1,0 +1,51 @@
+Canonical map_a payoff baseline — per-red summary
+
+=== OP10_AGGRESSIVE_INTERCEPTOR ===
+  BLUE_ESCORT    margin=+1.125  WR=0.875  first_score_step≈101.5
+  BLUE_RUSH      margin=+2.125  WR=1.000  first_score_step≈62.5
+  BLUE_SPLIT     margin=+0.750  WR=0.375  first_score_step≈110.7
+  BLUE_TURTLE    margin=+0.500  WR=0.250  first_score_step≈70.8
+  best=BLUE_RUSH  runner_up=BLUE_ESCORT  paired_gap=+1.000  saturation_like=False  agg_spread=1.375
+
+=== OP11_ADAPTIVE_EXPLOITER ===
+  BLUE_ESCORT    margin=+3.000  WR=1.000  first_score_step≈35.6
+  BLUE_RUSH      margin=+3.000  WR=1.000  first_score_step≈29.2
+  BLUE_SPLIT     margin=+2.375  WR=1.000  first_score_step≈39.5
+  BLUE_TURTLE    margin=+1.250  WR=0.750  first_score_step≈59.9
+  best=BLUE_ESCORT  runner_up=BLUE_RUSH  paired_gap=+0.000  saturation_like=False  agg_spread=0.625
+
+=== OP12_LATE_CONVERTER ===
+  BLUE_ESCORT    margin=+1.375  WR=1.000  first_score_step≈36.1
+  BLUE_RUSH      margin=+1.875  WR=1.000  first_score_step≈28.4
+  BLUE_SPLIT     margin=+0.125  WR=0.500  first_score_step≈38.0
+  BLUE_TURTLE    margin=+1.375  WR=1.000  first_score_step≈84.4
+  best=BLUE_RUSH  runner_up=BLUE_ESCORT  paired_gap=+0.500  saturation_like=False  agg_spread=1.75
+
+=== OP6_IMMEDIATE_DUAL_RUSH ===
+  BLUE_ESCORT    margin=+2.750  WR=1.000  first_score_step≈36.5
+  BLUE_RUSH      margin=+3.000  WR=1.000  first_score_step≈29.2
+  BLUE_SPLIT     margin=+2.125  WR=1.000  first_score_step≈41.2
+  BLUE_TURTLE    margin=+0.750  WR=0.375  first_score_step≈116.0
+  best=BLUE_RUSH  runner_up=BLUE_ESCORT  paired_gap=+0.250  saturation_like=False  agg_spread=0.875
+
+=== OP7_DEEP_FORTRESS ===
+  BLUE_ESCORT    margin=+1.500  WR=0.750  first_score_step≈87.6
+  BLUE_RUSH      margin=+2.250  WR=1.000  first_score_step≈57.6
+  BLUE_SPLIT     margin=+1.000  WR=0.625  first_score_step≈86.7
+  BLUE_TURTLE    margin=+0.250  WR=0.375  first_score_step≈94.5
+  best=BLUE_RUSH  runner_up=BLUE_ESCORT  paired_gap=+0.750  saturation_like=False  agg_spread=1.25
+
+=== OP8_PROTECTED_CARRIER_ESCORT ===
+  BLUE_ESCORT    margin=+2.125  WR=1.000  first_score_step≈38.8
+  BLUE_RUSH      margin=+2.750  WR=1.000  first_score_step≈30.4
+  BLUE_SPLIT     margin=+1.250  WR=0.625  first_score_step≈96.8
+  BLUE_TURTLE    margin=+0.875  WR=0.500  first_score_step≈125.7
+  best=BLUE_RUSH  runner_up=BLUE_ESCORT  paired_gap=+0.625  saturation_like=False  agg_spread=1.5
+
+=== OP9_SPLIT_LANE_FEINT ===
+  BLUE_ESCORT    margin=+2.125  WR=1.000  first_score_step≈47.8
+  BLUE_RUSH      margin=+1.375  WR=1.000  first_score_step≈44.2
+  BLUE_SPLIT     margin=+0.875  WR=0.375  first_score_step≈125.7
+  BLUE_TURTLE    margin=+0.375  WR=0.625  first_score_step≈96.6
+  best=BLUE_ESCORT  runner_up=BLUE_RUSH  paired_gap=+0.750  saturation_like=False  agg_spread=1.25
+

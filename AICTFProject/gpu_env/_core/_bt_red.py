@@ -92,6 +92,10 @@ class _BTRedMixin(_BTAdaptiveMixin):
     # that empty-home styles still lose the dual-assault race before recovery
     # becomes the dominant tempo.
     _OP6_RECOVERY_DURATION = 36
+    # OP6 post-pickup extraction: lock carrier+screener while returning.
+    _OP6_EXTRACT_LOCK = 48
+    # Toggle for OFF/ON micro-gates (scripts may set False). Recovery untouched.
+    _OP6_EXTRACTION_ENABLED = True
 
     def _bt_opponent_mask(self) -> torch.Tensor:
         """True for env rows whose opponent uses the BT tactical brain."""
@@ -143,6 +147,8 @@ class _BTRedMixin(_BTAdaptiveMixin):
         self.bt_op6_failed_incursions = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_op6_recovery_activations = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_op6_recovery_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        # OP6 extraction support countdown (env-level while returning).
+        self.bt_op6_extract_ticks = torch.zeros((B,), dtype=i32, device=dev)
         self._alloc_adaptive_memory(B, dev)
 
     def _reset_bt_telemetry(self, env_mask: torch.Tensor) -> None:
@@ -173,6 +179,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
         self.bt_op6_failed_incursions[idx] = 0
         self.bt_op6_recovery_activations[idx] = 0
         self.bt_op6_recovery_active_steps[idx] = 0
+        self.bt_op6_extract_ticks[idx] = 0
         self._reset_adaptive_memory(env_mask)
 
     # ──────────────────────────────────────────────────────────────────────
@@ -505,6 +512,76 @@ class _BTRedMixin(_BTAdaptiveMixin):
         # the dual-rusher partner does not instantly cover the rear that
         # TURTLE's counter needs. Empty-home blues cancel recovery (no suppress).
         any_op6_recovery = recovering.any(dim=1) & (prof["bt_level"] == 6)
+
+        # ── OP6 extraction support (post-pickup, legal home-abandon gate) ─
+        # Dominant failed-return modes vs RUSH/ESCORT (dev28 trace): tagged
+        # from behind + agents crossing. When blue has no near-home non-carrier
+        # anchor, lock carrier as ATTACKER and partner as ESCORT screener.
+        # Do not inspect blue style ID. Leave recovery thresholds untouched.
+        op6 = prof["bt_level"] == 6
+        extract_enabled = bool(getattr(type(self), "_OP6_EXTRACTION_ENABLED", True))
+        if extract_enabled and bool(op6.any().item()):
+            mid = bb["midline"]
+            bhome_x = self.blue_flag_home[:, 0:1]
+            near_bhome = (self.blue_x - bhome_x).abs() <= 6.0
+            blue_anchor = (
+                self.blue_alive
+                & (~self.blue_carrying)
+                & (self.blue_x < mid)
+                & near_bhome
+            ).any(dim=1)
+            abandoned = ~blue_anchor
+            extract_ticks = self.bt_op6_extract_ticks
+            want_extract = op6 & bb["red_carry_any"] & abandoned
+            # Latch: arm when blue is abandoned at/after pickup, then keep the
+            # window for the full lock even if a blue briefly re-enters home
+            # (V3 RUSH return path was canceling the screener mid-extract).
+            extract_ticks = torch.where(
+                want_extract & (extract_ticks <= 0),
+                torch.full_like(extract_ticks, int(self._OP6_EXTRACT_LOCK)),
+                extract_ticks,
+            )
+            extract_ticks = torch.where(
+                op6 & bb["red_carry_any"] & (extract_ticks > 0),
+                torch.clamp(extract_ticks - 1, min=0),
+                torch.where(op6 & bb["red_carry_any"], extract_ticks, torch.zeros_like(extract_ticks)),
+            )
+            # Hard clear only when the carrier is gone (score / tag / drop).
+            extract_ticks = torch.where(
+                op6 & bb["red_carry_any"],
+                extract_ticks,
+                torch.zeros_like(extract_ticks),
+            )
+            self.bt_op6_extract_ticks = extract_ticks.detach()
+            extract_active = (extract_ticks > 0) & op6
+            rc_idx = bb["red_carrier_idx"].clamp(min=0)
+            agent_ids = torch.arange(Nr, device=device)[None, :]
+            is_carrier = agent_ids == rc_idx[:, None]
+            extract_slots = (
+                extract_active[:, None]
+                & self.red_alive
+                & (~self.red_tagged)
+            )
+            roles = torch.where(
+                extract_slots & is_carrier,
+                torch.full_like(roles, ROLE_ATTACKER),
+                roles,
+            )
+            roles = torch.where(
+                extract_slots & (~is_carrier),
+                torch.full_like(roles, ROLE_ESCORT),
+                roles,
+            )
+            lock = torch.where(
+                extract_slots,
+                torch.maximum(lock, extract_ticks[:, None].expand(B, Nr)),
+                lock,
+            )
+            can_change = can_change & (~extract_slots)
+        elif hasattr(self, "bt_op6_extract_ticks"):
+            self.bt_op6_extract_ticks = torch.where(
+                op6, torch.zeros_like(self.bt_op6_extract_ticks), self.bt_op6_extract_ticks
+            )
 
         # ── Priority 1: flag retrieval ───────────────────────────────────
         need_retr = (
@@ -860,6 +937,31 @@ class _BTRedMixin(_BTAdaptiveMixin):
             )
             tx = torch.where((role_j == ROLE_ESCORT) & bb["red_carry_any"], escort_tx, tx)
             ty = torch.where((role_j == ROLE_ESCORT) & bb["red_carry_any"], escort_ty, ty)
+            # OP6 extraction screener: always interpose on the nearest pursuer
+            # (behind-carrier tags dominate failed returns vs RUSH/ESCORT).
+            op6_extract = (
+                (prof["bt_level"] == 6)
+                & (self.bt_op6_extract_ticks > 0)
+                & bb["red_carry_any"]
+            )
+            if bool(op6_extract.any().item()):
+                screen_tx = 0.55 * carr_x + 0.45 * threat_x
+                screen_ty = 0.55 * carr_y + 0.45 * threat_y
+                # Stay slightly behind the carrier along the home vector so the
+                # screener does not collide with / block the carrier.
+                home_dx = bb["red_flag_home"][:, 0] - carr_x
+                home_dy = bb["red_flag_home"][:, 1] - carr_y
+                home_n = torch.sqrt(home_dx ** 2 + home_dy ** 2 + 1e-8)
+                behind_x = carr_x - 2.0 * home_dx / home_n
+                behind_y = carr_y - 2.0 * home_dy / home_n
+                # Blend interpose with behind-carrier station.
+                screen_tx = 0.6 * screen_tx + 0.4 * behind_x
+                screen_ty = 0.6 * screen_ty + 0.4 * behind_y
+                screen_tx = torch.clamp(screen_tx, 0.0, max_x)
+                screen_ty = torch.clamp(screen_ty, 0.0, max_y)
+                use_screen = op6_extract & (role_j == ROLE_ESCORT)
+                tx = torch.where(use_screen, screen_tx, tx)
+                ty = torch.where(use_screen, screen_ty, ty)
             # If escort but no carrier exists, fall back to attacker target.
             tx = torch.where((role_j == ROLE_ESCORT) & (~bb["red_carry_any"]), atk_tx, tx)
             ty = torch.where((role_j == ROLE_ESCORT) & (~bb["red_carry_any"]), atk_ty, ty)
@@ -955,6 +1057,147 @@ class _BTRedMixin(_BTAdaptiveMixin):
             target_x = torch.where(self.red_carrying, evade_tx, target_x)
             target_y = torch.where(self.red_carrying, evade_ty, target_y)
 
+        # OP6 extraction: shortest stable home route (no evasion churn).
+        # Trace dominant failure included carrier_route_detour; direct home
+        # while extract ticks are active. OP6-only; recovery untouched.
+        if bool(getattr(type(self), "_OP6_EXTRACTION_ENABLED", True)):
+            op6_direct = (
+                (prof["bt_level"] == 6)[:, None]
+                & (self.bt_op6_extract_ticks > 0)[:, None]
+                & self.red_carrying
+            )
+            home_tx = bb["red_flag_home"][:, 0:1].expand(B, Nr)
+            home_ty = bb["red_flag_home"][:, 1:2].expand(B, Nr)
+            target_x = torch.where(op6_direct, home_tx, target_x)
+            target_y = torch.where(op6_direct, home_ty, target_y)
+            # Screen-break: when a blue non-carrier sits on the return corridor
+            # and blue has no near-home defender, peel to the safer of two
+            # corridors and send the partner to engage/draw the blocker.
+            # Freezes latch/recovery; geometry only (no blue style ID).
+            target_x, target_y = self._bt_op6_screen_break_routes(
+                bb, prof, roles, target_x, target_y, max_x, max_y
+            )
+
+        return target_x, target_y
+
+    def _bt_op6_screen_break_routes(
+        self,
+        bb: dict,
+        prof: Dict[str, torch.Tensor],
+        roles: torch.Tensor,
+        target_x: torch.Tensor,
+        target_y: torch.Tensor,
+        max_x: float,
+        max_y: float,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """OP6-only corridor peel + blocker engage during extraction.
+
+        RUSH V3 dual-rushes red home while OP6 returns, so the blocker is often
+        *ahead* near red home rather than tightly on the carrier→home segment.
+        Detect either case. Latch/recovery thresholds stay frozen.
+        """
+        B, Nr = self.B, self.Nr
+        device = self.device
+        idx_env = bb["idx_env"]
+        op6 = prof["bt_level"] == 6
+        extract = (self.bt_op6_extract_ticks > 0) & op6 & bb["red_carry_any"]
+        if not bool(extract.any().item()):
+            return target_x, target_y
+
+        mid = bb["midline"]
+        bhome_x = self.blue_flag_home[:, 0:1]
+        near_bhome = (self.blue_x - bhome_x).abs() <= 6.0
+        blue_home_def = (
+            self.blue_alive
+            & (~self.blue_carrying)
+            & (self.blue_x < mid)
+            & near_bhome
+        ).any(dim=1)
+        no_home_def = ~blue_home_def
+
+        rc = bb["red_carrier_idx"].clamp(min=0)
+        carr_x = self.red_x[idx_env, rc]
+        carr_y = self.red_y[idx_env, rc]
+        home_x = bb["red_flag_home"][:, 0]
+        home_y = bb["red_flag_home"][:, 1]
+        vx = home_x - carr_x
+        vy = home_y - carr_y
+        vv = vx * vx + vy * vy + 1e-8
+        dist_carr_home = torch.sqrt(vv)
+
+        # (1) On-segment blocker (lateral band around return line).
+        wx = self.blue_x - carr_x[:, None]
+        wy = self.blue_y - carr_y[:, None]
+        t = (wx * vx[:, None] + wy * vy[:, None]) / vv[:, None]
+        proj_x = carr_x[:, None] + t * vx[:, None]
+        proj_y = carr_y[:, None] + t * vy[:, None]
+        lat = torch.sqrt((self.blue_x - proj_x) ** 2 + (self.blue_y - proj_y) ** 2 + 1e-8)
+        on_seg = (t > 0.05) & (t < 0.98) & (lat < 5.0)
+
+        # (2) Ahead-near-home blocker: blue on red half, further toward red
+        # home than the carrier, and not wildly off the home latitude
+        # (V3 RUSH charges the return destination).
+        dist_b_home = torch.sqrt(
+            (self.blue_x - home_x[:, None]) ** 2 + (self.blue_y - home_y[:, None]) ** 2 + 1e-8
+        )
+        ahead = (
+            (self.blue_x > mid)
+            & (self.blue_x > carr_x[:, None])
+            & (dist_b_home < (dist_carr_home[:, None] + 1.0))
+            & ((self.blue_y - home_y[:, None]).abs() < 6.0)
+        )
+
+        eligible = (
+            self.blue_alive
+            & (~self.blue_carrying)
+            & (on_seg | ahead)
+        )
+        # Prefer the blue closest to the carrier among eligible blockers.
+        d_carr = torch.sqrt(
+            (self.blue_x - carr_x[:, None]) ** 2 + (self.blue_y - carr_y[:, None]) ** 2 + 1e-8
+        )
+        d_m = torch.where(eligible, d_carr, d_carr.new_full((), 1e9).expand_as(d_carr))
+        blocker_idx = torch.argmin(d_m, dim=1)
+        has_blocker = eligible.any(dim=1) & extract & no_home_def
+        bx = self.blue_x[idx_env, blocker_idx]
+        by_ = self.blue_y[idx_env, blocker_idx]
+
+        # Two return corridors: wider peel so the carrier clears the RUSH pair.
+        amp = float(max(3.0, min(7.0, max_y * 0.30)))
+        y_hi = torch.clamp(home_y + amp, 0.0, max_y)
+        y_lo = torch.clamp(home_y - amp, 0.0, max_y)
+        use_hi = (y_hi - by_).abs() >= (y_lo - by_).abs()
+        safe_y = torch.where(use_hi, y_hi, y_lo)
+        c_tx = home_x
+        c_ty = torch.where(dist_carr_home > 2.5, safe_y, home_y)
+
+        # Partner engages the blocker (draw/occupy), not behind-carrier trail.
+        engage_x = torch.clamp(bx, 0.0, max_x)
+        engage_y = torch.clamp(by_, 0.0, max_y)
+
+        agent_ids = torch.arange(Nr, device=device)[None, :]
+        is_carrier = agent_ids == rc[:, None]
+        break_slots = has_blocker[:, None] & self.red_alive & (~self.red_tagged)
+        target_x = torch.where(
+            break_slots & is_carrier & self.red_carrying,
+            c_tx[:, None].expand(B, Nr),
+            target_x,
+        )
+        target_y = torch.where(
+            break_slots & is_carrier & self.red_carrying,
+            c_ty[:, None].expand(B, Nr),
+            target_y,
+        )
+        target_x = torch.where(
+            break_slots & (~is_carrier) & (roles == ROLE_ESCORT),
+            engage_x[:, None].expand(B, Nr),
+            target_x,
+        )
+        target_y = torch.where(
+            break_slots & (~is_carrier) & (roles == ROLE_ESCORT),
+            engage_y[:, None].expand(B, Nr),
+            target_y,
+        )
         return target_x, target_y
 
     # ──────────────────────────────────────────────────────────────────────

@@ -1,0 +1,29 @@
+{
+  "n_episodes": 8,
+  "n_pickups": 24,
+  "n_scores": 16,
+  "n_failed_returns": 8,
+  "mean_pickups": 3.0,
+  "mean_failed_returns": 1.0,
+  "armed_any_frac": 1.0,
+  "armed_at_pickup_frac": 0.0,
+  "never_armed_frac": 0.0,
+  "mean_pickup_to_arm_delay_when_armed": 1.0416666666666667,
+  "block_reason_at_pickup": {
+    "eligible_but_not_armed": 23,
+    "blue_home_anchor_present": 1
+  },
+  "fail_class_counts": {
+    "C": 6,
+    "D": 2
+  },
+  "fail_class_frac_of_failures": {
+    "C": 0.75,
+    "D": 0.25
+  },
+  "flag_area_overlap_proxy_n": 1,
+  "flag_area_overlap_proxy_frac": 0.041666666666666664,
+  "immediate_tag_threshold": 4,
+  "late_arm_threshold": 8,
+  "decision_tree_recommendation": "Targets wrong blue \u2192 distinguish blocker geometry from generic nearest-threat"
+}

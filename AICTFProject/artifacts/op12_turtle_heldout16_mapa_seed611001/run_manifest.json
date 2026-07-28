@@ -1,8 +1,8 @@
 {
   "protocol": "scripted_blue_red_pool_admissibility",
   "blue_probe_protocol": "BLUE_PROBES_V3",
-  "status": "completed",
-  "started_at_utc": "2026-07-28T17:17:06.474732+00:00",
+  "status": "running",
+  "started_at_utc": "2026-07-28T19:25:09.825098+00:00",
   "blue_styles": [
     "BLUE_RUSH",
     "BLUE_TURTLE",
@@ -10,12 +10,6 @@
     "BLUE_ESCORT"
   ],
   "reds": [
-    "OP6_IMMEDIATE_DUAL_RUSH",
-    "OP7_DEEP_FORTRESS",
-    "OP8_PROTECTED_CARRIER_ESCORT",
-    "OP9_SPLIT_LANE_FEINT",
-    "OP10_AGGRESSIVE_INTERCEPTOR",
-    "OP11_ADAPTIVE_EXPLOITER",
     "OP12_LATE_CONVERTER"
   ],
   "maps": [
@@ -23,13 +17,13 @@
   ],
   "niche_canonical_map": "map_a",
   "niche_map_contract": "Four-niche acceptance evidence requires map_a only; other maps are robustness-only and must not be mixed.",
-  "episodes_per_cell": 8,
+  "episodes_per_cell": 16,
   "op12_confirmed_escort_response_enabled": false,
-  "base_seed": 601001,
+  "base_seed": 611001,
   "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
   "max_decision_steps": 240,
   "device": "cuda",
-  "expected_episode_rows": 224,
+  "expected_episode_rows": 64,
   "artifacts": [
     "episode_results.csv",
     "pool_report.json",
@@ -40,7 +34,5 @@
     "loaded_existing_rows": 0,
     "accepted_existing_rows": 0,
     "duplicate_or_invalid_existing_rows": 0
-  },
-  "completed_at_utc": "2026-07-28T19:20:02.042738+00:00",
-  "completed_episode_rows": 224
+  }
 }

@@ -32,6 +32,8 @@ from experiments.run_scripted_style_payoff_matrix import (  # noqa: E402
     _zero_action,
 )
 
+from gpu_env._core._bt_red import _BTRedMixin  # noqa: E402
+
 BLUE_STYLES = (
     "BLUE_RUSH",
     "BLUE_SPLIT",
@@ -235,13 +237,16 @@ def _summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
     summary["micro_gates"] = {
         "rush_red_first_score_ge_5_8": _ge5(rush),
-        "split_red_first_score_ge_5_8": _ge5(split),
+        "split_red_first_score_ge_5_8": int(split.get("red_first_score_seeds", 0))
+        >= max(6, (6 * n) // 8),
         "escort_red_first_score_ge_5_8": _ge5(escort),
         "turtle_red_first_score_le_2_8": int(turtle.get("red_first_score_seeds", 99))
         <= max(2, (2 * n) // 8),
         "turtle_counter_score_ge_5_8": int(turtle.get("turtle_counter_score_seeds", 0))
-        >= max(5, (5 * n) // 8),
+        >= max(6, (6 * n) // 8),
     }
+    # Optional baseline for failed-return reduction vs a prior OFF/ON run.
+    summary["rush_failed_returns"] = float(rush.get("mean_red_failed_returns", 0.0))
     summary["micro_gates_pass"] = all(summary["micro_gates"].values())
     summary["rush_minus_split"] = float(rush.get("mean_win_margin", 0.0)) - float(
         split.get("mean_win_margin", 0.0)
@@ -263,11 +268,24 @@ def main() -> int:
     p.add_argument("--device", default="cpu")
     p.add_argument("--max-decision-steps", type=int, default=240)
     p.add_argument(
+        "--extraction",
+        choices=("on", "off"),
+        default="on",
+        help="OP6 post-pickup extraction support toggle (OFF/ON paired gates).",
+    )
+    p.add_argument(
         "--out-dir",
         type=Path,
-        default=PROJECT_ROOT / "artifacts" / "op6_offense_competence_dev27_map_a",
+        default=None,
     )
     args = p.parse_args()
+    _BTRedMixin._OP6_EXTRACTION_ENABLED = args.extraction == "on"
+    if args.out_dir is None:
+        args.out_dir = (
+            PROJECT_ROOT
+            / "artifacts"
+            / f"op6_offense_competence_dev29_extract_{args.extraction}_map_a"
+        )
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
     rows: list[dict[str, Any]] = []
