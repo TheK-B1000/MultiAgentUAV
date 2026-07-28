@@ -36,6 +36,7 @@ from experiments.payoff_matrix_analysis import (  # noqa: E402
 )
 from gpu_env import GPUCTFVecEnv, GPUFieldConfig  # noqa: E402
 from gpu_env._core._scripted_blue_styles import BLUE_STYLE_NAMES  # noqa: E402
+from gpu_env._maps import normalize_map_layout  # noqa: E402
 
 
 DEFAULT_REDS = (
@@ -57,6 +58,14 @@ POOL_REPORT_TXT = "pool_report.txt"
 RUN_MANIFEST_JSON = "run_manifest.json"
 PARTIAL_SUMMARY_JSON = "partial_summary.json"
 BLUE_PROBE_PROTOCOL = "BLUE_PROBES_V3"
+
+
+def artifact_map_label(map_name: str) -> str:
+    """Canonical artifact label. ``map_a`` / ``map_a_open`` / aliases → ``map_a``."""
+    key = str(map_name or "").strip().lower().replace("-", "_").replace(" ", "_")
+    if key in ("map_a", "map_a_open", "a", "open", "open_arena"):
+        return NICHE_CANONICAL_MAP
+    return normalize_map_layout(map_name)
 
 ROW_FIELDS = [
     "blue_style",
@@ -151,11 +160,13 @@ def _episode_seed(base_seed: int, red_index: int, map_index: int, episode_index:
 
 
 def _make_env(*, map_name: str, seed: int, max_decision_steps: int, device: str) -> GPUCTFVecEnv:
+    # Env uses the normalized layout id (map_a → map_a_open). Artifact rows
+    # use artifact_map_label() so the proof surface always says map_a.
     cfg = GPUFieldConfig(
         n_envs=1,
         max_blue_agents=2,
         max_red_agents=2,
-        map_layout=str(map_name),
+        map_layout=normalize_map_layout(str(map_name)),
         max_decision_steps=int(max_decision_steps),
         aquaticus_profile=True,
         rules_profile="OURS",
@@ -191,7 +202,7 @@ def _episode_result_row(
             bool(extra_telemetry.get("op12_confirmed_escort_response_enabled", 0)) if extra_telemetry else False
         ),
         "red_style": red_style,
-        "map": map_name,
+        "map": artifact_map_label(map_name),
         "episode_index": int(episode_index),
         "episode_seed": int(episode_seed),
         "success": 1 if win_margin > 0 else 0,
@@ -430,7 +441,7 @@ def _row_key(row: dict[str, Any]) -> tuple[str, str, str, int]:
 
 def _expected_keys(args: argparse.Namespace) -> set[tuple[str, str, str, int]]:
     return {
-        (str(blue), str(red), str(map_name), int(ep_i))
+        (str(blue), str(red), artifact_map_label(str(map_name)), int(ep_i))
         for red in args.reds
         for map_name in args.maps
         for ep_i in range(int(args.episodes))
@@ -640,7 +651,9 @@ def main() -> int:
             "duplicate_or_invalid_existing_rows": int(len(duplicate_rows)),
         },
     }
-    non_canonical = [m for m in args.maps if str(m) not in (NICHE_CANONICAL_MAP, "map_a_open", "a", "open")]
+    non_canonical = [
+        m for m in args.maps if artifact_map_label(str(m)) != NICHE_CANONICAL_MAP
+    ]
     if non_canonical:
         print(
             "[niche-map-contract] WARNING: maps "
@@ -666,7 +679,12 @@ def main() -> int:
                 for ep_i in range(int(args.episodes)):
                     seed = _episode_seed(int(args.base_seed), red_i, map_i, ep_i)
                     for blue_style in args.blue_styles:
-                        key = (str(blue_style), str(red_style), str(map_name), int(ep_i))
+                        key = (
+                            str(blue_style),
+                            str(red_style),
+                            artifact_map_label(str(map_name)),
+                            int(ep_i),
+                        )
                         if key in completed_by_key:
                             continue
                         row = _run_one_episode(

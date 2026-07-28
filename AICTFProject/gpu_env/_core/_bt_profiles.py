@@ -172,16 +172,15 @@ BT_PROFILES: Dict[int, BTProfile] = {
         lane_amplitude_frac=0.22,
         intercept_feasibility_ratio=0.85,
     ),
-    # OP6 - Immediate dual assault + failed-assault recovery (TURTLE niche).
-    # Relentless two-lane offense punishes blues that abandon home
-    # (RUSH/SPLIT/ESCORT). After a legal failed incursion (tag / flag loss
-    # on blue's half), OP6-only recovery keeps ATTACKER identity, routes
-    # through midfield redeploy (not home defense), and leaves the rear
-    # temporarily exposed so TURTLE's counter can convert. No intercept/
-    # counter peel — those softened dual-rush scoring (dev14-19).
+    # OP6 - Immediate dual assault (offense-first; recovery paused for tuning).
+    # Both reds stay ATTACKER on opposite lanes. No intercept/defender/flag-
+    # retrieval peel — empty-home blues must lose the dual-score race before
+    # any recovery window matters. enable_flag_retr=False keeps both agents
+    # on the flag even if blue steals (dual-rush identity).
     6: _profile(
         6,
         "OP6_IMMEDIATE_DUAL_RUSH",
+        enable_flag_retr=False,
         enable_escort=False,
         enable_intercept=False,
         enable_counter=False,
@@ -200,8 +199,8 @@ BT_PROFILES: Dict[int, BTProfile] = {
         defender_zone_frac=0.35,
         # No chase-collapse onto one blue; pure flag dual-assault.
         threat_radius=0.0,
-        # Wide opposite-lane corridors (see _bt_route_target OP6 branch).
-        lane_amplitude_frac=0.42,
+        # Opposite-lane corridors (pin ≥0.35 in niche identity tests).
+        lane_amplitude_frac=0.35,
         intercept_block_base=0.40,
         intercept_feasibility_ratio=0.45,
         adaptive_enabled=False,
@@ -240,6 +239,8 @@ BT_PROFILES: Dict[int, BTProfile] = {
     # deploys (home defense incomplete); after legal trigger, sticky escort /
     # intercept / counter. Opening gate is OP8-only in _bt_assign_roles
     # (bt_level==8); does not touch OP9. Profile fingerprint unchanged.
+    # FROZEN 2026-07-28 for map_a / BLUE_PROBES_V3 RUSH held-out — do not
+    # retune until held-out verdict is recorded.
     8: _profile(
         8,
         "OP8_PROTECTED_CARRIER_ESCORT",

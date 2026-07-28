@@ -339,8 +339,48 @@ dev26 map_a (`artifacts/op6_recovery_microgates_dev26_map_a`): micro_gates FAIL
   red first-score rate 0 across styles; TURTLE−SPLIT = −1.0
 ```
 
-Do not buff BLUE_TURTLE / BLUE_PROBES_V2 / OP9. Do not held-out until TURTLE
-uniquely best with recovery-window conversion and TURTLE−SPLIT ≳ +0.5.
+**Decision (2026-07-28, map_a): PAUSE recovery tuning.** Selectivity is
+promising (TURTLE≫SPLIT activations) but OP6 never creates a dangerous
+assault (`red first-score = 0`). Trapdoor works; tiger never enters.
+
+Next: **OP6 offensive competence audit** on `map_a` (not more recovery).
+Target micro-gates:
+
+```text
+OP6 red first-score: RUSH/SPLIT/ESCORT ≥5/8 each; TURTLE ≤2/8
+TURTLE counter-score after stopped assault: ≥5/8
+```
+
+Track red pickups, failed returns, blue home occupancy, TURTLE anchor
+present at assault-stop. Diagnostic:
+`experiments/diagnose_op6_offense_competence.py`.
+
+Secondary finding: on map_a SPLIT is no longer best — RUSH leads
+(+0.875 vs SPLIT, +0.375 vs ESCORT). Do **not** lock OP6→RUSH yet
+(ESCORT gap < ~0.5; need paired CIs). Reassignment is a live option
+after offense is competent. Four distinct PPO niches matter more than
+preserving the OP6→TURTLE label.
+
+**Offense competence audit (dev27, map_a):**
+`artifacts/op6_offense_competence_dev27_map_a` after `enable_flag_retr=False`
++ earlier flag converge. Micro-gates **FAIL**, but mechanism moved:
+
+```text
+red pickups ~3/ep (was effectively non-scoring)
+SPLIT red-first:  8/8  PASS
+TURTLE red-first: 2/8  PASS
+TURTLE counter after stop: 8/8  PASS (anchor present at stops)
+RUSH  red-first:  1/8  FAIL  (pickups 3.1, failed returns 2.1)
+ESCORT red-first: 3/8  FAIL  (pickups 3.0, failed returns 2.0)
+margins compressed: RUSH +0.5, ESCORT +0.25, SPLIT/TURTLE 0.0
+```
+
+Diagnosis: dual assault now reaches the flag; conversion dies on the
+**return** vs V3 RUSH/ESCORT screening. Next offense lever: return-path /
+failed-return rate — still not recovery tuning.
+
+Do not buff BLUE_TURTLE / change OP9. Do not held-out until a unique
+best-response niche clears paired gates.
 
 **OP7 development screen (2026-07-26):**
 `artifacts/op7_failure_timeline_dev1_8seed`, OP7/map_b, 8 paired development
@@ -782,21 +822,22 @@ searching for “the right preset.” SPLIT exploits almost every opponent; the
 missing niches need **legal, observable, opponent-specific causal traps**.
 Latent / router work remains stopped.
 
-**Target board:**
+**Target board (canonical = map_a / BLUE_PROBES_V3):**
 
 ```text
-SPLIT  → OP9:  LOCKED / FROZEN
-RUSH   → OP8 formation-opening redesign (do not reopen OP12; no OP13)
-TURTLE → OP6 dual-assault redesign
-ESCORT → OP11 isolation-pressure redesign
+RUSH   → OP8: DEVELOPMENT PASS / NOT LOCKED (frozen; 16-seed held-out next)
+SPLIT  → host open on map_a/V3 (OP9 map_b lock is historical only)
+ESCORT → OP11 active; OP9 leans ESCORT on map_a but is not separated
+TURTLE → OP6 active, currently unproven
 ```
 
-OP7 / OP10: no more SPLIT-niche goals (optional robustness later only).
-OP12: RUSH budget closed — leave alone.
+**Map naming:** `map_a` and `map_a_open` are the same layout
+(`normalize_map_layout("map_a") == "map_a_open"`). Artifact rows/manifests
+now label the canonical surface as **`map_a`**.
 
-**OP9 freeze (absolute for red BT):** no changes to OP9 red profile or shared
-BT defaults. Blue probe protocol may advance (`BLUE_PROBES_V3`) when RUSH is
-repaired; OP9 SPLIT must then be **reconfirmed** under the new protocol.
+**OP9 freeze (red BT):** no changes to OP9 red profile. Blue protocol is
+`BLUE_PROBES_V3`. Do not spend compute reconfirming OP9 on
+`map_b_split_lane` for the four-niche map_a proof.
 
 ---
 
@@ -835,11 +876,14 @@ activation; SPLIT/ESCORT usually after; TURTLE rarely threatens in opening.
 Then freeze → fresh 16-seed held-out → lock only when all paired CIs clear.
 Max **two** bounded redesign rounds.
 
-**Pivot (2026-07-28):** pause OP8 redesign. RUSH under V2 picked up but
-could not extract (`op8_rush_dev8_r2` RUSH margin 0). `BLUE_PROBES_V3`
-repairs `_blue_rush_targets` only (direct return + screening blocker).
-Competence gate: `experiments/run_blue_probes_v3_rush_competence_gate.py`.
-Then rerun **unchanged** OP8; then reconfirm OP9 under V3.
+**Pivot (2026-07-28):** `BLUE_PROBES_V3` repairs RUSH. Competence gate PASS.
+OP8 under V3 on map_a (`op8_rush_dev8_v3_map_a`): **DEVELOPMENT PASS /
+NOT LOCKED** — RUSH +2.75 uniquely best, `RUSH−ESCORT=+0.75`, paired CIs
+clear; pooled LCB=0. **OP8 frozen** (no redesign). Next: fresh 16-seed
+held-out on map_a / V3 / unchanged OP8. OP9 on map_a/V3: RECONFIRM_FAIL
+(ESCORT best); map_b OP9 lock is historical only.
+
+### Contract B — OP6 TURTLE (dual-assault)
 
 Keep OP6’s identity (immediate dual red rush). Do **not** make OP6 “generally
 stronger” or add generic anti-SPLIT detection. Punish blue teams that send
@@ -4448,12 +4492,11 @@ revisit (2026-07-28): baseline SPLIT +0.50 / TURTLE −1.00; best partial is
 single carrier-deny (`op6_dev19_single_carrier_deny_8seed`) SPLIT +0.625 /
 TURTLE −0.500 — still flipped. Dual-rush abandon responses REJECTED.
 
-**Now:** `BLUE_PROBES_V3` competence gate **PASS**
-(`artifacts/blue_probes_v3_rush_competence_gate`: RUSH scores 8/8 vs OP5,
-pickup earlier than SPLIT 8/8). Unchanged OP8 under V3
-(`artifacts/op8_rush_dev8_v3`): RUSH uniquely best (+2.50) but
-`RUSH−SPLIT=+0.25` below ~+0.5 floor — do not lock OP8 yet. OP9 V3
-reconfirm running (`artifacts/op9_split_heldout16_blue_probes_v3_seed531001`).
+**Now:** OP8 **frozen** as RUSH candidate. Running 16-seed held-out
+`artifacts/op8_rush_heldout16_v3_map_a_seed582001` (map_a, V3, unchanged
+OP8). Lock only if RUSH uniquely best, all paired CIs clear, pooled
+LCB>0, practical gap ~≥+0.5. Then full OP6–OP12 × four-style V3 landscape
+on map_a to pick SPLIT/ESCORT/TURTLE hosts.
 
 **Exact question for the four-column pool:**
 

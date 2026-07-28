@@ -1,0 +1,70 @@
+{
+  "n_episodes_per_style": {
+    "BLUE_RUSH": 8,
+    "BLUE_SPLIT": 8,
+    "BLUE_ESCORT": 8,
+    "BLUE_TURTLE": 8
+  },
+  "styles": {
+    "BLUE_RUSH": {
+      "mean_failed_incursions": 2.125,
+      "mean_recovery_activations": 2.125,
+      "mean_recovery_active_steps": 10.375,
+      "mean_home_occupancy": 0.2148016540021819,
+      "mean_blue_pickups_during_recovery": 0.0,
+      "mean_blue_scores_during_recovery": 1.25,
+      "frac_blue_reached_flag_during_recovery": 0.875,
+      "frac_red_scored_first": 0.0,
+      "mean_win_margin": 2.875,
+      "turtle_recovery_score_seeds": 0
+    },
+    "BLUE_SPLIT": {
+      "mean_failed_incursions": 0.25,
+      "mean_recovery_activations": 0.25,
+      "mean_recovery_active_steps": 1.75,
+      "mean_home_occupancy": 0.2290125458746429,
+      "mean_blue_pickups_during_recovery": 0.0,
+      "mean_blue_scores_during_recovery": 0.125,
+      "frac_blue_reached_flag_during_recovery": 0.25,
+      "frac_red_scored_first": 0.0,
+      "mean_win_margin": 2.0,
+      "turtle_recovery_score_seeds": 0
+    },
+    "BLUE_ESCORT": {
+      "mean_failed_incursions": 2.5,
+      "mean_recovery_activations": 2.5,
+      "mean_recovery_active_steps": 21.0,
+      "mean_home_occupancy": 0.2557041313210281,
+      "mean_blue_pickups_during_recovery": 0.0,
+      "mean_blue_scores_during_recovery": 1.75,
+      "frac_blue_reached_flag_during_recovery": 1.0,
+      "frac_red_scored_first": 0.0,
+      "mean_win_margin": 2.5,
+      "turtle_recovery_score_seeds": 0
+    },
+    "BLUE_TURTLE": {
+      "mean_failed_incursions": 4.375,
+      "mean_recovery_activations": 4.375,
+      "mean_recovery_active_steps": 98.125,
+      "mean_home_occupancy": 0.34370842526488243,
+      "mean_blue_pickups_during_recovery": 0.25,
+      "mean_blue_scores_during_recovery": 0.5,
+      "frac_blue_reached_flag_during_recovery": 0.5,
+      "frac_red_scored_first": 0.0,
+      "mean_win_margin": 1.0,
+      "turtle_recovery_score_seeds": 3
+    }
+  },
+  "micro_gates": {
+    "turtle_recovery_activates": true,
+    "turtle_recovery_window_present": true,
+    "turtle_counter_reaches_or_scores": true,
+    "turtle_recovery_score_seeds_at_least_half": false,
+    "rush_split_recovery_rarer_than_turtle": true,
+    "turtle_uniquely_best_margin": false,
+    "turtle_minus_split_ge_0p25": false,
+    "split_rush_escort_red_often_scores_first": false
+  },
+  "micro_gates_pass": false,
+  "turtle_minus_split": -1.0
+}

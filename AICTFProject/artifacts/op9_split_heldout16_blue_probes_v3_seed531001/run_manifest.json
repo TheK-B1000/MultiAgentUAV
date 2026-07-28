@@ -1,7 +1,7 @@
 {
   "protocol": "scripted_blue_red_pool_admissibility",
   "blue_probe_protocol": "BLUE_PROBES_V3",
-  "status": "running",
+  "status": "completed",
   "started_at_utc": "2026-07-28T16:12:50.728490+00:00",
   "blue_styles": [
     "BLUE_RUSH",
@@ -32,5 +32,7 @@
     "loaded_existing_rows": 0,
     "accepted_existing_rows": 0,
     "duplicate_or_invalid_existing_rows": 0
-  }
+  },
+  "completed_at_utc": "2026-07-28T17:10:56.305055+00:00",
+  "completed_episode_rows": 64
 }

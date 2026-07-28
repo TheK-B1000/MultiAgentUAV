@@ -758,8 +758,10 @@ class _BTRedMixin(_BTAdaptiveMixin):
             efy = bb["blue_flag_pos"][:, 1]
             dist_to_flag = torch.sqrt((rx - efx) ** 2 + (ry - efy) ** 2 + 1e-8)
             # Use lane waypoint when far from flag; converge directly when close.
-            atk_tx = torch.where(dist_to_flag > 4.0, efx, efx)
-            atk_ty = torch.where(dist_to_flag > 4.0, atk_lane_y, efy)
+            # OP6: converge earlier so dual-assault reaches the flag on map_a.
+            converge_dist = torch.where(op6_mask, 8.0, 4.0)
+            atk_tx = torch.where(dist_to_flag > converge_dist, efx, efx)
+            atk_ty = torch.where(dist_to_flag > converge_dist, atk_lane_y, efy)
             # Tangent evasion from nearest blue agent.
             atk_tx, atk_ty = self._bt_tangent_evade(
                 rx, ry, atk_tx, atk_ty, threat_radius, max_x, max_y,
