@@ -47,6 +47,7 @@ class _BTAdaptiveMixin:
     _OP11_REPEAT_INTERCEPT_ENABLED = False
     _FAST_CONVERSION_STEPS = 70
     _REPEAT_LANE_STREAK = 2
+    _OP12_SPLIT_RESPONSE_DURATION = 40
     _HIGH_ESCORT_DENSITY = 0.25
     _HIGH_OVERCOMMIT = 0.25
     # Strategic niches use behavior gates, not per-family physical handicaps.
@@ -119,6 +120,7 @@ class _BTAdaptiveMixin:
         self.bt_adapt_overcommit = torch.zeros((B,), dtype=f32, device=dev)
         self.bt_adapt_split_pressure_ticks = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_adapt_split_first_trigger_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_adapt_split_response_expiry_step = torch.full((B,), -1, dtype=i32, device=dev)
         self.bt_adapt_split_active_steps = torch.zeros((B,), dtype=i32, device=dev)
         self.bt_adapt_split_max_lateral_sep = torch.zeros((B,), dtype=f32, device=dev)
         self.bt_adapt_split_max_teammate_dist = torch.zeros((B,), dtype=f32, device=dev)
@@ -179,6 +181,7 @@ class _BTAdaptiveMixin:
         self.bt_adapt_overcommit[idx] = 0.0
         self.bt_adapt_split_pressure_ticks[idx] = 0
         self.bt_adapt_split_first_trigger_step[idx] = -1
+        self.bt_adapt_split_response_expiry_step[idx] = -1
         self.bt_adapt_split_active_steps[idx] = 0
         self.bt_adapt_split_max_lateral_sep[idx] = 0.0
         self.bt_adapt_split_max_teammate_dist[idx] = 0.0
@@ -521,6 +524,21 @@ class _BTAdaptiveMixin:
         )
         self.bt_adapt_split_active_steps += split_pressure_active.to(torch.int32)
 
+        # OP12 Stage-2 split response (2026-07-28): a BOUNDED state, not a
+        # per-step nudge -- every step that split_pressure_active re-fires
+        # (already debounced: split_pressure_ticks must clear the threshold
+        # via SEVERAL consecutive qualifying steps, this is the "persistence"
+        # requirement), the response window's expiry is pushed out to
+        # sim_step_count + duration. If the pattern stops, the window decays
+        # on its own duration steps later rather than either latching
+        # forever (OP11's choice) or flickering with the raw single-step
+        # signal (the bug fixed for OP11 and now avoided here too).
+        self.bt_adapt_split_response_expiry_step = torch.where(
+            active & split_pressure_active,
+            self.sim_step_count.to(torch.int32) + self._OP12_SPLIT_RESPONSE_DURATION,
+            self.bt_adapt_split_response_expiry_step,
+        )
+
         opening_escort_ticks = self.bt_adapt_opening_escort_ticks
         opening_escort_active = active & (
             self.bt_adapt_opening_escort_ticks >= self._opening_escort_ticks_threshold(prof)
@@ -600,7 +618,10 @@ class _BTAdaptiveMixin:
             self.bt_adapt_escort_confirm_ticks >= self._escort_confirm_ticks_threshold(prof)
         )
         fast_blue = active & (self.bt_adapt_fast_conversion_count >= 1)
-
+        is_op12_bb = prof["bt_level"] == 12
+        op12_split_response_active = is_op12_bb & (
+            self.bt_adapt_split_response_expiry_step >= self.sim_step_count.to(torch.int32)
+        )
         bb.update(
             adaptive_active=active,
             adapt_preferred_lane_y=preferred_lane_y_t,
@@ -611,6 +632,7 @@ class _BTAdaptiveMixin:
             adapt_confirmed_escort=confirmed_escort,
             adapt_high_overcommit=high_overcommit,
             adapt_split_pressure=split_pressure,
+            adapt_op12_split_response_active=op12_split_response_active,
             adapt_fast_conversion=fast_blue,
             adapt_blue_carrier_lost=getattr(self, "bt_adapt_blue_carrier_lost", torch.zeros((self.B,), dtype=torch.bool, device=self.device)),
             adapt_intercept_block_boost=torch.where(
@@ -1007,20 +1029,44 @@ class _BTAdaptiveMixin:
                 )
                 lock[:, j] = torch.where(assign, lane_lock, lock[:, j])
 
-        # OP12 anti-split conversion: if Blue creates simultaneous two-lane
-        # pressure and gets possession, commit an extra interceptor to the
-        # carrier lane. Direct clustered rushes do not satisfy this trigger.
+        # OP12 anti-split conversion (Stage 2, 2026-07-28 redesign): if Blue
+        # creates SUSTAINED simultaneous two-lane pressure, commit an extra
+        # interceptor to deny the split for a bounded duration. Direct
+        # clustered rushes do not satisfy this trigger.
+        #
+        # Two changes from the original version:
+        # 1. Trigger switched from the live, single-step-flickery
+        #    adapt_split_pressure to adapt_op12_split_response_active (a
+        #    bounded, decaying-duration state set in _update_adaptive_memory
+        #    -- extends every time the ALREADY-debounced split_pressure_active
+        #    signal re-fires, decays _OP12_SPLIT_RESPONSE_DURATION steps
+        #    after it stops). This is the "bounded state, not a per-step
+        #    utility nudge" the redesign calls for.
+        # 2. The blue_carry_any gate is dropped so the role can commit BEFORE
+        #    pickup too -- the base routing table already falls back an
+        #    INTERCEPTOR with no carrier to the same target logic as
+        #    DEFENDER (_bt_red.py's role_j==ROLE_INTERCEPTOR & ~blue_carry_any
+        #    branch), so this pre-pickup commitment reads as "prioritize
+        #    defending the exposed lane" rather than continuing whatever
+        #    role (often ATTACKER) this agent held before the split pattern
+        #    was proven -- exactly "changes defended lane/target priorities
+        #    for a fixed duration."
+        # 3. NEVER reassigns an agent currently holding ROLE_COUNTER --
+        #    dev25/dev26 showed that perturbing OP12's own counter-attacking
+        #    agent (even indirectly, via route bias) breaks its stable
+        #    scoring cadence and manifests as a fake "improvement" that is
+        #    really OP12 sabotaging itself. "COUNTER keeps counter pressure"
+        #    is enforced structurally here, not just hoped for.
         is_op12 = prof["bt_level"] == 12
         split_denial = (
             is_op12
-            & bb.get("adapt_split_pressure", torch.zeros((B,), dtype=torch.bool, device=device))
-            & bb["blue_carry_any"]
+            & bb.get("adapt_op12_split_response_active", torch.zeros((B,), dtype=torch.bool, device=device))
             & prof["enable_intercept"]
         )
         if split_denial.any():
             split_lock = prof["lock_intercept"] + self._COLLAPSE_ROLE_LOCK_BONUS
             for j in range(Nr):
-                assign = split_denial & eligible[:, j]
+                assign = split_denial & eligible[:, j] & (out[:, j] != ROLE_COUNTER)
                 out[:, j] = torch.where(
                     assign,
                     torch.full((B,), ROLE_INTERCEPTOR, dtype=torch.int32, device=device),
@@ -1143,8 +1189,13 @@ class _BTAdaptiveMixin:
         is_lane_op = (bt_level == 8) | (bt_level == 11)
         is_op10 = bt_level == 10
         is_op11 = bt_level == 11
+        # Stage-2 redesign (2026-07-28): bounded, decaying-duration trigger
+        # instead of the live per-step signal -- see the matching
+        # role-override block in _bt_apply_adaptive_role_overrides for the
+        # full rationale (persistence-gated, not per-step, and never steals
+        # the COUNTER agent).
         split_denial_route = (bt_level == 12) & bb.get(
-            "adapt_split_pressure",
+            "adapt_op12_split_response_active",
             torch.zeros((B,), dtype=torch.bool, device=device),
         )
         escort_denial_route = (
@@ -1208,9 +1259,50 @@ class _BTAdaptiveMixin:
             by = torch.where(split_int & (j == 0), pred_y + (home_y - pred_y) * block_frac, by)
             bx = torch.where(split_int & (j == 1), split_body_bx, bx)
             by = torch.where(split_int & (j == 1), home_y, by)
-            escort_carrier = escort_denial_route & int_mask
+
+            # Stage-2 pre-pickup branch: same bounded split-response window,
+            # but BEFORE blue has possession (int_mask above requires
+            # blue_carry_any, so it cannot fire here -- and the final tx/ty
+            # write below is widened to include pre_pickup_int for exactly
+            # this reason). "Split trigger changes defended lane/target
+            # priorities for a fixed duration" -- this agent already
+            # committed to ROLE_INTERCEPTOR pre-pickup (role override dropped
+            # the blue_carry_any gate for exactly this), and the base routing
+            # table's own fallback for an INTERCEPTOR-without-a-carrier is
+            # the generic "nearest intruder" DEFENDER-equivalent target,
+            # which can pick the WRONG (nearer) attacker while the wide,
+            # laterally-separated one is the actual split threat. Explicitly
+            # target whichever blue agent is farther from the field's
+            # lateral center instead.
+            pre_pickup_int = (
+                split_denial_route & (role_j == ROLE_INTERCEPTOR) & (~bb["blue_carry_any"])
+            )
+            if self.Nb >= 2 and pre_pickup_int.any():
+                center_y = float(self.rows) * 0.5
+                far_is_1 = torch.abs(self.blue_y[:, 1] - center_y) >= torch.abs(self.blue_y[:, 0] - center_y)
+                far_x = torch.where(far_is_1, self.blue_x[:, 1], self.blue_x[:, 0])
+                far_y = torch.where(far_is_1, self.blue_y[:, 1], self.blue_y[:, 0])
+                bx = torch.where(pre_pickup_int, far_x, bx)
+                by = torch.where(pre_pickup_int, far_y, by)
+            else:
+                pre_pickup_int = torch.zeros((B,), dtype=torch.bool, device=device)
             escort_bx = ec_x + (home_x - ec_x) * 0.35
             escort_by = ec_y + (home_y - ec_y) * 0.35
+            # ETA-gate (dev26 diagnosis): a single-episode trace showed the
+            # unconditional carrier-lane route winning the confirmed-escort
+            # duel while leaving THIS agent farther from where its own later
+            # COUNTER-role duty (red's second scoring pass) needed it to be --
+            # a small early-position perturbation that cascaded into red's
+            # own scoring getting stuck (episode ran to the step cap instead
+            # of closing out like the unmodified baseline). Only take the
+            # modified route when it is not a worse rendezvous than the
+            # default intercept point, so the specialized response can never
+            # replace an already-superior default path.
+            red_jx = self.red_x[:, j]
+            red_jy = self.red_y[:, j]
+            default_eta = torch.sqrt((red_jx - bx) ** 2 + (red_jy - by) ** 2 + 1e-8)
+            modified_eta = torch.sqrt((red_jx - escort_bx) ** 2 + (red_jy - escort_by) ** 2 + 1e-8)
+            escort_carrier = escort_denial_route & int_mask & (modified_eta <= default_eta)
             bx = torch.where(escort_carrier, escort_bx, bx)
             by = torch.where(escort_carrier, escort_by, by)
             by = torch.where(
@@ -1227,25 +1319,44 @@ class _BTAdaptiveMixin:
                 bb["ec_y"] + (home_y - bb["ec_y"]) * cap_lane_body,
                 by,
             )
-            tx[:, j] = torch.where(int_mask, torch.clamp(bx, 0.0, max_x), tx[:, j])
-            ty[:, j] = torch.where(int_mask, torch.clamp(by, 0.0, max_y), ty[:, j])
+            write_mask = int_mask | pre_pickup_int
+            tx[:, j] = torch.where(write_mask, torch.clamp(bx, 0.0, max_x), tx[:, j])
+            ty[:, j] = torch.where(write_mask, torch.clamp(by, 0.0, max_y), ty[:, j])
 
-        # OP11 split-lane isolation route: direct 1:1 marking (red[j] tracks
-        # blue[j]'s CURRENT position), overriding whatever the generic
-        # interceptor routing above computed for these two agents. Applies
-        # regardless of blue_carry_any (unlike the split_int/OP12 branch
-        # above), so it closes the uncovered lane before pickup and then
-        # naturally continues marking whichever agent becomes the carrier
-        # (isolate pre-pickup and exploit-unprotected-carrier post-pickup
-        # fall out of the SAME rule, no separate carrier-specific logic
-        # needed). LATCHED on bt_adapt_split_first_trigger_step (see the
-        # matching role-override block above for why the live
-        # adapt_split_pressure signal flickers too much to rely on) --
-        # once split play is proven this episode, 1:1 marking holds for the
-        # rest of it, including through a later escort-formation return
-        # trip (this is a real behavior change from "falls away on its
-        # own": the dev/held-out screen below is what actually decides
-        # whether that costs ESCORT's separately-confirmed vulnerability).
+        # OP12 Stage-3 REDESIGN (round 2, 2026-07-28) -- TRIED AND REVERTED.
+        # Root cause diagnosed via experiments/diagnose_op12_vs_turtle.py plus
+        # a carrier-tag follow-up trace: of 10 "red tagged while carrying"
+        # failures across 8 episodes, the largest single bucket (3/10) was
+        # ESCORT correctly assigned to protect the carrier yet still failing
+        # to prevent the tag, because the base ESCORT route
+        # (_bt_route_target's "interpose" branch) targets the midpoint
+        # between the carrier and only the SINGLE nearest blue agent, while
+        # TURTLE's defense is an explicit two-agent pincer. Tried: an
+        # OP12-only override targeting the midpoint between the carrier and
+        # the CENTROID of both blue agents at a tighter 30% blend. Isolated
+        # 8-seed screen (base_seed 556001, artifacts/
+        # op12_stage3c_escort_geometry_dev1_8seed) showed this made things
+        # WORSE, not better -- BLUE_TURTLE margin +0.625 -> +0.750 (WR
+        # 4/8 -> 5/8) and BLUE_ESCORT -2.000 -> -2.375 -- while RUSH/SPLIT
+        # stayed bit-identical. Averaging toward both blue agents' centroid
+        # apparently dilutes the escort's positioning against the CLOSER,
+        # more immediate threat without adding real coverage against the
+        # farther one, net negative. REVERTED (this block intentionally left
+        # as a no-op / removed rather than kept enabled) -- see
+        # docs/research-progress-tracker.md for the full three-attempt
+        # write-up and the resulting decision to close OP12 as a failed
+        # RUSH-niche candidate per the hard two-round budget.
+
+        # OP11 split-lane isolation route (post-dev4 revision, 2026-07-28):
+        # Dev4 tried geometric 1:1 + predictive approach cutoff + dual
+        # carrier denial with threshold=1. That FAILED the ESCORT niche:
+        # SPLIT rose +1.25→+2.75 and ESCORT collapsed +0.50→-1.125 even
+        # though ESCORT's latch rate stayed 0/8 (so the damage was not a
+        # simple false-latch of ESCORT). Reverted to the proven selective
+        # latch (threshold=2) plus index 1:1 chase. The remaining ESCORT-
+        # niche work is a SEPARATE, isolated post-pickup dual-deny that
+        # must be measured against this restored baseline before any
+        # further pre-pickup route changes.
         op11_split_isolate = is_op11 & (self.bt_adapt_split_first_trigger_step >= 0)
         if op11_split_isolate.any() and self.Nb >= 2:
             for j in range(min(Nr, self.Nb)):

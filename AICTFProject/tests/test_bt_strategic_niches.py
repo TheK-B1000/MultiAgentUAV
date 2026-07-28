@@ -135,7 +135,7 @@ class OpponentAliasDisciplineTests(unittest.TestCase):
         self.assertFalse(profile_for_level(6).enable_escort)
         self.assertTrue(profile_for_level(6).enable_counter)
         self.assertTrue(profile_for_level(6).counter_always)
-        self.assertEqual(profile_for_level(6).min_alive_for_defender, 3)
+        self.assertEqual(profile_for_level(6).min_alive_for_defender, 2)
         self.assertGreaterEqual(profile_for_level(6).lock_attacker, 20)
         self.assertLessEqual(profile_for_level(6).threat_radius, 2.5)
         self.assertLessEqual(profile_for_level(6).lane_amplitude_frac, 0.10)

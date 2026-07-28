@@ -237,6 +237,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
         # ── Enemy intruders on own half ──────────────────────────────────
         enemy_on_own = self.blue_alive & (self.blue_x > midline)
         any_intruder = enemy_on_own.any(dim=1)
+        intruder_count = enemy_on_own.sum(dim=1)
 
         # ── Time / score context ─────────────────────────────────────────
         time_frac = (self.step_count.float() / max(1, self.max_steps)).clamp(0.0, 1.0)
@@ -269,6 +270,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
             intercept_feasible_per_agent=intercept_feasible_per_agent,
             enemy_on_own=enemy_on_own,
             any_intruder=any_intruder,
+            intruder_count=intruder_count,
             time_frac=time_frac,
             late_game=late_game,
             trailing=trailing,
@@ -341,7 +343,18 @@ class _BTRedMixin(_BTAdaptiveMixin):
                 can_change[:, j] = can_change[:, j] & (~assign)
 
         # ── Priority 2: escort own carrier ───────────────────────────────
-        have_carrier = bb["red_carry_any"] & prof["enable_escort"]
+        # OP12 stage-1 RUSH window (2026-07-28): during op12_opening, both
+        # agents are forced ATTACKER above, but this priority previously
+        # applied regardless of phase -- meaning if either OP12 agent grabbed
+        # blue's flag during the opening, the OTHER instantly became its
+        # ESCORT (protected return trip), an efficient attacker+escort combo
+        # with no analogous protection for blue's RUSH. Gating this on
+        # late_or_not_op12 (same time-based, opponent-agnostic signal already
+        # used for FLAG_RETR/INTERCEPTOR above -- not the blue style ID)
+        # leaves OP12's own opening carrier unescorted, so a real early
+        # window exists for RUSH to exploit rather than one immediately
+        # closed by OP12's own coordinated conversion.
+        have_carrier = bb["red_carry_any"] & prof["enable_escort"] & late_or_not_op12
         if have_carrier.any():
             rc_idx = bb["red_carrier_idx"].clamp(min=0)
             carr_x = self.red_x[idx_env, rc_idx]
@@ -416,17 +429,29 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         # ── Priority 5: defender ─────────────────────────────────────────
         # Assign one agent to defend when intruders exist and enough agents alive.
+        # OP6 dual-invasion full recall (2026-07-28): peel-ONE (dev14) softened
+        # dual-rush scoring and made SPLIT *stronger* (+0.50 → +2.00). Peel BOTH
+        # eligible agents when >=2 blues are on red's half so SPLIT's two-lane
+        # invasion is contested in force, while a lone TURTLE counterattacker
+        # (intruder_count < 2) still faces the full dual rush.
+        op6_mask = prof["bt_level"] == 6
+        def_intrusion = torch.where(
+            op6_mask,
+            bb["intruder_count"] >= 2,
+            bb["any_intruder"],
+        )
         need_def = (
             prof["enable_defender"]
-            & bb["any_intruder"]
+            & def_intrusion
             & late_or_not_op12
             & (bb["alive_count"] >= prof["min_alive_for_defender"])
         )
         if need_def.any():
-            # Pick agent closest to own flag.
             rfh_x = bb["red_flag_home"][:, 0:1]
             rfh_y = bb["red_flag_home"][:, 1:2]
             home_dist = torch.sqrt((self.red_x - rfh_x) ** 2 + (self.red_y - rfh_y) ** 2 + 1e-8)
+            # Non-OP6: one defender (closest to own flag). OP6 dual-invasion:
+            # every eligible agent recalls to DEFENDER.
             home_dist_m = torch.where(
                 can_change & need_def[:, None],
                 home_dist, home_dist.new_full((), 1e9).expand_as(home_dist)
@@ -434,7 +459,9 @@ class _BTRedMixin(_BTAdaptiveMixin):
             def_agent = torch.argmin(home_dist_m, dim=1)
             for j in range(Nr):
                 is_j = (def_agent == j)
-                assign = need_def & is_j & can_change[:, j]
+                assign_one = need_def & is_j & can_change[:, j]
+                assign_all = need_def & op6_mask & can_change[:, j]
+                assign = assign_all | assign_one
                 roles[:, j] = torch.where(assign, torch.full((B,), ROLE_DEFENDER, dtype=torch.int32, device=device), roles[:, j])
                 lock[:, j]  = torch.where(assign, prof["lock_defender"], lock[:, j])
                 can_change[:, j] = can_change[:, j] & (~assign)

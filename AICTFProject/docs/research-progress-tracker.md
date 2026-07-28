@@ -596,6 +596,31 @@ than OP7/OP8: 16/16 WR vs their 8/16 and 15/16); style identity PASS (SPLIT's
 existing signatures were not touched -- no controller change was made or
 needed); runtime behavior FROZEN. Do not tune OP9 further.
 
+**OP9 BLUE_PROBES_V2 reconfirm (2026-07-28):** after RUSH/ESCORT controller
+freeze, re-ran untouched held-out on fresh paired seeds
+`artifacts/op9_split_heldout16_blue_probes_v2_seed521001` (base-seed 521001,
+disjoint from 511001; protocol tagged `BLUE_PROBES_V2`).
+
+```text
+BLUE_SPLIT   WR=16/16  mean_margin=+2.8125
+BLUE_ESCORT  WR=4/16   mean_margin=+0.1250
+BLUE_RUSH    WR=0/16   mean_margin= 0.0000
+BLUE_TURTLE  WR=0/16   mean_margin=-0.1875
+```
+
+Paired SPLIT advantages (bootstrap 95% CI, all clear):
+
+```text
+SPLIT - ESCORT  mean +2.6875, CI [ +2.2500, +3.0625 ]
+SPLIT - RUSH    mean +2.8125, CI [ +2.6250, +3.0000 ]
+SPLIT - TURTLE  mean +3.0000, CI [ +2.6875, +3.3125 ]
+pooled vs best-other mean +2.5625, CI [ +2.1875, +2.8750 ]
+```
+
+Verdict: **RECONFIRM_PASS** (`reconfirm_verdict.json`). OP9 remains the
+canonical SPLIT niche under BLUE_PROBES_V2. Single-column `delta_pool` is
+still zero by definition; this does not claim pool-level crossover.
+
 **Cross-opponent concern, now with three data points instead of two:** OP7,
 OP8, and OP9 all currently share BLUE_SPLIT as their held-out-confirmed
 preferred response. Only OP6 (provisional, TURTLE, not yet fully accepted)
@@ -706,7 +731,7 @@ strategies are actually necessary**.
 
 ```text
 OP6  → TURTLE niche
-OP9  → SPLIT niche   (already strong; confirm after others freeze)
+OP9  → SPLIT niche   (**RECONFIRM_PASS** under BLUE_PROBES_V2, seed 521001)
 OP11 → ESCORT niche  (parallel session: make ESCORT uniquely best)
 OP12 → RUSH niche    (parallel session: make RUSH uniquely best)
 ```
@@ -4965,6 +4990,372 @@ not touch the detector or replace roles; it should inspect the ESCORT seeds
 where route-only ON still improved (`episode_index` 2, 3, 6) and identify
 whether the carrier-lane bias delays red scoring, moves the interceptor to a
 worse intercept point, or creates extra flag-retrieval churn.
+
+OP12 dev26 trace diagnosis: `artifacts/op12_dev26_route_only_response_trace_escort_ep2_ep3_ep6`
+paired OFF/ON traces (`experiments/trace_op12_response_ablation.py`,
+base_seed=556001) for episodes 2, 3, 6. Confirmation step was IDENTICAL
+between OFF/ON in all three (24, 23, 23) -- the detector's timing was never
+the issue. The divergence was episode LENGTH: OFF closed out in 97/149/179
+steps; ON ran to the 240-step cap (ep2, ep3) or nearly (ep6, 194). Per-step
+inspection of episode 2 showed red0/red1 roles and distances IDENTICAL to
+OFF through step ~40 (while the escort-denial-route modifier briefly applied
+to whichever agent held ROLE_INTERCEPTOR), then diverging sharply once that
+agent's role switched to ROLE_COUNTER: OFF's counter agent stayed within
+4-8 units of the carrier and red scored a second point by step 80; ON's
+counter agent drifted to 12-16 units away and red's score stayed stuck at 1
+for the rest of the episode. Diagnosis: the unconditional carrier-lane route
+was not making ESCORT survive better -- it left the modified agent in a
+worse position for its OWN later counter-scoring duty, a small early
+perturbation cascading into red's second scoring pass never landing. This
+matches "red scoring is delayed" from the diagnostic decision tree, not "ON
+approaches the carrier late/from behind."
+
+OP12 ETA-gated interception fix (one revision, per the diagnostic decision
+tree -- detector, roles, and INTERCEPTOR+COUNTER structure untouched): the
+carrier-lane route (`escort_bx/escort_by`) is now only taken when its
+Euclidean distance from the agent's current position is <= the default
+intercept point's distance, so the specialized response can never replace an
+already-superior default path.
+
+`artifacts/op12_dev27_eta_gated_trace_escort_ep2_ep3_ep6` re-ran the same
+three traced episodes: ep2 and ep6 fully resolved (`delta_margin=0`, ON
+episode length now matches OFF almost exactly: 99 vs 97, 180 vs 179); ep3
+still shows a residual effect (`delta_margin=1`, ON still runs to the 240
+step cap). Not chased further per the "at most one route revision" guidance.
+
+`artifacts/op12_dev28_eta_gated_response_on_8seed` reran the full 8-seed
+response-ON development ablation with the fix:
+
+```text
+            response OFF   ETA-gated ON   delta
+BLUE_ESCORT       -2.125         -1.875   +0.250 (was +0.375 pre-fix)
+BLUE_RUSH         -0.750         -0.500   +0.250
+BLUE_SPLIT         1.250          1.250    0.000 (untouched, as required)
+BLUE_TURTLE        0.875          0.750   -0.125
+```
+
+Verdict: real, partial improvement (ESCORT's gap to the OFF baseline shrank
+~33%; RUSH and TURTLE both moved in the desired direction as side effects;
+SPLIT confirmed untouched). Still not a RUSH niche and not promoted to
+held-out confirmation. Per the "larger reality check": ESCORT was already
+the weakest response against OP12 before this fix, so further anti-ESCORT
+tuning is not the lever most likely to produce a RUSH niche. The main
+blockers remain SPLIT (+1.250, unchanged since dev6) and TURTLE (+0.750).
+Prior SPLIT-suppression history (dev1/4/5/6/8, all pre-2026-07-27): dev5's
+detector is cleanly selective (SPLIT 8/8, others 0/8 trigger rate) but dev6's
+post-pickup dual-carrier-denial response only moved SPLIT from +1.375 to
++1.000 (DIRECTIONAL_BUT_INSUFFICIENT); dev8's broader pre-pickup opening
+gate created an early RUSH window but overcorrected, pushing SPLIT/ESCORT to
++1.500 and TURTLE to +1.250. Next OP12 SPLIT work should not repeat either
+of those exact approaches unchanged.
+
+OP12 dev26 root-cause inspection (episodes 2, 3, 6):
+`artifacts/op12_dev26_route_only_response_trace_escort_ep2_ep3_ep6` per-step
+traces (already collected) were read directly rather than re-run. Consistent
+pattern across all three episodes, not just one:
+
+```text
+episode  OFF: red_score reaches  ON: red_score reaches  OFF steps  ON steps
+2        3 (by step 97)          1 (never converts a 2nd/3rd)  97   240
+3        3 (by step 149)         2 (2nd score same step as OFF; no 3rd)  149  240
+6        3 (by step 179)         2 (2nd score DELAYED 142->153; no 3rd)  179  194/240
+```
+
+`blue_score` stays 0 in every OFF trace and in 2 of 3 ON traces (ep6/ON is the
+lone exception, blue_score=1). The margin "improvement" is not from ESCORT
+being denied more captures -- it is from OP12's OWN counter-role scoring
+converting less often and later. Role-occupancy counts make the mechanism
+visible: in ep2, OFF has red0 mostly COUNTER (52/97 steps) and red1 mostly
+INTERCEPTOR (36/97); ON has this almost fully reversed (red0 INTERCEPTOR
+190/240, red1 COUNTER 195/240), yet the COUNTER role -- despite occupying it
+for far MORE total steps in ON -- converts fewer scores, more slowly. The
+route-only response (`escort_denial_route`, gated on `blue_carry_any` +
+confirmed_escort, biasing the INTERCEPTOR's target to
+`ec + (home-ec)*0.35`) never touches role ASSIGNMENT directly (that bug was
+already fixed going from dev22 to dev24), but moving the INTERCEPTOR's
+position appears to perturb the generic utility-based role-assignment on
+SUBSEQUENT steps enough to flip which agent ends up COUNTER vs INTERCEPTOR,
+and the resulting role churn/reassignment is what delays red's own scoring --
+an indirect, emergent side effect of the position change, not a designed
+denial mechanism.
+
+Decision: **REJECT this response mechanism** rather than continue tuning it.
+It does not create a genuine ESCORT-specific weakness; it accidentally
+degrades OP12's own counter-attack conversion whenever the ESCORT detector
+fires, which is not a legitimate niche (a real denial mechanism should show
+up as ESCORT's specific captures being stopped, not as red's own unrelated
+scoring machinery breaking). `op12_confirmed_escort_response_enabled`
+defaults to False already (dev25/26 were explicit opt-in ablations for
+diagnosis only), so no code change is needed to "turn this off" -- the
+decision is simply to not promote it, and not spend further iterations
+tuning ESCORT denial for OP12. Per the standing OP12 contract, the higher-
+leverage remaining work is suppressing SPLIT (+1.250) and TURTLE (+0.875)
+while preserving RUSH's early window -- and RUSH currently sits at -0.750,
+i.e. blue's WORST-performing style against unchanged OP12, the opposite of
+the intended "RUSH exploits an early vulnerability" niche. That inversion
+(RUSH should be blue's BEST response, not its worst) is the real next
+problem, larger in scope than the ESCORT-response question just closed here.
+
+## OP12 RUSH-niche redesign (locked contract, 2026-07-28)
+
+Redesign OP12 around its identity as a late converter: vulnerable to
+immediate concentrated pressure (RUSH), dangerous against slow play
+(punishes TURTLE via late conversion), able to punish sustained split
+pressure (SPLIT), ESCORT already weak (no extra response). The accepted
+ESCORT detector stays as telemetry only; its hard response (`dev24-26`,
+rejected above) stays permanently off. Three isolated stages, tested
+independently before combining. Hard budget: at most two complete
+three-stage redesign rounds; if RUSH is not uniquely best after both, close
+OP12 as a failed RUSH-niche candidate and reassign the niche elsewhere.
+
+**Round 1, Stage 1 -- early RUSH window (2026-07-28):**
+`artifacts/op12_stage1_rush_window_dev1_8seed`, 8 paired seeds (base_seed
+556001, same seeds as the dev22/dev25 baseline for direct comparability),
+unchanged blue controllers, all four BLUE_PROBES_V2 styles.
+
+Root cause identified before changing anything: `_bt_assign_roles`'s
+existing `op12_opening` window (first 20 sim steps, unless split pressure
+already active) already forces BOTH OP12 agents into ROLE_ATTACKER and
+already suppresses FLAG_RETR/INTERCEPTOR via `late_or_not_op12` -- but
+Priority 2 (ESCORT own carrier) was NOT gated by `late_or_not_op12`. Net
+effect: during the opening, both OP12 agents race for blue's flag, and the
+instant either grabs it, the other instantly becomes its escort -- an
+efficient, protected attacker+escort conversion with no analogous protection
+for blue's RUSH, which plausibly out-races RUSH before RUSH can do anything.
+This means the opening weakness the contract wants was not primarily about
+OP12 defending too well (defense was already mostly off in the opening) --
+it was about OP12's OWN offense converting too efficiently and uncontested.
+
+One isolated change: gate Priority 2's `have_carrier` on `late_or_not_op12`
+too (`gpu_env/_core/_bt_red.py`), using the same time-based,
+opponent-agnostic signal already used for FLAG_RETR/INTERCEPTOR -- not the
+blue style ID. During the opening, an OP12 carrier is now unescorted.
+
+```text
+                 baseline (dev22/25)   stage-1 ON   delta
+BLUE_RUSH             -0.750  (0/8)     -0.500 (3/8)   +0.250
+BLUE_SPLIT            +1.250  (8/8)     +1.250 (8/8)    0.000
+BLUE_TURTLE           +0.875  (?/8)     +0.625 (4/8)   -0.250
+BLUE_ESCORT           -2.125  (0/8)     -2.000 (0/8)   +0.125
+```
+
+Isolation criterion met: RUSH improved meaningfully (WR 0/8 -> 3/8) while
+SPLIT stayed bit-identical (+1.250, 8/8 both before and after) -- confirms
+the change is scoped to the opening-carrier-escort mechanism and does not
+touch SPLIT's own path to conversion. TURTLE softened somewhat (side effect,
+not part of this stage's target, acceptable per the isolated-test contract
+which only requires RUSH-vs-SPLIT independence). ESCORT essentially
+unchanged (still OP12's worst matchup for blue, as intended -- "ESCORT
+already weak, no extra response needed").
+
+RUSH is still far from uniquely best (SPLIT still leads by 1.75). Stage 1
+alone was never expected to fully solve this; Stages 2 (punish SPLIT) and 3
+(punish TURTLE via late conversion) still need to land before recombining
+and re-testing the full four-style matrix.
+
+**Round 1, Stage 2 -- bounded sustained-split response (2026-07-28):**
+`artifacts/op12_stage2_split_response_dev1_8seed`, same 8 paired seeds,
+Stage 1 code left in place (this measures Stage 2's own marginal effect on
+top of Stage 1, not Stage 2 in a vacuum).
+
+The pre-existing `split_denial`/`split_denial_route` mechanism (added before
+this session) already existed but had two problems relative to the locked
+contract: (1) it was gated on the live, single-step `adapt_split_pressure`
+flag, which resets to 0 on any one non-qualifying step -- the same flicker
+bug already diagnosed and fixed for OP11 earlier this session; and (2) it
+force-reassigned BOTH red agents to `ROLE_INTERCEPTOR` with no guard against
+overwriting whichever agent currently held `ROLE_COUNTER` -- exactly the
+"counter-role churn" failure mode the contract warned about (dev25/dev26
+showed perturbing OP12's own counter-attacking agent breaks its scoring
+cadence and reads as a fake "improvement" that's really self-sabotage).
+
+Fix (one isolated change, `gpu_env/_core/_bt_adaptive.py`): added a new
+bounded-duration state, `bt_adapt_split_response_expiry_step` -- every time
+the already-debounced `split_pressure_active` signal (requires several
+consecutive qualifying steps, the "persistence" requirement) re-fires, the
+expiry is pushed to `sim_step_count + 40`; the response decays 40 steps
+after the pattern stops instead of either latching forever (OP11's choice)
+or flickering (the bug). The role-override's per-agent assignment now
+explicitly skips any agent already `ROLE_COUNTER`
+(`assign = split_denial & eligible[:, j] & (out[:, j] != ROLE_COUNTER)`),
+and the `blue_carry_any` gate was dropped so the response can commit
+pre-pickup too (the base routing table already falls an
+INTERCEPTOR-without-a-carrier back to the same target logic as DEFENDER, so
+this reads as "prioritize defending the exposed lane" rather than
+whatever role -- often ATTACKER -- the agent held before). A new pre-pickup
+route branch targets whichever blue agent is farther from the field's
+lateral center (the actual split threat) instead of the generic "nearest
+intruder" fallback, which can pick the wrong (nearer) attacker during a
+two-lane approach.
+
+```text
+                 Stage-1-only        Stage-1+2       delta
+BLUE_RUSH             -0.500 (3/8)    -0.500 (3/8)    0.000
+BLUE_SPLIT            +1.250 (8/8)    +0.875 (6/8)   -0.375
+BLUE_TURTLE           +0.625 (4/8)    +0.625 (4/8)    0.000
+BLUE_ESCORT           -2.000 (0/8)    -2.000 (0/8)    0.000
+```
+
+Isolation criterion cleanly met: SPLIT dropped meaningfully (WR 8/8 -> 6/8,
+margin +1.250 -> +0.875) while RUSH, TURTLE, and ESCORT are bit-identical to
+the Stage-1-only numbers -- confirms the fix is scoped to sustained-split
+pressure and does not perturb anything else, and in particular does not
+regress Stage 1's RUSH improvement.
+
+**Round 1, Stage 3 -- late conversion vs TURTLE (2026-07-28): two
+hypotheses tried, both falsified by direct evidence, mechanism still
+unresolved.**
+
+*Attempt A (rejected):* hypothesized "little meaningful offensive pressure
+by a predeclared time" as blue never having touched red's flag
+(`bt_adapt_blue_first_touch_step < 0`) and never showing sustained split
+pressure, checked at step >=100, with the response being a route-only lane
+split of red's two ATTACKER agents (so OP12's own two attackers stop
+sharing one corridor -- `lane_y_pref` in `_bt_route_target` is built from
+`red_script_lane_sign`, a single per-EPISODE value, not per-agent, so both
+attackers travel the same lane and get pinch-tagged together by
+`_blue_turtle_targets`'s single-target defense). Result: **never fired**.
+`episode_results.csv` showed `time_to_first_score` of 48-95 steps in 6/8
+TURTLE episodes and `blue_score >= 1` in 6/8 -- TURTLE's counter-attack
+unlocks and converts well before step 100 in most games; TURTLE-vs-OP12 is
+a competitive back-and-forth, not a stalling standoff. The premise was
+wrong.
+
+*Attempt B (rejected):* re-pointed the trigger at OP12's own scoreboard
+instead of inferring blue behavior -- `red_score == 0` at step >=100 (fully
+legal, no opponent-behavior inference needed at all). Re-ran the identical
+screen: **still zero effect**, numbers bit-identical to Stage-1+2. Direct
+role trace (`trace_op12_turtle_roles.py`, episode_seed=556001, the episode
+where `red_score` stayed 0 for the full 240 steps) showed why: after the
+step-20 opening, red's two agents are **never simultaneously
+`ROLE_ATTACKER` again** -- by step 40 one is already `ROLE_COUNTER`, and by
+step 95-105 (squarely inside the trigger window, `red_score` still 0) both
+are `ROLE_COUNTER`. `ROLE_COUNTER`'s own base route already uses the
+*opposite*-signed lane offset from `ROLE_ATTACKER` (`alt_lane_y = lane_mid -
+red_script_lane_sign * lane_amp` vs `lane_mid + ... `), so once roles
+diverge, they are already on separate lanes without any adaptive help --
+the lane-split fix had nothing left to do. Despite that natural lane
+separation, OP12's first score didn't land until ~t110, and the game
+continued grinding (blue's own first score around t~200) -- the real
+bottleneck is somewhere other than shared-lane pinching, and is not yet
+identified.
+
+Given two mechanistic hypotheses formed from reading the BT code have both
+been falsified by direct trace evidence, further guessing at the TURTLE
+mechanism without a dedicated diagnostic pass (in the style of the OP7/8/9
+work, not a code-reading guess) is not a good use of the remaining budget.
+**Stage 3 is parked, unresolved, pending either a real diagnostic pass or
+user direction.** (Superseded below -- the inert attempt-B code was later
+removed rather than left in place once Round 2's diagnostic pass replaced
+it with a real, tested mechanism.)
+
+**Round 1 status after Stages 1-3:**
+
+```text
+             BLUE_RUSH   BLUE_TURTLE   BLUE_SPLIT   BLUE_ESCORT
+Round 1        -0.500       +0.625       +0.875       -2.000
+baseline       -0.750       +0.875       +1.250       -2.125
+```
+
+RUSH improved (+0.250) and SPLIT was punished (-0.375), both isolated and
+validated. TURTLE is unresolved (only the incidental -0.250 from Stage 1's
+side effect, not a real punish mechanism). **RUSH is still not uniquely
+best** -- SPLIT still leads RUSH by 1.375, the dominating-blue-style gate
+still fails. Round 1 is not yet a pass. One round remains under the hard
+budget before OP12 must be closed as a failed RUSH-niche candidate per the
+locked contract.
+
+**Round 2 -- dedicated TURTLE diagnostic, then a third (also failed)
+mechanism (2026-07-28):**
+
+Per explicit user direction, spent Round 2 on a real trace/event diagnostic
+instead of a third code-reading guess. Two new scripts:
+`experiments/diagnose_op12_vs_turtle.py` (event stream of every red TAG /
+PICKUP / SCORE across the 8 dev seeds) and a carrier-tag follow-up trace
+(scratchpad-only, checked whether each "tagged while carrying" failure was
+a dual-carry priority conflict and what role the other red agent held).
+
+Findings across the 8 episodes: 27 pickups, 16 red scores, 10 "red tagged
+while carrying" (wasted pickup) events. Breaking those 10 down by cause:
+
+```text
+2  Stage-1's already-accepted early-window cost (other agent role=ATTACKER,
+   t<=20 -- the known, accepted trade the RUSH-window fix made)
+2  dual-carry structural conflict (blue ALSO carrying red's flag at that
+   instant -> Priority-1 FLAG_RETR correctly preempts Priority-2 ESCORT;
+   only 2 agents, cannot do both at once -- not fixable without making
+   something else worse)
+2  FLAG_RETR lock lingering briefly past its trigger condition
+3  ESCORT correctly assigned to protect the carrier, but still failed to
+   prevent the tag  <- largest single bucket
+1  unattributed / episode ended mid-carry
+```
+
+The 3-case bucket pointed at a real, well-grounded mechanism: the shared
+base ESCORT route (`_bt_route_target`'s "interpose" branch, used by every
+opponent with `enable_escort`) targets the midpoint between the carrier and
+only the SINGLE *nearest* blue agent
+(`near_threat_idx = argmin` over both blue agents). TURTLE's own defense is
+an explicit two-agent pincer (`_blue_turtle_targets`: both patrol targets
+converge on the same red agent from offset angles) -- an escort that only
+accounts for the nearer blue agent is structurally blind to the second one
+closing from the other side.
+
+**Attempt C (tried, then reverted):** an OP12-only adaptive-layer route
+override (never touching the shared base logic other opponents rely on):
+while escorting a carrier, target the midpoint between the carrier and the
+*centroid* of both blue agents, pulled to a tighter 30% blend (vs the base
+branch's fixed 50%). Isolated 8-seed screen
+(`artifacts/op12_stage3c_escort_geometry_dev1_8seed`, same base_seed
+556001, Stage 1+2 code left in place):
+
+```text
+                 Stage-1+2      Stage-1+2+3c(ESCORT-geom)   delta
+BLUE_RUSH             -0.500 (3/8)   -0.500 (3/8)            0.000
+BLUE_SPLIT            +0.875 (6/8)   +0.875 (6/8)            0.000
+BLUE_TURTLE           +0.625 (4/8)   +0.750 (5/8)           +0.125  (worse)
+BLUE_ESCORT           -2.000 (0/8)   -2.375 (0/8)           -0.125  (worse)
+```
+
+RUSH and SPLIT stayed bit-identical (clean isolation from that angle), but
+TURTLE moved the WRONG direction (better for blue, not worse) and ESCORT
+also regressed. Averaging the escort's aim-point toward both blue agents'
+centroid apparently dilutes its positioning against the closer, more
+immediate threat without adding real coverage against the farther one --
+net negative, not neutral. **Reverted** (`gpu_env/_core/_bt_adaptive.py`);
+confirmed the revert exactly reproduces the Stage-1+2 numbers
+(`artifacts/op12_stage3_reverted_confirm_8seed`, bit-identical to the
+Stage-1+2 row above). The dead attempt-B late-conversion code (from Round
+1, already confirmed inert) was removed at the same time rather than kept
+as unused dead code.
+
+**Round 2 conclusion: three independent Stage-3 mechanisms attempted
+(blue-passivity gate, shared-attacker-lane split, ESCORT-centroid
+geometry), diagnosed via both code-reading and dedicated event-trace
+evidence. Two never fired; the third fired and made TURTLE and ESCORT
+worse. No working TURTLE-punish mechanism was found.** Both rounds of the
+hard budget are now spent. Final state (Stage 1 + Stage 2 only, Stage 3
+absent):
+
+```text
+             BLUE_RUSH   BLUE_TURTLE   BLUE_SPLIT   BLUE_ESCORT
+Final          -0.500       +0.625       +0.875       -2.000
+baseline       -0.750       +0.875       +1.250       -2.125
+```
+
+RUSH improved (+0.250, still negative) and SPLIT was punished (+1.250 ->
++0.875), both real and isolated. TURTLE and ESCORT are unchanged from
+Round 1's incidental Stage-1 side effects. SPLIT still dominates
+(distinct best responses: 1/1, `DOMINATING blue style: BLUE_SPLIT`); RUSH
+is not uniquely best; `POOL ADMISSIBLE: False`.
+
+**Decision: per the locked contract's hard stopping rule, close OP12 as a
+failed RUSH-niche candidate.** Stage 1 (early RUSH window) and Stage 2
+(bounded sustained-split response) are real, validated improvements and
+should be kept -- they make OP12 a better-calibrated opponent regardless of
+whether it ends up carrying the RUSH niche. The RUSH niche itself needs a
+different opponent; that opponent choice and any further OP6/OP7-OP10
+re-validation is open, pending user direction.
 
 ---
 

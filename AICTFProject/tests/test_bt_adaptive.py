@@ -440,6 +440,83 @@ class BTAdaptiveProfileTests(unittest.TestCase):
         finally:
             env.close()
 
+    def test_op11_split_latch_triggers_after_two_qualifying_steps(self) -> None:
+        core, env = _core("OP11")
+        try:
+            prof = build_profile_tensors(
+                ["OP11_ADAPTIVE_EXPLOITER"],
+                device=core.device,
+                batch_size=1,
+            )
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 3.0
+            core.blue_x[0, 1] = midline + 4.0
+            core.blue_y[0, 0] = center_y - float(core.rows) * 0.35
+            core.blue_y[0, 1] = center_y + float(core.rows) * 0.35
+
+            _advance_adaptive_memory(core, prof, 1)
+            self.assertEqual(int(core.bt_adapt_split_pressure_ticks[0].item()), 1)
+            self.assertEqual(int(core.bt_adapt_split_first_trigger_step[0].item()), -1)
+
+            _advance_adaptive_memory(core, prof, 1)
+            self.assertEqual(int(core.bt_adapt_split_pressure_ticks[0].item()), 2)
+            # Helper resets sim_step_count to 0 on each call's first iteration.
+            self.assertEqual(int(core.bt_adapt_split_first_trigger_step[0].item()), 0)
+        finally:
+            env.close()
+
+    def test_op11_split_isolate_does_not_latch_on_clustered_escort(self) -> None:
+        core, env = _core("OP11")
+        try:
+            prof = build_profile_tensors(
+                ["OP11_ADAPTIVE_EXPLOITER"],
+                device=core.device,
+                batch_size=1,
+            )
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            core.blue_x[0, 0] = midline + 4.0
+            core.blue_x[0, 1] = midline + 4.2
+            core.blue_y[0, 0] = center_y + 0.2
+            core.blue_y[0, 1] = center_y - 0.1
+
+            _advance_adaptive_memory(core, prof, 6)
+
+            self.assertEqual(int(core.bt_adapt_split_pressure_ticks[0].item()), 0)
+            self.assertEqual(int(core.bt_adapt_split_first_trigger_step[0].item()), -1)
+        finally:
+            env.close()
+
+    def test_op11_split_isolate_index_marks_after_latch(self) -> None:
+        core, env = _core("OP11")
+        try:
+            midline = float(core.cols) * 0.5
+            center_y = float(core.rows) * 0.5
+            # Force the latch without waiting on live geometry.
+            core.bt_adapt_split_first_trigger_step[0] = 0
+            core.blue_carrying[0, 0] = False
+            core.blue_x[0, 0] = 14.0
+            core.blue_y[0, 0] = center_y - 4.0
+            core.blue_x[0, 1] = 12.0
+            core.blue_y[0, 1] = center_y + 4.0
+            core.red_x[0, 0] = 18.0
+            core.red_y[0, 0] = center_y - 3.0
+            core.red_x[0, 1] = 18.0
+            core.red_y[0, 1] = center_y + 3.0
+            core.sim_step_count[0] = 30
+            core.bt_role_lock_ticks[0] = 0
+
+            tx, ty = core._get_bt_targets()
+            self.assertTrue((core.bt_red_role[0] == ROLE_INTERCEPTOR).all().item())
+            # Index 1:1 chase: red[j] tracks blue[j]'s current position.
+            self.assertAlmostEqual(float(tx[0, 0].item()), 14.0, delta=0.5)
+            self.assertAlmostEqual(float(ty[0, 0].item()), center_y - 4.0, delta=0.5)
+            self.assertAlmostEqual(float(tx[0, 1].item()), 12.0, delta=0.5)
+            self.assertAlmostEqual(float(ty[0, 1].item()), center_y + 4.0, delta=0.5)
+        finally:
+            env.close()
+
 
 if __name__ == "__main__":
     unittest.main()

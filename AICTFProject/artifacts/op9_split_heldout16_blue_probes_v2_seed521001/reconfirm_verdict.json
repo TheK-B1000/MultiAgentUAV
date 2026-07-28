@@ -1,0 +1,63 @@
+{
+  "verdict": "RECONFIRM_PASS",
+  "protocol": "BLUE_PROBES_V2",
+  "base_seed": 521001,
+  "prior_heldout_seed": 511001,
+  "n_episodes": 16,
+  "means": {
+    "BLUE_ESCORT": 0.125,
+    "BLUE_RUSH": 0.0,
+    "BLUE_SPLIT": 2.8125,
+    "BLUE_TURTLE": -0.1875
+  },
+  "win_rates": {
+    "BLUE_ESCORT": 0.25,
+    "BLUE_RUSH": 0.0,
+    "BLUE_SPLIT": 1.0,
+    "BLUE_TURTLE": 0.0
+  },
+  "uniquely_best": "BLUE_SPLIT",
+  "paired_split_advantages": {
+    "BLUE_ESCORT": {
+      "mean": 2.6875,
+      "ci95": [
+        2.25,
+        3.0625
+      ],
+      "clear": true,
+      "pos": 16,
+      "neg": 0,
+      "zero": 0
+    },
+    "BLUE_RUSH": {
+      "mean": 2.8125,
+      "ci95": [
+        2.625,
+        3.0
+      ],
+      "clear": true,
+      "pos": 16,
+      "neg": 0,
+      "zero": 0
+    },
+    "BLUE_TURTLE": {
+      "mean": 3.0,
+      "ci95": [
+        2.6875,
+        3.3125
+      ],
+      "clear": true,
+      "pos": 16,
+      "neg": 0,
+      "zero": 0
+    }
+  },
+  "pooled_vs_best_other": {
+    "mean": 2.5625,
+    "ci95": [
+      2.1875,
+      2.875
+    ],
+    "clear": true
+  }
+}

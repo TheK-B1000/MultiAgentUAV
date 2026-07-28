@@ -173,8 +173,10 @@ BT_PROFILES: Dict[int, BTProfile] = {
         intercept_feasibility_ratio=0.85,
     ),
     # OP6_TURTLE - Immediate dual rush (historical tag; identity = dual rush).
-    # Matchup contract: punish exposed blue home flags, but leave red rear
-    # defense thin enough that a disciplined turtle/intercept counter can matter.
+    # Matchup contract: punish exposed blue home flags; on dual blue invasion
+    # both reds recall to DEFENDER (see _bt_assign_roles) so SPLIT cannot
+    # freely score on an empty red base, while a single TURTLE counterattacker
+    # still faces the dual rush with no peel.
     6: _profile(
         6,
         "OP6_IMMEDIATE_DUAL_RUSH",
@@ -186,10 +188,12 @@ BT_PROFILES: Dict[int, BTProfile] = {
         enable_defender=True,
         enable_2v1=False,
         enable_mines=False,
-        min_alive_for_defender=3,
+        # Was 3 (impossible with Nr=2 → never defended). Dual-invasion gate in
+        # _bt_assign_roles keeps single-intruder counters from peeling.
+        min_alive_for_defender=2,
         lock_attacker=24,
         lock_intercept=18,
-        lock_defender=4,
+        lock_defender=16,
         lock_counter=24,
         lock_flag_retr=5,
         defender_zone_frac=0.35,
