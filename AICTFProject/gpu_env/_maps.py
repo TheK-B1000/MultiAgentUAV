@@ -5,6 +5,7 @@ from typing import Tuple
 MAP_A_OPEN = "map_a_open"
 MAP_B_SPLIT_LANE = "map_b_split_lane"
 MAP_B_SPLIT_LANE_V2 = "map_b_split_lane_v2"
+MAP_C_HOME_CORRIDOR = "map_c_home_corridor"
 
 MAP_LAYOUT_ALIASES = {
     "a": MAP_A_OPEN,
@@ -22,6 +23,10 @@ MAP_LAYOUT_ALIASES = {
     "split_lane_task_pressure": MAP_B_SPLIT_LANE_V2,
     "map_b_v2": MAP_B_SPLIT_LANE_V2,
     "map_b_split_lane_v2": MAP_B_SPLIT_LANE_V2,
+    "c": MAP_C_HOME_CORRIDOR,
+    "home_corridor": MAP_C_HOME_CORRIDOR,
+    "map_c": MAP_C_HOME_CORRIDOR,
+    "map_c_home_corridor": MAP_C_HOME_CORRIDOR,
 }
 
 MAP_LAYOUTS = tuple(sorted(set(MAP_LAYOUT_ALIASES.values())))
@@ -68,8 +73,36 @@ def split_lane_v2_rect_norm(*, mirror_y: bool = False) -> Tuple[float, float, fl
     )
 
 
+def home_corridor_rect_norm(*, mirror_y: bool = False) -> Tuple[float, float, float, float]:
+    """Wall positioned near BLUE's home (not centered like Map B) -- creates
+    a chokepoint on blue's flag-return leg. Intended affordances (per the
+    locked K=4 map-design contract, 2026-07-29):
+      - ESCORT: an unescorted blue carrier funnels through this corridor on
+        the way home and is exposed to a waiting red interceptor there; a
+        nearby teammate can block/redirect that interceptor.
+      - TURTLE: a stationary blue defender anchored at the corridor can
+        block red's approach to blue's home through the same narrow gap,
+        which an open, undefended home (map_a-style) does not offer.
+    Reuses the same rectangular-wall/corner-routing mechanism as Map B
+    (``_MapStateMixin``); only the position and width differ. Blue's flag
+    home sits at x=2 in a 20-wide field (~0.10 normalized) -- this band
+    starts just past it, on the corridor blue's carrier must cross.
+    """
+    return split_lane_rect_norm(
+        x_min=0.15,
+        x_max=0.22,
+        y_min=0.28,
+        y_max=0.70,
+        mirror_y=mirror_y,
+    )
+
+
 def is_split_lane_layout(value: str) -> bool:
-    return normalize_map_layout(value) in {MAP_B_SPLIT_LANE, MAP_B_SPLIT_LANE_V2}
+    return normalize_map_layout(value) in {
+        MAP_B_SPLIT_LANE,
+        MAP_B_SPLIT_LANE_V2,
+        MAP_C_HOME_CORRIDOR,
+    }
 
 
 def norm_rect_to_cells(
@@ -88,7 +121,9 @@ __all__ = [
     "MAP_A_OPEN",
     "MAP_B_SPLIT_LANE",
     "MAP_B_SPLIT_LANE_V2",
+    "MAP_C_HOME_CORRIDOR",
     "MAP_LAYOUTS",
+    "home_corridor_rect_norm",
     "is_split_lane_layout",
     "normalize_map_layout",
     "norm_rect_to_cells",

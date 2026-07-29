@@ -408,8 +408,257 @@ not the RUSH lever. Next needs a fresh RUSH-return instrument (does extract
 even arm at pickup when both blues are at the flag?) before more route tweaks.
 Do not run payoff matrix yet.
 
-Do not buff BLUE_TURTLE / change OP9. Do not held-out until a unique
-best-response niche clears paired gates.
+**dev33 extraction activation (RUSH-only, map_a, 8 seeds):**
+`artifacts/op6_extraction_activation_dev33_rush_map_a`. Extraction is **alive**,
+not asleep.
+
+```text
+armed_any_frac:              1.00
+armed_at_pickup_frac:        0.00  (1-step BT-before-pickup lag)
+never_armed_frac:            0.00
+mean pickup→arm delay:       ~1.04
+blue_home_anchor block:      1/24 pickups
+both blues on return path:   24/24
+true failed returns:         1.0 / ep  (offense script overcounts by ~1/score)
+fail classes:                C=6/8, D=2/8, A=B=E=0
+mean fail carry duration:    ~16 steps (not immediate death)
+```
+
+Decision-tree verdict: **C — targets wrong blue** (dual on-path threat; screener
+engages one, the other tags). Do **not** retune corridor peel yet. Next lever:
+blocker / dual-threat assignment under extraction (geometry-only, no style ID).
+Preserve SPLIT/ESCORT/TURTLE/recovery/`lane_amplitude_frac=0.35`. No matrix yet.
+
+**dev34b dual-threat assignment (map_a):** complementary lock at extract arm —
+carrier owns evasion-nearest; screener owns the other blue (projected-danger
+rank + hard 2v2 distinctness). Carrier peel route unchanged. Offense audit now
+uses transition-based true failed returns.
+
+```text
+distinct assignments (dual):  24/24 (100%)     PASS ≥90%
+wrong-threat fails (C1+C2):   1  (−83% vs 6)  PASS ≥75%↓
+fail classes:                 C3=7, C2=1       (C1=0)
+true failed returns (offense): 0.5 / ep        PASS ≤0.5
+activation failed returns:     1.0 / ep        (carry-window count; see note)
+RUSH red-first:                1/8             FAIL ≥5/8
+SPLIT/ESCORT/TURTLE gates:     8/6/2 + ctr 8   PASS
+```
+
+Verdict: assignment coordination works; remaining leak is **C3 (screener too
+late)**. Do not peel-route again. Next lever: earlier/faster screener engage on
+the locked complementary threat (or pre-pickup positioning), without touching
+recovery / `lane_amplitude_frac` / TURTLE. No payoff matrix yet.
+
+**dev35 / 35b pre-pickup screener (timing-only, map_a):** freeze peel + dual-threat
+locks + recovery + `lane_amplitude_frac=0.35`. Start screener before pickup when
+attacker is imminent + dual blues threaten return corridor; preengage routes to
+**projected intercept** on flag→home (not blue xy). TURTLE home-anchor still
+suppresses.
+
+```text
+dev35 (radius 2.5):  lead≈0.5  RUSH 1st=1/8  fails=0.375  C3=7
+dev35b (radius 6.5): lead≈4.25 RUSH 1st=2/8  fails=0.125 C3=6
+                     TURTLE preengage 2/8 (still rare)  safety PASS
+                     SPLIT 8 / ESCORT 7 / TURTLE 2+ctr 8  PASS
+                     distinct ≥90% PASS
+                     RUSH red-first ≥5/8 FAIL; C3≤2 FAIL
+```
+
+Race timing: screener predicted arrival still loses to blue-on-path ETA
+(`screener_won_predicted_race=0`). Score race is tight — blue often first by
+2–4 steps while OP6 pickup→score ≈16. True failed returns are already low, so
+protected returns convert; they just convert after RUSH V3 has scored.
+
+Verdict: extraction targeting/timing is largely solved; the remaining gate is
+the **overall scoring race** (carrier convert tempo vs V3 RUSH), not more peel
+or threat assignment. Kept `_OP6_PREPICKUP_RADIUS=6.5`. Freeze peel +
+dual-threat locks + recovery + `lane_amplitude_frac=0.35`. No payoff matrix yet.
+
+**dev34 dual-threat extract assignment (2026-07-28):**
+OP9 ESCORT held-out failed; sequence advances here. Contract:
+
+```text
+carrier handles one blue threat
+screener handles the other
+no duplicated targeting
+```
+
+Preserve recovery + extract latch. Root cause of C1 duplicates: lock used
+`~blue_carrying`, so when one blue held red's flag at arm time only one
+"live" threat remained and both reds marked it. Fix: count all
+alive/untagged blues; hard-complementary when ≥2. Unit tests pin
+complementary lock + carrying-blue-counts
+(`tests/test_op6_extraction.py`).
+
+`artifacts/op6_extraction_activation_dev34c_alive_threats_rush_map_a`
+(same seeds `601001`, RUSH-only):
+
+```text
+distinct_assignment_frac_dual: 1.00  PASS (≥0.90)
+C1 duplicates:                 0     (was 3/8)
+fail classes:                  C3=6/8 (screener too late), C2=2/8
+true failed returns:           1.0 / ep  FAIL (target ≤0.5)
+```
+
+Assignment contract **PASS**. Conversion still fails — dominant residual is
+**C3 screener latency**, not wrong-target. Do not retune latch/recovery/
+`lane_amplitude_frac`. Next OP6 lever: screener engagement timing/path
+aggressiveness (bounded), then offense-competence four-style screen before
+any payoff matrix.
+
+**dev34c offense competence (2026-07-28):**
+`artifacts/op6_offense_competence_dev34c_dual_threat_map_a`, 8 seeds
+`601001`, extract=on. Exit code 2 = micro_gates **FAIL** (not a crash):
+
+```text
+RUSH  red-first: 0/8  FAIL  (failed_returns mean 0.5; pickups 3.0)
+SPLIT red-first: 8/8  PASS
+ESCORT red-first: 6/8 PASS
+TURTLE red-first: 4/8 FAIL (want ≤2/8)
+TURTLE counter after stop: 8/8 PASS
+margins (blue): RUSH +0.125, TURTLE −0.125, SPLIT −0.625, ESCORT −0.75
+```
+
+Dual-threat cut RUSH failed-return count vs pre-fix (~2.0→0.5) but red
+still never converts first vs RUSH (0/8). Matches activation residual **C3**.
+Do not run payoff matrix yet. Next bounded lever: earlier/more aggressive
+screener engage on the locked complementary threat.
+
+**dev35 pre-pickup screener (2026-07-28):** narrow gate only — arm when
+attacker within `_OP6_PREPICKUP_RADIUS=2.5` of available enemy flag, blue home
+abandoned, and both blues threaten the return corridor. Sticky until
+pickup/expire/anchor-return. Partner is ESCORT toward locked complementary
+threat (flag as virtual carrier). Geometry only (no style ID). Unit tests in
+`tests/test_op6_extraction.py::TestOP6PrePickupScreener`.
+
+Race diagnostic (`artifacts/op6_preengage_race_dev35_on_map_a`, seed
+`611001`, RUSH+TURTLE):
+
+```text
+RUSH  preengage: 8/8 frequent   PASS
+TURTLE preengage: 0/8 rare       PASS
+RUSH  red-first (race): 2/8
+mean screener travel @ pickup: ~10.4
+mean pickup→score: ~20
+typical first-score margin: blue by 1–3 steps
+```
+
+Offense competence (`artifacts/op6_offense_competence_dev35_preengage_map_a`,
+same seed, extract+preengage on). Exit 2 = micro_gates **FAIL**:
+
+```text
+RUSH  red-first: 3/8  FAIL (≥5/8)   failed_returns 0.625
+SPLIT red-first: 8/8  PASS
+ESCORT red-first: 6/8 PASS
+TURTLE red-first: 1/8 PASS (≤2/8)   ← recovered vs dev34c 4/8
+TURTLE counter:   8/8 PASS
+```
+
+Verdict: **selectivity OK, conversion still loses the RUSH race.** Preengage
+removes the assignment lag but leaves ~10 units of screener travel at pickup —
+not enough to beat RUSH V3’s parallel score. Do not accept OP6→RUSH. Preengage instrumentation stays in code for
+ablations/telemetry but is **rejected as the accepted race mechanism**
+(selectivity PASS, timing gain insufficient). Latch/recovery/
+`lane_amplitude_frac` still frozen. No payoff matrix.
+
+**dev36 mutual-carry denial (2026-07-28):** diagnose-before-implement.
+
+Feasibility on rejected-dev35 seeds (`611001`),
+`artifacts/op6_mutual_carry_feasibility_dev36_map_a`:
+
+```text
+RUSH  mutual+abandoned: 8/8 eps (~28 steps/ep)
+RUSH  interceptor ETA < blue score ETA: 98% of mutual steps
+RUSH  mean ETA slack @ first mutual: ~+5.1 steps
+TURTLE mutual+abandoned: 0/8
+viable_to_implement: TRUE
+```
+
+Implemented OP6-only race mode (legal state only — no style ID):
+`red_carry ∧ blue_carry ∧ abandoned → carrier direct home; non-carrier
+ROLE_INTERCEPTOR chasing blue carrier`. Dual-threat locks / extract
+carrier route / recovery / `lane_amplitude_frac` frozen. Preengage
+instrumentation kept. Tests: `TestOP6MutualCarryRaceDenial`.
+
+Race denial (`artifacts/op6_race_denial_dev36_on_map_a`):
+
+```text
+RUSH  race fired:        8/8
+RUSH  blue interrupted:  8/8  PASS (≥5)
+RUSH  red-first:         0/8  FAIL (≥5)
+TURTLE race fired:       0/8  PASS (≤1)
+mean blue_delay vs ETA:  ~7.6
+intercept ETA @ arm: often 0 (in range) but blue still scores first by 1–3
+```
+
+Offense competence (`artifacts/op6_offense_competence_dev36_race_map_a`):
+
+```text
+RUSH   red-first: 3/8  FAIL
+SPLIT  red-first: 8/8  PASS
+ESCORT red-first: 8/8  PASS
+TURTLE red-first: 2/8  PASS
+TURTLE counter:   8/8  PASS
+```
+
+Verdict: **selectivity + geometric delay PASS; first-score conversion
+FAIL.** Blue is often already ~5 steps from score (near/on home half) when
+mutual carry arms — contact does not flip the race. Do **not** accept.
+No payoff matrix.
+
+**dev36b/c race denial follow-ups (seed `701001`, map_a):**
+- **36b** suppress peel during race + tighter cut: interrupt 8/8, TURTLE
+  race 0/8, red-first still **1/8**; offense RUSH 1/8, fails 0.375,
+  SPLIT/ESCORT/TURTLE preserved.
+- **36c** arm race on blue_carry ∧ abandoned ∧ (red_carry ∨ imminent)
+  so denial starts before red finishes pickup: same pattern —
+  interrupt **8/8**, TURTLE race **0/8**, red-first still **1/8**;
+  offense RUSH **1/8**, fails **0.5**, SPLIT 8 / ESCORT 6 / TURTLE 2+ctr 8.
+  Artifacts: `op6_race_denial_dev36c_imminent_map_a`,
+  `op6_offense_competence_dev36c_race_denial_map_a`.
+
+**dev36 CLOSED (2026-07-28) — return to payoff tooth.** Reject extraction /
+preengage / race-denial as gameplay (toggles default **OFF**;
+instrumentation retained; `_OP6_PREPICKUP_RADIUS` stays **6.5** for ablations).
+Delaying blue does not flip the first-score race. `RUSH red-first ≥5/8` is
+**not** a Summer OP6 acceptance gate — diagnostic proxy only. Real
+requirement: `BLUE_TURTLE` uniquely highest final payoff vs OP6.
+
+Frozen landscape OP6 config for held-out:
+`artifacts/map_a_v3_landscape_op6_op12_8seed` (TURTLE uniquely best,
+gap +0.88 vs ESCORT). Keep dual-assault + recovery +
+`lane_amplitude_frac=0.35`. No more scoring-race / peel / threat-assignment
+engineering.
+
+**Next: OP6 TURTLE held-out 16-seed** (`map_a`, `BLUE_PROBES_V3`, fresh
+seed `621001`, frozen toggles OFF). Artifact:
+`artifacts/op6_turtle_heldout16_mapa_seed621001`. Accept iff TURTLE
+uniquely best and paired CIs clear vs RUSH/SPLIT/ESCORT plus pooled
+best-other LCB > 0. Pass → lock OP6→TURTLE. Fail → close OP6 as unproven
+TURTLE host; pick another opponent — do **not** reopen the race rabbit hole.
+
+**OP6 TURTLE held-out — RECONFIRM_FAIL (2026-07-28):**
+`artifacts/op6_turtle_heldout16_mapa_seed621001` (seed `621001`,
+landscape freeze: extract/preengage/race OFF, dual-assault + recovery +
+`lane_amplitude_frac=0.35`).
+
+```text
+means:  TURTLE +0.875  RUSH +0.750  SPLIT 0.000  ESCORT −0.062
+uniquely best: TURTLE (gap vs RUSH only +0.125)
+TURTLE−ESCORT CI: clear PASS
+TURTLE−SPLIT  CI: clear PASS
+TURTLE−RUSH   CI: [-0.50, +0.69] FAIL (not >0)
+pooled vs best-other LCB: 0.00 FAIL
+VERDICT: RECONFIRM_FAIL
+```
+
+**Decision (locked):** OP6 is **UNPROVEN / NOT LOCKED** as the TURTLE
+host. Seed `621001` retired. Do **not** resume extraction / race-denial
+engineering. Next TURTLE work = select another OP6–OP12 opponent from
+the landscape board (not OP8 frozen RUSH). Extraction/race branch remains
+closed.
+
+Do not buff BLUE_TURTLE / change OP9.
 
 **OP7 development screen (2026-07-26):**
 `artifacts/op7_failure_timeline_dev1_8seed`, OP7/map_b, 8 paired development
@@ -846,27 +1095,261 @@ to "confirm SPLIT is pool-dominant" (a real, useful, but different finding
 than the Summer plan's crossover claim) versus continuing to search OP11/12
 for the first non-SPLIT confirmed niche.
 
-**Direction (2026-07-28, locked — engineer three payoff contracts):** Stop
-searching for “the right preset.” SPLIT exploits almost every opponent; the
-missing niches need **legal, observable, opponent-specific causal traps**.
-Latent / router work remains stopped.
-
-**Target board (canonical = map_a / BLUE_PROBES_V3):**
+**Direction (2026-07-28, locked — HARD RESEARCH FORK):** Stop infinite
+OP6–OP12 retunes on the same two maps. Arena geometry currently shapes
+strategy more than opponent identity. Path:
 
 ```text
-RUSH   → OP8: STRONG FROZEN CANDIDATE (held-out pooled LCB≤0; not locked; no redesign / no re-roll)
-SPLIT  → open on map_a/V3
-ESCORT → open; OP11 under investigation
-TURTLE → open; OP6 under investigation
+1. Finish the current multi-map landscape ONCE (no restart, no second scan).
+2. If existing maps robustly yield only map_a→RUSH and map_b→SPLIT:
+   STOP opponent engineering on those maps.
+3. Prove LRO with K=2 complementary specialists first (professor-approved).
+4. Add at most ONE carefully designed map that supplies TURTLE + ESCORT
+   affordances; use different OPs on that same map for the two jobs.
+5. Only then birth K=4 branches and train the router last.
 ```
 
-**Map naming:** `map_a` and `map_a_open` are the same layout
-(`normalize_map_layout("map_a") == "map_a_open"`). Artifact rows/manifests
-label the canonical surface as **`map_a`**. Old `map_b_split_lane` locks
-are historical only.
+Honest scientific fallback if the new-map budget is exhausted:
+
+```text
+K=2 LRO: demonstrated
+K=4 extension: not yet demonstrated
+```
+
+That is stronger than manufacturing four fragile latents via special-case BT.
+
+**Anti-loop budget (LOCKED — do not exceed):**
+
+```text
+Current multi-map scan:            one final broad scan (in flight)
+New map designs:                   maximum 2 versions
+Opponent redesigns / missing niche: maximum 2 rounds
+No full matrix before micro-gates pass
+No held-out before untouched validation passes
+No further OP6 extraction / race-branch engineering
+```
+
+**K=2 LRO proof (next after landscape finishes) — required before router:**
+
+Plausible anchors (exact OP may shift from landscape; structure fixed):
+
+```text
+RUSH  → an OP|map_a context   (default candidate: OP8|map_a)
+SPLIT → OP9|map_b_split_lane  (historical held-out anchor)
+```
+
+Train two independent PPO specialists. Accept only if:
+
+```text
+RUSH policy best on RUSH context
+SPLIT policy best on SPLIT context
+LCB95(delta_pool) > 0
+matched-observation policy distinction
+different trajectory fingerprints
+```
+
+Then birth them into two latent branches. Do **not** hold the project
+hostage to K=4 before this passes.
+
+**K=4 extension (after K=2 proof) — one map, two missing jobs:**
+
+Design one new map with both affordances (not one map per strategy):
+
+```text
+TURTLE affordance:
+  abandon home → reliable red score route
+  keep one blue anchor → stops it
+  successful defense → counterattack opening
+
+ESCORT affordance:
+  return path has a narrow interception corridor
+  unsupported carrier gets caught
+  nearby protector blocks / redirects interceptor
+```
+
+Target structure (OPs may change; two jobs per map must hold):
+
+```text
+RUSH   → OP8|map_a
+SPLIT  → OP9|map_b_split_lane
+TURTLE → OP6|new_map
+ESCORT → OP11|new_map
+```
+
+Same new map must require two different blue responses depending on the
+opponent — so the router cannot memorize `map→one style`.
+
+**Honest board (anchors + open jobs):**
+
+```text
+RUSH   → OP8 | map_a              (V3 probe accepted; strong frozen candidate; pooled LCB≤0)
+SPLIT  → OP9 | map_b_split_lane   (historical held-out strong; K=2 anchor)
+TURTLE → landscape-ranked (OP,map) that punishes RUSH abandoned-home
+ESCORT → needs new-map / persistent-carrier-support affordance
+```
+
+**Paused:** OP6/OP7/OP11 opponent redesign on map_a / map_b until the
+landscape finishes and contexts are ranked for TURTLE-engineering.
+`BLUE_PROBES_V3` frozen (including RUSH V3 — do not weaken). Latent /
+router training remains stopped until K=2 specialist crossover passes.
 
 **OP8 freeze:** no redesign and no additional held-out reruns. Evidence is
 exactly as recorded in `op8_rush_heldout16_v3_map_a_seed582001`.
+
+**Map naming:** `map_a` ≡ `map_a_open`. `map_b_split_lane` is a usable
+K=2 SPLIT anchor under this fork (not “historical-only trash”).
+
+### Multi-map landscape scan — RUNNING (final scan; do not restart)
+
+Artifact: `artifacts/multimap_v3_landscape_op6_op12_8seed`
+Protocol: OP6–OP12 × {map_a, map_b_split_lane, map_b_split_lane_v2} ×
+{RUSH,SPLIT,TURTLE,ESCORT} × 8 paired seeds = **672 episodes**,
+`BLUE_PROBES_V3`, base-seed 620001. Status ~137/672 as of last check —
+**finish this run only**; do not launch a competing second scan.
+
+Post-scan decision rule (LOCKED):
+
+```text
+If existing contexts robustly produce only:
+  map_a → RUSH
+  map_b → SPLIT
+→ stop opponent engineering on those maps
+→ proceed to K=2 specialist training
+→ then design the TURTLE+ESCORT map (≤2 versions)
+```
+
+Do **not** algorithmically force four contexts out of the current map
+family via more BT patches. Report cell winners honestly; missing TURTLE /
+ESCORT teeth on existing maps are expected inputs to the new-map step.
+
+### Full map_a V3 landscape (OP6–OP12) — COMPLETED (superseded as sole board)
+
+Artifact: `artifacts/map_a_v3_landscape_op6_op12_8seed` (8 paired seeds,
+base-seed 590001, `BLUE_PROBES_V3`, `map_a` on every row/manifest, no
+experimental response flags). Pool gates: **not admissible** (expected for
+a discovery scan). `delta_pool` LCB ≤ 0; SPLIT unprotected. Superseded by
+the multi-map context scan above for niche selection.
+
+Mean win-margin uniquely-best blue (margin vs 2nd):
+
+| Red | Best | Mean | vs 2nd |
+|-----|------|------|--------|
+| OP6 | TURTLE | +0.12 | +0.88 |
+| OP7 | RUSH | +2.25 | +0.62 |
+| OP8 | RUSH | +2.38 | +0.12 |
+| OP9 | ESCORT | +1.75 | +0.25 |
+| OP10 | RUSH | +2.25 | +1.12 |
+| OP11 | RUSH | +3.00 | +0.50 |
+| OP12 | ESCORT | +1.88 | +0.12 |
+
+Firm readings (not a locked four-niche board):
+
+* **RUSH** clearly exists across several opponents; OP8 remains the frozen
+  candidate (not the clearest landscape margin — do not retune).
+* **SPLIT** definitely missing — never uniquely best.
+* **TURTLE** promising only on OP6.
+* **ESCORT** weak candidates on OP9/OP12 — hypotheses, not recovered niches.
+* **OP10 is no longer a SPLIT candidate** — it is the strongest RUSH column
+  (`RUSH − SPLIT = +1.125`).
+
+### SPLIT host selection (locked step 1–2)
+
+`split_deficit = best_style_margin − SPLIT_margin` from the same artifact.
+Excluded: OP8 (frozen RUSH), OP6 (current TURTLE candidate).
+
+| Rank | Red | Best | Best mean | SPLIT mean | **split_deficit** | Eligible |
+|------|-----|------|-----------|------------|-------------------|----------|
+| — | OP7 | RUSH | +2.250 | +1.625 | **+0.625** | yes |
+| — | OP8 | RUSH | +2.375 | +1.625 | +0.750 | no (frozen RUSH) |
+| — | OP11 | RUSH | +3.000 | +2.125 | +0.875 | yes |
+| — | OP9 | ESCORT | +1.750 | +0.750 | +1.000 | yes |
+| — | OP10 | RUSH | +2.250 | +1.125 | +1.125 | yes (expired SPLIT pick) |
+| — | OP6 | TURTLE | +0.125 | −1.000 | +1.125 | no (TURTLE candidate) |
+| — | OP12 | ESCORT | +1.875 | −0.250 | +2.125 | yes |
+
+**Selected SPLIT host: `OP7_DEEP_FORTRESS` → CLOSED (failed host)**
+
+Locked execution order:
+
+```text
+1. Rank SPLIT deficits          ← DONE
+2. Select SPLIT host = OP7      ← DONE
+3. Diagnose why SPLIT loses on OP7 ← DONE
+4. Add one opponent-specific causal lever ← DONE (2 redesign rounds)
+5. 8-seed development           ← DONE — FAIL (tie with RUSH)
+6. Explicit final compact lever ← DONE — FAIL (hard stop)
+7. Close OP7 as SPLIT host      ← DONE
+8. Move SPLIT work to OP11      ← NEXT
+9. Validate OP6 → TURTLE
+10. Harden OP9 or OP12 → ESCORT
+11. Reconfirm final RUSH host
+12. Four-host pool gate
+```
+
+### OP7 SPLIT lever (separated-threat overcommit) — round 2 COMPLETE
+
+**Contract:** both blues offensively committed + wide separation + opposite
+corridors + persistence → OP7 locks both reds onto the first breached
+corridor for a bounded window. Legal geometry only; no `BLUE_SPLIT` ID.
+OP6/OP8 paths untouched. Implementation: `_bt_update_op7_split_latch` /
+`_bt_apply_op7_split_*` in `gpu_env/_core/_bt_red.py`. Tests:
+`tests/test_op7_split_overcommit.py`. Diagnostic:
+`experiments/diagnose_op7_split_latch.py`.
+
+**Round 1** (`op7_split_latch_microgates_dev8`): selective but weak —
+SPLIT latch 4/8; RUSH/ESCORT/TURTLE 0/8. Tactical effect present when armed.
+
+**Round 2** (softer persistence / lateral / teammate / commit-grace):
+`artifacts/op7_split_latch_microgates_r2_dev8` — **MICROGATES PASS**
+
+```text
+SPLIT latch 8/8; RUSH/ESCORT/TURTLE false latch 0/8
+SPLIT TTFS ~40 (was ~130); uncovered-after-latch > 0; same-corridor > 0
+RUSH/ESCORT/TURTLE margins unchanged vs round-1 diagnostic
+```
+
+**Development matrix** (`artifacts/op7_split_dev8_r2_map_a`, 8 paired seeds,
+base-seed 611001, map_a, BLUE_PROBES_V3): **FAIL — not uniquely best**
+
+```text
+RUSH   +1.75  TTFS ~75
+SPLIT  +1.75  TTFS ~38   (tied; SPLIT−RUSH = 0, need ≈+0.5)
+ESCORT +0.75
+TURTLE +0.125
+```
+
+SPLIT conversion sped up as intended, but RUSH remains co-best.
+
+### OP7 final compact-containment lever — HARD STOP FAIL
+
+Authorized one-shot exception after the 2-round budget. **Did not retune
+the SPLIT latch.** Added compact same-corridor detector + deep-defender /
+return-interceptor response (`_bt_update_op7_compact_latch` /
+`_bt_apply_op7_compact_*`).
+
+`artifacts/op7_compact_microgates_final_dev8` (base-seed 612001):
+
+```text
+SPLIT latch:   6/8  PASS
+compact RUSH:  8/8  (wanted ≥6) — but also:
+compact SPLIT: 8/8  FAIL (want ≤1)
+compact TURTLE:8/8  FAIL (want ≤2)
+compact ESCORT:8/8
+RUSH margin:   +2.875  (worse than prior tie +1.75)
+ESCORT margin: +3.000  (worse)
+```
+
+Compact geometry was not selective (early-episode closeness fires for all
+styles) and the interceptor peel **raised** concentrated-style blue
+payoffs instead of containing them. No development matrix run.
+
+**Hard stop executed:**
+* `_OP7_COMPACT_LEVER_ENABLED = False` (code retained for audit)
+* SPLIT latch remains enabled (near-miss / robustness)
+* **OP7 closed as SPLIT host**
+* Next SPLIT host: **OP11** (next eligible deficit +0.875)
+
+No fourth lever. No threshold ladder. No held-out retuning.
 
 ---
 
@@ -995,7 +1478,11 @@ OP11 may continue in a separate branch, but **no shared changes** across hosts.
 + `all_blues_protected`; niche-balanced sampling 25% each; then independent
 PPO specialists → learned oracle; then K=4 LRO / forced-z / router.
 
-**Immediate focus:** start **A (OP8 → RUSH)**. OP9 stays cemented. No OP13.
+**Immediate focus:** Multi-map landscape RUNNING
+(`artifacts/multimap_v3_landscape_op6_op12_8seed`, 672 episodes). RUSH V3
+probe accepted (do not weaken). Pause opponent redesign until scan finishes,
+then rank contexts for TURTLE-engineering (punish abandoned home; TURTLE
+anchor stops it). Do not manufacture SPLIT on map_a.
 
 **OP11 development screen (2026-07-27):** `artifacts/op11_dev1_8seed`,
 OP11_ADAPTIVE_EXPLOITER/map_b_split_lane, 8 paired development seeds
@@ -4468,22 +4955,21 @@ reported separately. Protocol owner:
 Collector default: `experiments/run_scripted_style_payoff_matrix.py`
 `DEFAULT_MAPS = ("map_a",)`.
 
-**Working board on `map_a` (LOCKED 2026-07-28, post-baseline `581001`):**
-labels follow natural teeth; opponent assignment is free.
+**Working board on `map_a` (LOCKED 2026-07-28):**
 
 ```text
-RUSH   → OP8: frozen candidate, strong but not formally locked
-ESCORT → OP9: next held-out target
-TURTLE → OP6: active engineering
-SPLIT  → host TBD (OP7/OP10/OP11/OP12 after other niches)
-OP11   → parked (ESCORT assignment retired)
+RUSH   → OP8: frozen strong candidate, not formally locked
+ESCORT → OP9: mean-leading reserve, held-out FAILED (UNPROVEN / NOT LOCKED)
+TURTLE → OP6: UNPROVEN / NOT LOCKED (held-out RECONFIRM_FAIL seed 621001; race branch CLOSED)
+SPLIT  → host search later
+OP11   → parked
 ```
 
 Intended four jobs once hosts clear:
 
 ```text
 OP8 → fast concentrated attack (RUSH)
-OP9 → supported carrier attack (ESCORT)
+OP9 → supported carrier attack (ESCORT) — unproven until CI lock
 OP6 → defense and counterattack (TURTLE)
 OP11/OP7/OP10/OP12 → separated two-lane pressure (SPLIT) — TBD
 ```
@@ -4493,19 +4979,39 @@ do not transfer. OP11→ESCORT is **NOT ACCEPTED** on map_a.
 
 **Immediate sequence (LOCKED 2026-07-28):**
 
-1. **OP9 → ESCORT** 16-seed held-out on `map_a`, BLUE_PROBES_V3, unchanged
-   OP9, fresh seeds only (running: base-seed `591001`, artifact
-   `artifacts/op9_escort_heldout16_mapa_seed591001`). Accept only if ESCORT
-   uniquely best and all of ESCORT−{RUSH,SPLIT,TURTLE} paired CIs clear
-   above 0 and pooled best-other LCB > 0.
-2. **OP6 → TURTLE** continue: preserve recovery/latch; fix return conversion
-   vs RUSH V3; then four-style payoff matrix.
+1. **OP9 → ESCORT** 16-seed held-out — **DONE / RECONFIRM_FAIL**
+   (`artifacts/op9_escort_heldout16_mapa_seed591001`). Official status:
+
+```text
+OP9 → ESCORT: UNPROVEN / NOT LOCKED
+Seed block 591001: retired held-out evidence
+OP9 behavior: unchanged
+Further tuning using 591001: prohibited
+```
+
+ESCORT highest mean is encouraging but not a protected niche
+(ESCORT−RUSH / ESCORT−SPLIT / pooled LCB all fail to clear 0). OP9 is not
+dead; it has not earned the ESCORT tooth yet. Return after OP6.
+
+2. **OP6 → TURTLE** — **DONE / RECONFIRM_FAIL**
+   (`artifacts/op6_turtle_heldout16_mapa_seed621001`). Official status:
+
+```text
+OP6 → TURTLE: UNPROVEN / NOT LOCKED
+Seed block 621001: retired held-out evidence
+Extraction / preengage / race-denial: CLOSED (defaults OFF)
+Further race-branch engineering: prohibited
+```
+
+TURTLE uniquely best by mean (+0.875) but TURTLE−RUSH CI and pooled
+best-other LCB do not clear 0. Do **not** reopen the scoring-race rabbit
+hole. Next TURTLE work = another OP from the landscape / multi-map scan.
 3. **OP8** leave frozen — no redesign; revisit strict pooled confirm later
    under a predeclared protocol after other niches.
 4. **SPLIT host** search last among OP7/OP10/OP11/OP12 from map_a evidence;
    one bounded opponent-local mechanism after picking the closest candidate.
 
-Next milestone: OP9 proving a held-out ESCORT crossover on map_a.
+Active milestone: TURTLE host search after OP6 close-out (multi-map / other OP).
 
 **Running (2026-07-28):** `artifacts/scripted_style_payoff_matrix_mapa_baseline_8seed`,
 OP6–OP12 × four blues × map_a, 8 paired seeds (`581001`), no experimental
@@ -5967,6 +6473,208 @@ difficulty may not be fully explained by "wrong opponent" -- worth
 weighing against the shared-BT-framework / RUSH-blue-script-competence
 question already flagged, rather than proceeding straight to OP8 on the
 same per-opponent-tuning assumption that failed three times running.
+
+## map_a canonical-map switch + RUSH_PROBE_ROOT_CAUSE_AUDIT (2026-07-28)
+
+**Canonical rule (locked):** all niche experiments (OP6 TURTLE work, OP9
+SPLIT/ESCORT confirmation, OP11 ESCORT work, RUSH-host experiments, full
+payoff matrices, development/validation/held-out runs) now use `map_a`
+(resolves to `MAP_A_OPEN`), not `map_b_split_lane`. Record `map` explicitly
+in every manifest going forward. Everything above this point in the
+tracker (OP6-OP12 SPLIT/RUSH/ESCORT work, the six-opponent SPLIT-dominance
+pattern, all three OP7 RUSH attempts) was built on `map_b_split_lane` and
+is NOT combined with map_a niche-acceptance evidence -- kept for
+historical reference only.
+
+Separately, the RUSH blue-probe controller has been substantially
+redesigned since that work (now "BLUE_PROBES_V3" in
+`_scripted_blue_styles.py`: carrier returns directly home post-pickup, no
+evasion detour; non-carrier becomes a "screening blocker" that interposes
+between carrier and the nearest live threat, then pushes ahead toward
+home).
+
+**8-seed dev matrix, OP6-OP12 x 4 styles, map_a**
+(`artifacts/full_matrix_mapa_dev1_8seed`, base-seed 601001): appeared to
+show three distinct niches -- RUSH best on OP6/OP7/OP8, ESCORT best on
+OP9/OP10/OP11, TURTLE best on OP12, SPLIT never uniquely best anywhere.
+
+**16/24-seed held-out confirmations (fresh disjoint seeds, map_a)
+COLLAPSED that apparent diversity -- RUSH won all four:**
+
+```text
+                RUSH      2nd place           3rd            4th
+OP12 (n=16)    1.6875   TURTLE 1.5000    ESCORT 1.0625   SPLIT  0.1250
+OP9  (n=16)    1.4375   SPLIT  1.3125    ESCORT 1.0625   TURTLE -0.0625
+OP7  (n=16)    2.0000   ESCORT 0.9375    SPLIT  0.6875   TURTLE 0.2500
+OP10 (n=24)    2.1667   SPLIT  1.2083    ESCORT 0.9167   TURTLE 0.4167
+```
+
+OP12's TURTLE lead (dev: 2.5 vs 1.5) and OP9's ESCORT lead (dev: 2.0 vs
+1.375) both flipped to RUSH at n=16. OP10's SPLIT gap (dev: 0.25, closest
+of any candidate) widened against SPLIT at n=24 rather than closing. The
+8-seed dev matrix's apparent three-niche structure was very likely
+small-sample noise, not a real signal.
+
+**Decision: opponent-specific niche engineering (OP6 TURTLE, OP9 ESCORT,
+OP10 SPLIT) is PAUSED.** Per explicit instruction, do not resume until a
+root-cause audit determines whether `BLUE_RUSH_V3` is simply overbuilt,
+`map_a` intrinsically rewards direct tempo, or RUSH has a real but
+narrower niche that the other three opponents' designs could still
+reclaim. No probe or opponent edits until diagnosis completes.
+
+```text
+Opponent niche engineering: PAUSED (until landscape ranks TURTLE candidate)
+RUSH V3 root-cause audit: COMPLETE — keep RUSH V3 unchanged
+map_a: canonical
+OP6-OP12 only (no opponent outside the permitted pool)
+BLUE_RUSH_V3: accepted competent probe (do not weaken direct-home)
+```
+
+Audit plan (locked, three phases, OP7/OP9/OP10/OP12, unchanged red
+opponents throughout):
+1. Decompose V3 into R0 (old pre-V3 RUSH, no direct-home/no screen), R1
+   (direct-home return only), R2 (screening blocker only), R3 (full V3) --
+   diagnostic-only monkey-patched variants, `_scripted_blue_styles.py`
+   itself untouched.
+2. Compare RUSH's post-pickup behavior against ESCORT's (carrier-teammate
+   distance, interposition rate, support duration) -- check whether V3 has
+   absorbed ESCORT's core mechanism rather than remaining a distinct style.
+3. Decompose each confirmed RUSH win into pickup-timing advantage +
+   conversion advantage + defensive/counter-score cost.
+
+**Tooling correctness note (important, found mid-audit):** the first
+decomposition run (`experiments/diagnose_rush_v3_decomposition.py`) showed
+absurdly small margins (0.00-0.38) for all four variants including R3
+(nominally full, unmodified V3) against OP7/OP9/OP10/OP12 -- inconsistent
+with the official held-out confirmations' RUSH margins (1.4-2.2) for the
+same opponents. Root-caused to two bugs in the custom script, NOT in the
+engine or RUSH controller itself: (1) `set_phase`/`set_next_opponent`/
+`blue_scripted`/`set_blue_style` were only applied BEFORE `env.reset()`;
+the official tool (`run_scripted_style_payoff_matrix.py::_run_one_episode`)
+applies them a second time immediately AFTER `env.reset()` too, and
+skipping that second call apparently lets reset revert the intended
+opponent/style configuration; (2) final scores were read directly from
+`core.blue_score`/`core.red_score` tensors, which get cleared as part of
+automatic done-triggered reset -- the official tool instead reads
+`infos[0]["episode_result"]` captured at the exact `done` step. Fixed both;
+verified the fix reproduces the official OP7/BLUE_RUSH/seed-631001 episode
+exactly (margin=2, steps=90, matching `episode_results.csv` bit for bit).
+The SAME two bugs were present in the earlier `diagnose_rush_probe_root_cause.py`
+Phase-1 baseline script from this session -- its specific numbers (RUSH
+converting 4/4 everywhere, path-length/target-change comparisons) are
+UNRELIABLE and should not be cited going forward. This does not affect the
+held-out confirmations or the full 7x4 matrix that triggered this audit --
+those were run through the official tool, which already applies both
+patterns correctly.
+
+**Phase 1+2 results (corrected, 8 seeds/variant/opponent, base-seed
+651001):**
+
+```text
+                        OP7    OP9    OP10   OP12   MEAN
+R0 (old pre-V3 RUSH)    0.38   1.00   0.50   0.50   0.60
+R1 (direct-home only)   2.38   1.38   2.25   1.62   1.91
+R2 (screen only)        0.62   1.75   1.00   1.00   1.09
+R3 (full V3)            2.25   1.88   1.88   1.62   1.91
+```
+
+R1 (direct-home carrier return, no screening blocker) matches R3 (full V3)
+almost exactly -- 1.91 mean margin either way, R1 even edges out R3 on OP7
+(2.38 vs 2.25). R2 (screening blocker alone, carrier still uses generic
+multi-threat evasion) is much weaker, barely ahead of R0. Win rates make
+this starker: R1 hits 8/8 in all four opponents (vs R0's 4/8-7/8), the
+single biggest jump in the whole table.
+
+Phase 2 (ESCORT-overlap) reads directly off the same data: R1's
+teammate-near-carrier fraction (0.16-0.29) and interposition fraction
+(0.04-0.10) are LOW -- its non-carrier is doing its own independent thing,
+not escorting -- yet R1 performs as well as full V3. R2, which IS
+escort-like (teammate-near 0.74-0.87, interposition 0.25-0.56), performs
+worse. **RUSH has not absorbed ESCORT's mechanism as its real advantage;
+the screening blocker is the weaker component, not the driver.**
+
+Phase 3 (margin decomposition): pickup timing is identical across variants
+by construction (~13.8-13.9 steps, pre-pickup route held fixed). The
+decisive lever is return RELIABILITY (WR) and, in 3/4 opponents, return
+SPEED (R1 return-time 14.9-46.6 vs R0's 16.8-99.3; OP7 is the exception,
+R1 slightly slower than R0 at 42.8 vs 39.2 but still wins far more often).
+Own-flag-loss stays high regardless of variant (OP12 is 8/8 in every
+variant) -- that vulnerability traces to the pre-pickup dual-attack
+opening structure (both agents committing forward from the start), not to
+which post-pickup mechanism is used. The trade-off is real and orthogonal
+to the R0-R3 axis, not something direct-home-return specifically causes or
+fixes.
+
+**Decision-tree verdict: "Direct-home return alone creates most of the
+gain."** The old RUSH probe was genuinely underbuilt (matching this
+session's earlier pre-map_a audit finding); V3's direct-home return is the
+competent, not overbuilt, version of the same style -- a real, legitimate
+competence fix, not scope creep into ESCORT's territory. Combined with the
+"real but orthogonal home-defense trade-off" finding: RUSH wins through
+faster, more reliable conversion and pays for it with a consistently
+undefended base, which is a legitimate strategic cost, just not one that
+OP7/OP9/OP10/OP12 currently punish hard enough to overcome RUSH's tempo
+advantage.
+
+**Recommendation per the locked decision tree: keep RUSH V3 unchanged (do
+not build a bounded V4, do not weaken direct-home return or basic carrier
+competence).** The productive next step is finding or engineering an
+opponent whose identity specifically and decisively punishes an abandoned
+home base during the return window, since none of the four opponents
+tested currently do that enough to make RUSH non-dominant. This is a
+different, more targeted question than "redesign OP6/OP9/OP10 for their
+old assumed niches" -- those redesigns remain PAUSED pending explicit
+direction on which opponent (existing or newly scoped within OP6-OP12) to
+target for a home-defense-punishing identity.
+
+**LOCKED (2026-07-28): RUSH V3 accepted as competent probe — do not "fix RUSH."**
+
+Audit decomposition (direct-home ≈ full V3; screening modest; home abandonment
+real):
+
+```text
+Strength:  fast, reliable flag conversion (direct-home return)
+Weakness:  both agents attack → blue own base exposed
+```
+
+Keep `BLUE_RUSH_V3` unchanged. Do **not** weaken direct-home return.
+
+Updated strategic picture:
+
+```text
+RUSH probe:    competent and accepted
+RUSH weakness: abandoned home defense
+SPLIT anchor:  likely map_b_split_lane context
+TURTLE task:   exploit RUSH’s home-defense sacrifice
+ESCORT task:   reward persistent carrier support
+```
+
+**Next (after multi-map landscape finishes — do not restart):** rank every
+`(OP6–OP12, map)` with:
+
+```text
+red score rate while both blue agents away from home
+blue own-flag loss before first blue score
+red pickup-to-score conversion
+simultaneous-carry frequency
+RUSH payoff
+TURTLE payoff
+```
+
+TURTLE-engineering candidate = context where RUSH’s abandoned base is
+punished most **and** TURTLE’s home anchor prevents that punishment.
+
+Focused micro-gates for that candidate:
+
+```text
+vs RUSH:   red first-score ≥6/8; blue own-flag lost frequently
+vs TURTLE: red first-score ≤2/8; TURTLE counter-after-stop ≥5/8
+payoff:    TURTLE uniquely best; TURTLE−RUSH ≳ +0.5
+```
+
+Tooling: `experiments/diagnose_rush_home_defense_gap.py` (extend to all
+landscape maps after scan completes). Landscape artifact:
+`artifacts/multimap_v3_landscape_op6_op12_8seed` (672 eps). One resume only.
 
 ---
 

@@ -75,7 +75,7 @@ def _run_episode(
         home_x = float(core.blue_flag_home[0, 0].item())
 
         red_pickups = 0
-        red_failed_returns = 0  # lost carry without score
+        red_failed_returns = 0  # true transition: pickup → lose carry w/o score
         blue_home_occ_sum = 0.0
         blue_home_occ_n = 0
         red_first_score_step = -1
@@ -90,14 +90,29 @@ def _run_episode(
         stop_seen = False
         steps = 0
         last_info: dict[str, Any] = {}
+        # Local clock: sim_step_count resets after score/tag in-episode.
+        local_step = 0
 
         for _ in range(int(max_decision_steps) + 5):
-            sim = int(core.sim_step_count[0].item())
+            action = _zero_action(env)
+            env.step_async(action)
+            _, _, done, infos = env.step_wait()
+            last_info = infos[0] if infos else {}
+            local_step += 1
+            sim = local_step
             red_carry = bool(core.red_carrying[0].any().item())
+            ep_res = last_info.get("episode_result", last_info)
+            blue_score_now = int(ep_res.get("blue_score", core.blue_score[0].item()))
+            red_score_now = int(ep_res.get("red_score", core.red_score[0].item()))
+
             if red_carry and not prev_red_carry:
                 red_pickups += 1
                 if red_first_pickup_step < 0:
                     red_first_pickup_step = sim
+
+            # True failed return: post-step carry loss without intervening score.
+            if prev_red_carry and (not red_carry) and red_score_now == prev_red_score:
+                red_failed_returns += 1
 
             # Blue home occupancy: fraction of alive blues near own flag.
             alive_b = core.blue_alive[0]
@@ -126,17 +141,6 @@ def _run_episode(
                     turtle_anchor_at_stop += 1
 
             core._off_prev_tagged = core.red_tagged.detach().clone()
-
-            action = _zero_action(env)
-            env.step_async(action)
-            _, _, done, infos = env.step_wait()
-            last_info = infos[0] if infos else {}
-            ep_res = last_info.get("episode_result", last_info)
-            blue_score_now = int(ep_res.get("blue_score", core.blue_score[0].item()))
-            red_score_now = int(ep_res.get("red_score", core.red_score[0].item()))
-
-            if prev_red_carry and (not red_carry) and red_score_now == prev_red_score:
-                red_failed_returns += 1
 
             if red_first_score_step < 0 and red_score_now > 0:
                 red_first_score_step = sim
@@ -248,6 +252,8 @@ def _summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     # Optional baseline for failed-return reduction vs a prior OFF/ON run.
     summary["rush_failed_returns"] = float(rush.get("mean_red_failed_returns", 0.0))
     summary["micro_gates_pass"] = all(summary["micro_gates"].values())
+    # Extra RUSH extraction gates (dev34 dual-threat); reported alongside.
+    summary["rush_true_failed_returns_le_0_5"] = summary["rush_failed_returns"] <= 0.5
     summary["rush_minus_split"] = float(rush.get("mean_win_margin", 0.0)) - float(
         split.get("mean_win_margin", 0.0)
     )

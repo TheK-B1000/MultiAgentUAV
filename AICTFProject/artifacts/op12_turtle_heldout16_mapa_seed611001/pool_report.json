@@ -1,0 +1,79 @@
+{
+  "blues": [
+    "BLUE_ESCORT",
+    "BLUE_RUSH",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "reds": [
+    "OP12_LATE_CONVERTER|map_a"
+  ],
+  "n_episodes": {
+    "OP12_LATE_CONVERTER|map_a": 16
+  },
+  "mean_margin": {
+    "BLUE_ESCORT": {
+      "OP12_LATE_CONVERTER|map_a": 1.0625
+    },
+    "BLUE_RUSH": {
+      "OP12_LATE_CONVERTER|map_a": 1.6875
+    },
+    "BLUE_SPLIT": {
+      "OP12_LATE_CONVERTER|map_a": 0.125
+    },
+    "BLUE_TURTLE": {
+      "OP12_LATE_CONVERTER|map_a": 1.5
+    }
+  },
+  "win_rate": {
+    "BLUE_ESCORT": {
+      "OP12_LATE_CONVERTER|map_a": 0.875
+    },
+    "BLUE_RUSH": {
+      "OP12_LATE_CONVERTER|map_a": 1.0
+    },
+    "BLUE_SPLIT": {
+      "OP12_LATE_CONVERTER|map_a": 0.4375
+    },
+    "BLUE_TURTLE": {
+      "OP12_LATE_CONVERTER|map_a": 0.6875
+    }
+  },
+  "v_selective_insample": 1.6875,
+  "v_best_fixed_insample": 1.6875,
+  "best_fixed_style": "BLUE_RUSH",
+  "v_selective": 1.48625,
+  "v_best_fixed": 1.48625,
+  "delta_pool": 0.0,
+  "delta_pool_ci95": [
+    0.0,
+    0.0
+  ],
+  "delta_pool_lcb": 0.0,
+  "v_hindsight": 2.375,
+  "best_response_by_red": {
+    "OP12_LATE_CONVERTER|map_a": "BLUE_RUSH"
+  },
+  "br_diversity": 1,
+  "dominating_blue_style": "BLUE_RUSH",
+  "unprotected_blues": [
+    "BLUE_ESCORT",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "degenerate_red_styles": [
+    "OP12_LATE_CONVERTER|map_a"
+  ],
+  "best_blue_overall_wr": 1.0,
+  "tie_rate": 0.125,
+  "gates": {
+    "delta_pool_lcb_positive": false,
+    "no_dominating_blue_style": false,
+    "best_response_diversity": false,
+    "all_blues_protected": false,
+    "best_blue_wr_in_band": false,
+    "tie_rate_under_threshold": true,
+    "no_degenerate_red_styles": false
+  },
+  "admissible": false
+}

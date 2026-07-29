@@ -94,8 +94,42 @@ class _BTRedMixin(_BTAdaptiveMixin):
     _OP6_RECOVERY_DURATION = 36
     # OP6 post-pickup extraction: lock carrier+screener while returning.
     _OP6_EXTRACT_LOCK = 48
-    # Toggle for OFF/ON micro-gates (scripts may set False). Recovery untouched.
-    _OP6_EXTRACTION_ENABLED = True
+    # Gameplay defaults OFF — rejected extraction/race branch (dev29–dev36).
+    # Landscape held-out freezes dual-assault + recovery only; keep buffers
+    # and toggles for instrumentation / OFF-ON ablations.
+    _OP6_EXTRACTION_ENABLED = False
+    # Pre-pickup screener (dev35): rejected as race mechanism; instrumentation kept.
+    _OP6_PREENGAGE_ENABLED = False
+    # grab_r ≈ 1.2; start screener while attacker is closing, not at the grab
+    # (dev35: lead_time was 0–1 at radius 2.5 — too late for C3).
+    _OP6_PREPICKUP_RADIUS = 6.5
+    _OP6_PREENGAGE_LOCK = 24
+    # Mutual-carry race denial (dev36): rejected — interrupts RUSH but does not
+    # flip first-score; not required for TURTLE payoff-tooth acceptance.
+    _OP6_RACE_DENIAL_ENABLED = False
+    _OP6_RACE_LOCK = 48
+    # OP7 SPLIT host: separated-threat overcommit (first breached corridor).
+    # Legal geometry only — never blue style ID. Thresholds mirror adaptive
+    # split-pressure math so concentrated RUSH/ESCORT do not arm the latch.
+    _OP7_SPLIT_LEVER_ENABLED = True
+    _OP7_SPLIT_PRESSURE_TICKS = 2  # round-2: was 4; SPLIT armed only 4/8
+    _OP7_SPLIT_RESPONSE_DURATION = 56  # round-2: was 40; longer overcommit window
+    _OP7_SPLIT_LATERAL_FRAC = 0.45  # round-2: was 0.55
+    _OP7_SPLIT_TEAMMATE_DIST = 10.0  # round-2: was 12.0
+    _OP7_SPLIT_OFFENSIVE_BUFFER = 5.0  # round-2: was 3.0
+    _OP7_SPLIT_COMMIT_GRACE = 6  # steps of lost dual-offense before clear
+    # OP7 final lever: compact same-corridor containment (do not retune SPLIT latch).
+    # Compact pressure → one deep defender + return-route interceptor.
+    # HARD STOP (2026-07-28): micro-gates FAIL — compact fired on SPLIT/TURTLE
+    # 8/8 and raised RUSH/ESCORT blue margins. Lever disabled; OP7 closed as
+    # SPLIT host. SPLIT latch above stays enabled for near-miss/robustness.
+    _OP7_COMPACT_LEVER_ENABLED = False
+    _OP7_COMPACT_PRESSURE_TICKS = 3
+    _OP7_COMPACT_RESPONSE_DURATION = 56
+    _OP7_COMPACT_TEAMMATE_DIST = 4.0
+    _OP7_COMPACT_LATERAL_MAX = 2.5
+    _OP7_COMPACT_OFFENSIVE_BUFFER = 5.0
+    _OP7_COMPACT_COMMIT_GRACE = 6
 
     def _bt_opponent_mask(self) -> torch.Tensor:
         """True for env rows whose opponent uses the BT tactical brain."""
@@ -149,6 +183,45 @@ class _BTRedMixin(_BTAdaptiveMixin):
         self.bt_op6_recovery_active_steps = torch.zeros((B,), dtype=i32, device=dev)
         # OP6 extraction support countdown (env-level while returning).
         self.bt_op6_extract_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        # Locked dual-threat assignment for OP6 extract (carrier vs screener).
+        # -1 = unset. Set once when extract arms; cleared when extract ends.
+        self.bt_op6_extract_carrier_threat = torch.full(
+            (B,), -1, dtype=i32, device=dev
+        )
+        self.bt_op6_extract_screener_threat = torch.full(
+            (B,), -1, dtype=i32, device=dev
+        )
+        # Pre-pickup screener reserve (sticky until pickup / expire / cancel).
+        self.bt_op6_preengage_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op6_preengage_activations = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op6_preengage_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        # Mutual-carry race denial (env-level while both sides carry).
+        self.bt_op6_race_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op6_race_activations = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op6_race_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op6_race_target_idx = torch.full((B,), -1, dtype=i32, device=dev)
+        # OP7 separated-threat latch (Contract: first-lane overcommit).
+        self.bt_op7_split_pressure_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_split_first_trigger_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_op7_split_response_expiry_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_op7_split_primary_blue_idx = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_op7_split_corridor_y = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_op7_split_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_split_response_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_split_activations = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_split_max_lateral_sep = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_op7_split_max_teammate_dist = torch.zeros((B,), dtype=f32, device=dev)
+        self.bt_op7_split_lost_commit_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        # OP7 compact same-corridor containment (final RUSH/ESCORT lever).
+        self.bt_op7_compact_pressure_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_compact_first_trigger_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_op7_compact_response_expiry_step = torch.full((B,), -1, dtype=i32, device=dev)
+        self.bt_op7_compact_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_compact_response_active_steps = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_compact_activations = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_compact_lost_commit_ticks = torch.zeros((B,), dtype=i32, device=dev)
+        self.bt_op7_compact_min_teammate_dist = torch.full((B,), 1.0e6, dtype=f32, device=dev)
+        self.bt_op7_compact_max_lateral_sep = torch.zeros((B,), dtype=f32, device=dev)
         self._alloc_adaptive_memory(B, dev)
 
     def _reset_bt_telemetry(self, env_mask: torch.Tensor) -> None:
@@ -180,6 +253,35 @@ class _BTRedMixin(_BTAdaptiveMixin):
         self.bt_op6_recovery_activations[idx] = 0
         self.bt_op6_recovery_active_steps[idx] = 0
         self.bt_op6_extract_ticks[idx] = 0
+        self.bt_op6_extract_carrier_threat[idx] = -1
+        self.bt_op6_extract_screener_threat[idx] = -1
+        self.bt_op6_preengage_ticks[idx] = 0
+        self.bt_op6_preengage_activations[idx] = 0
+        self.bt_op6_preengage_active_steps[idx] = 0
+        self.bt_op6_race_ticks[idx] = 0
+        self.bt_op6_race_activations[idx] = 0
+        self.bt_op6_race_active_steps[idx] = 0
+        self.bt_op6_race_target_idx[idx] = -1
+        self.bt_op7_split_pressure_ticks[idx] = 0
+        self.bt_op7_split_first_trigger_step[idx] = -1
+        self.bt_op7_split_response_expiry_step[idx] = -1
+        self.bt_op7_split_primary_blue_idx[idx] = -1
+        self.bt_op7_split_corridor_y[idx] = 0.0
+        self.bt_op7_split_active_steps[idx] = 0
+        self.bt_op7_split_response_active_steps[idx] = 0
+        self.bt_op7_split_activations[idx] = 0
+        self.bt_op7_split_max_lateral_sep[idx] = 0.0
+        self.bt_op7_split_max_teammate_dist[idx] = 0.0
+        self.bt_op7_split_lost_commit_ticks[idx] = 0
+        self.bt_op7_compact_pressure_ticks[idx] = 0
+        self.bt_op7_compact_first_trigger_step[idx] = -1
+        self.bt_op7_compact_response_expiry_step[idx] = -1
+        self.bt_op7_compact_active_steps[idx] = 0
+        self.bt_op7_compact_response_active_steps[idx] = 0
+        self.bt_op7_compact_activations[idx] = 0
+        self.bt_op7_compact_lost_commit_ticks[idx] = 0
+        self.bt_op7_compact_min_teammate_dist[idx] = 1.0e6
+        self.bt_op7_compact_max_lateral_sep[idx] = 0.0
         self._reset_adaptive_memory(env_mask)
 
     # ──────────────────────────────────────────────────────────────────────
@@ -401,6 +503,551 @@ class _BTRedMixin(_BTAdaptiveMixin):
         self.bt_op6_prev_red_carrying = self.red_carrying.detach().clone()
 
     # ──────────────────────────────────────────────────────────────────────
+    # OP7 separated-threat latch (first breached corridor overcommit)
+    # ──────────────────────────────────────────────────────────────────────
+    def _bt_op7_split_response_active(
+        self, prof: Dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """True while OP7's bounded first-lane overcommit window is live."""
+        B, device = self.B, self.device
+        if not bool(getattr(type(self), "_OP7_SPLIT_LEVER_ENABLED", True)):
+            return torch.zeros((B,), dtype=torch.bool, device=device)
+        step = self.sim_step_count.to(torch.int32)
+        return (
+            (prof["bt_level"] == 7)
+            & (self.bt_op7_split_first_trigger_step >= 0)
+            & (self.bt_op7_split_response_expiry_step >= step)
+            & (self.bt_op7_split_primary_blue_idx >= 0)
+        )
+
+    def _bt_update_op7_split_latch(self, bb: dict, prof: Dict[str, torch.Tensor]) -> None:
+        """Arm/clear OP7's legal separated-threat latch (no blue-style ID).
+
+        Geometry (mirrors adaptive split-pressure thresholds):
+          both blues offensively committed past midfield buffer
+          + opposite lateral corridors
+          + wide teammate separation
+          + consecutive persistence ticks
+
+        On arm: lock primary blue = deepest intruder on red half (first breach)
+        and freeze that agent's corridor y. Response window is bounded; exit on
+        timeout, any blue flag pickup, primary tag/death, or loss of dual
+        offensive commitment.
+        """
+        enabled = bool(getattr(type(self), "_OP7_SPLIT_LEVER_ENABLED", True))
+        op7 = (prof["bt_level"] == 7) & self._bt_opponent_mask()
+        if (not enabled) or (not bool(op7.any().item())):
+            return
+
+        B, device = self.B, self.device
+        midline = bb["midline"]
+        center_y = float(self.rows) * 0.5
+        step = self.sim_step_count.to(torch.int32)
+        blue_alive = self.blue_alive & (~self.blue_tagged)
+        offensive_buffer = float(self._OP7_SPLIT_OFFENSIVE_BUFFER)
+
+        if self.Nb >= 2:
+            blue0_off = blue_alive[:, 0] & (self.blue_x[:, 0] > midline - offensive_buffer)
+            blue1_off = blue_alive[:, 1] & (self.blue_x[:, 1] > midline - offensive_buffer)
+            lateral_sep = torch.abs(self.blue_y[:, 0] - self.blue_y[:, 1])
+            dx01 = self.blue_x[:, 0] - self.blue_x[:, 1]
+            dy01 = self.blue_y[:, 0] - self.blue_y[:, 1]
+            teammate_dist = torch.sqrt(dx01 ** 2 + dy01 ** 2 + 1e-8)
+            opposite_lanes = (
+                ((self.blue_y[:, 0] > center_y) & (self.blue_y[:, 1] <= center_y))
+                | ((self.blue_y[:, 1] > center_y) & (self.blue_y[:, 0] <= center_y))
+            )
+            both_offensive = blue0_off & blue1_off
+            split_pressure_now = (
+                both_offensive
+                & opposite_lanes
+                & (lateral_sep >= float(self.rows) * float(self._OP7_SPLIT_LATERAL_FRAC))
+                & (teammate_dist >= float(self._OP7_SPLIT_TEAMMATE_DIST))
+            )
+            self.bt_op7_split_max_lateral_sep = torch.where(
+                op7,
+                torch.maximum(self.bt_op7_split_max_lateral_sep, lateral_sep),
+                self.bt_op7_split_max_lateral_sep,
+            )
+            self.bt_op7_split_max_teammate_dist = torch.where(
+                op7,
+                torch.maximum(self.bt_op7_split_max_teammate_dist, teammate_dist),
+                self.bt_op7_split_max_teammate_dist,
+            )
+        else:
+            both_offensive = torch.zeros((B,), dtype=torch.bool, device=device)
+            split_pressure_now = torch.zeros((B,), dtype=torch.bool, device=device)
+
+        ticks = torch.where(
+            op7 & split_pressure_now,
+            self.bt_op7_split_pressure_ticks + 1,
+            torch.zeros_like(self.bt_op7_split_pressure_ticks),
+        )
+        self.bt_op7_split_pressure_ticks = torch.where(
+            op7, ticks, self.bt_op7_split_pressure_ticks
+        )
+        pressure_active = op7 & (
+            self.bt_op7_split_pressure_ticks >= int(self._OP7_SPLIT_PRESSURE_TICKS)
+        )
+        self.bt_op7_split_active_steps = (
+            self.bt_op7_split_active_steps + pressure_active.to(torch.int32)
+        )
+
+        new_trigger = pressure_active & (self.bt_op7_split_first_trigger_step < 0)
+        if bool(new_trigger.any().item()):
+            # First breached lane = deepest blue currently on red half.
+            # Fallback: deepest alive blue if neither has crossed yet.
+            on_own = bb["enemy_on_own"] & blue_alive
+            depth = torch.where(
+                on_own,
+                self.blue_x,
+                torch.full_like(self.blue_x, -1.0e9),
+            )
+            any_on_own = on_own.any(dim=1)
+            fallback_depth = torch.where(
+                blue_alive,
+                self.blue_x,
+                torch.full_like(self.blue_x, -1.0e9),
+            )
+            depth = torch.where(any_on_own[:, None], depth, fallback_depth)
+            primary = torch.argmax(depth, dim=1).to(torch.int32)
+            idx_env = torch.arange(B, device=device)
+            corridor_y = self.blue_y[idx_env, primary.clamp(min=0).to(torch.int64)]
+            self.bt_op7_split_primary_blue_idx = torch.where(
+                new_trigger, primary, self.bt_op7_split_primary_blue_idx
+            )
+            self.bt_op7_split_corridor_y = torch.where(
+                new_trigger, corridor_y, self.bt_op7_split_corridor_y
+            )
+            self.bt_op7_split_first_trigger_step = torch.where(
+                new_trigger, step, self.bt_op7_split_first_trigger_step
+            )
+            self.bt_op7_split_activations = (
+                self.bt_op7_split_activations + new_trigger.to(torch.int32)
+            )
+
+        # Bounded window: refresh expiry while pressure persists.
+        duration = int(self._OP7_SPLIT_RESPONSE_DURATION)
+        self.bt_op7_split_response_expiry_step = torch.where(
+            pressure_active,
+            step + duration,
+            self.bt_op7_split_response_expiry_step,
+        )
+
+        # Exit conditions while a latch exists.
+        latched = op7 & (self.bt_op7_split_first_trigger_step >= 0)
+        primary_i = self.bt_op7_split_primary_blue_idx.clamp(min=0).to(torch.int64)
+        idx_env = torch.arange(B, device=device)
+        primary_alive = self.blue_alive[idx_env, primary_i] & (~self.blue_tagged[idx_env, primary_i])
+        timed_out = self.bt_op7_split_response_expiry_step < step
+        flag_pickup = bb["blue_carry_any"]
+        # Graceful commitment exit: require several consecutive steps without
+        # dual offensive commitment (single-step flicker used to kill the
+        # window before the opposite lane could be exploited).
+        lost_now = latched & (~both_offensive)
+        lost_ticks = torch.where(
+            lost_now,
+            self.bt_op7_split_lost_commit_ticks + 1,
+            torch.zeros_like(self.bt_op7_split_lost_commit_ticks),
+        )
+        self.bt_op7_split_lost_commit_ticks = torch.where(
+            op7, lost_ticks, self.bt_op7_split_lost_commit_ticks
+        )
+        lost_commitment = self.bt_op7_split_lost_commit_ticks >= int(
+            self._OP7_SPLIT_COMMIT_GRACE
+        )
+        should_clear = latched & (
+            timed_out | flag_pickup | (~primary_alive) | lost_commitment
+        )
+        if bool(should_clear.any().item()):
+            self.bt_op7_split_pressure_ticks = torch.where(
+                should_clear, torch.zeros_like(self.bt_op7_split_pressure_ticks),
+                self.bt_op7_split_pressure_ticks,
+            )
+            self.bt_op7_split_first_trigger_step = torch.where(
+                should_clear,
+                torch.full_like(self.bt_op7_split_first_trigger_step, -1),
+                self.bt_op7_split_first_trigger_step,
+            )
+            self.bt_op7_split_response_expiry_step = torch.where(
+                should_clear,
+                torch.full_like(self.bt_op7_split_response_expiry_step, -1),
+                self.bt_op7_split_response_expiry_step,
+            )
+            self.bt_op7_split_primary_blue_idx = torch.where(
+                should_clear,
+                torch.full_like(self.bt_op7_split_primary_blue_idx, -1),
+                self.bt_op7_split_primary_blue_idx,
+            )
+            self.bt_op7_split_lost_commit_ticks = torch.where(
+                should_clear,
+                torch.zeros_like(self.bt_op7_split_lost_commit_ticks),
+                self.bt_op7_split_lost_commit_ticks,
+            )
+
+        response_active = self._bt_op7_split_response_active(prof)
+        self.bt_op7_split_response_active_steps = (
+            self.bt_op7_split_response_active_steps + response_active.to(torch.int32)
+        )
+
+    def _bt_apply_op7_split_role_overrides(
+        self,
+        bb: dict,
+        roles: torch.Tensor,
+        prof: Dict[str, torch.Tensor],
+    ) -> torch.Tensor:
+        """Lock nearer red as DEFENDER and partner as INTERCEPTOR on first lane."""
+        active = self._bt_op7_split_response_active(prof)
+        if not bool(active.any().item()):
+            return roles
+
+        B, Nr = self.B, self.Nr
+        device = self.device
+        idx_env = torch.arange(B, device=device)
+        primary = self.bt_op7_split_primary_blue_idx.clamp(min=0).to(torch.int64)
+        px = self.blue_x[idx_env, primary]
+        py = self.blue_y[idx_env, primary]
+        dx = self.red_x - px[:, None]
+        dy = self.red_y - py[:, None]
+        dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
+        alive = self.red_alive & (~self.red_tagged)
+        dist_m = torch.where(alive, dist, dist.new_full((), 1e9).expand_as(dist))
+        nearer = torch.zeros((B, Nr), dtype=torch.bool, device=device)
+        nearer_idx = torch.argmin(dist_m, dim=1)
+        nearer[idx_env, nearer_idx] = True
+        slots = active[:, None] & alive
+        roles = torch.where(slots & nearer, torch.full_like(roles, ROLE_DEFENDER), roles)
+        roles = torch.where(slots & (~nearer), torch.full_like(roles, ROLE_INTERCEPTOR), roles)
+        # Bound cross-lane reassignment for the response window.
+        remaining = (
+            self.bt_op7_split_response_expiry_step - self.sim_step_count.to(torch.int32)
+        ).clamp(min=0)
+        lock = self.bt_role_lock_ticks.clone()
+        lock = torch.where(
+            slots,
+            torch.maximum(lock, remaining[:, None].expand(B, Nr)),
+            lock,
+        )
+        self.bt_role_lock_ticks = lock.detach()
+        self.bt_red_role = torch.where(slots, roles, self.bt_red_role)
+        return roles
+
+    def _bt_apply_op7_split_route_overrides(
+        self,
+        bb: dict,
+        roles: torch.Tensor,
+        tx: torch.Tensor,
+        ty: torch.Tensor,
+        prof: Dict[str, torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Collapse both reds onto the first breached corridor."""
+        active = self._bt_op7_split_response_active(prof)
+        if not bool(active.any().item()):
+            return tx, ty
+
+        B, Nr = self.B, self.Nr
+        device = self.device
+        idx_env = torch.arange(B, device=device)
+        primary = self.bt_op7_split_primary_blue_idx.clamp(min=0).to(torch.int64)
+        px = self.blue_x[idx_env, primary]
+        py = self.blue_y[idx_env, primary]
+        corridor_y = self.bt_op7_split_corridor_y
+        dx = self.red_x - px[:, None]
+        dy = self.red_y - py[:, None]
+        dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
+        alive = self.red_alive & (~self.red_tagged)
+        dist_m = torch.where(alive, dist, dist.new_full((), 1e9).expand_as(dist))
+        nearer = torch.zeros((B, Nr), dtype=torch.bool, device=device)
+        nearer[idx_env, torch.argmin(dist_m, dim=1)] = True
+        slots = active[:, None] & alive
+        # Primary lock: chase the first-breached blue live.
+        tx = torch.where(slots & nearer, px[:, None].expand(B, Nr), tx)
+        ty = torch.where(slots & nearer, py[:, None].expand(B, Nr), ty)
+        # Partner reinforces the same corridor (frozen y), not the opposite lane.
+        sec_tx = px[:, None].expand(B, Nr)
+        sec_ty = corridor_y[:, None].expand(B, Nr)
+        tx = torch.where(slots & (~nearer), sec_tx, tx)
+        ty = torch.where(slots & (~nearer), sec_ty, ty)
+        return tx, ty
+
+    # ──────────────────────────────────────────────────────────────────────
+    # OP7 compact containment (final lever: same-corridor dual pressure)
+    # ──────────────────────────────────────────────────────────────────────
+    def _bt_op7_compact_response_active(
+        self, prof: Dict[str, torch.Tensor]
+    ) -> torch.Tensor:
+        """True while OP7's compact containment window is live (and SPLIT is not)."""
+        B, device = self.B, self.device
+        if not bool(getattr(type(self), "_OP7_COMPACT_LEVER_ENABLED", True)):
+            return torch.zeros((B,), dtype=torch.bool, device=device)
+        step = self.sim_step_count.to(torch.int32)
+        split_busy = self._bt_op7_split_response_active(prof)
+        return (
+            (prof["bt_level"] == 7)
+            & (~split_busy)
+            & (self.bt_op7_compact_first_trigger_step >= 0)
+            & (self.bt_op7_compact_response_expiry_step >= step)
+        )
+
+    def _bt_update_op7_compact_latch(self, bb: dict, prof: Dict[str, torch.Tensor]) -> None:
+        """Arm/clear OP7 compact same-corridor containment (no blue-style ID).
+
+        Geometry:
+          both blues offensively committed
+          + teammate distance below compact threshold
+          + same corridor (small lateral separation)
+          + persistence ticks
+
+        Mutually exclusive with the SPLIT separated-threat latch: while SPLIT
+        response is active, compact does not arm or apply. SPLIT latch
+        thresholds are intentionally not retuned here.
+        """
+        enabled = bool(getattr(type(self), "_OP7_COMPACT_LEVER_ENABLED", True))
+        op7 = (prof["bt_level"] == 7) & self._bt_opponent_mask()
+        if (not enabled) or (not bool(op7.any().item())):
+            return
+
+        B, device = self.B, self.device
+        midline = bb["midline"]
+        center_y = float(self.rows) * 0.5
+        step = self.sim_step_count.to(torch.int32)
+        blue_alive = self.blue_alive & (~self.blue_tagged)
+        offensive_buffer = float(self._OP7_COMPACT_OFFENSIVE_BUFFER)
+        split_busy = self._bt_op7_split_response_active(prof)
+
+        if self.Nb >= 2:
+            blue0_off = blue_alive[:, 0] & (self.blue_x[:, 0] > midline - offensive_buffer)
+            blue1_off = blue_alive[:, 1] & (self.blue_x[:, 1] > midline - offensive_buffer)
+            lateral_sep = torch.abs(self.blue_y[:, 0] - self.blue_y[:, 1])
+            dx01 = self.blue_x[:, 0] - self.blue_x[:, 1]
+            dy01 = self.blue_y[:, 0] - self.blue_y[:, 1]
+            teammate_dist = torch.sqrt(dx01 ** 2 + dy01 ** 2 + 1e-8)
+            same_side = (
+                ((self.blue_y[:, 0] > center_y) & (self.blue_y[:, 1] > center_y))
+                | ((self.blue_y[:, 0] <= center_y) & (self.blue_y[:, 1] <= center_y))
+            )
+            same_corridor = same_side | (
+                lateral_sep <= float(self._OP7_COMPACT_LATERAL_MAX)
+            )
+            both_offensive = blue0_off & blue1_off
+            compact_now = (
+                both_offensive
+                & same_corridor
+                & (teammate_dist <= float(self._OP7_COMPACT_TEAMMATE_DIST))
+                & (lateral_sep <= float(self._OP7_COMPACT_LATERAL_MAX))
+                & (~split_busy)
+            )
+            self.bt_op7_compact_min_teammate_dist = torch.where(
+                op7 & both_offensive,
+                torch.minimum(self.bt_op7_compact_min_teammate_dist, teammate_dist),
+                self.bt_op7_compact_min_teammate_dist,
+            )
+            self.bt_op7_compact_max_lateral_sep = torch.where(
+                op7 & both_offensive,
+                torch.maximum(self.bt_op7_compact_max_lateral_sep, lateral_sep),
+                self.bt_op7_compact_max_lateral_sep,
+            )
+        else:
+            both_offensive = torch.zeros((B,), dtype=torch.bool, device=device)
+            compact_now = torch.zeros((B,), dtype=torch.bool, device=device)
+
+        ticks = torch.where(
+            op7 & compact_now,
+            self.bt_op7_compact_pressure_ticks + 1,
+            torch.zeros_like(self.bt_op7_compact_pressure_ticks),
+        )
+        self.bt_op7_compact_pressure_ticks = torch.where(
+            op7, ticks, self.bt_op7_compact_pressure_ticks
+        )
+        pressure_active = op7 & (
+            self.bt_op7_compact_pressure_ticks >= int(self._OP7_COMPACT_PRESSURE_TICKS)
+        )
+        self.bt_op7_compact_active_steps = (
+            self.bt_op7_compact_active_steps + pressure_active.to(torch.int32)
+        )
+
+        new_trigger = pressure_active & (self.bt_op7_compact_first_trigger_step < 0)
+        self.bt_op7_compact_first_trigger_step = torch.where(
+            new_trigger, step, self.bt_op7_compact_first_trigger_step
+        )
+        self.bt_op7_compact_activations = (
+            self.bt_op7_compact_activations + new_trigger.to(torch.int32)
+        )
+
+        duration = int(self._OP7_COMPACT_RESPONSE_DURATION)
+        # Refresh while compact persists, or while a blue carrier is returning
+        # (the interceptor's job peaks after pickup).
+        refresh = pressure_active | (
+            (self.bt_op7_compact_first_trigger_step >= 0) & bb["blue_carry_any"] & (~split_busy)
+        )
+        self.bt_op7_compact_response_expiry_step = torch.where(
+            refresh,
+            step + duration,
+            self.bt_op7_compact_response_expiry_step,
+        )
+
+        latched = op7 & (self.bt_op7_compact_first_trigger_step >= 0)
+        timed_out = self.bt_op7_compact_response_expiry_step < step
+        # Clear if SPLIT latch takes over (separated pressure wins).
+        split_takeover = split_busy
+        lost_now = latched & (~both_offensive) & (~bb["blue_carry_any"])
+        lost_ticks = torch.where(
+            lost_now,
+            self.bt_op7_compact_lost_commit_ticks + 1,
+            torch.zeros_like(self.bt_op7_compact_lost_commit_ticks),
+        )
+        self.bt_op7_compact_lost_commit_ticks = torch.where(
+            op7, lost_ticks, self.bt_op7_compact_lost_commit_ticks
+        )
+        lost_commitment = self.bt_op7_compact_lost_commit_ticks >= int(
+            self._OP7_COMPACT_COMMIT_GRACE
+        )
+        should_clear = latched & (timed_out | split_takeover | lost_commitment)
+        if bool(should_clear.any().item()):
+            self.bt_op7_compact_pressure_ticks = torch.where(
+                should_clear,
+                torch.zeros_like(self.bt_op7_compact_pressure_ticks),
+                self.bt_op7_compact_pressure_ticks,
+            )
+            self.bt_op7_compact_first_trigger_step = torch.where(
+                should_clear,
+                torch.full_like(self.bt_op7_compact_first_trigger_step, -1),
+                self.bt_op7_compact_first_trigger_step,
+            )
+            self.bt_op7_compact_response_expiry_step = torch.where(
+                should_clear,
+                torch.full_like(self.bt_op7_compact_response_expiry_step, -1),
+                self.bt_op7_compact_response_expiry_step,
+            )
+            self.bt_op7_compact_lost_commit_ticks = torch.where(
+                should_clear,
+                torch.zeros_like(self.bt_op7_compact_lost_commit_ticks),
+                self.bt_op7_compact_lost_commit_ticks,
+            )
+
+        response_active = self._bt_op7_compact_response_active(prof)
+        self.bt_op7_compact_response_active_steps = (
+            self.bt_op7_compact_response_active_steps + response_active.to(torch.int32)
+        )
+
+    def _bt_apply_op7_compact_role_overrides(
+        self,
+        bb: dict,
+        roles: torch.Tensor,
+        prof: Dict[str, torch.Tensor],
+    ) -> torch.Tensor:
+        """One deep DEFENDER near own flag; partner INTERCEPTOR on return cut."""
+        active = self._bt_op7_compact_response_active(prof)
+        if not bool(active.any().item()):
+            return roles
+
+        B, Nr = self.B, self.Nr
+        device = self.device
+        idx_env = torch.arange(B, device=device)
+        # Deep defender = red closer to own flag home (fortress seat).
+        rfh_x = bb["red_flag_home"][:, 0]
+        rfh_y = bb["red_flag_home"][:, 1]
+        dx = self.red_x - rfh_x[:, None]
+        dy = self.red_y - rfh_y[:, None]
+        dist_home = torch.sqrt(dx * dx + dy * dy + 1e-8)
+        alive = self.red_alive & (~self.red_tagged)
+        dist_m = torch.where(alive, dist_home, dist_home.new_full((), 1e9).expand_as(dist_home))
+        deep = torch.zeros((B, Nr), dtype=torch.bool, device=device)
+        deep[idx_env, torch.argmin(dist_m, dim=1)] = True
+        slots = active[:, None] & alive
+        roles = torch.where(slots & deep, torch.full_like(roles, ROLE_DEFENDER), roles)
+        roles = torch.where(slots & (~deep), torch.full_like(roles, ROLE_INTERCEPTOR), roles)
+        remaining = (
+            self.bt_op7_compact_response_expiry_step - self.sim_step_count.to(torch.int32)
+        ).clamp(min=0)
+        lock = self.bt_role_lock_ticks.clone()
+        lock = torch.where(
+            slots,
+            torch.maximum(lock, remaining[:, None].expand(B, Nr)),
+            lock,
+        )
+        self.bt_role_lock_ticks = lock.detach()
+        self.bt_red_role = torch.where(slots, roles, self.bt_red_role)
+        return roles
+
+    def _bt_apply_op7_compact_route_overrides(
+        self,
+        bb: dict,
+        roles: torch.Tensor,
+        tx: torch.Tensor,
+        ty: torch.Tensor,
+        prof: Dict[str, torch.Tensor],
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Deep defender holds/chases; partner cuts carrier return route."""
+        active = self._bt_op7_compact_response_active(prof)
+        if not bool(active.any().item()):
+            return tx, ty
+
+        B, Nr = self.B, self.Nr
+        device = self.device
+        idx_env = torch.arange(B, device=device)
+        max_x = float(max(0, self.cols - 1))
+        max_y = float(max(0, self.rows - 1))
+        rfh_x = bb["red_flag_home"][:, 0]
+        rfh_y = bb["red_flag_home"][:, 1]
+        dx = self.red_x - rfh_x[:, None]
+        dy = self.red_y - rfh_y[:, None]
+        dist_home = torch.sqrt(dx * dx + dy * dy + 1e-8)
+        alive = self.red_alive & (~self.red_tagged)
+        dist_m = torch.where(alive, dist_home, dist_home.new_full((), 1e9).expand_as(dist_home))
+        deep = torch.zeros((B, Nr), dtype=torch.bool, device=device)
+        deep[idx_env, torch.argmin(dist_m, dim=1)] = True
+        slots = active[:, None] & alive
+
+        # Deep defender: chase carrier if present, else deepest intruder on own half.
+        blue_alive = self.blue_alive & (~self.blue_tagged)
+        on_own = bb["enemy_on_own"] & blue_alive
+        depth = torch.where(on_own, self.blue_x, torch.full_like(self.blue_x, -1.0e9))
+        any_on_own = on_own.any(dim=1)
+        fallback = torch.where(blue_alive, self.blue_x, torch.full_like(self.blue_x, -1.0e9))
+        depth = torch.where(any_on_own[:, None], depth, fallback)
+        primary = torch.argmax(depth, dim=1)
+        def_tx = torch.where(
+            bb["blue_carry_any"],
+            bb["ec_x"],
+            self.blue_x[idx_env, primary],
+        )
+        def_ty = torch.where(
+            bb["blue_carry_any"],
+            bb["ec_y"],
+            self.blue_y[idx_env, primary],
+        )
+        tx = torch.where(slots & deep, def_tx[:, None].expand(B, Nr), tx)
+        ty = torch.where(slots & deep, def_ty[:, None].expand(B, Nr), ty)
+
+        # Interceptor: cut return path to blue home (do not pile onto first intruder).
+        bhome_x = bb["blue_flag_home"][:, 0]
+        bhome_y = bb["blue_flag_home"][:, 1]
+        lead = torch.argmax(
+            torch.where(blue_alive, self.blue_x, torch.full_like(self.blue_x, -1.0e9)),
+            dim=1,
+        )
+        lead_x = self.blue_x[idx_env, lead]
+        lead_y = self.blue_y[idx_env, lead]
+        # When carrying: intercept between carrier and blue home.
+        # Pre-pickup: pre-position on the lead agent's return corridor.
+        cut_x = torch.where(
+            bb["blue_carry_any"],
+            0.55 * bb["ec_x"] + 0.45 * bhome_x,
+            0.55 * lead_x + 0.45 * bhome_x,
+        )
+        cut_y = torch.where(
+            bb["blue_carry_any"],
+            0.55 * bb["ec_y"] + 0.45 * bhome_y,
+            0.55 * lead_y + 0.45 * bhome_y,
+        )
+        cut_x = torch.clamp(cut_x, 0.0, max_x)
+        cut_y = torch.clamp(cut_y, 0.0, max_y)
+        tx = torch.where(slots & (~deep), cut_x[:, None].expand(B, Nr), tx)
+        ty = torch.where(slots & (~deep), cut_y[:, None].expand(B, Nr), ty)
+        return tx, ty
+
+    # ──────────────────────────────────────────────────────────────────────
     # Role assignment: utility-based, with hysteresis
     # ──────────────────────────────────────────────────────────────────────
     def _bt_assign_roles(self, bb: dict) -> torch.Tensor:
@@ -444,47 +1091,12 @@ class _BTRedMixin(_BTAdaptiveMixin):
         )
         opening_active = op8_opening | op12_opening
         late_or_ready = ~opening_active
-        # OP7 RUSH-host redesign (2026-07-28): unmodified-OP7 held-out data
-        # already had BLUE_RUSH nearly break-even (-0.25 margin, WR 0/16) --
-        # the smallest gap to SPLIT of any OP7/OP8/OP10 candidate. A 4-seed
-        # event trace (scratchpad trace_op7_vs_rush.py, seeds 461001-461004,
-        # OP7's own frozen base_seed) showed why: OP7's DEFENDER commits
-        # within 9-10 steps of episode start (defender_zone_frac=0.05 camps
-        # almost exactly on the flag) and insta-tags RUSH's carrier every
-        # single pickup attempt.
-        #
-        # Attempts 1 and 2 both suppressed DEFENDER (via the shared
-        # opening_active force-to-ATTACKER mechanism, and via a targeted
-        # gate on the Priority-5 condition alone) so red's agents sat idle
-        # at ROLE_ATTACKER during the window. Bit-identical results for
-        # both (RUSH -0.25 -> -1.00, WORSE): a follow-up trace showed why --
-        # ATTACKER for OP7 is not "idle," it is "actively rush blue's own
-        # flag" (the reset-default role IS the offensive role), so both
-        # attempts accidentally handed OP7 a real early-rush option it
-        # normally never takes at all. RUSH did start scoring sometimes for
-        # the first time (0/4 -> 2/4 traced episodes), but OP7's own attack
-        # converted just as fast or faster (matched-speed mutual aggression
-        # favors whichever side converts faster, same reason OP6's own
-        # dual-rush identity hurts blue's RUSH). Reverted; no opening-window
-        # role suppression for OP7.
-        #
-        # A third idea (widen DEFENDER's patrol zone_frac/orbit during the
-        # window instead of suppressing the role) was reasoned through and
-        # NOT implemented: DEFENDER's route (_bt_route_target below) only
-        # uses the zone/orbit position BEFORE any_intruder is first true --
-        # the moment an intruder is detected (which is also what triggers
-        # DEFENDER's assignment in the first place, Priority 5 above), its
-        # target becomes the intruder's OWN current position directly (a
-        # direct chase, not a camped zone). RUSH's first action is entering
-        # red's territory, which trips any_intruder immediately -- so a
-        # wider zone/orbit would never actually matter; DEFENDER never
-        # spends any time patrolling it once RUSH exists. OP7's fortress
-        # identity is fundamentally "chase any detected intruder directly,"
-        # not "camp a zone," which is a harder shape to carve a real RUSH
-        # opening out of without either giving OP7 an offensive alternative
-        # (attempts 1/2) or inventing a new passive/idle role state
-        # (out of scope for one bounded change). OP7 is left UNMODIFIED,
-        # matching its original frozen SPLIT-niche state.
+        # OP7 RUSH-host redesign (2026-07-28) was abandoned after three
+        # attempts (opening-window role suppression / Priority-5 gate /
+        # widen-zone reasoning). OP7 is now the map_a/V3 SPLIT-host
+        # candidate via `_bt_update_op7_split_latch` (separated-threat
+        # first-lane overcommit). Do not reintroduce OP7 into
+        # opening_active — that path handed OP7 an early dual-rush.
         opening_slots = opening_active[:, None] & self.red_alive & (~self.red_tagged)
         roles = torch.where(
             opening_slots,
@@ -513,13 +1125,17 @@ class _BTRedMixin(_BTAdaptiveMixin):
         # TURTLE's counter needs. Empty-home blues cancel recovery (no suppress).
         any_op6_recovery = recovering.any(dim=1) & (prof["bt_level"] == 6)
 
-        # ── OP6 extraction support (post-pickup, legal home-abandon gate) ─
+        # ── OP6 extraction support (pre-pickup screener + post-pickup lock) ─
         # Dominant failed-return modes vs RUSH/ESCORT (dev28 trace): tagged
         # from behind + agents crossing. When blue has no near-home non-carrier
         # anchor, lock carrier as ATTACKER and partner as ESCORT screener.
-        # Do not inspect blue style ID. Leave recovery thresholds untouched.
+        # Pre-pickup (dev35): when grab is imminent and both blues threaten the
+        # return corridor, reserve the partner as screener *before* pickup so
+        # C3 one-tick lag does not decide the RUSH race. Geometry only — do
+        # not inspect blue style ID. Leave recovery thresholds untouched.
         op6 = prof["bt_level"] == 6
         extract_enabled = bool(getattr(type(self), "_OP6_EXTRACTION_ENABLED", True))
+        preengage_enabled = bool(getattr(type(self), "_OP6_PREENGAGE_ENABLED", True))
         if extract_enabled and bool(op6.any().item()):
             mid = bb["midline"]
             bhome_x = self.blue_flag_home[:, 0:1]
@@ -532,21 +1148,116 @@ class _BTRedMixin(_BTAdaptiveMixin):
             ).any(dim=1)
             abandoned = ~blue_anchor
             extract_ticks = self.bt_op6_extract_ticks
+            pre_ticks = self.bt_op6_preengage_ticks
+
+            flag_x = bb["blue_flag_pos"][:, 0]
+            flag_y = bb["blue_flag_pos"][:, 1]
+            enemy_flag_at_home = (
+                (self.blue_flag_pos[:, 0] - self.blue_flag_home[:, 0]).abs() < 1.5
+            ) & (
+                (self.blue_flag_pos[:, 1] - self.blue_flag_home[:, 1]).abs() < 1.5
+            )
+            r_flag_dist = torch.sqrt(
+                (self.red_x - flag_x[:, None]) ** 2
+                + (self.red_y - flag_y[:, None]) ** 2
+                + 1e-8
+            )
+            r_flag_dist = torch.where(
+                self.red_alive & (~self.red_tagged),
+                r_flag_dist,
+                r_flag_dist.new_full((), 1e9).expand_as(r_flag_dist),
+            )
+            flag_attacker = torch.argmin(r_flag_dist, dim=1)
+            imminent = r_flag_dist.min(dim=1).values <= float(self._OP6_PREPICKUP_RADIUS)
+
+            # Both blues threaten the corridor from blue flag → red home.
+            home_x = bb["red_flag_home"][:, 0]
+            home_y = bb["red_flag_home"][:, 1]
+            vx = home_x - flag_x
+            vy = home_y - flag_y
+            vv = vx * vx + vy * vy + 1e-8
+            wx = self.blue_x - flag_x[:, None]
+            wy = self.blue_y - flag_y[:, None]
+            t_proj = (wx * vx[:, None] + wy * vy[:, None]) / vv[:, None]
+            proj_x = flag_x[:, None] + t_proj * vx[:, None]
+            proj_y = flag_y[:, None] + t_proj * vy[:, None]
+            lat = torch.sqrt(
+                (self.blue_x - proj_x) ** 2 + (self.blue_y - proj_y) ** 2 + 1e-8
+            )
+            on_seg = (t_proj > -0.05) & (t_proj < 1.05) & (lat < 6.0)
+            ahead = (self.blue_x > mid) & ((self.blue_y - home_y[:, None]).abs() < 7.0)
+            blue_threat = self.blue_alive & (~self.blue_tagged) & (on_seg | ahead)
+            both_threaten = blue_threat.sum(dim=1) >= 2
+
+            # --- Pre-pickup screener reserve (narrow gate; sticky countdown) ---
+            newly_pre = torch.zeros((B,), dtype=torch.bool, device=device)
+            pre_active = torch.zeros((B,), dtype=torch.bool, device=device)
+            if preengage_enabled:
+                want_pre = (
+                    op6
+                    & (~bb["red_carry_any"])
+                    & abandoned
+                    & enemy_flag_at_home
+                    & imminent
+                    & both_threaten
+                    & (extract_ticks <= 0)
+                )
+                newly_pre = want_pre & (pre_ticks <= 0)
+                pre_ticks = torch.where(
+                    newly_pre,
+                    torch.full_like(pre_ticks, int(self._OP6_PREENGAGE_LOCK)),
+                    pre_ticks,
+                )
+                # Cancel: pickup (extract owns), home anchor returns, flag gone.
+                cancel_pre = (
+                    bb["red_carry_any"]
+                    | (~abandoned)
+                    | (~enemy_flag_at_home)
+                    | (~op6)
+                )
+                pre_ticks = torch.where(cancel_pre, torch.zeros_like(pre_ticks), pre_ticks)
+                pre_ticks = torch.where(
+                    (pre_ticks > 0) & (~bb["red_carry_any"]),
+                    torch.clamp(pre_ticks - 1, min=0),
+                    pre_ticks,
+                )
+                self.bt_op6_preengage_activations = (
+                    self.bt_op6_preengage_activations + newly_pre.to(torch.int32)
+                )
+                pre_active = (pre_ticks > 0) & op6 & (~bb["red_carry_any"])
+                self.bt_op6_preengage_active_steps = (
+                    self.bt_op6_preengage_active_steps + pre_active.to(torch.int32)
+                )
+                self.bt_op6_preengage_ticks = pre_ticks.detach()
+                if bool(newly_pre.any().item()):
+                    # Lock threats as if carrier is at the pickup point.
+                    self._bt_op6_lock_extract_threats(
+                        bb, newly_pre, carr_x=flag_x, carr_y=flag_y
+                    )
+            else:
+                self.bt_op6_preengage_ticks = torch.where(
+                    op6,
+                    torch.zeros_like(self.bt_op6_preengage_ticks),
+                    self.bt_op6_preengage_ticks,
+                )
+
+            # --- Post-pickup extract latch ---
             want_extract = op6 & bb["red_carry_any"] & abandoned
-            # Latch: arm when blue is abandoned at/after pickup, then keep the
-            # window for the full lock even if a blue briefly re-enters home
-            # (V3 RUSH return path was canceling the screener mid-extract).
+            newly_armed = want_extract & (extract_ticks <= 0)
             extract_ticks = torch.where(
-                want_extract & (extract_ticks <= 0),
+                newly_armed,
                 torch.full_like(extract_ticks, int(self._OP6_EXTRACT_LOCK)),
                 extract_ticks,
             )
             extract_ticks = torch.where(
                 op6 & bb["red_carry_any"] & (extract_ticks > 0),
                 torch.clamp(extract_ticks - 1, min=0),
-                torch.where(op6 & bb["red_carry_any"], extract_ticks, torch.zeros_like(extract_ticks)),
+                torch.where(
+                    op6 & bb["red_carry_any"],
+                    extract_ticks,
+                    torch.zeros_like(extract_ticks),
+                ),
             )
-            # Hard clear only when the carrier is gone (score / tag / drop).
             extract_ticks = torch.where(
                 op6 & bb["red_carry_any"],
                 extract_ticks,
@@ -554,14 +1265,34 @@ class _BTRedMixin(_BTAdaptiveMixin):
             )
             self.bt_op6_extract_ticks = extract_ticks.detach()
             extract_active = (extract_ticks > 0) & op6
+            # Preserve preengage threat locks; only fill missing slots on pickup.
+            need_lock = newly_armed & (
+                (self.bt_op6_extract_carrier_threat < 0)
+                | (self.bt_op6_extract_screener_threat < 0)
+            )
+            if bool(need_lock.any().item()):
+                self._bt_op6_lock_extract_threats(bb, need_lock)
+            clear_threats = op6 & (~extract_active) & (~pre_active)
+            if bool(clear_threats.any().item()):
+                self.bt_op6_extract_carrier_threat = torch.where(
+                    clear_threats,
+                    torch.full_like(self.bt_op6_extract_carrier_threat, -1),
+                    self.bt_op6_extract_carrier_threat,
+                )
+                self.bt_op6_extract_screener_threat = torch.where(
+                    clear_threats,
+                    torch.full_like(self.bt_op6_extract_screener_threat, -1),
+                    self.bt_op6_extract_screener_threat,
+                )
+
             rc_idx = bb["red_carrier_idx"].clamp(min=0)
             agent_ids = torch.arange(Nr, device=device)[None, :]
             is_carrier = agent_ids == rc_idx[:, None]
+            is_flag_atk = agent_ids == flag_attacker[:, None]
             extract_slots = (
-                extract_active[:, None]
-                & self.red_alive
-                & (~self.red_tagged)
+                extract_active[:, None] & self.red_alive & (~self.red_tagged)
             )
+            pre_slots = pre_active[:, None] & self.red_alive & (~self.red_tagged)
             roles = torch.where(
                 extract_slots & is_carrier,
                 torch.full_like(roles, ROLE_ATTACKER),
@@ -572,16 +1303,164 @@ class _BTRedMixin(_BTAdaptiveMixin):
                 torch.full_like(roles, ROLE_ESCORT),
                 roles,
             )
+            roles = torch.where(
+                pre_slots & is_flag_atk,
+                torch.full_like(roles, ROLE_ATTACKER),
+                roles,
+            )
+            roles = torch.where(
+                pre_slots & (~is_flag_atk),
+                torch.full_like(roles, ROLE_ESCORT),
+                roles,
+            )
             lock = torch.where(
                 extract_slots,
                 torch.maximum(lock, extract_ticks[:, None].expand(B, Nr)),
                 lock,
             )
-            can_change = can_change & (~extract_slots)
+            lock = torch.where(
+                pre_slots,
+                torch.maximum(
+                    lock, self.bt_op6_preengage_ticks[:, None].expand(B, Nr)
+                ),
+                lock,
+            )
+            can_change = can_change & (~extract_slots) & (~pre_slots)
+
+            # --- Mutual-carry / imminent race denial (dev36) ---
+            # When blue already carries and home is abandoned, send the
+            # non-attacker to cut the blue carrier — including the window
+            # *before* red's pickup completes (dev36b: mutual-only still lost
+            # first-score because blue was already closer to scoring).
+            # Carrier/flag-attacker keeps ATTACKER + home/flag route. Peel and
+            # dual-threat locks stay frozen outside race-home exception.
+            race_enabled = bool(
+                getattr(type(self), "_OP6_RACE_DENIAL_ENABLED", True)
+            )
+            if race_enabled:
+                race_ticks = self.bt_op6_race_ticks
+                want_race = (
+                    op6
+                    & bb["blue_carry_any"]
+                    & abandoned
+                    & (bb["red_carry_any"] | imminent)
+                )
+                newly_race = want_race & (race_ticks <= 0)
+                race_ticks = torch.where(
+                    newly_race,
+                    torch.full_like(race_ticks, int(self._OP6_RACE_LOCK)),
+                    race_ticks,
+                )
+                cancel_race = (
+                    (~bb["blue_carry_any"])
+                    | (~abandoned)
+                    | (~op6)
+                )
+                race_ticks = torch.where(
+                    cancel_race, torch.zeros_like(race_ticks), race_ticks
+                )
+                race_ticks = torch.where(
+                    want_race & (race_ticks > 0),
+                    torch.clamp(race_ticks - 1, min=0),
+                    race_ticks,
+                )
+                self.bt_op6_race_activations = (
+                    self.bt_op6_race_activations + newly_race.to(torch.int32)
+                )
+                race_active = (race_ticks > 0) & want_race
+                self.bt_op6_race_active_steps = (
+                    self.bt_op6_race_active_steps + race_active.to(torch.int32)
+                )
+                self.bt_op6_race_ticks = race_ticks.detach()
+                # Lock blue carrier as interceptor target at arm.
+                bc_idx = bb["blue_carrier_idx"].to(torch.int32)
+                self.bt_op6_race_target_idx = torch.where(
+                    newly_race,
+                    bc_idx,
+                    torch.where(
+                        race_active,
+                        self.bt_op6_race_target_idx,
+                        torch.full_like(self.bt_op6_race_target_idx, -1),
+                    ),
+                )
+                # Refresh target if blue carrier index changes while armed.
+                self.bt_op6_race_target_idx = torch.where(
+                    race_active & bb["blue_carry_any"],
+                    bc_idx,
+                    self.bt_op6_race_target_idx,
+                )
+                # Keep the red carrier (or imminent flag attacker) on offense;
+                # partner becomes INTERCEPTOR.
+                keep_atk = torch.where(
+                    bb["red_carry_any"],
+                    rc_idx,
+                    flag_attacker,
+                )
+                is_keep = agent_ids == keep_atk[:, None]
+                race_slots = (
+                    race_active[:, None] & self.red_alive & (~self.red_tagged)
+                )
+                roles = torch.where(
+                    race_slots & is_keep,
+                    torch.full_like(roles, ROLE_ATTACKER),
+                    roles,
+                )
+                roles = torch.where(
+                    race_slots & (~is_keep),
+                    torch.full_like(roles, ROLE_INTERCEPTOR),
+                    roles,
+                )
+                lock = torch.where(
+                    race_slots,
+                    torch.maximum(
+                        lock, race_ticks[:, None].expand(B, Nr)
+                    ),
+                    lock,
+                )
+                can_change = can_change & (~race_slots)
+            elif hasattr(self, "bt_op6_race_ticks"):
+                self.bt_op6_race_ticks = torch.where(
+                    op6,
+                    torch.zeros_like(self.bt_op6_race_ticks),
+                    self.bt_op6_race_ticks,
+                )
+                self.bt_op6_race_target_idx = torch.where(
+                    op6,
+                    torch.full_like(self.bt_op6_race_target_idx, -1),
+                    self.bt_op6_race_target_idx,
+                )
         elif hasattr(self, "bt_op6_extract_ticks"):
             self.bt_op6_extract_ticks = torch.where(
                 op6, torch.zeros_like(self.bt_op6_extract_ticks), self.bt_op6_extract_ticks
             )
+            if hasattr(self, "bt_op6_preengage_ticks"):
+                self.bt_op6_preengage_ticks = torch.where(
+                    op6,
+                    torch.zeros_like(self.bt_op6_preengage_ticks),
+                    self.bt_op6_preengage_ticks,
+                )
+            if hasattr(self, "bt_op6_race_ticks"):
+                self.bt_op6_race_ticks = torch.where(
+                    op6,
+                    torch.zeros_like(self.bt_op6_race_ticks),
+                    self.bt_op6_race_ticks,
+                )
+                self.bt_op6_race_target_idx = torch.where(
+                    op6,
+                    torch.full_like(self.bt_op6_race_target_idx, -1),
+                    self.bt_op6_race_target_idx,
+                )
+            if hasattr(self, "bt_op6_extract_carrier_threat"):
+                self.bt_op6_extract_carrier_threat = torch.where(
+                    op6,
+                    torch.full_like(self.bt_op6_extract_carrier_threat, -1),
+                    self.bt_op6_extract_carrier_threat,
+                )
+                self.bt_op6_extract_screener_threat = torch.where(
+                    op6,
+                    torch.full_like(self.bt_op6_extract_screener_threat, -1),
+                    self.bt_op6_extract_screener_threat,
+                )
 
         # ── Priority 1: flag retrieval ───────────────────────────────────
         need_retr = (
@@ -937,34 +1816,68 @@ class _BTRedMixin(_BTAdaptiveMixin):
             )
             tx = torch.where((role_j == ROLE_ESCORT) & bb["red_carry_any"], escort_tx, tx)
             ty = torch.where((role_j == ROLE_ESCORT) & bb["red_carry_any"], escort_ty, ty)
-            # OP6 extraction screener: always interpose on the nearest pursuer
-            # (behind-carrier tags dominate failed returns vs RUSH/ESCORT).
+            # OP6 extraction screener: engage the *locked* complementary threat
+            # (not generic nearest). Carrier already owns evasion-nearest.
+            # Pre-pickup: same geometry with the enemy flag as virtual carrier.
             op6_extract = (
                 (prof["bt_level"] == 6)
                 & (self.bt_op6_extract_ticks > 0)
                 & bb["red_carry_any"]
             )
-            if bool(op6_extract.any().item()):
-                screen_tx = 0.55 * carr_x + 0.45 * threat_x
-                screen_ty = 0.55 * carr_y + 0.45 * threat_y
-                # Stay slightly behind the carrier along the home vector so the
-                # screener does not collide with / block the carrier.
-                home_dx = bb["red_flag_home"][:, 0] - carr_x
-                home_dy = bb["red_flag_home"][:, 1] - carr_y
+            op6_pre = (
+                (prof["bt_level"] == 6)
+                & (self.bt_op6_preengage_ticks > 0)
+                & (~bb["red_carry_any"])
+            )
+            op6_screen = op6_extract | op6_pre
+            if bool(op6_screen.any().item()):
+                scr_idx = self.bt_op6_extract_screener_threat.clamp(min=0)
+                has_scr = self.bt_op6_extract_screener_threat >= 0
+                threat_x = torch.where(
+                    has_scr,
+                    self.blue_x[idx_env, scr_idx],
+                    threat_x,
+                )
+                threat_y = torch.where(
+                    has_scr,
+                    self.blue_y[idx_env, scr_idx],
+                    threat_y,
+                )
+                # Virtual carrier = real carrier, else enemy flag (preengage).
+                vc_x = torch.where(bb["red_carry_any"], carr_x, bb["blue_flag_pos"][:, 0])
+                vc_y = torch.where(bb["red_carry_any"], carr_y, bb["blue_flag_pos"][:, 1])
+                # Post-pickup: keep existing interpose blend (frozen engage geometry).
+                screen_tx = 0.55 * vc_x + 0.45 * threat_x
+                screen_ty = 0.55 * vc_y + 0.45 * threat_y
+                home_dx = bb["red_flag_home"][:, 0] - vc_x
+                home_dy = bb["red_flag_home"][:, 1] - vc_y
                 home_n = torch.sqrt(home_dx ** 2 + home_dy ** 2 + 1e-8)
-                behind_x = carr_x - 2.0 * home_dx / home_n
-                behind_y = carr_y - 2.0 * home_dy / home_n
-                # Blend interpose with behind-carrier station.
+                behind_x = vc_x - 2.0 * home_dx / home_n
+                behind_y = vc_y - 2.0 * home_dy / home_n
                 screen_tx = 0.6 * screen_tx + 0.4 * behind_x
                 screen_ty = 0.6 * screen_ty + 0.4 * behind_y
+                # Pre-pickup only: meet the locked threat on the return corridor
+                # (projected intercept), do not chase its current position.
+                if bool(op6_pre.any().item()):
+                    ix, iy = self._bt_op6_projected_intercept_xy(
+                        bb, vc_x, vc_y, scr_idx, max_x, max_y
+                    )
+                    screen_tx = torch.where(op6_pre, ix, screen_tx)
+                    screen_ty = torch.where(op6_pre, iy, screen_ty)
                 screen_tx = torch.clamp(screen_tx, 0.0, max_x)
                 screen_ty = torch.clamp(screen_ty, 0.0, max_y)
-                use_screen = op6_extract & (role_j == ROLE_ESCORT)
+                use_screen = op6_screen & (role_j == ROLE_ESCORT)
                 tx = torch.where(use_screen, screen_tx, tx)
                 ty = torch.where(use_screen, screen_ty, ty)
-            # If escort but no carrier exists, fall back to attacker target.
-            tx = torch.where((role_j == ROLE_ESCORT) & (~bb["red_carry_any"]), atk_tx, tx)
-            ty = torch.where((role_j == ROLE_ESCORT) & (~bb["red_carry_any"]), atk_ty, ty)
+            # If escort but no carrier exists, fall back to attacker target
+            # unless OP6 preengage already owns the screener route.
+            no_carr_escort = (role_j == ROLE_ESCORT) & (~bb["red_carry_any"])
+            if hasattr(self, "bt_op6_preengage_ticks"):
+                no_carr_escort = no_carr_escort & ~(
+                    (prof["bt_level"] == 6) & (self.bt_op6_preengage_ticks > 0)
+                )
+            tx = torch.where(no_carr_escort, atk_tx, tx)
+            ty = torch.where(no_carr_escort, atk_ty, ty)
 
             # ── INTERCEPTOR ──────────────────────────────────────────────
             block_frac = (
@@ -979,6 +1892,32 @@ class _BTRedMixin(_BTAdaptiveMixin):
             ty = torch.where((role_j == ROLE_INTERCEPTOR) & bb["blue_carry_any"], intc_ty, ty)
             tx = torch.where((role_j == ROLE_INTERCEPTOR) & (~bb["blue_carry_any"]), def_tx, tx)
             ty = torch.where((role_j == ROLE_INTERCEPTOR) & (~bb["blue_carry_any"]), def_ty, ty)
+            # OP6 mutual-carry denial: chase/cut the blue carrier for a tag or
+            # forced detour (closer than the generic block fraction).
+            if hasattr(self, "bt_op6_race_ticks"):
+                op6_race = (
+                    (prof["bt_level"] == 6)
+                    & (self.bt_op6_race_ticks > 0)
+                    & bb["blue_carry_any"]
+                )
+                if bool(op6_race.any().item()):
+                    tgt = self.bt_op6_race_target_idx.clamp(min=0)
+                    has_tgt = self.bt_op6_race_target_idx >= 0
+                    chase_x = torch.where(
+                        has_tgt, self.blue_x[idx_env, tgt], bb["ec_x"]
+                    )
+                    chase_y = torch.where(
+                        has_tgt, self.blue_y[idx_env, tgt], bb["ec_y"]
+                    )
+                    # Cut tightly on the blue carrier (tag / forced drop).
+                    # Larger lead fractions delayed contact without delaying score.
+                    cut_x = chase_x + (bb["blue_flag_home"][:, 0] - chase_x) * 0.08
+                    cut_y = chase_y + (bb["blue_flag_home"][:, 1] - chase_y) * 0.08
+                    cut_x = torch.clamp(cut_x, 0.0, max_x)
+                    cut_y = torch.clamp(cut_y, 0.0, max_y)
+                    use_race = op6_race & (role_j == ROLE_INTERCEPTOR)
+                    tx = torch.where(use_race, cut_x, tx)
+                    ty = torch.where(use_race, cut_y, ty)
 
             # ── FLAG_RETRIEVER ───────────────────────────────────────────
             retr_tx = bb["red_flag_pos"][:, 0]
@@ -1080,6 +2019,195 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         return target_x, target_y
 
+    def _bt_op6_projected_intercept_xy(
+        self,
+        bb: dict,
+        vc_x: torch.Tensor,
+        vc_y: torch.Tensor,
+        threat_idx: torch.Tensor,
+        max_x: float,
+        max_y: float,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Meet-the-blocker waypoint on the return corridor (preengage only).
+
+        Projects the locked blue threat onto the virtual-carrier→red-home path,
+        then leads slightly toward home so the screener arrives ahead of a chase.
+        Uses closing velocity when adaptive prev-blue buffers are valid.
+        """
+        idx_env = bb["idx_env"]
+        ti = threat_idx.clamp(min=0).to(torch.int64)
+        bx = self.blue_x[idx_env, ti]
+        by = self.blue_y[idx_env, ti]
+        home_x = bb["red_flag_home"][:, 0]
+        home_y = bb["red_flag_home"][:, 1]
+        vx = home_x - vc_x
+        vy = home_y - vc_y
+        vv = vx * vx + vy * vy + 1e-8
+        wx = bx - vc_x
+        wy = by - vc_y
+        t = (wx * vx + wy * vy) / vv
+        # Lead along the corridor so we meet rather than trail the blocker.
+        lead = torch.full_like(t, 0.12)
+        if hasattr(self, "bt_adapt_prev_blue_valid"):
+            prev_ok = self.bt_adapt_prev_blue_valid
+            bvx = bx - self.bt_adapt_prev_blue_x[idx_env, ti]
+            bvy = by - self.bt_adapt_prev_blue_y[idx_env, ti]
+            # Component of blue motion along the return path (toward home > 0).
+            along = (bvx * vx + bvy * vy) / torch.sqrt(vv)
+            # Extra lead when the threat is already charging the corridor.
+            lead_dyn = lead + 0.08 * torch.clamp(along, 0.0, 2.0)
+            lead = torch.where(prev_ok, lead_dyn, lead)
+        t_meet = torch.clamp(t + lead, 0.08, 0.92)
+        ix = vc_x + t_meet * vx
+        iy = vc_y + t_meet * vy
+        return torch.clamp(ix, 0.0, max_x), torch.clamp(iy, 0.0, max_y)
+
+    def _bt_op6_projected_threat_danger(
+        self,
+        bb: dict,
+        carr_x: torch.Tensor,
+        carr_y: torch.Tensor,
+    ) -> torch.Tensor:
+        """Projected interception danger per blue vs the returning red carrier.
+
+        Higher = more dangerous. Uses legal geometry only (no style IDs):
+        path projection, ahead/behind, distance to carrier / red home, closing.
+        """
+        home_x = bb["red_flag_home"][:, 0]
+        home_y = bb["red_flag_home"][:, 1]
+        mid = bb["midline"]
+        vx = home_x - carr_x
+        vy = home_y - carr_y
+        vv = vx * vx + vy * vy + 1e-8
+        wx = self.blue_x - carr_x[:, None]
+        wy = self.blue_y - carr_y[:, None]
+        t = (wx * vx[:, None] + wy * vy[:, None]) / vv[:, None]
+        proj_x = carr_x[:, None] + t * vx[:, None]
+        proj_y = carr_y[:, None] + t * vy[:, None]
+        lat = torch.sqrt(
+            (self.blue_x - proj_x) ** 2 + (self.blue_y - proj_y) ** 2 + 1e-8
+        )
+        dist_carr = torch.sqrt(wx * wx + wy * wy + 1e-8)
+        dist_home = torch.sqrt(
+            (self.blue_x - home_x[:, None]) ** 2
+            + (self.blue_y - home_y[:, None]) ** 2
+            + 1e-8
+        )
+        # Ahead on return corridor (t in path segment, small lateral).
+        on_corridor = (t > 0.0) & (t < 1.05) & (lat < 6.0)
+        ahead_score = torch.clamp(t, 0.0, 1.0) * on_corridor.float()
+        ahead_score = ahead_score + 0.5 * (
+            (self.blue_x > mid) & (self.blue_x > carr_x[:, None])
+        ).float()
+
+        closing = torch.zeros_like(dist_carr)
+        if hasattr(self, "bt_adapt_prev_blue_valid"):
+            prev_ok = self.bt_adapt_prev_blue_valid[:, None]
+            bvx = self.blue_x - self.bt_adapt_prev_blue_x
+            bvy = self.blue_y - self.bt_adapt_prev_blue_y
+            # Positive = blue stepping toward carrier.
+            closing = torch.where(
+                prev_ok,
+                (bvx * (-wx) + bvy * (-wy)) / dist_carr,
+                closing,
+            )
+        approaching = closing > 0.05
+        eta = torch.where(
+            approaching,
+            dist_carr / closing.clamp(min=0.05),
+            dist_carr / 0.15 + 20.0,
+        )
+        # Path-arrival proxy: lateral gap / modest approach rate.
+        eta_path = lat / 0.20 + torch.clamp(1.0 - t, min=0.0) * 8.0
+
+        danger = (
+            3.0 / (eta + 1.0)
+            + 2.0 / (eta_path + 1.0)
+            + 2.0 * ahead_score
+            + 1.5 / (dist_carr + 1.0)
+            + 1.0 / (dist_home + 1.0)
+            + 0.5 * torch.clamp(closing, 0.0, 2.0)
+        )
+        live = self.blue_alive
+        if hasattr(self, "blue_tagged"):
+            live = live & (~self.blue_tagged)
+        return torch.where(live, danger, danger.new_full((), -1e9).expand_as(danger))
+
+    def _bt_op6_lock_extract_threats(
+        self,
+        bb: dict,
+        newly_armed: torch.Tensor,
+        carr_x: torch.Tensor | None = None,
+        carr_y: torch.Tensor | None = None,
+    ) -> None:
+        """Lock complementary carrier/screener blue threats at extract arm.
+
+        Carrier threat = evasion-nearest alive blue (what carrier routing already
+        responds to). Screener = the other alive blue when ≥2 are up (hard
+        complementary 2v2 contract — no duplicated targeting). Blues that are
+        themselves carrying still count as threats (excluding them caused C1
+        duplicates when one blue held red's flag at arm time).
+
+        Optional ``carr_x`` / ``carr_y`` override the reference point (used by
+        pre-pickup arming where the virtual carrier is the enemy flag).
+        """
+        idx_env = bb["idx_env"]
+        if carr_x is None or carr_y is None:
+            rc = bb["red_carrier_idx"].clamp(min=0)
+            carr_x = self.red_x[idx_env, rc]
+            carr_y = self.red_y[idx_env, rc]
+        # Tagged-out agents are not threats; carrying blues still are.
+        live = self.blue_alive & (~self.blue_tagged)
+        dist = torch.sqrt(
+            (self.blue_x - carr_x[:, None]) ** 2
+            + (self.blue_y - carr_y[:, None]) ** 2
+            + 1e-8
+        )
+        dist_m = torch.where(live, dist, dist.new_full((), 1e9).expand_as(dist))
+        carrier_threat = torch.argmin(dist_m, dim=1).to(torch.int32)
+        any_live = live.any(dim=1)
+        carrier_threat = torch.where(
+            any_live,
+            carrier_threat,
+            torch.full_like(carrier_threat, -1),
+        )
+
+        danger = self._bt_op6_projected_threat_danger(bb, carr_x, carr_y)
+        # Prefer danger among live agents; carrying blues keep their danger.
+        danger = torch.where(live, danger, danger.new_full((), -1e9).expand_as(danger))
+        nb = danger.shape[1]
+        threat_ids = torch.arange(nb, device=danger.device)[None, :]
+        danger_scr = torch.where(
+            threat_ids == carrier_threat[:, None],
+            danger.new_full((), -1e9).expand_as(danger),
+            danger,
+        )
+        screener_threat = torch.argmax(danger_scr, dim=1).to(torch.int32)
+        scr_ok = (danger_scr.max(dim=1).values > -1e8) & any_live
+        n_live = live.to(torch.int32).sum(dim=1)
+        screener_threat = torch.where(
+            scr_ok,
+            screener_threat,
+            torch.where(any_live, carrier_threat, torch.full_like(screener_threat, -1)),
+        )
+        # Hard complementary when ≥2 live blues (2v2: no duplicated targeting).
+        if nb >= 2:
+            alt = torch.where(
+                carrier_threat == 0,
+                torch.ones_like(carrier_threat),
+                torch.zeros_like(carrier_threat),
+            )
+            alt_live = live.gather(1, alt.clamp(min=0)[:, None].to(torch.int64)).squeeze(1)
+            force_alt = (n_live >= 2) & (carrier_threat >= 0) & alt_live
+            screener_threat = torch.where(force_alt, alt.to(torch.int32), screener_threat)
+
+        self.bt_op6_extract_carrier_threat = torch.where(
+            newly_armed, carrier_threat, self.bt_op6_extract_carrier_threat
+        )
+        self.bt_op6_extract_screener_threat = torch.where(
+            newly_armed, screener_threat, self.bt_op6_extract_screener_threat
+        )
+
     def _bt_op6_screen_break_routes(
         self,
         bb: dict,
@@ -1090,11 +2218,11 @@ class _BTRedMixin(_BTAdaptiveMixin):
         max_x: float,
         max_y: float,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """OP6-only corridor peel + blocker engage during extraction.
+        """OP6-only corridor peel + complementary-threat screener engage.
 
-        RUSH V3 dual-rushes red home while OP6 returns, so the blocker is often
-        *ahead* near red home rather than tightly on the carrier→home segment.
-        Detect either case. Latch/recovery thresholds stay frozen.
+        Carrier peel geometry is unchanged (away from on-path / ahead blocker).
+        Screener engages the *locked* complementary threat, not the peel blue,
+        so dual RUSH interceptors are not both covered by one assignment.
         """
         B, Nr = self.B, self.Nr
         device = self.device
@@ -1134,9 +2262,7 @@ class _BTRedMixin(_BTAdaptiveMixin):
         lat = torch.sqrt((self.blue_x - proj_x) ** 2 + (self.blue_y - proj_y) ** 2 + 1e-8)
         on_seg = (t > 0.05) & (t < 0.98) & (lat < 5.0)
 
-        # (2) Ahead-near-home blocker: blue on red half, further toward red
-        # home than the carrier, and not wildly off the home latitude
-        # (V3 RUSH charges the return destination).
+        # (2) Ahead-near-home blocker.
         dist_b_home = torch.sqrt(
             (self.blue_x - home_x[:, None]) ** 2 + (self.blue_y - home_y[:, None]) ** 2 + 1e-8
         )
@@ -1152,49 +2278,72 @@ class _BTRedMixin(_BTAdaptiveMixin):
             & (~self.blue_carrying)
             & (on_seg | ahead)
         )
-        # Prefer the blue closest to the carrier among eligible blockers.
+        # Carrier peel still uses nearest eligible (route unchanged), except
+        # during mutual-carry race denial: then go straight home (scoring-race
+        # tempo). Peel geometry itself is frozen for non-race extract returns.
         d_carr = torch.sqrt(
             (self.blue_x - carr_x[:, None]) ** 2 + (self.blue_y - carr_y[:, None]) ** 2 + 1e-8
         )
         d_m = torch.where(eligible, d_carr, d_carr.new_full((), 1e9).expand_as(d_carr))
-        blocker_idx = torch.argmin(d_m, dim=1)
-        has_blocker = eligible.any(dim=1) & extract & no_home_def
-        bx = self.blue_x[idx_env, blocker_idx]
-        by_ = self.blue_y[idx_env, blocker_idx]
+        peel_idx = torch.argmin(d_m, dim=1)
+        race_active = torch.zeros((B,), dtype=torch.bool, device=device)
+        if hasattr(self, "bt_op6_race_ticks"):
+            race_active = (self.bt_op6_race_ticks > 0) & op6 & bb["red_carry_any"]
+        has_peel = (
+            eligible.any(dim=1) & extract & no_home_def & (~race_active)
+        )
+        peel_x = self.blue_x[idx_env, peel_idx]
+        peel_y = self.blue_y[idx_env, peel_idx]
 
-        # Two return corridors: wider peel so the carrier clears the RUSH pair.
         amp = float(max(3.0, min(7.0, max_y * 0.30)))
         y_hi = torch.clamp(home_y + amp, 0.0, max_y)
         y_lo = torch.clamp(home_y - amp, 0.0, max_y)
-        use_hi = (y_hi - by_).abs() >= (y_lo - by_).abs()
+        use_hi = (y_hi - peel_y).abs() >= (y_lo - peel_y).abs()
         safe_y = torch.where(use_hi, y_hi, y_lo)
         c_tx = home_x
         c_ty = torch.where(dist_carr_home > 2.5, safe_y, home_y)
 
-        # Partner engages the blocker (draw/occupy), not behind-carrier trail.
+        # Screener engages locked complementary threat (not peel nearest).
+        scr_idx = self.bt_op6_extract_screener_threat.clamp(min=0)
+        has_scr = (self.bt_op6_extract_screener_threat >= 0) & extract & no_home_def
+        # Fall back to non-peel eligible / any live if lock missing this frame.
+        if bool((extract & (~has_scr)).any().item()):
+            danger = self._bt_op6_projected_threat_danger(bb, carr_x, carr_y)
+            danger = torch.where(
+                torch.arange(danger.shape[1], device=device)[None, :] == peel_idx[:, None],
+                danger.new_full((), -1e9).expand_as(danger),
+                danger,
+            )
+            fb = torch.argmax(danger, dim=1)
+            scr_idx = torch.where(has_scr, scr_idx, fb)
+            has_scr = has_scr | (extract & no_home_def & (danger.max(dim=1).values > -1e8))
+
+        bx = self.blue_x[idx_env, scr_idx]
+        by_ = self.blue_y[idx_env, scr_idx]
         engage_x = torch.clamp(bx, 0.0, max_x)
         engage_y = torch.clamp(by_, 0.0, max_y)
 
         agent_ids = torch.arange(Nr, device=device)[None, :]
         is_carrier = agent_ids == rc[:, None]
-        break_slots = has_blocker[:, None] & self.red_alive & (~self.red_tagged)
+        peel_slots = has_peel[:, None] & self.red_alive & (~self.red_tagged)
+        scr_slots = has_scr[:, None] & self.red_alive & (~self.red_tagged)
         target_x = torch.where(
-            break_slots & is_carrier & self.red_carrying,
+            peel_slots & is_carrier & self.red_carrying,
             c_tx[:, None].expand(B, Nr),
             target_x,
         )
         target_y = torch.where(
-            break_slots & is_carrier & self.red_carrying,
+            peel_slots & is_carrier & self.red_carrying,
             c_ty[:, None].expand(B, Nr),
             target_y,
         )
         target_x = torch.where(
-            break_slots & (~is_carrier) & (roles == ROLE_ESCORT),
+            scr_slots & (~is_carrier) & (roles == ROLE_ESCORT),
             engage_x[:, None].expand(B, Nr),
             target_x,
         )
         target_y = torch.where(
-            break_slots & (~is_carrier) & (roles == ROLE_ESCORT),
+            scr_slots & (~is_carrier) & (roles == ROLE_ESCORT),
             engage_y[:, None].expand(B, Nr),
             target_y,
         )
@@ -1540,11 +2689,17 @@ class _BTRedMixin(_BTAdaptiveMixin):
         bb = self._build_team_blackboard(prof)
         bb = self._extend_blackboard_adaptive(bb, prof)
         self._bt_update_op6_recovery(bb, prof)
+        self._bt_update_op7_split_latch(bb, prof)
+        self._bt_update_op7_compact_latch(bb, prof)
         roles = self._bt_assign_roles(bb)
         roles = self._bt_apply_adaptive_role_overrides(bb, roles, prof)
+        roles = self._bt_apply_op7_split_role_overrides(bb, roles, prof)
+        roles = self._bt_apply_op7_compact_role_overrides(bb, roles, prof)
         self._bt_update_telemetry(bb, roles, prev_roles)
         tx, ty = self._bt_route_target(bb, roles)
         tx, ty = self._bt_apply_adaptive_route_overrides(bb, roles, tx, ty, prof)
+        tx, ty = self._bt_apply_op7_split_route_overrides(bb, roles, tx, ty, prof)
+        tx, ty = self._bt_apply_op7_compact_route_overrides(bb, roles, tx, ty, prof)
         mine_x, mine_y, want = self._bt_plan_mines(bb, roles, prof)
         tx, ty = self._bt_apply_mine_routes(tx, ty, mine_x, mine_y, want, prof)
         self.bt_mine_target_x[:, :self.Nr] = mine_x.detach()

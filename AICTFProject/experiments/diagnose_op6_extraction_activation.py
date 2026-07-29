@@ -100,7 +100,7 @@ def _nearest_blue(core, x: float, y: float) -> tuple[int, float]:
 
 
 def _screen_break_snapshot(core, carr_i: int) -> dict[str, Any]:
-    """Mirror screen-break corridor / engage choice (read-only)."""
+    """Mirror screen-break / locked dual-threat assignment (read-only)."""
     mid = float(core.cols) * 0.5
     max_y = float(max(0, core.rows - 1))
     home_x = float(core.red_flag_home[0, 0].item())
@@ -109,24 +109,26 @@ def _screen_break_snapshot(core, carr_i: int) -> dict[str, Any]:
     carr_y = float(core.red_y[0, carr_i].item())
     extract_on = int(core.bt_op6_extract_ticks[0].item()) > 0
     home_def = bool(_blue_home_anchor(core)[0].item())
+    carrier_threat = int(getattr(core, "bt_op6_extract_carrier_threat", torch.tensor([-1]))[0].item())
+    screener_threat = int(getattr(core, "bt_op6_extract_screener_threat", torch.tensor([-1]))[0].item())
     eligible, _ = _between_carrier_and_home(core, carr_i)
     d_carr = torch.sqrt(
         (core.blue_x[0] - carr_x) ** 2 + (core.blue_y[0] - carr_y) ** 2 + 1e-8
     )
     d_m = torch.where(eligible, d_carr, d_carr.new_full((), 1e9))
-    blocker = int(torch.argmin(d_m).item()) if bool(eligible.any().item()) else -1
-    has_blocker = bool(eligible.any().item()) and extract_on and (not home_def)
+    peel_blocker = int(torch.argmin(d_m).item()) if bool(eligible.any().item()) else -1
+    has_peel = bool(eligible.any().item()) and extract_on and (not home_def)
 
     corridor = "none"
     screening_red = -1
-    if has_blocker and blocker >= 0:
-        by_ = float(core.blue_y[0, blocker].item())
+    if has_peel and peel_blocker >= 0:
+        by_ = float(core.blue_y[0, peel_blocker].item())
         amp = float(max(3.0, min(7.0, max_y * 0.30)))
         y_hi = min(max(home_y + amp, 0.0), max_y)
         y_lo = min(max(home_y - amp, 0.0), max_y)
         use_hi = abs(y_hi - by_) >= abs(y_lo - by_)
         corridor = "hi" if use_hi else "lo"
-        # Non-carrier red with ESCORT role is the screener.
+    if extract_on:
         roles = core.bt_red_role[0]
         for j in range(int(core.Nr)):
             if j == carr_i:
@@ -138,12 +140,40 @@ def _screen_break_snapshot(core, carr_i: int) -> dict[str, Any]:
             screening_red = 1 - carr_i
 
     threat_id, _ = _nearest_blue(core, carr_x, carr_y)
+    danger_rank0 = -1
+    danger_rank1 = -1
+    if hasattr(core, "_bt_op6_projected_threat_danger"):
+        bb = {
+            "red_flag_home": core.red_flag_home,
+            "midline": torch.tensor([mid], device=core.device),
+            "idx_env": torch.arange(core.B, device=core.device),
+        }
+        danger = core._bt_op6_projected_threat_danger(
+            bb,
+            torch.tensor([carr_x], dtype=torch.float32, device=core.device),
+            torch.tensor([carr_y], dtype=torch.float32, device=core.device),
+        )[0]
+        order = torch.argsort(danger, descending=True)
+        ranks = {int(order[i].item()): i + 1 for i in range(min(2, int(order.numel())))}
+        danger_rank0 = int(ranks.get(0, -1))
+        danger_rank1 = int(ranks.get(1, -1))
+
+    distinct = int(
+        carrier_threat >= 0
+        and screener_threat >= 0
+        and carrier_threat != screener_threat
+    )
     return {
         "selected_return_corridor": corridor,
         "screening_red_agent_id": screening_red,
         "nearest_blue_threat_id": threat_id,
-        "screen_blocker_id": blocker if has_blocker else -1,
-        "screen_break_active": int(has_blocker),
+        "screen_blocker_id": peel_blocker if has_peel else -1,
+        "screen_break_active": int(has_peel),
+        "carrier_evasion_threat_id": carrier_threat,
+        "screener_threat_id": screener_threat,
+        "assignments_distinct": distinct,
+        "danger_rank_blue0": danger_rank0,
+        "danger_rank_blue1": danger_rank1,
     }
 
 
@@ -216,8 +246,11 @@ def _classify_failed(
     ever_armed: bool,
     pickup_to_arm_delay: int | None,
     tag_delay: int,
-    screen_blocker_id: int,
+    carrier_threat: int,
+    screener_threat: int,
     tagger_id: int,
+    first_contact_by_screener_target: bool,
+    dual_threat_pickup: bool,
 ) -> str:
     if tag_delay <= IMMEDIATE_TAG_STEPS:
         return "E"
@@ -225,12 +258,16 @@ def _classify_failed(
         return "A"
     if pickup_to_arm_delay is not None and pickup_to_arm_delay > LATE_ARM_STEPS:
         return "B"
-    if (
-        screen_blocker_id >= 0
-        and tagger_id >= 0
-        and screen_blocker_id != tagger_id
-    ):
-        return "C"
+    if dual_threat_pickup and carrier_threat >= 0 and screener_threat >= 0:
+        if carrier_threat == screener_threat:
+            return "C1"
+        if tagger_id == screener_threat:
+            return "C3"
+        if tagger_id >= 0 and tagger_id != screener_threat:
+            # Tagger was not the screener's assigned threat.
+            if not first_contact_by_screener_target:
+                return "C2"
+            return "C3"
     return "D"
 
 
@@ -327,6 +364,16 @@ def _run_episode(
                     "disarm_reason": None,
                     "ever_armed": int(armed_now),
                     "first_screen_blocker_id": screen["screen_blocker_id"],
+                    "locked_carrier_threat": screen["carrier_evasion_threat_id"],
+                    "locked_screener_threat": screen["screener_threat_id"],
+                    "assignments_distinct": screen["assignments_distinct"],
+                    "first_contact_blue0_step": None,
+                    "first_contact_blue1_step": None,
+                    "first_contact_by_screener_target": 0,
+                    "dual_threat_pickup": int(
+                        ","
+                        in str(geom.get("blue_between_carrier_and_home_mask", ""))
+                    ),
                     "tagger_id": -1,
                     "outcome": None,
                     "fail_class": None,
@@ -370,9 +417,14 @@ def _run_episode(
                     active["extraction_eligible"] = cond["extraction_eligible"]
                     if active["first_screen_blocker_id"] < 0:
                         active["first_screen_blocker_id"] = screen["screen_blocker_id"]
+                    active["locked_carrier_threat"] = screen["carrier_evasion_threat_id"]
+                    active["locked_screener_threat"] = screen["screener_threat_id"]
+                    active["assignments_distinct"] = screen["assignments_distinct"]
                     active["selected_return_corridor"] = screen["selected_return_corridor"]
                     active["screening_red_agent_id"] = screen["screening_red_agent_id"]
                     active["nearest_blue_threat_id"] = screen["nearest_blue_threat_id"]
+                    active["danger_rank_blue0"] = screen["danger_rank_blue0"]
+                    active["danger_rank_blue1"] = screen["danger_rank_blue1"]
                     step_rows.append(
                         {
                             "episode_index": episode_index,
@@ -384,7 +436,33 @@ def _run_episode(
                             **screen,
                         }
                     )
-                elif ticks > 0 and prev_ticks <= 0 and active["ever_armed"]:
+                elif ticks > 0 and active["locked_carrier_threat"] < 0:
+                    # Capture lock if arm landed same frame as pickup observe.
+                    active["locked_carrier_threat"] = screen["carrier_evasion_threat_id"]
+                    active["locked_screener_threat"] = screen["screener_threat_id"]
+                    active["assignments_distinct"] = screen["assignments_distinct"]
+                # First contact: blue enters tag-radius (~2.5) of carrier.
+                cx = float(core.red_x[0, carr_i].item())
+                cy = float(core.red_y[0, carr_i].item())
+                for bi, key in ((0, "first_contact_blue0_step"), (1, "first_contact_blue1_step")):
+                    if active[key] is not None:
+                        continue
+                    if not bool(core.blue_alive[0, bi].item()):
+                        continue
+                    d = (
+                        (float(core.blue_x[0, bi].item()) - cx) ** 2
+                        + (float(core.blue_y[0, bi].item()) - cy) ** 2
+                    ) ** 0.5
+                    if d <= 2.5:
+                        active[key] = sim
+                        if bi == int(active.get("locked_screener_threat", -1)):
+                            active["first_contact_by_screener_target"] = 1
+                if (
+                    ticks > 0
+                    and prev_ticks <= 0
+                    and active["ever_armed"]
+                    and active.get("arm_step") != sim
+                ):
                     # Re-arm after timeout while still carrying.
                     step_rows.append(
                         {
@@ -439,8 +517,13 @@ def _run_episode(
                         ever_armed=bool(active["ever_armed"]),
                         pickup_to_arm_delay=active["pickup_to_arm_delay"],
                         tag_delay=tag_delay,
-                        screen_blocker_id=int(active["first_screen_blocker_id"]),
+                        carrier_threat=int(active.get("locked_carrier_threat", -1)),
+                        screener_threat=int(active.get("locked_screener_threat", -1)),
                         tagger_id=tagger_id,
+                        first_contact_by_screener_target=bool(
+                            active.get("first_contact_by_screener_target")
+                        ),
+                        dual_threat_pickup=bool(active.get("dual_threat_pickup")),
                     )
                     active["fail_class"] = cls
                     class_counts[cls] += 1
@@ -572,6 +655,25 @@ def _aggregate(
         ):
             both_near_flag += 1
 
+    dual_pickups = [r for r in pickup_rows if r.get("dual_threat_pickup")]
+    # Prefer post-arm locked assignment (pickup-time lock is often still -1/-1).
+    def _is_distinct(r: dict[str, Any]) -> bool:
+        c = int(r.get("locked_carrier_threat", -1))
+        s = int(r.get("locked_screener_threat", -1))
+        return c >= 0 and s >= 0 and c != s
+
+    distinct_n = sum(1 for r in dual_pickups if _is_distinct(r))
+    distinct_frac = distinct_n / max(len(dual_pickups), 1)
+    wrong_threat_fails = sum(
+        1 for r in pickup_rows if r.get("fail_class") in ("C", "C1", "C2")
+    )
+    baseline_wrong_threat = 6  # dev33 class-C count on same 8 RUSH seeds
+    wrong_threat_reduction = (
+        1.0 - (wrong_threat_fails / max(baseline_wrong_threat, 1))
+        if baseline_wrong_threat
+        else None
+    )
+
     decision = "unknown"
     if n_fail == 0:
         decision = "no_failed_returns"
@@ -581,7 +683,10 @@ def _aggregate(
             "A": "Never arms → fix activation predicate or state wiring",
             "B": "Arms late → arm immediately on pickup, then validate conditions afterward",
             "C": "Targets wrong blue → distinguish blocker geometry from generic nearest-threat",
-            "D": "Arms correctly but still fails → only then reconsider extraction behavior",
+            "C1": "Carrier and screener duplicated the same threat",
+            "C2": "Screener selected the wrong distinct threat",
+            "C3": "Correct target, but screener arrived too late",
+            "D": "Both threats handled, route still failed",
             "E": "Carrier dies immediately → opening must begin before pickup, not after",
         }.get(top, f"dominant_class={top}")
 
@@ -603,6 +708,10 @@ def _aggregate(
             sum(fail_durs) / max(len(fail_durs), 1) if fail_durs else None
         ),
         "both_blues_between_at_pickup_frac": both_between / max(n_pick, 1),
+        "dual_threat_pickups": len(dual_pickups),
+        "distinct_assignment_frac_dual": distinct_frac,
+        "wrong_threat_fail_n": wrong_threat_fails,
+        "wrong_threat_reduction_vs_dev33": wrong_threat_reduction,
         "block_reason_at_pickup": dict(block_reasons),
         "fail_class_counts": dict(fail_classes),
         "fail_class_frac_of_failures": {
@@ -612,11 +721,14 @@ def _aggregate(
         "flag_area_overlap_proxy_frac": both_near_flag / max(n_pick, 1),
         "immediate_tag_threshold": IMMEDIATE_TAG_STEPS,
         "late_arm_threshold": LATE_ARM_STEPS,
-        "note_offense_failed_return_metric": (
-            "diagnose_op6_offense_competence.py overcounts failed returns by "
-            "~1 per successful score (stale pre-step carry). True fails ≈ "
-            "reported_fails - scores. This diagnostic counts carry windows."
-        ),
+        "micro_gates": {
+            "distinct_assignment_ge_90pct": distinct_frac >= 0.90,
+            "wrong_threat_reduced_ge_75pct": (wrong_threat_reduction or 0.0) >= 0.75,
+            "true_failed_returns_le_0_5": (
+                sum(int(e["failed_returns"]) for e in ep_rows) / max(len(ep_rows), 1)
+            )
+            <= 0.5,
+        },
         "decision_tree_recommendation": decision,
     }
 
@@ -639,7 +751,7 @@ def main() -> int:
         args.out_dir = (
             PROJECT_ROOT
             / "artifacts"
-            / "op6_extraction_activation_dev33_rush_map_a"
+            / "op6_extraction_activation_dev34_dual_threat_rush_map_a"
         )
     args.out_dir.mkdir(parents=True, exist_ok=True)
 

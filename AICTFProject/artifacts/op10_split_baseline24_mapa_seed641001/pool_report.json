@@ -1,0 +1,79 @@
+{
+  "blues": [
+    "BLUE_ESCORT",
+    "BLUE_RUSH",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "reds": [
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_a"
+  ],
+  "n_episodes": {
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 24
+  },
+  "mean_margin": {
+    "BLUE_ESCORT": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 0.9166666666666666
+    },
+    "BLUE_RUSH": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 2.1666666666666665
+    },
+    "BLUE_SPLIT": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 1.2083333333333333
+    },
+    "BLUE_TURTLE": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 0.4166666666666667
+    }
+  },
+  "win_rate": {
+    "BLUE_ESCORT": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 0.7083333333333334
+    },
+    "BLUE_RUSH": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 0.9166666666666666
+    },
+    "BLUE_SPLIT": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 0.75
+    },
+    "BLUE_TURTLE": {
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_a": 0.4166666666666667
+    }
+  },
+  "v_selective_insample": 2.1666666666666665,
+  "v_best_fixed_insample": 2.1666666666666665,
+  "best_fixed_style": "BLUE_RUSH",
+  "v_selective": 2.166666666666667,
+  "v_best_fixed": 2.166666666666667,
+  "delta_pool": 0.0,
+  "delta_pool_ci95": [
+    0.0,
+    0.0
+  ],
+  "delta_pool_lcb": 0.0,
+  "v_hindsight": 2.4583333333333335,
+  "best_response_by_red": {
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_a": "BLUE_RUSH"
+  },
+  "br_diversity": 1,
+  "dominating_blue_style": "BLUE_RUSH",
+  "unprotected_blues": [
+    "BLUE_ESCORT",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "degenerate_red_styles": [
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_a"
+  ],
+  "best_blue_overall_wr": 0.9166666666666666,
+  "tie_rate": 0.2708333333333333,
+  "gates": {
+    "delta_pool_lcb_positive": false,
+    "no_dominating_blue_style": false,
+    "best_response_diversity": false,
+    "all_blues_protected": false,
+    "best_blue_wr_in_band": false,
+    "tie_rate_under_threshold": true,
+    "no_degenerate_red_styles": false
+  },
+  "admissible": false
+}

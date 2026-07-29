@@ -276,6 +276,34 @@ def _core_detector_telemetry(core: Any) -> dict[str, int | float]:
         "escort_confirmation_to_episode_end_steps": _scalar_core_int(core, "bt_adapt_escort_confirm_to_end_steps", 0),
         "conversion_phase_first_step": first_trigger,
         "carrier_intercept_attempts": _scalar_core_int(core, "bt_tel_intercept_attempts", 0),
+        "op7_split_latch_first_trigger_step": _scalar_core_int(
+            core, "bt_op7_split_first_trigger_step", -1
+        ),
+        "op7_split_latch_activations": _scalar_core_int(core, "bt_op7_split_activations", 0),
+        "op7_split_response_active_steps": _scalar_core_int(
+            core, "bt_op7_split_response_active_steps", 0
+        ),
+        "op7_split_pressure_active_steps": _scalar_core_int(core, "bt_op7_split_active_steps", 0),
+        "op7_split_max_lateral_sep": _scalar_core_float(core, "bt_op7_split_max_lateral_sep", 0.0),
+        "op7_split_max_teammate_dist": _scalar_core_float(
+            core, "bt_op7_split_max_teammate_dist", 0.0
+        ),
+        "op7_split_lever_enabled": int(
+            bool(getattr(type(core), "_OP7_SPLIT_LEVER_ENABLED", True))
+        ),
+        "op7_split_response_enabled": int(
+            bool(getattr(type(core), "_OP7_SPLIT_LEVER_ENABLED", True))
+        ),
+        "op7_compact_latch_first_trigger_step": _scalar_core_int(
+            core, "bt_op7_compact_first_trigger_step", -1
+        ),
+        "op7_compact_activations": _scalar_core_int(core, "bt_op7_compact_activations", 0),
+        "op7_compact_response_active_steps": _scalar_core_int(
+            core, "bt_op7_compact_response_active_steps", 0
+        ),
+        "op7_compact_lever_enabled": int(
+            bool(getattr(type(core), "_OP7_COMPACT_LEVER_ENABLED", True))
+        ),
     }
 
 
@@ -639,6 +667,10 @@ def main() -> int:
         ),
         "episodes_per_cell": int(args.episodes),
         "op12_confirmed_escort_response_enabled": bool(args.op12_confirmed_escort_response),
+        "op7_split_lever_enabled": True,
+        "op7_split_response_enabled": True,
+        "op7_compact_lever_enabled": True,
+        "op7_compact_response_enabled": True,
         "base_seed": int(args.base_seed),
         "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
         "max_decision_steps": int(args.max_decision_steps),

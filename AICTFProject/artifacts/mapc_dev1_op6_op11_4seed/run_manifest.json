@@ -1,0 +1,45 @@
+{
+  "protocol": "scripted_blue_red_pool_admissibility",
+  "blue_probe_protocol": "BLUE_PROBES_V3",
+  "status": "completed",
+  "started_at_utc": "2026-07-29T00:47:35.097610+00:00",
+  "blue_styles": [
+    "BLUE_RUSH",
+    "BLUE_TURTLE",
+    "BLUE_SPLIT",
+    "BLUE_ESCORT"
+  ],
+  "reds": [
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP11_ADAPTIVE_EXPLOITER"
+  ],
+  "maps": [
+    "map_c_home_corridor"
+  ],
+  "niche_canonical_map": "map_a",
+  "niche_map_contract": "Four-niche acceptance evidence requires map_a only; other maps are robustness-only and must not be mixed.",
+  "episodes_per_cell": 4,
+  "op12_confirmed_escort_response_enabled": false,
+  "op7_split_lever_enabled": true,
+  "op7_split_response_enabled": true,
+  "op7_compact_lever_enabled": true,
+  "op7_compact_response_enabled": true,
+  "base_seed": 671001,
+  "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
+  "max_decision_steps": 240,
+  "device": "cuda",
+  "expected_episode_rows": 32,
+  "artifacts": [
+    "episode_results.csv",
+    "pool_report.json",
+    "pool_report.txt",
+    "partial_summary.json"
+  ],
+  "resume": {
+    "loaded_existing_rows": 0,
+    "accepted_existing_rows": 0,
+    "duplicate_or_invalid_existing_rows": 0
+  },
+  "completed_at_utc": "2026-07-29T01:10:04.384481+00:00",
+  "completed_episode_rows": 32
+}

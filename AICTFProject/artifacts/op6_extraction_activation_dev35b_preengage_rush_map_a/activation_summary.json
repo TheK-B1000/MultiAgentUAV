@@ -1,0 +1,42 @@
+{
+  "n_episodes": 8,
+  "n_pickups": 25,
+  "n_scores": 16,
+  "n_failed_returns": 9,
+  "mean_pickups": 3.125,
+  "mean_failed_returns": 1.125,
+  "armed_any_frac": 0.96,
+  "armed_at_pickup_frac": 0.0,
+  "never_armed_frac": 0.04,
+  "mean_pickup_to_arm_delay_when_armed": 1.3333333333333333,
+  "mean_fail_carry_duration": 16.77777777777778,
+  "both_blues_between_at_pickup_frac": 0.96,
+  "dual_threat_pickups": 24,
+  "distinct_assignment_frac_dual": 0.9166666666666666,
+  "wrong_threat_fail_n": 2,
+  "wrong_threat_reduction_vs_dev33": 0.6666666666666667,
+  "block_reason_at_pickup": {
+    "bt_before_pickup_lag": 22,
+    "blue_home_anchor_present": 3
+  },
+  "fail_class_counts": {
+    "C3": 6,
+    "E": 1,
+    "C1": 2
+  },
+  "fail_class_frac_of_failures": {
+    "C3": 0.6666666666666666,
+    "E": 0.1111111111111111,
+    "C1": 0.2222222222222222
+  },
+  "flag_area_overlap_proxy_n": 3,
+  "flag_area_overlap_proxy_frac": 0.12,
+  "immediate_tag_threshold": 4,
+  "late_arm_threshold": 8,
+  "micro_gates": {
+    "distinct_assignment_ge_90pct": true,
+    "wrong_threat_reduced_ge_75pct": false,
+    "true_failed_returns_le_0_5": false
+  },
+  "decision_tree_recommendation": "Correct target, but screener arrived too late"
+}

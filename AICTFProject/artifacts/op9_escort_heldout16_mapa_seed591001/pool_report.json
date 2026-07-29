@@ -1,0 +1,79 @@
+{
+  "blues": [
+    "BLUE_ESCORT",
+    "BLUE_RUSH",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "reds": [
+    "OP9_SPLIT_LANE_FEINT|map_a"
+  ],
+  "n_episodes": {
+    "OP9_SPLIT_LANE_FEINT|map_a": 16
+  },
+  "mean_margin": {
+    "BLUE_ESCORT": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 1.75
+    },
+    "BLUE_RUSH": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 1.25
+    },
+    "BLUE_SPLIT": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 1.125
+    },
+    "BLUE_TURTLE": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 0.25
+    }
+  },
+  "win_rate": {
+    "BLUE_ESCORT": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 0.875
+    },
+    "BLUE_RUSH": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 0.9375
+    },
+    "BLUE_SPLIT": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 0.625
+    },
+    "BLUE_TURTLE": {
+      "OP9_SPLIT_LANE_FEINT|map_a": 0.375
+    }
+  },
+  "v_selective_insample": 1.75,
+  "v_best_fixed_insample": 1.75,
+  "best_fixed_style": "BLUE_ESCORT",
+  "v_selective": 1.63125,
+  "v_best_fixed": 1.63125,
+  "delta_pool": 0.0,
+  "delta_pool_ci95": [
+    0.0,
+    0.0
+  ],
+  "delta_pool_lcb": 0.0,
+  "v_hindsight": 2.375,
+  "best_response_by_red": {
+    "OP9_SPLIT_LANE_FEINT|map_a": "BLUE_ESCORT"
+  },
+  "br_diversity": 1,
+  "dominating_blue_style": "BLUE_ESCORT",
+  "unprotected_blues": [
+    "BLUE_RUSH",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "degenerate_red_styles": [
+    "OP9_SPLIT_LANE_FEINT|map_a"
+  ],
+  "best_blue_overall_wr": 0.9375,
+  "tie_rate": 0.1875,
+  "gates": {
+    "delta_pool_lcb_positive": false,
+    "no_dominating_blue_style": false,
+    "best_response_diversity": false,
+    "all_blues_protected": false,
+    "best_blue_wr_in_band": false,
+    "tie_rate_under_threshold": true,
+    "no_degenerate_red_styles": false
+  },
+  "admissible": false
+}

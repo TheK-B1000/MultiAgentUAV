@@ -172,11 +172,10 @@ BT_PROFILES: Dict[int, BTProfile] = {
         lane_amplitude_frac=0.22,
         intercept_feasibility_ratio=0.85,
     ),
-    # OP6 - Immediate dual assault (offense-first; recovery paused for tuning).
-    # Both reds stay ATTACKER on opposite lanes. No intercept/defender/flag-
-    # retrieval peel — empty-home blues must lose the dual-score race before
-    # any recovery window matters. enable_flag_retr=False keeps both agents
-    # on the flag even if blue steals (dual-rush identity).
+    # OP6 - Immediate dual assault (landscape / TURTLE-host freeze).
+    # Both reds stay ATTACKER on opposite lanes. Recovery redeploy is ON
+    # (Contract B). Extraction / preengage / race-denial gameplay defaults
+    # OFF (`_bt_red.py`). enable_flag_retr=False keeps dual-rush identity.
     6: _profile(
         6,
         "OP6_IMMEDIATE_DUAL_RUSH",

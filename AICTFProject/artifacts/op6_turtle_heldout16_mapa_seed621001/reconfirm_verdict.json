@@ -1,0 +1,64 @@
+{
+  "verdict": "RECONFIRM_FAIL",
+  "protocol": "BLUE_PROBES_V3",
+  "base_seed": 621001,
+  "n_episodes": 16,
+  "intended_best": "BLUE_TURTLE",
+  "means": {
+    "BLUE_ESCORT": -0.0625,
+    "BLUE_RUSH": 0.75,
+    "BLUE_SPLIT": 0.0,
+    "BLUE_TURTLE": 0.875
+  },
+  "win_rates": {
+    "BLUE_ESCORT": 0.375,
+    "BLUE_RUSH": 0.875,
+    "BLUE_SPLIT": 0.5,
+    "BLUE_TURTLE": 0.75
+  },
+  "uniquely_best": "BLUE_TURTLE",
+  "paired_advantages": {
+    "BLUE_ESCORT": {
+      "mean": 0.9375,
+      "ci95": [
+        0.25,
+        1.5625
+      ],
+      "clear": true,
+      "pos": 11,
+      "neg": 2,
+      "zero": 3
+    },
+    "BLUE_RUSH": {
+      "mean": 0.125,
+      "ci95": [
+        -0.5,
+        0.6875
+      ],
+      "clear": false,
+      "pos": 6,
+      "neg": 3,
+      "zero": 7
+    },
+    "BLUE_SPLIT": {
+      "mean": 0.875,
+      "ci95": [
+        0.1875,
+        1.5
+      ],
+      "clear": true,
+      "pos": 9,
+      "neg": 2,
+      "zero": 5
+    }
+  },
+  "pooled_vs_best_other": {
+    "mean": 0.0,
+    "ci95": [
+      -0.5625,
+      0.5015625000000057
+    ],
+    "clear": false
+  },
+  "episode_csv": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\op6_turtle_heldout16_mapa_seed621001\\episode_results.csv"
+}
