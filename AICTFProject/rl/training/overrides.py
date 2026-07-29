@@ -374,6 +374,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.reward_shaping_decay_steps = max(0, int(args.reward_shaping_decay_steps))
     if args.periodic_checkpoint_steps is not None:
         cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
+    if getattr(args, "max_decision_steps", None) is not None:
+        cfg.max_decision_steps = max(1, int(args.max_decision_steps))
     if getattr(args, "phase_a_disable_promotion", False):
         cfg.phase_a_disable_promotion = True
     if getattr(args, "csia_enabled", False):

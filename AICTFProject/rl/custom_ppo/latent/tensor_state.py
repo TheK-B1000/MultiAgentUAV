@@ -73,6 +73,13 @@ def allocate_latent_state_fields(host: Any, trainer: "CustomPPOTrainer") -> None
     host.rollout_behavior_contrast_distance_sum = 0.0
     host.rollout_behavior_contrast_count = 0
     host.rollout_behavior_contrast_active_count = 0
+    # Outcome-diversity rollout counters (must exist even when latent is off:
+    # post_update always reads them; reset() early-returns for no-latent runs).
+    host.rollout_outcome_diversity_bonus_sum = 0.0
+    host.rollout_outcome_diversity_distance_sum = 0.0
+    host.rollout_outcome_diversity_count = 0
+    host.rollout_outcome_diversity_active_count = 0
+    host.rollout_outcome_diversity_skipped_count = 0
     host.rollout_forced_z_episode_count = 0
     host.rollout_completed_episode_count = 0
     host.rollout_tactical_bucket_fallback_count = 0

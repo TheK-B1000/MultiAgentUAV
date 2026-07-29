@@ -75,8 +75,8 @@ def split_lane_v2_rect_norm(*, mirror_y: bool = False) -> Tuple[float, float, fl
 
 def home_corridor_rect_norm(*, mirror_y: bool = False) -> Tuple[float, float, float, float]:
     """Wall positioned near BLUE's home (not centered like Map B) -- creates
-    a chokepoint on blue's flag-return leg. Intended affordances (per the
-    locked K=4 map-design contract, 2026-07-29):
+    a SINGLE mandatory chokepoint on blue's flag-return leg. Intended
+    affordances (per the locked K=4 map-design contract, 2026-07-29):
       - ESCORT: an unescorted blue carrier funnels through this corridor on
         the way home and is exposed to a waiting red interceptor there; a
         nearby teammate can block/redirect that interceptor.
@@ -87,12 +87,27 @@ def home_corridor_rect_norm(*, mirror_y: bool = False) -> Tuple[float, float, fl
     (``_MapStateMixin``); only the position and width differ. Blue's flag
     home sits at x=2 in a 20-wide field (~0.10 normalized) -- this band
     starts just past it, on the corridor blue's carrier must cross.
+
+    Version 2 (revised after Version 1 traced live -- see tracker): V1 used
+    a Map-B-style wall with open gaps at BOTH top and bottom (y=0.28-0.70),
+    which on a 20x20 field left bypasses above ~y=5.3 and below ~y=13.3
+    (~28% of field height each). Attackers/carriers routed around either
+    end instead of through a defendable corridor -- TURTLE chase failures
+    and ESCORT route confusion both traced to that dual-bypass geometry.
+    V2 pins the wall flush against the BOTTOM edge (y_max=1.0), leaving
+    exactly ONE gap near the top. Gap height is ~18% of the field
+    (y_min=0.18 → ~3.4 cells): narrow enough to be a single choke, wide
+    enough for corner-routing clearance (~1.5 cells). Do not shrink below
+    ~0.15 or the top corridor becomes impassable under the shared router.
+
+    FROZEN (2026-07-28): Map C V2 — no third wall version. Micro-gate /
+    opponent work only; do not retune these numbers.
     """
     return split_lane_rect_norm(
         x_min=0.15,
-        x_max=0.22,
-        y_min=0.28,
-        y_max=0.70,
+        x_max=0.24,
+        y_min=0.18,
+        y_max=1.0,
         mirror_y=mirror_y,
     )
 

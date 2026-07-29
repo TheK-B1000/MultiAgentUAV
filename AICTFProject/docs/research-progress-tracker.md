@@ -1122,12 +1122,129 @@ That is stronger than manufacturing four fragile latents via special-case BT.
 
 ```text
 Current multi-map scan:            one final broad scan (in flight)
-New map designs:                   maximum 2 versions
+New map designs:                   maximum 2 versions (Map C = version 2 in use)
 Opponent redesigns / missing niche: maximum 2 rounds
 No full matrix before micro-gates pass
 No held-out before untouched validation passes
 No further OP6 extraction / race-branch engineering
 ```
+
+**Map C `map_c_home_corridor` (new-map budget, 2026-07-28/29):**
+
+Version 1 wall (`y∈[0.28,0.70]`) left two open bypasses on a 20×20 field
+(above ~y=5.3 and below ~y=13.3, each ~28%+ of height). Live traffic went
+around, not through — TURTLE chase failures and ESCORT route confusion both
+stemmed from the wall not forcing a single choke. Version 1 payoff screen
+(`artifacts/mapc_dev1_op6_op11_4seed`) had RUSH/SPLIT best; TURTLE/ESCORT
+worst — consistent with missing affordance.
+
+**Version 2 geometry — FROZEN (no third wall version):**
+
+```text
+wall: x∈[0.15,0.24], y∈[0.18,1.0]  (flush to bottom edge)
+gaps: exactly ONE near the top (~3.4 cells); bottom sealed
+tests: tests/test_map_c_home_corridor.py
+```
+
+Contract: single mandatory top gap; bottom sealed; gap wide enough for
+shared corner routing. Do not shrink below ~0.15 norm.
+
+**Next — two separate micro-gate suites on the same frozen Map C V2
+(no four-style payoff matrix until causal effects pass):**
+
+```text
+TURTLE → OP6 | map_c   diagnose_mapc_turtle_microgates.py
+ESCORT → OP11| map_c   diagnose_mapc_escort_microgates.py
+```
+
+TURTLE gates: red-first frequent vs RUSH/SPLIT/ESCORT; rare vs TURTLE;
+stop-at-gap + counter-after-stop frequent; 0 bottom bypasses.
+
+ESCORT gates: supported return success clearly exceeds RUSH/SPLIT
+unsupported; ESCORT closer + interposes at gap; RUSH brief screen must
+not get the same advantage.
+
+Target board:
+
+```text
+RUSH   → existing map_a context
+SPLIT  → existing map_b_split_lane context
+TURTLE → OPx | map_c
+ESCORT → OPy | map_c
+```
+
+**Map C V2 micro-gate first pass (2026-07-28, wall FROZEN — do not retune):**
+
+Geometry verify **PASS** on both suites: 0 bottom bypasses, 0 router-stall
+sums, aggressive styles use the top gap 8/8.
+
+TURTLE / OP6 (`artifacts/mapc_v2_turtle_microgates_op6_8seed`, seed 801001):
+
+```text
+RUSH   red-first 3/8  FAIL (≥5)   margin +0.25
+SPLIT  red-first 8/8  PASS
+ESCORT red-first 8/8  PASS
+TURTLE red-first 7/8  FAIL (≤2)   ← red still converts first
+TURTLE stop@gap  7/8  PASS
+TURTLE counter   5/8  PASS
+gates_pass=False
+```
+
+Stop/counter fire, but the home-anchor does not prevent red first-score.
+This is **not** a map-shape problem — it would require redesigning OP6’s
+gap assault / recovery (paused).
+
+ESCORT / OP11 (`artifacts/mapc_v2_escort_microgates_op11_8seed`, seed 811001):
+
+```text
+RUSH   return 8/8  prot_dist≈4.1  interpose@gap≈3.5
+SPLIT  return 8/8  prot_dist≈12.9 interpose@gap≈0.1
+ESCORT return 0/8  prot_dist≈1.7  interpose@gap≈0.4  top_gap_use=0/8
+gates_pass=False
+```
+
+Formation exists (protector ≈1.7) but ESCORT **never reaches the gap**, so
+the map cannot test whether protection helps during extraction. RUSH/SPLIT
+succeed via better routing, not strategic unsupported superiority. Would
+require blue ESCORT routing (and possibly another OP) — paused.
+
+**Map C CLOSED FOR CURRENT BUDGET (2026-07-28, locked):**
+
+```text
+Map C V2 geometry:          PASS
+TURTLE causal affordance:   FAIL
+ESCORT causal affordance:   FAIL
+K=4 environment extension:  CLOSED FOR CURRENT BUDGET
+Future work (not now):
+  - gap-assault dynamics
+  - coordination-aware ESCORT routing
+```
+
+Two-version map budget exhausted. Do **not** start OP6 gap-assault tuning,
+ESCORT routing changes, a third wall, or any Map C four-style matrix.
+Stop Map C and opponent engineering for the K=4 extension.
+
+**Pivot — K=2 LRO proof (professor-approved minimum):**
+
+```text
+C_RUSH  = OP6_IMMEDIATE_DUAL_RUSH | map_a     FROZEN CONFIRM_PASS
+C_SPLIT = OP9_SPLIT_LANE_FEINT    | map_b_split_lane  FROZEN CONFIRM_PASS
+```
+
+Sequence (no skipping):
+
+```text
+1. Confirm both contexts on fresh 16-seed blocks → freeze   DONE
+2. Train independent RUSH and SPLIT PPO specialists          NEXT
+3. Cross-evaluate; each must own its context
+4. Require LCB95(Δ_pool) > 0
+5. Birth two LRO latent branches
+6. Verify forced-latent crossover + policy distinction
+7. Train the router last
+```
+
+Two genuine learned latent strategies beat an unfinished K=4 extension
+swallowing the first demonstrable Summer result.
 
 **K=2 LRO proof (next after landscape finishes) — required before router:**
 
@@ -1172,55 +1289,59 @@ Target structure (OPs may change; two jobs per map must hold):
 ```text
 RUSH   → OP8|map_a
 SPLIT  → OP9|map_b_split_lane
-TURTLE → OP6|new_map
-ESCORT → OP11|new_map
+TURTLE → OP6|map_c_home_corridor   (V2 single-choke; micro-gates pending)
+ESCORT → OP11|map_c_home_corridor  (same map, different OP job)
 ```
 
 Same new map must require two different blue responses depending on the
-opponent — so the router cannot memorize `map→one style`.
+opponent — so the router cannot memorize `map→one style`. Map C V2 seals the
+bottom bypass so traffic has one mandatory passage.
 
 **Honest board (anchors + open jobs):**
 
 ```text
-RUSH   → OP8 | map_a              (V3 probe accepted; strong frozen candidate; pooled LCB≤0)
-SPLIT  → OP9 | map_b_split_lane   (historical held-out strong; K=2 anchor)
-TURTLE → landscape-ranked (OP,map) that punishes RUSH abandoned-home
-ESCORT → needs new-map / persistent-carrier-support affordance
+RUSH   → many gap≥0.5 cells; OP8|map_a is ESCORT-thin (+0.25) in this scan
+         (frozen RUSH held-out evidence remains; resolve at selection)
+SPLIT  → OP9 | map_b_split_lane   (gap +1.12; K=2 anchor confirmed)
+TURTLE → no gap≥0.5 on existing maps (thin: OP12|map_a / OP12|map_b +0.12)
+ESCORT → no gap≥0.5 on existing maps (thin: OP8|map_a +0.25)
 ```
 
-**Paused:** OP6/OP7/OP11 opponent redesign on map_a / map_b until the
-landscape finishes and contexts are ranked for TURTLE-engineering.
-`BLUE_PROBES_V3` frozen (including RUSH V3 — do not weaken). Latent /
-router training remains stopped until K=2 specialist crossover passes.
+**Paused:** OP6/OP7/OP11 opponent redesign on map_a / map_b for niche
+manufacture. `BLUE_PROBES_V3` frozen. Latent / router training remains
+stopped until K=2 specialist crossover passes.
 
-**OP8 freeze:** no redesign and no additional held-out reruns. Evidence is
-exactly as recorded in `op8_rush_heldout16_v3_map_a_seed582001`.
+**OP8 freeze:** no redesign and no additional held-out reruns of
+`op8_rush_heldout16_v3_map_a_seed582001`. Multi-map 8-seed scan conflict
+(ESCORT-thin on OP8|map_a) is discovery-only — do not auto-retune OP8.
 
 **Map naming:** `map_a` ≡ `map_a_open`. `map_b_split_lane` is a usable
 K=2 SPLIT anchor under this fork (not “historical-only trash”).
 
-### Multi-map landscape scan — RUNNING (final scan; do not restart)
+### Multi-map landscape scan — COMPLETED
 
 Artifact: `artifacts/multimap_v3_landscape_op6_op12_8seed`
 Protocol: OP6–OP12 × {map_a, map_b_split_lane, map_b_split_lane_v2} ×
 {RUSH,SPLIT,TURTLE,ESCORT} × 8 paired seeds = **672 episodes**,
-`BLUE_PROBES_V3`, base-seed 620001. Status ~137/672 as of last check —
-**finish this run only**; do not launch a competing second scan.
+`BLUE_PROBES_V3`, base-seed 620001. Resumed once after mid-run kill
+(~141/672). Summary: `context_summary.json`.
 
-Post-scan decision rule (LOCKED):
+**Post-scan verdict (LOCKED rule applied):**
 
 ```text
-If existing contexts robustly produce only:
-  map_a → RUSH
-  map_b → SPLIT
-→ stop opponent engineering on those maps
-→ proceed to K=2 specialist training
-→ then design the TURTLE+ESCORT map (≤2 versions)
+Existing maps robustly produce:
+  map_a / map_b* → RUSH-dominated cells (many gap≥0.5)
+  map_b_split_lane* → SPLIT on OP9 only (gap +1.12)
+  TURTLE / ESCORT → no gap≥0.5 tooth on any OP6–OP12 × map cell
+→ STOP opponent engineering on map_a / map_b for missing niches
+→ K=2 anchors usable: RUSH (pick among gap≥0.5) + SPLIT OP9|map_b
+→ TURTLE+ESCORT → Map C path (≤2 versions; V2 frozen)
 ```
 
-Do **not** algorithmically force four contexts out of the current map
-family via more BT patches. Report cell winners honestly; missing TURTLE /
-ESCORT teeth on existing maps are expected inputs to the new-map step.
+Candidates gap≥0.5: RUSH many (clearest OP10|map_b_v2 +1.38); SPLIT
+OP9|map_b and OP9|map_b_v2 (+1.12 each); TURTLE none; ESCORT none.
+OP6|map_a is RUSH-best (+0.75), not TURTLE. OP11|map_b is RUSH-best
+(+0.88), not ESCORT.
 
 ### Full map_a V3 landscape (OP6–OP12) — COMPLETED (superseded as sole board)
 
@@ -1478,11 +1599,13 @@ OP11 may continue in a separate branch, but **no shared changes** across hosts.
 + `all_blues_protected`; niche-balanced sampling 25% each; then independent
 PPO specialists → learned oracle; then K=4 LRO / forced-z / router.
 
-**Immediate focus:** Multi-map landscape RUNNING
-(`artifacts/multimap_v3_landscape_op6_op12_8seed`, 672 episodes). RUSH V3
-probe accepted (do not weaken). Pause opponent redesign until scan finishes,
-then rank contexts for TURTLE-engineering (punish abandoned home; TURTLE
-anchor stops it). Do not manufacture SPLIT on map_a.
+**Immediate focus:** Both K=2 contexts **FROZEN**.
+`C_RUSH=OP6|map_a` (CONFIRM_PASS, gap +0.25) and
+`C_SPLIT=OP9|map_b_split_lane` (CONFIRM_PASS, gap +1.25).
+Freeze manifests in each artifact dir. Next: matched-budget independent
+PPO specialists (`no_latent_baseline`, FIXED_OPPONENT, 2v2). Learned-policy
+gates remain strict despite thin C_RUSH scripted gap. Router stopped.
+No Map C / OP retune.
 
 **OP11 development screen (2026-07-27):** `artifacts/op11_dev1_8seed`,
 OP11_ADAPTIVE_EXPLOITER/map_b_split_lane, 8 paired development seeds
@@ -6675,6 +6798,412 @@ payoff:    TURTLE uniquely best; TURTLE−RUSH ≳ +0.5
 Tooling: `experiments/diagnose_rush_home_defense_gap.py` (extend to all
 landscape maps after scan completes). Landscape artifact:
 `artifacts/multimap_v3_landscape_op6_op12_8seed` (672 eps). One resume only.
+
+`diagnose_rush_home_defense_gap.py` results (map_a, 8 seeds/opponent,
+base-seed 661001, RUSH vs TURTLE across all 7 opponents): **RUSH beats
+TURTLE in every single one.** Margins range +0.375 to +2.875 for RUSH,
+-0.500 to +1.625 for TURTLE; RUSH's WR is 6-8/8 everywhere, TURTLE's tops
+out at 7/8 (OP11) and is often 2-3/8. Own-flag-loss is high for TURTLE too
+in most opponents (OP7 6/8, OP9 4/8, OP10 7/8, OP11 8/8) -- comparable to
+or worse than RUSH's own rate in several cases. This confirms the
+map-level diagnosis directly: on map_a's fully open geometry, a stationary
+anchor has nothing defensible to guard, so it protects the flag no better
+than not having one. No existing (OP, map_a) context is a TURTLE
+candidate; a geometric affordance is required, matching the locked
+K=4 plan's premise.
+
+## New-map design for TURTLE+ESCORT affordances -- BOTH attempts failed, budget exhausted (2026-07-29)
+
+Per the locked K=4 plan and hard anti-loop budget ("New map designs:
+maximum 2 versions"), built `map_c_home_corridor` (`gpu_env/_maps.py`,
+`gpu_env/state/map_state.py`): reuses the existing single-obstacle/
+corner-routing mechanism Map B already has, but positions the wall near
+BLUE's home (x=0.15-0.24 normalized, just past blue's flag at x=2 in a
+20-wide field) instead of centered, intending a chokepoint on blue's
+flag-return leg that TURTLE could anchor-defend and ESCORT could protect
+an unescorted carrier through.
+
+**V1** (y=0.28-0.70, open gaps at both top and bottom, ~28% of field
+height each): 4-episode sanity screen (OP6, OP11, all 4 styles,
+`artifacts/mapc_dev1_op6_op11_4seed`) showed TURTLE and ESCORT as the
+WORST performers (TURTLE -1.25 to -2.25, ESCORT -1.00 to 0.00), not the
+best -- RUSH and SPLIT both did well instead. A mechanistic trace
+(`scratchpad/trace_mapc_turtle_escort.py`) explained why: with two open
+bypasses, attackers/carriers simply routed around whichever end was open
+without ever passing through anything a defender could guard. Not a
+chokepoint at all in practice, just an irrelevant piece of terrain most of
+the time.
+
+**V2** (revised: wall pinned flush to the bottom edge, y=0.18-1.0, exactly
+one gap near the top): re-traced the same two matchups. Worse failure
+mode this time -- both TURTLE-vs-OP6 and ESCORT-vs-OP11 showed agents
+genuinely STUCK (position changing <0.05 units for multiple consecutive
+steps) with targets oscillating between conflicting waypoints near the
+wall, a navigation breakdown in the shared corner-router, not just a
+missed affordance. Quantitatively
+(`artifacts/mapc_v2_dev1_op6_op11_4seed`, same 4-episode screen): TURTLE
+and ESCORT both went NEGATIVE against both opponents (ESCORT -0.25 to
+-2.00, TURTLE -0.25 to -1.25) while RUSH remained dominant or
+least-bad. Pinning the wall to force a single mandatory gap made the
+outcome worse, not better -- the corridor being close to the map edge and
+close to blue's spawn/flag appears to leave the router too little room to
+resolve a valid path, and RUSH (direct beelines, no coordination
+dependency) is comparatively unaffected by that breakdown while
+TURTLE/ESCORT (which need to loiter, patrol, or synchronize near exactly
+that zone) are hurt the most.
+
+**Decision: the 2-version map-design budget is exhausted. Do not attempt a
+third map-c version.** Status per the locked decision rule (corrected
+2026-07-29 -- an earlier draft of this entry wrongly said "K=2 LRO:
+demonstrated"; environment/context construction is NOT the LRO proof, which
+additionally requires trained PPO specialists, latent births, and the
+policy-distinction gates):
+
+```text
+Map C V2 geometry:          PASS
+TURTLE causal affordance:   FAIL
+ESCORT causal affordance:   FAIL
+K=4 environment extension:  CLOSED FOR CURRENT BUDGET
+Map C V1/V2:                CLOSED_FAILED (2-version budget exhausted)
+K=2 context construction:
+    C_RUSH  = OP6 | map_a              FROZEN (CONFIRM_PASS, gap +0.25)
+    C_SPLIT = OP9 | map_b_split_lane   FROZEN (CONFIRM_PASS, gap +1.25)
+K=2 LRO proof:              ACTIVE — specialists NEXT
+```
+
+The two failed Map C versions remain useful evidence in their own right: a
+single rectangular choke does not automatically create escort or defense
+niches when the shared waypoint router cannot coordinate reliably around
+it.
+
+This is not a dead end for K=4 in principle -- it means the SPECIFIC
+single-rectangular-obstacle mechanism, positioned near a team's home, is
+not obviously sufficient on its own, and further attempts would need
+either a different geometric mechanism (not just repositioning the same
+wall) or engine changes to the router (out of scope for a diagnostic-only
+budget). Recorded honestly rather than spending a third attempt outside
+the locked budget.
+
+## K=2 LRO proof -- locked plan (2026-07-29), NEXT UP
+
+Environment engineering STOPS once the two contexts below are confirmed.
+No further opponent redesigns, no third map version. This is the approved
+milestone ("validate at least two distinct complementary strategies before
+router training") and does not require K=4 first.
+
+Context selection (after `artifacts/multimap_v3_landscape_op6_op12_8seed`
+completes):
+
+```text
+C_RUSH  = strongest NON-DEGENERATE OPx | map_a context
+C_SPLIT = strongest NON-DEGENERATE OPy | map_b_split_lane context
+```
+
+"Non-degenerate" matters: the payoff-matrix tool flags degenerate red
+presets (saturated/too-easy columns), and several map_a columns were
+flagged in the 7x4 matrix. Pick from unflagged columns with a real
+best-vs-runner-up gap, not merely the largest raw margin.
+
+Proof sequence (in order, no skipping):
+
+```text
+0. Confirm C_RUSH and C_SPLIT on fresh disjoint 16-seed blocks; freeze.
+1. Train an independent PPO specialist on C_RUSH.
+2. Train an independent PPO specialist on C_SPLIT.
+3. Cross-evaluate both policies on BOTH contexts.
+4. Gate: each policy must be best in its OWN context.
+        target matrix:
+                            C_RUSH     C_SPLIT
+        RUSH specialist      BEST
+        SPLIT specialist                 BEST
+5. Gate: positive, statistically supported repertoire gain,
+        LCB95(delta_pool) > 0.
+6. Birth the RUSH response into one latent branch.
+7. Freeze it; birth the SPLIT response into a second branch.
+8. Verify forced-z payoff crossover, matched-observation policy
+   distinction, and distinct trajectory fingerprints.
+9. Train a two-strategy legal persistent router (LAST).
+```
+
+**16-seed context confirms — BOTH FROZEN (2026-07-28/29):**
+
+`C_RUSH` `artifacts/k2_c_rush_op6_mapa_heldout16_seed821001` — **CONFIRM_PASS / FROZEN**
+```text
+OP6 | map_a | BLUE_PROBES_V3 | n=16 | seed 821001
+RUSH +0.875 WR 15/16 | TURTLE +0.625 | gap +0.25
+env commit: 458a57a0989ace3e7b17d820a01a719334cc47b9
+analysis: experiments/run_scripted_style_payoff_matrix.py
+freeze: context_freeze.json
+```
+Thin gap: valid scripted opportunity only — does **not** guarantee PPO
+crossover. Do not retune OP6/map_a/V3 for a prettier number.
+
+`C_SPLIT` `artifacts/k2_c_split_op9_mapb_heldout16_seed831001` — **CONFIRM_PASS / FROZEN**
+```text
+OP9 | map_b_split_lane | BLUE_PROBES_V3 | n=16 | seed 831001
+SPLIT +2.875 WR 16/16 | RUSH +1.625 | gap +1.25
+env commit: 458a57a0989ace3e7b17d820a01a719334cc47b9
+analysis: experiments/run_scripted_style_payoff_matrix.py
+freeze: context_freeze.json
+```
+
+```text
+C_RUSH:  CONFIRMED / FROZEN
+C_SPLIT: CONFIRMED / FROZEN
+PPO specialists: LAUNCHED (matched 1M no_latent_baseline FIXED_OPPONENT 2v2)
+  πR: checkpoints/k2_pi_rush  seed 821001  OP6|map_a_open
+  πS: checkpoints/k2_pi_split seed 831001  OP9|map_b_split_lane
+LRO branches: not started
+Router: stopped
+```
+
+Learned-policy acceptance (strict; scripted gaps are not enough):
+```text
+πR > πS on C_RUSH
+πS > πR on C_SPLIT
+LCB95(Δ_pool) > 0
+```
+
+Only after that does K=4 become a justified extension rather than a
+prerequisite blocking the whole Summer result.
+
+### Landscape scan COMPLETE (672 eps) -- context selection (2026-07-29)
+
+`artifacts/multimap_v3_landscape_op6_op12_8seed`, 7 opponents x 3 maps x 4
+styles x 8 seeds, BLUE_PROBES_V3, base-seed 620001. Full non-degenerate
+context inventory, ranked by best-vs-runner-up gap:
+
+```text
+BLUE_RUSH best (8 non-degenerate contexts)
+  OP10|map_b_split_lane_v2   +2.125  2nd SPLIT +0.750  gap +1.375  WR 1.000
+  OP10|map_b_split_lane      +1.875  2nd SPLIT +1.000  gap +0.875  WR 1.000
+  OP11|map_b_split_lane      +2.500  2nd SPLIT +1.625  gap +0.875  WR 1.000
+  OP8|map_b_split_lane_v2    +2.500  2nd SPLIT +1.625  gap +0.875  WR 1.000
+  OP6|map_a                  +0.750  2nd TURTLE +0.000 gap +0.750  WR 0.875
+  OP7|map_b_split_lane_v2    +2.250  2nd SPLIT +1.625  gap +0.625  WR 1.000
+  OP6|map_b_split_lane       +1.000  2nd SPLIT +0.875  gap +0.125  WR 1.000
+  OP8|map_b_split_lane       +2.000  2nd SPLIT +2.000  gap +0.000  WR 1.000
+
+BLUE_SPLIT best (4 non-degenerate contexts)
+  OP9|map_b_split_lane       +2.625  2nd RUSH  +1.500  gap +1.125  WR 1.000
+  OP9|map_b_split_lane_v2    +2.625  2nd RUSH  +1.500  gap +1.125  WR 1.000
+  OP6|map_b_split_lane_v2    +0.750  2nd RUSH  +0.500  gap +0.250  WR 0.875
+  OP7|map_b_split_lane       +1.750  2nd RUSH  +1.500  gap +0.250  WR 1.000
+
+BLUE_ESCORT best (1 non-degenerate context)
+  OP9|map_a                  +1.125  2nd SPLIT +1.125  gap +0.000  WR 0.750  <- TIE, not a clean win
+
+BLUE_TURTLE best (0 non-degenerate contexts)
+  (only OP12|map_a and OP12|map_b_split_lane, BOTH degenerate, gaps +0.125)
+```
+
+**SELECTED for the K=2 proof:**
+
+```text
+C_RUSH  = OP6_IMMEDIATE_DUAL_RUSH | map_a
+          RUSH +0.750, runner-up TURTLE +0.000, gap +0.750, WR 7/8
+          (the ONLY non-degenerate map_a context where RUSH is best --
+           OP7|map_a, OP10|map_a, OP11|map_a all RUSH-best but DEGENERATE)
+
+C_SPLIT = OP9_SPLIT_LANE_FEINT | map_b_split_lane
+          SPLIT +2.625, runner-up RUSH +1.500, gap +1.125, WR 8/8
+          (strongest non-degenerate SPLIT context; confirms the long-held
+           OP9|map_b SPLIT-anchor hypothesis at n=8 on the full landscape)
+```
+
+**Caveat to weigh before training (flagged, not decided):** these two
+contexts differ in BOTH opponent and map, so a router could in principle
+separate them from map features alone without any opponent modeling. That
+is acceptable for a K=2 existence proof but is the weaker version of the
+test. The same-map alternative would be `OP6|map_b_split_lane` (RUSH,
+gap +0.125) vs `OP9|map_b_split_lane` (SPLIT, gap +1.125) -- identical
+map, different opponent, so the router MUST use opponent behavior -- but
+the RUSH side's gap there is very thin (+0.125) and likely not separable
+at n=8. Recommendation: run the primary selection above, and treat the
+same-map pair as a follow-up robustness test rather than the main proof.
+
+**Independent K=4 confirmation from this scan:** TURTLE has ZERO
+non-degenerate contexts anywhere in the 21-context landscape, and ESCORT's
+single non-degenerate context is a tie rather than a clean win. This
+reproduces the "K=4 NOT YET demonstrated" verdict from the full existing
+map family, entirely independently of the two failed map_c attempts --
+the missing TURTLE/ESCORT affordances are a real, measured gap, not an
+artifact of one bad map design.
+
+Pool-level gates on the full 21-context landscape:
+`no_dominating_blue_style` PASS, `best_response_diversity` PASS (4/21),
+`all_blues_protected` PASS (but only by counting degenerate columns),
+`tie_rate_under_threshold` PASS; `delta_pool_lcb_positive` FAIL
+(delta_pool +0.0176, CI95 [-0.0418, +0.2381], LCB -0.0418 -- much closer
+to zero than any earlier pool), `best_blue_wr_in_band` FAIL,
+`no_degenerate_red_styles` FAIL (8/21 degenerate).
+
+### Steps 1-2: fresh 16-seed context confirmations (2026-07-29)
+
+Tooling: `experiments/paired_bootstrap_ci.py` (new; validated by exactly
+reproducing the frozen OP7|map_a held-out numbers before use).
+
+**C_SPLIT = OP9_SPLIT_LANE_FEINT | map_b_split_lane -- STRICT PASS,
+FREEZE-READY.** `artifacts/c_split_op9_mapb_heldout16_seed691001`,
+base-seed 691001 (disjoint from the 620001 discovery block):
+
+```text
+BLUE_SPLIT   +2.7500  WR 16/16   <- best
+BLUE_RUSH    +1.9375  WR 16/16
+BLUE_TURTLE  -0.1875  WR  0/16
+BLUE_ESCORT  -0.2500  WR  2/16
+
+SPLIT - RUSH    +0.8125  CI95 [+0.3750, +1.2500]  PASS
+SPLIT - TURTLE  +2.9375  CI95 [+2.6875, +3.1875]  PASS
+SPLIT - ESCORT  +3.0000  CI95 [+2.5000, +3.5625]  PASS
+non-degenerate: PASS (TURTLE and ESCORT genuinely LOSE)
+```
+
+Margin held up vs discovery (+2.625 -> +2.750): no discovery-scan
+overfitting. This is a real niche, not a gradient.
+
+**C_RUSH = OP6_IMMEDIATE_DUAL_RUSH | map_a -- CROSSOVER PASS,
+NON-DEGENERACY FAIL -> demoted to validated fallback/pilot.**
+`artifacts/c_rush_op6_mapa_heldout16_seed681001`, base-seed 681001:
+
+```text
+BLUE_RUSH    +0.8750  WR 15/16   <- best
+BLUE_ESCORT  +0.1875  WR  8/16
+BLUE_SPLIT   +0.0625  WR  8/16
+BLUE_TURTLE  +0.0625  WR  8/16
+
+RUSH - ESCORT  +0.6875  CI95 [+0.3125, +1.1250]  PASS
+RUSH - SPLIT   +0.8125  CI95 [+0.2500, +1.3750]  PASS
+RUSH - TURTLE  +0.8125  CI95 [+0.2500, +1.4375]  PASS
+non-degenerate: FAIL -- ALL FOUR styles have positive mean margin
+```
+
+The degeneracy test (`payoff_matrix_analysis.py:267`) flags a red preset
+when every blue style's mean margin is same-signed. At n=8 discovery,
+ESCORT (-0.75) and SPLIT (-0.125) were negative so it read
+non-degenerate; on fresh seeds they crept positive (+0.1875, +0.0625).
+OP6|map_a rewards RUSH but does not PUNISH alternatives -- payoff spread
+0.81 vs C_SPLIT's 3.0. Risk for the LRO proof: if the context is easy
+enough that any competent policy wins, a SPLIT-trained specialist may also
+solve it and the learned crossover collapses for reasons about the
+context, not about LRO. Retained as pilot/fallback (checkpoints and
+curves preserved; not cited as the primary K=2 proof).
+
+### PREDECLARED C_RUSH selection rule (locked BEFORE candidate results)
+
+Same-map candidates under confirmation: `OP10|map_b_split_lane` and
+`OP11|map_b_split_lane` (both RUSH-best with gap +0.875 at n=8 discovery,
+both non-degenerate there). A same-map primary pair is strictly stronger
+than the cross-map pair because it removes the trivial explanation
+"map_a -> RUSH, map_b -> SPLIT" and forces opponent-conditioned selection.
+
+Rule, implemented in `experiments/select_c_rush_context.py` and validated
+against OP6|map_a before the candidates finished (it correctly reported
+gates 1/2/4 pass, gate 3 fail):
+
+```text
+Hard gates (all required):
+  1. RUSH uniquely best at 16 seeds
+  2. All paired RUSH-vs-other CIs clear zero
+  3. Non-degenerate
+  4. Pooled best-other LCB > 0
+Ranking among survivors:
+  5. Larger LCB for (RUSH - runner-up)
+  6. Lower saturation, then lower tie rate
+```
+
+Outcome policy (also predeclared): both pass -> script ranks mechanically;
+one passes -> that one; NEITHER passes -> **pause and decide explicitly**,
+do NOT auto-promote OP6|map_a, because the cross-map fallback changes what
+the claim proves:
+
+```text
+same-map pair  -> opponent-conditioned strategy selection
+cross-map pair -> broader context-conditioned selection, with map
+                  identity as a possible shortcut
+```
+
+### Router information contract (locked, applies at step 11)
+
+```text
+ALLOWED:   legal global state/history during centralized training;
+           observable opponent behavior; map geometry
+FORBIDDEN: hidden opponent preset ID; scripted-style label;
+           hindsight episode outcome
+```
+
+### C_RUSH SELECTED -- selector run unchanged, output accepted (2026-07-29)
+
+Both same-map candidates confirmed at 16 fresh seeds and **both passed all
+four hard gates**; the predeclared ranking then chose between them.
+
+```text
+OP10_AGGRESSIVE_INTERCEPTOR | map_b_split_lane   (seed 701001)
+  RUSH   +2.0000   SPLIT  +1.2500
+  ESCORT -0.2500   TURTLE -0.7500
+  RUSH-SPLIT  +0.7500  CI95 [+0.0625, +1.3750]
+  RUSH-pooled +1.9167  CI95 [+1.4375, +2.3333]
+  degenerate=False  saturation=0.938  tie_rate=0.328   HARD GATES PASS
+
+OP11_ADAPTIVE_EXPLOITER | map_b_split_lane        (seed 711001)   <- SELECTED
+  RUSH   +2.4375   SPLIT  +1.2500
+  ESCORT +1.0000   TURTLE +0.0000
+  RUSH-SPLIT  +1.1875  CI95 [+0.5625, +1.7500]
+  RUSH-pooled +1.6875  CI95 [+1.3125, +2.0417]
+  degenerate=False  saturation=1.000  tie_rate=0.234   HARD GATES PASS
+
+Criterion 5 (larger RUSH-runner_up LCB): OP11 +0.5625 vs OP10 +0.0625
+  -> OP11 wins outright; criterion 6 never invoked (no tie on 5).
+```
+
+**Why this is also the right pick on the merits (not just by rule):** the
+runner-up in BOTH contexts is BLUE_SPLIT, which is precisely the behavior
+the rival specialist pi_S will embody. The crossover gate needs a context
+where RUSH-like play beats SPLIT-like play decisively. OP11 separates them
+by +1.1875 [+0.5625, +1.7500]; OP10 by only +0.7500 [+0.0625, +1.3750] --
+an LCB barely off zero, a risky foundation for the proof.
+
+**Honest caveats recorded, not hidden:**
+- OP11's non-degeneracy is MARGINAL: it survives only because TURTLE lands
+  at exactly +0.0000. Had TURTLE been +0.0625, OP11 would have been flagged
+  degenerate. OP10's non-degeneracy is robust by comparison (ESCORT -0.25
+  and TURTLE -0.75 both clearly losing).
+- OP11 saturation is 1.000 (RUSH wins 16/16); both candidates FAIL the
+  pool-level `best_blue_wr_in_band` gate, which is NOT among the six
+  predeclared criteria but is worth noting as a context-difficulty signal.
+- If the specialist crossover later fails on OP11 for saturation-related
+  reasons, OP10|map_b_split_lane is the designated first alternative
+  (robustly non-degenerate, lower saturation), and OP6|map_a remains the
+  cross-map fallback/pilot.
+
+### FROZEN K=2 CONTEXT PAIR (step 3 complete)
+
+```text
+C_RUSH  = OP11_ADAPTIVE_EXPLOITER | map_b_split_lane
+C_SPLIT = OP9_SPLIT_LANE_FEINT    | map_b_split_lane
+```
+
+**Same map for both** -- the stronger primary proof. Map geometry is held
+constant, so specialists (and later the router) must respond to opponent
+behavior, not terrain. This upgrades the intended claim from
+context-conditioned to opponent-conditioned strategy selection, and makes
+the step-12 same-map follow-up redundant (it is now the primary test).
+
+Freeze record:
+```text
+env commit:        458a57a0989ace3e7b17d820a01a719334cc47b9
+uncommitted:       gpu_env/_maps.py (ADDITIVE map_c_home_corridor only;
+                   verified via git diff to touch NO map_a/map_b geometry,
+                   so both frozen contexts are unaffected)
+blue probes:       BLUE_PROBES_V3 (_scripted_blue_styles.py, unmodified)
+map:               map_b_split_lane (both contexts)
+max_decision_steps 240
+opponents:         OP11_ADAPTIVE_EXPLOITER, OP9_SPLIT_LANE_FEINT (untuned)
+confirm artifacts: c_rush_alt_op11_mapb_heldout16_seed711001
+                   c_split_op9_mapb_heldout16_seed691001
+```
+
+Do not tune either opponent from this point forward.
 
 ---
 

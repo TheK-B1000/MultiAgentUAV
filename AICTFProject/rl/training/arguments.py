@@ -520,6 +520,18 @@ def build_train_parser() -> argparse.ArgumentParser:
         default=None,
         help="Save checkpoint every N env steps during training (0 disables).",
     )
+    parser.add_argument(
+        "--max-decision-steps",
+        type=int,
+        default=None,
+        help=(
+            "Episode length cap in decision steps. Config passthrough only (no PPO "
+            "logic change). Needed so training episode length can be matched to the "
+            "episode length a context was confirmed at -- e.g. the K=2 LRO frozen "
+            "contexts were confirmed at 240 while the plan_faithful presets default "
+            "to 400, and the cap binds in >50% of those episodes."
+        ),
+    )
     # --- v5i9 CSIA extension: detached causal strategic-impact reward.
     parser.add_argument(
         "--csia-enabled",

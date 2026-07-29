@@ -70,7 +70,7 @@ def main() -> int:
         )
 
     # Candidate contexts per style (unique best, gap>=0.5, not saturated/near-tie)
-    print("\nCandidate contexts (unique best, gap≥0.5, not saturated/near-tie):")
+    print("\nCandidate contexts (unique best, gap>=0.5, not saturated/near-tie):")
     by_style: dict[str, list] = defaultdict(list)
     for row in table:
         if row["near_tie"] or row["saturated"] or row["gap"] < 0.5:
