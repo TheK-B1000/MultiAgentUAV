@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write preregistration.lock.json for K=2v3 300k replication (Revision 3)."""
+"""Write preregistration.lock.json for K=2v3 300k replication (Revision 4)."""
 from __future__ import annotations
 
 import hashlib
@@ -17,10 +17,12 @@ FILES = [
     "experiments/launch_k2v3_300k_replication.py",
     "artifacts/k2v3_300k_replication/manifest.json",
     "experiments/analyze_k2_assigned_gain.py",
+    "experiments/analyze_k2_behavior_gate.py",
     "experiments/analyze_k2_specialist_crossover.py",
     "experiments/analyze_k2_specialist_behavior.py",
     "experiments/audit_k2_specialist_behavior.py",
     "experiments/run_k2_specialist_cross_eval.py",
+    "experiments/watch_k2_trajectory_then_audit.py",
 ]
 
 
@@ -37,11 +39,6 @@ def main() -> int:
             continue
         hashes[rel] = sha256(p)
 
-    commit = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=str(ROOT.parent if (ROOT.parent / ".git").exists() else ROOT),
-        text=True,
-    ).strip()
-    # repo root may be MultiAgentUAV
     repo = ROOT if (ROOT / ".git").exists() else ROOT.parent
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=str(repo), text=True).strip()
     branch = subprocess.check_output(
@@ -50,15 +47,19 @@ def main() -> int:
 
     lock = {
         "locked_utc": datetime.now(timezone.utc).isoformat(),
-        "revision": 3,
+        "revision": 4,
         "experiment": "k2v3_300k_replication",
-        "status": "PREDECLARED_AMENDED_FROZEN_NOT_LAUNCHED",
+        "status": "PREDECLARED_AMENDED_FROZEN_REV4_NOT_LAUNCHED",
         "preregistration": {
             "path": "docs/k2v2-300k-replication-preregistration.md",
             "sha256": hashes.get("docs/k2v2-300k-replication-preregistration.md"),
         },
         "file_sha256": hashes,
-        "git": {"commit": commit, "branch": branch, "note": "commit SHA at freeze time; amend commit follows"},
+        "git": {
+            "commit": commit,
+            "branch": branch,
+            "note": "HEAD at freeze-script run; follow-up commit records this lock",
+        },
         "design": {
             "training_seeds_per_family": 6,
             "total_runs": 12,
@@ -79,36 +80,39 @@ def main() -> int:
                 "LCB95(Delta_assigned) > 0; "
                 "Delta_assigned = 0.5*min(R_R-S_R, S_S-R_S) = V_assigned - V_fixed"
             ),
-            "B_policy_distinction": (
-                "LCB95(D_policy) > 0; "
-                "D_policy = between - mean(within_piR, within_piS)"
+            "B_distinct": (
+                "LCB95(B_distinct) > 0; "
+                "B_distinct = median(JSD_between) - Q_0.95(JSD_within)"
             ),
         },
         "diagnostics_not_gates": [
+            "D_policy",
+            "separation_ratio",
             "paired directional crossover CIs",
             "Delta_pool (structural floor at 0)",
+            "argmax disagreement",
+            "pairwise JSD matrices",
         ],
-        "void_staged_draft": {
-            "description": "5 seeds/family, 64 eval/context, LCB(Delta_pool)>0",
-            "launched": False,
+        "void_as_formal_gate": {
+            "rev3_B": "LCB95(D_policy)>0 — passed by collapsed 1M generalists; decorative",
         },
         "launch_policy": (
-            "Do not launch until discovery 200k + behavior audit finish and GPU is free; "
-            "then launch all 12 runs. Audit must not change this freeze."
+            "Watcher auto-launch DISABLED. Explicit --force-launch only after this "
+            "Rev 4 freeze is committed and discovery audit releases the GPU."
         ),
         "note": "Frozen before any replication training run started. 1M verdict remains FAIL.",
     }
     path = OUT / "preregistration.lock.json"
     path.write_text(json.dumps(lock, indent=2) + "\n")
-    # Keep legacy lock pointer updated so older paths do not resurrect 5x64.
     legacy = ROOT / "artifacts" / "k2v2_300k_replication" / "preregistration.lock.json"
     legacy.parent.mkdir(parents=True, exist_ok=True)
     legacy.write_text(json.dumps({**lock, "redirect": str(path.relative_to(ROOT))}, indent=2) + "\n")
     print(f"wrote {path}")
     print(f"prereg sha256={lock['preregistration']['sha256']}")
     print(f"launcher sha256={hashes.get('experiments/launch_k2v3_300k_replication.py')}")
+    print(f"B_distinct analyzer sha256={hashes.get('experiments/analyze_k2_behavior_gate.py')}")
     print(f"manifest sha256={hashes.get('artifacts/k2v3_300k_replication/manifest.json')}")
-    print(f"git HEAD (pre-commit)={commit} branch={branch}")
+    print(f"git HEAD={commit} branch={branch}")
     return 0
 
 

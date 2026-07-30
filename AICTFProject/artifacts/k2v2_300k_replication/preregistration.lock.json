@@ -1,26 +1,28 @@
 {
-  "locked_utc": "2026-07-30T11:56:46.809950+00:00",
-  "revision": 3,
+  "locked_utc": "2026-07-30T13:10:44.976982+00:00",
+  "revision": 4,
   "experiment": "k2v3_300k_replication",
-  "status": "PREDECLARED_AMENDED_FROZEN_NOT_LAUNCHED",
+  "status": "PREDECLARED_AMENDED_FROZEN_REV4_NOT_LAUNCHED",
   "preregistration": {
     "path": "docs/k2v2-300k-replication-preregistration.md",
-    "sha256": "b32daaeadb90e2997a5401bdfa2508bab1db0c18616617443a131bb1f1df1d86"
+    "sha256": "83ee4e8d45225711f11b38ba543607bfbb30a8ffaf63ac7893ae282b5628e800"
   },
   "file_sha256": {
-    "docs/k2v2-300k-replication-preregistration.md": "b32daaeadb90e2997a5401bdfa2508bab1db0c18616617443a131bb1f1df1d86",
-    "experiments/launch_k2v3_300k_replication.py": "4b3278c80ae804e2c7c5c4b98c974bf4c7b33bd10bd36361744fc75480ba2af1",
-    "artifacts/k2v3_300k_replication/manifest.json": "8a2049ef334f64df238df89b371dd7ddc17096fd8e0d3938da56bc745842661f",
+    "docs/k2v2-300k-replication-preregistration.md": "83ee4e8d45225711f11b38ba543607bfbb30a8ffaf63ac7893ae282b5628e800",
+    "experiments/launch_k2v3_300k_replication.py": "b09babfd5ef5f10e2586ccf1de8edeac3fa4174112f11e4d707490cfff724640",
+    "artifacts/k2v3_300k_replication/manifest.json": "1120b11ade30ff86a807f2f6121072c371ea6bdf2f1eb288b9c0c278babd82ad",
     "experiments/analyze_k2_assigned_gain.py": "a67e84deec823ba0d7562e6942d3d1a6dc8b5b97057bf98cbb03f3c69f63bf10",
+    "experiments/analyze_k2_behavior_gate.py": "c5cb7e2838d71ef8658df80628b9350283f81c2c0666ffb32e6d9ce9410f0305",
     "experiments/analyze_k2_specialist_crossover.py": "3713b4da406f1f69e14b63ed32ae5169ed0ea945a1fe610e352547552ae25e79",
     "experiments/analyze_k2_specialist_behavior.py": "c76a2fd638b7e7f53b04a9417d0e69564465a9f6444320350e77d400da5bbdbf",
     "experiments/audit_k2_specialist_behavior.py": "5749527836db1c8ac05a8e28602da4bde918c34249ea1408b8e45403ee4601d1",
-    "experiments/run_k2_specialist_cross_eval.py": "68033298ef486875d3f06d6086a1c927759095c37a1ee5252eaa6a174b900fd1"
+    "experiments/run_k2_specialist_cross_eval.py": "68033298ef486875d3f06d6086a1c927759095c37a1ee5252eaa6a174b900fd1",
+    "experiments/watch_k2_trajectory_then_audit.py": "d9316e0984e9509579522de3bbb2e00411bbc28871555e29ce2d7ee8bba3d89f"
   },
   "git": {
-    "commit": "5d5d7eb69230ec094cb0a05149c393cb2b0b73e6",
+    "commit": "fd863d79b8fa9bbbb695d32e633a49d1db231971",
     "branch": "lro",
-    "note": "commit SHA at freeze time; amend commit follows"
+    "note": "HEAD at freeze-script run; follow-up commit records this lock"
   },
   "design": {
     "training_seeds_per_family": 6,
@@ -59,17 +61,20 @@
   },
   "primary_gates": {
     "A_joint_payoff": "LCB95(Delta_assigned) > 0; Delta_assigned = 0.5*min(R_R-S_R, S_S-R_S) = V_assigned - V_fixed",
-    "B_policy_distinction": "LCB95(D_policy) > 0; D_policy = between - mean(within_piR, within_piS)"
+    "B_distinct": "LCB95(B_distinct) > 0; B_distinct = median(JSD_between) - Q_0.95(JSD_within)"
   },
   "diagnostics_not_gates": [
+    "D_policy",
+    "separation_ratio",
     "paired directional crossover CIs",
-    "Delta_pool (structural floor at 0)"
+    "Delta_pool (structural floor at 0)",
+    "argmax disagreement",
+    "pairwise JSD matrices"
   ],
-  "void_staged_draft": {
-    "description": "5 seeds/family, 64 eval/context, LCB(Delta_pool)>0",
-    "launched": false
+  "void_as_formal_gate": {
+    "rev3_B": "LCB95(D_policy)>0 \u2014 passed by collapsed 1M generalists; decorative"
   },
-  "launch_policy": "Do not launch until discovery 200k + behavior audit finish and GPU is free; then launch all 12 runs. Audit must not change this freeze.",
+  "launch_policy": "Watcher auto-launch DISABLED. Explicit --force-launch only after this Rev 4 freeze is committed and discovery audit releases the GPU.",
   "note": "Frozen before any replication training run started. 1M verdict remains FAIL.",
   "redirect": "artifacts\\k2v3_300k_replication\\preregistration.lock.json"
 }

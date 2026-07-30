@@ -7281,13 +7281,13 @@ K=2 LRO specialist proof @1M:      FAIL
 Latent birth and router:           not justified
 ```
 
-### LOCKED NEXT: 300k confirmatory replication (Rev 3 freeze, 2026-07-30)
+### LOCKED NEXT: 300k confirmatory replication (Rev 4 freeze, 2026-07-30)
 
-Preregistration: `docs/k2v2-300k-replication-preregistration.md` (Revision 3).
+Preregistration: `docs/k2v2-300k-replication-preregistration.md` (Revision 4).
 Lock: `artifacts/k2v3_300k_replication/preregistration.lock.json`.
 Chosen / amended **before any replication training data**. Discovery audit must
-**not** change sample size, seeds, checkpoint, or gates. Staged `5×64` /
-`LCB(Δ_pool)` draft is void (never launched).
+**not** change sample size, seeds, checkpoint, or gates. Watcher auto-launch
+**disabled**.
 
 ```text
 Experiment:              k2v3_300k_replication
@@ -7308,13 +7308,13 @@ Launcher:                experiments/launch_k2v3_300k_replication.py
 ```text
 A. LCB95(Δ_assigned) > 0
      Δ_assigned = ½·min(πR−πS on C_RUSH, πS−πR on C_SPLIT)
-     (= V_assigned − V_fixed; signed; no structural floor at 0)
-B. LCB95(D_policy) > 0
-     D_policy = JSD_between − mean(JSD_within_πR, JSD_within_πS)
+B. LCB95(B_distinct) > 0
+     B_distinct = median(JSD_between) − Q_0.95(JSD_within)
 ```
 
-Directional crossover CIs and legacy `Δ_pool` are **reported diagnostics**,
-not formal gates (`Δ_pool` has a structural floor at zero).
+**Descriptive only (not gates):** `D_policy`, `separation_ratio`, directional
+crossover CIs, `Δ_pool`, argmax disagreement, pairwise matrices.
+(`D_policy>0` is void as a formal gate — collapsed 1M generalists already pass it.)
 
 **Outcome rule:** both pass → retain 300k specialists → latent birth (freeze
 branches) → router later. Either fails → do not checkpoint-hunt; promote πR
@@ -7323,7 +7323,7 @@ as G0; learned-incumbent weakness sweep.
 ```text
 1M K=2 proof:             FAIL
 300k discovery signal:    promising but unconfirmed
-300k replication:         Rev 3 FROZEN — launch after discovery audit, GPU free
+300k replication:         Rev 4 FROZEN — launch after audit, explicit --force-launch
 Latent birth:             still blocked
 Router:                   still blocked
 ```

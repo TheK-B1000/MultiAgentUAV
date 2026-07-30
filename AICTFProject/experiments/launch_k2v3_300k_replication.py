@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """K=2v3 — predeclared 300k confirmatory replication launcher.
 
-PREREGISTRATION AMENDMENT 2026-07-30 (before any training data exists).
-Supersedes the earlier staged 5×64 / Δ_pool draft. See:
-  artifacts/k2v3_300k_replication/PREREGISTRATION_AMENDMENT_2026-07-30.md
+PREREGISTRATION AMENDMENT Rev 4 (2026-07-30), before any training data exists.
+See: docs/k2v2-300k-replication-preregistration.md
 
 Formal checkpoint is EXACTLY 300k. Checkpoint selection after seeing results
 is prohibited. Discovery 1M FAIL is unchanged by this experiment.
 
+Formal gates:
+  A. LCB95(delta_assigned) > 0
+  B. LCB95(B_distinct) > 0
+     B_distinct = median(JSD_between) - Q_0.95(JSD_within)
+
+D_policy / separation_ratio / directional CIs / delta_pool are diagnostics only.
+
 Contains NO PPO logic -- shells out to ``rl/train_ppo.py``.
 
-DO NOT LAUNCH until discovery trajectory + behavior audit complete and GPU
-is free. Audit results must NOT change sample size, behavior statistic, or
-pass criteria after this freeze.
+DO NOT LAUNCH until Rev 4 freeze is recorded and discovery audit has released
+the GPU. Prefer explicit ``--force-launch`` (watcher auto-launch disabled).
 """
 from __future__ import annotations
 
@@ -90,8 +95,8 @@ def _sha256(path: Path) -> str:
 def build_manifest() -> dict:
     return {
         "experiment": "k2v3_300k_replication",
-        "preregistration_amendment": "2026-07-30",
-        "status": "PREDECLARED_AMENDED_FROZEN",
+        "preregistration_amendment": "2026-07-30-rev4",
+        "status": "PREDECLARED_AMENDED_FROZEN_REV4",
         "formal_checkpoint": FORMAL_CHECKPOINT,
         "checkpoint_selection": "prohibited",
         "created_utc": datetime.now(timezone.utc).isoformat(),
@@ -111,29 +116,33 @@ def build_manifest() -> dict:
         "eval_interim_analysis": "prohibited (no peek at 64 or 128)",
         "own_context": OWN_CONTEXT,
         "formal_gates": {
-            "1_joint_complementary_payoff": (
+            "A_joint_complementary_payoff": (
                 "LCB95(delta_assigned) > 0 under hierarchical clustered bootstrap; "
-                "V_assigned = mean(payoff(piR, C_RUSH), payoff(piS, C_SPLIT)); "
-                "V_fixed = max_f mean_c payoff(f, c); "
-                "delta_assigned = V_assigned - V_fixed"
+                "delta_assigned = 0.5*min(R_R-S_R, S_S-R_S) = V_assigned - V_fixed"
             ),
-            "2_learned_policy_distinction": (
-                "LCB95(D_policy) > 0 where "
-                "D_policy = JSD_between - mean(JSD_within_piR, JSD_within_piS) "
-                "on matched legal observations"
+            "B_distinct": (
+                "LCB95(B_distinct) > 0 where "
+                "B_distinct = median(JSD_between) - Q_0.95(JSD_within) "
+                "on matched legal observations; "
+                "implemented in experiments/analyze_k2_behavior_gate.py"
             ),
         },
         "reported_diagnostics_not_gates": [
-            "paired directional crossover CI: piR-piS on C_RUSH",
-            "paired directional crossover CI: piS-piR on C_SPLIT",
-            "delta_pool (structural floor at 0; NOT a formal gate)",
+            "D_policy = mean(between) - mean(within)",
+            "separation_ratio = mean(between) / mean(within)",
+            "paired directional crossover CIs",
+            "delta_pool (structural floor at 0)",
+            "argmax disagreement",
+            "pairwise JSD matrices",
         ],
         "supersedes": {
-            "staged_draft": "5 seeds/family, 64 eval/context, LCB(delta_pool)>0 as formal gate",
+            "rev3_behavior_gate": "LCB95(D_policy)>0",
             "reason": (
-                "Staged draft was weaker than the locked confirmatory design; "
-                "amended before any training data existed."
+                "D_policy>0 is passed by collapsed 1M generalists (trivial network "
+                "distinguishability). B_distinct requires typical cross-family JSD "
+                "to exceed the 95th percentile of within-family seed variation."
             ),
+            "void_staged_draft": "5 seeds/family, 64 eval/context, LCB(delta_pool)>0",
         },
         "branch_birth_decision": {
             "both_formal_gates_pass": (
@@ -149,13 +158,13 @@ def build_manifest() -> dict:
             "formal_1m": "FAIL",
             "candidate_transient_specialization_step": 300_000,
             "note": (
-                "Amendment locked independent of remaining discovery 200k / "
-                "behavior-audit outcomes; those must not change this spec."
+                "Amendment locked independent of remaining discovery audit outcomes; "
+                "those must not change this spec."
             ),
         },
         "launch_policy": (
-            "Do not launch until discovery trajectory + behavior audit finish "
-            "and GPU is free. Then launch all 12 runs immediately."
+            "Do not auto-launch from the discovery watcher. Launch only after Rev 4 "
+            "freeze is on disk and discovery audit has released the GPU."
         ),
         "runs": [],
     }

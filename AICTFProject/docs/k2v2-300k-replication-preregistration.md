@@ -2,7 +2,7 @@
 
 **Status:** LOCKED / AMENDED before any replication training data existed.
 **Date locked:** 2026-07-30
-**Revision:** 3 (amended 2026-07-30; seed-block alignment)
+**Revision:** 4 (amended 2026-07-30; behavior gate = B_distinct)
 **Supersedes nothing about discovery.** The 1M experiment's verdict stands:
 **FAIL**, latent birth blocked, router blocked.
 
@@ -10,49 +10,47 @@
 
 ## 0. Amendment record
 
-### Revision 3 — 2026-07-30, pre-launch (seed-block alignment)
+### Revision 4 — 2026-07-30, pre-launch (behavior gate correction)
 
 One change, made **before any replication training run started**.
 
-**Training and evaluation seed IDs aligned to the confirmatory design text:**
+**Formal behavior gate replaced:**
 
 ```text
-πR training:  911001–911006   (was 903001–903006 in Rev 2)
-πS training:  912001–912006   (was 904001–904006 in Rev 2)
-C_RUSH eval:  1110001–1110256 (was 1050001+ in Rev 2)
-C_SPLIT eval: 1120001–1120256 (was 1060001+ in Rev 2)
+Rev 3 (VOID as formal gate):  LCB95(D_policy) > 0
+                              D_policy = mean(JSD_between) − mean(JSD_within)
+
+Rev 4 (LOCKED):               LCB95(B_distinct) > 0
+                              B_distinct = median(JSD_between) − Q_0.95(JSD_within)
 ```
 
-Sample size, checkpoint, gates, and Δ_assigned definition are **unchanged** from
-Revision 2 (6 seeds/family, 256 eval/context, formal gates A+B only).
+Reason: independently trained networks are always detectably different given
+enough matched observations. At the discovery 1M checkpoint, collapsed
+generalists already pass `D_policy > 0` with a trivial separation ratio
+≈ 1.09 — so that gate is decorative for strategy-family distinctness.
+`B_distinct` asks whether the *typical* cross-family difference exceeds 95%
+of ordinary same-family seed variation.
 
-Also records that a short-lived staged launcher draft (`5 × 64`,
-`LCB(Δ_pool)>0`) was never launched and is void; it must not be used.
+Unchanged from Rev 3: 6 seeds/family, 256 eval/context, 300k checkpoint,
+`LCB95(Δ_assigned) > 0` payoff gate, seed IDs, launch-after-audit policy.
+Discovery audit results must **not** alter this formula or threshold.
+
+Watcher `--force-launch` is disabled; launch is explicit only after this freeze.
+
+### Revision 3 — 2026-07-30, pre-launch (seed-block alignment)
+
+Training/eval seed IDs aligned to `911001–6` / `912001–6` and
+`1110001–256` / `1120001–256`. Sample size and Δ_assigned gate unchanged
+from Rev 2. Staged `5 × 64` / `LCB(Δ_pool)` draft voided.
 
 ### Revision 2 — 2026-07-30, pre-launch
 
-Two changes, both made **before any replication training run started** and therefore before
-any replication data existed.
-
-**(a) Evaluation raised from 128 to 256 paired seeds per context.**
-Reason: the corrected hierarchical analysis (§2) showed the C_SPLIT direction does not
-survive training-seed resampling, and the power simulation (§7) put 128 evals at ~75.5%
-nominal — below a comfortable confirmatory target, and optimistic because the simulation can
-only resample the three observed training seeds per family. Evaluation is the cheaper lever
-(inference-only, no extra training runs), so the additional compute is spent there. Training
-design is unchanged at 6 seeds per family.
-
-**(b) Gate structure simplified from four gates to two primary requirements.**
-Reason: Δ_assigned = ½·min(gate1, gate2) algebraically, so the former gates 1–3 were not
-independent — they were three readings of one joint condition. They are now one primary
-payoff requirement with the two component contrasts reported as explanation. See §4.
-
-**One fixed evaluation block. No interim analysis at 64 or 128 episodes.**
-**No further sample-size changes after launch.**
+Evaluation raised to 256 paired seeds/context. Gate structure simplified to
+two primary requirements. No interim analysis at 64 or 128.
 
 ### Revision 1 — 2026-07-30
 
-Initial lock: 6 seeds per family, 64 paired evaluation seeds per context, four gates.
+Initial lock: 6 seeds/family, 64 eval/context, four gates.
 
 ---
 
@@ -114,8 +112,7 @@ Determinism:        deterministic action selection, no domain randomization, n_e
 Training seeds: `πR = 911001..911006`, `πS = 912001..912006`.
 Evaluation seed blocks: `C_RUSH = 1_110_001 .. 1_110_256`, `C_SPLIT = 1_120_001 .. 1_120_256`.
 All disjoint from every prior block (901xxx/902xxx training; 1010001/1020001 payoff;
-1030001/1040001 audit; 903/904 and 105/106 unused reserved IDs from Rev 2; all
-context-confirmation blocks).
+audit blocks; unused Rev-2 IDs 903/904 and 105/106; all context-confirmation blocks).
 
 Trainer, reward configuration, horizon, map, opponent definitions, preset
 (`no_latent_baseline`), `n_envs=16`, and evaluation protocol are **unchanged** from the
@@ -126,78 +123,15 @@ until the 300k formal analysis is complete and recorded.
 
 Launcher: `experiments/launch_k2v3_300k_replication.py`
 Manifest: `artifacts/k2v3_300k_replication/manifest.json`
+Behavior gate: `experiments/analyze_k2_behavior_gate.py`
 
 ## 4. Formal gates — TWO primary requirements (both required)
-
-The former gates 1–3 were not independent: Δ_assigned = ½·min(gate1, gate2) exactly, so
-requiring all three was three readings of one joint condition. The confirmatory experiment
-has two primary requirements.
 
 ### A. Joint complementary payoff
 
 ```
 LCB95(Δ_assigned) > 0
 ```
-
-This already requires both crossover directions to hold **jointly** in the bootstrap
-distribution — it is strictly stronger than each marginal contrast clearing zero
-separately.
-
-The two component contrasts are still reported:
-
-```
-πR − πS on C_RUSH
-πS − πR on C_SPLIT
-```
-
-but they are **explanations of the joint result, not independent gates**. A pass or fail is
-decided by Δ_assigned alone for the payoff side.
-
-`Δ_pool` is reported for continuity with the failed 1M gate but is **not** a formal gate
-(structural floor at zero).
-
-### B. Learned policy distinction
-
-```
-LCB95(D_policy) > 0
-
-D_policy = between_family_divergence − mean(within_πR_divergence, within_πS_divergence)
-```
-
-A **signed difference**, not a ratio: it can go negative, and its null value is exactly
-zero, so a percentile LCB is not clipped at a boundary. Computed on the full six-seed
-families. The healthy-seed sensitivity slice remains **diagnostic only** and never decides
-this gate.
-
-The threshold is **zero**, fixed now. It will not be tuned based on whether the discovery
-audit looks impressive.
-
-### Bootstrap
-
-Hierarchical, resampling per replicate:
-- training seeds with replacement within each family;
-- evaluation seeds with replacement within each context (shared across families, preserving
-  pairing);
-- for D_policy, episodes with replacement within each observation source.
-
-When a training-seed resample draws the same seed twice, the resulting degenerate
-self-pair has divergence identically zero and is **excluded** from the within-family mean;
-including it would bias within-family divergence downward and inflate D_policy.
-
-## 5. The repertoire statistic
-
-The legacy statistic is non-negative by construction:
-
-```
-V_selective = mean_c max_f pay(f,c)   >=   max_f mean_c pay(f,c) = V_fixed
-Δ_pool      = V_selective - V_fixed   >=   0    always
-```
-
-so its percentile bootstrap piles mass at exactly zero, and it silently selects the
-policy-to-context assignment *after* seeing outcomes.
-
-Because the assignment is predeclared — πR handles C_RUSH, πS handles C_SPLIT — the
-confirmatory statistic is signed:
 
 ```
 V_assigned     = (R_R + S_S) / 2
@@ -206,15 +140,50 @@ V_fixed        = max( (R_R + R_S)/2 , (S_R + S_S)/2 )
                = ½ · min( R_R - S_R , S_S - R_S )
 ```
 
-(`R_R` = πR on C_RUSH, `R_S` = πR on C_SPLIT, `S_R` = πS on C_RUSH, `S_S` = πS on C_SPLIT.)
+This already requires both crossover directions to hold **jointly** in the bootstrap
+distribution — it is strictly stronger than each marginal contrast clearing zero
+separately.
 
-Δ_assigned can go negative as soon as either predeclared assignment fails. Note it is
-exactly half the **minimum** of the two crossover margins, so requiring LCB95(Δ_assigned)>0
-is the *joint* form of the two directional contrasts: it requires both directions to hold
-simultaneously in ≥97.5% of replicates, which is strictly stronger than each marginal CI
-clearing zero. Δ_pool is still reported, for continuity only.
+### B. Learned strategy-family distinctness
 
-Implemented in `experiments/analyze_k2_assigned_gain.py`.
+```
+LCB95(B_distinct) > 0
+
+B_distinct = median(JSD_between) − Q_0.95(JSD_within)
+```
+
+In plain language: the typical πR-vs-πS difference must exceed at least 95% of the
+differences seen between independently trained seeds of the **same** family. The bar
+is set by observed seed-to-seed variation; no arbitrary JSD or ratio threshold.
+
+Unstable / collapsed seeds are **not** excluded from the formal analysis. If within-family
+variation is large enough that this gate fails, the proposed family is not behaviorally
+coherent enough to serve as a stable latent.
+
+### Descriptive only (not gates)
+
+```
+D_policy = mean(between) − mean(within)
+separation_ratio = mean(between) / mean(within)
+paired directional crossover CIs
+Δ_pool (structural floor at 0)
+argmax disagreement
+pairwise JSD matrices
+```
+
+### Bootstrap
+
+Hierarchical, resampling per replicate:
+- training seeds with replacement within each family;
+- evaluation seeds with replacement within each context (shared across families);
+- for B_distinct, episodes with replacement within each observation source;
+- exclude degenerate self-pairs created by duplicate seed draws from within-family pools.
+
+## 5. The repertoire statistic
+
+Legacy `Δ_pool` is non-negative by construction and is **not** a formal gate. Confirmatory
+payoff statistic is signed `Δ_assigned` (§4A). Implemented in
+`experiments/analyze_k2_assigned_gain.py`.
 
 ## 6. Prohibited (locked)
 
@@ -224,77 +193,24 @@ Implemented in `experiments/analyze_k2_assigned_gain.py`.
 - No replacement of failed runs.
 - No inspection of intermediate checkpoints before the formal analysis is recorded.
 - No interim analysis at 64 or 128 evaluation episodes.
-- No sample-size, checkpoint, seed-block, or gate changes after this freeze.
+- No sample-size, checkpoint, seed-block, gate-formula, or threshold changes after this freeze.
 - Discovery audit results must not change this specification.
+- No watcher auto-launch under a superseded gate.
 
 A collapsed seed is **data**, not an error to be corrected.
 
 ## 7. Power — RESOLVED AND LOCKED
 
 **Locked configuration: 6 training seeds per family, 256 paired evaluation seeds per
-context. Nominal power ~85%, approximate cost ~47 h.**
+context. Nominal power ~85% (optimistic bound; see caveats in Rev 2 analysis).**
 
-The ~85% figure is a **planning estimate, not a guarantee** — see the caveat below on why
-it is optimistic.
-
-Simulated from the discovery-run 300k rows (300 sims × 800 bootstrap replicates), for the
-full three-payoff-gate set:
-
-```
-seeds/family   evals/context   power
-    6              64          51.0%
-    6             128          75.5%
-    8              96          74.5%
-    8             128          79.5%
-    6             192          83.0%
-   10             128          85.5%
-```
-
-Gate 2 is the sole bottleneck throughout (gate 1 runs 98–100%).
-
-**These estimates OVERSTATE true power.** The simulation resamples training seeds from only
-three observed values per family, so it cannot generate a seed worse than the worst
-observed. Real power is lower than shown.
-
-At the originally specified **6 seeds / 64 evals the design has ~51% power, and that is an
-optimistic bound.** Evaluation seeds turn out to be the cheaper lever: they are
-inference-only, whereas each additional training seed costs a full 300k run.
-
-Approximate cost (training at ~1.6 h per 300k run, concurrency 2; evaluation at ~21.6 s per
-episode, 24 cells):
-
-```
- 6 seeds /  64 evals   ~19 h total   51.0%
- 6 seeds / 128 evals   ~28 h total   75.5%
- 6 seeds / 192 evals   ~37 h total   83.0%
- 8 seeds / 128 evals   ~37 h total   79.5%
-```
-
-Measured at fixed 6 seeds per family, varying evaluation only:
-
-```
-evals/context   power (gate2 / all)
-     32              32.0% / 26.0%
-     64              54.5% / 51.0%
-    128              76.0% / 75.5%
-    192                     / 83.0%
-    256              85.0% / 85.0%   <- LOCKED
-```
-
-**Decision: 6 seeds per family, 256 paired evaluation seeds per context.** The training
-design is exactly as originally locked; only evaluation was raised. Evaluation is
-inference-only, so this is the cheapest available place to buy power.
-
-The whole of §3–§7 is now locked. Nothing here may be changed once the first training run
-starts. Because true power is below the nominal 85%, a FAIL must be read as "no effect
-demonstrated at this budget," not as "no effect exists" — the §8 outcome rule is unchanged
-either way, but the interpretation of a null result is bounded accordingly.
+Nothing in §7 may be changed once the first training run starts.
 
 ## 8. Outcome rules (locked in advance)
 
 ```
 BOTH primary gates pass
-  (LCB95(Δ_assigned) > 0  AND  LCB95(D_policy) > 0)
+  (LCB95(Δ_assigned) > 0  AND  LCB95(B_distinct) > 0)
   -> complementary 300k specialists CONFIRMED
   -> retain the replicated policies
   -> proceed to latent branch birth (freeze initially)
@@ -304,21 +220,18 @@ EITHER primary gate fails
   -> do NOT run another checkpoint hunt
   -> promote the strongest πR family as incumbent generalist G0
   -> search for contexts that defeat the learned incumbent
-     (sweep OP6-OP12 across legal frozen maps, rank by where G0 actually fails)
 ```
 
 No intermediate verdict exists. A partial pass is a fail.
 
-A failed replication means **"not confirmed"** — it is not proof that transient
-specialization never exists. But it ends this particular OP11/OP9 specialist attempt rather
-than opening another round of checkpoint archaeology.
-
 ## 9. Freeze
 
-This document is frozen at **Revision 3**. Its SHA-256 is recorded in
+This document is frozen at **Revision 4**. Its SHA-256 is recorded in
 `artifacts/k2v3_300k_replication/preregistration.lock.json` together with the hashes of the
-launcher, manifest, and analysis scripts that will evaluate it. Any later edit invalidates
-the lock and must be recorded as a new revision with its own timestamp and reason.
+launcher, manifest, and analysis scripts (`analyze_k2_assigned_gain.py`,
+`analyze_k2_behavior_gate.py`) that will evaluate it. Any later edit invalidates the lock
+and must be recorded as a new revision with its own timestamp and reason.
 
-**Launch policy:** do not launch until discovery 200k + behavior audit finish and the GPU
-is free; then launch all 12 runs immediately. Audit results must not change this freeze.
+**Launch policy:** watcher auto-launch disabled. After Rev 4 freeze is committed and the
+discovery behavior audit releases the GPU, launch all 12 runs explicitly via
+`launch_k2v3_300k_replication.py --force-launch`.
