@@ -2,7 +2,7 @@
   "experiment": "g0_learned_incumbent_weakness_sweep",
   "pass": "first (seven BASE opponent keys only)",
   "created_utc": "2026-07-30T13:20:46.038625+00:00",
-  "status": "RUNNING",
+  "status": "COMPLETE",
   "incumbent": {
     "name": "G0",
     "seeds": [
@@ -69,5 +69,6 @@
     "k2v3_300k_replication": "CANCELLED_PRELAUNCH",
     "k2v2_1m_formal": "FAIL - piR dominant generalist"
   },
-  "missing_checkpoints": []
+  "missing_checkpoints": [],
+  "completed_utc": "2026-07-30T16:07:02.677352+00:00"
 }

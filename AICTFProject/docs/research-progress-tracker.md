@@ -7375,10 +7375,37 @@ Fixtures: `tests/test_analyze_g0_weakness.py`
 ```text
 1M K=2 proof:             FAIL
 300k replication:         CANCELLED_PRELAUNCH
-G0 map_a weakness sweep:  RUNNING
+G0 map_a BASE sweep:      COMPLETE — COMPETENT, no C1
+G0 map_a variant tags:    RUNNING (21 synonym labels → 7 niches; confirmatory)
+Same-map scenario bank:   NEXT if variants find no C1
+Rule fidelity checklist:  PASS (hard probes; magnitude not tuned)
 Latent birth:             blocked
 Router:                   blocked
 ```
+
+**Discovery result (672 eps, map_a, BASE OP6–OP12):**
+
+```text
+competence:  COMPETENT  (0/7 opponents with negative family mean)
+pooled mean: +1.96  CI95 [+1.90, +2.02]  (diagnostic)
+weakness gate: NO discovery candidate
+nearest (NOT selected): OP6 W=+1.13 family=+0.96; OP12; OP9
+```
+
+G0 transfers to `map_a` as a strong incumbent against all seven base
+opponents. No isolated learned weakness under the strict gate.
+
+**Framing lock (2026-07-30):** primary latent acceptance stays on **one map
+(`map_a`)** with several strategically incompatible *situations*, not one
+expert per map. See [`same-map-tactical-regimes.md`](same-map-tactical-regimes.md).
+
+**Do not** launch a long-name “variant” re-run of OP6–OP12: short tags already
+resolve to the seven distinct LRO niches; `OP6_TURTLE` / `OP7_SWITCHER` etc.
+are synonyms of the same BT profiles. That would duplicate this sweep.
+
+**Next:** same-map scenario bank S1–S6 on `map_a` (legal state / mid-episode
+opponent switches / commitment costs), plus an Aquaticus rule-fidelity
+checklist. Confirmation @ 64 seeds still required before any O1 training.
 
 ### LOCKED PLAN: sequential weakness → oracle → latent birth (2026-07-30)
 
@@ -7448,16 +7475,17 @@ Router: after branches exist
 Immediate sequence from here:
 
 ```text
-1. Finish G0 map_a discovery sweep (32 eps)
-2. Competence verdict (COMPETENT / AMBIGUOUS / INCOMPETENT)
-3. If COMPETENT: confirm every discovery qualifier @ 64 fresh seeds
-4. Freeze one confirmed C1 (mechanical rank if several)
-5. Train full independent O1 against C1 (G0 frozen)
-6. Retention gate on frozen map_a acceptance pool
-7. Encode retained experts as z0/z1; grow pool → O2 → O3
-8. Router only after ≥2 retained branches
+1. BASE G0 map_a sweep                         DONE — COMPETENT, no C1
+2. Skip long-name alias re-run (duplicate niches)
+3. Aquaticus rule-fidelity checklist on map_a   NEXT (diagnostic)
+4. Same-map scenario bank S1–S6 on map_a        NEXT (implementation)
+5. Evaluate G0 on scenarios; seek C1 under locked competence + gate
+6. Confirm C1 @ 64 fresh seeds
+7. Train full independent O1; retain only if complementary
+8. Encode z0/z1; grow pool → O2 → O3 → K=4; router last
 ```
 
+Framing: [`same-map-tactical-regimes.md`](same-map-tactical-regimes.md)
 Confirmation prereg: [`g0-c1-confirmation-preregistration.md`](g0-c1-confirmation-preregistration.md)
 
 ---

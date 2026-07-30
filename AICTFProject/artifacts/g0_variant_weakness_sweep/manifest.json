@@ -1,0 +1,96 @@
+{
+  "experiment": "g0_variant_weakness_sweep",
+  "pass": "second (21 existing OP6-OP12 variants) -- discovery",
+  "created_utc": "2026-07-30T21:51:57.383818+00:00",
+  "status": "RUNNING",
+  "predecessor": {
+    "experiment": "g0_weakness_sweep (base keys)",
+    "result": "G0 COMPETENT on map_a (0/7 negative); NO base context cleared the strict weakness gate; no valid C1."
+  },
+  "incumbent": {
+    "name": "G0",
+    "seeds": [
+      901001,
+      901002,
+      901003
+    ],
+    "checkpoint_step": 1000000,
+    "best_seed_selection": "prohibited"
+  },
+  "variants": [
+    "OP6_DUAL_RUSH",
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP6_TURTLE",
+    "OP7_DEEP_FORTRESS",
+    "OP7_FORTRESS",
+    "OP7_SWITCHER",
+    "OP8_ESCORT",
+    "OP8_INTERCEPTOR",
+    "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_FEINT",
+    "OP9_FORTRESS",
+    "OP9_SPLIT_LANE_FEINT",
+    "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP10_ESCORT",
+    "OP10_INTERCEPTOR",
+    "OP11_ADAPTIVE_EXPLOITER",
+    "OP11_BT_BALANCED",
+    "OP11_EXPLOITER",
+    "OP12_CONVERTER",
+    "OP12_COUNTER",
+    "OP12_LATE_CONVERTER"
+  ],
+  "all_variants_run": true,
+  "subsetting_note": "All 21 variants are run; selecting only promising-looking ones would reintroduce selection bias.",
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "map_recording_rule": "every row records map=map_a; resolved_map is provenance only",
+  "map_pooling": "map_a must never be pooled with map_b",
+  "phase": "discovery",
+  "eval_seed_block": [
+    1400001,
+    1400032
+  ],
+  "discovery_seed_block": [
+    1400001,
+    1400032
+  ],
+  "confirmation_seed_block": [
+    1410001,
+    1410064
+  ],
+  "episodes_per_cell": 32,
+  "n_cells": 63,
+  "expected_rows": 2016,
+  "invariants": {
+    "agents": 2,
+    "max_decision_steps": 240,
+    "deterministic": true,
+    "domain_randomization": false,
+    "n_envs": 1,
+    "obstacle_obs_channel": true
+  },
+  "obs_contract_note": "obstacle_obs_channel pinned True: G0 trained on map_b where it defaults True (8-channel CNN input); on map_a it would default False (7 channels) and the checkpoint would fail to load. On the open arena the channel is all zeros.",
+  "row_key": [
+    "checkpoint_step",
+    "g0_seed",
+    "opponent",
+    "map",
+    "episode_seed"
+  ],
+  "integrity": "exclusive lock file; duplicate keys rejected, never appended",
+  "weakness_gate": {
+    "required": [
+      "all three G0 seeds have negative mean margin",
+      "family-level UCB95 < 0"
+    ],
+    "rank_if_multiple": [
+      "lowest strongest-member margin",
+      "lowest family mean margin",
+      "lower saturation and tie rate"
+    ],
+    "if_none_pass": "Do NOT select the smallest positive score. Conclusion becomes: no existing opponent behavior creates a robust strategic weakness for G0 on map_a. Next declared step is to ENGINEER one new OP6-OP12 variant on map_a around an unavoidable trade-off (delay until G0 commits forward; counterattack its exposed home flag; use the second RED agent to block the return path).",
+    "confirmation_required": "Every discovery qualifier must reconfirm on the fresh 64-seed block 1410001..1410064 before becoming C1."
+  },
+  "missing_checkpoints": []
+}

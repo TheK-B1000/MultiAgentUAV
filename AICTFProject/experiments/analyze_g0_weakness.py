@@ -274,7 +274,7 @@ def main() -> int:
     # ---- competence (three-way) -----------------------------------------
     print(f"\n{'=' * 84}")
     print("MAP-WIDE COMPETENCE (count opponents with family mean < 0)")
-    print("  0–2 → COMPETENT | exactly 3 → AMBIGUOUS | 4–7 → INCOMPETENT")
+    print("  0-2 -> COMPETENT | exactly 3 -> AMBIGUOUS | 4-7 -> INCOMPETENT")
     print("=" * 84)
     print(f"  n_negative_family_mean = {summary['n_negative_opponents']} / {len(results)}")
     print(f"  verdict                = {summary['competence']}")

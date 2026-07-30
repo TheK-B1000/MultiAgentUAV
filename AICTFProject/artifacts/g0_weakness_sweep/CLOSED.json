@@ -1,0 +1,29 @@
+{
+  "run": "g0_weakness_sweep (base OP6-OP12 keys, map_a)",
+  "status": "CLOSED_NO_WEAKNESS",
+  "closed_utc": "2026-07-30T21:53:18.999195+00:00",
+  "verification": "all ten acceptance checks PASS",
+  "result": {
+    "competence_verdict": "COMPETENT",
+    "n_negative_family_mean": "0 / 7",
+    "pooled_map_wide_mean": 1.9583,
+    "discovery_candidate": null,
+    "conclusion": "G0 beats every base OP6-OP12 opponent on map_a (family means +0.958 to +2.563, win rates 92.7%-100%, no CI touching zero). No context clears the strict weakness gate; there is no valid C1 target.",
+    "scope_note": "This does NOT establish that map_a is too easy. It establishes that the seven BASE opponent configurations sit below G0's current capability."
+  },
+  "family_mean_by_opponent": {
+    "OP6": 0.9583,
+    "OP12": 1.3646,
+    "OP9": 1.8542,
+    "OP7": 2.2292,
+    "OP10": 2.3333,
+    "OP11": 2.4062,
+    "OP8": 2.5625
+  },
+  "analysis_report": "analysis_report.txt",
+  "analysis_report_sha256": "73e175809d7be1c02b307839d939d054704723d613ef94c0a9cb35fa25039487",
+  "analyzer_sha256": "110983c5e1a3206e971ab7bb3273dfb10d17a39f66f2eb06bf3a0a41cd68cb3a",
+  "analyzer_commit_context": "g0-analysis cb8eee692a4baf7be408052b0bb9170b4a286118",
+  "analyzer_identity_note": "sha256 is authoritative. Worktree HEAD read cb8eee6 rather than the predeclared 3ef5f4f because an unrelated verifier commit advanced the branch; the analyzer blob is identical across both (fc6d7de5c49b...).",
+  "successor": "artifacts/g0_variant_weakness_sweep (21 existing variants, discovery)"
+}

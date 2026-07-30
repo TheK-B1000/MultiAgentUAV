@@ -1,0 +1,81 @@
+{
+  "run": "g0_variant_weakness_sweep",
+  "phase": "discovery",
+  "recorded_utc": "2026-07-30T21:52:54.608477+00:00",
+  "pid": 62772,
+  "command": "experiments/run_g0_variant_weakness_sweep.py --force-run --device cuda",
+  "git": {
+    "commit": "7b175c34466d7d436933f3f23b29ad05cf5ce067",
+    "branch": "lro"
+  },
+  "provenance_classes": {
+    "execution_critical": {
+      "acceptance_rule": "ANY change -> ABORT analysis and reconcile the run.",
+      "baseline_rule": "Baseline is immutable; compare current files against it, never regenerate.",
+      "files": [
+        "experiments/run_g0_variant_weakness_sweep.py",
+        "experiments/run_g0_weakness_sweep.py",
+        "plot/eval_rollout.py",
+        "game_field_gpu.py",
+        "gpu_env/_config.py",
+        "gpu_env/_constants.py",
+        "gpu_env/_maps.py",
+        "gpu_env/_specs.py",
+        "gpu_env/_core/_bt_profiles.py",
+        "rl/custom_ppo/checkpoints/loader.py",
+        "rl/custom_ppo/checkpoints/state_dict.py",
+        "rl/custom_ppo/inference_policy.py",
+        "rl/custom_ppo/policy.py",
+        "rl/behavior_telemetry.py",
+        "rl/stress_schedule.py",
+        "opponent_params.py"
+      ]
+    },
+    "analysis_only": {
+      "acceptance_rule": "Change allowed only if the analyzer sha256 used is recorded in the report.",
+      "authoritative_identity": "analyzer sha256 / blob, NOT worktree HEAD",
+      "worktree": "K:\\MultiAgentUAV\\.worktrees\\development\\AICTFProject",
+      "branch": "g0-analysis",
+      "commit": "cb8eee692a4baf7be408052b0bb9170b4a286118",
+      "files": [
+        "experiments/analyze_g0_weakness.py",
+        "experiments/verify_g0_sweep.py",
+        "tests/test_g0_weakness_competence_bands.py",
+        "docs/lro-map-a-loop.md",
+        "docs/g0-c1-confirmation-preregistration.md"
+      ],
+      "sha256": {
+        "experiments/analyze_g0_weakness.py": "7ef645a7124e3d38207d0cf90cf7710c62242d1c0138761a2080e48e8037ad68",
+        "experiments/verify_g0_sweep.py": "8fccd6e7e7c00592bca13b9ff190d1e7e6c52813852d2368c9d1371069e5db3a",
+        "tests/test_g0_weakness_competence_bands.py": "c419cb7dd0e4eb2aedf5dd3df5a45d7b696bef134204a9e414e9d1be6dc3e733",
+        "docs/lro-map-a-loop.md": "9586299ce4b073e38dbb1469092506abe212c0d1d8e22b66ceeeae717e137c89",
+        "docs/g0-c1-confirmation-preregistration.md": "d4188fe575bc795cafe67a36c5735f19d15e091749000119511f80c38f4cab55"
+      }
+    }
+  },
+  "execution_critical_sha256": {
+    "experiments/run_g0_variant_weakness_sweep.py": "925b8b6a438f90d093ebdbf3648a85181b0a8fbfbe09366d9b8393de80416deb",
+    "experiments/run_g0_weakness_sweep.py": "62ea89c94d9b3fbb7309f51738075a85b118552d5c06fd6235b71713a907aea4",
+    "plot/eval_rollout.py": "276b8bac5979b38999727d262b8182c675bb4a64b1a90ef8f88022fb83bf06d6",
+    "game_field_gpu.py": "f33d88c13a0071f42822fd61dce70ade08796c68ba37eb26175c6fff1fece6ba",
+    "gpu_env/_config.py": "e41c4019ceb420b7bf081f055f8e7d6a77086645250a026ab47715e9ed61d727",
+    "gpu_env/_constants.py": "e2f303d53fe280ac938853bce7e945facb390d5341201ac7498147a172334f81",
+    "gpu_env/_maps.py": "b6fe14e4394f3ff2ed5c788526c5df5d6d0f7546a50f68bf53b8376777aa6791",
+    "gpu_env/_specs.py": "96747c26952b421f6a0633921365f6860b13c7676a5fb613c347c79e7d8a1a5a",
+    "gpu_env/_core/_bt_profiles.py": "dfe111f4d4d183584997ddd62394c50007f4b358d87be3df71edd365da279a73",
+    "rl/custom_ppo/checkpoints/loader.py": "a671000d982862180eda7219b999fde625f93c6437c28608429bce70bcd57d9c",
+    "rl/custom_ppo/checkpoints/state_dict.py": "aa1a4ae12774d7fb96434560e0f49b098855ddfb0ff9d67912cb95ad4b76ba00",
+    "rl/custom_ppo/inference_policy.py": "bc9fa50b4c07358e003f84ec297e676fbab7eff3846b9cba027ea9ffc2d115e4",
+    "rl/custom_ppo/policy.py": "aa0fe4bc2f558d3d0ee2077b33d1aeda7e7357a907c1e1ae6451ddb7e0a7b7a0",
+    "rl/behavior_telemetry.py": "096463cc4af8592cb24e6de842f3a241b68268c9579db744b495f282ad4cd134",
+    "rl/stress_schedule.py": "694d2353be0455268df7d8f01eacabc7645cb23e7334ee586d34fda3cfa22253",
+    "opponent_params.py": "a318c42c3d9ada17be367d049e02bb1c6f58df5bf5d7e6d0ccd8bf12ab16d4d7"
+  },
+  "g0_checkpoint_sha256": {
+    "checkpoints/k2v2_piR/ckpt_k2v2_piR_op11_mapb_s901001_2v2_1000000.zip": "c6f44a8bc199f8ba600ff07de57104b762dfb97da7afa2040c91aa89c291c647",
+    "checkpoints/k2v2_piR/ckpt_k2v2_piR_op11_mapb_s901002_2v2_1000000.zip": "d9d6227739ed9f329c17ad6d3bc7ff8927e19b98b718f0f72e8777610b8cfb56",
+    "checkpoints/k2v2_piR/ckpt_k2v2_piR_op11_mapb_s901003_2v2_1000000.zip": "caa77e6ff5374b3c75a6126d9e3c1a63bd04a37d23a0d175f8f9f06a98e4fceb"
+  },
+  "snapshot_dir": "run_snapshot",
+  "verification_policy": "Run experiments/verify_g0_sweep.py before analysis; require all ten checks."
+}

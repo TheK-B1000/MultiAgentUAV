@@ -61,6 +61,9 @@ class _ScratchStateMixin:
         # Tagging channel: per-agent timers accumulating time under 2+ defender pressure.
         self.red_tag_pressure_time = torch.zeros((B, Nr), dtype=f32, device=dev)
         self.blue_tag_pressure_time = torch.zeros((B, Nb), dtype=f32, device=dev)
+        # Per-tagger cooldown: seconds remaining before this vehicle may tag again.
+        self.blue_tag_cooldown = torch.zeros((B, Nb), dtype=f32, device=dev)
+        self.red_tag_cooldown = torch.zeros((B, Nr), dtype=f32, device=dev)
 
     def _alloc_mine_state(
         self,

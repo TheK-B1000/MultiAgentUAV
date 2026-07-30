@@ -1,0 +1,31 @@
+{
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "checks": {
+    "max_decision_steps_finite": true,
+    "aquaticus_profile": true,
+    "territory_tagging_home_side_gate": true,
+    "tag_channel_pressure": true,
+    "return_home_to_untag": true,
+    "tag_range_configured": true,
+    "motion_limits_configured": true,
+    "aquaticus_caps_motion": true,
+    "flag_carry_fields": true
+  },
+  "soft_notes": [
+    "No discrete named tag_cooldown field; commitment cost is return-home-to-untag + tag_channel pressure time."
+  ],
+  "hard_fail": [],
+  "cfg_snapshot": {
+    "max_decision_steps": 240,
+    "aquaticus_profile": true,
+    "rules_profile": "OURS",
+    "map_layout": "map_a_open",
+    "tag_range_cells": 2.5,
+    "home_untag_radius_cells": 2.0,
+    "tag_channel_seconds": 1.0,
+    "max_speed_cps": 2.2,
+    "max_accel_cps2": 2.0,
+    "max_yaw_rate_rps": 4.0
+  }
+}

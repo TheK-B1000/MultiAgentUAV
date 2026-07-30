@@ -158,37 +158,9 @@ class GPUFieldConfig:
     macro_commit_go_home_ticks: int = 4
     macro_arrival_radius_cells: float = 1.0
 
-    # --- Tagging rules -------------------------------------------------------
-    # Official Aquaticus: a SINGLE eligible defender tags by itself; the NEAREST
-    # eligible opponent receives the tag (so a teammate can absorb one to protect
-    # a carrier); and a successful tagger must wait a minimum interval before
-    # tagging again.
-    #
-    # RULESET_V1 (superseded, kept reproducible) required two simultaneous
-    # taggers with no cooldown. In 2v2 that made a lone defender strictly
-    # dominated -- it could neither tag nor suppress -- which removed the
-    # opportunity cost of committing both agents forward and collapsed the
-    # strategy space onto a single non-dominated policy.
-    #
-    # Reproduce RULESET_V1 exactly with:
-    #     taggers_required=2, tag_nearest_only=False,
-    #     tag_min_interval_seconds=0.0, tag_channel_seconds=1.0
-    taggers_required: int = 1
-    tag_nearest_only: bool = True
-    # Minimum interval before the SAME vehicle may tag again. MIT sources differ
-    # (game-mechanics page: 30 s; uFldTagManager default: 10 s), so this is a
-    # required knob rather than a hardcoded constant -- set it from the exact
-    # mission/competition configuration being replicated. Distinct from
-    # tag_duration_seconds, which is how long a tagged vehicle stays tagged.
-    tag_min_interval_seconds: float = 10.0
-    # Sustained-pressure window before a tag lands. The official per-request
-    # eligibility model has no group channel, so 0.0 is the faithful value; a
-    # small non-zero value is a simulator debounce and must be labeled as an
-    # approximation, not a rule.
-    tag_channel_seconds: float = 0.0
-    # Suppression/kill is a project-specific mechanic, NOT Aquaticus tagging.
-    # Kept on its own threshold so correcting tagging cannot silently change it.
-    suppression_attackers_required: int = 2
+    # Tagging channel controls:
+    # - tag_channel_seconds: pressure >= 2 must be sustained for this many seconds before a tag is applied.
+    tag_channel_seconds: float = 1.0
 
     # Profile and reward controls
     aquaticus_profile: bool = False

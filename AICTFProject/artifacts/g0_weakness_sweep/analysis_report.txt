@@ -1,0 +1,86 @@
+====================================================================================
+G0 LEARNED-INCUMBENT WEAKNESS SWEEP -- map_a (map_a_open)
+G0 = frozen 1M piR family, used as incumbent generalist.
+Ranking: W(c) = max over G0 seeds of payoff; LOWER = better weakness.
+====================================================================================
+ANALYZER PROVENANCE (analysis-only code; independently versioned)
+  commit  : cb8eee692a4baf7be408052b0bb9170b4a286118  [g0-analysis]
+  sha256  : 110983c5e1a3206e971ab7bb3273dfb10d17a39f66f2eb06bf3a0a41cd68cb3a
+  path    : K:\MultiAgentUAV\.worktrees\development\AICTFProject\experiments\analyze_g0_weakness.py
+  rows    : K:\MultiAgentUAV\AICTFProject\artifacts\g0_weakness_sweep\episode_rows.csv
+====================================================================================
+
+opponent                         W=max seed   family                CI95    win    tie    sat
+OP6                                 +1.1250  +0.9583     [+0.739,+1.167]  92.7%   1.0%   0.0%
+OP12                                +1.4375  +1.3646     [+1.208,+1.521]  99.0%   0.0%   0.0%
+OP9                                 +2.0625  +1.8542     [+1.562,+2.125]  96.9%   1.0%  16.7%
+OP7                                 +2.3750  +2.2292     [+2.000,+2.427]  99.0%   1.0%  33.3%
+OP10                                +2.4375  +2.3333     [+2.167,+2.510]  99.0%   1.0%  39.6%
+OP11                                +2.5938  +2.4062     [+2.198,+2.615] 100.0%   0.0%  43.8%
+OP8                                 +2.6875  +2.5625     [+2.396,+2.729] 100.0%   0.0%  57.3%
+
+Per-G0-seed mean margin (no best-seed selection; all three shown)
+opponent                             s901001     s901002     s901003   all<0?
+OP6                                  +1.1250     +0.8125     +0.9375       no
+OP12                                 +1.3438     +1.4375     +1.3125       no
+OP9                                  +2.0625     +1.8750     +1.6250       no
+OP7                                  +2.3750     +2.2188     +2.0938       no
+OP10                                 +2.2500     +2.3125     +2.4375       no
+OP11                                 +2.2500     +2.3750     +2.5938       no
+OP8                                  +2.5000     +2.6875     +2.5000       no
+
+Trajectory fingerprints (mean behavior telemetry; DESCRIPTIVE ONLY)
+opponent                         team_spread num_attacke num_defende avg_blue_to avg_blue_to intercept_p defense_pre
+OP6                                    0.085       1.002       0.263       0.191       0.266       0.880       0.848
+OP12                                   0.092       1.011       0.255       0.195       0.252       0.885       0.866
+OP9                                    0.089       1.033       0.204       0.207       0.249       0.869       0.793
+OP7                                    0.088       1.045       0.174       0.219       0.262       0.855       0.730
+OP10                                   0.091       1.035       0.174       0.219       0.266       0.859       0.732
+OP11                                   0.086       1.046       0.267       0.187       0.249       0.887       0.885
+OP8                                    0.093       1.001       0.187       0.205       0.264       0.874       0.740
+
+====================================================================================
+MAP-WIDE COMPETENCE (count opponents with family mean < 0)
+  0-2 -> COMPETENT | exactly 3 -> AMBIGUOUS | 4-7 -> INCOMPETENT
+====================================================================================
+  n_negative_family_mean = 0 / 7
+  verdict                = COMPETENT
+  pooled map-wide mean   = +1.9583  CI95=[+1.8958, +2.0193]  (DIAGNOSTIC only; not a gate)
+  Note: a single easy opponent must not hide several losses -- competence
+  is decided by the negative-opponent count, not the pooled mean.
+
+  map-wide family-mean average = +1.9583
+  opponent                            family   deviation
+  OP6                                +0.9583     -1.0000
+  OP12                               +1.3646     -0.5938
+  OP9                                +1.8542     -0.1042
+  OP7                                +2.2292     +0.2708
+  OP10                               +2.3333     +0.3750
+  OP11                               +2.4062     +0.4479
+  OP8                                +2.5625     +0.6042
+  deviation spread = 1.6042  (large spread favors an opponent-specific reading;
+   small spread with a low level favors a general map competence gap)
+
+  -> Competent map_a incumbent. Isolated failures may become C1 candidates.
+
+====================================================================================
+WEAKNESS GATE: all_seeds_negative AND UCB95 < 0 (strict)
+====================================================================================
+  OP6                              all_seeds_negative=False UCB95<0=False -
+  OP12                             all_seeds_negative=False UCB95<0=False -
+  OP9                              all_seeds_negative=False UCB95<0=False -
+  OP7                              all_seeds_negative=False UCB95<0=False -
+  OP10                             all_seeds_negative=False UCB95<0=False -
+  OP11                             all_seeds_negative=False UCB95<0=False -
+  OP8                              all_seeds_negative=False UCB95<0=False -
+
+NO DISCOVERY CANDIDATE: competence is COMPETENT but no context clears
+the strict weakness gate.
+
+Nearest by W(c) (lower = closer; NOT auto-selected):
+  OP6                              W=+1.1250 family=+0.9583 CI95=[+0.7393, +1.1667]
+  OP12                             W=+1.4375 family=+1.3646 CI95=[+1.2083, +1.5208]
+  OP9                              W=+2.0625 family=+1.8542 CI95=[+1.5625, +2.1250]
+
+Do NOT relax the gate. Next: a separately declared OP6-OP12 variant
+sweep in its own output directory, if still needed after confirmation.

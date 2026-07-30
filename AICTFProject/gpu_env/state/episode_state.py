@@ -149,6 +149,8 @@ class _EpisodeStateMixin:
         self.pickup_respawn[idx] = 0
         self.red_tag_pressure_time[idx] = 0.0
         self.blue_tag_pressure_time[idx] = 0.0
+        self.blue_tag_cooldown[idx] = 0.0
+        self.red_tag_cooldown[idx] = 0.0
         self.metric_time_to_first_score[idx] = -1.0
         self.metric_inter_robot_dist_sum[idx] = 0.0
         self.metric_inter_robot_dist_count[idx] = 0

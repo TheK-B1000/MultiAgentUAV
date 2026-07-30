@@ -42,17 +42,46 @@ class _RulesMixin:
         self.blue_tagged = self.blue_tagged & (~b_home)
         self.red_tagged = self.red_tagged & (~r_home)
 
+    @staticmethod
+    def _keep_nearest_target(elig: torch.Tensor, dist: torch.Tensor,
+                             target_dim: int) -> torch.Tensor:
+        """Keep only each tagger's NEAREST eligible target.
+
+        ``elig`` and ``dist`` are both (B, Nb, Nr); ``target_dim`` is the axis
+        holding the targets. This is what lets a teammate absorb a tag intended
+        for the flag carrier.
+        """
+        big = torch.finfo(dist.dtype).max
+        masked = torch.where(elig, dist, torch.full_like(dist, big))
+        nearest = masked.argmin(dim=target_dim, keepdim=True)
+        keep = torch.zeros_like(elig)
+        keep.scatter_(target_dim, nearest, True)
+        return elig & keep
+
     def _apply_aquaticus_tag_rules(
         self,
         blue_oob: torch.Tensor,
         red_oob: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Tagging uses a net/tag stack with a short tag channel:
+        """Aquaticus-faithful tagging (RULESET_V2).
 
-          - Each defender in tag radius contributes +1 pressure on nearby opponents.
-          - If pressure >= 2 is sustained for tag_channel_seconds, the target is tagged.
-          - If pressure drops below 2, the per-agent channel timer resets.
+        Per the official rules, a tagger is eligible when it is untagged, on its
+        OWN side, within ``tag_range_cells``, and off cooldown; the target must be
+        untagged and on the tagger's side. Then:
+
+          - ``taggers_required`` eligible taggers (default 1) tag the target.
+          - With ``tag_nearest_only`` each tagger only acts on its NEAREST
+            eligible opponent, so a teammate can absorb a tag to protect a
+            carrier -- the mechanic that makes escorts and decoys meaningful.
+          - A successful tagger is put on cooldown for
+            ``tag_min_interval_seconds`` before it may tag again.
+          - ``tag_channel_seconds`` (default 0) is a simulator debounce, not an
+            Aquaticus rule; non-zero values are an approximation.
+
+        RULESET_V1 (superseded) required two simultaneous taggers with no
+        cooldown and tagged every eligible target at once. Reproduce it with
+        taggers_required=2, tag_nearest_only=False, tag_min_interval_seconds=0,
+        tag_channel_seconds=1.0.
 
         OOB does NOT cause tagging; it only drops the flag if the agent is carrying.
         """
@@ -74,9 +103,21 @@ class _RulesMixin:
         dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
         in_tag_range = dist <= float(self.cfg.tag_range_cells)
 
-        # Tagger must be untagged and on own side; target must be untagged and on opponent side
-        blue_can_tag = (~self.blue_tagged) & self._is_on_home_side("blue", self.blue_x)
-        red_can_tag = (~self.red_tagged) & self._is_on_home_side("red", self.red_x)
+        dt = self.dt
+        # Per-tagger cooldown ticks down first; a vehicle on cooldown is ineligible.
+        cooldown_T = float(getattr(self.cfg, "tag_min_interval_seconds", 0.0))
+        if cooldown_T > 0.0:
+            self.blue_tag_cooldown = (self.blue_tag_cooldown - dt).clamp(min=0.0)
+            self.red_tag_cooldown = (self.red_tag_cooldown - dt).clamp(min=0.0)
+        blue_off_cooldown = self.blue_tag_cooldown <= 0.0
+        red_off_cooldown = self.red_tag_cooldown <= 0.0
+
+        # Tagger must be untagged, on own side, and off cooldown; target must be
+        # untagged and on the tagger's side.
+        blue_can_tag = ((~self.blue_tagged) & self._is_on_home_side("blue", self.blue_x)
+                        & blue_off_cooldown)
+        red_can_tag = ((~self.red_tagged) & self._is_on_home_side("red", self.red_x)
+                       & red_off_cooldown)
         red_on_blue_side = self._is_on_home_side("blue", self.red_x)
         blue_on_red_side = self._is_on_home_side("red", self.blue_x)
         red_targetable = (~self.red_tagged) & red_on_blue_side
@@ -85,17 +126,23 @@ class _RulesMixin:
         blue_tags = in_tag_range & blue_can_tag[:, :, None] & red_targetable[:, None, :]
         red_tags = in_tag_range & red_can_tag[:, None, :] & blue_targetable[:, :, None]
 
-        # Pressure counts: how many eligible taggers are in range of each target agent.
+        # Nearest-eligible restriction: each tagger acts only on its closest
+        # eligible opponent, so a teammate can absorb a tag meant for the carrier.
+        if bool(getattr(self.cfg, "tag_nearest_only", True)):
+            blue_tags = self._keep_nearest_target(blue_tags, dist, target_dim=2)
+            red_tags = self._keep_nearest_target(red_tags, dist, target_dim=1)
+
+        # Pressure counts: how many eligible taggers are acting on each target.
         # blue_pressure_on_red: (B, Nr), red_pressure_on_blue: (B, Nb)
         blue_pressure_on_red = blue_tags.sum(dim=1)
         red_pressure_on_blue = red_tags.sum(dim=2)
 
-        dt = self.dt
-        channel_T = float(getattr(self.cfg, "tag_channel_seconds", 1.0))
+        channel_T = float(getattr(self.cfg, "tag_channel_seconds", 0.0))
+        need = int(getattr(self.cfg, "taggers_required", 1))
 
-        # Tagging channel: accumulate time when pressure >= 2; reset when below.
-        red_under_channel = blue_pressure_on_red >= 2
-        blue_under_channel = red_pressure_on_blue >= 2
+        # Tagging channel: accumulate while pressure meets the requirement.
+        red_under_channel = blue_pressure_on_red >= need
+        blue_under_channel = red_pressure_on_blue >= need
 
         self.red_tag_pressure_time = torch.where(
             red_under_channel,
@@ -108,13 +155,19 @@ class _RulesMixin:
             torch.zeros_like(self.blue_tag_pressure_time),
         )
 
+        # ``red_under_channel`` is required, not just the elapsed timer: with
+        # channel_T = 0 (the Aquaticus-faithful setting) the timer test
+        # ``>= 0`` is vacuously true, and without this conjunct every
+        # targetable agent would be tagged with no tagger present at all.
         newly_red_tagged = (
-            (self.red_tag_pressure_time >= channel_T)
+            red_under_channel
+            & (self.red_tag_pressure_time >= channel_T)
             & (~self.red_tagged)
             & red_targetable
         )
         newly_blue_tagged = (
-            (self.blue_tag_pressure_time >= channel_T)
+            blue_under_channel
+            & (self.blue_tag_pressure_time >= channel_T)
             & (~self.blue_tagged)
             & blue_targetable
         )
@@ -135,6 +188,23 @@ class _RulesMixin:
 
         red_had_flag = newly_red_tagged & self.red_carrying
         blue_had_flag = newly_blue_tagged & self.blue_carrying
+
+        # Start the cooldown on taggers that actually landed a tag, so the same
+        # vehicle cannot tag again immediately. This is what makes a decoy that
+        # "spends" a defender's tag a real tactic.
+        if cooldown_T > 0.0:
+            blue_tagger_used = (blue_tags & newly_red_tagged[:, None, :]).any(dim=2)
+            red_tagger_used = (red_tags & newly_blue_tagged[:, :, None]).any(dim=1)
+            self.blue_tag_cooldown = torch.where(
+                blue_tagger_used,
+                torch.full_like(self.blue_tag_cooldown, cooldown_T),
+                self.blue_tag_cooldown,
+            )
+            self.red_tag_cooldown = torch.where(
+                red_tagger_used,
+                torch.full_like(self.red_tag_cooldown, cooldown_T),
+                self.red_tag_cooldown,
+            )
 
         self.red_tagged = self.red_tagged | newly_red_tagged
         self.blue_tagged = self.blue_tagged | newly_blue_tagged
@@ -215,8 +285,12 @@ class _RulesMixin:
         close = dist <= float(self.cfg.suppression_range_cells)
         close_blue_count = close.sum(dim=1)
         close_red_count = close.sum(dim=2)
-        kill_red = (close_blue_count >= 2) & self.red_alive
-        kill_blue = (close_red_count >= 2) & self.blue_alive
+        # Suppression is a project-specific mechanic, NOT Aquaticus tagging. It
+        # keeps its own threshold so correcting the tag rule cannot silently
+        # change it.
+        supp_need = int(getattr(self.cfg, "suppression_attackers_required", 2))
+        kill_red = (close_blue_count >= supp_need) & self.red_alive
+        kill_blue = (close_red_count >= supp_need) & self.blue_alive
         red_had_flag = kill_red & self.red_carrying
         blue_had_flag = kill_blue & self.blue_carrying
         self._kill_agents(kill_blue, kill_red)
