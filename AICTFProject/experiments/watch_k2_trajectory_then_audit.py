@@ -81,7 +81,14 @@ def main() -> int:
             cwd=str(ROOT),
         )
         say(f"[watcher] behavior audit rc={ba.returncode}")
-        say("[watcher] done. Formal 1M FAIL unchanged. 300k replication still PREDECLARED/not launched.")
+        say("[watcher] discovery chain complete. Formal 1M FAIL unchanged.")
+        say("[watcher] Rev 3 freeze must already be on disk; launching k2v3 12x300k NOW.")
+        launch = subprocess.run(
+            [str(PY), "experiments/launch_k2v3_300k_replication.py",
+             "--force-launch", "--concurrency", "2"],
+            cwd=str(ROOT),
+        )
+        say(f"[watcher] k2v3 launch rc={launch.returncode}")
     return 0
 
 

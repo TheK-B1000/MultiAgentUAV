@@ -7281,57 +7281,49 @@ K=2 LRO specialist proof @1M:      FAIL
 Latent birth and router:           not justified
 ```
 
-### LOCKED NEXT: 300k confirmatory replication (predeclared 2026-07-30)
+### LOCKED NEXT: 300k confirmatory replication (Rev 3 freeze, 2026-07-30)
 
-Chosen **before** seeing remaining 200k / behavior-audit results.
-Do **not** switch the formal checkpoint to 200k after those land.
+Preregistration: `docs/k2v2-300k-replication-preregistration.md` (Revision 3).
+Lock: `artifacts/k2v3_300k_replication/preregistration.lock.json`.
+Chosen / amended **before any replication training data**. Discovery audit must
+**not** change sample size, seeds, checkpoint, or gates. Staged `5×64` /
+`LCB(Δ_pool)` draft is void (never launched).
 
 ```text
 Experiment:              k2v3_300k_replication
 Formal checkpoint:       exactly 300k  (selection prohibited)
-πR training seeds:       5 fresh  [911001..911005]
-πS training seeds:       5 fresh  [912001..912005]
-Eval episodes/context:   64 fresh paired
-  C_RUSH seeds:          1110001..1110064
-  C_SPLIT seeds:         1120001..1120064
+πR training seeds:       6 fresh  [911001..911006]
+πS training seeds:       6 fresh  [912001..912006]
+Eval episodes/context:   256 fresh paired (ONE block; no interim @64/128)
+  C_RUSH seeds:          1110001..1110256
+  C_SPLIT seeds:         1120001..1120256
 Map / horizon / contexts: unchanged (OP11|map_b, OP9|map_b, 240 steps)
 Preset:                  no_latent_baseline, 2v2, n_envs=16
-Total train compute:     10 × 300k = 3M steps
+Total train compute:     12 × 300k = 3.6M steps
 Launcher:                experiments/launch_k2v3_300k_replication.py
 ```
 
-Training seeds prioritized over eval-episode count (PPO seed instability
-dominated the discovery run, especially πS / s902002).
-
-**Confirmatory gates (all required at the frozen 300k checkpoint):**
+**Formal gates (both required):**
 
 ```text
-1. πR > πS on C_RUSH     paired family CI95 entirely above 0
-2. πS > πR on C_SPLIT    paired family CI95 entirely above 0
-3. LCB95(Δ_pool) > 0     hierarchical clustered bootstrap
-4. Policy distinction:   LCB95(D_policy) > 0 where
+A. LCB95(Δ_assigned) > 0
+     Δ_assigned = ½·min(πR−πS on C_RUSH, πS−πR on C_SPLIT)
+     (= V_assigned − V_fixed; signed; no structural floor at 0)
+B. LCB95(D_policy) > 0
      D_policy = JSD_between − mean(JSD_within_πR, JSD_within_πS)
-   on matched legal observations
 ```
 
-**Branch-birth decision (locked):**
+Directional crossover CIs and legacy `Δ_pool` are **reported diagnostics**,
+not formal gates (`Δ_pool` has a structural floor at zero).
 
-```text
-All four gates PASS
-  → retain the two 300k specialist families
-  → proceed to latent branch birth
-  → keep branches frozen initially
-  → router remains later
-
-Miss Δ_pool or policy distinction
-  → transient crossover not reliable enough
-  → promote πR as G0; begin learned-incumbent weakness sweep
-```
+**Outcome rule:** both pass → retain 300k specialists → latent birth (freeze
+branches) → router later. Either fails → do not checkpoint-hunt; promote πR
+as G0; learned-incumbent weakness sweep.
 
 ```text
 1M K=2 proof:             FAIL
 300k discovery signal:    promising but unconfirmed
-300k replication:         JUSTIFIED / PREDECLARED (not yet launched)
+300k replication:         Rev 3 FROZEN — launch after discovery audit, GPU free
 Latent birth:             still blocked
 Router:                   still blocked
 ```

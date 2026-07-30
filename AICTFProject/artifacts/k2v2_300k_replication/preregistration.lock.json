@@ -1,0 +1,75 @@
+{
+  "locked_utc": "2026-07-30T11:55:59.195739+00:00",
+  "revision": 3,
+  "experiment": "k2v3_300k_replication",
+  "status": "PREDECLARED_AMENDED_FROZEN_NOT_LAUNCHED",
+  "preregistration": {
+    "path": "docs/k2v2-300k-replication-preregistration.md",
+    "sha256": "b32daaeadb90e2997a5401bdfa2508bab1db0c18616617443a131bb1f1df1d86"
+  },
+  "file_sha256": {
+    "docs/k2v2-300k-replication-preregistration.md": "b32daaeadb90e2997a5401bdfa2508bab1db0c18616617443a131bb1f1df1d86",
+    "experiments/launch_k2v3_300k_replication.py": "4b3278c80ae804e2c7c5c4b98c974bf4c7b33bd10bd36361744fc75480ba2af1",
+    "artifacts/k2v3_300k_replication/manifest.json": "8a2049ef334f64df238df89b371dd7ddc17096fd8e0d3938da56bc745842661f",
+    "experiments/analyze_k2_assigned_gain.py": "a67e84deec823ba0d7562e6942d3d1a6dc8b5b97057bf98cbb03f3c69f63bf10",
+    "experiments/analyze_k2_specialist_crossover.py": "3713b4da406f1f69e14b63ed32ae5169ed0ea945a1fe610e352547552ae25e79",
+    "experiments/analyze_k2_specialist_behavior.py": "c76a2fd638b7e7f53b04a9417d0e69564465a9f6444320350e77d400da5bbdbf",
+    "experiments/audit_k2_specialist_behavior.py": "5749527836db1c8ac05a8e28602da4bde918c34249ea1408b8e45403ee4601d1",
+    "experiments/run_k2_specialist_cross_eval.py": "68033298ef486875d3f06d6086a1c927759095c37a1ee5252eaa6a174b900fd1"
+  },
+  "git": {
+    "commit": "c5ae13327febaffc0b7d1a8126891cd2a6e8b6df",
+    "branch": "lro",
+    "note": "commit SHA at freeze time; amend commit follows"
+  },
+  "design": {
+    "training_seeds_per_family": 6,
+    "total_runs": 12,
+    "steps_per_run": 300000,
+    "formal_checkpoint": 300000,
+    "eval_seeds_per_context": 256,
+    "one_fixed_eval_block": true,
+    "interim_analysis_permitted": false,
+    "piR_seeds": [
+      911001,
+      911002,
+      911003,
+      911004,
+      911005,
+      911006
+    ],
+    "piS_seeds": [
+      912001,
+      912002,
+      912003,
+      912004,
+      912005,
+      912006
+    ],
+    "eval_seed_blocks": {
+      "C_RUSH": {
+        "base": 1110001,
+        "n": 256
+      },
+      "C_SPLIT": {
+        "base": 1120001,
+        "n": 256
+      }
+    }
+  },
+  "primary_gates": {
+    "A_joint_payoff": "LCB95(Delta_assigned) > 0; Delta_assigned = 0.5*min(R_R-S_R, S_S-R_S) = V_assigned - V_fixed",
+    "B_policy_distinction": "LCB95(D_policy) > 0; D_policy = between - mean(within_piR, within_piS)"
+  },
+  "diagnostics_not_gates": [
+    "paired directional crossover CIs",
+    "Delta_pool (structural floor at 0)"
+  ],
+  "void_staged_draft": {
+    "description": "5 seeds/family, 64 eval/context, LCB(Delta_pool)>0",
+    "launched": false
+  },
+  "launch_policy": "Do not launch until discovery 200k + behavior audit finish and GPU is free; then launch all 12 runs. Audit must not change this freeze.",
+  "note": "Frozen before any replication training run started. 1M verdict remains FAIL.",
+  "redirect": "artifacts\\k2v3_300k_replication\\preregistration.lock.json"
+}

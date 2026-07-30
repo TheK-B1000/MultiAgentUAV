@@ -1,14 +1,33 @@
 # K=2 Specialist Replication at 300k — Preregistration
 
-**Status:** LOCKED before the 200k trajectory cell and the behavior audit completed.
+**Status:** LOCKED / AMENDED before any replication training data existed.
 **Date locked:** 2026-07-30
-**Revision:** 2 (amended 2026-07-30, before any replication data existed)
-**Supersedes nothing.** The 1M experiment's verdict stands: **FAIL**, latent birth blocked,
-router blocked.
+**Revision:** 3 (amended 2026-07-30; seed-block alignment)
+**Supersedes nothing about discovery.** The 1M experiment's verdict stands:
+**FAIL**, latent birth blocked, router blocked.
 
 ---
 
 ## 0. Amendment record
+
+### Revision 3 — 2026-07-30, pre-launch (seed-block alignment)
+
+One change, made **before any replication training run started**.
+
+**Training and evaluation seed IDs aligned to the confirmatory design text:**
+
+```text
+πR training:  911001–911006   (was 903001–903006 in Rev 2)
+πS training:  912001–912006   (was 904001–904006 in Rev 2)
+C_RUSH eval:  1110001–1110256 (was 1050001+ in Rev 2)
+C_SPLIT eval: 1120001–1120256 (was 1060001+ in Rev 2)
+```
+
+Sample size, checkpoint, gates, and Δ_assigned definition are **unchanged** from
+Revision 2 (6 seeds/family, 256 eval/context, formal gates A+B only).
+
+Also records that a short-lived staged launcher draft (`5 × 64`,
+`LCB(Δ_pool)>0`) was never launched and is void; it must not be used.
 
 ### Revision 2 — 2026-07-30, pre-launch
 
@@ -92,10 +111,11 @@ Agents:             2v2
 Determinism:        deterministic action selection, no domain randomization, n_envs=1 at eval
 ```
 
-Training seeds: `πR = 903001..903006`, `πS = 904001..904006`.
-Evaluation seed blocks: `C_RUSH = 1_050_001+`, `C_SPLIT = 1_060_001+`.
+Training seeds: `πR = 911001..911006`, `πS = 912001..912006`.
+Evaluation seed blocks: `C_RUSH = 1_110_001 .. 1_110_256`, `C_SPLIT = 1_120_001 .. 1_120_256`.
 All disjoint from every prior block (901xxx/902xxx training; 1010001/1020001 payoff;
-1030001/1040001 audit; all context-confirmation blocks).
+1030001/1040001 audit; 903/904 and 105/106 unused reserved IDs from Rev 2; all
+context-confirmation blocks).
 
 Trainer, reward configuration, horizon, map, opponent definitions, preset
 (`no_latent_baseline`), `n_envs=16`, and evaluation protocol are **unchanged** from the
@@ -103,6 +123,9 @@ discovery run.
 
 Intermediate checkpoints are saved every 100k for diagnostics but **must not be inspected**
 until the 300k formal analysis is complete and recorded.
+
+Launcher: `experiments/launch_k2v3_300k_replication.py`
+Manifest: `artifacts/k2v3_300k_replication/manifest.json`
 
 ## 4. Formal gates — TWO primary requirements (both required)
 
@@ -128,7 +151,10 @@ The two component contrasts are still reported:
 ```
 
 but they are **explanations of the joint result, not independent gates**. A pass or fail is
-decided by Δ_assigned alone.
+decided by Δ_assigned alone for the payoff side.
+
+`Δ_pool` is reported for continuity with the failed 1M gate but is **not** a formal gate
+(structural floor at zero).
 
 ### B. Learned policy distinction
 
@@ -183,10 +209,10 @@ V_fixed        = max( (R_R + R_S)/2 , (S_R + S_S)/2 )
 (`R_R` = πR on C_RUSH, `R_S` = πR on C_SPLIT, `S_R` = πS on C_RUSH, `S_S` = πS on C_SPLIT.)
 
 Δ_assigned can go negative as soon as either predeclared assignment fails. Note it is
-exactly half the **minimum** of the two crossover margins, so gate 3 is the *joint* form of
-gates 1 and 2: it requires both directions to hold simultaneously in ≥97.5% of replicates,
-which is strictly stronger than each marginal CI clearing zero. Δ_pool is still reported,
-for continuity only.
+exactly half the **minimum** of the two crossover margins, so requiring LCB95(Δ_assigned)>0
+is the *joint* form of the two directional contrasts: it requires both directions to hold
+simultaneously in ≥97.5% of replicates, which is strictly stronger than each marginal CI
+clearing zero. Δ_pool is still reported, for continuity only.
 
 Implemented in `experiments/analyze_k2_assigned_gain.py`.
 
@@ -197,6 +223,9 @@ Implemented in `experiments/analyze_k2_assigned_gain.py`.
 - No seed exclusion, including collapsed runs.
 - No replacement of failed runs.
 - No inspection of intermediate checkpoints before the formal analysis is recorded.
+- No interim analysis at 64 or 128 evaluation episodes.
+- No sample-size, checkpoint, seed-block, or gate changes after this freeze.
+- Discovery audit results must not change this specification.
 
 A collapsed seed is **data**, not an error to be corrected.
 
@@ -286,7 +315,10 @@ than opening another round of checkpoint archaeology.
 
 ## 9. Freeze
 
-This document is frozen at Revision 2. Its SHA-256 is recorded in
-`artifacts/k2v2_300k_replication/preregistration.lock.json` together with the hashes of the
-analysis scripts that will evaluate it. Any later edit invalidates the lock and must be
-recorded as a new revision with its own timestamp and reason.
+This document is frozen at **Revision 3**. Its SHA-256 is recorded in
+`artifacts/k2v3_300k_replication/preregistration.lock.json` together with the hashes of the
+launcher, manifest, and analysis scripts that will evaluate it. Any later edit invalidates
+the lock and must be recorded as a new revision with its own timestamp and reason.
+
+**Launch policy:** do not launch until discovery 200k + behavior audit finish and the GPU
+is free; then launch all 12 runs immediately. Audit results must not change this freeze.
