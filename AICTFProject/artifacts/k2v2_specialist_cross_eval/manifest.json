@@ -1,0 +1,44 @@
+{
+  "experiment": "k2v2_specialist_cross_eval",
+  "created_utc": "2026-07-30T03:31:22.154470+00:00",
+  "contexts": {
+    "C_RUSH": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+    "C_SPLIT": "OP9_SPLIT_LANE_FEINT|map_b_split_lane"
+  },
+  "eval_seed_blocks": {
+    "C_RUSH": [
+      1010001,
+      1010032
+    ],
+    "C_SPLIT": [
+      1020001,
+      1020032
+    ]
+  },
+  "episodes_per_cell": 32,
+  "checkpoints": [
+    1000000
+  ],
+  "invariants": {
+    "map": "map_b_split_lane",
+    "agents": 2,
+    "max_decision_steps": 240,
+    "deterministic": true,
+    "domain_randomization": false,
+    "n_envs": 1
+  },
+  "families": {
+    "piR": [
+      901001,
+      901002,
+      901003
+    ],
+    "piS": [
+      902001,
+      902002,
+      902003
+    ]
+  },
+  "checkpoint_note": "Predeclared trajectory points were 250k/500k/1M; training saved every 100k so no 250k checkpoint exists. 250k is bracketed by real 200k and 300k checkpoints instead of being approximated. 1M is the sole formal gate.",
+  "n_cells": 12
+}
