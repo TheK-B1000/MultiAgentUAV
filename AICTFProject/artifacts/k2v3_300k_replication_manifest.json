@@ -1,7 +1,7 @@
 {
   "experiment": "k2v3_300k_replication",
   "preregistration_amendment": "2026-07-30-rev4",
-  "status": "PREDECLARED_AMENDED_FROZEN_REV4",
+  "status": "CANCELLED_PRELAUNCH",
   "formal_checkpoint": 300000,
   "checkpoint_selection": "prohibited",
   "created_utc": "2026-07-30T13:10:44.673439+00:00",
@@ -80,7 +80,7 @@
     "candidate_transient_specialization_step": 300000,
     "note": "Amendment locked independent of remaining discovery audit outcomes; those must not change this spec."
   },
-  "launch_policy": "Do not auto-launch from the discovery watcher. Launch only after Rev 4 freeze is on disk and discovery audit has released the GPU.",
+  "launch_policy": "CANCELLED \u2014 do not --force-launch.",
   "runs": [
     {
       "run_tag": "k2v3_piR_op11_mapb_s911001",
@@ -598,5 +598,11 @@
       ],
       "status": "not_launched"
     }
-  ]
+  ],
+  "cancelled_utc": "2026-07-30T13:14:26.957605+00:00",
+  "cancellation": {
+    "reason": "Completed trajectory analysis showed that the 300k crossover was isolated, non-monotonic, and unsupported under hierarchical training-seed resampling. No replication training or evaluation data were generated.",
+    "preserved_rev4_freeze_commit": "993839b1ed6c099b200008e9db69c04b9f1aa546",
+    "record": "artifacts/k2v3_300k_replication/CANCELLED_PRELAUNCH.json"
+  }
 }

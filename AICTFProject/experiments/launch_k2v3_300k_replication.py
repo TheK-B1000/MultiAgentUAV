@@ -179,12 +179,39 @@ def main() -> int:
                    help="Alias for --dry-run (preregistration freeze).")
     p.add_argument("--python", default=str(PROJECT_ROOT / ".venv" / "Scripts" / "python.exe"))
     p.add_argument("--force-launch", action="store_true",
-                   help="Actually start training. Requires explicit flag.")
+                   help="Actually start training. Requires explicit flag. "
+                        "REFUSED if status is CANCELLED_PRELAUNCH.")
     args = p.parse_args()
 
     out_dir = PROJECT_ROOT / "artifacts" / "k2v3_300k_replication"
+    cancel_path = out_dir / "CANCELLED_PRELAUNCH.json"
+    if cancel_path.exists() and args.force_launch:
+        print("[abort] experiment is CANCELLED_PRELAUNCH — refusing --force-launch.",
+              file=sys.stderr)
+        print(f"        see {cancel_path}", file=sys.stderr)
+        return 2
     out_dir.mkdir(parents=True, exist_ok=True)
     manifest_path = out_dir / "manifest.json"
+
+    # ---- hard cancellation guard ----------------------------------------
+    # The replication was CANCELLED PRE-LAUNCH on 2026-07-30. This check is a
+    # durable block: it fires no matter who invokes the launcher or with which
+    # flags, including --force-launch. Removing the sentinel is a deliberate
+    # act that must be justified in the preregistration amendment record.
+    cancel_path = out_dir / "CANCELLED.json"
+    if cancel_path.exists():
+        try:
+            reason = json.loads(cancel_path.read_text()).get("reason", "").strip()
+        except Exception:
+            reason = ""
+        print("[ABORT] This replication is CANCELLED_PRELAUNCH.", file=sys.stderr)
+        print(f"        marker: {cancel_path}", file=sys.stderr)
+        if reason:
+            for line in reason.splitlines():
+                print(f"        {line}", file=sys.stderr)
+        print("        No training will start. Delete the marker only with an "
+              "explicit new preregistration revision.", file=sys.stderr)
+        return 3
 
     jobs = [("piR", C_RUSH_OPPONENT, s) for s in RUSH_SEEDS]
     jobs += [("piS", C_SPLIT_OPPONENT, s) for s in SPLIT_SEEDS]

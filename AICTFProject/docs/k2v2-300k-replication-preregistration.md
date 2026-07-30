@@ -1,14 +1,43 @@
 # K=2 Specialist Replication at 300k — Preregistration
 
-**Status:** LOCKED / AMENDED before any replication training data existed.
+**Status:** CANCELLED_PRELAUNCH (Rev 4 frozen, never launched)
 **Date locked:** 2026-07-30
 **Revision:** 4 (amended 2026-07-30; behavior gate = B_distinct)
+**Cancelled:** 2026-07-30, before any replication training or evaluation data
 **Supersedes nothing about discovery.** The 1M experiment's verdict stands:
 **FAIL**, latent birth blocked, router blocked.
 
 ---
 
 ## 0. Amendment record
+
+### Cancellation — 2026-07-30, pre-launch (no data generated)
+
+```text
+status: CANCELLED_PRELAUNCH
+
+reason:
+Completed trajectory analysis showed that the 300k crossover was
+isolated, non-monotonic, and unsupported under hierarchical
+training-seed resampling. No replication training or evaluation
+data were generated.
+```
+
+Trajectory that invalidated the premise (diagnostic, not a formal gate change):
+
+```text
+200k: πR ahead on both contexts
+300k: isolated πS advantage on C_SPLIT (eval-seed-only); hierarchical FAIL
+500k: πR ahead on both contexts
+1M:   πR decisively ahead on both contexts
+```
+
+Rev 4 is **retained** as a properly preregistered experiment that was canceled
+before data generation. Do not delete this document, its hashes, or its commits.
+Record: `artifacts/k2v3_300k_replication/CANCELLED_PRELAUNCH.json`.
+
+Next research step: promote 1M πR seeds `{901001,901002,901003}` to incumbent
+family G0 and run a learned-incumbent weakness sweep (see research-progress-tracker).
 
 ### Revision 4 — 2026-07-30, pre-launch (behavior gate correction)
 

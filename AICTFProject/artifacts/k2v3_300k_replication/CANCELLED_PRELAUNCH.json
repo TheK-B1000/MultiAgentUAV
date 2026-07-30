@@ -1,0 +1,38 @@
+{
+  "experiment": "k2v3_300k_replication",
+  "status": "CANCELLED_PRELAUNCH",
+  "cancelled_utc": "2026-07-30T13:15:00+00:00",
+  "revision_cancelled": 4,
+  "reason": "Completed trajectory analysis showed that the 300k crossover was isolated, non-monotonic, and unsupported under hierarchical training-seed resampling. No replication training or evaluation data were generated.",
+  "trajectory_summary": {
+    "200k": "piR ahead on both contexts (diagnostic; neither crossover CI clears 0)",
+    "300k": "isolated piS advantage on C_SPLIT under eval-seed-only bootstrap; hierarchical training-seed resampling does not confirm",
+    "500k": "piR ahead on both contexts",
+    "1M_formal": "piR decisively ahead on both contexts; specialist proof FAIL"
+  },
+  "preserved_rev4_freeze": {
+    "preregistration_path": "docs/k2v2-300k-replication-preregistration.md",
+    "preregistration_sha256": "83ee4e8d45225711f11b38ba543607bfbb30a8ffaf63ac7893ae282b5628e800",
+    "launcher_sha256": "b09babfd5ef5f10e2586ccf1de8edeac3fa4174112f11e4d707490cfff724640",
+    "behavior_gate_analyzer_sha256": "c5cb7e2838d71ef8658df80628b9350283f81c2c0666ffb32e6d9ce9410f0305",
+    "manifest_sha256_at_freeze": "1120b11ade30ff86a807f2f6121072c371ea6bdf2f1eb288b9c0c278babd82ad",
+    "freeze_commit": "993839b1ed6c099b200008e9db69c04b9f1aa546",
+    "lock_sha_commit": "d55f9da188d69fd7c91756e0a87567f3b47a2b3b",
+    "note": "Rev 4 document and analyzer hashes are preserved unchanged. This cancellation is additive."
+  },
+  "data_generated": {
+    "training_runs": 0,
+    "evaluation_episodes": 0,
+    "checkpoints": 0
+  },
+  "auto_launch": {
+    "waiter_pid_38792": "killed before any --force-launch",
+    "watcher_force_launch": "disabled"
+  },
+  "next": {
+    "experiment": "g0_learned_incumbent_weakness_sweep",
+    "G0": [901001, 901002, 901003],
+    "latent_birth": "blocked",
+    "router": "blocked"
+  }
+}

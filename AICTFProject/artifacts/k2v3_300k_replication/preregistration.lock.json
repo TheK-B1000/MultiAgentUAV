@@ -2,7 +2,7 @@
   "locked_utc": "2026-07-30T13:11:01.043168+00:00",
   "revision": 4,
   "experiment": "k2v3_300k_replication",
-  "status": "PREDECLARED_AMENDED_FROZEN_REV4_NOT_LAUNCHED",
+  "status": "CANCELLED_PRELAUNCH",
   "preregistration": {
     "path": "docs/k2v2-300k-replication-preregistration.md",
     "sha256": "83ee4e8d45225711f11b38ba543607bfbb30a8ffaf63ac7893ae282b5628e800"
@@ -74,6 +74,9 @@
   "void_as_formal_gate": {
     "rev3_B": "LCB95(D_policy)>0 \u2014 passed by collapsed 1M generalists; decorative"
   },
-  "launch_policy": "Watcher auto-launch DISABLED. Explicit --force-launch only after this Rev 4 freeze is committed and discovery audit releases the GPU.",
-  "note": "Frozen before any replication training run started. 1M verdict remains FAIL."
+  "launch_policy": "CANCELLED \u2014 do not launch.",
+  "note": "Frozen before any replication training run started. 1M verdict remains FAIL.",
+  "cancelled_utc": "2026-07-30T13:14:26.958605+00:00",
+  "cancellation_reason": "Completed trajectory analysis showed that the 300k crossover was isolated, non-monotonic, and unsupported under hierarchical training-seed resampling. No replication training or evaluation data were generated.",
+  "preserved_note": "Rev 4 preregistration and analyzer sha256 fields above are unchanged; cancellation is status-only."
 }

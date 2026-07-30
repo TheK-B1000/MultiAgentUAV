@@ -7281,51 +7281,82 @@ K=2 LRO specialist proof @1M:      FAIL
 Latent birth and router:           not justified
 ```
 
-### LOCKED NEXT: 300k confirmatory replication (Rev 4 freeze, 2026-07-30)
+### LOCKED NEXT: 300k confirmatory replication — CANCELLED_PRELAUNCH (2026-07-30)
 
-Preregistration: `docs/k2v2-300k-replication-preregistration.md` (Revision 4).
-Lock: `artifacts/k2v3_300k_replication/preregistration.lock.json`.
-Chosen / amended **before any replication training data**. Discovery audit must
-**not** change sample size, seeds, checkpoint, or gates. Watcher auto-launch
-**disabled**.
+Preregistration Rev 4 remains on disk as a properly frozen, never-launched
+design. **Do not delete** the document, hashes, or commits.
 
 ```text
-Experiment:              k2v3_300k_replication
-Formal checkpoint:       exactly 300k  (selection prohibited)
-πR training seeds:       6 fresh  [911001..911006]
-πS training seeds:       6 fresh  [912001..912006]
-Eval episodes/context:   256 fresh paired (ONE block; no interim @64/128)
-  C_RUSH seeds:          1110001..1110256
-  C_SPLIT seeds:         1120001..1120256
-Map / horizon / contexts: unchanged (OP11|map_b, OP9|map_b, 240 steps)
-Preset:                  no_latent_baseline, 2v2, n_envs=16
-Total train compute:     12 × 300k = 3.6M steps
-Launcher:                experiments/launch_k2v3_300k_replication.py
-```
+status: CANCELLED_PRELAUNCH
 
-**Formal gates (both required):**
+reason:
+Completed trajectory analysis showed that the 300k crossover was
+isolated, non-monotonic, and unsupported under hierarchical
+training-seed resampling. No replication training or evaluation
+data were generated.
+```
 
 ```text
-A. LCB95(Δ_assigned) > 0
-     Δ_assigned = ½·min(πR−πS on C_RUSH, πS−πR on C_SPLIT)
-B. LCB95(B_distinct) > 0
-     B_distinct = median(JSD_between) − Q_0.95(JSD_within)
+200k: πR ahead on both contexts
+300k: isolated πS advantage on C_SPLIT (hierarchical: unconfirmed)
+500k: πR ahead on both contexts
+1M:   πR decisively ahead on both contexts
 ```
 
-**Descriptive only (not gates):** `D_policy`, `separation_ratio`, directional
-crossover CIs, `Δ_pool`, argmax disagreement, pairwise matrices.
-(`D_policy>0` is void as a formal gate — collapsed 1M generalists already pass it.)
+Record: `artifacts/k2v3_300k_replication/CANCELLED_PRELAUNCH.json`
+Freeze commit (Rev 4): `993839b` — preserved.
 
-**Outcome rule:** both pass → retain 300k specialists → latent birth (freeze
-branches) → router later. Either fails → do not checkpoint-hunt; promote πR
-as G0; learned-incumbent weakness sweep.
+Discovery behavior audit: finish for postmortem diagnosis only; does **not**
+justify reviving the OP11/OP9 specialist pair.
+
+```text
+300k replication: CANCELLED_PRELAUNCH
+Discovery audit:  finish for diagnosis
+Latent birth:     blocked
+Router:           blocked
+```
+
+### NEXT: G0 learned-incumbent weakness sweep (2026-07-30)
+
+Promote the three completed 1M πR policies to the frozen incumbent family:
+
+```text
+G0 = {s901001, s901002, s901003}
+checkpoints: checkpoints/k2v2_piR/final_k2v2_piR_op11_mapb_s{seed}_2v2.zip
+             (or ckpt_*_1000000.zip)
+```
+
+Sweep for contexts that defeat the **learned** incumbent, not scripted probes:
+
+```text
+Opponents:     OP6–OP12 only
+Map:           map_a  (recorded explicitly in every row)
+Policies:      all three G0 seeds
+Horizon:       240
+Evaluation:    deterministic, no DR, n_envs=1
+Discovery:     32 fresh episodes per (policy × opponent) cell
+```
+
+Select a context only if it challenges the **entire** incumbent family,
+ideally:
+
+```text
+all three G0 policies have negative mean margins
+family-level upper CI < 0
+low saturation
+```
+
+Then train the next response oracle against that actual learned weakness.
+
+Launcher (to be used next): `experiments/run_g0_weakness_sweep.py`
+(scaffold after audit completes; do not block audit).
 
 ```text
 1M K=2 proof:             FAIL
-300k discovery signal:    promising but unconfirmed
-300k replication:         Rev 4 FROZEN — launch after audit, explicit --force-launch
-Latent birth:             still blocked
-Router:                   still blocked
+300k replication:         CANCELLED_PRELAUNCH
+G0 weakness sweep:        NEXT
+Latent birth:             blocked
+Router:                   blocked
 ```
 
 ---
