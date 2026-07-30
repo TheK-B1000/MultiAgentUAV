@@ -1,5 +1,5 @@
 {
-  "locked_utc": "2026-07-30T13:10:44.976982+00:00",
+  "locked_utc": "2026-07-30T13:11:01.043168+00:00",
   "revision": 4,
   "experiment": "k2v3_300k_replication",
   "status": "PREDECLARED_AMENDED_FROZEN_REV4_NOT_LAUNCHED",
@@ -20,7 +20,7 @@
     "experiments/watch_k2_trajectory_then_audit.py": "d9316e0984e9509579522de3bbb2e00411bbc28871555e29ce2d7ee8bba3d89f"
   },
   "git": {
-    "commit": "fd863d79b8fa9bbbb695d32e633a49d1db231971",
+    "commit": "993839b1ed6c099b200008e9db69c04b9f1aa546",
     "branch": "lro",
     "note": "HEAD at freeze-script run; follow-up commit records this lock"
   },
