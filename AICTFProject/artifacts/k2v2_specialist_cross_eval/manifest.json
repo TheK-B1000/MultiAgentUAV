@@ -1,6 +1,7 @@
 {
   "experiment": "k2v2_specialist_cross_eval",
   "created_utc": "2026-07-30T03:31:22.154470+00:00",
+  "updated_utc": "2026-07-30T06:18:36.446452+00:00",
   "contexts": {
     "C_RUSH": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
     "C_SPLIT": "OP9_SPLIT_LANE_FEINT|map_b_split_lane"
@@ -17,8 +18,17 @@
   },
   "episodes_per_cell": 32,
   "checkpoints": [
+    200000,
+    300000,
+    500000,
     1000000
   ],
+  "checkpoints_this_launch": [
+    500000,
+    300000,
+    200000
+  ],
+  "formal_gate_checkpoint": 1000000,
   "invariants": {
     "map": "map_b_split_lane",
     "agents": 2,
@@ -39,6 +49,6 @@
       902003
     ]
   },
-  "checkpoint_note": "Predeclared trajectory points were 250k/500k/1M; training saved every 100k so no 250k checkpoint exists. 250k is bracketed by real 200k and 300k checkpoints instead of being approximated. 1M is the sole formal gate.",
-  "n_cells": 12
+  "checkpoint_note": "Predeclared trajectory points were 250k/500k/1M; training saved every 100k so no 250k checkpoint exists. 250k is bracketed by real 200k and 300k checkpoints instead of being approximated. 1M is the sole formal gate; 500k/300k/200k are trajectory diagnostics only.",
+  "n_cells_this_launch": 36
 }

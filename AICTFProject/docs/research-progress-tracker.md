@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-28 (UTC-4)
+> **Last updated:** 2026-07-30 (UTC-4)
 
 ---
 
@@ -7204,6 +7204,137 @@ confirm artifacts: c_rush_alt_op11_mapb_heldout16_seed711001
 ```
 
 Do not tune either opponent from this point forward.
+
+### K=2v2 specialist stage — FORMAL GATE FAIL @ 1M (2026-07-30)
+
+Same-map pair (above). Specialists: `no_latent_baseline`, 2v2, 1M steps,
+3 seeds/family (`901001–3` πR on OP11; `902001–3` πS on OP9). Artifacts:
+`artifacts/k2v2_*_train_s*`, `checkpoints/k2v2_piR|piS/`.
+
+Cross-eval: `experiments/run_k2_specialist_cross_eval.py` +
+`experiments/analyze_k2_specialist_crossover.py`.
+32 fresh paired seeds/context (`1010001–32` / `1020001–32`), margin-based
+gates, hierarchical clustered bootstrap for `Δ_pool`. `s902002` retained
+in the formal result (training instability; does not cause the FAIL alone).
+
+**Formal @ 1M (sole gate):**
+
+```text
+              C_RUSH    C_SPLIT
+πR              2.45       2.33
+πS              1.13       1.18
+
+πR > πS on C_RUSH:   PASS  Δ=+1.32 CI95 [+1.01, +1.64]
+πS > πR on C_SPLIT:  FAIL  Δ=-1.16 CI95 [-1.31, -1.00]
+Δ_pool LCB95 > 0:    FAIL  Δ_pool=0.00 (V_sel = V_fixed = πR)
+
+Specialist-stage verdict: FAIL
+Latent branch birth:      BLOCKED
+Router:                   BLOCKED
+0/9 seed pairings show two-direction crossover
+```
+
+**Scientific reading:** scripted contexts differed (OP11→RUSH, OP9→SPLIT)
+and both passed frozen-context gates, but that difference did **not**
+survive PPO to 1M. The OP11-trained policy became a dominant generalist on
+the shared map. No complementary repertoire for a router to select.
+
+**Trajectory diagnostics (200k/300k/500k; not formal):**
+
+```text
+              C_RUSH(πR-πS)   C_SPLIT(πS-πR)   Δ_pool      pairings
+300k          PASS +0.42      PASS +0.25       +0.125 LCB=0  8/9 ok
+500k          PASS +0.23      FAIL -0.17       0.00          0/9
+1M (formal)   PASS +1.32      FAIL -1.16       0.00          0/9
+200k          RUNNING
+```
+
+Precise conclusion on the 300k signal:
+
+> At 300k, directional crossover appeared across the specialist families.
+> However, statistically supported repertoire gain was not established
+> because `LCB95(Δ_pool) = 0`. By 500k, πR had already generalized onto
+> C_SPLIT, and by 1M it dominated both contexts.
+
+This is **candidate transient specialization**, not a successful LRO birth.
+The 1M formal FAIL is unchanged by any trajectory or behavior-audit result.
+
+Working hypothesis (pending 200k + behavior audit):
+
+```text
+200k: specialist responses forming
+300k: temporary complementary window
+500k: πR begins solving both contexts
+1M:   πR becomes dominant generalist
+```
+
+Behavior audit harness: `experiments/audit_k2_specialist_behavior.py`
+(asks whether πR/πS occupied different policy regions at 300k).
+
+```text
+Context niche demonstration:       PASS
+Independent PPO competence:        PASS
+Learned specialist crossover @1M:  FAIL
+Complementary repertoire gain:     FAIL
+K=2 LRO specialist proof @1M:      FAIL
+300k discovery signal:             promising but unconfirmed
+Latent birth and router:           not justified
+```
+
+### LOCKED NEXT: 300k confirmatory replication (predeclared 2026-07-30)
+
+Chosen **before** seeing remaining 200k / behavior-audit results.
+Do **not** switch the formal checkpoint to 200k after those land.
+
+```text
+Experiment:              k2v3_300k_replication
+Formal checkpoint:       exactly 300k  (selection prohibited)
+πR training seeds:       5 fresh  [911001..911005]
+πS training seeds:       5 fresh  [912001..912005]
+Eval episodes/context:   64 fresh paired
+  C_RUSH seeds:          1110001..1110064
+  C_SPLIT seeds:         1120001..1120064
+Map / horizon / contexts: unchanged (OP11|map_b, OP9|map_b, 240 steps)
+Preset:                  no_latent_baseline, 2v2, n_envs=16
+Total train compute:     10 × 300k = 3M steps
+Launcher:                experiments/launch_k2v3_300k_replication.py
+```
+
+Training seeds prioritized over eval-episode count (PPO seed instability
+dominated the discovery run, especially πS / s902002).
+
+**Confirmatory gates (all required at the frozen 300k checkpoint):**
+
+```text
+1. πR > πS on C_RUSH     paired family CI95 entirely above 0
+2. πS > πR on C_SPLIT    paired family CI95 entirely above 0
+3. LCB95(Δ_pool) > 0     hierarchical clustered bootstrap
+4. Policy distinction:   LCB95(D_policy) > 0 where
+     D_policy = JSD_between − mean(JSD_within_πR, JSD_within_πS)
+   on matched legal observations
+```
+
+**Branch-birth decision (locked):**
+
+```text
+All four gates PASS
+  → retain the two 300k specialist families
+  → proceed to latent branch birth
+  → keep branches frozen initially
+  → router remains later
+
+Miss Δ_pool or policy distinction
+  → transient crossover not reliable enough
+  → promote πR as G0; begin learned-incumbent weakness sweep
+```
+
+```text
+1M K=2 proof:             FAIL
+300k discovery signal:    promising but unconfirmed
+300k replication:         JUSTIFIED / PREDECLARED (not yet launched)
+Latent birth:             still blocked
+Router:                   still blocked
+```
 
 ---
 

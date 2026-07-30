@@ -95,15 +95,27 @@ def main() -> int:
             print("   ", m, file=sys.stderr)
         return 1
 
+    prev = {}
+    if manifest_path.exists():
+        try:
+            prev = json.loads(manifest_path.read_text())
+        except json.JSONDecodeError:
+            prev = {}
+    prior_ckpts = list(prev.get("checkpoints") or [])
+    merged_ckpts = sorted(set(int(x) for x in prior_ckpts) | set(int(x) for x in args.checkpoints))
+
     manifest = {
         "experiment": "k2v2_specialist_cross_eval",
-        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "created_utc": prev.get("created_utc") or datetime.now(timezone.utc).isoformat(),
+        "updated_utc": datetime.now(timezone.utc).isoformat(),
         "contexts": {k: f"{v['opponent']}|{MAP}" for k, v in CONTEXTS.items()},
         "eval_seed_blocks": {
             k: [v["seed_base"], v["seed_base"] + args.episodes - 1] for k, v in CONTEXTS.items()
         },
         "episodes_per_cell": args.episodes,
-        "checkpoints": list(args.checkpoints),
+        "checkpoints": merged_ckpts,
+        "checkpoints_this_launch": list(args.checkpoints),
+        "formal_gate_checkpoint": 1_000_000,
         "invariants": {
             "map": MAP, "agents": AGENTS, "max_decision_steps": MAX_DECISION_STEPS,
             "deterministic": True, "domain_randomization": False, "n_envs": 1,
@@ -112,9 +124,10 @@ def main() -> int:
         "checkpoint_note": (
             "Predeclared trajectory points were 250k/500k/1M; training saved every "
             "100k so no 250k checkpoint exists. 250k is bracketed by real 200k and "
-            "300k checkpoints instead of being approximated. 1M is the sole formal gate."
+            "300k checkpoints instead of being approximated. 1M is the sole formal gate; "
+            "500k/300k/200k are trajectory diagnostics only."
         ),
-        "n_cells": len(cells),
+        "n_cells_this_launch": len(cells),
     }
     manifest_path.write_text(json.dumps(manifest, indent=2))
     print(f"[manifest] {manifest_path}  ({len(cells)} cells x {args.episodes} eps)")

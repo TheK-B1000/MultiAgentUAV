@@ -1,0 +1,64 @@
+{
+  "experiment": "k2v3_300k_replication",
+  "created_utc": "2026-07-30T11:22:54.932585+00:00",
+  "status": "PREDECLARED",
+  "formal_checkpoint": 300000,
+  "checkpoint_selection": "prohibited",
+  "contexts": {
+    "C_RUSH": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+    "C_SPLIT": "OP9_SPLIT_LANE_FEINT|map_b_split_lane"
+  },
+  "shared_config": {
+    "preset": "no_latent_baseline",
+    "agents": 2,
+    "total_timesteps": 300000,
+    "n_envs": 16,
+    "max_decision_steps": 240,
+    "periodic_checkpoint_steps": 100000,
+    "device": "cuda",
+    "train_domain_randomization": false
+  },
+  "training_seeds": {
+    "piR": [
+      911001,
+      911002,
+      911003,
+      911004,
+      911005
+    ],
+    "piS": [
+      912001,
+      912002,
+      912003,
+      912004,
+      912005
+    ]
+  },
+  "eval_seed_blocks": {
+    "C_RUSH": {
+      "base": 1110001,
+      "n": 64
+    },
+    "C_SPLIT": {
+      "base": 1120001,
+      "n": 64
+    }
+  },
+  "confirmatory_gates": [
+    "piR > piS on C_RUSH (paired family CI95 > 0)",
+    "piS > piR on C_SPLIT (paired family CI95 > 0)",
+    "LCB95(delta_pool) > 0 (hierarchical clustered bootstrap)",
+    "LCB95(D_policy) > 0 where D_policy = JSD_between - mean(JSD_within_piR, JSD_within_piS)"
+  ],
+  "branch_birth_decision": {
+    "all_four_pass": "retain 300k specialists -> latent birth -> freeze branches -> router later",
+    "miss_delta_pool_or_policy": "promote piR as G0; begin learned-incumbent weakness sweep"
+  },
+  "discovery_reference": {
+    "experiment": "k2v2_specialists",
+    "formal_1m": "FAIL",
+    "candidate_transient_specialization_step": 300000,
+    "note": "This replication was locked before discovery 200k / behavior-audit completion."
+  },
+  "runs": []
+}
