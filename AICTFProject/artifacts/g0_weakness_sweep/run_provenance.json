@@ -1,0 +1,37 @@
+{
+  "run": "g0_weakness_sweep",
+  "recorded_utc": "2026-07-30T13:27:35.730761+00:00",
+  "pid": 32976,
+  "command": "experiments/run_g0_weakness_sweep.py --force-run --device cuda",
+  "python": "K:\\MultiAgentUAV\\AICTFProject\\.venv\\Scripts\\python.exe",
+  "git": {
+    "commit": "240ed2f76be6fe1238f037ab1e1e834c0fd27afa",
+    "branch": "lro",
+    "dirty": "M AICTFProject/artifacts/g0_weakness_sweep/manifest.json\n M AICTFProject/artifacts/k2v2_specialist_cross_eval/episode_rows.csv\n M AICTFProject/artifacts/k2v3_300k_replication/CANCELLED_PRELAUNCH.json\n M AICTFProject/experiments/analyze_k2_specialist_behavior.py\n M AICTFProject/experiments/run_g0_weakness_sweep.py\n?? AICTFProject/artifacts/g0_weakness_sweep/episode_rows.csv\n?? AICTFProject/artifacts/g0_weakness_sweep/run_snapshot/\n?? AICTFProject/artifacts/g0_weakness_sweep_map_a/\n?? AICTFProject/artifacts/k2v2_specialist_behavior_audit/\n?? AICTFProject/artifacts/k2v2_specialist_cross_eval/analyze_200k.txt\n?? AICTFProject/artifacts/k2v2_specialist_cross_eval/trajectory_table.csv\n?? AICTFProject/artifacts/k2v3_300k_replication/CANCELLED.json\n?? AICTFProject/artifacts/k2v3_300k_replication/_wait_then_launch.py\n?? AICTFProject/experiments/analyze_g0_weakness.py"
+  },
+  "critical_file_sha256": {
+    "experiments/run_g0_weakness_sweep.py": "62ea89c94d9b3fbb7309f51738075a85b118552d5c06fd6235b71713a907aea4",
+    "experiments/analyze_g0_weakness.py": "3a6c55a5d9502e044595df7efa2e0cbc465ec115f040079ba62c794cf119f4c5",
+    "plot/eval_rollout.py": "276b8bac5979b38999727d262b8182c675bb4a64b1a90ef8f88022fb83bf06d6",
+    "gpu_env/_config.py": "e41c4019ceb420b7bf081f055f8e7d6a77086645250a026ab47715e9ed61d727",
+    "gpu_env/_constants.py": "e2f303d53fe280ac938853bce7e945facb390d5341201ac7498147a172334f81",
+    "gpu_env/_maps.py": "b6fe14e4394f3ff2ed5c788526c5df5d6d0f7546a50f68bf53b8376777aa6791",
+    "gpu_env/_specs.py": "96747c26952b421f6a0633921365f6860b13c7676a5fb613c347c79e7d8a1a5a",
+    "gpu_env/_core/_bt_profiles.py": "dfe111f4d4d183584997ddd62394c50007f4b358d87be3df71edd365da279a73",
+    "rl/custom_ppo/checkpoints/loader.py": "a671000d982862180eda7219b999fde625f93c6437c28608429bce70bcd57d9c",
+    "rl/custom_ppo/checkpoints/state_dict.py": "aa1a4ae12774d7fb96434560e0f49b098855ddfb0ff9d67912cb95ad4b76ba00",
+    "rl/custom_ppo/inference_policy.py": "bc9fa50b4c07358e003f84ec297e676fbab7eff3846b9cba027ea9ffc2d115e4",
+    "rl/custom_ppo/policy.py": "aa0fe4bc2f558d3d0ee2077b33d1aeda7e7357a907c1e1ae6451ddb7e0a7b7a0",
+    "rl/behavior_telemetry.py": "096463cc4af8592cb24e6de842f3a241b68268c9579db744b495f282ad4cd134",
+    "rl/stress_schedule.py": "694d2353be0455268df7d8f01eacabc7645cb23e7334ee586d34fda3cfa22253",
+    "opponent_params.py": "a318c42c3d9ada17be367d049e02bb1c6f58df5bf5d7e6d0ccd8bf12ab16d4d7",
+    "game_field_gpu.py": "f33d88c13a0071f42822fd61dce70ade08796c68ba37eb26175c6fff1fece6ba"
+  },
+  "g0_checkpoint_sha256": {
+    "checkpoints/k2v2_piR/ckpt_k2v2_piR_op11_mapb_s901001_2v2_1000000.zip": "c6f44a8bc199f8ba600ff07de57104b762dfb97da7afa2040c91aa89c291c647",
+    "checkpoints/k2v2_piR/ckpt_k2v2_piR_op11_mapb_s901002_2v2_1000000.zip": "d9d6227739ed9f329c17ad6d3bc7ff8927e19b98b718f0f72e8777610b8cfb56",
+    "checkpoints/k2v2_piR/ckpt_k2v2_piR_op11_mapb_s901003_2v2_1000000.zip": "caa77e6ff5374b3c75a6126d9e3c1a63bd04a37d23a0d175f8f9f06a98e4fceb"
+  },
+  "snapshot_dir": "artifacts\\g0_weakness_sweep\\run_snapshot",
+  "verification_policy": "Re-hash every critical file BEFORE analysis. If any hash differs from this record, ABORT analysis and reconcile -- a concurrent session changed execution-relevant code mid-run. The snapshot copies are the authoritative record of what actually ran."
+}

@@ -1,207 +1,73 @@
 {
   "experiment": "g0_learned_incumbent_weakness_sweep",
-  "created_utc": "2026-07-30T13:15:20.520906+00:00",
-  "status": "PREDECLARED",
-  "G0_seeds": [
-    901001,
-    901002,
-    901003
-  ],
+  "pass": "first (seven BASE opponent keys only)",
+  "created_utc": "2026-07-30T13:20:46.038625+00:00",
+  "status": "RUNNING",
+  "incumbent": {
+    "name": "G0",
+    "seeds": [
+      901001,
+      901002,
+      901003
+    ],
+    "checkpoint_step": 1000000,
+    "description": "frozen 1M piR family, incumbent generalist (NOT 'the RUSH specialist')",
+    "best_seed_selection": "prohibited"
+  },
   "opponents": [
-    "OP6_IMMEDIATE_DUAL_RUSH",
-    "OP7_DEEP_FORTRESS",
-    "OP8_PROTECTED_CARRIER_ESCORT",
-    "OP9_SPLIT_LANE_FEINT",
-    "OP10_AGGRESSIVE_INTERCEPTOR",
-    "OP11_ADAPTIVE_EXPLOITER",
-    "OP12_LATE_CONVERTER"
+    "OP6",
+    "OP7",
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
   ],
+  "opponent_variants_excluded": "OP11_ADAPTIVE_EXPLOITER, OP9_SPLIT_LANE_FEINT and all other variants are excluded from this first pass. They belong to a separately declared expansion, run only if the base sweep finds no robust weakness.",
   "map": "map_a",
-  "max_decision_steps": 240,
-  "agents": 2,
+  "resolved_map": "map_a_open",
+  "map_recording_rule": "every row records map=map_a; resolved_map is provenance only",
+  "map_pooling": "map_a must never be pooled with map_b",
+  "eval_seed_block": [
+    1300001,
+    1300032
+  ],
+  "eval_seed_pairing": "ONE block shared by every policy AND opponent",
   "episodes_per_cell": 32,
   "n_cells": 21,
-  "selection_rule": {
-    "prefer": [
-      "all three G0 policies have negative mean margins",
-      "family-level upper CI < 0",
-      "low saturation"
+  "expected_rows": 672,
+  "invariants": {
+    "agents": 2,
+    "max_decision_steps": 240,
+    "deterministic": true,
+    "domain_randomization": false,
+    "n_envs": 1,
+    "obstacle_obs_channel": true
+  },
+  "obs_contract_note": "obstacle_obs_channel is pinned True. G0 was trained on map_b where it defaults True (8-channel CNN input); on map_a it would default False (7 channels) and the checkpoint would fail to load with a shape mismatch on actor_cnn.conv.0.weight. On the open arena the obstacle channel is all zeros. This is the documented cross-map observation contract.",
+  "row_key": [
+    "checkpoint_step",
+    "g0_seed",
+    "opponent",
+    "map",
+    "episode_seed"
+  ],
+  "integrity": "exclusive lock file; duplicate keys rejected, never appended",
+  "weakness_gate": {
+    "required": [
+      "all three G0 seeds have negative mean margin",
+      "family-level UCB95 < 0"
     ],
-    "purpose": "train next response oracle against actual learned weakness"
+    "rank_if_multiple": [
+      "lowest strongest-member margin",
+      "lowest family mean margin",
+      "lower saturation and tie rate"
+    ],
+    "if_none_pass": "close the base sweep as 'no robust weakness'; do NOT pick the least-good opponent. Stage a separately declared existing-variant sweep within OP6-OP12."
   },
   "precedent": {
     "k2v3_300k_replication": "CANCELLED_PRELAUNCH",
-    "k2v2_1m_formal": "FAIL \u2014 piR dominant generalist"
+    "k2v2_1m_formal": "FAIL - piR dominant generalist"
   },
-  "cells": [
-    {
-      "g0_seed": 901001,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901001_2v2.zip",
-      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
-      "map": "map_a",
-      "seed_base": 1210002,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901001,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901001_2v2.zip",
-      "opponent": "OP7_DEEP_FORTRESS",
-      "map": "map_a",
-      "seed_base": 1211002,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901001,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901001_2v2.zip",
-      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
-      "map": "map_a",
-      "seed_base": 1212002,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901001,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901001_2v2.zip",
-      "opponent": "OP9_SPLIT_LANE_FEINT",
-      "map": "map_a",
-      "seed_base": 1213002,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901001,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901001_2v2.zip",
-      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
-      "map": "map_a",
-      "seed_base": 1214002,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901001,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901001_2v2.zip",
-      "opponent": "OP11_ADAPTIVE_EXPLOITER",
-      "map": "map_a",
-      "seed_base": 1215002,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901001,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901001_2v2.zip",
-      "opponent": "OP12_LATE_CONVERTER",
-      "map": "map_a",
-      "seed_base": 1216002,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901002,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901002_2v2.zip",
-      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
-      "map": "map_a",
-      "seed_base": 1210003,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901002,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901002_2v2.zip",
-      "opponent": "OP7_DEEP_FORTRESS",
-      "map": "map_a",
-      "seed_base": 1211003,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901002,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901002_2v2.zip",
-      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
-      "map": "map_a",
-      "seed_base": 1212003,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901002,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901002_2v2.zip",
-      "opponent": "OP9_SPLIT_LANE_FEINT",
-      "map": "map_a",
-      "seed_base": 1213003,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901002,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901002_2v2.zip",
-      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
-      "map": "map_a",
-      "seed_base": 1214003,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901002,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901002_2v2.zip",
-      "opponent": "OP11_ADAPTIVE_EXPLOITER",
-      "map": "map_a",
-      "seed_base": 1215003,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901002,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901002_2v2.zip",
-      "opponent": "OP12_LATE_CONVERTER",
-      "map": "map_a",
-      "seed_base": 1216003,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901003,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901003_2v2.zip",
-      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
-      "map": "map_a",
-      "seed_base": 1210004,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901003,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901003_2v2.zip",
-      "opponent": "OP7_DEEP_FORTRESS",
-      "map": "map_a",
-      "seed_base": 1211004,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901003,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901003_2v2.zip",
-      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
-      "map": "map_a",
-      "seed_base": 1212004,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901003,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901003_2v2.zip",
-      "opponent": "OP9_SPLIT_LANE_FEINT",
-      "map": "map_a",
-      "seed_base": 1213004,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901003,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901003_2v2.zip",
-      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
-      "map": "map_a",
-      "seed_base": 1214004,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901003,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901003_2v2.zip",
-      "opponent": "OP11_ADAPTIVE_EXPLOITER",
-      "map": "map_a",
-      "seed_base": 1215004,
-      "episodes": 32
-    },
-    {
-      "g0_seed": 901003,
-      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\checkpoints\\k2v2_piR\\final_k2v2_piR_op11_mapb_s901003_2v2.zip",
-      "opponent": "OP12_LATE_CONVERTER",
-      "map": "map_a",
-      "seed_base": 1216004,
-      "episodes": 32
-    }
-  ],
   "missing_checkpoints": []
 }

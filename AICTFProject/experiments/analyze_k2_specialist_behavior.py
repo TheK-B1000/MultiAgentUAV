@@ -141,13 +141,58 @@ def separation_ratio(pair_means: dict) -> tuple[float, float, float, float, floa
     return ratio, between, float(np.mean(wr)), float(np.mean(ws)), between - within
 
 
+def _seed_resampled_stats(pair_means: dict, keys_by_fam: dict, rng) -> tuple:
+    """Resample TRAINING SEEDS with replacement within each family.
+
+    Degenerate self-pairs -- produced whenever a family draws the same seed
+    twice -- have divergence identically zero. They are EXCLUDED: including
+    them would bias within-family divergence downward and so inflate D_policy.
+    """
+    drawn = {fam: [ks[i] for i in rng.integers(0, len(ks), len(ks))]
+             for fam, ks in keys_by_fam.items()}
+
+    def look(a, b):
+        return pair_means.get((a, b), pair_means.get((b, a)))
+
+    wr, ws, bt = [], [], []
+    for fam, bucket in (("piR", wr), ("piS", ws)):
+        d = drawn[fam]
+        for i in range(len(d)):
+            for j in range(i + 1, len(d)):
+                if d[i] == d[j]:
+                    continue          # degenerate self-pair -> excluded
+                v = look(d[i], d[j])
+                if v is not None:
+                    bucket.append(v)
+    for a in drawn["piR"]:
+        for b in drawn["piS"]:
+            v = look(a, b)
+            if v is not None:
+                bt.append(v)
+
+    nan = float("nan")
+    if not (wr and ws and bt):
+        return nan, nan, nan, nan, nan
+    within = float(np.mean([np.mean(wr), np.mean(ws)]))
+    between = float(np.mean(bt))
+    ratio = between / within if within > 1e-12 else float("inf")
+    return ratio, between, float(np.mean(wr)), float(np.mean(ws)), between - within
+
+
 def bootstrap_cell(rows: list[dict], metric: str, keys: set[str] | None,
-                   n_boot: int, rng, alpha: float) -> dict:
+                   n_boot: int, rng, alpha: float,
+                   resample_seeds: bool = False) -> dict:
     """Bootstrap over episodes within each (obs_source) stratum.
 
     Resampling whole episodes (not individual pair rows) keeps every pair
-    measured on the same resampled states, which is what makes the ratio's CI
+    measured on the same resampled states, which is what makes the CIs
     meaningful.
+
+    With ``resample_seeds=True`` the bootstrap is fully hierarchical: episodes
+    are resampled first, then training seeds are resampled within each family
+    on the resulting pair means. This is what the replication preregistration
+    requires; the discovery audit (3 seeds/family) is reported episode-only,
+    since 3 seeds cannot support a seed-level resample.
     """
     sub = [r for r in rows
            if keys is None or (r["a"] in keys and r["b"] in keys)]
@@ -162,6 +207,10 @@ def bootstrap_cell(rows: list[dict], metric: str, keys: set[str] | None,
 
     point = separation_ratio(symmetrized_pair_means(sub, metric, keys))
 
+    present = sorted({k for r in sub for k in (r["a"], r["b"])})
+    keys_by_fam = {"piR": [k for k in present if family_of(k) == "piR"],
+                   "piS": [k for k in present if family_of(k) == "piS"]}
+
     boots = np.empty((n_boot, 5))
     for i in range(n_boot):
         resampled = []
@@ -170,7 +219,11 @@ def bootstrap_cell(rows: list[dict], metric: str, keys: set[str] | None,
             pick = rng.integers(0, len(eps), len(eps))
             for j in pick:
                 resampled.extend(by_src_ep[(s, eps[j])])
-        boots[i] = separation_ratio(symmetrized_pair_means(resampled, metric, keys))
+        pm = symmetrized_pair_means(resampled, metric, keys)
+        if resample_seeds:
+            boots[i] = _seed_resampled_stats(pm, keys_by_fam, rng)
+        else:
+            boots[i] = separation_ratio(pm)
 
     lo_q, hi_q = 100 * alpha / 2, 100 * (1 - alpha / 2)
     names = ["ratio", "between", "within_piR", "within_piS", "d_policy"]
@@ -211,6 +264,10 @@ def main() -> int:
     p.add_argument("--n-boot", type=int, default=2000)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--alpha", type=float, default=0.05)
+    p.add_argument("--resample-seeds", action="store_true",
+                   help="Fully hierarchical bootstrap (episodes + training seeds). "
+                        "Required for the 300k replication; not meaningful with the "
+                        "discovery run's 3 seeds per family.")
     args = p.parse_args()
 
     base = Path(args.audit_dir)
@@ -257,20 +314,22 @@ def main() -> int:
                 for (a, b), v in sorted(cross.items()):
                     print(f"    {a:>12s} x {b:<12s} {v:>11.5f}")
 
-            res = bootstrap_cell(cell, args.metric, full_keys, args.n_boot, rng, args.alpha)
+            res = bootstrap_cell(cell, args.metric, full_keys, args.n_boot, rng, args.alpha,
+                                 resample_seeds=args.resample_seeds)
             print("\n  FULL FAMILY (s902002 retained -- this is the headline result)")
-            for name in ("within_piR", "within_piS", "between", "ratio"):
+            for name in ("within_piR", "within_piS", "between", "ratio", "d_policy"):
                 pt, lo, hi = res[name]
                 print(f"    {name:12s} {pt:>9.5f}  CI95=[{lo:>8.5f}, {hi:>8.5f}]")
+            d_pt, d_lo, _ = res["d_policy"]
+            print(f"    => D_policy = between - mean(within) = {d_pt:+.5f}, LCB {d_lo:+.5f}"
+                  f"  [{'PASS' if d_lo > 0 else 'FAIL'} at threshold 0]")
             ratio_pt, ratio_lo, _ = res["ratio"]
-            verdict = ("families distinguishable"
-                       if ratio_lo >= SEPARATION_RATIO_THRESHOLD
-                       else "NOT distinguishable -- same behavior region")
-            print(f"    => separation_ratio {ratio_pt:.3f} (LCB {ratio_lo:.3f}): {verdict}")
+            print(f"       (readability only: ratio {ratio_pt:.3f}, LCB {ratio_lo:.3f})")
 
-            sens = bootstrap_cell(cell, args.metric, sens_keys, args.n_boot, rng, args.alpha)
+            sens = bootstrap_cell(cell, args.metric, sens_keys, args.n_boot, rng, args.alpha,
+                                  resample_seeds=args.resample_seeds)
             if sens:
-                s_pt, s_lo, s_hi = sens["ratio"]
+                s_pt, s_lo, s_hi = sens["d_policy"]
                 w_pt, _, _ = sens["within_piS"]
                 print("\n  SENSITIVITY SLICE (s902001 / s902003 only) -- LABELED DIAGNOSTIC,")
                 print("  not a gate, does not replace the full-family result above.")
@@ -281,7 +340,7 @@ def main() -> int:
                 rel = (full_w - w_pt) / w_pt if w_pt > 1e-12 else 0.0
                 print(f"    within_piS   {w_pt:>9.5f}  (full-family: {full_w:.5f}, "
                       f"{rel:+.1%})")
-                print(f"    ratio        {s_pt:>9.5f}  CI95=[{s_lo:>8.5f}, {s_hi:>8.5f}]")
+                print(f"    D_policy     {s_pt:>+9.5f}  CI95=[{s_lo:>+8.5f}, {s_hi:>+8.5f}]")
                 if rel >= INFLATION_REL_THRESHOLD:
                     print(f"    -> s902002 inflates within_piS by {rel:.1%}; the full-family")
                     print("       ratio is CONSERVATIVE (understates separation of the")
@@ -294,24 +353,27 @@ def main() -> int:
                           f"under {INFLATION_REL_THRESHOLD:.0%});")
                     print("       the full-family ratio is not being distorted by it.")
 
-            summary.append((step, ctx, res["ratio"][0], res["ratio"][1],
-                            sens["ratio"][0] if sens else float("nan")))
+            summary.append((step, ctx, res["d_policy"][0], res["d_policy"][1],
+                            res["ratio"][0],
+                            sens["d_policy"][0] if sens else float("nan")))
 
-    print(f"\n{'=' * 78}\nSEPARATION-RATIO TRAJECTORY\n{'=' * 78}")
-    print(f"{'step':>10s} {'context':>10s} {'ratio':>9s} {'LCB95':>9s} {'sens.ratio':>11s}")
-    for step, ctx, pt, lo, sp in summary:
-        print(f"{step:>10,} {ctx:>10s} {pt:>9.3f} {lo:>9.3f} {sp:>11.3f}")
+    print(f"\n{'=' * 78}\nD_policy TRAJECTORY  (primary statistic; threshold 0)\n{'=' * 78}")
+    print(f"{'step':>10s} {'context':>10s} {'D_policy':>10s} {'LCB95':>10s} "
+          f"{'ratio':>8s} {'sens.D':>10s}")
+    for step, ctx, pt, lo, ratio, sd in summary:
+        print(f"{step:>10,} {ctx:>10s} {pt:>+10.5f} {lo:>+10.5f} {ratio:>8.3f} {sd:>+10.5f}")
 
-    ever = [s for s in summary if s[3] >= SEPARATION_RATIO_THRESHOLD]
+    ever = [s for s in summary if s[3] > 0]
     print()
     if not ever:
-        print("No checkpoint or context shows counterfactual family separation.")
+        print("No checkpoint or context shows counterfactual family separation")
+        print("(LCB95(D_policy) > 0 nowhere).")
         print("Combined with the payoff result, this supports: both families converged")
         print("toward the same solution class, and piR simply executes it better.")
     else:
         print("Counterfactual separation present at:")
         for s in ever:
-            print(f"  step {s[0]:,} {s[1]} (ratio {s[2]:.3f}, LCB {s[3]:.3f})")
+            print(f"  step {s[0]:,} {s[1]} (D_policy {s[2]:+.5f}, LCB {s[3]:+.5f})")
         print("Check whether it coincides with any payoff crossover in the trajectory")
         print("analysis. Separation without complementary payoff = distinct behavior,")
         print("no repertoire value.")

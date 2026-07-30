@@ -16,7 +16,8 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-30 (UTC-4)
+> **Last updated:** 2026-07-30 (UTC-4) — sequential weakness→oracle plan locked; G0 map_a sweep RUNNING
+
 
 ---
 
@@ -7326,6 +7327,10 @@ checkpoints: checkpoints/k2v2_piR/final_k2v2_piR_op11_mapb_s{seed}_2v2.zip
              (or ckpt_*_1000000.zip)
 ```
 
+**Important:** G0 was trained on `map_b_split_lane`. The running sweep tests
+whether it **transfers** to the primary map (`map_a`). That decides Step 1
+of the locked sequential plan below.
+
 Sweep for contexts that defeat the **learned** incumbent, not scripted probes:
 
 ```text
@@ -7335,6 +7340,7 @@ Policies:      all three G0 seeds
 Horizon:       240
 Evaluation:    deterministic, no DR, n_envs=1
 Discovery:     32 fresh episodes per (policy × opponent) cell
+Launcher:      experiments/run_g0_weakness_sweep.py  (RUNNING)
 ```
 
 Select a context only if it challenges the **entire** incumbent family,
@@ -7342,22 +7348,117 @@ ideally:
 
 ```text
 all three G0 policies have negative mean margins
-family-level upper CI < 0
-low saturation
+family-level UCB95 < 0   (strict)
 ```
 
-Then train the next response oracle against that actual learned weakness.
+**Competence (three-way; locked before reading the real sweep):**
 
-Launcher (to be used next): `experiments/run_g0_weakness_sweep.py`
-(scaffold after audit completes; do not block audit).
+```text
+0–2 opponents with negative family mean  → COMPETENT
+exactly 3                                → AMBIGUOUS (no C1)
+4–7                                      → INCOMPETENT (train G0_map_a)
+```
+
+AMBIGUOUS / INCOMPETENT never select a response-oracle context. Pooled
+map-wide mean/CI are diagnostics only.
+
+The 32-seed sweep is **discovery**. Any qualifier must survive confirmation
+(`docs/g0-c1-confirmation-preregistration.md`: 64 fresh paired seeds, same
+strict gate) before freezing C1. Do **not** train O1 from the discovery winner.
+
+Do **not** name the weakness RUSH / SPLIT / TURTLE / ESCORT until the
+response-oracle behavior is observed.
+
+Analyzer: `experiments/analyze_g0_weakness.py`
+Fixtures: `tests/test_analyze_g0_weakness.py`
 
 ```text
 1M K=2 proof:             FAIL
 300k replication:         CANCELLED_PRELAUNCH
-G0 weakness sweep:        NEXT
+G0 map_a weakness sweep:  RUNNING
 Latent birth:             blocked
 Router:                   blocked
 ```
+
+### LOCKED PLAN: sequential weakness → oracle → latent birth (2026-07-30)
+
+Core rule:
+
+> First prove two policies are genuinely complementary. Then assign them
+> different latent IDs. A latent label by itself does nothing.
+
+**Step 1 — competent `map_a` incumbent**
+
+```text
+G0 transfers well on map_a vs most OP6–OP12
+  → keep as incumbent
+
+G0 fails most opponents on map_a
+  → train G0_map_a: map_a, OP6–OP12 mixture, multi-seed,
+    task reward only, no latent
+```
+
+**Step 2 — find C1 that defeats the learned incumbent**
+
+All G0 seeds struggle; strongest seed still struggles; loss is
+opponent-specific, not general map incompetence.
+
+**Step 3 — train full independent response oracle O1 against C1**
+
+Freeze G0. Fresh PPO family, multi-seed, task reward only. No tiny latent
+adapter / shared head (those collapsed before). Extra parameters buy
+experimental clarity.
+
+**Step 4 — retain O1 only if complementary**
+
+```text
+O1 beats G0 on C1
+G0 beats O1 on ≥1 incumbent context
+selective repertoire > best fixed policy
+```
+
+Outcomes: retain as z1 / O1 replaces G0 (still K=1) / discard / behavior-
+only (no branch).
+
+**Step 5 — birth z0/z1 as frozen experts**
+
+Separate full policy params per z; z fixed per episode; freeze during
+integration; verify KL≈0 / argmax agree / same payoffs vs source ckpts.
+Do not jointly fine-tune immediately.
+
+**Step 6 — grow K=2→K=4 sequentially**
+
+```text
+C_{k+1} = argmin_c max_{π ∈ P_k} payoff(π,c)
+train O_{k+1} against that weakness
+retain iff pool with O_{k+1} beats pool without it
+```
+
+**Router last** — only after ≥2 retained branches. May use legal state/history;
+never hidden opponent ID, scripted label, or future outcome.
+
+```text
+K=1: competent map_a incumbent
+K=2: first confirmed complementary oracle
+K=3: solves a weakness of the two-policy pool
+K=4: solves a weakness of the three-policy pool
+Router: after branches exist
+```
+
+Immediate sequence from here:
+
+```text
+1. Finish G0 map_a discovery sweep (32 eps)
+2. Competence verdict (COMPETENT / AMBIGUOUS / INCOMPETENT)
+3. If COMPETENT: confirm every discovery qualifier @ 64 fresh seeds
+4. Freeze one confirmed C1 (mechanical rank if several)
+5. Train full independent O1 against C1 (G0 frozen)
+6. Retention gate on frozen map_a acceptance pool
+7. Encode retained experts as z0/z1; grow pool → O2 → O3
+8. Router only after ≥2 retained branches
+```
+
+Confirmation prereg: [`g0-c1-confirmation-preregistration.md`](g0-c1-confirmation-preregistration.md)
 
 ---
 

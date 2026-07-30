@@ -1,0 +1,55 @@
+{
+  "experiment": "k2v2_specialist_behavior_audit",
+  "created_utc": "2026-07-30T13:16:21.749292+00:00",
+  "status": "DIAGNOSTIC -- defines no gate; does not modify the 1M payoff verdict",
+  "contexts": {
+    "C_RUSH": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+    "C_SPLIT": "OP9_SPLIT_LANE_FEINT|map_b_split_lane"
+  },
+  "audit_seed_blocks": {
+    "C_RUSH": [
+      1030001,
+      1030012
+    ],
+    "C_SPLIT": [
+      1040001,
+      1040012
+    ]
+  },
+  "seed_disjointness": "Audit blocks 1_030_001 / 1_040_001 are disjoint from the payoff eval blocks 1_010_001 / 1_020_001, from all training seeds (901xxx / 902xxx), and from every context-confirmation block.",
+  "episodes_per_reference": 12,
+  "checkpoints": [
+    200000,
+    300000,
+    500000,
+    1000000
+  ],
+  "invariants": {
+    "map": "map_b_split_lane",
+    "agents": 2,
+    "max_decision_steps": 240,
+    "deterministic": true,
+    "domain_randomization": false,
+    "n_envs": 1
+  },
+  "families": {
+    "piR": [
+      901001,
+      901002,
+      901003
+    ],
+    "piS": [
+      902001,
+      902002,
+      902003
+    ]
+  },
+  "separation_ratio_definition": "between_family_divergence / mean(within_piR, within_piS); ~1.0 means the families are indistinguishable given seed-to-seed spread, which supports 'same strategy, better execution' over 'piR learned a hybrid'.",
+  "separation_ratio_threshold": 1.5,
+  "observation_bank": "Balanced by construction: every one of the 6 policies (3 piR + 3 piS) serves as observation source for an equal number of episodes, in BOTH contexts. A bank generated only by piR could miss states where piS behaves distinctly, so obs_source is recorded per row and the analyzer slices by it.",
+  "two_separations_measured": {
+    "counterfactual": "divergence_episodes.csv -- masked-logit JSD/KL and argmax disagreement at byte-identical observations: do the networks DECIDE differently given the same information and the same legal actions?",
+    "on_policy": "tactical_episodes.csv -- lane occupancy, agent separation, carrier-return route, home-defense time, screening/interposition, capture timing: do the full TRAJECTORIES differ when each policy drives the environment?"
+  },
+  "s902002_handling": "The collapsed piS seed s902002 is RETAINED in the full-family result. It may inflate within_piS and so deflate the separation ratio; the analyzer therefore also reports a clearly labeled sensitivity slice over s902001/s902003, which is diagnostic only and never a gate."
+}
