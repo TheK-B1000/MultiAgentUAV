@@ -1,0 +1,69 @@
+{
+  "gate": "gate1_opponent_sanity_events",
+  "created_utc": "2026-07-31T05:28:04.356790+00:00",
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "legality_source": "decision-point tag events only",
+  "episodes_per_opponent": 3,
+  "seed_block": [
+    1500001,
+    1500003
+  ],
+  "results": [
+    {
+      "opponent": "OP6",
+      "episodes": 3,
+      "violations": {
+        "target_not_on_tagger_side": 1,
+        "duplicate_event": 1,
+        "denied_and_succeeded_same_instant": 7
+      },
+      "n_violations": 9,
+      "metrics": {
+        "mean_steps": 204.33333333333334,
+        "tag_successes_total": 43,
+        "cooldown_denials_total": 143,
+        "flag_drops_per_episode": 4.0,
+        "blue_score": 0.0,
+        "red_score": 0.0,
+        "timeout_rate": 0.6666666666666666,
+        "attack_frac": 0.3238460735171262
+      },
+      "admitted": false
+    },
+    {
+      "opponent": "OP9",
+      "episodes": 3,
+      "violations": {
+        "duplicate_event": 1,
+        "denied_and_succeeded_same_instant": 10
+      },
+      "n_violations": 11,
+      "metrics": {
+        "mean_steps": 240.0,
+        "tag_successes_total": 57,
+        "cooldown_denials_total": 127,
+        "flag_drops_per_episode": 0.6666666666666666,
+        "blue_score": 0.0,
+        "red_score": 0.0,
+        "timeout_rate": 1.0,
+        "attack_frac": 0.2534722222222222
+      },
+      "admitted": false
+    }
+  ],
+  "admitted_opponents": [],
+  "quarantined_opponents": [
+    "OP6",
+    "OP9"
+  ],
+  "verdict": "FAIL"
+}

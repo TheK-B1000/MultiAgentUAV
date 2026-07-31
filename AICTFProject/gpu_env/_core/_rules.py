@@ -58,6 +58,111 @@ class _RulesMixin:
         keep.scatter_(target_dim, nearest, True)
         return elig & keep
 
+    def _emit_tag_events(self, *, blue_tags, red_tags, newly_red_tagged,
+                         newly_blue_tagged, dist, in_tag_range,
+                         red_targetable, blue_targetable,
+                         blue_off_cooldown, red_off_cooldown, cooldown_T) -> None:
+        """Append exact tag-success and cooldown-denial events. Read-only."""
+        rid = getattr(self.cfg, "ruleset_id", "UNKNOWN")
+        _dt = float(self.dt)
+        _has_t = hasattr(self, "sim_step_count")
+
+        def sim_time(b: int) -> float:
+            """Per-env simulation time. Reading env 0 for every event was wrong:
+            vectorized envs advance independently, so events from env k carried
+            env 0's clock and collided in identity checks."""
+            return float(self.sim_step_count[b].item()) * _dt if _has_t else 0.0
+        bx, by = self.blue_x, self.blue_y
+        rx, ry = self.red_x, self.red_y
+        mid = float(self.cols) * 0.5
+
+        def _f(t, b, i):
+            return float(t[b, i].item())
+
+        # --- successes: attribute to the taggers that actually acted ---------
+        for team, tags, newly in (("blue", blue_tags, newly_red_tagged),
+                                  ("red", red_tags, newly_blue_tagged)):
+            idx = newly.nonzero(as_tuple=False)
+            for row in idx.tolist():
+                b, tgt = int(row[0]), int(row[1])
+                if team == "blue":
+                    taggers = tags[b, :, tgt].nonzero(as_tuple=False).flatten().tolist()
+                    elig = in_tag_range[b, :, tgt] & red_targetable[b, tgt]
+                    tpos, gpos = (rx, ry), (bx, by)
+                    cd_before = self.blue_tag_cooldown
+                    carrying = self.red_carrying
+                    was_tagged = self.red_tagged
+                    cand = blue_tags[b, :, tgt]
+                else:
+                    taggers = tags[b, tgt, :].nonzero(as_tuple=False).flatten().tolist()
+                    elig = in_tag_range[b, tgt, :] & blue_targetable[b, tgt]
+                    tpos, gpos = (bx, by), (rx, ry)
+                    cd_before = self.red_tag_cooldown
+                    carrying = self.blue_carrying
+                    was_tagged = self.blue_tagged
+                    cand = red_tags[b, tgt, :]
+                for g in taggers:
+                    if team == "blue":
+                        d = float(dist[b, g, tgt].item())
+                        gx, gy = _f(bx, b, g), _f(by, b, g)
+                        tx, ty = _f(rx, b, tgt), _f(ry, b, tgt)
+                        g_own = gx < mid
+                        t_on_tagger_side = tx < mid
+                        elig_targets = blue_tags[b, g, :].nonzero(
+                            as_tuple=False).flatten().tolist()
+                    else:
+                        d = float(dist[b, tgt, g].item())
+                        gx, gy = _f(rx, b, g), _f(ry, b, g)
+                        tx, ty = _f(bx, b, tgt), _f(by, b, tgt)
+                        g_own = gx > mid
+                        t_on_tagger_side = tx > mid
+                        elig_targets = red_tags[b, :, g].nonzero(
+                            as_tuple=False).flatten().tolist()
+                    self.tag_events.append({
+                        "event_type": "tag_success",
+                        "env_index": b, "simulation_time": sim_time(b), "ruleset_id": rid,
+                        "tagger_team": team, "tagger_index": g,
+                        "target_team": "red" if team == "blue" else "blue",
+                        "target_index": tgt,
+                        "tagger_position_at_decision": (gx, gy),
+                        "target_position_at_decision": (tx, ty),
+                        "distance_at_decision": d,
+                        "tagger_on_own_side": bool(g_own),
+                        "target_on_tagger_side": bool(t_on_tagger_side),
+                        "tagger_cooldown_before": float(cd_before[b, g].item()),
+                        "tagger_cooldown_after": float(cooldown_T),
+                        "target_was_tagged": bool(was_tagged[b, tgt].item()),
+                        "target_was_carrying_flag": bool(carrying[b, tgt].item()),
+                        "eligible_target_indices": elig_targets,
+                        "selected_nearest_target": tgt,
+                    })
+
+        # --- cooldown denials: eligible except for the cooldown --------------
+        if cooldown_T > 0.0:
+            b_den = (in_tag_range & (~self.blue_tagged)[:, :, None]
+                     & red_targetable[:, None, :] & (~blue_off_cooldown)[:, :, None])
+            r_den = (in_tag_range & (~self.red_tagged)[:, None, :]
+                     & blue_targetable[:, :, None] & (~red_off_cooldown)[:, None, :])
+            for team, den in (("blue", b_den), ("red", r_den)):
+                for row in den.nonzero(as_tuple=False).tolist():
+                    b = int(row[0])
+                    g, tgt = (int(row[1]), int(row[2])) if team == "blue" \
+                        else (int(row[2]), int(row[1]))
+                    cd = self.blue_tag_cooldown if team == "blue" else self.red_tag_cooldown
+                    self.tag_events.append({
+                        "event_type": "tag_denied", "reason": "cooldown",
+                        "env_index": b, "simulation_time": sim_time(b), "ruleset_id": rid,
+                        "tagger_team": team, "tagger_index": g,
+                        "candidate_target_index": tgt,
+                        "cooldown_remaining": float(cd[b, g].item()),
+                    })
+
+    def drain_tag_events(self) -> list:
+        """Return buffered tag events and clear the buffer. Purely observational."""
+        events = list(self.tag_events)
+        self.tag_events.clear()
+        return events
+
     def _apply_aquaticus_tag_rules(
         self,
         blue_oob: torch.Tensor,
@@ -188,6 +293,22 @@ class _RulesMixin:
 
         red_had_flag = newly_red_tagged & self.red_carrying
         blue_had_flag = newly_blue_tagged & self.blue_carrying
+
+        # --- observational telemetry, emitted AT THE DECISION POINT ----------
+        # Recorded before cooldown is armed, before the tagged flag is set, and
+        # before movement / return-home / flag-drop side effects run. Gate 1
+        # previously reconstructed tags from post-step positions, which is
+        # temporally invalid: by then the target has been redirected home and
+        # the tagger has moved. Read-only -- must not affect dynamics.
+        if bool(getattr(self.cfg, "tag_telemetry_enabled", False)):
+            self._emit_tag_events(
+                blue_tags=blue_tags, red_tags=red_tags,
+                newly_red_tagged=newly_red_tagged, newly_blue_tagged=newly_blue_tagged,
+                dist=dist, in_tag_range=in_tag_range,
+                red_targetable=red_targetable, blue_targetable=blue_targetable,
+                blue_off_cooldown=blue_off_cooldown, red_off_cooldown=red_off_cooldown,
+                cooldown_T=cooldown_T,
+            )
 
         # Start the cooldown on taggers that actually landed a tag, so the same
         # vehicle cannot tag again immediately. This is what makes a decoy that

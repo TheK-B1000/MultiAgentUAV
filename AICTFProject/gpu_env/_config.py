@@ -189,6 +189,42 @@ class GPUFieldConfig:
     # Suppression/kill is a project-specific mechanic, NOT Aquaticus tagging.
     # Kept on its own threshold so correcting tagging cannot silently change it.
     suppression_attackers_required: int = 2
+    # Observational tag-event telemetry. OFF by default so training pays nothing.
+    # When on, tag successes and cooldown denials are recorded AT THE DECISION
+    # POINT, before movement / return-home / flag-drop side effects run. It must
+    # be behaviour-neutral: identical states, rewards, and outcomes with it on or
+    # off under the same seed (see tests/test_tag_telemetry.py).
+    tag_telemetry_enabled: bool = False
+
+    @property
+    def ruleset_id(self) -> str:
+        """Identity of the tagging ruleset actually in force.
+
+        Stamped into run configs and checkpoints so a RULESET_V1 policy cannot
+        silently enter a RULESET_V2 result.
+        """
+        if (int(self.taggers_required) == 1 and bool(self.tag_nearest_only)
+                and float(self.tag_channel_seconds) == 0.0
+                and float(self.tag_min_interval_seconds) == 10.0):
+            return "RULESET_V2_AQUATICUS_10S"
+        if (int(self.taggers_required) == 2 and not bool(self.tag_nearest_only)
+                and float(self.tag_min_interval_seconds) == 0.0):
+            return "RULESET_V1_TWO_TAGGER"
+        return (f"RULESET_CUSTOM_t{int(self.taggers_required)}"
+                f"_cd{float(self.tag_min_interval_seconds):g}"
+                f"_ch{float(self.tag_channel_seconds):g}"
+                f"_near{int(bool(self.tag_nearest_only))}")
+
+    def ruleset_fields(self) -> dict:
+        """The full tagging-rule fingerprint for provenance and load checks."""
+        return {
+            "ruleset_id": self.ruleset_id,
+            "taggers_required": int(self.taggers_required),
+            "tag_min_interval_seconds": float(self.tag_min_interval_seconds),
+            "tag_nearest_only": bool(self.tag_nearest_only),
+            "tag_channel_seconds": float(self.tag_channel_seconds),
+            "suppression_attackers_required": int(self.suppression_attackers_required),
+        }
 
     # Profile and reward controls
     aquaticus_profile: bool = False

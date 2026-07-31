@@ -151,6 +151,13 @@ class _EpisodeStateMixin:
         self.blue_tag_pressure_time[idx] = 0.0
         self.blue_tag_cooldown[idx] = 0.0
         self.red_tag_cooldown[idx] = 0.0
+        # Delimit rather than clear the tag-event buffer: a partial (masked)
+        # reset must not discard events another env still owns, and a consumer
+        # that drains after reset must not silently lose the finished episode.
+        if bool(getattr(self.cfg, "tag_telemetry_enabled", False)):
+            for _e in idx.detach().cpu().tolist():
+                self.tag_events.append({"event_type": "episode_reset",
+                                        "env_index": int(_e)})
         self.metric_time_to_first_score[idx] = -1.0
         self.metric_inter_robot_dist_sum[idx] = 0.0
         self.metric_inter_robot_dist_count[idx] = 0

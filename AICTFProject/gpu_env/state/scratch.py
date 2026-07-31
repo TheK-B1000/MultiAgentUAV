@@ -64,6 +64,9 @@ class _ScratchStateMixin:
         # Per-tagger cooldown: seconds remaining before this vehicle may tag again.
         self.blue_tag_cooldown = torch.zeros((B, Nb), dtype=f32, device=dev)
         self.red_tag_cooldown = torch.zeros((B, Nr), dtype=f32, device=dev)
+        # Observational tag-event buffer (append-only; drained by the caller).
+        # Never read back into any tensor -- telemetry must not affect dynamics.
+        self.tag_events: list = []
 
     def _alloc_mine_state(
         self,
