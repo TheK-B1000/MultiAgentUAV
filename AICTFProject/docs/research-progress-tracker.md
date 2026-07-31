@@ -6921,6 +6921,57 @@ Key: not “more rules,” but **complementary costs**. That is the soil
 distinct latent strategies need. Do not skip to step 8 until 2–7 show the
 pattern (or honestly fail under the V2 baseline).
 
+**Parked (2026-07-31) — clean boundary.** Gate 1 / V2 baseline work stopped
+at a verified handoff. **Next session, one task:** build **Gate 2B** —
+isolation test first; read **authoritative environment state** throughout
+(not post-step reconstructed proxies). Build order and downstream locks
+unchanged; nothing else in scope until Gate 2B lands.
+
+**Gate 2B meaning (LOCKED):** first check that the corrected game has
+**strategic soil** on `map_a` — not that latents have been learned.
+
+```text
+BOTH_ATTACK  → more offensive progress, less home protection
+ONE_DEFENDER → less offensive progress, better home protection
+```
+
+Under V1, one defender was nearly useless, so everyone-forward was the
+master key and PPO had no reason for a defensive branch. A Gate 2B
+**PASS** means both effects are real: two genuinely competing choices
+exist on the same map. It does **not** mean distinct latent strategies
+exist yet.
+
+Path after Gate 2B (do not skip):
+
+```text
+Gate 2B proves trade-off exists
+  → train fresh G0-v2 on map_a
+  → find situations where G0-v2 is weak
+  → train response oracle O1 against one weakness
+  → prove G0-v2 and O1 each win different situations
+  → prove selecting between them beats either alone
+  → create z0 / z1 as distinct latent branches
+```
+
+Learned-policy evidence required before naming latents:
+
+```text
+O1 > G0-v2 on the weakness context
+G0-v2 > O1 on an anchor context
+combined repertoire > either fixed policy
+behavioral difference is meaningful
+```
+
+Only then: `z0` = offensive/balanced, `z1` = defensive/intercept.
+Grow K the same way (pool weakness → next oracle), not by forcing four
+branches up front:
+
+```text
+K=1 → weakness → O1 → K=2
+K=2 → pool weakness → O2 → K=3
+K=3 → pool weakness → O3 → K=4
+```
+
 Context selection (after `artifacts/multimap_v3_landscape_op6_op12_8seed`
 completes):
 

@@ -1,0 +1,59 @@
+{
+  "status": "INVALID_TREATMENT_SEPARATION",
+  "archived_utc": "2026-07-31T21:04:47.478237+00:00",
+  "verdict_scope": "Statement about the MANIPULATION METRIC's scale, not about the controllers and not about whether RULESET_V2 contains a trade-off.",
+  "what_happened": "ONE_DEFENDER sits near the ceiling of the binary home-presence measure while BOTH_ATTACK still spends substantial time near home during flag returns, tags and resets. Observed separation +0.2257 (CI95 [+0.1906,+0.2588]) is reliable but below the 0.25 floor. The ruler is compressed, not the treatment: tightening the hold radius could not reliably create a 0.25 contrast on a nearly-full checkbox.",
+  "manipulation": {
+    "min_separation": 0.25,
+    "home_defense": {
+      "mean": 0.22571727389557195,
+      "ci95": [
+        0.1905802179350843,
+        0.25881091607404094
+      ],
+      "passed": false
+    },
+    "forward_commit_agents": {
+      "mean": 0.3481116663841613,
+      "ci95": [
+        0.3139303004340088,
+        0.38026164768722
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "passed": false
+  },
+  "strategic_contrasts": {
+    "status": "EXPLORATORY, NOT CONFIRMATORY",
+    "reason": "manipulation gates interpretation; these did not count",
+    "defense_benefit": {
+      "mean": 34.78125,
+      "ci95": [
+        18.0625,
+        53.68828124999993
+      ],
+      "passed": true,
+      "units": "decision steps"
+    },
+    "offense_cost": {
+      "mean": 18.71875,
+      "ci95": [
+        10.34375,
+        28.0
+      ],
+      "passed": true,
+      "units": "decision steps"
+    }
+  },
+  "controllers_unchanged": "BLUE_BOTH_ATTACK_V2 / BLUE_ONE_DEFENDER_V2 were NOT modified. The earlier blanket instruction to build V2B assumed a genuine separation failure; the full run showed reliable separation with a poorly scaled binary metric.",
+  "successor": "Gate 2D -- same frozen controllers, same scenario, same capture-ledger latency outcomes; manipulation moves to mean_num_home_defenders in AGENT units, symmetric with mean_num_attackers. Fresh seed block required.",
+  "seed_block_retired": [
+    2000001,
+    2000032
+  ],
+  "integrity": {
+    "ok": true,
+    "problems": []
+  }
+}

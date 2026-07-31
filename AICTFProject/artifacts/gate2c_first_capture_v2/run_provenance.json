@@ -1,0 +1,26 @@
+{
+  "recorded_utc": "2026-07-31T20:59:29.581767+00:00",
+  "git": {
+    "commit": "218577b35a789d4f0b596cdd048da80f85da4ee2",
+    "branch": "new-rules"
+  },
+  "critical_file_sha256": {
+    "experiments/gate2c_first_capture_latency_v2.py": "7f26072222360f7d0041d3a3db4f176fdd9c3b8caed8e72d0ff5a446cbef37dd",
+    "gpu_env/_core/_scripted_blue_styles.py": "d5f7aa9c95a36bdef04df6e162f4073ad8a9091f136223e9331a6766c1e0ee7e",
+    "gpu_env/_core/_rules.py": "fbde25309318123b62746f61ec889a7487d981cc32e164ae9eb13876ccf7ff57",
+    "gpu_env/_config.py": "612ce05025911f0c15293fc807a80739d1c96da9808856bf92b8e9f11a017d6a"
+  },
+  "artifact_sha256": {
+    "episode_rows.csv": "c4b7ddcdfee6b6609200afbc46eebb65f8de27c2440c31d87b9eff0210e920c2",
+    "paired_summary.json": "77291be24410dbb9b472e2c06324fd2b54769b51c861725126344f608266e5f6",
+    "manifest.json": "16facf6b373d97f28f44f93068c8e03f2e53865cc36ea6c34e96e93d9dcb2be3"
+  },
+  "ruleset_fingerprint": {
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  }
+}

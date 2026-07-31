@@ -151,27 +151,13 @@ class _EpisodeStateMixin:
         self.blue_tag_pressure_time[idx] = 0.0
         self.blue_tag_cooldown[idx] = 0.0
         self.red_tag_cooldown[idx] = 0.0
-        # Authoritative identity advances HERE, once per reset, per env. The
-        # marker carries the id of the episode that just ENDED plus the id of
-        # the one beginning, so a consumer never has to infer boundaries.
-        emit_markers = bool(getattr(self.cfg, "tag_telemetry_enabled", False))
-        ended_ids = self.episode_id[idx].detach().cpu().tolist() if emit_markers else []
-        self.episode_id[idx] += 1
-        self.reset_sequence[idx] += 1
-        if emit_markers:
-            new_ids = self.episode_id[idx].detach().cpu().tolist()
-            resets = self.reset_sequence[idx].detach().cpu().tolist()
-            for _e, _ended, _new, _rs in zip(idx.detach().cpu().tolist(),
-                                             ended_ids, new_ids, resets):
-                self._event_seq = int(self._event_seq) + 1
-                self.tag_events.append({
-                    "event_type": "episode_reset",
-                    "env_index": int(_e),
-                    "ended_episode_id": int(_ended),
-                    "episode_id": int(_new),
-                    "reset_sequence": int(_rs),
-                    "event_sequence": int(self._event_seq),
-                })
+        # Delimit rather than clear the tag-event buffer: a partial (masked)
+        # reset must not discard events another env still owns, and a consumer
+        # that drains after reset must not silently lose the finished episode.
+        if bool(getattr(self.cfg, "tag_telemetry_enabled", False)):
+            for _e in idx.detach().cpu().tolist():
+                self.tag_events.append({"event_type": "episode_reset",
+                                        "env_index": int(_e)})
         self.metric_time_to_first_score[idx] = -1.0
         self.metric_inter_robot_dist_sum[idx] = 0.0
         self.metric_inter_robot_dist_count[idx] = 0

@@ -1,0 +1,112 @@
+{
+  "frozen_utc": "2026-07-31T20:44:44.634642+00:00",
+  "status": "FROZEN_PRE_LAUNCH -- controllers must not be adjusted based on results",
+  "controllers": {
+    "both_attack": "BLUE_BOTH_ATTACK_V2",
+    "one_defender": "BLUE_ONE_DEFENDER_V2",
+    "defender_hold_radius_cells": 3.0,
+    "hold_radius_rule": "tag_range_cells + 0.5"
+  },
+  "scenario": {
+    "map": "map_a",
+    "resolved_map": "map_a_open",
+    "opponent": "OP6",
+    "horizon": 240,
+    "agents": 2,
+    "domain_randomization": false,
+    "device": "cuda"
+  },
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "seeds": {
+    "base": 2000001,
+    "count": 32,
+    "list": [
+      2000001,
+      2000002,
+      2000003,
+      2000004,
+      2000005,
+      2000006,
+      2000007,
+      2000008,
+      2000009,
+      2000010,
+      2000011,
+      2000012,
+      2000013,
+      2000014,
+      2000015,
+      2000016,
+      2000017,
+      2000018,
+      2000019,
+      2000020,
+      2000021,
+      2000022,
+      2000023,
+      2000024,
+      2000025,
+      2000026,
+      2000027,
+      2000028,
+      2000029,
+      2000030,
+      2000031,
+      2000032
+    ],
+    "paired": "identical seed in both arms; only blue style differs"
+  },
+  "outcome_definitions": {
+    "T_capture": "decision step of first authoritative capture_scored event",
+    "no_capture_censor_value": 241,
+    "early_window": 60,
+    "source": "capture_scored event ledger ONLY -- never post-step score state",
+    "defense_benefit": "RED T_capture(ONE_DEFENDER) - RED T_capture(BOTH_ATTACK)",
+    "offense_cost": "BLUE T_capture(ONE_DEFENDER) - BLUE T_capture(BOTH_ATTACK)"
+  },
+  "gates": {
+    "manipulation_home_defense_floor": 0.25,
+    "manipulation_forward_commit_floor_agents": 0.25,
+    "requires": "both manipulation means >= floor AND paired LCB95 > 0",
+    "pass": "LCB95(defense_benefit) > 0 AND LCB95(offense_cost) > 0"
+  },
+  "bootstrap": {
+    "method": "paired percentile bootstrap over 32 seed differences",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 0
+  },
+  "home_defense_radius_cells": 8.0,
+  "row_key": [
+    "episode_seed",
+    "blue_style",
+    "map",
+    "opponent",
+    "ruleset_id"
+  ],
+  "amendment_record": [
+    "Decision 1: progress replaced by first-capture latency (Gate 2B ceiling).",
+    "Decision 2: forward commitment measured in AGENT units, not team fraction.",
+    "Capture timing moved to an authoritative ledger after post-terminal score fields were shown to report 0-0 for episodes containing four captures."
+  ],
+  "if_manipulation_fails": "Record INVALID_TREATMENT_SEPARATION. Do NOT widen the defender and rerun this seed block. Create BLUE_ONE_DEFENDER_V2B, document it, and confirm on a fresh seed block.",
+  "git": {
+    "commit": "218577b35a789d4f0b596cdd048da80f85da4ee2",
+    "branch": "new-rules"
+  },
+  "critical_file_sha256": {
+    "experiments/gate2c_first_capture_latency_v2.py": "7f26072222360f7d0041d3a3db4f176fdd9c3b8caed8e72d0ff5a446cbef37dd",
+    "gpu_env/_core/_scripted_blue_styles.py": "d5f7aa9c95a36bdef04df6e162f4073ad8a9091f136223e9331a6766c1e0ee7e",
+    "gpu_env/_core/_rules.py": "fbde25309318123b62746f61ec889a7487d981cc32e164ae9eb13876ccf7ff57",
+    "gpu_env/_config.py": "612ce05025911f0c15293fc807a80739d1c96da9808856bf92b8e9f11a017d6a",
+    "gpu_env/state/scratch.py": "da9cdad1107b55afbbf90ff73dbf751c88e05dd087d3516459f557d606cecaea",
+    "gpu_env/state/episode_state.py": "024340feffd2f402b437c6e7040f1d91481756158d100727e3375d6622190abd"
+  }
+}

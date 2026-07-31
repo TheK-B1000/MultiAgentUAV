@@ -1,0 +1,31 @@
+{
+  "experiment": "gate2c_first_capture_latency",
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "taggers_required": 1,
+  "tag_min_interval_seconds": 10.0,
+  "tag_nearest_only": true,
+  "tag_channel_seconds": 0.0,
+  "suppression_attackers_required": 2,
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "opponent": "OP6",
+  "horizon": 240,
+  "no_capture_value": 241,
+  "paired_seeds": 32,
+  "seed_block": [
+    2000001,
+    2000032
+  ],
+  "styles": [
+    "BLUE_BOTH_ATTACK_V2",
+    "BLUE_ONE_DEFENDER_V2"
+  ],
+  "row_key": [
+    "episode_seed",
+    "blue_style",
+    "map",
+    "opponent",
+    "ruleset_id"
+  ],
+  "created_utc": "2026-07-31T20:59:29.581767+00:00"
+}

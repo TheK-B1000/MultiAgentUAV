@@ -1,0 +1,64 @@
+{
+  "status": "PASS -- AUTHORITATIVE AFFORDANCE RESULT",
+  "archived_utc": "2026-07-31T21:27:33.255762+00:00",
+  "claim": "On map_a, vs OP6, under RULESET_V2_AQUATICUS_10S, assigning one BLUE vehicle to home defense reliably delays RED's first capture while also delaying BLUE's first capture.",
+  "manipulation": {
+    "min_separation": 0.25,
+    "home_defenders_agents": {
+      "mean": 0.4490933384409445,
+      "ci95": [
+        0.4099961229897278,
+        0.4859808685182065
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "forward_commit_agents": {
+      "mean": 0.4017198079360714,
+      "ci95": [
+        0.36869673175851,
+        0.4318696047345792
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "passed": true
+  },
+  "defense_benefit": {
+    "mean": 25.28125,
+    "ci95": [
+      6.375,
+      46.96953124999993
+    ],
+    "passed": true,
+    "units": "decision steps"
+  },
+  "offense_cost": {
+    "mean": 14.71875,
+    "ci95": [
+      5.90625,
+      25.1875
+    ],
+    "passed": true,
+    "units": "decision steps"
+  },
+  "proves": [
+    "a genuine same-field allocation trade-off exists under V2",
+    "defense has value AND a measurable price"
+  ],
+  "does_not_prove": [
+    "learned defensive specialization",
+    "learned complementary policies",
+    "distinct latent branches",
+    "positive repertoire value",
+    "K=4",
+    "a working context router"
+  ],
+  "gate2_series": {
+    "gate2": "VOID -- score measurement failure",
+    "gate2b": "VOID -- progress ceiling",
+    "gate2c": "INVALID_TREATMENT_SEPARATION -- metric compression",
+    "gate2d": "PASS -- first confirmatory estimate"
+  },
+  "note": "Earlier gates remain in the record as instrumentation history. Gate 2D is the result that supports the scientific claim. No further Gate 2 redesign unless an actual audit defect appears."
+}

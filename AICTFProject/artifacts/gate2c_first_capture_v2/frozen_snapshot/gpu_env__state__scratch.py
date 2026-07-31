@@ -67,16 +67,6 @@ class _ScratchStateMixin:
         # Observational tag-event buffer (append-only; drained by the caller).
         # Never read back into any tensor -- telemetry must not affect dynamics.
         self.tag_events: list = []
-        # --- authoritative integer event identity -------------------------
-        # Derived at the SOURCE, never reconstructed by a consumer. Counting
-        # reset markers downstream is what let episode-scoped identity collide
-        # and produced phantom duplicate/contradiction violations.
-        #   episode_id     increments exactly once per env reset
-        #   reset_sequence per-env count of resets so far
-        #   _event_seq     global monotonic order across all events
-        self.episode_id = torch.zeros((B,), dtype=torch.int64, device=dev)
-        self.reset_sequence = torch.zeros((B,), dtype=torch.int64, device=dev)
-        self._event_seq = 0
 
     def _alloc_mine_state(
         self,

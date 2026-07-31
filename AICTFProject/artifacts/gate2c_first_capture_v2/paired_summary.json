@@ -1,0 +1,134 @@
+{
+  "gate": "gate2c_first_capture_latency",
+  "created_utc": "2026-07-31T20:59:29.581767+00:00",
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "opponent": "OP6",
+  "treatments": {
+    "both_attack": "BLUE_BOTH_ATTACK_V2",
+    "one_defender": "BLUE_ONE_DEFENDER_V2"
+  },
+  "paired_seeds": 32,
+  "seed_block": [
+    2000001,
+    2000032
+  ],
+  "no_capture_value": 241,
+  "capture_source": "authoritative capture_scored event ledger",
+  "integrity": {
+    "ok": true,
+    "problems": []
+  },
+  "manipulation": {
+    "min_separation": 0.25,
+    "home_defense": {
+      "mean": 0.22571727389557195,
+      "ci95": [
+        0.1905802179350843,
+        0.25881091607404094
+      ],
+      "passed": false
+    },
+    "forward_commit_agents": {
+      "mean": 0.3481116663841613,
+      "ci95": [
+        0.3139303004340088,
+        0.38026164768722
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "passed": false
+  },
+  "defense_benefit": {
+    "mean": 34.78125,
+    "ci95": [
+      18.0625,
+      53.68828124999993
+    ],
+    "passed": true,
+    "units": "decision steps"
+  },
+  "offense_cost": {
+    "mean": 18.71875,
+    "ci95": [
+      10.34375,
+      28.0
+    ],
+    "passed": true,
+    "units": "decision steps"
+  },
+  "supporting": {
+    "blue_captured": {
+      "both_attack": 1.0,
+      "one_defender": 1.0
+    },
+    "red_captured": {
+      "both_attack": 1.0,
+      "one_defender": 0.96875
+    },
+    "blue_score": {
+      "both_attack": 2.8125,
+      "one_defender": 2.9375
+    },
+    "red_score": {
+      "both_attack": 1.78125,
+      "one_defender": 1.0625
+    },
+    "blue_captures_by_60": {
+      "both_attack": 1.0,
+      "one_defender": 0.75
+    },
+    "red_captures_by_60": {
+      "both_attack": 0.875,
+      "one_defender": 0.5
+    },
+    "first_flag_contact_step": {
+      "both_attack": 15.0,
+      "one_defender": 22.125
+    },
+    "first_pickup_step": {
+      "both_attack": 15.625,
+      "one_defender": 23.9375
+    },
+    "first_flag_drop_step": {
+      "both_attack": 30.8125,
+      "one_defender": 34.8125
+    },
+    "carrier_return_steps": {
+      "both_attack": 52.46875,
+      "one_defender": 49.71875
+    },
+    "blue_tag_successes": {
+      "both_attack": 5.09375,
+      "one_defender": 4.8125
+    },
+    "red_tag_successes": {
+      "both_attack": 4.40625,
+      "one_defender": 2.34375
+    },
+    "cooldown_denials": {
+      "both_attack": 7.5625,
+      "one_defender": 15.34375
+    },
+    "mean_num_attackers": {
+      "both_attack": 0.8204687144987921,
+      "one_defender": 0.47235704811463075
+    },
+    "episode_steps": {
+      "both_attack": 117.25,
+      "one_defender": 145.28125
+    }
+  },
+  "verdict": "INVALID_TREATMENT_SEPARATION",
+  "detail": "controller problem, not environment failure",
+  "passed": false
+}

@@ -247,7 +247,11 @@ def run_opponent(opp: str, episodes: int, device: str) -> dict:
             env.close()
 
     if not all_events:
-        viol["telemetry_missing"] += 1
+        # No tag events is NOT a legality failure. It means this opponent never
+        # produced a taggable situation in the sampled episodes -- low telemetry
+        # COVERAGE, not a rule violation. Gate 2 decides whether the opponent is
+        # still strategically functional under V2.
+        lifecycle["low_telemetry_coverage_no_tag_events"] += 1
 
     ev_check = check_events(all_events, tag_range=2.5,
                             cooldown_T=RULESET["tag_min_interval_seconds"])

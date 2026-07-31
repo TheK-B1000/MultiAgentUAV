@@ -125,9 +125,9 @@ class _RulesMixin:
                         t_on_tagger_side = bool(blue_on_red[b, tgt].item())
                         elig_targets = red_tags[b, :, g].nonzero(
                             as_tuple=False).flatten().tolist()
-                    _ev = {
+                    self.tag_events.append({
                         "event_type": "tag_success",
-                        "simulation_time": sim_time(b), "ruleset_id": rid,
+                        "env_index": b, "simulation_time": sim_time(b), "ruleset_id": rid,
                         "tagger_team": team, "tagger_index": g,
                         "target_team": "red" if team == "blue" else "blue",
                         "target_index": tgt,
@@ -142,9 +142,7 @@ class _RulesMixin:
                         "target_was_carrying_flag": bool(carrying[b, tgt].item()),
                         "eligible_target_indices": elig_targets,
                         "selected_nearest_target": tgt,
-                    }
-                    _ev.update(self._event_identity(b))
-                    self.tag_events.append(_ev)
+                    })
 
         # --- cooldown denials: eligible except for the cooldown --------------
         if cooldown_T > 0.0:
@@ -158,15 +156,13 @@ class _RulesMixin:
                     g, tgt = (int(row[1]), int(row[2])) if team == "blue" \
                         else (int(row[2]), int(row[1]))
                     cd = self.blue_tag_cooldown if team == "blue" else self.red_tag_cooldown
-                    _dv = {
+                    self.tag_events.append({
                         "event_type": "tag_denied", "reason": "cooldown",
-                        "simulation_time": sim_time(b), "ruleset_id": rid,
+                        "env_index": b, "simulation_time": sim_time(b), "ruleset_id": rid,
                         "tagger_team": team, "tagger_index": g,
                         "candidate_target_index": tgt,
                         "cooldown_remaining": float(cd[b, g].item()),
-                    }
-                    _dv.update(self._event_identity(b))
-                    self.tag_events.append(_dv)
+                    })
 
     def _emit_capture_events(self, team: str, award_mask, delta: int) -> None:
         """Record captures AT THE MOMENT OF SCORING.
@@ -183,29 +179,21 @@ class _RulesMixin:
         for row in award_mask.nonzero(as_tuple=False).tolist():
             b = int(row[0])
             before = int(score_t[b].item())
-            ev = {"event_type": "capture_scored", "ruleset_id": rid,
-                  "scoring_team": team, "score_before": before,
-                  "score_after": before + int(delta)}
-            ev.update(self._event_identity(b))
-            self.tag_events.append(ev)
-
-    def _event_identity(self, b: int, terminal_step: bool = False) -> dict:
-        """Authoritative integer identity for one event.
-
-        Produced at the SOURCE. Consumers must never re-derive episode
-        boundaries by counting reset markers -- doing so let identities collide
-        across episodes and produced phantom duplicate/contradiction findings.
-        """
-        self._event_seq = int(getattr(self, "_event_seq", 0)) + 1
-        return {
-            "env_index": int(b),
-            "episode_id": int(self.episode_id[b].item()),
-            "reset_sequence": int(self.reset_sequence[b].item()),
-            "simulation_step": int(self.sim_step_count[b].item()),
-            "decision_step": int(self.step_count[b].item()),
-            "event_sequence": int(self._event_seq),
-            "terminal_step": bool(terminal_step),
-        }
+            self._tag_event_seq = int(getattr(self, "_tag_event_seq", 0)) + 1
+            self.tag_events.append({
+                "event_type": "capture_scored",
+                "env_index": b,
+                "episode_id": int(getattr(self, "_episode_id", [0] * self.B)[b])
+                if isinstance(getattr(self, "_episode_id", None), list) else 0,
+                "simulation_step": int(self.sim_step_count[b].item()),
+                "decision_step": int(self.step_count[b].item()),
+                "event_sequence": self._tag_event_seq,
+                "ruleset_id": rid,
+                "scoring_team": team,
+                "score_before": before,
+                "score_after": before + int(delta),
+                "terminal_after_capture": None,   # filled by the caller if known
+            })
 
     def drain_tag_events(self) -> list:
         """Return buffered tag events and clear the buffer. Purely observational."""

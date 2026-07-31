@@ -1,0 +1,46 @@
+====================================================================================
+GATE 2C -- first-capture latency under RULESET_V2_AQUATICUS_10S, map_a, vs OP6
+T_capture = first authoritative capture step; 241 = none within horizon
+Capture timing from the event ledger, never post-step score state.
+====================================================================================
+  paired seed 1/32
+  paired seed 8/32
+  paired seed 16/32
+  paired seed 24/32
+  paired seed 32/32
+
+INTEGRITY  rows=64 expected=64  OK
+
+MANIPULATION CHECK
+  ONE_DEFENDER extra home defense     : +0.2257  CI95=[+0.1906, +0.2588]  [FAIL]
+  BOTH_ATTACK extra attackers (agents): +0.3481  CI95=[+0.3139, +0.3803]  [PASS]
+  manipulation: FAIL
+
+PRIMARY CONTRASTS (paired, n=32, steps)
+  RED  T_capture  BOTH=  41.22  ONE=  76.00
+  BLUE T_capture  BOTH=  35.16  ONE=  53.88
+  defense_benefit (RED delayed)  = +34.781  CI95=[+18.062, +53.688]  [PASS]
+  offense_cost    (BLUE slowed)  = +18.719  CI95=[+10.344, +28.000]  [PASS]
+
+SUPPORTING (descriptive)
+  metric                         BOTH_ATTACK  ONE_DEFENDER
+  blue_captured                        1.000         1.000
+  red_captured                         1.000         0.969
+  blue_score                           2.812         2.938
+  red_score                            1.781         1.062
+  blue_captures_by_60                  1.000         0.750
+  red_captures_by_60                   0.875         0.500
+  first_flag_contact_step             15.000        22.125
+  first_pickup_step                   15.625        23.938
+  first_flag_drop_step                30.812        34.812
+  carrier_return_steps                52.469        49.719
+  blue_tag_successes                   5.094         4.812
+  red_tag_successes                    4.406         2.344
+  cooldown_denials                     7.562        15.344
+  mean_num_attackers                   0.820         0.472
+  episode_steps                      117.250       145.281
+
+====================================================================================
+GATE 2C: INVALID_TREATMENT_SEPARATION
+  controller problem, not environment failure
+====================================================================================
