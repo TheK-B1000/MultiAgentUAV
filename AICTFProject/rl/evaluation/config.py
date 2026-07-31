@@ -38,6 +38,13 @@ class MapAwarenessEvaluationConfig:
     allow_saturated_pool: bool = False
     baseline_cnn_channels: int = 7
     candidate_cnn_channels: int = 8
+    # Formal identity border. Live eval env is authoritative; override marks
+    # the run ineligible as a formal result.
+    evaluation_run_id: str | None = None
+    allow_identity_override: bool = False
+    # When False, skip the formal identity gate (legacy unit tests that mock
+    # fake zip bytes). Production entrypoints leave this True.
+    require_formal_identity: bool = True
 
     def validate(self) -> None:
         """Raise for invalid combinations before execution starts."""
@@ -92,6 +99,9 @@ def config_from_namespace(args: Namespace) -> MapAwarenessEvaluationConfig:
         competence_retention_tolerance=float(args.competence_retention_tolerance),
         saturation_win_rate=float(args.saturation_win_rate),
         allow_saturated_pool=bool(getattr(args, "allow_saturated_pool", False)),
+        evaluation_run_id=getattr(args, "evaluation_run_id", None),
+        allow_identity_override=bool(getattr(args, "allow_identity_override", False)),
+        require_formal_identity=bool(getattr(args, "require_formal_identity", True)),
     )
     config.validate()
     return config

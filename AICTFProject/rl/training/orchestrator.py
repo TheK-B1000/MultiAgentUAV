@@ -49,7 +49,12 @@ from rl.training.lifecycle import (
     teardown_training,
 )
 from rl.training.resolved_config import resolve_training_config
-from rl.training.run_artifacts import _acquire_run_lock, write_run_config_json
+from rl.training.run_artifacts import (
+    _acquire_run_lock,
+    write_evaluation_manifest_json,
+    write_result_summary_json,
+    write_startup_formal_artifacts,
+)
 from rl.training.run_context import RunContext
 
 
@@ -145,15 +150,6 @@ def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
     run_lock = _acquire_run_lock(cfg)
     _rotate_fresh_run_telemetry(cfg)
 
-    rc_path: Optional[str] = None
-    try:
-        rc_path = write_run_config_json(cfg)
-        print(f"[PPO] Run config written: {rc_path}")
-    except Exception as exc:
-        print(f"[PPO] WARNING: could not write run config JSON: {exc}")
-
-    run_context = RunContext(run_lock=run_lock, rc_path=rc_path)
-
     print_episode_stats_banner(
         cfg,
         curriculum=resolved.curriculum,
@@ -163,39 +159,200 @@ def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
     _clamp_runtime_config_for_team_size(cfg, resolved.max_agents)
     _ensure_cuda_or_fallback(cfg)
 
+    # The environment is built BEFORE any artifact is written. Run identity must
+    # be resolved from the LIVE environment, never from config defaults -- five
+    # artifacts reconstructing "V2" independently is exactly how they end up
+    # carrying five subtly different versions of it. Consequently
+    # ``write_run_config_json`` now runs after this point, not before.
     env = build_training_env(
         cfg,
         initial_phase=resolved.initial_phase,
         initial_opponent_tag=resolved.initial_opponent_tag,
     )
 
+    from rl.ruleset_identity import RunIdentityError, build_formal_run_identity
+
+    # Mandatory: a run that cannot resolve its identity fails here, before the
+    # first rollout step, rather than producing unstampable artifacts.
+    run_identity = build_formal_run_identity(env, run_id=str(cfg.run_tag))
+    print(f"[PPO] Run identity: {run_identity.ruleset_id} "
+          f"map={run_identity.canonical_map} "
+          f"fingerprint={run_identity.ruleset_fingerprint[:12]} "
+          f"formal_eligible={run_identity.formal_result_eligible}")
+
+    # Both startup artifacts must be written from the same frozen object before
+    # any rollout. Soft-failing here would recreate the unstamped-traveler bug.
+    try:
+        startup_paths = write_startup_formal_artifacts(cfg, run_identity=run_identity)
+    except Exception as exc:
+        raise RunIdentityError(
+            f"Failed to write startup formal artifacts before rollout: {exc}"
+        ) from exc
+    rc_path = startup_paths["run_config"]
+    tm_path = startup_paths["training_manifest"]
+    print(f"[PPO] Run config written: {rc_path}")
+    print(f"[PPO] Training manifest written: {tm_path}")
+
+    run_context = RunContext(
+        run_lock=run_lock,
+        run_identity=run_identity,
+        rc_path=rc_path,
+        training_manifest_path=tm_path,
+    )
+
     trainer = None
     try:
-        trainer = build_trainer(env, cfg, resolved)
+        trainer = build_trainer(env, cfg, resolved, run_identity=run_identity)
+        if getattr(trainer, "run_identity", None) is None:
+            raise RunIdentityError(
+                "Trainer was constructed without run_identity; refusing to "
+                "start the first rollout step."
+            )
         maybe_load_checkpoint(cfg, trainer)
         maybe_extend_total_timesteps(cfg, trainer)
         maybe_configure_periodic_checkpoints(cfg, trainer)
 
-        try:
-            stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
-        except KeyboardInterrupt:
-            interrupt_path = os.path.join(
-                cfg.checkpoint_dir,
-                f"interrupt_{cfg.run_tag}_{int(getattr(trainer, 'global_step', 0))}.zip",
-            )
-            trainer.save(interrupt_path)
-            print(f"[PPO] KeyboardInterrupt: emergency checkpoint saved to: {interrupt_path}")
-            raise
+        artifact_only = bool(getattr(cfg, "formal_artifact_bundle_only", False))
+        if artifact_only:
+            _write_formal_artifact_bundle_smoke(cfg, trainer, run_identity)
+        else:
+            try:
+                stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
+            except KeyboardInterrupt:
+                interrupt_path = os.path.join(
+                    cfg.checkpoint_dir,
+                    f"interrupt_{cfg.run_tag}_{int(getattr(trainer, 'global_step', 0))}.zip",
+                )
+                trainer.save(interrupt_path)
+                print(f"[PPO] KeyboardInterrupt: emergency checkpoint saved to: {interrupt_path}")
+                raise
 
-        final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
-        trainer.save(final_path)
-        if stats:
-            print(
-                "[PPO] Final stats: "
-                f"policy_loss={stats.get('policy_loss', 0.0):.4f}, "
-                f"value_loss={stats.get('value_loss', 0.0):.4f}, "
-                f"approx_kl={stats.get('approx_kl', 0.0):.5f}"
-            )
-        print(f"[PPO] Training complete. Final checkpoint saved to: {final_path}")
+            final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
+            trainer.save(final_path)
+            if stats:
+                print(
+                    "[PPO] Final stats: "
+                    f"policy_loss={stats.get('policy_loss', 0.0):.4f}, "
+                    f"value_loss={stats.get('value_loss', 0.0):.4f}, "
+                    f"approx_kl={stats.get('approx_kl', 0.0):.5f}"
+                )
+            print(f"[PPO] Training complete. Final checkpoint saved to: {final_path}")
+            _write_in_run_eval_and_summary(cfg, trainer, run_identity, checkpoint_path=final_path)
     finally:
         teardown_training(cfg, trainer, env, run_context.run_lock)
+
+
+def _checkpoint_file_fingerprint(path: str) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _read_episode_rows(path: Optional[str]) -> list[dict]:
+    import csv
+
+    if not path or not os.path.isfile(path):
+        return []
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def _write_in_run_eval_and_summary(cfg, trainer, run_identity, *, checkpoint_path: str) -> None:
+    """In-training evaluation/summary use the same frozen run_identity."""
+    base = cfg.checkpoint_dir
+    if getattr(cfg, "metrics_csv_path", None):
+        d = os.path.dirname(str(cfg.metrics_csv_path))
+        if d:
+            base = d
+    os.makedirs(base, exist_ok=True)
+
+    ckpt_fp = _checkpoint_file_fingerprint(checkpoint_path) if os.path.isfile(checkpoint_path) else ""
+    eval_path = os.path.join(base, "evaluation_manifest.json")
+    write_evaluation_manifest_json(
+        eval_path,
+        run_identity=run_identity,
+        evaluation_run_id=run_identity.run_id,
+        source_training_run_id=run_identity.run_id,
+        source_checkpoint_fingerprint=ckpt_fp,
+        source_checkpoint_ruleset_fingerprint=run_identity.ruleset_fingerprint,
+        extra={"scope": "in_training"},
+    )
+
+    rows = _read_episode_rows(getattr(cfg, "episode_csv_path", None))
+    if not rows:
+        # Training may finish without completing an episode on tiny budgets.
+        # Stamp a single completion marker so the formal bundle stays closed.
+        from rl.ruleset_identity import stamp_csv_row
+
+        rows = [stamp_csv_row({"episode_id": 0, "success": 0, "source": "completion_marker"}, run_identity)]
+        ep_path = getattr(cfg, "episode_csv_path", None) or os.path.join(base, "episode_rows.csv")
+        import csv
+        from rl.ruleset_identity import CSV_IDENTITY_FIELDS
+
+        fieldnames = list(dict.fromkeys(["episode_id", "success", "source", *CSV_IDENTITY_FIELDS]))
+        with open(ep_path, "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames)
+            w.writeheader()
+            for r in rows:
+                w.writerow(r)
+        cfg.episode_csv_path = ep_path
+
+    summary_path = os.path.join(base, "result_summary.json")
+    write_result_summary_json(
+        summary_path,
+        {
+            "verdict": "TRAINING_COMPLETE",
+            "total_timesteps": int(getattr(cfg, "total_timesteps", 0) or 0),
+            "global_step": int(getattr(trainer, "global_step", 0) or 0),
+            "checkpoint_path": checkpoint_path,
+            "n_episode_rows": len(rows),
+        },
+        run_identity=run_identity,
+        source_rows=rows,
+    )
+    print(f"[PPO] Evaluation manifest written: {eval_path}")
+    print(f"[PPO] Result summary written: {summary_path}")
+
+
+def _write_formal_artifact_bundle_smoke(cfg, trainer, run_identity) -> None:
+    """Artifact-only production path for the formal-bundle integration test."""
+    from rl.ruleset_identity import CSV_IDENTITY_FIELDS, stamp_csv_row
+
+    base = cfg.checkpoint_dir
+    if getattr(cfg, "metrics_csv_path", None):
+        d = os.path.dirname(str(cfg.metrics_csv_path))
+        if d:
+            base = d
+    os.makedirs(base, exist_ok=True)
+
+    ep_path = getattr(cfg, "episode_csv_path", None) or os.path.join(base, "episode_rows.csv")
+    row = stamp_csv_row(
+        {
+            "episode_id": 0,
+            "success": 0,
+            "blue_score": 0,
+            "red_score": 0,
+            "source": "formal_artifact_bundle_only",
+        },
+        run_identity,
+    )
+    import csv
+
+    fieldnames = list(dict.fromkeys([*row.keys(), *CSV_IDENTITY_FIELDS]))
+    with open(ep_path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        w.writerow(row)
+    cfg.episode_csv_path = ep_path
+
+    ckpt_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
+    trainer.save(ckpt_path)
+    _write_in_run_eval_and_summary(cfg, trainer, run_identity, checkpoint_path=ckpt_path)
+    print(f"[PPO] Formal artifact-bundle-only smoke complete: {base}")

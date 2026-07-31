@@ -31,14 +31,23 @@ def build_trainer(
     env: object,
     cfg: PPOConfig,
     resolved: ResolvedTrainingConfig,
+    *,
+    run_identity,
 ) -> "CustomPPOTrainer":
     """Construct and return a :class:`CustomPPOTrainer` from ``env`` and resolved config.
 
-    Prints stable-MARL and multi-agent learning-rate log lines when applicable
-    (mirroring what ``train_ppo.train_ppo`` used to print inline).
+    ``run_identity`` is mandatory: the trainer stamps episode rows and checkpoints
+    from this frozen object. Missing identity must fail before the first rollout.
     """
     from rl.custom_ppo import CustomPPOTrainer
     from rl.custom_ppo.trainer_audit import log_input_dim_contract
+    from rl.ruleset_identity import RunIdentity, RunIdentityError
+
+    if run_identity is None or not isinstance(run_identity, RunIdentity):
+        raise RunIdentityError(
+            "build_trainer requires the run's resolved RunIdentity; "
+            "refusing to construct a trainer that cannot stamp artifacts."
+        )
 
     if bool(getattr(cfg, "use_stable_marl_ppo", False)):
         print(
@@ -65,6 +74,7 @@ def build_trainer(
         batch_size=resolved.effective_batch_size,
         value_clip_range=getattr(cfg, "clip_range_vf", resolved.effective_clip_range),
         curriculum=resolved.curriculum,
+        run_identity=run_identity,
     )
     log_input_dim_contract(trainer)
     return trainer

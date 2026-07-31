@@ -131,7 +131,9 @@ def _opponent_legend(cfg: Any, info: dict[str, Any]) -> str:
 
 
 def _episode_fieldnames() -> list[str]:
-    return [
+    from rl.ruleset_identity import CSV_IDENTITY_FIELDS
+
+    base = [
         "episode_id",
         "run_id",
         "run_pid",
@@ -184,6 +186,12 @@ def _episode_fieldnames() -> list[str]:
         "reward_failure",
         "reward_total",
     ]
+    # Formal passport scalars must appear on every row. ``run_id`` is already
+    # present; remaining CSV_IDENTITY_FIELDS are appended without duplicating.
+    for name in CSV_IDENTITY_FIELDS:
+        if name not in base:
+            base.append(name)
+    return base
 
 
 def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:

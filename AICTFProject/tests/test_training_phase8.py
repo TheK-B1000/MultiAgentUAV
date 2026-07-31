@@ -266,17 +266,19 @@ class TestRunContext(unittest.TestCase):
     def test_run_context_has_run_lock_field(self):
         from rl.training.run_context import RunContext
         sentinel = object()
-        rc = RunContext(run_lock=sentinel)
+        identity = object()
+        rc = RunContext(run_lock=sentinel, run_identity=identity)
         self.assertIs(rc.run_lock, sentinel)
+        self.assertIs(rc.run_identity, identity)
 
     def test_run_context_rc_path_defaults_none(self):
         from rl.training.run_context import RunContext
-        rc = RunContext(run_lock=object())
+        rc = RunContext(run_lock=object(), run_identity=object())
         self.assertIsNone(rc.rc_path)
 
     def test_run_context_is_mutable(self):
         from rl.training.run_context import RunContext
-        rc = RunContext(run_lock=object())
+        rc = RunContext(run_lock=object(), run_identity=object())
         rc.rc_path = "/tmp/run_config.json"
         self.assertEqual(rc.rc_path, "/tmp/run_config.json")
 

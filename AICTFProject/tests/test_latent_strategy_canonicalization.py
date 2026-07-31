@@ -34,6 +34,21 @@ from rl.custom_ppo.inference import (
     read_custom_ppo_metadata,
 )
 from rl.train_ppo import PPOConfig, write_run_config_json
+from rl.ruleset_identity import RunIdentity
+
+
+def _identity_for_cfg(cfg: PPOConfig) -> RunIdentity:
+    """Minimal formal identity for snapshot tests that do not build a live env."""
+    return RunIdentity(
+        run_id=str(cfg.run_tag),
+        canonical_map="map_a",
+        resolved_map="map_a_open",
+        ruleset_id="RULESET_V2_AQUATICUS_10S",
+        ruleset_fingerprint="0" * 64,
+        ruleset={},
+        formal_result_eligible=True,
+        identity_override_used=False,
+    )
 
 
 class LatentStrategyCanonicalizationHelperTests(unittest.TestCase):
@@ -94,7 +109,11 @@ class PPOConfigCanonicalSnapshotTests(unittest.TestCase):
             cfg.use_latent_strategy = True
             cfg.latent_strategy_aux_return_head = True
             cfg.latent_strategy_aux_return_coef = 0.7
-            path = write_run_config_json(cfg, argv=["train_ppo.py", "--preset", "x"])
+            path = write_run_config_json(
+                cfg,
+                argv=["train_ppo.py", "--preset", "x"],
+                run_identity=_identity_for_cfg(cfg),
+            )
             with open(path, "r", encoding="utf-8") as f:
                 snapshot = json.load(f)
             resolved = snapshot["resolved_ppo_config"]

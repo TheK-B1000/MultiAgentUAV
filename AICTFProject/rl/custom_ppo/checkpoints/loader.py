@@ -170,6 +170,25 @@ def _architecture_from_metadata(metadata, observation_space, action_space) -> Po
     )
 
 
+def _resolve_live_env_cfg(trainer) -> Any:
+    from rl.ruleset_identity import RunIdentityError
+
+    for attr in ("env", "vec_env", "_env"):
+        env = getattr(trainer, attr, None)
+        if env is None:
+            continue
+        core = getattr(env, "core", None) or getattr(getattr(env, "vec", None), "core", None)
+        cfg = getattr(core, "cfg", None) if core is not None else None
+        if cfg is not None:
+            return cfg
+        cfg = getattr(env, "cfg", None)
+        if cfg is not None:
+            return cfg
+    raise RunIdentityError(
+        "Cannot resolve live environment config for checkpoint identity check."
+    )
+
+
 def _env_ruleset_fingerprint(trainer) -> dict:
     """Tagging-ruleset fingerprint of the trainer's environment.
 
@@ -284,12 +303,59 @@ def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
     from .state_dict import _load_model_state_dict_compat
     from .models import CheckpointTimingReport
     from rl.custom_ppo.inference import CUSTOM_PPO_FORMAT, CUSTOM_PPO_LATENT_FORMAT
+    from rl.ruleset_identity import (
+        ARTIFACT_IDENTITY_KEY,
+        RunIdentity,
+        RunIdentityError,
+        assert_ruleset_matches_identity,
+        build_formal_run_identity,
+        fingerprint,
+    )
     
     total_start = time.perf_counter()
     
     read_start = time.perf_counter()
     payload = _torch_load_checkpoint(path, map_location=trainer.device)
     archive_read_seconds = time.perf_counter() - read_start
+
+    # Identity gate BEFORE model execution. Legacy / V1 / missing / mismatched
+    # checkpoints fail closed here rather than silently entering the run.
+    live_identity = getattr(trainer, "run_identity", None)
+    if live_identity is None or not isinstance(live_identity, RunIdentity):
+        live_identity = build_formal_run_identity(
+            trainer.env, run_id=str(getattr(getattr(trainer, "cfg", None), "run_tag", "resume"))
+        )
+        trainer.run_identity = live_identity
+
+    ckpt_ruleset = payload.get("ruleset") if isinstance(payload, dict) else None
+    if not isinstance(ckpt_ruleset, dict) or not ckpt_ruleset:
+        raise RunIdentityError(
+            f"Checkpoint {path!r} has no ruleset identity (legacy/missing); "
+            "refusing to load before model execution."
+        )
+    assert_ruleset_matches_identity(ckpt_ruleset, live_identity, context=path)
+
+    ai = payload.get(ARTIFACT_IDENTITY_KEY) if isinstance(payload, dict) else None
+    if isinstance(ai, dict):
+        for key in ("canonical_map", "resolved_map", "ruleset_id", "ruleset_fingerprint"):
+            if ai.get(key) is not None and str(ai.get(key)) != str(getattr(live_identity, key)):
+                raise RunIdentityError(
+                    f"Checkpoint {path!r} artifact_identity.{key} mismatch vs live "
+                    f"run identity: {ai.get(key)!r} != {getattr(live_identity, key)!r}"
+                )
+    else:
+        # Older stamped checkpoints may only carry ``ruleset``; that still must
+        # match (checked above). Require the passport block for formal resumes.
+        if bool(getattr(trainer, "require_checkpoint_artifact_identity", True)):
+            raise RunIdentityError(
+                f"Checkpoint {path!r} is missing artifact_identity; refusing formal load."
+            )
+
+    # Also reject when the stored ruleset disagrees with the live env fingerprint
+    # even if the trainer's RunIdentity somehow drifted.
+    env_fp = fingerprint(_resolve_live_env_cfg(trainer))
+    from rl.ruleset_identity import enforce
+    enforce(ckpt_ruleset, env_fp, context=path)
     
     model_start = time.perf_counter()
     assert_compatible_global_state_dim(payload, path)
@@ -393,8 +459,28 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
     import torch
     from .models import CheckpointSaveTimingReport
     from rl.custom_ppo.inference import CUSTOM_PPO_FORMAT, CUSTOM_PPO_LATENT_FORMAT, CUSTOM_PPO_ACTOR_ARCH, CUSTOM_PPO_VEC_SCHEMA_VERSION
-    
+    from rl.ruleset_identity import (
+        ARTIFACT_IDENTITY_KEY,
+        RunIdentity,
+        assert_ruleset_matches_identity,
+        build_formal_run_identity,
+    )
+
     total_start = time.perf_counter()
+
+    run_identity = getattr(trainer, "run_identity", None)
+    if run_identity is None or not isinstance(run_identity, RunIdentity):
+        # Unit-test / legacy call sites may construct the trainer without the
+        # production wiring. Resolve once from the LIVE env so the checkpoint
+        # still enters the same identity universe — never invent from cfg defaults.
+        run_identity = build_formal_run_identity(
+            trainer.env,
+            run_id=str(getattr(getattr(trainer, "cfg", None), "run_tag", "") or "checkpoint"),
+        )
+        trainer.run_identity = run_identity
+
+    ruleset_fp = _env_ruleset_fingerprint(trainer)
+    assert_ruleset_matches_identity(ruleset_fp, run_identity, context=str(path))
     
     rn = trainer.return_norm.state_dict()
     srn = trainer.strategy_return_norm.state_dict()
@@ -420,7 +506,10 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
         # GPUFieldConfig. A RULESET_V1 policy learned a different game -- a lone
         # defender could not tag -- so loading one into a V2 run silently
         # corrupts the result. Absent => LEGACY_UNKNOWN, rejected for formal runs.
-        "ruleset": _env_ruleset_fingerprint(trainer),
+        "ruleset": ruleset_fp,
+        # Same passport as run_config / episode CSV / manifests — two
+        # representations of one identity, verified against ``ruleset`` above.
+        ARTIFACT_IDENTITY_KEY: run_identity.artifact_identity(),
     }
     trainer.optimizers.write_checkpoint(payload)
     if trainer.v6i1_curriculum is not None:

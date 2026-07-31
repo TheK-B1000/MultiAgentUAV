@@ -102,18 +102,42 @@ def _json_safe(obj: Any) -> Any:
     return str(obj)
 
 
-def _run_config_json_path(cfg: PPOConfig) -> str:
+def _artifact_base_dir(cfg: PPOConfig) -> str:
     base_dir = cfg.checkpoint_dir
     if getattr(cfg, "metrics_csv_path", None):
         d = os.path.dirname(str(cfg.metrics_csv_path))
         if d:
             base_dir = d
     os.makedirs(base_dir, exist_ok=True)
-    return os.path.join(base_dir, f"{cfg.run_tag}_run_config.json")
+    return base_dir
 
 
-def write_run_config_json(cfg: PPOConfig, argv: Optional[list[str]] = None) -> str:
-    """Write reproducibility sidecar JSON next to metrics CSV (or under ``checkpoint_dir``)."""
+def _run_config_json_path(cfg: PPOConfig) -> str:
+    return os.path.join(_artifact_base_dir(cfg), f"{cfg.run_tag}_run_config.json")
+
+
+def _require_run_identity(run_identity, *, writer: str):
+    from rl.ruleset_identity import RunIdentity, RunIdentityError
+
+    if run_identity is None or not isinstance(run_identity, RunIdentity):
+        raise RunIdentityError(
+            f"{writer} requires the run's resolved RunIdentity; "
+            "refusing to write an unstamped artifact."
+        )
+    return run_identity
+
+
+def write_run_config_json(cfg: PPOConfig, argv: Optional[list[str]] = None,
+                          *, run_identity=None) -> str:
+    """Write reproducibility sidecar JSON next to metrics CSV (or under ``checkpoint_dir``).
+
+    ``run_identity`` is the run's single resolved :class:`RunIdentity`, taken from
+    the live environment. It is MANDATORY for a formal run: without it the
+    sidecar cannot be validated as part of the artifact bundle, and a writer
+    that rebuilt identity from ``cfg`` defaults could disagree with the
+    environment that actually ran.
+    """
+    identity = _require_run_identity(run_identity, writer="write_run_config_json")
     path = _run_config_json_path(cfg)
     argv_list = list(sys.argv) if argv is None else list(argv)
     git_meta = _git_metadata()
@@ -162,10 +186,135 @@ def write_run_config_json(cfg: PPOConfig, argv: Optional[list[str]] = None) -> s
         },
         "resolved_ppo_config": _json_safe(asdict(cfg)),
     }
+    # Single shared passport. NOT rebuilt here -- stamped from the object the
+    # orchestrator resolved from the live environment, so this sidecar cannot
+    # disagree with the game that actually ran.
+    from rl.ruleset_identity import stamp_json_artifact
+
+    stamp_json_artifact(payload, identity)
+
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
         f.write("\n")
     return path
+
+
+def write_training_manifest_json(
+    cfg: PPOConfig,
+    *,
+    run_identity=None,
+    extra: Optional[dict[str, Any]] = None,
+) -> str:
+    """Write ``training_manifest.json`` stamped with the run's frozen identity."""
+    from rl.ruleset_identity import stamp_json_artifact
+
+    identity = _require_run_identity(run_identity, writer="write_training_manifest_json")
+    path = os.path.join(_artifact_base_dir(cfg), "training_manifest.json")
+    payload: dict[str, Any] = {
+        "utc_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "run_tag": str(cfg.run_tag),
+        "seed": int(getattr(cfg, "seed", 0) or 0),
+        "total_timesteps": int(cfg.total_timesteps),
+        "checkpoint_dir": str(cfg.checkpoint_dir),
+        "episode_csv_path": cfg.episode_csv_path,
+        "metrics_csv_path": cfg.metrics_csv_path,
+        "cli_preset": getattr(cfg, "cli_preset", None),
+        **_git_metadata(),
+    }
+    if extra:
+        payload.update(extra)
+    stamp_json_artifact(payload, identity)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+    return path
+
+
+def write_evaluation_manifest_json(
+    path: str,
+    *,
+    run_identity=None,
+    evaluation_run_id: Optional[str] = None,
+    source_training_run_id: Optional[str] = None,
+    source_checkpoint_fingerprint: Optional[str] = None,
+    source_checkpoint_ruleset_fingerprint: Optional[str] = None,
+    extra: Optional[dict[str, Any]] = None,
+) -> str:
+    """Write ``evaluation_manifest.json`` stamped from a resolved identity."""
+    from rl.ruleset_identity import stamp_json_artifact
+
+    identity = _require_run_identity(run_identity, writer="write_evaluation_manifest_json")
+    payload: dict[str, Any] = {
+        "utc_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "evaluation_run_id": evaluation_run_id or identity.run_id,
+        "source_training_run_id": source_training_run_id or identity.run_id,
+        "source_checkpoint_fingerprint": source_checkpoint_fingerprint or "",
+        "source_checkpoint_ruleset_fingerprint": (
+            source_checkpoint_ruleset_fingerprint or identity.ruleset_fingerprint
+        ),
+    }
+    if extra:
+        payload.update(extra)
+    stamp_json_artifact(payload, identity)
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+    return path
+
+
+def write_result_summary_json(
+    path: str,
+    summary: dict[str, Any],
+    *,
+    run_identity=None,
+    source_rows: Optional[list[dict[str, Any]]] = None,
+) -> str:
+    """Stamp and write a result summary; validate against source rows when given."""
+    from rl.ruleset_identity import (
+        RunIdentityError,
+        stamp_json_artifact,
+        validate_bundle,
+    )
+
+    identity = _require_run_identity(run_identity, writer="write_result_summary_json")
+    payload = dict(summary)
+    stamp_json_artifact(payload, identity)
+    if source_rows is not None:
+        if not source_rows:
+            raise RunIdentityError(
+                "write_result_summary_json refuses an empty source-row bundle "
+                "for a formal result summary."
+            )
+        validate_bundle(
+            {"result_summary.json": payload},
+            {"episode_rows.csv": list(source_rows)},
+            require_formal=bool(identity.formal_result_eligible),
+        )
+    parent = os.path.dirname(os.path.abspath(path))
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+    return path
+
+
+def write_startup_formal_artifacts(
+    cfg: PPOConfig,
+    *,
+    run_identity=None,
+    argv: Optional[list[str]] = None,
+) -> dict[str, str]:
+    """Write run_config + training_manifest from one frozen identity.
+
+    Both must succeed before the first rollout step.
+    """
+    rc = write_run_config_json(cfg, argv=argv, run_identity=run_identity)
+    tm = write_training_manifest_json(cfg, run_identity=run_identity)
+    return {"run_config": rc, "training_manifest": tm}
 
 
 def _metrics_csv_nonempty(path: Optional[str]) -> bool:
@@ -295,5 +444,9 @@ __all__ = [
     "_read_run_lock",
     "_rotate_csv_aside",
     "_run_config_json_path",
+    "write_evaluation_manifest_json",
+    "write_result_summary_json",
     "write_run_config_json",
+    "write_startup_formal_artifacts",
+    "write_training_manifest_json",
 ]

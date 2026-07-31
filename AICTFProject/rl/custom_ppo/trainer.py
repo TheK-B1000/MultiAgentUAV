@@ -127,11 +127,16 @@ class CustomPPOTrainer:
         batch_size: int,
         value_clip_range: Optional[float] = None,
         curriculum: Optional[Any] = None,
+        run_identity: Optional[Any] = None,
     ) -> None:
         """Construct a trainer.
 
         Resolved hyperparameters live on :attr:`hparams`. Legacy call sites
         that read ``trainer.latent_k`` etc. are served by :meth:`__getattr__`.
+
+        ``run_identity`` is required on the production path (via
+        :func:`rl.training.initialization.build_trainer`). Unit tests may omit
+        it, but checkpoint save and episode CSV writes will fail closed.
         """
         hparams = TrainerHyperparams.from_ppo_config(
             cfg,
@@ -148,6 +153,7 @@ class CustomPPOTrainer:
         self.cfg = cfg
         self.hparams = hparams
         self.curriculum = curriculum
+        self.run_identity = run_identity
         self.device = torch.device(str(cfg.device))
 
         policy_obs_space = extend_observation_space_if_needed(env.observation_space, cfg)

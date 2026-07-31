@@ -6927,6 +6927,62 @@ isolation test first; read **authoritative environment state** throughout
 (not post-step reconstructed proxies). Build order and downstream locks
 unchanged; nothing else in scope until Gate 2B lands.
 
+### Formal run identity — production wiring (2026-07-31)
+
+Passport helpers (`RunIdentity`, `stamp_*`, `validate_bundle`) already existed.
+Production travelers are now stamped from one frozen object resolved in
+`orchestrate_training_run` immediately after `build_training_env` and before
+any artifact write:
+
+```text
+env = build_training_env(...)
+run_identity = build_formal_run_identity(env, run_id=cfg.run_tag)
+write_startup_formal_artifacts(cfg, run_identity=...)  # run_config + training_manifest
+build_trainer(..., run_identity=...)                   # mandatory
+# episode CSV rows stamped at write time
+# checkpoint save/load share the same identity universe
+# in-run evaluation_manifest + result_summary stamped from the same object
+```
+
+**Smoke unlock condition — unlocked (2026-07-31).** Items 1–6 are PASS.
+The 50k–100k stamped PPO smoke is **AUTHORIZED**. Unlock criteria were:
+
+```text
+1. production call sites use RunIdentity
+2. identity is mandatory throughout (missing fails before first rollout)
+3. real production artifacts validate as one bundle
+4. checkpoint save/load uses the same identity universe
+5. standalone evaluation verifies checkpoint compatibility
+6. diagnostic override cannot produce a formal result
+```
+
+Status vs unlock checklist (2026-07-31):
+
+```text
+1–4  PASS — orchestrator + writers + formal-bundle integration test
+5    PASS — standalone eval resolves live identity, verifies checkpoint
+             before inference (map + full ruleset fields), stamps
+             evaluation_manifest / episode_rows / result_summary, and
+             diagnostic override cannot produce a formal result
+             (tests/test_standalone_eval_identity.py)
+6    PASS — allow_override forces formal_result_eligible=False
+```
+
+```text
+1–6 production identity gates   PASS
+50k–100k stamped PPO smoke      AUTHORIZED
+G0-v2                           still locked until smoke passes
+latent birth                    locked
+router                          locked
+```
+
+Integration gates:
+- `tests/test_production_formal_bundle.py` (training artifact-bundle-only)
+- `tests/test_standalone_eval_identity.py` (standalone eval identity border)
+
+The stamped 50k–100k PPO smoke is now authorized. G0-v2 / latent birth /
+router remain locked until that smoke passes.
+
 **Gate 2B meaning (LOCKED):** first check that the corrected game has
 **strategic soil** on `map_a` — not that latents have been learned.
 
