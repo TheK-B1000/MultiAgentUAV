@@ -25,34 +25,28 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 SNAPSHOT_PATH = os.path.join(_HERE, "preset_snapshots.json")
 
 
-def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
-    """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict.
+def _json_safe(value: Any) -> Any:
+    """Recursively convert tuples to lists so JSON round-trips compare equal.
 
-    JSON has no tuple type, so any ``tuple`` field on PPOConfig has to be
-    normalised to a list before comparison: otherwise a freshly resolved
-    config (tuple) would never equal a snapshot loaded from JSON (list).
-    Add every tuple-typed PPOConfig field that ships in the registry here.
+    JSON has no tuple type, so a freshly resolved config (tuple) would never
+    equal a snapshot loaded from JSON (list). This walks the whole structure
+    rather than naming individual fields: an enumerated allowlist silently
+    goes stale the moment someone adds a tuple-typed field to PPOConfig, and
+    the resulting failure looks like a preset regression instead of a
+    serialisation bug.
     """
+    if isinstance(value, (tuple, list)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    return value
+
+
+def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
+    """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict."""
     cfg = PPOConfig()
     apply_preset(cfg, key)
-    cfg_dict = asdict(cfg)
-    for tuple_field in (
-        "opponent_pool",
-        "opponent_pool_weights",
-        "map_pool",
-        "latent_router_distill_opponents",
-        "router_allowed_latents",
-        "router_ablation_conditions",
-        "router_ablation_oracle_conditions",
-        "router_ablation_primary_metrics",
-        "router_ablation_diagnostic_metrics",
-        "router_ablation_opponents",
-        "v6i6_anchor_latents",
-        "v6i6_dormant_latents",
-    ):
-        if isinstance(cfg_dict.get(tuple_field), tuple):
-            cfg_dict[tuple_field] = list(cfg_dict[tuple_field])
-    return cfg_dict
+    return {k: _json_safe(v) for k, v in asdict(cfg).items()}
 
 
 def resolve_all_presets() -> dict[str, dict[str, Any]]:

@@ -100,8 +100,13 @@ class TestOP8AdaptiveBlock(unittest.TestCase):
                                msg=f"Leading block fraction should be ~0.5, got {frac:.3f}")
 
 
-class TestOP9LateGamePressure(unittest.TestCase):
-    """OP9 striker should switch to evasion only when trailing AND in late game."""
+class TestOP9SplitLaneFeint(unittest.TestCase):
+    """OP9's striker runs a split-lane feint, not a straight line at the flag.
+
+    The feint is the OP9 niche in the profile table (``lane_amplitude_frac``
+    is the highest of any level), and it is unconditional: the route does not
+    depend on the score or on how much of the episode has elapsed.
+    """
 
     def _striker_target_x(self, *, step: int, red_score: int, blue_score: int) -> float:
         """Return attacker (red agent 1) target_x after one BT target update."""
@@ -126,28 +131,18 @@ class TestOP9LateGamePressure(unittest.TestCase):
         core, env = _make_core("OP9")
         return float(core.blue_flag_pos[0, 0].item())
 
-    def test_early_game_trailing_no_pressure(self) -> None:
-        """OP9 trailing at step 50 (early game) keeps conservative striker."""
-        efx = self._enemy_flag_x()
-        tx = self._striker_target_x(step=50, red_score=0, blue_score=1)
-        # Conservative: striker should go straight toward enemy flag (within ±2 cells).
-        self.assertAlmostEqual(tx, efx, delta=2.0,
-                               msg=f"Early-game OP9 striker should go to flag ({efx:.1f}), got {tx:.1f}")
-
-    def test_late_game_trailing_enables_pressure(self) -> None:
-        """OP9 trailing at step 320 (>75% elapsed) uses evasive striker."""
+    def test_striker_deviates_from_direct_flag_line(self) -> None:
         efx = self._enemy_flag_x()
         tx = self._striker_target_x(step=320, red_score=0, blue_score=1)
-        # Evasion: target deviates from straight flag line because enemy is close.
         self.assertNotAlmostEqual(tx, efx, delta=0.5,
-                                  msg=f"Late-game OP9 striker should deviate from flag ({efx:.1f}), got {tx:.1f}")
+                                  msg=f"OP9 striker should deviate from flag ({efx:.1f}), got {tx:.1f}")
 
-    def test_late_game_leading_no_pressure(self) -> None:
-        """OP9 leading in late game should NOT trigger evasion (not trailing)."""
-        efx = self._enemy_flag_x()
-        tx = self._striker_target_x(step=320, red_score=1, blue_score=0)
-        self.assertAlmostEqual(tx, efx, delta=2.0,
-                               msg=f"Leading OP9 striker should stay conservative ({efx:.1f}), got {tx:.1f}")
+    def test_feint_does_not_depend_on_score_or_phase(self) -> None:
+        early_trailing = self._striker_target_x(step=50, red_score=0, blue_score=1)
+        late_trailing = self._striker_target_x(step=320, red_score=0, blue_score=1)
+        late_leading = self._striker_target_x(step=320, red_score=1, blue_score=0)
+        self.assertAlmostEqual(early_trailing, late_trailing, delta=0.01)
+        self.assertAlmostEqual(late_trailing, late_leading, delta=0.01)
 
 
 class TestDebugTargetsStored(unittest.TestCase):

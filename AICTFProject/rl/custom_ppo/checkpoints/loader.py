@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import os
+import time
 import warnings
 
 import torch
@@ -523,8 +525,31 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
         payload["comm_runtime_state"] = trainer.comm_runtime.state_dict()
     payload["ppo_updater_state"] = trainer.updater.state_dict()
     
+    # Single shared boundary: checkpoint["ruleset"], checkpoint's
+    # artifact_identity, and the live RunIdentity must be three representations
+    # of one fact. A matching ruleset_id alone is never sufficient.
+    from rl.ruleset_identity import verify_checkpoint_run_identity
+
+    verify_checkpoint_run_identity(
+        payload, run_identity, operation="save", context=str(path))
+
+    # Atomic write: a failed identity check or a torn write must never leave an
+    # apparently valid checkpoint behind for a later run to pick up.
     write_start = time.perf_counter()
-    torch.save(payload, path)
+    tmp_path = f"{path}.tmp"
+    try:
+        torch.save(payload, tmp_path)
+        verify_checkpoint_run_identity(
+            _torch_load_checkpoint(tmp_path, map_location="cpu"),
+            run_identity, operation="save", context=f"{path} (readback)")
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
     write_seconds = time.perf_counter() - write_start
     
     hash_start = time.perf_counter()

@@ -109,6 +109,8 @@ class OptionAdvantageTests(unittest.TestCase):
                 "reward_sparse_points": torch.zeros((2,)),
                 "reward_failure": torch.zeros((2,)),
                 "reward_behavior_contrast": torch.zeros((2,)),
+                "reward_contract_specialist": torch.zeros((2,)),
+                "reward_outcome_diversity": torch.zeros((2,)),
                 "reward_csia": torch.zeros((2,)),
                 "reward_total": torch.zeros((2,)),
                 "terminated": torch.zeros((2,), dtype=torch.bool),
@@ -137,6 +139,8 @@ class OptionAdvantageTests(unittest.TestCase):
     def test_default_behavior_is_unchanged_when_toggle_is_false(self) -> None:
         """1. Default behavior is unchanged when latent_q_phi_option_advantage=False."""
         cfg = PPOConfig()
+        # MockEnv holds CPU tensors; pin the trainer so the test is host-independent.
+        cfg.device = "cpu"
         cfg.use_latent_strategy = True
         cfg.latent_q_phi_option_advantage = False
         cfg.n_steps = 4
@@ -183,6 +187,8 @@ class OptionAdvantageTests(unittest.TestCase):
         """2. option_advantages are generated only for latent-enabled rollouts."""
         # Case A: Latent enabled
         cfg_latent = PPOConfig()
+        # MockEnv holds CPU tensors; pin the trainer so the test is host-independent.
+        cfg_latent.device = "cpu"
         cfg_latent.use_latent_strategy = True
         cfg_latent.n_steps = 2
         trainer_latent = CustomPPOTrainer(
@@ -224,6 +230,8 @@ class OptionAdvantageTests(unittest.TestCase):
 
         # Case B: Latent disabled
         cfg_no_latent = PPOConfig()
+        # MockEnv holds CPU tensors; pin the trainer so the test is host-independent.
+        cfg_no_latent.device = "cpu"
         cfg_no_latent.use_latent_strategy = False
         cfg_no_latent.n_steps = 2
         trainer_no_latent = CustomPPOTrainer(
@@ -296,6 +304,8 @@ class OptionAdvantageTests(unittest.TestCase):
     def test_action_ppo_uses_standard_advantages(self) -> None:
         """4. action PPO still uses standard advantages."""
         cfg = PPOConfig()
+        # MockEnv holds CPU tensors; pin the trainer so the test is host-independent.
+        cfg.device = "cpu"
         cfg.use_latent_strategy = True
         cfg.latent_q_phi_option_advantage = True
         cfg.n_steps = 4
@@ -349,6 +359,8 @@ class OptionAdvantageTests(unittest.TestCase):
     def test_q_phi_strategy_loss_uses_option_advantages_when_toggle_is_true(self) -> None:
         """5. q_phi strategy loss uses option_advantages when the toggle is True."""
         cfg = PPOConfig()
+        # MockEnv holds CPU tensors; pin the trainer so the test is host-independent.
+        cfg.device = "cpu"
         cfg.use_latent_strategy = True
         cfg.latent_q_phi_option_advantage = True
         cfg.n_steps = 4

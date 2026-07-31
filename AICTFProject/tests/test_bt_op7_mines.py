@@ -1,4 +1,8 @@
-"""OP9 deliberate mine placement through the behavior-tree route layer."""
+"""OP7 deliberate mine placement through the behavior-tree route layer.
+
+Mines are the OP7 deep-fortress niche in the profile table pinned by
+``test_bt_strategic_niches.py``; no other level enables them.
+"""
 from __future__ import annotations
 
 import sys
@@ -14,7 +18,7 @@ from gpu_env._core._bt_red import ROLE_DEFENDER, ROLE_ESCORT, ROLE_INTERCEPTOR
 from macro_actions import MacroAction
 
 
-def _core(opponent: str = "OP9", *, n_red: int = 2, seed: int = 0):
+def _core(opponent: str = "OP7", *, n_red: int = 2, seed: int = 0):
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig  # type: ignore[import]
 
     cfg = GPUFieldConfig(
@@ -47,7 +51,7 @@ def _core(opponent: str = "OP9", *, n_red: int = 2, seed: int = 0):
 
 
 def _in_mine_window(c) -> None:
-    prof = profile_for_level(9)
+    prof = profile_for_level(7)
     c.sim_step_count[0] = int(prof.mine_approach_lead_steps - 1)
 
 
@@ -60,15 +64,16 @@ class _BTMineTestCase(unittest.TestCase):
             self._env = None
 
 
-class TestOP9MineProfile(_BTMineTestCase):
-    def test_op9_enables_mines(self) -> None:
-        self.assertTrue(profile_for_level(9).enable_mines)
+class TestOP7MineProfile(_BTMineTestCase):
+    def test_op7_enables_mines(self) -> None:
+        self.assertTrue(profile_for_level(7).enable_mines)
         self.assertFalse(profile_for_level(8).enable_mines)
+        self.assertFalse(profile_for_level(9).enable_mines)
 
 
-class TestOP9DefenderChokeMine(_BTMineTestCase):
+class TestOP7DefenderChokeMine(_BTMineTestCase):
     def test_defender_routes_to_approach_lane(self) -> None:
-        c, self._env = _core("OP9", seed=101)
+        c, self._env = _core("OP7", seed=101)
         _in_mine_window(c)
         c.red_mine_charges[0, 1] = 1
         c.red_x[0, 0] = 4.0
@@ -88,16 +93,17 @@ class TestOP9DefenderChokeMine(_BTMineTestCase):
 
         home_x = float(c.red_flag_home[0, 0].item())
         midline = float(c.cols) * 0.5
-        expected_x = home_x + (midline - home_x) * 0.4
+        lane_frac = profile_for_level(7).mine_defender_lane_frac
+        expected_x = home_x + (midline - home_x) * lane_frac
         tx = float(c._debug_red_target_x[0, agent].item())
         ty = float(c._debug_red_target_y[0, agent].item())
         self.assertAlmostEqual(tx, expected_x, places=1)
         self.assertAlmostEqual(ty, float(c.red_flag_home[0, 1].item()), places=1)
 
 
-class TestOP9InterceptorLaneMine(_BTMineTestCase):
+class TestOP7InterceptorLaneMine(_BTMineTestCase):
     def test_interceptor_mines_escape_lane(self) -> None:
-        c, self._env = _core("OP9", seed=102)
+        c, self._env = _core("OP7", seed=102)
         _in_mine_window(c)
         c.red_mine_charges[0, 0] = 1
         c.blue_carrying[0, 0] = True
@@ -116,13 +122,15 @@ class TestOP9InterceptorLaneMine(_BTMineTestCase):
 
         home_x = float(c.blue_flag_home[0, 0].item())
         ec_x = float(c.blue_x[0, 0].item())
-        expected_x = ec_x + (home_x - ec_x) * 0.5
+        # Scores are level, so the trailing bonus does not apply.
+        block_frac = profile_for_level(7).intercept_block_base
+        expected_x = ec_x + (home_x - ec_x) * block_frac
         self.assertAlmostEqual(float(c.bt_mine_target_x[0, agent].item()), expected_x, places=1)
 
 
-class TestOP9MineGuards(_BTMineTestCase):
+class TestOP7MineGuards(_BTMineTestCase):
     def test_no_mine_without_charge(self) -> None:
-        c, self._env = _core("OP9", seed=103)
+        c, self._env = _core("OP7", seed=103)
         _in_mine_window(c)
         c.red_mine_charges[0] = 0
         c.blue_x[0, 0] = 12.0
@@ -133,7 +141,7 @@ class TestOP9MineGuards(_BTMineTestCase):
         self.assertFalse(bool(c.bt_want_mine[0].any().item()))
 
     def test_carrier_does_not_mine(self) -> None:
-        c, self._env = _core("OP9", seed=104)
+        c, self._env = _core("OP7", seed=104)
         _in_mine_window(c)
         c.red_mine_charges[0, 0] = 1
         c.red_carrying[0, 0] = True
@@ -158,9 +166,9 @@ class TestOP9MineGuards(_BTMineTestCase):
             self.assertFalse(bool(c.bt_want_mine[0, agent].item()))
 
 
-class TestOP9PlaceMineMacro(_BTMineTestCase):
+class TestOP7PlaceMineMacro(_BTMineTestCase):
     def test_place_mine_macro_when_at_site(self) -> None:
-        c, self._env = _core("OP9", seed=106)
+        c, self._env = _core("OP7", seed=106)
         _in_mine_window(c)
         c.red_mine_charges[0, 1] = 1
         c.blue_x[0, 0] = 12.0

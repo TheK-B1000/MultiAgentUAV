@@ -162,6 +162,7 @@ def artifact_row_fields(cfg: Any, *, formal_result_eligible: bool = True) -> dic
 import hashlib as _hashlib
 import json as _json
 import uuid as _uuid
+from pathlib import Path as _Path
 from dataclasses import asdict as _asdict, dataclass as _dataclass, field as _field
 
 ARTIFACT_IDENTITY_KEY = "artifact_identity"
@@ -598,3 +599,233 @@ def validate_bundle(json_artifacts: Mapping[str, Mapping],
                     raise RunIdentityError(
                         f"{label!r} row {i} {k} mismatch: {r[k]!r} != {ref[k]!r}")
     return dict(ref)
+
+
+# ======================================================================
+# Verified checkpoint lineage
+# ======================================================================
+#
+# A formal evaluation manifest must prove the CHECKPOINT and the live
+# evaluation environment agree. The earlier writer defaulted the lineage
+# fields to the evaluation run's own identity, so an omitted value produced a
+# manifest asserting the checkpoint matched itself -- a border check comparing
+# a passport to its own reflection.
+#
+# Lineage is therefore a validated object, constructible only by the
+# compatibility verifier, rather than three loose strings a caller can forget.
+
+
+@_dataclass(frozen=True)
+class VerifiedCheckpointLineage:
+    source_training_run_id: str
+    source_checkpoint_fingerprint: str
+    source_checkpoint_ruleset_fingerprint: str
+
+    def as_dict(self) -> dict:
+        return {
+            "source_training_run_id": self.source_training_run_id,
+            "source_checkpoint_fingerprint": self.source_checkpoint_fingerprint,
+            "source_checkpoint_ruleset_fingerprint":
+                self.source_checkpoint_ruleset_fingerprint,
+            "checkpoint_lineage_complete": True,
+        }
+
+    @classmethod
+    def for_in_training_evaluation(cls, identity: "RunIdentity",
+                                   checkpoint_fingerprint: str
+                                   ) -> "VerifiedCheckpointLineage":
+        """Lineage for evaluation performed INSIDE the training run.
+
+        Here the evaluation and the checkpoint genuinely share a run, so
+        ``source_training_run_id == evaluation_run_id`` is a fact rather than a
+        self-fallback. It is an explicit, named constructor precisely so that
+        equality is a declared claim at the call site, not something a writer
+        quietly filled in for an absent argument.
+        """
+        if not identity.formal_result_eligible:
+            raise RunIdentityError(
+                "for_in_training_evaluation is for formal runs; a diagnostic run "
+                "must record VerifiedCheckpointLineage.missing().")
+        if not (checkpoint_fingerprint or "").strip():
+            raise RunIdentityError(
+                "in-training lineage still requires a real checkpoint fingerprint.")
+        return cls(
+            source_training_run_id=identity.run_id,
+            source_checkpoint_fingerprint=str(checkpoint_fingerprint),
+            source_checkpoint_ruleset_fingerprint=identity.ruleset_fingerprint,
+        )
+
+    @staticmethod
+    def missing() -> dict:
+        """Honest record of absent lineage for a diagnostic evaluation.
+
+        Null is honest; self-fallback is camouflage.
+        """
+        return {
+            "source_training_run_id": None,
+            "source_checkpoint_fingerprint": None,
+            "source_checkpoint_ruleset_fingerprint": None,
+            "checkpoint_lineage_complete": False,
+        }
+
+
+def verify_checkpoint_lineage(*, checkpoint_path: str, identity: RunIdentity,
+                              checkpoint_ruleset: Mapping | None,
+                              source_training_run_id: str | None,
+                              checkpoint_file_fingerprint: str | None = None,
+                              ) -> VerifiedCheckpointLineage:
+    """Construct lineage ONLY after checking the checkpoint against the env.
+
+    Called before model weights are executed. Raises rather than returning a
+    partially-populated object, so a caller cannot proceed on a half-check.
+    """
+    if not identity.formal_result_eligible:
+        raise RunIdentityError(
+            "verify_checkpoint_lineage is for formal evaluations; a diagnostic "
+            "run must record VerifiedCheckpointLineage.missing() instead.")
+
+    ck_fp = classify(checkpoint_ruleset)
+    if ck_fp == LEGACY_UNKNOWN:
+        raise RunIdentityError(
+            f"Checkpoint {checkpoint_path!r} has no complete ruleset metadata "
+            "(LEGACY_UNKNOWN); refusing to evaluate it formally.")
+
+    ck_hash = ruleset_fingerprint_hash(checkpoint_ruleset)
+    if ck_hash != identity.ruleset_fingerprint:
+        raise RunIdentityError(
+            f"Checkpoint ruleset fingerprint does not match the live evaluation "
+            f"environment: checkpoint={ck_hash[:12]} env="
+            f"{identity.ruleset_fingerprint[:12]} "
+            f"(checkpoint ruleset_id={ck_fp}, env={identity.ruleset_id}).")
+
+    if not (source_training_run_id or "").strip():
+        raise RunIdentityError(
+            "source_training_run_id is required for a formal evaluation and "
+            "must come from the checkpoint, not the evaluation run.")
+
+    file_fp = checkpoint_file_fingerprint
+    if not (file_fp or "").strip():
+        p = _Path(checkpoint_path)
+        if not p.exists():
+            raise RunIdentityError(
+                f"Cannot fingerprint checkpoint {checkpoint_path!r}: file not found.")
+        h = _hashlib.sha256()
+        with open(p, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1 << 20), b""):
+                h.update(chunk)
+        file_fp = h.hexdigest()
+
+    return VerifiedCheckpointLineage(
+        source_training_run_id=str(source_training_run_id),
+        source_checkpoint_fingerprint=str(file_fp),
+        source_checkpoint_ruleset_fingerprint=ck_hash,
+    )
+
+
+# ======================================================================
+# Checkpoint <-> RunIdentity join
+# ======================================================================
+#
+# A checkpoint historically carried its own homemade passport: a "ruleset"
+# payload unrelated to the run-level identity block. Two parallel systems can
+# drift. This is the single boundary both save and load pass through, so the
+# checkpoint's ruleset, its artifact_identity, and the live RunIdentity are
+# three representations of ONE fact rather than three opinions.
+
+CHECKPOINT_RULESET_KEY = "ruleset"
+
+_IDENTITY_COMPARE_FIELDS = (
+    "canonical_map", "resolved_map", "ruleset_id", "ruleset_fingerprint",
+    "formal_result_eligible", "identity_override_used",
+)
+
+
+def verify_checkpoint_run_identity(checkpoint_payload: Mapping,
+                                   live_identity: RunIdentity,
+                                   *,
+                                   operation: str,
+                                   allow_different_run_id: bool = False,
+                                   context: str = "") -> dict:
+    """Compare checkpoint ruleset, artifact_identity, and live RunIdentity.
+
+    ``operation`` is ``"save"`` or ``"load"``. On load this MUST be called
+    before ``load_state_dict`` and before any forward pass.
+
+    ``allow_different_run_id`` is for standalone evaluation, where a later run
+    legitimately evaluates another run's checkpoint. Map and ruleset must still
+    match exactly; only the run id may differ. It is an explicit argument rather
+    than a permissive comparison so the intent is visible at the call site.
+    """
+    if operation not in ("save", "load"):
+        raise RunIdentityError(f"operation must be 'save' or 'load', got {operation!r}")
+    where = f" ({context})" if context else ""
+
+    ai = checkpoint_payload.get(ARTIFACT_IDENTITY_KEY)
+    if not isinstance(ai, Mapping):
+        raise RunIdentityError(
+            f"Checkpoint{where} has no {ARTIFACT_IDENTITY_KEY!r} block; refusing to "
+            f"{operation}. Legacy/unstamped checkpoints are not eligible.")
+
+    ck_rules = checkpoint_payload.get(CHECKPOINT_RULESET_KEY)
+    if not isinstance(ck_rules, Mapping) or not is_complete(ck_rules):
+        raise RunIdentityError(
+            f"Checkpoint{where} has no complete {CHECKPOINT_RULESET_KEY!r} payload "
+            f"(classified {classify(ck_rules)}); refusing to {operation}.")
+
+    # (1) the checkpoint's two internal representations must agree
+    ck_hash = ruleset_fingerprint_hash(ck_rules)
+    if ai.get("ruleset_fingerprint") != ck_hash:
+        raise RunIdentityError(
+            f"Checkpoint{where} is internally inconsistent: artifact_identity "
+            f"fingerprint {str(ai.get('ruleset_fingerprint'))[:12]} != ruleset "
+            f"payload fingerprint {ck_hash[:12]}.")
+    if str(ai.get("ruleset_id")) != str(ck_rules.get("ruleset_id")):
+        raise RunIdentityError(
+            f"Checkpoint{where} ruleset_id disagrees between artifact_identity "
+            f"({ai.get('ruleset_id')!r}) and ruleset payload "
+            f"({ck_rules.get('ruleset_id')!r}).")
+
+    # (2) the checkpoint must agree with the live environment
+    live = live_identity.artifact_identity()
+    diffs = [k for k in _IDENTITY_COMPARE_FIELDS if ai.get(k) != live.get(k)]
+    if diffs:
+        raise RunIdentityError(
+            f"Checkpoint{where} identity does not match the live environment on "
+            f"{diffs}: checkpoint={{{', '.join(f'{k}={ai.get(k)!r}' for k in diffs)}}} "
+            f"live={{{', '.join(f'{k}={live.get(k)!r}' for k in diffs)}}}. "
+            "A matching ruleset_id alone is never sufficient.")
+
+    # (3) field-level equality, so a doctored fingerprint cannot slip through
+    field_diffs = [k for k in RULESET_FIELDS
+                   if ck_rules.get(k) != live_identity.ruleset.get(k)]
+    if field_diffs:
+        raise RunIdentityError(
+            f"Checkpoint{where} ruleset fields differ from the live environment: "
+            f"{field_diffs}.")
+
+    # (4) run id
+    if not allow_different_run_id and ai.get("run_id") != live.get("run_id"):
+        raise RunIdentityError(
+            f"Checkpoint{where} run_id {ai.get('run_id')!r} != live run_id "
+            f"{live.get('run_id')!r}. Pass allow_different_run_id=True only for "
+            "standalone evaluation, and record the relationship in a "
+            "VerifiedCheckpointLineage.")
+
+    return {"operation": operation, "match": True,
+            "checkpoint_run_id": ai.get("run_id"), "live_run_id": live.get("run_id"),
+            "ruleset_id": live_identity.ruleset_id,
+            "ruleset_fingerprint": live_identity.ruleset_fingerprint,
+            "different_run_id_allowed": bool(allow_different_run_id)}
+
+
+def build_checkpoint_identity_payload(live_identity: RunIdentity) -> dict:
+    """The two identity representations a formal checkpoint must carry."""
+    if not isinstance(live_identity, RunIdentity):
+        raise RunIdentityError(
+            "build_checkpoint_identity_payload requires the run's resolved "
+            "RunIdentity; a checkpoint must not infer identity from trainer "
+            "config or environment defaults.")
+    return {
+        CHECKPOINT_RULESET_KEY: dict(live_identity.ruleset),
+        ARTIFACT_IDENTITY_KEY: live_identity.artifact_identity(),
+    }

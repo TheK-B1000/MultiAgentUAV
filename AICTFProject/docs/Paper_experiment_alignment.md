@@ -424,6 +424,33 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **Preset registry de-duplication + snapshot resync (no semantic change):**
+  `rl/presets/_registry_source.py::_get_preset_dict` was a hand-maintained
+  copy of `PRESET_REGISTRY`, kept only to break the `rl.presets` ↔
+  `rl.presets.registry` import cycle. It had silently fallen dozens of
+  presets behind the real mapping, so `PresetRegistry` could not resolve
+  the v6i13–v6i22 families (caught by
+  `tests/test_preset_system.py::test_registry_covers_all_legacy_presets`
+  on `v6i13_opening_window_advantage_router`). The mirror is deleted; the
+  module now defers `from rl.presets import PRESET_REGISTRY` into the
+  function body, which runs on first `get_registry()` call, after
+  `rl.presets` has finished importing. Also regenerated
+  `tests/preset_snapshots.json`, which had gone stale by the same drift.
+  The regeneration is **purely additive** and was audited before writing:
+  0 existing field values changed, 0 fields dropped. It adds 17 already-
+  registered preset keys (v6i23 / v6i24 / v6i26 aliases) and 14 new
+  default-valued `PPOConfig` fields (`population_*`, `latent_lro_*`,
+  `latent_population_birth_*`, `training_cell_distribution`,
+  `phase_pod_id`, `freeze_return_norm_after_load`,
+  `obstacle_obs_channel`) to every entry. No paper-faithful preset's
+  resolved configuration changes. One of those new fields,
+  `training_cell_distribution`, is tuple-typed, which exposed a second
+  hand-maintained allowlist:
+  `tests/test_preset_resolution.py::_resolve_preset_to_dict` normalised
+  tuples to lists only for enumerated field names, so an unlisted tuple
+  field made all 541 entries mismatch on JSON round-trip (tuple vs list)
+  and read as a mass preset regression. Normalisation is now a recursive
+  walk over the resolved dict, so it cannot go stale.
 - **v6i22C / context-conditioned outcome diversity:** Added
   `apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity`
   (aliases `v6i22c`, `v6i22c_contextual_outcome_diversity`,

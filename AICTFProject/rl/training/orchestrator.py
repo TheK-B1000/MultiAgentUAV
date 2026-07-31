@@ -275,13 +275,17 @@ def _write_in_run_eval_and_summary(cfg, trainer, run_identity, *, checkpoint_pat
 
     ckpt_fp = _checkpoint_file_fingerprint(checkpoint_path) if os.path.isfile(checkpoint_path) else ""
     eval_path = os.path.join(base, "evaluation_manifest.json")
+    # In-training evaluation: the checkpoint was produced by THIS run, so the
+    # shared run id is a declared fact. Stated through the named constructor
+    # rather than by omitting arguments and letting the writer infer it.
+    from rl.ruleset_identity import VerifiedCheckpointLineage
+
     write_evaluation_manifest_json(
         eval_path,
         run_identity=run_identity,
         evaluation_run_id=run_identity.run_id,
-        source_training_run_id=run_identity.run_id,
-        source_checkpoint_fingerprint=ckpt_fp,
-        source_checkpoint_ruleset_fingerprint=run_identity.ruleset_fingerprint,
+        lineage=VerifiedCheckpointLineage.for_in_training_evaluation(
+            run_identity, ckpt_fp),
         extra={"scope": "in_training"},
     )
 

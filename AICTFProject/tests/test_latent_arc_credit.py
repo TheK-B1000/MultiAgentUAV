@@ -155,6 +155,11 @@ def _make_trainer(
         device=device,
         model=model,
         optimizer=optimizer,
+        cfg=SimpleNamespace(
+            router_opening_context_mode="",
+            max_grad_norm=0.5,
+            target_kl=None,
+        ),
         latent_router_optimizer=None,
         use_latent_strategy=True,
         fixed_latent_strategy=False,

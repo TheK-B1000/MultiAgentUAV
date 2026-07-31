@@ -235,23 +235,43 @@ def write_evaluation_manifest_json(
     *,
     run_identity=None,
     evaluation_run_id: Optional[str] = None,
-    source_training_run_id: Optional[str] = None,
-    source_checkpoint_fingerprint: Optional[str] = None,
-    source_checkpoint_ruleset_fingerprint: Optional[str] = None,
+    lineage=None,
     extra: Optional[dict[str, Any]] = None,
 ) -> str:
-    """Write ``evaluation_manifest.json`` stamped from a resolved identity."""
-    from rl.ruleset_identity import stamp_json_artifact
+    """Write ``evaluation_manifest.json`` stamped from a resolved identity.
+
+    ``lineage`` must be a :class:`VerifiedCheckpointLineage`, constructible only
+    by ``verify_checkpoint_lineage`` after the checkpoint has been checked
+    against the live evaluation environment.
+
+    There is deliberately NO fallback. The previous signature defaulted the
+    lineage fields to the evaluation run's own identity, which manufactured a
+    manifest asserting the checkpoint matched itself -- a border check comparing
+    a passport to its own reflection. A diagnostic run records explicit nulls
+    instead; null is honest, self-fallback is camouflage.
+    """
+    from rl.ruleset_identity import (
+        RunIdentityError,
+        VerifiedCheckpointLineage,
+        stamp_json_artifact,
+    )
 
     identity = _require_run_identity(run_identity, writer="write_evaluation_manifest_json")
+    if identity.formal_result_eligible:
+        if not isinstance(lineage, VerifiedCheckpointLineage):
+            raise RunIdentityError(
+                "A formal evaluation manifest requires a VerifiedCheckpointLineage "
+                "obtained from verify_checkpoint_lineage(); refusing to infer "
+                "checkpoint lineage from the evaluation run's own identity.")
+        lineage_fields = lineage.as_dict()
+    else:
+        lineage_fields = (lineage.as_dict() if isinstance(lineage, VerifiedCheckpointLineage)
+                          else VerifiedCheckpointLineage.missing())
+
     payload: dict[str, Any] = {
         "utc_timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "evaluation_run_id": evaluation_run_id or identity.run_id,
-        "source_training_run_id": source_training_run_id or identity.run_id,
-        "source_checkpoint_fingerprint": source_checkpoint_fingerprint or "",
-        "source_checkpoint_ruleset_fingerprint": (
-            source_checkpoint_ruleset_fingerprint or identity.ruleset_fingerprint
-        ),
+        **lineage_fields,
     }
     if extra:
         payload.update(extra)

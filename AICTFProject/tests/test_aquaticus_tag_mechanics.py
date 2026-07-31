@@ -14,6 +14,13 @@ from gpu_env import GPUCTFVecEnv, GPUFieldConfig
 
 
 class AquaticusTagMechanicTests(unittest.TestCase):
+    """RULESET_V1 sustained-pressure tagging (two simultaneous taggers).
+
+    The V1 knobs are set explicitly because RULESET_V2 is now the default;
+    V2's per-request eligibility model is covered by
+    ``tests/test_aquaticus_tag_rules.py``.
+    """
+
     def _make_core(self):
         cfg = GPUFieldConfig(
             n_envs=1,
@@ -23,6 +30,10 @@ class AquaticusTagMechanicTests(unittest.TestCase):
             max_decision_steps=64,
             aquaticus_profile=True,
             rules_profile="OURS",
+            taggers_required=2,
+            tag_nearest_only=False,
+            tag_min_interval_seconds=0.0,
+            tag_channel_seconds=1.0,
             device="cpu",
             seed=123,
         )

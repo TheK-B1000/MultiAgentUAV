@@ -49,6 +49,12 @@ def _make_core(opponent: str, *, seed: int = 0, max_steps: int = 400,
     return core, env
 
 
+# OP8's formation opening and OP12's stage-1 opening force every agent to
+# ATTACKER for the first sim steps (see ``_bt_assign_roles``). Role-selection
+# scenarios must therefore start after that window.
+_PAST_OPENING_STEP = 25
+
+
 def _run_bt(core, opponent: str = "OP11") -> tuple:
     core._opponent_key[0] = opponent
     tx, ty = core._get_bt_targets()
@@ -89,8 +95,10 @@ class TestOP6DefensiveIdentity(unittest.TestCase):
         self.assertNotIn(ROLE_COUNTER, roles)
 
 
-class TestOP7EscortCoordination(unittest.TestCase):
-    def test_escort_with_carrier(self) -> None:
+class TestOP7FortressDoesNotEscort(unittest.TestCase):
+    """OP7 is the deep-fortress niche: it holds home rather than walking a carrier."""
+
+    def test_no_escort_with_carrier(self) -> None:
         core, _ = _make_core("OP7")
         core.red_carrying[0, 0] = True
         core.red_x[0, 0] = 14.0
@@ -98,11 +106,14 @@ class TestOP7EscortCoordination(unittest.TestCase):
         core.blue_x[0, 0] = 13.0
         core.blue_y[0, 0] = 10.0
         roles, _, _ = _run_bt(core, "OP7")
-        self.assertIn(ROLE_ESCORT, roles)
+        self.assertNotIn(ROLE_ESCORT, roles)
+        self.assertIn(ROLE_DEFENDER, roles)
 
 
-class TestOP10EscortInterpose(unittest.TestCase):
-    def test_escort_role_with_carrier(self) -> None:
+class TestOP10InterceptorDoesNotEscort(unittest.TestCase):
+    """OP10 is the pure-interceptor niche: no escort gate in its profile."""
+
+    def test_no_escort_with_carrier(self) -> None:
         core, _ = _make_core("OP10")
         core.red_carrying[0, 0] = True
         core.red_x[0, 0] = 14.0
@@ -110,6 +121,20 @@ class TestOP10EscortInterpose(unittest.TestCase):
         core.blue_x[0, 0] = 13.0
         core.blue_y[0, 0] = 10.0
         roles, _, _ = _run_bt(core, "OP10")
+        self.assertNotIn(ROLE_ESCORT, roles)
+
+
+class TestOP11EscortCoordination(unittest.TestCase):
+    """OP11 carries the escort gate, so its carrier gets a walking partner."""
+
+    def test_escort_with_carrier(self) -> None:
+        core, _ = _make_core("OP11")
+        core.red_carrying[0, 0] = True
+        core.red_x[0, 0] = 14.0
+        core.red_y[0, 0] = 10.0
+        core.blue_x[0, 0] = 13.0
+        core.blue_y[0, 0] = 10.0
+        roles, _, _ = _run_bt(core, "OP11")
         self.assertIn(ROLE_ESCORT, roles)
 
 
@@ -165,6 +190,9 @@ class TestVectorizedEnvIsolation(unittest.TestCase):
         core.red_x[1, 1] = 18.0
         core.red_y[1, 1] = 15.0
         core.bt_role_lock_ticks[:] = 0
+        # Past OP12's stage-1 opening window, which forces ATTACKER for 20 steps.
+        core.step_count[:] = _PAST_OPENING_STEP
+        core.sim_step_count[:] = _PAST_OPENING_STEP
 
         core._get_bt_targets()
         roles0 = core.bt_red_role[0].tolist()
@@ -178,7 +206,9 @@ class TestStrategicDiversity(unittest.TestCase):
     """Same match state should yield different tactics for different profiles."""
 
     def _infeasible_leading_state(self, opponent: str):
-        core, _ = _make_core(opponent, red_score=1, blue_score=0)
+        core, _ = _make_core(
+            opponent, step=_PAST_OPENING_STEP, red_score=1, blue_score=0
+        )
         core.blue_carrying[0, 0] = True
         core.blue_x[0, 0] = 1.0
         core.blue_y[0, 0] = 10.0
@@ -213,16 +243,16 @@ class TestBTDispatchMask(unittest.TestCase):
 
 class TestFlagStateTransition(unittest.TestCase):
     def test_role_changes_after_carrier_removed(self) -> None:
-        core, _ = _make_core("OP7")
+        core, _ = _make_core("OP11")
         core.red_carrying[0, 0] = True
         core.red_x[0, 0] = 14.0
         core.red_y[0, 0] = 10.0
         core.bt_role_lock_ticks[0] = 0
-        roles_before, _, _ = _run_bt(core, "OP7")
+        roles_before, _, _ = _run_bt(core, "OP11")
         self.assertIn(ROLE_ESCORT, roles_before)
         core.red_carrying[0] = False
         core.bt_role_lock_ticks[0] = 0
-        roles_after, _, _ = _run_bt(core, "OP7")
+        roles_after, _, _ = _run_bt(core, "OP11")
         self.assertNotIn(ROLE_ESCORT, roles_after)
 
 
