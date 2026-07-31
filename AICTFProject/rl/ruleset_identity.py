@@ -37,6 +37,10 @@ RULESET_FIELDS = (
 LEGACY_UNKNOWN = "LEGACY_UNKNOWN"
 
 
+class RulesetFingerprintError(RuntimeError):
+    """Raised when a checkpoint would be written without a ruleset fingerprint."""
+
+
 class RulesetMismatchError(RuntimeError):
     """Raised when a checkpoint's ruleset does not match the environment's."""
 
@@ -127,3 +131,21 @@ def stamp(target: dict, cfg: Any) -> dict:
     """Write the ruleset fingerprint into a run config / manifest dict."""
     target.update(fingerprint(cfg))
     return target
+
+
+def stamp_artifact(target: dict, cfg: Any, *, formal_result_eligible: bool = True) -> dict:
+    """Stamp the full V2 fingerprint into any run artifact.
+
+    Use for run_config.json, the training manifest, evaluation manifests, and
+    episode CSV rows. Every artifact must be able to answer "which game produced
+    this number?" -- the friendly ruleset_id alone is not enough, because two
+    configs can share a label while differing in a field that changes play.
+    """
+    target.update(fingerprint(cfg))
+    target["formal_result_eligible"] = bool(formal_result_eligible)
+    return target
+
+
+def artifact_row_fields(cfg: Any, *, formal_result_eligible: bool = True) -> dict:
+    """Flat dict suitable for CSV columns."""
+    return stamp_artifact({}, cfg, formal_result_eligible=formal_result_eligible)

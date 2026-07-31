@@ -141,7 +141,8 @@ def check_events(events: list, *, tag_range: float, cooldown_T: float) -> dict:
 def run_opponent(opp: str, episodes: int, device: str) -> dict:
     from gpu_env import GPUCTFVecEnv, GPUFieldConfig
 
-    viol = defaultdict(int)
+    viol = defaultdict(int)      # Gate 1A: hard, legality + liveness
+    lifecycle = defaultdict(int)  # Gate 1C: post-step, DIAGNOSTIC ONLY
     all_events: list = []
     ep_stats = []
 
@@ -193,18 +194,25 @@ def run_opponent(opp: str, episodes: int, device: str) -> dict:
                 rc = core.red_carrying[0].detach().cpu().numpy()
 
                 # CONSEQUENCE checks driven by the events
+                terminal = bool(np.asarray(done).any())
                 for e in ev:
                     if e.get("event_type") != "tag_success":
+                        continue
+                    if terminal:
+                        # Episode boundary: auto-reset already cleared tagged/
+                        # carrying. Comparing across it photographs the next
+                        # episode. Skip the consequence checks, not the event.
+                        lifecycle["skipped_at_episode_boundary"] += 1
                         continue
                     tt, ti = e["target_team"], e["target_index"]
                     tagged_now = (bt if tt == "blue" else rt)[ti]
                     if not tagged_now:
-                        viol["success_event_target_not_tagged"] += 1
+                        lifecycle["success_event_target_not_tagged"] += 1
                     if e["target_was_carrying_flag"]:
                         n_drop += 1
                         still = (bc if tt == "blue" else rc)[ti]
                         if still:
-                            viol["tagged_carrier_kept_flag"] += 1
+                            lifecycle["tagged_carrier_kept_flag"] += 1
                     tagged_at[(tt, ti)] = n
 
                 # tagged agents must eventually untag (they are sent home)
@@ -221,7 +229,7 @@ def run_opponent(opp: str, episodes: int, device: str) -> dict:
             # anything still tagged at horizon end that never recovered
             for k, t0 in tagged_at.items():
                 if n - t0 >= MAX_DECISION_STEPS - 1:
-                    viol["tagged_never_recovered"] += 1
+                    lifecycle["tagged_never_recovered"] += 1
 
             pb = np.asarray(pos_b)
             if pb.shape[0] > 1 and np.all(np.abs(np.diff(pb, axis=0)).sum(axis=0) < 1.0):
@@ -250,9 +258,12 @@ def run_opponent(opp: str, episodes: int, device: str) -> dict:
         return float(np.mean([e[k] for e in ep_stats])) if ep_stats else float("nan")
 
     n_v = int(sum(viol.values()))
+    n_lc = int(sum(lifecycle.values()))
     return {
         "opponent": opp, "episodes": len(ep_stats),
         "violations": dict(viol), "n_violations": n_v,
+        "lifecycle_observations": dict(lifecycle),
+        "n_lifecycle_observations": n_lc,
         "metrics": {
             "mean_steps": m("steps"),
             "tag_successes_total": ev_check["n_success"],
@@ -261,6 +272,10 @@ def run_opponent(opp: str, episodes: int, device: str) -> dict:
             "blue_score": m("blue_score"), "red_score": m("red_score"),
             "timeout_rate": m("timeout"), "attack_frac": m("attack_frac"),
         },
+        # Gate 1A only. A post-step consequence check must never quarantine an
+        # opponent: a tag can be legally decided, legally applied, and then
+        # legally cleared by later same-step lifecycle processing. Resolving
+        # those apart needs tag_applied / untagged_at_home telemetry (Gate 1B/1C).
         "admitted": n_v == 0,
     }
 
@@ -292,8 +307,11 @@ def main() -> int:
               f"drops/ep={mt['flag_drops_per_episode']:.2f} "
               f"B={mt['blue_score']:.2f} R={mt['red_score']:.2f} "
               f"timeout={mt['timeout_rate']:.0%} atk={mt['attack_frac']:.2f}")
-        print(f"  violations: {r['violations'] if r['violations'] else 'none'} "
+        print(f"  violations (1A, hard): {r['violations'] if r['violations'] else 'none'} "
               f"-> {'ADMITTED' if r['admitted'] else 'QUARANTINED'}")
+        if r["lifecycle_observations"]:
+            print(f"  lifecycle (1C, diagnostic only, does NOT quarantine): "
+                  f"{r['lifecycle_observations']}")
 
     admitted = [r["opponent"] for r in results if r["admitted"]]
     quarantined = [r["opponent"] for r in results if not r["admitted"]]
@@ -310,6 +328,8 @@ def main() -> int:
         "ruleset_id": "RULESET_V2_AQUATICUS_10S", "ruleset": RULESET,
         "map": MAP, "resolved_map": RESOLVED_MAP,
         "legality_source": "decision-point tag events only",
+        "gate_1a_hard": "legality (territory, range, eligibility, nearest-only, cooldown) + liveness (deadlock, non-finite, frozen)",
+        "gate_1c_diagnostic": "post-step consequences; cannot quarantine until tag_applied / untagged_at_home telemetry exists",
         "episodes_per_opponent": args.episodes,
         "seed_block": [SEED_BASE, SEED_BASE + args.episodes - 1],
         "results": results, "admitted_opponents": admitted,

@@ -6892,6 +6892,35 @@ No further opponent redesigns, no third map version. This is the approved
 milestone ("validate at least two distinct complementary strategies before
 router training") and does not require K=4 first.
 
+### Rules complementarity ladder (LOCKED 2026-07-31)
+
+Before expensive training or rule redesign, force **tradeoffs** (being good
+at one decision costs somewhere else). Baseline stays faithful:
+
+```text
+1. Keep RULESET_V2_AQUATICUS_10S as the faithful baseline.
+2. Finish exact Gate 1 (opponent admissibility under V2 / map_a).
+3. Run Gate 2 episode-level affordance scenarios.
+4. Check whether one defender improves defense while reducing offense.
+5. Check whether decoy/escort play exploits cooldown.
+6. Train a short fresh PPO pilot on map_a.
+7. Test whether one generalist still dominates every situation.
+8. Only then test one rule adjustment at a time.
+```
+
+Accept pattern **before** expensive training / K>2 birth:
+
+```text
+aggressive policy wins some contexts
+defensive policy wins other contexts
+escort/decoy policy wins carrier situations
+no single policy wins everywhere
+```
+
+Key: not “more rules,” but **complementary costs**. That is the soil
+distinct latent strategies need. Do not skip to step 8 until 2–7 show the
+pattern (or honestly fail under the V2 baseline).
+
 Context selection (after `artifacts/multimap_v3_landscape_op6_op12_8seed`
 completes):
 

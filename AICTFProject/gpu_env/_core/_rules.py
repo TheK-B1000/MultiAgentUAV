@@ -74,7 +74,14 @@ class _RulesMixin:
             return float(self.sim_step_count[b].item()) * _dt if _has_t else 0.0
         bx, by = self.blue_x, self.blue_y
         rx, ry = self.red_x, self.red_y
-        mid = float(self.cols) * 0.5
+        # Side predicates come from the ENV's own rule, never a recomputed
+        # midline. The env uses mid = (cols - 1) * 0.5 with inclusive bounds;
+        # telemetry previously recomputed cols * 0.5, a half-cell offset that
+        # falsely flagged legal tags near the boundary as wrong-side.
+        blue_own = self._is_on_home_side("blue", bx)
+        red_own = self._is_on_home_side("red", rx)
+        blue_on_red = self._is_on_home_side("red", bx)
+        red_on_blue = self._is_on_home_side("blue", rx)
 
         def _f(t, b, i):
             return float(t[b, i].item())
@@ -106,16 +113,16 @@ class _RulesMixin:
                         d = float(dist[b, g, tgt].item())
                         gx, gy = _f(bx, b, g), _f(by, b, g)
                         tx, ty = _f(rx, b, tgt), _f(ry, b, tgt)
-                        g_own = gx < mid
-                        t_on_tagger_side = tx < mid
+                        g_own = bool(blue_own[b, g].item())
+                        t_on_tagger_side = bool(red_on_blue[b, tgt].item())
                         elig_targets = blue_tags[b, g, :].nonzero(
                             as_tuple=False).flatten().tolist()
                     else:
                         d = float(dist[b, tgt, g].item())
                         gx, gy = _f(rx, b, g), _f(ry, b, g)
                         tx, ty = _f(bx, b, tgt), _f(by, b, tgt)
-                        g_own = gx > mid
-                        t_on_tagger_side = tx > mid
+                        g_own = bool(red_own[b, g].item())
+                        t_on_tagger_side = bool(blue_on_red[b, tgt].item())
                         elig_targets = red_tags[b, :, g].nonzero(
                             as_tuple=False).flatten().tolist()
                     self.tag_events.append({

@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import warnings
+
 import torch
 
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
@@ -166,6 +168,73 @@ def _architecture_from_metadata(metadata, observation_space, action_space) -> Po
         latent_count=metadata.latent_count,
         model_kwargs=_model_kwargs_from_cfg(metadata.cfg),
     )
+
+
+def _env_ruleset_fingerprint(trainer) -> dict:
+    """Tagging-ruleset fingerprint of the trainer's environment.
+
+    FAILS CLOSED. Returning ``{}`` here would be safe at load time (the
+    checkpoint classifies LEGACY_UNKNOWN and is rejected), but it would waste
+    an entire training run producing checkpoints that later reject themselves.
+    A formal run therefore refuses to write an unstamped checkpoint.
+
+    Set ``trainer.allow_unstamped_checkpoint = True`` for explicitly labelled
+    diagnostic runs; those checkpoints save as LEGACY_UNKNOWN and are not
+    eligible as formal results.
+    """
+    from rl.ruleset_identity import (RULESET_FIELDS, RulesetFingerprintError,
+                                     fingerprint)
+
+    err: Exception | None = None
+    for attr in ("env", "vec_env", "_env"):
+        env = getattr(trainer, attr, None)
+        if env is None:
+            continue
+        try:
+            core = getattr(env, "core", None) or getattr(getattr(env, "vec", None), "core", None)
+            cfg = getattr(core, "cfg", None) if core is not None else None
+            if cfg is None:
+                continue
+            fp = dict(fingerprint(cfg))
+            if all(k in fp for k in RULESET_FIELDS):
+                return fp
+        except Exception as exc:  # keep probing the remaining attributes
+            err = exc
+
+    if bool(getattr(trainer, "allow_unstamped_checkpoint", False)):
+        warnings.warn(
+            "Writing an UNSTAMPED checkpoint (ruleset LEGACY_UNKNOWN). This "
+            "checkpoint is not eligible as a formal result.",
+            RuntimeWarning, stacklevel=2,
+        )
+        return {}
+
+    raise RulesetFingerprintError(
+        "Cannot determine the environment's tagging ruleset, so this checkpoint "
+        "would be written unstamped and would reject itself on load. Refusing to "
+        "save. Expose the env as trainer.env / .vec_env / ._env, or set "
+        "trainer.allow_unstamped_checkpoint = True for a labelled diagnostic run."
+        + (f" Last probe error: {err!r}" if err is not None else "")
+    )
+
+
+def read_checkpoint_ruleset(path: str) -> dict:
+    """Return the stored ruleset fingerprint, or {} for legacy checkpoints."""
+    payload = read_checkpoint_payload(path, map_location="cpu")
+    rs = payload.get("ruleset")
+    return dict(rs) if isinstance(rs, dict) else {}
+
+
+def verify_checkpoint_ruleset(path: str, env_cfg, *, allow_mismatch: bool = False) -> dict:
+    """Enforce that a checkpoint's ruleset matches the environment's.
+
+    Raises ``RulesetMismatchError`` unless ``allow_mismatch``; on override the
+    returned dict carries ``formal_result_eligible=False``.
+    """
+    from rl.ruleset_identity import enforce, fingerprint
+
+    return enforce(read_checkpoint_ruleset(path) or None, fingerprint(env_cfg),
+                   allow_mismatch=allow_mismatch, context=str(path))
 
 
 def load_custom_ppo_checkpoint(path: str, observation_space, action_space, *, device: str | torch.device = "cpu") -> LoadedCheckpoint:
@@ -346,6 +415,12 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
         "actor_cnn_feature_dim": int(trainer.model.actor_cnn_feature_dim),
         "global_state_dim": int(trainer.model.global_state_dim),
         "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
+        # Tagging-ruleset fingerprint of the ENVIRONMENT this policy trained in.
+        # Kept separate from "cfg" (the trainer config) because the rules live on
+        # GPUFieldConfig. A RULESET_V1 policy learned a different game -- a lone
+        # defender could not tag -- so loading one into a V2 run silently
+        # corrupts the result. Absent => LEGACY_UNKNOWN, rejected for formal runs.
+        "ruleset": _env_ruleset_fingerprint(trainer),
     }
     trainer.optimizers.write_checkpoint(payload)
     if trainer.v6i1_curriculum is not None:
