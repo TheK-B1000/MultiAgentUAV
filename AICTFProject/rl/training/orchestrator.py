@@ -73,6 +73,18 @@ def _validate_config_gates(cfg: PPOConfig) -> None:
        match the prior 8x sweep config exactly (modulo a small allowed-diff set)
        so the ablation comparison is apples-to-apples.
     """
+    # A formal run must carry the evidence needed to audit its own tagging.
+    # Checked at start, not at report time: discovering after a million steps
+    # that the tag ledger was never recorded costs the whole run.
+    if bool(getattr(cfg, "formal_run", False)) and not bool(
+        getattr(cfg, "tag_telemetry_enabled", False)
+    ):
+        raise ValueError(
+            f"Run {getattr(cfg, 'run_tag', 'unknown')!r} sets formal_run=True but "
+            "tag_telemetry_enabled=False. A formal run must record tag successes, "
+            "cooldown denials and event identities. Set tag_telemetry_enabled=True."
+        )
+
     if bool(getattr(cfg, "evaluation_only_preset", False)):
         runner = str(getattr(cfg, "evaluation_only_runner", "") or "the evaluation runner")
         raise EvaluationOnlyPresetError(

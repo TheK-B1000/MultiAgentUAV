@@ -1,0 +1,23 @@
+{
+  "utc_timestamp": "2026-07-31T23:17:14.254322Z",
+  "run_tag": "formal_smoke_2400001",
+  "seed": 2400001,
+  "total_timesteps": 50000,
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_2400001\\ckpts",
+  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_2400001\\episode_rows.csv",
+  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_2400001\\metrics.csv",
+  "cli_preset": null,
+  "git_sha": "9f65c92e2345078b5e5cf46f8e00ab34a4310989",
+  "git_describe": "refactor-complete-76-g9f65c92-dirty",
+  "git_root": "K:\\MultiAgentUAV",
+  "git_error": null,
+  "artifact_identity": {
+    "run_id": "formal_smoke_2400001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "verdict": "PASS",
+  "run_tag": "formal_smoke_dryrun",
+  "artifact_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_dryrun",
+  "configuration": {
+    "seed": 2400001,
+    "total_timesteps": 4096,
+    "checkpoint_interval": 2048,
+    "device": "cuda",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "opponents": [
+      "OP6",
+      "OP7",
+      "OP8",
+      "OP9",
+      "OP10",
+      "OP11",
+      "OP12"
+    ],
+    "episode_horizon": 240,
+    "domain_randomization": false,
+    "initialization": "fresh",
+    "v1_warm_start": "forbidden",
+    "formal_override": "forbidden"
+  },
+  "training": {
+    "completed": true,
+    "error": "",
+    "wall_seconds": 47.98
+  },
+  "runtime_health": {
+    "updates": 2,
+    "rollouts": 2,
+    "optimizer_steps": 96,
+    "parameter_change_events": 96,
+    "zero_gradient_steps": 0,
+    "grad_norm_min": 0.21815164465951836,
+    "grad_norm_max": 0.5000000026114673,
+    "grad_norm_mean": 0.45902526512566516,
+    "nonfinite_training_stats": [],
+    "nonfinite_rollout_fields": [],
+    "nonfinite_parameters": [],
+    "nonfinite_optimizer_state": [],
+    "inactive_diagnostics_not_computed": [
+      "actor_jsd_after_cf",
+      "actor_jsd_after_first_substep",
+      "actor_jsd_after_ppo",
+      "actor_jsd_after_second_substep",
+      "actor_jsd_update_start",
+      "actor_kl_after_cf",
+      "actor_kl_after_ppo",
+      "actor_kl_after_second_substep",
+      "cf_gain",
+      "cf_jsd_delta",
+      "cf_retention_ratio",
+      "ppo_jsd_delta",
+      "retained_cf_gain"
+    ],
+    "events_observed": 918,
+    "tag_success_events": 345,
+    "cooldown_denial_events": 443,
+    "capture_events": 82,
+    "resets_observed": 48,
+    "hard_tag_legality_violations": {},
+    "event_identity_violations": {},
+    "parallel_envs": 16
+  },
+  "checkpoint_round_trip": {
+    "ok": true,
+    "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_dryrun\\ckpts\\final_formal_smoke_dryrun.zip",
+    "live_run_identity": {
+      "run_id": "formal_smoke_dryrun",
+      "canonical_map": "map_a",
+      "resolved_map": "map_a_open",
+      "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+      "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+      "formal_result_eligible": true,
+      "identity_override_used": false
+    },
+    "identity_verified_against_live_env": true,
+    "checkpoint_artifact_identity": {
+      "run_id": "formal_smoke_dryrun",
+      "canonical_map": "map_a",
+      "resolved_map": "map_a_open",
+      "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+      "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+      "formal_result_eligible": true,
+      "identity_override_used": false
+    },
+    "perturbation_moved_policy": true,
+    "parameter_tensors_equal": true,
+    "mismatched_parameters": [],
+    "mean_kl": 0.0,
+    "max_kl": 0.0,
+    "argmax_differences": 0,
+    "action_heads": 4,
+    "batch_elements": 64,
+    "optimizer_state_restored": true,
+    "global_step_restored": true,
+    "global_step": 4096
+  },
+  "negative_loads": {
+    "v1_checkpoint": {
+      "rejected": true,
+      "error_type": "RunIdentityError",
+      "message": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_dryrun\\negative_checkpoints\\v1_checkpoint.zip: ruleset_id mismatch vs run identity: 'RULESET_V1_TWO_TAGGER' != 'RULESET_V2_AQUATICUS_10S'",
+      "state_unchanged": true,
+      "changed_parameters": []
+    },
+    "legacy_checkpoint": {
+      "rejected": true,
+      "error_type": "RunIdentityError",
+      "message": "Checkpoint 'K:\\\\MultiAgentUAV\\\\AICTFProject\\\\artifacts\\\\formal_smoke_dryrun\\\\negative_checkpoints\\\\legacy_checkpoint.zip' has no ruleset identity (legacy/missing); refusing to load before model execution.",
+      "state_unchanged": true,
+      "changed_parameters": []
+    },
+    "different_map": {
+      "rejected": true,
+      "error_type": "RunIdentityError",
+      "message": "Checkpoint 'K:\\\\MultiAgentUAV\\\\AICTFProject\\\\artifacts\\\\formal_smoke_dryrun\\\\negative_checkpoints\\\\different_map.zip' artifact_identity.canonical_map mismatch vs live run identity: 'map_b_split_lane' != 'map_a'",
+      "state_unchanged": true,
+      "changed_parameters": []
+    },
+    "altered_ruleset_field": {
+      "rejected": true,
+      "error_type": "RunIdentityError",
+      "message": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_dryrun\\negative_checkpoints\\altered_ruleset_field.zip: ruleset field 'tag_min_interval_seconds' differs from live evaluation identity: 30.0 != 10.0",
+      "state_unchanged": true,
+      "changed_parameters": []
+    },
+    "all_rejected_before_state_application": true
+  },
+  "bundle_validation": {
+    "artifacts_present": {
+      "run_config.json": true,
+      "training_manifest.json": true,
+      "evaluation_manifest.json": true,
+      "result_summary.json": true,
+      "episode_rows.csv": true,
+      "checkpoint": true
+    },
+    "episode_row_count": 80,
+    "valid": true,
+    "reference_identity": {
+      "run_id": "formal_smoke_dryrun",
+      "canonical_map": "map_a",
+      "resolved_map": "map_a_open",
+      "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+      "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+      "formal_result_eligible": true
+    },
+    "map_correct": true,
+    "resolved_map_correct": true,
+    "ruleset_correct": true,
+    "formal_result_eligible": true,
+    "run_config_tag_telemetry_enabled": true,
+    "training_manifest_tag_telemetry_enabled": true
+  },
+  "thresholds": {
+    "mean_kl_max": 1e-08,
+    "max_kl_max": 1e-07,
+    "argmax_differences_max": 0
+  },
+  "failures": []
+}

@@ -79,6 +79,18 @@ class PPOConfig:
     # After this many *completed* episodes, print W/L/D and win rate (0 = disabled).
     episode_log_every: int = 1000
 
+    # Observational tag-event telemetry on the LIVE environment: tag successes,
+    # cooldown denials, capture events and episode-reset markers, each carrying
+    # the authoritative integer event identity. Behaviour-neutral by contract
+    # (tests/test_tag_telemetry.py) -- identical states, rewards and outcomes
+    # under the same seed with it on or off. Off by default so ordinary runs pay
+    # nothing; ``formal_run`` requires it explicitly so a formal result can never
+    # be reported without the evidence needed to audit its tagging.
+    tag_telemetry_enabled: bool = False
+    # Marks a run whose artifacts are intended as a formal result. Turns the
+    # audit preconditions into start-time gates rather than after-the-fact hopes.
+    formal_run: bool = False
+
     max_decision_steps: int = 400
     map_set: str = "train"
     map_layout: str = "map_a_open"

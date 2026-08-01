@@ -172,6 +172,7 @@ def build_training_env(
         device=str(cfg.device),
         seed=int(cfg.seed),
         train_domain_randomization=bool(getattr(cfg, "train_domain_randomization", False)),
+        tag_telemetry_enabled=bool(getattr(cfg, "tag_telemetry_enabled", False)),
         dr_sensor_noise_sigma_max=float(getattr(cfg, "dr_sensor_noise_sigma_max", 0.12)),
         dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
         dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
@@ -187,6 +188,20 @@ def build_training_env(
         f"stalemate_penalty={float(gpu_cfg.stalemate_penalty):.3f}."
     )
     env = GPUCTFVecEnv(gpu_cfg)
+    # The setting is only worth recording in run_config / training_manifest if
+    # it actually reached the environment that runs. Verify against the live
+    # object rather than trusting that the constructor honoured the argument.
+    requested_telemetry = bool(getattr(cfg, "tag_telemetry_enabled", False))
+    live_telemetry = bool(getattr(getattr(env, "core", None), "cfg", gpu_cfg).tag_telemetry_enabled)
+    if live_telemetry != requested_telemetry:
+        try:
+            env.close()
+        except Exception:
+            pass
+        raise ValueError(
+            "tag_telemetry_enabled did not reach the live environment: "
+            f"requested={requested_telemetry}, live={live_telemetry}."
+        )
     try:
         env.env_method("set_stress_schedule", STRESS_BY_PHASE)
         env.env_method("set_dynamics_config", {"rules_profile": "OURS"})

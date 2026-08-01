@@ -155,6 +155,9 @@ def write_run_config_json(cfg: PPOConfig, argv: Optional[list[str]] = None,
         "strategy_experience_csv_path": cfg.strategy_experience_csv_path,
         "load_path": cfg.load_path,
         "cli_preset": getattr(cfg, "cli_preset", None),
+        # Verified against the live env in build_training_env before this runs.
+        "tag_telemetry_enabled": bool(getattr(cfg, "tag_telemetry_enabled", False)),
+        "formal_run": bool(getattr(cfg, "formal_run", False)),
         "telemetry": {
             "mode": str(
                 coerce_telemetry_mode(
@@ -219,6 +222,9 @@ def write_training_manifest_json(
         "episode_csv_path": cfg.episode_csv_path,
         "metrics_csv_path": cfg.metrics_csv_path,
         "cli_preset": getattr(cfg, "cli_preset", None),
+        # Verified against the live env in build_training_env before this runs.
+        "tag_telemetry_enabled": bool(getattr(cfg, "tag_telemetry_enabled", False)),
+        "formal_run": bool(getattr(cfg, "formal_run", False)),
         **_git_metadata(),
     }
     if extra:

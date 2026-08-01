@@ -6971,7 +6971,8 @@ Status vs unlock checklist (2026-07-31):
 ```text
 1–6 production identity gates   PASS
 50k–100k stamped PPO smoke      AUTHORIZED
-G0-v2                           still locked until smoke passes
+tag_telemetry production path   PASS (2026-07-31)
+G0-v2                           AUTHORIZED — seeds 2500001 / 2500002 / 2500003
 latent birth                    locked
 router                          locked
 ```
@@ -6979,9 +6980,23 @@ router                          locked
 Integration gates:
 - `tests/test_production_formal_bundle.py` (training artifact-bundle-only)
 - `tests/test_standalone_eval_identity.py` (standalone eval identity border)
+- `tests/test_tag_telemetry_config_wiring.py` (PPOConfig → live env → artifacts;
+  formal G0-shaped config refuses omitted/false telemetry before rollout)
 
-The stamped 50k–100k PPO smoke is now authorized. G0-v2 / latent birth /
-router remain locked until that smoke passes.
+**Tag telemetry production path closed (2026-07-31).** `tag_telemetry_enabled`
+now travels through `PPOConfig` → `build_training_env` → live `GPUCTFVecEnv`
+→ `run_config.json` / `training_manifest.json`. Formal runs with telemetry
+false or omitted are rejected in `_validate_config_gates` before env build.
+The formal smoke no longer monkeypatches `GPUFieldConfig`; it sets
+`cfg.formal_run=True` and `cfg.tag_telemetry_enabled=True`. The 4,096-step
+`SMOKE_DRY_RUN=1` plumbing check passed with tag_success>0, cooldown
+denials>0, zero hard legality violations, both artifacts recording
+`tag_telemetry_enabled=true`, and bundle validation PASS. G0-v2 may launch
+with seeds `2500001`, `2500002`, `2500003`. Latent birth / router remain
+locked until their own unlock criteria.
+
+The stamped 50k–100k PPO smoke remains authorized as the longer formal
+rehearsal; it is not a blocker for the three G0-v2 launches above.
 
 **Gate 2B meaning (LOCKED):** first check that the corrected game has
 **strategic soil** on `map_a` — not that latents have been learned.

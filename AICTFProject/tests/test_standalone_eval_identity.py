@@ -5,9 +5,12 @@ share one identity universe, and that mismatches fail BEFORE model execution.
 """
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -21,6 +24,7 @@ from rl.custom_ppo.probe_result import (  # noqa: E402
     WeightProbeResult,
 )
 from rl.evaluation.config import MapAwarenessEvaluationConfig  # noqa: E402
+import rl.evaluation.orchestrator as orchestrator_mod  # noqa: E402
 from rl.evaluation.orchestrator import (  # noqa: E402
     EvaluationRuntime,
     gate_evaluation_identity,
@@ -42,6 +46,18 @@ V2 = dict(
     tag_min_interval_seconds=10.0,
     tag_nearest_only=True,
     tag_channel_seconds=0.0,
+    suppression_attackers_required=2,
+)
+
+# The superseded ruleset, exactly as GPUFieldConfig.ruleset_id classifies it
+# (taggers_required=2, tag_nearest_only=False, tag_min_interval_seconds=0.0).
+# A policy trained under these rules learned a different game.
+V1 = dict(
+    ruleset_id="RULESET_V1_TWO_TAGGER",
+    taggers_required=2,
+    tag_min_interval_seconds=0.0,
+    tag_nearest_only=False,
+    tag_channel_seconds=1.0,
     suppression_attackers_required=2,
 )
 
@@ -189,6 +205,202 @@ def _runtime(calls: list[str], *, on_model_execution=None):
         write_json_text=write_json,
         on_model_execution=on_model_execution,
     )
+
+
+# --- pre-execution proof instrumentation ------------------------------------
+
+
+class _ExecutionLedger:
+    """Counts every model-execution primitive the identity gate must precede.
+
+    A rejection is only *proven* pre-execution if all of these stay at zero:
+    weights were never applied, no forward pass ran, no rollout stepped.
+    """
+
+    def __init__(self) -> None:
+        self.load_state_dict = 0
+        self.forward = 0
+        self.rollout_steps = 0
+        self.policy_loads = 0
+
+    def as_dict(self) -> dict[str, int]:
+        return {
+            "load_state_dict": self.load_state_dict,
+            "forward": self.forward,
+            "rollout_steps": self.rollout_steps,
+            "policy_loads": self.policy_loads,
+        }
+
+    def assert_no_execution(self, label: str) -> None:
+        assert self.as_dict() == {
+            "load_state_dict": 0,
+            "forward": 0,
+            "rollout_steps": 0,
+            "policy_loads": 0,
+        }, f"{label}: model executed before identity rejection: {self.as_dict()}"
+
+
+@contextlib.contextmanager
+def _execution_ledger():
+    """Count real weight loads / forwards, leaving the production path intact.
+
+    Nothing here short-circuits the orchestrator: the genuine
+    ``load_evaluation_policy`` stays wired up, so if the gate ever regressed the
+    counters would actually move rather than a stub absorbing the call.
+    """
+    ledger = _ExecutionLedger()
+    real_load_state_dict = torch.nn.Module.load_state_dict
+    real_call_impl = torch.nn.Module._call_impl
+    real_loader = orchestrator_mod.load_evaluation_policy
+
+    def counting_load_state_dict(self, *args, **kwargs):
+        ledger.load_state_dict += 1
+        return real_load_state_dict(self, *args, **kwargs)
+
+    def counting_call_impl(self, *args, **kwargs):
+        ledger.forward += 1
+        return real_call_impl(self, *args, **kwargs)
+
+    def counting_loader(*args, **kwargs):
+        ledger.policy_loads += 1
+        return real_loader(*args, **kwargs)
+
+    with patch.object(torch.nn.Module, "load_state_dict", counting_load_state_dict), \
+         patch.object(torch.nn.Module, "_call_impl", counting_call_impl), \
+         patch.object(orchestrator_mod, "load_evaluation_policy", counting_loader):
+        yield ledger
+
+
+def _counting_runtime(ledger: _ExecutionLedger, calls: list[str]) -> EvaluationRuntime:
+    base = _runtime(calls)
+
+    def run_episode(**kwargs):
+        ledger.rollout_steps += 1
+        return base.run_episode(**kwargs)
+
+    return replace(base, run_episode=run_episode)
+
+
+def _rejection_case(tmp_path: Path, case: str, identity):
+    """Build (candidate_checkpoint, expected_error_pattern) for one reject path."""
+    if case == "map_mismatch":
+        return (
+            _write_stamped_checkpoint(
+                tmp_path / "candidate.zip",
+                identity=identity,
+                map_override={
+                    "canonical_map": "map_b_split_lane",
+                    "resolved_map": "map_b_split_lane",
+                },
+            ),
+            "map mismatch",
+        )
+    if case == "ruleset_fingerprint_mismatch":
+        sneaky = dict(V2)
+        sneaky["tag_min_interval_seconds"] = 30.0  # same V2 label, different game
+        return (
+            _write_stamped_checkpoint(
+                tmp_path / "candidate.zip", identity=identity, ruleset=sneaky
+            ),
+            "ruleset|fingerprint",
+        )
+    if case == "v1_checkpoint":
+        return (
+            _write_stamped_checkpoint(
+                tmp_path / "candidate.zip", identity=identity, ruleset=dict(V1)
+            ),
+            "ruleset|fingerprint|RULESET_V1",
+        )
+    if case == "legacy_checkpoint":
+        return (
+            _write_stamped_checkpoint(
+                tmp_path / "candidate.zip", identity=identity, omit_ruleset=True
+            ),
+            "legacy|missing|complete ruleset",
+        )
+    if case == "unstamped_checkpoint":
+        return (
+            _write_stamped_checkpoint(
+                tmp_path / "candidate.zip",
+                identity=identity,
+                omit_artifact_identity=True,
+            ),
+            "artifact_identity",
+        )
+    raise AssertionError(f"unknown case {case!r}")
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "map_mismatch",
+        "ruleset_fingerprint_mismatch",
+        "v1_checkpoint",
+        "legacy_checkpoint",
+        "unstamped_checkpoint",
+    ],
+)
+def test_rejection_paths_execute_no_model(tmp_path, case):
+    """Every reject path must trip through the REAL orchestrator with zero execution."""
+    env = _live_env(map_layout="map_a")
+    try:
+        train_id = build_formal_run_identity(env, run_id="train_mapa_v2")
+        baseline = _write_stamped_checkpoint(tmp_path / "baseline.zip", identity=train_id)
+        candidate, pattern = _rejection_case(tmp_path, case, train_id)
+        cfg = _config(tmp_path, baseline=baseline, candidate=candidate, maps=("map_a",))
+
+        calls: list[str] = []
+        with _execution_ledger() as ledger:
+            with pytest.raises(RunIdentityError, match=pattern):
+                run_evaluation(cfg, _counting_runtime(ledger, calls))
+
+        ledger.assert_no_execution(case)
+        assert not any(c.startswith("episode:") for c in calls)
+        assert not any(c.startswith("weights") for c in calls)
+        assert not any(c.startswith("gradient") for c in calls)
+        assert not any(c.startswith("counterfactual") for c in calls)
+    finally:
+        env.close()
+
+
+def test_ledger_detects_execution_on_the_accepted_path(tmp_path):
+    """Control: the same counters DO move when identity passes.
+
+    Without this, the zeros above could be an artifact of instrumentation that
+    never fires rather than evidence of a gate that holds.
+    """
+    env = _live_env(map_layout="map_a")
+    try:
+        train_id = build_formal_run_identity(env, run_id="train_mapa_v2")
+        baseline = _write_stamped_checkpoint(tmp_path / "baseline.zip", identity=train_id)
+        candidate = _write_stamped_checkpoint(tmp_path / "candidate.zip", identity=train_id)
+        cfg = _config(tmp_path, baseline=baseline, candidate=candidate, maps=("map_a",))
+
+        calls: list[str] = []
+        with _execution_ledger() as ledger:
+            with patch.object(
+                orchestrator_mod, "read_checkpoint_dimensions"
+            ) as read_dims:
+                read_dims.side_effect = [({}, 2, 5, 50), ({}, 2, 5, 50)]
+                # Real loader would need real weights; count the call and hand
+                # back a policy object so the rollout still exercises the runtime.
+                with patch.object(
+                    orchestrator_mod, "load_evaluation_policy"
+                ) as loader:
+                    def _load(label, path, **kwargs):
+                        ledger.policy_loads += 1
+                        return LoadedEvaluationPolicy(
+                            label, str(path), object(), {}, 2, 5, 50, 7
+                        )
+
+                    loader.side_effect = _load
+                    run_evaluation(cfg, _counting_runtime(ledger, calls))
+
+        assert ledger.policy_loads == 2, "loader instrumentation never fired"
+        assert ledger.rollout_steps > 0, "rollout instrumentation never fired"
+        assert any(c.startswith("episode:") for c in calls)
+    finally:
+        env.close()
 
 
 # --- gate helpers (reject before inference) ---------------------------------
