@@ -673,6 +673,11 @@ class PPOConfig:
     env_draw_team_penalty: Optional[float] = None
     env_lose_team_punish: Optional[float] = None
     env_action_failed_punishment: Optional[float] = None
+    # Points for tagging a non-carrying opponent (symmetric: earned on tag,
+    # paid when tagged). Default +100 equals a flag capture; see GPUFieldConfig.
+    env_sparse_tag_no_flag_points: Optional[float] = None
+    # Points for tagging the enemy flag carrier (default +50).
+    env_sparse_tag_with_flag_points: Optional[float] = None
     env_dense_weight: Optional[float] = None
     env_sparse_weight: Optional[float] = None
     env_reward_scale: Optional[float] = None

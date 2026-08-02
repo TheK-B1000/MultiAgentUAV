@@ -1,0 +1,64 @@
+{
+  "probe": "G0-v2 failed-action penalty causal ablation",
+  "frozen_utc": "2026-08-01",
+  "frozen_before_any_probe_result": true,
+  "status": "FROZEN — thresholds declared before the first probe run; do not edit after results exist",
+
+  "hypothesis": "ACTION_FAILED_PUNISHMENT = -0.2 creates a passive reward attractor: never committing avoids the penalty, and the penalty is 37-51x louder than the terminal outcome signal. Removing it should prevent the drift to zero pickups observed at ~225,000 steps.",
+
+  "design": {
+    "type": "one-factor-at-a-time causal ablation",
+    "control": "existing G0-v2 baseline trajectories (seeds 2500001/2/3), reused — not retrained",
+    "ablation": "ACTION_FAILED_PUNISHMENT = 0.0 via cfg.env_action_failed_punishment",
+    "everything_else": "identical to the frozen G0-v2 configuration",
+    "seeds": [2600001, 2600002, 2600003],
+    "steps_per_seed": 300000,
+    "collapse_zone_crossed": 225000,
+    "checkpoint_and_panel_interval": 50000
+  },
+
+  "single_factor_declaration": [
+    "learning_rate unchanged",
+    "entropy schedule unchanged",
+    "value coefficient unchanged",
+    "n_epochs / batch_size / n_steps / n_envs unchanged",
+    "all other reward terms unchanged",
+    "map, ruleset, opponents, horizon unchanged",
+    "ONLY action_failed_punishment differs from baseline"
+  ],
+
+  "per_seed_gate_at_250k_to_300k": {
+    "pickups": "> 0",
+    "offensive_commitment": "> 0",
+    "defensive_commitment": "< 1.0"
+  },
+
+  "across_seed_gate": {
+    "min_seeds_behaviourally_alive": 3,
+    "min_seeds_retaining_competence": 2,
+    "competence_definition": {
+      "net_captures": "> 0",
+      "win_rate": ">= 0.30",
+      "measured_on": "held-out TASK_HEALTH validation panel, seeds 9300000-9300002, opponents OP6/OP9/OP12"
+    }
+  },
+
+  "objective_alignment_gate": {
+    "requirement": "task reward must NOT increase while success collapses",
+    "test": "reward_up_while_task_down == false for every probe seed",
+    "rationale": "this is the exact Case A signature the baseline exhibited; its absence is the thing being tested"
+  },
+
+  "outcome_interpretation": {
+    "gate_passes": "causal hypothesis supported — penalty drove the passive attractor. Next step is choosing a NON-ZERO scale, not keeping zero permanently.",
+    "gate_fails_still_collapses": "penalty was correlated but not sufficient. Return to the reward decomposition and inspect the next dominant shaping term.",
+    "gate_fails_reckless": "some failed-action penalty is useful but -0.2 is oversized. Sweep magnitude; do not return to -0.2.",
+    "forbidden": "reading a partial result and then editing these thresholds"
+  },
+
+  "followup_scale_candidates_not_yet_authorized": [0.0, -0.005, -0.01],
+  "design_principle": "Shaping may guide how to play; it must never pay more than the game outcome itself.",
+
+  "locked_downstream": ["C1", "O1", "latent_birth", "router"],
+  "reliability_gate_for_unlocking": "at least 2 independent seeds competent under the revised configuration, then rerun weakness discovery"
+}

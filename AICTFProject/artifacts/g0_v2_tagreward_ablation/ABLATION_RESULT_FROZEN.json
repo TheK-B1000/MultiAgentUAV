@@ -1,0 +1,119 @@
+{
+  "probe": "G0-v2 sparse no-flag tag-reward ablation",
+  "frozen": true,
+  "frozen_utc": "2026-08-02",
+  "status": "FROZEN \u2014 MIXED: competence gate PASS, hypothesis gate FAIL",
+  "competence_gate": "PASS (alive 3/3, competent 2/3)",
+  "hypothesis_gate": "FAIL (sparse_up_while_task_down True for 2700001 and 2700003)",
+  "verdict": "no-flag tag reward is causally implicated but NOT sufficient; failure relocated to the remaining rewarded tag channel (SPARSE_TAG_WITH_FLAG_POINTS=50)",
+  "competence_progression": {
+    "baseline": "1/3",
+    "failed_action_penalty_removed": "1/3",
+    "no_flag_tag_removed": "2/3"
+  },
+  "carrier_share_vs_outcome": {
+    "2700002": {
+      "carrier_share": 0.156,
+      "wr": 1.0
+    },
+    "2700001": {
+      "carrier_share": 0.309,
+      "wr": 0.556
+    },
+    "2700003": {
+      "carrier_share": 0.45,
+      "wr": 0.111
+    }
+  },
+  "caveat": "monotone ordering across n=3 is suggestive, not established",
+  "seed_2700001": {
+    "final_task_panel": {
+      "global_step": 301056,
+      "episodes": 9,
+      "pickups": 21,
+      "captures_blue": 16,
+      "captures_red": 9,
+      "drops": 5,
+      "wins": 5,
+      "offensive_commitment": 0.10635,
+      "defensive_commitment": 0.786654,
+      "capture_conversion": 0.7619,
+      "win_rate": 0.5556,
+      "net_captures": 7,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "sparse_decomposition": {
+      "tag_blue_noncarrier": 9965,
+      "tag_blue_carrier": 790,
+      "tag_against_blue": 15049,
+      "capture_blue": 2017,
+      "capture_red": 1134,
+      "tags_per_capture_event": 3.413,
+      "sparse_points_from_tags_at_baseline_100": -468900.0,
+      "sparse_points_from_tags_at_ablated_value": 39500.0,
+      "sparse_points_from_captures": 88300.0,
+      "tag_share_of_sparse_at_baseline": 0.8415
+    }
+  },
+  "seed_2700002": {
+    "final_task_panel": {
+      "global_step": 301056,
+      "episodes": 9,
+      "pickups": 40,
+      "captures_blue": 23,
+      "captures_red": 7,
+      "drops": 17,
+      "wins": 9,
+      "offensive_commitment": 0.218158,
+      "defensive_commitment": 0.448692,
+      "capture_conversion": 0.575,
+      "win_rate": 1.0,
+      "net_captures": 16,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "sparse_decomposition": {
+      "tag_blue_noncarrier": 9545,
+      "tag_blue_carrier": 576,
+      "tag_against_blue": 19039,
+      "capture_blue": 2492,
+      "capture_red": 938,
+      "tags_per_capture_event": 2.951,
+      "sparse_points_from_tags_at_baseline_100": -920600.0,
+      "sparse_points_from_tags_at_ablated_value": 28800.0,
+      "sparse_points_from_captures": 155400.0,
+      "tag_share_of_sparse_at_baseline": 0.8556
+    }
+  },
+  "seed_2700003": {
+    "final_task_panel": {
+      "global_step": 301056,
+      "episodes": 9,
+      "pickups": 8,
+      "captures_blue": 6,
+      "captures_red": 9,
+      "drops": 2,
+      "wins": 1,
+      "offensive_commitment": 0.035715,
+      "defensive_commitment": 0.895613,
+      "capture_conversion": 0.75,
+      "win_rate": 0.1111,
+      "net_captures": -3,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "sparse_decomposition": {
+      "tag_blue_noncarrier": 10461,
+      "tag_blue_carrier": 1350,
+      "tag_against_blue": 5951,
+      "capture_blue": 788,
+      "capture_red": 1612,
+      "tags_per_capture_event": 4.921,
+      "sparse_points_from_tags_at_baseline_100": 518500.0,
+      "sparse_points_from_tags_at_ablated_value": 67500.0,
+      "sparse_points_from_captures": -82400.0,
+      "tag_share_of_sparse_at_baseline": 0.8629
+    }
+  }
+}

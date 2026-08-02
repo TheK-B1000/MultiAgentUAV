@@ -41,6 +41,8 @@ def _gpu_env_reward_kwargs(cfg: PPOConfig) -> dict[str, Any]:
         ("draw_team_penalty", getattr(cfg, "env_draw_team_penalty", None)),
         ("lose_team_punish", getattr(cfg, "env_lose_team_punish", None)),
         ("action_failed_punishment", getattr(cfg, "env_action_failed_punishment", None)),
+        ("sparse_tag_no_flag_points", getattr(cfg, "env_sparse_tag_no_flag_points", None)),
+        ("sparse_tag_with_flag_points", getattr(cfg, "env_sparse_tag_with_flag_points", None)),
         ("dense_weight", getattr(cfg, "env_dense_weight", None)),
         ("sparse_weight", getattr(cfg, "env_sparse_weight", None)),
         ("reward_scale", getattr(cfg, "env_reward_scale", None)),

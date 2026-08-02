@@ -233,9 +233,19 @@ class _RewardsMixin:
         r = torch.zeros((self.B,), dtype=torch.float32, device=self.device)
         r += float(SPARSE_FLAG_CAPTURE_POINTS) * blue_cap_env.to(torch.float32)
         r -= float(SPARSE_FLAG_CAPTURE_POINTS) * red_cap_env.to(torch.float32)
-        r += float(SPARSE_TAG_NO_FLAG_POINTS) * blue_tag_noflag.to(torch.float32)
-        r += float(SPARSE_TAG_WITH_FLAG_POINTS) * blue_tag_withflag.to(torch.float32)
-        r -= float(SPARSE_TAG_NO_FLAG_POINTS) * red_tag_total.to(torch.float32)
+        # Configurable so the tag-farming hypothesis can be ablated. Applied to
+        # BOTH directions: zeroing it removes tag income and the being-tagged
+        # cost together, leaving the attack/defend trade-off undistorted rather
+        # than punishing attack with no compensating income.
+        tag_noflag_points = float(
+            getattr(self.cfg, "sparse_tag_no_flag_points", SPARSE_TAG_NO_FLAG_POINTS)
+        )
+        tag_carrier_points = float(
+            getattr(self.cfg, "sparse_tag_with_flag_points", SPARSE_TAG_WITH_FLAG_POINTS)
+        )
+        r += tag_noflag_points * blue_tag_noflag.to(torch.float32)
+        r += tag_carrier_points * blue_tag_withflag.to(torch.float32)
+        r -= tag_noflag_points * red_tag_total.to(torch.float32)
         if blue_mine_tags is not None:
             r += float(SPARSE_MINE_TAG_POINTS) * blue_mine_tags.to(torch.float32)
         if red_mine_tags is not None:

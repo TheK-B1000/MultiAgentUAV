@@ -1,0 +1,8 @@
+DIAGNOSTIC
+formal_result_eligible=false
+
+4,096-step plumbing rehearsal used to shake out bugs in the smoke harness
+before the real 50,000-step formal smoke (artifacts/formal_smoke_2400001/).
+
+This directory is NOT a formal result. Exclude it from every summary,
+learning curve, checkpoint comparison, and evaluation bundle.

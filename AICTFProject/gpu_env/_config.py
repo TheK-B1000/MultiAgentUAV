@@ -11,6 +11,8 @@ from game_manager import (
     FLAG_CARRY_HOME_REWARD,
     FLAG_PICKUP_REWARD,
     LOSE_TEAM_PUNISH,
+    SPARSE_TAG_NO_FLAG_POINTS,
+    SPARSE_TAG_WITH_FLAG_POINTS,
     WIN_TEAM_REWARD,
 )
 
@@ -43,6 +45,22 @@ class RewardConfig:
     team_escort_reward: float = 0.02
     team_intercept_reward: float = 0.02
     sparse_weight: float = 1.0
+    # Points for tagging an opponent who is NOT carrying a flag. Applied
+    # symmetrically: BLUE earns it for tagging, and pays it when tagged.
+    #
+    # The default (+100) equals SPARSE_FLAG_CAPTURE_POINTS, so a routine
+    # defensive tag pays exactly what scoring a flag pays -- while being far
+    # more frequent and far less risky. It also pays DOUBLE what tagging the
+    # enemy flag carrier pays (SPARSE_TAG_WITH_FLAG_POINTS = 50). This is the
+    # leading suspect for the passive tag-farming attractor that collapsed two
+    # of three G0-v2 seeds; exposed as a knob so it can be ablated without
+    # editing the shared game_manager constant.
+    sparse_tag_no_flag_points: float = float(SPARSE_TAG_NO_FLAG_POINTS)
+    # Points for tagging the enemy FLAG CARRIER. With sparse_tag_no_flag_points
+    # zeroed this becomes the only remaining tag payoff, and the seed drawing the
+    # largest share of its sparse reward from it was the one that failed. Exposed
+    # so the whole tag-reward family can be closed in a single experiment.
+    sparse_tag_with_flag_points: float = float(SPARSE_TAG_WITH_FLAG_POINTS)
     dense_weight: float = 0.25
     reward_scale: float = 4.0
     reward_clip: float = 1.0

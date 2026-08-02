@@ -1,5 +1,5 @@
 {
-  "verdict": "PASS",
+  "verdict": "DIAGNOSTIC_NOT_FORMAL",
   "run_tag": "formal_smoke_dryrun",
   "artifact_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_dryrun",
   "configuration": {
@@ -163,5 +163,8 @@
     "max_kl_max": 1e-07,
     "argmax_differences_max": 0
   },
-  "failures": []
+  "failures": [],
+  "status": "DIAGNOSTIC",
+  "formal_result_eligible": false,
+  "exclusion_reason": "4,096-step plumbing rehearsal of the smoke harness. Never a formal result: must not be included in any summary, learning curve, or comparison."
 }

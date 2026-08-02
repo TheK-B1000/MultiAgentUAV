@@ -4,7 +4,6 @@
   "artifact_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\formal_smoke_2400001",
   "configuration": {
     "seed": 2400001,
-    "total_timesteps": 50000,
     "checkpoint_interval": 10000,
     "device": "cuda",
     "canonical_map": "map_a",
@@ -23,7 +22,10 @@
     "domain_randomization": false,
     "initialization": "fresh",
     "v1_warm_start": "forbidden",
-    "formal_override": "forbidden"
+    "formal_override": "forbidden",
+    "total_timesteps_requested": 50000,
+    "total_timesteps_effective": 51200,
+    "step_count_note": "PPO completed whole rollout batches (25 x 2048) rather than stopping mid-batch, so the run overshoots the 50,000 request to 51,200. Accepted: the loop exits on global_step >= total_timesteps."
   },
   "training": {
     "completed": true,
