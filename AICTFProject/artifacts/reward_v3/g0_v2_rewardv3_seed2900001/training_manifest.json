@@ -1,0 +1,25 @@
+{
+  "utc_timestamp": "2026-08-02T13:42:32.204827Z",
+  "run_tag": "g0_v2_rewardv3_seed2900001",
+  "seed": 2900001,
+  "total_timesteps": 300000,
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts",
+  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\episode_rows.csv",
+  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\metrics.csv",
+  "cli_preset": null,
+  "tag_telemetry_enabled": true,
+  "formal_run": true,
+  "git_sha": "0872c16fb432eecdb4190529ba0b7c8e9efd0366",
+  "git_describe": "refactor-complete-78-g0872c16-dirty",
+  "git_root": "K:\\MultiAgentUAV",
+  "git_error": null,
+  "artifact_identity": {
+    "run_id": "g0_v2_rewardv3_seed2900001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

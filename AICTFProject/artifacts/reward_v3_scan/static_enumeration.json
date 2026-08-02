@@ -1,0 +1,232 @@
+{
+  "v3_overrides": {
+    "sparse_tag_no_flag_points": 0.0,
+    "sparse_tag_with_flag_points": 0.0,
+    "action_failed_punishment": -0.004
+  },
+  "composition": {
+    "raw": "rterm + roff + rfail + dense_weight*(rpbrs+rteam) + sparse_weight*(sparse_points/100) [+ stalemate]",
+    "then": "tanh(raw / reward_scale=4.0), clip +/- reward_clip=1.0",
+    "dense_weight": 0.25,
+    "sparse_weight": 1.0
+  },
+  "sources": [
+    {
+      "source": "terminal_win",
+      "raw_value": 1.0,
+      "path": "rterm -> _reward_total (unsquashed component)",
+      "frequency": "once per episode (terminal)",
+      "farmable": false,
+      "requires_objective": true,
+      "expected_ep_contrib_v3": 1.0,
+      "notes": "win +1 / lose -1 / draw -0.5"
+    },
+    {
+      "source": "sparse_capture",
+      "raw_value": 100.0,
+      "path": "sparse_points/100 * sparse_weight",
+      "frequency": "once per capture",
+      "farmable": "Hard",
+      "requires_objective": true,
+      "expected_ep_contrib_v3": 2.2,
+      "notes": "composed contrib = 1.0*(points/100) per event"
+    },
+    {
+      "source": "sparse_tag_no_flag",
+      "raw_value_baseline": 100.0,
+      "raw_value_v3": 0.0,
+      "path": "sparse_points/100 * sparse_weight",
+      "frequency": "once per tag",
+      "farmable": "Was yes; V3 zeros it",
+      "requires_objective": false,
+      "expected_ep_contrib_v3": 0.0
+    },
+    {
+      "source": "sparse_tag_carrier",
+      "raw_value_baseline": 50.0,
+      "raw_value_v3": 0.0,
+      "path": "sparse_points/100 * sparse_weight",
+      "frequency": "once per carrier tag",
+      "farmable": "Was yes; V3 zeros it",
+      "requires_objective": "Partly",
+      "expected_ep_contrib_v3": 0.0
+    },
+    {
+      "source": "offense_enemy_mav_kill",
+      "raw_value": 0.5,
+      "path": "roff DIRECT (NOT sparse, NOT /100)",
+      "frequency": "once per tag (and per mine-tag)",
+      "farmable": "YES \u2014 still live under V3",
+      "requires_objective": false,
+      "expected_ep_contrib_v3": 8.5,
+      "notes": "CRITICAL: V3 closed sparse tag points but left enemy_mav_kill_reward=0.5 in the offense channel. At 17 tags/ep this is ~+8.5 raw if BLUE tags, or ~-8.5 if RED tags BLUE \u2014 dwarfs terminal +/-1."
+    },
+    {
+      "source": "offense_flag_pickup",
+      "raw_value": 0.1,
+      "path": "roff DIRECT",
+      "frequency": "once per grab",
+      "farmable": "Hard",
+      "requires_objective": "Partly",
+      "expected_ep_contrib_v3": 0.22000000000000003
+    },
+    {
+      "source": "offense_flag_carry_home",
+      "raw_value": 0.5,
+      "path": "roff DIRECT",
+      "frequency": "once per capture (also sparse capture pays)",
+      "farmable": "Hard",
+      "requires_objective": true,
+      "expected_ep_contrib_v3": 1.1,
+      "notes": "Double-pays with sparse capture on the same event"
+    },
+    {
+      "source": "offense_mine_place",
+      "raw_value": 0.2,
+      "path": "roff DIRECT (enabled_mine_reward)",
+      "frequency": "once per placement",
+      "farmable": "Maybe",
+      "requires_objective": false
+    },
+    {
+      "source": "sparse_mine_tag",
+      "raw_value": 100.0,
+      "path": "sparse_points/100 * sparse_weight (HARDCODED constant)",
+      "frequency": "once per mine tag",
+      "farmable": "Maybe",
+      "requires_objective": false,
+      "notes": "Not exposed as a V3 knob; still +100 points if mines fire"
+    },
+    {
+      "source": "sparse_oob",
+      "raw_value": -100.0,
+      "path": "_sparse_reward_points uses SPARSE_OOB_POINTS constant (cfg.sparse_oob_points is instrumentation-only today)",
+      "frequency": "once per OOB agent-step",
+      "farmable": "avoidance exploit if aggressive play OOBs",
+      "requires_objective": false,
+      "expected_ep_contrib_v3": "UNMEASURED rate"
+    },
+    {
+      "source": "failed_commit",
+      "raw_value_baseline": -0.2,
+      "raw_value_v3": -0.004,
+      "path": "rfail DIRECT",
+      "frequency": "once per ended unsuccessful macro (per agent)",
+      "farmable": "avoidance / inactivity",
+      "requires_objective": false,
+      "expected_ep_contrib_v3": -0.736,
+      "notes": "ended_commit = success | ticks_left<=0 | ~alive | tagged; failed = ended & ~success & was_alive. Tagged useful attacks count as failures."
+    },
+    {
+      "source": "team_defense_presence",
+      "raw_value": 0.03,
+      "path": "rteam * dense_weight",
+      "frequency": "every step while red has flag and blue near home",
+      "farmable": "camping while losing can still collect this",
+      "requires_objective": false,
+      "composed_per_step": 0.0075
+    },
+    {
+      "source": "team_escort",
+      "raw_value": 0.02,
+      "path": "rteam * dense_weight",
+      "frequency": "every step while blue has flag and teammate within 5",
+      "farmable": false,
+      "requires_objective": "Partly",
+      "composed_per_step": 0.005
+    },
+    {
+      "source": "team_intercept",
+      "raw_value": 0.02,
+      "path": "rteam * dense_weight",
+      "frequency": "every step while red has flag and blue within 5 of carrier",
+      "farmable": "Maybe",
+      "requires_objective": "Partly",
+      "composed_per_step": 0.005
+    },
+    {
+      "source": "spin_penalty",
+      "raw_value": 0.05,
+      "path": "subtracted inside rteam * dense_weight",
+      "frequency": "every step (yaw without motion)",
+      "farmable": "avoidance",
+      "requires_objective": false
+    },
+    {
+      "source": "idle_penalty",
+      "raw_value": 0.03,
+      "path": "subtracted inside rteam * dense_weight",
+      "frequency": "every step if mean blue speed < 0.15",
+      "farmable": "ALWAYS_HOME pays this continuously",
+      "requires_objective": false,
+      "composed_per_step": -0.0075
+    },
+    {
+      "source": "pbrs_attack_return_defend",
+      "raw_value": "coef=0.5 each",
+      "path": "F=coef*(pbrs_gamma*Phi'-Phi); then * dense_weight",
+      "frequency": "every step (phase-masked)",
+      "farmable": "ideally no (potential-based); bugs can create camping attractors",
+      "requires_objective": "ideally no",
+      "pbrs_gamma": 0.995,
+      "ppo_gamma": 0.995,
+      "gamma_match": true
+    },
+    {
+      "source": "stalemate_penalty",
+      "raw_value": -0.08,
+      "path": "_reward_total when stalemate_steps >= 120",
+      "frequency": "once when triggered (also truncates)",
+      "farmable": "avoidance",
+      "requires_objective": false
+    }
+  ],
+  "discounting": {
+    "ppo_gamma": 0.995,
+    "gae_lambda": 0.99,
+    "horizon": 240,
+    "discount_at_step": {
+      "50": 0.7783,
+      "100": 0.6058,
+      "150": 0.4715,
+      "200": 0.367,
+      "220": 0.332,
+      "240": 0.3003
+    },
+    "terminal_win_face_value": 1.0,
+    "terminal_win_discounted_if_at_step_240": 0.3003,
+    "terminal_win_discounted_if_at_step_200": 0.367,
+    "enemy_mav_kill_immediate": 0.5,
+    "enemy_mav_vs_discounted_terminal_at_240": 1.67,
+    "note": "At gamma=0.995, a win at step 240 is worth ~30% of face value. One immediate offense kill reward (0.5) is already ~1.66x that discounted terminal. Seventeen such events dominate completely."
+  },
+  "hidden_channel_alert": "V3 zeros sparse tag points but enemy_mav_kill_reward (+/-0.5 per tag) remains in offense. Mine-tag sparse (+100) is also still hardcoded.",
+  "pbrs_audit": {
+    "form": "F = coef * (pbrs_gamma * Phi(s') - Phi(s))",
+    "pbrs_gamma": 0.995,
+    "ppo_gamma": 0.995,
+    "gamma_match": true,
+    "phase_masks": {
+      "attack": "active only when NOT carrying before AND after (pickup transition excluded)",
+      "return": "active only when carrying before AND after (capture transition excluded)",
+      "defend": "active only when red has flag before AND after"
+    },
+    "terminal_potential": "No explicit Phi(terminal)=0 reset found in _pbrs_reward; episode boundary handled by env reset of positions/carrying. Stale prev_* snapshot on the terminal->reset step is a known class of bugs \u2014 verify via unit tests that the first step after reset does not compare against the previous episode's carrier state.",
+    "signs": "BLUE potentials only (attack/return/defend); no mirrored RED Phi in PBRS"
+  },
+  "failed_commit_semantics": {
+    "definition": "ended_commit = blue_commit_success | (ticks_left<=0) | (~alive) | tagged; failed_commit = ended_commit & (~success) & prev_alive",
+    "per_agent": true,
+    "both_agents_same_step": "Yes \u2014 sum(dim=1), so 2 agents can each add one penalty",
+    "tagged_converts_to_failure": true,
+    "episode_end_unfinished": "ticks expire or tag/death ends commit; truncation itself does not specially mark remaining commits beyond ticks_left countdown",
+    "helpful_but_failed": "A commit that helped a teammate but did not hit its own success predicate still pays the failure penalty",
+    "v3_cost_at_184_events": -0.736
+  },
+  "authored_utc": "2026-08-02T14:15:56.573344+00:00",
+  "isolation": {
+    "touches_live_v3_training": false,
+    "out_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3_scan",
+    "live_v3_dir": "artifacts/reward_v3/ (read-only if referenced)"
+  }
+}

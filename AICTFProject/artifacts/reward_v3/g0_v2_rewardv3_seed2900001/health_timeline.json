@@ -1,0 +1,74 @@
+[
+  {
+    "global_step": 51200,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts\\ckpt_g0_v2_rewardv3_seed2900001_50000.zip",
+    "SYSTEM_HEALTH": "FAIL",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 51200,
+      "episodes": 9,
+      "pickups": 39,
+      "captures_blue": 21,
+      "captures_red": 7,
+      "drops": 18,
+      "wins": 8,
+      "offensive_commitment": 0.190142,
+      "defensive_commitment": 0.446373,
+      "capture_conversion": 0.5385,
+      "win_rate": 0.8889,
+      "net_captures": 14,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.4336144423600483,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 100352,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts\\ckpt_g0_v2_rewardv3_seed2900001_100000.zip",
+    "SYSTEM_HEALTH": "FAIL",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 100352,
+      "episodes": 9,
+      "pickups": 37,
+      "captures_blue": 19,
+      "captures_red": 9,
+      "drops": 18,
+      "wins": 6,
+      "offensive_commitment": 0.154208,
+      "defensive_commitment": 0.422021,
+      "capture_conversion": 0.5135,
+      "win_rate": 0.6667,
+      "net_captures": 10,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.46315402668378797,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 151552,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts\\ckpt_g0_v2_rewardv3_seed2900001_150000.zip",
+    "SYSTEM_HEALTH": "FAIL",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 151552,
+      "episodes": 9,
+      "pickups": 37,
+      "captures_blue": 22,
+      "captures_red": 9,
+      "drops": 15,
+      "wins": 8,
+      "offensive_commitment": 0.159068,
+      "defensive_commitment": 0.411242,
+      "capture_conversion": 0.5946,
+      "win_rate": 0.8889,
+      "net_captures": 13,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.47534635226699934,
+    "zero_gradient_steps": 0
+  }
+]

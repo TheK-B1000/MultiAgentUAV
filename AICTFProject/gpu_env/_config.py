@@ -11,6 +11,7 @@ from game_manager import (
     FLAG_CARRY_HOME_REWARD,
     FLAG_PICKUP_REWARD,
     LOSE_TEAM_PUNISH,
+    SPARSE_OOB_POINTS,
     SPARSE_TAG_NO_FLAG_POINTS,
     SPARSE_TAG_WITH_FLAG_POINTS,
     WIN_TEAM_REWARD,
@@ -61,6 +62,11 @@ class RewardConfig:
     # largest share of its sparse reward from it was the one that failed. Exposed
     # so the whole tag-reward family can be closed in a single experiment.
     sparse_tag_with_flag_points: float = float(SPARSE_TAG_WITH_FLAG_POINTS)
+    # Out-of-bounds points. Exposed for MEASUREMENT and future budgeting only --
+    # deliberately left at its original value in Reward V3 because the OOB event
+    # rate has never been measured, and budgeting an unmeasured term is the
+    # mistake this whole exercise exists to correct.
+    sparse_oob_points: float = float(SPARSE_OOB_POINTS)
     dense_weight: float = 0.25
     reward_scale: float = 4.0
     reward_clip: float = 1.0

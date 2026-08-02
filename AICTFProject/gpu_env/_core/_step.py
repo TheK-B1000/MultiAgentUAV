@@ -212,7 +212,38 @@ class _StepMixin:
             alive=self.red_alive,
             obstacle_hit=red_wall_hit | red_guard_hit,
         )
+        self._emit_oob_events(blue_oob, red_oob)
         return {"blue_oob": blue_oob, "red_oob": red_oob, "yaw_cmd_blue": yaw_cmd_blue}
+
+    def _emit_oob_events(self, blue_oob: torch.Tensor, red_oob: torch.Tensor) -> None:
+        """Record out-of-bounds events so their reward contribution is measurable.
+
+        Purely observational and gated on the same telemetry flag as tag events,
+        so it is behaviour-neutral and costs nothing when off. The OOB rate could
+        not be recovered from the aggregate sparse residual -- backing it out
+        produced a negative implied count, because the residual also absorbs
+        mine-tag terms. Budgeting a term whose rate is unknown is precisely the
+        mistake this instrumentation exists to prevent.
+        """
+        if not bool(getattr(self.cfg, "tag_telemetry_enabled", False)):
+            return
+        rid = getattr(self.cfg, "ruleset_id", "UNKNOWN")
+        points = float(getattr(self.cfg, "sparse_oob_points", -100.0))
+        for team, mask in (("blue", blue_oob), ("red", red_oob)):
+            if mask is None or not mask.any():
+                continue
+            for row in mask.nonzero(as_tuple=False).tolist():
+                b, agent = int(row[0]), int(row[1])
+                ev = {
+                    "event_type": "out_of_bounds",
+                    "ruleset_id": rid,
+                    "team": team,
+                    "agent_index": agent,
+                    # Signed as it enters BLUE's sparse ledger.
+                    "sparse_points": points if team == "blue" else -points,
+                }
+                ev.update(self._event_identity(b))
+                self.tag_events.append(ev)
 
     def _advance_combat_phase(self, blue_oob: torch.Tensor, red_oob: torch.Tensor) -> Dict[str, torch.Tensor]:
         if bool(self.cfg.aquaticus_profile) or self.rules_profile in ("AQUATICUS_2024", "OURS", "OURS_PLUS"):

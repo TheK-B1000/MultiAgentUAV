@@ -1,0 +1,92 @@
+{
+  "design": "Reward V3 — objective-dominant budget",
+  "authored_utc": "2026-08-02",
+  "derived_from": "artifacts/reward_budget_v3.json (measured on completed runs; no new training)",
+
+  "problem_statement": "Across every completed run — competent and collapsed alike — the win/loss signal is a rounding error. Three single-constant ablations each improved matters and then watched the failure migrate to whichever shaping channel still paid. The defect is not a bad constant; it is that shaping magnitudes were set without reference to the value of winning.",
+
+  "measured_current_state_per_episode": {
+    "units": "raw composed-reward units (terminal + sparse + failure + offense + dense) before tanh squash",
+    "failure": -36.7,
+    "sparse_total": 1.47,
+    "offense": -1.02,
+    "team": 0.78,
+    "terminal": 0.27,
+    "pbrs": 0.13,
+    "failure_share_of_absolute_mass": 0.909,
+    "terminal_share_of_absolute_mass": 0.007,
+    "failure_to_terminal_ratio": 138,
+    "tags_per_capture": 8.08,
+    "tag_reward_to_capture_reward_ratio_at_baseline_values": 8.06
+  },
+
+  "invariant": "Expected CUMULATIVE per-episode reward from any farmable shaping behaviour must sit well below the value of accomplishing the objective. Per-event magnitude is not the constraint; PPO optimises cumulative expected value.",
+
+  "budget": {
+    "objective_reference_per_episode": 3.2,
+    "objective_components": ["terminal +/-1.0 per episode", "capture ~2.2 per episode"],
+    "tactical_shaping_max_share": 0.15,
+    "safety_penalty_max_share": 0.30
+  },
+
+  "derivation": {
+    "tags": {
+      "observed_events_per_episode": 17.0,
+      "budget_allowance_per_episode": 0.48,
+      "implied_ceiling_points": 1.86,
+      "current_points": {"no_flag": 100.0, "carrier": 50.0},
+      "chosen": 0.0,
+      "rationale": "Ceiling is ~54x below the current value, which alone shows the scale error. Chosen zero rather than the ceiling because the MECHANICS already make tagging valuable: tagging the carrier drops the flag, tagging an attacker interrupts pressure, and forcing a cooldown opens an attack window. A policy can learn tags are useful through their effect on winning instead of through a points faucet. The ceiling is recorded so a small positive value can be justified later if evidence demands one."
+    },
+    "failed_commitment": {
+      "observed_events_per_episode": 184,
+      "current_points": -0.2,
+      "current_cost_per_episode": -36.7,
+      "budget_allowance_per_episode": 0.96,
+      "rescale_factor": 0.0181,
+      "derived_points": -0.0036,
+      "chosen": -0.004,
+      "rationale": "Rounded from the derived value. At 184 failed commits per episode this costs ~0.74 per episode — noticeable, bounded, and no longer able to outweigh winning. Not set to zero: the previous ablation showed removing it entirely did not help and it plausibly discourages incoherent macro spam."
+    },
+    "out_of_bounds": {
+      "current_points": -100.0,
+      "chosen": -100.0,
+      "rationale": "UNCHANGED. The per-episode OOB rate could not be measured reliably from the available ledgers — backing it out of the sparse total produced a negative implied count, which is impossible and indicates the residual also absorbs mine-tag terms. Changing a value that has not been measured would repeat the original error. Instrument OOB events directly before touching this."
+    },
+    "terminal_and_capture": {
+      "chosen": "UNCHANGED (win +1.0 / lose -1.0 / draw -0.5, capture +/-100 sparse points)",
+      "rationale": "The objective is made dominant by shrinking the shaping that drowned it, not by inflating the objective. Raising win reward would change the return scale the critic has already been tuned against and would confound the test."
+    }
+  },
+
+  "v3_values": {
+    "sparse_tag_no_flag_points": 0.0,
+    "sparse_tag_with_flag_points": 0.0,
+    "action_failed_punishment": -0.004,
+    "sparse_flag_capture_points": 100.0,
+    "sparse_oob_points": -100.0,
+    "win_team_reward": 1.0,
+    "lose_team_punish": -1.0,
+    "draw_team_penalty": -0.5
+  },
+
+  "projected_per_episode_after_v3": {
+    "terminal": 1.0,
+    "capture": 2.2,
+    "objective_subtotal": 3.2,
+    "failure": -0.74,
+    "tags": 0.0,
+    "offense": -1.02,
+    "shaping_subtotal": -1.76,
+    "objective_now_dominant": true,
+    "caveat": "Projection assumes event rates hold under the new incentives. They will not hold exactly — that is what the probe measures."
+  },
+
+  "not_a_single_factor_ablation": "V3 deliberately changes two families at once (tags and failed-commit). It is a budget redesign, not a causal probe. Its purpose is to test whether an objective-dominant reward yields reliable competence, not to attribute credit between the two changes.",
+
+  "open_gaps": [
+    "OOB per-episode rate is unmeasured; the -100 value is unvalidated",
+    "offense channel (-1.02/episode) was never separately budgeted",
+    "event rates were measured on 300k probes with tags already zeroed, so they under-represent tag frequency under a restored tag reward"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "probe": "G0-v2 all-tag-reward ablation (closes the tag-reward family)",
+  "frozen_utc": "2026-08-02",
+  "frozen_before_any_probe_result": true,
+  "status": "FROZEN — thresholds declared before the first probe run; do not edit after results exist",
+
+  "question": "If tags provide zero direct reward of any kind, does PPO stop discovering tag-farming attractors?",
+
+  "design": {
+    "sparse_tag_no_flag_points": 0.0,
+    "sparse_tag_with_flag_points": 0.0,
+    "action_failed_punishment": -0.2,
+    "still_rewarded": ["flag captures (+/-100)"],
+    "still_penalised": ["OOB (-100)", "failed macro commitment (-0.2)"],
+    "unchanged": ["learning rate", "entropy schedule", "value coefficient", "batch shape", "map", "ruleset", "opponents", "horizon", "domain randomization"],
+    "seeds": [2800001, 2800002, 2800003],
+    "steps_per_seed": 300000,
+    "checkpoint_and_panel_interval": 50000
+  },
+
+  "per_seed_gate_at_250k_to_300k": {
+    "pickups": "> 0",
+    "offensive_commitment": "> 0",
+    "defensive_commitment": "< 1.0"
+  },
+
+  "across_seed_gate": {
+    "min_seeds_behaviourally_alive": 3,
+    "min_seeds_retaining_competence": 2,
+    "competence_definition": {
+      "net_captures": "> 0",
+      "win_rate": ">= 0.30",
+      "measured_on": "held-out TASK_HEALTH panel, seeds 9300000-9300002, opponents OP6/OP9/OP12"
+    }
+  },
+
+  "alignment_gate": {
+    "requirement": "no reward channel may rise in magnitude while task performance falls",
+    "test": "channels_rising_while_task_falls == [] for every probe seed",
+    "measured_by": "experiments/analyze_reward_channel_mass.py"
+  },
+
+  "prior_structural_finding_to_re_test": {
+    "observation": "across EVERY run so far -- collapsed and competent alike -- the terminal outcome is 1.4%-1.9% of total absolute reward mass, and reward_failure dominates at 47%-87%",
+    "implication": "the objective may be a rounding error in the reward signal regardless of which shaping term is being ablated",
+    "note": "this was measured retrospectively before this probe launched and is recorded here so it cannot be presented afterwards as a post-hoc discovery"
+  },
+
+  "outcome_interpretation": {
+    "best_case": "3/3 alive, >=2/3 competent, no channel rises while task falls -> zero tag reward removes the attractor; tag shaping may be unnecessary because the CONSEQUENCES of a tag already serve the objective",
+    "one_seed_farms_another_term": "STOP ablations. Evidence is sufficient for a structural reward-budget redesign around objective scale.",
+    "all_collapse": "STOP ablations. Tag farming was one expression of a deeper shaping problem.",
+    "forbidden": "reading a partial result and then editing these thresholds; continuing single-constant probes after an outcome that says stop"
+  },
+
+  "budget_principle_for_redesign": "Across a normal episode the expected CUMULATIVE reward from any farmable shaping behaviour must remain well below the value of accomplishing the objective. Per-event values are not the constraint; cumulative expected value is what PPO optimises.",
+
+  "locked_downstream": ["C1", "O1", "latent_birth", "router"]
+}
