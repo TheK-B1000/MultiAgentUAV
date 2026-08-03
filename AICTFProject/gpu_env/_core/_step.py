@@ -261,6 +261,7 @@ class _StepMixin:
         blue_mine_pickups, blue_mine_pickup_agents = self._apply_mine_pickups(macro, red_macro)
         blue_mine_placements, blue_mine_placement_agents = self._apply_mine_placement(macro, red_macro)
         blue_mine_tags, red_mine_tags = self._apply_mine_triggers()
+        self._emit_mine_tag_events(blue_mine_tags, red_mine_tags)
         self._untag_if_home()
         return {
             "blue_mine_pickups": blue_mine_pickups,
@@ -270,6 +271,41 @@ class _StepMixin:
             "blue_mine_tags": blue_mine_tags,
             "red_mine_tags": red_mine_tags,
         }
+
+    def _emit_mine_tag_events(self, blue_mine_tags, red_mine_tags) -> None:
+        """Record mine tags so their reward contribution is measurable.
+
+        A mine tag is paid TWICE: +/-100 sparse points AND +/-0.5 through
+        ``enemy_mav_kill_reward``, because ``blue_kill_count`` includes mine
+        tags. Whether that is a repeatable faucet or a rare event has never been
+        observed, so it is instrumented before being budgeted -- the same
+        discipline applied to out-of-bounds.
+        """
+        if not bool(getattr(self.cfg, "tag_telemetry_enabled", False)):
+            return
+        rid = getattr(self.cfg, "ruleset_id", "UNKNOWN")
+        sparse_pts = float(getattr(self.cfg, "sparse_mine_tag_points", 100.0))
+        kill_pts = float(getattr(self.cfg, "enemy_mav_kill_reward", 0.5))
+        for team, counts in (("blue", blue_mine_tags), ("red", red_mine_tags)):
+            if counts is None:
+                continue
+            nz = counts.nonzero(as_tuple=False).flatten().tolist()
+            for b in nz:
+                b = int(b)
+                n = int(counts[b].item())
+                if n <= 0:
+                    continue
+                ev = {
+                    "event_type": "mine_tag",
+                    "ruleset_id": rid,
+                    "team": team,
+                    "count": n,
+                    # Signed as they enter BLUE's ledger.
+                    "sparse_points": (sparse_pts if team == "blue" else -sparse_pts) * n,
+                    "offense_points": (kill_pts if team == "blue" else -kill_pts) * n,
+                }
+                ev.update(self._event_identity(b))
+                self.tag_events.append(ev)
 
     def _advance_flags_phase(self, snapshot: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         blue_grab_env, red_grab_env, blue_cap_env, red_cap_env = self._apply_flag_rules()

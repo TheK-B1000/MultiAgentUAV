@@ -1,0 +1,31 @@
+{
+  "limitation": "TASK_HEALTH validation panel saturates for strong policies",
+  "recorded_utc": "2026-08-02",
+  "recorded_while_run_in_flight": true,
+  "is_a_defect": false,
+  "is_a_stop_condition": false,
+
+  "observation": "V5 seed 3100001 produced byte-identical panels at 51k, 100k and 151k: pickups=46, captures=24, drops=22, wins=9, offensive_commitment=0.242102, net=19.",
+
+  "ruled_out": {
+    "model_not_updating": "checkpoints at 51,200 and 100,352 differ in ALL 20 parameter tensors (max |delta| 0.0339 on actor_cnn.conv.0.weight)",
+    "training_stalled": "75 updates, every logged metric distinct; entropy 3.498 -> 2.619, grad_norm 0.149 -> 1.036, rollout_reward 0.0002 -> 0.0036",
+    "panel_caching": "run_validation_panel rebuilds a CustomPPOInferencePolicy from trainer.model and re-runs all episodes on every call",
+    "affects_all_seeds": "seeds 3100002 and 3100003 show varying panels across the same interval"
+  },
+
+  "actual_cause": "The panel is 3 opponents x 3 fixed seeds = 9 deterministic episodes, evaluated with deterministic=True action selection. Seed 3100001 wins 9/9. Once a policy dominates every validation episode and its argmax is stable along those trajectories, the episodes replay identically regardless of further parameter change. The panel has no resolution above 9/9.",
+
+  "consequences": {
+    "for_condition_A_task_alive": "unaffected — pickups/commitment are still measured correctly",
+    "for_condition_B_competence": "unaffected — a saturated panel means the policy is winning everything, which is the competence claim",
+    "for_condition_D_attractor": "REDUCED SENSITIVITY. A saturated panel cannot show the gradual deterioration Condition D looks for. For a 9/9 seed, Condition D is effectively blind and must rely on the training-success series instead.",
+    "for_reward_budget_E": "unaffected — computed from metrics.csv, not the panel"
+  },
+
+  "not_changed_mid_run": "The panel size and validation seeds are part of the frozen V5 contract. Enlarging them now would break the frozen gate and make V5 incomparable to V4.",
+
+  "recommendation_for_future_probes": "Either enlarge the panel (more opponents/seeds) so strong policies retain headroom, or add a harder validation cell set specifically to preserve discrimination above 9/9. Note this trades panel cost against resolution: the panel runs at every checkpoint inside training.",
+
+  "reporting_rule_for_v5": "Where a seed's panel is saturated, the V5 report must state that Condition D was evaluated primarily against the training-success series for that seed, rather than implying the panel confirmed stability."
+}

@@ -1,0 +1,39 @@
+{
+  "record": "V4 accounting limitation — mine-tag was outside the frozen tactical bucket",
+  "recorded_utc": "2026-08-02",
+  "does_not_change_v4_verdict": true,
+  "v4_verdict_remains": "MIXED",
+
+  "limitation": "V4's frozen gate defined tactical_channels = [tag, enemy_mav_kill, mine_tag] but mine-tag was marked UNRESOLVED at freeze time because no measured rate existed. The reported 'tactical shaping = 0.0%' is therefore true only under the V4 accounting as frozen: tag and enemy_mav_kill were both zeroed, and mine-tag's contribution was not yet quantifiable.",
+
+  "what_is_now_known": {
+    "mine_tag_rate_per_episode": [0.18230, 0.13775, 0.12878],
+    "mine_tag_points": 100.0,
+    "contribution_per_episode": "+0.13 to +0.18 reward units",
+    "terminal_per_episode": "+0.87 to +0.99",
+    "share_of_terminal": "roughly 15-20%",
+    "verdict": "a direct, repeatable tactical payoff — not negligible"
+  },
+
+  "correction_going_forward": "From V5 onward, mine-tag is classified as TACTICAL SHAPING and counted in the tactical budget. V4's reported figure is not retroactively restated; this record exists so the historical number is not read as 'V4 had no tactical shaping at all'.",
+
+  "offense_channel_audit": {
+    "status": "read-only audit performed before V5; NO EXPLOIT FOUND, offense left unchanged",
+    "concern_tested": "pickup -> drop -> pickup oscillation farming the +0.1 flag_pickup_reward",
+    "evidence_against": {
+      "grabs_per_episode": [4.556, 5.222, 5.222],
+      "drops_per_episode": [1.778, 2.667, 2.556],
+      "captures_per_episode": [2.778, 2.556, 2.667],
+      "drop_per_pickup": [0.390, 0.511, 0.489],
+      "conversion": [0.610, 0.489, 0.511],
+      "reasoning": "An oscillation farm would show drop_per_pickup near 1.0 with near-zero captures. Observed captures per episode are high (2.56-2.78) and roughly half of pickups convert, so grabs are productive rather than churned."
+    },
+    "decomposition": {
+      "offense_from_grabs_per_episode": [0.456, 0.522, 0.522],
+      "offense_from_carry_home_per_episode": [1.389, 1.278, 1.333],
+      "grab_to_carry_ratio": [0.33, 0.41, 0.39],
+      "note": "carry_home (+0.5/capture, objective-aligned) dominates offense by 2.5-3x"
+    },
+    "flag_for_v5": "grab reward is ~50% of terminal per episode. It is PROGRESS shaping (a pickup is genuine progress toward a capture), not tactical shaping, but it is now the largest remaining shaping channel and should be reported explicitly in V5 budget panels."
+  }
+}

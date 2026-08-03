@@ -94,5 +94,17 @@ def test_validation_seeds_are_disjoint_from_training_and_evaluation():
     assert not (panel & diagnostic)
 
 
-def test_panel_is_small_enough_to_run_every_checkpoint():
-    assert len(VALIDATION_OPPONENTS) * len(VALIDATION_SEEDS) <= 12
+def test_panel_size_is_large_enough_to_resist_saturation():
+    """9 episodes saturated at 9/9 and went blind. 21-30 restores headroom.
+
+    Bounded above as well: the panel runs at every checkpoint inside training,
+    so resolution is traded against wall-clock.
+    """
+    n = len(VALIDATION_OPPONENTS) * len(VALIDATION_SEEDS)
+    assert 21 <= n <= 30, f"panel is {n} episodes; contract requires 21-30"
+
+
+def test_panel_covers_the_full_admitted_opponent_mixture():
+    """Subsetting opponents is what let the panel saturate on easy cells."""
+    admitted = {"OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"}
+    assert set(VALIDATION_OPPONENTS) == admitted

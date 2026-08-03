@@ -86,6 +86,10 @@ class HealthLedger:
         self.tag_success = 0
         self.tag_denied_cooldown = 0
         self.capture_events = 0
+        self.oob_blue = 0
+        self.oob_red = 0
+        self.mine_tag_blue = 0
+        self.mine_tag_red = 0
         self.legality_violations: dict[str, int] = defaultdict(int)
         self.identity_violations: dict[str, int] = defaultdict(int)
         self.inactive_diagnostics: set[str] = set()
@@ -160,6 +164,16 @@ IDENTITY_FIELDS = (
     "env_index", "episode_id", "reset_sequence", "simulation_step",
     "decision_step", "event_sequence",
 )
+# Authoritative event-type registry. A type absent from here is counted as a
+# legality violation, which is the correct default -- but it means adding a new
+# telemetry event REQUIRES updating this set. Omitting `out_of_bounds` when the
+# OOB instrumentation landed produced 357 phantom violations and a false
+# SYSTEM_HEALTH=FAIL across all three V3 seeds. The event-IDENTITY contract was
+# enforced; the event-TYPE contract was not.
+KNOWN_EVENT_TYPES = frozenset({
+    "tag_success", "tag_denied", "capture_scored", "episode_reset",
+    "out_of_bounds", "mine_tag",
+})
 # A reset marker is an episode BOUNDARY, not an in-episode event: the step
 # counters are being zeroed as it is emitted, so it carries the ended/new
 # episode ids instead (gpu_env/state/episode_state.py).
@@ -210,6 +224,25 @@ def _check_event(ledger: HealthLedger, e: dict, *, tag_range: float) -> None:
         ledger.capture_events += 1
         return
 
+    if et == "mine_tag":
+        # Paid twice (sparse points + enemy_mav_kill_reward). Counted so the
+        # question "is this a repeatable faucet or a rare event?" is answerable.
+        n = int(e.get("count", 1))
+        if e.get("team") == "blue":
+            ledger.mine_tag_blue += n
+        else:
+            ledger.mine_tag_red += n
+        return
+
+    if et == "out_of_bounds":
+        # Observational only. Counted by side so the OOB reward channel can be
+        # budgeted from a measured rate rather than guessed at.
+        if e.get("team") == "blue":
+            ledger.oob_blue += 1
+        else:
+            ledger.oob_red += 1
+        return
+
     if et == "tag_success":
         ledger.tag_success += 1
         if SUCCESS_FIELDS - set(e):
@@ -255,6 +288,7 @@ def _check_event(ledger: HealthLedger, e: dict, *, tag_range: float) -> None:
         )
         return
 
+    # Unregistered type: a real contract breach, not a new feature we forgot.
     ledger.legality_violations["unknown_event_type"] += 1
 
 
@@ -887,6 +921,10 @@ def main() -> int:
         "tag_success_events": ledger.tag_success,
         "cooldown_denial_events": ledger.tag_denied_cooldown,
         "capture_events": ledger.capture_events,
+        "oob_blue_events": ledger.oob_blue,
+        "oob_red_events": ledger.oob_red,
+        "mine_tag_blue_events": ledger.mine_tag_blue,
+        "mine_tag_red_events": ledger.mine_tag_red,
         "resets_observed": ledger.resets_observed,
         "hard_tag_legality_violations": dict(ledger.legality_violations),
         "event_identity_violations": dict(ledger.identity_violations),

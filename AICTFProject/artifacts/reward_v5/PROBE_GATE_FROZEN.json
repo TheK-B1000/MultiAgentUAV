@@ -1,0 +1,123 @@
+{
+  "probe": "Reward V5 — cleanup and confirmation pass",
+  "frozen_utc": "2026-08-02",
+  "frozen_before_any_probe_result": true,
+  "status": "FROZEN — contract declared before launch; constants must NOT change after launch",
+
+  "scope": "V5 does exactly two things: budget the now-measured mine-tag reward, and apply the repaired Condition D. Nothing else in V4 is touched. This is a confirmation pass, not further reward archaeology.",
+
+  "locked_reward_configuration": {
+    "CHANGED_FROM_V4": {
+      "sparse_mine_tag_points": {
+        "from": 100.0,
+        "to": 0.0,
+        "derivation": "Measured in V4 at 0.129-0.182 events/episode. At +100 that is +0.13-0.18 reward units/episode against a terminal of 0.87-0.99 — roughly 15-20% of the objective, from a direct repeatable payoff. Set to zero for the same reason ordinary tags were: the game consequence should make mine tags useful. If mine tagging genuinely helps win, PPO can learn that through outcome.",
+        "not_because": "mine tags are strategically worthless"
+      }
+    },
+    "UNCHANGED_FROM_V4": {
+      "sparse_tag_no_flag_points": 0.0,
+      "sparse_tag_with_flag_points": 0.0,
+      "enemy_mav_kill_reward": 0.0,
+      "action_failed_punishment": -0.004,
+      "sparse_opponent_oob_points": 0.0,
+      "sparse_own_oob_points": -70.0,
+      "sparse_flag_capture_points": 100.0,
+      "flag_pickup_reward": 0.1,
+      "flag_carry_home_reward": 0.5,
+      "win_team_reward": 1.0,
+      "lose_team_punish": -1.0,
+      "draw_team_penalty": -0.5,
+      "pbrs": "unchanged (5/5 terminal tests, no defect)",
+      "gamma": 0.995,
+      "horizon": 240,
+      "map": "map_a",
+      "ruleset": "RULESET_V2_AQUATICUS_10S",
+      "opponents": "OP6-OP12"
+    }
+  },
+
+  "REWARD_CHANNEL_CLASSIFICATION": {
+    "objective_non_farmable": ["terminal", "capture"],
+    "progress_shaping": ["flag_pickup (grab)", "flag_carry_home"],
+    "tactical_shaping": ["tag_no_flag", "tag_with_flag", "enemy_mav_kill", "mine_tag"],
+    "safety_shaping": ["failed_commit", "own_oob"],
+    "other_shaping": ["team", "pbrs"],
+    "rule": "A rising terminal or capture reward while the policy is winning must NEVER by itself trigger the new-attractor condition. Only farmable shaping families can.",
+    "correction_note": "mine_tag is classified TACTICAL from V5 onward; in V4 it sat outside the frozen tactical bucket because it was unresolved at freeze time (see artifacts/reward_v4/V4_ACCOUNTING_LIMITATION.json)"
+  },
+
+  "design": {
+    "seeds": [3100001, 3100002, 3100003],
+    "seed_freshness": "disjoint from all prior families: 2500001-3, 2600001-3, 2700001-3, 2800001-3, 2900001-3, 3000001-3, 9100000+, 9200000+, 9300000-2",
+    "steps_per_seed": 300000,
+    "checkpoint_and_panel_interval": 50000,
+    "initialization": "fresh"
+  },
+
+  "HARD_PASS": {
+    "A_TASK_ALIVE": {
+      "applies_to": "3/3 seeds",
+      "pickups": "> 0",
+      "offensive_commitment": "> 0",
+      "defensive_commitment": "< 1.0"
+    },
+    "B_COMPETENCE": {
+      "applies_to": ">= 2/3 seeds",
+      "win_rate": ">= 0.30",
+      "net_captures": "> 0",
+      "note": "threshold deliberately kept at >=2/3 rather than raised to 3/3 after seeing V4 produce 3/3; raising a bar after observing a favourable result is exactly the move this protocol forbids"
+    },
+    "C_ALIGNMENT": {
+      "applies_to": "every seed",
+      "requirement": "reward_up_while_task_down == false"
+    },
+    "D_NO_SUSTAINED_FARMABLE_ATTRACTOR": {
+      "repaired": true,
+      "why_repaired": "V4's condition D fired on microscopic panel drift (pickups 44.3->40.0, offensive_commitment 0.226->0.218) while TRAINING SUCCESS ROSE in all three seeds. It had no magnitude threshold and no persistence requirement on a 9-episode panel, so any dip made every rising channel suspicious -- including the objective itself.",
+      "triggers_only_if_ALL_FOUR_hold": [
+        "1. a task metric deteriorates by at least its preregistered meaningful amount",
+        "2. that deterioration is sustained across at least 2 consecutive panels",
+        "3. a FARMABLE shaping family increases in magnitude over the same interval",
+        "4. overall success/objective performance does not improve enough to contradict it"
+      ],
+      "meaningful_deterioration_thresholds": {
+        "win_rate_drop": 0.15,
+        "success_drop": 0.15,
+        "offensive_commitment_drop_absolute": 0.10,
+        "net_captures_drop": 5,
+        "pickups_drop_fraction": 0.25
+      },
+      "contradiction_rule": "If training success improves by >= 0.10 over the run, condition 4 is not satisfied and the attractor condition does NOT trigger.",
+      "farmable_families_considered": ["failed_commit", "own_oob", "opponent_oob", "mine_tag", "tag", "enemy_mav_kill", "offense", "team", "pbrs"],
+      "explicitly_excluded_from_triggering": ["terminal", "capture"]
+    },
+    "E_REWARD_BUDGET": {
+      "tactical_shaping_max_share": 0.15,
+      "safety_shaping_max_share": 0.30,
+      "tactical_channels_v5": ["tag_no_flag", "tag_with_flag", "enemy_mav_kill", "mine_tag"],
+      "safety_channels_v5": ["failed_commit", "own_oob"],
+      "report_also": "progress shaping (grab, carry_home) share -- reported, not gated, since a pickup is genuine progress toward the objective"
+    }
+  },
+
+  "per_50k_panel_reporting": [
+    "terminal", "capture", "failed_commit", "own OOB", "opponent OOB", "tag",
+    "enemy_mav_kill", "mine_tag", "grab", "carry_home", "offense", "team", "PBRS",
+    "total absolute reward mass", "share of each channel",
+    "pickups", "drops", "drop_per_pickup", "capture_conversion", "tags_per_capture"
+  ],
+
+  "CLASSIFICATION": {
+    "PASS": "A and B and C and D and E all pass",
+    "MIXED": "competence passes BUT alignment/budget/attractor condition fails",
+    "FAIL": "alive requirement or competence requirement fails"
+  },
+
+  "STOP_CONDITIONS": ["NaN or Inf", "identity violation", "real legality violation", "corrupted checkpoint or artifact", "actual PBRS defect", "config mismatch"],
+  "DO_NOT_STOP_FOR": "one seed looking weak at 100k or 150k",
+
+  "if_v5_passes": "STOP reward tuning. Proceed to fresh long G0-V5 policies, require >=2 competent independent seeds, then weakness discovery, C1 confirmation on fresh held-out seeds, O1, complementarity, first latent birth.",
+
+  "locked_downstream": ["C1", "O1", "latent_birth", "router"]
+}

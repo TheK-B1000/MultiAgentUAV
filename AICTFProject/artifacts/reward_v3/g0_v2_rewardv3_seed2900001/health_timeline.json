@@ -70,5 +70,101 @@
     },
     "grad_norm_mean_postclip": 0.47534635226699934,
     "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 200704,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts\\ckpt_g0_v2_rewardv3_seed2900001_200000.zip",
+    "SYSTEM_HEALTH": "FAIL",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 200704,
+      "episodes": 9,
+      "pickups": 41,
+      "captures_blue": 20,
+      "captures_red": 9,
+      "drops": 21,
+      "wins": 8,
+      "offensive_commitment": 0.186364,
+      "defensive_commitment": 0.404223,
+      "capture_conversion": 0.4878,
+      "win_rate": 0.8889,
+      "net_captures": 11,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.48181210302482436,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 251904,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts\\ckpt_g0_v2_rewardv3_seed2900001_250000.zip",
+    "SYSTEM_HEALTH": "FAIL",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 251904,
+      "episodes": 9,
+      "pickups": 32,
+      "captures_blue": 24,
+      "captures_red": 6,
+      "drops": 8,
+      "wins": 8,
+      "offensive_commitment": 0.137109,
+      "defensive_commitment": 0.528539,
+      "capture_conversion": 0.75,
+      "win_rate": 0.8889,
+      "net_captures": 18,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.4862064016710751,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 301056,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts\\ckpt_g0_v2_rewardv3_seed2900001_300000.zip",
+    "SYSTEM_HEALTH": "FAIL",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 301056,
+      "episodes": 9,
+      "pickups": 36,
+      "captures_blue": 19,
+      "captures_red": 10,
+      "drops": 17,
+      "wins": 6,
+      "offensive_commitment": 0.167654,
+      "defensive_commitment": 0.455718,
+      "capture_conversion": 0.5278,
+      "win_rate": 0.6667,
+      "net_captures": 9,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.4888245995724344,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 301056,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v3\\g0_v2_rewardv3_seed2900001\\ckpts\\final_g0_v2_rewardv3_seed2900001.zip",
+    "SYSTEM_HEALTH": "FAIL",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 301056,
+      "episodes": 9,
+      "pickups": 36,
+      "captures_blue": 19,
+      "captures_red": 10,
+      "drops": 17,
+      "wins": 6,
+      "offensive_commitment": 0.167654,
+      "defensive_commitment": 0.455718,
+      "capture_conversion": 0.5278,
+      "win_rate": 0.6667,
+      "net_captures": 9,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.4888245995724344,
+    "zero_gradient_steps": 0
   }
 ]

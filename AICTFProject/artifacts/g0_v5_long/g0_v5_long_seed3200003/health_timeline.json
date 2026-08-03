@@ -1,0 +1,50 @@
+[
+  {
+    "global_step": 100352,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\g0_v5_long\\g0_v5_long_seed3200003\\ckpts\\ckpt_g0_v5_long_seed3200003_100000.zip",
+    "SYSTEM_HEALTH": "PASS",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 100352,
+      "episodes": 21,
+      "pickups": 112,
+      "captures_blue": 41,
+      "captures_red": 5,
+      "drops": 71,
+      "wins": 19,
+      "offensive_commitment": 0.186802,
+      "defensive_commitment": 0.43281,
+      "capture_conversion": 0.3661,
+      "win_rate": 0.9048,
+      "net_captures": 36,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.45577710969922075,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 200704,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\g0_v5_long\\g0_v5_long_seed3200003\\ckpts\\ckpt_g0_v5_long_seed3200003_200000.zip",
+    "SYSTEM_HEALTH": "PASS",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 200704,
+      "episodes": 21,
+      "pickups": 117,
+      "captures_blue": 43,
+      "captures_red": 7,
+      "drops": 74,
+      "wins": 18,
+      "offensive_commitment": 0.211672,
+      "defensive_commitment": 0.410368,
+      "capture_conversion": 0.3675,
+      "win_rate": 0.8571,
+      "net_captures": 36,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.4764218446384779,
+    "zero_gradient_steps": 0
+  }
+]

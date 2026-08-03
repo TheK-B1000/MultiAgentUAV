@@ -19,11 +19,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field, asdict
 from typing import Any, Sequence
 
-# Disjoint from training seeds (2,500,00x), discovery evaluation (9,100,00x)
-# and the collapse diagnostic (9,200,00x).
+# Disjoint from training seeds (2,500,00x - 3,200,00x), discovery evaluation
+# (9,100,00x) and the collapse diagnostic (9,200,00x).
 VALIDATION_SEED_BASE = 9_300_000
 VALIDATION_SEEDS = tuple(VALIDATION_SEED_BASE + i for i in range(3))
-VALIDATION_OPPONENTS = ("OP6", "OP9", "OP12")
+# All seven admitted opponents, not a subset. The previous 3-opponent panel
+# (9 episodes) SATURATED: V5 seed 3100001 won 9/9 from 51k onward and produced
+# byte-identical panels for the rest of the run, leaving the attractor check
+# blind on its strongest seed. Covering the full admitted mixture restores
+# headroom, because the harder opponents keep some episodes winnable-but-lost.
+VALIDATION_OPPONENTS = ("OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12")
 
 # A policy that never picks the flag up or never crosses the midline is not
 # playing, regardless of how healthy its gradients look.

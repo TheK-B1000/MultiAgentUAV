@@ -11,6 +11,7 @@ from game_manager import (
     FLAG_CARRY_HOME_REWARD,
     FLAG_PICKUP_REWARD,
     LOSE_TEAM_PUNISH,
+    SPARSE_MINE_TAG_POINTS,
     SPARSE_OOB_POINTS,
     SPARSE_TAG_NO_FLAG_POINTS,
     SPARSE_TAG_WITH_FLAG_POINTS,
@@ -67,6 +68,17 @@ class RewardConfig:
     # rate has never been measured, and budgeting an unmeasured term is the
     # mistake this whole exercise exists to correct.
     sparse_oob_points: float = float(SPARSE_OOB_POINTS)
+    # OOB split into its two halves, because they are different incentives.
+    # own: a penalty for leaving the field yourself (keep, but bounded).
+    # opponent: a REWARD for the enemy leaving the field. At the historical
+    # +100 this was a points farm -- V3 seed 2900002 drove red off the field
+    # 2.39x/episode, earning +1.9/episode (3.1x its terminal signal) while
+    # losing 89% of its games. Defaults preserve the original behaviour exactly.
+    sparse_own_oob_points: float = float(SPARSE_OOB_POINTS)
+    sparse_opponent_oob_points: float = float(-SPARSE_OOB_POINTS)
+    # Mine tags are paid twice: sparse points AND enemy_mav_kill_reward,
+    # because blue_kill_count includes them. Exposed for measurement first.
+    sparse_mine_tag_points: float = float(SPARSE_MINE_TAG_POINTS)
     dense_weight: float = 0.25
     reward_scale: float = 4.0
     reward_clip: float = 1.0

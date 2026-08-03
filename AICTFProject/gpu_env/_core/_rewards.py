@@ -247,12 +247,23 @@ class _RewardsMixin:
         r += tag_carrier_points * blue_tag_withflag.to(torch.float32)
         r -= tag_noflag_points * red_tag_total.to(torch.float32)
         if blue_mine_tags is not None:
-            r += float(SPARSE_MINE_TAG_POINTS) * blue_mine_tags.to(torch.float32)
+            mine_pts = float(getattr(self.cfg, "sparse_mine_tag_points", SPARSE_MINE_TAG_POINTS))
+            r += mine_pts * blue_mine_tags.to(torch.float32)
         if red_mine_tags is not None:
-            r -= float(SPARSE_MINE_TAG_POINTS) * red_mine_tags.to(torch.float32)
-        r += float(SPARSE_OOB_POINTS) * blue_oob.sum(dim=1).to(torch.float32)
+            r -= float(getattr(self.cfg, "sparse_mine_tag_points", SPARSE_MINE_TAG_POINTS)) * red_mine_tags.to(torch.float32)
+        # The two OOB halves are separately configurable: leaving the field
+        # yourself is a bounded penalty, while the enemy leaving the field is a
+        # reward that turned out to be farmable. Defaults reproduce the original
+        # symmetric behaviour exactly.
+        own_oob_points = float(
+            getattr(self.cfg, "sparse_own_oob_points", SPARSE_OOB_POINTS)
+        )
+        opponent_oob_points = float(
+            getattr(self.cfg, "sparse_opponent_oob_points", -SPARSE_OOB_POINTS)
+        )
+        r += own_oob_points * blue_oob.sum(dim=1).to(torch.float32)
         if red_oob is not None:
-            r -= float(SPARSE_OOB_POINTS) * red_oob.sum(dim=1).to(torch.float32)
+            r += opponent_oob_points * red_oob.sum(dim=1).to(torch.float32)
         return r
 
     def _surface_pressure_reward(

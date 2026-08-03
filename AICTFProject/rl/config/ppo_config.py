@@ -678,6 +678,11 @@ class PPOConfig:
     env_sparse_tag_no_flag_points: Optional[float] = None
     # Points for tagging the enemy flag carrier (default +50).
     env_sparse_tag_with_flag_points: Optional[float] = None
+    # OOB halves: own-agent penalty vs reward for the opponent going OOB.
+    env_sparse_own_oob_points: Optional[float] = None
+    env_sparse_opponent_oob_points: Optional[float] = None
+    env_enemy_mav_kill_reward: Optional[float] = None
+    env_sparse_mine_tag_points: Optional[float] = None
     env_dense_weight: Optional[float] = None
     env_sparse_weight: Optional[float] = None
     env_reward_scale: Optional[float] = None
