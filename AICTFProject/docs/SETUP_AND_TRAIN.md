@@ -280,6 +280,11 @@ python plot/eval_exploitability.py --checkpoint-dir checkpoints_sb3/2v2 \
   --curve-out csv/exploitability_curves_2v2.csv
 ```
 
+**Caveats (do not skip before citing numbers):**
+
+1. **Retrain ROA-Star PFSP before claiming PFSP results.** Earlier `final_ppo_roastar_pfsp_*` runs recorded empty `win_rate_stats` in `*_league_state.json`, so PFSP weights never updated and sampling stayed uniform (effectively fictitious play, mislabeled). After the `record_result` fix in `train_ppo_roastar.py`, re-run PFSP (and prefer FP/DO too) before using those checkpoints in the paper table.
+2. **Discard cross-play / tournament CSVs produced before the `scores_from_info` fix.** `run_two_policy_episodes` could silently return zero episodes → NaN match scores. Re-run `eval_crossplay.py` / `checkpoint_tournament.py` after that fix; do not recycle old matrices.
+
 Reward presets:
 - `full` — shaped reward (default)
 - `no_shaping` / `sparse` — zero PBRS + team dense bonuses; keep terminal + offense events
