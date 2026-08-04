@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Sequential ROA-Star baseline runner (one job at a time).
+Sequential EGT baseline-ladder runner (one job at a time).
 
-Queues PFSP (and optionally PFSP+exploiter) across seeds, always using the
-project .venv interpreter so Hermes/system Python cannot miss SB3.
+Queues fictitious play / double oracle / PFSP (and optionally PFSP+exploiter)
+across seeds, always using the project .venv interpreter so Hermes/system Python
+cannot miss SB3.
 
 Usage (from AICTFProject):
 
@@ -16,10 +17,10 @@ Usage (from AICTFProject):
   # Match ablation rollout shape (32 x 512)
   python rl/run_roastar.py --modes pfsp --seeds 42,43,44 --n-envs 32 --n-steps 512
 
-  # PFSP then PFSP+exploiter (6 jobs)
-  python rl/run_roastar.py --modes pfsp,pfsp_exploiter --seeds 42,43,44 --n-envs 32 --n-steps 512
+  # The two missing ladder rungs (6 jobs)
+  python rl/run_roastar.py --modes fp,do --seeds 42,43,44 --n-envs 32 --n-steps 512
 
-  # Full paper baseline matrix alias
+  # Full paper baseline matrix alias (fp, do, pfsp, pfsp_exploiter x 3 seeds)
   python rl/run_roastar.py --full --n-envs 32 --n-steps 512
 """
 
@@ -38,6 +39,7 @@ if _PROJECT_DIR not in sys.path:
     sys.path.insert(0, _PROJECT_DIR)
 
 from rl.run_ablations import resolve_python  # noqa: E402
+from rl.train_ppo_roastar import LEAGUE_MODES  # noqa: E402
 
 _TRAIN_SCRIPT = os.path.join(_SCRIPT_DIR, "train_ppo_roastar.py")
 
@@ -59,10 +61,10 @@ def _parse_modes(raw: Optional[str], default: Sequence[str] = ("pfsp",)) -> List
     parts = [p.lower().replace("-", "_") for p in _parse_csv_list(raw)]
     if not parts:
         parts = list(default)
-    allowed = {"pfsp", "pfsp_exploiter"}
+    allowed = set(LEAGUE_MODES)
     bad = [p for p in parts if p not in allowed]
     if bad:
-        raise SystemExit(f"Unknown mode(s): {bad}. Expected: pfsp, pfsp_exploiter")
+        raise SystemExit(f"Unknown mode(s): {bad}. Expected: {', '.join(sorted(allowed))}")
     return parts
 
 
@@ -126,12 +128,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--modes",
         type=str,
         default="pfsp",
-        help="Comma-separated: pfsp, pfsp_exploiter (default: pfsp)",
+        help="Comma-separated: fp, do, pfsp, pfsp_exploiter (default: pfsp)",
     )
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Alias: modes=pfsp,pfsp_exploiter and seeds=42,43,44",
+        help="Alias: modes=fp,do,pfsp,pfsp_exploiter and seeds=42,43,44 (the full EGT ladder)",
     )
     parser.add_argument("--seeds", type=str, default="42,43,44")
     parser.add_argument("--agents", type=int, default=2)
@@ -163,7 +165,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args, extra = parser.parse_known_args(argv)
 
     if args.full:
-        modes = ["pfsp", "pfsp_exploiter"]
+        modes = ["fp", "do", "pfsp", "pfsp_exploiter"]
         seeds = [42, 43, 44]
     else:
         modes = _parse_modes(args.modes)

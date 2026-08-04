@@ -111,6 +111,8 @@ def run_eval_episodes(
     record_entropy: bool = False,
     progress_every: int = 0,
     episode_seeds: list[int] | None = None,
+    opponent_kind: str = "SCRIPTED",
+    stress_schedule: dict | None = None,
 ) -> list[dict]:
     """Run n_episodes; each dict has success, steps, return, scores, etc. (same as plot_eval_metrics).
 
@@ -120,6 +122,12 @@ def run_eval_episodes(
     (flush=True) so long 8v8 runs do not look hung.
     If episode_seeds is provided (len == n_episodes), each episode is reseeded before reset so
     every model faces the same initial conditions for episode i.
+
+    ``opponent_kind`` selects between SCRIPTED tags (OP1..OP4) and SPECIES tags
+    (RUSHER/CAMPER/BALANCED). ``stress_schedule`` overrides the default
+    per-phase current/drift schedule; pass one from
+    ``rl.configuration_space.Configuration.stress_schedule`` to make the current
+    profile an explicit evaluated factor instead of an inherited default.
     """
     from stable_baselines3 import PPO
 
@@ -132,14 +140,18 @@ def run_eval_episodes(
             flush=True,
         )
 
+    kind = str(opponent_kind).strip().upper()
     try:
         env.env_method("set_phase", opponent)
-        env.env_method("set_next_opponent", "SCRIPTED", opponent)
+        env.env_method("set_next_opponent", kind, opponent)
         # Match training (train_ppo): phase-indexed current/drift via stress schedule.
         try:
-            from rl.curriculum import STRESS_BY_PHASE
+            if stress_schedule is not None:
+                env.env_method("set_stress_schedule", stress_schedule)
+            else:
+                from rl.curriculum import STRESS_BY_PHASE
 
-            env.env_method("set_stress_schedule", STRESS_BY_PHASE)
+                env.env_method("set_stress_schedule", STRESS_BY_PHASE)
         except Exception:
             pass
         out = env.env_method("get_opponent_key")
@@ -156,7 +168,7 @@ def run_eval_episodes(
         import warnings
 
         warnings.warn(
-            f"Failed to set opponent to {opponent!r}: {e}. "
+            f"Failed to set opponent to {kind}:{opponent!r}: {e}. "
             "Red team may still be using the previous opponent — OP3 vs OP4 results can look identical."
         )
 

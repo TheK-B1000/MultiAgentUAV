@@ -1,0 +1,234 @@
+% SEA-GUARD revision bibliography.
+%
+% Reviewer 1: "The bibliography is scarce, and a third of it corresponds to
+% self-cites." These entries back docs/paper/related_work.md.
+%
+% Entries tagged TODO-VERIFY have not been checked against the publisher record
+% in this session. Verify venue, year, volume and pages before submission --
+% shipping an unverified citation is worse than shipping a shorter list.
+
+% ---------------------------------------------------------------- league / population
+
+@article{vinyals2019,
+  title   = {Grandmaster level in {StarCraft II} using multi-agent reinforcement learning},
+  author  = {Vinyals, Oriol and Babuschkin, Igor and Czarnecki, Wojciech M. and
+             Mathieu, Michael and Dudzik, Andrew and Chung, Junyoung and Choi, David H. and
+             Powell, Richard and Ewalds, Timo and Georgiev, Petko and others},
+  journal = {Nature},
+  volume  = {575},
+  number  = {7782},
+  pages   = {350--354},
+  year    = {2019}
+}
+
+@inproceedings{huang2023roastar,
+  title     = {A Robust and Opponent-Aware League Training Method for {StarCraft II}},
+  author    = {Huang, Ruozi and Wu, Xipeng and Yu, Hongsheng and Fan, Zhong and
+               Fu, Haobo and Fu, Qiang and Yang, Wei},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2023}
+}
+
+@article{berner2019,
+  title   = {Dota 2 with Large Scale Deep Reinforcement Learning},
+  author  = {Berner, Christopher and Brockman, Greg and Chan, Brooke and
+             Cheung, Vicki and Debiak, Przemys{\l}aw and Dennison, Christy and
+             Farhi, David and Fischer, Quirin and Hashme, Shariq and Hesse, Chris and others},
+  journal = {arXiv preprint arXiv:1912.06680},
+  year    = {2019}
+}
+
+% ---------------------------------------------------------------- empirical game theory
+
+@inproceedings{lanctot2017psro,
+  title     = {A Unified Game-Theoretic Approach to Multiagent Reinforcement Learning},
+  author    = {Lanctot, Marc and Zambaldi, Vinicius and Gruslys, Audrunas and
+               Lazaridou, Angeliki and Tuyls, Karl and P{\'e}rolat, Julien and
+               Silver, David and Graepel, Thore},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2017}
+}
+
+@inproceedings{mcmahan2003do,
+  title     = {Planning in the Presence of Cost Functions Controlled by an Adversary},
+  author    = {McMahan, H. Brendan and Gordon, Geoffrey J. and Blum, Avrim},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  pages     = {536--543},
+  year      = {2003}
+}
+
+@article{omidshafiei2019alpharank,
+  title   = {$\alpha$-Rank: Multi-Agent Evaluation by Evolution},
+  author  = {Omidshafiei, Shayegan and Papadimitriou, Christos and Piliouras, Georgios and
+             Tuyls, Karl and Rowland, Mark and Lespiau, Jean-Baptiste and
+             Czarnecki, Wojciech M. and Lanctot, Marc and Perolat, Julien and Munos, Remi},
+  journal = {Scientific Reports},
+  volume  = {9},
+  number  = {1},
+  pages   = {9937},
+  year    = {2019}
+}
+
+@article{timbers2020exploitability,
+  title   = {Approximate exploitability: Learning a best response in large games},
+  author  = {Timbers, Finbarr and Bard, Nolan and Lockhart, Edward and Lanctot, Marc and
+             Schmid, Martin and Burch, Neil and Schrittwieser, Julian and
+             Hubert, Thomas and Bowling, Michael},
+  journal = {arXiv preprint arXiv:2004.09677},
+  year    = {2020}
+}
+
+@article{brown2017libratus,
+  title   = {Superhuman AI for heads-up no-limit poker: {Libratus} beats top professionals},
+  author  = {Brown, Noam and Sandholm, Tuomas},
+  journal = {Science},
+  volume  = {359},
+  number  = {6374},
+  pages   = {418--424},
+  year    = {2018}
+}
+
+@article{silver2016alphago,
+  title   = {Mastering the game of {Go} with deep neural networks and tree search},
+  author  = {Silver, David and Huang, Aja and Maddison, Chris J. and Guez, Arthur and
+             Sifre, Laurent and Van Den Driessche, George and Schrittwieser, Julian and
+             Antonoglou, Ioannis and Panneershelvam, Veda and Lanctot, Marc and others},
+  journal = {Nature},
+  volume  = {529},
+  number  = {7587},
+  pages   = {484--489},
+  year    = {2016}
+}
+
+% ---------------------------------------------------------------- curricula
+
+@inproceedings{wu2024portal,
+  title     = {{PORTAL}: Automatic Curricula Generation for Multiagent Reinforcement Learning},
+  author    = {Wu, Jizhou and others},
+  booktitle = {AAAI Conference on Artificial Intelligence},
+  pages     = {15934--15942},
+  year      = {2024},
+  note      = {TODO-VERIFY author list}
+}
+
+@inproceedings{dennis2020paired,
+  title     = {Emergent Complexity and Zero-shot Transfer via Unsupervised Environment Design},
+  author    = {Dennis, Michael and Jaques, Natasha and Vinitsky, Eugene and Bayen, Alexandre and
+               Russell, Stuart and Critch, Andrew and Levine, Sergey},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2020}
+}
+
+@article{wang2019poet,
+  title   = {Paired Open-Ended Trailblazer ({POET}): Endlessly Generating Increasingly Complex
+             and Diverse Learning Environments and Their Solutions},
+  author  = {Wang, Rui and Lehman, Joel and Clune, Jeff and Stanley, Kenneth O.},
+  journal = {arXiv preprint arXiv:1901.01753},
+  year    = {2019}
+}
+
+% ---------------------------------------------------------------- benchmarks
+
+@inproceedings{angliss2026vgc,
+  title     = {{VGC-Bench}: Towards Mastering Diverse Team Strategies in Competitive {Pok{\'e}mon}},
+  author    = {Angliss, Cameron L. and Cui, Jiaxun and Hu, Jiaheng and
+               Rahman, Arrasy and Stone, Peter},
+  booktitle = {International Conference on Autonomous Agents and Multiagent Systems (AAMAS)},
+  year      = {2026}
+}
+
+@inproceedings{samvelyan2019smac,
+  title     = {The {StarCraft} Multi-Agent Challenge},
+  author    = {Samvelyan, Mikayel and Rashid, Tabish and de Witt, Christian Schroeder and
+               Farquhar, Gregory and Nardelli, Nantas and Rudner, Tim G. J. and
+               Hung, Chia-Man and Torr, Philip H. S. and Foerster, Jakob and Whiteson, Shimon},
+  booktitle = {International Conference on Autonomous Agents and Multiagent Systems (AAMAS)},
+  year      = {2019}
+}
+
+@inproceedings{suarez2021neuralmmo,
+  title     = {Neural {MMO} v1.3: A Massively Multiagent Game Environment for Training and
+               Evaluating Neural Networks},
+  author    = {Suarez, Joseph and Du, Yilun and Zhu, Clare and Mordatch, Igor and Isola, Phillip},
+  booktitle = {International Conference on Autonomous Agents and Multiagent Systems (AAMAS)},
+  year      = {2021},
+  note      = {TODO-VERIFY venue}
+}
+
+@inproceedings{leibo2021meltingpot,
+  title     = {Scalable Evaluation of Multi-Agent Reinforcement Learning with {Melting Pot}},
+  author    = {Leibo, Joel Z. and Du{\'e}{\~n}ez-Guzm{\'a}n, Edgar A. and Vezhnevets, Alexander Sasha and
+               Agapiou, John P. and Sunehag, Peter and Koster, Raphael and Matyas, Jayd and
+               Beattie, Charles and Mordatch, Igor and Graepel, Thore},
+  booktitle = {International Conference on Machine Learning (ICML)},
+  year      = {2021}
+}
+
+% ---------------------------------------------------------------- maritime / multi-robot
+
+@inproceedings{novitzky2018aquaticus,
+  title     = {Aquaticus: Publicly Available Datasets from a Marine Human-Robot Teaming Testbed},
+  author    = {Novitzky, Michael and Robinette, Paul and Benjamin, Michael R. and
+               Gershfeld, Dennis K. and Defilippo, Michael and Sideleau, Scott and others},
+  booktitle = {ACM/IEEE International Conference on Human-Robot Interaction (HRI)},
+  year      = {2019},
+  note      = {TODO-VERIFY year and author list}
+}
+
+@misc{pyquaticus2023,
+  title        = {Pyquaticus: A Lightweight Maritime Capture-the-Flag Environment for
+                  Multi-Agent Reinforcement Learning},
+  author       = {{MIT Lincoln Laboratory}},
+  howpublished = {\url{https://github.com/mit-ll-trusted-autonomy/pyquaticus}},
+  year         = {2023},
+  note         = {TODO-VERIFY citation form}
+}
+
+@article{shishika2020defense,
+  title   = {Cooperative Team Strategies for Multi-Player Perimeter-Defense Games},
+  author  = {Shishika, Daigo and Paulos, James and Kumar, Vijay},
+  journal = {IEEE Robotics and Automation Letters},
+  volume  = {5},
+  number  = {2},
+  pages   = {2738--2745},
+  year    = {2020}
+}
+
+@misc{jacob2024uav,
+  title  = {Multi-Agent Reinforcement Learning for {UAV} Capture-the-Flag},
+  author = {Jacob and others},
+  year   = {2024},
+  note   = {TODO-VERIFY -- this is the UAV baseline cited in the submitted version;
+            fill in the exact reference from the submission's bibliography}
+}
+
+% ---------------------------------------------------------------- method
+
+@article{schulman2017ppo,
+  title   = {Proximal Policy Optimization Algorithms},
+  author  = {Schulman, John and Wolski, Filip and Dhariwal, Prafulla and
+             Radford, Alec and Klimov, Oleg},
+  journal = {arXiv preprint arXiv:1707.06347},
+  year    = {2017}
+}
+
+@article{raffin2021sb3,
+  title   = {Stable-Baselines3: Reliable Reinforcement Learning Implementations},
+  author  = {Raffin, Antonin and Hill, Ashley and Gleave, Adam and Kanervisto, Anssi and
+             Ernestus, Maximilian and Dormann, Noah},
+  journal = {Journal of Machine Learning Research},
+  volume  = {22},
+  number  = {268},
+  pages   = {1--8},
+  year    = {2021}
+}
+
+@article{robinson1951fp,
+  title   = {An Iterative Method of Solving a Game},
+  author  = {Robinson, Julia},
+  journal = {Annals of Mathematics},
+  volume  = {54},
+  number  = {2},
+  pages   = {296--301},
+  year    = {1951}
+}

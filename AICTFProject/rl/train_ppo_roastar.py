@@ -13,7 +13,13 @@ reward ablation handling, checkpointing, resume-from-checkpoint -- runs
 completely unchanged, which is what makes the resulting comparison scientifically
 clean: only the opponent-sampling strategy (Elo-distance vs. PFSP) differs.
 
-Modes:
+Modes (the empirical-game-theoretic baseline ladder; only the opponent-selection
+rule differs between them, everything else is byte-identical):
+    fp              Fictitious play: uniform draw over the pool
+                    (rl/egt_league.FictitiousPlayLeague.sample_league_fp).
+    do              Double oracle / PSRO: opponents drawn from the pool's
+                    meta-Nash, solved by LP over an empirical payoff matrix
+                    (rl/egt_league.DoubleOracleLeague.sample_league_do).
     pfsp            Main policy trained with ROAStarLeague.sample_league_pfsp()
                     in place of EloLeague.sample_league(); everything else
                     identical to a normal CURRICULUM_LEAGUE run.
@@ -24,12 +30,24 @@ Modes:
                     ROAStarLeague.register_exploiter_snapshot() so subsequent
                     sampling can select it -- all within the same training run.
 
+IMPORTANT (fixed 2026-08): match results are now fed back into the league via
+ROAStarLeague.record_result() in _EGTLeagueCallbackBase._update_opponent_stats.
+Before that fix nothing called record_result, so win_rate() returned None for
+every opponent, _pfsp_weight() returned its unplayed-opponent value of 1.0, and
+`--mode pfsp` degenerated to a uniform draw -- i.e. it silently ran fictitious
+play. Runs whose <run_tag>_league_state.json has an empty "win_rate_stats" were
+produced by that path and are NOT valid PFSP runs.
+
 Recommended run tags:
     ppo_roastar_pfsp_2v2_seed42
+    ppo_roastar_fp_2v2_seed42
+    ppo_roastar_do_2v2_seed42
     ppo_roastar_pfsp_exploiter_2v2_seed42
 
 Usage:
     python rl/train_ppo_roastar.py --mode pfsp --agents 2 --total-steps 1000000 --seed 42
+    python rl/train_ppo_roastar.py --mode fp   --agents 2 --total-steps 1000000 --seed 42
+    python rl/train_ppo_roastar.py --mode do   --agents 2 --total-steps 1000000 --seed 42
     python rl/train_ppo_roastar.py --mode pfsp_exploiter --agents 2 --total-steps 1000000 --seed 42
 """
 from __future__ import annotations
@@ -51,24 +69,72 @@ if _PROJECT_DIR not in sys.path:
 from stable_baselines3.common.callbacks import BaseCallback
 
 import rl.train_ppo as tp
+from rl.egt_league import DoubleOracleLeague, FictitiousPlayLeague
 from rl.roastar_league import ROAStarLeague
 from rl.train_exploiter import train_attacker_exploiter
 from rl.train_ppo import LeagueCallback, OpponentSpec, PPOConfig, TrainMode, _log_line
 
+_RESULT_SCORE = {"WIN": 1.0, "DRAW": 0.5, "LOSS": 0.0}
 
-class ROAStarLeagueCallback(LeagueCallback):
+
+class _EGTLeagueCallbackBase(LeagueCallback):
     """
     Identical orchestration to LeagueCallback -- curriculum tracking, Elo
     bookkeeping, snapshotting, logging -- only opponent selection in league mode
-    differs: PFSP win-rate-weighted sampling instead of Elo-distance matchmaking.
-    Requires self.league to be a ROAStarLeague instance (enforced by the
-    monkeypatching in _patched_train_ppo below).
+    differs. Subclasses override _select_league_opponent().
+
+    Also closes the feedback loop the population-based rules need: LeagueCallback
+    reports every finished episode to _update_opponent_stats(), so that is where
+    the result is forwarded to league.record_result(). Without this the win-rate
+    stats stay empty and PFSP/DO silently degrade to a uniform draw.
     """
+
+    def _select_league_opponent(self) -> OpponentSpec:
+        raise NotImplementedError
 
     def _select_next_opponent(self) -> OpponentSpec:
         if not self.league_mode:
             return super()._select_next_opponent()
+        return self._select_league_opponent()
+
+    def _update_opponent_stats(self, opp_key: str, result: str):
+        # Record before delegating: LeagueCallback's own tracking can be disabled
+        # via _enable_opponent_tracking, but the league's stats must not be.
+        score = _RESULT_SCORE.get(str(result).upper())
+        if score is not None:
+            self.league.record_result(str(opp_key), float(score))
+        return super()._update_opponent_stats(opp_key, result)
+
+
+class ROAStarLeagueCallback(_EGTLeagueCallbackBase):
+    """PFSP win-rate-weighted sampling instead of Elo-distance matchmaking.
+    Requires self.league to be a ROAStarLeague (enforced by _patched_train_ppo)."""
+
+    def _select_league_opponent(self) -> OpponentSpec:
         return self.league.sample_league_pfsp(phase="OP3", enable_snapshots=True)
+
+
+class FictitiousPlayLeagueCallback(_EGTLeagueCallbackBase):
+    """Uniform draw over the pool. Requires self.league to be a FictitiousPlayLeague."""
+
+    def _select_league_opponent(self) -> OpponentSpec:
+        return self.league.sample_league_fp(phase="OP3", enable_snapshots=True)
+
+
+class DoubleOracleLeagueCallback(_EGTLeagueCallbackBase):
+    """Meta-Nash draw over the pool. Requires self.league to be a DoubleOracleLeague."""
+
+    def _select_league_opponent(self) -> OpponentSpec:
+        return self.league.sample_league_do(phase="OP3", enable_snapshots=True)
+
+
+# mode -> (league class, callback class)
+LEAGUE_MODES: Dict[str, Any] = {
+    "pfsp": (ROAStarLeague, ROAStarLeagueCallback),
+    "pfsp_exploiter": (ROAStarLeague, ROAStarLeagueCallback),
+    "fp": (FictitiousPlayLeague, FictitiousPlayLeagueCallback),
+    "do": (DoubleOracleLeague, DoubleOracleLeagueCallback),
+}
 
 
 class ExploiterTriggerCallback(BaseCallback):
@@ -165,6 +231,7 @@ class ExploiterTriggerCallback(BaseCallback):
 @contextlib.contextmanager
 def _patched_train_ppo(
     *,
+    mode: str = "pfsp",
     pfsp_p: float = 2.0,
     pfsp_floor: float = 0.05,
     resume_league_state_path: Optional[str] = None,
@@ -173,10 +240,13 @@ def _patched_train_ppo(
     """Monkeypatch rl.train_ppo's module-level EloLeague/LeagueCallback/CallbackList
     for the duration of one train_ppo() call, then restore them. See module
     docstring for why this is the chosen integration strategy."""
+    if mode not in LEAGUE_MODES:
+        raise ValueError(f"unknown mode {mode!r}; expected one of {sorted(LEAGUE_MODES)}")
+    league_cls, callback_cls = LEAGUE_MODES[mode]
     captured: Dict[str, Any] = {}
 
     def _league_factory(**kwargs: Any) -> ROAStarLeague:
-        league = ROAStarLeague(pfsp_p=pfsp_p, pfsp_floor=pfsp_floor, **kwargs)
+        league = league_cls(pfsp_p=pfsp_p, pfsp_floor=pfsp_floor, **kwargs)
         if resume_league_state_path:
             if league.load_state_from_file(resume_league_state_path):
                 _log_line(
@@ -199,7 +269,7 @@ def _patched_train_ppo(
             super().__init__(cbs)
 
     tp.EloLeague = _league_factory
-    tp.LeagueCallback = ROAStarLeagueCallback
+    tp.LeagueCallback = callback_cls
     tp.CallbackList = _CallbackListWithExtra
     try:
         yield captured
@@ -284,6 +354,7 @@ def run(args: argparse.Namespace) -> str:
             )
 
     with _patched_train_ppo(
+        mode=str(args.mode),
         pfsp_p=args.pfsp_p,
         pfsp_floor=args.pfsp_floor,
         resume_league_state_path=league_state_path if resume_league_state else None,
@@ -295,15 +366,21 @@ def run(args: argparse.Namespace) -> str:
             league.save_state(league_state_path)
             _log_line(
                 f"[ROAStar] persisted league state ({len(league.snapshots)} snapshots, "
-                f"{len(league.exploiter_snapshots)} exploiter-origin) -> {league_state_path}"
+                f"{len(league.exploiter_snapshots)} exploiter-origin, "
+                f"{len(league.win_rate_stats)} opponents with recorded results) -> {league_state_path}"
             )
+            if not league.win_rate_stats:
+                _log_line(
+                    "[ROAStar] WARNING: no per-opponent results were recorded. PFSP/DO weighting "
+                    "had no data to act on, so this run is not a valid population-based run."
+                )
 
     return league_state_path
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--mode", choices=["pfsp", "pfsp_exploiter"], required=True)
+    parser.add_argument("--mode", choices=sorted(LEAGUE_MODES), required=True)
     parser.add_argument("--agents", type=int, default=2)
     parser.add_argument("--total-steps", type=int, default=1_000_000)
     parser.add_argument("--seed", type=int, default=42)

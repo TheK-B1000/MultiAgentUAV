@@ -57,6 +57,26 @@ class EpisodeSummary:
         return f"SCRIPTED:{str(self.scripted_tag or 'OP3').upper()}"
 
 
+def scores_from_info(info: Dict[str, Any]) -> Optional[tuple[int, int]]:
+    """Return ``(blue_score, red_score)`` from either info-dict shape.
+
+    ``GPUCTFVecEnv.step_wait`` synthesizes a nested ``info["episode_result"]``
+    dict, but ``BatchedCTFCore.step`` — which two-policy stepping calls directly —
+    only puts ``blue_score``/``red_score`` at the top level. Code that reads raw
+    core infos through ``parse_episode_result`` silently gets ``None`` for every
+    episode and ends up reporting NaN, so scores are read through this helper
+    instead. Returns None when neither shape is present.
+    """
+    ep = info.get("episode_result")
+    src = ep if isinstance(ep, dict) else info
+    if "blue_score" not in src or "red_score" not in src:
+        return None
+    try:
+        return int(src["blue_score"]), int(src["red_score"])
+    except (TypeError, ValueError):
+        return None
+
+
 def parse_episode_result(info: Dict[str, Any]) -> Optional[EpisodeSummary]:
     """
     Parse info dict (single-env step info) into EpisodeSummary.
