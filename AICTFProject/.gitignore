@@ -1,0 +1,44 @@
+# Model checkpoints and training artifacts.
+#
+# These are what inflated .git to ~13 GB: SB3 .zip checkpoints are 38-75 MB each
+# and every training run wrote several, all committed. Release them as tagged
+# GitHub release assets or a Zenodo/HuggingFace deposit and fetch them with a
+# download script -- do not commit them.
+#
+# NOTE: adding a path here does NOT untrack files already in the index. To stop
+# tracking something already committed:  git rm --cached -r <path>
+# That removes it from future commits but leaves it in history; shrinking the
+# existing history requires a filter-repo rewrite (see tools/build_release.py,
+# which sidesteps the problem by building a fresh repo instead).
+checkpoints/
+checkpoints_sb3/
+artifacts/
+experiments/
+evaluation_results/
+*.zip
+*.pt
+*.pth
+*.ckpt
+
+# Run outputs
+logs/
+csv/
+.test_runs/
+*.log
+
+# Environments and caches
+.venv/
+gpu_env/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

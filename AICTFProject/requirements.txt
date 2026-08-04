@@ -1,0 +1,21 @@
+# Pinned to the versions the reported results were produced with (Python 3.12.4).
+#
+# PyTorch: the pinned build is CUDA 12.8. Install it from the PyTorch index first,
+# then the rest of this file:
+#
+#   pip install torch==2.11.0 --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r requirements.txt
+#
+# CPU-only works for the tests and for small evaluation runs; training at the
+# budgets in docs/REPRODUCE.md wants a GPU.
+torch==2.11.0
+stable_baselines3==2.7.1
+gymnasium==1.2.3
+numpy==2.2.6
+scipy==1.17.1
+cloudpickle==3.1.2
+pandas==2.3.3
+matplotlib==3.10.8
+tqdm==4.67.1
+rich==14.2.0
+pytest>=8.0
