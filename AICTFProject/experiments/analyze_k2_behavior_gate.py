@@ -125,6 +125,14 @@ def b_distinct(pairs: dict, drawn: dict | None = None) -> tuple[float, float, fl
 
     ``drawn`` optionally supplies a resampled multiset of seeds per family;
     degenerate self-pairs are skipped.
+
+    The family names are read from ``drawn`` rather than hardcoded, so the same
+    statistic serves the O1 gate (families G0 / O1) as well as the k2 families
+    it was written for. For any two-family ``drawn`` this iterates exactly the
+    pairs the hardcoded ("piR", "piS") version did, in the same order; the k2
+    numbers are unchanged, which
+    ``tests/test_b_distinct_family_generalization.py`` asserts against the
+    recorded k2 audit CSV.
     """
     def look(a, b):
         return pairs.get((a, b), pairs.get((b, a)))
@@ -134,7 +142,12 @@ def b_distinct(pairs: dict, drawn: dict | None = None) -> tuple[float, float, fl
         for (a, b), v in pairs.items():
             (between if family_of(a) != family_of(b) else within).append(v)
     else:
-        for fam in ("piR", "piS"):
+        families = list(drawn)
+        if len(families) != 2:
+            raise ValueError(
+                f"B_distinct compares exactly two families; got {families!r}"
+            )
+        for fam in families:
             d = drawn[fam]
             for i in range(len(d)):
                 for j in range(i + 1, len(d)):
@@ -143,8 +156,9 @@ def b_distinct(pairs: dict, drawn: dict | None = None) -> tuple[float, float, fl
                     v = look(d[i], d[j])
                     if v is not None:
                         within.append(v)
-        for a in drawn["piR"]:
-            for b in drawn["piS"]:
+        left, right = families
+        for a in drawn[left]:
+            for b in drawn[right]:
                 v = look(a, b)
                 if v is not None:
                     between.append(v)
