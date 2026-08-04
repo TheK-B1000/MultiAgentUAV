@@ -1,0 +1,85 @@
+{
+  "proposal": "C1 candidate — Home Under Threat While Leading",
+  "authored_utc": "2026-08-03",
+  "status": "PROPOSED — discovery evidence only. NOT confirmed. O1 remains locked.",
+  "source": "artifacts/g0_v5_evaluation/g0_v2_evaluation_report.json (630 held-out episodes, seeds 9400000+)",
+
+  "why_this_is_a_proposal_not_a_finding": "The 630-episode run scanned many combinations of failure indicators, actionable contexts and precursor features. Its confidence intervals describe the candidates it surfaced; they do not confirm them. Confirmation requires a separate run on fresh held-out seeds testing ONLY the frozen definition below.",
+
+  "C1_DEFINITION": {
+    "name": "home_under_threat_while_leading",
+    "failure_being_predicted": "lost_after_leading",
+    "opportunity_matched_population": "windows in which BLUE was leading (opp_leading) — controls are leads that were KEPT, so the contrast is 'why do some leads survive and others do not', not 'what happens when you are behind'",
+    "precursor_state_all_legally_observable": [
+      "our flag is away from home / the enemy is carrying it",
+      "home is threatened (nearest red to our flag closer than nearest blue)",
+      "an enemy defender has its tag available",
+      "carrier pressure is increasing (closing distance over the window)",
+      "BLUE is ahead on score"
+    ],
+    "decision_fork": "recover our flag vs continue pressure / race home",
+    "alternative_response_a_specialist_could_learn": "immediate defensive rotation to intercept the enemy carrier instead of continuing to attack",
+    "precursor_window": "30 decisions, ending strictly BEFORE the failing decision"
+  },
+
+  "EVIDENCE": {
+    "reproduced_in_seeds": [3200001, 3200002, 3200003],
+    "episode_clustered_bootstrap_home_threatened_frac": {
+      "3200001": {"failure_episodes": 62, "control_episodes": 96, "delta": 0.6454, "ci": [0.6027, 0.6855], "excludes_zero": true},
+      "3200002": {"failure_episodes": 64, "control_episodes": 82, "delta": 0.6642, "ci": [0.6221, 0.7055], "excludes_zero": true},
+      "3200003": {"failure_episodes": 63, "control_episodes": 103, "delta": 0.6935, "ci": [0.6552, 0.7307], "excludes_zero": true}
+    },
+    "supporting_separating_features_all_3_seeds_ci_backed": {
+      "home_threatened_frac": 0.668,
+      "enemy_carrying_frac": 0.604,
+      "our_flag_away_frac": 0.603,
+      "defender_tag_available_frac": 0.438,
+      "carrier_pressure_increasing": 0.380
+    },
+    "prevalence": "62-64 failure episodes out of 210 per seed (~30%)"
+  },
+
+  "RANKED_AGAINST_THE_DECLARED_HIERARCHY": {
+    "1_reproduced_in_2plus_training_seeds": "YES — 3/3",
+    "2_ci_backed_under_episode_clustering": "YES — all three seeds, intervals tight and excluding zero",
+    "3_enough_distinct_episodes_not_merely_windows": "YES — 62-64 failure episodes and 82-103 control episodes per seed",
+    "4_observable_before_the_failure": "YES — window ends exclusive of the failing decision; enforced by tests/test_g0_v2_precursor_integrity.py",
+    "5_describes_a_changeable_decision": "YES — rotate home to intercept vs keep attacking",
+    "6_recreatable_from_valid_states": "YES — construct: BLUE ahead on score, RED carrying the blue flag, both BLUE agents past the midline, RED defender off cooldown",
+    "7_clear_anchor_context": "YES — ordinary attacking play with home secure, where G0 should remain preferable"
+  },
+
+  "HONEST_CAVEATS": [
+    "The top three features are near-collinear: 'our flag away from home', 'enemy carrying', and 'home threatened' are largely the same underlying fact. They should be treated as ONE signal, not three independent confirmations.",
+    "That signal is also partly mechanical — the enemy must hold our flag to score it. What makes the contrast non-tautological is the opportunity matching: controls are windows where BLUE was ALSO leading and did NOT lose the lead. The question is why some leads survive.",
+    "The genuinely independent contributions are defender_tag_available_frac (+0.438) and carrier_pressure_increasing (+0.380), which are not implied by the enemy holding the flag.",
+    "This is a discovery analysis over many combinations. No multiplicity correction was applied, by design."
+  ],
+
+  "RUNNER_UP_NOT_PROPOSED": {
+    "name": "carrier_mostly_unescorted",
+    "why_attractive": "an ACTIONABLE context rather than a failure label; recurring in 3/3 seeds with a mean win-rate drop of 0.256 and healthy prevalence (0.34-0.44); maps cleanly onto an Artifact-Assault-style escort specialist",
+    "why_not_chosen": "it is a layer-2 episode descriptor with no episode-clustered confidence interval. The declared hierarchy places CI-backing at position 2, and home_under_threat_while_leading satisfies it while this does not.",
+    "recommendation": "keep as the second C1 candidate if the confirmation run rejects the first"
+  },
+
+  "FROZEN_CONFIRMATION_PROTOCOL": {
+    "status": "declared now, before any confirmation data exists",
+    "failure_predicted": "lost_after_leading",
+    "opportunity_matched_population": "windows where BLUE is leading on score",
+    "precursor_window_decisions": 30,
+    "feature_tested": "home_threatened_frac",
+    "single_feature_only": "one feature, chosen in advance, to avoid selecting the most attractive of many",
+    "expected_effect_direction": "POSITIVE — home_threatened_frac must be HIGHER before a lost lead than in matched controls. A negative result, however large, is a rejection, not a finding.",
+    "minimum_support": "at least 30 failure episodes and 30 control episodes per seed",
+    "effect_size_threshold": 0.15,
+    "statistic": "episode-clustered bootstrap, 2000 resamples, seed 12345, 95% interval",
+    "pass_criterion": "delta >= 0.15 AND 95% CI excludes zero, in at least 2 of 3 fresh seeds",
+    "evaluation_seeds": "fresh, disjoint from 9400000+ (discovery), 9300000-2 (panel), 9200000+ (diagnostic), 9100000+ (V6I9 discovery), and all training seeds",
+    "policies": "the same three frozen G0-V5 1M checkpoints — no retraining",
+    "nothing_left_to_choose": "population, window, feature, direction, support, threshold and statistic are all fixed above"
+  },
+
+  "LOCKED": ["O1", "latent_birth", "router"],
+  "next_step_requires_authorization": true
+}

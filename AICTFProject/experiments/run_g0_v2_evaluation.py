@@ -812,6 +812,46 @@ def mine_weaknesses(per_seed: dict[int, list[dict]]) -> dict:
 # --- main -------------------------------------------------------------------
 
 
+class ChannelResolutionError(RuntimeError):
+    """Raised when a checkpoint's CNN input width cannot be established."""
+
+
+def resolve_cnn_channels(payload: dict, *, context: str = "") -> int:
+    """Determine the CNN input width a checkpoint was TRAINED with.
+
+    Resolution order, most authoritative first:
+
+      1. explicit observation-schema metadata on the checkpoint
+      2. the shape of ``actor_cnn.conv.0.weight`` -- the weights themselves
+      3. fail closed
+
+    The previous implementation used ``cfg.get("cnn_channels", 0) or 8`` and
+    then a try/except that retried with 7. Neither key existed, so the ``or 8``
+    silently invented a width and the loader zero-expanded a 7-channel conv to
+    8. It happened to be behaviourally equivalent (the new channel's weights
+    were zero and the obstacle plane is zero on map_a_open), but the evaluation
+    log then read ``channels=8`` as though the checkpoint had asserted it.
+    A formal evaluation must know why a compatibility shim is needed rather
+    than discovering the architecture through exception handling.
+    """
+    for key in ("cnn_channels", "num_cnn_channels", "obs_cnn_channels"):
+        raw = payload.get(key, payload.get("cfg", {}).get(key))
+        if raw:
+            return int(raw)
+
+    state = payload.get("model_state_dict") or {}
+    for name, tensor in state.items():
+        if name.endswith("actor_cnn.conv.0.weight") and hasattr(tensor, "shape"):
+            if len(tensor.shape) >= 2:
+                return int(tensor.shape[1])
+
+    raise ChannelResolutionError(
+        f"Cannot establish CNN input width for {context or 'checkpoint'}: no "
+        "observation-schema metadata and no actor_cnn.conv.0.weight in the "
+        "state dict. Refusing to guess a width for a formal evaluation."
+    )
+
+
 def evaluate_seed(seed: int, episodes: int, device: str) -> list[dict]:
     from rl.evaluation.checkpoint import load_policy
     from rl.custom_ppo.checkpoints.loader import read_checkpoint_payload
@@ -831,11 +871,8 @@ def evaluate_seed(seed: int, episodes: int, device: str) -> list[dict]:
             "preregistered 1,000,000-step policy"
         )
 
-    channels = int(payload.get("cfg", {}).get("cnn_channels", 0) or 8)
-    try:
-        policy = load_policy(str(ckpt), device=device, num_cnn_channels=channels)
-    except Exception:
-        policy = load_policy(str(ckpt), device=device, num_cnn_channels=7)
+    channels = resolve_cnn_channels(payload, context=str(ckpt))
+    policy = load_policy(str(ckpt), device=device, num_cnn_channels=channels)
 
     rows: list[dict] = []
     for opp in OPPONENTS:

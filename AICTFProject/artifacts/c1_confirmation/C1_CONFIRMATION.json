@@ -1,0 +1,111 @@
+{
+  "confirmation": "C1 \u2014 home_under_threat_while_leading",
+  "verdict": "CONFIRMED",
+  "policies_passing": "3/3",
+  "minimum_required": 2,
+  "concept_separation": {
+    "CONTEXT": "BLUE is ahead on score AND its home is threatened",
+    "OUTCOME": "lost_after_leading",
+    "FEATURE": "home_threatened_frac",
+    "what_a_pass_establishes": "Among opportunity-matched leads, greater home threat reliably predicts failure to preserve the lead across independent evaluation samples.",
+    "what_a_pass_does_NOT_establish": "That home threat CAUSES the loss, or that failure to rotate home is the mechanism. This is a predictive context, not a demonstrated causal mechanism."
+  },
+  "frozen_protocol": {
+    "failure_predicted": "lost_after_leading",
+    "opportunity_matched_population": "opp_leading",
+    "precursor_window_decisions": 30,
+    "primary_feature": "home_threatened_frac",
+    "single_feature_only": true,
+    "expected_effect_direction": "POSITIVE",
+    "min_failure_episodes": 30,
+    "min_control_episodes": 30,
+    "effect_size_threshold": 0.15,
+    "bootstrap": {
+      "resamples": 2000,
+      "seed": 12345,
+      "cluster_unit": "episode"
+    },
+    "min_policies_passing": 2,
+    "frozen_before_data": true
+  },
+  "data": {
+    "policies": "frozen G0-V5 1M checkpoints, seeds 3200001-3 (no retraining)",
+    "evaluation_seeds": [
+      9500000,
+      9500029
+    ],
+    "disjoint_from": [
+      "9100000+ V6I9 discovery",
+      "9200000+ collapse diagnostic",
+      "9300000-9300002 TASK_HEALTH panel",
+      "9400000+ G0-V5 discovery",
+      "all training seeds"
+    ],
+    "episodes_per_policy": 210
+  },
+  "per_policy": [
+    {
+      "policy_seed": 3200001,
+      "n_failure_windows": 74,
+      "n_matched_control_windows": 200,
+      "n_failure_episodes": 57,
+      "n_control_episodes": 110,
+      "failure_mean": 0.7761,
+      "control_mean": 0.089,
+      "delta": 0.6871,
+      "ci_low": 0.6478,
+      "ci_high": 0.7271,
+      "excludes_zero": true,
+      "sufficient_support": true,
+      "correct_direction": true,
+      "meets_effect_threshold": true,
+      "PASS": true,
+      "overall_win_rate": 0.7952,
+      "episodes_evaluated": 210
+    },
+    {
+      "policy_seed": 3200002,
+      "n_failure_windows": 86,
+      "n_matched_control_windows": 182,
+      "n_failure_episodes": 63,
+      "n_control_episodes": 88,
+      "failure_mean": 0.7581,
+      "control_mean": 0.083,
+      "delta": 0.6752,
+      "ci_low": 0.637,
+      "ci_high": 0.7109,
+      "excludes_zero": true,
+      "sufficient_support": true,
+      "correct_direction": true,
+      "meets_effect_threshold": true,
+      "PASS": true,
+      "overall_win_rate": 0.7667,
+      "episodes_evaluated": 210
+    },
+    {
+      "policy_seed": 3200003,
+      "n_failure_windows": 76,
+      "n_matched_control_windows": 213,
+      "n_failure_episodes": 55,
+      "n_control_episodes": 105,
+      "failure_mean": 0.7547,
+      "control_mean": 0.1052,
+      "delta": 0.6495,
+      "ci_low": 0.6099,
+      "ci_high": 0.6924,
+      "excludes_zero": true,
+      "sufficient_support": true,
+      "correct_direction": true,
+      "meets_effect_threshold": true,
+      "PASS": true,
+      "overall_win_rate": 0.8095,
+      "episodes_evaluated": 210
+    }
+  ],
+  "if_rejected": "Reject cleanly. Do NOT adjust the threshold or substitute defender_tag_available_frac because it looked promising in discovery. Fall back to the preidentified runner-up carrier_mostly_unescorted with a BRAND NEW preregistered protocol on fresh data; it does not inherit this confirmation.",
+  "locked": [
+    "O1",
+    "latent_birth",
+    "router"
+  ]
+}
