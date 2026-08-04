@@ -136,7 +136,7 @@ def run_eval_episodes(
     model.policy.set_training_mode(False)
     if progress_every > 0:
         print(
-            f"  checkpoint loaded; {n_episodes} episodes (first result prints after ep 1; 8v8 is slow)",
+            f"  checkpoint loaded; {n_episodes} episodes (first result prints after ep 1)",
             flush=True,
         )
 
@@ -502,3 +502,115 @@ def compute_aggregates(episodes: list[dict]) -> dict:
         "policy_entropy_mean": policy_entropy_mean,
         "policy_entropy_std": policy_entropy_std,
     }
+
+
+def run_two_policy_episodes(
+    blue_model_path: str,
+    red_model_path: str,
+    env: Any,
+    n_episodes: int,
+    device: str,
+    *,
+    deterministic: bool = True,
+    episode_seeds: list[int] | None = None,
+    progress_every: int = 0,
+) -> list[dict]:
+    """Run blue_ckpt vs red_ckpt via BatchedCTFCore two-policy stepping.
+
+    Mirrors LeagueCallback._run_side_swapped_mirror_eval's core.step(..., red_action_flat=...)
+    path, but without side-swap: blue always uses ``blue_model_path``, red always uses
+    ``red_model_path``. Each returned dict has blue_score / red_score from blue's perspective
+    (compatible with count_wld / match_score_from_wld).
+    """
+    import torch
+    from stable_baselines3 import PPO
+
+    from rl.episode_result import parse_episode_result, scores_from_info
+
+    _numpy_compat_shim()
+    core = getattr(env, "core", None)
+    if core is None:
+        raise ValueError("run_two_policy_episodes requires an env with a .core (GPUCTFVecEnv)")
+
+    custom = ppo_load_custom_objects(env)
+    blue_model = PPO.load(blue_model_path, device=device, custom_objects=custom)
+    red_model = PPO.load(red_model_path, device=device, custom_objects=custom)
+    blue_model.policy.set_training_mode(False)
+    red_model.policy.set_training_mode(False)
+
+    try:
+        env.env_method("set_league_mode", True)
+        env.env_method("set_phase", "OP3")
+    except Exception:
+        pass
+
+    if episode_seeds is not None and len(episode_seeds) != int(n_episodes):
+        raise ValueError(
+            f"episode_seeds length {len(episode_seeds)} != n_episodes {n_episodes}"
+        )
+
+    def _obs_numpy(side: str) -> dict:
+        return {
+            k: v.detach().cpu().numpy().astype(np.float32)
+            for k, v in core.get_obs_tensors(side=side).items()
+        }
+
+    episodes: list[dict] = []
+    for ep_i in range(int(n_episodes)):
+        if episode_seeds is not None:
+            _reseed_env(env, int(episode_seeds[ep_i]))
+        core.reset_all()
+        steps = 0
+        while True:
+            blue_obs = _obs_numpy("blue")
+            red_obs = _obs_numpy("red")
+            blue_np, _ = blue_model.predict(blue_obs, deterministic=deterministic)
+            red_np, _ = red_model.predict(red_obs, deterministic=deterministic)
+            blue_actions = torch.as_tensor(blue_np, dtype=torch.int64, device=core.device)
+            red_actions = torch.as_tensor(red_np, dtype=torch.int64, device=core.device)
+            _, _, terminated, truncated, infos = core.step(
+                blue_actions,
+                tensor_obs=True,
+                red_action_flat=red_actions,
+            )
+            steps += 1
+            done = torch.logical_or(terminated, truncated)
+            if not bool(done[0].item()):
+                continue
+            # core.step() infos carry blue_score/red_score at the top level; the
+            # nested "episode_result" dict only exists on GPUCTFVecEnv-wrapped
+            # steps. Reading it via parse_episode_result alone yielded None for
+            # every episode here, so this loop returned no episodes at all.
+            scores = scores_from_info(infos[0])
+            if scores is None:
+                raise ValueError(
+                    "two-policy stepping produced an info dict with no blue_score/red_score; "
+                    f"keys={sorted(infos[0])}"
+                )
+            bs, rs = scores
+            summary = parse_episode_result(infos[0])
+            episodes.append(
+                {
+                    "success": 1 if bs > rs else 0,
+                    "blue_score": bs,
+                    "red_score": rs,
+                    "steps": steps,
+                    "return": 0.0,
+                    "zone_coverage": float(getattr(summary, "zone_coverage", 0.0) or 0.0)
+                    if summary is not None
+                    else 0.0,
+                    "collision_free": int(getattr(summary, "collision_free_episode", 1) or 1)
+                    if summary is not None
+                    else 1,
+                    "win_margin": bs - rs,
+                    "time_to_first_score": float("nan"),
+                    "mean_inter_robot_dist": float("nan"),
+                }
+            )
+            if progress_every > 0:
+                le = len(episodes)
+                if le == 1 or le % progress_every == 0 or le == n_episodes:
+                    print(f"  episode {le}/{n_episodes}", flush=True)
+            break
+
+    return episodes

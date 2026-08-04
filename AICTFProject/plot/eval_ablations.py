@@ -266,25 +266,46 @@ def run_shared_eval(
     episodes: int,
     device: str,
     seed_base: int,
-) -> Tuple[List[dict], List[dict]]:
+    fixed_episode_seeds: bool = True,
+    progress_every: int = 0,
+) -> Tuple[List[dict], List[dict], List[dict]]:
     """
-    Returns (method_level_rows, per_seed_rows).
+    Returns (method_level_rows, per_seed_rows, paper_method_rows).
+
+    paper_method_rows use Match Score as the primary metric (same schema spirit as
+    eval_roastar_matrix.py) so ablations and ROA-Star share one frozen protocol.
     """
     per_seed_rows: List[dict] = []
     method_rows: List[dict] = []
+    paper_rows: List[dict] = []
 
     # Collect raw aggs: arm -> opponent -> list[agg]
-    from eval_rollout import compute_aggregates, run_eval_episodes
+    import statistics
+
+    from eval_rollout import (
+        compute_aggregates,
+        episode_match_points,
+        paired_bootstrap_seed_mean,
+        run_eval_episodes,
+        shared_episode_seeds,
+    )
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig
+    import numpy as np
 
     for arm_key, by_seed in discovered.items():
         label = arm_label(arm_key)
         aggs_by_opp: Dict[str, List[dict]] = {str(o).upper(): [] for o in opponents}
+        points_by_opp: Dict[str, List] = {str(o).upper(): [] for o in opponents}
 
         for seed, ckpt in by_seed.items():
             for opp in opponents:
                 opp_clean = str(opp).strip().upper()
                 eval_seed = int(seed_base) + (1 if opp_clean == "OP4" else 0)
+                ep_seeds = (
+                    shared_episode_seeds(episodes, seed_base, opp_clean)
+                    if fixed_episode_seeds
+                    else None
+                )
                 cfg = GPUFieldConfig(
                     n_envs=1,
                     max_blue_agents=n_agents,
@@ -299,17 +320,33 @@ def run_shared_eval(
                 try:
                     print(
                         f"[eval_ablations] {label} seed={seed} vs {opp_clean} "
-                        f"({episodes} ep, seed={eval_seed}) <- {os.path.basename(ckpt)}"
+                        f"({episodes} ep, fixed_seeds={fixed_episode_seeds}) "
+                        f"<- {os.path.basename(ckpt)}",
+                        flush=True,
                     )
-                    episode_dicts = run_eval_episodes(ckpt, env, episodes, device, opp_clean)
+                    episode_dicts = run_eval_episodes(
+                        ckpt,
+                        env,
+                        episodes,
+                        device,
+                        opp_clean,
+                        progress_every=progress_every,
+                        episode_seeds=ep_seeds,
+                    )
                     agg = compute_aggregates(episode_dicts)
                 finally:
                     env.close()
 
                 aggs_by_opp[opp_clean].append(agg)
+                points_by_opp[opp_clean].append(episode_match_points(episode_dicts))
                 # Per-seed row uses episode-level std (same as eval_roastar single ckpt).
                 seed_label = f"{label} (seed{seed})"
                 per_seed_rows.append(_row_from_aggregates(setting, seed_label, opp_clean, agg))
+                print(
+                    f"  -> W/L/D={agg.get('wins', 0)}/{agg.get('losses', 0)}/{agg.get('draws', 0)} "
+                    f"MS={float(agg.get('match_score', float('nan'))):.1f}%",
+                    flush=True,
+                )
 
         for opp_clean, aggs in aggs_by_opp.items():
             if not aggs:
@@ -317,8 +354,49 @@ def run_shared_eval(
             method_rows.append(
                 aggregate_across_seeds(setting, label, opp_clean, aggs)
             )
+            # Paper row: mean across seeds + paired bootstrap CI on match score.
+            def _ms(vals):
+                clean = [float(v) for v in vals if v == v]
+                if not clean:
+                    return float("nan"), 0.0
+                if len(clean) == 1:
+                    return clean[0], 0.0
+                return statistics.mean(clean), statistics.stdev(clean)
 
-    return method_rows, per_seed_rows
+            wr_m, wr_s = _ms([a["win_rate"] for a in aggs])
+            dr_m, dr_s = _ms([a["draw_rate"] for a in aggs])
+            ms_m, ms_s = _ms([a["match_score"] for a in aggs])
+            _pt, ci_lo, ci_hi = paired_bootstrap_seed_mean(
+                points_by_opp[opp_clean],
+                n_boot=2000,
+                alpha=0.05,
+                rng=np.random.default_rng(0),
+            )
+            paper_rows.append(
+                {
+                    "setting": setting,
+                    "method": label,
+                    "opponent": opp_clean,
+                    "n_seeds": len(aggs),
+                    "n_episodes_per_seed": int(aggs[0].get("n_episodes", episodes)),
+                    "win_rate_mean": wr_m,
+                    "win_rate_std": wr_s,
+                    "draw_rate_mean": dr_m,
+                    "draw_rate_std": dr_s,
+                    "match_score_mean": ms_m if ms_m == ms_m else _pt,
+                    "match_score_std": ms_s,
+                    "match_score_ci_lo": ci_lo,
+                    "match_score_ci_hi": ci_hi,
+                    "success_rate_mean": float(
+                        aggregate_across_seeds(setting, label, opp_clean, aggs)["success_rate_mean"]
+                    ),
+                    "success_rate_std": float(
+                        aggregate_across_seeds(setting, label, opp_clean, aggs)["success_rate_std"]
+                    ),
+                }
+            )
+
+    return method_rows, per_seed_rows, paper_rows
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -350,9 +428,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed-base", type=int, default=42)
     parser.add_argument(
+        "--progress-every",
+        type=int,
+        default=100,
+        help="Print episode progress every N episodes (0 disables)",
+    )
+    parser.add_argument(
+        "--no-fixed-episode-seeds",
+        action="store_true",
+        help="Disable shared per-episode reseeding (not recommended)",
+    )
+    parser.add_argument(
         "--out",
         default=os.path.join("csv", "eval_ablation_2v2.csv"),
         help="Method-level CSV (mean +/- std across seeds)",
+    )
+    parser.add_argument(
+        "--paper-out",
+        default=os.path.join("csv", "eval_ablation_2v2_paper.csv"),
+        help="Match-score paper CSV (aligned with eval_roastar_shared.csv)",
     )
     parser.add_argument(
         "--per-seed-out",
@@ -408,7 +502,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("[eval_ablations] nothing to evaluate.")
         return 1
 
-    method_rows, per_seed_rows = run_shared_eval(
+    method_rows, per_seed_rows, paper_rows = run_shared_eval(
         discovered=discovered,
         setting=setting,
         n_agents=int(args.agents),
@@ -416,11 +510,41 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         episodes=int(args.episodes),
         device=str(args.device),
         seed_base=int(args.seed_base),
+        fixed_episode_seeds=not bool(args.no_fixed_episode_seeds),
+        progress_every=int(args.progress_every),
     )
 
     write_rows(method_rows, args.out, append=False)
     # Retag writer message
     print(f"[eval_ablations] method-level rows: {len(method_rows)} -> {args.out}")
+
+    if args.paper_out:
+        paper_fields = [
+            "setting",
+            "method",
+            "opponent",
+            "n_seeds",
+            "n_episodes_per_seed",
+            "win_rate_mean",
+            "win_rate_std",
+            "draw_rate_mean",
+            "draw_rate_std",
+            "match_score_mean",
+            "match_score_std",
+            "match_score_ci_lo",
+            "match_score_ci_hi",
+            "success_rate_mean",
+            "success_rate_std",
+        ]
+        out_dir = os.path.dirname(os.path.abspath(args.paper_out))
+        if out_dir:
+            os.makedirs(out_dir, exist_ok=True)
+        with open(args.paper_out, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=paper_fields, extrasaction="ignore")
+            writer.writeheader()
+            for row in paper_rows:
+                writer.writerow({k: row.get(k, "") for k in paper_fields})
+        print(f"[eval_ablations] paper rows: {len(paper_rows)} -> {args.paper_out}")
 
     if args.per_seed_out:
         write_rows(per_seed_rows, args.per_seed_out, append=False)
@@ -442,6 +566,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 f"{opp_u}={float(r['success_rate_mean']):.1f}%+/-{float(r['success_rate_std']):.1f}"
             )
         print(f"  {method:<16} " + "  ".join(parts))
+
+    if paper_rows:
+        print("\n--- Match score (paper protocol) ---")
+        for row in paper_rows:
+            print(
+                f"  {row['method']:<16} {row['opponent']:<4} "
+                f"MS={float(row['match_score_mean']):.1f}%+/-{float(row['match_score_std']):.1f} "
+                f"CI[{float(row['match_score_ci_lo']):.1f},{float(row['match_score_ci_hi']):.1f}]"
+            )
 
     return 0
 

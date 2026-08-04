@@ -253,6 +253,33 @@ python plot/plot_roastar_shared_eval.py \
   --out-dir figures
 ```
 
+### Checkpoint tournament / cross-play / exploitability
+
+Paper-revision helpers (VGC-Bench-style selection, method payoff matrix, approximate exploitability). Offline unit tests: `python -m unittest plot.test_paper_eval_tools`.
+
+```bash
+# 1) Select a winner among league snapshots for one run_tag
+python plot/checkpoint_tournament.py --checkpoint-dir checkpoints_sb3/2v2 \
+  --run-tag ppo_league_2v2 --agents 2 --list
+python plot/checkpoint_tournament.py --checkpoint-dir checkpoints_sb3/2v2 \
+  --run-tag ppo_league_2v2 --agents 2 --val-episodes 50 --cross-episodes 20 \
+  --out csv/tournament_ppo_league_2v2.csv
+
+# 2) Cross-play payoff matrix (row=blue, col=red) among named finals
+python plot/eval_crossplay.py --checkpoint-dir checkpoints_sb3/2v2 --list
+python plot/eval_crossplay.py --checkpoint-dir checkpoints_sb3/2v2 \
+  --episodes 100 --seeds 42 --out csv/crossplay_2v2.csv --device cuda
+
+# 3) Approximate exploitability via controlled red best-response oracle
+#    (multi-init, peak validation match score — protocol in rl/eval_exploitability.py)
+python plot/eval_exploitability.py --checkpoint-dir checkpoints_sb3/2v2 --list
+python plot/eval_exploitability.py --checkpoint-dir checkpoints_sb3/2v2 \
+  --exploiter-steps 300000 --exploiter-seeds 0,1,2 --n-envs 8 \
+  --eval-episodes 200 \
+  --out csv/exploitability_2v2.csv \
+  --curve-out csv/exploitability_curves_2v2.csv
+```
+
 Reward presets:
 - `full` — shaped reward (default)
 - `no_shaping` / `sparse` — zero PBRS + team dense bonuses; keep terminal + offense events
