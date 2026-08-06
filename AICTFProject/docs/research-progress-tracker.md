@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-06 (UTC-4) — C3 FROZEN; closing authorize → smoke → scan
+> **Last updated:** 2026-08-06 (UTC-4) — C3 FROZEN+AUTHORIZED; smoke PASS; full scan launched
 
 
 ---
@@ -202,18 +202,19 @@ the carrier's fate.
 geometry with counterfactual actionability gating. See
 [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md).
 
-### C3 commitment-proximal strategic-fork discovery — `FROZEN` (2026-08-06)
+### C3 commitment-proximal strategic-fork discovery — `FROZEN` + scan running (2026-08-06)
 
-**Status:** `FROZEN` — checklist items 1–10 CLOSED.
+**Status:** checklist items 1–10 CLOSED; contract FROZEN; execution AUTHORIZED;
+tiny smoke PASS; **full discovery scan launched**.
 Machine-readable: `artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json`.
-Execution still requires `C3_EXECUTION_AUTHORIZATION.json` with matching hashes.
+Authorization: `artifacts/c3_discovery/C3_EXECUTION_AUTHORIZATION.json`.
 
 ```text
 C1                     CLOSED / NOT RETAINED
 C2                     CLOSED / REJECTED
 C3 methodology          FROZEN
-C3 code                 PATCHED TO CONTRACT
-C3 execution            AUTHORIZE → SMOKE → SCAN
+C3 code                 PATCHED TO CONTRACT (+7ch CF adapt)
+C3 execution            FULL SCAN RUNNING
 C3 runtime cells        T_trace=40 H_response=30 delta=0.10
                         minimum_fork_rate=0.20
                         U=carrier_survival doomed_at_or_below=0.0
@@ -223,6 +224,18 @@ O3                      LOCKED
 latent birth            LOCKED
 router                  LOCKED
 ```
+
+**Provenance (authorized HEAD):**
+- freeze commit (prereg + runner contract wiring): `de93d290b8813ac1b10b1f723a674e6f1f5a409b`
+- runner commit (auth HEAD, includes G0 7-channel CF predict adapt): `71bf2d64a23472fc69127ef863ee5df30de6a26c`
+- `c3_contract_hash` (SHA256 of `C3_DISCOVERY_PREREG_FROZEN.json`): `c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0`
+- `c3_prereg_sha256` (SHA256 of `docs/c3-decision-proximal-preregistration.md`): `a70600d96d5bbc5dd1339131ac00a7886d47832555463673f18e9a7aacfc47ab`
+
+**Tiny smoke (PASS, wall≈844s):** `--seeds 3200001 --opponents OP6 --episodes 2 --stage 3`.
+Verified natural G0, pressure anchors, backward trace, legal team responses,
+doomed reject / `NO_COMMITMENT_FORK`, `H_response` branches, earliest fork
+selection, provenance hashes, `CONTROLLABILITY_SCREEN_ONLY`. Result (non-
+scientific): 6 anchors, 3 qualified / 3 `NO_COMMITMENT_FORK`, fork_rate=0.50.
 
 **Preregistration (frozen):** [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
 
