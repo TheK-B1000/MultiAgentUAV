@@ -163,6 +163,20 @@ def _action_with_team_response(
     return action
 
 
+def _predict_action(model, obs, env) -> np.ndarray:
+    """Predict with CNN-channel adaptation for G0 checkpoints trained at 7ch."""
+    from experiments.eval_v6i9_map_awareness import _adapt_obs_for_policy
+
+    single = _single_obs(obs, env)
+    try:
+        adapted = _adapt_obs_for_policy(single, model)
+    except (AttributeError, KeyError, ValueError, TypeError):
+        # Unit-test mocks and non-CNN wrappers have no conv0 to introspect.
+        adapted = single
+    action, _ = model.predict(adapted, deterministic=True)
+    return np.asarray(action)
+
+
 @torch.no_grad()
 def _roll_forward(env, model, obs, *, horizon: int) -> RolloutOutcome:
     core = env.core
@@ -172,7 +186,7 @@ def _roll_forward(env, model, obs, *, horizon: int) -> RolloutOutcome:
     steps_executed = 0
 
     for _ in range(int(horizon)):
-        action, _ = model.predict(_single_obs(curr_obs, env), deterministic=True)
+        action = _predict_action(model, curr_obs, env)
         curr_obs, reward, done, _info = env.step(action)
         cumulative_return += float(np.asarray(reward).reshape(-1)[0])
         steps_executed += 1
@@ -208,7 +222,7 @@ def _roll_forward_with_team_override(
         if response_step == 0:
             action = _action_with_team_response(baseline_action, team_response)
         else:
-            action, _ = model.predict(_single_obs(curr_obs, env), deterministic=True)
+            action = _predict_action(model, curr_obs, env)
         curr_obs, reward, done, _info = env.step(action)
         cumulative_return += float(np.asarray(reward).reshape(-1)[0])
         steps_executed += 1
@@ -251,7 +265,7 @@ def run_counterfactual_branches(
 
     env_snap = _snapshot_env(env)
     policy_snap = _snapshot_policy(model)
-    action, _ = model.predict(_single_obs(obs, env), deterministic=True)
+    action = _predict_action(model, obs, env)
     baseline_action = tuple(int(x) for x in np.asarray(action).reshape(-1).tolist())
     legal_team_responses = enumerate_legal_team_responses(env.core)
     n_agents = len(_np(env.core.blue_alive)[0])
