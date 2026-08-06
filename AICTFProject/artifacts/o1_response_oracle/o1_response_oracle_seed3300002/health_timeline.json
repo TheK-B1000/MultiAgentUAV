@@ -236,5 +236,141 @@
     "c1_fraction_at_last_rollout": 0.1875,
     "grad_norm_mean_postclip": 0.4912699255883983,
     "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 800768,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\o1_response_oracle\\o1_response_oracle_seed3300002\\ckpts\\ckpt_o1_response_oracle_seed3300002_800000.zip",
+    "SYSTEM_HEALTH": "PASS",
+    "c1_panel": {
+      "episodes": 6,
+      "win_rate": 1.0,
+      "mean_margin": 1.5,
+      "lead_preserved_rate": 1.0,
+      "captures_conceded": 8,
+      "note": "injected C1 starts; DIAGNOSTIC ONLY, gates score natural episodes"
+    },
+    "normal_panel_non_gating": {
+      "global_step": 800768,
+      "episodes": 21,
+      "pickups": 95,
+      "captures_blue": 41,
+      "captures_red": 10,
+      "drops": 54,
+      "wins": 18,
+      "offensive_commitment": 0.191077,
+      "defensive_commitment": 0.42647,
+      "capture_conversion": 0.4316,
+      "win_rate": 0.8571,
+      "net_captures": 31,
+      "reasons": [],
+      "verdict": "PASS",
+      "GATING": false,
+      "note": "ordinary play; NON-GATING for a response oracle"
+    },
+    "c1_fraction_at_last_rollout": 0.0,
+    "grad_norm_mean_postclip": 0.49263642239733835,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 901120,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\o1_response_oracle\\o1_response_oracle_seed3300002\\ckpts\\ckpt_o1_response_oracle_seed3300002_900000.zip",
+    "SYSTEM_HEALTH": "PASS",
+    "c1_panel": {
+      "episodes": 6,
+      "win_rate": 0.8333,
+      "mean_margin": 1.1667,
+      "lead_preserved_rate": 0.8333,
+      "captures_conceded": 10,
+      "note": "injected C1 starts; DIAGNOSTIC ONLY, gates score natural episodes"
+    },
+    "normal_panel_non_gating": {
+      "global_step": 901120,
+      "episodes": 21,
+      "pickups": 97,
+      "captures_blue": 37,
+      "captures_red": 14,
+      "drops": 60,
+      "wins": 15,
+      "offensive_commitment": 0.191532,
+      "defensive_commitment": 0.448157,
+      "capture_conversion": 0.3814,
+      "win_rate": 0.7143,
+      "net_captures": 23,
+      "reasons": [],
+      "verdict": "PASS",
+      "GATING": false,
+      "note": "ordinary play; NON-GATING for a response oracle"
+    },
+    "c1_fraction_at_last_rollout": 0.125,
+    "grad_norm_mean_postclip": 0.4936341113248305,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 1001472,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\o1_response_oracle\\o1_response_oracle_seed3300002\\ckpts\\ckpt_o1_response_oracle_seed3300002_1000000.zip",
+    "SYSTEM_HEALTH": "PASS",
+    "c1_panel": {
+      "episodes": 6,
+      "win_rate": 1.0,
+      "mean_margin": 1.5,
+      "lead_preserved_rate": 1.0,
+      "captures_conceded": 8,
+      "note": "injected C1 starts; DIAGNOSTIC ONLY, gates score natural episodes"
+    },
+    "normal_panel_non_gating": {
+      "global_step": 1001472,
+      "episodes": 21,
+      "pickups": 89,
+      "captures_blue": 36,
+      "captures_red": 10,
+      "drops": 53,
+      "wins": 13,
+      "offensive_commitment": 0.202447,
+      "defensive_commitment": 0.422634,
+      "capture_conversion": 0.4045,
+      "win_rate": 0.619,
+      "net_captures": 26,
+      "reasons": [],
+      "verdict": "PASS",
+      "GATING": false,
+      "note": "ordinary play; NON-GATING for a response oracle"
+    },
+    "c1_fraction_at_last_rollout": 0.25,
+    "grad_norm_mean_postclip": 0.4943936927282257,
+    "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 1001472,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\o1_response_oracle\\o1_response_oracle_seed3300002\\ckpts\\final_o1_response_oracle_seed3300002.zip",
+    "SYSTEM_HEALTH": "PASS",
+    "c1_panel": {
+      "episodes": 6,
+      "win_rate": 1.0,
+      "mean_margin": 1.5,
+      "lead_preserved_rate": 1.0,
+      "captures_conceded": 8,
+      "note": "injected C1 starts; DIAGNOSTIC ONLY, gates score natural episodes"
+    },
+    "normal_panel_non_gating": {
+      "global_step": 1001472,
+      "episodes": 21,
+      "pickups": 89,
+      "captures_blue": 36,
+      "captures_red": 10,
+      "drops": 53,
+      "wins": 13,
+      "offensive_commitment": 0.202447,
+      "defensive_commitment": 0.422634,
+      "capture_conversion": 0.4045,
+      "win_rate": 0.619,
+      "net_captures": 26,
+      "reasons": [],
+      "verdict": "PASS",
+      "GATING": false,
+      "note": "ordinary play; NON-GATING for a response oracle"
+    },
+    "c1_fraction_at_last_rollout": 0.25,
+    "grad_norm_mean_postclip": 0.4943936927282257,
+    "zero_gradient_steps": 0
   }
 ]

@@ -1,0 +1,25 @@
+{
+  "utc_timestamp": "2026-08-05T00:16:36.122686Z",
+  "run_tag": "o1_response_oracle_seed3300003",
+  "seed": 3300003,
+  "total_timesteps": 1000000,
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\o1_response_oracle\\o1_response_oracle_seed3300003\\ckpts",
+  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\o1_response_oracle\\o1_response_oracle_seed3300003\\episode_rows.csv",
+  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\o1_response_oracle\\o1_response_oracle_seed3300003\\metrics.csv",
+  "cli_preset": null,
+  "tag_telemetry_enabled": true,
+  "formal_run": true,
+  "git_sha": "1bf5db002255430fe29a1bc01615844bcdf2d2bb",
+  "git_describe": "refactor-complete-87-g1bf5db0-dirty",
+  "git_root": "K:\\MultiAgentUAV",
+  "git_error": null,
+  "artifact_identity": {
+    "run_id": "o1_response_oracle_seed3300003",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "status": "ABORTED_DUPLICATE_STAGE2_IMPLEMENTATION",
+  "aborted_utc": "2026-08-06T03:21:29Z",
+  "what_was_aborted": [
+    {
+      "job": "run_c2_lag_audit.py --episodes 30",
+      "pid": 372,
+      "reason": "launched ~22:03 from pre-retrofit code; executed WITHOUT the mandatory replay-equivalence gate",
+      "progress": "~4 of 21 policy x opponent cells"
+    },
+    {
+      "job": "run_c2_step_replay.py (Stage 2a full replay)",
+      "pid": 6116,
+      "reason": "duplicate execution path; superseded by the gated run_c2_lag_audit.py which validates its own reimplemented loop",
+      "progress": "3 of 21 cells"
+    }
+  ],
+  "must_not": [
+    "feed candidate ranking",
+    "be merged with the official run",
+    "be cited as Stage 2 evidence"
+  ],
+  "preserved_provenance": {
+    "PROVENANCE_subset_equivalence_retrofit.json": "subset equivalence PASS proving the reimplemented loop reproduces the frozen discovery (112/112, 0 mismatches)",
+    "PROVENANCE_subset_step_replay.csv": "per-step rows from the Stage 2a subset replay",
+    "PROVENANCE_ungated_run_partial_stdout.log": "partial stdout of the ungated run, kept as the record of why the gate is required"
+  },
+  "authoritative_runner": "experiments/run_c2_lag_audit.py @ 9fbb39f (equivalence gate + Stage 2 lock)",
+  "scientific_state": "UNDAMAGED \u2014 the collision was caught before either implementation selected a C2 candidate. Freeze 3ee4fc7 intact, no confirmation seeds consumed, no niche chosen."
+}
