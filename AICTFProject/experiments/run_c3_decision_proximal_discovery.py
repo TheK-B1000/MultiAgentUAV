@@ -1,39 +1,36 @@
-"""C3 discovery — decision-proximal carrier conversion failures.
+"""C3 discovery — commitment-proximal strategic-fork detector (SUPERSEDED DRAFT).
 
-DISCOVERY ONLY. This proposes nothing and confirms nothing. Its output is a
-ranked list of candidate contexts; a C3 proposal is a separate, later act, and
-confirming one requires a brand-new preregistration on a further fresh seed
-block.
+EXECUTION STATUS
+----------------
+C3 methodology is DRAFT / NOT FROZEN. This runner is a superseded-draft
+implementation and must not perform discovery rollouts until an explicit
+authorization artifact exists:
 
-WHY THIS EXISTS
----------------
-The O1 postmortem (artifacts/o1_gates/O1_POSTMORTEM.json) traced three dead
-gates to one mistake: a weakness confirmed as a contrast WITHIN episodes was
-tested as a split BETWEEN episodes. Two structural defects follow from that,
-and both are fixed here and in C2.
+  artifacts/c3_discovery/C3_EXECUTION_AUTHORIZATION.json
 
-C3 specifically isolates features mathematically proximate to the strategic
-fork, screening out spurious correlations using a three-stage gating protocol:
-Stage 1: Decision-Proximal Discovery
-Stage 2: Early Temporal Qualification (Lag-band and Proximity tests)
-Stage 3: Counterfactual Actionability (Snapshot/restore branching)
+with status FROZEN_AND_AUTHORIZED and matching contract / prereg / runner
+hashes. Absence of that file is the correct default. See
+docs/c3-decision-proximal-preregistration.md §Execution authorization.
 
-MULTIPLICITY IS EXPECTED AND DECLARED
--------------------------------------
-Several features across several horizons and strata are examined. No
-correction is applied, by design -- that is what makes this discovery rather
-than evidence. Nothing here may be cited as a confirmed effect.
+DISCOVERY ONLY (once authorized). This proposes nothing and confirms nothing.
+Its output is a ranked list of candidate contexts; a C3 proposal is a separate,
+later act, and confirming one requires a brand-new preregistration on a further
+fresh seed block. C3 cannot establish latent necessity — that is owned by the
+Environment-Demand Gate after an independent response oracle exists.
 
-Run:  python experiments/run_c3_decision_proximal_discovery.py --episodes 30
+Run (only after authorization):
+  python experiments/run_c3_decision_proximal_discovery.py --episodes 30
 """
 from __future__ import annotations
 
 import argparse
 import csv
 import dataclasses
+import hashlib
 import json
 import math
 import statistics
+import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -59,6 +56,9 @@ from experiments.run_g0_v2_seed import OPPONENTS
 DISCOVERY_SEED_BASE = 9_400_000
 G0_SEEDS = (3_200_001, 3_200_002, 3_200_003)
 OUT_DIR = PROJECT_ROOT / "artifacts" / "c3_discovery"
+AUTH_PATH = OUT_DIR / "C3_EXECUTION_AUTHORIZATION.json"
+CONTRACT_PATH = OUT_DIR / "C3_DISCOVERY_PREREG_FROZEN.json"
+PREREG_PATH = PROJECT_ROOT / "docs" / "c3-decision-proximal-preregistration.md"
 
 MIN_FAILURES = 20
 MIN_CONTROLS = 20
@@ -305,10 +305,111 @@ def _run_stage_3(policy, device, onsets, args):
     return actionable_count / max(1, total_tested)
 
 
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _git_head() -> str:
+    try:
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%H"],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        return (out.stdout or "").strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
+def _require_c3_execution_authorization() -> dict:
+    """Fail closed: no rollout until FROZEN_AND_AUTHORIZED with matching hashes."""
+    if not AUTH_PATH.exists():
+        raise SystemExit(
+            "C3 is DRAFT / NOT FROZEN. Execution is prohibited until "
+            f"{AUTH_PATH.relative_to(PROJECT_ROOT)} exists with "
+            "status=FROZEN_AND_AUTHORIZED and matching "
+            "c3_contract_hash / c3_prereg_commit / runner_commit. "
+            "See docs/c3-decision-proximal-preregistration.md "
+            "§Execution authorization."
+        )
+    try:
+        auth = json.loads(AUTH_PATH.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise SystemExit(f"C3 authorization artifact unreadable: {AUTH_PATH}: {exc}") from exc
+
+    status = auth.get("status")
+    if status != "FROZEN_AND_AUTHORIZED":
+        raise SystemExit(
+            f"C3 execution refused: authorization status={status!r} "
+            f"(required 'FROZEN_AND_AUTHORIZED') in {AUTH_PATH}"
+        )
+
+    if not CONTRACT_PATH.exists():
+        raise SystemExit(
+            "C3 execution refused: frozen machine-readable contract missing at "
+            f"{CONTRACT_PATH}. Freeze C3_DISCOVERY_PREREG_FROZEN.json before authorizing."
+        )
+
+    contract_hash = _sha256_file(CONTRACT_PATH)
+    expected_contract = str(auth.get("c3_contract_hash") or "")
+    if not expected_contract or expected_contract != contract_hash:
+        raise SystemExit(
+            "C3 execution refused: c3_contract_hash mismatch.\n"
+            f"  authorization: {expected_contract or '(missing)'}\n"
+            f"  on-disk contract sha256: {contract_hash}"
+        )
+
+    head = _git_head()
+    expected_prereg = str(auth.get("c3_prereg_commit") or "")
+    expected_runner = str(auth.get("runner_commit") or "")
+    if not expected_prereg or expected_prereg != head:
+        raise SystemExit(
+            "C3 execution refused: c3_prereg_commit mismatch "
+            f"(auth={expected_prereg or '(missing)'} head={head}). "
+            "Re-authorize from the freeze commit."
+        )
+    if not expected_runner or expected_runner != head:
+        raise SystemExit(
+            "C3 execution refused: runner_commit mismatch "
+            f"(auth={expected_runner or '(missing)'} head={head}). "
+            "Re-authorize from the freeze commit."
+        )
+
+    # Human-readable prereg must still exist; hash recorded for provenance only
+    # if present in the auth artifact (optional field c3_prereg_sha256).
+    if not PREREG_PATH.exists():
+        raise SystemExit(f"C3 execution refused: prereg missing at {PREREG_PATH}")
+    expected_prereg_sha = auth.get("c3_prereg_sha256")
+    if expected_prereg_sha:
+        prereg_sha = _sha256_file(PREREG_PATH)
+        if str(expected_prereg_sha) != prereg_sha:
+            raise SystemExit(
+                "C3 execution refused: c3_prereg_sha256 mismatch.\n"
+                f"  authorization: {expected_prereg_sha}\n"
+                f"  on-disk prereg sha256: {prereg_sha}"
+            )
+
+    return auth
+
+
 def main() -> int:
+    # Hard guard FIRST — before argparse side effects that imply a live run,
+    # and before any env / checkpoint / rollout work.
+    auth = _require_c3_execution_authorization()
+
+    from experiments.long_session_progress import LongSessionProgress, configure_stdio
     from experiments.run_g0_v2_evaluation import resolve_cnn_channels
     from rl.custom_ppo.checkpoints.loader import read_checkpoint_payload
     from rl.evaluation.checkpoint import load_policy
+
+    configure_stdio()
 
     ap = argparse.ArgumentParser()
     ap.add_argument('--episodes', type=int, default=30)
@@ -322,14 +423,21 @@ def main() -> int:
     args = ap.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    prog = LongSessionProgress(OUT_DIR, name="C3_DISCOVERY")
     started = time.time()
-    print("=" * 78)
-    print("C3 DISCOVERY — decision-proximal carrier conversion")
-    print(f"seeds={args.seeds}  opponents={OPPONENTS}  episodes/cell={args.episodes}")
-    print(f"fresh discovery seeds {DISCOVERY_SEED_BASE}..{DISCOVERY_SEED_BASE + args.episodes - 1}")
-    print(f"stage up to={args.stage}")
-    print("DISCOVERY ONLY — proposes nothing, confirms nothing")
-    print("=" * 78)
+    prog.log("=" * 78)
+    prog.log("C3 DISCOVERY — AUTHORIZED (contract hashes verified)")
+    prog.log(f"authorization: {AUTH_PATH}")
+    prog.log(f"c3_contract_hash={auth.get('c3_contract_hash')}")
+    prog.log(f"c3_prereg_commit={auth.get('c3_prereg_commit')}")
+    prog.log(f"runner_commit={auth.get('runner_commit')}")
+    prog.log(f"seeds={args.seeds}  opponents={OPPONENTS}  episodes/cell={args.episodes}")
+    prog.log(f"fresh discovery seeds {DISCOVERY_SEED_BASE}..{DISCOVERY_SEED_BASE + args.episodes - 1}")
+    prog.log(f"stage up to={args.stage}")
+    prog.log("DISCOVERY ONLY — proposes nothing, confirms nothing")
+    prog.log(f"watch: {prog.log_path}")
+    prog.log(f"watch: {prog.json_path}")
+    prog.log("=" * 78)
 
     rng = np.random.default_rng(BOOTSTRAP_SEED)
     per_seed: dict[int, list[dict]] = {}
@@ -338,28 +446,44 @@ def main() -> int:
     all_onsets_flat = []
 
     # STAGE 1: Collect & Rank
-    print("\n--- STAGE 1: Decision-Proximal Discovery ---")
+    total_eps = int(len(args.seeds) * len(OPPONENTS) * int(args.episodes))
+    prog.set_phase("STAGE1", f"total_episodes={total_eps}")
+    jobs = [
+        (seed, opp, DISCOVERY_SEED_BASE + i)
+        for seed in args.seeds
+        for opp in OPPONENTS
+        for i in range(args.episodes)
+    ]
+    rows_by_seed: dict[int, list[dict]] = {int(s): [] for s in args.seeds}
+    policies: dict[int, object] = {}
     for seed in args.seeds:
         tag = f"g0_v5_long_seed{seed}"
         ckpt = PROJECT_ROOT / "artifacts" / "g0_v5_long" / tag / "ckpts" / f"final_{tag}.zip"
         payload = read_checkpoint_payload(str(ckpt), map_location="cpu")
-        policy = load_policy(str(ckpt), device=args.device,
-                             num_cnn_channels=resolve_cnn_channels(payload, context=str(ckpt)))
-        rows: list[dict] = []
-        for opp in OPPONENTS:
-            for i in range(args.episodes):
-                s = DISCOVERY_SEED_BASE + i
-                onsets, series = collect_onsets(policy, opponent=opp, seed=s, device=args.device, horizon=args.horizon)
-                time_series_by_ep[f"{opp}:{s}"] = series
-                for p in onsets:
-                    p["episode_key"] = f"{opp}:{s}"
-                    p["opponent"] = opp
-                    p["eval_seed"] = s
-                    p["train_seed"] = seed
-                    rows.append(p)
-                    all_onsets_flat.append(p)
-            print(f"  seed {seed} vs {opp}: {sum(1 for r in rows if r['opponent'] == opp)} onsets")
-        per_seed[seed] = rows
+        policies[int(seed)] = load_policy(
+            str(ckpt),
+            device=args.device,
+            num_cnn_channels=resolve_cnn_channels(payload, context=str(ckpt)),
+        )
+        prog.log(f"[STAGE1] loaded policy seed={seed}")
+
+    for seed, opp, s in prog.bar(jobs, desc="stage1_episodes", unit="ep"):
+        policy = policies[int(seed)]
+        onsets, series = collect_onsets(
+            policy, opponent=opp, seed=s, device=args.device, horizon=args.horizon
+        )
+        time_series_by_ep[f"{opp}:{s}"] = series
+        for p in onsets:
+            p["episode_key"] = f"{opp}:{s}"
+            p["opponent"] = opp
+            p["eval_seed"] = s
+            p["train_seed"] = seed
+            rows_by_seed[int(seed)].append(p)
+            all_onsets_flat.append(p)
+
+    for seed in args.seeds:
+        per_seed[int(seed)] = rows_by_seed[int(seed)]
+        prog.log(f"[STAGE1] seed={seed} onsets={len(per_seed[int(seed)])}")
 
     stage1_report = {}
     candidates = set()
@@ -385,7 +509,7 @@ def main() -> int:
             )
         stage1_report[seed] = by_stratum
 
-    print(f"Stage 1 yielded {len(candidates)} CI-backed candidate features.")
+    prog.log(f"Stage 1 yielded {len(candidates)} CI-backed candidate features.")
 
     report = {
         "stage_1": stage1_report,
@@ -397,7 +521,7 @@ def main() -> int:
     # STAGE 2: Early Temporal Qualification
     stage2_survivors = set()
     if args.stage >= 2 and candidates:
-        print("\n--- STAGE 2: Early Temporal Qualification ---")
+        prog.set_phase("STAGE2", f"n_candidates={len(candidates)}")
         overall_stdev = {}
         for feat in candidates:
             all_vals = []
@@ -406,7 +530,7 @@ def main() -> int:
                     all_vals.append(r[feat])
             overall_stdev[feat] = statistics.stdev(all_vals) if len(all_vals) > 1 else 1e-6
 
-        for feat in candidates:
+        for feat in prog.bar(list(candidates), desc="stage2_features", unit="feat"):
             # check direction in early band and std change in proximity
             passed = True
             
@@ -440,25 +564,21 @@ def main() -> int:
                 "mean_prox_change": mean_prox,
                 "stdev_overall": overall_stdev[feat]
             }
-        print(f"Stage 2 yielded {len(stage2_survivors)} survivors.")
+        prog.log(f"Stage 2 yielded {len(stage2_survivors)} survivors.")
 
     # STAGE 3: Counterfactual Actionability
     stage3_survivors = set()
     if args.stage >= 3 and stage2_survivors:
-        print("\n--- STAGE 3: Counterfactual Actionability ---")
-        for seed in args.seeds:
-            tag = f"g0_v5_long_seed{seed}"
-            ckpt = PROJECT_ROOT / "artifacts" / "g0_v5_long" / tag / "ckpts" / f"final_{tag}.zip"
-            payload = read_checkpoint_payload(str(ckpt), map_location="cpu")
-            policy = load_policy(str(ckpt), device=args.device,
-                                 num_cnn_channels=resolve_cnn_channels(payload, context=str(ckpt)))
-                                 
+        prog.set_phase("STAGE3", f"n_survivors={len(stage2_survivors)}")
+        for seed in prog.bar(list(args.seeds), desc="stage3_policies", unit="policy"):
+            policy = policies[int(seed)]
             rate = _run_stage_3(policy, args.device, per_seed[seed], args)
             report["stage_3"][seed] = {"actionability_rate": rate}
+            prog.log(f"[STAGE3] seed={seed} actionability_rate={rate:.4f}")
             
             if rate >= args.actionability_threshold:
                 stage3_survivors.update(stage2_survivors)
-        print(f"Stage 3 yielded {len(stage3_survivors)} final candidates.")
+        prog.log(f"Stage 3 yielded {len(stage3_survivors)} final candidates.")
 
     report["final_candidates"] = list(stage3_survivors) if args.stage >= 3 else list(stage2_survivors if args.stage == 2 else candidates)
 
@@ -480,11 +600,14 @@ def main() -> int:
             json.dumps({"result": "clean negative", "message": "No candidates passed all executed stages."}, indent=2)
         )
 
-    print("\nCI-backed candidates:")
-    print(report["final_candidates"])
-    print(f"\nreport: {OUT_DIR / 'C3_DISCOVERY.json'}")
-    print(f"wall: {round(time.time() - started, 1)}s")
-    print("=" * 78)
+    prog.set_phase("COMPLETE", f"n_final={len(report['final_candidates'])}")
+    prog.log("CI-backed candidates:")
+    prog.log(str(report["final_candidates"]))
+    prog.log(f"report: {OUT_DIR / 'C3_DISCOVERY.json'}")
+    prog.log(f"progress_log: {prog.log_path}")
+    prog.log(f"progress_json: {prog.json_path}")
+    prog.log(f"wall: {round(time.time() - started, 1)}s")
+    prog.log("=" * 78)
     return 0
 
 if __name__ == "__main__":

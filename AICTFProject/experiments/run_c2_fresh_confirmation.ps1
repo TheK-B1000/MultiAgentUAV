@@ -87,6 +87,7 @@ Write-Host "Progress files:"
 Write-Host "  $ProgressLog"
 Write-Host "  $ProgressJson"
 Write-Host "  $ManifestPath"
+Write-Host "  Live tqdm bars print to stderr (also teed into the full log)."
 Write-Host "Full tee log: $LogPath"
 
 $argList = @("-u", $Runner, "--episodes", "$Episodes")

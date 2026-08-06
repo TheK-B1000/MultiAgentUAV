@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-06 (UTC-4) — C2_REJECTED recorded; C3 decision-proximal discovery pivot preregistered
+> **Last updated:** 2026-08-06 (UTC-4) — C3 item 9 commitment-fork definition SETTLED; next = item 10 code audit (no scan)
 
 
 ---
@@ -202,28 +202,69 @@ the carrier's fate.
 geometry with counterfactual actionability gating. See
 [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md).
 
-### C3 decision-proximal discovery — `PLANNED` (2026-08-06)
+### C3 commitment-proximal strategic-fork discovery — `DRAFT, NOT FROZEN` (2026-08-06)
 
-**Status:** `PLANNED — preregistration frozen, code implemented, awaiting
-first scan.`
+**Status:** `DRAFT — preregistration NOT frozen; no scan authorized.`
+Hard execution guard: `experiments/run_c3_decision_proximal_discovery.py`
+exits unless `artifacts/c3_discovery/C3_EXECUTION_AUTHORIZATION.json` exists
+and verifies contract/prereg/runner hashes. That file must **not** be written
+until the freeze checklist is closed.
 
-**Preregistration:** [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
+A prior version of this row incorrectly said "preregistration frozen, code
+implemented." That was wrong: the prereg is a draft with an open freeze
+checklist, and no `C3_DISCOVERY_PREREG_FROZEN.json` exists.
 
-**Key innovation:** Instantaneous geometric/tactical features (time to
-intercept, closing velocity, intercept margin, etc.) plus a mandatory
-**counterfactual actionability gate** that would have caught both C1 and C2
-before confirmation.
+```text
+C1                     CLOSED / NOT RETAINED
+C2                     CLOSED / REJECTED
+C3 methodology          DRAFT
+C3 code                 SUPERSEDED-DRAFT IMPLEMENTATION
+C3 execution            NOT AUTHORIZED (hard-guarded)
+C3 artifacts            NONE
+environment-demand gate PREREGISTERED STRUCTURE
+demand-gate execution   LOCKED UNTIL O3 EXISTS
+O3                      LOCKED
+latent birth            LOCKED
+router                  LOCKED
+```
+
+**Preregistration (draft):** [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
+
+**Purpose (limited):** C3 is a **cheap candidate-fork detector**. It cannot
+establish latent necessity, policy complementarity, routing value, or
+distinct strategy families. A C3 pass advances a candidate only to
+independent task-reward response-oracle (O3) training. Latent eligibility
+is decided by the separate Environment-Demand Gate (below), never by C3.
 
 **Pipeline:**
 ```text
-C2 REJECTED → decision-proximal discovery (replay) → temporal qualification
-→ counterfactual actionability gate → ONLY THEN fresh confirmation
+C2 REJECTED → commitment-proximal fork discovery (replay)
+→ event-anchored temporal qualification
+→ counterfactual controllability screen
+→ fresh confirmation (natural + counterfactual)
+→ train independent task-reward O3
+→ payoff matrix M[c, π] on fresh demand-evaluation seeds
+→ ENVIRONMENT-DEMAND GATE (D1–D4)
+→ only if PASS → latent birth
 ```
 
-**Code:** `experiments/run_c3_decision_proximal_discovery.py`
+**Demand gate prereg (`AUTHORITATIVE INTENDED STRUCTURE, executed post-O3`):**
+[`environment-demand-gate-preregistration.md`](environment-demand-gate-preregistration.md)
+Criteria structure is preregistered before C3 results; numeric cells marked
+`TBD-freeze` close at O3 protocol freeze. Execution remains LOCKED until O3
+exists. Do not treat this as authorization to run a demand-gate evaluation.
+
+**Code caution:** `experiments/run_c3_decision_proximal_discovery.py`,
+`rl/analysis/decision_proximal_features.py`, and
+`rl/analysis/counterfactual_actionability.py` exist but were written against
+the superseded draft (C2-style lag bands, absolute-shift actionability,
+mixed onset families). They must be re-audited against the corrected draft
+before the prereg freezes. No scan artifacts exist
+(`artifacts/c3_discovery/` absent).
 
 **Stopping rule:** If no candidate clears all gates, record
-`C3_NO_QUALIFIED_STRATEGIC_FORK.json` and STOP.
+`C3_NO_QUALIFIED_STRATEGIC_FORK.json` and STOP. If the demand gate fails:
+NO LATENT BIRTH, NO ROUTER.
 
 ### 3.0.0 OP6-OP12 strategic BT niches - `IMPLEMENTED, PENDING_EVAL`
 
@@ -7736,6 +7777,38 @@ Key draft corrections vs an earlier lag-band proposal:
 Do **not** implement Stage 1 or write `C3_DISCOVERY_PREREG_FROZEN.json` until
 the draft's open freeze checklist is closed and status flips to FROZEN.
 
+**Item 9 SETTLED (2026-08-06):** commitment-fork definition locked in
+[`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
+§"Commitment fork definition — item 9 SETTLED": natural G0/`map_a` state;
+≥2 legal team responses; upstream of pressure/failure; measurable utility
+divergence over `H_response`; backward trace selects the **earliest** such
+state. Pressure onset is an anchor only. Numeric cells (`T_trace`,
+`H_response`, \(\delta\), \(U\)) still close with items 2–6.
+
+**Next authorized work:** freeze-checklist **item 10** — line-by-line audit of
+the superseded C3 modules against that definition. Path:
+
+```text
+item 9 SETTLED → item 10 audit → close items 1–8
+→ freeze final C3 contract → authorization artifact → smoke → full scan
+```
+
+Do **not** run C3, write `C3_EXECUTION_AUTHORIZATION.json`, train O3, or touch
+latent birth until that path completes.
+
+**Scope limit added (2026-08-06, second revision):** C3 is a candidate
+commitment-fork detector only; it cannot establish latent necessity,
+complementarity, routing value, or strategy families. Latent eligibility is
+owned by the preregistered **Environment-Demand Gate**
+([`environment-demand-gate-preregistration.md`](environment-demand-gate-preregistration.md)):
+D1 `LCB95(G_available) > 0`, D2 preference reversal (O3 > G0 in C3 context AND
+G0 > O3 in anchor context), D3 per-context competence floor, D4 matched-state
+behavioral nonredundancy — all on fresh demand-evaluation seeds with frozen
+context frequencies, executed only after an independent task-reward O3
+exists. For every later birth, D5 additionally requires
+`LCB95(Delta V_repertoire) > 0` beyond the existing selective pool. Any
+required failure → NO LATENT BIRTH, NO ROUTER.
+
 ---
 
 ## 7. Cross-references
@@ -7748,7 +7821,8 @@ the draft's open freeze checklist is closed and status flips to FROZEN.
 | Per-preset facts, aliases, deltas, run tags       | [`latent-preset-registry.md`](latent-preset-registry.md)                            |
 | Launch / eval / statistical protocols             | [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md)    |
 | C2 confirmation (REJECTED) / spent block 9800001+ | [`c2-qualification-preregistration.md`](c2-qualification-preregistration.md); `artifacts/c2_confirmation/` |
-| C3 decision-proximal draft (NOT frozen)           | [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md) |
+| C3 commitment-proximal draft (NOT frozen)         | [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md) |
+| Environment-demand gate (latent eligibility)      | [`environment-demand-gate-preregistration.md`](environment-demand-gate-preregistration.md) |
 | v6i2 frozen gate thresholds (pre-confirmatory)  | [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md)                    |
 | Codeâ†”manuscript trace                             | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md)                    |
 | Algorithm sketch                                  | [`../../docs/algorithm.md`](../../docs/algorithm.md)                                |

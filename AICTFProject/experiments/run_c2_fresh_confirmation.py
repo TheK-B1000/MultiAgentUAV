@@ -14,9 +14,10 @@ This runner:
 Startup observability:
   Prefer experiments/run_c2_fresh_confirmation.ps1 (python -u + tee to
   confirmation_full.log). The runner itself also forces line-buffered stdio,
-  appends every progress line to C2_CONFIRMATION_PROGRESS.log, and rewrites
-  C2_CONFIRMATION_PROGRESS.json (phase / counts / ETA). Watch those files if
-  the terminal capture is empty. Scientific outputs are unchanged.
+  shows live tqdm progress bars on stderr, appends every progress line to
+  C2_CONFIRMATION_PROGRESS.log, and rewrites C2_CONFIRMATION_PROGRESS.json
+  (phase / counts / ETA). Watch those files if the terminal capture is empty.
+  Scientific outputs are unchanged.
 """
 from __future__ import annotations
 
@@ -47,6 +48,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from experiments.long_session_progress import LongSessionProgress  # noqa: E402
+
 OUT_DIR = PROJECT_ROOT / "artifacts" / "c2_confirmation"
 QUAL_DIR = PROJECT_ROOT / "artifacts" / "c2_qualification"
 PROPOSAL_PATH = QUAL_DIR / "C2_PROPOSAL.json"
@@ -73,6 +76,8 @@ _STARTUP_STATE: dict = {
     "t0": time.time(),
     "eval_t0": None,
 }
+# Live tqdm + durable bars (set in main after lock).
+_SESSION_PROG: LongSessionProgress | None = None
 
 SEED_SCAN_MIN = 1_000_000
 SEED_SCAN_MAX = 9_999_999
@@ -385,7 +390,11 @@ def _scan_used_eval_seeds() -> dict[int, set[str]]:
     last_report = t0
     _log(f"[PROGRESS] seed_scan listed n_files={n}")
     _write_progress_json(seed_scan_files_total=n, seed_scan_files_done=0)
-    for i, p in enumerate(paths, 1):
+    file_iter = paths
+    if _SESSION_PROG is not None:
+        _SESSION_PROG.set_phase("SEED_REGISTRY_SCAN", f"n_files={n}")
+        file_iter = _SESSION_PROG.bar(paths, desc="seed_scan", unit="file")
+    for i, p in enumerate(file_iter, 1):
         try:
             raw = p.read_bytes()
             bytes_done += len(raw)
@@ -584,84 +593,89 @@ def _run_replay_for_policy(policy_seed: int, policy, eval_seeds: list[int], oppo
     E.summarize_episode = capture
     try:
         first_episode = True
-        for opp in opponents:
-            for ev in eval_seeds:
-                if first_episode:
-                    if _STARTUP_STATE.get("eval_t0") is None:
-                        _STARTUP_STATE["eval_t0"] = time.time()
-                    _startup("11", "FIRST_EPISODE_STARTING", f"policy={policy_seed} opp={opp} seed={ev}")
-                    first_episode = False
-                captured.clear()
-                E.run_eval_episode(policy, opponent=opp, seed=int(ev), device=device)
-                _STARTUP_STATE["episodes_consumed"] = int(_STARTUP_STATE.get("episodes_consumed", 0)) + 1
-                consumed = int(_STARTUP_STATE["episodes_consumed"])
-                total = int(_STARTUP_STATE.get("episodes_total") or 0)
-                eta = _eta_seconds(done=consumed, total=total, t0=_STARTUP_STATE.get("eval_t0"))
-                if total:
-                    detail = (
-                        f"episodes={consumed}/{total} ({100.0 * consumed / total:.1f}%) "
-                        f"policy={policy_seed} last={opp}:{ev} eta_s={eta}"
+        jobs = [(opp, ev) for opp in opponents for ev in eval_seeds]
+        job_iter = (
+            _SESSION_PROG.bar(jobs, desc=f"policy_{policy_seed}", unit="ep")
+            if _SESSION_PROG is not None
+            else jobs
+        )
+        for opp, ev in job_iter:
+            if first_episode:
+                if _STARTUP_STATE.get("eval_t0") is None:
+                    _STARTUP_STATE["eval_t0"] = time.time()
+                _startup("11", "FIRST_EPISODE_STARTING", f"policy={policy_seed} opp={opp} seed={ev}")
+                first_episode = False
+            captured.clear()
+            E.run_eval_episode(policy, opponent=opp, seed=int(ev), device=device)
+            _STARTUP_STATE["episodes_consumed"] = int(_STARTUP_STATE.get("episodes_consumed", 0)) + 1
+            consumed = int(_STARTUP_STATE["episodes_consumed"])
+            total = int(_STARTUP_STATE.get("episodes_total") or 0)
+            eta = _eta_seconds(done=consumed, total=total, t0=_STARTUP_STATE.get("eval_t0"))
+            if total:
+                detail = (
+                    f"episodes={consumed}/{total} ({100.0 * consumed / total:.1f}%) "
+                    f"policy={policy_seed} last={opp}:{ev} eta_s={eta}"
+                )
+            else:
+                detail = f"episodes={consumed} policy={policy_seed} last={opp}:{ev}"
+            # Heartbeat every episode to disk; denser STARTUP every 10 (also updates manifest).
+            _STARTUP_STATE["startup_phase"] = "EPISODES_IN_PROGRESS"
+            _STARTUP_STATE["startup_detail"] = detail
+            _STARTUP_STATE["startup_phase_utc"] = _now_utc()
+            _log(f"[PROGRESS] {detail}")
+            _write_progress_json(last_policy_seed=policy_seed, last_opponent=opp, last_eval_seed=int(ev))
+            if consumed == 1 or consumed % 10 == 0 or (total and consumed == total):
+                _startup("11b", "EPISODES_IN_PROGRESS", detail)
+            steps = captured["steps"]
+            failure_events = captured["failure_events"]
+            episode_key = f"{opp}:{ev}"
+            fail_steps = {int(t) for _, t in failure_events}
+
+            for label, t in failure_events:
+                if label != FAIL_LABEL:
+                    continue
+                for band_name, a, b in (("earliest", -30, -20), ("middle", -20, -10), ("latest", -10, 0)):
+                    feat = _band_aggregate(steps, int(t), a, b)
+                    if feat is None:
+                        continue
+                    rows.append(
+                        {
+                            "policy_seed": policy_seed,
+                            "opponent": opp,
+                            "eval_seed": int(ev),
+                            "episode_key": episode_key,
+                            "kind": "failure",
+                            "failure_label": FAIL_LABEL,
+                            "outcome_step": int(t),
+                            "band": band_name,
+                            "band_start_off": a,
+                            "band_end_off": b,
+                            **feat,
+                        }
                     )
-                else:
-                    detail = f"episodes={consumed} policy={policy_seed} last={opp}:{ev}"
-                # Heartbeat every episode to disk; denser STARTUP every 10 (also updates manifest).
-                _STARTUP_STATE["startup_phase"] = "EPISODES_IN_PROGRESS"
-                _STARTUP_STATE["startup_detail"] = detail
-                _STARTUP_STATE["startup_phase_utc"] = _now_utc()
-                _log(f"[PROGRESS] {detail}")
-                _write_progress_json(last_policy_seed=policy_seed, last_opponent=opp, last_eval_seed=int(ev))
-                if consumed == 1 or consumed % 10 == 0 or (total and consumed == total):
-                    _startup("11b", "EPISODES_IN_PROGRESS", detail)
-                steps = captured["steps"]
-                failure_events = captured["failure_events"]
-                episode_key = f"{opp}:{ev}"
-                fail_steps = {int(t) for _, t in failure_events}
 
-                for label, t in failure_events:
-                    if label != FAIL_LABEL:
+            for end in range(30, len(steps), 30):
+                if any(abs(end - t) < 30 for t in fail_steps):
+                    continue
+                for band_name, a, b in (("earliest", -30, -20), ("middle", -20, -10), ("latest", -10, 0)):
+                    feat = _band_aggregate(steps, int(end), a, b)
+                    if feat is None:
                         continue
-                    for band_name, a, b in (("earliest", -30, -20), ("middle", -20, -10), ("latest", -10, 0)):
-                        feat = _band_aggregate(steps, int(t), a, b)
-                        if feat is None:
-                            continue
-                        rows.append(
-                            {
-                                "policy_seed": policy_seed,
-                                "opponent": opp,
-                                "eval_seed": int(ev),
-                                "episode_key": episode_key,
-                                "kind": "failure",
-                                "failure_label": FAIL_LABEL,
-                                "outcome_step": int(t),
-                                "band": band_name,
-                                "band_start_off": a,
-                                "band_end_off": b,
-                                **feat,
-                            }
-                        )
-
-                for end in range(30, len(steps), 30):
-                    if any(abs(end - t) < 30 for t in fail_steps):
-                        continue
-                    for band_name, a, b in (("earliest", -30, -20), ("middle", -20, -10), ("latest", -10, 0)):
-                        feat = _band_aggregate(steps, int(end), a, b)
-                        if feat is None:
-                            continue
-                        rows.append(
-                            {
-                                "policy_seed": policy_seed,
-                                "opponent": opp,
-                                "eval_seed": int(ev),
-                                "episode_key": episode_key,
-                                "kind": "control",
-                                "failure_label": "none",
-                                "outcome_step": int(end),
-                                "band": band_name,
-                                "band_start_off": a,
-                                "band_end_off": b,
-                                **feat,
-                            }
-                        )
+                    rows.append(
+                        {
+                            "policy_seed": policy_seed,
+                            "opponent": opp,
+                            "eval_seed": int(ev),
+                            "episode_key": episode_key,
+                            "kind": "control",
+                            "failure_label": "none",
+                            "outcome_step": int(end),
+                            "band": band_name,
+                            "band_start_off": a,
+                            "band_end_off": b,
+                            **feat,
+                        }
+                    )
     finally:
         E.summarize_episode = real_summarize
     return rows
@@ -811,6 +825,9 @@ def main() -> int:
     _startup("03b", "FROZEN_INPUTS_LOADED", f"candidate={proposal.get('candidate_id')}")
 
     _acquire_lock()
+    global _SESSION_PROG
+    _SESSION_PROG = LongSessionProgress(OUT_DIR, name="C2_CONFIRMATION")
+    _SESSION_PROG.set_phase("LOCK_ACQUIRED", f"pid={os.getpid()}")
     _startup("02", "LOCK_ACQUIRED", f"pid={os.getpid()} lock={LOCK_PATH}")
     _write_starting_manifest(input_hashes=input_hashes, runner_commit=runner_commit)
     _startup("02b", "STARTING_MANIFEST_WRITTEN", str(MANIFEST_PATH))
