@@ -1,0 +1,78 @@
+{
+  "title": "C3 commitment-proximal strategic-fork discovery — frozen contract",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-06T18:30:00Z",
+  "science_scope": "CONTROLLABILITY_SCREEN_ONLY",
+  "human_readable_prereg": "docs/c3-decision-proximal-preregistration.md",
+  "motivated_by": "artifacts/c2_confirmation/C2_CONFIRMATION_FROZEN_RESULT.json",
+  "c2_confirmation_verdict": "C2_REJECTED",
+  "o3_authorized_by_this_contract": false,
+  "latent_necessity_claim": false,
+  "runtime_cells": {
+    "T_trace": 40,
+    "H_response": 30,
+    "delta": 0.1,
+    "minimum_fork_rate": 0.2,
+    "L_min": 1,
+    "U": {
+      "name": "carrier_survival",
+      "doomed_at_or_below": 0.0,
+      "estimation": "deterministic_single_continuation",
+      "notes": "Discovery controllability screen only. Stochastic N reserved for Stage 4 / demand gate."
+    },
+    "pressure_predicate": {
+      "requires_blue_carrying": true,
+      "rising_edge_into_pressure": true,
+      "pressure_radius_frac": 0.18,
+      "flag_pickup_included": false,
+      "tag_readiness_in_onset_gate": false
+    },
+    "one_response_semantics": {
+      "force_duration_decisions": 1,
+      "then_return_to_natural_g0": true,
+      "evaluation_horizon": "H_response"
+    },
+    "legal_team_responses": {
+      "source": "core._build_action_mask(side=blue)",
+      "enumeration": "cartesian_product_of_per_agent_legal_macros",
+      "min_legal_team_responses_required": 2,
+      "top2_policy_actions_forbidden": true,
+      "hand_curated_subset_forbidden": true
+    },
+    "discovery_seed_block": {
+      "base": 9400000,
+      "role": "natural_g0_replay_stages_1_to_3"
+    },
+    "stage4_confirmation": {
+      "seed_base": 9810000,
+      "required_policy_pass_count": 2,
+      "n_policies": 3,
+      "requires_fresh_natural": true,
+      "requires_fresh_counterfactual": true,
+      "spent_blocks_forbidden": [9800001]
+    }
+  },
+  "commitment_fork": {
+    "pressure_is_fork": false,
+    "pressure_role": "BACKWARD_TRACE_ANCHOR_ONLY",
+    "selection": "earliest_state_satisfying_R1_R4",
+    "no_qualifying_state_status": "NO_COMMITMENT_FORK",
+    "requirements": [
+      "naturally_reached_unmodified_g0_map_a",
+      "at_least_two_legal_team_responses",
+      "upstream_of_pressure_and_not_effectively_doomed",
+      "best_legal_improvement_A_s_ge_delta_over_H_response"
+    ]
+  },
+  "aggregate_gate": {
+    "metric": "fork_rate",
+    "definition": "n_qualified_commitment_forks / n_pressure_anchors",
+    "threshold": 0.2,
+    "threshold_owned_by": "runtime_cells.minimum_fork_rate",
+    "not_owned_by_runner_default": true
+  },
+  "policies": [3200001, 3200002, 3200003],
+  "opponents": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+  "map": "map_a",
+  "ruleset": "RULESET_V2_AQUATICUS_10S"
+}

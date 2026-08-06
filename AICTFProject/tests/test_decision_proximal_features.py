@@ -95,7 +95,7 @@ def test_carrier_features_non_nan():
     assert not math.isnan(features.intercept_margin)
 
 
-def test_onset_detection_pickup():
+def test_flag_pickup_is_not_a_pressure_anchor():
     extractor = DecisionProximalExtractor()
     
     core_prev = _make_mock_core(
@@ -114,7 +114,7 @@ def test_onset_detection_pickup():
     )
     features = extractor.extract(core_curr)
     
-    assert features.is_carrier_pressure_onset is True
+    assert features.is_carrier_pressure_onset is False
 
 
 def test_onset_detection_pressure_transition():
@@ -159,7 +159,13 @@ def test_deterministic_extraction():
     extractor2 = DecisionProximalExtractor()
     features2 = extractor2.extract(core)
     
-    assert asdict(features1) == asdict(features2)
+    d1 = asdict(features1)
+    d2 = asdict(features2)
+    for key in d1:
+        if isinstance(d1[key], float) and math.isnan(d1[key]):
+            assert math.isnan(d2[key])
+        else:
+            assert d1[key] == d2[key]
 
 
 def test_intercept_margin_sign_convention():
@@ -206,7 +212,7 @@ def test_intercept_margin_sign_convention():
         blue_carrying=[True, False],
         cols=cols
     )
-    extractor._prev_red_pos = np.array([[65.0, 50.0]])
+    extractor._prev_red_pos = np.array([[70.0, 50.0]])
     extractor._prev_blue_pos = np.array([[50.0, 50.0], [20.0, 50.0]])
     extractor._prev_carrier_pressure = 0.0
     extractor._prev_under_pressure = False
@@ -214,6 +220,56 @@ def test_intercept_margin_sign_convention():
     
     features_red = extractor.extract(core_red_closer)
     assert features_red.intercept_margin < 0
+
+
+def test_relative_closing_velocity_uses_defender_minus_carrier_velocity():
+    extractor = DecisionProximalExtractor()
+    extractor._prev_red_pos = np.array([[80.0, 50.0]])
+    extractor._prev_blue_pos = np.array([[50.0, 50.0], [20.0, 50.0]])
+    extractor._prev_carrying = np.array([True, False])
+    core = _make_mock_core(
+        blue_x=[55.0, 20.0], blue_y=[50.0, 50.0],
+        red_x=[75.0], red_y=[50.0],
+        blue_alive=[True, True], red_alive=[True],
+        blue_carrying=[True, False], cols=100.0,
+    )
+    features = extractor.extract(core)
+    assert math.isclose(features.relative_closing_velocity, 0.10, abs_tol=1e-6)
+
+
+def test_nonclosing_defender_uses_infinite_intercept_sentinel():
+    extractor = DecisionProximalExtractor()
+    extractor._prev_red_pos = np.array([[75.0, 50.0]])
+    extractor._prev_blue_pos = np.array([[50.0, 50.0]])
+    extractor._prev_carrying = np.array([True])
+    core = _make_mock_core(
+        blue_x=[50.0], blue_y=[50.0],
+        red_x=[80.0], red_y=[50.0],
+        blue_alive=[True], red_alive=[True],
+        blue_carrying=[True], cols=100.0,
+    )
+    features = extractor.extract(core)
+    assert math.isinf(features.time_to_intercept)
+
+
+def test_commitment_imbalance_keeps_directional_sign():
+    extractor = DecisionProximalExtractor()
+    attacking = _make_mock_core(
+        blue_x=[70.0, 80.0], blue_y=[20.0, 30.0],
+        red_x=[90.0], red_y=[20.0],
+        blue_alive=[True, True], red_alive=[True],
+        blue_carrying=[True, False], cols=100.0,
+    )
+    assert extractor.extract(attacking).commitment_imbalance == 2.0
+
+    extractor.reset()
+    defending = _make_mock_core(
+        blue_x=[20.0, 30.0], blue_y=[20.0, 30.0],
+        red_x=[40.0], red_y=[20.0],
+        blue_alive=[True, True], red_alive=[True],
+        blue_carrying=[True, False], cols=100.0,
+    )
+    assert extractor.extract(defending).commitment_imbalance == -2.0
 
 
 def test_reset_clears_state():
@@ -228,8 +284,14 @@ def test_reset_clears_state():
     features1 = extractor.extract(core)
     extractor.reset()
     features2 = extractor.extract(core)
-    
-    assert asdict(features1) == asdict(features2)
+
+    d1 = asdict(features1)
+    d2 = asdict(features2)
+    for key in d1:
+        if isinstance(d1[key], float) and math.isnan(d1[key]):
+            assert math.isnan(d2[key])
+        else:
+            assert d1[key] == d2[key]
 
 
 def test_feature_dict_round_trip():

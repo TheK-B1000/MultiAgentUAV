@@ -1,33 +1,21 @@
-# C3 commitment-proximal strategic-fork discovery — draft preregistration
+# C3 commitment-proximal strategic-fork discovery — preregistration
 
-**Status:** DRAFT — **not frozen**. Do not run Stages 1–4 against this text as authoritative yet.
-**Date:** 2026-08-06
-**Machine-readable freeze target (not written):** `artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json`
-**Motivated by:** `artifacts/c2_confirmation/C2_CONFIRMATION_FROZEN_RESULT.json` (`C2_REJECTED`)
-**Companion gate:** [`environment-demand-gate-preregistration.md`](environment-demand-gate-preregistration.md)
+**Status:** FROZEN 2026-08-06  
+**Machine-readable:** `artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json`  
+**Motivated by:** `artifacts/c2_confirmation/C2_CONFIRMATION_FROZEN_RESULT.json` (`C2_REJECTED`)  
+**Companion gate:** [`environment-demand-gate-preregistration.md`](environment-demand-gate-preregistration.md)  
+**Item-10 audit:** [`c3-item10-code-audit.md`](c3-item10-code-audit.md)
 
-This document incorporates the post-C2 design corrections. It is the working
-spec to review before any scan. When frozen, every open item in §"Must freeze
-before Stage 1" must be closed; after any scan produces numbers, no criterion
-may change.
-
-**Existing code caution.** `experiments/run_c3_decision_proximal_discovery.py`,
-`rl/analysis/decision_proximal_features.py`, and
-`rl/analysis/counterfactual_actionability.py` were written against a
-superseded draft. They must be re-audited against this text before freeze;
-their existence does not authorize a scan.
+After this freeze, no criterion, threshold, onset definition, action set,
+\(A(s)\) definition, horizon, or ranking rule may change once any authorized
+scan episode has run. Execution additionally requires
+`artifacts/c3_discovery/C3_EXECUTION_AUTHORIZATION.json`.
 
 ---
 
 ## C3 purpose and limits
 
-> **Label:** `AUTHORITATIVE INTENDED WORDING, NOT YET FROZEN`.
-> These are the intended scientific limits of C3. They are not frozen until
-> this document's status flips to FROZEN and
-> `artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json` exists. The runner
-> additionally refuses to execute until
-> `artifacts/c3_discovery/C3_EXECUTION_AUTHORIZATION.json` exists and verifies
-> contract/prereg/runner hashes (see §Execution authorization).
+> **Label:** FROZEN.
 
 ```text
 C3 PURPOSE:
@@ -91,7 +79,7 @@ outcome-correlated signals. C3 pivots to:
 
 ---
 
-## Locked pipeline (intended freeze shape)
+## Locked pipeline
 
 ```text
 C2_REJECTED
@@ -141,11 +129,9 @@ Still asking the environment:
 Not declaring “escort” / “retreat” by hand — and not concluding "latent
 needed" from C3 alone.
 
-### Commitment fork definition — item 9 SETTLED
+### Commitment fork definition — item 9 CLOSED
 
-> **Label:** item 9 of the freeze checklist is **SETTLED** below.
-> The overall C3 document remains **DRAFT** until items 1–8 and 10 close.
-> Do not authorize a scan from this section alone.
+> **Label:** FROZEN (item 9).
 
 Pressure onset is an **anchor / symptom locator**, not the fork.
 C3 must identify the **earliest** upstream commitment fork, not celebrate
@@ -176,8 +162,8 @@ A candidate commitment fork \(s_{t^\star}\) must satisfy:
 ```
 
 `U`, `H_response`, and the measurable-difference threshold \(\delta\) are
-numeric cells closed with freeze items 3 / 4 / 6; their **roles** in
-requirement 4 are fixed here.
+frozen in §"Frozen runtime cells" and
+`artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json`.
 
 #### Backward-trace algorithm (authoritative)
 
@@ -199,9 +185,8 @@ that state s_{t*} = candidate commitment fork
 The operative word is **earliest**. If pressure is at `t=78` but meaningful
 divergence begins at `t=52`, C3 must report `t=52`, not `t=78`.
 
-Trace window: walk back at most `T_trace` decisions before `t_pressure`
-(`T_trace` numeric cell closes with item 2 / 9 jointly; proposed default to
-freeze with the rest of the contract: `T_trace = 40`).
+Trace window: walk back at most `T_trace = 40` decisions before `t_pressure`
+(frozen; see §"Frozen runtime cells").
 
 If no earlier state satisfies R1–R4, the pressure event has **no qualified
 upstream commitment fork** for that episode (do not promote the pressure
@@ -215,25 +200,59 @@ onset itself as the fork).
 - Injected / scripted scenarios as discovery population
 - Declaring a fork where only one legal team response remains
 
-#### Path after item 9 (do not skip)
+---
+
+## Frozen runtime cells
+
+All values below are authoritative. The runner refuses to start unless
+`C3_DISCOVERY_PREREG_FROZEN.json` supplies matching `runtime_cells` (no code
+defaults for these quantities).
+
+| Cell | Frozen value | Rationale |
+|---|---|---|
+| `T_trace` | **40** | Prior draft default; covers the t≈40–78 commitment window example without inventing new machinery |
+| `H_response` | **30** | Same near-term horizon used in C2/eval rollouts (`EPISODE`-style decision horizon window) |
+| `delta` | **0.10** | Prior draft improvement threshold for useful alternative vs G0 |
+| `minimum_fork_rate` | **0.20** | Explicit aggregate discovery gate (was previously only a code constant; now contract-owned) |
+| `U.name` | **`carrier_survival`** | Primary C3 outcome is whether the carrier remains untagged/carrying after the response horizon; existing recorded branch outcome |
+| `U.doomed_at_or_below` | **0.0** | If even the best legal team response has survival utility ≤ 0, the state is effectively doomed (R3) |
+| `U.estimation` | **deterministic single continuation** | Discovery controllability screen; stochastic \(N\) reserved for Stage 4 / demand gate |
+| `L_min` | **1** | Fork must be strictly before pressure (`t* < t_pressure`); at least one intervening decision |
+| Pressure predicate | BLUE carrying AND rising edge into `dist_nearest_red/cols ≤ 0.18` | Implemented `PRESSURE_RADIUS_FRAC`; pickup excluded; tag-readiness remains a feature not the onset gate |
+| Legal responses | Cartesian product of authoritative blue macro masks from `core._build_action_mask` | Exhaustive legal team macros; no top-2 / curated set |
+| One response | Override team macros for **one** decision, then return to natural G0 for `H_response` | Macro persistence ticks = env semantics, not extended force |
+| Stage 4 seeds | **`9810000+`** | Fresh natural + fresh counterfactual; block `9800001+` spent by C2 |
+| Stage 4 replication | **≥2/3 policies** | Same cells / thresholds as discovery; dual natural+CF confirmation |
+
+### Aggregate fork-rate gate (explicit)
 
 ```text
-item 9 SETTLED (this section)
-        ↓
-item 10 — audit old C3 code against this definition
-        ↓
-close remaining freeze items 1–8
-        ↓
-freeze final C3 contract (human + machine-readable)
-        ↓
-write C3_EXECUTION_AUTHORIZATION.json
-        ↓
-smoke
-        ↓
-full scan
+minimum_fork_rate = 0.20
+
+Discovery Stage 3 PASS (controllability screen) requires:
+  (# anchors with QUALIFIED_COMMITMENT_FORK) / (# pressure anchors)
+  >= 0.20
+  on the evaluated policy set under this frozen contract.
+
+This threshold is owned by the frozen contract, not by runner defaults.
 ```
 
-**Not authorized:** run C3, train O3, latent birth, or router work.
+---
+
+## Checklist — all items CLOSED
+
+1. **CLOSED** — Pressure predicate: carrying + rising edge into radius 0.18; pickup excluded.
+2. **CLOSED** — `T_trace=40`, `L_min=1`; matched score strata retained as descriptors.
+3. **CLOSED** — `U=carrier_survival`, deterministic continuation, `delta=0.10`, `doomed_at_or_below=0.0`.
+4. **CLOSED** — `H_response=30`; one-decision team-response force then natural G0.
+5. **CLOSED** — Legal joint macros via authoritative action masks.
+6. **CLOSED** — `minimum_fork_rate=0.20` (point estimate for discovery; CI reserved for Stage 4 / demand gate).
+7. **CLOSED** — Stage 4: seeds `9810000+`, ≥2/3 policies, natural + counterfactual legs.
+8. **CLOSED** — Features: named-state instantaneous geometry; signed commitment; relative closing velocity; non-closing TTI = `+inf` sentinel.
+9. **CLOSED** — Commitment-fork definition (earliest R1–R4 backward trace).
+10. **CLOSED** — Implementation patched + focused tests; see item-10 audit doc.
+
+**Authorized path after freeze:** write `C3_EXECUTION_AUTHORIZATION.json` → smoke → full discovery scan.
 
 ---
 
@@ -337,12 +356,11 @@ does **not** decide PASS/FAIL. Primary evaluation horizon is **H=30**.
 
 ## Stage 3 — Counterfactual controllability screen (critical)
 
-**Interpretation limit (`AUTHORITATIVE INTENDED WORDING, NOT YET FROZEN`).**
-A Stage 3 pass means the state is **controllable** — a better legal one-macro
-alternative exists. It is NOT evidence that a persistent second policy should
-own the state. Strategy-mode evidence (G0 continuation vs O3 continuation for
-a prospectively frozen `H_response`, from the same natural snapshot) belongs
-to the Environment-Demand Gate after O3 exists, not to C3.
+**Interpretation limit (FROZEN).**
+A Stage 3 pass means the state is **controllable** — a better legal one-decision
+team response exists. It is NOT evidence that a persistent second policy should
+own the state. Strategy-mode evidence belongs to the Environment-Demand Gate
+after O3 exists, not to C3.
 
 ### Branch semantics
 
@@ -388,31 +406,13 @@ Only a **better** legal alternative counts.
 
 ```text
 state actionable  iff  A(s) >= δ
+δ = 0.10   (frozen)
+aggregate discovery gate: fork_rate >= minimum_fork_rate = 0.20  (frozen)
 ```
 
-Proposed freeze target (new metric; not C2's 0.30 observational actionability):
-
-```text
-δ = 0.10   (primary-outcome improvement vs G0 baseline)
-aggregate: >= 20% of eligible onset states actionable
-+ preregistered uncertainty / replication on the aggregate rate
-```
-
-Report H=15 diagnostic under the same \(A(s)\) definition; not decisive.
-
-### Probability vs single rollout
-
-A single continuation is **not** a probability shift. Choose and freeze one:
-
-1. **Deterministic branching** — documented near-term utility; compare branch
-   outcomes once per (state, action); or
-2. **Preferred: stochastic continuation** — from each (snapshot, action), run
-   \(N\) controlled continuation seeds; estimate `P(survive H)`, `P(capture H)`,
-   `P(tagged H)`. Freeze \(N\) and continuation-seed assignment **before** the
-   scan.
-
-Primary outcome \(U\) (e.g. survive / not-tagged / capture / score utility)
-must be named before Stage 3.
+`U = carrier_survival` with **deterministic** single continuation (frozen for
+discovery). Stochastic \(N\)-seed estimation is reserved for Stage 4 / the
+Environment-Demand Gate and is not used to decide C3 discovery PASS/FAIL.
 
 ---
 
@@ -468,43 +468,6 @@ publishable negative result.
 
 ---
 
-## Must freeze before Stage 1
-
-Open items — **do not implement Stage 1 until items 1–8 and 10 are closed and
-this document's status flips to FROZEN** with a matching
-`C3_DISCOVERY_PREREG_FROZEN.json`:
-
-1. Exact `actionable carrier pressure` predicate (geometry + tag readiness;
-   radius / ε / closing tests).
-2. Minimum lead time \(L\); opportunity matching; score strata; cell minima;
-   and numeric `T_trace` (proposed default 40) for the item-9 backward walk.
-3. Primary utility \(U\); deterministic vs stochastic design; if stochastic, \(N\)
-   and continuation-seed schedule; measurable-divergence threshold \(\delta\)
-   used by item-9 requirement 4.
-4. Exact “one response” / `H_response` semantics given macro persistence ticks
-   (item-9 requirement 4 depends on this).
-5. Legality function for joint carrier×mate macros (item-9 requirement 2).
-6. Aggregate actionability / fork-rate uncertainty / replication rule (not
-   point estimate alone).
-7. Stage 4 fresh natural + fresh counterfactual acceptance cells (2/3 etc.).
-8. Feature list finalization (sign conventions; named-state accessors only).
-9. **SETTLED (2026-08-06)** — commitment-fork definition: four requirements
-   (natural / legal alternatives / upstream of failure / commitment over
-   `H_response`) and earliest-state backward trace from pressure onset.
-   See §"Commitment fork definition — item 9 SETTLED". Numeric cells
-   (`T_trace`, `H_response`, \(\delta\), \(U\)) close with items 2–6.
-10. Re-audit of the existing C3 code
-    (`experiments/run_c3_decision_proximal_discovery.py`,
-    `rl/analysis/decision_proximal_features.py`,
-    `rl/analysis/counterfactual_actionability.py`) against the settled
-    item-9 definition and the rest of this draft; the code predates it.
-    **Next authorized work after this edit.**
-
-Order after item 9: audit (10) → close 1–8 → freeze final contract →
-authorization artifact → smoke → full scan. **Do not run C3 yet.**
-
----
-
 ## Execution authorization (hard guard)
 
 Documentation alone is not enough. The discovery runner refuses to perform
@@ -522,22 +485,16 @@ c3_contract_hash    = sha256 of the frozen machine-readable contract
                       (C3_DISCOVERY_PREREG_FROZEN.json)
 c3_prereg_commit    = git commit that froze the human-readable prereg
 runner_commit       = git commit of the authorized runner
+c3_prereg_sha256    = sha256 of docs/c3-decision-proximal-preregistration.md
 authorized_utc      = ISO-8601 UTC
 ```
 
-Mismatch of any hash/commit, or missing file → `SystemExit` with an explicit
-DRAFT / NOT AUTHORIZED message. **Do not write this artifact until** the
-freeze checklist is closed, both human-readable and machine-readable
-contracts are frozen and committed, and a deliberate authorization step is
-taken. Absence of the file is the correct default state.
-
-The Environment-Demand Gate runner will eventually use the same pattern
-(`DEMAND_GATE_EXECUTION_AUTHORIZATION.json`).
+Mismatch of any hash/commit, or missing file → `SystemExit`.
 
 ---
 
-## Immutability (applies only after freeze)
+## Immutability
 
-After any scan produces numbers under a FROZEN copy of this protocol, no
+After any authorized scan episode has run under this FROZEN protocol, no
 criterion, threshold, onset definition, action set, \(A(s)\) definition,
 horizon, or ranking rule may change.

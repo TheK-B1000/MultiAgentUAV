@@ -99,6 +99,7 @@ class DecisionProximalExtractor:
         r_pos = np.stack([r_x, r_y], axis=-1)
         
         N = len(b_x)
+        Nr = len(r_x)
         
         # Initialize default NaN values for carrier-specific features
         time_to_intercept = float('nan')
@@ -129,7 +130,7 @@ class DecisionProximalExtractor:
             # Nearest red to carrier
             min_r_dist = float('inf')
             nearest_r_idx = -1
-            for i in range(N):
+            for i in range(Nr):
                 if r_alive[i]:
                     d = np.linalg.norm(r_pos[i] - c_pos) / cols
                     if d < min_r_dist:
@@ -152,7 +153,7 @@ class DecisionProximalExtractor:
                 
             # Nearest ready defender
             min_ready_dist = float('inf')
-            for i in range(N):
+            for i in range(Nr):
                 if r_alive[i] and r_tag_cd[i] <= 0:
                     d = np.linalg.norm(r_pos[i] - c_pos) / cols
                     if d < min_ready_dist:
@@ -163,9 +164,12 @@ class DecisionProximalExtractor:
             if nearest_r_idx >= 0:
                 d_nearest = min_r_dist
                 r_vel = np.zeros(2)
+                carrier_vel = np.zeros(2)
                 if self._prev_red_pos is not None:
                     # simplistic velocity: dp/dt, normalized by map size
                     r_vel = (r_pos[nearest_r_idx] - self._prev_red_pos[nearest_r_idx]) / cols
+                if self._prev_blue_pos is not None:
+                    carrier_vel = (c_pos - self._prev_blue_pos[carrier_idx]) / cols
                 
                 # Direction vector from red to carrier
                 r_to_c = (c_pos - r_pos[nearest_r_idx]) / cols
@@ -173,8 +177,8 @@ class DecisionProximalExtractor:
                 
                 if norm_r_to_c > 1e-6:
                     r_to_c_dir = r_to_c / norm_r_to_c
-                    # closing vel: positive if red is moving towards carrier
-                    closing = float(np.dot(r_vel, r_to_c_dir))
+                    # Positive when defender-carrier separation is closing.
+                    closing = float(np.dot(r_vel - carrier_vel, r_to_c_dir))
                 else:
                     closing = 0.0
                 
@@ -183,7 +187,7 @@ class DecisionProximalExtractor:
                 if closing > 0:
                     time_to_intercept = d_nearest / closing
                 else:
-                    time_to_intercept = (d_nearest / DEFAULT_SPEED) + 20.0
+                    time_to_intercept = float('inf')
                 
                 intercept_margin = time_to_intercept - mate_interv_eta
                 
@@ -196,10 +200,11 @@ class DecisionProximalExtractor:
                 intercept_margin = float('inf')
             
             # Onset detection
-            just_picked_up = (self._prev_carrying is not None) and (not self._prev_carrying[carrier_idx])
             became_pressured = currently_under_pressure and (not self._prev_under_pressure)
-            
-            is_pressure_onset = bool(just_picked_up or became_pressured)
+
+            # C3 uses pressure crossing only as a backward-trace anchor. Flag
+            # pickup is a separate event family and must never enter this set.
+            is_pressure_onset = bool(became_pressured)
         
         # Pressure Trend (EMA derivative)
         pressure_diff = current_carrier_pressure - self._prev_carrier_pressure
@@ -218,7 +223,7 @@ class DecisionProximalExtractor:
         # Defenders: blue agents on blue half (x <= cols/2)
         n_attackers = sum(1 for i in range(N) if b_alive[i] and b_x[i] > cols / 2)
         n_defenders = sum(1 for i in range(N) if b_alive[i] and b_x[i] <= cols / 2)
-        commitment_imbalance = float(abs(n_attackers - n_defenders))
+        commitment_imbalance = float(n_attackers - n_defenders)
         
         agents_forward = n_attackers
         

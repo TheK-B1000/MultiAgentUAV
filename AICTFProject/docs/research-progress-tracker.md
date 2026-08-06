@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-06 (UTC-4) — C3 item 9 commitment-fork definition SETTLED; next = item 10 code audit (no scan)
+> **Last updated:** 2026-08-06 (UTC-4) — C3 FROZEN; closing authorize → smoke → scan
 
 
 ---
@@ -202,25 +202,21 @@ the carrier's fate.
 geometry with counterfactual actionability gating. See
 [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md).
 
-### C3 commitment-proximal strategic-fork discovery — `DRAFT, NOT FROZEN` (2026-08-06)
+### C3 commitment-proximal strategic-fork discovery — `FROZEN` (2026-08-06)
 
-**Status:** `DRAFT — preregistration NOT frozen; no scan authorized.`
-Hard execution guard: `experiments/run_c3_decision_proximal_discovery.py`
-exits unless `artifacts/c3_discovery/C3_EXECUTION_AUTHORIZATION.json` exists
-and verifies contract/prereg/runner hashes. That file must **not** be written
-until the freeze checklist is closed.
-
-A prior version of this row incorrectly said "preregistration frozen, code
-implemented." That was wrong: the prereg is a draft with an open freeze
-checklist, and no `C3_DISCOVERY_PREREG_FROZEN.json` exists.
+**Status:** `FROZEN` — checklist items 1–10 CLOSED.
+Machine-readable: `artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json`.
+Execution still requires `C3_EXECUTION_AUTHORIZATION.json` with matching hashes.
 
 ```text
 C1                     CLOSED / NOT RETAINED
 C2                     CLOSED / REJECTED
-C3 methodology          DRAFT
-C3 code                 SUPERSEDED-DRAFT IMPLEMENTATION
-C3 execution            NOT AUTHORIZED (hard-guarded)
-C3 artifacts            NONE
+C3 methodology          FROZEN
+C3 code                 PATCHED TO CONTRACT
+C3 execution            AUTHORIZE → SMOKE → SCAN
+C3 runtime cells        T_trace=40 H_response=30 delta=0.10
+                        minimum_fork_rate=0.20
+                        U=carrier_survival doomed_at_or_below=0.0
 environment-demand gate PREREGISTERED STRUCTURE
 demand-gate execution   LOCKED UNTIL O3 EXISTS
 O3                      LOCKED
@@ -228,7 +224,7 @@ latent birth            LOCKED
 router                  LOCKED
 ```
 
-**Preregistration (draft):** [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
+**Preregistration (frozen):** [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
 
 **Purpose (limited):** C3 is a **cheap candidate-fork detector**. It cannot
 establish latent necessity, policy complementarity, routing value, or
@@ -254,13 +250,14 @@ Criteria structure is preregistered before C3 results; numeric cells marked
 `TBD-freeze` close at O3 protocol freeze. Execution remains LOCKED until O3
 exists. Do not treat this as authorization to run a demand-gate evaluation.
 
-**Code caution:** `experiments/run_c3_decision_proximal_discovery.py`,
+**Implementation checkpoint:** `experiments/run_c3_decision_proximal_discovery.py`,
 `rl/analysis/decision_proximal_features.py`, and
-`rl/analysis/counterfactual_actionability.py` exist but were written against
-the superseded draft (C2-style lag bands, absolute-shift actionability,
-mixed onset families). They must be re-audited against the corrected draft
-before the prereg freezes. No scan artifacts exist
-(`artifacts/c3_discovery/` absent).
+`rl/analysis/counterfactual_actionability.py` are patched to the item-10 audit:
+pressure anchor only, earliest bounded backward trace, authoritative legal team
+responses, doomed-state rejection, improvement-only expected utility through
+`H_response`, explicit `NO_COMMITMENT_FORK`, and
+`CONTROLLABILITY_SCREEN_ONLY` output semantics. Numeric cells remain sourced
+only from the future frozen contract. No scan artifacts exist.
 
 **Stopping rule:** If no candidate clears all gates, record
 `C3_NO_QUALIFIED_STRATEGIC_FORK.json` and STOP. If the demand gate fails:
@@ -7785,11 +7782,12 @@ divergence over `H_response`; backward trace selects the **earliest** such
 state. Pressure onset is an anchor only. Numeric cells (`T_trace`,
 `H_response`, \(\delta\), \(U\)) still close with items 2–6.
 
-**Next authorized work:** freeze-checklist **item 10** — line-by-line audit of
-the superseded C3 modules against that definition. Path:
+**Implementation checkpoint:** [`c3-item10-code-audit.md`](c3-item10-code-audit.md)
+records `ITEM 10 IMPLEMENTATION PATCHED`; focused tests pass and no C3 scan was
+run. Next, close items 1–8 and freeze `T_trace`, `H_response`, `delta`, and `U`.
 
 ```text
-item 9 SETTLED → item 10 audit → close items 1–8
+item 9 SETTLED → item 10 AUDIT COMPLETE → PATCH COMPLETE → close items 1–8
 → freeze final C3 contract → authorization artifact → smoke → full scan
 ```
 
