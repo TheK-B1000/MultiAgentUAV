@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-07-30 (UTC-4) — sequential weakness→oracle plan locked; G0 map_a sweep RUNNING
+> **Last updated:** 2026-08-06 (UTC-4) — C2_REJECTED recorded; C3 decision-proximal discovery pivot preregistered
 
 
 ---
@@ -170,6 +170,60 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §8). PLANNED
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
+
+### C2 fresh confirmation — `C2_REJECTED` (2026-08-06)
+
+**Candidate:** `none_forward_frac` (fraction of decisions during carrying
+where zero blue mates are past the midline).
+
+**Result:** `C2_REJECTED` — all 3 policies failed headroom + actionability.
+
+```text
+natural support     PASS    (606 / 624 / 584 failure onsets, prevalence ~87%)
+headroom            FAIL    (11.8% / 12.7% / 13.0%)
+actionability       FAIL    (0.0 / 0.0 / 0.0)
+
+policy passes       0 / 3
+required            >= 2 / 3
+verdict             C2_REJECTED
+O2                  DO NOT TRAIN
+```
+
+**Artifact:** `artifacts/c2_confirmation/C2_CONFIRMATION_FROZEN_RESULT.json`
+
+**Scientific interpretation:** C1 and C2 both found **correlates of bad
+outcomes** rather than **genuine strategic decision forks**. C1 was
+predictive but had 0.9% headroom. C2 had adequate natural support and
+strong discovery deltas, but on fresh data the feature was not reliably
+actionable — changing the team response from the same state did not alter
+the carrier's fate.
+
+**Decision:** Pivot from aggregate-fraction features to decision-proximal
+geometry with counterfactual actionability gating. See
+[`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md).
+
+### C3 decision-proximal discovery — `PLANNED` (2026-08-06)
+
+**Status:** `PLANNED — preregistration frozen, code implemented, awaiting
+first scan.`
+
+**Preregistration:** [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
+
+**Key innovation:** Instantaneous geometric/tactical features (time to
+intercept, closing velocity, intercept margin, etc.) plus a mandatory
+**counterfactual actionability gate** that would have caught both C1 and C2
+before confirmation.
+
+**Pipeline:**
+```text
+C2 REJECTED → decision-proximal discovery (replay) → temporal qualification
+→ counterfactual actionability gate → ONLY THEN fresh confirmation
+```
+
+**Code:** `experiments/run_c3_decision_proximal_discovery.py`
+
+**Stopping rule:** If no candidate clears all gates, record
+`C3_NO_QUALIFIED_STRATEGIC_FORK.json` and STOP.
 
 ### 3.0.0 OP6-OP12 strategic BT niches - `IMPLEMENTED, PENDING_EVAL`
 
@@ -7641,6 +7695,49 @@ Confirmation prereg: [`g0-c1-confirmation-preregistration.md`](g0-c1-confirmatio
 
 ---
 
+## C2 fresh confirmation REJECTED → C3 draft pivot (2026-08-06)
+
+**C2 confirmation complete.** Artifacts:
+`artifacts/c2_confirmation/C2_CONFIRMATION_FROZEN_RESULT.json`.
+
+```text
+verdict                 C2_REJECTED
+fresh seed block        9800001+ (SPENT — do not reuse / retune on this block)
+policy passes           0 / 3  (required >= 2 / 3)
+natural support         PASS (~87% onset prevalence; hundreds of onsets)
+headroom                FAIL (~0.12)
+actionability           FAIL (0.0)
+O2 training             DO NOT TRAIN
+```
+
+Scientific read: Stage 2 discovery was reproducible enough to look interesting,
+but the niche did not survive fresh confirmation as an **intervention** target.
+Support was not the failure mode. Same class of trap as C1 (correlate without
+usable strategic fork), with C2's twist of abundant natural carrier-failure
+support and discovery deltas that still failed headroom/actionability.
+
+**Discipline locked:** no reinterpretation of `none_forward_frac`, no lag-band
+retune, no threshold relax, no runner-up promotion on `9800001+`.
+
+**Next direction (approved, not frozen):** decision-proximal /
+counterfactual-actionability discovery (C3). Draft only:
+[`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md).
+
+Key draft corrections vs an earlier lag-band proposal:
+
+- event-anchored `CARRIER_PRESSURE_ONSET` (not flag-pickup ∪ pressure mix)
+- Stage 2 is **not** C2 `[-30,-20)` bands; features at \(t_0\) + min lead time
+- \(A(s)\) = best-legal **improvement** over G0, not absolute outcome shift
+- force alternative at fork only; H=30 is evaluation horizon
+- exhaustive **legal** macros; seeds `9400000+` for Stages 1–3; `9810000+`
+  for Stage 4 natural **and** fresh counterfactual replication
+- else record `C3_NO_QUALIFIED_STRATEGIC_FORK` and stop
+
+Do **not** implement Stage 1 or write `C3_DISCOVERY_PREREG_FROZEN.json` until
+the draft's open freeze checklist is closed and status flips to FROZEN.
+
+---
+
 ## 7. Cross-references
 
 | Need                                              | Where to look                                                                       |
@@ -7650,6 +7747,8 @@ Confirmation prereg: [`g0-c1-confirmation-preregistration.md`](g0-c1-confirmatio
 | Fidelity rules / classification / proposal form   | [`summer-fidelity-rules.md`](summer-fidelity-rules.md)                              |
 | Per-preset facts, aliases, deltas, run tags       | [`latent-preset-registry.md`](latent-preset-registry.md)                            |
 | Launch / eval / statistical protocols             | [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md)    |
+| C2 confirmation (REJECTED) / spent block 9800001+ | [`c2-qualification-preregistration.md`](c2-qualification-preregistration.md); `artifacts/c2_confirmation/` |
+| C3 decision-proximal draft (NOT frozen)           | [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md) |
 | v6i2 frozen gate thresholds (pre-confirmatory)  | [`v6i2-gate-protocol-freeze.md`](v6i2-gate-protocol-freeze.md)                    |
 | Codeâ†”manuscript trace                             | [`Paper_experiment_alignment.md`](Paper_experiment_alignment.md)                    |
 | Algorithm sketch                                  | [`../../docs/algorithm.md`](../../docs/algorithm.md)                                |

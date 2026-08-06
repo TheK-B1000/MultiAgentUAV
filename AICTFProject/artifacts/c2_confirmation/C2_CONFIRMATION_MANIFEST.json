@@ -1,0 +1,166 @@
+{
+  "title": "C2 fresh confirmation run",
+  "generated_utc": "2026-08-06T13:06:43Z",
+  "runner_commit": "c3da87124bcb54097c70cd883428c598c6f88cff",
+  "authoritative_inputs": {
+    "proposal": "artifacts\\c2_qualification\\C2_PROPOSAL.json",
+    "confirmation_input": "artifacts\\c2_qualification\\C2_CONFIRMATION_PREREG_INPUT.json",
+    "frozen_contract": "artifacts\\c2_qualification\\C2_QUALIFICATION_FROZEN.json"
+  },
+  "input_hashes": {
+    "proposal_sha256": "b55f7d79f71286f7f4300e2f55f1f11bdda3aac37c64896b2e94d9ad6f3a0b3a",
+    "confirmation_input_sha256": "f24ebcbb834d9c8fbd7ad989c0952bd9b4fe26f42aad6aae406b32e0968faf3f",
+    "frozen_contract_sha256": "54828bd96fc97b57deb89f517b2cf742b3d4c7abd7516f566692c6530b43f308"
+  },
+  "candidate": {
+    "candidate_id": "C2_tagged_carrier_none_forward",
+    "failure_label": "tagged_while_carrying",
+    "feature": "none_forward_frac",
+    "expected_direction": "NEGATIVE",
+    "opportunity_match": "opp_has_carrier == true (carrier-context matched controls)",
+    "bands": [
+      [
+        -30,
+        -20
+      ],
+      [
+        -20,
+        -10
+      ],
+      [
+        -10,
+        -1
+      ]
+    ]
+  },
+  "fresh_seed_block": {
+    "base": 9800001,
+    "episodes_per_opponent": 30,
+    "seeds": [
+      9800001,
+      9800002,
+      9800003,
+      9800004,
+      9800005,
+      9800006,
+      9800007,
+      9800008,
+      9800009,
+      9800010,
+      9800011,
+      9800012,
+      9800013,
+      9800014,
+      9800015,
+      9800016,
+      9800017,
+      9800018,
+      9800019,
+      9800020,
+      9800021,
+      9800022,
+      9800023,
+      9800024,
+      9800025,
+      9800026,
+      9800027,
+      9800028,
+      9800029,
+      9800030
+    ],
+    "allocation_meta": {
+      "candidates_checked": 2,
+      "collision_sources": {}
+    },
+    "collision_scan": {
+      "range": [
+        1000000,
+        9999999
+      ],
+      "forbidden_ranges": [
+        [
+          9400000,
+          9499999
+        ],
+        [
+          9500000,
+          9599999
+        ],
+        [
+          9600000,
+          9699999
+        ],
+        [
+          9700000,
+          9799999
+        ]
+      ],
+      "forbidden_bases": [
+        9400000,
+        9500000,
+        9600000,
+        9700000
+      ],
+      "used_seed_count": 6976
+    }
+  },
+  "policies": {
+    "3200001": {
+      "checkpoint": "artifacts\\g0_v5_long\\g0_v5_long_seed3200001\\ckpts\\final_g0_v5_long_seed3200001.zip",
+      "checkpoint_sha256": "94a28f25a1e81954b499428d29566d98b39482113666c637b289ebddd1966059",
+      "identity": {
+        "run_id": "g0_v5_long_seed3200001",
+        "canonical_map": "map_a",
+        "resolved_map": "map_a_open",
+        "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+        "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+        "formal_result_eligible": true,
+        "identity_override_used": false
+      },
+      "resolved_cnn_channels": 7
+    },
+    "3200002": {
+      "checkpoint": "artifacts\\g0_v5_long\\g0_v5_long_seed3200002\\ckpts\\final_g0_v5_long_seed3200002.zip",
+      "checkpoint_sha256": "066bd4c44f6f6e95dbd2e6f32922b3f7fb8e9763bd0d090f38c69ec379e11b81",
+      "identity": {
+        "run_id": "g0_v5_long_seed3200002",
+        "canonical_map": "map_a",
+        "resolved_map": "map_a_open",
+        "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+        "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+        "formal_result_eligible": true,
+        "identity_override_used": false
+      },
+      "resolved_cnn_channels": 7
+    },
+    "3200003": {
+      "checkpoint": "artifacts\\g0_v5_long\\g0_v5_long_seed3200003\\ckpts\\final_g0_v5_long_seed3200003.zip",
+      "checkpoint_sha256": "cdb9df7c3e12e3ceb1b0cf5ccadff3d154847546573c9551361119353bcd74ef",
+      "identity": {
+        "run_id": "g0_v5_long_seed3200003",
+        "canonical_map": "map_a",
+        "resolved_map": "map_a_open",
+        "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+        "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+        "formal_result_eligible": true,
+        "identity_override_used": false
+      },
+      "resolved_cnn_channels": 7
+    }
+  },
+  "integrity_preflight": {
+    "checkpoint_sha256_recorded": true,
+    "ruleset_fingerprint_consistent": true,
+    "map_verified": true,
+    "loader_7_channel_verified": true,
+    "identity_override_absent": true,
+    "outcome_step_excluded_from_bands": true,
+    "opportunity_match_semantics": "opp_has_carrier == true"
+  },
+  "final": {
+    "windows_csv": "artifacts\\c2_confirmation\\C2_CONFIRMATION_WINDOWS.csv",
+    "results_json": "artifacts\\c2_confirmation\\C2_CONFIRMATION_RESULTS.json",
+    "frozen_result_json": "artifacts\\c2_confirmation\\C2_CONFIRMATION_FROZEN_RESULT.json",
+    "verdict": "C2_REJECTED"
+  }
+}
