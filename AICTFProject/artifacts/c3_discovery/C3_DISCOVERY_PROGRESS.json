@@ -1,0 +1,13 @@
+{
+  "updated_utc": "2026-08-07T18:07:46Z",
+  "pid": 38124,
+  "session": "C3_DISCOVERY",
+  "phase": "STAGE1",
+  "detail": "stage1_episodes",
+  "done": 538,
+  "total": 630,
+  "frac": 0.854,
+  "elapsed_seconds": 12778.2,
+  "eta_seconds": 2185.1,
+  "progress_log": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\c3_discovery\\C3_DISCOVERY_PROGRESS.log"
+}

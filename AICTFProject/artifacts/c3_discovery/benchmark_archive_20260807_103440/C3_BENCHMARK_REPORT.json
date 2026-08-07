@@ -1,0 +1,21 @@
+{
+  "pressure_anchors": 60,
+  "forks_found": 48,
+  "mean_candidates_searched_per_anchor": 17.217,
+  "mean_legal_branches_per_candidate_proxy": 1.111,
+  "mean_responses_tested_per_anchor": 9.317,
+  "mean_legal_alternatives_budget_per_anchor": 19.133,
+  "mean_short_circuit_candidate_hits": 7.833,
+  "short_circuit_response_savings_frac": 0.5131,
+  "seconds_per_anchor": 100.558,
+  "anchors_per_episode_cell": 4.0,
+  "projected_full_scan_anchors": 2520.0,
+  "projected_full_stage3_wall_hours": 70.35,
+  "projection_assumes": {
+    "policies": 3,
+    "opponents": 7,
+    "episodes_per_cell": 30,
+    "note": "If benchmark used 1 opponent, projection scales opponents to 7.",
+    "scale_applied": 21.0
+  }
+}

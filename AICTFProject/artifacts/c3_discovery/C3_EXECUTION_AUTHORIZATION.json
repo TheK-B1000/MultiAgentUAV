@@ -1,0 +1,11 @@
+{
+  "status": "FROZEN_AND_AUTHORIZED",
+  "c3_contract_hash": "c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0",
+  "c3_prereg_commit": "e4f4c3ccbb24e63ac4373120a4be99ad91b2d83e",
+  "runner_commit": "e4f4c3ccbb24e63ac4373120a4be99ad91b2d83e",
+  "c3_prereg_sha256": "a70600d96d5bbc5dd1339131ac00a7886d47832555463673f18e9a7aacfc47ab",
+  "freeze_commit": "de93d290b8813ac1b10b1f723a674e6f1f5a409b",
+  "ops_patch_commit": "e3e1d923e8e4feddaffc2d01f9898a5aa864062e",
+  "authorized_utc": "2026-08-07T12:45:00Z",
+  "notes": "Authorized after ops patch + Stage-1 JSON inf sanitize. Controllability screen only."
+}
