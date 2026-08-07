@@ -606,6 +606,76 @@ def _require_c3_execution_authorization() -> dict:
     return auth
 
 
+SAMPLING_AMENDMENT_PATH = OUT_DIR / "C3_STAGE3_SAMPLING_AMENDMENT.json"
+SAMPLE_MANIFEST_PATH = OUT_DIR / "C3_STAGE3_SAMPLE_MANIFEST.json"
+SAMPLING_AMENDMENT_COMMIT = "74b857c"
+
+
+def _require_stage3_sampling_authorization() -> dict:
+    """Fail closed before sampled Stage-3 work, mirroring the C3 authorization.
+
+    The sampling amendment changes which anchors are evaluated. Left to operator
+    discipline, a sampled run could silently execute the exhaustive path, or an
+    exhaustive relaunch could silently ignore the amendment. Both are checked
+    here rather than assumed.
+    """
+    if not SAMPLING_AMENDMENT_PATH.exists():
+        raise SystemExit(
+            "Sampled Stage 3 refused: sampling amendment missing at "
+            f"{SAMPLING_AMENDMENT_PATH.relative_to(PROJECT_ROOT)}"
+        )
+    amend = json.loads(SAMPLING_AMENDMENT_PATH.read_text(encoding="utf-8"))
+    if amend.get("status") != "FROZEN":
+        raise SystemExit(
+            f"Sampled Stage 3 refused: amendment status={amend.get('status')!r} "
+            "(required 'FROZEN')"
+        )
+
+    contract_hash = _sha256_file(CONTRACT_PATH)
+    declared = str(amend.get("sampling_seed", {}).get("c3_contract_sha256") or "")
+    if declared != contract_hash:
+        raise SystemExit(
+            "Sampled Stage 3 refused: c3_contract_hash mismatch between the "
+            f"amendment ({declared[:16]}...) and the contract on disk "
+            f"({contract_hash[:16]}...)"
+        )
+
+    if not SAMPLE_MANIFEST_PATH.exists():
+        raise SystemExit(
+            "Sampled Stage 3 refused: sampled-anchor manifest missing at "
+            f"{SAMPLE_MANIFEST_PATH.relative_to(PROJECT_ROOT)}. Build it with "
+            "experiments/build_c3_stage3_sample.py before relaunching."
+        )
+    manifest = json.loads(SAMPLE_MANIFEST_PATH.read_text(encoding="utf-8"))
+
+    if str(manifest.get("amendment_commit") or "") != SAMPLING_AMENDMENT_COMMIT:
+        raise SystemExit(
+            "Sampled Stage 3 refused: manifest amendment_commit="
+            f"{manifest.get('amendment_commit')!r}, expected "
+            f"{SAMPLING_AMENDMENT_COMMIT!r}"
+        )
+    amend_sha = _sha256_file(SAMPLING_AMENDMENT_PATH)
+    if str(manifest.get("amendment_sha256") or "") != amend_sha:
+        raise SystemExit(
+            "Sampled Stage 3 refused: the amendment changed after the sample was "
+            "drawn (amendment_sha256 mismatch). The draw is only valid against "
+            "the amendment it was made under."
+        )
+    if str(manifest.get("c3_contract_sha256") or "") != contract_hash:
+        raise SystemExit(
+            "Sampled Stage 3 refused: manifest c3_contract_sha256 mismatch"
+        )
+    if not manifest.get("drawn_before_any_stage3_outcome"):
+        raise SystemExit(
+            "Sampled Stage 3 refused: the manifest does not assert it was drawn "
+            "before any Stage-3 outcome existed"
+        )
+    selected = manifest.get("selected_anchor_ids") or []
+    if not selected:
+        raise SystemExit("Sampled Stage 3 refused: manifest selects no anchors")
+    return manifest
+
+
 def _build_benchmark_report(
     *,
     stage3_by_seed: dict,
@@ -689,6 +759,15 @@ def main() -> int:
         type=str,
         default="",
         help="Load frozen Stage-1 anchors/manifest from this directory and skip Stage 1.",
+    )
+    parser.add_argument(
+        "--sampled",
+        action="store_true",
+        help=(
+            "Run the SAMPLED Stage 3 defined by C3_STAGE3_SAMPLING_AMENDMENT.json. "
+            "Refuses to start unless the amendment and the sampled-anchor manifest "
+            "are present and mutually consistent."
+        ),
     )
     parser.add_argument(
         "--resume-stage3",
@@ -884,6 +963,43 @@ def main() -> int:
 
     stage3_results_path = OUT_DIR / STAGE3_RESULTS_NAME
     if args.stage >= 3:
+        sample_manifest = None
+        if args.sampled:
+            # Fail closed BEFORE any Stage-3 work.
+            sample_manifest = _require_stage3_sampling_authorization()
+            selected_ids = set(sample_manifest["selected_anchor_ids"])
+            kept_total = 0
+            for _seed in list(rows_by_seed):
+                kept = [
+                    a for a in rows_by_seed[_seed]
+                    if anchor_key_from_row(a) in selected_ids
+                ]
+                rows_by_seed[_seed] = kept
+                kept_total += len(kept)
+            if kept_total != len(selected_ids):
+                raise SystemExit(
+                    "Sampled Stage 3 refused: the census does not contain every "
+                    f"selected anchor ({kept_total} of {len(selected_ids)} found). "
+                    "The manifest and the Stage-1 census disagree."
+                )
+            report["stage3_sampling"] = {
+                "mode": "SAMPLED",
+                "amendment_commit": sample_manifest["amendment_commit"],
+                "sampling_seed": sample_manifest["sampling_seed"],
+                "n_sampled": len(selected_ids),
+                "N_total_census": sample_manifest["N_total"],
+                "W_h": sample_manifest["W_h"],
+                "n_h_sampled": sample_manifest["n_h_sampled"],
+                "estimator": sample_manifest["estimator"],
+                "decision_rule": sample_manifest["decision_rule"],
+            }
+            progress.log(
+                f"stage3_sampled anchors={len(selected_ids)} "
+                f"seed={sample_manifest['sampling_seed']} "
+                f"amendment={sample_manifest['amendment_commit']}"
+            )
+        else:
+            report["stage3_sampling"] = {"mode": "EXHAUSTIVE"}
         progress.set_phase("STAGE3", "controllability_screen_only")
         completed_keys = (
             load_completed_stage3_keys(stage3_results_path) if args.resume_stage3 else set()
