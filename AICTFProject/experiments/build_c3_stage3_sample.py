@@ -67,6 +67,47 @@ def _stratum(row: dict) -> tuple[int, str]:
     return (int(row["train_seed"]), str(row["opponent"]))
 
 
+def _episodes_processed_per_cell(manifest: dict) -> dict[tuple[int, str], int]:
+    """Episodes Stage 1 actually processed per policy x opponent, if recorded.
+
+    Returns an empty mapping when the Stage-1 manifest carries no coverage
+    evidence; callers must treat a missing entry as a coverage FAILURE rather
+    than assuming full coverage. Several plausible manifest shapes are accepted
+    because the Stage-1 writer is owned elsewhere.
+    """
+    out: dict[tuple[int, str], int] = {}
+    for key in ("episodes_per_cell_processed", "coverage", "cells", "per_cell"):
+        blob = manifest.get(key)
+        if not isinstance(blob, dict):
+            continue
+        for k, v in blob.items():
+            parts = str(k).replace("/", "|").split("|")
+            if len(parts) != 2:
+                continue
+            try:
+                seed = int(parts[0])
+            except ValueError:
+                continue
+            n = v.get("episodes") if isinstance(v, dict) else v
+            try:
+                out[(seed, parts[1])] = int(n)
+            except (TypeError, ValueError):
+                continue
+        if out:
+            return out
+    # Flat fallback: a single episodes-per-cell count applied uniformly.
+    n = manifest.get("episodes_per_cell") or manifest.get("episodes")
+    cells = manifest.get("policies"), manifest.get("opponents")
+    if isinstance(n, int) and all(isinstance(c, list) for c in cells):
+        for p in cells[0]:
+            for o in cells[1]:
+                try:
+                    out[(int(p), str(o))] = int(n)
+                except (TypeError, ValueError):
+                    continue
+    return out
+
+
 def main() -> int:
     if not AMENDMENT.exists():
         raise SystemExit(f"REFUSED: sampling amendment missing at {AMENDMENT}")
@@ -118,18 +159,61 @@ def main() -> int:
     expected_cells = [(p, o) for p in EXPECTED_POLICIES for o in EXPECTED_OPPONENTS]
     missing_cells = [c for c in expected_cells if c not in by_stratum]
 
+    # A stratum with no anchors is only a legitimate scientific zero if Stage 1
+    # actually PROCESSED its full episode budget and found nothing. Absent
+    # coverage evidence, an empty stratum is indistinguishable from a truncated
+    # census, and a corrupted run must not be allowed to masquerade as a real
+    # zero. Confirmed-empty strata get W_h = 0 and the analysis continues;
+    # unconfirmed ones hard-fail.
+    coverage = _episodes_processed_per_cell(manifest)
+    confirmed_empty: list[str] = []
+    coverage_failures: list[dict] = []
+    for cell in expected_cells:
+        label = f"{cell[0]}|{cell[1]}"
+        n_anchors = len(by_stratum.get(cell, []))
+        processed = coverage.get(cell)
+        if n_anchors > 0:
+            if processed is not None and processed < EXPECTED_EPISODES_PER_CELL:
+                coverage_failures.append({
+                    "stratum": label, "reason": "INCOMPLETE_EPISODE_COVERAGE",
+                    "episodes_processed": processed,
+                    "episodes_expected": EXPECTED_EPISODES_PER_CELL})
+            continue
+        if processed is None:
+            coverage_failures.append({
+                "stratum": label, "reason": "COVERAGE_METADATA_MISSING",
+                "detail": "cannot distinguish a genuine zero from a truncated census"})
+        elif processed < EXPECTED_EPISODES_PER_CELL:
+            coverage_failures.append({
+                "stratum": label, "reason": "INCOMPLETE_EPISODE_COVERAGE",
+                "episodes_processed": processed,
+                "episodes_expected": EXPECTED_EPISODES_PER_CELL})
+        else:
+            confirmed_empty.append(label)
+
     integrity = {
         "n_anchors_total": len(anchors),
         "n_strata_present": len(cells_present),
         "n_strata_expected": len(expected_cells),
-        "missing_strata": [f"{p}|{o}" for p, o in missing_cells],
+        "empty_strata_confirmed": confirmed_empty,
+        "empty_strata_status": "EMPTY_STRATUM_CONFIRMED" if confirmed_empty else "none",
+        "coverage_failures": coverage_failures,
         "n_distinct_episodes_with_anchors": len(episodes),
         "expected_episodes": len(EXPECTED_POLICIES) * len(EXPECTED_OPPONENTS)
         * EXPECTED_EPISODES_PER_CELL,
         "stage1_manifest_keys": sorted(manifest)[:20],
     }
-    if missing_cells:
-        print("WARNING: strata absent from the census:", integrity["missing_strata"])
+    if coverage_failures:
+        for f in coverage_failures:
+            print(f"STRATUM_COVERAGE_FAILURE {f['stratum']}: {f['reason']}")
+        raise SystemExit(
+            f"REFUSED: {len(coverage_failures)} stratum coverage failure(s). An "
+            "empty stratum is a valid scientific zero ONLY when Stage 1 processed "
+            "its full episode budget and found nothing. Without that evidence a "
+            "truncated census would masquerade as a real zero."
+        )
+    if confirmed_empty:
+        print(f"EMPTY_STRATUM_CONFIRMED (W_h = 0, analysis continues): {confirmed_empty}")
 
     # ---- weights from the COMPLETE census --------------------------------
     N = len(anchors)

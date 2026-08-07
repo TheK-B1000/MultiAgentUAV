@@ -1,0 +1,47 @@
+{
+  "amendment": "C3 Stage-3 LCB95 percentile definition",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-07T18:40:00Z",
+  "amends": "artifacts/c3_discovery/C3_STAGE3_SAMPLING_AMENDMENT.json (74b857c)",
+  "scope": "definitional only — resolves an ambiguity, changes no threshold and no procedure",
+
+  "frozen_before_any_stage3_outcome": true,
+  "ordering_evidence": "C3_STAGE3_ANCHOR_RESULTS.jsonl does not exist; Stage 1 is still running and no sampled Stage-3 run has been launched",
+
+  "ambiguity": {
+    "what_74b857c_said": "C3_PASS iff LCB95(weighted natural fork_rate) > 0.20",
+    "what_it_did_not_say": "which bootstrap percentile LCB95 denotes",
+    "the_two_readings": {
+      "one_sided_95_lower_bound": "q_0.05 — looser gate",
+      "two_sided_95_interval_lower_endpoint": "q_0.025 — stricter gate"
+    },
+    "why_it_matters": "q_0.025 < q_0.05, so requiring q_0.025 > 0.20 is a strictly harder gate to clear. These are not the same test."
+  },
+
+  "resolution": {
+    "LCB95": "q_0.025",
+    "definition": "the 2.5th percentile of the bootstrap distribution, i.e. the lower endpoint of a two-sided 95% interval",
+    "numpy_equivalent": "np.percentile(boots, 2.5)"
+  },
+
+  "justification": {
+    "1_precedent": "Every existing gate in this project computes its lower bound as the 2.5th percentile and calls it LCB95: experiments/analyze_k2_behavior_gate.py (100*alpha/2 with alpha=0.05), experiments/run_o1_gates.py ([2.5, 97.5]), experiments/o1_rollout.py ([2.5, 97.5]). Using a different convention for C3 alone would make gates across the project non-comparable.",
+    "2_conservatism": "q_0.025 is the stricter of the two readings. Resolving an ambiguity in the direction that makes passing HARDER cannot be a way of engineering a pass.",
+    "3_direction_of_resolution_recorded": "Stated explicitly so a later reader can confirm the ambiguity was not resolved opportunistically."
+  },
+
+  "unchanged": {
+    "minimum_fork_rate": 0.20,
+    "resamples": 2000,
+    "bootstrap_seed": 12345,
+    "cluster_unit": "episode",
+    "stratification": "policy x opponent",
+    "weights": "W_h = N_h / N from the COMPLETE Stage-1 census",
+    "point_estimate": "p_hat = sum_h W_h * p_hat_h",
+    "all_scientific_cells": "T_trace 40, H_response 30, delta 0.10, U carrier_survival, pressure predicate, earliest-fork rule, exhaustive legal-response enumeration"
+  },
+
+  "decision_rule_fully_resolved": "C3_PASS iff q_0.025(bootstrap of weighted natural fork_rate) > 0.20",
+
+  "immutability": "This definition may not change after any sampled Stage-3 outcome is observed."
+}
