@@ -250,6 +250,7 @@ def test_run_counterfactual_branches_real_api_accepts_team_responses_and_horizon
         candidate_step=7,
         response_horizon=19,
         utility_fn=resolve_utility("return"),
+        short_circuit=False,
     )
     assert branch_set.candidate_step == 7
     assert branch_set.response_horizon == 19
@@ -257,3 +258,183 @@ def test_run_counterfactual_branches_real_api_accepts_team_responses_and_horizon
     assert len(branch_set.legal_team_responses) == 4
     assert len(branch_set.branches) == 3
     assert observed_horizons == [19, 19, 19]
+
+
+def test_short_circuit_stops_after_first_delta_witness(monkeypatch):
+    core = _MaskedCore()
+    env = SimpleNamespace(core=core)
+
+    class Model:
+        def predict(self, obs, deterministic=True):
+            return np.array([0, 0, 1, 0]), None
+
+    monkeypatch.setattr(actionability_module, "_snapshot_env", lambda env: {})
+    monkeypatch.setattr(actionability_module, "_restore_env", lambda env, snap: None)
+    monkeypatch.setattr(actionability_module, "_snapshot_policy", lambda model: {})
+    monkeypatch.setattr(actionability_module, "_restore_policy", lambda model, snap: None)
+    monkeypatch.setattr(actionability_module, "_single_obs", lambda obs, env: obs)
+    monkeypatch.setattr(
+        actionability_module,
+        "_roll_forward",
+        lambda env, model, obs, *, horizon: _outcome(0.0),
+    )
+    tested = []
+
+    def branch_rollout(
+        env,
+        model,
+        obs,
+        *,
+        horizon,
+        baseline_action,
+        team_response,
+    ):
+        tested.append(team_response)
+        # First alternative (0,2) already clears delta for return utility.
+        return _outcome(1.0 if team_response == (0, 2) else 0.0)
+
+    monkeypatch.setattr(
+        actionability_module,
+        "_roll_forward_with_team_override",
+        branch_rollout,
+    )
+    branch_set = run_counterfactual_branches(
+        env,
+        Model(),
+        {"obs": np.zeros(1)},
+        candidate_step=3,
+        response_horizon=19,
+        utility_fn=resolve_utility("return"),
+        delta=0.1,
+        doomed_utility_threshold=-1.0,
+        short_circuit=True,
+    )
+    assert tested == [(0, 2)]
+    assert branch_set.short_circuited is True
+    assert branch_set.witness_team_response == (0, 2)
+    assert branch_set.responses_tested == 1
+    assert len(branch_set.branches) == 1
+    result = compute_actionability(
+        branch_set,
+        delta=0.1,
+        doomed_utility_threshold=-1.0,
+    )
+    assert result.is_actionable is True
+    assert result.witness_team_response == (0, 2)
+
+
+def test_short_circuit_skips_alts_when_utility_ceiling_blocks_delta(monkeypatch):
+    core = _MaskedCore()
+    env = SimpleNamespace(core=core)
+
+    class Model:
+        def predict(self, obs, deterministic=True):
+            return np.array([0, 0, 1, 0]), None
+
+    monkeypatch.setattr(actionability_module, "_snapshot_env", lambda env: {})
+    monkeypatch.setattr(actionability_module, "_restore_env", lambda env, snap: None)
+    monkeypatch.setattr(actionability_module, "_snapshot_policy", lambda model: {})
+    monkeypatch.setattr(actionability_module, "_restore_policy", lambda model, snap: None)
+    monkeypatch.setattr(actionability_module, "_single_obs", lambda obs, env: obs)
+    monkeypatch.setattr(
+        actionability_module,
+        "_roll_forward",
+        lambda env, model, obs, *, horizon: _outcome(1.0),
+    )
+    tested = []
+
+    def branch_rollout(*args, **kwargs):
+        tested.append(1)
+        return _outcome(1.0)
+
+    monkeypatch.setattr(
+        actionability_module,
+        "_roll_forward_with_team_override",
+        branch_rollout,
+    )
+    branch_set = run_counterfactual_branches(
+        env,
+        Model(),
+        {"obs": np.zeros(1)},
+        candidate_step=3,
+        response_horizon=19,
+        utility_fn=resolve_utility("carrier_survival"),
+        delta=0.1,
+        doomed_utility_threshold=0.0,
+        utility_ceiling=1.0,
+        short_circuit=True,
+    )
+    assert tested == []
+    assert branch_set.skip_reason == "utility_ceiling_blocks_delta"
+    assert branch_set.short_circuited is True
+    result = compute_actionability(
+        branch_set,
+        delta=0.1,
+        doomed_utility_threshold=0.0,
+    )
+    assert result.is_actionable is False
+
+
+def test_short_circuit_and_full_eval_agree_on_existential_actionability(monkeypatch):
+    core = _MaskedCore()
+    env = SimpleNamespace(core=core)
+
+    class Model:
+        def predict(self, obs, deterministic=True):
+            return np.array([0, 0, 1, 0]), None
+
+    monkeypatch.setattr(actionability_module, "_snapshot_env", lambda env: {})
+    monkeypatch.setattr(actionability_module, "_restore_env", lambda env, snap: None)
+    monkeypatch.setattr(actionability_module, "_snapshot_policy", lambda model: {})
+    monkeypatch.setattr(actionability_module, "_restore_policy", lambda model, snap: None)
+    monkeypatch.setattr(actionability_module, "_single_obs", lambda obs, env: obs)
+    monkeypatch.setattr(
+        actionability_module,
+        "_roll_forward",
+        lambda env, model, obs, *, horizon: _outcome(0.0),
+    )
+
+    def branch_rollout(
+        env,
+        model,
+        obs,
+        *,
+        horizon,
+        baseline_action,
+        team_response,
+    ):
+        # Second alternative improves enough; later ones would too.
+        return _outcome(1.0 if team_response in {(0, 2), (4, 1), (4, 2)} else 0.05)
+
+    monkeypatch.setattr(
+        actionability_module,
+        "_roll_forward_with_team_override",
+        branch_rollout,
+    )
+    full = run_counterfactual_branches(
+        env,
+        Model(),
+        {"obs": np.zeros(1)},
+        candidate_step=1,
+        response_horizon=10,
+        utility_fn=resolve_utility("return"),
+        short_circuit=False,
+    )
+    sc = run_counterfactual_branches(
+        env,
+        Model(),
+        {"obs": np.zeros(1)},
+        candidate_step=1,
+        response_horizon=10,
+        utility_fn=resolve_utility("return"),
+        delta=0.1,
+        doomed_utility_threshold=-1.0,
+        short_circuit=True,
+    )
+    full_a = compute_actionability(full, delta=0.1, doomed_utility_threshold=-1.0)
+    sc_a = compute_actionability(sc, delta=0.1, doomed_utility_threshold=-1.0)
+    assert full_a.is_actionable is True
+    assert sc_a.is_actionable is True
+    assert sc.responses_tested < full.n_legal_alternatives
+    assert sc.short_circuited is True
+    assert sc.witness_team_response == (0, 2)

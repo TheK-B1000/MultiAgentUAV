@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-06 (UTC-4) — C3 FROZEN+AUTHORIZED; smoke PASS; full scan launched
+> **Last updated:** 2026-08-07 (UTC-4) — C3 ops patch (persist/resume/short-circuit); prior full scan ABORTED_OPERATIONAL_SCALE
 
 
 ---
@@ -225,9 +225,10 @@ latent birth            LOCKED
 router                  LOCKED
 ```
 
-**Provenance (authorized HEAD):**
+**Provenance (authorized HEAD `5a797ec`):**
 - freeze commit (prereg + runner contract wiring): `de93d290b8813ac1b10b1f723a674e6f1f5a409b`
-- runner commit (auth HEAD, includes G0 7-channel CF predict adapt): `71bf2d64a23472fc69127ef863ee5df30de6a26c`
+- channel-adapt commit: `71bf2d64a23472fc69127ef863ee5df30de6a26c`
+- authorized `c3_prereg_commit` / `runner_commit` (HEAD): `5a797eccb81496929baaac670d363eab3cd00ad4`
 - `c3_contract_hash` (SHA256 of `C3_DISCOVERY_PREREG_FROZEN.json`): `c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0`
 - `c3_prereg_sha256` (SHA256 of `docs/c3-decision-proximal-preregistration.md`): `a70600d96d5bbc5dd1339131ac00a7886d47832555463673f18e9a7aacfc47ab`
 
@@ -236,6 +237,18 @@ Verified natural G0, pressure anchors, backward trace, legal team responses,
 doomed reject / `NO_COMMITMENT_FORK`, `H_response` branches, earliest fork
 selection, provenance hashes, `CONTROLLABILITY_SCREEN_ONLY`. Result (non-
 scientific): 6 anchors, 3 qualified / 3 `NO_COMMITMENT_FORK`, fork_rate=0.50.
+
+**Full scan (ABORTED):** pid 12820 classified
+`ABORTED_OPERATIONAL_SCALE / NO_SCIENTIFIC_VERDICT` — see
+`artifacts/c3_discovery/C3_ABORTED_OPERATIONAL_SCALE.json`. Does not count
+against C3. Cause: Stage-3 combinatorial cost without durable Stage-1 /
+per-anchor resume / short-circuit.
+
+**Ops patch (no science-cell change):** Stage-1 persists
+`C3_STAGE1_ANCHORS.jsonl` + `C3_STAGE1_MANIFEST.json`; Stage-3 appends
+`C3_STAGE3_ANCHOR_RESULTS.jsonl` with resume; existential δ / utility-ceiling
+short-circuit. Benchmark then relaunch required before treating any new scan
+as scientific.
 
 **Preregistration (frozen):** [`c3-decision-proximal-preregistration.md`](c3-decision-proximal-preregistration.md)
 

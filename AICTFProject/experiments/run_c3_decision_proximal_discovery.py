@@ -50,6 +50,15 @@ from rl.analysis.counterfactual_actionability import (
     resolve_utility,
     run_counterfactual_branches,
     run_determinism_self_test,
+    utility_ceiling_for,
+)
+from rl.analysis.c3_discovery_artifacts import (
+    STAGE3_RESULTS_NAME,
+    anchor_key_from_row,
+    append_jsonl,
+    load_completed_stage3_keys,
+    load_stage1_bundle,
+    write_stage1_artifacts,
 )
 
 
@@ -223,7 +232,18 @@ def collect_pressure_anchors(
     return anchors, features_by_step
 
 
-def _run_stage_3(policy, device: str, anchors: list[dict], contract: RuntimeContract) -> dict:
+def _run_stage_3(
+    policy,
+    device: str,
+    anchors: list[dict],
+    contract: RuntimeContract,
+    *,
+    progress,
+    train_seed: int,
+    stage3_results_path: Path,
+    completed_keys: set[str],
+    short_circuit: bool = True,
+) -> dict:
     """Replay natural episodes and run the commitment-fork controllability screen."""
     from experiments.eval_v6i9_map_awareness import (
         _adapt_obs_for_policy,
@@ -233,6 +253,7 @@ def _run_stage_3(policy, device: str, anchors: list[dict], contract: RuntimeCont
         _unpack_step,
     )
     from gpu_env import GPUCTFVecEnv, GPUFieldConfig
+    from rl.analysis.c3_discovery_artifacts import read_jsonl
     from rl.evaluation.opponent_resolution import (
         get_opponent_key,
         set_opponent,
@@ -246,19 +267,36 @@ def _run_stage_3(policy, device: str, anchors: list[dict], contract: RuntimeCont
     )
 
     by_episode: dict[tuple[str, int], list[dict]] = defaultdict(list)
+    ordered_anchors: list[dict] = []
     for anchor in anchors:
         by_episode[(str(anchor["opponent"]), int(anchor["eval_seed"]))].append(anchor)
+        ordered_anchors.append(anchor)
 
     utility_fn = resolve_utility(contract.utility_name)
+    utility_ceiling = utility_ceiling_for(contract.utility_name)
     anchor_results: list[dict] = []
     determinism_checks: list[dict] = []
+    timing_rows: list[dict] = []
     model = policy.model if hasattr(policy, "model") else policy
     was_training = getattr(model, "training", False)
     if hasattr(model, "eval"):
         model.eval()
 
+    n_total = len(ordered_anchors)
+    n_done = sum(1 for anchor in ordered_anchors if anchor_key_from_row(anchor) in completed_keys)
+    n_skipped_resume = n_done
+    stage3_started = time.time()
+
     try:
         for (opponent, eval_seed), episode_anchors in by_episode.items():
+            pending = [
+                anchor
+                for anchor in episode_anchors
+                if anchor_key_from_row(anchor) not in completed_keys
+            ]
+            if not pending:
+                continue
+
             requested = validate_opponent_name(opponent)
             cfg = GPUFieldConfig(
                 n_envs=1,
@@ -282,7 +320,7 @@ def _run_stage_3(policy, device: str, anchors: list[dict], contract: RuntimeCont
                 if get_opponent_key(env) != requested:
                     raise RuntimeError("opponent drift")
 
-                pressure_steps = sorted({int(anchor["pressure_step"]) for anchor in episode_anchors})
+                pressure_steps = sorted({int(anchor["pressure_step"]) for anchor in pending})
                 candidate_steps = sorted(
                     {
                         candidate
@@ -330,12 +368,21 @@ def _run_stage_3(policy, device: str, anchors: list[dict], contract: RuntimeCont
                             f"at step {first_step}: |delta_return|={difference}"
                         )
 
-                for pressure_step in pressure_steps:
-                    def evaluate_candidate(candidate_step: int):
+                for anchor in pending:
+                    pressure_step = int(anchor["pressure_step"])
+                    key = anchor_key_from_row(anchor)
+                    anchor_t0 = time.time()
+                    candidates_searched = 0
+                    responses_tested_total = 0
+                    legal_alts_total = 0
+                    short_circuit_hits = 0
+
+                    def evaluate_candidate(candidate_step: int, _ps=pressure_step):
+                        nonlocal responses_tested_total, legal_alts_total, short_circuit_hits
                         if candidate_step not in snapshots:
                             raise RuntimeError(
                                 f"natural replay did not capture candidate step {candidate_step} "
-                                f"for pressure step {pressure_step}"
+                                f"for pressure step {_ps}"
                             )
                         env_snap, policy_snap, candidate_obs = snapshots[candidate_step]
                         _restore_env(env, env_snap)
@@ -347,34 +394,126 @@ def _run_stage_3(policy, device: str, anchors: list[dict], contract: RuntimeCont
                             candidate_step=candidate_step,
                             response_horizon=contract.h_response,
                             utility_fn=utility_fn,
+                            delta=contract.delta,
+                            doomed_utility_threshold=contract.doomed_utility_threshold,
+                            utility_ceiling=utility_ceiling,
+                            short_circuit=short_circuit,
                         )
+                        responses_tested_total += int(branch_set.responses_tested)
+                        legal_alts_total += int(branch_set.n_legal_alternatives)
+                        short_circuit_hits += int(bool(branch_set.short_circuited))
                         return compute_actionability(
                             branch_set,
                             delta=contract.delta,
                             doomed_utility_threshold=contract.doomed_utility_threshold,
                         )
 
+                    def on_candidate(index, n_candidates, candidate_step, evaluation):
+                        nonlocal candidates_searched
+                        candidates_searched = int(index)
+                        progress.heartbeat(
+                            done=n_done,
+                            total=max(n_total, 1),
+                            phase="STAGE3",
+                            detail=(
+                                f"policy={train_seed} anchor={n_done + 1}/{n_total} "
+                                f"candidate_state={index}/{n_candidates} "
+                                f"legal_responses={evaluation.n_legal_team_responses} "
+                                f"responses_tested={evaluation.responses_tested} "
+                                f"fork_found={evaluation.is_actionable} "
+                                f"short_circuited={evaluation.short_circuited} "
+                                f"elapsed={round(time.time() - stage3_started, 1)}s"
+                            ),
+                            policy=train_seed,
+                            anchor_index=n_done + 1,
+                            anchors_total=n_total,
+                            candidate_index=index,
+                            candidates_total=n_candidates,
+                            candidate_step=candidate_step,
+                            legal_responses=evaluation.n_legal_team_responses,
+                            responses_tested=evaluation.responses_tested,
+                            fork_found=bool(evaluation.is_actionable),
+                            short_circuited=bool(evaluation.short_circuited),
+                        )
+
                     result = find_earliest_commitment_fork(
                         pressure_step=pressure_step,
                         t_trace=contract.t_trace,
                         evaluate_candidate=evaluate_candidate,
+                        on_candidate=on_candidate,
                     )
                     row = dataclasses.asdict(result)
+                    elapsed_anchor = time.time() - anchor_t0
                     row.update(
                         {
+                            "anchor_key": key,
                             "episode_key": f"{opponent}:{eval_seed}",
                             "opponent": opponent,
                             "eval_seed": eval_seed,
+                            "train_seed": int(train_seed),
+                            "pressure_step": pressure_step,
                             "o3_authorized": False,
                             "latent_necessity_claim": False,
+                            "candidates_searched": candidates_searched,
+                            "responses_tested_total": responses_tested_total,
+                            "legal_alternatives_total": legal_alts_total,
+                            "short_circuit_candidate_hits": short_circuit_hits,
+                            "elapsed_seconds": round(elapsed_anchor, 3),
                         }
                     )
+                    append_jsonl(stage3_results_path, row)
+                    completed_keys.add(key)
                     anchor_results.append(row)
+                    timing_rows.append(
+                        {
+                            "anchor_key": key,
+                            "elapsed_seconds": elapsed_anchor,
+                            "candidates_searched": candidates_searched,
+                            "responses_tested_total": responses_tested_total,
+                            "legal_alternatives_total": legal_alts_total,
+                            "short_circuit_candidate_hits": short_circuit_hits,
+                            "episode_status": row["episode_status"],
+                        }
+                    )
+                    n_done += 1
+                    progress.log(
+                        f"[STAGE3] policy={train_seed} anchor={n_done}/{n_total} "
+                        f"status={row['episode_status']} "
+                        f"candidates={candidates_searched} "
+                        f"responses_tested={responses_tested_total}/"
+                        f"{max(legal_alts_total, responses_tested_total)} "
+                        f"elapsed={elapsed_anchor:.1f}s"
+                    )
+                    progress.heartbeat(
+                        done=n_done,
+                        total=max(n_total, 1),
+                        phase="STAGE3",
+                        detail=(
+                            f"policy={train_seed} anchor={n_done}/{n_total} "
+                            f"fork_found={row['episode_status'] == QUALIFIED_COMMITMENT_FORK} "
+                            f"elapsed={round(time.time() - stage3_started, 1)}s"
+                        ),
+                        policy=train_seed,
+                        anchor_index=n_done,
+                        anchors_total=n_total,
+                        fork_found=row["episode_status"] == QUALIFIED_COMMITMENT_FORK,
+                    )
             finally:
                 env.close()
     finally:
         if hasattr(model, "train"):
             model.train(was_training)
+
+    if stage3_results_path.exists():
+        disk_rows = [
+            row
+            for row in read_jsonl(stage3_results_path)
+            if int(row.get("train_seed", -1)) == int(train_seed)
+        ]
+        seen = {row["anchor_key"] for row in anchor_results}
+        for row in disk_rows:
+            if row.get("anchor_key") not in seen:
+                anchor_results.append(row)
 
     qualified = [
         result
@@ -391,13 +530,16 @@ def _run_stage_3(policy, device: str, anchors: list[dict], contract: RuntimeCont
             result["episode_status"] == NO_COMMITMENT_FORK
             for result in anchor_results
         ),
+        "n_skipped_resume": n_skipped_resume,
         "fork_rate": fork_rate,
         "minimum_fork_rate": contract.minimum_fork_rate,
         "clears_frozen_minimum_fork_rate": fork_rate >= contract.minimum_fork_rate,
         "o3_authorized": False,
         "latent_necessity_claim": False,
+        "short_circuit": bool(short_circuit),
         "anchor_results": anchor_results,
         "determinism_checks": determinism_checks,
+        "timing_rows": timing_rows,
     }
 
 
@@ -464,6 +606,62 @@ def _require_c3_execution_authorization() -> dict:
     return auth
 
 
+def _build_benchmark_report(
+    *,
+    stage3_by_seed: dict,
+    n_episodes: int,
+    n_policies: int,
+    n_opponents: int,
+    full_episodes_per_cell: int = 30,
+) -> dict:
+    timing = []
+    for stage3 in stage3_by_seed.values():
+        timing.extend(stage3.get("timing_rows") or [])
+    n_anchors = sum(int(stage3.get("n_pressure_anchors") or 0) for stage3 in stage3_by_seed.values())
+    n_forks = sum(
+        int(stage3.get("n_qualified_commitment_forks") or 0) for stage3 in stage3_by_seed.values()
+    )
+    if not timing:
+        return {
+            "pressure_anchors": n_anchors,
+            "forks_found": n_forks,
+            "note": "no Stage-3 timing rows",
+        }
+    mean_candidates = sum(float(row["candidates_searched"]) for row in timing) / len(timing)
+    mean_responses = sum(float(row["responses_tested_total"]) for row in timing) / len(timing)
+    mean_legal = sum(float(row["legal_alternatives_total"]) for row in timing) / len(timing)
+    mean_seconds = sum(float(row["elapsed_seconds"]) for row in timing) / len(timing)
+    mean_sc_hits = sum(float(row["short_circuit_candidate_hits"]) for row in timing) / len(timing)
+    responses_saved = max(0.0, mean_legal - mean_responses)
+    savings_frac = (responses_saved / mean_legal) if mean_legal > 0 else 0.0
+    anchors_per_episode = n_anchors / max(n_episodes * n_policies * n_opponents, 1)
+    full_jobs = n_policies * n_opponents * full_episodes_per_cell
+    projected_anchors = anchors_per_episode * full_jobs
+    projected_stage3_hours = (projected_anchors * mean_seconds) / 3600.0
+    return {
+        "pressure_anchors": n_anchors,
+        "forks_found": n_forks,
+        "mean_candidates_searched_per_anchor": round(mean_candidates, 3),
+        "mean_legal_branches_per_candidate_proxy": round(
+            mean_legal / max(mean_candidates, 1e-9), 3
+        ),
+        "mean_responses_tested_per_anchor": round(mean_responses, 3),
+        "mean_legal_alternatives_budget_per_anchor": round(mean_legal, 3),
+        "mean_short_circuit_candidate_hits": round(mean_sc_hits, 3),
+        "short_circuit_response_savings_frac": round(savings_frac, 4),
+        "seconds_per_anchor": round(mean_seconds, 3),
+        "anchors_per_episode_cell": round(anchors_per_episode, 4),
+        "projected_full_scan_anchors": round(projected_anchors, 1),
+        "projected_full_stage3_wall_hours": round(projected_stage3_hours, 2),
+        "projection_assumes": {
+            "policies": n_policies,
+            "opponents": n_opponents if n_opponents > 1 else 7,
+            "episodes_per_cell": full_episodes_per_cell,
+            "note": "If benchmark used 1 opponent, projection scales opponents to 7.",
+        },
+    }
+
+
 def main() -> int:
     auth = _require_c3_execution_authorization()
     contract = _load_runtime_contract()
@@ -486,6 +684,29 @@ def main() -> int:
         help="Opponent subset (default: full OP6-OP12). Smoke may use one opponent.",
     )
     parser.add_argument("--stage", type=int, choices=(1, 2, 3), default=3)
+    parser.add_argument(
+        "--from-stage1",
+        type=str,
+        default="",
+        help="Load frozen Stage-1 anchors/manifest from this directory and skip Stage 1.",
+    )
+    parser.add_argument(
+        "--resume-stage3",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Skip anchors already present in C3_STAGE3_ANCHOR_RESULTS.jsonl (default: true).",
+    )
+    parser.add_argument(
+        "--short-circuit",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Existential δ / utility-ceiling short-circuit (default: true).",
+    )
+    parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        help="Write C3_BENCHMARK_REPORT.json with Stage-3 cost extrapolation.",
+    )
     args = parser.parse_args()
     opponents = tuple(args.opponents)
     if not opponents:
@@ -494,27 +715,26 @@ def main() -> int:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     progress = LongSessionProgress(OUT_DIR, name="C3_DISCOVERY")
     started = time.time()
+    contract_hash = str(auth.get("c3_contract_hash") or _sha256_file(CONTRACT_PATH))
     progress.log("=" * 78)
     progress.log("C3 DISCOVERY - AUTHORIZED (contract hashes verified)")
     progress.log(f"science_scope={CONTROLLABILITY_SCOPE}")
     progress.log(f"authorization={AUTH_PATH}")
-    progress.log(f"c3_contract_hash={auth.get('c3_contract_hash')}")
+    progress.log(f"c3_contract_hash={contract_hash}")
     progress.log(f"runtime_contract={dataclasses.asdict(contract)}")
-    progress.log(f"seeds={args.seeds} opponents={opponents} episodes/cell={args.episodes}")
+    progress.log(
+        f"seeds={args.seeds} opponents={opponents} episodes/cell={args.episodes} "
+        f"from_stage1={bool(args.from_stage1)} resume_stage3={args.resume_stage3} "
+        f"short_circuit={args.short_circuit}"
+    )
     progress.log("NO STRATEGY CLAIM - NO LATENT-NECESSITY CLAIM - O3 NOT AUTHORIZED HERE")
     progress.log("=" * 78)
 
     policies: dict[int, object] = {}
+    checkpoint_meta: dict[int, dict] = {}
     rows_by_seed: dict[int, list[dict]] = {int(seed): [] for seed in args.seeds}
     all_anchors: list[dict] = []
-    jobs = [
-        (seed, opponent, DISCOVERY_SEED_BASE + episode_i)
-        for seed in args.seeds
-        for opponent in opponents
-        for episode_i in range(args.episodes)
-    ]
 
-    progress.set_phase("STAGE1", f"natural_pressure_anchor_episodes={len(jobs)}")
     for seed in args.seeds:
         tag = f"g0_v5_long_seed{seed}"
         checkpoint = PROJECT_ROOT / "artifacts" / "g0_v5_long" / tag / "ckpts" / f"final_{tag}.zip"
@@ -524,26 +744,112 @@ def main() -> int:
             device=args.device,
             num_cnn_channels=resolve_cnn_channels(payload, context=str(checkpoint)),
         )
+        checkpoint_meta[int(seed)] = {
+            "checkpoint_path": str(checkpoint),
+            "checkpoint_sha256": _sha256_file(checkpoint),
+            "tag": tag,
+        }
 
-    for seed, opponent, eval_seed in progress.bar(jobs, desc="stage1_episodes", unit="ep"):
-        anchors, _features = collect_pressure_anchors(
-            policies[int(seed)],
-            opponent=opponent,
-            seed=eval_seed,
-            device=args.device,
-            response_horizon=contract.h_response,
-        )
-        for anchor in anchors:
-            anchor.update(
-                {
-                    "episode_key": f"{opponent}:{eval_seed}",
-                    "opponent": opponent,
-                    "eval_seed": eval_seed,
-                    "train_seed": int(seed),
-                }
+    if args.from_stage1:
+        stage1_dir = Path(args.from_stage1)
+        progress.set_phase("STAGE1_LOAD", f"from={stage1_dir}")
+        loaded_anchors, manifest = load_stage1_bundle(stage1_dir)
+        if str(manifest.get("c3_contract_hash") or "") != contract_hash:
+            raise SystemExit(
+                "Stage-1 manifest c3_contract_hash does not match authorized contract hash"
             )
-            rows_by_seed[int(seed)].append(anchor)
+        for anchor in loaded_anchors:
+            seed = int(anchor["train_seed"])
+            if seed not in rows_by_seed:
+                continue
+            rows_by_seed[seed].append(anchor)
             all_anchors.append(anchor)
+        progress.log(f"loaded_stage1_anchors={len(all_anchors)} from {stage1_dir}")
+    else:
+        jobs = [
+            (seed, opponent, DISCOVERY_SEED_BASE + episode_i)
+            for seed in args.seeds
+            for opponent in opponents
+            for episode_i in range(args.episodes)
+        ]
+        progress.set_phase("STAGE1", f"natural_pressure_anchor_episodes={len(jobs)}")
+        for seed, opponent, eval_seed in progress.bar(jobs, desc="stage1_episodes", unit="ep"):
+            anchors, _features = collect_pressure_anchors(
+                policies[int(seed)],
+                opponent=opponent,
+                seed=eval_seed,
+                device=args.device,
+                response_horizon=contract.h_response,
+            )
+            for anchor in anchors:
+                anchor.update(
+                    {
+                        "episode_key": f"{opponent}:{eval_seed}",
+                        "episode_id": f"{int(seed)}:{opponent}:{int(eval_seed)}",
+                        "opponent": opponent,
+                        "eval_seed": int(eval_seed),
+                        "train_seed": int(seed),
+                        "policy": int(seed),
+                        "pressure_anchor_step": int(anchor["pressure_step"]),
+                        "c3_contract_hash": contract_hash,
+                        "checkpoint_sha256": checkpoint_meta[int(seed)]["checkpoint_sha256"],
+                        "checkpoint_path": checkpoint_meta[int(seed)]["checkpoint_path"],
+                        "map": CANONICAL_MAP,
+                        "ruleset": "RULESET_V2_AQUATICUS_10S",
+                        "snapshot_restore": {
+                            "mode": "deterministic_natural_replay",
+                            "references": [
+                                "train_seed/policy checkpoint",
+                                "opponent",
+                                "eval_seed",
+                                "pressure_step as backward-trace anchor",
+                            ],
+                            "note": (
+                                "Stage 3 reconstructs candidate snapshots by replaying "
+                                "unmodified G0 on (opponent, eval_seed)."
+                            ),
+                        },
+                    }
+                )
+                rows_by_seed[int(seed)].append(anchor)
+                all_anchors.append(anchor)
+
+        stage1_manifest = {
+            "status": "STAGE1_FROZEN",
+            "science_scope": CONTROLLABILITY_SCOPE,
+            "c3_contract_hash": contract_hash,
+            "runner_commit": _git_head(),
+            "map": CANONICAL_MAP,
+            "ruleset": "RULESET_V2_AQUATICUS_10S",
+            "runtime_contract": dataclasses.asdict(contract),
+            "seeds": [int(seed) for seed in args.seeds],
+            "opponents": list(opponents),
+            "episodes_per_cell": int(args.episodes),
+            "discovery_seed_base": DISCOVERY_SEED_BASE,
+            "n_anchors": len(all_anchors),
+            "anchors_by_seed": {
+                str(seed): len(rows_by_seed[int(seed)]) for seed in args.seeds
+            },
+            "checkpoints": {str(seed): checkpoint_meta[int(seed)] for seed in args.seeds},
+            "stage3_reconstruction": {
+                "method": "deterministic_natural_replay",
+                "required_fields": [
+                    "train_seed",
+                    "opponent",
+                    "eval_seed",
+                    "pressure_step",
+                    "checkpoint_sha256",
+                    "c3_contract_hash",
+                ],
+            },
+        }
+        anchors_path, manifest_path = write_stage1_artifacts(
+            OUT_DIR,
+            anchors=all_anchors,
+            manifest=stage1_manifest,
+        )
+        progress.log(f"persisted_stage1_anchors={anchors_path}")
+        progress.log(f"persisted_stage1_manifest={manifest_path}")
 
     report: dict = {
         "science_scope": CONTROLLABILITY_SCOPE,
@@ -555,6 +861,8 @@ def main() -> int:
             "anchors_by_seed": {
                 str(seed): len(rows_by_seed[int(seed)]) for seed in args.seeds
             },
+            "persisted": True,
+            "loaded_from": args.from_stage1 or str(OUT_DIR),
         },
         "stage_2": {},
         "stage_3": {},
@@ -574,16 +882,45 @@ def main() -> int:
             ),
         }
 
+    stage3_results_path = OUT_DIR / STAGE3_RESULTS_NAME
     if args.stage >= 3:
         progress.set_phase("STAGE3", "controllability_screen_only")
+        completed_keys = (
+            load_completed_stage3_keys(stage3_results_path) if args.resume_stage3 else set()
+        )
+        if completed_keys:
+            progress.log(f"stage3_resume_keys={len(completed_keys)} from {stage3_results_path}")
         for seed in progress.bar(list(args.seeds), desc="stage3_policies", unit="policy"):
             stage3 = _run_stage_3(
                 policies[int(seed)],
                 args.device,
                 rows_by_seed[int(seed)],
                 contract,
+                progress=progress,
+                train_seed=int(seed),
+                stage3_results_path=stage3_results_path,
+                completed_keys=completed_keys,
+                short_circuit=bool(args.short_circuit),
             )
-            report["stage_3"][str(seed)] = stage3
+            report["stage_3"][str(seed)] = {
+                key: value
+                for key, value in stage3.items()
+                if key != "timing_rows"
+            }
+            report["stage_3"][str(seed)]["timing_summary"] = {
+                "n_timing_rows": len(stage3.get("timing_rows") or []),
+                "mean_seconds_per_anchor": (
+                    round(
+                        sum(r["elapsed_seconds"] for r in stage3["timing_rows"])
+                        / len(stage3["timing_rows"]),
+                        3,
+                    )
+                    if stage3.get("timing_rows")
+                    else None
+                ),
+            }
+            # Keep timing for benchmark aggregation without bloating the final report.
+            report["stage_3"][str(seed)]["_timing_rows"] = stage3.get("timing_rows") or []
             report["qualified_commitment_forks"].extend(
                 result
                 for result in stage3["anchor_results"]
@@ -592,8 +929,50 @@ def main() -> int:
             progress.log(
                 f"[STAGE3] seed={seed} anchors={stage3['n_pressure_anchors']} "
                 f"forks={stage3['n_qualified_commitment_forks']} "
-                f"fork_rate={stage3['fork_rate']:.4f}"
+                f"fork_rate={stage3['fork_rate']:.4f} "
+                f"resumed_skipped={stage3['n_skipped_resume']}"
             )
+
+    if args.benchmark and args.stage >= 3:
+        stage3_for_bench = {}
+        for seed, payload in report["stage_3"].items():
+            stage3_for_bench[seed] = {
+                "n_pressure_anchors": payload.get("n_pressure_anchors"),
+                "n_qualified_commitment_forks": payload.get("n_qualified_commitment_forks"),
+                "timing_rows": payload.pop("_timing_rows", []),
+            }
+        for payload in report["stage_3"].values():
+            payload.pop("_timing_rows", None)
+        bench = _build_benchmark_report(
+            stage3_by_seed=stage3_for_bench,
+            n_episodes=int(args.episodes),
+            n_policies=len(args.seeds),
+            n_opponents=len(opponents),
+            full_episodes_per_cell=30,
+        )
+        if len(opponents) == 1 or len(args.seeds) == 1:
+            opp_scale = 7 / max(len(opponents), 1)
+            pol_scale = 3 / max(len(args.seeds), 1)
+            scale = opp_scale * pol_scale
+            bench["projected_full_scan_anchors"] = round(
+                float(bench.get("projected_full_scan_anchors") or 0.0) * scale, 1
+            )
+            bench["projected_full_stage3_wall_hours"] = round(
+                float(bench.get("projected_full_stage3_wall_hours") or 0.0) * scale, 2
+            )
+            bench["projection_assumes"]["opponents"] = 7
+            bench["projection_assumes"]["policies"] = 3
+            bench["projection_assumes"]["scale_applied"] = round(scale, 4)
+        (OUT_DIR / "C3_BENCHMARK_REPORT.json").write_text(
+            json.dumps(bench, indent=2, default=str, allow_nan=False),
+            encoding="utf-8",
+        )
+        progress.log(f"benchmark={OUT_DIR / 'C3_BENCHMARK_REPORT.json'}")
+        progress.log(f"benchmark_summary={bench}")
+    else:
+        for payload in report.get("stage_3", {}).values():
+            if isinstance(payload, dict):
+                payload.pop("_timing_rows", None)
 
     (OUT_DIR / "C3_DISCOVERY.json").write_text(
         json.dumps(report, indent=2, default=str, allow_nan=False),
