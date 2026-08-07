@@ -82,7 +82,19 @@ def test_stage3_resume_skips_completed_anchor_keys(tmp_path: Path):
     assert remaining[0]["eval_seed"] == 9400003
 
 
-def test_abort_record_schema_is_operational_not_scientific(tmp_path: Path):
+def test_stage1_persist_accepts_inf_feature_sentinels(tmp_path: Path):
+    anchors = [
+        {
+            "train_seed": 3200001,
+            "opponent": "OP6",
+            "eval_seed": 9400000,
+            "pressure_step": 12,
+            "tti_nearest_red": float("inf"),
+        }
+    ]
+    write_stage1_artifacts(tmp_path, anchors=anchors, manifest={"n_anchors": 1})
+    loaded, _manifest = load_stage1_bundle(tmp_path)
+    assert loaded[0]["tti_nearest_red"] == "inf"
     payload = {
         "status": "ABORTED_OPERATIONAL_SCALE",
         "scientific_verdict": "NO_SCIENTIFIC_VERDICT",

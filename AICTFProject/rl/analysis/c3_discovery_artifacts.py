@@ -35,10 +35,26 @@ def anchor_key_from_row(row: dict[str, Any]) -> str:
     )
 
 
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, float):
+        if value != value:  # NaN
+            return None
+        if value == float("inf"):
+            return "inf"
+        if value == float("-inf"):
+            return "-inf"
+        return value
+    if isinstance(value, dict):
+        return {str(key): _jsonable(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(item) for item in value]
+    return value
+
+
 def append_jsonl(path: Path, row: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as stream:
-        stream.write(json.dumps(row, default=str, allow_nan=False) + "\n")
+        stream.write(json.dumps(_jsonable(row), default=str, allow_nan=False) + "\n")
         stream.flush()
 
 
@@ -66,9 +82,9 @@ def write_stage1_artifacts(
     manifest_path = out_dir / STAGE1_MANIFEST_NAME
     with anchors_path.open("w", encoding="utf-8") as stream:
         for row in anchors:
-            stream.write(json.dumps(row, default=str, allow_nan=False) + "\n")
+            stream.write(json.dumps(_jsonable(row), default=str, allow_nan=False) + "\n")
     manifest_path.write_text(
-        json.dumps(manifest, indent=2, default=str, allow_nan=False),
+        json.dumps(_jsonable(manifest), indent=2, default=str, allow_nan=False),
         encoding="utf-8",
     )
     return anchors_path, manifest_path
