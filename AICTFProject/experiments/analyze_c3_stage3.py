@@ -59,6 +59,35 @@ LCB_AMENDMENT = OUT_DIR / "C3_STAGE3_LCB_DEFINITION_AMENDMENT.json"
 RESULT_PATH = OUT_DIR / "C3_STAGE3_RESULT.json"
 
 QUALIFIED = "QUALIFIED_COMMITMENT_FORK"
+NOT_QUALIFIED = "NO_COMMITMENT_FORK"
+VERDICT_FIELD = "episode_status"
+VALID_VERDICTS = frozenset({QUALIFIED, NOT_QUALIFIED})
+
+
+def is_qualified(row: dict) -> bool:
+    """Read one anchor's verdict, refusing anything this reader cannot interpret.
+
+    An earlier draft guessed at verdict/status/fork_verdict, found none of them
+    in the persisted rows, and silently scored EVERY anchor as unqualified --
+    which would have written C3_NOT_PASS after nine hours of compute, looking
+    exactly like a legitimate negative result. A software failure must never be
+    convertible into a scientifically plausible negative, so both a missing
+    field and an unrecognised value abort.
+    """
+    if VERDICT_FIELD not in row:
+        raise SystemExit(
+            f"REFUSED: Stage-3 row has no {VERDICT_FIELD!r} field "
+            f"(keys: {sorted(row)[:12]}). Refusing to score a verdict this "
+            "reader cannot find; that would silently produce a false negative."
+        )
+    value = str(row[VERDICT_FIELD])
+    if value not in VALID_VERDICTS:
+        raise SystemExit(
+            f"REFUSED: unrecognised {VERDICT_FIELD}={value!r}. Expected one of "
+            f"{sorted(VALID_VERDICTS)}. An unknown verdict must abort rather "
+            "than be counted as 'not qualified'."
+        )
+    return value == QUALIFIED
 
 
 def _sha256(p: Path) -> str:
@@ -130,10 +159,6 @@ def main() -> int:
     by_stratum: dict[str, list[dict]] = defaultdict(list)
     for key, row in seen.items():
         by_stratum[_stratum_of(row)].append(row)
-
-    def is_qualified(row: dict) -> bool:
-        v = row.get("verdict") or row.get("status") or row.get("fork_verdict")
-        return str(v) == QUALIFIED
 
     p_h: dict[str, float] = {}
     per_stratum: dict[str, dict] = {}
