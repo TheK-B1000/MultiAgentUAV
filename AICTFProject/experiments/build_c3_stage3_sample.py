@@ -95,12 +95,20 @@ def _episodes_processed_per_cell(manifest: dict) -> dict[tuple[int, str], int]:
                 continue
         if out:
             return out
-    # Flat fallback: a single episodes-per-cell count applied uniformly.
+    # Flat fallback: a single episodes-per-cell count applied uniformly across
+    # the declared policy x opponent grid. Only trusted when Stage 1 declares
+    # itself complete -- the manifest is written at the end of Stage 1, so
+    # STAGE1_FROZEN is the evidence that every cell was actually processed. A
+    # partial or crashed Stage 1 leaves no such manifest, which is exactly the
+    # case that must fail rather than be assumed complete.
+    if str(manifest.get("status") or "") != "STAGE1_FROZEN":
+        return out
     n = manifest.get("episodes_per_cell") or manifest.get("episodes")
-    cells = manifest.get("policies"), manifest.get("opponents")
-    if isinstance(n, int) and all(isinstance(c, list) for c in cells):
-        for p in cells[0]:
-            for o in cells[1]:
+    policies = manifest.get("policies") or manifest.get("seeds")
+    opponents = manifest.get("opponents")
+    if isinstance(n, int) and isinstance(policies, list) and isinstance(opponents, list):
+        for p in policies:
+            for o in opponents:
                 try:
                     out[(int(p), str(o))] = int(n)
                 except (TypeError, ValueError):

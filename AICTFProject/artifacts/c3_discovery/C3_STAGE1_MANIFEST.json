@@ -1,0 +1,66 @@
+{
+  "status": "STAGE1_FROZEN",
+  "science_scope": "CONTROLLABILITY_SCREEN_ONLY",
+  "c3_contract_hash": "c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0",
+  "runner_commit": "012be43e077f501d55fef6a95baf1dc3b4ba8ce5",
+  "map": "map_a",
+  "ruleset": "RULESET_V2_AQUATICUS_10S",
+  "runtime_contract": {
+    "t_trace": 40,
+    "h_response": 30,
+    "delta": 0.1,
+    "utility_name": "carrier_survival",
+    "doomed_utility_threshold": 0.0,
+    "minimum_fork_rate": 0.2
+  },
+  "seeds": [
+    3200001,
+    3200002,
+    3200003
+  ],
+  "opponents": [
+    "OP6",
+    "OP7",
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
+  ],
+  "episodes_per_cell": 30,
+  "discovery_seed_base": 9400000,
+  "n_anchors": 3160,
+  "anchors_by_seed": {
+    "3200001": 1043,
+    "3200002": 1103,
+    "3200003": 1014
+  },
+  "checkpoints": {
+    "3200001": {
+      "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\g0_v5_long\\g0_v5_long_seed3200001\\ckpts\\final_g0_v5_long_seed3200001.zip",
+      "checkpoint_sha256": "94a28f25a1e81954b499428d29566d98b39482113666c637b289ebddd1966059",
+      "tag": "g0_v5_long_seed3200001"
+    },
+    "3200002": {
+      "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\g0_v5_long\\g0_v5_long_seed3200002\\ckpts\\final_g0_v5_long_seed3200002.zip",
+      "checkpoint_sha256": "066bd4c44f6f6e95dbd2e6f32922b3f7fb8e9763bd0d090f38c69ec379e11b81",
+      "tag": "g0_v5_long_seed3200002"
+    },
+    "3200003": {
+      "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\g0_v5_long\\g0_v5_long_seed3200003\\ckpts\\final_g0_v5_long_seed3200003.zip",
+      "checkpoint_sha256": "cdb9df7c3e12e3ceb1b0cf5ccadff3d154847546573c9551361119353bcd74ef",
+      "tag": "g0_v5_long_seed3200003"
+    }
+  },
+  "stage3_reconstruction": {
+    "method": "deterministic_natural_replay",
+    "required_fields": [
+      "train_seed",
+      "opponent",
+      "eval_seed",
+      "pressure_step",
+      "checkpoint_sha256",
+      "c3_contract_hash"
+    ]
+  }
+}
