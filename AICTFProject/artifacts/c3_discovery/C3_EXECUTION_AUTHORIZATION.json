@@ -1,8 +1,8 @@
 {
   "status": "FROZEN_AND_AUTHORIZED",
   "c3_contract_hash": "c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0",
-  "c3_prereg_commit": "fa2440f878811c80fef6725a0088ae1533b3028b",
-  "runner_commit": "fa2440f878811c80fef6725a0088ae1533b3028b",
+  "c3_prereg_commit": "9b1d377dc3115952497f8cdb16c273a29aa25d6c",
+  "runner_commit": "9b1d377dc3115952497f8cdb16c273a29aa25d6c",
   "c3_prereg_sha256": "a70600d96d5bbc5dd1339131ac00a7886d47832555463673f18e9a7aacfc47ab",
   "freeze_commit": "de93d290b8813ac1b10b1f723a674e6f1f5a409b",
   "ops_patch_commit": "e3e1d923e8e4feddaffc2d01f9898a5aa864062e",
@@ -25,7 +25,8 @@
     "runner_diff": "116 lines added, 0 removed \u2014 purely additive (--sampled flag, _require_stage3_sampling_authorization, Stage-3 anchor filter)",
     "scientific_cells_changed": "NONE \u2014 T_trace 40, H_response 30, delta 0.10, U carrier_survival, minimum_fork_rate 0.20, pressure predicate, earliest-fork rule, exhaustive legal-response enumeration all unchanged",
     "estimator_changed": "YES, and preregistered: exhaustive enumeration -> stratified sample of 210 anchors, weighted back to the natural population",
-    "stage3_outcomes_at_reissue": "none \u2014 C3_STAGE3_ANCHOR_RESULTS.jsonl does not exist"
+    "stage3_outcomes_at_reissue": "none \u2014 C3_STAGE3_ANCHOR_RESULTS.jsonl does not exist",
+    "chicken_and_egg_note": "The guard pins whole-repo HEAD, so committing the authorization moves HEAD and invalidates it. This file therefore pins the HEAD that exists at launch and is committed AFTER the run starts. Contract and prereg hashes are the invariants that actually matter and are unchanged."
   },
   "science_scope": "CONTROLLABILITY_SCREEN_ONLY",
   "o3_authorized": false,
