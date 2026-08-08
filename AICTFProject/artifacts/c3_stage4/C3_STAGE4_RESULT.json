@@ -1,0 +1,80 @@
+{
+  "record": "C3 Stage-4 fresh confirmation",
+  "generated_utc": "2026-08-08T10:16:36Z",
+  "frozen_cells": "artifacts/c3_discovery/C3_STAGE4_CONFIRMATION_FROZEN.json",
+  "frozen_cells_sha256": "cc50b0514a6702ce2024d712e9ce518bd339fbe1c79c4ee4a5c349d2e2571659",
+  "seed_block": [
+    9810000,
+    9810029
+  ],
+  "leg_1": {
+    "leg": "LEG1_FRESH_NATURAL",
+    "floor": 2.5079,
+    "floor_derivation": "0.5 x the discovery rate \u2014 the phenomenon must still occur at at least half its discovery frequency",
+    "zero_anchor_episodes_included": true,
+    "per_policy": {
+      "3200001": {
+        "n_episodes": 210,
+        "n_episodes_with_zero_anchors": 0,
+        "n_anchors": 1059,
+        "anchors_per_episode": 5.0429,
+        "LCB95": 4.8,
+        "UCB95": 5.2811,
+        "floor": 2.5079,
+        "LEG1_PASS": true
+      },
+      "3200002": {
+        "n_episodes": 210,
+        "n_episodes_with_zero_anchors": 0,
+        "n_anchors": 1038,
+        "anchors_per_episode": 4.9429,
+        "LCB95": 4.6857,
+        "UCB95": 5.2095,
+        "floor": 2.5079,
+        "LEG1_PASS": true
+      },
+      "3200003": {
+        "n_episodes": 210,
+        "n_episodes_with_zero_anchors": 0,
+        "n_anchors": 1002,
+        "anchors_per_episode": 4.7714,
+        "LCB95": 4.5286,
+        "UCB95": 5.0,
+        "floor": 2.5079,
+        "LEG1_PASS": true
+      }
+    }
+  },
+  "leg_2": {
+    "leg": "LEG2_FRESH_COUNTERFACTUAL",
+    "status": "PENDING",
+    "note": "fresh counterfactual screen has not been run yet"
+  },
+  "per_policy_confirmation": {
+    "3200001": {
+      "LEG1_PASS": true,
+      "LEG2_PASS": null,
+      "POLICY_CONFIRM": null
+    },
+    "3200002": {
+      "LEG1_PASS": true,
+      "LEG2_PASS": null,
+      "POLICY_CONFIRM": null
+    },
+    "3200003": {
+      "LEG1_PASS": true,
+      "LEG2_PASS": null,
+      "POLICY_CONFIRM": null
+    }
+  },
+  "replication_rule": ">= 2 of 3 policies must pass BOTH legs",
+  "STAGE4_PASS": null,
+  "verdict": "PENDING_LEG2",
+  "authorizes": "nothing",
+  "does_not_establish": [
+    "latent necessity",
+    "distinct strategy",
+    "preference reversal",
+    "repertoire gain"
+  ]
+}
