@@ -1,0 +1,205 @@
+{
+  "record": "C3 Stage-3 result \u2014 controllability screen",
+  "generated_utc": "2026-08-08T05:06:58Z",
+  "science_scope": "CONTROLLABILITY_SCREEN_ONLY",
+  "o3_authorized_by_this_result": false,
+  "latent_necessity_claim": false,
+  "verdict": "C3_PASS",
+  "decision_rule": "C3_PASS iff q_0.025(bootstrap of weighted natural fork_rate) > 0.20",
+  "threshold": 0.2,
+  "weighted_natural_fork_rate": 0.795253,
+  "LCB95": 0.746593,
+  "UCB95": 0.842805,
+  "LCB95_definition": "q_0.025 (two-sided 95% lower endpoint)",
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 12345,
+    "cluster_unit": "episode",
+    "stratified_by": "policy x opponent"
+  },
+  "n_anchors_evaluated": 210,
+  "n_anchors_sampled": 210,
+  "n_qualified_total": 165,
+  "per_stratum": {
+    "3200001|OP10": {
+      "N_h": 172,
+      "W_h": 0.05443038,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 8,
+      "p_h": 0.8
+    },
+    "3200001|OP11": {
+      "N_h": 124,
+      "W_h": 0.03924051,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 4,
+      "p_h": 0.4
+    },
+    "3200001|OP12": {
+      "N_h": 108,
+      "W_h": 0.03417722,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 9,
+      "p_h": 0.9
+    },
+    "3200001|OP6": {
+      "N_h": 131,
+      "W_h": 0.0414557,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 9,
+      "p_h": 0.9
+    },
+    "3200001|OP7": {
+      "N_h": 145,
+      "W_h": 0.04588608,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 8,
+      "p_h": 0.8
+    },
+    "3200001|OP8": {
+      "N_h": 152,
+      "W_h": 0.04810127,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 10,
+      "p_h": 1.0
+    },
+    "3200001|OP9": {
+      "N_h": 211,
+      "W_h": 0.06677215,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 8,
+      "p_h": 0.8
+    },
+    "3200002|OP10": {
+      "N_h": 187,
+      "W_h": 0.05917722,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 10,
+      "p_h": 1.0
+    },
+    "3200002|OP11": {
+      "N_h": 141,
+      "W_h": 0.04462025,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 7,
+      "p_h": 0.7
+    },
+    "3200002|OP12": {
+      "N_h": 115,
+      "W_h": 0.03639241,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 9,
+      "p_h": 0.9
+    },
+    "3200002|OP6": {
+      "N_h": 142,
+      "W_h": 0.04493671,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 9,
+      "p_h": 0.9
+    },
+    "3200002|OP7": {
+      "N_h": 140,
+      "W_h": 0.0443038,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 6,
+      "p_h": 0.6
+    },
+    "3200002|OP8": {
+      "N_h": 161,
+      "W_h": 0.05094937,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 9,
+      "p_h": 0.9
+    },
+    "3200002|OP9": {
+      "N_h": 217,
+      "W_h": 0.06867089,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 9,
+      "p_h": 0.9
+    },
+    "3200003|OP10": {
+      "N_h": 176,
+      "W_h": 0.0556962,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 5,
+      "p_h": 0.5
+    },
+    "3200003|OP11": {
+      "N_h": 127,
+      "W_h": 0.04018987,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 8,
+      "p_h": 0.8
+    },
+    "3200003|OP12": {
+      "N_h": 101,
+      "W_h": 0.03196203,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 6,
+      "p_h": 0.6
+    },
+    "3200003|OP6": {
+      "N_h": 121,
+      "W_h": 0.03829114,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 8,
+      "p_h": 0.8
+    },
+    "3200003|OP7": {
+      "N_h": 138,
+      "W_h": 0.04367089,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 7,
+      "p_h": 0.7
+    },
+    "3200003|OP8": {
+      "N_h": 134,
+      "W_h": 0.04240506,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 7,
+      "p_h": 0.7
+    },
+    "3200003|OP9": {
+      "N_h": 217,
+      "W_h": 0.06867089,
+      "n_h_planned": 10,
+      "n_h_evaluated": 10,
+      "qualified": 9,
+      "p_h": 0.9
+    }
+  },
+  "provenance": {
+    "sample_manifest_sha256": "f370b8dcffe90ed17954aa9c1c118d968f6ee2a1f5631233d4749952fde0aad0",
+    "lcb_amendment_sha256": "1c9e3051fa4a001a7f8a711ea3be8dd5fd2e17e8981f5a645779d8f8a70e60d9",
+    "amendment_commit": "74b857c",
+    "sampling_seed": 3289298408,
+    "c3_contract_sha256": "c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0"
+  },
+  "interpretation": {
+    "what_a_pass_means": "Among natural carrier-pressure anchors, a qualifying commitment fork exists often enough that a different response could plausibly change outcomes. It does NOT mean a second strategy exists.",
+    "what_it_does_not_authorize": "O3 training, latent birth, or any router work",
+    "next_step_if_pass": "fresh confirmation on an unspent seed block, then O3"
+  }
+}
