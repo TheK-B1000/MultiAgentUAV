@@ -1,0 +1,23 @@
+{
+  "updated_utc": "2026-08-08T15:46:31Z",
+  "pid": 5676,
+  "session": "C3_STAGE4_SCREEN",
+  "phase": "STAGE3",
+  "detail": "policy=3200002 anchor=29/70 candidate_state=6/40 legal_responses=2 responses_tested=1 fork_found=False short_circuited=False elapsed=5604.1s",
+  "done": 28,
+  "total": 70,
+  "frac": 0.4,
+  "elapsed_seconds": 16001.3,
+  "eta_seconds": 24002.0,
+  "progress_log": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\c3_stage4\\C3_STAGE4_SCREEN_PROGRESS.log",
+  "policy": 3200002,
+  "anchor_index": 29,
+  "anchors_total": 70,
+  "candidate_index": 6,
+  "candidates_total": 40,
+  "candidate_step": 40,
+  "legal_responses": 2,
+  "responses_tested": 1,
+  "fork_found": false,
+  "short_circuited": false
+}

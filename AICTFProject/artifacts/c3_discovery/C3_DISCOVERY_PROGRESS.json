@@ -1,17 +1,13 @@
 {
-  "updated_utc": "2026-08-08T00:20:37Z",
+  "updated_utc": "2026-08-08T05:06:06Z",
   "pid": 39604,
   "session": "C3_DISCOVERY",
-  "phase": "STAGE3",
-  "detail": "policy=3200002 anchor=38/70 fork_found=True elapsed=6391.5s",
-  "done": 38,
-  "total": 70,
-  "frac": 0.5429,
-  "elapsed_seconds": 16579.1,
-  "eta_seconds": 13961.3,
-  "progress_log": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\c3_discovery\\C3_DISCOVERY_PROGRESS.log",
-  "policy": 3200002,
-  "anchor_index": 38,
-  "anchors_total": 70,
-  "fork_found": true
+  "phase": "COMPLETE",
+  "detail": "forks=165",
+  "done": 3,
+  "total": 3,
+  "frac": 1.0,
+  "elapsed_seconds": 33708.5,
+  "eta_seconds": 0.0,
+  "progress_log": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\c3_discovery\\C3_DISCOVERY_PROGRESS.log"
 }

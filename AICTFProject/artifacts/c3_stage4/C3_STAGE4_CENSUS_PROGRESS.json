@@ -1,0 +1,13 @@
+{
+  "updated_utc": "2026-08-08T08:48:56Z",
+  "pid": 50380,
+  "session": "C3_STAGE4_CENSUS",
+  "phase": "STAGE4_CENSUS",
+  "detail": "policy_3200003",
+  "done": 0,
+  "total": null,
+  "frac": null,
+  "elapsed_seconds": 11873.0,
+  "eta_seconds": null,
+  "progress_log": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\c3_stage4\\C3_STAGE4_CENSUS_PROGRESS.log"
+}
