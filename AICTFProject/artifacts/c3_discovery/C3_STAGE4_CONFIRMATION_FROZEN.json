@@ -1,0 +1,104 @@
+{
+  "record": "C3 Stage-4 fresh confirmation — frozen cells",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-08T06:00:00Z",
+  "freezes": "the cells the C3 prereg deferred: 'Required replication: >=2/3 policies (exact cells frozen with Stage 4)'",
+  "parent_contract": "artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json",
+  "c3_contract_sha256": "c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0",
+  "authorized_by": {
+    "artifact": "artifacts/c3_discovery/C3_STAGE3_RESULT.json",
+    "verdict": "C3_PASS",
+    "weighted_rate": 0.7953,
+    "LCB95": 0.7466,
+    "threshold": 0.20
+  },
+
+  "frozen_before_any_stage4_data": true,
+  "ordering_evidence": "no rollout has been run on seed block 9810000+; Stage 4 is not yet implemented in the runner at freeze time",
+
+  "scope": {
+    "a_stage4_pass_authorizes": "O3 training only",
+    "does_not_establish": [
+      "latent necessity",
+      "a distinct strategy",
+      "preference reversal",
+      "repertoire gain"
+    ],
+    "latent_birth_additionally_requires": "the Environment-Demand Gate (payoff matrix, preference reversal, LCB95(G_available) > 0, competence floor, behavioral nonredundancy)"
+  },
+
+  "seeds": {
+    "base": 9810000,
+    "episodes_per_cell": 30,
+    "range": [9810000, 9810029],
+    "forbidden_spent_blocks": [9800001],
+    "requires_fresh_natural": true,
+    "requires_fresh_counterfactual": true,
+    "why_both_legs": "Observational-only confirmation on fresh seeds would allow the counterfactual result to remain overfitted to discovery states."
+  },
+
+  "policies": [3200001, 3200002, 3200003],
+  "opponents": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+  "map": "map_a",
+  "ruleset": "RULESET_V2_AQUATICUS_10S",
+
+  "scientific_cells_inherited_unchanged": {
+    "T_trace": 40,
+    "H_response": 30,
+    "delta": 0.10,
+    "U": "carrier_survival",
+    "doomed_at_or_below": 0.0,
+    "pressure_predicate": "unchanged",
+    "earliest_fork_rule": "unchanged",
+    "legal_team_responses": "EXHAUSTIVE within every evaluated anchor",
+    "one_response_semantics": "unchanged"
+  },
+
+  "leg_1_fresh_natural": {
+    "name": "onset prevalence replication",
+    "type": "observational — no counterfactual branching",
+    "quantity": "carrier-pressure anchors per episode on the fresh block",
+    "discovery_reference": {
+      "anchors": 3160,
+      "episodes": 630,
+      "rate_per_episode": 5.0159,
+      "source": "artifacts/c3_discovery/C3_STAGE1_MANIFEST.json"
+    },
+    "floor": 2.5079,
+    "floor_derivation": "0.5 x the discovery rate — the phenomenon must still occur at at least half its discovery frequency",
+    "floor_rationale": "A replication bar that is neither trivially passable nor a demand for exact equality. Fixed as a multiple of an already-published number so it cannot be tuned to the fresh data.",
+    "statistic": "episode-clustered bootstrap over episodes, 2000 resamples, seed 12345",
+    "per_policy_pass": "LCB95(anchors per episode) > 2.5079",
+    "LCB95": "q_0.025, per artifacts/c3_discovery/C3_STAGE3_LCB_DEFINITION_AMENDMENT.json"
+  },
+
+  "leg_2_fresh_counterfactual": {
+    "name": "fork rate replication",
+    "type": "counterfactual — the frozen commitment-fork screen, rerun",
+    "sampling": {
+      "design": "stratified, 10 anchors per policy x opponent stratum, 210 total",
+      "frame": "the COMPLETE fresh Stage-1 census on 9810000+",
+      "seed_derivation": "int(sha256(C3_DISCOVERY_PREREG_FROZEN.json bytes + b'stage4')[:8], 16)",
+      "why_a_distinct_seed": "Stage 4 draws from a different anchor population; reusing the Stage-3 seed would carry no benefit and invites confusion between the two draws.",
+      "low_count_fallback": "identical to the Stage-3 amendment: cap at available, redistribute the deficit round-robin by (policy_seed, opponent)"
+    },
+    "estimator": "per policy: p_hat_policy = sum over that policy's strata of (N_h / N_policy) * p_hat_h",
+    "why_per_policy": "The frozen replication requirement is >=2/3 POLICIES, so the statistic must be computed per policy rather than pooled as in Stage 3.",
+    "statistic": "episode-clustered bootstrap within policy, 2000 resamples, seed 12345",
+    "per_policy_pass": "LCB95(weighted fork rate for that policy) > 0.20",
+    "LCB95": "q_0.025"
+  },
+
+  "replication_rule": {
+    "a_policy_confirms_iff": "leg 1 PASS AND leg 2 PASS for that policy",
+    "stage4_pass_iff": ">= 2 of 3 policies confirm",
+    "note": "Both legs are required per policy. A policy passing only one leg does not count toward the replication total."
+  },
+
+  "verdicts": {
+    "STAGE4_PASS": "O3 training authorized; nothing else",
+    "STAGE4_FAIL": "O3 not authorized. Do not adjust the floor, the threshold, the seed block or the leg definitions; all were frozen before any Stage-4 data existed."
+  },
+
+  "immutability": "After any Stage-4 rollout produces data, none of the above may change: seed block, episodes per cell, the 2.5079 natural floor, the 0.20 fork-rate threshold, the sampling design or seed derivation, the per-policy estimator, the bootstrap procedure, or the >=2/3 replication rule."
+}
