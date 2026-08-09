@@ -1,6 +1,6 @@
 {
   "record": "C3 Stage-4 fresh confirmation",
-  "generated_utc": "2026-08-08T10:16:36Z",
+  "generated_utc": "2026-08-08T21:29:58Z",
   "frozen_cells": "artifacts/c3_discovery/C3_STAGE4_CONFIRMATION_FROZEN.json",
   "frozen_cells_sha256": "cc50b0514a6702ce2024d712e9ce518bd339fbe1c79c4ee4a5c349d2e2571659",
   "seed_block": [
@@ -47,30 +47,55 @@
   },
   "leg_2": {
     "leg": "LEG2_FRESH_COUNTERFACTUAL",
-    "status": "PENDING",
-    "note": "fresh counterfactual screen has not been run yet"
+    "status": "COMPLETE",
+    "per_policy": {
+      "3200001": {
+        "n_anchors": 70,
+        "weighted_fork_rate": 0.804,
+        "LCB95": 0.7095,
+        "UCB95": 0.8911,
+        "threshold": 0.2,
+        "LEG2_PASS": true
+      },
+      "3200002": {
+        "n_anchors": 70,
+        "weighted_fork_rate": 0.717,
+        "LCB95": 0.6039,
+        "UCB95": 0.826,
+        "threshold": 0.2,
+        "LEG2_PASS": true
+      },
+      "3200003": {
+        "n_anchors": 70,
+        "weighted_fork_rate": 0.7201,
+        "LCB95": 0.6106,
+        "UCB95": 0.8277,
+        "threshold": 0.2,
+        "LEG2_PASS": true
+      }
+    }
   },
   "per_policy_confirmation": {
     "3200001": {
       "LEG1_PASS": true,
-      "LEG2_PASS": null,
-      "POLICY_CONFIRM": null
+      "LEG2_PASS": true,
+      "POLICY_CONFIRM": true
     },
     "3200002": {
       "LEG1_PASS": true,
-      "LEG2_PASS": null,
-      "POLICY_CONFIRM": null
+      "LEG2_PASS": true,
+      "POLICY_CONFIRM": true
     },
     "3200003": {
       "LEG1_PASS": true,
-      "LEG2_PASS": null,
-      "POLICY_CONFIRM": null
+      "LEG2_PASS": true,
+      "POLICY_CONFIRM": true
     }
   },
   "replication_rule": ">= 2 of 3 policies must pass BOTH legs",
-  "STAGE4_PASS": null,
-  "verdict": "PENDING_LEG2",
-  "authorizes": "nothing",
+  "STAGE4_PASS": true,
+  "verdict": "STAGE4_PASS",
+  "authorizes": "O3 training only",
   "does_not_establish": [
     "latent necessity",
     "distinct strategy",
