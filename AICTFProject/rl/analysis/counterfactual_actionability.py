@@ -12,6 +12,10 @@ latent-necessity, response-oracle, or routing claim.
 from __future__ import annotations
 
 import itertools
+
+from rl.analysis.legal_team_responses import (
+    enumerate_legal_team_responses as _enumerate_legal_team_responses,
+)
 import math
 from dataclasses import dataclass
 from typing import Callable
@@ -142,29 +146,15 @@ def _improvement_meets_delta(improvement: float, delta: float) -> bool:
 
 
 def enumerate_legal_team_responses(core) -> tuple[tuple[int, ...], ...]:
-    """Enumerate the Cartesian product of authoritative per-agent macro masks."""
-    mask = _np(core._build_action_mask(side="blue"))
-    if mask.ndim != 2 or mask.shape[0] != 1:
-        raise ValueError(f"C3 requires B=1 action mask, got shape={mask.shape}")
+    """Enumerate the Cartesian product of authoritative per-agent macro masks.
 
-    alive = _np(core.blue_alive)
-    if alive.ndim != 2 or alive.shape[0] != 1:
-        raise ValueError(f"C3 requires B=1 blue_alive, got shape={alive.shape}")
-
-    n_agents = int(alive.shape[1])
-    n_macros = int(core.cfg.n_macros)
-    n_targets = int(core.cfg.n_targets)
-    per_agent = mask.reshape(1, n_agents, n_macros + n_targets)[0]
-    legal_macros = []
-    for agent_i in range(n_agents):
-        macros = tuple(
-            int(macro_i)
-            for macro_i in np.flatnonzero(per_agent[agent_i, :n_macros] > 0.0)
-        )
-        if not macros:
-            raise RuntimeError(f"authoritative mask exposes no macro for blue agent {agent_i}")
-        legal_macros.append(macros)
-    return tuple(tuple(int(m) for m in response) for response in itertools.product(*legal_macros))
+    Moved to ``rl.analysis.legal_team_responses`` so that one implementation of
+    legality serves both this counterfactual screen and the O3 training path,
+    and so the O3 trainer does not transitively import this module. Re-exported
+    here unchanged; behaviour is identical and pinned by
+    tests/test_legal_team_responses_equivalence.py.
+    """
+    return _enumerate_legal_team_responses(core)
 
 
 def _team_response_from_action(action: tuple[int, ...], n_agents: int) -> tuple[int, ...]:

@@ -18,18 +18,20 @@ O3 trainer, which the response-supervision prohibition (46c9e17) forbids from
 touching fork labels. Keeping it label-free is what makes that guarantee
 structural rather than promised.
 
-``enumerate_legal_team_responses`` is imported from
-``rl.analysis.counterfactual_actionability`` because it is the authoritative
-legality computation C3 itself used -- it reads only ``core._build_action_mask``
-and carries no counterfactual information. Reusing it is what makes the audit
-meaningful: a reimplementation could differ in semantics and the audit would
-then measure that difference rather than coverage.
+Legality comes from ``rl.analysis.legal_team_responses``, the neutral module
+shared with C3. That keeps the counterfactual module out of O3's transitive
+training path while preserving the exact semantics the precursor audit
+certified -- equivalence is pinned by
+tests/test_legal_team_responses_equivalence.py rather than by shared code alone.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from rl.analysis.counterfactual_actionability import enumerate_legal_team_responses
+from rl.analysis.legal_team_responses import (
+    count_legal_team_responses_batched,
+    enumerate_legal_team_responses,
+)
 
 MIN_LEGAL_TEAM_RESPONSES = 2
 
