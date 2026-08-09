@@ -106,3 +106,81 @@ class CForkDetector:
 
 
 __all__ = ["CForkDetector", "MIN_LEGAL_TEAM_RESPONSES", "c_fork_conditions"]
+
+
+def _blue_carrying_batched(core):
+    """-> (B,) bool. Whether each environment has a blue carrier."""
+    import numpy as np
+
+    carrying = core.blue_carrying
+    arr = carrying.detach().cpu().numpy() if hasattr(carrying, "detach") else np.asarray(carrying)
+    return arr.astype(bool).any(axis=1)
+
+
+@dataclass
+class BatchedCForkDetector:
+    """Per-environment C_fork detection for the vectorized training collector.
+
+    Identical predicate to ``CForkDetector`` -- blue carrying AND
+    n_legal_team_responses >= 2, first decision per carry phase -- evaluated
+    independently for each of the B environments.
+
+    PER-ENV INDEPENDENCE IS THE WHOLE POINT. Sixteen environments advance and
+    terminate on their own schedules. Carry-phase state, the fired latch and the
+    reset must all be per environment; collapsing any of them to a scalar
+    produces a vectorization bug that looks entirely normal in aggregate
+    training curves.
+    """
+
+    n_envs: int
+    _in_carry: object = None
+    _fired_this_phase: object = None
+    carry_phase_index: object = None
+
+    def __post_init__(self) -> None:
+        self.reset_all()
+
+    def reset_all(self) -> None:
+        import numpy as np
+
+        n = int(self.n_envs)
+        self._in_carry = np.zeros(n, dtype=bool)
+        self._fired_this_phase = np.zeros(n, dtype=bool)
+        self.carry_phase_index = np.full(n, -1, dtype=np.int64)
+
+    def reset_envs(self, done_mask) -> None:
+        """Reset ONLY the environments that terminated.
+
+        Resetting the whole vector because one env finished would silently
+        return control to G0 in the other fifteen.
+        """
+        import numpy as np
+
+        idx = np.asarray(done_mask, dtype=bool)
+        self._in_carry[idx] = False
+        self._fired_this_phase[idx] = False
+        self.carry_phase_index[idx] = -1
+
+    def step(self, core):
+        """Evaluate at one decision for every env, BEFORE actions are chosen.
+
+        -> (B,) bool of environments firing on THIS step.
+        """
+        import numpy as np
+
+        from rl.analysis.legal_team_responses import count_legal_team_responses_batched
+
+        carrying = _blue_carrying_batched(core)
+        n_legal = count_legal_team_responses_batched(core)
+
+        started = carrying & ~self._in_carry
+        ended = ~carrying & self._in_carry
+        self._in_carry[started] = True
+        self._fired_this_phase[started] = False
+        self.carry_phase_index[started] += 1
+        self._in_carry[ended] = False
+        self._fired_this_phase[ended] = False
+
+        eligible = carrying & ~self._fired_this_phase & (n_legal >= MIN_LEGAL_TEAM_RESPONSES)
+        self._fired_this_phase[eligible] = True
+        return eligible
