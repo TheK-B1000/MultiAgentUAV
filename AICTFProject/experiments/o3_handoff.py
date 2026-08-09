@@ -68,6 +68,7 @@ class HandoffState:
     credited_o3_steps: int = 0
     post_handoff_lengths: list = field(default_factory=list)
     credit_history: list = field(default_factory=list)
+    episode_events: list = field(default_factory=list)
     _len_accum: np.ndarray = field(init=False)
 
     def __post_init__(self) -> None:
@@ -212,8 +213,36 @@ def install_o3_handoff(trainer, g0_policy, *, strict: bool = True):
 
     model.act = act
 
+    # EPISODE LIFECYCLE. Without this the latch never clears: an env that fires
+    # once stays o3_active across every subsequent reset, so nearly every
+    # transition is credited and the prefix-leak assertions become vacuous.
+    # collector.on_episode_done fires once per finished environment and carries
+    # env_index, which is exactly the per-env signal the frozen boundary needs.
+    collector = trainer.rollout_collector
+    real_on_done = collector.on_episode_done
+
+    def on_episode_done(info, *, timestep=None, rollout_step=None,
+                        latent_z=None, env_index=None, **kw):
+        if env_index is not None:
+            i = int(env_index)
+            mask = np.zeros(n_envs, dtype=bool)
+            mask[i] = True
+            state.episode_events.append({
+                "env": i,
+                "active_before_done": bool(state.o3_active[i]),
+                "done": True,
+            })
+            state.on_episode_end(mask)
+            detector.reset_envs(mask)
+            state.episode_events[-1]["active_after_reset"] = bool(state.o3_active[i])
+        return real_on_done(info, timestep=timestep, rollout_step=rollout_step,
+                            latent_z=latent_z, env_index=env_index, **kw)
+
+    collector.on_episode_done = on_episode_done
+
     def uninstall():
         model.act = real_act
+        collector.on_episode_done = real_on_done
 
     return state, detector, uninstall
 

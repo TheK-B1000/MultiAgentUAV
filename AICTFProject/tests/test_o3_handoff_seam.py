@@ -200,9 +200,14 @@ def _make_handoff(n_envs, active_mask):
     core = FakeCore(n_envs)
     o3 = _RecordingPolicy(tag=3)
     g0 = _RecordingPolicy(tag=0)
+    class _Collector:
+        def on_episode_done(self, info, **kw):
+            return None
+
     trainer = type("T", (), {})()
     trainer.model = o3
     trainer.env = type("E", (), {"core": core, "num_envs": n_envs})()
+    trainer.rollout_collector = _Collector()
 
     state, detector, uninstall = install_o3_handoff(trainer, g0, strict=False)
     state.o3_active |= np.asarray(active_mask, dtype=bool)
