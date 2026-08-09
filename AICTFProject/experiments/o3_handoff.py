@@ -67,6 +67,7 @@ class HandoffState:
     environment_steps: int = 0
     credited_o3_steps: int = 0
     post_handoff_lengths: list = field(default_factory=list)
+    credit_history: list = field(default_factory=list)
     _len_accum: np.ndarray = field(init=False)
 
     def __post_init__(self) -> None:
@@ -202,6 +203,7 @@ def install_o3_handoff(trainer, g0_policy, *, strict: bool = True):
                     f"{state.first_o3_action_step[bad].tolist()})"
                 )
 
+        state.credit_history.append(active.copy())
         state.environment_steps += n_envs
         state.credited_o3_steps += int(active.sum())
         state._len_accum[active] += 1
