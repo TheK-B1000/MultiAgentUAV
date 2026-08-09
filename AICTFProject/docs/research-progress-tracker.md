@@ -220,10 +220,20 @@ C3 runtime cells        T_trace=40 H_response=30 delta=0.10
                         U=carrier_survival doomed_at_or_below=0.0
 environment-demand gate PREREGISTERED STRUCTURE
 demand-gate execution   LOCKED UNTIL O3 EXISTS
-O3                      LOCKED
+O3                      AUTHORIZED (carry-phase scope; see erratum)
 latent birth            LOCKED
 router                  LOCKED
 ```
+
+**O3 precursor audit (2026-08-09, run once):**
+`artifacts/o3_preregistration/C_FORK_PRECURSOR_AUDIT.json` — 157 forks,
+coverage **0.7006**, `precursor_after_fork_only=47`, `no_precursor_found=0`.
+Predicate untouched. Erratum
+`artifacts/o3_preregistration/O3_CFORK_RECALL_ERRATUM.json` corrects the
+false ce7949f claim that the C3 backward trace stays inside a carry phase;
+O3 claim scope is frozen to **carry-phase** specialization (~70% of C3
+forks). Pre-pickup forks are unresolved, not a C3 defect. Device rule:
+diagnostics must match the artifact device (CPU ≠ CUDA trajectories).
 
 **Provenance (authorized HEAD `5a797ec`):**
 - freeze commit (prereg + runner contract wiring): `de93d290b8813ac1b10b1f723a674e6f1f5a409b`

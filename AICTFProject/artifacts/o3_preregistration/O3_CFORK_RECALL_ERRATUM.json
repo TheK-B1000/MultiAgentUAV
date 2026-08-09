@@ -1,0 +1,68 @@
+{
+  "erratum": "C_fork recall-by-construction claim in ce7949f",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-09T12:40:00Z",
+  "corrects": "artifacts/o3_preregistration/O3_CFORK_RECALL_AMENDMENT.json (ce7949f) → recall_by_construction",
+  "does_not_amend": [
+    "the frozen predicate_all_must_hold block",
+    "the onset_rule",
+    "the 0.50 interpretation threshold",
+    "any other clause of O3_CFORK_RECALL_AMENDMENT.json or O3_PROTOCOL_FROZEN.json"
+  ],
+  "predicate_untouched": true,
+  "audit_untouched": true,
+
+  "false_claim": {
+    "where": "O3_CFORK_RECALL_AMENDMENT.json::recall_by_construction.reasoning",
+    "text": "the C3 backward trace runs within a carry phase, so the first clause (blue is carrying) holds throughout",
+    "also_in_commit_message": "ce7949f claimed recall was arguable from the frozen definitions because the C3 backward trace runs inside a carry phase"
+  },
+
+  "correction": {
+    "what_is_actually_true": [
+      "R1 still guarantees n_legal_team_responses >= 2 at a qualified fork",
+      "nothing in the C3 contract constrains the T_trace=40 backward trace to remain inside a carry phase",
+      "the trace runs upstream of the pressure onset and routinely reaches before pickup",
+      "a qualified commitment fork can therefore sit with blue_carrying=False"
+    ],
+    "consequence_for_C_fork": "The frozen carry-phase precursor structurally excludes pre-pickup forks. That is a scope limitation of the O3 experiment under this freeze, not a licence to retune the predicate after measuring coverage.",
+    "consequence_for_C3": "Pre-pickup forks are a broadening of the fork concept (approach commitment can be strategically relevant), not a defect in the Stage-4 controllability screen."
+  },
+
+  "audit_result_that_motivated_this_erratum": {
+    "artifact": "artifacts/o3_preregistration/C_FORK_PRECURSOR_AUDIT.json",
+    "classification": "EVALUATION-ONLY DIAGNOSTIC — run once — may not retune the predicate",
+    "qualified_forks_audited": 157,
+    "coverage": 0.7006,
+    "precursor_after_fork_only": 47,
+    "no_precursor_found": 0,
+    "finding_1": {
+      "summary": "Most misses are pre-pickup forks reachable by the C3 backward trace before possession.",
+      "support": "44 of 47 after-only cases have fork_step <= 40; CUDA spot-checks show carrying=0 at those fork steps (e.g. ev9810009, ev9810007)."
+    },
+    "finding_2_dissolved": {
+      "summary": "The residual 'impossible miss' was a CPU/CUDA trajectory mismatch, not an audit fault.",
+      "detail": "Same seed on CPU vs CUDA diverges by step 0 (n_legal 6 vs 4); by step 12 CPU had carrying=1/n_legal=4 while CUDA (audit + Stage-4) had carrying=0/n_legal=2. Audit and labels are CUDA-aligned; the CPU check measured a different episode."
+    }
+  },
+
+  "interpretation_now_frozen": {
+    "claim_scope": "O3 tests whether a distinct policy can emerge for the ~70% of confirmed commitment opportunities that occur after pickup (carry-phase forks).",
+    "coverage_vs_threshold": "0.7006 >= 0.50 → a negative O3 result remains interpretable under the preregistered rule",
+    "bound": "interpretability is bounded to carry-phase specialization; pre-pickup specialization is unresolved and is not tested by this freeze",
+    "not_a_predicate_edit": "This freezes how results may be read. It does not change C_fork, the onset rule, or the 0.50 threshold."
+  },
+
+  "operational_rule_going_forward": {
+    "rule": "CPU and CUDA replays are not interchangeable in this environment.",
+    "requirement": "Any future diagnostic that checks an artifact must run on the same device that produced that artifact.",
+    "why_recorded": "The false Finding-2 alarm came from a cross-device spot-check; the same mistake would corrupt a real result if unnoticed."
+  },
+
+  "why_this_erratum_is_not_supervision_through_model_selection": {
+    "predicate_unchanged": true,
+    "audit_not_rerun_after_edit": true,
+    "motivation": "Correct a false argument about frozen definitions after the evaluation-only audit measured coverage. The amendment forbade retuning the predicate from that number; this document obeys that rule and only corrects the argument and the claim scope.",
+    "forbidden_alternative_explicitly_rejected": "Editing C_fork after seeing coverage 0.7006, or iterating audit-and-adjust."
+  }
+}
