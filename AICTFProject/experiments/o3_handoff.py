@@ -58,6 +58,10 @@ class HandoffState:
     first_o3_action_step: np.ndarray = field(init=False)
     step_in_episode: np.ndarray = field(init=False)
 
+    o3_act_calls: int = 0
+    g0_act_calls: int = 0
+    o3_rows_seen: int = 0
+    g0_rows_seen: int = 0
     episodes_seen: int = 0
     episodes_with_handoff: int = 0
     environment_steps: int = 0
@@ -134,14 +138,53 @@ def install_o3_handoff(trainer, g0_policy, *, strict: bool = True):
 
         active = state.o3_active.copy()
         state.last_credit = active.copy()
+        active_idx = np.flatnonzero(active)
+        prefix_idx = np.flatnonzero(~active)
 
-        # 2. Sub-batched execution: O3 never sees prefix rows.
-        actions, values, log_probs, extra = real_act(obs_t, context_state, z_idx=z_idx, **kw)
-        if not active.all():
-            g0_actions = _g0_actions(g0_policy, obs_t, n_envs)
-            inactive = ~active
-            actions = actions.clone()
-            actions[inactive] = g0_actions[inactive].to(actions.device, actions.dtype)
+        # 2. TRUE row exclusion. act() samples from a SHARED generator over the
+        #    batch, so including prefix rows would consume RNG draws and change
+        #    the actions sampled for the rows O3 actually controls. Discarding
+        #    outputs afterwards does not undo those draws. O3 must therefore
+        #    never see a prefix row.
+        actions = values = log_probs = extra = None
+        if active_idx.size:
+            state.o3_act_calls += 1
+            state.o3_rows_seen += int(active_idx.size)
+            a_o3, v_o3, lp_o3, ex_o3 = real_act(
+                _slice_obs(obs_t, active_idx),
+                _slice_tensor(context_state, active_idx),
+                z_idx=_slice_tensor(z_idx, active_idx),
+                **kw,
+            )
+            actions = _empty_like_full(a_o3, n_envs)
+            values = _empty_like_full(v_o3, n_envs)
+            log_probs = _empty_like_full(lp_o3, n_envs)
+            extra = ex_o3
+            ai = torch.as_tensor(active_idx, device=actions.device, dtype=torch.long)
+            actions[ai] = a_o3
+            values[ai] = v_o3
+            log_probs[ai] = lp_o3
+
+        if prefix_idx.size:
+            state.g0_act_calls += 1
+            state.g0_rows_seen += int(prefix_idx.size)
+            with torch.no_grad():
+                out = g0_policy.act(
+                    _slice_obs(obs_t, prefix_idx),
+                    _slice_tensor(context_state, prefix_idx),
+                    z_idx=_slice_tensor(z_idx, prefix_idx),
+                )
+            a_g0 = (out[0] if isinstance(out, tuple) else out).detach()
+            if actions is None:
+                actions = _empty_like_full(a_g0, n_envs)
+                values = torch.zeros((n_envs,), device=a_g0.device, dtype=torch.float32)
+                log_probs = torch.zeros((n_envs,), device=a_g0.device, dtype=torch.float32)
+            pi = torch.as_tensor(prefix_idx, device=actions.device, dtype=torch.long)
+            actions[pi] = a_g0.to(actions.device, actions.dtype)
+            # values/log_probs for prefix rows are NOT O3 metadata. They are
+            # placeholders that the credit boundary must exclude; they are left
+            # at zero so a leak shows up as an obviously wrong statistic rather
+            # than a plausible one.
 
         # 3. Record the first step O3 actually supplied an action.
         first = active & (state.first_o3_action_step < 0)
@@ -173,12 +216,28 @@ def install_o3_handoff(trainer, g0_policy, *, strict: bool = True):
     return state, detector, uninstall
 
 
-def _g0_actions(g0_policy, obs_t, n_envs: int) -> torch.Tensor:
-    """Frozen-G0 actions for the whole batch, no gradient."""
-    with torch.no_grad():
-        out = g0_policy.act(obs_t, None, z_idx=None)
-    actions = out[0] if isinstance(out, tuple) else out
-    return actions.detach()
+def _slice_obs(obs, idx: np.ndarray):
+    """Row-slice every tensor in an observation mapping identically."""
+    if obs is None:
+        return None
+    t = torch.as_tensor(idx, dtype=torch.long)
+    if isinstance(obs, dict):
+        return {k: (v[t.to(v.device)] if hasattr(v, "__getitem__") else v)
+                for k, v in obs.items()}
+    return obs[t.to(obs.device)]
+
+
+def _slice_tensor(x, idx: np.ndarray):
+    if x is None:
+        return None
+    t = torch.as_tensor(idx, dtype=torch.long, device=getattr(x, "device", None))
+    return x[t]
+
+
+def _empty_like_full(sample: torch.Tensor, n_envs: int) -> torch.Tensor:
+    """A full-batch tensor matching a subset result's trailing shape/dtype."""
+    shape = (n_envs,) + tuple(sample.shape[1:])
+    return torch.zeros(shape, device=sample.device, dtype=sample.dtype)
 
 
 __all__ = ["HandoffState", "install_o3_handoff"]
