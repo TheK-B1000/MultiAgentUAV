@@ -27,6 +27,7 @@ import numpy as np  # noqa: E402
 import torch  # noqa: E402
 
 OUT = PROJECT_ROOT / "artifacts" / "o3_smoke"
+RUN_OUT = PROJECT_ROOT / "artifacts" / "o3_run_3400001"
 PREREG = PROJECT_ROOT / "artifacts" / "o3_preregistration"
 FORBIDDEN_ARTIFACTS = (
     "C3_STAGE3_ANCHOR_RESULTS.jsonl",
@@ -93,11 +94,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--episodes", type=int, default=20)
     ap.add_argument("--device", default="cuda")
+    ap.add_argument("--full", action="store_true", help="launch the 1M-step 3400001 run")
     args = ap.parse_args()
 
     if args.device == "cuda" and not torch.cuda.is_available():
         raise SystemExit("REFUSED: CUDA required; artifacts are CUDA-produced")
 
+    global OUT
+    if args.full:
+        OUT = RUN_OUT
     OUT.mkdir(parents=True, exist_ok=True)
     from experiments.run_g0_v5_long import build_config as g0_build_config
     from experiments.o3_credit_boundary import install_credit_boundary
@@ -108,20 +113,20 @@ def main() -> int:
     import rl.training.orchestrator as orch
 
     cfg = g0_build_config(3_400_001)
-    cfg.run_tag = "o3_smoke"
+    cfg.run_tag = "o3_run_3400001" if args.full else "o3_smoke"
     cfg.seed = 3_400_001
     cfg.device = args.device
-    cfg.total_timesteps = int(args.episodes) * 240
-    cfg.n_envs = 4
+    cfg.total_timesteps = 1_000_000 if args.full else int(args.episodes) * 240
+    cfg.n_envs = 16 if args.full else 4
     cfg.n_steps = 128
-    cfg.batch_size = 128
+    cfg.batch_size = 512 if args.full else 128
     cfg.checkpoint_dir = str(OUT / "ckpts")
     cfg.metrics_csv_path = str(OUT / "metrics.csv")
     cfg.episode_csv_path = str(OUT / "episode_rows.csv")
     cfg.load_path = None
     cfg.use_latent_strategy = False
     cfg.phase_pod_id = ""
-    cfg.periodic_checkpoint_steps = 0
+    cfg.periodic_checkpoint_steps = 100_000 if args.full else 0
 
     pf = preflight(cfg)
     print("=" * 74)
