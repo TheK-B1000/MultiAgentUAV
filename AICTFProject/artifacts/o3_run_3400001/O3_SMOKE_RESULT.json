@@ -1,0 +1,97 @@
+{
+  "record": "O3 smoke",
+  "generated_utc": "2026-08-09T17:52:44Z",
+  "device": "cuda",
+  "torch": "2.11.0+cu128",
+  "cuda": "12.8",
+  "g0_checkpoint_sha256": "94a28f25a1e81954b499428d29566d98b39482113666c637b289ebddd1966059",
+  "o3_seed": 3400001,
+  "error": "",
+  "throughput": {
+    "episodes_seen": 5114,
+    "episodes_with_handoff": 5113,
+    "handoff_rate": 0.9998,
+    "environment_steps": 1001472,
+    "credited_o3_steps": 868398,
+    "credited_fraction": 0.8671,
+    "mean_post_handoff_length": 169.59,
+    "effective_o3_steps_per_1k_env_steps": 867.1
+  },
+  "credit_audit": {
+    "minibatches_seen": 6800,
+    "minibatches_dropped_empty": 0,
+    "rows_offered": 3481600,
+    "rows_credited": 3019188,
+    "credited_row_fraction": 0.8672,
+    "pre_handoff_actor_samples": 0,
+    "pre_handoff_critic_samples": 0,
+    "pre_handoff_entropy_samples": 0,
+    "pre_handoff_norm_samples": 0,
+    "pre_handoff_return_targets": 0,
+    "violations": []
+  },
+  "response_supervision_used": false,
+  "preflight": {
+    "PASS": true,
+    "problems": [],
+    "response_supervision_used": false
+  },
+  "wall_seconds": 13954.8,
+  "episode_events_sample": [
+    {
+      "env": 0,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    },
+    {
+      "env": 6,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    },
+    {
+      "env": 15,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    },
+    {
+      "env": 12,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    },
+    {
+      "env": 5,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    },
+    {
+      "env": 11,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    },
+    {
+      "env": 3,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    },
+    {
+      "env": 2,
+      "active_before_done": true,
+      "done": true,
+      "active_after_reset": false
+    }
+  ],
+  "checks": {
+    "trigger_equals_first_o3_action": "asserted in-flight by install_o3_handoff(strict=True)",
+    "episodes_seen_positive": true,
+    "episodes_with_handoff_positive": true,
+    "latch_cleared_on_every_done": true,
+    "five_pre_handoff_counts_zero": true
+  }
+}
