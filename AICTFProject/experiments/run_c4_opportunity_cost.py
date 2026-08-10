@@ -223,7 +223,15 @@ def analyze(states_by_policy: dict, frozen: dict) -> dict:
                         ok = (da["delta"] >= delta and da["lcb95"] > 0
                               and db["delta"] >= delta and db["lcb95"] > 0)
                         if ok:
-                            found[f"{pname}|{x1}|{x2}"] = {
+                            # The key MUST carry the side-pair. In C4 a binary
+                            # partition name determined its two sides uniquely,
+                            # so pname|R1|R2 was unambiguous. With 21 opponent
+                            # side-pairs sharing one partition name, omitting
+                            # (sa, sb) makes distinct opponent pairs collide:
+                            # later pairs overwrite earlier ones, and cross-policy
+                            # replication then compares DIFFERENT opponent pairs
+                            # as if they were the same candidate.
+                            found[f"{pname}|{sa}|{sb}|{x1}|{x2}"] = {
                                 "partition": pname, "side_a": sa, "side_b": sb,
                                 "response_1": x1, "response_2": x2,
                                 "n_states_side_a": len(u_a1), "n_states_side_b": len(u_b1),
