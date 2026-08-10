@@ -187,44 +187,48 @@ def analyze(states_by_policy: dict, frozen: dict) -> dict:
                 side = s["classes"].get(pname)
                 if side is not None:
                     sides[side].append(s)
-            if len(sides) != 2:
+            if len(sides) < 2:
                 continue
-            (sa, rows_a), (sb, rows_b) = sorted(sides.items())
+            # A partition with exactly two values yields one side-pair, which is
+            # C4's behaviour unchanged. C5's opponent partition has seven, so
+            # every unordered side-pair is tested.
+            side_pairs = list(itertools.combinations(sorted(sides.items()), 2))
+            for (sa, rows_a), (sb, rows_b) in side_pairs:
 
-            # SAFEGUARD 1: a pair must be legal on BOTH sides.
-            resp_a = set().union(*[set(r["utilities"]) for r in rows_a]) if rows_a else set()
-            resp_b = set().union(*[set(r["utilities"]) for r in rows_b]) if rows_b else set()
-            common = sorted(resp_a & resp_b)
+                # SAFEGUARD 1: a pair must be legal on BOTH sides.
+                resp_a = set().union(*[set(r["utilities"]) for r in rows_a]) if rows_a else set()
+                resp_b = set().union(*[set(r["utilities"]) for r in rows_b]) if rows_b else set()
+                common = sorted(resp_a & resp_b)
 
-            for r1, r2 in itertools.combinations(common, 2):
-                a1 = [(r["episode_key"], r["utilities"][r1]) for r in rows_a if r1 in r["utilities"] and r2 in r["utilities"]]
-                a2 = [(r["episode_key"], r["utilities"][r2]) for r in rows_a if r1 in r["utilities"] and r2 in r["utilities"]]
-                b1 = [(r["episode_key"], r["utilities"][r1]) for r in rows_b if r1 in r["utilities"] and r2 in r["utilities"]]
-                b2 = [(r["episode_key"], r["utilities"][r2]) for r in rows_b if r1 in r["utilities"] and r2 in r["utilities"]]
-                # SAFEGUARD 2: support reported per side.
-                if len(a1) < min_sup or len(b1) < min_sup:
-                    continue
-                # BOTH ORIENTATIONS. combinations() yields each unordered pair
-                # once, so testing only "R1 wins side A, R2 wins side B" would
-                # silently miss every mirror reversal and report NO_REVERSAL.
-                for x1, x2, u_a1, u_a2, u_b1, u_b2 in (
-                    (r1, r2, a1, a2, b1, b2),
-                    (r2, r1, a2, a1, b2, b1),
-                ):
-                    da = bootstrap_delta(u_a1, u_a2, rng=rng, resamples=resamples, lcb_pct=lcb_pct)
-                    db = bootstrap_delta(u_b2, u_b1, rng=rng, resamples=resamples, lcb_pct=lcb_pct)
-                    if da["delta"] is None or db["delta"] is None:
+                for r1, r2 in itertools.combinations(common, 2):
+                    a1 = [(r["episode_key"], r["utilities"][r1]) for r in rows_a if r1 in r["utilities"] and r2 in r["utilities"]]
+                    a2 = [(r["episode_key"], r["utilities"][r2]) for r in rows_a if r1 in r["utilities"] and r2 in r["utilities"]]
+                    b1 = [(r["episode_key"], r["utilities"][r1]) for r in rows_b if r1 in r["utilities"] and r2 in r["utilities"]]
+                    b2 = [(r["episode_key"], r["utilities"][r2]) for r in rows_b if r1 in r["utilities"] and r2 in r["utilities"]]
+                    # SAFEGUARD 2: support reported per side.
+                    if len(a1) < min_sup or len(b1) < min_sup:
                         continue
-                    # SAFEGUARD 4: CI rule in BOTH directions, never point estimates.
-                    ok = (da["delta"] >= delta and da["lcb95"] > 0
-                          and db["delta"] >= delta and db["lcb95"] > 0)
-                    if ok:
-                        found[f"{pname}|{x1}|{x2}"] = {
-                            "partition": pname, "side_a": sa, "side_b": sb,
-                            "response_1": x1, "response_2": x2,
-                            "n_states_side_a": len(u_a1), "n_states_side_b": len(u_b1),
-                            "side_a_R1_minus_R2": da, "side_b_R2_minus_R1": db,
-                        }
+                    # BOTH ORIENTATIONS. combinations() yields each unordered pair
+                    # once, so testing only "R1 wins side A, R2 wins side B" would
+                    # silently miss every mirror reversal and report NO_REVERSAL.
+                    for x1, x2, u_a1, u_a2, u_b1, u_b2 in (
+                        (r1, r2, a1, a2, b1, b2),
+                        (r2, r1, a2, a1, b2, b1),
+                    ):
+                        da = bootstrap_delta(u_a1, u_a2, rng=rng, resamples=resamples, lcb_pct=lcb_pct)
+                        db = bootstrap_delta(u_b2, u_b1, rng=rng, resamples=resamples, lcb_pct=lcb_pct)
+                        if da["delta"] is None or db["delta"] is None:
+                            continue
+                        # SAFEGUARD 4: CI rule in BOTH directions, never point estimates.
+                        ok = (da["delta"] >= delta and da["lcb95"] > 0
+                              and db["delta"] >= delta and db["lcb95"] > 0)
+                        if ok:
+                            found[f"{pname}|{x1}|{x2}"] = {
+                                "partition": pname, "side_a": sa, "side_b": sb,
+                                "response_1": x1, "response_2": x2,
+                                "n_states_side_a": len(u_a1), "n_states_side_b": len(u_b1),
+                                "side_a_R1_minus_R2": da, "side_b_R2_minus_R1": db,
+                            }
         per_policy[str(pseed)] = found
 
     # SAFEGUARD 3: replication is per policy; no pooled rescue.
@@ -244,6 +248,9 @@ def main() -> int:
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--max-states-per-episode", type=int, default=2)
     ap.add_argument("--out", default=str(RESULT))
+    ap.add_argument("--partition-mode", choices=("state", "opponent"), default="state",
+                    help="state = C4 six frozen partitions; opponent = C5 opponent pairs")
+    ap.add_argument("--states-out", default="", help="persist raw states for re-analysis")
     args = ap.parse_args()
 
     frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
@@ -285,6 +292,18 @@ def main() -> int:
             print(f"  policy {pseed} vs {opp}: {len(rows)} states", flush=True)
         states_by_policy[pseed] = rows
 
+    if args.states_out:
+        Path(args.states_out).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.states_out).write_text(
+            json.dumps({str(k): v for k, v in states_by_policy.items()}), encoding="utf-8")
+        print(f"  persisted raw states -> {args.states_out}")
+
+    if args.partition_mode == "opponent":
+        # C5: opponent identity as an EVALUATION LABEL, never a policy input.
+        for rows in states_by_policy.values():
+            for r in rows:
+                r["classes"] = {"opponent": r["episode_key"].split(":")[0]}
+        globals()["PARTITIONS"] = {"opponent": lambda c: None}
     res = analyze(states_by_policy, frozen)
     verdict = "C4_PASS" if res["n_replicated"] > 0 else "C4_NO_REVERSAL"
     claims = frozen["outcomes"][verdict]

@@ -1,0 +1,81 @@
+{
+  "preregistration": "C5 — opponent-conditional demand screen",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-10T13:00:00Z",
+  "frozen_before": "any C5 analysis or rollout exists",
+  "motivated_by": "artifacts/c4_discovery/C4_RESULT.json (3ca656e)",
+
+  "the_gap_c4_left": {
+    "what_c4_tested": "reversal across six binary STATE partitions (score stratum, carrier present, home threatened, forward commitment, carrier pressure, defender tag availability)",
+    "result": "C4_NO_REVERSAL -- zero reversals in any single policy across 1,260 states",
+    "what_c4_never_tested": "reversal across OPPONENTS. Opponent identity is excluded from legal_context by design, because a router cannot see it, so it was never a C4 partition.",
+    "why_that_exclusion_does_not_settle_the_demand_question": "Whether a strategic tradeoff EXISTS in the world and whether it is ROUTABLE from legal context are different questions. C4 answered a routability-shaped question. C5 answers the existence-shaped one.",
+    "this_is_not_widening_the_c4_partition_list": "C4's freeze prohibits adding a seventh partition to keep searching for a C4 pass. C5 is a different question with its own verdict, and its outcome cannot rehabilitate C4."
+  },
+
+  "opponent_identity_usage": {
+    "role": "EVALUATION LABEL ONLY",
+    "may_be_used_for": "grouping states to test whether demand exists",
+    "may_never_be_used_as": "a policy input, a router feature, or a training signal",
+    "why_recorded": "the whole point of the exclusion in legal_context is that a deployed router cannot observe it; using it here measures the world, not the agent"
+  },
+
+  "question": "Does the ranking of two legal team responses reverse between two opponents?",
+  "target_pattern": "against opponent A, response R1 beats R2 by >= delta; against opponent B, R2 beats R1 by >= delta; both CIs excluding zero",
+
+  "inherited_unchanged_from_c4": {
+    "delta": 0.10,
+    "utility": "carrier_survival, horizon 30, SCREEN PROXY",
+    "support_minima": "30 states per response pair per side",
+    "statistics": "episode-clustered bootstrap, 2000 resamples, seed 12345, LCB95 = q_0.025",
+    "replication": "same opponent pair, same response pair, same direction, in >= 2 of 3 G0 policies",
+    "response_enumeration": "EXHAUSTIVE within every state",
+    "both_orientations_tested": true,
+    "pair_must_be_legal_on_both_sides": true
+  },
+
+  "opponent_pairs": {
+    "rule": "all unordered pairs from the admitted mixture",
+    "opponents": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+    "n_pairs": 21,
+    "multiplicity_declared": "21 opponent pairs x response pairs are examined without correction, by design. C5 is a DISCOVERY screen; a pass earns confirmation on a fresh block, never a claim on its own."
+  },
+
+  "seeds": {
+    "discovery": {
+      "block": [9840000, 9840029],
+      "status": "REPLAY of the block C4 already consumed",
+      "why_replay_is_legitimate": "the frozen G0 policies are deterministic, so this regenerates the SAME natural trajectories C4 analysed. No new information is consumed; only the grouping of already-visited states changes. Precedent: the C3 Stage-2a replay under c913c1e's predecessor."
+    },
+    "confirmation": {
+      "block": [9850000, 9850029],
+      "status": "UNSPENT",
+      "rule": "tests only the single top-ranked candidate from discovery"
+    }
+  },
+
+  "outcomes": {
+    "C5_PASS": {
+      "condition": "at least one (opponent pair, response pair) reverses per the criterion in >= 2/3 policies on discovery AND replicates on the confirmation block",
+      "establishes": "opponent-conditional strategic demand EXISTS",
+      "does_not_establish": "that the demand is routable from legal context",
+      "mandatory_next_step": "the observability test -- oracle-selector gain vs legal-selector gain -- before any O-oracle training. Demand that no legal observation can reach cannot support a router."
+    },
+    "C5_NO_REVERSAL": {
+      "condition": "no opponent pair satisfies the criterion",
+      "meaning": "no response tradeoff exists across the admitted opponent mixture either, under this utility and delta",
+      "action": "STOP searching within the existing opponent set. The remaining legitimate route is constructing NEW strategic demand -- opponent families designed so that what helps against one hurts against another -- under a new preregistration, with the tradeoff still DISCOVERED rather than assumed."
+    }
+  },
+
+  "prohibited": [
+    "using opponent identity as a policy or router input",
+    "training any oracle on a C5_PASS before the observability test",
+    "adding partitions or opponents after seeing results",
+    "adjusting delta, support minima or the replication rule",
+    "treating a C5_PASS as rehabilitating C4 or O3",
+    "claiming a task-outcome tradeoff from a carrier_survival screen"
+  ],
+
+  "immutability": "After any C5 number exists, none of the above may change."
+}
