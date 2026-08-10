@@ -95,6 +95,16 @@ def bootstrap_delta(pairs_a, pairs_b, *, rng, resamples, lcb_pct):
             "ucb95": round(float(hi), 6), "n_ep_a": len(ka), "n_ep_b": len(kb)}
 
 
+def _runner_commit_safe() -> str:
+    import subprocess
+    try:
+        r = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(PROJECT_ROOT),
+                           capture_output=True, text=True, timeout=30)
+        return (r.stdout or "").strip() or "unknown"
+    except Exception:
+        return "unknown"
+
+
 def collect_states(policy, *, opponent, seed, device, contract, max_states):
     """Natural states with >=2 legal responses, each with EXHAUSTIVE response utilities."""
     from experiments.eval_v6i9_map_awareness import (
@@ -158,6 +168,12 @@ def collect_states(policy, *, opponent, seed, device, contract, max_states):
                         "classes": {k: f(ctx) for k, f in PARTITIONS.items()},
                         "utilities": {str(k): v for k, v in util.items()},
                     })
+            # Once max_states is reached no further append is possible -- the
+            # guard above requires len(out) < max_states -- so the rest of the
+            # episode only steps the env and is discarded. Breaking here yields
+            # a byte-identical `out`, verified by hash against a full-episode run.
+            if len(out) >= max_states:
+                break
             action = _predict(policy, _adapt_obs_for_policy(obs, policy))
             obs, _, done, _infos = _unpack_step(env.step(action))
             if _done(done):
@@ -308,10 +324,41 @@ def main() -> int:
         states_by_policy[pseed] = rows
 
     if args.states_out:
+        import hashlib as _hl
+        from experiments.run_g0_v2_evaluation import CANONICAL_MAP as _MAP
         Path(args.states_out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.states_out).write_text(
-            json.dumps({str(k): v for k, v in states_by_policy.items()}), encoding="utf-8")
-        print(f"  persisted raw states -> {args.states_out}")
+        blob = json.dumps({str(k): v for k, v in states_by_policy.items()})
+        Path(args.states_out).write_text(blob, encoding="utf-8")
+        # Identity manifest: a shard must carry enough provenance that an
+        # accidental mismatch cannot sneak into a merge. The merger fails closed
+        # on any disagreement rather than silently pooling incompatible shards.
+        ck_sha = {}
+        for pseed in sel_pol:
+            tag = f"g0_v5_long_seed{pseed}"
+            ckp = PROJECT_ROOT / "artifacts" / "g0_v5_long" / tag / "ckpts" / f"final_{tag}.zip"
+            ck_sha[str(pseed)] = _hl.sha256(ckp.read_bytes()).hexdigest()
+        man = {
+            "policies": [str(x) for x in sel_pol],
+            "policy_checkpoint_sha256": ck_sha,
+            "opponents": sel_opp,
+            "episodes": int(args.episodes),
+            "seed_block_base": int(base),
+            "resolved_seeds": [int(base + i) for i in range(args.episodes)],
+            "device": args.device,
+            "max_states_per_episode": int(args.max_states_per_episode),
+            "partition_mode": args.partition_mode,
+            "map": str(_MAP),
+            "ruleset": "OURS/V2_RULES",
+            "frozen_contract_sha256": _sha256(FROZEN),
+            "runtime_contract_utility": contract.utility_name,
+            "runtime_contract_h_response": int(contract.h_response),
+            "runner_commit": _runner_commit_safe(),
+            "n_states": {str(k): len(v) for k, v in states_by_policy.items()},
+            "states_file_sha256": _hl.sha256(blob.encode("utf-8")).hexdigest(),
+        }
+        Path(str(args.states_out) + ".manifest.json").write_text(
+            json.dumps(man, indent=2), encoding="utf-8")
+        print(f"  persisted raw states -> {args.states_out} (+ manifest)")
 
     if args.partition_mode == "opponent":
         # C5: opponent identity as an EVALUATION LABEL, never a policy input.
