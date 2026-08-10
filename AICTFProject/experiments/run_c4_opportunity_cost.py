@@ -272,6 +272,8 @@ def main() -> int:
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--max-states-per-episode", type=int, default=2)
     ap.add_argument("--out", default=str(RESULT))
+    ap.add_argument("--seed-base", type=int, default=0,
+                    help="override seed block; must equal the frozen confirmation block")
     ap.add_argument("--policies", default="", help="comma-separated subset of policy seeds")
     ap.add_argument("--opponents", default="", help="comma-separated subset of opponents")
     ap.add_argument("--partition-mode", choices=("state", "opponent"), default="state",
@@ -288,7 +290,12 @@ def main() -> int:
     if args.device == "cuda" and not torch.cuda.is_available():
         raise SystemExit("REFUSED: CUDA required")
 
-    base = int(frozen["seeds"]["discovery_block"][0])
+    # Confirmation uses the unspent block; the frozen discovery block stays the
+    # default so no caller silently lands on the wrong seeds.
+    base = int(args.seed_base) if args.seed_base else int(frozen["seeds"]["discovery_block"][0])
+    if args.seed_base and int(args.seed_base) != int(frozen["seeds"]["confirmation_block"][0]):
+        raise SystemExit(f"--seed-base {args.seed_base} is neither the frozen discovery nor "
+                         f"confirmation block; refusing to run on unfrozen seeds")
     from experiments.run_c3_decision_proximal_discovery import _load_runtime_contract
     from experiments.run_g0_v2_evaluation import resolve_cnn_channels
     from experiments.run_g0_v2_seed import OPPONENTS

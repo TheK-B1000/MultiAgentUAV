@@ -25,6 +25,8 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 PY = str(ROOT / ".venv/Scripts/python.exe")
 G0_SEEDS = [3200001, 3200002, 3200003]
 
@@ -35,6 +37,10 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=11)
     ap.add_argument("--shard-dir", default=str(ROOT / "artifacts/c5_discovery/shards"))
     ap.add_argument("--states-out", default=str(ROOT / "artifacts/c5_discovery/states.json"))
+    ap.add_argument("--seed-base", type=int, default=0,
+                    help="0 = frozen discovery block; else must be the frozen confirmation block")
+    ap.add_argument("--only-opponents", default="",
+                    help="restrict cells to these opponents (confirmation tests one pair)")
     ap.add_argument("--max-cells", type=int, default=0, help="throughput probing only")
     ap.add_argument("--no-merge", action="store_true", help="throughput probing only")
     args = ap.parse_args()
@@ -46,6 +52,13 @@ def main() -> int:
     shard_dir.mkdir(parents=True, exist_ok=True)
 
     # One cell = one (policy, opponent). Fixed order defines the merge order.
+    if args.only_opponents:
+        keep = [x for x in args.only_opponents.split(",") if x.strip()]
+        unknown = [x for x in keep if x not in opponents]
+        if unknown:
+            print(f"ABORT: unknown opponents {unknown}", file=sys.stderr)
+            return 1
+        opponents = keep
     cells = [(p, o) for p in G0_SEEDS for o in opponents]
     if args.max_cells:
         cells = cells[:args.max_cells]
@@ -70,6 +83,7 @@ def main() -> int:
                    "--episodes", str(args.episodes),
                    "--policies", str(pseed), "--opponents", opp,
                    "--partition-mode", "opponent",
+                   *(["--seed-base", str(args.seed_base)] if args.seed_base else []),
                    "--out", str(shard_dir / f"res_{pseed}_{opp}.json"),
                    "--states-out", str(sf)]
             fh = open(log, "w", encoding="utf-8")
