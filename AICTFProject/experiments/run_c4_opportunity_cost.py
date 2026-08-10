@@ -122,10 +122,14 @@ def collect_states(policy, *, opponent, seed, device, contract, max_states):
     )
     env = GPUCTFVecEnv(cfg)
     core = env.core
-    model = policy.model if hasattr(policy, "model") else policy
-    was = getattr(model, "training", False)
-    if hasattr(model, "eval"):
-        model.eval()
+    # C3 passes the INFERENCE POLICY wrapper here, not the raw module: the
+    # branching snapshot reads _prev_z, which CustomPPOInferencePolicy defines
+    # in its constructor and a bare nn.Module never creates.
+    model = policy
+    inner = policy.model if hasattr(policy, "model") else policy
+    was = getattr(inner, "training", False)
+    if hasattr(inner, "eval"):
+        inner.eval()
     utility_fn = resolve_utility(contract.utility_name)
 
     out = []
@@ -159,8 +163,8 @@ def collect_states(policy, *, opponent, seed, device, contract, max_states):
             if _done(done):
                 break
     finally:
-        if hasattr(model, "train"):
-            model.train(was)
+        if hasattr(inner, "train"):
+            inner.train(was)
         env.close()
     return out
 
