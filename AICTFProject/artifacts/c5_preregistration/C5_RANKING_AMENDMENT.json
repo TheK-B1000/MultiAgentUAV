@@ -1,0 +1,59 @@
+{
+  "amendment": "C5 — definition of the discovery ranking function",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-10T14:05:00Z",
+  "amends": "artifacts/c5_preregistration/C5_OPPONENT_DEMAND_FROZEN.json (9e89f4d)",
+
+  "admissibility": {
+    "no_c5_number_exists": true,
+    "evidence": "artifacts/c5_discovery/ did not exist when this file was written; the discovery scan was still in rollout",
+    "what_this_changes": "resolves one undefined term",
+    "what_this_does_not_change": "delta, utility, horizon, support minima, replication requirement, bootstrap method, resamples, seed, LCB95 definition, seed blocks, outcome conditions, or the prohibition list. None of these is touched.",
+    "why_it_is_not_a_retune": "a retune moves a bar after seeing where the data fell. No data exists. This closes an experimenter degree of freedom rather than opening one."
+  },
+
+  "the_gap": {
+    "frozen_text": "seeds.confirmation.rule = 'tests only the single top-ranked candidate from discovery'",
+    "problem": "'top-ranked' was never defined. With 21 opponent pairs x response pairs, several candidates may clear the discovery criterion, and an undefined ranking would let the choice of ranking statistic be made after seeing which candidate each one promotes.",
+    "why_it_matters_more_here_than_in_C4": "C4's partitions were binary and few. C5 examines 21 unordered opponent pairs, so the selection step carries real multiplicity that C4 did not have."
+  },
+
+  "ranking_function": {
+    "statistic": "reversal_strength = min(lcb95_side_A, lcb95_side_B)",
+    "order": "descending",
+    "rationale": "a reversal is only as strong as its weaker leg, so the binding constraint is the minimum of the two directions. LCB95 rather than the point estimate because LCB is the conservative statistic used throughout this project and it already folds in support and variance -- ranking by point-estimate delta would systematically promote low-support, high-variance cells.",
+    "tie_breakers_in_order": [
+      "1. higher min(support_A, support_B)",
+      "2. lexicographic on (opponent_a, opponent_b, response_1, response_2)"
+    ],
+    "why_full_determinism": "the tie-break chain must terminate without human judgement, or the degree of freedom returns at the last step",
+    "computed_on": "DISCOVERY data only",
+    "recorded_when": "written into C5_RESULT.json as selected_candidate BEFORE the confirmation block is touched"
+  },
+
+  "multiplicity_treatment": {
+    "discovery": "21 opponent pairs x response pairs examined WITHOUT correction, by design, and the count of candidates clearing the criterion is REPORTED, not just the winner",
+    "confirmation": "one pre-specified candidate, tested once, on the unspent 9850000 block",
+    "why_this_controls_multiplicity": "a single candidate fixed in advance and tested once on data never previously examined carries no multiplicity. The discovery/confirmation split IS the correction; what was missing was only the determinism of 'which candidate', which the ranking function above supplies.",
+    "honesty_requirement": "if many candidates clear discovery, that number is reported alongside the verdict, because a screen that fires everywhere is evidence about the screen"
+  },
+
+  "zero_candidate_case": {
+    "condition": "no (opponent pair, response pair) clears the discovery criterion in >= 2/3 policies",
+    "verdict": "C5_NO_REVERSAL",
+    "action": "the confirmation block is NOT spent and remains unspent for future use"
+  },
+
+  "frozen_reporting_language": {
+    "C5_NO_REVERSAL": "No opponent-conditional response reversal was demonstrated among the existing OP6-OP12 set under the frozen 30-step carrier-survival protocol.",
+    "what_that_claim_does_NOT_extend_to": [
+      "that no tradeoff exists under any other utility",
+      "that no tradeoff exists under any observable history representation",
+      "that no tradeoff exists at the task-outcome level (score differential)",
+      "anything about opponents outside the admitted OP6-OP12 mixture"
+    ],
+    "why_frozen_now": "the scope of a negative claim is exactly where overreach is tempting once the number is in hand. Combined with C4, a negative closes the six legal-state partitions and the opponent-label route under this utility -- and nothing wider."
+  },
+
+  "immutability": "After any C5 number exists, none of the above may change."
+}
