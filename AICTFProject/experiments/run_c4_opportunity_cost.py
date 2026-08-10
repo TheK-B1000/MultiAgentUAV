@@ -300,9 +300,18 @@ def main() -> int:
     # Confirmation uses the unspent block; the frozen discovery block stays the
     # default so no caller silently lands on the wrong seeds.
     base = int(args.seed_base) if args.seed_base else int(frozen["seeds"]["discovery_block"][0])
-    if args.seed_base and int(args.seed_base) != int(frozen["seeds"]["confirmation_block"][0]):
-        raise SystemExit(f"--seed-base {args.seed_base} is neither the frozen discovery nor "
-                         f"confirmation block; refusing to run on unfrozen seeds")
+    if args.seed_base:
+        # A seed base is legal only if some frozen file already names it. This is
+        # what stops a caller from quietly evaluating on unfrozen seeds.
+        allowed = {int(frozen["seeds"]["discovery_block"][0]),
+                   int(frozen["seeds"]["confirmation_block"][0])}
+        obs = PROJECT_ROOT / "artifacts/c5_preregistration/OBSERVABILITY_TEST_FROZEN.json"
+        if obs.exists():
+            allowed.add(int(json.loads(obs.read_text(encoding="utf-8"))
+                            ["seeds"]["evaluation_block"][0]))
+        if int(args.seed_base) not in allowed:
+            raise SystemExit(f"--seed-base {args.seed_base} is named by no frozen file "
+                             f"(allowed: {sorted(allowed)}); refusing unfrozen seeds")
     from experiments.run_c3_decision_proximal_discovery import _load_runtime_contract
     from experiments.run_g0_v2_evaluation import resolve_cnn_channels
     from experiments.run_g0_v2_seed import OPPONENTS
