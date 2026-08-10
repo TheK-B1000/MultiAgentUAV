@@ -166,6 +166,13 @@ def collect_states(policy, *, opponent, seed, device, contract, max_states):
                         "episode_key": f"{requested}:{seed}",
                         "step": step_i,
                         "classes": {k: f(ctx) for k, f in PARTITIONS.items()},
+                        # Full legal_context vector, not just the six partition
+                        # labels derived from it. The frozen observability test
+                        # fits its legal-selector on exactly these fields, and
+                        # recovering them later would cost a full re-rollout.
+                        # Pure instrumentation: recorded, never acted on here.
+                        "legal_context": {k: (float(v) if isinstance(v, (bool, int, float))
+                                              else v) for k, v in ctx.items()},
                         "utilities": {str(k): v for k, v in util.items()},
                     })
             # Once max_states is reached no further append is possible -- the
