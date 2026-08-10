@@ -256,6 +256,8 @@ def main() -> int:
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--max-states-per-episode", type=int, default=2)
     ap.add_argument("--out", default=str(RESULT))
+    ap.add_argument("--policies", default="", help="comma-separated subset of policy seeds")
+    ap.add_argument("--opponents", default="", help="comma-separated subset of opponents")
     ap.add_argument("--partition-mode", choices=("state", "opponent"), default="state",
                     help="state = C4 six frozen partitions; opponent = C5 opponent pairs")
     ap.add_argument("--states-out", default="", help="persist raw states for re-analysis")
@@ -285,15 +287,20 @@ def main() -> int:
     print("=" * 74)
 
     started = time.time()
+    # Subsetting changes only WHICH cells this process computes, never how any
+    # cell is computed: collect_states builds a fresh env seeded per (opponent,
+    # seed), so a cell's states do not depend on which other cells ran.
+    sel_pol = [int(x) for x in args.policies.split(",") if x.strip()] or list(G0_SEEDS)
     states_by_policy = {}
-    for pseed in G0_SEEDS:
+    for pseed in sel_pol:
         tag = f"g0_v5_long_seed{pseed}"
         ck = PROJECT_ROOT / "artifacts" / "g0_v5_long" / tag / "ckpts" / f"final_{tag}.zip"
         payload = read_checkpoint_payload(str(ck), map_location="cpu")
         pol = load_policy(str(ck), device=args.device,
                           num_cnn_channels=resolve_cnn_channels(payload, context=str(ck)))
         rows = []
-        for opp in OPPONENTS:
+        sel_opp = [x for x in args.opponents.split(",") if x.strip()] or list(OPPONENTS)
+        for opp in sel_opp:
             for i in range(args.episodes):
                 rows += collect_states(pol, opponent=opp, seed=base + i, device=args.device,
                                        contract=contract, max_states=args.max_states_per_episode)
