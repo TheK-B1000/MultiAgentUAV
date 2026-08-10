@@ -16,11 +16,14 @@ import argparse
 import hashlib
 import json
 import subprocess
+import sys
 from pathlib import Path
 
-import experiments.run_c4_opportunity_cost as M
-
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import experiments.run_c4_opportunity_cost as M  # noqa: E402
 C4_FROZEN = ROOT / "artifacts/c4_preregistration/C4_OPPORTUNITY_COST_FROZEN.json"
 C5_FROZEN = ROOT / "artifacts/c5_preregistration/C5_OPPONENT_DEMAND_FROZEN.json"
 C5_AMEND = ROOT / "artifacts/c5_preregistration/C5_RANKING_AMENDMENT.json"
