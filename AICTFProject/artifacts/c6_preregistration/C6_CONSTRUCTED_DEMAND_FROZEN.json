@@ -1,5 +1,5 @@
 {
-  "preregistration": "C6 — constructed strategic demand from two opponent families",
+  "preregistration": "C6 \u2014 constructed strategic demand from two opponent families",
   "status": "FROZEN",
   "authored_utc": "2026-08-10T20:30:00Z",
   "frozen_before": "any C6 opponent profile is implemented or any C6 rollout exists",
@@ -7,17 +7,14 @@
     "artifacts/c4_discovery/C4_RESULT.json (C4_NO_REVERSAL, six legal-state partitions)",
     "artifacts/c5_discovery/C5_RESULT.json (C5_NO_REVERSAL, 21 opponent pairs, 55cf5e7)"
   ],
-
   "the_question": "Can a small, preregistered opponent mixture induce a genuine preference reversal between two legal team responses, WITHOUT specifying in advance which response should win against which family?",
-
   "why_this_follows_from_two_negatives": {
     "what_c4_closed": "no reversal across six legal STATE partitions under this utility",
     "what_c5_closed": "no reversal across the 21 opponent pairs of the admitted OP6-OP12 mixture under this utility",
     "the_diagnosis": "the existing task supplies actionable corrections without opportunity cost, so one generalist absorbs every improvement and a second policy earns nothing",
     "the_change": "stop searching the existing world for a tradeoff and CONSTRUCT one. This is legitimate only because the tradeoff is still DISCOVERED by the scanner, never asserted by the design.",
-    "an_observation_that_motivated_the_family_choice": "the admitted mixture OP6-OP12 is OP6_TURTLE, OP7_DEEP_FORTRESS, OP8_INTERCEPTOR, OP9_SPLIT_LANE_FEINT, OP10_ESCORT, OP11_BT_BALANCED, OP12_COUNTER. It contains no sustained attacker -- OP5_RUSHER is excluded from the mixture. A roster with no opponent that punishes passivity cannot generate a passivity/aggression tradeoff, which is a plausible mechanical reason C5 found nothing."
+    "an_observation_that_motivated_the_family_choice": "CORRECTED \u2014 see C6_ERRATUM_ROSTER_CHARACTERIZATION.json. Every member of the admitted mixture sets enable_defender=True with min_alive_for_defender of 2 or 3; not one ever abandons its own half. The mixture varies mainly in how hard it contests blue's advance (intercept_block_base 0.40-0.88) and whether it counters at all (2 of 7). The roster therefore does not span the defensive-allocation axis C6 separates its families along. This is a plausible MECHANICAL explanation for C5_NO_REVERSAL, not a demonstrated one."
   },
-
   "design_principle": {
     "target": "a conflict in INCENTIVES, not a particular (R1, R2) reversal",
     "must_preregister": [
@@ -33,7 +30,6 @@
     ],
     "why": "naming the winning response in advance would make the scan a confirmation of the design rather than a discovery about the game. The families are built to create tension; the scanner decides whether tension produced a reversal."
   },
-
   "family_A": {
     "handle": "C6A_PUNISH_EXPOSURE",
     "intended_pressure": "punishes blue forward commitment by exploiting the home side blue leaves uncovered",
@@ -41,17 +37,16 @@
       "counter_always": true,
       "counter_when_trailing": true,
       "enable_counter": true,
-      "lock_counter": "long — once committed to the counter-attack it does not re-deliberate quickly",
+      "lock_counter": "long \u2014 once committed to the counter-attack it does not re-deliberate quickly",
       "enable_defender": false,
       "min_alive_for_defender": "set so no agent is held back for defence",
       "enable_flag_retr": true,
       "enable_intercept": false,
-      "intercept_block_base": "low — it does not contest blue's advance, it trades",
-      "threat_radius": "small — it is not drawn into defending its own half"
+      "intercept_block_base": "low \u2014 it does not contest blue's advance, it trades",
+      "threat_radius": "small \u2014 it is not drawn into defending its own half"
     },
     "mechanism": "it declines to contest blue's push and instead races for blue's flag whenever blue's agents are forward. Blue pays for commitment in conceded scores rather than in blocked advances."
   },
-
   "family_B": {
     "handle": "C6B_PUNISH_PASSIVITY",
     "intended_pressure": "punishes conservative, home-heavy blue play by applying sustained offensive pressure and denying progress",
@@ -59,35 +54,38 @@
       "enable_flag_retr": true,
       "counter_always": false,
       "enable_intercept": true,
-      "intercept_block_base": "high — blue's slow advances are denied",
+      "intercept_block_base": "high \u2014 blue's slow advances are denied",
       "intercept_feasibility_ratio": "permissive, so it contests marginal intercepts",
       "enable_2v1": true,
       "enable_escort": true,
       "escort_interpose": true,
       "enable_defender": true,
-      "defender_zone_frac": "small — defenders sit tight to home and do not roam",
-      "lock_attacker": "long — sustained pressure rather than oscillation"
+      "defender_zone_frac": "small \u2014 defenders sit tight to home and do not roam",
+      "lock_attacker": "long \u2014 sustained pressure rather than oscillation"
     },
     "mechanism": "it attacks continuously regardless of what blue does and denies blue's unhurried buildup, so a blue that holds position loses on score rather than on position."
   },
-
   "why_these_oppose": {
     "statement": "Against Family A, forward commitment is expensive because the cost is a conceded score behind you. Against Family B, holding position is expensive because B scores while blue waits and denies blue's slow advances. A single blue commitment level cannot be simultaneously cheap against both.",
     "what_this_does_not_assume": "that any SPECIFIC legal team response encodes 'commit forward' or 'hold'. The mapping from responses to commitment is unknown and is exactly what the scan may or may not reveal.",
     "falsifiable": "if the constructed tension is real but no response pair expresses it, C6 returns NO_REVERSAL and the design is abandoned rather than tuned."
   },
-
   "stage_1_mechanical_validation": {
     "purpose": "confirm each family EXPRESSES the intended pressure. No strategy claim, no reversal claim.",
-    "seed_block": [9870000, 9870029],
+    "seed_block": [
+      9870000,
+      9870029
+    ],
     "family_A_must_show": "counter-attack initiation rate RISES with blue agents_forward; measured, preregistered direction",
     "family_B_must_show": "offensive pressure sustained and NOT conditional on blue commitment; blue advance-denial rate exceeds the OP6-OP12 mixture mean",
     "fail_action": "if a family does not express its intended pressure, its PROFILE may be corrected and Stage 1 re-run. This is engineering, not science: no reversal or utility number exists at Stage 1, and Stage 2 has not been touched.",
     "hard_boundary": "once Stage 2 begins, no profile may change for any reason. A family that fails Stage 2 is abandoned, never retuned."
   },
-
   "stage_2_reversal_discovery": {
-    "seed_block": [9880000, 9880029],
+    "seed_block": [
+      9880000,
+      9880029
+    ],
     "status": "UNSPENT",
     "scanner": "the C5 gated parallel scanner, reused unchanged",
     "inherited_unchanged": {
@@ -95,25 +93,30 @@
       "ruleset": "OURS / V2_RULES",
       "utility": "carrier_survival, horizon 30, SCREEN PROXY",
       "response_enumeration": "EXHAUSTIVE within every state",
-      "delta": 0.10,
+      "delta": 0.1,
       "statistics": "episode-clustered bootstrap, 2000 resamples, seed 12345, LCB95 = q_0.025",
       "support_minima": 30,
       "replication": ">=2 of 3 G0 policies",
       "both_orientations_tested": true,
       "pair_must_be_legal_on_both_sides": true,
-      "ranking": "min(lcb95_A, lcb95_B) descending, then higher min-support, then lexicographic — per C5_RANKING_AMENDMENT.json"
+      "ranking": "min(lcb95_A, lcb95_B) descending, then higher min-support, then lexicographic \u2014 per C5_RANKING_AMENDMENT.json"
     },
     "pairs_examined": "one family pair (A vs B). Unlike C5's 21, there is a single opponent pair, so the multiplicity is only over response pairs.",
-    "policies": [3200001, 3200002, 3200003]
+    "policies": [
+      3200001,
+      3200002,
+      3200003
+    ]
   },
-
   "stage_3_confirmation": {
-    "seed_block": [9890000, 9890029],
+    "seed_block": [
+      9890000,
+      9890029
+    ],
     "status": "UNSPENT",
     "rule": "tests only the single top-ranked Stage-2 candidate, under the identical criterion, with no search",
     "runner": "experiments/run_c5_confirmation.py, reused"
   },
-
   "outcomes": {
     "C6_PASS": {
       "condition": "a response pair reverses per the criterion in >=2/3 policies at Stage 2 AND replicates at Stage 3",
@@ -128,14 +131,12 @@
       "explicitly_prohibited": "iterating opponent designs until one passes. Each opponent design gets ONE Stage-2 attempt."
     }
   },
-
   "code_safety_requirements": {
     "additive_only": "C6 profiles are NEW entries. No existing OP5-OP12 profile, alias, or level mapping may be modified.",
     "regression_gate": "before any C6 rollout, a test must assert that profile_for_opponent_key returns byte-identical BTProfile objects for OP5-OP12 as on commit 55cf5e7. Any change to an existing profile would silently invalidate G0 training, C3, C4, C5 and every prior artifact.",
     "not_added_to_the_permanent_board": "C6A and C6B are experimental fixtures for this preregistration. They are NOT added to run_g0_v2_seed.OPPONENTS and are not OP13/OP14. Promotion to the permanent roster is a separate decision, only if the experiment proves them useful.",
     "training_pool_untouched": "no G0 policy is retrained and no training opponent pool changes. The three frozen G0 policies are evaluated against the new families exactly as they are."
   },
-
   "prohibited": [
     "preregistering which response should win against which family",
     "modifying a family profile after Stage 2 begins",
@@ -147,6 +148,6 @@
     "training any oracle before the observability test",
     "claiming a task-outcome tradeoff from a carrier_survival screen proxy"
   ],
-
-  "immutability": "After any Stage-2 number exists, none of the above may change."
+  "immutability": "After any Stage-2 number exists, none of the above may change.",
+  "erratum": "The original motivating sentence misread OPPONENT_SYNONYMS' deprecated side as canonical (OP6_TURTLE is an alias for OP6_IMMEDIATE_DUAL_RUSH). Corrected before any C6 profile was implemented or any C6 number existed. See C6_ERRATUM_ROSTER_CHARACTERIZATION.json."
 }
