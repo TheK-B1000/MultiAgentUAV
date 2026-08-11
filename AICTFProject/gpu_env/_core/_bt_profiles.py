@@ -32,6 +32,8 @@ OPPONENT_ALIASES: Dict[str, str] = {
     "OP10": "OP10_AGGRESSIVE_INTERCEPTOR",
     "OP11": "OP11_ADAPTIVE_EXPLOITER",
     "OP12": "OP12_LATE_CONVERTER",
+    "C6A": "C6A_PUNISH_EXPOSURE",
+    "C6B": "C6B_PUNISH_PASSIVITY",
 }
 
 # Historical long names that share an audited niche (same BT profile).
@@ -74,6 +76,8 @@ _CANONICAL_TO_LEVEL: Dict[str, int] = {
     "OP10_AGGRESSIVE_INTERCEPTOR": 10,
     "OP11_ADAPTIVE_EXPLOITER": 11,
     "OP12_LATE_CONVERTER": 12,
+    "C6A_PUNISH_EXPOSURE": 13,
+    "C6B_PUNISH_PASSIVITY": 14,
 }
 
 
@@ -373,6 +377,71 @@ BT_PROFILES: Dict[int, BTProfile] = {
         defender_zone_frac=0.14,
         late_game_evasion_unlock=True,
         adaptive_enabled=True,
+    ),
+    # ---- C6 experimental fixtures (artifacts/c6_preregistration, 86a853f) ----
+    # NOT part of the permanent board and NOT in run_g0_v2_seed.OPPONENTS.
+    # Separated along the defensive-allocation axis the admitted OP6-OP12
+    # mixture does not span: every existing profile sets enable_defender=True
+    # with min_alive_for_defender 2-3, so none ever abandons its own half.
+    #
+    # C6A trades its own defence away to punish blue exposure: it declines to
+    # contest blue's advance and races for the flag blue left uncovered.
+    13: _profile(
+        13,
+        "C6A_PUNISH_EXPOSURE",
+        enable_flag_retr=True,
+        enable_escort=False,
+        enable_intercept=False,
+        enable_counter=True,
+        counter_always=True,
+        counter_when_trailing=True,
+        enable_defender=False,
+        enable_2v1=False,
+        enable_mines=False,
+        lock_counter=32,
+        lock_flag_retr=18,
+        lock_attacker=10,
+        threat_radius=4.0,
+        lane_amplitude_frac=0.24,
+        intercept_block_base=0.10,
+        intercept_block_trailing_bonus=0.0,
+        defender_zone_frac=0.05,
+        min_alive_for_defender=99,
+        intercept_feasibility_ratio=0.99,
+        late_game_evasion_unlock=False,
+        adaptive_enabled=False,
+    ),
+    # C6B applies sustained pressure and denies slow advances, so a blue that
+    # holds position loses on score rather than on position.
+    14: _profile(
+        14,
+        "C6B_PUNISH_PASSIVITY",
+        enable_flag_retr=True,
+        enable_escort=True,
+        enable_intercept=True,
+        enable_counter=True,
+        counter_always=False,
+        counter_when_trailing=False,
+        enable_defender=True,
+        enable_2v1=True,
+        enable_mines=False,
+        escort_interpose=True,
+        escort_perpendicular_fallback=False,
+        lock_counter=8,
+        lock_escort=16,
+        lock_intercept=18,
+        lock_flag_retr=20,
+        lock_defender=10,
+        lock_attacker=20,
+        threat_radius=13.0,
+        lane_amplitude_frac=0.30,
+        intercept_block_base=0.92,
+        intercept_block_trailing_bonus=0.06,
+        defender_zone_frac=0.08,
+        min_alive_for_defender=2,
+        intercept_feasibility_ratio=0.60,
+        late_game_evasion_unlock=False,
+        adaptive_enabled=False,
     ),
 }
 

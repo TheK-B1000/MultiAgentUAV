@@ -1,0 +1,147 @@
+{
+  "OP10": {
+    "canonical": "OP10_AGGRESSIVE_INTERCEPTOR",
+    "is_bt": true,
+    "level": 10
+  },
+  "OP10_ESCORT": {
+    "canonical": "OP10_AGGRESSIVE_INTERCEPTOR",
+    "is_bt": true,
+    "level": 10
+  },
+  "OP10_INTERCEPTOR": {
+    "canonical": "OP10_AGGRESSIVE_INTERCEPTOR",
+    "is_bt": true,
+    "level": 10
+  },
+  "OP11": {
+    "canonical": "OP11_ADAPTIVE_EXPLOITER",
+    "is_bt": true,
+    "level": 11
+  },
+  "OP11_BT_BALANCED": {
+    "canonical": "OP11_ADAPTIVE_EXPLOITER",
+    "is_bt": true,
+    "level": 11
+  },
+  "OP11_EXPLOITER": {
+    "canonical": "OP11_ADAPTIVE_EXPLOITER",
+    "is_bt": true,
+    "level": 11
+  },
+  "OP12": {
+    "canonical": "OP12_LATE_CONVERTER",
+    "is_bt": true,
+    "level": 12
+  },
+  "OP12_CONVERTER": {
+    "canonical": "OP12_LATE_CONVERTER",
+    "is_bt": true,
+    "level": 12
+  },
+  "OP12_COUNTER": {
+    "canonical": "OP12_LATE_CONVERTER",
+    "is_bt": true,
+    "level": 12
+  },
+  "OP5": {
+    "canonical": "OP5_RUSHER",
+    "is_bt": true,
+    "level": 5
+  },
+  "OP6": {
+    "canonical": "OP6_IMMEDIATE_DUAL_RUSH",
+    "is_bt": true,
+    "level": 6
+  },
+  "OP6_DUAL_RUSH": {
+    "canonical": "OP6_IMMEDIATE_DUAL_RUSH",
+    "is_bt": true,
+    "level": 6
+  },
+  "OP6_TURTLE": {
+    "canonical": "OP6_IMMEDIATE_DUAL_RUSH",
+    "is_bt": true,
+    "level": 6
+  },
+  "OP7": {
+    "canonical": "OP7_DEEP_FORTRESS",
+    "is_bt": true,
+    "level": 7
+  },
+  "OP7_FORTRESS": {
+    "canonical": "OP7_DEEP_FORTRESS",
+    "is_bt": true,
+    "level": 7
+  },
+  "OP7_SWITCHER": {
+    "canonical": "OP7_DEEP_FORTRESS",
+    "is_bt": true,
+    "level": 7
+  },
+  "OP8": {
+    "canonical": "OP8_PROTECTED_CARRIER_ESCORT",
+    "is_bt": true,
+    "level": 8
+  },
+  "OP8_ESCORT": {
+    "canonical": "OP8_PROTECTED_CARRIER_ESCORT",
+    "is_bt": true,
+    "level": 8
+  },
+  "OP8_INTERCEPTOR": {
+    "canonical": "OP8_PROTECTED_CARRIER_ESCORT",
+    "is_bt": true,
+    "level": 8
+  },
+  "OP9": {
+    "canonical": "OP9_SPLIT_LANE_FEINT",
+    "is_bt": true,
+    "level": 9
+  },
+  "OP9_FEINT": {
+    "canonical": "OP9_SPLIT_LANE_FEINT",
+    "is_bt": true,
+    "level": 9
+  },
+  "OP9_FORTRESS": {
+    "canonical": "OP9_SPLIT_LANE_FEINT",
+    "is_bt": true,
+    "level": 9
+  },
+  "_ALIASES": {
+    "OP10": "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11": "OP11_ADAPTIVE_EXPLOITER",
+    "OP12": "OP12_LATE_CONVERTER",
+    "OP5": "OP5_RUSHER",
+    "OP6": "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7": "OP7_DEEP_FORTRESS",
+    "OP8": "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9": "OP9_SPLIT_LANE_FEINT"
+  },
+  "_LRO_POOL": [
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7_DEEP_FORTRESS",
+    "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_SPLIT_LANE_FEINT",
+    "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11_ADAPTIVE_EXPLOITER",
+    "OP12_LATE_CONVERTER"
+  ],
+  "_SYNONYMS": {
+    "OP10_ESCORT": "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP10_INTERCEPTOR": "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11_BT_BALANCED": "OP11_ADAPTIVE_EXPLOITER",
+    "OP11_EXPLOITER": "OP11_ADAPTIVE_EXPLOITER",
+    "OP12_CONVERTER": "OP12_LATE_CONVERTER",
+    "OP12_COUNTER": "OP12_LATE_CONVERTER",
+    "OP6_DUAL_RUSH": "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP6_TURTLE": "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7_FORTRESS": "OP7_DEEP_FORTRESS",
+    "OP7_SWITCHER": "OP7_DEEP_FORTRESS",
+    "OP8_ESCORT": "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP8_INTERCEPTOR": "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_FEINT": "OP9_SPLIT_LANE_FEINT",
+    "OP9_FORTRESS": "OP9_SPLIT_LANE_FEINT"
+  }
+}
