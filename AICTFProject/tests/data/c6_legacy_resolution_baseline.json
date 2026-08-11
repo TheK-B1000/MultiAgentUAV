@@ -119,6 +119,16 @@
     "OP8": "OP8_PROTECTED_CARRIER_ESCORT",
     "OP9": "OP9_SPLIT_LANE_FEINT"
   },
+  "_DISPATCH_LEVELS_AT_55cf5e7": {
+    "OP10": 10,
+    "OP11": 11,
+    "OP12": 12,
+    "OP5": null,
+    "OP6": 6,
+    "OP7": 7,
+    "OP8": 8,
+    "OP9": 9
+  },
   "_LRO_POOL": [
     "OP6_IMMEDIATE_DUAL_RUSH",
     "OP7_DEEP_FORTRESS",

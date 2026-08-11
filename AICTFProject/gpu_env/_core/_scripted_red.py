@@ -13,10 +13,18 @@ from .._paths import _resolve_snapshot_path
 from ._bt_profiles import canonicalize_opponent_key, normalize_bt_level
 
 
+BT_DISPATCH_MIN_LEVEL = 6
+# 13/14 are the C6 experimental families. Without this bound they resolve to a
+# profile but never reach the BT brain, fall through to the legacy scripted red,
+# and behave IDENTICALLY to each other -- which is exactly how C6 Stage 1 first
+# failed. OP5 (level 5) still returns None, as before.
+BT_DISPATCH_MAX_LEVEL = 14
+
+
 def bt_dispatch_level_for_opponent_key(opponent_key: str) -> int | None:
-    """Return BT dispatch level for audited OP6-OP12 keys, else None."""
+    """Return BT dispatch level for BT-brain keys (OP6-OP12, C6A/C6B), else None."""
     level = normalize_bt_level(opponent_key)
-    if level is None or level < 6 or level > 12:
+    if level is None or level < BT_DISPATCH_MIN_LEVEL or level > BT_DISPATCH_MAX_LEVEL:
         return None
     return int(level)
 
@@ -206,10 +214,25 @@ class _ScriptedRedMixin:
             op11_mask = torch.zeros((B,), device=device, dtype=torch.bool)
             op12_mask = torch.zeros((B,), device=device, dtype=torch.bool)
 
+        # C6 experimental families (levels 13/14). bt_active below is an explicit
+        # per-level OR, so a new level resolves to a profile, passes every
+        # identity check, and STILL never reaches the BT brain -- it falls through
+        # to legacy scripted red and behaves identically to every other such
+        # family. That is exactly how C6 Stage 1 failed twice. Keyed on
+        # >= 13 so the legacy OR-terms are untouched.
+        if not is_blue:
+            c6_mask = torch.as_tensor(
+                [level is not None and level >= 13 for level in bt_dispatch_levels],
+                device=device,
+                dtype=torch.bool,
+            )
+        else:
+            c6_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+
         # OP6-OP12: behavior-tree brain — runs before scripted fallback and
         # overwrites targets for masked environment rows only.
         # OP5 remains legacy scripted for the split-lane-v2 compatibility path.
-        bt_active = (op6_mask | op7_mask | op8_mask | op9_mask | op10_mask | op11_mask | op12_mask) if not is_blue else torch.zeros((B,), device=device, dtype=torch.bool)
+        bt_active = (op6_mask | op7_mask | op8_mask | op9_mask | op10_mask | op11_mask | op12_mask | c6_mask) if not is_blue else torch.zeros((B,), device=device, dtype=torch.bool)
         # Pre-allocate BT targets using self.Nr (always red-agent count).
         _bt_N = self.Nr
         bt_tx = torch.zeros((B, _bt_N), dtype=torch.float32, device=device)
