@@ -52,15 +52,24 @@ def main() -> int:
     ap.add_argument("--threads", type=int, default=4)
     args = ap.parse_args()
 
+    import experiments.run_g0_v2_evaluation as E
     import experiments.run_g0_v5_long as G
 
-    # Rebind the three globals. build_config() and main() read these at call
-    # time, so the whole frozen pipeline follows without being duplicated.
+    # TRAINING side.
     G.AGENTS = C7_AGENTS
     G.G0V5_SEEDS = C7_SEEDS
     G.ABLATION_SEEDS = C7_SEEDS
     G.run_tag_for = _run_tag
     G.artifact_dir_for = _artifact_dir
+
+    # EVALUATION side. run_validation_panel calls run_g0_v2_evaluation.
+    # run_eval_episode, which builds its env from that module's OWN AGENTS
+    # global -- a separate binding from G.AGENTS. Patching only the training
+    # side trains a 4-agent policy and then evaluates it in a 2v2 env, which
+    # raises "grid must have shape (B, 4, 7, 20, 20), got (1, 2, 7, 20, 20)"
+    # and yields TASK_HEALTH=ERROR at every panel. That is unmeasurable rather
+    # than failing, so Stage 0's gate could never be evaluated.
+    E.AGENTS = C7_AGENTS
 
     print("=" * 78)
     print(f"C7 STAGE 0 — 4v4 BASELINE  seed={args.seed}")

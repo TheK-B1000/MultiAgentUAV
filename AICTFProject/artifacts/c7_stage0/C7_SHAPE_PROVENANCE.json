@@ -1,43 +1,107 @@
 {
-  "record": "C7 Stage 0 — team-size shape provenance",
+  "record": "C7 Stage 0 \u2014 team-size shape provenance",
   "purpose": "prove the 4v4 arm is 4v4 on BOTH the environment side and the model side, so nobody later has to ask whether only the environment changed while some model-side assumption stayed at two agents",
   "captured_utc": "2026-08-11T01:05:00Z",
   "captured_before": "the first C7 checkpoint exists; training was at ~6k steps",
-
   "what_same_architecture_means_here": {
     "same": "architecture DESIGN and hyperparameters -- layer widths, CNN feature dim, actor/critic structure, PPO hyperparameters, reward, opponent pool, budget",
     "necessarily_different": "the input tensor layout. A 4-agent model must accept the 4-agent grid that the 2v2 checkpoint explicitly rejects.",
     "the_2v2_rejection_that_forced_this": "loading G0-V5 into a 4v4 env raises 'grid must have shape (B, 2, 7, 20, 20), got (1, 4, 7, 20, 20)'. That error is the reason C7 trains its own baseline rather than adapting the control."
   },
-
   "environment_shapes_measured": {
-    "2v2_control": {"blue_pos": [1, 2, 2], "red_pos": [1, 2, 2], "obs_grid": [1, 2, 8, 20, 20]},
-    "4v4_treatment": {"blue_pos": [1, 4, 2], "red_pos": [1, 4, 2], "obs_grid": [1, 4, 8, 20, 20]},
+    "2v2_control": {
+      "blue_pos": [
+        1,
+        2,
+        2
+      ],
+      "red_pos": [
+        1,
+        2,
+        2
+      ],
+      "obs_grid": [
+        1,
+        2,
+        8,
+        20,
+        20
+      ]
+    },
+    "4v4_treatment": {
+      "blue_pos": [
+        1,
+        4,
+        2
+      ],
+      "red_pos": [
+        1,
+        4,
+        2
+      ],
+      "obs_grid": [
+        1,
+        4,
+        8,
+        20,
+        20
+      ]
+    },
     "reading": "both teams scale together. Red mirrors blue because rl/training/env_factory derives max_agents from cfg.max_blue_agents, so 4v4 is genuinely 4-on-4 rather than 4-on-2.",
     "agent_axis": "dimension 1 of obs_grid is the per-agent axis and moves 2 -> 4; the 8 channels and 20x20 spatial extent are unchanged"
   },
-
   "training_config_diff_vs_G0_V5": {
     "max_blue_agents": "2 -> 4",
     "everything_else_verified_identical": {
       "total_timesteps": 1000000,
-      "opponent_pool": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+      "opponent_pool": [
+        "OP6",
+        "OP7",
+        "OP8",
+        "OP9",
+        "OP10",
+        "OP11",
+        "OP12"
+      ],
       "map_layout": "map_a",
       "reward": "inherited from run_g0_v5_long unchanged",
       "health_gates": "TASK_HEALTH + SYSTEM_HEALTH, G0-V5 standard"
     },
     "how_that_is_guaranteed": "run_c7_stage0_4v4 does not reimplement training. It imports run_g0_v5_long and rebinds three globals (AGENTS, the seed set, the artifact paths), so every other constant is inherited rather than transcribed."
   },
-
   "policy_head_comparison": {
-    "status": "PENDING — completes at the first C7 checkpoint (100k steps)",
-    "2v2_trained": {"latent_actor.action_head.weight": [55, 256], "latent_actor.action_head.bias": [55]},
-    "what_to_check": "if the 4v4 action head is also [55, 256], per-agent policy sharing is unchanged and the extra agents are handled by the agent axis rather than by a widened head. A widened head would mean the manipulation also changed the policy parameterisation, which C7 does not intend.",
-    "why_not_asserted_now": "the model builder entry point was not resolved without touching the running job. Reading it from the real checkpoint is better evidence than reconstructing a model anyway."
+    "status": "CONFIRMED from the real 100k checkpoint of seed 3300001",
+    "2v2_trained": {
+      "latent_actor.action_head.weight": [
+        55,
+        256
+      ],
+      "latent_actor.action_head.bias": [
+        55
+      ]
+    },
+    "4v4_trained": {
+      "latent_actor.action_head.weight": [
+        55,
+        256
+      ],
+      "latent_actor.action_head.bias": [
+        55
+      ]
+    },
+    "identical": true,
+    "checkpoint_cfg_max_blue_agents": 4,
+    "reading": "the head is unchanged, so the extra agents ride the per-agent axis rather than a widened head. Team size did not change the policy parameterisation, which is what C7 requires."
   },
-
   "policy_sharing": {
-    "expected": "unchanged — per-agent shared head applied across the agent axis",
-    "status": "to be confirmed by the head comparison above, not assumed"
+    "status": "CONFIRMED unchanged",
+    "evidence": "identical action_head shapes across arms"
+  },
+  "evaluation_side_agent_count": {
+    "defect_found": "run_validation_panel builds its env from run_g0_v2_evaluation.AGENTS, a SEPARATE binding from the training module's AGENTS. Patching only training produced a 4-agent policy evaluated in a 2v2 env.",
+    "symptom": "TASK_HEALTH=ERROR with every metric None at the 100k panel, while SYSTEM_HEALTH=PASS and training itself was healthy (ev=0.586)",
+    "why_that_is_not_a_competence_failure": "an ERROR is an unmeasurable gate, not a failing policy. Applying fail-fast to it would have closed Stage 0 on a plumbing bug.",
+    "fix": "run_c7_stage0_4v4 now rebinds run_g0_v2_evaluation.AGENTS as well",
+    "verified": "the same 4v4 checkpoint fails the panel at AGENTS=2 and succeeds at AGENTS=4, with telemetry reporting max_agents_forward=4"
   }
 }
