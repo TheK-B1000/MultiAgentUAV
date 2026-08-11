@@ -279,6 +279,8 @@ def main() -> int:
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--max-states-per-episode", type=int, default=2)
     ap.add_argument("--out", default=str(RESULT))
+    ap.add_argument("--opponent-set", default="historical",
+                    choices=("historical", "srctf"))
     ap.add_argument("--seed-base", type=int, default=0,
                     help="override seed block; must equal the frozen confirmation block")
     ap.add_argument("--policies", default="", help="comma-separated subset of policy seeds")
@@ -314,7 +316,10 @@ def main() -> int:
                              f"(allowed: {sorted(allowed)}); refusing unfrozen seeds")
     from experiments.run_c3_decision_proximal_discovery import _load_runtime_contract
     from experiments.run_g0_v2_evaluation import resolve_cnn_channels
-    from experiments.run_g0_v2_seed import OPPONENTS
+    # Opponent set is INJECTED from a canonical registry rather than hardcoded.
+    # Order is frozen there because cell order defines the parallel merge order.
+    from srctf.opponent_sets import get as _opponent_set
+    OPPONENTS = _opponent_set(args.opponent_set)
     from rl.custom_ppo.checkpoints.loader import read_checkpoint_payload
     from rl.evaluation.checkpoint import load_policy
 

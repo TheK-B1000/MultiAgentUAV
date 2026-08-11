@@ -37,6 +37,8 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=11)
     ap.add_argument("--shard-dir", default=str(ROOT / "artifacts/c5_discovery/shards"))
     ap.add_argument("--states-out", default=str(ROOT / "artifacts/c5_discovery/states.json"))
+    ap.add_argument("--opponent-set", default="historical",
+                    choices=("historical", "srctf"))
     ap.add_argument("--seed-base", type=int, default=0,
                     help="0 = frozen discovery block; else must be the frozen confirmation block")
     ap.add_argument("--only-opponents", default="",
@@ -45,8 +47,8 @@ def main() -> int:
     ap.add_argument("--no-merge", action="store_true", help="throughput probing only")
     args = ap.parse_args()
 
-    from experiments.run_g0_v2_seed import OPPONENTS
-    opponents = list(OPPONENTS)
+    from srctf.opponent_sets import get as _opponent_set
+    opponents = list(_opponent_set(args.opponent_set))
 
     shard_dir = Path(args.shard_dir)
     shard_dir.mkdir(parents=True, exist_ok=True)
@@ -83,6 +85,7 @@ def main() -> int:
                    "--episodes", str(args.episodes),
                    "--policies", str(pseed), "--opponents", opp,
                    "--partition-mode", "opponent",
+                   "--opponent-set", args.opponent_set,
                    *(["--seed-base", str(args.seed_base)] if args.seed_base else []),
                    "--out", str(shard_dir / f"res_{pseed}_{opp}.json"),
                    "--states-out", str(sf)]
