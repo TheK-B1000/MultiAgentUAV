@@ -1,0 +1,67 @@
+{
+  "erratum": "SRCTF v1 — quantify the capacity criterion, define attempt validity, and fix opponent naming",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-11T09:40:00Z",
+  "amends": "artifacts/srctf_v1/SRCTF_V1_DESIGN_AND_QUALIFICATION_FROZEN.json (73a1a00)",
+
+  "admissibility": {
+    "no_srctf_map_exists": true,
+    "no_srctf_opponent_implemented": true,
+    "no_srctf_rollout_or_probe_datum_exists": true,
+    "qualification_block_unspent": true,
+    "what_this_changes": "resolves one undefined term, records one already-implied distinction, and fixes a naming scheme",
+    "what_this_does_not_change": "the latent-free acceptance criterion, the four dilemmas, the reward rule, the freeze point, the downstream gate sequence, or the prohibition list"
+  },
+
+  "repair_1_the_capacity_criterion_was_unquantified": {
+    "the_defect": "'the offence/contest correlation must be materially WEAKER than the historical r = -0.898' left 'materially' undefined. Faced with -0.72, -0.60 or -0.40 the experimenter would retain discretion after seeing the result.",
+    "the_frozen_rule": {
+      "statistic": "r_offence_contest = Pearson correlation between offensive_pressure and red_contest_fraction across the SRCTF opponent population, measured exactly as in C6 Stage 1",
+      "AFFORDANCE_CAPACITY_PASS": "r_hat >= -0.70 AND q_0.025(r_bootstrap) > -0.898",
+      "point_threshold_rationale": "-0.70 corresponds to roughly half the shared variance of the historical -0.898 (0.49 vs 0.81). Chosen before any SRCTF number exists.",
+      "ci_condition_rationale": "requires positive evidence that SRCTF differs from the cramped baseline, not merely a point estimate that happens to land higher",
+      "bootstrap": "resample opponents, 2000 resamples, seed 12345, inherited from the C4/C5 contract"
+    },
+    "acknowledged_limitation": "the population is ~6-8 opponents, so the correlation CI will be wide and the CI condition is demanding. That is deliberate: a capacity claim on a handful of opponents SHOULD be hard to make. If the CI condition proves unreachable at this population size, that is a finding about the measurement, and enlarging the population requires its own preregistration -- not a relaxed bar."
+  },
+
+  "repair_2_valid_versus_invalid_attempts": {
+    "why_needed": "ONE_SHOT must not be triggered by a run that never happened scientifically. C6 produced two STAGE1_FAILs in which the opponent profiles resolved correctly, passed every identity check, and never reached the simulator -- the families behaved identically because the BT activation mask enumerated levels. Those were plumbing failures, and treating either as the design's one shot would have closed a design on a bug.",
+    "VALID_attempt": "all reachability preconditions verified, THEN the frozen scanner consumes the qualification block. A failure here permanently closes the design.",
+    "INVALID_attempt": "any run in which a verified plumbing, identity, or trajectory-reachability failure occurred. Scientifically the attempt never began; it does not consume the one shot and does not close the design.",
+    "reachability_preconditions_that_must_pass_FIRST": [
+      "profile identity gate (legacy profiles byte-identical)",
+      "resolution identity gate (canonicalization, levels, membership, tables)",
+      "behavioural trajectory-hash guard: every SRCTF opponent must produce a DISTINCT red trajectory from an identical seed, and none may match a legacy opponent",
+      "dispatch reachability: every SRCTF opponent must actually reach the BT brain"
+    ],
+    "the_boundary": "once those pass and the scanner touches the qualification block, that IS the one shot. Discovering a bug afterwards does not retroactively invalidate a consumed attempt -- which is why the guards run first.",
+    "anti_abuse": "'invalid' requires a VERIFIED mechanical failure with evidence recorded in the artifact. A disappointing result is never grounds for declaring an attempt invalid."
+  },
+
+  "repair_3_opponent_naming": {
+    "the_rule": "SRCTF opponents are named for WHAT THEY DO, with no OP prefix and no numbering",
+    "names": {
+      "RAIDER": "commits strongly forward, exposes home",
+      "FORTRESS": "strong home allocation, weak offensive throughput",
+      "ESCORT": "protects possession, advances deliberately",
+      "SPLIT": "attacks multiple lanes",
+      "INTERCEPTOR": "hunts carriers away from home",
+      "ADAPTIVE": "changes allocation according to score and game state"
+    },
+    "why_this_is_a_safety_improvement_and_not_cosmetic": {
+      "measured": "in the historical roster the type-names are actively WRONG. canonicalize_opponent_key resolves OP9_FORTRESS -> OP9_SPLIT_LANE_FEINT, OP10_ESCORT -> OP10_AGGRESSIVE_INTERCEPTOR, OP8_INTERCEPTOR -> OP8_PROTECTED_CARRIER_ESCORT, and OP6_TURTLE -> OP6_IMMEDIATE_DUAL_RUSH.",
+      "consequence": "reading a name told you the opposite of the behaviour. That is precisely the confusion recorded in C6_ERRATUM_ROSTER_CHARACTERIZATION.json, where I described the mixture from alias names and got it backwards.",
+      "the_structural_fix": "the damage came from the ALIAS/SYNONYM layer, not from bare names. SRCTF names are therefore CANONICAL ONLY -- no aliases, no synonyms, no historical tags. A name resolves to itself or the run aborts."
+    },
+    "required_tests": [
+      "no SRCTF name collides with any historical alias, synonym, canonical name, or SUPPORTED_OPPONENTS entry (verified: zero exact collisions today)",
+      "canonicalize_opponent_key(name) == name for every SRCTF opponent",
+      "no entry is added to OPPONENT_SYNONYMS for any SRCTF opponent",
+      "the name a profile carries matches the mechanics its knobs implement, asserted in the qualification artifact"
+    ],
+    "TURTLE_deliberately_not_used": "reserved historical confusable -- OP6_TURTLE already denotes a dual rush. FORTRESS carries the home-heavy role instead, as a canonical name with no alias."
+  },
+
+  "immutability": "After any SRCTF measurement exists, none of the above may change."
+}
