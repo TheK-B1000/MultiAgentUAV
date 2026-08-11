@@ -1,0 +1,27 @@
+{
+  "record": "C4 opportunity-cost scan",
+  "generated_utc": "2026-08-10T22:18:04Z",
+  "contract_sha256": "5f3a5f3c490188d4bc7ea857907ecf63a1c12c93694f08ecb3fd8725eb692b42",
+  "device": "cuda",
+  "torch": "2.11.0+cu128",
+  "cuda": "12.8",
+  "discovery_block": [
+    9840000,
+    9840029
+  ],
+  "n_states": {
+    "3200001": 60
+  },
+  "verdict": "C4_NO_REVERSAL",
+  "n_replicated_reversals": 0,
+  "replicated": {},
+  "per_policy": {
+    "3200001": {}
+  },
+  "outcome_meaning": {
+    "condition": "no pair satisfies the criterion",
+    "meaning": "the task offers actionable corrections without opportunity cost under these context classes and this utility",
+    "action": "STOP. Do not narrow the O3 trigger, do not train O4, and do not widen the context-class list to keep searching. Escalate to changing strategic demand -- opponents or scenario pressure -- under a new preregistration."
+  },
+  "wall_seconds": 4669.3
+}

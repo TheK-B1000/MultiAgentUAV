@@ -1,0 +1,41 @@
+﻿==============================================================================
+Applied exactly as you scoped it: metric repaired, profiles untouched,
+retain_home not relaxed. Stage 1 is re-running once on 9870000.
+
+red_contest_fraction reads the BT's own bt_red_role telemetry — contesting
+roles being ROLE_DEFENDER and ROLE_INTERCEPTOR — so it measures what red chose
+to do rather than what happened to blue. Existing telemetry, per your
+instruction, not a geometric threshold invented after a failure. I verified it
+discriminates before adopting it: over 60 steps C6A is 100% ATTACKER while C6B
+shows a mixed role distribution. The mixture-relative margin and every check
+direction are unchanged, and the failing artifact stays permanently at 1b3d40b
+— a metric repair must not erase the result that motivated it.
+
+Your reasoning for refusing point 2 is the part I'd have gotten wrong on my
+own. I framed C6B's infeasibility as an obstacle to route around; you're right
+that it's a candidate result. "Cannot hold home and sustain offence
+simultaneously at 2v2" is a statement about the game, and relaxing the
+requirement would have converted a finding into a passing grade.
+
+The two outcomes are now pre-committed, including the distinction you drew:
+
+STAGE1_PASS -> hash and freeze both profiles, launch 9880000 immediately,
+no further "make them more different."
+
+C6_STAGE1_MECHANICAL_INFEASIBLE -> close the family pair. No tuning toward
+the threshold, no Family C. And explicitly not C6_NO_REVERSAL — Stage 2 never
+ran, so nothing is known about reversals. The finding would be "the
+preregistered opposing allocation regimes could not both be mechanically
+instantiated under the 2v2 setup," which motivates testing the agent-space
+hypothesis directly.
+
+That framing is worth the precision. At 2v2 the entire team-allocation space
+is 2/0, 1/1, 0/2 — escort, pressure, home defence, interception and carrier
+support cannibalise each other rather than coexisting. If that's the binding
+constraint, it would also explain C4 and C5, and no amount of opponent design
+fixes it. It remains a hypothesis; Stage 1 infeasibility would be evidence,
+not proof.
+
+I'll report the verdict and, if it passes, go straight to Stage 2 without
+pausing.
+==============================================================================

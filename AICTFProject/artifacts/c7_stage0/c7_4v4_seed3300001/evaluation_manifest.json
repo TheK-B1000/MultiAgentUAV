@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-08-11T10:27:32.883938Z",
+  "evaluation_run_id": "c7_4v4_seed3300001",
+  "source_training_run_id": "c7_4v4_seed3300001",
+  "source_checkpoint_fingerprint": "321f14655934ac19d69d39ecd24952d2a91149f9c7f57ccda091704befb87266",
+  "source_checkpoint_ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "c7_4v4_seed3300001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

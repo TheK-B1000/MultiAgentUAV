@@ -1,0 +1,6 @@
+﻿==============================================================================
+Re-armed on seed 2. 1/1 panel clean so far.
+
+C7 Stage 0 seed 3300002 — live follow (Ctrl+C stops follow only)
+log: artifacts/c7_stage0/seed3300002.log
+==============================================================================
