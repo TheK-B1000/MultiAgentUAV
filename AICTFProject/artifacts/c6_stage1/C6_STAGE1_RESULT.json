@@ -1,0 +1,109 @@
+{
+  "record": "C6 Stage 1 \u2014 mechanical validation",
+  "verdict": "STAGE1_FAIL",
+  "purpose": "confirm each family EXPRESSES the mechanics its profile sets. No strategy or reversal claim is made or implied.",
+  "criteria_declared_before_running": {
+    "margin_vs_mixture_mean": 0.02,
+    "family_A": "offensive_pressure >= mixture AND home_retention < mixture AND blue_denial < mixture",
+    "family_B": "offensive_pressure >= mixture AND home_retention > mixture AND blue_denial > mixture",
+    "note": "each check validates a knob deliberately set, MEASURED rather than inferred from the knob. descriptive_conditional_response is not a criterion."
+  },
+  "family_A_passed": false,
+  "family_A_checks": {
+    "sustains_offence": true,
+    "abandons_home": true,
+    "declines_to_contest": false
+  },
+  "family_B_passed": false,
+  "family_B_checks": {
+    "sustains_offence": false,
+    "retains_home": true,
+    "denies_advance": false
+  },
+  "mixture_reference": {
+    "offensive_pressure_mean": 0.284,
+    "home_retention_mean": 0.8473,
+    "blue_denial_mean": 0.5976,
+    "opponents": [
+      "OP6",
+      "OP7",
+      "OP8",
+      "OP9",
+      "OP10",
+      "OP11",
+      "OP12"
+    ]
+  },
+  "per_opponent": {
+    "C6A": {
+      "n_steps": 1966,
+      "offensive_pressure": 0.4468,
+      "home_retention": 0.7523,
+      "blue_denial": 0.6096,
+      "descriptive_conditional_response": -0.2803
+    },
+    "C6B": {
+      "n_steps": 2658,
+      "offensive_pressure": 0.2596,
+      "home_retention": 0.892,
+      "blue_denial": 0.6053,
+      "descriptive_conditional_response": -0.2281
+    },
+    "OP6": {
+      "n_steps": 1561,
+      "offensive_pressure": 0.4725,
+      "home_retention": 0.7124,
+      "blue_denial": 0.5669,
+      "descriptive_conditional_response": -0.0125
+    },
+    "OP7": {
+      "n_steps": 2880,
+      "offensive_pressure": 0.1248,
+      "home_retention": 0.9639,
+      "blue_denial": 0.6137,
+      "descriptive_conditional_response": -0.0446
+    },
+    "OP8": {
+      "n_steps": 2843,
+      "offensive_pressure": 0.1201,
+      "home_retention": 0.9662,
+      "blue_denial": 0.6214,
+      "descriptive_conditional_response": -0.1053
+    },
+    "OP9": {
+      "n_steps": 2844,
+      "offensive_pressure": 0.2528,
+      "home_retention": 0.8928,
+      "blue_denial": 0.5819,
+      "descriptive_conditional_response": -0.129
+    },
+    "OP10": {
+      "n_steps": 2765,
+      "offensive_pressure": 0.1799,
+      "home_retention": 0.9302,
+      "blue_denial": 0.6031,
+      "descriptive_conditional_response": -0.0284
+    },
+    "OP11": {
+      "n_steps": 2551,
+      "offensive_pressure": 0.2121,
+      "home_retention": 0.9294,
+      "blue_denial": 0.6282,
+      "descriptive_conditional_response": -0.1715
+    },
+    "OP12": {
+      "n_steps": 1422,
+      "offensive_pressure": 0.6259,
+      "home_retention": 0.5359,
+      "blue_denial": 0.5679,
+      "descriptive_conditional_response": 0.0254
+    }
+  },
+  "seed_block": [
+    9870000,
+    9870011
+  ],
+  "policy": 3200001,
+  "stage_2_authorized": false,
+  "on_fail": "the PROFILE may be corrected and Stage 1 re-run. No reversal or utility number exists at Stage 1 and Stage 2 has not been touched."
+}
