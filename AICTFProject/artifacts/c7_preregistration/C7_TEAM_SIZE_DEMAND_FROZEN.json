@@ -1,0 +1,125 @@
+{
+  "preregistration": "C7 — does allocation capacity gate strategic demand?",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-11T00:30:00Z",
+  "frozen_before": "any 4v4 policy is trained or any C7 rollout exists",
+  "motivated_by": [
+    "artifacts/c6_stage1/C6_STAGE1_INFEASIBLE.json (e09bff7): offence vs contest r = -0.898 across 9 opponents",
+    "artifacts/c5_discovery/C5_RESULT.json (C5_NO_REVERSAL)",
+    "artifacts/c4_discovery/C4_RESULT.json (C4_NO_REVERSAL)"
+  ],
+
+  "the_causal_hypothesis_under_test": {
+    "measured_so_far": "more offence trades against less contest across the tested roster (r = -0.898)",
+    "interpretation": "2v2 appears to impose a tight team-allocation budget",
+    "NOT_yet_proved": "that this allocation constraint CAUSED the absence of reversals in C4 and C5",
+    "what_C7_tests": "exactly that causal step. C7 changes allocation capacity and asks whether response-ranking reversals appear."
+  },
+
+  "the_manipulation": {
+    "changed": "team size only: 2v2 (control) vs 4v4 (treatment)",
+    "held_fixed": ["map_a", "RULESET_V2 / OURS", "reward function", "exhaustive response enumeration",
+                   "carrier_survival horizon 30 screen proxy", "delta 0.10",
+                   "episode-clustered bootstrap, 2000 resamples, seed 12345, LCB95 = q_0.025",
+                   "support minima 30", ">=2/3 policy replication", "both orientations",
+                   "pair-legal-on-both-sides", "the C5 ranking function", "opponent CONCEPTS"],
+    "why_4v4_and_not_3v3": "four agents permit genuinely simultaneous commitments -- carrier, escort, interceptor, home defender -- that cannibalise one another at 2v2. 3v3 leaves the same competition only slightly relaxed and would blur a negative.",
+    "acknowledged_and_unavoidable_confound": "opponent CONCEPTS are held fixed but their REALIZATION changes with team size: a BTProfile knob such as min_alive_for_defender=2 allocates a different fraction of a 4-agent team than of a 2-agent team. This is inherent to the manipulation and is recorded rather than papered over."
+  },
+
+  "what_is_frozen_and_what_is_not": {
+    "frozen_structural_prediction": "If allocation capacity is the bottleneck, larger teams should permit mechanically simultaneous offence AND contest configurations that 2v2 could not.",
+    "explicitly_NOT_frozen": [
+      "that 4v4 must produce any named strategy",
+      "that any response R1 should beat any R2",
+      "the direction, magnitude or identity of any reversal",
+      "which team allocation is 'correct' against any opponent"
+    ],
+    "why": "the reversal must be DISCOVERED by the scanner. C7 predicts a change in CAPACITY, never a winner."
+  },
+
+  "stage_0_baseline_training": {
+    "why_it_exists": "the G0-V5 policies cannot act at 4v4 at all. Their observation encoder is hard-bound to 2 agents and raises 'grid must have shape (B, 2, 7, 20, 20)'. A 4v4 arm therefore requires its own baseline; there is no adapter that would not confound team size with out-of-distribution inference.",
+    "what_is_trained": "3 seeds at 4v4, same architecture family, same reward, same opponent pool, same 1,000,000-step budget as G0-V5",
+    "policy_seeds": [3300001, 3300002, 3300003],
+    "competence_gate": "each seed must reach TASK_HEALTH PASS and SYSTEM_HEALTH PASS on the G0-V5 standard. A 4v4 arm that is merely incompetent would produce a NO_REVERSAL that says nothing about team size.",
+    "gate_failure_action": "if fewer than 3 of 3 pass competence, C7 STOPS before Stage 1 and the failure is reported as a training result, not a demand result",
+    "estimated_cost": "G0-V5 took ~6h50m per seed for 1M steps at 2v2; 4v4 steps are more expensive, so budget an overnight run for 3 seeds",
+    "control_arm": "the 2v2 arm reuses the EXISTING G0-V5 policies unchanged. No retraining, so the control is exactly the population C4/C5 measured."
+  },
+
+  "stage_1_allocation_capacity": {
+    "purpose": "verify the manipulation did what it claims BEFORE asking about reversals. Engineering only, no reversal or utility claim.",
+    "seed_block": [9910000, 9910029],
+    "measures": "the C6 Stage-1 measures unchanged: offensive_pressure, home_retention, red_contest_fraction from bt_red_role",
+    "the_check": "at 4v4, some opponent must achieve an offence+contest sum EXCEEDING the maximum observed at 2v2 (0.885, OP7). If the sum ceiling does not rise, allocation capacity did not expand and the treatment is inert.",
+    "also_measured_descriptively": "the offence-vs-contest correlation at 4v4, to be compared against the 2v2 r = -0.898",
+    "fail_action": "if capacity did not expand, C7 STOPS at Stage 1 and reports that team size did not relax the budget. Stage 2 is not run and its block is not spent.",
+    "hard_boundary": "once Stage 2 begins, no policy, profile or measure may change."
+  },
+
+  "stage_2_reversal_discovery": {
+    "seed_block": [9920000, 9920029],
+    "status": "UNSPENT",
+    "arms": "BOTH 2v2 (G0-V5) and 4v4 (C7 baselines), scanned identically",
+    "scanner": "the C5 gated parallel scanner, reused unchanged",
+    "why_both_arms": "C4 and C5 scanned 2v2 under different seed blocks and partitions. Re-scanning 2v2 here with the identical protocol makes the comparison internal to C7 rather than across experiments.",
+    "primary_comparison": "does a replicated reversal exist at 4v4 that does not exist at 2v2, under one identical protocol"
+  },
+
+  "stage_3_confirmation": {
+    "seed_block": [9930000, 9930029],
+    "status": "UNSPENT",
+    "rule": "tests only the single top-ranked Stage-2 candidate, under the identical criterion, with no search",
+    "runner": "experiments/run_c5_confirmation.py, reused"
+  },
+
+  "outcomes": {
+    "C7_CAPACITY_GATES_DEMAND": {
+      "condition": "a replicated reversal is found at 4v4 and confirmed on 9930000, AND no such reversal is found at 2v2 under the identical protocol",
+      "establishes": "allocation capacity gates the existence of strategic demand on this map",
+      "does_not_establish": "routability. The already-frozen observability test remains mandatory before any oracle training.",
+      "next": "observability test on a fresh block, then the existing oracle / crossover / latent pipeline"
+    },
+    "C7_NO_REVERSAL_AT_4V4": {
+      "condition": "capacity expanded at Stage 1 but no replicated reversal is found at 4v4",
+      "meaning": "team size is NOT the missing ingredient. The allocation-budget hypothesis is disconfirmed as the binding constraint.",
+      "action": "STOP enlarging teams. Do not try 6v6 or 8v8 -- that would be the same iterate-until-it-passes pattern the pipeline exists to prevent. The next suspect becomes the MACRO/ACTION REPRESENTATION or the objective structure, under its own preregistration.",
+      "value": "this is a highly informative negative and is explicitly not a failed experiment"
+    },
+    "C7_CAPACITY_DID_NOT_EXPAND": {
+      "condition": "Stage 1 shows no rise in the offence+contest ceiling at 4v4",
+      "meaning": "the manipulation was inert; nothing is learned about demand",
+      "action": "STOP. Stage 2 block remains unspent. Diagnose the environment or opponent realization before any further team-size work."
+    },
+    "C7_BASELINE_INCOMPETENT": {
+      "condition": "fewer than 3 of 3 Stage-0 seeds clear the competence gate",
+      "meaning": "a training result, not a demand result",
+      "action": "STOP before Stage 1. Do not scan an incompetent baseline."
+    }
+  },
+
+  "seeds": {
+    "policy_seeds_4v4": [3300001, 3300002, 3300003],
+    "stage_1": [9910000, 9910029],
+    "stage_2": [9920000, 9920029],
+    "stage_3": [9930000, 9930029],
+    "disjoint_from": ["all blocks through 9890000", "9900000 O1 panels"],
+    "preserved_unspent_elsewhere": ["9850000 C5 confirmation", "9860000 observability",
+                                    "9880000 C6 Stage 2", "9890000 C6 Stage 3"]
+  },
+
+  "prohibited": [
+    "preregistering which response should win at either team size",
+    "trying 6v6 or 8v8 after a C7_NO_REVERSAL_AT_4V4",
+    "scanning an incompetent 4v4 baseline",
+    "reusing C6's unspent blocks for C7",
+    "adjusting delta, support minima, replication or the ranking function",
+    "modifying any existing OP5-OP12 profile or any G0-V5 checkpoint",
+    "training an oracle before the observability test",
+    "claiming a task-outcome tradeoff from a carrier_survival screen proxy",
+    "citing the 2v2 allocation budget as the demonstrated CAUSE of C4/C5 -- it is a measured correlation plus an argument until C7 says otherwise"
+  ],
+
+  "immutability": "After any Stage-1 number exists, none of the above may change."
+}
