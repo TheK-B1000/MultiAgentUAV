@@ -1,0 +1,57 @@
+{
+  "erratum": "C6 Stage 1 — blue_denial is construct-invalid and is replaced by a direct red-side contesting measure",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-10T23:20:00Z",
+  "amends": "experiments/run_c6_stage1_mechanical.py criteria, as run at 1b3d40b",
+  "supersedes_nothing_scientific": "Stage 2 (9880000) has never been touched. No utility, reversal or ranking number exists anywhere in C6.",
+
+  "the_failed_artifact_is_kept": {
+    "path": "artifacts/c6_stage1/C6_STAGE1_RESULT.json + C6_STAGE1_DIAGNOSIS.json (1b3d40b)",
+    "why": "the STAGE1_FAIL under the invalid metric stays on the record permanently. A metric repair must not erase the result that motivated it."
+  },
+
+  "why_blue_denial_was_invalid": {
+    "definition_used": "blue_denial = 1 - mean fraction of alive blue agents in red's half",
+    "the_defect": "that is an OUTCOME jointly produced by both sides, not a property of red. C6A attacks blue's home with both agents; blue responds by staying home to defend; blue advances less; blue_denial RISES -- while C6A blocks nobody and its intercept_block_base is 0.10 with enable_intercept=False.",
+    "consequence": "C6A failed 'declines_to_contest' at 0.610 vs 0.598 for behaving exactly as configured. The check measured blue's reaction to being threatened.",
+    "this_is_a_repeat": "the same confound retired the earlier conditional-correlation criterion for C6A. That objection was not carried through to blue_denial.",
+    "why_this_is_a_validity_repair_and_not_a_retune": "the causal defect is identifiable without reference to which way the number fell, and the direction of the fix is determined by the defect rather than by the result. The pass bars and the mixture-relative margin are unchanged."
+  },
+
+  "the_replacement": {
+    "name": "red_contest_fraction",
+    "definition": "mean over steps of (alive red agents in a CONTESTING role) / (alive red agents), where contesting roles are ROLE_DEFENDER (1) and ROLE_INTERCEPTOR (3) from the BT's own bt_red_role telemetry",
+    "why_this_is_red_side": "it reads red's own role assignment -- red's decision to contest -- rather than blue's resulting position",
+    "why_existing_telemetry": "bt_red_role already exists and is emitted by the BT brain. Inventing a geometric contest threshold now would be a new free parameter chosen after a failure.",
+    "acknowledged_limit": "role assignment still responds to blue via the blackboard. It is not causally sterile, but it measures what RED chose to do rather than what happened to BLUE, which is the distinction that failed."
+  },
+
+  "criteria_after_the_repair": {
+    "unchanged": ["offensive_pressure", "home_retention", "the mixture-relative margin of 0.02", "the >= / < direction of every check"],
+    "family_A": "offensive_pressure >= mixture AND home_retention < mixture AND red_contest_fraction < mixture",
+    "family_B": "offensive_pressure >= mixture AND home_retention > mixture AND red_contest_fraction > mixture"
+  },
+
+  "explicitly_NOT_changed": {
+    "profiles": "C6A and C6B BTProfile values are untouched. Tuning a profile against a metric that just failed is the move this erratum exists to avoid.",
+    "C6B_retain_home": "NOT relaxed. Redefining what Family B MEANS after seeing it fail is categorically different from repairing a confounded measurement. That C6B may be unable to hold home and sustain offence simultaneously at 2v2 is itself a candidate result, not an inconvenience to design around.",
+    "seed_block": "Stage 1 re-runs on 9870000, the same engineering block."
+  },
+
+  "the_two_permitted_outcomes": {
+    "STAGE1_PASS": {
+      "action": "hash and freeze both profiles immediately, then launch Stage 2 on 9880000 with no further tuning",
+      "prohibited": "any further attempt to make the families 'more different' once they have been admitted"
+    },
+    "C6_STAGE1_MECHANICAL_INFEASIBLE": {
+      "condition": "C6B still fails sustains_offence or retains_home",
+      "action": "close this family pair. Do NOT tune it toward the threshold and do NOT invent a Family C.",
+      "the_finding": "The preregistered opposing allocation regimes could not both be mechanically instantiated under the 2v2 setup.",
+      "explicitly_not": "C6_NO_REVERSAL. Stage 2 never ran, so nothing is known about reversals. This is an earlier and different result.",
+      "what_it_would_motivate": "a fresh preregistration testing the agent-space hypothesis directly -- whether increasing team size beyond 2v2 creates the preference reversals absent at 2v2 -- since with two agents the only team allocations are 2/0, 1/1 and 0/2, and escort, pressure, home defence, interception and carrier support cannibalise one another rather than coexisting.",
+      "status_of_that_hypothesis": "UNPROVEN. Stage-1 infeasibility is evidence that the two-agent allocation budget may constrain strategic diversity. It is not proof."
+    }
+  },
+
+  "run_once": "Stage 1 is re-run exactly once under this metric. A further failure closes the family pair rather than prompting another repair."
+}

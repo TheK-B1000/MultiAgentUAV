@@ -8,9 +8,15 @@ precisely because nothing scientific has been measured.
 Operationalization, declared before running. Blue attacks toward x > mid, so
 red's home is x > mid and red's pressure on blue is red agents at x < mid:
 
-    offensive_pressure  mean fraction of alive red agents in blue's half
-    home_retention      fraction of STEPS with >=1 alive red in red's own half
-    blue_denial         1 - mean fraction of alive blue agents in red's half
+    offensive_pressure   mean fraction of alive red agents in blue's half
+    home_retention       fraction of STEPS with >=1 alive red in red's own half
+    red_contest_fraction mean fraction of alive red agents in a CONTESTING role
+                         (ROLE_DEFENDER / ROLE_INTERCEPTOR) from bt_red_role
+
+red_contest_fraction replaces blue_denial, which was construct-invalid: it was
+1 - blue's advance, an OUTCOME produced by both sides. C6A threatens blue's home,
+blue stays back to defend, blue advances less, and "denial" rose -- while C6A
+blocked nobody. See C6_STAGE1_METRIC_ERRATUM.json. Profiles and bars unchanged.
 
 Each family is checked against the OP6-OP12 mixture mean on the knobs it
 deliberately sets:
@@ -18,12 +24,12 @@ deliberately sets:
   C6A sets enable_defender=False, min_alive_for_defender=99,
   intercept_block_base=0.10. It must show offensive_pressure >= mixture,
   home_retention BELOW mixture (it really does abandon its half), and
-  blue_denial BELOW mixture (it really does decline to contest blue's advance).
+  red_contest_fraction BELOW mixture (it really does decline to contest).
 
   C6B sets enable_defender=True, intercept_block_base=0.92, enable_2v1=True,
   lock_attacker=20. It must show offensive_pressure >= mixture (the pressure is
   genuinely sustained, not merely a wall), home_retention ABOVE mixture, and
-  blue_denial ABOVE mixture.
+  red_contest_fraction ABOVE mixture.
 
 home_retention is MEASURED, not inferred from enable_defender. That knob is a
 capability gate; whether it produces actual home allocation is a claim about BT
@@ -56,6 +62,7 @@ OUT = ROOT / "artifacts/c6_stage1/C6_STAGE1_RESULT.json"
 
 # Declared before the run. Each family is judged against the mixture mean.
 MARGIN = 0.02
+ROLE_DEFENDER, ROLE_INTERCEPTOR = 1, 3
 
 
 def measure(policy, *, opponent, seed, device):
@@ -100,14 +107,18 @@ def measure(policy, *, opponent, seed, device):
             red_pos, blue_pos = _np(core.red_pos)[0], _np(core.blue_pos)[0]
             red_alive = _np(core.red_alive)[0].astype(bool)
             blue_alive = _np(core.blue_alive)[0].astype(bool)
-            n_red, n_blue = max(int(red_alive.sum()), 1), max(int(blue_alive.sum()), 1)
+            n_red = max(int(red_alive.sum()), 1)
             red_in_blue_half = (red_pos[:, 0] < mid_x) & red_alive
             red_at_home = (red_pos[:, 0] > mid_x) & red_alive
+            # Red's OWN role choice, not blue's resulting position.
+            roles = _np(core.bt_red_role)[0]
+            contesting = np.isin(roles, (ROLE_DEFENDER, ROLE_INTERCEPTOR)) & red_alive
             rows.append({
                 "blue_forward": int(ctx["agents_forward"]),
                 "offensive_pressure": float(red_in_blue_half.sum()) / n_red,
                 "home_present": 1.0 if int(red_at_home.sum()) >= 1 else 0.0,
-                "blue_advance": float(((blue_pos[:, 0] > mid_x) & blue_alive).sum()) / n_blue,
+                "red_contest_fraction": float(contesting.sum()) / n_red,
+                "role_hist": roles.tolist(),
             })
             action = _predict(policy, _adapt_obs_for_policy(obs, policy))
             obs, _, done, _infos = _unpack_step(env.step(action))
@@ -122,14 +133,14 @@ def summarize(rows):
     op = np.array([r["offensive_pressure"] for r in rows])
     hp = np.array([r["home_present"] for r in rows])
     bf = np.array([r["blue_forward"] for r in rows])
-    ba = np.array([r["blue_advance"] for r in rows])
+    rc = np.array([r["red_contest_fraction"] for r in rows])
     hi, lo = op[bf >= 2], op[bf == 0]
     cond = (float(hi.mean()) - float(lo.mean())) if hi.size and lo.size else None
     return {
         "n_steps": len(rows),
         "offensive_pressure": round(float(op.mean()), 4),
         "home_retention": round(float(hp.mean()), 4),
-        "blue_denial": round(1.0 - float(ba.mean()), 4),
+        "red_contest_fraction": round(float(rc.mean()), 4),
         # DESCRIPTIVE ONLY -- never a pass criterion; see module docstring.
         "descriptive_conditional_response": None if cond is None else round(cond, 4),
     }
@@ -168,23 +179,23 @@ def main() -> int:
             rows += measure(pol, opponent=opp, seed=base + i, device=args.device)
         results[opp] = s = summarize(rows)
         print(f"  {opp:5s} offence={s['offensive_pressure']:.3f} "
-              f"home={s['home_retention']:.3f} denial={s['blue_denial']:.3f}", flush=True)
+              f"home={s['home_retention']:.3f} contest={s['red_contest_fraction']:.3f}", flush=True)
 
     mix = [results[o] for o in OPPONENTS]
     mix_pressure = float(np.mean([m["offensive_pressure"] for m in mix]))
     mix_home = float(np.mean([m["home_retention"] for m in mix]))
-    mix_denial = float(np.mean([m["blue_denial"] for m in mix]))
+    mix_contest = float(np.mean([m["red_contest_fraction"] for m in mix]))
 
     a, b = results["C6A"], results["C6B"]
     a_checks = {
         "sustains_offence": bool(a["offensive_pressure"] >= mix_pressure - MARGIN),
         "abandons_home": bool(a["home_retention"] < mix_home - MARGIN),
-        "declines_to_contest": bool(a["blue_denial"] < mix_denial - MARGIN),
+        "declines_to_contest": bool(a["red_contest_fraction"] < mix_contest - MARGIN),
     }
     b_checks = {
         "sustains_offence": bool(b["offensive_pressure"] >= mix_pressure - MARGIN),
         "retains_home": bool(b["home_retention"] > mix_home + MARGIN),
-        "denies_advance": bool(b["blue_denial"] > mix_denial + MARGIN),
+        "denies_advance": bool(b["red_contest_fraction"] > mix_contest + MARGIN),
     }
     a_ok, b_ok = all(a_checks.values()), all(b_checks.values())
     verdict = "STAGE1_PASS" if (a_ok and b_ok) else "STAGE1_FAIL"
@@ -197,9 +208,9 @@ def main() -> int:
         "criteria_declared_before_running": {
             "margin_vs_mixture_mean": MARGIN,
             "family_A": "offensive_pressure >= mixture AND home_retention < mixture "
-                        "AND blue_denial < mixture",
+                        "AND red_contest_fraction < mixture",
             "family_B": "offensive_pressure >= mixture AND home_retention > mixture "
-                        "AND blue_denial > mixture",
+                        "AND red_contest_fraction > mixture",
             "note": "each check validates a knob deliberately set, MEASURED rather than "
                     "inferred from the knob. descriptive_conditional_response is not a "
                     "criterion.",
@@ -209,7 +220,7 @@ def main() -> int:
         "mixture_reference": {
             "offensive_pressure_mean": round(mix_pressure, 4),
             "home_retention_mean": round(mix_home, 4),
-            "blue_denial_mean": round(mix_denial, 4),
+            "red_contest_fraction_mean": round(mix_contest, 4),
             "opponents": list(OPPONENTS),
         },
         "per_opponent": results,
@@ -223,7 +234,7 @@ def main() -> int:
     OUT.write_text(json.dumps(out, indent=2), encoding="utf-8")
 
     print(f"\nVERDICT: {verdict}")
-    print(f"  mixture: offence={mix_pressure:.3f} home={mix_home:.3f} denial={mix_denial:.3f}")
+    print(f"  mixture: offence={mix_pressure:.3f} home={mix_home:.3f} contest={mix_contest:.3f}")
     print(f"  C6A pass={a_ok}  {a_checks}")
     print(f"  C6B pass={b_ok}  {b_checks}")
     print(f"-> {OUT}")
