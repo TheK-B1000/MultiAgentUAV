@@ -1,0 +1,79 @@
+{
+  "record": "C7 Stage 2 — reversal discovery, both arms, one identical protocol",
+  "verdict": "C7_NO_REVERSAL_AT_4V4",
+  "authored_utc": "2026-08-12T22:30:00Z",
+
+  "label_correction": {
+    "note": "the two per-arm result files carry the string 'C5_NO_REVERSAL' because they were produced by analyze_c5_discovery, whose criteria C7 inherits verbatim. The C7 verdict vocabulary is this file's.",
+    "also_wrong_in_those_files": "their scope_of_claim field quotes C5_RANKING_AMENDMENT's frozen reporting language, which is scoped to C5's opponent-label question, not C7's team-size question. The scope that governs C7 is below."
+  },
+
+  "the_primary_comparison": {
+    "question": "does a replicated reversal exist at 4v4 that does not exist at 2v2, under one identical protocol on one block?",
+    "answer": "NO. Neither arm produced a replicated reversal.",
+    "why_both_arms_on_the_same_block": "C4 and C5 scanned 2v2 under different blocks and partitions. Re-scanning 2v2 on 9920000 makes this comparison internal to C7 rather than across experiments."
+  },
+
+  "results": {
+    "block": [9920000, 9920029],
+    "protocol": "exhaustive enumeration, 30 episodes/cell, 21 cells/arm, delta 0.10, episode-clustered bootstrap 2000 @ seed 12345, LCB95 = q_0.025, support minima 30, both orientations, >=2/3 policy replication",
+    "2v2_control": {"policies": [3200001, 3200002, 3200003], "states": 1260,
+                    "combos_tested": 189, "single_policy_passes": 0, "replicated": 0,
+                    "wall_minutes": 156.8},
+    "4v4_treatment": {"policies": [3300001, 3300002, 3300003], "states": 1260,
+                      "combos_tested": 6615, "single_policy_passes": 7, "replicated": 0,
+                      "wall_minutes": 605.5}
+  },
+
+  "the_binding_constraint_differed_between_arms": {
+    "2v2": "the confidence-interval rule. Nothing cleared delta>=0.10 with LCB95>0 in both directions in even one policy.",
+    "4v4": "REPLICATION. Seven candidates cleared the full CI criterion within a single policy, with support ~50 states per side -- for example OP7 vs OP9 in policy 3300003 at +0.300 (lcb +0.137) and +0.275 (lcb +0.067). None replicated across policies, and the flagged opponent pairs differ between policies (3300001 flags OP10/OP12 and OP10/OP7; 3300003 flags OP7/OP9; 3300002 flags nothing).",
+    "why_this_is_NOT_evidence_of_demand_at_4v4": {
+      "the_arithmetic": "7 passes out of 6615 tested combos is a 0.106% rate. At that same rate the 2v2 arm's 189 tests would be expected to yield 0.2 passes, so observing zero at 2v2 is entirely consistent with the SAME underlying rate.",
+      "conclusion": "the apparent 0 -> 7 difference is largely explained by the 35x larger tested set, not by team size. Replication across policies is precisely the multiplicity control for this, and it found nothing in either arm.",
+      "status": "the per-policy passes are roughly what ~2205 tests per policy should produce at these thresholds. They are not a finding."
+    }
+  },
+
+  "the_permitted_claim": "Doubling team size produced competent 4v4 policies and exceeded the preregistered capacity metric, but did not support the proposed allocation-loosening mechanism and did not demonstrate a strategic preference reversal. Under one identical protocol on one block, neither 2v2 nor 4v4 produced a replicated reversal.",
+
+  "claims_that_are_NOT_licensed": [
+    "capacity expanded but strategic demand did not follow -- the Stage 1 scope note establishes that the antecedent is not supported",
+    "4v4 removed the C6 allocation bottleneck",
+    "4v4 contains strategic demand that this scan missed",
+    "2v2 and 4v4 differ in reversal propensity -- the pass rates are not distinguishable on this evidence",
+    "latent team strategies are unworkable"
+  ],
+
+  "what_stage_1_already_constrained": {
+    "capacity_metric": "PASSED formally, max offence+contest 0.9292 > 0.885",
+    "the_mechanism": "NOT supported. Like-for-like offence/contest correlation moved only -0.9229 (2v2) to -0.9149 (4v4).",
+    "consequence": "a Stage-2 negative may not be reported as though capacity had been shown to expand"
+  },
+
+  "pre_committed_action_taken": {
+    "from": "C7_TEAM_SIZE_DEMAND_FROZEN.json and C7_STAGE2_EXECUTION_DECISION.json",
+    "action": "STOP team-size work entirely. No 6v6, no revised capacity ruler, no opponent patch, no re-scan.",
+    "stage_3": "block 9930000 is NOT spent. Confirmation tests a discovery candidate, and no candidate exists.",
+    "next_main_line": "Strategy-Rich CTF v1, whose design and qualification protocol are already frozen (73a1a00, f8a1afb, ccbee14, 5d4ffd1, 47c27ae) with construction not started."
+  },
+
+  "the_evidence_chain_now_closed": [
+    "2v2: no demonstrated reversal across six legal state partitions (C4)",
+    "2v2: no demonstrated reversal across 21 opponent pairs (C5)",
+    "2v2: opposing allocation regimes not jointly instantiable (C6, r = -0.898)",
+    "4v4: competent baselines, 3/3 (C7 Stage 0)",
+    "4v4: formal capacity metric passed, mechanism unsupported (C7 Stage 1)",
+    "4v4: no demonstrated reversal, with 35x the tested combos (C7 Stage 2)"
+  ],
+
+  "scope_of_the_whole_negative": {
+    "closes": "team size as a rescue for the historical environment, under the carrier_survival screen proxy at delta 0.10 with these opponents and this map",
+    "does_not_close": ["other utilities", "task-level score differential", "history-conditioned observability",
+                       "opponents outside the admitted OP6-OP12 mixture", "other maps or rulesets",
+                       "whether latent team strategies work where demand does exist"],
+    "the_method_remains_untested_not_disproven": "every gate that stopped this line stopped UPSTREAM of any latent. The prerequisite for testing latents was never met in this environment."
+  },
+
+  "unspent_blocks": [9930000, 9850000, 9860000, 9880000, 9890000]
+}

@@ -1,0 +1,55 @@
+{
+  "record": "C5 discovery \u2014 opponent-conditional demand screen",
+  "authoritative": true,
+  "supersedes": "the scan's inline result, produced before the candidate-key collision fix 7029942; see C5_RESULT_INLINE_SUPERSEDED.json",
+  "verdict": "C5_NO_REVERSAL",
+  "n_opponents": 7,
+  "opponents_observed": [
+    "OP10",
+    "OP11",
+    "OP12",
+    "OP6",
+    "OP7",
+    "OP8",
+    "OP9"
+  ],
+  "n_opponent_pairs_examined": 21,
+  "n_candidates_clearing_discovery": 0,
+  "selected_candidate": null,
+  "all_candidates_ranked": [],
+  "per_policy": {
+    "3200001": {},
+    "3200002": {},
+    "3200003": {}
+  },
+  "replicated": {},
+  "confirmation_block_spent": false,
+  "provenance": {
+    "c4_inherited_statistics_contract_sha256": "5f3a5f3c490188d4bc7ea857907ecf63a1c12c93694f08ecb3fd8725eb692b42",
+    "c5_freeze_sha256": "0562c25d024df390a55b8a181aae4705bee34e3992fa917370e1ca882b3ef9a8",
+    "c5_ranking_amendment_sha256": "2ded31e49a51ee738513cdfc1778d7ccf4879b3cb56beb2950aa62e2a1d787da",
+    "observability_freeze_sha256": "8c753e10db8867a8a37cb08eb1c503ae022bf824963d593bcfd755db88248866",
+    "c5_freeze_commit": "9e89f4d6f6ad40f899f928756e32227b5a58aae1",
+    "c5_amendment_commit": "deb3701c6198567d5ff8a866ebd80b397528806d",
+    "observability_freeze_commit": "d2b12973d30789882cc0fa367c884528b9eb6e72",
+    "analysis_runner_commit": "fa78d5a4b4e18a4870eac7058decf2a5dcafa3f4",
+    "seed_block": [
+      9840000,
+      9840029
+    ],
+    "device": "cuda",
+    "device_note": "pinned to C4's device. CPU/CUDA trajectory divergence from identical seeds is a binding invariant, so the replay-equivalence the C5 freeze rests on requires it.",
+    "freezes_predate_any_c5_result": true,
+    "ordering_evidence": "C5 freeze, ranking amendment and observability freeze were all committed while artifacts/c5_discovery/ did not yet exist; verified inline before each commit."
+  },
+  "scope_of_claim": {
+    "C5_NO_REVERSAL": "No opponent-conditional response reversal was demonstrated among the existing OP6-OP12 set under the frozen 30-step carrier-survival protocol.",
+    "what_that_claim_does_NOT_extend_to": [
+      "that no tradeoff exists under any other utility",
+      "that no tradeoff exists under any observable history representation",
+      "that no tradeoff exists at the task-outcome level (score differential)",
+      "anything about opponents outside the admitted OP6-OP12 mixture"
+    ],
+    "why_frozen_now": "the scope of a negative claim is exactly where overreach is tempting once the number is in hand. Combined with C4, a negative closes the six legal-state partitions and the opponent-label route under this utility -- and nothing wider."
+  }
+}
