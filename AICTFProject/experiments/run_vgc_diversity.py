@@ -100,6 +100,29 @@ def main() -> int:
     print("  reward, architecture, health gates: inherited from run_g0_v5_long")
     print("=" * 78, flush=True)
 
+    # The shared training_manifest does not record the diversity condition, and
+    # the canonical trainer is used by frozen experiments so it is not modified.
+    # A sidecar written BEFORE training carries the condition instead.
+    import subprocess
+    art = _artifact_dir(cond, args.seed)
+    art.mkdir(parents=True, exist_ok=True)
+    commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(PROJECT_ROOT),
+                            capture_output=True, text=True).stdout.strip() or "unknown"
+    (art / "vgc_condition.json").write_text(json.dumps({
+        "experiment": "VGC opponent-diversity scaling",
+        "diversity_condition": cond,
+        "opponent_pool": list(pool),
+        "n_opponents": len(pool),
+        "held_out_opponents": fz["held_out_opponents"][cond],
+        "training_method": "Mixed-PPO (mode=OPPONENT_POOL, uniform per completed episode)",
+        "seed": int(args.seed),
+        "team_size": fz["team_size"]["choice"],
+        "total_timesteps": fz["budget_control"]["total_timesteps"],
+        "smoke": bool(args.smoke_steps),
+        "frozen_sets_artifact": "artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json",
+        "git_commit": commit,
+    }, indent=2), encoding="utf-8")
+
     sys.argv = ["run_g0_v5_long.py", "--seed", str(args.seed), "--threads", str(args.threads)]
     return G.main()
 
