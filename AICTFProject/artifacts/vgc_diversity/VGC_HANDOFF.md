@@ -5,10 +5,45 @@
 ---
 
 ## CURRENT PHASE
-Phase 5 — freezing D1/D3/D7, then launch.
+Phase 12/13 — D1 training live and health-verified. D3 queued behind it (GPU-bound).
 
 ## LAST COMPLETED STEP
-Phase 1 audit + Phase 2 self-play recovery: **`SELF_PLAY_REUSE = PASS`**.
+`TRAINING_STARTED_AND_VERIFIED` for D1 (3 seeds).
+
+## STATUS FLAGS
+```
+SELF_PLAY_REUSE   = PASS   (snapshot seam verified end-to-end)
+MIXED_PPO_SMOKE   = PASS   (only OP9 sampled across 64 episodes)
+MANIFESTS         = PASS   (vgc_condition.json sidecar)
+UNIFIED_EVALUATION= PENDING
+FP_SMOKE          = PENDING
+```
+
+## ACTIVE RUNS
+| method | cond | seed | budget | log | artifacts | status |
+|---|---|---|---|---|---|---|
+| Mixed-PPO | D1 | 3600001 | 1M | `artifacts/vgc_diversity/d1_seed3600001.log` | `vgc_d1_seed3600001/` | healthy |
+| Mixed-PPO | D1 | 3600002 | 1M | `d1_seed3600002.log` | `vgc_d1_seed3600002/` | healthy |
+| Mixed-PPO | D1 | 3600003 | 1M | `d1_seed3600003.log` | `vgc_d1_seed3600003/` | healthy |
+
+git commit at launch: `16703638`. Team size 2v2, pool `['OP9']`, held-out 6.
+
+## GPU HEALTH
+~6.8/12.2 GB, 69% util with 3 runs (~2.3 GB each). **Three more would exceed
+capacity — D3 must wait for D1**, not run concurrently.
+
+## D1/D3/D7 DEFINITIONS
+```
+D1 = OP9                      (median offensive_pressure)
+D3 = OP7, OP9, OP12           (min, median, max)
+D7 = OP6..OP12                (already trained: G0-V5 3200001-3)
+```
+
+## NEXT AUTOMATIC STEP
+1. Build FP driver on the snapshot seam + FP smoke (code only, no GPU).
+2. Extend cross-play evaluator with policy_id / method / diversity fields.
+3. When D1 finishes -> launch D3 (3 seeds).
+4. Evaluate the 6 existing D7 baselines once GPU frees.
 
 ---
 
@@ -69,7 +104,9 @@ red trajectory SNAPSHOT a531098955b7a096 != SCRIPTED OP7 6927af0a94f03c8f
   failed load degrades silently. Any FP/self-play runner must assert the policy is non-None.
 
 ## MIXED PPO STATUS
-Supported by existing trainer. No code change required. Configs pending.
+`MIXED_PPO_SMOKE = PASS`. Entrypoint `experiments/run_vgc_diversity.py` reuses
+run_g0_v5_long and rebinds only pool/seeds/paths. Verified from episode_rows.csv
+that a D1 run samples **only OP9** across all 64 logged episodes.
 
 ## FP STATUS
 Not built. Will reuse the snapshot seam + historical checkpoint list.
@@ -77,14 +114,13 @@ Not built. Will reuse the snapshot seam + historical checkpoint list.
 ## D1/D3/D7 DEFINITIONS
 Pending — see freeze artifact.
 
-## ACTIVE RUNS
-None.
-
-## NEXT AUTOMATIC STEP
-Freeze D1/D3/D7 → Mixed PPO smoke → launch.
-
 ## BLOCKERS
-None.
+None. D3 is queued rather than blocked (GPU capacity).
+
+## OPERATIONAL NOTE
+A smoke run (seed 3699999) was left alive after its artifacts were deleted and
+contended for GPU with the real runs; killed, and ~1.35 GB reclaimed. Kill the
+process before deleting a run's artifacts, not after.
 
 ## RECOVERY COMMANDS
 ```
