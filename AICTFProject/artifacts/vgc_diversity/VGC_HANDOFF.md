@@ -82,7 +82,23 @@ size across rungs, so mixing 4v4 in would confound team size with diversity.
 | C4–C7 tooling | `run_c4_opportunity_cost.py`, `analyze_c5_discovery.py` | ✅ (diagnostic only) | | |
 | Forced-z / latent eval | `experiments/run_forced_z_eval.py` | ✅ (secondary) | | |
 | Behavioral JSD | `rl/analysis/`, latent diagnostics | ✅ (secondary) | | |
-| Fictitious Play driver | — | | build on snapshot seam | ⬜ small |
+| Fictitious Play driver | `experiments/run_fictitious_play.py` (scaffold + guard) | | SNAPSHOT-pool wiring | ⏳ |
+| **Explicit population trainer** | `rl/population/` (`PopulationTrainer`, `PopulationMember`, `pressure_rotation`) | ✅ **Phase 2 asset** | needs SNAPSHOT support for FP | |
+
+### AUDIT CORRECTION (missed in the first pass)
+
+`rl/population/` exists and orchestrates **K independently trained policies**,
+round-robin on one GPU, each member given a distinct scripted-opponent pressure
+(`opponent_tags` + `opponent_weights`) to encourage behavioural diversity. That
+is a ready-made vehicle for **Phase 2 (explicit strategic repertoire)** — a
+population of specialists with different opponent pressures is exactly the
+{πA, πB, πC} the new plan wants.
+
+Limitation, verified rather than assumed: it is **scripted-tag only** — no
+SNAPSHOT support anywhere in the package. So it does **not** give FP its
+historical-checkpoint opponents for free; FP still needs the SNAPSHOT-pool
+wiring. Its default map pool is also `map_b_split_lane*`, not `map_a`, so any
+reuse must set the map explicitly.
 
 ### Key findings
 
