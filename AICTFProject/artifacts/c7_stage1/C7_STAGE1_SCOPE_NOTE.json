@@ -1,0 +1,67 @@
+{
+  "record": "C7 Stage 1 — scope of the CAPACITY_PASS, and descriptive coexistence measures",
+  "companion_to": "artifacts/c7_stage1/C7_STAGE1_RESULT.json",
+  "the_frozen_verdict_is_unmodified": "C7_STAGE1_CAPACITY_PASS. Nothing in this file changes it, and no measure here is or becomes a criterion.",
+
+  "what_the_frozen_criterion_asked": "does some 4v4 cell exceed the maximum offence+contest sum observed at 2v2 (0.885, OP7)?",
+  "what_it_returned": {
+    "max_sum_4v4": 0.9292,
+    "achieved_by": "policy 3300002 vs OP7",
+    "ceiling_2v2": 0.885,
+    "margin": 0.0442,
+    "cells_exceeding_the_ceiling": ["3300001/OP7 0.920", "3300001/OP11 0.917",
+                                    "3300002/OP7 0.929", "3300002/OP11 0.903",
+                                    "3300003/OP7 0.925"]
+  },
+
+  "the_metric_limitation_recorded_before_the_verdict_landed": {
+    "the_defect": "offence+contest is a SUM, so it is maximised by extremes on either axis rather than by coexistence. A degenerate 0.05/0.85 allocation scores identically to a balanced 0.45/0.45.",
+    "evidence_that_this_is_not_hypothetical": "the 2v2 ceiling holder was OP7 at 0.125/0.760 -- an almost pure contest specialist -- and every 4v4 cell that clears the bar is also contest-heavy (OP7 ~0.16/0.76, OP11 ~0.23/0.67). They pass by adding a little offence to an already lopsided profile.",
+    "the_cell_showing_the_predicted_mechanism_FAILS_the_bar": "OP6 moved from 0.472/0.000 at 2v2 to ~0.303/0.349 at 4v4 -- acquiring a contesting role it could never afford before -- and sums to only ~0.65, well under the ceiling.",
+    "why_it_was_not_changed": "Stage-1 numbers already existed when this was identified. Retuning a criterion mid-sweep is precisely what the freeze forbids, and an imperfect preregistered ruler is better than a convenient post-hoc one.",
+    "for_future_work_only": "a coexistence-sensitive criterion -- min(offence, contest), a product, or an explicit balance term -- would punish 0.05/0.85 and reward 0.45/0.45. That belongs in the next agent-space preregistration, frozen before its data, never grafted onto C7."
+  },
+
+  "the_permitted_claim": "The preregistered 4v4 capacity metric exceeded the historical 2v2 ceiling, although this metric is sensitive to lopsided allocations and does not by itself establish simultaneous role capacity.",
+  "claims_that_are_NOT_licensed": [
+    "4v4 created balanced simultaneous role allocation",
+    "4v4 removed the C6 allocation bottleneck",
+    "4v4 created strategic demand",
+    "capacity expanded, therefore demand should follow"
+  ],
+
+  "descriptive_only_like_for_like_comparison": {
+    "basis": "OP6-OP12 only, so the C6 experimental families are excluded and the populations are comparable",
+    "correlation": {
+      "r_2v2": -0.9229,
+      "r_4v4": -0.9149,
+      "reading": "ESSENTIALLY UNCHANGED. The offence/contest tradeoff at 4v4 is as tight as at 2v2. This is the single most important number in this file and it does NOT support the loosened-budget story.",
+      "status": "descriptive. C7's criterion is the sum ceiling; the r >= -0.70 bar belongs to SRCTF's affordance gate, a different experiment."
+    },
+    "coexistence_min_offence_contest": {
+      "max_2v2": 0.2528,
+      "max_4v4": 0.3121,
+      "reading": "a modest improvement, ~23%, driven almost entirely by OP6",
+      "per_opponent_2v2_to_4v4_mean": {
+        "OP6": "0.000 -> 0.303  (+0.303)",
+        "OP7": "0.125 -> 0.163  (+0.038)",
+        "OP8": "0.120 -> 0.165  (+0.045)",
+        "OP9": "0.253 -> 0.219  (-0.034)",
+        "OP10": "0.180 -> 0.166  (-0.014)",
+        "OP11": "0.212 -> 0.230  (+0.018)",
+        "OP12": "0.105 -> 0.083  (-0.022)"
+      },
+      "reading_per_opponent": "4 of 7 improved and 3 regressed. Only OP6 changed substantially, going from never contesting at all to contesting while retaining offence."
+    }
+  },
+
+  "the_honest_summary": {
+    "formally": "Stage 1 PASSED its frozen criterion and Stage 2 is authorized",
+    "mechanistically": "the evidence for an expanded allocation budget is WEAK. The correlation barely moved (-0.9229 to -0.9149), most opponents did not improve their coexistence, and the cells clearing the bar did so by being more lopsided rather than more balanced.",
+    "the_one_genuine_signal": "OP6 acquired a contesting commitment that was completely absent at 2v2 (0.000 -> ~0.30) while retaining meaningful offence. That is the predicted mechanism, visible in exactly one of seven opponents, and invisible to the frozen gate.",
+    "consequence_for_stage_2": "a Stage-2 NO_REVERSAL must NOT be written as 'capacity expanded but strategic demand did not follow'. On this evidence the antecedent is not established. The correct sentence is the permitted claim above, followed by 'no preference reversal was subsequently demonstrated'."
+  },
+
+  "authorizes": "C7 Stage 2 on block 9920000, per the frozen criterion",
+  "blocks_unspent": [9920000, 9930000]
+}
