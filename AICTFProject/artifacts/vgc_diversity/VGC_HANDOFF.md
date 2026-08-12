@@ -145,6 +145,20 @@ Pending — see freeze artifact.
 ## BLOCKERS
 None. D3 is queued rather than blocked (GPU capacity).
 
+## INCIDENT LOG
+
+**D1 seed 3600001 died at ~155k/1M with `PermissionError` on metrics.csv**
+(`completed=False`). Not a training failure -- a transient Windows file lock.
+Health was PASS at its only panel. The lock cleared on its own (file writable on
+recheck), the other two seeds were unaffected, and the seed was relaunched from
+scratch after confirming no process held it. A partial run is unusable because
+the frozen protocol requires the full 1M-step budget.
+
+Watch for recurrence: if a second seed dies the same way, the cause is
+systematic (antivirus / indexer touching artifacts) rather than a one-off, and
+the artifacts directory should be excluded from scanning before more runs are
+spent.
+
 ## OPERATIONAL NOTE
 A smoke run (seed 3699999) was left alive after its artifacts were deleted and
 contended for GPU with the real runs; killed, and ~1.35 GB reclaimed. Kill the
