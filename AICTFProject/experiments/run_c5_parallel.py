@@ -69,8 +69,16 @@ def main() -> int:
     cells = [(p, o) for p in G0_SEEDS for o in opponents]
     if args.max_cells:
         cells = cells[:args.max_cells]
+    # Resume accounting, printed BEFORE any work starts. A resumed run must say
+    # out loud which cells it is reusing rather than silently skipping them.
+    _present = [(p_, o_) for p_, o_ in cells
+                if (shard_dir / f"states_{p_}_{o_}.json").exists()]
+    _pending = [c for c in cells if c not in _present]
     print(f"C5 PARALLEL SCAN: {len(cells)} cells, {args.workers} concurrent, "
           f"{args.episodes} episodes/cell", flush=True)
+    print(f"  RESUME: {len(_present)} completed / {len(_pending)} pending", flush=True)
+    for p_, o_ in _present:
+        print(f"    [reuse] {p_}/{o_}", flush=True)
 
     pending = list(cells)
     running: list[tuple] = []

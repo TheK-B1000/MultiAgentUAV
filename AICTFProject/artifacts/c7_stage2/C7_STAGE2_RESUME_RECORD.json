@@ -1,0 +1,59 @@
+{
+  "record": "C7 Stage 2 — crash classification and resume authorization",
+  "authored_utc": "2026-08-12T09:00:00Z",
+  "classification": "VALID measurement, post-measurement provenance failure",
+
+  "what_happened": {
+    "symptom": "5 cells reported rc=1 after ~204 minutes each; 0 cells marked done",
+    "root_cause": "the identity-manifest block resolved its checkpoint path with a hardcoded g0_v5_long template while the policy-loading path above it was already arm-aware. 4v4 cells completed their full counterfactual measurement, wrote valid states, then died looking for a 3300001 checkpoint under the 2v2 directory.",
+    "an_earlier_and_separate_failure": "the first launch at 12 workers died instantly with MemoryError during checkpoint hashing; 4v4 workers need ~1.5GB each and 12 exceeded available RAM. Reduced to 6. That attempt produced 0 shards and 0 states."
+  },
+
+  "why_this_is_not_INVALID_EXECUTION": {
+    "the_rule": "a defect invalidates a measurement only if it made the MEASURED quantity not the intended quantity",
+    "here": "the defect occurred strictly AFTER measurement, in provenance generation. It could not have altered any collected state, utility or trajectory.",
+    "scientific_parameters_changed_by_the_fix": "NONE. The fix makes a checkpoint-hash lookup arm-aware. It touches no seed, episode count, response enumeration, horizon, delta, support minimum or threshold."
+  },
+
+  "independent_verification_of_the_five_shards": {
+    "performed_before_any_backfill": true,
+    "checks_passed_for_all_five": [
+      "policy key equals the cell's policy",
+      "every row carries the cell's opponent and no other",
+      "all 30 episode seeds lie inside the frozen block 9920000-9920029",
+      "60 states per cell (30 episodes x max_states 2)",
+      "28 legal_context fields per state",
+      "distinct content hashes -- no cross-cell duplication"
+    ],
+    "shard_hashes": {
+      "3300001_OP6": "48b29eb4757f", "3300001_OP7": "946f974b2159",
+      "3300001_OP8": "80b373139745", "3300001_OP9": "e0bbf7dc259d",
+      "3300001_OP10": "e0dbf5d5fedf"
+    }
+  },
+
+  "manifest_backfill": {
+    "why_not_recompute": "regenerating provenance would require re-running ~3.4 hours of valid measurement per cell, creating needless opportunity for divergence in data that verified clean",
+    "honest_limitation": "states_file_sha256 becomes TAUTOLOGICAL for these five shards, since it is computed from the file it certifies. It no longer proves the file is unmodified since collection.",
+    "what_remains_meaningful": "the six independent checks above, plus a checkpoint hash read from the real 4v4 checkpoint (321f14655934ac19)",
+    "merge_compatibility_verified": "all eleven merger SHARED_KEYS match what the fixed code writes for a new cell, so the backfilled shards merge cleanly rather than aborting after the remaining run"
+  },
+
+  "corrected_cost_estimates": {
+    "my_earlier_claim": "~40 hours, from a raw Cartesian response count of 57/state",
+    "actual_enumerated_responses_per_state": {"2v2": "mean 3.24, max 5", "4v4": "mean 14.72, max 23", "ratio": "4.54x"},
+    "measured_pace": "5 cells retired at ~204 min on 6 workers",
+    "revised": "~12 hours total, ~9 hours remaining with the five cells banked"
+  },
+
+  "resume_authorization": {
+    "action": "resume the SAME frozen experiment on the SAME block, reusing the five valid shards",
+    "why_this_is_not_post_data_discretion": "no parameter changes, no candidate selection, no sampling change, no seed change. This finishes the computation already specified by ba5b436. Shard resume is the architecture's designed behaviour, not a workaround.",
+    "cells": "5 completed / 16 pending, reported explicitly by the launcher before work starts",
+    "unchanged": ["exhaustive response enumeration", "30 episodes per cell",
+                  "max_states_per_episode", "block 9920000", "6 workers",
+                  "both arms under the identical protocol"]
+  },
+
+  "the_bounded_2A_2B_design_is_retained_but_deferred": "a sampled-discovery + fresh-confirmation scanner remains the right architecture for SRCTF and future larger-team evaluations, where exhaustive branching genuinely becomes unmanageable. It is NOT needed as an emergency replacement here, and adopting it now would have discarded valid data and spent a fresh block to avoid nine hours."
+}

@@ -1,0 +1,70 @@
+{
+  "policies": [
+    "3300001"
+  ],
+  "policy_checkpoint_sha256": {
+    "3300001": "321f14655934ac19d69d39ecd24952d2a91149f9c7f57ccda091704befb87266"
+  },
+  "opponents": [
+    "OP6"
+  ],
+  "episodes": 30,
+  "seed_block_base": 9920000,
+  "resolved_seeds": [
+    9920000,
+    9920001,
+    9920002,
+    9920003,
+    9920004,
+    9920005,
+    9920006,
+    9920007,
+    9920008,
+    9920009,
+    9920010,
+    9920011,
+    9920012,
+    9920013,
+    9920014,
+    9920015,
+    9920016,
+    9920017,
+    9920018,
+    9920019,
+    9920020,
+    9920021,
+    9920022,
+    9920023,
+    9920024,
+    9920025,
+    9920026,
+    9920027,
+    9920028,
+    9920029
+  ],
+  "device": "cuda",
+  "max_states_per_episode": 2,
+  "partition_mode": "opponent",
+  "map": "map_a",
+  "ruleset": "OURS/V2_RULES",
+  "frozen_contract_sha256": "5f3a5f3c490188d4bc7ea857907ecf63a1c12c93694f08ecb3fd8725eb692b42",
+  "runtime_contract_utility": "carrier_survival",
+  "runtime_contract_h_response": 30,
+  "runner_commit": "b8999ff18a12aa1d6f3fae3263fdd964920fa50c",
+  "n_states": {
+    "3300001": 60
+  },
+  "states_file_sha256": "48b29eb4757f9b6aec3a690610035179251685c1f7e4ce022b278b660c4850b7",
+  "_backfilled": {
+    "reason": "the run crashed AFTER measurement, in the arm-aware provenance lookup. Re-running 3.4h of valid measurement per cell to regenerate provenance would create needless opportunity for divergence.",
+    "tautological_after_backfill": "states_file_sha256, since it is computed from the file it certifies. For these five shards it no longer proves the file is unmodified since collection.",
+    "still_meaningful": [
+      "policy key matches the cell",
+      "every row carries the cell's opponent",
+      "all 30 episode seeds lie inside the frozen block",
+      "60 states and 28 legal_context fields",
+      "checkpoint hash read from the real 4v4 checkpoint"
+    ],
+    "verified_independently_before_backfill": true
+  }
+}

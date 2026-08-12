@@ -383,8 +383,12 @@ def main() -> int:
         # on any disagreement rather than silently pooling incompatible shards.
         ck_sha = {}
         for pseed in sel_pol:
-            tag = f"g0_v5_long_seed{pseed}"
-            ckp = PROJECT_ROOT / "artifacts" / "g0_v5_long" / tag / "ckpts" / f"final_{tag}.zip"
+            # ARM-AWARE. This was hardcoded to g0_v5_long while the policy-loading
+            # path above was already arm-aware, so 4v4 cells completed their full
+            # measurement, wrote their states, and then died here looking for a
+            # 3300001 checkpoint under the 2v2 directory.
+            tag = arm["tag"].format(pseed)
+            ckp = PROJECT_ROOT / "artifacts" / arm["dir"] / tag / "ckpts" / f"final_{tag}.zip"
             ck_sha[str(pseed)] = _hl.sha256(ckp.read_bytes()).hexdigest()
         man = {
             "policies": [str(x) for x in sel_pol],
