@@ -48,6 +48,15 @@ OUT = PROJECT_ROOT / "artifacts" / "c4_discovery"
 RESULT = OUT / "C4_RESULT.json"
 G0_SEEDS = (3_200_001, 3_200_002, 3_200_003)
 
+# C7 Stage 2 scans BOTH arms under one identical protocol. "2v2" is the default,
+# so every historical invocation is byte-for-byte unchanged.
+ARMS = {
+    "2v2": {"seeds": (3_200_001, 3_200_002, 3_200_003), "agents": 2,
+            "dir": "g0_v5_long", "tag": "g0_v5_long_seed{}"},
+    "4v4": {"seeds": (3_300_001, 3_300_002, 3_300_003), "agents": 4,
+            "dir": "c7_stage0", "tag": "c7_4v4_seed{}"},
+}
+
 # The six frozen partitions, as (name, predicate on a legal_context dict).
 PARTITIONS = {
     "score_stratum": lambda c: ("leading" if c["score_diff"] > 0
@@ -279,6 +288,7 @@ def main() -> int:
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--max-states-per-episode", type=int, default=2)
     ap.add_argument("--out", default=str(RESULT))
+    ap.add_argument("--arm", default="2v2", choices=tuple(ARMS))
     ap.add_argument("--opponent-set", default="historical",
                     choices=("historical", "srctf"))
     ap.add_argument("--seed-base", type=int, default=0,
@@ -311,6 +321,11 @@ def main() -> int:
         if obs.exists():
             allowed.add(int(json.loads(obs.read_text(encoding="utf-8"))
                             ["seeds"]["evaluation_block"][0]))
+        c7 = PROJECT_ROOT / "artifacts/c7_preregistration/C7_TEAM_SIZE_DEMAND_FROZEN.json"
+        if c7.exists():
+            _c7 = json.loads(c7.read_text(encoding="utf-8"))["seeds"]
+            for _k in ("stage_1", "stage_2", "stage_3"):
+                allowed.add(int(_c7[_k][0]))
         if int(args.seed_base) not in allowed:
             raise SystemExit(f"--seed-base {args.seed_base} is named by no frozen file "
                              f"(allowed: {sorted(allowed)}); refusing unfrozen seeds")
@@ -334,11 +349,17 @@ def main() -> int:
     # Subsetting changes only WHICH cells this process computes, never how any
     # cell is computed: collect_states builds a fresh env seeded per (opponent,
     # seed), so a cell's states do not depend on which other cells ran.
-    sel_pol = [int(x) for x in args.policies.split(",") if x.strip()] or list(G0_SEEDS)
+    arm = ARMS[args.arm]
+    if int(arm["agents"]) != 2:
+        # BOTH sides must be rebound. Patching one produced a 4-agent policy
+        # evaluated in a 2v2 env during C7 Stage 0.
+        import experiments.run_g0_v2_evaluation as _E
+        _E.AGENTS = int(arm["agents"])
+    sel_pol = [int(x) for x in args.policies.split(",") if x.strip()] or list(arm["seeds"])
     states_by_policy = {}
     for pseed in sel_pol:
-        tag = f"g0_v5_long_seed{pseed}"
-        ck = PROJECT_ROOT / "artifacts" / "g0_v5_long" / tag / "ckpts" / f"final_{tag}.zip"
+        tag = arm["tag"].format(pseed)
+        ck = PROJECT_ROOT / "artifacts" / arm["dir"] / tag / "ckpts" / f"final_{tag}.zip"
         payload = read_checkpoint_payload(str(ck), map_location="cpu")
         pol = load_policy(str(ck), device=args.device,
                           num_cnn_channels=resolve_cnn_channels(payload, context=str(ck)))

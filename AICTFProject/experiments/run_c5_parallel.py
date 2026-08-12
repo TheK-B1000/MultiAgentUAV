@@ -28,7 +28,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 PY = str(ROOT / ".venv/Scripts/python.exe")
-G0_SEEDS = [3200001, 3200002, 3200003]
+ARM_SEEDS = {"2v2": [3200001, 3200002, 3200003],
+             "4v4": [3300001, 3300002, 3300003]}
+G0_SEEDS = ARM_SEEDS["2v2"]
 
 
 def main() -> int:
@@ -37,6 +39,7 @@ def main() -> int:
     ap.add_argument("--workers", type=int, default=11)
     ap.add_argument("--shard-dir", default=str(ROOT / "artifacts/c5_discovery/shards"))
     ap.add_argument("--states-out", default=str(ROOT / "artifacts/c5_discovery/states.json"))
+    ap.add_argument("--arm", default="2v2", choices=tuple(ARM_SEEDS))
     ap.add_argument("--opponent-set", default="historical",
                     choices=("historical", "srctf"))
     ap.add_argument("--seed-base", type=int, default=0,
@@ -50,6 +53,8 @@ def main() -> int:
     from srctf.opponent_sets import get as _opponent_set
     opponents = list(_opponent_set(args.opponent_set))
 
+    global G0_SEEDS
+    G0_SEEDS = ARM_SEEDS[args.arm]
     shard_dir = Path(args.shard_dir)
     shard_dir.mkdir(parents=True, exist_ok=True)
 
@@ -86,6 +91,7 @@ def main() -> int:
                    "--policies", str(pseed), "--opponents", opp,
                    "--partition-mode", "opponent",
                    "--opponent-set", args.opponent_set,
+                   "--arm", args.arm,
                    *(["--seed-base", str(args.seed_base)] if args.seed_base else []),
                    "--out", str(shard_dir / f"res_{pseed}_{opp}.json"),
                    "--states-out", str(sf)]
