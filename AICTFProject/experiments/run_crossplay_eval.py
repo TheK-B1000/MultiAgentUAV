@@ -11,11 +11,13 @@ arbitrary checkpoint instead of only a G0-V5 training seed.
 
 Handles both team sizes: run_g0_v2_evaluation.AGENTS is rebound per policy,
 because patching only one side once produced a 4-agent policy evaluated in a
-2v2 env (C7 Stage 0).
+2v2 env (C7 Stage 0). But team size is a CONFOUND for the diversity comparison,
+so the primary D1/D3/D7 arm is 2v2 only; 4v4 policies are opt-in and labelled
+SECONDARY_TEAM_SIZE_CHECK.
 
 Run:
   python experiments/run_crossplay_eval.py --registry artifacts/vgc_diversity/policies.json
-  python experiments/run_crossplay_eval.py --auto-d7        # the 6 existing baselines
+  python experiments/run_crossplay_eval.py --auto-d7   # the 3 PRIMARY 2v2 D7 baselines
 """
 from __future__ import annotations
 
@@ -43,17 +45,28 @@ def _git_commit() -> str:
         return "unknown"
 
 
-def auto_d7_registry() -> list[dict]:
-    """The six already-trained Mixed-PPO D7 baselines found in the Phase 1 audit."""
+def auto_d7_registry(include_secondary_4v4: bool = False) -> list[dict]:
+    """PRIMARY D7 = the three 2v2 G0-V5 baselines.
+
+    The frozen sets artifact requires all three rungs to share one team size, so
+    the 4v4 C7 policies MUST NOT enter the primary D1/D3/D7 comparison -- team
+    size would become a confound with diversity. They are available only as a
+    clearly-labelled secondary/historical team-size check.
+    """
     out = []
     for seed in (3200001, 3200002, 3200003):
         tag = f"g0_v5_long_seed{seed}"
-        out.append({"policy_id": tag, "checkpoint": f"artifacts/g0_v5_long/{tag}/ckpts/final_{tag}.zip",
-                    "method": "Mixed-PPO", "diversity_condition": "D7", "team_size": 2, "seed": seed})
-    for seed in (3300001, 3300002, 3300003):
-        tag = f"c7_4v4_seed{seed}"
-        out.append({"policy_id": tag, "checkpoint": f"artifacts/c7_stage0/{tag}/ckpts/final_{tag}.zip",
-                    "method": "Mixed-PPO", "diversity_condition": "D7", "team_size": 4, "seed": seed})
+        out.append({"policy_id": tag,
+                    "checkpoint": f"artifacts/g0_v5_long/{tag}/ckpts/final_{tag}.zip",
+                    "method": "Mixed-PPO", "diversity_condition": "D7",
+                    "team_size": 2, "seed": seed, "arm": "PRIMARY"})
+    if include_secondary_4v4:
+        for seed in (3300001, 3300002, 3300003):
+            tag = f"c7_4v4_seed{seed}"
+            out.append({"policy_id": tag,
+                        "checkpoint": f"artifacts/c7_stage0/{tag}/ckpts/final_{tag}.zip",
+                        "method": "Mixed-PPO", "diversity_condition": "D7",
+                        "team_size": 4, "seed": seed, "arm": "SECONDARY_TEAM_SIZE_CHECK"})
     return out
 
 
@@ -84,7 +97,7 @@ def evaluate_policy(entry: dict, episodes: int, device: str) -> list[dict]:
                                    seed=E.EVAL_SEED_BASE + i, device=device)
             r.update({"policy_id": entry["policy_id"], "method": entry["method"],
                       "diversity_condition": cond, "team_size": team,
-                      "train_seed": entry.get("seed"),
+                      "train_seed": entry.get("seed"), "arm": entry.get("arm", "PRIMARY"),
                       "seen_in_training": opp in trained_on})
             rows.append(r)
         wr = E._wr([r for r in rows if r["opponent"] == opp])
@@ -109,6 +122,7 @@ def summarize(rows: list[dict], entry: dict) -> dict:
         "policy_id": entry["policy_id"], "method": entry["method"],
         "diversity_condition": entry.get("diversity_condition"),
         "team_size": int(entry.get("team_size", 2)), "train_seed": entry.get("seed"),
+        "arm": entry.get("arm", "PRIMARY"),
         "checkpoint": entry["checkpoint"],
         "checkpoint_sha256": hashlib.sha256((ROOT / entry["checkpoint"]).read_bytes()).hexdigest(),
         "per_opponent": per_opp,
@@ -126,14 +140,18 @@ def summarize(rows: list[dict], entry: dict) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--registry", default="")
-    ap.add_argument("--auto-d7", action="store_true")
+    ap.add_argument("--auto-d7", action="store_true",
+                    help="the three PRIMARY 2v2 D7 baselines")
+    ap.add_argument("--include-secondary-4v4", action="store_true",
+                    help="add the 4v4 C7 policies as a labelled team-size check; "
+                         "they may NOT enter the primary D1/D3/D7 comparison")
     ap.add_argument("--episodes", type=int, default=30)
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--tag", default="crossplay")
     args = ap.parse_args()
 
     if args.auto_d7:
-        registry = auto_d7_registry()
+        registry = auto_d7_registry(args.include_secondary_4v4)
     elif args.registry:
         registry = json.loads((ROOT / args.registry).read_text(encoding="utf-8"))
     else:

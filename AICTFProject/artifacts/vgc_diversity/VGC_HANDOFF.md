@@ -12,11 +12,19 @@ Phase 12/13 — D1 training live and health-verified. D3 queued behind it (GPU-b
 
 ## STATUS FLAGS
 ```
-SELF_PLAY_REUSE   = PASS   (snapshot seam verified end-to-end)
-MIXED_PPO_SMOKE   = PASS   (only OP9 sampled across 64 episodes)
-MANIFESTS         = PASS   (vgc_condition.json sidecar)
-UNIFIED_EVALUATION= PENDING
-FP_SMOKE          = PENDING
+PPO_AS_OPPONENT_REUSE            = PASS   (snapshot seam verified end-to-end)
+FP_FOUNDATION                    = PASS
+HISTORICAL_SELF_PLAY_TRAINER     = REMOVED
+HISTORICAL_SELF_PLAY_CHECKPOINTS = UNAVAILABLE
+MIXED_PPO_SMOKE                  = PASS   (only OP9 sampled across 64 episodes)
+MANIFESTS                        = PASS   (vgc_condition.json sidecar)
+UNIFIED_EVALUATION               = BUILT / NOT YET RUN
+FP_SMOKE                         = PENDING
+BUILD COMPLETE                   = NOT YET
+
+CORRECTION: an earlier `SELF_PLAY_REUSE = PASS` overstated this. What was
+verified is the PPO-as-opponent SEAM, not a self-play trainer. The trainer is
+removed and the historical self-play checkpoints are unavailable.
 ```
 
 ## ACTIVE RUNS
@@ -36,14 +44,18 @@ capacity — D3 must wait for D1**, not run concurrently.
 ```
 D1 = OP9                      (median offensive_pressure)
 D3 = OP7, OP9, OP12           (min, median, max)
-D7 = OP6..OP12                (already trained: G0-V5 3200001-3)
+D7 = OP6..OP12                (already trained)
 ```
+**PRIMARY D7 = the three 2v2 G0-V5 policies (3200001-3) ONLY.**
+The 4v4 C7 policies (3300001-3) are a SECONDARY team-size check and may not
+enter the primary D1/D3/D7 comparison -- the frozen artifact requires one team
+size across rungs, so mixing 4v4 in would confound team size with diversity.
 
 ## NEXT AUTOMATIC STEP
 1. Build FP driver on the snapshot seam + FP smoke (code only, no GPU).
 2. Extend cross-play evaluator with policy_id / method / diversity fields.
 3. When D1 finishes -> launch D3 (3 seeds).
-4. Evaluate the 6 existing D7 baselines once GPU frees.
+4. Evaluate the THREE primary 2v2 D7 baselines once GPU frees.
 
 ---
 
@@ -88,7 +100,7 @@ D7 = OP6..OP12                (already trained: G0-V5 3200001-3)
 
 ---
 
-## SELF-PLAY STATUS — `SELF_PLAY_REUSE = PASS`
+## SELF-PLAY STATUS — seam only
 
 Verified end-to-end, not inferred:
 
