@@ -25,25 +25,7 @@ if str(ROOT) not in sys.path:
 ARM_SEEDS = {"2v2": [3200001, 3200002, 3200003], "4v4": [3300001, 3300002, 3300003]}
 
 
-def classify(path: Path) -> str:
-    """Classify a JSON artifact by its schema. Never by its name."""
-    try:
-        d = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return "unreadable"
-    if not isinstance(d, dict):
-        return "other"
-    if "states_file_sha256" in d and "policies" in d:
-        return "manifest"
-    if d and all(isinstance(v, list) for v in d.values()):
-        rows = next(iter(d.values()), [])
-        if rows and isinstance(rows[0], dict) and "episode_key" in rows[0] and "utilities" in rows[0]:
-            return "shard"
-        if not rows:
-            return "shard_empty"
-    if "verdict" in d:
-        return "result"
-    return "other"
+from srctf.artifacts import COMPLETE, NOT_PRESENT, SHARD_ONLY, cell_state, classify  # noqa: E402
 
 
 def main() -> int:
@@ -71,10 +53,9 @@ def main() -> int:
     cells = [(p, o) for p in ARM_SEEDS[args.arm] for o in opponent_set(args.opponent_set)]
     complete, states_only, absent = [], [], []
     for pseed, opp in cells:
-        sf, mf = d / f"states_{pseed}_{opp}.json", d / f"states_{pseed}_{opp}.json.manifest.json"
-        has_s = sf.exists() and classify(sf) == "shard"
-        has_m = mf.exists() and classify(mf) == "manifest"
-        (complete if (has_s and has_m) else states_only if has_s else absent).append(f"{pseed}/{opp}")
+        st = cell_state(d, pseed, opp)
+        {COMPLETE: complete, SHARD_ONLY: states_only, NOT_PRESENT: absent}[st].append(
+            f"{pseed}/{opp}")
 
     print(f"\ncells ({args.arm}, {len(cells)} total)")
     print(f"  complete (shard+manifest) : {len(complete)}")

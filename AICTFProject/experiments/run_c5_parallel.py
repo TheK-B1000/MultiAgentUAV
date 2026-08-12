@@ -71,14 +71,20 @@ def main() -> int:
         cells = cells[:args.max_cells]
     # Resume accounting, printed BEFORE any work starts. A resumed run must say
     # out loud which cells it is reusing rather than silently skipping them.
-    _present = [(p_, o_) for p_, o_ in cells
-                if (shard_dir / f"states_{p_}_{o_}.json").exists()]
+    # One truth source: never re-derive cell state from filenames here.
+    from srctf.artifacts import COMPLETE, NOT_PRESENT, SHARD_ONLY, cell_state
+    _state = {(p_, o_): cell_state(shard_dir, p_, o_) for p_, o_ in cells}
+    _present = [c for c in cells if _state[c] == COMPLETE]
+    _partial = [c for c in cells if _state[c] == SHARD_ONLY]
     _pending = [c for c in cells if c not in _present]
     print(f"C5 PARALLEL SCAN: {len(cells)} cells, {args.workers} concurrent, "
           f"{args.episodes} episodes/cell", flush=True)
-    print(f"  RESUME: {len(_present)} completed / {len(_pending)} pending", flush=True)
+    print(f"  RESUME: {len(_present)} complete / {len(_partial)} shard-only / "
+          f"{len(_pending)} pending", flush=True)
     for p_, o_ in _present:
         print(f"    [reuse] {p_}/{o_}", flush=True)
+    for p_, o_ in _partial:
+        print(f"    [RECOMPUTE] {p_}/{o_} has a shard but no manifest", flush=True)
 
     pending = list(cells)
     running: list[tuple] = []
@@ -89,7 +95,7 @@ def main() -> int:
         while pending and len(running) < args.workers:
             pseed, opp = pending.pop(0)
             sf = shard_dir / f"states_{pseed}_{opp}.json"
-            if sf.exists():          # resume: a completed shard is never recomputed
+            if cell_state(shard_dir, pseed, opp) == COMPLETE:  # never recomputed
                 print(f"  [skip] {pseed}/{opp} already present", flush=True)
                 done += 1
                 continue
