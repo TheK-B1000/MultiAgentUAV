@@ -1,0 +1,47 @@
+{
+  "record": "C7 Stage 2 — execution decision, locked before any cell completed",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-11T20:45:00Z",
+  "verified_at_authoring": {
+    "cells_completed": 0,
+    "shards_on_disk": 0,
+    "merged_states_file": "absent",
+    "why_this_matters": "the decision is recorded while NO C7 Stage-2 datum exists, so runtime cost cannot have been traded against a result"
+  },
+
+  "the_decision": "run C7 Stage 2 exactly as frozen, to completion, with no amendment",
+  "locked": {
+    "response_enumeration": "EXHAUSTIVE — unchanged",
+    "max_states_per_episode": "unchanged",
+    "episodes_per_cell": "30 — unchanged",
+    "seed_block": [9920000, 9920029],
+    "workers": 6,
+    "arms": "4v4 then the 2v2 control, identical protocol"
+  },
+
+  "the_discretion_this_closes": {
+    "what_was_proposed_and_rejected": "let the first cell complete to obtain a measured per-cell time, THEN decide whether to amend the episode count",
+    "why_it_was_wrong": "once a cell completes, scientific C7 data exist. Amending sampling afterwards -- even for an honest runtime reason -- is post-data discretion, which is precisely the pattern this project has spent every gate eliminating. Prudence about cost is not a licence to decide after seeing data.",
+    "the_clean_alternative": "if a sampling amendment were wanted, the only admissible moment was BEFORE the first cell. That moment is now, and the answer is no amendment."
+  },
+
+  "why_not_to_sample_the_response_space": {
+    "the_cost_driver": "legal team responses per state rose from mean 6.7 (max 9) at 2v2 to mean 57.0 (max 81) at 4v4, roughly 8.5x more 30-step branches per state",
+    "the_argument_against_sampling": "that explosion is itself a property of the treatment: 4v4 dramatically enlarged the strategic response space. Sampling it now would convert the decisive C7 test into a different experiment measuring a different space.",
+    "runtime": "on the order of 40 hours for the 4v4 arm, extrapolated from branch counts rather than measured. No measured figure will be used to revisit this decision."
+  },
+
+  "why_stage_2_is_now_MORE_important_not_less": {
+    "established": ["4v4 PPO competence 3/3", "the frozen capacity metric passed (0.9292 > 0.885)"],
+    "not_supported": "the predicted allocation-loosening mechanism. The like-for-like offence/contest correlation barely moved: -0.9229 at 2v2 to -0.9149 at 4v4.",
+    "unknown": "whether a preference reversal exists at 4v4",
+    "reading": "that unknown is the entire remaining value of C7. Stopping now would leave three 1M-step 4v4 training runs having answered nothing about strategic demand."
+  },
+
+  "the_two_pre_committed_readings": {
+    "REVERSAL_FOUND": "4v4 generated strategic demand even though the proposed offence/contest mechanism was not supported. We proceed to confirmation, then the trained-conditional gate, then observability -- and we do NOT claim to know why the reversal appeared.",
+    "NO_REVERSAL": "doubling team size produced competent policies and exceeded the preregistered capacity metric, but did not support the proposed allocation-loosening mechanism and did not demonstrate a preference reversal. Team-size work then STOPS entirely: no 6v6, no revised capacity ruler, no opponent patch. SRCTF becomes the main line."
+  },
+
+  "the_descriptive_finding_worth_keeping_either_way": "4v4 expanded the combinatorial allocation/response space by ~8.5x while leaving the measured offence/contest tradeoff essentially unchanged. Stage 2 tests whether that additional choice space contains real strategic opportunity cost, or merely more ways for one generalist to do the same job."
+}
