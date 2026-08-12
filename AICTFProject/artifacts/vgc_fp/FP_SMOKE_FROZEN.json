@@ -1,0 +1,48 @@
+{
+  "gate": "FP_SMOKE",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-13T02:00:00Z",
+  "frozen_before": "any SNAPSHOT-pool training run exists",
+
+  "the_singleton_flaw_this_avoids": {
+    "statement": "the real FP sequence starts pi1 vs {pi0}, a pool of SIZE ONE. That cannot prove historical POOL SAMPLING works -- it only re-proves the single-snapshot seam, which is already verified.",
+    "precedent": "the same flaw appeared in D1: a one-opponent pool cannot distinguish a working rotator from a broken one, which is why D3 needed its own preflight.",
+    "the_fix": "the FP SMOKE deliberately uses a pool of TWO known-compatible current-stack checkpoints, even though generation 1 of the real run will not."
+  },
+
+  "smoke_pool": {
+    "entries": [
+      "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip",
+      "artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip"
+    ],
+    "why_these": "both are current-stack 2v2 G0-V5 policies, and both were verified to load as CustomPPOInferencePolicy through the loadability guard before this gate was frozen",
+    "distinct": true
+  },
+
+  "criteria": {
+    "1_preload": "every configured snapshot is asserted loadable BEFORE training begins",
+    "2_subset": "every selected opponent checkpoint is in the configured pool",
+    "3_coverage": "BOTH checkpoints are actually observed (the criterion a size-1 pool cannot test)",
+    "4_episode_hold": "one checkpoint is held for a whole episode; no mid-episode switching",
+    "5_boundaries": "selection occurs only at episode boundaries",
+    "6_determinism": "same seed reproduces the snapshot-selection sequence exactly; a different seed yields a valid independently-sampled sequence over the pool",
+    "7_no_silent_none": "a failed load is a HARD failure, never a degradation to None",
+    "8_provenance": "the selected checkpoint id/path is written into episode provenance",
+    "9_learning_and_roundtrip": "PPO updates normally, and the resulting learner checkpoint saves, reloads and evaluates"
+  },
+
+  "explicitly_NOT_required": {
+    "tight_uniformity": "as with D3_POOL_PREFLIGHT, a short smoke must not be failed for lumpy counts. Criterion 6 (exact sequence reproducibility) is the strong check; realized counts are reported, not gated."
+  },
+
+  "outcome": {
+    "PASS": "FP_SMOKE = PASS; the real FP ladder may run pi1 vs {pi0}, pi2 vs {pi0,pi1}, pi3 vs {pi0,pi1,pi2}",
+    "FAIL": "do not run FP generations. Repair the seam and re-run; no FP evidence exists yet, so repair is engineering rather than post-data discretion."
+  },
+
+  "what_this_gate_does_NOT_establish": [
+    "that fictitious play improves robustness",
+    "that historical opponents produce better policies than scripted ones",
+    "anything about the diversity-scaling result"
+  ]
+}
