@@ -85,6 +85,47 @@ size across rungs, so mixing 4v4 in would confound team size with diversity.
 | Fictitious Play driver | `experiments/run_fictitious_play.py` (scaffold + guard) | | SNAPSHOT-pool wiring | ⏳ |
 | **Explicit population trainer** | `rl/population/` (`PopulationTrainer`, `PopulationMember`, `pressure_rotation`) | ✅ **Phase 2 asset** | needs SNAPSHOT support for FP | |
 
+### PHASE-2 CLASSIFICATION (keep these separate)
+```
+PopulationTrainer = Phase-2 explicit-specialist foundation   YES
+PopulationTrainer = Fictitious Play                          NO
+PopulationTrainer = recovered self-play                      NO
+```
+FP's defining ingredient is training against historical LEARNED policies, so it
+still needs the SNAPSHOT-pool path. PopulationTrainer only varies scripted
+pressures.
+
+**It gives candidate specialists, not niches.** Assigning different pressures
+does not prove a repertoire exists. Phase 2 still requires the scientific test:
+same full-board evaluation -> behavioural distinction -> complementary matchup
+value -> repertoire beats the best fixed policy. All three members converging on
+one generalist is a legitimate Phase-2 NEGATIVE.
+
+### PopulationTrainer compatibility audit (read-only; nothing launched)
+
+`PopulationMember` deep-copies a `base_cfg` and overrides ONLY
+`use_latent_strategy=False`, `seed`, `opponent_pool`, `opponent_pool_weights`.
+So map, team size, ruleset, reward and budget are **inherited from base_cfg** --
+passing a `run_g0_v5_long.build_config()` gives map_a / 2v2 / V2 / V5 / 1M for
+free.
+
+**`map_pool` is INERT for training but POISONS PROVENANCE.** The
+`map_b_split_lane*` default is never assigned to `member_cfg` (verified: it
+appears only in the dataclass default, a manifest dump at
+`population_member.py:156`, and `pressure_rotation.py:134`). So it cannot
+silently change the training map -- but it IS written into the member manifest,
+so a Phase-2 run would train on `map_a` while its own artifact claimed
+`map_b_split_lane`. Same class of defect as the OP6_TURTLE alias.
+
+Phase-2 config must therefore ASSERT, not merely configure:
+```
+map == map_a          team_size == 2v2       ruleset == frozen primary
+reward == frozen V5   budget == preregistered
+map_pool set explicitly so the manifest does not lie
+```
+Also note members are initialised from a `source_checkpoint`, which must be
+recorded as part of the Phase-2 preregistration.
+
 ### AUDIT CORRECTION (missed in the first pass)
 
 `rl/population/` exists and orchestrates **K independently trained policies**,
@@ -154,10 +195,17 @@ recheck), the other two seeds were unaffected, and the seed was relaunched from
 scratch after confirming no process held it. A partial run is unusable because
 the frozen protocol requires the full 1M-step budget.
 
-Watch for recurrence: if a second seed dies the same way, the cause is
-systematic (antivirus / indexer touching artifacts) rather than a one-off, and
-the artifacts directory should be excluded from scanning before more runs are
-spent.
+Recurrence rule (corrected -- do NOT assume antivirus without evidence):
+```
+1st occurrence   record + clean restart
+2nd independent  PAUSE new launches
+                 capture actual file-handle / lock OWNER (e.g. handle.exe,
+                   Sysinternals, or openfiles) BEFORE attributing a cause
+                 repair, then resume
+```
+A repeated symptom establishes that the problem is systematic; it does NOT
+establish which process is touching the file. Guessing "antivirus" would be an
+evidence-free ghost hunt, and the fix would be unverifiable.
 
 ## OPERATIONAL NOTE
 A smoke run (seed 3699999) was left alive after its artifacts were deleted and
