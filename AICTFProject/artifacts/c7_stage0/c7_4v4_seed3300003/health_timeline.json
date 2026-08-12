@@ -238,5 +238,29 @@
     },
     "grad_norm_mean_postclip": 0.4985301456795116,
     "zero_gradient_steps": 0
+  },
+  {
+    "global_step": 1001472,
+    "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\c7_stage0\\c7_4v4_seed3300003\\ckpts\\final_c7_4v4_seed3300003.zip",
+    "SYSTEM_HEALTH": "PASS",
+    "TASK_HEALTH": "PASS",
+    "task_panel": {
+      "global_step": 1001472,
+      "episodes": 21,
+      "pickups": 138,
+      "captures_blue": 57,
+      "captures_red": 12,
+      "drops": 81,
+      "wins": 20,
+      "offensive_commitment": 0.430439,
+      "defensive_commitment": 0.303828,
+      "capture_conversion": 0.413,
+      "win_rate": 0.9524,
+      "net_captures": 45,
+      "reasons": [],
+      "verdict": "PASS"
+    },
+    "grad_norm_mean_postclip": 0.4985301456795116,
+    "zero_gradient_steps": 0
   }
 ]
