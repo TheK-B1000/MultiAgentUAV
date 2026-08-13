@@ -1,13 +1,19 @@
 ﻿==============================================================================
-Wave-2 workers at ~10083s CPU (168 min) — roughly ~35-50 minutes to the
-next batch of completions. Still 11 complete, 10 pending, zero failures
-(shard+manifest). Re-armed on resume log.
+C7 Stage 2 — status board (new terminal)
 
-C7 Stage 2 4v4 — locked (ba5b436), exhaustive, 30 eps, 6 workers, 9920000
-  complete (shard+manifest) : 11
-  not present               : 10
-  last dones: 3300001/OP12 @ 216.3m, 3300001/OP11 @ 219.1m
+Earlier wave-2 snapshot (while resume was in flight):
+  Wave-2 workers ~5,701s–9,233s CPU — next batch ETA was ~50–110 min
+  State held: 11 complete, 10 pending, zero failures
+  Re-armed monitors on c7_stage2_4v4_resume.log ([done]/[FAIL]/merged|wall)
 
-Monitor: tail -f artifacts/c7_stage2_4v4_resume.log | grep done/FAIL/merged
-Ctrl+C stops this follow only — not the scan.
+CURRENT (live check now):
+  4v4 arm: COMPLETE — 21/21, merged 1260 states, wall 605.5 min
+  2v2 control: COMPLETE — wall 156.8 min
+  Verdict artifact: C7_STAGE2_VERDICT.json
+  VERDICT: C7_NO_REVERSAL_AT_4V4
+  Pre-committed action: STOP team-size work. Stage 3 / 9930000 unspent.
+  Next main line: Strategy-Rich CTF v1 (construction not started).
+
+4v4 detail: 6615 combos, 7 single-policy CI passes, 0 replicated
+2v2 detail: 189 combos, 0 single-policy passes, 0 replicated
 ==============================================================================

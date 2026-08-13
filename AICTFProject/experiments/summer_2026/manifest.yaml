@@ -1,0 +1,114 @@
+# Summer 2026 authoritative experiment manifest.
+#
+# This is a ROLLUP, not a second source of truth. Every value below is read
+# from an already-frozen JSON file or a completed run's own provenance
+# sidecar; nothing here may be edited independently of its source. If a value
+# needs to change, change the source and regenerate this file.
+#
+# Source precedence:
+#   VGC_DIVERSITY_SETS_FROZEN.json   D1/D3/D7 definitions, budget, team size
+#   D3_POOL_PREFLIGHT_FROZEN.json    D3 sampler gate criteria
+#   FP_SMOKE_FROZEN.json             FP mechanism gate criteria
+#   vgc_condition.json (per run)     what a completed run actually received
+#   crossplay/*_summary.json         evaluation results (raw episodes preserved)
+
+experiment_id: summer_2026_diversity_and_repertoire
+git_commit_at_manifest_creation: 7b94c059
+environment:
+  map: map_a
+  ruleset: RULESET_V2
+  team_size: 2
+  reward: G0-V5 (V5 verified-aligned reward; see artifacts/g0_v5_long/G0_V5_LONG_RUN_SPEC.json)
+  training_budget_steps: 1000000
+
+opponent_pool_source: gpu_env/_core/_bt_profiles.py  # canonical OP6-OP12, no OP13
+
+conditions:
+  D1:
+    definition_source: artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json
+    opponents: [OP9]
+    selection_rule: median offensive_pressure (C7 Stage 1 measurement)
+    seeds: [3600001, 3600002, 3600003]
+    status: COMPLETE
+    provenance: NEW
+    checkpoints: &d1_checkpoints
+      3600001: artifacts/vgc_diversity/vgc_d1_seed3600001/ckpts/final_vgc_d1_seed3600001.zip
+      3600002: artifacts/vgc_diversity/vgc_d1_seed3600002/ckpts/final_vgc_d1_seed3600002.zip
+      3600003: artifacts/vgc_diversity/vgc_d1_seed3600003/ckpts/final_vgc_d1_seed3600003.zip
+    health_panels_total: 33
+    health_panels_non_pass: 0
+
+  D3:
+    definition_source: artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json
+    opponents: [OP7, OP9, OP12]
+    selection_rule: "{min, median, max} offensive_pressure"
+    seeds: [3700001, 3700002, 3700003]
+    status: NOT_STARTED
+    provenance: NEW
+    blocked_by: [MIXED_SAMPLING_PASS]   # = D3_POOL_PREFLIGHT_PASS in existing gate vocabulary
+    preflight_gate_source: artifacts/vgc_diversity/D3_POOL_PREFLIGHT_FROZEN.json
+
+  D7:
+    definition_source: artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json
+    opponents: [OP6, OP7, OP8, OP9, OP10, OP11, OP12]
+    seeds: [3200001, 3200002, 3200003]
+    status: COMPLETE
+    provenance: EXISTING   # G0-V5, trained before this experiment was framed; reused verbatim
+    parent_experiment: G0-V5 (artifacts/g0_v5_long/G0_V5_LONG_RUN_SPEC.json)
+    checkpoints:
+      3200001: artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip
+      3200002: artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip
+      3200003: artifacts/g0_v5_long/g0_v5_long_seed3200003/ckpts/final_g0_v5_long_seed3200003.zip
+    note: >
+      C7 4v4 checkpoints (3300001-3) exist and are D7-trained but are NOT part
+      of the primary comparison -- different team size would confound team
+      size with diversity. Available only as arm=SECONDARY_TEAM_SIZE_CHECK via
+      run_crossplay_eval.py --include-secondary-4v4.
+
+evaluation:
+  evaluator: experiments/run_crossplay_eval.py   # extends run_g0_v2_evaluation; no parallel eval stack
+  opponent_board: [OP6, OP7, OP8, OP9, OP10, OP11, OP12]
+  episodes_per_cell: 30
+  eval_seed_base: run_g0_v2_evaluation.EVAL_SEED_BASE   # held out from all training blocks
+  completed_runs:
+    - tag: d1_vs_d7
+      output: artifacts/vgc_diversity/crossplay/d1_vs_d7_summary.json
+      episodes_total: 1260
+      raw_episode_rows_preserved: true
+      result_headline: >
+        D1 overall 0.803, D7 overall 0.798 (statistically indistinguishable).
+        D1 on OP9 (its only training opponent) 0.733 vs D7 on OP9 0.689;
+        difference +0.044 is within per-condition SE (~0.042 at n=30, 3 seeds).
+        No measurable specialization from single-opponent training.
+
+specialists:
+  # EXPERIMENT 2 in this project's naming discipline (see SUMMER_2026_AUDIT.md).
+  # D1's checkpoints under condition D1 ARE S_OP9 -- same training condition,
+  # reused rather than retrained. S_OP7 and S_OP12 do not exist.
+  S_OP9:
+    provenance: EXISTING
+    equivalent_to: conditions.D1
+    checkpoints: *d1_checkpoints  # see conditions.D1.checkpoints above
+  S_OP7:
+    status: NOT_STARTED
+  S_OP12:
+    status: NOT_STARTED
+
+fictitious_play:
+  seam: gpu_env/state/snapshots.py (SNAPSHOT opponent kind)
+  rotator: rl/custom_ppo/curriculum_runtime.py::_sample_snapshot_opponents
+  driver: experiments/run_fictitious_play.py
+  smoke_gate_source: artifacts/vgc_fp/FP_SMOKE_FROZEN.json
+  status: WIRED_NOT_SMOKED
+  historical_self_play_trainer: REMOVED
+  historical_self_play_checkpoints: UNAVAILABLE
+
+gates:
+  MIXED_SAMPLING_PASS: NOT_RUN      # = D3_POOL_PREFLIGHT
+  FP_SMOKE: NOT_RUN
+  CROSSOVER_FOUND: NOT_TESTED       # needs >=2 differently-trained specialists
+  MATCHUP_DEPENDENCE: NOT_TESTED
+  REPERTOIRE_VALUE_PASS: NOT_TESTED
+  SELECTOR_VALUE_PASS: NOT_TESTED
+  MEMORYLESS_SELECTOR: NOT_TESTED
+  TEMPORAL_OBSERVABILITY_REQUIRED: NOT_TESTED

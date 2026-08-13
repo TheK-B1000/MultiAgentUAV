@@ -1,0 +1,11 @@
+{
+  "state": "PREFLIGHT",
+  "history": [
+    {
+      "from": "AUDIT",
+      "to": "PREFLIGHT",
+      "utc": "2026-08-13T22:39:55Z"
+    }
+  ],
+  "gates": {}
+}

@@ -1,0 +1,5 @@
+﻿{
+    "stopped_utc":  "2026-08-13T22:39:39.5825003Z",
+    "note":  "DIAGNOSTIC probe only; not FP_SMOKE. Confirmed CSV opponent format SNAPSHOT:\u003cpath\u003e and scripted warmup before hook.",
+    "last_timesteps":  4096
+}
