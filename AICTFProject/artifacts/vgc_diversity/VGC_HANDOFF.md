@@ -85,6 +85,37 @@ size across rungs, so mixing 4v4 in would confound team size with diversity.
 | Fictitious Play driver | `experiments/run_fictitious_play.py` (scaffold + guard) | | SNAPSHOT-pool wiring | ⏳ |
 | **Explicit population trainer** | `rl/population/` (`PopulationTrainer`, `PopulationMember`, `pressure_rotation`) | ✅ **Phase 2 asset** | needs SNAPSHOT support for FP | |
 
+### NAMING DISCIPLINE: two experiments, one shared machinery
+
+Both sometimes train against a single opponent. They are NOT the same experiment
+and must not share a label.
+
+```
+EXPERIMENT 1 -- diversity scaling (running now)
+  D1 = one PPO trained on OP9 ONLY
+  D3 = one PPO trained on OP7+OP9+OP12
+  D7 = one PPO trained on OP6..OP12
+  question: how does training DIVERSITY (1 -> 3 -> 7) affect one PPO?
+
+EXPERIMENT 2 -- explicit specialists (not started)
+  S_OP7  = PPO trained only against OP7
+  S_OP9  = PPO trained only against OP9
+  S_OP12 = PPO trained only against OP12
+  question: do separate PPOs under different pressures form a real repertoire?
+```
+
+**`D1` names ONE fixed condition (OP9-only). Never write "D1 with pool OP7".**
+Doing so would stop D1 from being a single experimental condition.
+
+Legitimate reuse: the finished D1 policies are scientifically identical to
+`S_OP9`, so they can serve BOTH roles. Only OP7-only and OP12-only runs are new.
+The artifact is shared; the labels stay distinct.
+
+Enforced structurally: `run_vgc_diversity.py` has NO `--pool` flag. The pool is
+read from the frozen sets file keyed by condition, so `--condition D1 --pool
+OP7` is rejected by argparse. Do not add such a flag; add a separate `S_*`
+condition namespace instead.
+
 ### PHASE-2 CLASSIFICATION (keep these separate)
 ```
 PopulationTrainer = Phase-2 explicit-specialist foundation   YES
@@ -94,6 +125,15 @@ PopulationTrainer = recovered self-play                      NO
 FP's defining ingredient is training against historical LEARNED policies, so it
 still needs the SNAPSHOT-pool path. PopulationTrainer only varies scripted
 pressures.
+
+**The diagonal is not evidence.** A table where each specialist wins its own
+training matchup is equally consistent with plain overfitting -- studying three
+exam questions and acing only the memorised one. The real evidence is the
+OFF-DIAGONAL fingerprint: differing performance profiles across opponents none
+of them trained on. And if each specialist only wins its own matchup, the
+repertoire's value requires knowing which opponent you face, which collapses
+into the observability question -- so Phase 3 determines whether Phase 2's
+number is deployable at all.
 
 **It gives candidate specialists, not niches.** Assigning different pressures
 does not prove a repertoire exists. Phase 2 still requires the scientific test:
