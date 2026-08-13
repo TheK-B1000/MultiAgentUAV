@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from types import SimpleNamespace
 from typing import Any, Optional
@@ -20,6 +20,8 @@ class TrainingOpponentPool:
     rng: np.random.Generator
     # Optional joint (opponent, map, weight) cells. When set, overrides tag-only sampling.
     cells: Optional[list[tuple[str, str, float]]] = None
+    snapshots: list = field(default_factory=list)
+    snapshot_rng: Any = None
 
     @classmethod
     def from_hparams(cls, cfg: Any, hparams: Any) -> TrainingOpponentPool:
@@ -49,12 +51,18 @@ class TrainingOpponentPool:
             if total <= 0:
                 raise ValueError("training_cell_distribution weights must sum to > 0")
             cells = [(o, m, max(0.0, w) / total) for o, m, w in parsed]
+        snapshots = [str(x) for x in (getattr(cfg, "snapshot_opponent_pool", ()) or ())]
         return cls(
-            enabled=bool(hparams.opponent_randomize_training),
+            enabled=bool(hparams.opponent_randomize_training) or bool(snapshots),
             tags=tags,
             weights=weights,
             rng=np.random.default_rng(int(getattr(cfg, "seed", 0)) + 901),
             cells=cells,
+            snapshots=snapshots,
+            # SEPARATE stream (+902). Drawing snapshot picks from the scripted rng
+            # would shift the scripted opponent sequence for a given seed, which is
+            # exactly the compatibility break the additive design must avoid.
+            snapshot_rng=np.random.default_rng(int(getattr(cfg, "seed", 0)) + 902),
         )
 
     def attach_before_reset_hook(self, env: Any, trainer: Any) -> None:
@@ -73,6 +81,8 @@ def _resolve_training_opponent_pool(trainer: Any) -> Any:
         weights=getattr(trainer, "_opponent_pool_weights", None),
         rng=getattr(trainer, "_rng_opponent", None),
         cells=None,
+        snapshots=list(getattr(trainer, "_snapshot_opponent_pool", []) or []),
+        snapshot_rng=getattr(trainer, "_rng_snapshot_opponent", None),
     )
 
 
@@ -118,12 +128,53 @@ def _update_curriculum_after_episode(
     _set_curriculum_opponent(trainer, new_phase, env_index)
 
 
+def _sample_snapshot_opponents(trainer: Any, pool: Any, snapshots: list, done: np.ndarray) -> None:
+    """Fictitious Play: pick a historical checkpoint per finished sub-env.
+
+    Uses pool.snapshot_rng, NOT pool.rng, so enabling FP cannot shift the
+    scripted opponent sequence for any given seed.
+
+    Fails CLOSED on load. gpu_env/state/snapshots.py swallows load errors and
+    returns None, which would leave red unpiloted while training looked healthy
+    -- a counterfeit success. A checkpoint that will not load raises here instead.
+    """
+    rng = getattr(pool, "snapshot_rng", None)
+    if rng is None:
+        raise RuntimeError("snapshot opponent pool configured without an RNG")
+    for env_i, done_i in enumerate(done):
+        if not bool(done_i):
+            continue
+        pick = str(snapshots[int(rng.integers(0, len(snapshots)))])
+        try:
+            core = trainer.env.get_attr("core", indices=[env_i])[0]
+            if core._load_snapshot_policy(pick) is None:
+                raise RuntimeError(
+                    f"snapshot opponent {pick!r} loaded as None; refusing to train "
+                    f"against an unpiloted red team")
+        except RuntimeError:
+            raise
+        except Exception:
+            pass  # env without a reachable core attr; the loadability guard ran pre-training
+        try:
+            trainer.env.env_method("set_next_opponent", "SNAPSHOT", pick, indices=[env_i])
+        except Exception:
+            trainer.env.env_method("set_next_opponent", "SNAPSHOT", pick)
+        sel = getattr(trainer, "_fp_selected_snapshots", None)
+        if sel is None:
+            sel = trainer._fp_selected_snapshots = []
+        sel.append({"env": int(env_i), "checkpoint": pick})
+
+
 def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, infos: list) -> None:
     """Sample the *next* episode's scripted opponent per finished sub-env (GPUCTFVecEnv hook)."""
     if trainer.curriculum is not None:
         return
     pool = _resolve_training_opponent_pool(trainer)
     if not pool.enabled:
+        return
+    snapshots = list(getattr(pool, "snapshots", []) or [])
+    if snapshots:
+        _sample_snapshot_opponents(trainer, pool, snapshots, done)
         return
     cells = getattr(pool, "cells", None)
     weights = pool.weights
