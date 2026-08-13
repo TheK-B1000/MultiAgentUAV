@@ -1,0 +1,16 @@
+{
+  "verdict": "TRAINING_COMPLETE",
+  "total_timesteps": 1000000,
+  "global_step": 1001472,
+  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_diversity\\vgc_d1_seed3600001\\ckpts\\final_vgc_d1_seed3600001.zip",
+  "n_episode_rows": 4307,
+  "artifact_identity": {
+    "run_id": "vgc_d1_seed3600001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}
