@@ -41,25 +41,20 @@ single-seed unless a result is explicitly authorized for replication.
 3700003 STOPPED_BY_PROTOCOL  →  D1/D3(3700001,3700002)/D7 eval  →  frozen Path A/B classifier
 ```
 
-Eval (do not classify yet):
+Eval **COMPLETE** (56/56). Frozen classifier applied post-hoc (stale supervisor had skipped it).
 
 ```text
-15 / 56 cells                    COLLECTED
-D7-3200001                       COMPLETE   overall ~0.819
-D7-3200002                       COMPLETE   overall ~0.781
-D7-3200003                       IN PROGRESS
-D1 ×3, D3 ×2                     PENDING
-
-CHECKPOINT COMPATIBILITY         PASS
-OP12 very easy / OP10 relatively hard / OP9 similar   PRELIMINARY (D7 only)
-Seed-level fingerprint variance  CLEARLY PRESENT (OP7 .867 vs .600, same D7 condition)
-Strategic complementarity        NOT YET ESTABLISHED
-PATH_A / PATH_B                  UNCLASSIFIED
+56 / 56 cells                    COMPLETE
+d1_d3_d7_summary.json            EXISTS
+gate_results.json                EXISTS
+PATH_B                           DISCOVERY (cross-condition; 0 seed-noise)
+CROSSOVER_FOUND                  true (n=3)
+hardest / easiest column         OP7 / OP12
+D1 / D3 / D7 mean overall WR     0.803 / 0.814 / 0.798
+next                             1-seed specialist pilot (human boundary)
 ```
 
-Same-condition Wald crossovers = SEED_NOISE, not PATH_B. PATH_B requires a
-cross-condition (D1/D3/D7) two-way LCB95>0 reversal. Recorded before any D1/D3
-eval row exists. Wald estimator unchanged. Let DIVERSITY_EVAL finish.
+PATH_B is **preregistered discovery**, not confirmation.
 
 ## Two paper paths (frozen before the full 8-policy board)
 
