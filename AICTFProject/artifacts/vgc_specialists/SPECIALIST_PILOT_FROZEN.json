@@ -1,0 +1,98 @@
+{
+  "protocol_id": "SUMMER_2026_SPECIALIST_PILOT",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-14T23:40:00Z",
+  "frozen_before": "S_OP7 and S_OP8 exist. No specialist has been trained or evaluated.",
+  "authorized_by": "PI selection of S_OP7 + S_OP8 after PATH_B fired",
+  "triggered_by": {
+    "gate": "SUMMER_2026_PAPER_PATH",
+    "verdict": "PATH_B",
+    "source": "artifacts/summer_2026/gate_results.json",
+    "evidence_label": "preregistered DISCOVERY, family-wise error NOT controlled"
+  },
+
+  "purpose": "Test whether the discovered OP7/OP8 matchup structure can be deliberately amplified by explicit single-opponent training, and whether the resulting repertoire has routing value over the best single policy.",
+
+  "target_selection_is_data_driven_and_disclosed": {
+    "chosen": ["OP7", "OP8"],
+    "pre_planned_before_data": ["OP7", "OP12"],
+    "why_changed": "OP12 is at ceiling (column mean .9958; six of eight policies score 1.000), so it has no headroom to show a crossover. OP7 is the hardest column (.6417) and OP8 carries the only diversity gradient that survived both D3 seeds (D1 .878 > D3 .783 > D7 .767).",
+    "honesty_note": "Because targets were chosen after seeing the matrix, this pilot is CONFIRMATORY for the OP7/OP8 pair only. It cannot also serve as independent discovery of that pair."
+  },
+
+  "training": {
+    "S_OP7": {"opponent_pool": ["OP7"], "seed": 3900007},
+    "S_OP8": {"opponent_pool": ["OP8"], "seed": 3900008},
+    "n_seeds_each": 1,
+    "seed_protocol": "artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json (EXPLORATORY_SINGLE_SEED)",
+    "total_timesteps": 1000000,
+    "team_size": "2v2",
+    "map": "map_a",
+    "ruleset": "RULESET_V2",
+    "inherits": "run_g0_v5_long (reward, architecture, health gates) via run_vgc_specialist.py, same reuse pattern as run_vgc_diversity.py",
+    "namespace_note": "S_OP7/S_OP8 are SPECIALISTS, a different experiment from the D1/D3/D7 diversity conditions. They must never be reported as a diversity rung."
+  },
+
+  "evaluation": {
+    "policy_set": [
+      "S_OP7 (3900007)",
+      "S_OP8 (3900008)",
+      "vgc_d1_seed3600001  (best-overall D1, .8333)",
+      "vgc_d3_seed3700001  (best-overall D3, .8286)",
+      "g0_v5_long_seed3200001 (best-overall D7, .8191)"
+    ],
+    "opponent_board": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+    "episodes_per_cell": 60,
+    "why_60_not_30": "the oracle gate requires a split-half estimate; 60 gives 30 per half, matching the precision of the main matrix",
+    "evaluator": "experiments/run_crossplay_eval.py (unchanged)",
+    "paired_seeds": "every policy sees the same episode seed block per opponent, as in run_g0_v2_evaluation"
+  },
+
+  "gates": {
+    "gate1_crossover_direction_A": "WR(S_OP7, OP7) > WR(S_OP8, OP7), LCB95 > 0",
+    "gate2_crossover_direction_B": "WR(S_OP8, OP8) > WR(S_OP7, OP8), LCB95 > 0",
+    "gate3_repertoire_value": "LCB95(delta_pool) > 0 AND delta_pool >= 0.05",
+    "all_three_required": true,
+    "reused_from": "the K=2 LRO specialist gate structure (gate1/gate2/delta_pool), so this pilot is directly comparable to that prior negative result"
+  },
+
+  "delta_pool_definition": {
+    "V_selective": "mean over opponents of the win rate of the policy selected for that opponent",
+    "V_fixed": "max over policies of that policy's mean win rate across opponents",
+    "delta_pool": "V_selective - V_fixed",
+    "SPLIT_HALF_ORACLE": {
+      "why": "a naive oracle takes max over policies on the SAME episodes used to score it, which is positively biased by construction and cannot return a negative gap",
+      "rule": "episodes per cell are split into half A and half B by seed parity. The per-opponent argmax policy is SELECTED on half A and SCORED on half B. V_fixed is likewise scored on half B.",
+      "consequence": "delta_pool CAN come out negative or zero under this estimator. That is the point.",
+      "uncertainty": "paired bootstrap over half-B episodes, 10000 resamples, 95% LCB"
+    },
+    "practical_floor_rationale": "delta_pool >= 0.05 win-rate points is required in addition to LCB95 > 0. Per-cell SE at n=30 is ~0.085, and any realizable selector recovers only a fraction of the oracle gap, so an oracle advantage below 0.05 cannot support a usable router. This floor is a judgment call and is fixed here, before any specialist exists, precisely so it cannot be tuned later."
+  },
+
+  "prior_result_this_pilot_must_be_read_against": {
+    "experiment": "K=2 LRO independent-specialist proof, 2026-07-30",
+    "memory": "project_k2v2_specialist_status",
+    "outcome": "FAILED at the 1M gate. gate1 PASS, gate2 FAIL, delta_pool = 0.0000 exactly -- one policy was argmax in BOTH contexts, so selective value equalled fixed value. 0/9 seed pairings showed both crossover directions.",
+    "mechanism": "a payoff crossover among SCRIPTED probes did not survive PPO training; the intended specialist became the better generalist instead.",
+    "what_is_different_now": "the crossover this time was observed between TRAINED PPO policies on a held-out board, not between scripted probes. That is a stronger starting point but not a guarantee.",
+    "standing_rule_from_that_result": "do not re-run the gate hoping for a different verdict, and do not select an earlier checkpoint post hoc to claim a pass. Only the 1M checkpoint is the formal gate."
+  },
+
+  "stopping_rule": {
+    "if_all_three_gates_pass": "explicit repertoire has value. Proceed to the LEGAL SELECTOR phase (can observable state/history pick the right policy?). Latent compression remains gated behind a working selector.",
+    "if_gate3_fails": "STOP the escalation. There is no useful routing problem even with perfect hindsight. Report the diversity-scaling result and the PATH_B discovery as a discovery that did not convert.",
+    "if_gate1_or_gate2_fails": "the crossover did not survive deliberate training -- the same failure mode as K=2. STOP and report.",
+    "prohibited": [
+      "widening the opponent board after seeing results to find a pair that passes",
+      "lowering the 0.05 floor or dropping the split-half estimator",
+      "adding seeds to rescue a failed gate (a failed gate is a result, not a power problem)",
+      "reporting a naive same-episode oracle gap as delta_pool"
+    ]
+  },
+
+  "does_not_change": [
+    "the frozen D1/D3/D7 sets and their completed results",
+    "PAPER_PATH_READOUT_FROZEN.json and the PATH_B verdict",
+    "the OP6-OP12 canonical registry (no OP13)"
+  ]
+}
