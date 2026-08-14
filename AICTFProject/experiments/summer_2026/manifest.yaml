@@ -24,7 +24,12 @@ seed_protocol:
   philosophy: 1 seed to discover; only replicate important findings
   evidence_label_for_new_stages: EXPLORATORY_SINGLE_SEED
   new_stages_n_seeds: 1
-  D3_this_campaign: grandfathered through seeds already started at freeze (incl. 3700003)
+  D3_this_campaign: >
+    Seeds already RUNNING at freeze are grandfathered (3700001, 3700002 -- both
+    COMPLETE and both used in the primary eval). Seed 3700003 was stopped and is
+    NOT grandfathered into the eval; frozen protocol sets
+    do_not_schedule_further_D3_seeds = true, so D3 stands at n=2 by decision.
+  rationale_addendum: artifacts/summer_2026/SEED_PROTOCOL.json  # why n=1 is a screen
 environment:
   map: map_a
   ruleset: RULESET_V2
@@ -54,9 +59,10 @@ conditions:
     opponents: [OP7, OP9, OP12]
     selection_rule: "{min, median, max} offensive_pressure"
     seeds: [3700001, 3700002, 3700003]
-    status: IN_PROGRESS
+    status: COMPLETE_AT_N2   # 3700001+3700002 trained to 1M; 3700003 stopped, not rerun
     provenance: NEW
     blocked_by: []
+    health_panels_non_pass: 0
     preflight_gate_source: artifacts/vgc_diversity/D3_POOL_PREFLIGHT_FROZEN.json
     seed_protocol: artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json
     seed_notes:
@@ -118,14 +124,21 @@ fictitious_play:
   rotator: rl/custom_ppo/curriculum_runtime.py::_sample_snapshot_opponents
   driver: experiments/run_fictitious_play.py
   smoke_gate_source: artifacts/vgc_fp/FP_SMOKE_FROZEN.json
-  status: SEAM_OBSERVED_FULL_SMOKE_INCOMPLETE
-  probe_finding: artifacts/vgc_fp/FP_PROBE_2026-08-13.json
+  status: MECHANISM_PASS_SCIENTIFIC_PHASE_UNAUTHORIZED
+  smoke_result: artifacts/vgc_fp/FP_SMOKE_RESULT.json   # FP_SMOKE_PASS, 9/9 criteria
+  probe_finding: artifacts/vgc_fp/FP_PROBE_2026-08-13.json   # SUPERSEDED by the above
   historical_self_play_trainer: REMOVED
   historical_self_play_checkpoints: UNAVAILABLE
   note: >
-    FP_PROBE_2026-08-13 confirmed SNAPSHOT:<path> episode provenance and
-    stalled at 4096/6144 without an ablation report. That is NOT FP_SMOKE=PASS.
-    Full FP smoke remains deferred and does not block D3.
+    Two records exist and are kept in order. FP_PROBE_2026-08-13 was an
+    engineering probe that confirmed SNAPSHOT:<path> episode provenance but
+    stalled at 4096/6144 with no ablation report -- correctly recorded at the
+    time as NOT FP_SMOKE=PASS. The formal 9-criterion smoke ran afterwards and
+    completed: both pool checkpoints observed (72/65 snapshot episodes), same
+    seed reproduced the identical sequence, preload rejected non-checkpoints.
+    The probe's INCOMPLETE status is therefore superseded, not contradicted.
+    MECHANISM passing is still not authorization for the scientific FP phase --
+    see gates.FP_SCIENTIFIC_GATE.
 
 gates:
   MIXED_SAMPLING_PASS: D3_POOL_PREFLIGHT_PASS

@@ -1,0 +1,9 @@
+{
+  "seed": 3700003,
+  "status": "STOPPED_BY_PROTOCOL",
+  "stopped_utc": "2026-08-14T11:22:00Z",
+  "reason": "Explicit decision: 3700003 had only just started; end it and proceed with completed D3 seeds 3700001 and 3700002. One-canonical-seed protocol.",
+  "do_not_use_for_primary_comparison": true,
+  "artifacts_preserved": true,
+  "final_checkpoint": false
+}

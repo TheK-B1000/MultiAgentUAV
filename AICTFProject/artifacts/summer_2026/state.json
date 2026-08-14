@@ -1,11 +1,48 @@
 {
-  "state": "PREFLIGHT",
+  "state": "DIVERSITY_EVAL",
   "history": [
     {
       "from": "AUDIT",
       "to": "PREFLIGHT",
       "utc": "2026-08-13T22:39:55Z"
+    },
+    {
+      "from": "PREFLIGHT",
+      "to": "FP_SMOKE",
+      "utc": "2026-08-14T00:15:41Z"
+    },
+    {
+      "from": "FP_SMOKE",
+      "to": "DIVERSITY_TRAIN",
+      "utc": "2026-08-14T01:43:19Z"
+    },
+    {
+      "from": "DIVERSITY_TRAIN",
+      "to": "STOPPED_ERROR",
+      "utc": "2026-08-14T11:23:29Z",
+      "reason": "D3 seed 3700003 failed",
+      "rc": 4294967295
+    },
+    {
+      "from": "DIVERSITY_TRAIN",
+      "to": "DIVERSITY_EVAL",
+      "utc": "2026-08-14T11:23:43Z",
+      "reason": "3700003 STOPPED_BY_PROTOCOL; proceed with completed D3 seeds 3700001, 3700002"
     }
   ],
-  "gates": {}
+  "gates": {
+    "MIXED_SAMPLING_PASS": "D3_POOL_PREFLIGHT_PASS",
+    "FP_SMOKE": "FP_SMOKE_PASS",
+    "SEED_PROTOCOL": "ONE_CANONICAL_UNLESS_REPLICATION",
+    "D3_SEEDS_USED": [
+      3700001,
+      3700002
+    ],
+    "D3_3700003": "STOPPED_BY_PROTOCOL"
+  },
+  "diversity_train_pids": {
+    "3700001": 43408,
+    "3700002": 46064,
+    "3700003": "STOPPED_BY_PROTOCOL"
+  }
 }

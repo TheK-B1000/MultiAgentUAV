@@ -1,37 +1,28 @@
 {
-  "protocol": "SEED_PROTOCOL — ONE_CANONICAL_UNLESS_REPLICATION",
-  "status": "ACTIVE",
-  "authored_utc": "2026-08-14T12:00:00Z",
-  "decided_by": "PI instruction (time budget)",
+  "record_id": "SEED_PROTOCOL_RATIONALE",
+  "kind": "rationale_addendum",
+  "authoritative_protocol": "artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json",
+  "is_not_a_second_source_of_truth": true,
+  "authored_utc": "2026-08-14T12:15:00Z",
+  "note": "SEED_PROTOCOL_FROZEN.json (frozen 2026-08-14T11:20:00Z) is the operative rule and was already frozen when this addendum was written. This file adds ONLY the evidentiary justification for the n=1 decision, which the frozen file states but does not argue. If the two ever conflict, the frozen file wins.",
 
-  "the_rule": {
-    "future_training_runs": "ONE canonical seed per condition (specialists, FP generations, any new arm)",
-    "already_collected_data": "UNCHANGED and analysed as collected. D1 x3, D7 x3, D3 x2 stay multi-seed; nothing is discarded to match the new protocol retroactively.",
-    "replication_trigger": "if a single-seed result would become a scientific CLAIM, it must first be replicated at n>=2 before entering the readout"
-  },
-
-  "why_this_is_a_screen_not_a_confirmation": {
-    "the_hazard_this_run_already_demonstrated": "the two completed D7 seeds were trained under IDENTICAL conditions yet differ by .867 vs .600 on OP7 and .833 vs .933 on OP11. Same training distribution, large per-cell fingerprint variation.",
+  "why_n_equals_1_is_a_screen_not_a_confirmation": {
+    "the_hazard_this_campaign_already_demonstrated": "the two completed D7 seeds were trained under IDENTICAL conditions yet differ by .867 vs .600 on OP7 and .833 vs .933 on OP11. Same training distribution, same budget, large per-cell fingerprint variation.",
     "consequence_at_n_equals_1": "a crossover observed between two single-seed policies is NOT distinguishable from that same PPO seed noise. n=1 can find CANDIDATES; it cannot establish complementarity.",
-    "therefore": "single-seed specialist probes are SCREENS. A crossover they surface is a hypothesis, and the frozen two-way-with-uncertainty crossover rule still governs whether it counts."
+    "therefore": "single-seed specialist probes are SCREENS. A crossover they surface is a hypothesis, and the frozen crossover decision rule still governs whether it counts.",
+    "matches_frozen_field": "evidence_label_for_new_stages = EXPLORATORY_SINGLE_SEED"
   },
 
   "explicitly_prohibited": [
     "reporting a single-seed crossover as demonstrated strategic specialization",
     "interpreting a crossover between two seeds of the SAME training condition as evidence that diversity created specialization -- that is policy variation, not strategic structure",
-    "retroactively dropping already-collected seeds to match this protocol"
+    "retroactively dropping already-collected seeds to match the prospective protocol"
   ],
 
-  "current_seed_counts": {
-    "D1": 3, "D3": 2, "D7": 3,
-    "D3_note": "seed 3700003 was killed externally at 24,576 steps (rc -1, healthy losses -- not a training failure) and marked STOPPED_BY_PROTOCOL. D3 therefore has n=2 while D1/D7 have n=3. This asymmetry is recorded, not hidden; the frozen sets artifact specifies 3 per condition."
-  },
-
-  "does_not_change": [
-    "the frozen D1/D3/D7 opponent sets",
-    "the 1,000,000-step budget per run",
-    "map_a / RULESET_V2 / 2v2",
-    "the evaluation protocol (30 episodes/cell, full OP6-OP12 board)",
-    "the frozen crossover decision rule"
-  ]
+  "observed_seed_counts_this_campaign": {
+    "D1": 3,
+    "D3": 2,
+    "D7": 3,
+    "D3_note": "seed 3700003 was killed at 24,576 steps (rc -1, healthy losses -- not a training failure) and marked STOPPED_BY_PROTOCOL. D3 therefore carries n=2 while D1/D7 carry n=3. Asymmetry is recorded, not hidden. Per SEED_PROTOCOL_FROZEN.do_not_schedule_further_D3_seeds, it is NOT to be topped up."
+  }
 }

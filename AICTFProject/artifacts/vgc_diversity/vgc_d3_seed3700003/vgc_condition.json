@@ -14,10 +14,10 @@
     "OP11"
   ],
   "training_method": "Mixed-PPO (mode=OPPONENT_POOL, uniform per completed episode)",
-  "seed": 3799001,
+  "seed": 3700003,
   "team_size": "2v2",
   "total_timesteps": 1000000,
-  "smoke": true,
+  "smoke": false,
   "frozen_sets_artifact": "artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json",
-  "git_commit": "7b94c0594a22ec9238c3137f0c9ca13d0612b890"
+  "git_commit": "e778f6ba430e6bc771545ffca9d4c0cf9acda666"
 }

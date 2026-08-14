@@ -1,0 +1,32 @@
+{
+  "protocol_id": "ONE_CANONICAL_SEED_UNLESS_CONFIRMATORY_REPLICATION",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-14T11:20:00Z",
+  "rule": "One canonical training seed per new experiment unless we explicitly decide a result is important enough to warrant confirmatory replication.",
+  "philosophy": "1 seed to discover; only replicate important findings.",
+  "evidence_label_for_new_stages": "EXPLORATORY_SINGLE_SEED",
+  "not": "strong multi-seed population estimates",
+  "replication_trigger": [
+    "explicit human authorization",
+    "example: repertoire > generalist by a preregistered margin",
+    "example: latent ≈ explicit repertoire by a preregistered margin"
+  ],
+  "new_stages": {
+    "specialist_PPOs": {"n_seeds": 1, "note": "one canonical seed per specialist condition"},
+    "FP_responses": {"n_seeds": 1},
+    "selector": {"n_seeds": 1},
+    "latent_compression": {"n_seeds": 1}
+  },
+  "D3_campaign_at_freeze": {
+    "3700001": "COMPLETE — keep (primary D3)",
+    "3700002": "COMPLETE — keep (already running; confirmatory of this campaign only)",
+    "3700003": "STOPPED_BY_PROTOCOL — started then explicitly ended; artifacts preserved; not used in primary eval",
+    "primary_D3_seeds_for_eval": [3700001, 3700002],
+    "do_not_schedule_further_D3_seeds": true
+  },
+  "already_complete_3seed_rows_unchanged": {
+    "D1": [3600001, 3600002, 3600003],
+    "D7": [3200001, 3200002, 3200003],
+    "note": "Existing 3-seed artifacts remain valid historical evidence. The protocol change is prospective."
+  }
+}

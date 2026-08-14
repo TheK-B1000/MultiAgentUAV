@@ -1,0 +1,62 @@
+{
+  "gate": "D3_POOL_PREFLIGHT",
+  "verdict": "D3_POOL_PREFLIGHT_PASS",
+  "pool": [
+    "OP7",
+    "OP9",
+    "OP12"
+  ],
+  "steps": 24000,
+  "checks": {
+    "1_configured_pool": true,
+    "2_subset": true,
+    "3_coverage": true,
+    "4_no_mixing": true,
+    "5_boundaries": true,
+    "6_determinism": true,
+    "7_no_pathology": true
+  },
+  "seed_a": 3799001,
+  "seed_b": 3799002,
+  "episodes_seed_a": 114,
+  "sequence_reproduced_exactly": true,
+  "counts_seed_a": {
+    "SCRIPTED:OP7": 42,
+    "SCRIPTED:OP12": 41,
+    "SCRIPTED:OP9": 31
+  },
+  "counts_seed_b": {
+    "SCRIPTED:OP7": 48,
+    "SCRIPTED:OP12": 35,
+    "SCRIPTED:OP9": 25
+  },
+  "counts_are_reported_not_gated": "uniformity is NOT a criterion; see the frozen gate",
+  "first_12_seed_a": [
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7"
+  ],
+  "first_12_seed_b": [
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7",
+    "SCRIPTED:OP7"
+  ]
+}

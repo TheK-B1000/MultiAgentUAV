@@ -1,6 +1,6 @@
 ﻿{
     "cmd":  "python -u scripts/run_summer_2026.py",
-    "pid":  20888,
-    "log":  "artifacts\\summer_2026\\logs\\supervisor.log",
-    "launched_utc":  "2026-08-13T22:39:55.4257057Z"
+    "pid":  304,
+    "note":  "DIVERSITY_EVAL after stopping 3700003",
+    "launched_utc":  "2026-08-14T11:23:43.5843289Z"
 }
