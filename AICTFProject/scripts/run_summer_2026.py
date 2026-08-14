@@ -43,16 +43,16 @@ LOCK_PATH = ROOT / "artifacts/summer_2026/supervisor.lock"
 PY = str(ROOT / ".venv/Scripts/python.exe")
 
 STATES = (
-    "AUDIT", "PREFLIGHT", "FP_SMOKE", "DIVERSITY_TRAIN", "DIVERSITY_EVAL",
+    "AUDIT", "PREFLIGHT", "DIVERSITY_TRAIN", "DIVERSITY_EVAL",
     "DEMAND_ANALYSIS", "COMPLETE", "STOPPED_SCIENTIFIC_GATE", "STOPPED_ERROR",
+    # FP_SMOKE remains a reachable state only for resume/compat; it does NOT
+    # sit on the D3 critical path (see step_preflight / step_fp_smoke).
+    "FP_SMOKE",
 )
-# FP_SMOKE sits here (before the ~5h D3 campaign), not later where the new
-# spec's decision tree places the full FP population loop (Phase 8). That
-# placement was an explicit decision earlier this session: close FP's
-# infrastructure uncertainty (BUILD COMPLETE blocker) while the GPU is idle,
-# rather than contend with three D3 trainers for it. The scientific FP
-# population loop remains gated behind DEMAND_ANALYSIS like every other
-# post-diversity phase; only the mechanism SMOKE TEST is pulled forward.
+# Critical path: PREFLIGHT → DIVERSITY_TRAIN → … 
+# FP full-cycle smoke is DEFERRED. FP_PROBE_2026-08-13 showed SNAPSHOT:<path>
+# provenance works but stalled at 4096/6144 without an ablation report — that
+# is NOT FP_SMOKE=PASS. D3 must not wait on an unverified FP orchestration.
 
 
 class Lock:
@@ -141,34 +141,44 @@ def step_preflight(st: dict) -> dict:
                               rc=rc)
         result = json.loads(out.read_text(encoding="utf-8"))
     st["gates"]["MIXED_SAMPLING_PASS"] = result["verdict"]
+    # Record FP probe honesty so a later handoff cannot invent FP_SMOKE=PASS.
+    probe = ROOT / "artifacts/vgc_fp/FP_PROBE_2026-08-13.json"
+    if probe.exists():
+        board = json.loads(probe.read_text(encoding="utf-8")).get("status_board", {})
+        st["gates"].update({
+            "FP_SNAPSHOT_FORMAT": board.get("FP_SNAPSHOT_FORMAT", "PASS"),
+            "PPO_AS_OPPONENT_SEAM": board.get("PPO_AS_OPPONENT_SEAM", "OBSERVED"),
+            "FP_FULL_SMOKE": board.get("FP_FULL_SMOKE", "INCOMPLETE"),
+            "FP_ABLATION_REPORT": board.get("FP_ABLATION_REPORT", "NOT PRODUCED"),
+            "FP_SCIENTIFIC_GATE": board.get("FP_SCIENTIFIC_GATE", "NOT PASSED"),
+            "FP_SMOKE": "INCOMPLETE_PROBE_ONLY_NOT_PASS",
+        })
     save_state(st)
     if not result["verdict"].endswith("PASS"):
         return transition(st, "STOPPED_ERROR", reason="D3_POOL_PREFLIGHT_FAIL; sampler needs repair")
-    return transition(st, "FP_SMOKE")
+    return transition(st, "DIVERSITY_TRAIN")
 
 
 def step_fp_smoke(st: dict) -> dict:
-    """Mechanism-only smoke: loadability + two-checkpoint SNAPSHOT rotation.
+    """Compat / resume only — not on the D3 critical path.
 
-    Runs experiments/run_fp_smoke.py against FP_SMOKE_FROZEN.json (before the
-    D3 GPU commitment). Establishes mechanism only — not that FP helps.
+    If a prior supervisor left state at FP_SMOKE, skip the long smoke and
+    proceed to D3. A clean FP_SMOKE must be an explicit later action; the
+    2026-08-13 probe is incomplete and must not be treated as PASS.
     """
-    out = ROOT / "artifacts/vgc_fp/FP_SMOKE_RESULT.json"
-    if out.exists():
-        result = json.loads(out.read_text(encoding="utf-8"))
-    else:
-        rc = run([PY, "-u", "experiments/run_fp_smoke.py"],
-                 ROOT / "artifacts/summer_2026/logs/fp_smoke.log")
-        if rc != 0 or not out.exists():
-            st["gates"]["FP_SMOKE"] = "FAIL"
-            return transition(st, "STOPPED_ERROR",
-                              reason="FP_SMOKE did not produce a result", rc=rc)
-        result = json.loads(out.read_text(encoding="utf-8"))
-    st["gates"]["FP_SMOKE"] = result["verdict"]
+    st["gates"]["FP_SMOKE"] = "DEFERRED_INCOMPLETE"
+    st["gates"]["FP_SCIENTIFIC_GATE"] = "NOT PASSED"
     save_state(st)
-    if not result["verdict"].endswith("PASS"):
-        return transition(st, "STOPPED_ERROR", reason="FP_SMOKE_FAIL; repair SNAPSHOT pool seam")
-    return transition(st, "DIVERSITY_TRAIN")
+    return transition(st, "DIVERSITY_TRAIN",
+                      reason="FP full smoke deferred; D3 is the critical path")
+
+# Frozen 2026-08-14: 1 seed to discover; replicate only important findings.
+# See artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json. D3 seed 3700003 is
+# grandfathered because it had already started at freeze time — do not kill it,
+# and do not schedule any further D3 seeds.
+D3_TRAINING_SEEDS = (3700001, 3700002, 3700003)
+NEW_STAGE_N_SEEDS = 1
+EVIDENCE_LABEL = "EXPLORATORY_SINGLE_SEED"
 
 
 def _seed_complete(tag: str) -> bool:
@@ -176,32 +186,67 @@ def _seed_complete(tag: str) -> bool:
     return ck.is_file()
 
 
+def _completed_d3_seeds() -> list[int]:
+    return [s for s in D3_TRAINING_SEEDS if _seed_complete(f"vgc_d3_seed{s}")]
+
+
 def step_diversity_train(st: dict) -> dict:
-    """Launch only missing D3 cells. D1/D7 are already COMPLETE per the manifest."""
-    seeds = (3700001, 3700002, 3700003)
-    missing = [s for s in seeds if not _seed_complete(f"vgc_d3_seed{s}")]
-    if not missing:
+    """Finish any D3 seed already in flight; do not schedule extras.
+
+    Prospective seed protocol is one canonical seed per new experiment.
+    This D3 campaign is grandfathered through 3700003 only because that job
+    had already started when the protocol froze.
+    """
+    completed = _completed_d3_seeds()
+    # Never launch a seed that is not already complete AND not already running
+    # according to state (3700003 grandfather). After those finish, eval.
+    running = {
+        int(k): int(v) for k, v in (st.get("diversity_train_pids") or {}).items()
+    }
+    missing = [
+        s for s in D3_TRAINING_SEEDS
+        if s not in completed and s in running
+    ]
+    if not missing and completed:
+        st["gates"]["SEED_PROTOCOL"] = "ONE_CANONICAL_UNLESS_REPLICATION"
+        st["gates"]["D3_SEEDS_USED"] = completed
+        st["gates"]["EVIDENCE_LABEL"] = (
+            "D3_THIS_CAMPAIGN_GRANDFATHERED_UP_TO_STARTED_SEEDS"
+        )
+        save_state(st)
         return transition(st, "DIVERSITY_EVAL")
+    if not missing:
+        return transition(st, "STOPPED_ERROR", reason="no D3 seeds completed or running")
+
+    print(f"finishing in-flight D3 seeds only (no new launches): {missing}")
 
     # GPU-serialized: one seed at a time. D1 previously ran concurrent seeds
     # successfully, but the Summer 2026 unattended supervisor prefers serial
     # training to avoid OOM / driver contention on a single GPU overnight.
-    print(f"launching D3 seeds (serialized): {missing}")
-    st["diversity_train_pids"] = {}
+    st.setdefault("diversity_train_pids", {})
     save_state(st)
     for s in missing:
         log = ROOT / f"artifacts/vgc_diversity/d3_seed{s}.log"
-        print(f"D3 seed {s}: START", flush=True)
-        with open(log, "w", encoding="utf-8") as f:
-            p = subprocess.Popen([PY, "-u", "experiments/run_vgc_diversity.py",
-                                  "--condition", "D3", "--seed", str(s), "--threads", "4"],
-                                 cwd=str(ROOT), stdout=f, stderr=subprocess.STDOUT)
-            st["diversity_train_pids"][str(s)] = p.pid
-            save_state(st)
-            rc = p.wait()
-        if rc != 0 or not _seed_complete(f"vgc_d3_seed{s}"):
-            return transition(st, "STOPPED_ERROR", reason=f"D3 seed {s} failed", rc=rc)
+        print(f"D3 seed {s}: WAIT_IN_FLIGHT (no new launch)", flush=True)
+        pid = int((st.get("diversity_train_pids") or {}).get(str(s), 0))
+        if pid:
+            try:
+                subprocess.run(
+                    ["powershell", "-NoProfile", "-Command",
+                     f"Wait-Process -Id {pid} -ErrorAction SilentlyContinue"],
+                    timeout=None,
+                )
+            except Exception:
+                pass
+        # Poll until final zip or process gone without a final (failure).
+        while not _seed_complete(f"vgc_d3_seed{s}"):
+            if pid and not _pid_alive(pid):
+                return transition(st, "STOPPED_ERROR", reason=f"D3 seed {s} exited without final ckpt")
+            time.sleep(30)
         print(f"D3 seed {s}: COMPLETE", flush=True)
+    st["gates"]["SEED_PROTOCOL"] = "ONE_CANONICAL_UNLESS_REPLICATION"
+    st["gates"]["D3_SEEDS_USED"] = _completed_d3_seeds()
+    save_state(st)
     return transition(st, "DIVERSITY_EVAL")
 
 
@@ -209,12 +254,16 @@ def step_diversity_eval(st: dict) -> dict:
     out = ROOT / "artifacts/vgc_diversity/crossplay/d1_d3_d7_summary.json"
     if not out.exists():
         reg = json.loads((ROOT / "artifacts/vgc_diversity/policies_primary.json").read_text())
-        for s in (3700001, 3700002, 3700003):
+        d3_seeds = _completed_d3_seeds()
+        if not d3_seeds:
+            return transition(st, "STOPPED_ERROR", reason="no completed D3 checkpoints for eval")
+        for s in d3_seeds:
             t = f"vgc_d3_seed{s}"
             reg.append({"policy_id": t,
                        "checkpoint": f"artifacts/vgc_diversity/{t}/ckpts/final_{t}.zip",
                        "method": "Mixed-PPO", "diversity_condition": "D3",
-                       "team_size": 2, "seed": s, "arm": "PRIMARY"})
+                       "team_size": 2, "seed": s, "arm": "PRIMARY",
+                       "evidence_label": "D3_COMPLETED_SEEDS_ONLY"})
         reg_path = ROOT / "artifacts/summer_2026/policies_d1_d3_d7.json"
         reg_path.write_text(json.dumps(reg, indent=2), encoding="utf-8")
         rc = run([PY, "-u", "experiments/run_crossplay_eval.py",
@@ -227,21 +276,28 @@ def step_diversity_eval(st: dict) -> dict:
 
 
 def step_demand_analysis(st: dict) -> dict:
-    """This is a genuine scientific-decision boundary, not an engineering one.
+    """Path A vs Path B readout from the completed matrix.
 
-    Phase 5 (crossover) needs >=2 differently-trained single-opponent
-    specialists (S_OP7, S_OP12) that do not exist yet. Training them is both a
-    real GPU commitment and a scope decision this script must not make
-    unilaterally -- doing so would be exactly the kind of automatic response
-    to a gate result ("just train more things") the project's failure-handling
-    rules prohibit.
+    Criteria frozen in PAPER_PATH_READOUT_FROZEN.json before the 8-policy
+    board existed. This step classifies; it does not train specialists.
     """
-    st["gates"]["CROSSOVER_FOUND"] = "NOT_TESTED"
-    st["gates"]["MATCHUP_DEPENDENCE"] = "NOT_TESTED"
-    return transition(st, "STOPPED_SCIENTIFIC_GATE",
-                      reason="D1/D3/D7 diversity-scaling data exists and is evaluated. "
-                             "Phase 5 (crossover) requires S_OP7/S_OP12 specialists that "
-                             "have not been trained. This is a scope decision, not a failure.")
+    rc = run([PY, "-u", "experiments/analyze_summer_2026_paper_path.py"],
+             ROOT / "artifacts/summer_2026/logs/paper_path.log")
+    gate_path = ROOT / "artifacts/summer_2026/gate_results.json"
+    if rc != 0 or not gate_path.exists():
+        return transition(st, "STOPPED_ERROR", reason="paper-path analysis failed", rc=rc)
+    gate = json.loads(gate_path.read_text(encoding="utf-8"))
+    st["gates"]["CROSSOVER_FOUND"] = bool(gate["CROSSOVER_FOUND"])
+    st["gates"]["PAPER_PATH"] = gate["paper_path"]
+    st["gates"]["SEED_PROTOCOL"] = "ONE_CANONICAL_UNLESS_REPLICATION"
+    st["gates"]["NEW_STAGE_N_SEEDS"] = NEW_STAGE_N_SEEDS
+    st["gates"]["EVIDENCE_LABEL"] = EVIDENCE_LABEL
+    save_state(st)
+    return transition(
+        st, "STOPPED_SCIENTIFIC_GATE",
+        reason=f"{gate['paper_path']}: {gate['paper_title']}. next={gate['next']}",
+        CROSSOVER_FOUND=gate["CROSSOVER_FOUND"],
+    )
 
 
 STEP_FNS = {

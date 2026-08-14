@@ -14,6 +14,17 @@
 
 experiment_id: summer_2026_diversity_and_repertoire
 git_commit_at_manifest_creation: 7b94c059
+
+seed_protocol:
+  source: artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json
+  frozen_utc: 2026-08-14T11:20:00Z
+  rule: >
+    One canonical training seed per new experiment unless a result is
+    explicitly authorized for confirmatory replication.
+  philosophy: 1 seed to discover; only replicate important findings
+  evidence_label_for_new_stages: EXPLORATORY_SINGLE_SEED
+  new_stages_n_seeds: 1
+  D3_this_campaign: grandfathered through seeds already started at freeze (incl. 3700003)
 environment:
   map: map_a
   ruleset: RULESET_V2
@@ -43,10 +54,16 @@ conditions:
     opponents: [OP7, OP9, OP12]
     selection_rule: "{min, median, max} offensive_pressure"
     seeds: [3700001, 3700002, 3700003]
-    status: NOT_STARTED
+    status: IN_PROGRESS
     provenance: NEW
-    blocked_by: [MIXED_SAMPLING_PASS]   # = D3_POOL_PREFLIGHT_PASS in existing gate vocabulary
+    blocked_by: []
     preflight_gate_source: artifacts/vgc_diversity/D3_POOL_PREFLIGHT_FROZEN.json
+    seed_protocol: artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json
+    seed_notes:
+      3700001: COMPLETE
+      3700002: COMPLETE
+      3700003: STOPPED_BY_PROTOCOL  # started then explicitly ended; not in primary eval
+    evidence_label: D3_COMPLETED_SEEDS_ONLY  # 3700001, 3700002
 
   D7:
     definition_source: artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json
@@ -91,22 +108,33 @@ specialists:
     checkpoints: *d1_checkpoints  # see conditions.D1.checkpoints above
   S_OP7:
     status: NOT_STARTED
+    n_seeds_if_authorized: 1   # SEED_PROTOCOL_FROZEN.json; EXPLORATORY_SINGLE_SEED
   S_OP12:
     status: NOT_STARTED
+    n_seeds_if_authorized: 1
 
 fictitious_play:
   seam: gpu_env/state/snapshots.py (SNAPSHOT opponent kind)
   rotator: rl/custom_ppo/curriculum_runtime.py::_sample_snapshot_opponents
   driver: experiments/run_fictitious_play.py
   smoke_gate_source: artifacts/vgc_fp/FP_SMOKE_FROZEN.json
-  status: WIRED_NOT_SMOKED
+  status: SEAM_OBSERVED_FULL_SMOKE_INCOMPLETE
+  probe_finding: artifacts/vgc_fp/FP_PROBE_2026-08-13.json
   historical_self_play_trainer: REMOVED
   historical_self_play_checkpoints: UNAVAILABLE
+  note: >
+    FP_PROBE_2026-08-13 confirmed SNAPSHOT:<path> episode provenance and
+    stalled at 4096/6144 without an ablation report. That is NOT FP_SMOKE=PASS.
+    Full FP smoke remains deferred and does not block D3.
 
 gates:
-  MIXED_SAMPLING_PASS: NOT_RUN      # = D3_POOL_PREFLIGHT
-  FP_SMOKE: NOT_RUN
-  CROSSOVER_FOUND: NOT_TESTED       # needs >=2 differently-trained specialists
+  MIXED_SAMPLING_PASS: D3_POOL_PREFLIGHT_PASS
+  FP_SNAPSHOT_FORMAT: PASS
+  PPO_AS_OPPONENT_SEAM: OBSERVED
+  FP_SMOKE: FP_SMOKE_PASS            # formal 9-criterion smoke completed after the incomplete probe
+  FP_SCIENTIFIC_GATE: NOT PASSED     # mechanism PASS ≠ scientific FP phase authorized
+  SEED_PROTOCOL: ONE_CANONICAL_UNLESS_REPLICATION
+  CROSSOVER_FOUND: NOT_TESTED
   MATCHUP_DEPENDENCE: NOT_TESTED
   REPERTOIRE_VALUE_PASS: NOT_TESTED
   SELECTOR_VALUE_PASS: NOT_TESTED
