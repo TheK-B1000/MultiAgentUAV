@@ -1,0 +1,106 @@
+{
+  "protocol_id": "DISCOVERED_PAIR_REPLICATION",
+  "status": "FROZEN_BEFORE_NEW_EVALUATION",
+  "frozen_utc": "2026-08-14T21:05:00Z",
+  "execution_status": "DORMANT",
+  "launch_condition": "both S_OP7 (3900007) and S_OP8 (3900008) have reached their frozen 1,000,000-step checkpoints AND the GPU is free. Do not run concurrently with training.",
+  "run_order": "specialist 5-policy cross-eval first, then this replication, then read both together",
+
+  "why_this_is_separate_from_the_specialist_pilot": {
+    "specialist_pilot_asks": "can direct OP7/OP8 training deliberately CREATE complementary best responses?",
+    "this_protocol_asks": "does the ORIGINAL D1-3600001 <-> D7-3200001 crossover reproduce on unseen episodes at all?",
+    "independence": "the two questions are answered by different policies on different episodes; neither result determines the other"
+  },
+
+  "the_circularity_this_removes": {
+    "problem": "D1-3600001 and D7-3200001 are the exact pair that PRODUCED the PATH_B verdict. Two of the three detected crossovers are that pair, selected by scanning ~1176 two-way tests. Recomputing anything on the same 30-episode cells reuses the data that selected them, so the crossover is guaranteed to reappear.",
+    "fix": "a disjoint episode-seed block. Same policies, same opponents, same environment, genuinely new episodes.",
+    "preregistered_by": "PAPER_PATH_READOUT_FROZEN.json multiplicity_caveat, which names 'targeted confirmatory evaluation' alongside the specialist pilot as the confirmation branch"
+  },
+
+  "policies": {
+    "A": {
+      "id": "vgc_d1_seed3600001",
+      "condition": "D1",
+      "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600001/ckpts/final_vgc_d1_seed3600001.zip"
+    },
+    "B": {
+      "id": "g0_v5_long_seed3200001",
+      "condition": "D7",
+      "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip"
+    }
+  },
+
+  "episode_seeds": {
+    "discovery_block": "9100000-9100029",
+    "discovery_block_use": "NOT USED by this protocol. It is the block that produced the discovery.",
+    "confirmation_block_base": 9200000,
+    "confirmation_block": "9200000-9200059 per opponent",
+    "disjoint_from": ["all training seed blocks", "the discovery block 9100000-9100029"],
+    "paired": "both policies see the identical seed block per opponent, as in run_g0_v2_evaluation"
+  },
+
+  "board": {
+    "opponents": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+    "episodes_per_cell": 60,
+    "map": "map_a",
+    "ruleset": "RULESET_V2",
+    "team_size": "2v2",
+    "action_selection": "deterministic",
+    "total_episodes": 840
+  },
+
+  "primary_gate": {
+    "name": "OP7_OP8_CROSSOVER_REPLICATES",
+    "requires_both": [
+      "WR(B=D7-3200001, OP7) > WR(A=D1-3600001, OP7) with LCB95 > 0",
+      "WR(A=D1-3600001, OP8) > WR(B=D7-3200001, OP8) with LCB95 > 0"
+    ],
+    "estimator": "two-proportion Wald 95% CI on the difference, n=60 per cell",
+    "why_this_axis": "OP7/OP8 is the selected axis and the one the specialist pilot targets"
+  },
+
+  "secondary_not_required": {
+    "OP11_crossover": "the discovery also recorded a D7-3200001 vs D1-3600001 crossover on OP7/OP11 with LCB95 = .0333. It is REPORTED but NOT required to replicate. It was the thinnest of the three and is not the selected axis.",
+    "rule": "failure of the OP11 pair does not fail this protocol; success of it does not rescue a failed OP7/OP8 gate"
+  },
+
+  "repertoire_value_is_a_separate_claim": {
+    "warning": "a replicated crossover establishes complementary matchup strengths. It does NOT establish that selecting between the two policies beats committing to one.",
+    "required_before_any_repertoire_claim": {
+      "estimator": "SPLIT_HALF_ORACLE as defined in artifacts/vgc_specialists/SPECIALIST_PILOT_FROZEN.json",
+      "V_fixed_comparator": "max over the FULL 5-policy set (S_OP7, S_OP8, D1-3600001, D3-3700001, D7-3200001), not max over the pair",
+      "threshold": "delta_pool >= 0.05 AND LCB95 > 0",
+      "reason": "either policy may be better than the other overall across the seven-opponent board, in which case routing adds nothing even with a real crossover"
+    }
+  },
+
+  "claim_hierarchy": {
+    "1_CROSSOVER": "policies have complementary matchup strengths",
+    "2_REPERTOIRE_VALUE": "choosing among those strengths is actually useful",
+    "3_LATENT_COMPRESSION": "one network can preserve that useful repertoire",
+    "rule": "three different claims, three different gates. Passing 1 never implies 2, and passing 2 never implies 3."
+  },
+
+  "diagnostic_grid": {
+    "note": "the value of running both experiments is that the PAIR of outcomes identifies the phenomenon, not just whether a gate passed",
+    "specialists_PASS__pair_REPLICATES": "strongest result: a reproducible strategic axis that deliberate specialization can also recreate",
+    "specialists_FAIL__pair_REPLICATES": "useful policy regimes exist but direct opponent specialization does not recreate them. The teacher-compression route (D1-3600001 / D7-3200001 as K=2 teachers) becomes the attractive path, still gated on repertoire value.",
+    "specialists_PASS__pair_DOES_NOT_REPLICATE": "original PATH_B was likely a selection/multiplicity artifact, but direct specialization independently created a repertoire. Follow the specialist evidence, not the discovery pair.",
+    "specialists_FAIL__pair_DOES_NOT_REPLICATE": "PATH_B did not survive confirmation and specialists did not recreate it. Stop the escalation and report the diversity-scaling result."
+  },
+
+  "implementation_prerequisite": {
+    "blocker": "experiments/run_crossplay_eval.py line 97 hardcodes seed = E.EVAL_SEED_BASE + i. There is no --seed-base flag, so the confirmation block cannot be requested.",
+    "required_change": "add an additive --seed-base argument defaulting to E.EVAL_SEED_BASE, so the default code path stays byte-identical to the one that produced the 56-cell matrix",
+    "compatibility_requirement": "the default path must be verified unchanged before this protocol runs; the evaluator is shared with the specialist cross-eval",
+    "prohibited": "changing EVAL_SEED_BASE itself, which would silently move every future evaluation off the block the completed matrix used"
+  },
+
+  "prohibited": [
+    "running this concurrently with S_OP7/S_OP8 training",
+    "reusing the discovery block 9100000-9100029 for any cell here",
+    "selecting a different policy pair after seeing these results",
+    "reporting a replicated crossover as repertoire value"
+  ]
+}

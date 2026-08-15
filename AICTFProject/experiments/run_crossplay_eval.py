@@ -70,7 +70,8 @@ def auto_d7_registry(include_secondary_4v4: bool = False) -> list[dict]:
     return out
 
 
-def evaluate_policy(entry: dict, episodes: int, device: str) -> list[dict]:
+def evaluate_policy(entry: dict, episodes: int, device: str,
+                    seed_base: int | None = None) -> list[dict]:
     """Evaluate one policy against the full board. Returns per-episode rows."""
     import experiments.run_g0_v2_evaluation as E
     from rl.custom_ppo.checkpoints.loader import read_checkpoint_payload
@@ -90,11 +91,15 @@ def evaluate_policy(entry: dict, episodes: int, device: str) -> list[dict]:
     cond = entry.get("diversity_condition")
     trained_on = set(fz["THE_SETS"].get(cond, [])) if cond in fz["THE_SETS"] else set()
 
+    # Additive: default is the module constant, so the code path that produced
+    # the 56-cell matrix is unchanged. A disjoint block is opt-in only.
+    base = E.EVAL_SEED_BASE if seed_base is None else int(seed_base)
+
     rows = []
     for opp in E.OPPONENTS:
         for i in range(episodes):
             r = E.run_eval_episode(policy, opponent=opp,
-                                   seed=E.EVAL_SEED_BASE + i, device=device)
+                                   seed=base + i, device=device)
             r.update({"policy_id": entry["policy_id"], "method": entry["method"],
                       "diversity_condition": cond, "team_size": team,
                       "train_seed": entry.get("seed"), "arm": entry.get("arm", "PRIMARY"),
@@ -146,6 +151,11 @@ def main() -> int:
                     help="add the 4v4 C7 policies as a labelled team-size check; "
                          "they may NOT enter the primary D1/D3/D7 comparison")
     ap.add_argument("--episodes", type=int, default=30)
+    ap.add_argument("--seed-base", type=int, default=None,
+                    help="episode-seed block base. Default None = run_g0_v2_evaluation."
+                         "EVAL_SEED_BASE, the block the 56-cell matrix used. Pass a "
+                         "disjoint base (e.g. 9200000) for a confirmation block; see "
+                         "artifacts/summer_2026/DISCOVERED_PAIR_REPLICATION_FROZEN.json")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--tag", default="crossplay")
     args = ap.parse_args()
@@ -165,7 +175,7 @@ def main() -> int:
 
     all_rows, summaries = [], []
     for entry in registry:
-        rows = evaluate_policy(entry, args.episodes, args.device)
+        rows = evaluate_policy(entry, args.episodes, args.device, args.seed_base)
         all_rows.extend(rows)
         summaries.append(summarize(rows, entry))
 
@@ -173,6 +183,9 @@ def main() -> int:
         "record": "unified cross-play evaluation vs the full OP6-OP12 board",
         "git_commit": _git_commit(),
         "episodes_per_cell": args.episodes,
+        "eval_seed_base": (E.EVAL_SEED_BASE if args.seed_base is None
+                           else int(args.seed_base)),
+        "eval_seed_block_is_default": args.seed_base is None,
         "wall_seconds": round(time.time() - started, 1),
         "summaries": summaries,
     }
