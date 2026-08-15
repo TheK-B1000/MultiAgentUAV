@@ -1,0 +1,25 @@
+{
+  "utc_timestamp": "2026-08-14T23:43:20.705011Z",
+  "run_tag": "vgc_s_op7_seed3900007",
+  "seed": 3900007,
+  "total_timesteps": 1000000,
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op7_seed3900007\\ckpts",
+  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op7_seed3900007\\episode_rows.csv",
+  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op7_seed3900007\\metrics.csv",
+  "cli_preset": null,
+  "tag_telemetry_enabled": true,
+  "formal_run": true,
+  "git_sha": "77e41adedeb64b4765442a49249c1576bb80a4a5",
+  "git_describe": "refactor-complete-200-g77e41ade",
+  "git_root": "K:\\MultiAgentUAV",
+  "git_error": null,
+  "artifact_identity": {
+    "run_id": "vgc_s_op7_seed3900007",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

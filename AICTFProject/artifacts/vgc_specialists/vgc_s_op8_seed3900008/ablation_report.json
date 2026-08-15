@@ -1,0 +1,375 @@
+{
+  "run": "G0-V5 long run",
+  "preregistered_primary_step": 1000000,
+  "seed": 3900008,
+  "run_id": "vgc_s_op8_seed3900008",
+  "sparse_tag_no_flag_points": 0.0,
+  "baseline_sparse_tag_no_flag_points": 100.0,
+  "action_failed_punishment": -0.2,
+  "sparse_tag_with_flag_points": 0.0,
+  "changed": {
+    "tag_no_flag": "100 -> 0",
+    "tag_carrier": "50 -> 0",
+    "failed_commit": "-0.2 -> -0.004",
+    "enemy_mav_kill_reward": "0.5 -> 0.0",
+    "opponent_oob": "100 -> 0",
+    "own_oob": "-100 -> -70"
+  },
+  "sparse_mine_tag_points": 0.0,
+  "unchanged": {
+    "capture": 100.0,
+    "terminal": "win 1.0 / lose -1.0 / draw -0.5",
+    "oob": -100.0
+  },
+  "note": "budget redesign, NOT a single-factor ablation",
+  "reward_mass": {
+    "channels": {
+      "terminal": {
+        "per_episode_early": 0.6165,
+        "per_episode_late": 0.6281,
+        "abs_mass_share_late": 0.1502,
+        "magnitude_rising": true
+      },
+      "sparse": {
+        "per_episode_early": 1.1563,
+        "per_episode_late": 1.1311,
+        "abs_mass_share_late": 0.2704,
+        "magnitude_rising": false
+      },
+      "failed_commit": {
+        "per_episode_early": -0.943,
+        "per_episode_late": -0.9332,
+        "abs_mass_share_late": 0.2231,
+        "magnitude_rising": false
+      },
+      "offense": {
+        "per_episode_early": 1.0881,
+        "per_episode_late": 1.0545,
+        "abs_mass_share_late": 0.2521,
+        "magnitude_rising": false
+      },
+      "pbrs": {
+        "per_episode_early": 0.1407,
+        "per_episode_late": 0.1092,
+        "abs_mass_share_late": 0.0261,
+        "magnitude_rising": false
+      },
+      "team": {
+        "per_episode_early": 0.3372,
+        "per_episode_late": 0.3263,
+        "abs_mass_share_late": 0.078,
+        "magnitude_rising": false
+      }
+    },
+    "dominant_channel": "sparse",
+    "terminal_share": 0.1502,
+    "objective_is_minority_of_mass": false
+  },
+  "sparse_decomposition": {
+    "tag_blue_noncarrier": 30657,
+    "tag_blue_carrier": 123,
+    "tag_against_blue": 74630,
+    "capture_blue": 5326,
+    "capture_red": 443,
+    "oob_blue": 287,
+    "oob_red": 53,
+    "mine_tag_blue": 498,
+    "mine_tag_red": 1177,
+    "tags_per_capture_event": 5.335,
+    "sparse_points_from_tags_at_baseline_100": -4391150.0,
+    "sparse_points_from_tags_at_ablated_value": 0.0,
+    "sparse_points_from_captures": 488300.0,
+    "tag_share_of_sparse_at_baseline": 0.8999
+  },
+  "total_timesteps": 1000000,
+  "collapse_zone": 225000,
+  "training": {
+    "completed": true,
+    "error": "",
+    "wall_seconds": 24760.61
+  },
+  "health_timeline": [
+    {
+      "global_step": 100352,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_100000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 100352,
+        "episodes": 21,
+        "pickups": 116,
+        "captures_blue": 44,
+        "captures_red": 5,
+        "drops": 72,
+        "wins": 19,
+        "offensive_commitment": 0.198369,
+        "defensive_commitment": 0.397656,
+        "capture_conversion": 0.3793,
+        "win_rate": 0.9048,
+        "net_captures": 39,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.44810440456106654,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 200704,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_200000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 200704,
+        "episodes": 21,
+        "pickups": 89,
+        "captures_blue": 36,
+        "captures_red": 11,
+        "drops": 53,
+        "wins": 15,
+        "offensive_commitment": 0.175345,
+        "defensive_commitment": 0.436992,
+        "capture_conversion": 0.4045,
+        "win_rate": 0.7143,
+        "net_captures": 25,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.472754342194117,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 301056,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_300000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 301056,
+        "episodes": 21,
+        "pickups": 79,
+        "captures_blue": 36,
+        "captures_red": 9,
+        "drops": 43,
+        "wins": 18,
+        "offensive_commitment": 0.185854,
+        "defensive_commitment": 0.43793,
+        "capture_conversion": 0.4557,
+        "win_rate": 0.8571,
+        "net_captures": 27,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4815660271903036,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 401408,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_400000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 401408,
+        "episodes": 21,
+        "pickups": 91,
+        "captures_blue": 41,
+        "captures_red": 8,
+        "drops": 50,
+        "wins": 18,
+        "offensive_commitment": 0.194181,
+        "defensive_commitment": 0.405773,
+        "capture_conversion": 0.4505,
+        "win_rate": 0.8571,
+        "net_captures": 33,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4862354291484621,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 501760,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_500000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 501760,
+        "episodes": 21,
+        "pickups": 92,
+        "captures_blue": 35,
+        "captures_red": 15,
+        "drops": 57,
+        "wins": 14,
+        "offensive_commitment": 0.185833,
+        "defensive_commitment": 0.3696,
+        "capture_conversion": 0.3804,
+        "win_rate": 0.6667,
+        "net_captures": 20,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.48922033688300226,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 600064,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_600000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 600064,
+        "episodes": 21,
+        "pickups": 89,
+        "captures_blue": 33,
+        "captures_red": 9,
+        "drops": 56,
+        "wins": 16,
+        "offensive_commitment": 0.197301,
+        "defensive_commitment": 0.408579,
+        "capture_conversion": 0.3708,
+        "win_rate": 0.7619,
+        "net_captures": 24,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.49105000969547646,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 700416,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_700000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 700416,
+        "episodes": 21,
+        "pickups": 82,
+        "captures_blue": 38,
+        "captures_red": 12,
+        "drops": 44,
+        "wins": 17,
+        "offensive_commitment": 0.178542,
+        "defensive_commitment": 0.426114,
+        "capture_conversion": 0.4634,
+        "win_rate": 0.8095,
+        "net_captures": 26,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.49254914090844315,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 800768,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_800000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 800768,
+        "episodes": 21,
+        "pickups": 96,
+        "captures_blue": 46,
+        "captures_red": 13,
+        "drops": 50,
+        "wins": 16,
+        "offensive_commitment": 0.17054,
+        "defensive_commitment": 0.410922,
+        "capture_conversion": 0.4792,
+        "win_rate": 0.7619,
+        "net_captures": 33,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.49366757387726756,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 901120,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_900000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 901120,
+        "episodes": 21,
+        "pickups": 97,
+        "captures_blue": 41,
+        "captures_red": 11,
+        "drops": 56,
+        "wins": 16,
+        "offensive_commitment": 0.181004,
+        "defensive_commitment": 0.396961,
+        "capture_conversion": 0.4227,
+        "win_rate": 0.7619,
+        "net_captures": 30,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4944949724696649,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 1001472,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\ckpt_vgc_s_op8_seed3900008_1000000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 1001472,
+        "episodes": 21,
+        "pickups": 85,
+        "captures_blue": 37,
+        "captures_red": 10,
+        "drops": 48,
+        "wins": 16,
+        "offensive_commitment": 0.180016,
+        "defensive_commitment": 0.381228,
+        "capture_conversion": 0.4353,
+        "win_rate": 0.7619,
+        "net_captures": 27,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4951311239351643,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 1001472,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\vgc_specialists\\vgc_s_op8_seed3900008\\ckpts\\final_vgc_s_op8_seed3900008.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 1001472,
+        "episodes": 21,
+        "pickups": 85,
+        "captures_blue": 37,
+        "captures_red": 10,
+        "drops": 48,
+        "wins": 16,
+        "offensive_commitment": 0.180016,
+        "defensive_commitment": 0.381228,
+        "capture_conversion": 0.4353,
+        "win_rate": 0.7619,
+        "net_captures": 27,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4951311239351643,
+      "zero_gradient_steps": 0
+    }
+  ],
+  "final_task_panel": {
+    "global_step": 1001472,
+    "episodes": 21,
+    "pickups": 85,
+    "captures_blue": 37,
+    "captures_red": 10,
+    "drops": 48,
+    "wins": 16,
+    "offensive_commitment": 0.180016,
+    "defensive_commitment": 0.381228,
+    "capture_conversion": 0.4353,
+    "win_rate": 0.7619,
+    "net_captures": 27,
+    "reasons": [],
+    "verdict": "PASS"
+  },
+  "crossed_collapse_zone_alive": true,
+  "system_failures": []
+}

@@ -1,0 +1,37 @@
+{
+  "gate": "FP_SMOKE",
+  "verdict": "FP_SMOKE_PASS",
+  "pool": [
+    "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip",
+    "artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip"
+  ],
+  "steps": 24000,
+  "checks": {
+    "1_preload": true,
+    "2_subset": true,
+    "3_coverage": true,
+    "4_episode_hold": true,
+    "5_boundaries": true,
+    "6_determinism": true,
+    "7_no_silent_none": true,
+    "8_provenance": true,
+    "9_learning_and_roundtrip": true
+  },
+  "preload": {
+    "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip": "CustomPPOInferencePolicy",
+    "artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip": "CustomPPOInferencePolicy"
+  },
+  "counts_seed_a": {
+    "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip": 72,
+    "artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip": 65
+  },
+  "counts_seed_b": {
+    "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip": 72,
+    "artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip": 67
+  },
+  "counts_are_reported_not_gated": "per FP_SMOKE_FROZEN.json criterion 6 note",
+  "n_episodes_seed_a_raw": 153,
+  "n_snapshot_episodes_seed_a": 137,
+  "n_scripted_warmup_episodes_seed_a": 16,
+  "scripted_warmup_note": "First episode per vecenv starts as env-default SCRIPTED before the done-triggered SNAPSHOT hook fires; gate checks use SNAPSHOT rows only."
+}
