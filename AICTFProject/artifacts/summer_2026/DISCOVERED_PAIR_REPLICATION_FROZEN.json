@@ -72,6 +72,11 @@
       "V_fixed_comparator": "max over the FULL 5-policy set (S_OP7, S_OP8, D1-3600001, D3-3700001, D7-3200001), not max over the pair",
       "threshold": "delta_pool >= 0.05 AND LCB95 > 0",
       "reason": "either policy may be better than the other overall across the seven-opponent board, in which case routing adds nothing even with a real crossover"
+    },
+    "status_vocabulary": {
+      "CROSSOVER_REPLICATES (this protocol's gate)": "A and B are CANDIDATE teachers. Nothing stronger.",
+      "delta_pool >= 0.05 AND LCB95 > 0 (the gate above)": "A and B become CONFIRMED teachers, eligible for K=2 birth.",
+      "rule": "never write 'D1/D7 are the teachers' on the strength of this protocol's gate alone -- write 'candidate teachers' until the repertoire-value gate is separately scored."
     }
   },
 
