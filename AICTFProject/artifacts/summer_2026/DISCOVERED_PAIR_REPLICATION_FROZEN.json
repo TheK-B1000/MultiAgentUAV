@@ -74,9 +74,12 @@
       "reason": "either policy may be better than the other overall across the seven-opponent board, in which case routing adds nothing even with a real crossover"
     },
     "status_vocabulary": {
-      "CROSSOVER_REPLICATES (this protocol's gate)": "A and B are CANDIDATE teachers. Nothing stronger.",
-      "delta_pool >= 0.05 AND LCB95 > 0 (the gate above)": "A and B become CONFIRMED teachers, eligible for K=2 birth.",
-      "rule": "never write 'D1/D7 are the teachers' on the strength of this protocol's gate alone -- write 'candidate teachers' until the repertoire-value gate is separately scored."
+      "CROSSOVER_REPLICATES (this protocol's gate, 9200000 block, A vs B only)": "A and B are CANDIDATE teachers. Nothing stronger.",
+      "PLUS delta_pool >= 0.05 AND LCB95 > 0": "necessary but not sufficient for CONFIRMED",
+      "PLUS attribution: A and/or B are the policy SELECTED_POLICY_PER_OPPONENT actually picks on the opponents where they lead": "CONFIRMED teachers, eligible for K=2 birth",
+      "why_attribution_is_a_separate_clause": "delta_pool and its selection are computed over the FULL 5-policy set (SPECIALIST_PILOT_FROZEN.evaluation.policy_set), not over the A/B pair. A positive 5-policy delta_pool could in principle be carried entirely by S_OP7, S_OP8, or D3-3700001 on some opponents, with A and B contributing nothing even though their OWN pairwise crossover (this protocol's gate) replicated cleanly.",
+      "where_this_is_actually_computed": "this protocol's 14-cell / 840-episode run (9200000 block) can only show A-vs-B replicates -- with only two policies in it, attribution to 'these two' is true by construction there. The real attribution question is answered by Confirmation A's 5-policy gate 3 and its SELECTED_POLICY_PER_OPPONENT diagnostic (artifacts/vgc_specialists/SPECIALIST_PILOT_AMENDMENT_1.json, amendment_3), computed on the 9300000 block. CONFIRMED status for A/B therefore requires reading both confirmations together, not this protocol in isolation.",
+      "rule": "never write 'D1/D7 are the teachers' on the strength of CROSSOVER_REPLICATES alone, and never on delta_pool>=.05 alone without checking which policy the selection half actually chose. Write 'candidate teachers' until both the value gate and the attribution check pass together."
     }
   },
 
