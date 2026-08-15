@@ -191,6 +191,23 @@ def main() -> int:
     }
     (OUT_DIR / f"{args.tag}_summary.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
 
+    # Per-episode rows. Additive and write-only: `all_rows` was already built in
+    # memory and discarded. Without it the split-half estimator required by
+    # SPECIALIST_PILOT_FROZEN.json cannot be computed at all, because selecting
+    # on half the episodes and scoring on the other half needs per-episode
+    # outcomes keyed by eval_seed. Nothing in the evaluation path is touched.
+    import csv as _csv
+    _keep = ("policy_id", "diversity_condition", "opponent", "eval_seed", "win",
+             "loss", "draw", "score_margin", "blue_score", "red_score",
+             "seen_in_training", "arm", "train_seed")
+    _rows_path = OUT_DIR / f"{args.tag}_episode_rows.csv"
+    with open(_rows_path, "w", newline="", encoding="utf-8") as _f:
+        _w = _csv.DictWriter(_f, fieldnames=_keep, extrasaction="ignore")
+        _w.writeheader()
+        for _r in all_rows:
+            _w.writerow(_r)
+    print(f"-> {_rows_path}  ({len(all_rows)} episodes)")
+
     # human-readable matrix
     import experiments.run_g0_v2_evaluation as E
     lines = ["| policy | method | D | seen avg | held-out avg | overall | worst | var |",
