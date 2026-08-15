@@ -1,9 +1,31 @@
 {
   "record_id": "SPECIALIST_PILOT_AMENDMENT_1",
+  "amendment_class": "AMENDMENT_BEFORE_EVALUATION",
   "amends": "artifacts/vgc_specialists/SPECIALIST_PILOT_FROZEN.json",
   "status": "FROZEN",
   "frozen_utc": "2026-08-15T04:30:00Z",
+  "commit": "2d8d4592",
   "raised_by": "PI design review",
+
+  "provenance_do_not_read_these_as_part_of_the_original_freeze": {
+    "note": "These details were NOT in the original freeze. They are an amendment, auditable as such without relying on anyone's account of intent.",
+    "original_protocol_said": [
+      "60 paired episodes per cell",
+      "split-half estimator",
+      "seed base UNSPECIFIED",
+      "V_fixed selection wording AMBIGUOUS",
+      "no attribution diagnostics"
+    ],
+    "amendment_2d8d4592_added": [
+      "disjoint specialist block 9300000-9300059",
+      "fixed-policy selection occurs on half A, symmetric with the adaptive mapping",
+      "SPECIALIST_INCREMENTAL_VALUE and SELECTED_POLICY_PER_OPPONENT as mandatory reports",
+      "paired bootstrap reported alongside the frozen Wald gates"
+    ],
+    "evaluation_cells_existing_at_amendment_time": 0,
+    "training_step_counts_at_amendment_time": {"S_OP7": 786432, "S_OP8": 772096, "budget": 1000000},
+    "these_step_counts_are_historical": "they record the run position when this amendment was frozen, not the current position of either run"
+  },
 
   "why_this_is_an_amendment_and_not_result_tuning": {
     "state_at_amendment": "S_OP7 at 786,432 and S_OP8 at 772,096 of 1,000,000 steps. NEITHER specialist has been evaluated. No cross-play cell, no gate score, and no delta_pool value exists for either policy.",
@@ -45,7 +67,15 @@
     },
     "resolution": "the primary gate is NOT changed. Two diagnostics are added and must be reported alongside any gate3 verdict.",
     "required_reports": {
-      "SPECIALIST_INCREMENTAL_VALUE": "V_selective(all five) - V_selective(three existing policies only, specialists excluded). Computed under the same split-half rule.",
+      "SPECIALIST_INCREMENTAL_VALUE": {
+        "definition": "V_selective(all five) - V_selective(three existing policies only, specialists excluded)",
+        "must_not_reintroduce_selection_bias": "BOTH mappings are chosen on half A and scored on half B. Computing 'best all-five selective value' and 'best incumbents-only selective value' independently on the scoring half would give each its own winner's-curse optimism, and the difference of two independently-optimistic quantities is not interpretable.",
+        "procedure": {
+          "half_A": ["choose the per-opponent selective mapping over ALL FIVE policies", "choose the per-opponent selective mapping over the THREE incumbents only", "freeze both mappings"],
+          "half_B": ["score frozen all-five mapping -> V_all5", "score frozen incumbents-only mapping -> V_existing", "incremental_value = V_all5 - V_existing"]
+        },
+        "uncertainty": "paired bootstrap over half-B episodes, 10000 resamples"
+      },
       "SELECTED_POLICY_PER_OPPONENT": "the identity of the policy the SELECTION half actually chose for each of OP6-OP12",
       "interpretation_rule": "if neither specialist is ever selected on the selection half, the specialists contributed no repertoire value regardless of whether gate3 passed. This must be stated explicitly in the readout, not left for a reader to infer."
     },
