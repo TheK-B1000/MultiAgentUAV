@@ -1,0 +1,66 @@
+{
+  "record_id": "SPECIALIST_PILOT_AMENDMENT_1",
+  "amends": "artifacts/vgc_specialists/SPECIALIST_PILOT_FROZEN.json",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-15T04:30:00Z",
+  "raised_by": "PI design review",
+
+  "why_this_is_an_amendment_and_not_result_tuning": {
+    "state_at_amendment": "S_OP7 at 786,432 and S_OP8 at 772,096 of 1,000,000 steps. NEITHER specialist has been evaluated. No cross-play cell, no gate score, and no delta_pool value exists for either policy.",
+    "verification": "artifacts/vgc_specialists/ contains no evaluation output of any kind",
+    "principle": "these changes fix an under-specification and a statistical asymmetry BEFORE any outcome is observable. They cannot flatter a result that does not exist. Amendments after any gate is scored would not be legitimate.",
+    "what_is_NOT_changed": ["gate1", "gate2", "the 0.05 delta_pool floor", "LCB95 > 0", "the 1M-only formal checkpoint rule", "the 5-policy set", "the opponent board", "60 episodes per cell"]
+  },
+
+  "amendment_1_evaluation_seed_block": {
+    "defect": "the frozen evaluation block specified episodes_per_cell and paired seeds but never named a seed BASE. run_crossplay_eval.py therefore defaults to run_g0_v2_evaluation.EVAL_SEED_BASE = 9100000, giving seeds 9100000-9100059.",
+    "consequence": "seeds 9100000-9100029 ARE the discovery block that produced the 56-cell matrix, and OP7/OP8 was selected because of what that matrix showed. Half of every specialist eval cell would reuse the exact environment realizations that chose the target axis.",
+    "severity": "less circular than re-scoring D1/D7 on the same data, since neither specialist existed at discovery. But a reviewer could reasonably ask whether OP7/OP8 was selected partly because those particular seeds exaggerated the contrast.",
+    "resolution": "the specialist confirmatory evaluation uses a DISJOINT block, base 9300000, seeds 9300000-9300059.",
+    "this_fills_a_gap_rather_than_overriding_a_choice": "the frozen protocol was SILENT on the seed base. Nothing frozen said 9100000. Had it been explicitly frozen, the correct action would have been to preserve it and add the disjoint block as a separate independent confirmation.",
+    "block_allocation": {
+      "9100000-9100029": "discovery, 56-cell matrix (spent)",
+      "9200000-9200059": "discovered-pair replication, D1-3600001 vs D7-3200001",
+      "9300000-9300059": "specialist pilot confirmatory evaluation",
+      "requirement": "mutually disjoint, and all disjoint from every training seed block"
+    }
+  },
+
+  "amendment_2_V_fixed_must_be_selected_on_the_selection_half": {
+    "defect": "the frozen SPLIT_HALF_ORACLE rule read 'The per-opponent argmax policy is SELECTED on half A and SCORED on half B. V_fixed is likewise scored on half B.' It never stated that V_fixed's ARGMAX is also chosen on half A.",
+    "consequence": "the natural implementation takes max-over-policies for V_fixed on half B, which gives the fixed baseline the same optimistic selection advantage that split-half was introduced to remove from the adaptive side. Adaptive selection would be debiased while the baseline was not, treating the two asymmetrically and biasing delta_pool DOWNWARD.",
+    "resolution": "BOTH the per-opponent adaptive mapping AND the identity of the single best fixed policy are chosen on half A. Both are then scored, frozen, on half B.",
+    "procedure": {
+      "half_A": ["choose argmax policy per opponent", "choose the single best fixed policy by mean WR across opponents", "freeze both choices"],
+      "half_B": ["score the frozen per-opponent mapping -> V_selective", "score the frozen fixed policy -> V_fixed", "delta_pool = V_selective - V_fixed"]
+    },
+    "not_adopted_now": "2-fold cross-fitting (A selects/B scores, B selects/A scores, average) is more sample-efficient and would be preferable in a redesign. The single split is valid, only noisier, and changing the estimator structure mid-flight is a larger change than fixing the asymmetry. Recorded as the preferred design for any future replication."
+  },
+
+  "amendment_3_specialist_incremental_value_diagnostic": {
+    "defect": "gate3 permits the selective oracle to choose among all five policies. If the existing generalists win both target columns -- OP7 to D7-3200001 and OP8 to D1-3600001 -- while S_OP7 and S_OP8 merely cross each other at a lower level, then gate1, gate2 and gate3 can ALL pass without the specialists having contributed anything.",
+    "the_two_claims_this_confuses": {
+      "claim_actually_supported": "the five-policy candidate pool has selective value, and the direct specialists exhibit complementarity",
+      "claim_that_would_be_wrongly_reported": "S_OP7/S_OP8 created a useful specialist repertoire"
+    },
+    "resolution": "the primary gate is NOT changed. Two diagnostics are added and must be reported alongside any gate3 verdict.",
+    "required_reports": {
+      "SPECIALIST_INCREMENTAL_VALUE": "V_selective(all five) - V_selective(three existing policies only, specialists excluded). Computed under the same split-half rule.",
+      "SELECTED_POLICY_PER_OPPONENT": "the identity of the policy the SELECTION half actually chose for each of OP6-OP12",
+      "interpretation_rule": "if neither specialist is ever selected on the selection half, the specialists contributed no repertoire value regardless of whether gate3 passed. This must be stated explicitly in the readout, not left for a reader to infer."
+    },
+    "why_it_matters_downstream": "the teachers for any latent compression stage are chosen from whichever policies actually carry the selective value. Mistaking pool value for specialist value would send the latent phase off with the wrong teachers."
+  },
+
+  "amendment_4_robustness_reporting": {
+    "change": "alongside the frozen Wald LCB95 for gate1 and gate2, report a paired episode-level bootstrap CI (10000 resamples).",
+    "why": "episode seeds are paired across policies, so a paired estimator uses the design; Wald intervals for Bernoulli proportions behave poorly near 0 and 1, and several cells on this board sit above .95.",
+    "status": "REPORTED ALONGSIDE, NOT A GATE. The frozen Wald criterion remains the decision rule; the bootstrap is a robustness check for the writeup. If the two disagree, that disagreement is itself reported."
+  },
+
+  "prohibited": [
+    "any further amendment after a gate has been scored",
+    "reusing block 9100000-9100029 for any specialist cell",
+    "reporting gate3 without SPECIALIST_INCREMENTAL_VALUE and SELECTED_POLICY_PER_OPPONENT"
+  ]
+}
