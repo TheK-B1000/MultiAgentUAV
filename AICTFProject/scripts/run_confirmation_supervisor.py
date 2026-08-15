@@ -45,6 +45,17 @@ B_EPISODES = 60
 B_TAG = "pair_replication"
 B_CELLS = 14
 
+# --- Confirmation A episode-row recovery (PI-authorised deterministic replay)
+REC_FROZEN = ROOT / "artifacts/vgc_specialists/CONFIRMATION_A_RECOVERY_FROZEN.json"
+REC_REGISTRY = ROOT / "artifacts/vgc_specialists/policies_specialist_pilot.json"
+REC_SUMMARY = ROOT / "artifacts/vgc_diversity/crossplay/specialist_pilot_recovery_summary.json"
+REC_RESULT = ROOT / "artifacts/vgc_specialists/CONFIRMATION_A_GATE3_RESULT.json"
+REC_LOG = ROOT / "artifacts/summer_2026/logs/confirmation_a_recovery.log"
+REC_SEED_BASE = 9300000
+REC_TAG = "specialist_pilot_recovery"
+REC_CELLS = 35
+FINAL_DECISION = ROOT / "artifacts/summer_2026/AB_DECISION_FINAL.json"
+
 
 def utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -131,6 +142,13 @@ def b_cells_done() -> int:
                if "win_rate=" in ln)
 
 
+def rec_cells_done() -> int:
+    if not REC_LOG.is_file():
+        return 0
+    return sum(1 for ln in REC_LOG.read_text(encoding="utf-8", errors="ignore").splitlines()
+               if "win_rate=" in ln)
+
+
 def detect() -> tuple[str, str]:
     """Derive the true state from artifacts. Returns (state, why)."""
     if not A_SUMMARY.is_file():
@@ -151,6 +169,21 @@ def detect() -> tuple[str, str]:
         return "SCORE_B", "B complete, not yet scored"
     if not DECISION.is_file():
         return "DECIDE", "A and B both scored; decision artifact missing"
+
+    # --- Gate 3 recovery: only if authorised AND gate3 is actually blocked
+    gate3 = a.get("gate3", {}).get("verdict")
+    if gate3 == "BLOCKED" and REC_FROZEN.is_file():
+        if not REC_SUMMARY.is_file():
+            n = rec_cells_done()
+            if n >= REC_CELLS:
+                return "SCORE_GATE3", f"recovery log shows {n}/{REC_CELLS} but no summary"
+            if n > 0:
+                return "RUN_RECOVERY", f"recovery partial ({n}/{REC_CELLS}); resume"
+            return "RUN_RECOVERY", "gate3 BLOCKED and recovery authorised; replay not started"
+        if not REC_RESULT.is_file():
+            return "SCORE_GATE3", "recovery replay complete, not yet scored"
+        if not FINAL_DECISION.is_file():
+            return "FINAL_DECIDE", "gate3 recovered; final decision artifact missing"
     return "COMPLETE", "decision artifact exists"
 
 
@@ -282,8 +315,118 @@ def step_decide(st: dict) -> None:
     transition(st, "DECIDE", "COMPLETE", teacher_status=status)
 
 
+def step_run_recovery(st: dict) -> None:
+    """Deterministic replay of Confirmation A with row persistence."""
+    running = evaluator_running()
+    if running:
+        log(f"evaluator already running (pid {running}); not launching a duplicate")
+        return
+    if not REC_REGISTRY.is_file():
+        transition(st, "RUN_RECOVERY", "BLOCKED",
+                   reason=f"missing registry {REC_REGISTRY}")
+        return
+    REC_LOG.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [PY, "-u", str(ROOT / "experiments/run_crossplay_eval.py"),
+           "--registry", str(REC_REGISTRY.relative_to(ROOT)).replace("\\", "/"),
+           "--episodes", "60",
+           "--seed-base", str(REC_SEED_BASE),
+           "--tag", REC_TAG]
+    log(f"launching CONFIRMATION_A_EPISODE_ROW_RECOVERY: {' '.join(cmd[2:])}")
+    with open(REC_LOG, "a", encoding="utf-8") as lf:
+        p = subprocess.Popen(cmd, cwd=str(ROOT), stdout=lf, stderr=subprocess.STDOUT)
+    st["recovery_pid"] = p.pid
+    save_state(st)
+    log(f"recovery pid={p.pid}; monitoring to {REC_CELLS} cells")
+    while p.poll() is None:
+        time.sleep(300)
+        log(f"  recovery progress {rec_cells_done()}/{REC_CELLS}")
+    log(f"recovery exited rc={p.returncode}, cells={rec_cells_done()}")
+
+
+def step_score_gate3(st: dict) -> None:
+    log("running recovery scorer (REPLAY_EQUIVALENCE then gate3)")
+    rc = subprocess.run([PY, str(ROOT / "experiments/recover_confirmation_a_gate3.py")],
+                        cwd=str(ROOT)).returncode
+    if not REC_RESULT.is_file():
+        transition(st, "SCORE_GATE3", "BLOCKED", reason=f"recovery scorer rc={rc}")
+        return
+    r = json.loads(REC_RESULT.read_text(encoding="utf-8"))
+    if r.get("verdict") == "BLOCKED_REPLAY_MISMATCH":
+        transition(st, "SCORE_GATE3", "BLOCKED",
+                   reason="REPLAY_EQUIVALENCE failed -- replay did not reproduce originals")
+        return
+    transition(st, "SCORE_GATE3", "FINAL_DECIDE",
+               gate3=r["gate3"]["verdict"], delta_pool=r["gate3"]["delta_pool"])
+
+
+def step_final_decide(st: dict) -> None:
+    a = json.loads(A_RESULT.read_text(encoding="utf-8"))
+    b = json.loads(B_RESULT.read_text(encoding="utf-8"))
+    g = json.loads(REC_RESULT.read_text(encoding="utf-8"))
+    g3 = g["gate3"]["verdict"]
+    siv = g["SPECIALIST_INCREMENTAL_VALUE"]
+    chosen = g["SELECTED_POLICY_PER_OPPONENT"]
+    crossover = b.get("PRIMARY_GATE_OP7_OP8_CROSSOVER_REPLICATES")
+
+    pair = {"vgc_d1_seed3600001", "g0_v5_long_seed3200001"}
+    pair_selected = bool(pair & set(chosen.values()))
+
+    if crossover == "PASS" and g3 == "PASS" and pair_selected:
+        status = "CONFIRMED"
+        why = ("crossover replicated on 9200000, repertoire value cleared the "
+               "0.05 floor with LCB95>0, and the half-A selection actually picks "
+               "D1-3600001 and/or D7-3200001")
+    elif crossover == "PASS" and g3 == "PASS":
+        status = "CANDIDATE"
+        why = ("crossover replicated and repertoire value cleared, but the "
+               "selection half does not pick the D1/D7 pair -- the value is "
+               "carried by other policies, so attribution fails")
+    elif crossover == "PASS":
+        status = "CANDIDATE"
+        why = "crossover replicated but repertoire value did not clear the gate"
+    else:
+        status = "NO_CONFIRMED_TEACHERS"
+        why = "the discovered-pair crossover did not replicate on fresh episodes"
+
+    dec = {
+        "record": "Summer 2026 FINAL Confirmation A/B decision (gate3 recovered)",
+        "utc": utc(),
+        "teacher_status": status,
+        "why": why,
+        "supersedes": "artifacts/summer_2026/AB_DECISION.json (written while gate3 was BLOCKED)",
+        "vocabulary_source": "DISCOVERED_PAIR_REPLICATION_FROZEN.json#status_vocabulary",
+        "confirmation_A": {
+            "block": 9300000,
+            "gate1": a["gate1"]["verdict"], "gate2": a["gate2"]["verdict"],
+            "gate3": g3, "delta_pool": g["gate3"]["delta_pool"],
+            "bootstrap_LCB95": g["gate3"]["bootstrap_LCB95"],
+            "V_selective": g["gate3"]["V_selective_halfB"],
+            "V_fixed": g["gate3"]["V_fixed_halfB"],
+            "fixed_policy": g["gate3"]["fixed_policy_selected_on_halfA"],
+            "SELECTED_POLICY_PER_OPPONENT": chosen,
+            "SPECIALIST_INCREMENTAL_VALUE": siv,
+            "REPLAY_EQUIVALENCE": g["REPLAY_EQUIVALENCE"]["verdict"],
+        },
+        "confirmation_B": {
+            "block": 9200000, "primary_gate": crossover,
+            "OP7": b.get("OP7_D7_over_D1"), "OP8": b.get("OP8_D1_over_D7"),
+        },
+        "specialist_hypothesis": "FAILED -- gate1 and gate2 both FAIL; "
+                                 "S_OP7 beats or ties S_OP8 on 7 of 7 opponents",
+        "specialists_contributed_repertoire_value":
+            siv.get("specialists_ever_selected"),
+        "next_step_requires_human_authorisation": True,
+        "not_launched_automatically": ["latent K=2 birth", "VGC-4 Phase 3"],
+    }
+    FINAL_DECISION.write_text(json.dumps(dec, indent=2), encoding="utf-8")
+    log(f"FINAL DECISION teacher_status={status} gate3={g3}")
+    transition(st, "FINAL_DECIDE", "COMPLETE", teacher_status=status, gate3=g3)
+
+
 STEPS = {"SCORE_A": step_score_a, "RUN_B": step_run_b,
-         "SCORE_B": step_score_b, "DECIDE": step_decide}
+         "SCORE_B": step_score_b, "DECIDE": step_decide,
+         "RUN_RECOVERY": step_run_recovery, "SCORE_GATE3": step_score_gate3,
+         "FINAL_DECIDE": step_final_decide}
 
 
 def main() -> int:

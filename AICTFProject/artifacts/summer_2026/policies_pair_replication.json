@@ -1,0 +1,20 @@
+[
+  {
+    "policy_id": "vgc_d1_seed3600001",
+    "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600001/ckpts/final_vgc_d1_seed3600001.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D1",
+    "team_size": 2,
+    "seed": 3600001,
+    "arm": "PRIMARY"
+  },
+  {
+    "policy_id": "g0_v5_long_seed3200001",
+    "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D7",
+    "team_size": 2,
+    "seed": 3200001,
+    "arm": "PRIMARY"
+  }
+]
