@@ -1,0 +1,127 @@
+{
+ "gate": "gate2b_affordance",
+ "created_utc": "2026-08-16T18:54:05.335575+00:00",
+ "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+ "ruleset": {
+  "taggers_required": 1,
+  "tag_min_interval_seconds": 10.0,
+  "tag_nearest_only": true,
+  "tag_channel_seconds": 0.0,
+  "suppression_attackers_required": 2
+ },
+ "map": "map_a",
+ "resolved_map": "map_a_open",
+ "opponent": "OP7",
+ "treatments": {
+  "both_attack": "BLUE_BOTH_ATTACK_V2",
+  "one_defender": "BLUE_ONE_DEFENDER_V2"
+ },
+ "paired_seeds": 32,
+ "seed_block": [
+  1900001,
+  1900032
+ ],
+ "integrity": {
+  "ok": true,
+  "problems": [],
+  "rows": 64
+ },
+ "manipulation": {
+  "min_separation": 0.25,
+  "home_defense": {
+   "mean": 0.21327992936957765,
+   "ci95": [
+    0.1990385519209735,
+    0.22765048486557535
+   ],
+   "passed": false
+  },
+  "forward_commit_agents": {
+   "mean": 0.44431632872769944,
+   "ci95": [
+    0.4275765975355483,
+    0.4596155901360042
+   ],
+   "passed": true,
+   "units": "agents"
+  },
+  "passed": false
+ },
+ "defense_benefit": {
+  "mean": 0.05329065024852753,
+  "ci95": [
+   -0.22092742999084294,
+   0.3290338311810046
+  ],
+  "passed": false
+ },
+ "offense_cost": {
+  "mean": 0.6987698469310999,
+  "ci95": [
+   0.5771039234474301,
+   0.8107344328425824
+  ],
+  "passed": true
+ },
+ "supporting": {
+  "blue_tag_successes": {
+   "both_attack": 5.40625,
+   "one_defender": 7.75
+  },
+  "red_tag_successes": {
+   "both_attack": 18.125,
+   "one_defender": 12.90625
+  },
+  "cooldown_denials": {
+   "both_attack": 69.90625,
+   "one_defender": 11.21875
+  },
+  "blue_flag_pickups": {
+   "both_attack": 5.21875,
+   "one_defender": 1.8125
+  },
+  "red_flag_pickups": {
+   "both_attack": 0.59375,
+   "one_defender": 0.34375
+  },
+  "blue_flag_drops": {
+   "both_attack": 5.03125,
+   "one_defender": 1.8125
+  },
+  "red_flag_drops": {
+   "both_attack": 0.5,
+   "one_defender": 0.3125
+  },
+  "time_to_first_tag": {
+   "both_attack": 7.96875,
+   "one_defender": 10.03125
+  },
+  "mean_num_attackers": {
+   "both_attack": 0.8700975787276994,
+   "one_defender": 0.42578125
+  },
+  "blue_raw_carrier_return_fraction": {
+   "both_attack": 0.7976291701197624,
+   "one_defender": 0.14266294240951538
+  },
+  "red_raw_carrier_return_fraction": {
+   "both_attack": 0.328971104696393,
+   "one_defender": 0.2627505324780941
+  },
+  "mean_num_defenders": {
+   "both_attack": 1.1205946730818233,
+   "one_defender": 1.5658854166666667
+  },
+  "episode_steps": {
+   "both_attack": 226.90625,
+   "one_defender": 240.0
+  }
+ },
+ "verdict": "INVALID_TREATMENT_SEPARATION",
+ "detail": "controllers did not create distinct allocations; fix controllers, not rules",
+ "passed": false,
+ "ROOT_CAUSE": "MANIPULATION_METRIC_CONFOUNDED_BY_FORCED_TAG_RETURN",
+ "root_cause_detail": "BLUE_ONE_DEFENDER_V2 held 99.57% home presence (better than its 99.23% vs OP6); separation fell because BOTH_ATTACK forced home presence rose 0.7170->0.7824 under ~18 red tags/episode, tagged agents being mechanically redirected home. Max achievable separation vs OP7 = 1.0-0.7824 = 0.2176 < 0.25 floor, so no controller repair could pass. See PREREG_AMENDMENT_003.",
+ "verdict_unchanged": true,
+ "outcome_contrasts_permanently_non_gating": "offense_cost +0.6988 CI95 [+0.5771,+0.8107] was observed before Amendment 003 and is disqualified from confirmatory use regardless of how the revised metric evaluates this block."
+}

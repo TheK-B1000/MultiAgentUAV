@@ -1,0 +1,34 @@
+{
+  "experiment": "gate2b_affordance",
+  "created_utc": "2026-08-16T17:36:10.766558+00:00",
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "taggers_required": 1,
+  "tag_min_interval_seconds": 10.0,
+  "tag_nearest_only": true,
+  "tag_channel_seconds": 0.0,
+  "suppression_attackers_required": 2,
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "opponent": "OP6",
+  "horizon": 240,
+  "agents": 2,
+  "paired_seeds": 32,
+  "seed_block": [
+    1900001,
+    1900032
+  ],
+  "styles": [
+    "BLUE_BOTH_ATTACK_V2",
+    "BLUE_ONE_DEFENDER_V2"
+  ],
+  "row_key": [
+    "episode_seed",
+    "blue_style",
+    "map",
+    "opponent",
+    "ruleset_id"
+  ],
+  "domain_randomization": false,
+  "tag_telemetry": true,
+  "expected_rows": 64
+}

@@ -67,6 +67,9 @@ OPPONENT = "OP6"
 MAX_DECISION_STEPS = 240
 AGENTS = 2
 SEED_BASE = 1_900_001          # fresh block, unused by any prior experiment
+# AMENDMENT_003: --seed-base allows the fresh untouched holdout (1_960_001+)
+# required because the 1_900_001 OP7 outcomes were observed before the
+# amendment and are permanently non-gating.
 
 RULESET = dict(taggers_required=1, tag_min_interval_seconds=10.0,
                tag_nearest_only=True, tag_channel_seconds=0.0,
@@ -222,6 +225,7 @@ def run_treatment(style: str, seed: int, device: str, opponent: str) -> dict:
 
         n = 0
         home_def_steps = 0
+        vol_home_def_steps = 0   # AMENDMENT_003: voluntary allocation only
         atk_agent_steps = def_agent_steps = 0
         b_tags = r_tags = denials = 0
         b_pick = r_pick = b_drop = r_drop = 0
@@ -278,8 +282,19 @@ def run_treatment(style: str, seed: int, device: str, opponent: str) -> dict:
             d_home = np.hypot(
                 (bx[0] - hf[0]).detach().cpu().numpy(),
                 (core.blue_y[0] - hf[1]).detach().cpu().numpy())
-            if bool((d_home <= HOME_DEFENSE_RADIUS).any()):
+            near_home = d_home <= HOME_DEFENSE_RADIUS
+            if bool(near_home.any()):
                 home_def_steps += 1
+            # AMENDMENT_003: an agent-step counts as DEFENSIVE ALLOCATION only
+            # while the agent is under normal controller authority. Dead /
+            # respawning and tagged agents are mechanically redirected home, so
+            # counting them scores involuntary return traffic as allocation --
+            # the confound that made the 0.25 floor unreachable vs OP7.
+            alive_b = core.blue_alive[0].detach().cpu().numpy().astype(bool)
+            tagged_b = core.blue_tagged[0].detach().cpu().numpy().astype(bool)
+            voluntary = near_home & alive_b & (~tagged_b)
+            if bool(voluntary.any()):
+                vol_home_def_steps += 1
 
             cb = core.blue_carrying[0].detach().cpu().numpy()
             cr = core.red_carrying[0].detach().cpu().numpy()
@@ -304,6 +319,7 @@ def run_treatment(style: str, seed: int, device: str, opponent: str) -> dict:
             "red_max_flag_progress": red.max_progress,
             "blue_score": bs, "red_score": rs_, "win_margin": bs - rs_,
             "blue_home_defense_fraction": home_def_steps / max(1, n),
+            "voluntary_home_defense_fraction": vol_home_def_steps / max(1, n),
             "blue_forward_commitment_fraction": atk_agent_steps / max(1, n * AGENTS),
             "mean_num_attackers": atk_agent_steps / max(1, n),
             "mean_num_defenders": def_agent_steps / max(1, n),
@@ -361,7 +377,12 @@ def main() -> int:
     p.add_argument("--n-boot", type=int, default=20000)
     p.add_argument("--alpha", type=float, default=0.05)
     p.add_argument("--out-dir", default="artifacts/gate2b_affordance_v2b")
+    p.add_argument("--seed-base", type=int, default=None,
+                   help="override SEED_BASE; AMENDMENT_003 holdout uses 1960001")
     args = p.parse_args()
+    global SEED_BASE
+    if args.seed_base is not None:
+        SEED_BASE = int(args.seed_base)
 
     out = PROJECT_ROOT / args.out_dir
     out.mkdir(parents=True, exist_ok=True)
@@ -405,8 +426,13 @@ def main() -> int:
     rng = np.random.default_rng(0)
 
     # ---- Phase 6: manipulation check -----------------------------------
-    d_home = (col(ONE_DEFENDER, "blue_home_defense_fraction")
-              - col(BOTH_ATTACK, "blue_home_defense_fraction"))
+    # AMENDMENT_003: the manipulation gate uses the VOLUNTARY metric. The
+    # original contaminated metric is still computed and reported below as the
+    # evidence for why the amendment was needed.
+    d_home = (col(ONE_DEFENDER, "voluntary_home_defense_fraction")
+              - col(BOTH_ATTACK, "voluntary_home_defense_fraction"))
+    d_home_legacy = (col(ONE_DEFENDER, "blue_home_defense_fraction")
+                     - col(BOTH_ATTACK, "blue_home_defense_fraction"))
     # Decision 2 (pre-32-seed amendment): the manipulation is how many VEHICLES
     # are committed forward, so the 0.25 floor applies to mean attacker COUNT,
     # not to the team-normalized fraction (which halves it by construction at
@@ -426,6 +452,11 @@ def main() -> int:
     emit(f"  BOTH_ATTACK extra attackers (agents): {m_fwd:+.4f}  "
          f"CI95=[{lo_fwd:+.4f}, {hi_fwd:+.4f}]  [{'PASS' if fwd_ok else 'FAIL'}]")
     emit(f"  manipulation: {'PASS' if manip_ok else 'FAIL'}")
+    # AMENDMENT_003 evidence: the legacy metric counted involuntary tag/respawn
+    # return traffic as defensive allocation. Reported, never gated.
+    m_leg, lo_leg, hi_leg = paired_ci(d_home_legacy, rng, args.n_boot, args.alpha)
+    emit(f"  [legacy, NON-GATING] contaminated home-defense separation: "
+         f"{m_leg:+.4f}  CI95=[{lo_leg:+.4f}, {hi_leg:+.4f}]")
 
     # ---- Phase 7: primary contrasts ------------------------------------
     d_def = (col(BOTH_ATTACK, "red_max_flag_progress")
