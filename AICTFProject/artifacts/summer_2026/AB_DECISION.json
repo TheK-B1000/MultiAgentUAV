@@ -1,0 +1,51 @@
+{
+  "record": "Summer 2026 Confirmation A/B decision",
+  "utc": "2026-08-16T02:53:30Z",
+  "teacher_status": "NO_CONFIRMED_TEACHERS",
+  "why": "the discovered-pair crossover did not replicate on fresh episodes",
+  "vocabulary_source": "artifacts/summer_2026/DISCOVERED_PAIR_REPLICATION_FROZEN.json#repertoire_value_is_a_separate_claim.status_vocabulary",
+  "confirmation_A": {
+    "block": 9300000,
+    "gate1": "FAIL",
+    "gate2": "FAIL",
+    "gate3": "BLOCKED",
+    "verdict": "PARTIAL_GATE3_BLOCKED",
+    "descriptive_dominance": {
+      "S_OP7_beats_or_ties_S_OP8_on": 7,
+      "of_opponents": 7
+    },
+    "SELECTED_POLICY_PER_OPPONENT": {
+      "verdict": "BLOCKED",
+      "reason": "MISSING_EPISODE_ROWS",
+      "note": "a full-cell argmax is computable but is NOT the frozen quantity, which is the half-A selection. Not reported, to avoid a differently-defined number being read as the gate."
+    },
+    "SPECIALIST_INCREMENTAL_VALUE": {
+      "verdict": "BLOCKED",
+      "reason": "MISSING_EPISODE_ROWS"
+    }
+  },
+  "confirmation_B": {
+    "block": 9200000,
+    "primary_gate": "FAIL",
+    "OP7": {
+      "wr_d7": 0.55,
+      "wr_d1": 0.7,
+      "diff": -0.15,
+      "LCB95": -0.3211,
+      "verdict": "FAIL"
+    },
+    "OP8": {
+      "wr_d1": 0.8,
+      "wr_d7": 0.8,
+      "diff": 0.0,
+      "LCB95": -0.1431,
+      "verdict": "FAIL"
+    }
+  },
+  "specialist_hypothesis": "FAILED -- gate1 and gate2 both FAIL and S_OP7 beats or ties S_OP8 on 7 of 7 opponents. Direct single-opponent training did not produce complementary best responses.",
+  "next_step_requires_human_authorisation": true,
+  "not_launched_automatically": [
+    "latent K=2 birth",
+    "VGC-4 Phase 3"
+  ]
+}

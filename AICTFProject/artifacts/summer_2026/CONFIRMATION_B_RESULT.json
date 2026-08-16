@@ -1,0 +1,57 @@
+{
+  "gate": "CONFIRMATION_B_DISCOVERED_PAIR_REPLICATION",
+  "protocol": "artifacts/summer_2026/DISCOVERED_PAIR_REPLICATION_FROZEN.json",
+  "eval_seed_base": 9200000,
+  "episodes_per_cell": 60,
+  "git_commit_of_evaluation": "bee1e249d956fc6723caf9a091ca863ff1387e19",
+  "provenance_invariants": {
+    "eval_seed_base_is_9200000": true,
+    "not_default_block": true,
+    "episodes_per_cell_is_60": true,
+    "two_policies": true,
+    "both_policies_present": true,
+    "all_14_cells": true
+  },
+  "OP7_D7_over_D1": {
+    "wr_d7": 0.55,
+    "wr_d1": 0.7,
+    "diff": -0.15,
+    "LCB95": -0.3211,
+    "verdict": "FAIL"
+  },
+  "OP8_D1_over_D7": {
+    "wr_d1": 0.8,
+    "wr_d7": 0.8,
+    "diff": 0.0,
+    "LCB95": -0.1431,
+    "verdict": "FAIL"
+  },
+  "OP11_secondary_not_required": {
+    "diff": 0.0333,
+    "LCB95": -0.0307,
+    "verdict": "FAIL",
+    "note": "reported only; cannot rescue a failed primary gate"
+  },
+  "PRIMARY_GATE_OP7_OP8_CROSSOVER_REPLICATES": "FAIL",
+  "per_cell_win_rates": {
+    "vgc_d1_seed3600001": {
+      "OP10": 0.8167,
+      "OP11": 0.9833,
+      "OP12": 1.0,
+      "OP6": 0.8667,
+      "OP7": 0.7,
+      "OP8": 0.8,
+      "OP9": 0.8333
+    },
+    "g0_v5_long_seed3200001": {
+      "OP10": 0.65,
+      "OP11": 0.95,
+      "OP12": 1.0,
+      "OP6": 0.85,
+      "OP7": 0.55,
+      "OP8": 0.8,
+      "OP9": 0.6
+    }
+  },
+  "cannot_compute_repertoire_value": "this protocol evaluates two policies, so V_fixed over the full five-policy set is undefined on block 9200000. Repertoire value is Confirmation A's gate 3, not this one."
+}

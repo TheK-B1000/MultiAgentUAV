@@ -1,0 +1,62 @@
+{
+  "gate": "CONFIRMATION_A_GATE3",
+  "protocol": "artifacts/vgc_specialists/CONFIRMATION_A_RECOVERY_FROZEN.json",
+  "estimator": "SPLIT_HALF_ORACLE; both the adaptive mapping and V_fixed selected on half A, scored on half B (AMENDMENT_1)",
+  "REPLAY_EQUIVALENCE": {
+    "cells_checked": 35,
+    "cells_expected": 35,
+    "tolerance": 0.0,
+    "seed_base_orig": 9300000,
+    "seed_base_replay": 9300000,
+    "seed_base_match": true,
+    "mismatches": [],
+    "verdict": "PASS"
+  },
+  "half_sizes": {
+    "half_A_by_even_eval_seed": 30,
+    "half_B_by_odd_eval_seed": 30
+  },
+  "gate3": {
+    "V_selective_halfB": 0.8048,
+    "V_fixed_halfB": 0.8333,
+    "fixed_policy_selected_on_halfA": "vgc_d1_seed3600001",
+    "delta_pool": -0.0286,
+    "bootstrap_LCB95": -0.0667,
+    "floor": 0.05,
+    "verdict": "FAIL"
+  },
+  "SELECTED_POLICY_PER_OPPONENT": {
+    "OP6": "vgc_d1_seed3600001",
+    "OP7": "vgc_d1_seed3600001",
+    "OP8": "vgc_s_op7_seed3900007",
+    "OP9": "vgc_d1_seed3600001",
+    "OP10": "vgc_s_op7_seed3900007",
+    "OP11": "vgc_s_op7_seed3900007",
+    "OP12": "vgc_s_op7_seed3900007"
+  },
+  "SPECIALIST_INCREMENTAL_VALUE": {
+    "V_all5_halfB": 0.8048,
+    "V_incumbents_only_halfB": 0.8333,
+    "incremental": -0.0286,
+    "incumbents_only_selection_halfA": {
+      "OP6": "vgc_d1_seed3600001",
+      "OP7": "vgc_d1_seed3600001",
+      "OP8": "vgc_d1_seed3600001",
+      "OP9": "vgc_d1_seed3600001",
+      "OP10": "vgc_d1_seed3600001",
+      "OP11": "vgc_d1_seed3600001",
+      "OP12": "vgc_d1_seed3600001"
+    },
+    "specialists_ever_selected": true,
+    "which_specialists_selected": [
+      "vgc_s_op7_seed3900007"
+    ],
+    "interpretation_rule": "if no specialist is selected, the specialists contributed no repertoire value regardless of whether gate3 passed"
+  },
+  "gate1_and_gate2_not_recomputed": {
+    "source": "artifacts/vgc_specialists/CONFIRMATION_A_RESULT.json",
+    "gate1": "FAIL",
+    "gate2": "FAIL",
+    "why": "both need only per-cell proportions, which were never missing"
+  }
+}

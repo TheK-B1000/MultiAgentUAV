@@ -1,0 +1,73 @@
+{
+  "record": "Summer 2026 FINAL Confirmation A/B decision (gate3 recovered)",
+  "utc": "2026-08-16T16:43:42Z",
+  "teacher_status": "NO_CONFIRMED_TEACHERS",
+  "why": "the discovered-pair crossover did not replicate on fresh episodes",
+  "supersedes": "artifacts/summer_2026/AB_DECISION.json (written while gate3 was BLOCKED)",
+  "vocabulary_source": "DISCOVERED_PAIR_REPLICATION_FROZEN.json#status_vocabulary",
+  "confirmation_A": {
+    "block": 9300000,
+    "gate1": "FAIL",
+    "gate2": "FAIL",
+    "gate3": "FAIL",
+    "delta_pool": -0.0286,
+    "bootstrap_LCB95": -0.0667,
+    "V_selective": 0.8048,
+    "V_fixed": 0.8333,
+    "fixed_policy": "vgc_d1_seed3600001",
+    "SELECTED_POLICY_PER_OPPONENT": {
+      "OP6": "vgc_d1_seed3600001",
+      "OP7": "vgc_d1_seed3600001",
+      "OP8": "vgc_s_op7_seed3900007",
+      "OP9": "vgc_d1_seed3600001",
+      "OP10": "vgc_s_op7_seed3900007",
+      "OP11": "vgc_s_op7_seed3900007",
+      "OP12": "vgc_s_op7_seed3900007"
+    },
+    "SPECIALIST_INCREMENTAL_VALUE": {
+      "V_all5_halfB": 0.8048,
+      "V_incumbents_only_halfB": 0.8333,
+      "incremental": -0.0286,
+      "incumbents_only_selection_halfA": {
+        "OP6": "vgc_d1_seed3600001",
+        "OP7": "vgc_d1_seed3600001",
+        "OP8": "vgc_d1_seed3600001",
+        "OP9": "vgc_d1_seed3600001",
+        "OP10": "vgc_d1_seed3600001",
+        "OP11": "vgc_d1_seed3600001",
+        "OP12": "vgc_d1_seed3600001"
+      },
+      "specialists_ever_selected": true,
+      "which_specialists_selected": [
+        "vgc_s_op7_seed3900007"
+      ],
+      "interpretation_rule": "if no specialist is selected, the specialists contributed no repertoire value regardless of whether gate3 passed"
+    },
+    "REPLAY_EQUIVALENCE": "PASS"
+  },
+  "confirmation_B": {
+    "block": 9200000,
+    "primary_gate": "FAIL",
+    "OP7": {
+      "wr_d7": 0.55,
+      "wr_d1": 0.7,
+      "diff": -0.15,
+      "LCB95": -0.3211,
+      "verdict": "FAIL"
+    },
+    "OP8": {
+      "wr_d1": 0.8,
+      "wr_d7": 0.8,
+      "diff": 0.0,
+      "LCB95": -0.1431,
+      "verdict": "FAIL"
+    }
+  },
+  "specialist_hypothesis": "FAILED -- gate1 and gate2 both FAIL; S_OP7 beats or ties S_OP8 on 7 of 7 opponents",
+  "specialists_contributed_repertoire_value": true,
+  "next_step_requires_human_authorisation": true,
+  "not_launched_automatically": [
+    "latent K=2 birth",
+    "VGC-4 Phase 3"
+  ]
+}

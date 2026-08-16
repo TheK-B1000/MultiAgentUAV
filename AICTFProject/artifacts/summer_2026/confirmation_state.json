@@ -1,0 +1,38 @@
+{
+  "history": [
+    {
+      "from": "SCORE_B",
+      "to": "DECIDE",
+      "utc": "2026-08-16T02:53:30Z",
+      "pid": 27760,
+      "primary": "FAIL"
+    },
+    {
+      "from": "DECIDE",
+      "to": "COMPLETE",
+      "utc": "2026-08-16T02:53:30Z",
+      "pid": 27760,
+      "teacher_status": "NO_CONFIRMED_TEACHERS"
+    },
+    {
+      "from": "SCORE_GATE3",
+      "to": "FINAL_DECIDE",
+      "utc": "2026-08-16T16:43:42Z",
+      "pid": 5616,
+      "gate3": "FAIL",
+      "delta_pool": -0.0286
+    },
+    {
+      "from": "FINAL_DECIDE",
+      "to": "COMPLETE",
+      "utc": "2026-08-16T16:43:42Z",
+      "pid": 5616,
+      "teacher_status": "NO_CONFIRMED_TEACHERS",
+      "gate3": "FAIL"
+    }
+  ],
+  "state": "COMPLETE",
+  "detect_why": "decision artifact exists",
+  "b_pid": 18164,
+  "recovery_pid": 38792
+}
