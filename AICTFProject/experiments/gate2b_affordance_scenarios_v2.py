@@ -229,11 +229,26 @@ def run_treatment(style: str, seed: int, device: str, opponent: str) -> dict:
         prev_b = core.blue_carrying[0].detach().cpu().numpy().copy()
         prev_r = core.red_carrying[0].detach().cpu().numpy().copy()
 
+        # Authoritative terminal score. core.blue_score is ALREADY AUTO-RESET by
+        # the time step_wait returns on a terminal step, so reading it after the
+        # loop records 0 for an episode that actually scored -- the bug that made
+        # every row 0-0 here and in the July predecessor. The vecenv info dict
+        # carries the true end-of-episode scores; use them.
+        # See experiments/test_terminal_score_capture.py.
+        term_scores = None
+
         for _ in range(MAX_DECISION_STEPS):
             env.step_async(env.action_space.sample() * 0)
             _o, _r, done, _i = env.step_wait()
             n += 1
             terminal = bool(np.asarray(done).any())
+            if terminal:
+                i0 = _i[0] if isinstance(_i, (list, tuple)) else _i
+                er = i0.get("episode_result") or {}
+                term_scores = (
+                    int(er.get("blue_score", i0.get("blue_score", 0))),
+                    int(er.get("red_score", i0.get("red_score", 0))),
+                )
 
             for e in core.drain_tag_events():
                 et = e.get("event_type")
@@ -274,7 +289,12 @@ def run_treatment(style: str, seed: int, device: str, opponent: str) -> dict:
             r_drop += int((prev_r & (~cr)).sum())
             prev_b, prev_r = cb.copy(), cr.copy()
 
-        bs, rs_ = int(core.blue_score[0]), int(core.red_score[0])
+        # Terminal episodes take the info-dict scores; a horizon-truncated
+        # episode never reset, so its live counters are still valid.
+        if term_scores is not None:
+            bs, rs_ = term_scores
+        else:
+            bs, rs_ = int(core.blue_score[0]), int(core.red_score[0])
         row = {
             "episode_seed": seed, "blue_style": style,
             "map": MAP, "resolved_map": RESOLVED_MAP, "opponent": opponent,
