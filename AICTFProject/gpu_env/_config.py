@@ -225,6 +225,10 @@ class GPUFieldConfig:
     # Suppression/kill is a project-specific mechanic, NOT Aquaticus tagging.
     # Kept on its own threshold so correcting tagging cannot silently change it.
     suppression_attackers_required: int = 2
+    # M1 (V3 candidate, DEFAULT OFF): a capture only scores while the scoring
+    # team's OWN flag is at home. Couples offence to defence. RULESET_V2 is
+    # unchanged when False. See artifacts/strategic_demand/V3_RECOMMENDATION.md
+    own_flag_home_required_to_score: bool = False
     # Observational tag-event telemetry. OFF by default so training pays nothing.
     # When on, tag successes and cooldown denials are recorded AT THE DECISION
     # POINT, before movement / return-home / flag-drop side effects run. It must

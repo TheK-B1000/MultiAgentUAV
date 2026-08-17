@@ -565,6 +565,31 @@ class _RulesMixin:
         cap_r = 1.2
         blue_capture_contact = self.blue_alive & self.blue_carrying & (~self.blue_tagged) & (b_home_dist <= cap_r)
         red_capture_contact = self.red_alive & self.red_carrying & (~self.red_tagged) & (r_home_dist <= cap_r)
+
+        # ---- M1 (V3 candidate): own flag must be home to score ------------
+        # Config-gated and DEFAULT OFF, so RULESET_V2 behaviour is unchanged
+        # bit-for-bit when the flag is absent. When enabled, a carrier that
+        # reaches its own home while its OWN flag is stolen cannot convert;
+        # scoring becomes possible again once the flag is recovered.
+        # This is the single approved V3 mechanic. Nothing else changes.
+        if bool(getattr(self.cfg, "own_flag_home_required_to_score", False)):
+            _eps = 1e-3
+            blue_own_home = (torch.sqrt(
+                (self.blue_flag_pos[:, 0] - self.blue_flag_home[:, 0]) ** 2
+                + (self.blue_flag_pos[:, 1] - self.blue_flag_home[:, 1]) ** 2
+                + 1e-12) <= _eps)
+            red_own_home = (torch.sqrt(
+                (self.red_flag_pos[:, 0] - self.red_flag_home[:, 0]) ** 2
+                + (self.red_flag_pos[:, 1] - self.red_flag_home[:, 1]) ** 2
+                + 1e-12) <= _eps)
+            # Telemetry: possessions that reached home but were denied.
+            self._m1_blue_blocked = (blue_capture_contact & (~blue_own_home[:, None]))
+            self._m1_red_blocked = (red_capture_contact & (~red_own_home[:, None]))
+            blue_capture_contact = blue_capture_contact & blue_own_home[:, None]
+            red_capture_contact = red_capture_contact & red_own_home[:, None]
+        else:
+            self._m1_blue_blocked = torch.zeros_like(blue_capture_contact)
+            self._m1_red_blocked = torch.zeros_like(red_capture_contact)
         self.blue_home_contact_frames = torch.where(
             blue_capture_contact,
             torch.clamp(self.blue_home_contact_frames + 1, max=1000),
