@@ -48,12 +48,23 @@ MAX_STEPS = 240
 RULESET = dict(taggers_required=1, tag_min_interval_seconds=10.0,
                tag_nearest_only=True, tag_channel_seconds=0.0,
                suppression_attackers_required=2)
-SEED_BASE = 1_970_001          # fresh, unused by any prior experiment
+SEED_BASE = 1_990_001          # fresh block for the Option-B primary assay
 SUPPRESSION_RUNGS = (2.0, 2.50, 2.75, 3.00)   # 2.0 = stock V2 primary
 
 
-def run_episode(*, n_blue: int, n_red: int, opponent: str, seed: int,
-                suppression_range: float, device: str = "cuda") -> dict:
+def run_episode(*, opponent: str, seed: int, suppression_range: float,
+                blue_style: str = "BLUE_BOTH_ATTACK_V2",
+                n_blue: int = 2, n_red: int = 2, device: str = "cuda") -> dict:
+    # HARD SCOPE GUARD. The project studies multi-agent maritime CTF at 2v2 or
+    # larger. Deleting an agent changes the strategic object rather than
+    # weakening it -- OP7_DEEP_FORTRESS is a two-role system, so Nr=1 is not a
+    # weaker fortress, it is a different opponent. Mechanism must be isolated
+    # via telemetry inside the full game.
+    if n_blue < 2 or n_red < 2:
+        raise ValueError(
+            f"NO EXPERIMENT BELOW 2v2 (got n_blue={n_blue}, n_red={n_red}). "
+            "Isolate mechanism through in-game telemetry, not agent removal.")
+
     from gpu_env import GPUCTFVecEnv, GPUFieldConfig
 
     cfg = GPUFieldConfig(
@@ -69,7 +80,7 @@ def run_episode(*, n_blue: int, n_red: int, opponent: str, seed: int,
         env.env_method("set_phase", opponent)
         env.env_method("set_next_opponent", "SCRIPTED", opponent)
         core.blue_scripted = True
-        core.set_blue_style("BLUE_BOTH_ATTACK_V2")   # committed attackers
+        core.set_blue_style(blue_style)
         env.reset()
         core.drain_tag_events()
 
@@ -141,6 +152,7 @@ def run_episode(*, n_blue: int, n_red: int, opponent: str, seed: int,
             int(core.blue_score[0]), int(core.red_score[0]))
         return {
             "seed": seed, "n_blue": n_blue, "n_red": n_red,
+            "blue_style": blue_style,
             "opponent": opponent, "suppression_range": suppression_range,
             "first_event": first_event, "first_event_step": first_event_step,
             "t_first_tag_on_blue": t_tag, "t_first_suppression_of_red": t_supp,
@@ -200,21 +212,38 @@ def main() -> int:
                      "seeds": a.seeds, "arms": {}}
     all_rows: list[dict] = []
 
-    # FORTRESS (OP7) is the prepared defender; OP6 included at the stock rung
-    # as the rushing-pair contrast the frozen prediction refers to.
-    arms = [("7B_1v1_OP7", 1, 1, "OP7", (2.0,)),
-            ("7C_2v1_OP7", 2, 1, "OP7", SUPPRESSION_RUNGS),
-            ("7C_2v1_OP6", 2, 1, "OP6", SUPPRESSION_RUNGS)]
+    # PI SCOPE DECISION: NO EXPERIMENT BELOW 2v2.
+    #
+    # Both the original asymmetric design (n_red=1) and the Option-B revision
+    # (n_blue=1) are discarded. Deleting an agent changes the strategic object:
+    # OP7_DEEP_FORTRESS is intrinsically a two-role system (deep flag defender +
+    # return-cut interceptor), and the project's scope is multi-agent maritime
+    # CTF at 2v2 or larger. Mechanism is therefore isolated through TELEMETRY
+    # INSIDE the full 2v2 game, never by removing agents.
+    #
+    # Every arm below is 2 BLUE vs 2 RED on map_a under stock RULESET_V2. The
+    # only manipulated variables are BLUE's allocation (ONE_DEFENDER vs
+    # BOTH_ATTACK) and, as diagnostic counterfactuals only, suppression range.
+    #
+    # OP6/FAST_RAID arms exist to test the frozen symmetric-danger prediction:
+    # raising suppression may help BOTH_ATTACK breach FORTRESS while also
+    # helping a rushing pair suppress our lone home defender.
+    arms = [
+        ("7B_ONE_DEFENDER_vs_OP7", "BLUE_ONE_DEFENDER_V2", "OP7", SUPPRESSION_RUNGS),
+        ("7B_BOTH_ATTACK_vs_OP7",  "BLUE_BOTH_ATTACK_V2",  "OP7", SUPPRESSION_RUNGS),
+        ("7C_ONE_DEFENDER_vs_OP6", "BLUE_ONE_DEFENDER_V2", "OP6", SUPPRESSION_RUNGS),
+        ("7C_BOTH_ATTACK_vs_OP6",  "BLUE_BOTH_ATTACK_V2",  "OP6", SUPPRESSION_RUNGS),
+    ]
 
-    for name, nb, nr, opp, rungs in arms:
+    for name, style, opp, rungs in arms:
         for rung in rungs:
             key = f"{name}_supp{rung:g}"
             rows = []
             for i in range(a.seeds):
                 try:
-                    rows.append(run_episode(n_blue=nb, n_red=nr, opponent=opp,
-                                            seed=SEED_BASE + i,
+                    rows.append(run_episode(opponent=opp, seed=SEED_BASE + i,
                                             suppression_range=rung,
+                                            blue_style=style,
                                             device=a.device))
                 except Exception as exc:
                     print(f"  {key} seed {SEED_BASE+i}: ERROR {type(exc).__name__}: {exc}",
