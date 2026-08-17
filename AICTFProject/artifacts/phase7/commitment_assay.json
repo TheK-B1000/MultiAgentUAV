@@ -1,0 +1,53 @@
+{
+  "record": "Phase 7D commitment / emergency-recovery assay, stock RULESET_V2",
+  "opponent": "OP6",
+  "seeds": 20,
+  "seed_base": 1980001,
+  "arms": {
+    "NO_RECOVERY": {
+      "red_pickup_rate": 1.0,
+      "red_capture_rate": 0.95,
+      "mean_red_score": 1.6,
+      "mean_blue_score": 2.75,
+      "mean_episode_steps": 129.1
+    },
+    "RECOVERY": {
+      "red_pickup_rate": 1.0,
+      "red_capture_rate": 1.0,
+      "mean_red_score": 1.25,
+      "mean_blue_score": 2.6,
+      "mean_episode_steps": 162.8
+    }
+  },
+  "paired_effects_no_recovery_minus_recovery": {
+    "red_pickup_prevented": {
+      "mean": 0.0,
+      "CI95": [
+        0.0,
+        0.0
+      ]
+    },
+    "red_capture_prevented": {
+      "mean": -0.05,
+      "CI95": [
+        -0.15,
+        0.0
+      ]
+    },
+    "red_score_reduced": {
+      "mean": 0.35,
+      "CI95": [
+        0.0,
+        0.7
+      ]
+    }
+  },
+  "timing_reported_not_classifying": {
+    "mean_t_commit": 7.3,
+    "mean_t_intent": 7.2,
+    "mean_recovery_margin_steps": 35.65,
+    "note": "T_intent to T_red_pickup. Reported; does not classify."
+  },
+  "verdict": "COMMITMENT_PRESENT",
+  "classification_rule": "behavioural: COMMITMENT_ABSENT when recalling one vehicle reliably prevents the threat; COMMITMENT_PRESENT when prevention is negligible; otherwise INDETERMINATE. No new percentage threshold was invented as a scientific gate."
+}

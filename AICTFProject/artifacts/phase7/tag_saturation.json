@@ -1,0 +1,79 @@
+{
+  "record": "tag-cooldown saturation diagnostic, 2v2 stock RULESET_V2",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "seed_base": 2010001,
+  "arms": {
+    "ONE_DEFENDER_vs_OP7": {
+      "episodes": 16,
+      "total_red_tags": 202,
+      "mean_tags_per_episode": 12.625,
+      "inter_tag_interval": {
+        "n": 170,
+        "mean": 18.111176470588237,
+        "median": 16.335,
+        "min": 10.394999999999996,
+        "frac_within_125pct_of_floor": 0.4588235294117647,
+        "floor_seconds": 10.0
+      },
+      "cooldown_utilisation": {
+        "tags_issued_at_zero_cooldown": 202,
+        "frac": 1.0
+      },
+      "nearest_target_diversion": {
+        "tags_with_multiple_eligible": 0,
+        "frac": 0.0
+      },
+      "post_tag_window": {
+        "windows": 202,
+        "with_other_agent_pickup": 0,
+        "frac": 0.0
+      },
+      "tag_ended_attempt": {
+        "attempts": 202,
+        "ended": 183,
+        "frac": 0.905940594059406
+      },
+      "mean_blue_score": 0.0625,
+      "mean_red_score": 0.3125
+    },
+    "BOTH_ATTACK_vs_OP7": {
+      "episodes": 16,
+      "total_red_tags": 313,
+      "mean_tags_per_episode": 19.5625,
+      "inter_tag_interval": {
+        "n": 281,
+        "mean": 11.747882562277582,
+        "median": 10.39500000000001,
+        "min": 10.394999999999996,
+        "frac_within_125pct_of_floor": 0.8149466192170819,
+        "floor_seconds": 10.0
+      },
+      "cooldown_utilisation": {
+        "tags_issued_at_zero_cooldown": 313,
+        "frac": 1.0
+      },
+      "nearest_target_diversion": {
+        "tags_with_multiple_eligible": 0,
+        "frac": 0.0
+      },
+      "post_tag_window": {
+        "windows": 313,
+        "with_other_agent_pickup": 89,
+        "frac": 0.28434504792332266
+      },
+      "tag_ended_attempt": {
+        "attempts": 313,
+        "ended": 223,
+        "frac": 0.7124600638977636
+      },
+      "mean_blue_score": 0.6875,
+      "mean_red_score": 0.4375
+    }
+  }
+}
