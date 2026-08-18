@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-17 — OP6 recorded as GUARD_PAYOFF_CANDIDATE. 2500001 not launched. Mutation/evolution authorized under frozen J.
+> **Last updated:** 2026-08-18 — R1 launched from commit `2d1501f6`. A specialist is running first; B specialist and balanced generalist are queued sequentially in the same supervisor. No R2 evaluation has started.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -25,8 +25,8 @@ It is **not** the source of truth for:
 | `RULESET_V3_M1` (`own_flag_home_required_to_score=True`) | **FROZEN** |
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
-| Strategic Demand Searcher | **MUTATION RUNNING.** OP6 = `GUARD_PAYOFF_CANDIDATE` (not confirmation). Screen found no complete package. `2500001` pristine. Out: `artifacts/strategic_demand/searcher_mutate`. PPO off. |
-| PPO / specialists / latent | **NOT STARTED** |
+| Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
+| PPO / specialists / latent | **R1 RUNNING.** `pi_A`, seed `7100001`, 1M terminal budget, PID `51736`; `pi_B` seed `7200001` (1M) and `pi_G` seed `7000001` (2M, 50/50 A/B) queued. R2/R3/R4 and latent remain unstarted. |
 
 ---
 
