@@ -1,0 +1,86 @@
+{
+  "record_id": "V3_BENCHMARK_FROZEN",
+  "status": "FROZEN_PERMANENTLY",
+  "frozen_utc": "2026-08-18T22:00:00Z",
+  "decided_by": "PI ruling following V3_STRATEGIC_DEMAND = VALIDATED",
+  "authority": "artifacts/strategic_demand/V3_STRATEGIC_DEMAND_VALIDATED.json",
+
+  "declaration": "This environment is now THE BENCHMARK. No more opponent evolution, no M1 tuning, no tagging or suppression changes, no ruleset edits. Everything downstream is measured against this fixed target.",
+
+  "why_freeze_now": "the environment has passed the full prospective test it was built to pass. Any further change to it would invalidate the four-gate validation and make every downstream learning result incomparable to the evidence that justifies running them.",
+
+  "frozen_environment": {
+    "ruleset": "RULESET_V3_M1 = RULESET_V2_AQUATICUS_10S + own_flag_home_required_to_score=True",
+    "rules_detail": {
+      "taggers_required": 1,
+      "tag_min_interval_seconds": 10.0,
+      "tag_nearest_only": true,
+      "tag_channel_seconds": 0.0,
+      "suppression_attackers_required": 2,
+      "own_flag_home_required_to_score": true
+    },
+    "map": "map_a",
+    "map_set": "train",
+    "team_size": "2v2",
+    "horizon": 240,
+    "aquaticus_profile": true,
+    "rules_profile": "OURS"
+  },
+
+  "frozen_poles": {
+    "A": {
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "base_opponent": "OP6",
+      "overlay": {"min_alive_for_defender": 2},
+      "opening_hold_steps": 0,
+      "lineage": "OP6 -> SDS_PARENT_OP6 -> SDS2_A_payoff_INIT_3",
+      "mechanism": "conditional defender: deploys only while at least 2 RED agents are alive",
+      "demands": "GUARD",
+      "confirmed": {"delta_G": 0.29688, "lcb95": 0.20313, "p_C": 0.94271, "p_C_lcb95": 0.90625}
+    },
+    "B": {
+      "genome_id": "OP7 canonical",
+      "overlay": {},
+      "registry_status": "canonical registry entry, never overwritten",
+      "demands": "BREACH",
+      "confirmed": {"delta_B": 0.45313, "lcb95": 0.38542, "p_C": 0.91667, "p_C_lcb95": 0.875}
+    }
+  },
+
+  "frozen_scripted_responses": {
+    "GUARD": "BLUE_ONE_DEFENDER_V2",
+    "BREACH": "BLUE_BOTH_ATTACK_V2",
+    "role": "these defined the scripted validation. Learned policies replace them downstream; the scripted pair remains the reference anchor."
+  },
+
+  "frozen_observability_definitions": {
+    "estimator": "OBSERVABILITY_V2 (event order, no sentinel arithmetic)",
+    "intent": ">=2 live untagged RED agents all on BLUE's home side, persisting INTENT_PERSIST=4 consecutive steps, via engine _is_on_home_side",
+    "commitment": ">=2 live untagged BLUE agents all on RED's home side",
+    "opponent_identity_never_an_input": true
+  },
+
+  "spent_and_disqualified_blocks": {
+    "2500001": "PERMANENTLY DISQUALIFIED (collides with g0_v2_seed2500001 training)",
+    "2600001": "PERMANENTLY DISQUALIFIED (collides with g0_v2 penalty-ablation training)",
+    "5000001..5000032": "SPENT (SDS_G1_4 confirmation)",
+    "6000001..6000192": "SPENT (V3 four-gate confirmation)",
+    "2400001/2410001/2420001+": "search/development seeds, never confirmation seeds"
+  },
+
+  "implementation_note_for_downstream_training": {
+    "issue": "the A pole's overlay is applied ONLY by experiments/sds_genome.py::apply_genome_to_core. The PPO training path (rl/training/env_factory.py) does set_phase / set_next_opponent / _apply_initial_opponent_params and does NOT apply any genome overlay.",
+    "risk": "training 'against pole A' without explicitly applying the overlay would silently train against plain OP6, and every downstream repertoire result would be measuring the wrong environment.",
+    "verified_empirically": "the override survives env.reset() AND survives auto-reset across episode termination (checked on a live env: min_alive_for_defender=2 still set after 2 terminal transitions).",
+    "requirement": "any training or evaluation run against pole A MUST apply the overlay and MUST assert it is live on the concrete core object before consuming compute."
+  },
+
+  "prohibited_permanently": [
+    "evolving further opponents for this benchmark",
+    "tuning M1 or any ruleset parameter",
+    "changing tagging, suppression, or carrier vulnerability",
+    "changing the intent or commitment definitions",
+    "changing map, team size, or horizon",
+    "re-using any spent or disqualified seed block"
+  ]
+}
