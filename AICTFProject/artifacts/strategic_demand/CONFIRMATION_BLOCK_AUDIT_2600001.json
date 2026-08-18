@@ -1,0 +1,147 @@
+{
+ "block": {
+  "base": 2600001,
+  "n": 32,
+  "range": "2600001..2600032"
+ },
+ "margin_required": 5000,
+ "population_seed_offset_max": 300,
+ "declared_inventory_size": 917,
+ "broad_inventory_size": 29128,
+ "excluded_as_reservation_records": [
+  "scripts/audit_seed_block.py",
+  "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
+  "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_"
+ ],
+ "exclusion_caveat": "these paths RESERVE a block rather than USE it and are skipped in every check; any other file naming a seed in the window counts as a collision",
+ "check_1_declared_hits": [
+  {
+   "seed": 2600001,
+   "sources": [
+    "artifacts\\g0_v2_penalty_ablation\\PROBE_GATE_FROZEN.json::seeds",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\ablation_report.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\ablation_report.json::seed",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\ckpts\\ckpt_g0_v2_nopen_seed2600001_100000.zip"
+   ]
+  },
+  {
+   "seed": 2600002,
+   "sources": [
+    "artifacts\\g0_v2_penalty_ablation\\PROBE_GATE_FROZEN.json::seeds",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\ablation_report.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\ablation_report.json::seed",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\ckpts\\ckpt_g0_v2_nopen_seed2600002_100000.zip"
+   ]
+  },
+  {
+   "seed": 2600003,
+   "sources": [
+    "artifacts\\g0_v2_penalty_ablation\\PROBE_GATE_FROZEN.json::seeds",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\ablation_report.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\ablation_report.json::seed",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\ckpts\\ckpt_g0_v2_nopen_seed2600003_100000.zip"
+   ]
+  }
+ ],
+ "check_2_broad_hits": [
+  {
+   "int": 2600001,
+   "sources": [
+    "artifacts\\g0_v2_penalty_ablation\\PROBE_GATE_FROZEN.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\ablation_report.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\g0_v2_nopen_seed2600001_run_config.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\training_manifest.json"
+   ]
+  },
+  {
+   "int": 2600002,
+   "sources": [
+    "artifacts\\g0_v2_penalty_ablation\\PROBE_GATE_FROZEN.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\ablation_report.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\g0_v2_nopen_seed2600002_run_config.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\training_manifest.json"
+   ]
+  },
+  {
+   "int": 2600003,
+   "sources": [
+    "artifacts\\g0_v2_penalty_ablation\\PROBE_GATE_FROZEN.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\ablation_report.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\g0_v2_nopen_seed2600003_run_config.json",
+    "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\training_manifest.json"
+   ]
+  }
+ ],
+ "check_3_overlapping_blocks": [
+  {
+   "label": "<root>",
+   "base": 2600001,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\ablation_report.json"
+  },
+  {
+   "label": "resolved_ppo_config",
+   "base": 2600001,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\g0_v2_nopen_seed2600001_run_config.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2600001,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600001\\training_manifest.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2600002,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\ablation_report.json"
+  },
+  {
+   "label": "resolved_ppo_config",
+   "base": 2600002,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\g0_v2_nopen_seed2600002_run_config.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2600002,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600002\\training_manifest.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2600003,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\ablation_report.json"
+  },
+  {
+   "label": "resolved_ppo_config",
+   "base": 2600003,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\g0_v2_nopen_seed2600003_run_config.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2600003,
+   "n": 1,
+   "source": "artifacts\\g0_v2_penalty_ablation\\g0_v2_nopen_seed2600003\\training_manifest.json"
+  }
+ ],
+ "gap_below": 99998,
+ "gap_above": 69,
+ "check_4_history": {
+  "commits": [
+   "27c6a816 SYSTEM_HEALTH PASS",
+   "afc48a84 g0_v2",
+   "0872c16f G0-v2 Progressive Collapse Diagnostic"
+  ],
+  "query_ok": true,
+  "positive_control_block": "2600001..2600032",
+  "positive_control_commits": 3,
+  "positive_control_valid": true,
+  "note": "control returned hits, so an empty result for the candidate is a true negative"
+ },
+ "margin_ok": false,
+ "verdict": "COLLISION"
+}

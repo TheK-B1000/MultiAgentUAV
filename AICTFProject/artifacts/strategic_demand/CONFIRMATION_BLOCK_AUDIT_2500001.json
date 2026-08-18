@@ -1,0 +1,156 @@
+{
+ "block": {
+  "base": 2500001,
+  "n": 32,
+  "range": "2500001..2500032"
+ },
+ "margin_required": 5000,
+ "population_seed_offset_max": 300,
+ "declared_inventory_size": 917,
+ "broad_inventory_size": 29128,
+ "excluded_as_reservation_records": [
+  "scripts/audit_seed_block.py",
+  "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
+  "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_"
+ ],
+ "exclusion_caveat": "these paths RESERVE a block rather than USE it and are skipped in every check; any other file naming a seed in the window counts as a collision",
+ "check_1_declared_hits": [
+  {
+   "seed": 2500001,
+   "sources": [
+    "artifacts\\g0_v2_collapse_diagnostic\\collapse_diagnostic.json::competent_seed",
+    "artifacts\\g0_v2_evaluation\\episode_rows.csv::train_seed",
+    "artifacts\\g0_v2_evaluation\\g0_v2_evaluation_report.json::seeds_with_weakness",
+    "artifacts\\g0_v2_evaluation\\g0_v2_evaluation_report.json::training_seeds"
+   ]
+  },
+  {
+   "seed": 2500002,
+   "sources": [
+    "artifacts\\g0_v2_collapse_diagnostic\\collapse_diagnostic.json::collapsed_seeds",
+    "artifacts\\g0_v2_evaluation\\episode_rows.csv::train_seed",
+    "artifacts\\g0_v2_evaluation\\g0_v2_evaluation_report.json::training_seeds",
+    "artifacts\\g0_v2_evaluation\\precursor_windows.csv::train_seed"
+   ]
+  },
+  {
+   "seed": 2500003,
+   "sources": [
+    "artifacts\\g0_v2_collapse_diagnostic\\collapse_diagnostic.json::collapsed_seeds",
+    "artifacts\\g0_v2_evaluation\\episode_rows.csv::train_seed",
+    "artifacts\\g0_v2_evaluation\\g0_v2_evaluation_report.json::training_seeds",
+    "artifacts\\g0_v2_evaluation\\precursor_windows.csv::train_seed"
+   ]
+  }
+ ],
+ "check_2_broad_hits": [
+  {
+   "int": 2500001,
+   "sources": [
+    "artifacts\\g0_v2_collapse_diagnostic\\collapse_diagnostic.json",
+    "artifacts\\g0_v2_evaluation\\episode_rows.csv",
+    "artifacts\\g0_v2_evaluation\\g0_v2_evaluation_report.json",
+    "artifacts\\g0_v2_evaluation\\precursor_windows.csv"
+   ]
+  },
+  {
+   "int": 2500002,
+   "sources": [
+    "artifacts\\g0_v2_collapse_diagnostic\\collapse_diagnostic.json",
+    "artifacts\\g0_v2_evaluation\\episode_rows.csv",
+    "artifacts\\g0_v2_evaluation\\g0_v2_evaluation_report.json",
+    "artifacts\\g0_v2_evaluation\\precursor_windows.csv"
+   ]
+  },
+  {
+   "int": 2500003,
+   "sources": [
+    "artifacts\\g0_v2_collapse_diagnostic\\collapse_diagnostic.json",
+    "artifacts\\g0_v2_evaluation\\episode_rows.csv",
+    "artifacts\\g0_v2_evaluation\\g0_v2_evaluation_report.json",
+    "artifacts\\g0_v2_evaluation\\precursor_windows.csv"
+   ]
+  }
+ ],
+ "check_3_overlapping_blocks": [
+  {
+   "label": "confirmation_reserved",
+   "base": 2500001,
+   "n": 1,
+   "source": "experiments\\STRATEGIC_DEMAND_SEARCHER_FROZEN.json"
+  },
+  {
+   "label": "resolved_ppo_config",
+   "base": 2500001,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500001\\g0_v2_seed2500001_run_config.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2500001,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500001\\g0_v2_training_report.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2500001,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500001\\training_manifest.json"
+  },
+  {
+   "label": "resolved_ppo_config",
+   "base": 2500002,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500002\\g0_v2_seed2500002_run_config.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2500002,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500002\\g0_v2_training_report.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2500002,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500002\\training_manifest.json"
+  },
+  {
+   "label": "resolved_ppo_config",
+   "base": 2500003,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500003\\g0_v2_seed2500003_run_config.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2500003,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500003\\g0_v2_training_report.json"
+  },
+  {
+   "label": "<root>",
+   "base": 2500003,
+   "n": 1,
+   "source": "artifacts\\g0_v2_seed2500003\\training_manifest.json"
+  }
+ ],
+ "gap_below": 50000,
+ "gap_above": 99969,
+ "check_4_history": {
+  "commits": [
+   "2ee639e1 Diagnose V1 crash, add watchdog + chain supervisor + Searcher V2 (not launched)",
+   "c9edd015 VGC diversity scaling: audit, self-play recovery, frozen D1/D3/D7, entrypoint",
+   "27c6a816 SYSTEM_HEALTH PASS",
+   "afc48a84 g0_v2",
+   "0872c16f G0-v2 Progressive Collapse Diagnostic",
+   "71d2ee1a Telemetry cleanup"
+  ],
+  "query_ok": true,
+  "positive_control_block": "2600001..2600032",
+  "positive_control_commits": 3,
+  "positive_control_valid": true,
+  "note": "control returned hits, so an empty result for the candidate is a true negative"
+ },
+ "margin_ok": true,
+ "verdict": "COLLISION"
+}

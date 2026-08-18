@@ -52,3 +52,11 @@ OP6 is frozen as **GUARD_PAYOFF_CANDIDATE** only (canonical genome, no overlay).
 The static board has no complete package (ΔG>0.15 AND t_intent>t_commit AND non-degenerate). Mutation/evolution is authorized under the frozen J. Descendants get new genome IDs. OP6 is not rewritten.
 
 PPO still off. Confirmation only after a descendant is development-eligible on the frozen pieces (promote ΔG, positive gap, J>0).
+
+## Live chain (do not interrupt)
+
+V1 remains the first path. Watchdog relaunches the **unmodified** frozen command. V2 is gated in `scripts/chain_searcher_v1_to_v2.py`: it does **not** start on a crash.
+
+A restart recomputes the same genome_id as a **replay**, not an extra sample. Summaries must deduplicate.
+
+If V1 dies again, the useful artifact is `crash_stderr.log` plus the watchdog exit record — not another retry count, and not an automatic V2 launch.

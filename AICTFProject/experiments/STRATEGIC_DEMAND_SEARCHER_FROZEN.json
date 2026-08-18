@@ -27,15 +27,25 @@
     "canonical_opponents_immutable": "OP6-OP12 registry entries are not overwritten. Candidates are overlays."
   },
   "archive_seeds": {
-    "A0": {"tag": "OP6", "role": "GUARD-demanding candidate (current, Gate B FAIL on this pole)"},
-    "B0": {"tag": "OP7", "role": "BREACH-demanding anchor (Gate B PASS on this pole, delta=+0.531)"}
+    "A0": {
+      "tag": "OP6",
+      "role": "GUARD-demanding candidate (current, Gate B FAIL on this pole)"
+    },
+    "B0": {
+      "tag": "OP7",
+      "role": "BREACH-demanding anchor (Gate B PASS on this pole, delta=+0.531)"
+    }
   },
   "objective": {
     "delta_G_A": "WR(GUARD, A) - WR(BREACH, A)",
     "delta_B_B": "WR(BREACH, B) - WR(GUARD, B)",
     "J": "min(delta_G_A, delta_B_B) minus degeneracy penalties",
     "immediate_job": "find a better A; B stays OP7 unless a later generation beats it on delta_B without collapsing delta_G",
-    "not_optimized": ["raw difficulty", "win rate", "looks different"]
+    "not_optimized": [
+      "raw difficulty",
+      "win rate",
+      "looks different"
+    ]
   },
   "styles": {
     "GUARD": "BLUE_ONE_DEFENDER_V2",
@@ -50,7 +60,9 @@
       "treat 8- or 16-episode deltas as Gate B",
       "train PPO",
       "retune M1"
-    ]
+    ],
+    "restart_replay_rule": "A candidate recomputed because of a restart is a replay, not an additional sample. Summaries must deduplicate by genome_id. Deterministic V1 restarts waste GPU time; they do not create extra evidence. True resume (load mutate archive, skip completed genome_ids) is engineering backlog for the NEXT search launch, not a mid-flight V1 change.",
+    "crash_is_not_scientific_exhaustion": "A V1 crash is infrastructure failure. Do not launch V2 because V1 died. V2 is authorized only after V1 writes summary.json with zero development-eligible rows. Repeated crashes without a valid terminal state STOP for human diagnosis."
   },
   "cheap_search": {
     "stage1_paired_episodes": 8,
@@ -61,10 +73,12 @@
   },
   "confirmation_reserved": {
     "status": "NOT AUTHORIZED until genomes are frozen by a human",
-    "seed_base": 2500001,
+    "seed_base": 5000001,
     "gate": "GUARD(A)-BREACH(A) >= 0.15 AND LCB95>0 AND BREACH(B)-GUARD(B) >= 0.15 AND LCB95>0 AND t_reliable_intent > t_meaningful_commitment",
     "fresh_untouched_seeds": true,
-    "search_numbers_do_not_count": true
+    "search_numbers_do_not_count": true,
+    "seed_range": "5000001..5000032",
+    "amended_by": "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json -- 2500001 and 2600001 are permanently disqualified (both collide with existing PPO training seeds). Gate, thresholds and fresh_untouched_seeds are unchanged."
   },
   "observability": {
     "inputs": "BLUE-legal only: visible enemy positions (engine home-side predicate on observed red x)",
