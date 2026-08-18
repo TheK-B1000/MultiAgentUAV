@@ -31,10 +31,17 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from experiments.sds_genome import (  # noqa: E402
     ANCHOR_B, LEGAL_A_BASES, SDSGenome, canonical_parent,
-    degeneracy_penalty, development_eligible, mutate, recombine,
+    degeneracy_penalty, mutate, recombine,
 )
 from experiments.strategic_demand_searcher import (  # noqa: E402
-    GUARD, BREACH, evaluate_B, paired_eval,
+    GUARD, BREACH, evaluate_B,
+)
+# SEARCH_OBJECTIVE_V2 + OBSERVABILITY_V2. The V1 eligibility path
+# (development_eligible, paired_eval's sentinel gap gate) is RETIRED and is
+# deliberately no longer imported, so it cannot be reached by accident.
+from experiments.sds_eval_v2 import (  # noqa: E402
+    P_C_SCREEN_BY_STAGE, PAYOFF_FLOOR_BY_STAGE, development_eligible_v2,
+    paired_eval_v2, weakest_dimension_v2,
 )
 
 OUT_DIR = PROJECT_ROOT / "artifacts/strategic_demand/searcher_v2"
@@ -43,9 +50,18 @@ PARETO = OUT_DIR / "pareto.json"
 LOG = OUT_DIR / "v2.log"
 V1_MUTATE_SEED_BASE = 2_410_001   # V1's block; V2 must not collide with it
 V2_SEED_BASE = 2_420_001          # fresh, disjoint from V1 search/mutate/confirm
-STAGES = (8, 16, 32)
+# Ratified development ladder: 16 -> 32 -> freeze. n=8 is RETIRED for the
+# observability gate; small-sample ordering estimates proved unstable, which is
+# what promoted SDS_G1_4 on a statistic that then reversed sign.
+STAGES = (16, 32)
 PROMOTE_DELTA_G = 0.05
 DELTA_G_TARGET = 0.15
+# Frozen confirmation parameters, asserted here so search can never be
+# mistaken for confirmation. Confirmation is a separate untouched run.
+CONFIRMATION_N = 64
+CONFIRMATION_P_C_LCB_FLOOR = 0.50
+CONFIRMATION_NO_EXTENSION = ("confirmation is 64 from the start; no peeking at "
+                             "32 and extending. If it fails at 64, it fails.")
 UCB_C = 1.0
 MIGRATE_EVERY = 2
 MAX_WALL_HOURS = 12.0
@@ -91,12 +107,9 @@ def load_archive() -> dict:
 
 
 def weakest_dimension(rec: dict) -> str:
-    dg_gap = DELTA_G_TARGET - float(rec.get("delta_G", -1.0))
-    gap_gap = max(0.0, -float(rec.get("mean_intent_minus_commit", -999.0)))
-    deg_gap = float(rec.get("degeneracy_penalty", 1.0))
-    scored = {"GUARD_pressure": dg_gap, "concealment": gap_gap,
-             "non_degeneracy": deg_gap}
-    return max(scored, key=scored.get)
+    """Delegates to the V2 definition: concealment is now measured by p_C,
+    not by a sentinel-coded timing gap."""
+    return weakest_dimension_v2(rec)
 
 
 def weighted_mutate(parent: SDSGenome, rng, *, new_id: str, bias_group: str) -> SDSGenome:
@@ -154,7 +167,7 @@ def ucb_select(rows: list[dict], rng) -> dict:
 
 def pareto_update(pareto: list[dict], cand: dict) -> list[dict]:
     def vec(r):
-        return (float(r.get("delta_G", -9)), float(r.get("mean_intent_minus_commit", -999)),
+        return (float(r.get("delta_G", -9)), float(r.get("p_C", -9)),
                 -float(r.get("degeneracy_penalty", 9)))
     cv = vec(cand)
     def dominates(a, b):
@@ -172,20 +185,25 @@ def hierarchical_eval(genome: SDSGenome, delta_B: float, seed_cursor: int,
     stage record. Promotion is by J at each stage, not a manual judgement."""
     rec = None
     for stage_n in STAGES:
-        r = paired_eval(genome, n=stage_n, seed_base=seed_cursor, device=device)
+        r = paired_eval_v2(genome, n=stage_n, seed_base=seed_cursor,
+                           device=device, stage=stage_n)
         seed_cursor += 2 * stage_n
         r["stage_n"] = stage_n
-        r["J"] = float(min(r["delta_G"], delta_B) - r["degeneracy_penalty"])
+        r["J"] = r["J_v2"]
         rec = r
-        log(f"    stage_n={stage_n} dG={r['delta_G']:+.3f} J={r['J']:+.3f} "
-           f"gap={r['mean_intent_minus_commit']:+.1f} "
-           f"frac00={r['frac_0_0']:.2f}")
-        if r["delta_G"] <= PROMOTE_DELTA_G and stage_n == STAGES[0]:
-            break   # fails even the cheapest promotion bar; stop here
+        log(f"    stage_n={stage_n} dG={r['delta_G']:+.3f} "
+           f"p_C={r['p_C']:.3f} J_v2={r['J_v2']:+.3f} "
+           f"frac00={r['frac_0_0']:.2f} "
+           f"[payoff_ok={r['payoff_constraint_ok']} p_C_ok={r['p_C_screen_ok']}]")
+        # Payoff is a CONSTRAINT, not a term to trade away: a candidate that has
+        # stopped carrying GUARD pressure is not worth deeper spend regardless
+        # of how well it conceals.
+        if not r["payoff_constraint_ok"]:
+            break
     rec["delta_B_anchor"] = delta_B
     rec["not_gate_B"] = True
-    rec["confirmation_2500001"] = False
-    rec["development_eligible"] = development_eligible(rec, promote=PROMOTE_DELTA_G)
+    rec["confirmation_block_spent"] = False
+    rec["development_eligible"] = development_eligible_v2(rec)
     return rec, seed_cursor
 
 
