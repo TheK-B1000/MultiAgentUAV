@@ -182,6 +182,8 @@ def build_training_env(
         dr_sensor_noise_sigma_max=float(getattr(cfg, "dr_sensor_noise_sigma_max", 0.12)),
         dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
         dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
+        own_flag_home_required_to_score=bool(
+            getattr(cfg, "own_flag_home_required_to_score", False)),
         router_reward_config=rrc,
         **obstacle_kw,
         **reward_kw,

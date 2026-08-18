@@ -2537,6 +2537,18 @@ class _BTRedMixin(_BTAdaptiveMixin):
         ov = getattr(self, "_bt_profile_override", None)
         if ov is None:
             overrides = None
+        elif isinstance(ov, dict):
+            # Keyed form: {opponent_key: BTProfile}. Resolved per env from the
+            # LIVE _opponent_key every call, so it cannot desynchronize when
+            # opponent_randomize re-samples opponents at episode boundaries.
+            # A per-env list would need a callback kept in step with sampling;
+            # this needs none, which removes the whole class of bug.
+            keys = list(getattr(self, "_opponent_key", []))
+            overrides = [ov.get(str(k).upper()) for k in keys]
+            if len(overrides) != int(self.B):
+                raise ValueError(
+                    f"_opponent_key has {len(overrides)} entries, expected "
+                    f"B={int(self.B)}")
         elif isinstance(ov, (list, tuple)):
             overrides = list(ov)
             if len(overrides) != int(self.B):

@@ -92,6 +92,12 @@ class PPOConfig:
     formal_run: bool = False
 
     max_decision_steps: int = 400
+    # RULESET_V3_M1: own flag must be home to score. Default False keeps every
+    # pre-V3 run bit-identical; the frozen V3 benchmark requires True. The other
+    # five V3 rules (taggers_required=1, tag_min_interval_seconds=10.0,
+    # tag_nearest_only=True, tag_channel_seconds=0.0,
+    # suppression_attackers_required=2) are already GPUFieldConfig defaults.
+    own_flag_home_required_to_score: bool = False
     map_set: str = "train"
     map_layout: str = "map_a_open"
     map_pool: tuple[str, ...] = field(default_factory=tuple)
