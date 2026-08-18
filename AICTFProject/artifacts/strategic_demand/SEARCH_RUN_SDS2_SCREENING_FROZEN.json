@@ -1,0 +1,58 @@
+{
+  "record_id": "SEARCH_RUN_SDS2_SCREENING_FROZEN",
+  "status": "FROZEN_BEFORE_LAUNCH",
+  "frozen_utc": "2026-08-18T09:40:00Z",
+  "scope": "this search run only",
+  "why_frozen": "these are development-selection rules, not evidence. They are frozen anyway so that no reviewer can ask whether the funnel moved after seeing which candidates survived. They may be reconsidered in a future search version if this entire run fails, but they do not move while this search is live.",
+
+  "screening_schedule": {
+    "stage_1": {"n_paired": 16, "delta_G_floor": 0.00, "p_C_screen": 0.50},
+    "stage_2": {"n_paired": 32, "delta_G_floor": 0.10, "p_C_screen": 0.65},
+    "objective": "J_v2 = p_C - degeneracy_penalty, computed ONLY among candidates satisfying the payoff constraint",
+    "payoff_is_a_constraint": "a candidate failing the stage delta_G floor has its evaluation cut short and is never ranked by J_v2. Concealment cannot buy its way past lost GUARD pressure.",
+    "implemented_in": "experiments/sds_eval_v2.py PAYOFF_FLOOR_BY_STAGE / P_C_SCREEN_BY_STAGE"
+  },
+
+  "stop_rule": {
+    "rule": "STOP on the FIRST Stage-2 development-eligible candidate",
+    "not": "not the prettiest one; not finish-the-generation-and-compare",
+    "mechanism": "FirstEligible exception raised at the point of eligibility, propagating out of both island and population loops. Verified by test: with an eligible candidate at position 3 of 6, positions 4-6 are never evaluated.",
+    "closes": "the V1 loophole where the search continued past eligibility and later rows could in principle have displaced the first candidate",
+    "on_stop_persists": [
+      "CANDIDATE_A_V2.json (the candidate record)",
+      "SEARCH_STATE_AT_STOP.json (genome, lineage, archive size, pareto size, seed cursor, generation)",
+      "HUMAN_DECISION_REQUIRED.md",
+      "archive.json and pareto.json (atomic, written after every candidate)"
+    ],
+    "provenance_rule": "anything already evaluated is retained as provenance and CANNOT displace the first eligible candidate"
+  },
+
+  "confirmation_untouchable": {
+    "block": "6000001..6000064",
+    "n": 64,
+    "no_extension": "64 from the start; no peeking at 32 and extending. If it fails at 64, it fails.",
+    "gates": {
+      "payoff": "delta_G >= 0.15 AND LCB95(delta_G) > 0",
+      "observability": "LCB95(p_C) > 0.50"
+    },
+    "re_audit_before_spending": "python scripts/audit_seed_block.py --base 6000001 --n 64"
+  },
+
+  "if_the_search_fails": {
+    "do_not": "do NOT immediately loosen the screens",
+    "do": "preserve the final Pareto frontier and read it",
+    "outcome_A": "delta_G >> 0 but p_C ~ 0.5 -> GUARD pressure mechanically requires telegraphing",
+    "outcome_B": "p_C >> 0.5 but delta_G <= 0 -> concealment is possible but hiding the rush destroys the reason to GUARD",
+    "outcome_C": "both improve together -> we probably have our candidate",
+    "reading": "outcomes A and B would indicate a STRUCTURAL Pareto tradeoff, not a bad optimizer. That is the kind of result that should be established before touching M1 again."
+  },
+
+  "unchanged": [
+    "RULESET_V3_M1",
+    "GUARD = BLUE_ONE_DEFENDER_V2, BREACH = BLUE_BOTH_ATTACK_V2",
+    "OP7 canonical as the confirmed B pole -- not modified",
+    "canonical registry OP6-OP12 never overwritten; candidates are overlays",
+    "2v2 only",
+    "NO PPO, specialists, selector, FP/DO, or latent training"
+  ]
+}

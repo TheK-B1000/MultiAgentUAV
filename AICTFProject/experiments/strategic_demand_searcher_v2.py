@@ -73,6 +73,17 @@ GENE_GROUPS = {
 }
 
 
+class FirstEligible(Exception):
+    """Raised the instant a candidate clears the frozen Stage-2 development
+    criteria. Not a flag checked at the end of a generation: V1's bug was that
+    it kept evaluating after eligibility, which would let a later candidate
+    displace the first one. The first eligible candidate wins, full stop."""
+
+    def __init__(self, rec: dict):
+        super().__init__(rec["genome"]["genome_id"])
+        self.rec = rec
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -254,7 +265,8 @@ def main() -> int:
     plateau = 0
     found = None
 
-    while True:
+    try:
+      while True:
         if (time.time() - t0) / 3600.0 > args.max_hours:
             log(f"wall-clock cap {args.max_hours}h reached -- stopping")
             break
@@ -277,13 +289,10 @@ def main() -> int:
                 atomic_write(PARETO, pareto)
                 if rec["development_eligible"]:
                     log(f"    DEVELOPMENT_ELIGIBLE: {g.genome_id} "
-                       f"J={rec['J']:+.3f} (does NOT spend 2500001)")
-                    found = rec
-
-        if found is not None:
-            log(f"development-eligible candidate found: "
-               f"{found['genome']['genome_id']} -- stopping search")
-            break
+                       f"dG={rec['delta_G']:+.3f} p_C={rec['p_C']:.3f} "
+                       f"J_v2={rec['J']:+.3f} -- STOPPING IMMEDIATELY "
+                       f"(does NOT spend 6000001)")
+                    raise FirstEligible(rec)
 
         cur_best = max((r.get("J", -9) for r in archive), default=-9)
         pareto_size = len(pareto)
@@ -334,6 +343,13 @@ def main() -> int:
             islands[iname] = nxt
 
         gen += 1
+    except FirstEligible as e:
+        found = e.rec
+        log("=" * 74)
+        log(f"FIRST DEVELOPMENT-ELIGIBLE CANDIDATE: {found['genome']['genome_id']}")
+        log("Search stopped immediately. Anything already evaluated is retained "
+            "as provenance but CANNOT displace this candidate.")
+        log("=" * 74)
 
     archive.sort(key=lambda r: r.get("J", -9), reverse=True)
     summary = {
@@ -341,7 +357,7 @@ def main() -> int:
         "finished_utc": _now(),
         "search_results_are_gate_B": False,
         "ppo": "NOT STARTED",
-        "confirmation": "NOT RUN. 2500001 remains pristine.",
+        "confirmation": "NOT RUN. Reserved block 6000001..6000064 remains pristine. 2500001 and 2600001 are permanently disqualified; 5000001 is spent.",
         "n_archive": len(archive),
         "n_pareto": len(pareto),
         "best": archive[0] if archive else None,
@@ -353,8 +369,49 @@ def main() -> int:
     log("SEARCHER V2 FINISHED — not Gate B, not V3_STRATEGIC_DEMAND = VALIDATED")
     if found:
         log(f"CANDIDATE: {found['genome']['genome_id']} — human decision "
-           "required before spending 2500001")
+           "required before spending the reserved block 6000001..6000064")
         atomic_write(OUT_DIR / "CANDIDATE_A_V2.json", found)
+        atomic_write(OUT_DIR / "SEARCH_STATE_AT_STOP.json", {
+            "stopped_utc": _now(),
+            "reason": "first Stage-2 development-eligible candidate",
+            "candidate_genome": found["genome"],
+            "candidate_record": found,
+            "lineage": found["genome"].get("derived_from"),
+            "archive_rows_at_stop": len(archive),
+            "pareto_size_at_stop": len(pareto),
+            "seed_cursor": seed_cursor,
+            "generation": gen,
+            "rows_are_provenance_only": "anything evaluated before this candidate is "
+                                        "retained for provenance and cannot displace it",
+        })
+        (OUT_DIR / "HUMAN_DECISION_REQUIRED.md").write_text(
+            f"""# HUMAN_DECISION_REQUIRED — first development-eligible candidate
+
+Searcher V2 stopped immediately on the FIRST candidate to clear the frozen
+Stage-2 development criteria. It did not finish the generation and it did not
+compare against later candidates.
+
+    genome     {found['genome']['genome_id']}
+    base       {found['genome']['base_opponent']}
+    overlay    {found['genome']['overlay']}
+    delta_G    {found['delta_G']:+.4f}   (stage floor {found['payoff_floor_this_stage']})
+    p_C        {found['p_C']:.4f}        (stage screen {found['p_C_screen_this_stage']})
+    J_v2       {found['J']:+.4f}
+    frac_0_0   {found['frac_0_0']:.3f}
+
+These are DEVELOPMENT numbers, not evidence. They are not Gate B.
+
+## Next step, if authorized
+
+1. Freeze this genome with full lineage BEFORE any confirmation episode.
+2. Re-audit the reserved block: `python scripts/audit_seed_block.py --base 6000001 --n 64`
+3. Confirm at n=64 on 6000001..6000064, no extension:
+   - delta_G >= 0.15 with LCB95 > 0
+   - LCB95(p_C) > 0.50
+
+No PPO, specialists, selector, FP/DO or latent training until
+V3_STRATEGIC_DEMAND is validated.
+""", encoding="utf-8")
     log("=" * 74)
     return 0
 
