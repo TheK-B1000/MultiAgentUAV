@@ -1,0 +1,106 @@
+{
+  "record_id": "CANDIDATE_A2_SDS2_INIT_3_FROZEN",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-18T13:00:00Z",
+  "frozen_before": "any episode of the reserved confirmation block is run",
+  "what_this_is": "First candidate to clear the frozen SEARCH_OBJECTIVE_V2 Stage-2 development criteria. DISCOVERY, not confirmation. Development numbers are not Gate B.",
+  "candidate_genome": {
+    "genome_id": "SDS2_A_payoff_INIT_3",
+    "derived_from": "SDS_PARENT_OP6",
+    "base_opponent": "OP6",
+    "lineage": "OP6 -> SDS_PARENT_OP6 -> SDS2_A_payoff_INIT_3",
+    "overlay": {
+      "min_alive_for_defender": 2
+    },
+    "opening_hold_steps": 0,
+    "island": "A_payoff",
+    "generation": 0,
+    "mechanism_reading": "a CONDITIONAL defender: the defender only deploys while at least 2 RED agents are alive. Intent is therefore not expressed by an unconditional early commitment, which is a plausible mechanism for the concealment gain.",
+    "canonical_registry_untouched": "OP6-OP12 never overwritten; this is an overlay"
+  },
+  "development_result_not_gate_B": {
+    "stage": 2,
+    "n_paired": 32,
+    "seed_base": 2420321,
+    "delta_G": 0.21875,
+    "guard_wr": 0.5,
+    "breach_wr": 0.28125,
+    "p_C": 0.9375,
+    "p_C_lcb95": 0.84375,
+    "p_C_counts": {
+      "COMMIT_FIRST": 30,
+      "INTENT_FIRST": 1,
+      "UNRESOLVED": 1
+    },
+    "frac_0_0": 0.359375,
+    "mean_total_score": 1.421875,
+    "degeneracy_penalty": 0.0546875,
+    "J_v2": 0.8828125,
+    "intent_observation_rate": 0.4375,
+    "commitment_instantiation_rate": 0.96875
+  },
+  "eligibility_check_frozen_stage2_criteria": {
+    "delta_G_gt_0.10": "0.2188 > 0.10  PASS",
+    "p_C_ge_0.65": "0.9375 >= 0.65  PASS",
+    "J_v2_gt_0": "0.8828 > 0  PASS",
+    "source": "development_eligible_v2 in experiments/sds_eval_v2.py"
+  },
+  "stop_discipline": {
+    "rule": "STOP on the FIRST Stage-2 development-eligible candidate",
+    "mechanism": "FirstEligible exception raised at the point of eligibility",
+    "archive_rows_at_stop": 4,
+    "rows_after_candidate": 0,
+    "note": "the candidate was the last row evaluated; nothing was evaluated after it, so nothing could displace it"
+  },
+  "comparison_to_the_confirmed_predecessor": {
+    "SDS_G1_4_confirmed": {
+      "delta_G": 0.46875,
+      "p_C": 0.65625,
+      "intent_obs": 0.938,
+      "frac_0_0": 0.625
+    },
+    "SDS2_INIT_3_development": {
+      "delta_G": 0.21875,
+      "p_C": 0.9375,
+      "intent_obs": 0.4375,
+      "frac_0_0": 0.359375
+    },
+    "reading": "concealment and degeneracy improved substantially; payoff pressure roughly halved. These are two points consistent with a payoff/concealment tradeoff rather than a free win."
+  },
+  "MATERIAL_RISK_BEFORE_SPENDING": {
+    "issue": "the development delta_G of 0.219 sits close to the frozen confirmation floor of 0.15",
+    "natural_replicate_found_in_archive": {
+      "what": "SDS_PARENT_OP6 and SDS2_A_payoff_INIT_2 are the IDENTICAL genome (OP6, empty overlay, hold 0) evaluated on different development seed blocks",
+      "delta_G": [
+        0.375,
+        0.15625
+      ],
+      "spread": 0.21875,
+      "p_C": [
+        0.53125,
+        0.5
+      ],
+      "p_C_spread": 0.03125,
+      "implication": "delta_G at n=32 is noisy (implied SE ~0.155, SD(d) ~0.875, the weakly-paired high-variance regime). p_C by contrast was stable across the replicate, which independently supports the V2 estimator's stability."
+    },
+    "power_of_the_payoff_gate_at_the_ratified_n": {
+      "n=64": 0.47,
+      "n=96": 0.67,
+      "n=128": 0.77,
+      "n=192": 0.86,
+      "n=256": 0.9,
+      "binding_constraint": "LCB95(delta_G) > 0, not the 0.15 floor",
+      "p_C_gate": "clears comfortably at every n listed"
+    },
+    "status": "RAISED FOR HUMAN DECISION. n=64 was ratified on p_C power, before this candidate existed and before its payoff margin was known. Spending the block at n=64 is close to a coin flip on the payoff gate.",
+    "not_a_threshold_change": "raising n does not move any threshold and cannot manufacture a pass: more episodes reduce false negatives without increasing type-I error. It is also NOT the prohibited extension, which forbids peeking at CONFIRMATION data and then extending. Choosing a larger fixed n before any confirmation episode, on development evidence, is prospective design."
+  },
+  "confirmation_not_run": true,
+  "reserved_block": "6000001..6000064, re-audited CLEAN immediately before this freeze",
+  "prohibitions": [
+    "do not mutate this candidate or resume search to find a better one",
+    "do not move the 0.15 floor, the LCB95 requirement, or the p_C 0.50 gate",
+    "do not train PPO, specialists, a selector, or a latent policy",
+    "do not treat the development numbers above as Gate B evidence"
+  ]
+}

@@ -227,8 +227,10 @@ def main() -> int:
 
     log("=" * 74)
     log("STRATEGIC DEMAND SEARCHER V2  RULESET_V3_M1 frozen")
-    log("J/thresholds imported from V1 unchanged. Not Gate B. No PPO. "
-       "Block 2500001 untouched.")
+    log("OBJECTIVE: SEARCH_OBJECTIVE_V2 + OBSERVABILITY_V2. J_v2 = p_C - "
+       "degeneracy_penalty, payoff is a CONSTRAINT. V1 eligibility RETIRED.")
+    log("Treatment semantics (run_episode) imported from V1 unchanged. "
+       "Not Gate B. No PPO. Reserved block 6000001..6000064 untouched.")
     log("=" * 74)
 
     b_path = PROJECT_ROOT / "artifacts/strategic_demand/searcher/anchor_B_cheap.json"
