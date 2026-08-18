@@ -2518,9 +2518,33 @@ class _BTRedMixin(_BTAdaptiveMixin):
         return tx, ty
 
     def _bt_resolved_profile_tensors(self) -> Dict[str, torch.Tensor]:
-        """Canonical profiles, with a per-core searcher overlay if present."""
+        """Canonical profiles, with a searcher overlay if present.
+
+        ``_bt_profile_override`` accepts either form:
+
+        * ``None``        -> no overlay (bit-identical to the pre-searcher path)
+        * a ``BTProfile`` -> broadcast to all B envs (the original behaviour,
+          used by the searcher and by every confirmation run to date)
+        * a ``list``      -> one entry per env, each ``BTProfile`` or ``None``
+
+        The per-env list form exists because a balanced A/B training mixture
+        needs pole A's overlay on the OP6 envs ONLY. Broadcasting a single
+        override across a mixed-opponent batch would apply OP6-derived overlay
+        knobs to the OP7 envs, silently corrupting the B pole.
+        ``build_profile_tensors`` already accepts a per-env list, so this is
+        plumbing, not a behaviour change.
+        """
         ov = getattr(self, "_bt_profile_override", None)
-        overrides = [ov] * int(self.B) if ov is not None else None
+        if ov is None:
+            overrides = None
+        elif isinstance(ov, (list, tuple)):
+            overrides = list(ov)
+            if len(overrides) != int(self.B):
+                raise ValueError(
+                    f"_bt_profile_override list has {len(overrides)} entries, "
+                    f"expected one per env (B={int(self.B)})")
+        else:
+            overrides = [ov] * int(self.B)
         return build_profile_tensors(
             self._opponent_key,
             device=self.device,

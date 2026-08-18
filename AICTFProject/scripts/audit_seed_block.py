@@ -101,6 +101,13 @@ SELF_REFERENCE_DEFAULTS = (
     "scripts/audit_seed_block.py",
     "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
     "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_",
+    "artifacts/strategic_demand/CONFIRMATION_N_AMENDMENT_192.json",
+    "artifacts/strategic_demand/NEXT_CONFIRMATION_BLOCK_RESERVED.json",
+    "artifacts/strategic_demand/REPERTOIRE_LADDER_FROZEN.json",
+    "artifacts/strategic_demand/R_LADDER_BLOCK_AUDITS.json",
+    "artifacts/strategic_demand/V3_BENCHMARK_FROZEN.json",
+    "artifacts/strategic_demand/SEARCH_RUN_SDS2_SCREENING_FROZEN.json",
+    "artifacts/strategic_demand/CANDIDATE_A2_SDS2_INIT_3_FROZEN.json",
 )
 
 
