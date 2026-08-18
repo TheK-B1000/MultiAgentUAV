@@ -333,13 +333,18 @@ def write_startup_formal_artifacts(
     *,
     run_identity=None,
     argv: Optional[list[str]] = None,
+    training_manifest_extra: Optional[dict[str, Any]] = None,
 ) -> dict[str, str]:
     """Write run_config + training_manifest from one frozen identity.
 
     Both must succeed before the first rollout step.
     """
     rc = write_run_config_json(cfg, argv=argv, run_identity=run_identity)
-    tm = write_training_manifest_json(cfg, run_identity=run_identity)
+    tm = write_training_manifest_json(
+        cfg,
+        run_identity=run_identity,
+        extra=training_manifest_extra,
+    )
     return {"run_config": rc, "training_manifest": tm}
 
 

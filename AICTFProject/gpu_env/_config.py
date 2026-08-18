@@ -246,6 +246,8 @@ class GPUFieldConfig:
         if (int(self.taggers_required) == 1 and bool(self.tag_nearest_only)
                 and float(self.tag_channel_seconds) == 0.0
                 and float(self.tag_min_interval_seconds) == 10.0):
+            if bool(self.own_flag_home_required_to_score):
+                return "RULESET_V3_M1_OWN_FLAG_HOME"
             return "RULESET_V2_AQUATICUS_10S"
         if (int(self.taggers_required) == 2 and not bool(self.tag_nearest_only)
                 and float(self.tag_min_interval_seconds) == 0.0):

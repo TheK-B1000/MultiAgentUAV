@@ -33,7 +33,7 @@
       }
     },
     "compute_fairness": "the generalist receives 2T steps because the repertoire consumes 2T total (T + T). This forecloses the obvious objection that the repertoire won by spending twice the environment interaction.",
-    "T": "TO BE SET before launch and frozen; identical for both specialists",
+    "T": 1000000,
     "training_seeds": {
       "pi_G": "7000001+",
       "pi_A": "7100001+",
@@ -87,12 +87,12 @@
   "stop_rules": [
     "R2 crossover fails -> STOP, learning problem, not a latent problem",
     "R3 oracle value fails -> STOP, no repertoire value even with perfect routing",
-    "R4 mixture fails -> repertoire exists but is not deployably valuable; do NOT proceed to latent",
+    "R4 mixture fails -> repertoire exists and has oracle value, but blind selection/routing is the bottleneck; latent compression remains allowed by R2+R3",
     "no threshold may be moved after seeing any result",
     "no extension of any evaluation block"
   ],
   "prohibited": [
-    "training a latent-conditioned policy before R2, R3 and R4 all pass",
+    "training a latent-conditioned policy before R2 and R3 pass",
     "using opponent identity as a policy input anywhere except the explicitly-labelled R3 oracle diagnostic",
     "changing the benchmark environment in any way",
     "re-using spent blocks 5000001 or 6000001",
@@ -138,13 +138,13 @@
     }
   },
   "R4_opponent_blind_mixture_THE_REAL_TEST": {
-    "why_this_is_primary": "because A and B are concealed before commitment, a legitimate repertoire cannot know which specialist to deploy. This asks whether an explicit population provides value under the SAME uncertainty the generalist faces.",
+    "why_this_is_separate": "because A and B are concealed before commitment, a legitimate repertoire cannot know which specialist to deploy. This asks whether an explicit population provides value under the SAME uncertainty the generalist faces; it is a deployment/selection test, not the latent-compression gate.",
     "procedure": "sample the policy ONCE before the episode from a fixed mixture P(pi_A)=p, P(pi_B)=1-p, with NO access to opponent identity, then commit for the whole episode",
     "p_selection": "chosen from a SEPARATE development payoff matrix on block 7600001..7600192, then FROZEN before touching the evaluation block",
     "evaluated_on": "untouched block 7700001..7700192",
     "gate": "delta_mix = V_mixture - V_generalist >= 0.05 AND LCB95 > 0",
-    "if_passes": "multiple learned strategic policies are USEFUL without cheating on opponent identity. This is what licenses latent work.",
-    "if_fails": "the repertoire exists but is not deployably valuable. Latent compression would be compressing something that does not pay.",
+    "if_passes": "multiple learned strategic policies are useful without cheating on opponent identity; selection succeeds under concealment.",
+    "if_fails": "the repertoire exists and has oracle value, but selecting the right mode without opponent identity is the bottleneck.",
     "structural_note": "this mirrors what a latent policy must ultimately do: sample z at episode start, commit, opponent identity stays hidden",
     "CORRECTED_ROLE": {
       "is_NOT": "the gate that decides whether latent work is allowed",
@@ -156,7 +156,7 @@
   "R0_prerequisite": {
     "status": "SATISFIED",
     "module": "experiments/opponent_spec.py",
-    "tests": "experiments/test_opponent_spec.py, 7/7 passing",
+    "tests": "experiments/test_opponent_spec.py plus tests/test_r1_training_contract.py; focused R0/R1/M1/formal-identity suite 29/29 passing",
     "path": "clear override -> set base opponent -> apply intended overlay -> ASSERT resolved profile",
     "assertion_target": "core._bt_resolved_profile_tensors(), the live object the behaviour tree actually reads -- not the override attribute, which can be set without reaching the tree",
     "covered_failure_modes": [
@@ -165,6 +165,9 @@
       "override lost on env.reset() or auto-reset",
       "negative control: the assertion fires on both mismatch directions"
     ],
-    "manifest": "resolved opponent profile recorded per run; a run claiming A but resolving OP6 crashes loudly rather than producing a graph of the wrong experiment"
+    "manifest": "resolved opponent profile recorded per run; a run claiming A but resolving OP6 crashes loudly rather than producing a graph of the wrong experiment",
+    "production_path": "rl.training.orchestrator pre_rollout_env_setup runs after live env construction and before identity, artifacts, trainer construction, or rollout; experiments/run_r1_repertoire_training.py is the only R1 launcher",
+    "mixed_batch_overlay": "core._bt_profile_override is keyed by live opponent tag, so OP6 receives pole A and OP7 remains canonical across per-episode pool sampling",
+    "m1_identity": "RULESET_V3_M1_OWN_FLAG_HOME; M1 can no longer be stamped as RULESET_V2_AQUATICUS_10S"
   }
 }

@@ -46,6 +46,19 @@ def make(m1: bool, seed: int, device="cuda"):
     return env, env.core
 
 
+def test_ruleset_identity_distinguishes_m1(device="cpu") -> None:
+    """M1 must not be stamped as the V2 ruleset it modifies."""
+    v2_env, _ = make(False, 4240, device)
+    m1_env, _ = make(True, 4241, device)
+    try:
+        assert v2_env.core.cfg.ruleset_id == "RULESET_V2_AQUATICUS_10S"
+        assert m1_env.core.cfg.ruleset_id == "RULESET_V3_M1_OWN_FLAG_HOME"
+        assert v2_env.core.cfg.ruleset_id != m1_env.core.cfg.ruleset_id
+    finally:
+        v2_env.close()
+        m1_env.close()
+
+
 def rollout_scores(m1: bool, seed: int, opponent="OP6", steps=240, device="cuda"):
     env, core = make(m1, seed, device)
     try:

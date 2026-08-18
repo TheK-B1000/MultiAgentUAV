@@ -27,7 +27,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from rl.config.ppo_config import PPOConfig
 from rl.training.banner import print_episode_stats_banner, print_training_banner
@@ -134,7 +134,13 @@ def _validate_config_gates(cfg: PPOConfig) -> None:
 # Main orchestration entry point
 # ---------------------------------------------------------------------------
 
-def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
+def orchestrate_training_run(
+    cfg: Optional[PPOConfig] = None,
+    *,
+    pre_rollout_env_setup: Optional[
+        Callable[[Any, PPOConfig], Optional[dict[str, Any]]]
+    ] = None,
+) -> None:
     """Run the full local PPO/MAPPO training path.
 
     This is the canonical implementation extracted from
@@ -182,6 +188,18 @@ def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
         initial_opponent_tag=resolved.initial_opponent_tag,
     )
 
+    # Experiment-specific live-environment plumbing belongs at this one seam:
+    # after construction, before identity/artifacts/trainer/rollout. The callback
+    # may return fields that are stamped into training_manifest.json. Any
+    # exception is fatal and therefore consumes zero training steps.
+    training_manifest_extra = None
+    if pre_rollout_env_setup is not None:
+        try:
+            training_manifest_extra = pre_rollout_env_setup(env, cfg)
+        except BaseException:
+            teardown_training(cfg, None, env, run_lock)
+            raise
+
     from rl.ruleset_identity import RunIdentityError, build_formal_run_identity
 
     # Mandatory: a run that cannot resolve its identity fails here, before the
@@ -195,7 +213,11 @@ def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
     # Both startup artifacts must be written from the same frozen object before
     # any rollout. Soft-failing here would recreate the unstamped-traveler bug.
     try:
-        startup_paths = write_startup_formal_artifacts(cfg, run_identity=run_identity)
+        startup_paths = write_startup_formal_artifacts(
+            cfg,
+            run_identity=run_identity,
+            training_manifest_extra=training_manifest_extra,
+        )
     except Exception as exc:
         raise RunIdentityError(
             f"Failed to write startup formal artifacts before rollout: {exc}"

@@ -201,3 +201,105 @@ def manifest_entry(core, base_key: str,
                                   if hasattr(exp, k)},
         "assertion": "passed at construction via assert_opponent_resolved",
     }
+
+
+def install_keyed_opponent_overlays(core, overlays: dict[str, SDSGenome]) -> None:
+    """Install overlays keyed by the live opponent tag.
+
+    The behaviour tree resolves this mapping on every call from
+    ``core._opponent_key``. It therefore stays synchronized with PPO's
+    per-environment opponent sampler across auto-resets without a second
+    callback or a stale per-env list.
+    """
+    resolved: dict[str, BTProfile] = {}
+    opening_holds = set()
+    for raw_key, genome in overlays.items():
+        key = str(raw_key).upper()
+        if str(genome.base_opponent).upper() != key:
+            raise OpponentSpecError(
+                f"Overlay {genome.genome_id!r} is based on {genome.base_opponent!r}, "
+                f"not mapping key {key!r}."
+            )
+        if genome.overlay:
+            resolved[key] = expected_profile(key, genome)
+        opening_holds.add(int(genome.opening_hold_steps))
+    if opening_holds - {0}:
+        raise OpponentSpecError(
+            "Keyed R1 opponent overlays do not support per-opponent opening holds; "
+            f"received {sorted(opening_holds)!r}."
+        )
+    core._bt_profile_override = resolved or None
+    core._sds_opening_hold_steps = 0
+
+
+def resolved_profile_rows(core) -> list[dict[str, Any]]:
+    """Return the resolved BT profile for every live sub-environment."""
+    tensors = core._bt_resolved_profile_tensors()
+    rows: list[dict[str, Any]] = []
+    for env_i in range(int(core.B)):
+        row: dict[str, Any] = {}
+        for key, value in tensors.items():
+            try:
+                flat = value.reshape(int(core.B), -1)
+                row[key] = flat[env_i, 0].item()
+            except Exception:
+                continue
+        rows.append(row)
+    return rows
+
+
+def assert_live_opponent_batch(
+    core,
+    genomes_by_key: dict[str, SDSGenome],
+    *,
+    allowed_keys: tuple[str, ...],
+    context: str = "",
+) -> list[dict[str, Any]]:
+    """Assert every live row against its requested canonical/overlaid profile."""
+    keys = [str(k).upper() for k in getattr(core, "_opponent_key", [])]
+    rows = resolved_profile_rows(core)
+    allowed = {str(k).upper() for k in allowed_keys}
+    if len(keys) != int(core.B) or len(rows) != int(core.B):
+        raise OpponentSpecError(
+            f"OPPONENT BATCH SHAPE MISMATCH ({context}): keys={len(keys)}, "
+            f"profiles={len(rows)}, B={int(core.B)}"
+        )
+    mismatches = []
+    manifest_rows = []
+    for env_i, (key, got) in enumerate(zip(keys, rows)):
+        if key not in allowed:
+            mismatches.append(f"env {env_i}: live key {key!r} not in {sorted(allowed)!r}")
+            continue
+        genome = genomes_by_key.get(key)
+        exp = expected_profile(key, genome)
+        for f in fields(BTProfile):
+            if f.name not in got:
+                continue
+            want = getattr(exp, f.name)
+            have = got[f.name]
+            if isinstance(want, bool):
+                ok = bool(have) == bool(want)
+            elif isinstance(want, int):
+                ok = int(round(float(have))) == int(want)
+            elif isinstance(want, float):
+                ok = abs(float(have) - float(want)) <= 1e-6
+            else:
+                continue
+            if not ok:
+                mismatches.append(
+                    f"env {env_i} {key} {f.name}: expected {want!r}, live {have!r}"
+                )
+        manifest_rows.append({
+            "env_index": env_i,
+            "live_opponent_key": key,
+            "genome_id": genome.genome_id if genome else None,
+            "requested_overlay": dict(genome.overlay) if genome else {},
+            "resolved_profile": got,
+        })
+    if mismatches:
+        raise OpponentSpecError(
+            f"OPPONENT BATCH MISMATCH{' (' + context + ')' if context else ''}:\n  "
+            + "\n  ".join(mismatches)
+            + "\nRefusing to consume a training step."
+        )
+    return manifest_rows
