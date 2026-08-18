@@ -6,10 +6,8 @@
   "seed_block_amendment": "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
   "runner": "experiments/sds_g1_4_confirmation.py",
   "raw": "artifacts/strategic_demand/confirmation_sds_g1_4/{summary.json,episode_rows.csv,run.log}",
-
   "verdict": "V3_STRATEGIC_DEMAND_NOT_VALIDATED",
   "verdict_basis": "Gate B required all three criteria. Two passed decisively, the third failed under the frozen aggregation convention. A partial pass is not a pass.",
-
   "seeds": {
     "block": "5000001..5000032",
     "n_paired": 32,
@@ -17,7 +15,6 @@
     "audited_unused": "CLEAN on declared seeds, all-integer scan, declared block spans, and full git history",
     "spent": "this block is now SPENT and must never be reused for a strategic-demand confirmation"
   },
-
   "criterion_1_A_pole_PASS": {
     "genome": "SDS_G1_4 (OP6 + overlay defender_zone_frac=0.3865, threat_radius=1.0395)",
     "metric": "WR(GUARD) - WR(BREACH)",
@@ -30,7 +27,6 @@
     "passes": true,
     "note": "BREACH won 0 of 32 episodes against this opponent."
   },
-
   "criterion_2_B_pole_PASS": {
     "genome": "OP7 canonical (BREACH anchor, unmodified registry entry)",
     "metric": "WR(BREACH) - WR(GUARD)",
@@ -43,14 +39,12 @@
     "passes": true,
     "note": "GUARD won 0 of 32 episodes against this opponent."
   },
-
   "identical_deltas_are_coincidence_not_a_bug": {
     "observation": "both poles returned delta=+0.46875 and LCB95=+0.3125, identical to 4 decimals, which is exactly what a duplicated run would look like",
     "checked": "the two paired-difference vectors were compared element by element and are DIFFERENT (dA != dB). They simply both sum to 15 of 32.",
     "why_the_LCB_matches_too": "a paired bootstrap of a 0/1 difference vector depends only on the COUNT of ones, and the statistic is discrete in steps of 1/32, so two vectors with 15 ones each snap to the same lattice point for the 2.5th percentile",
     "cross_check": "only 23 of 64 A-vs-B cells share identical (blue,red) scores, most of them 0-0 draws; the poles are genuinely distinct runs"
   },
-
   "criterion_3_observability_FAIL": {
     "metric": "mean(t_intent - t_commit) over the 32 BREACH episodes on the A pole",
     "frozen_convention": "censored values coded as MAX_STEPS+1 = 241, then mean > 0. This is the SAME construction the development criterion used (paired_eval in the frozen searcher sets precommitment_uncertain = mean_gap > 0.0), so development and confirmation are directly comparable.",
@@ -58,7 +52,6 @@
     "confirmation_value": -17.40625,
     "passes": false,
     "did_not_replicate": "the development result reversed sign on fresh untouched seeds",
-
     "censoring_breakdown_n32": {
       "both_observed": 25,
       "intent_observed_commit_censored": 5,
@@ -75,7 +68,6 @@
     "what_drives_the_failure": "the 5 episodes where BREACH never got both agents onto RED's half. t_commit is censored to 241 while t_intent was observed early, producing gaps near -230 that dominate the mean. The censored-coded median is +2.5 and 65.6% of episodes are positive, yet the mean is -17.4.",
     "explicitly_not_done": "the statistic was NOT switched to median, complete-case mean, or any other estimator after seeing the data. Under the frozen convention this criterion FAILS, and that is the recorded outcome."
   },
-
   "degeneracy_reported_not_gating": {
     "A_frac_0_0": 0.625,
     "A_mean_total_score": 1.172,
@@ -85,13 +77,11 @@
     "B_degeneracy_penalty": 0.2695,
     "status": "degeneracy was part of the search objective J, not a listed Gate B criterion, so it does not change the verdict. It is reported because it qualifies what the wins mean: most episodes are scoreless, and the reversal shows up as 'the favoured style converts ~47% of episodes while the disfavoured style converts 0%'."
   },
-
   "what_is_now_established": {
     "payoff_reversal": "SUPPORTED on untouched confirmation seeds. This is the first time this campaign has produced a payoff reversal that replicated on a fresh block: opposite allocations are strictly better against the two poles, both clearing the 0.15 floor with LCB95 = +0.3125.",
     "precommitment_uncertainty": "NOT SUPPORTED under the frozen statistic. The development value did not replicate.",
     "strategic_pressure": "STRATEGIC_PRESSURE = OPPORTUNITY_COST AND COMMITMENT_COST. The opportunity-cost half is now evidenced; the commitment-cost half is not."
   },
-
   "prohibitions_still_in_force": [
     "do not move the 0.15 floor or the LCB95 requirement",
     "do not re-run this confirmation on block 5000001 -- it is spent",
@@ -99,6 +89,13 @@
     "do not train PPO, specialists, a selector, or a latent policy: V3_STRATEGIC_DEMAND is NOT VALIDATED",
     "do not reclassify this FAIL as a PASS by changing the observability estimator"
   ],
-
-  "open_decision": "artifacts/strategic_demand/HUMAN_DECISION_REQUIRED_OBSERVABILITY.md"
+  "open_decision": "RESOLVED -- see ruling_applied below",
+  "ruling_applied": {
+    "utc": "2026-08-18T08:50:00Z",
+    "confirmation_not_rescued": "the verdict stands as FAIL under OBSERVABILITY_V1. No estimator was swapped to change it.",
+    "positive_result_recorded": "artifacts/strategic_demand/TWO_WAY_PAYOFF_REVERSAL_CONFIRMED.json",
+    "estimator_replaced_prospectively": "artifacts/strategic_demand/OBSERVABILITY_V2_FROZEN.json",
+    "search_retargeted": "artifacts/strategic_demand/SEARCH_OBJECTIVE_V2_FROZEN.json",
+    "V2_does_not_rescue_this_candidate": "applied descriptively, SDS_G1_4 gives p_C=0.65625 with LCB95 exactly 0.5, which does not clear a strictly-greater gate. The retarget is necessary, not cosmetic."
+  }
 }

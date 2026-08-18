@@ -1,0 +1,106 @@
+{
+  "protocol_id": "OBSERVABILITY_V2",
+  "status": "FROZEN_PROSPECTIVE",
+  "frozen_utc": "2026-08-18T08:45:00Z",
+  "decided_by": "PI ruling following the SDS_G1_4 confirmation",
+  "applies_to": "all FUTURE search eligibility and all FUTURE confirmations",
+  "does_not_apply_to": "the SDS_G1_4 confirmation, which stands as FAIL under OBSERVABILITY_V1",
+
+  "versioning": {
+    "OBSERVABILITY_V1": {
+      "definition": "mean(t_intent - t_commit), non-observed event encoded as horizon+1 = 241, gate mean > 0",
+      "status": "RETIRED FOR FUTURE SEARCH",
+      "history_not_rewritten": "V1 is what selected SDS_G1_4 and what scored its confirmation. Those records stand unaltered.",
+      "why_retired": "an unobserved event has no event time. Encoding it as the sentinel and averaging with exact observations gives censored episodes enormous artificial leverage, and the statistic did not replicate: +16.625 in development (n=16) versus -17.406 on confirmation (n=32), same construction, different seeds."
+    },
+    "OBSERVABILITY_V2": {"status": "PROSPECTIVE", "defined_below": true}
+  },
+
+  "estimand": "Does BLUE generally have to commit its allocation before RED's strategic intent becomes readable?",
+
+  "classification": {
+    "rule": "event ORDER only; no sentinel value is substituted and no arithmetic is performed on a censored time",
+    "table": {
+      "commitment observed before intent": "COMMIT_FIRST",
+      "intent observed before or equal to commitment": "INTENT_FIRST",
+      "commitment observed, intent never observed by horizon": "COMMIT_FIRST",
+      "intent observed, commitment never observed by horizon": "INTENT_FIRST",
+      "neither event observed": "UNRESOLVED"
+    },
+    "ties": "t_intent == t_commit is INTENT_FIRST. If intent is readable at the same step commitment becomes due, that does not support precommitment uncertainty.",
+    "one_sided_censoring_is_informative_not_missing": "an episode where RED's intent became readable but BLUE never committed is genuine evidence AGAINST precommitment uncertainty. It is retained as INTENT_FIRST rather than deleted; complete-case deletion would bias the estimate in the opposite direction."
+  },
+
+  "primary_quantity": "p_C = P(COMMIT_FIRST) over ALL episodes, UNRESOLVED included in the denominator",
+  "gate": "LCB95(p_C) > 0.5, strictly",
+  "unresolved_handling": "counted in the denominator, never in the numerator, so UNRESOLVED weighs against the gate. An episode that resolved neither event is not evidence that commitment came first.",
+  "bootstrap": {
+    "procedure": "percentile bootstrap on the COMMIT_FIRST 0/1 indicator",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "consistent_with": "the same procedure and constant used by the M1 assay and the SDS_G1_4 confirmation"
+  },
+
+  "demoted_to_telemetry": {
+    "status": "reported always, gates never",
+    "fields": [
+      "complete-case median gap",
+      "complete-case mean gap",
+      "complete-case fraction positive",
+      "commitment instantiation rate",
+      "intent observation rate",
+      "censoring category counts"
+    ],
+    "why": "prevents a candidate from passing because a few censor-coded episodes each contributed +230"
+  },
+
+  "implementation": {
+    "module": "experiments/observability_v2.py",
+    "validation": "experiments/test_observability_v2.py, 12/12 passing",
+    "validation_includes": [
+      "the full classification truth table as ruled",
+      "ties resolve to INTENT_FIRST",
+      "insensitivity to how late a censored episode's other event is -- the case that broke V1",
+      "UNRESOLVED counts against the gate and is never deleted",
+      "p_C = 0.5 exactly must FAIL (gate is strictly greater)",
+      "a reconstruction of the SDS_G1_4 confirmation shape, asserting V1 goes negative while V2 does not",
+      "a single censored episode can move p_C by at most 1/n"
+    ]
+  },
+
+  "episode_count_OPEN_REQUIRES_RATIFICATION": {
+    "status": "NOT FROZEN -- this is a new scientific parameter and was not part of the ruling",
+    "why_it_matters": "a proportion gate at 0.5 needs more episodes than a win-rate-difference gate at 0.15. The bootstrap LCB on a 0/1 indicator is coarse at small n.",
+    "power_simulation": {
+      "method": "400 simulated confirmations per cell, binomial draws at each true p_C, scored with the frozen V2 gate",
+      "table_power_to_clear_LCB95_gt_0.5": {
+        "n=32": {"p=0.60": 0.23, "p=0.70": 0.60, "p=0.75": 0.87, "p=0.80": 0.95},
+        "n=64": {"p=0.60": 0.28, "p=0.70": 0.89, "p=0.75": 0.98, "p=0.80": 1.0},
+        "n=96": {"p=0.60": 0.46, "p=0.70": 0.98, "p=0.75": 1.0, "p=0.80": 1.0},
+        "n=128": {"p=0.60": 0.60, "p=0.70": 1.0, "p=0.75": 1.0, "p=0.80": 1.0}
+      },
+      "reading": "n=32 is adequate only if the true p_C is at least 0.75. At a true p_C of 0.70 it is a coin flip, which would waste an audited block."
+    },
+    "recommendation": "n=64 paired seeds for the observability confirmation (0.89 power at true p_C 0.70, 0.98 at 0.75). n=96 if a true p_C near 0.70 is considered likely.",
+    "not_decided_autonomously": "recorded as a recommendation with its evidence. Ratify before the next confirmation is launched."
+  },
+
+  "descriptive_only_reading_of_existing_data": {
+    "status": "TELEMETRY. Does NOT re-score the SDS_G1_4 confirmation, which remains FAIL under V1.",
+    "why_recorded": "it targets the next search, and it is reported because it cuts AGAINST the current candidate rather than for it",
+    "A_pole_SDS_G1_4": {
+      "COMMIT_FIRST": 21, "INTENT_FIRST": 11, "UNRESOLVED": 0,
+      "p_C": 0.65625, "lcb95": 0.5,
+      "would_clear_prospective_gate": false,
+      "note": "lands exactly on the boundary and the gate is strictly greater. V2 does NOT rescue this candidate."
+    },
+    "B_pole_OP7": {
+      "COMMIT_FIRST": 28, "INTENT_FIRST": 4, "UNRESOLVED": 0,
+      "p_C": 0.875, "lcb95": 0.75,
+      "would_clear_prospective_gate": true
+    },
+    "the_asymmetry_that_matters": "intent observation rate is 0.938 against SDS_G1_4 versus 0.344 against OP7. OP7 already conceals; SDS_G1_4 telegraphs. The concealment problem is specific to the A pole, which is where the next search must work.",
+    "caveat": "these numbers come from data already seen and are not a V2 result. A V2 claim requires a fresh untouched block."
+  }
+}

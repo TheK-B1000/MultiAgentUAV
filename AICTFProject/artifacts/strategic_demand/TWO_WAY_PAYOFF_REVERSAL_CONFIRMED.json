@@ -1,0 +1,67 @@
+{
+  "record_id": "TWO_WAY_PAYOFF_REVERSAL_CONFIRMED",
+  "status": "PERMANENT_POSITIVE_RESULT",
+  "utc": "2026-08-18T08:30:00Z",
+  "decided_by": "PI ruling on the SDS_G1_4 confirmation",
+
+  "claim": "TWO_WAY_PAYOFF_REVERSAL = CONFIRMED",
+  "claim_scope": "In RULESET_V3_M1 2v2 map_a, there exist two legal scripted opponents such that opposite BLUE allocations are strictly better against them, and the reversal holds on evaluation seeds never used for anything else.",
+
+  "evidence": {
+    "block": "5000001..5000032 (32 paired seeds, 128 episodes)",
+    "block_status": "untouched before this run, audited CLEAN against declared seeds, an over-inclusive integer scan, declared block spans, and full git history; now SPENT",
+    "A_pole": {
+      "opponent": "SDS_G1_4 (OP6 + overlay defender_zone_frac=0.38651, threat_radius=1.03953)",
+      "metric": "WR(GUARD) - WR(BREACH)",
+      "delta": 0.46875,
+      "lcb95": 0.3125,
+      "floor": 0.15,
+      "breach_wins": "0 of 32"
+    },
+    "B_pole": {
+      "opponent": "OP7 canonical (unmodified registry entry)",
+      "metric": "WR(BREACH) - WR(GUARD)",
+      "delta": 0.46875,
+      "lcb95": 0.3125,
+      "floor": 0.15,
+      "guard_wins": "0 of 32"
+    },
+    "responses": {
+      "GUARD": "BLUE_ONE_DEFENDER_V2",
+      "BREACH": "BLUE_BOTH_ATTACK_V2",
+      "note": "scripted; identical in both arms; opponent identity is never an input to the BLUE response"
+    }
+  },
+
+  "why_this_is_a_first": "Every prior attempt in this campaign (C1-C7, VGC-4, the static opponent screen) either found no reversal, found one that did not replicate, or produced an additive payoff structure with no interaction. This is the first two-way reversal that survived a held-out confirmation block.",
+
+  "what_it_does_NOT_claim": [
+    "it does NOT claim V3_STRATEGIC_DEMAND is validated -- that requires strategic uncertainty as well, and observability failed",
+    "it does NOT claim BLUE can learn to select between the responses",
+    "it does NOT claim the reversal is discoverable by an agent that cannot see which opponent it faces",
+    "it does NOT license PPO, specialists, a selector, or latent policy training"
+  ],
+
+  "qualification_sparse_conversion": {
+    "A_frac_0_0": 0.625,
+    "B_frac_0_0": 0.71875,
+    "A_mean_total_score": 1.172,
+    "B_mean_total_score": 0.359,
+    "reading": "the reversal is real but sparse. The favoured style converts roughly 47% of episodes; the disfavoured style converts none. Most episodes are scoreless.",
+    "not_retroactively_gating": "degeneracy was not a preregistered Gate B criterion and is NOT being converted into one after the fact. It is recorded as a benchmark-quality warning and as an explicit search target going forward.",
+    "why_it_matters_later": "a benchmark dominated by 0-0 trajectories gives a learner a very thin reward signal, which will matter when PPO is eventually re-enabled."
+  },
+
+  "standing_alongside": {
+    "V3_STRATEGIC_DEMAND": "NOT_VALIDATED",
+    "reason": "observability failed under the preregistered OBSERVABILITY_V1 estimator (mean = -17.406, required > 0). The confirmation was NOT rescued by re-analysis.",
+    "remaining_question": "whether BLUE must commit before it can tell which world it is in -- the distinction between reactive adaptation and persistent strategic planning"
+  },
+
+  "provenance": {
+    "result_record": "artifacts/strategic_demand/CONFIRMATION_SDS_G1_4_RESULT.json",
+    "raw": "artifacts/strategic_demand/confirmation_sds_g1_4/",
+    "runner": "experiments/sds_g1_4_confirmation.py",
+    "commit": "8fe1c594"
+  }
+}

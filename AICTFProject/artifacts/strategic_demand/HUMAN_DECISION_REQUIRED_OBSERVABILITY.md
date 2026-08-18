@@ -1,4 +1,10 @@
-# HUMAN_DECISION_REQUIRED — observability estimator under censoring
+# RESOLVED — observability estimator under censoring
+
+> **Ruled 2026-08-18.** Option 3: the statistic is replaced prospectively with an
+> event-order gate. The confirmation was NOT rescued. See
+> `OBSERVABILITY_V2_FROZEN.json` and `SEARCH_OBJECTIVE_V2_FROZEN.json`.
+> Applied descriptively, V2 would not have passed this candidate either
+> (p_C = 0.656, LCB95 = 0.500, gate is strictly greater).
 
 **Status of the run: settled. `V3_STRATEGIC_DEMAND_NOT_VALIDATED`.**
 This document does not reopen that verdict. It flags a protocol-design question

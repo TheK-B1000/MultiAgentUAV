@@ -1,0 +1,73 @@
+{
+  "protocol_id": "SEARCH_OBJECTIVE_V2",
+  "status": "FROZEN_PROSPECTIVE",
+  "frozen_utc": "2026-08-18T08:50:00Z",
+  "decided_by": "PI ruling following the SDS_G1_4 confirmation",
+  "supersedes": "the eligibility criterion of STRATEGIC_DEMAND_SEARCHER_FROZEN / _V2_FROZEN, prospectively only",
+
+  "why_the_search_problem_changed": {
+    "settled": "TWO_WAY_PAYOFF_REVERSAL = CONFIRMED on untouched seeds. The searcher no longer has to discover whether payoff crossover is possible in this environment; it is.",
+    "remaining": "strategic uncertainty -- whether BLUE must commit before it can tell which world it is in",
+    "restatement": "the search problem is now 'find a late-revealing version of the strategic pressure we already know exists', which is far narrower than the earlier 'find strategies somehow'"
+  },
+
+  "primary_constraint": {
+    "preserve_GUARD_payoff_pressure": "delta_G(A') > 0 required at every stage. A candidate that raises concealment by destroying the payoff reversal is not a candidate.",
+    "rationale": "the reversal is the confirmed asset. It is a constraint, not a term to be traded away."
+  },
+
+  "search_targets": {
+    "maximize": "p_C = P(COMMIT_FIRST) under OBSERVABILITY_V2",
+    "minimize": "frac_0_0 (scoreless episodes)",
+    "maximize_secondary": "active strategic interaction (mean_total_score)"
+  },
+
+  "eligibility_replaces_precommitment_uncertain": {
+    "old_V1": "precommitment_uncertain = mean(t_intent - t_commit) > 0 with sentinel 241",
+    "old_V1_status": "RETIRED. It selected SDS_G1_4 on +16.625 in development, which became -17.406 on confirmation. That is exactly the instability the search stage exists to prevent.",
+    "new_V2": "development_eligible requires delta_G > PROMOTE_DELTA_G AND p_C point estimate above a development threshold AND J > 0",
+    "note": "the development p_C threshold is a search screen, not the confirmation gate. The confirmation gate remains LCB95(p_C) > 0.5 on a fresh untouched block."
+  },
+
+  "where_the_concealment_problem_actually_is": {
+    "evidence": "intent observation rate 0.938 against SDS_G1_4 versus 0.344 against OP7; p_C 0.656 versus 0.875",
+    "reading": "OP7 already conceals its intent well. SDS_G1_4 telegraphs: its overlay produces RED behaviour that is readable in 94% of episodes.",
+    "consequence": "the search should work on the A pole. OP7 is not the problem and is not to be modified -- it is a canonical registry entry and the confirmed B pole.",
+    "gene_groups_most_relevant": "the concealment group already declared in STRATEGIC_DEMAND_SEARCHER_V2_FROZEN (opening_hold_steps, lane_amplitude_frac, enable_defender), now promoted from a weakness-pressure hint to the primary search direction"
+  },
+
+  "degeneracy_pressure_increased": {
+    "observed": "frac_0_0 = 0.625 on the A pole and 0.719 on the B pole in the confirmation",
+    "status": "NOT retroactively a Gate B failure -- it was not preregistered as one and is not being converted into one after the fact",
+    "prospective": "continue penalising aggressively. The next opponent must preserve the crossover while producing more actual game interaction.",
+    "why_it_matters_later": "a benchmark dominated by 0-0 trajectories gives a learner a very thin reward signal, which will bite when PPO is re-enabled"
+  },
+
+  "explicitly_unchanged": [
+    "RULESET_V3_M1 (own_flag_home_required_to_score=True) -- do not change",
+    "GUARD = BLUE_ONE_DEFENDER_V2 and BREACH = BLUE_BOTH_ATTACK_V2 -- do not change",
+    "OP7 as the canonical B pole -- never overwritten",
+    "canonical registry OP6-OP12 -- never overwritten; candidates remain overlays",
+    "the 0.15 payoff floor and LCB95 > 0 requirement",
+    "2v2 only -- no experiment below 2v2; isolate mechanisms through telemetry, never by deleting agents",
+    "evolution alters only legal 2v2 opponent behaviour"
+  ],
+
+  "prohibited": [
+    "training PPO, specialists, a selector, or a latent policy -- V3_STRATEGIC_DEMAND is NOT VALIDATED",
+    "running another evolutionary search under the retired OBSERVABILITY_V1 eligibility criterion",
+    "re-using spent confirmation blocks 5000001 (spent) or the permanently disqualified 2500001 / 2600001",
+    "trading away delta_G to gain p_C",
+    "re-scoring the SDS_G1_4 confirmation under V2 and calling it a pass"
+  ],
+
+  "sequence": [
+    "1. ratify the observability confirmation episode count (see OBSERVABILITY_V2_FROZEN.episode_count_OPEN_REQUIRES_RATIFICATION; recommendation n=64)",
+    "2. wire OBSERVABILITY_V2 into the searcher's per-candidate evaluation, replacing the V1 gap gate",
+    "3. run the retargeted search: preserve delta_G > 0, maximise p_C, reduce frac_0_0",
+    "4. freeze any development-eligible candidate BEFORE confirmation, as was done for SDS_G1_4",
+    "5. audit a fresh seed block with scripts/audit_seed_block.py over its FULL range including git history",
+    "6. confirm on that untouched block: payoff reversal AND LCB95(p_C) > 0.5",
+    "7. only then reconsider V3_STRATEGIC_DEMAND"
+  ]
+}
