@@ -115,7 +115,13 @@
         "p=0.80": 1.0
       }
     },
-    "no_extension_rule": "confirmation is 64 from the start. No peeking at 32 and deciding to extend to 64 or 96. If it fails at 64, it fails. A rescue extension would convert a fixed-n test into an optional-stopping procedure and destroy the error rate."
+    "no_extension_rule": "confirmation is 64 from the start. No peeking at 32 and deciding to extend to 64 or 96. If it fails at 64, it fails. A rescue extension would convert a fixed-n test into an optional-stopping procedure and destroy the error rate.",
+    "AMENDED": {
+      "to": 192,
+      "record": "artifacts/strategic_demand/CONFIRMATION_N_AMENDMENT_192.json",
+      "why": "power analysis on the actual candidate's payoff margin; prospective, before any confirmation episode",
+      "n_64_status": "SUPERSEDED for this confirmation"
+    }
   },
   "development_ladder_RATIFIED": {
     "cheap_screen": 16,

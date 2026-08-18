@@ -65,5 +65,12 @@
   "note": "control returned hits, so an empty result for the candidate is a true negative"
  },
  "margin_ok": true,
- "verdict": "COLLISION"
+ "verdict": "COLLISION",
+ "AUDIT_TOOL_PROVENANCE": {
+  "superseded_by": "f03cefd4",
+  "status": "SUPERSEDED, NOT INVALIDATED",
+  "why": "this certificate was produced by an audit tool with three defects: .jsonl/.log were unscanned, \b matched digits inside decimals, and the history query used --perl-regexp which under-matched (3 control commits vs 8). See artifacts/strategic_demand/AUDIT_TOOL_DEFECTS_FOUND.md",
+  "re_verification": "the block was re-audited under the corrected tool and the conclusion HELD. For 5000001: it appears in no commit older than its own reservation 45d81a52, and every working-tree hit is the confirmation's own output. The finding is now supported by a STRONGER query than the one that originally certified it.",
+  "scientific_status": "the SDS_G1_4 confirmation remains scientifically admissible"
+ }
 }

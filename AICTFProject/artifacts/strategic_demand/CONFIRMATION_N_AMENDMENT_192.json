@@ -1,0 +1,49 @@
+{
+  "record_id": "CONFIRMATION_N_AMENDMENT_192",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-18T14:00:00Z",
+  "decided_by": "PI ruling",
+  "amends": "OBSERVABILITY_V2_FROZEN.json :: episode_count_RATIFIED (n=64)",
+
+  "amendment": {
+    "from": 64,
+    "to": 192,
+    "block": "6000001..6000192",
+    "no_extension": "192 from the start. No peeking and extending. If it fails at 192, it fails.",
+    "why": "the natural replicate in the search archive (identical genome, different development seeds, delta_G +0.375 vs +0.156) implies SD(d) ~0.875. At a true delta_G near the candidate's 0.219, the payoff gate has only ~0.47 power at n=64, binding on LCB95>0. Running 64 and later being tempted to extend is worse than starting at 192.",
+    "power_at_192": 0.86,
+    "prospective": "no confirmation episode has been run under this protocol and no outcome exists, so the change cannot have been influenced by a result",
+    "not_a_rescue": "raising n moves no threshold and cannot manufacture a pass. More episodes reduce false negatives without increasing type-I error."
+  },
+
+  "both_poles_prospective": {
+    "ruling": "run BOTH poles prospectively under the identical confirmation protocol at n=192",
+    "why": "OBSERVABILITY_V2 was invented AFTER the OP7 episodes were observed. Its reading of OP7 (p_C 0.875, LCB95 0.750) is retrospective with respect to the V2 definition. V3_STRATEGIC_DEMAND must not rest on one pole's concealment being prospective and the other's being post-hoc.",
+    "old_OP7_result_status": "NOT discarded. It becomes prior independent replication. If OP7 passes again, the BREACH pole is supported by two separate blocks.",
+    "same_block_for_both_poles": "intentional: gives experimental symmetry across the two poles",
+    "deeper_reason": "the claim is uncertainty between conflicting strategic contexts. If A conceals but B announces itself early, a capable policy could infer A by elimination: clear B signal -> BREACH, no B signal -> A -> GUARD. The 'planning is required' argument needs BOTH sides of the fork to resist trivial early identification."
+  },
+
+  "the_four_prospective_tests": {
+    "A_payoff": "delta_G(A) >= 0.15 AND LCB95(delta_G) > 0",
+    "A_concealment": "LCB95(p_C^A) > 0.50",
+    "B_payoff": "delta_B(OP7) >= 0.15 AND LCB95(delta_B) > 0",
+    "B_concealment": "LCB95(p_C^B) > 0.50",
+    "conjunction": "all four required. If one component fails, the whole claim fails exactly as preregistered.",
+    "licenses": "V3_STRATEGIC_DEMAND = VALIDATED",
+    "forbidden": [
+      "no extension",
+      "no alternative estimator",
+      "no additional seeds because something almost passed"
+    ]
+  },
+
+  "unchanged": [
+    "OBSERVABILITY_V2 definition, classification table, ties to INTENT_FIRST, UNRESOLVED in denominator",
+    "the 0.15 payoff floor and LCB95 > 0",
+    "the p_C 0.50 gate",
+    "Searcher V2's 16 -> 32 development funnel",
+    "RULESET_V3_M1, GUARD/BREACH responses, OP7 canonical, 2v2 only",
+    "NO PPO"
+  ]
+}
