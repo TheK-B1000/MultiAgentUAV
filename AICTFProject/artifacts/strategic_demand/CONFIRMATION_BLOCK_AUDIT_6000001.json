@@ -6,27 +6,64 @@
  },
  "margin_required": 5000,
  "population_seed_offset_max": 300,
- "declared_inventory_size": 949,
- "broad_inventory_size": 29160,
+ "declared_inventory_size": 955,
+ "broad_inventory_size": 29169,
  "excluded_as_reservation_records": [
   "scripts/audit_seed_block.py",
   "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
   "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_"
  ],
  "exclusion_caveat": "these paths RESERVE a block rather than USE it and are skipped in every check; any other file naming a seed in the window counts as a collision",
- "check_1_declared_hits": [],
- "check_2_broad_hits": [],
- "check_3_overlapping_blocks": [],
+ "check_1_declared_hits": [
+  {
+   "seed": 6000001,
+   "sources": [
+    "artifacts\\strategic_demand\\NEXT_CONFIRMATION_BLOCK_RESERVED.json::seed_base"
+   ]
+  }
+ ],
+ "check_2_broad_hits": [
+  {
+   "int": 6000001,
+   "sources": [
+    "artifacts\\strategic_demand\\NEXT_CONFIRMATION_BLOCK_RESERVED.json",
+    "artifacts\\strategic_demand\\SEARCH_RUN_SDS2_SCREENING_FROZEN.json",
+    "artifacts\\strategic_demand\\searcher_v2\\HUMAN_DECISION_REQUIRED.md",
+    "artifacts\\strategic_demand\\searcher_v2\\LOG_BANNER_CORRECTION.md"
+   ]
+  },
+  {
+   "int": 6000064,
+   "sources": [
+    "artifacts\\strategic_demand\\NEXT_CONFIRMATION_BLOCK_RESERVED.json",
+    "artifacts\\strategic_demand\\SEARCH_RUN_SDS2_SCREENING_FROZEN.json",
+    "artifacts\\strategic_demand\\searcher_v2\\HUMAN_DECISION_REQUIRED.md",
+    "artifacts\\strategic_demand\\searcher_v2\\LOG_BANNER_CORRECTION.md"
+   ]
+  }
+ ],
+ "check_3_overlapping_blocks": [
+  {
+   "label": "block",
+   "base": 6000001,
+   "n": 64,
+   "source": "artifacts\\strategic_demand\\NEXT_CONFIRMATION_BLOCK_RESERVED.json"
+  }
+ ],
  "gap_below": 999969,
  "gap_above": 2786174,
  "check_4_history": {
-  "commits": [],
+  "commits": [
+   "80c88a4a Search stops on first eligible candidate; freeze SDS2_A_payoff_INIT_3",
+   "576644a0 Freeze the SDS2 screening schedule and stop-on-first-eligible before launch",
+   "8e09e7af Ratify n=64; rewire the searcher onto Observability V2 and the V2 objective"
+  ],
   "query_ok": true,
   "positive_control_block": "2600001..2600032",
-  "positive_control_commits": 6,
+  "positive_control_commits": 8,
   "positive_control_valid": true,
   "note": "control returned hits, so an empty result for the candidate is a true negative"
  },
  "margin_ok": true,
- "verdict": "CLEAN"
+ "verdict": "COLLISION"
 }

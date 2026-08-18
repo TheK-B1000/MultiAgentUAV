@@ -31,6 +31,19 @@ Four independent checks, because each has a blind spot the others cover:
                 appears in 5 historical commits and nowhere on disk. This
                 check is load-bearing, not ceremony. It runs with a positive
                 control so a broken query cannot masquerade as a clean result.
+                NOTE: git log -G rejects lookbehind even with --perl-regexp,
+                so the decimal-safe anchoring is written in ERE form. The
+                earlier --perl-regexp form UNDER-matched (3 control commits
+                versus 8), which is the false-negative direction.
+
+Defects found and fixed 2026-08-18, after the tool had already certified two
+blocks:
+  * .jsonl and .log were not scanned at all -- a false-NEGATIVE hole exactly
+    where run output lands.
+  *  matched digits inside decimals, so "0.6000145" read as seed 6000145.
+  * git history used --perl-regexp, which silently under-matched.
+Both previously certified blocks were re-audited under the corrected tool and
+both held: 5000001 appears in no commit older than its own reservation.
 
 Margin: rl/population/population_trainer.py assigns per-member seed_offset up
 to 300, so a declared training seed T can occupy T..T+300. The default margin
@@ -55,8 +68,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SKIP_DIRS = {".venv", ".git", "__pycache__", "node_modules", ".pytest_cache",
              "wandb", ".mypy_cache"}
-TEXT_EXT = {".py", ".json", ".md", ".txt", ".csv", ".yaml", ".yml", ".cfg", ".ini"}
-INT_RE = re.compile(r"\b(\d{6,12})\b")
+# .jsonl and .log were originally omitted and are exactly where run output
+# lands, so their absence was a false-NEGATIVE hole: a seed recorded only in
+# an episode-anchor .jsonl or a run .log would have been invisible.
+TEXT_EXT = {".py", ".json", ".jsonl", ".md", ".txt", ".csv", ".yaml", ".yml",
+            ".cfg", ".ini", ".log", ".err", ".ps1", ".xml"}
+# A bare \b matches digits inside a decimal fraction: "carrier_dist_home":
+# "0.6000145" registered as the integer 6000145 and produced a false COLLISION.
+# Require that the digit run is not preceded by a digit or a decimal point, and
+# not followed by a digit.
+INT_RE = re.compile(r"(?<![\d.])(\d{6,12})(?!\d)")
 PY_SEED_ASSIGN = re.compile(r"\b([A-Za-z_]*SEED[A-Za-z_]*)\s*=\s*(\d[\d_]{5,})", re.I)
 MAX_FILE_BYTES = 60_000_000
 POPULATION_SEED_OFFSET_MAX = 300     # rl/population/population_trainer.py
@@ -175,8 +196,17 @@ def build_inventories(exclude: tuple[str, ...] = ()) -> tuple[dict, dict, list]:
 
 
 def window_regex(lo: int, n: int) -> str:
-    """Word-anchored alternation matching exactly lo..lo+n-1."""
-    return r"\b(" + "|".join(str(v) for v in range(lo, lo + n)) + r")\b"
+    """Alternation matching exactly lo..lo+n-1.
+
+    Uses the same decimal-safe anchoring as INT_RE. A bare \\b matched digits
+    inside a fraction, so "carrier_dist_home": "0.6000145" made an unrelated
+    commit look like it used seed 6000145.
+    """
+    # git log -G does NOT accept lookbehind even with --perl-regexp ("invalid
+    # regex: Invalid preceding regular expression"), so the same decimal-safe
+    # anchoring is expressed in ERE form instead.
+    alts = "|".join(str(v) for v in range(lo, lo + n))
+    return r"(^|[^0-9.])(" + alts + r")([^0-9]|$)"
 
 
 def history_hits(lo: int, n: int, timeout: int = 540,
@@ -189,11 +219,16 @@ def history_hits(lo: int, n: int, timeout: int = 540,
     """
     pathspec = ["--", "."]
     for pat in SELF_REFERENCE_DEFAULTS + exclude:
-        pathspec.append(f":(exclude,glob){pat}*" if pat.endswith("_")
-                        else f":(exclude,glob){pat}")
+        if pat.endswith("/"):
+            suffix = "**"          # directory prefix
+        elif pat.endswith("_"):
+            suffix = "*"           # filename prefix
+        else:
+            suffix = ""            # exact path
+        pathspec.append(f":(exclude,glob){pat}{suffix}")
     try:
         out = subprocess.run(
-            ["git", "log", "--all", "--oneline", "--perl-regexp",
+            ["git", "log", "--all", "--oneline",
              "-G", window_regex(lo, n)] + pathspec,
             cwd=str(ROOT), capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
