@@ -1,0 +1,80 @@
+{
+  "protocol_id": "STRATEGIC_DEMAND_SEARCHER_V1",
+  "status": "FROZEN",
+  "frozen_before": "any search generation is scored",
+  "classification": {
+    "M1_SEMANTIC_RECOVERY": "PASS",
+    "M1_PAYOFF_ASSAY": "SCIENTIFIC_FAIL",
+    "RULESET": "RULESET_V3_M1 FROZEN",
+    "search_results_are_gate_B": false
+  },
+  "ruleset": {
+    "name": "RULESET_V3_M1",
+    "own_flag_home_required_to_score": true,
+    "everything_else": "unchanged from RULESET_V2_AQUATICUS_10S",
+    "do_not": [
+      "retune M1",
+      "add tag cooldown / respawn / channel / suppression",
+      "train PPO / specialists / latent",
+      "move Gate B thresholds"
+    ]
+  },
+  "scope": {
+    "map": "map_a",
+    "team_size": "2v2",
+    "horizon": 240,
+    "search_object": "legal 2v2 opponents, not mechanics",
+    "canonical_opponents_immutable": "OP6-OP12 registry entries are not overwritten. Candidates are overlays."
+  },
+  "archive_seeds": {
+    "A0": {"tag": "OP6", "role": "GUARD-demanding candidate (current, Gate B FAIL on this pole)"},
+    "B0": {"tag": "OP7", "role": "BREACH-demanding anchor (Gate B PASS on this pole, delta=+0.531)"}
+  },
+  "objective": {
+    "delta_G_A": "WR(GUARD, A) - WR(BREACH, A)",
+    "delta_B_B": "WR(BREACH, B) - WR(GUARD, B)",
+    "J": "min(delta_G_A, delta_B_B) minus degeneracy penalties",
+    "immediate_job": "find a better A; B stays OP7 unless a later generation beats it on delta_B without collapsing delta_G",
+    "not_optimized": ["raw difficulty", "win rate", "looks different"]
+  },
+  "styles": {
+    "GUARD": "BLUE_ONE_DEFENDER_V2",
+    "BREACH": "BLUE_BOTH_ATTACK_V2"
+  },
+  "screen_then_branch": {
+    "current_pass": "mutation_from_screen. OP6 frozen as GUARD_PAYOFF_CANDIDATE. 2500001 pristine. Complete-package miss on the static board justified mutation.",
+    "if_screen_finds_a_candidate": "FREEZE that genome (and M1, intent definition, commitment definition, thresholds). Do NOT mutate around it looking for a prettier one. Search numbers are not evidence. Confirmation is a separate untouched run on block 2500001.",
+    "if_screen_finds_nothing": "THEN mutation generations are justified. Still not Gate B.",
+    "do_not": [
+      "combine search discovery and scientific confirmation",
+      "treat 8- or 16-episode deltas as Gate B",
+      "train PPO",
+      "retune M1"
+    ]
+  },
+  "cheap_search": {
+    "stage1_paired_episodes": 8,
+    "promote_if_delta_G_gt": 0.05,
+    "stage2_paired_episodes": 16,
+    "seed_base": 2400001,
+    "why_seed": "fresh; 2300001 is the frozen M1 Gate B assay. Search seeds are not confirmation seeds."
+  },
+  "confirmation_reserved": {
+    "status": "NOT AUTHORIZED until genomes are frozen by a human",
+    "seed_base": 2500001,
+    "gate": "GUARD(A)-BREACH(A) >= 0.15 AND LCB95>0 AND BREACH(B)-GUARD(B) >= 0.15 AND LCB95>0 AND t_reliable_intent > t_meaningful_commitment",
+    "fresh_untouched_seeds": true,
+    "search_numbers_do_not_count": true
+  },
+  "observability": {
+    "inputs": "BLUE-legal only: visible enemy positions (engine home-side predicate on observed red x)",
+    "t_reliable_intent": "first step both live reds are on BLUE half and stay there for 4 consecutive steps",
+    "t_meaningful_commitment": "first step both live blues are on RED half (BREACH allocation already committed)",
+    "want": "t_reliable_intent > t_meaningful_commitment",
+    "why_not_7D_geometry_event": "7D used the same half-crossing as a treatment switch and was INVALID_TREATMENT_INSTANTIATION. Here it is a measurement on blue-visible state, never a controller switch."
+  },
+  "degeneracy_penalties": {
+    "frac_0_0": "fraction of episodes with blue_score=red_score=0",
+    "penalty": "0.5 * max(0, frac_0_0 - 0.25) + 0.25 * max(0, 0.5 - mean_total_score)"
+  }
+}

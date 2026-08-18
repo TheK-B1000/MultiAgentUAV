@@ -1,0 +1,28 @@
+{
+  "recorded_utc": "2026-08-16T19:55:43.525315+00:00",
+  "command": "experiments/gate2b_affordance_scenarios_v2.py",
+  "git": {
+    "commit": "a32def6e53eb430630da4db6629f5ae06335377e",
+    "branch": "new-summer"
+  },
+  "critical_file_sha256": {
+    "experiments/gate2b_affordance_scenarios_v2.py": "42d86d37e9bd141e48eddb8e250e5c01e94c18af05a7af5713d4b058316d75b2",
+    "gpu_env/_core/_scripted_blue_styles.py": "157a1078561614166292a7046d468c296d1f08dcf470ddf07b94ea618fbc6778",
+    "gpu_env/_core/_rules.py": "9b5cfc89f2c34b61db9a0e27491cd16fe70b6c66cbcc64f7d44604c330997d70",
+    "gpu_env/_config.py": "c38cf7103a9357774844653875589f62d53408feca37e2135d87e4f0d3f140b8",
+    "plot/eval_rollout.py": "276b8bac5979b38999727d262b8182c675bb4a64b1a90ef8f88022fb83bf06d6"
+  },
+  "artifact_sha256": {
+    "episode_rows.csv": "d77ef130ddae4a0ef36ebe27c2936d971fcd1b72ce095ce5194f5729461a96d9",
+    "paired_summary.json": "1b8e7b0f3be32c88d1f0d09783d74f7e4c8bdcc6fe52d78580d6ce6b9f0df78a",
+    "manifest.json": "82d26bb92314a449372f1071402b7ed09b41efc13b270d6bdc98d2846eb0691f"
+  },
+  "ruleset_fingerprint": {
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  }
+}

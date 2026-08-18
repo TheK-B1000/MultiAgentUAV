@@ -16,8 +16,17 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-07 (UTC-4) — C3 ops patch (persist/resume/short-circuit); prior full scan ABORTED_OPERATIONAL_SCALE
+> **Last updated:** 2026-08-17 — OP6 recorded as GUARD_PAYOFF_CANDIDATE. 2500001 not launched. Mutation/evolution authorized under frozen J.
 
+### Current non-latent campaign (V3 M1)
+
+| Item | Status |
+|------|--------|
+| `RULESET_V3_M1` (`own_flag_home_required_to_score=True`) | **FROZEN** |
+| M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
+| M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
+| Strategic Demand Searcher | **MUTATION RUNNING.** OP6 = `GUARD_PAYOFF_CANDIDATE` (not confirmation). Screen found no complete package. `2500001` pristine. Out: `artifacts/strategic_demand/searcher_mutate`. PPO off. |
+| PPO / specialists / latent | **NOT STARTED** |
 
 ---
 

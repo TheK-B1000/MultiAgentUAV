@@ -1,14 +1,16 @@
 """Correctness tests for M1: own flag must be home to score.
 
-Four checks, per the approved decision:
+Five checks, per the approved decision:
 
   1. V2 UNCHANGED      with the flag OFF, scoring is bit-identical to before
   2. NORMAL SCORING    with the flag ON and own flag home, scoring still works
   3. BLOCKED           carrier reaching home while own flag is AWAY does not score
-  4. RECOVERY          scoring becomes possible again once own flag returns
+  4. CONTROL           same away setup with M1 OFF still scores (isolates the rule)
+  5. RECOVERY          SAME episode: block while away, then own flag returns
+                       while the carrier is still legally home, then capture scores
 
-Checks 3 and 4 are driven directly on the engine state rather than waiting for a
-lucky episode, so the rule is exercised deterministically.
+Check 5 is the semantic transition the payoff assay could not distinguish from
+"M1 never unblocks". It is forced on engine state, not a lucky rollout.
 
 Run:  python experiments/test_m1_own_flag_home_scoring.py
 """
@@ -123,6 +125,86 @@ def forced_capture(m1: bool, own_flag_home: bool, device="cuda") -> int:
             pass
 
 
+def _place_blue_carrier_at_home(core, hf) -> None:
+    core.blue_carrying[0, :] = False
+    core.blue_carrying[0, 0] = True
+    core.blue_alive[0, :] = True
+    core.blue_tagged[0, :] = False
+    core.blue_x[0, 0] = hf[0]
+    core.blue_y[0, 0] = hf[1]
+
+
+def _own_flag_away(core, hf) -> None:
+    """Stolen: position off the stand. Leave red possession as the engine has it."""
+    core.blue_flag_pos[0, 0] = hf[0] + 7.0
+    core.blue_flag_pos[0, 1] = hf[1]
+
+
+def _own_flag_returns_home(core, hf) -> None:
+    """Intended recovery: own flag is on the stand and nobody is carrying it.
+
+    Park red away from blue home so a same-tick re-grab cannot steal the
+    returned flag before capture_confirm_frames elapses. That re-grab is
+    ordinary V2 physics, not the M1 transition under test.
+    """
+    core.red_carrying[0, :] = False
+    rh = core.red_flag_home[0]
+    core.red_x[0, :] = rh[0]
+    core.red_y[0, :] = rh[1]
+    core.blue_flag_pos[0] = hf.clone()
+
+
+def forced_block_then_recover(device="cuda") -> dict:
+    """Block while own flag is away, then return the flag; carrier stays home."""
+    env, core = make(True, 4243, device)
+    try:
+        env.env_method("set_phase", "OP6")
+        env.env_method("set_next_opponent", "SCRIPTED", "OP6")
+        core.blue_scripted = True
+        core.set_blue_style("BLUE_BOTH_ATTACK_V2")
+        env.reset()
+        core.drain_tag_events()
+        grace = int(getattr(core.cfg, "score_grace_steps", 10))
+        for _ in range(grace + 6):
+            env.step_async(env.action_space.sample() * 0)
+            env.step_wait()
+        core.drain_tag_events()
+
+        hf = core.blue_flag_home[0].clone()
+        blocked = recovered = 0
+
+        for _ in range(8):
+            _place_blue_carrier_at_home(core, hf)
+            _own_flag_away(core, hf)
+            env.step_async(env.action_space.sample() * 0)
+            env.step_wait()
+            for e in core.drain_tag_events():
+                if (e.get("event_type") == "capture_scored"
+                        and e.get("scoring_team") == "blue"):
+                    blocked += 1
+
+        for _ in range(12):
+            _place_blue_carrier_at_home(core, hf)
+            _own_flag_returns_home(core, hf)
+            env.step_async(env.action_space.sample() * 0)
+            _o, _r, done, _i = env.step_wait()
+            for e in core.drain_tag_events():
+                if (e.get("event_type") == "capture_scored"
+                        and e.get("scoring_team") == "blue"):
+                    recovered += 1
+            if bool(np.asarray(done).any()):
+                break
+        return {
+            "blocked_phase_captures": blocked,
+            "recover_phase_captures": recovered,
+        }
+    finally:
+        try:
+            env.close()
+        except Exception:
+            pass
+
+
 def main() -> int:
     ok = True
     print("=" * 74)
@@ -169,6 +251,21 @@ def main() -> int:
         ok = False
     else:
         print("    PASS -- the block in [3] is caused by M1, not by the setup")
+
+    # 5. the missing transition: block, then own flag returns while still home
+    print("\n[5] M1 ON: block while away, then own flag RETURNS while carrier still home -> scores")
+    rec = forced_block_then_recover()
+    print(f"    blocked-phase captures = {rec['blocked_phase_captures']}")
+    print(f"    recover-phase captures = {rec['recover_phase_captures']}")
+    if rec["blocked_phase_captures"] != 0:
+        print("    FAIL: scored during the away phase of the same episode")
+        ok = False
+    elif rec["recover_phase_captures"] <= 0:
+        print("    FAIL: own flag returned and carrier was still legally home, but no score")
+        print("    M1_PAYOFF_ASSAY = INVALID_IMPLEMENTATION (not a scientific FAIL)")
+        ok = False
+    else:
+        print("    PASS -- post-block scoring semantics are the intended rule")
 
     print("\n" + "=" * 74)
     print("RESULT:", "ALL PASS" if ok else "FAILURES PRESENT")

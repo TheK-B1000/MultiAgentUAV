@@ -1,0 +1,73 @@
+{
+  "record": "M1 2v2 payoff assay",
+  "utc": "2026-08-17T15:36:57Z",
+  "protocol": "experiments/M1_PAYOFF_ASSAY_FROZEN.json",
+  "m1": true,
+  "seed_base": 2300001,
+  "seeds": 32,
+  "cells": {
+    "OP6": {
+      "GUARD_RAID": {
+        "n": 32,
+        "win_rate": 0.3125,
+        "mean_blue_score": 0.9375,
+        "mean_red_score": 0.71875,
+        "frac_m1_block": 0.6875,
+        "frac_binding_sequence": 0.6875,
+        "frac_scored_after_block": 0.0
+      },
+      "DOUBLE_BREACH": {
+        "n": 32,
+        "win_rate": 0.21875,
+        "mean_blue_score": 0.28125,
+        "mean_red_score": 0.03125,
+        "frac_m1_block": 0.96875,
+        "frac_binding_sequence": 0.96875,
+        "frac_scored_after_block": 0.0
+      }
+    },
+    "OP7": {
+      "GUARD_RAID": {
+        "n": 32,
+        "win_rate": 0.0,
+        "mean_blue_score": 0.0,
+        "mean_red_score": 0.1875,
+        "frac_m1_block": 0.0,
+        "frac_binding_sequence": 0.0,
+        "frac_scored_after_block": 0.0
+      },
+      "DOUBLE_BREACH": {
+        "n": 32,
+        "win_rate": 0.53125,
+        "mean_blue_score": 0.65625,
+        "mean_red_score": 0.09375,
+        "frac_m1_block": 0.4375,
+        "frac_binding_sequence": 0.4375,
+        "frac_scored_after_block": 0.0
+      }
+    }
+  },
+  "gate_B": {
+    "OP6_GUARD_minus_BREACH": {
+      "delta_win_rate": 0.09375,
+      "LCB95": -0.09375,
+      "UCB95": 0.28125,
+      "floor": 0.15,
+      "verdict": "FAIL"
+    },
+    "OP7_BREACH_minus_GUARD": {
+      "delta_win_rate": 0.53125,
+      "LCB95": 0.375,
+      "UCB95": 0.6875,
+      "floor": 0.15,
+      "verdict": "PASS"
+    },
+    "GATE_B": "FAIL"
+  },
+  "not_launched": [
+    "searcher",
+    "PPO",
+    "specialists",
+    "latent"
+  ]
+}

@@ -173,6 +173,9 @@ class _BTRedMixin(_BTAdaptiveMixin):
         # Branch label cache: integer code for which BT branch fired last step.
         # Branch codes match role constants above.
         self.bt_active_branch = torch.full((B, N), ROLE_ATTACKER, dtype=i32, device=dev)
+        # Searcher-only overlay. None keeps canonical OP6-OP12 profiles.
+        self._bt_profile_override = None
+        self._sds_opening_hold_steps = 0
         # OP6 failed-assault recovery (Contract B defend-then-counter trap).
         # Per-agent countdown after a legal failed incursion; OP6-only.
         self.bt_op6_recovery_ticks = torch.zeros((B, N), dtype=i32, device=dev)
@@ -1077,6 +1080,17 @@ class _BTRedMixin(_BTAdaptiveMixin):
 
         # Boolean mask: which agents are eligible to change role this tick.
         can_change = (lock <= 0) & self.red_alive & (~self.red_tagged)  # [B, Nr]
+        # Searcher-only delayed-intent hold. Default 0 is a no-op, so
+        # canonical OP6-OP12 role assignment is unchanged.
+        hold_n = int(getattr(self, "_sds_opening_hold_steps", 0) or 0)
+        if hold_n > 0:
+            sds_hold = self.sim_step_count.to(torch.int32) < hold_n
+            if sds_hold.ndim == 0:
+                sds_hold = sds_hold.repeat(B)
+            hold_slots = sds_hold[:, None] & self.red_alive & (~self.red_tagged)
+            roles = torch.where(
+                hold_slots, torch.full_like(roles, ROLE_DEFENDER), roles)
+            can_change = can_change & (~hold_slots)
         # Opening windows are opponent-specific (level-gated). OP9 never enters.
         # Legal signals only: sim_step_count, blue_carry_any, adapt_split_pressure.
         op8_opening = (
@@ -2503,9 +2517,20 @@ class _BTRedMixin(_BTAdaptiveMixin):
         ty = torch.where(route_mine, mine_y, ty)
         return tx, ty
 
+    def _bt_resolved_profile_tensors(self) -> Dict[str, torch.Tensor]:
+        """Canonical profiles, with a per-core searcher overlay if present."""
+        ov = getattr(self, "_bt_profile_override", None)
+        overrides = [ov] * int(self.B) if ov is not None else None
+        return build_profile_tensors(
+            self._opponent_key,
+            device=self.device,
+            batch_size=self.B,
+            overrides=overrides,
+        )
+
     def _bt_scripted_red_macros(self) -> Optional[torch.Tensor]:
         """Emit PLACE_MINE macros for BT mine opponents; None when inactive."""
-        prof = build_profile_tensors(self._opponent_key, device=self.device, batch_size=self.B)
+        prof = self._bt_resolved_profile_tensors()
         bt_mine_envs = self._bt_opponent_mask() & prof["enable_mines"]
         if not bool(bt_mine_envs.any().item()):
             return None
@@ -2677,13 +2702,14 @@ class _BTRedMixin(_BTAdaptiveMixin):
         Full BT brain: blackboard → role assignment → route → telemetry.
 
         Opponent-specific tuning is resolved from ``self._opponent_key`` via
-        ``build_profile_tensors``.
+        ``build_profile_tensors``. A searcher overlay, if set, replaces knobs
+        only; the dispatch level is unchanged.
 
         Returns
         -------
         target_x, target_y : [B, Nr] float tensors.
         """
-        prof = build_profile_tensors(self._opponent_key, device=self.device, batch_size=self.B)
+        prof = self._bt_resolved_profile_tensors()
         self._update_adaptive_memory(prof)
         prev_roles = self.bt_red_role.clone()
         bb = self._build_team_blackboard(prof)

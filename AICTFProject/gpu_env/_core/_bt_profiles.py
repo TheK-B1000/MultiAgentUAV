@@ -484,41 +484,55 @@ def build_profile_tensors(
     *,
     device: torch.device,
     batch_size: Optional[int] = None,
+    overrides: Optional[list[Optional[BTProfile]]] = None,
 ) -> Dict[str, torch.Tensor]:
-    """Vectorize profile scalars/bools to ``[B]`` tensors for batched BT."""
+    """Vectorize profile scalars/bools to ``[B]`` tensors for batched BT.
+
+    ``overrides`` is searcher-only. When an entry is a ``BTProfile``, that
+    env uses the overlay knobs while ``bt_level`` still comes from the
+    dispatch key. Canonical OP6-OP12 are not mutated. ``overrides=None``
+    is bit-identical to the pre-searcher path.
+    """
     keys = list(opponent_keys)
     B = int(batch_size if batch_size is not None else len(keys))
     if len(keys) != B:
         raise ValueError(f"Expected {B} opponent keys, got {len(keys)}")
+    if overrides is None:
+        ov: list[Optional[BTProfile]] = [None] * B
+    else:
+        ov = list(overrides)
+        if len(ov) != B:
+            raise ValueError(f"Expected {B} profile overrides, got {len(ov)}")
 
     levels = resolve_bt_levels(keys)
     f32 = torch.float32
 
+    def _src(i: int, lvl: int) -> Optional[BTProfile]:
+        if ov[i] is not None:
+            return ov[i]
+        if lvl <= 0:
+            return None
+        return BT_PROFILES[lvl]
+
     def _scalar(field: str, default: float = 0.0) -> torch.Tensor:
         vals = []
-        for lvl in levels:
-            if lvl <= 0:
-                vals.append(default)
-            else:
-                vals.append(float(getattr(BT_PROFILES[lvl], field)))
+        for i, lvl in enumerate(levels):
+            src = _src(i, lvl)
+            vals.append(default if src is None else float(getattr(src, field)))
         return torch.tensor(vals, dtype=f32, device=device)
 
     def _bool(field: str) -> torch.Tensor:
         vals = []
-        for lvl in levels:
-            if lvl <= 0:
-                vals.append(False)
-            else:
-                vals.append(bool(getattr(BT_PROFILES[lvl], field)))
+        for i, lvl in enumerate(levels):
+            src = _src(i, lvl)
+            vals.append(False if src is None else bool(getattr(src, field)))
         return torch.tensor(vals, dtype=torch.bool, device=device)
 
     def _int(field: str, default: int = 0) -> torch.Tensor:
         vals = []
-        for lvl in levels:
-            if lvl <= 0:
-                vals.append(default)
-            else:
-                vals.append(int(getattr(BT_PROFILES[lvl], field)))
+        for i, lvl in enumerate(levels):
+            src = _src(i, lvl)
+            vals.append(default if src is None else int(getattr(src, field)))
         return torch.tensor(vals, dtype=torch.int32, device=device)
 
     level_t = torch.tensor(levels, dtype=torch.int32, device=device)

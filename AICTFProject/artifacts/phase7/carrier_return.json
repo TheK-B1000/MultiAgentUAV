@@ -1,0 +1,44 @@
+{
+  "record": "Phase 7E carrier-return analysis, 2v2 stock RULESET_V2",
+  "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600001/ckpts/final_vgc_d1_seed3600001.zip",
+  "checkpoint_precommitted_reason": "frozen best-fixed policy in the held-out repertoire-value evaluation; chosen before any carrier-return behaviour was seen",
+  "seed_base": 2020001,
+  "arms": {
+    "OP6": {
+      "episodes": 20,
+      "possessions": 81,
+      "possessions_per_episode": 4.05,
+      "total_captures": 58,
+      "conversion_per_possession": 0.7160493827160493,
+      "mean_duration_steps": 11.25925925925926,
+      "mean_path_len": 13.060804009641119,
+      "mean_straight_line": 14.2598592896057,
+      "mean_path_efficiency": 2.6584830351176136,
+      "mean_heading_reversals": 0.07407407407407407,
+      "mean_teammate_dist": 4.858587514093161,
+      "mean_teammate_min_dist": 2.198540599140542,
+      "mean_escort_fraction": 0.6624502887574782,
+      "mean_opponent_encounters": 3.5555555555555554,
+      "mean_tags_during_possession": 0.4074074074074074,
+      "escort_radius_cells": 6.0
+    },
+    "OP7": {
+      "episodes": 20,
+      "possessions": 96,
+      "possessions_per_episode": 4.8,
+      "total_captures": 16,
+      "conversion_per_possession": 0.16666666666666666,
+      "mean_duration_steps": 4.385416666666667,
+      "mean_path_len": 5.048723540810329,
+      "mean_straight_line": 14.281738097680217,
+      "mean_path_efficiency": 5.9511685875105185,
+      "mean_heading_reversals": 0.041666666666666664,
+      "mean_teammate_dist": 7.0803093050069075,
+      "mean_teammate_min_dist": 5.7040761874344605,
+      "mean_escort_fraction": 0.45069444444444445,
+      "mean_opponent_encounters": 4.020833333333333,
+      "mean_tags_during_possession": 1.03125,
+      "escort_radius_cells": 6.0
+    }
+  }
+}

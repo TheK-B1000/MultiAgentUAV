@@ -1,0 +1,92 @@
+{
+  "protocol_id": "STRATEGIC_DEMAND_SEARCHER_V2",
+  "status": "FROZEN",
+  "frozen_before": "V2 launch; V2 has not been run",
+  "supersedes": "nothing scientific. V1's J formula, thresholds, and gates are imported unchanged from experiments/sds_genome.py and experiments/strategic_demand_searcher.py, not redefined.",
+  "authorized_condition": "ONLY if Searcher V1 exhausts its 6 preregistered generations without a development-eligible candidate. V2 must not launch while V1 is still attempting to complete, and must not launch merely because V1 crashed -- a crash is an infrastructure failure, not a scientific outcome, and V1 is relaunched unmodified via scripts/watchdog_searcher_v1.py until it either completes or exhausts its restart budget.",
+
+  "what_stays_identical_to_V1": {
+    "J_formula": "min(delta_G, delta_B_anchor) - degeneracy_penalty, imported from sds_genome.py, not reimplemented",
+    "degeneracy_penalty": "imported unchanged",
+    "development_eligible": "imported unchanged: delta_G > 0.05 AND precommitment_uncertain AND J > 0",
+    "PROMOTE_DELTA_G": 0.05,
+    "GUARD_style": "BLUE_ONE_DEFENDER_V2",
+    "BREACH_style": "BLUE_BOTH_ATTACK_V2",
+    "ruleset": "RULESET_V3_M1 (own_flag_home_required_to_score=True, everything else RULESET_V2)",
+    "legal_A_bases": "OP6, OP8, OP9, OP10, OP11, OP12 -- canonical registry entries, never overwritten",
+    "anchor_B": "OP7",
+    "confirmation_block": "2500001, remains untouched by search of any version",
+    "search_results_are_not_Gate_B": true,
+    "no_PPO": true
+  },
+
+  "what_V2_changes": {
+    "1_reliability": {
+      "atomic_writes": "tmp file + os.replace for every persisted artifact; V1 used direct write_text with no atomicity guarantee",
+      "resume_path": "resumes from V2's OWN prior archive (artifacts/strategic_demand/searcher_v2/archive.json), not hardcoded to the screen archive. This was the bug that made V1 restarts re-derive generation 0 -- deterministically harmless there, but wasteful, and the bug is fixed for V2 rather than carried forward.",
+      "per_candidate_checkpoint": "written immediately after each candidate's stage completes, same discipline V1 already had inside consider(), preserved and made atomic"
+    },
+    "2_hierarchical_evaluation": {
+      "stages": [8, 16, 32],
+      "promotion_rule": "successive halving: at each stage, promote only the TOP CEIL(pop/3) candidates by J to the next stage size. Not a hand-picked 'looks promising' call.",
+      "rationale": "V1 itself showed dG moving +0.375 -> +0.125 and gap moving +81 -> -7.3 between 8 and 16 pairs. Shallow estimates are not trustworthy rankings here; this is measured, not assumed from the FAMOU paper."
+    },
+    "3_UCB_parent_selection": {
+      "formula": "UCB_i = mean(J_i) + c * sqrt(2 * ln(N) / n_i)",
+      "c": 1.0,
+      "purpose": "protects an under-sampled lineage (n_i small) from premature elimination by an unlucky 8-pair draw, without abandoning pure exploitation of the current best",
+      "used_for": "selecting mutation/recombination PARENTS each generation; does not change the J formula or which candidates are development-eligible"
+    },
+    "4_weakness_directed_mutation": {
+      "rule": "for the SELECTED parent, compute which of {delta_G, gap, degeneracy} is furthest below a fixed target (delta_G target 0.15, gap target 0, degeneracy target 0) and bias the mutation AXIS distribution toward the gene group associated with that dimension",
+      "gene_groups": {
+        "GUARD_pressure": ["lock_attacker", "lock_defender", "threat_radius", "enable_intercept"],
+        "concealment": ["opening_hold_steps", "lane_amplitude_frac", "enable_defender"],
+        "non_degeneracy": ["min_alive_for_defender", "defender_zone_frac", "enable_flag_retr"]
+      },
+      "constraint": "mutation still draws from the SAME legal gene ranges already frozen in sds_genome.py (INT_BOUNDS, FLOAT_BOUNDS, HOLD_STEPS, OVERLAY_BOOL). Weakness pressure changes WHERE mutation samples, never WHAT counts as success, and never widens a legal bound.",
+      "not_done": "no new gene axes, no opponent-behavior DSL, no illegal dispatch keys. This maps existing genes to existing weaknesses; it does not add new mutation machinery."
+    },
+    "5_pareto_archive": {
+      "purpose": "retain candidates that are exceptional on one dimension even if their combined J is negative, so a later generation's recombination can draw on their genes",
+      "dominance": "candidate X dominates Y if X >= Y on all of {delta_G, gap, -degeneracy_penalty} and > on at least one",
+      "kept_separately_from": "the J-ranked leaderboard used for promotion and UCB; the Pareto set is a gene bank, not a ranking"
+    },
+    "6_islands": {
+      "count": 3,
+      "seeding": {
+        "island_A_payoff": "seeded from OP6 (best existing delta_G)",
+        "island_B_concealment": "seeded from OP11/OP12 (best existing gap)",
+        "island_C_active": "seeded from the lowest-frac_0_0 existing candidates"
+      },
+      "migration": "every 2 generations, the best candidate from each island (by J) is copied into the other two islands' breeding pools",
+      "isolation": "otherwise islands mutate and select independently, so a single lucky/unlucky lineage cannot dominate the whole population"
+    },
+    "explicitly_deferred_not_built_now": [
+      "full opponent-behavior DSL (opening/trigger/role/transition programs) -- large rewrite, higher risk, needs its own design pass before implementation",
+      "REACTIVE diagnostic probe (V_oracle - V_reactive) -- PI already specified this as non-gating during the current V3 protocol and a baseline only AFTER V3_STRATEGIC_DEMAND = VALIDATED. Building it now would be scope creep against the PI's own phasing.",
+      "co-evolving evaluator pool / FP-DO payoff matrix -- explicitly a post-discovery phase (Phase 11), not part of finding the first clean A"
+    ]
+  },
+
+  "budget": {
+    "generations": "adaptive, not a fixed heroic number",
+    "continue_while": "best deep-stage (32-pair) J improves OR the Pareto archive gains a new non-dominated point",
+    "stop_when": "two consecutive generations with neither improvement, OR a development-eligible candidate is found and frozen, OR a wall-clock cap of 12 hours is reached",
+    "not_adopted": "FAMOU's own iteration counts (hundreds) -- different domain, different compute budget, different mutation process (LLM-driven vs parametric). Copying that number would be cargo-culting, not evidence-based budgeting."
+  },
+
+  "prohibited": [
+    "changing the J formula, degeneracy_penalty, or development_eligible thresholds",
+    "widening any legal gene bound to manufacture a passing candidate",
+    "spending block 2500001 from search results of any generation",
+    "training PPO, a selector, or a latent policy",
+    "building the REACTIVE diagnostic as a gate (descriptive-only, post-validation)",
+    "auto-freezing a candidate as THE V3 opponent without a human decision -- V2 proposes, confirmation on 2500001 disposes"
+  ],
+
+  "on_completion": {
+    "if_development_eligible_candidate_found": "freeze the genome, write CANDIDATE_A_V2.json with full provenance (genome, parent lineage, all stage results, RNG seed trail), STOP, human decides whether to spend 2500001",
+    "if_exhausted_without_one": "write V2_EXHAUSTED.md summarizing the Pareto archive and what each island learned, STOP, human decides next design move"
+  }
+}
