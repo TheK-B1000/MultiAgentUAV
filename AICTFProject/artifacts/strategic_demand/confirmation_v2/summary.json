@@ -1,0 +1,105 @@
+{
+  "record": "V3_STRATEGIC_DEMAND confirmation, Observability V2, both poles",
+  "utc": "2026-08-18T21:46:00Z",
+  "protocol": [
+    "artifacts/strategic_demand/CANDIDATE_A2_SDS2_INIT_3_FROZEN.json",
+    "artifacts/strategic_demand/OBSERVABILITY_V2_FROZEN.json",
+    "artifacts/strategic_demand/CONFIRMATION_N_AMENDMENT_192.json"
+  ],
+  "seed_range": "6000001..6000192",
+  "n_paired": 192,
+  "total_episodes": 768,
+  "no_extension": "192 from the start; if it fails at 192, it fails",
+  "A_pole": {
+    "pole": "A_SDS2_INIT_3",
+    "genome_id": "SDS2_A_payoff_INIT_3",
+    "direction": "guard_minus_breach",
+    "n_paired": 192,
+    "seed_range": "6000001..6000192",
+    "guard_wr": 0.640625,
+    "breach_wr": 0.34375,
+    "payoff": {
+      "delta": 0.296875,
+      "lcb95": 0.203125,
+      "ucb95": 0.390625,
+      "floor": 0.15,
+      "clears_floor": true,
+      "lcb_positive": true,
+      "passes": true
+    },
+    "concealment": {
+      "p_C": 0.9427083333333334,
+      "lcb95": 0.90625,
+      "ucb95": 0.9739583333333334,
+      "counts": {
+        "COMMIT_FIRST": 181,
+        "INTENT_FIRST": 11,
+        "UNRESOLVED": 0
+      },
+      "floor": 0.5,
+      "passes": true,
+      "telemetry": {
+        "n_both_observed": 100,
+        "complete_case_mean_gap": 39.36,
+        "complete_case_median_gap": 33.5,
+        "complete_case_frac_positive": 0.89,
+        "commitment_instantiation_rate": 1.0,
+        "intent_observation_rate": 0.5208333333333334,
+        "horizon": 240,
+        "status": "MECHANISM TELEMETRY -- descriptive only, never the gate"
+      }
+    },
+    "frac_0_0": 0.28125,
+    "mean_total_score": 1.609375
+  },
+  "B_pole": {
+    "pole": "B_OP7",
+    "genome_id": "SDS_PARENT_OP7",
+    "direction": "breach_minus_guard",
+    "n_paired": 192,
+    "seed_range": "6000001..6000192",
+    "guard_wr": 0.005208333333333333,
+    "breach_wr": 0.4583333333333333,
+    "payoff": {
+      "delta": 0.453125,
+      "lcb95": 0.3854166666666667,
+      "ucb95": 0.5260416666666666,
+      "floor": 0.15,
+      "clears_floor": true,
+      "lcb_positive": true,
+      "passes": true
+    },
+    "concealment": {
+      "p_C": 0.9166666666666666,
+      "lcb95": 0.875,
+      "ucb95": 0.953125,
+      "counts": {
+        "COMMIT_FIRST": 176,
+        "INTENT_FIRST": 11,
+        "UNRESOLVED": 5
+      },
+      "floor": 0.5,
+      "passes": true,
+      "telemetry": {
+        "n_both_observed": 61,
+        "complete_case_mean_gap": 44.39344262295082,
+        "complete_case_median_gap": 49.0,
+        "complete_case_frac_positive": 0.819672131147541,
+        "commitment_instantiation_rate": 0.9739583333333334,
+        "intent_observation_rate": 0.3177083333333333,
+        "horizon": 240,
+        "status": "MECHANISM TELEMETRY -- descriptive only, never the gate"
+      }
+    },
+    "frac_0_0": 0.5989583333333334,
+    "mean_total_score": 0.5442708333333334
+  },
+  "four_prospective_tests": {
+    "A_payoff": true,
+    "A_concealment": true,
+    "B_payoff": true,
+    "B_concealment": true
+  },
+  "verdict": "V3_STRATEGIC_DEMAND_VALIDATED",
+  "thresholds_not_moved": "0.15 payoff floor, LCB95>0, p_C floor 0.50 all unchanged from their freezes"
+}
