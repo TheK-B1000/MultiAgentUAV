@@ -1,0 +1,16 @@
+{
+  "verdict": "TRAINING_COMPLETE",
+  "total_timesteps": 1000000,
+  "global_step": 1001472,
+  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\r1_training\\r1_pi_A_specialist_seed7100001\\ckpts\\final_r1_pi_A_specialist_seed7100001.zip",
+  "n_episode_rows": 4260,
+  "artifact_identity": {
+    "run_id": "r1_pi_A_specialist_seed7100001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

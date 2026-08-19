@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-08-19T11:29:39.302892Z",
+  "evaluation_run_id": "r1_pi_G_generalist_seed7000001",
+  "source_training_run_id": "r1_pi_G_generalist_seed7000001",
+  "source_checkpoint_fingerprint": "7bfc35ba1e2729168ca5af1aa6c41e8ab20ecc5a0d52b2f9a2b3c4ad4232b242",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "r1_pi_G_generalist_seed7000001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}
