@@ -175,9 +175,20 @@ def configure_r1_live_environment(
     genomes = {"OP6": pole_A_genome()} if policy in {"A", "G"} else {}
     install_keyed_opponent_overlays(core, genomes)
 
-    # The initial generalist batch is exactly balanced. Subsequent episodes use
-    # the inherited opponent-pool sampler with weights (0.5, 0.5); the keyed
-    # override follows each live OP6/OP7 selection automatically.
+    # The generalist batch is exactly balanced and STATIC: each env keeps its
+    # assigned pole for the whole run. Measured, not assumed -- across 75
+    # env-terminations in a direct probe the composition never changed, so the
+    # inherited opponent-pool sampler does not re-sample here.
+    #
+    # This is sound for R1: every gradient batch is exactly 50/50 A/B (no
+    # sampling noise), and the policy is feedforward and cannot observe env
+    # index, so a static split is equivalent to a shuffled order. It also means
+    # the A<->B switch never occurs during pi_G, so there is no switch path for
+    # a stale overlay to contaminate. The keyed override is still used because
+    # it resolves per env from the live opponent key.
+    #
+    # Covered by tests/test_r1_training_contract.py::
+    #   test_generalist_switch_path_stays_clean_across_resampling
     if policy == "G":
         if int(core.B) % 2:
             raise RuntimeError(f"R1 generalist requires an even n_envs; got {int(core.B)}")

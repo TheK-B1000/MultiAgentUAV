@@ -169,5 +169,18 @@
     "production_path": "rl.training.orchestrator pre_rollout_env_setup runs after live env construction and before identity, artifacts, trainer construction, or rollout; experiments/run_r1_repertoire_training.py is the only R1 launcher",
     "mixed_batch_overlay": "core._bt_profile_override is keyed by live opponent tag, so OP6 receives pole A and OP7 remains canonical across per-episode pool sampling",
     "m1_identity": "RULESET_V3_M1_OWN_FLAG_HOME; M1 can no longer be stamped as RULESET_V2_AQUATICUS_10S"
+  },
+  "PI_G_OPPONENT_DISTRIBUTION_MEASURED": {
+    "documented_intent_was": "per-episode resampling from the opponent pool with weights (0.5, 0.5)",
+    "measured_behaviour": "STATIC balanced split. Envs are assigned [OP6, OP7, OP6, OP7, ...] at construction and keep their pole for the whole run; across 75 env-terminations in a direct probe the composition never changed.",
+    "verified_before": "pi_G consumed any of its 2M steps",
+    "scientifically_sound_because": [
+      "every gradient batch is exactly 50/50 A/B, with no sampling noise",
+      "the policy is feedforward and cannot observe env index, so a static split is equivalent to a shuffled order",
+      "opponent identity remains invisible to the policy, as the protocol requires"
+    ],
+    "consequence_for_contamination": "the A<->B switch never occurs during pi_G, so there is no switch path for a stale overlay to corrupt. This is a stronger safety property than an assertion firing on each switch.",
+    "how_to_describe_it": "pi_G trains on a fixed balanced 50/50 A/B split across parallel environments -- NOT per-episode opponent resampling. Describe it that way.",
+    "guard": "tests/test_r1_training_contract.py asserts the split stays static and balanced. If the sampler ever starts re-sampling, that test fails and the keyed overlay must be re-verified across switches."
   }
 }
