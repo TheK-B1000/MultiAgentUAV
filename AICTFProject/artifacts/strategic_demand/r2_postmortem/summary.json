@@ -1,0 +1,38 @@
+{
+  "record": "R2 behavioral postmortem",
+  "utc": "2026-08-19T23:56:28Z",
+  "status": "DESCRIPTIVE ONLY. R2 remains NOT CONFIRMED (670bc828). No win-rate contrast computed; nothing here feeds R3.",
+  "n_per_cell": 32,
+  "cells": {
+    "A|pi_A": {
+      "action_disagreement_rate": 0.540889742524917,
+      "commit_frac": 0.05012674764673311,
+      "defend_frac": 0.809498719545958,
+      "mean_enemy_half_occupancy": 0.18903330045681066,
+      "t_commit": 35.625
+    },
+    "A|pi_B": {
+      "action_disagreement_rate": 0.5140625000000001,
+      "commit_frac": 0.0421875,
+      "defend_frac": 0.8494791666666666,
+      "mean_enemy_half_occupancy": 0.1455078125,
+      "t_commit": 26.75
+    },
+    "B|pi_A": {
+      "action_disagreement_rate": 0.7161458333333333,
+      "commit_frac": 0.04609375,
+      "defend_frac": 0.6416666666666666,
+      "mean_enemy_half_occupancy": 0.2736979166666667,
+      "t_commit": 40.0
+    },
+    "B|pi_B": {
+      "action_disagreement_rate": 0.741220708528183,
+      "commit_frac": 0.05211086467592525,
+      "defend_frac": 0.5868013539273564,
+      "mean_enemy_half_occupancy": 0.31685728169389393,
+      "t_commit": 51.96875
+    }
+  },
+  "overall_action_disagreement_rate": 0.6280796960966084,
+  "reading": "near 0 => the specialists converged to effectively the same policy (strategy-discovery collapse). substantially above 0 => they are behaviourally distinct and the R2 failure is about stability/variance, not about absence of learned difference."
+}
