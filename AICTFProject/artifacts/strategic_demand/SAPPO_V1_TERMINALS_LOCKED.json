@@ -1,0 +1,40 @@
+{
+  "record": "SAPPO V1 terminal checkpoints",
+  "utc": "2026-08-20T09:00:00Z",
+  "policies": {
+    "sappo_pi_A_specialist_1p5M_seed7100001": {
+      "terminal_checkpoint": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_A_specialist_1p5M_seed7100001\\ckpts\\final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+      "terminal_sha256_16": "5bd5f54f5ce206b1",
+      "resumed_from": "artifacts\\strategic_demand\\r1_training\\r1_pi_A_specialist_seed7100001\\ckpts\\final_r1_pi_A_specialist_seed7100001.zip",
+      "resume_sha256_16": "cdbe3ddc817f3149",
+      "anchor_dataset": "artifacts\\strategic_demand\\sappo_demonstrations\\anchor_A_train.npz",
+      "anchor_sha256_16": "553eb4589de86a68",
+      "demo_run_id": "6cca922e683b",
+      "lambda": 0.1,
+      "cadence": 4,
+      "measured_anchor_to_ppo_ratio": 0.24990347476917577,
+      "final_anchor_loss": 0.022662066388875246,
+      "pool": [
+        "OP6"
+      ],
+      "M1": true
+    },
+    "sappo_pi_B_specialist_1p5M_seed7200001": {
+      "terminal_checkpoint": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_B_specialist_1p5M_seed7200001\\ckpts\\final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+      "terminal_sha256_16": "8e4fb58be11465c2",
+      "resumed_from": "artifacts\\strategic_demand\\r1_training\\r1_pi_B_specialist_seed7200001\\ckpts\\final_r1_pi_B_specialist_seed7200001.zip",
+      "resume_sha256_16": "f9a774d5e5560832",
+      "anchor_dataset": "artifacts\\strategic_demand\\sappo_demonstrations\\anchor_B_train.npz",
+      "anchor_sha256_16": "4c05a857c9d81ed0",
+      "demo_run_id": "6cca922e683b",
+      "lambda": 0.1,
+      "cadence": 4,
+      "measured_anchor_to_ppo_ratio": 0.24990325896130264,
+      "final_anchor_loss": 0.02161432523280382,
+      "pool": [
+        "OP7"
+      ],
+      "M1": true
+    }
+  }
+}

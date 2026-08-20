@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-18 — R1 launched from commit `2d1501f6`. A specialist is running first; B specialist and balanced generalist are queued sequentially in the same supervisor. No R2 evaluation has started.
+> **Last updated:** 2026-08-20 — SAPPO V1 terminal specialists completed and passed the frozen 192-paired-seed crossover gate in both directions. Result frozen as `SAPPO_V1_CROSSOVER_CONFIRMED`; K=2 latent compression is next but not started.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,7 +26,7 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **R1 RUNNING.** `pi_A`, seed `7100001`, 1M terminal budget, PID `51736`; `pi_B` seed `7200001` (1M) and `pi_G` seed `7000001` (2M, 50/50 A/B) queued. R2/R3/R4 and latent remain unstarted. |
+| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED.** Terminal WR matrix: `pi_A=(A .7083, B .2812)`, `pi_B=(A .4844, B .5000)`. Paired LCB95: `delta_A=.1250`, `delta_B=.1302`. SAPPO is frozen; K=2 compression is next and unstarted. |
 
 ---
 
