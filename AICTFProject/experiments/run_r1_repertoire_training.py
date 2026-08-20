@@ -153,14 +153,23 @@ def configure_r1_live_environment(
     *,
     policy: str,
     config_contract: dict[str, Any],
+    expected_steps: int | None = None,
 ) -> dict[str, Any]:
-    """Authoritative R0 seam: clear, set, overlay, assert, manifest."""
+    """Authoritative R0 seam: clear, set, overlay, assert, manifest.
+
+    ``expected_steps`` lets a CONTINUATION declare its own budget while keeping
+    the drift guard active. It defaults to R1's frozen budget, so R1 runs are
+    unchanged. A continuation passes its cumulative target explicitly rather
+    than the guard being bypassed -- the check still fires on any budget the
+    caller did not intend.
+    """
     policy = str(policy).upper()
     spec = POLICIES[policy]
-    if int(cfg.seed) != int(spec["seed"]) or int(cfg.total_timesteps) != int(spec["steps"]):
+    want_steps = int(spec["steps"] if expected_steps is None else expected_steps)
+    if int(cfg.seed) != int(spec["seed"]) or int(cfg.total_timesteps) != want_steps:
         raise RuntimeError(
             f"R1 {policy} seed/budget drift: resolved seed={cfg.seed}, "
-            f"steps={cfg.total_timesteps}, frozen={spec['seed']}/{spec['steps']}"
+            f"steps={cfg.total_timesteps}, expected={spec['seed']}/{want_steps}"
         )
     core = env.core
     if not bool(core.cfg.own_flag_home_required_to_score):

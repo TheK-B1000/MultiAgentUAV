@@ -56,12 +56,18 @@ class PPOUpdater:
         self.hparams = hparams
         self.latent_state = latent_state
         self.runtime = runtime
-        # SAPPO V1 (Reading 2): optional interleaved teacher rehearsal. When
-        # None -- the default -- no anchor batch is fetched, no anchor forward
-        # or backward runs, and no optimizer or scheduler step occurs, so the
-        # PPO path is untouched BY CONSTRUCTION rather than by a zero-scaled
-        # loss term. See SAPPO_V1_LOSS_SEMANTICS_AMENDMENT.json.
-        self.anchor_runner = getattr(runtime, "sappo_anchor_runner", None)
+        # SAPPO V1 (Reading 2): optional interleaved teacher rehearsal.
+        #
+        # DO NOT cache the runner here. This updater is constructed inside
+        # build_trainer(), which runs BEFORE the orchestrator attaches
+        # runtime.sappo_anchor_runner. Caching at construction captured None
+        # and silently disabled rehearsal for an entire 2x500k run that looked
+        # completely healthy -- the anchor branch simply never executed. The
+        # runner is read at USE time instead, in _anchor_runner().
+        #
+        # Absent runner still means structurally absent: no batch fetch, no
+        # forward, no backward, no optimizer or scheduler step.
+        self._sappo_seen_ppo_minibatches = 0
         self.cf_grad_ratio_violations = 0
         seed = int(getattr(cfg, "seed", 0) or 0) + 31_337
         self._z_separation_generator = torch.Generator(device=device)
@@ -81,6 +87,29 @@ class PPOUpdater:
 
     def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:
         return resolve_latent_lam_h(self.cfg, global_step=global_step, total_timesteps=total_timesteps)
+
+    def _anchor_runner(self):
+        """Read the rehearsal runner at USE time, never cached at construction."""
+        return getattr(self.runtime, "sappo_anchor_runner", None)
+
+    def _assert_anchor_cadence(self, runner) -> None:
+        """ABORT the run if rehearsal is not actually happening.
+
+        A silently-disabled anchor previously ran to completion across 1M steps.
+        Logging alone is not enough: the invariant is enforced every minibatch,
+        so a broken seam dies in the first few updates instead of six hours in.
+        """
+        n_ppo = int(runner.n_ppo_actor_minibatches)
+        n_anchor = int(runner.n_anchor_updates)
+        expected = n_ppo // int(runner.cadence)
+        if n_anchor != expected:
+            raise RuntimeError(
+                f"SAPPO cadence violated: {n_anchor} anchor updates after "
+                f"{n_ppo} PPO actor minibatches, expected "
+                f"{expected} (cadence 1:{runner.cadence}). Rehearsal is not "
+                "being applied; aborting rather than producing a run whose "
+                "defining treatment is absent.")
+
 
     def update(
         self,
@@ -248,10 +277,23 @@ class PPOUpdater:
                     updater_state=updater_state,
                 )
                 accumulator.record_minibatch(result.telemetry)
-                if self.anchor_runner is not None:
+                runner = self._anchor_runner()
+                if runner is not None:
                     # Counts a COMPLETED PPO actor minibatch; the runner steps
                     # only on full groups and never emits a trailing update.
-                    self.anchor_runner.note_ppo_minibatch()
+                    runner.note_ppo_minibatch()
+                    self._sappo_seen_ppo_minibatches += 1
+                    self._assert_anchor_cadence(runner)
+                    # Visible from the FIRST reporting interval, so a silent
+                    # anchor shows up as n_anchor_updates=0 immediately rather
+                    # than being discovered after the run completes.
+                    accumulator.record_minibatch({
+                        "sappo_n_ppo_actor_updates": float(runner.n_ppo_actor_minibatches),
+                        "sappo_n_anchor_updates": float(runner.n_anchor_updates),
+                        "sappo_anchor_to_ppo_ratio": float(
+                            runner.n_anchor_updates / max(1, runner.n_ppo_actor_minibatches)),
+                        "sappo_anchor_loss": float(runner.last_anchor_loss),
+                    })
                 measurement = result.separation_measurement
                 if measurement is not None and measurement.valid and measurement.values is not None:
                     valid_cf_pair_measurements.append(measurement.values)

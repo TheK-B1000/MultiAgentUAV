@@ -23,6 +23,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
 import torch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,14 +94,70 @@ def _drive_updater_loop(runtime, n_minibatches: int) -> None:
             anchor_runner.note_ppo_minibatch()
 
 
-def test_updater_wiring_attribute_contract():
-    """The updater must read the runner off the runtime under this exact name."""
-    src = (ROOT / "rl/custom_ppo/update/updater.py").read_text(encoding="utf-8")
-    assert 'getattr(runtime, "sappo_anchor_runner", None)' in src, (
-        "PPOUpdater no longer reads sappo_anchor_runner off the runtime; "
-        "rehearsal would be silently disabled in training")
-    assert "self.anchor_runner.note_ppo_minibatch()" in src, (
-        "the per-minibatch anchor hook is missing from the updater loop")
+def test_updater_must_not_cache_runner_at_construction():
+    """REGRESSION: the exact ordering that silently disabled rehearsal.
+
+    PPOUpdater is constructed inside build_trainer(); the orchestrator attaches
+    runtime.sappo_anchor_runner AFTERWARDS. A constructor that caches the
+    attribute captures None and the anchor branch never executes -- which is
+    what happened for an entire 2x500k run that looked completely healthy.
+
+    A string-presence test did not catch this, because the code was present and
+    simply read too early. This reproduces the lifecycle instead.
+    """
+    import inspect
+    from rl.custom_ppo.update.updater import PPOUpdater
+    init_src = inspect.getsource(PPOUpdater.__init__)
+    assert "self.anchor_runner = getattr(" not in init_src, (
+        "PPOUpdater caches the anchor runner at construction. The runner is "
+        "attached after build_trainer(), so a cached read is always None and "
+        "rehearsal is silently disabled.")
+    assert hasattr(PPOUpdater, "_anchor_runner"), (
+        "PPOUpdater must read the runner at use time via _anchor_runner()")
+    use_src = inspect.getsource(PPOUpdater._anchor_runner)
+    assert 'getattr(self.runtime, "sappo_anchor_runner"' in use_src
+
+
+def test_attach_after_construction_still_rehearses():
+    """Attach the runner AFTER the updater exists, then drive 8 minibatches.
+
+    This is the production lifecycle. Exactly 2 anchor steps must occur.
+    """
+    runtime = _Runtime(None)                     # updater "constructed" with None
+    seen_at_construction = getattr(runtime, "sappo_anchor_runner", None)
+    assert seen_at_construction is None
+
+    runner, opt, _ = _make_runner()
+    runtime.sappo_anchor_runner = runner         # attached afterwards
+    _drive_updater_loop(runtime, 8)
+
+    t = runner.telemetry()
+    assert t["n_anchor_updates"] == 2, (
+        f"rehearsal did not run after late attachment: {t}")
+    assert opt.n_steps == 2
+
+
+def test_cadence_invariant_aborts_when_rehearsal_absent():
+    """The fail-fast invariant must raise, not log, when anchoring goes silent."""
+    from rl.custom_ppo.update.updater import PPOUpdater
+
+    class _Silent:
+        """A runner that counts minibatches but never actually steps."""
+        cadence = 4
+        n_ppo_actor_minibatches = 0
+        n_anchor_updates = 0
+
+        def note_ppo_minibatch(self):
+            self.n_ppo_actor_minibatches += 1     # never increments anchor count
+
+    stub = PPOUpdater.__new__(PPOUpdater)
+    silent = _Silent()
+    for _ in range(3):
+        silent.note_ppo_minibatch()
+        stub._assert_anchor_cadence(silent)       # 0 expected, fine
+    silent.note_ppo_minibatch()                   # 4th -> one anchor step due
+    with pytest.raises(RuntimeError, match="SAPPO cadence violated"):
+        stub._assert_anchor_cadence(silent)
 
 
 def test_eight_ppo_minibatches_yield_exactly_two_anchor_steps():
