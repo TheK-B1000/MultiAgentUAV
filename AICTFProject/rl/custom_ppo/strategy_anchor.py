@@ -37,6 +37,34 @@ import torch
 __all__ = ["action_log_prob", "anchor_loss", "teacher_agreement"]
 
 
+def _masked_heads(model, obs, *, z_idx=None):
+    """Action heads with the SAME legality masking PPO's own update applies.
+
+    This is load-bearing. ``evaluate_actions()`` -- the method the PPO actor
+    update calls -- does::
+
+        logits = self._mask_logits(self.policy_logits(obs, z_idx), obs["mask"])
+
+    ``get_distribution()`` does NOT mask. Scoring the teacher action against
+    unmasked logits would optimise a different distribution from the one PPO's
+    surrogate uses, silently breaking the premise that SAPPO rehearses through
+    the policy PPO already trains. Caught by the live compatibility check:
+    predict() and get_distribution() agreed on only 43% / 66% of argmax actions.
+
+    Falls back to the unmasked distribution only when the model exposes no
+    ``_mask_logits`` or the observation carries no mask, so stub models in unit
+    tests still work.
+    """
+    mask_fn = getattr(model, "_mask_logits", None)
+    logits_fn = getattr(model, "policy_logits", None)
+    obs_mask = obs.get("mask") if isinstance(obs, dict) else None
+    if mask_fn is None or logits_fn is None or obs_mask is None:
+        return model.get_distribution(obs, z_idx=z_idx).heads
+    from rl.custom_ppo.distributions import ActionHead
+    flat = mask_fn(logits_fn(obs, z_idx=z_idx), obs_mask)
+    return [ActionHead(h) for h in torch.split(flat, list(model.action_dims), dim=-1)]
+
+
 def action_log_prob(
     model,
     obs: Dict[str, torch.Tensor],
@@ -63,8 +91,7 @@ def action_log_prob(
     Tensor ``(batch, n_heads)`` of per-head log-probabilities. The caller
     decides how to reduce, because decision-point masking is per agent-head.
     """
-    dist = model.get_distribution(obs, z_idx=z_idx)
-    heads = dist.heads
+    heads = _masked_heads(model, obs, z_idx=z_idx)
     a = actions.reshape(actions.shape[0], -1).long()
     if a.shape[1] != len(heads):
         raise ValueError(
@@ -125,10 +152,10 @@ def teacher_agreement(
     Diagnostic only. Reported for the train split and the held-out 10% split so
     memorisation is visible, but it is NOT a gate.
     """
-    dist = model.get_distribution(obs, z_idx=z_idx)
+    heads = _masked_heads(model, obs, z_idx=z_idx)
     a = actions.reshape(actions.shape[0], -1).long()
     hits = torch.stack([(h.argmax_actions == a[:, i]).float()
-                        for i, h in enumerate(dist.heads)], dim=1)
+                        for i, h in enumerate(heads)], dim=1)
     if decision_mask is None:
         return float(hits.mean())
     n_heads, n_agents = hits.shape[1], decision_mask.shape[1]
@@ -230,3 +257,43 @@ class AnchorRunner:
             "complete_group_ratio_is_one": (self.n_anchor_updates == expected),
             "last_anchor_loss": self.last_anchor_loss,
         }
+
+
+class AnchorDataset:
+    """Minibatch sampler over a frozen teacher-demonstration file.
+
+    Samples ONLY rows that contain at least one decision point, because rows
+    with no available macro decision contribute nothing to the loss and would
+    otherwise dilute batches.
+    """
+
+    def __init__(self, npz_path, *, batch_size: int = 64, seed: int = 7):
+        import numpy as _np
+        d = _np.load(str(npz_path))
+        self.path = str(npz_path)
+        self.run_id = str(d["run_id"][0]) if "run_id" in d.files else None
+        self._obs = {k[4:]: d[k] for k in d.files if k.startswith("obs_")}
+        self._act = d["actions"]
+        self._mask = d["decision_mask"]
+        keep = self._mask.any(axis=1)
+        if not keep.any():
+            raise ValueError(f"{npz_path}: no rows contain a decision point")
+        self._idx = keep.nonzero()[0]
+        self.batch_size = int(batch_size)
+        self._rng = _np.random.default_rng(int(seed))
+        self.n_rows = int(self._act.shape[0])
+        self.n_usable_rows = int(self._idx.size)
+
+    def sample(self, device: str = "cpu"):
+        import torch as _t
+        pick = self._rng.choice(self._idx, size=min(self.batch_size, self._idx.size),
+                                replace=False)
+        obs = {k: _t.from_numpy(v[pick]).to(device) for k, v in self._obs.items()}
+        act = _t.from_numpy(self._act[pick]).long().to(device)
+        msk = _t.from_numpy(self._mask[pick]).bool().to(device)
+        return obs, act, msk
+
+    def describe(self) -> dict:
+        return {"path": self.path, "run_id": self.run_id,
+                "rows": self.n_rows, "usable_rows_with_decision": self.n_usable_rows,
+                "batch_size": self.batch_size}

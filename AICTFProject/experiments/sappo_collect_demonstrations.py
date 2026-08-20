@@ -63,6 +63,12 @@ DEMO_SEED_BASE = 8_000_001
 OUT_DIR = ROOT / "artifacts/strategic_demand/sappo_demonstrations"
 TRAIN_FRAC = 0.90
 
+# Two collectors once ran concurrently against this directory, leaving output
+# that could not be attributed to a writer. Collection now takes an exclusive
+# lock and stamps its run id into every artifact, so a dataset is either
+# unambiguously attributable or it does not exist.
+LOCK = OUT_DIR / ".collector.lock"
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -139,7 +145,20 @@ def main() -> int:
     a = ap.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    print(f"SAPPO DEMONSTRATION COLLECTION  {_now()}")
+    run_id = hashlib.sha256(
+        f"{_now()}|{a.episodes}|{a.device}|{DEMO_SEED_BASE}".encode()).hexdigest()[:12]
+    try:
+        fd = __import__("os").open(str(LOCK), __import__("os").O_CREAT
+                                   | __import__("os").O_EXCL
+                                   | __import__("os").O_WRONLY)
+        __import__("os").write(fd, run_id.encode())
+        __import__("os").close(fd)
+    except FileExistsError:
+        raise SystemExit(
+            f"REFUSING: {LOCK} exists -- another collector owns this directory. "
+            "Concurrent writers previously produced unattributable datasets. "
+            "Kill the other collector and remove the lock deliberately.")
+    print(f"SAPPO DEMONSTRATION COLLECTION  {_now()}  run_id={run_id}")
     print(f"  seeds {DEMO_SEED_BASE}..{DEMO_SEED_BASE + a.episodes - 1} (training-only)")
     print(f"  labels ONLY at macro-decision points (blue_commit_ticks_left <= 0)")
 
@@ -187,10 +206,12 @@ def main() -> int:
         np.savez_compressed(OUT_DIR / f"anchor_{pole}_train.npz",
                             actions=tr_a, decision_mask=tr_m,
                             episode_ids=np.array(train_idx),
+                            run_id=np.array([run_id]),
                             **{f"obs_{k}": v for k, v in tr_o.items()})
         np.savez_compressed(OUT_DIR / f"anchor_{pole}_diagnostic.npz",
                             actions=dg_a, decision_mask=dg_m,
                             episode_ids=np.array(diag_idx),
+                            run_id=np.array([run_id]),
                             **{f"obs_{k}": v for k, v in dg_o.items()})
 
         manifest["poles"][pole] = {
@@ -206,10 +227,28 @@ def main() -> int:
         print(f"  pole {pole}: {tot_dsteps}/{tot_steps} steps were decision points "
               f"({tot_dsteps/max(1,tot_steps):.1%}), {tot_labels} agent labels")
 
-    txt = json.dumps(manifest, indent=2)
+    manifest["run_id"] = run_id
+    manifest["single_writer_lock"] = str(LOCK.relative_to(ROOT))
+    files = {}
+    for f in sorted(OUT_DIR.glob("anchor_*.npz")):
+        h = hashlib.sha256(f.read_bytes()).hexdigest()[:16]
+        d = np.load(f)
+        files[f.name] = {
+            "sha256_16": h,
+            "run_id": str(d["run_id"][0]) if "run_id" in d.files else None,
+            "rows": int(d["actions"].shape[0]),
+            "action_shape": list(d["actions"].shape),
+            "obs_grid_shape": list(d["obs_grid"].shape) if "obs_grid" in d.files else None,
+            "obs_keys": sorted(k[4:] for k in d.files if k.startswith("obs_")),
+        }
+    manifest["files"] = files
+    manifest["all_files_share_run_id"] = (
+        {v["run_id"] for v in files.values()} == {run_id} if files else False)
+    txt = json.dumps(manifest, indent=2, sort_keys=True)
     manifest["manifest_sha256"] = hashlib.sha256(txt.encode()).hexdigest()[:16]
     (OUT_DIR / "manifest.json").write_text(json.dumps(manifest, indent=2),
                                            encoding="utf-8")
+    LOCK.unlink(missing_ok=True)
     print(f"\nwritten: {OUT_DIR}")
     return 0
 

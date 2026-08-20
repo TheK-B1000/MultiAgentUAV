@@ -60,6 +60,11 @@ def build_train_parser() -> argparse.ArgumentParser:
             "Takes precedence over --total-steps when both are given."
         ),
     )
+    parser.add_argument("--sappo-anchor-dataset", type=str, default=None,
+                        help="SAPPO V1 teacher demonstration .npz. Omitted = anchoring OFF "
+                             "(structurally absent: no runner is constructed).")
+    parser.add_argument("--sappo-anchor-lambda", type=float, default=None)
+    parser.add_argument("--sappo-anchor-cadence", type=int, default=None)
     parser.add_argument("--checkpoint-dir", type=str, default=None)
     parser.add_argument("--metrics-csv", type=str, default=None, help="Path for per-update training metrics CSV.")
     parser.add_argument("--episode-csv", type=str, default=None, help="Path for per-episode training outcome CSV.")

@@ -245,6 +245,7 @@ def orchestrate_training_run(
         maybe_load_checkpoint(cfg, trainer)
         maybe_extend_total_timesteps(cfg, trainer)
         maybe_configure_periodic_checkpoints(cfg, trainer)
+        _maybe_attach_sappo_anchor(cfg, trainer)
 
         artifact_only = bool(getattr(cfg, "formal_artifact_bundle_only", False))
         if artifact_only:
@@ -394,3 +395,34 @@ def _write_formal_artifact_bundle_smoke(cfg, trainer, run_identity) -> None:
     trainer.save(ckpt_path)
     _write_in_run_eval_and_summary(cfg, trainer, run_identity, checkpoint_path=ckpt_path)
     print(f"[PPO] Formal artifact-bundle-only smoke complete: {base}")
+
+
+def _maybe_attach_sappo_anchor(cfg, trainer) -> None:
+    """SAPPO V1: attach interleaved teacher rehearsal, or do nothing at all.
+
+    Attached AFTER checkpoint load so rehearsal targets the resumed weights, and
+    BEFORE learn() so the very first minibatch group is counted.
+
+    With no dataset configured this function returns without constructing
+    anything, so the PPO path is untouched by construction rather than by a
+    zero-scaled term. See SAPPO_V1_LOSS_SEMANTICS_AMENDMENT.json.
+    """
+    path = str(getattr(cfg, "sappo_anchor_dataset", "") or "")
+    if not path:
+        return
+    from rl.custom_ppo.strategy_anchor import AnchorDataset, AnchorRunner
+
+    ds = AnchorDataset(path, batch_size=int(getattr(cfg, "sappo_anchor_batch_size", 64)),
+                       seed=int(getattr(cfg, "seed", 7) or 7))
+    runner = AnchorRunner(
+        trainer.model,
+        trainer.optimizer,
+        ds,
+        lambda_anchor=float(cfg.sappo_anchor_lambda),
+        cadence=int(cfg.sappo_anchor_cadence),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        device=str(getattr(cfg, "device", "cpu")),
+    )
+    trainer.sappo_anchor_runner = runner
+    print(f"[SAPPO] anchor rehearsal ATTACHED: lambda={runner.lambda_anchor} "
+          f"cadence=1:{runner.cadence} dataset={ds.describe()}")

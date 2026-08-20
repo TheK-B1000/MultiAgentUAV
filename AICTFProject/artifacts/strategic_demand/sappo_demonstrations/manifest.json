@@ -1,0 +1,130 @@
+{
+  "record": "SAPPO V1 anchor demonstrations",
+  "utc": "2026-08-20T04:12:29Z",
+  "protocol": "artifacts/strategic_demand/STRATEGY_ANCHORED_PPO_V1_FROZEN.json",
+  "seed_base": 8000001,
+  "episodes_per_pole": 64,
+  "label_rule": "blue_commit_ticks_left <= 0",
+  "label_is": "projected teacher action (macro, nearest-of-50 waypoint)",
+  "train_frac": 0.9,
+  "poles": {
+    "A": {
+      "teacher_style": "BLUE_ONE_DEFENDER_V2",
+      "episodes": 64,
+      "total_env_steps": 13578,
+      "decision_steps": 11356,
+      "agent_labels": 16026,
+      "label_density": 0.8364,
+      "train_episodes": 58,
+      "diagnostic_episodes": 6
+    },
+    "B": {
+      "teacher_style": "BLUE_BOTH_ATTACK_V2",
+      "episodes": 64,
+      "total_env_steps": 15355,
+      "decision_steps": 12413,
+      "agent_labels": 17254,
+      "label_density": 0.8084,
+      "train_episodes": 58,
+      "diagnostic_episodes": 6
+    }
+  },
+  "run_id": "6cca922e683b",
+  "single_writer_lock": "artifacts\\strategic_demand\\sappo_demonstrations\\.collector.lock",
+  "files": {
+    "anchor_A_diagnostic.npz": {
+      "sha256_16": "e1baa7f2b059d4ce",
+      "run_id": "6cca922e683b",
+      "rows": 1107,
+      "action_shape": [
+        1107,
+        2,
+        2
+      ],
+      "obs_grid_shape": [
+        1107,
+        2,
+        7,
+        20,
+        20
+      ],
+      "obs_keys": [
+        "agent_mask",
+        "grid",
+        "mask",
+        "vec"
+      ]
+    },
+    "anchor_A_train.npz": {
+      "sha256_16": "553eb4589de86a68",
+      "run_id": "6cca922e683b",
+      "rows": 10249,
+      "action_shape": [
+        10249,
+        2,
+        2
+      ],
+      "obs_grid_shape": [
+        10249,
+        2,
+        7,
+        20,
+        20
+      ],
+      "obs_keys": [
+        "agent_mask",
+        "grid",
+        "mask",
+        "vec"
+      ]
+    },
+    "anchor_B_diagnostic.npz": {
+      "sha256_16": "64a176ac1611a356",
+      "run_id": "6cca922e683b",
+      "rows": 1161,
+      "action_shape": [
+        1161,
+        2,
+        2
+      ],
+      "obs_grid_shape": [
+        1161,
+        2,
+        7,
+        20,
+        20
+      ],
+      "obs_keys": [
+        "agent_mask",
+        "grid",
+        "mask",
+        "vec"
+      ]
+    },
+    "anchor_B_train.npz": {
+      "sha256_16": "4c05a857c9d81ed0",
+      "run_id": "6cca922e683b",
+      "rows": 11252,
+      "action_shape": [
+        11252,
+        2,
+        2
+      ],
+      "obs_grid_shape": [
+        11252,
+        2,
+        7,
+        20,
+        20
+      ],
+      "obs_keys": [
+        "agent_mask",
+        "grid",
+        "mask",
+        "vec"
+      ]
+    }
+  },
+  "all_files_share_run_id": true,
+  "manifest_sha256": "18ac2aefa8294045"
+}

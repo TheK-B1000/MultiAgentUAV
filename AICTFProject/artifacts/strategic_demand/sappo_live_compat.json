@@ -1,0 +1,140 @@
+{
+  "record": "SAPPO live compatibility check",
+  "utc": "2026-08-20T05:43:35Z",
+  "status": "ENGINEERING PRECONDITION, not a scientific gate",
+  "results": [
+    {
+      "policy": "pi_A",
+      "pole": "A",
+      "checkpoint": "artifacts\\strategic_demand\\r1_training\\r1_pi_A_specialist_seed7100001\\ckpts\\final_r1_pi_A_specialist_seed7100001.zip",
+      "dataset_run_id": "6cca922e683b",
+      "batch": 64,
+      "action_space_nvec": [
+        5,
+        50,
+        5,
+        50
+      ],
+      "action_columns": 4,
+      "nvec_matches_action_columns": true,
+      "obs_keys_dataset": [
+        "agent_mask",
+        "grid",
+        "mask",
+        "vec"
+      ],
+      "obs_dtypes": {
+        "grid": "torch.float32",
+        "vec": "torch.float32",
+        "agent_mask": "torch.float32",
+        "mask": "torch.float32"
+      },
+      "obs_shapes": {
+        "grid": [
+          64,
+          2,
+          7,
+          20,
+          20
+        ],
+        "vec": [
+          64,
+          2,
+          20
+        ],
+        "agent_mask": [
+          64,
+          2
+        ],
+        "mask": [
+          64,
+          110
+        ]
+      },
+      "agent_major_ok": true,
+      "log_prob_shape": [
+        64,
+        4
+      ],
+      "all_log_probs_finite": true,
+      "log_prob_min": -100000008.0,
+      "log_prob_max": 0.0,
+      "anchor_loss": 9.062687873840332,
+      "anchor_loss_finite": true,
+      "teacher_agreement_at_1M": 0.1875,
+      "predict_vs_masked_heads_argmax_match": 1.0,
+      "preprocessing_paths_agree": true,
+      "illegal_teacher_labels_all_heads": 0.0546875,
+      "illegal_teacher_labels_at_decision_points": 0.0,
+      "no_illegal_labels_in_loss": true,
+      "PASS": true
+    },
+    {
+      "policy": "pi_B",
+      "pole": "B",
+      "checkpoint": "artifacts\\strategic_demand\\r1_training\\r1_pi_B_specialist_seed7200001\\ckpts\\final_r1_pi_B_specialist_seed7200001.zip",
+      "dataset_run_id": "6cca922e683b",
+      "batch": 64,
+      "action_space_nvec": [
+        5,
+        50,
+        5,
+        50
+      ],
+      "action_columns": 4,
+      "nvec_matches_action_columns": true,
+      "obs_keys_dataset": [
+        "agent_mask",
+        "grid",
+        "mask",
+        "vec"
+      ],
+      "obs_dtypes": {
+        "grid": "torch.float32",
+        "vec": "torch.float32",
+        "agent_mask": "torch.float32",
+        "mask": "torch.float32"
+      },
+      "obs_shapes": {
+        "grid": [
+          64,
+          2,
+          7,
+          20,
+          20
+        ],
+        "vec": [
+          64,
+          2,
+          20
+        ],
+        "agent_mask": [
+          64,
+          2
+        ],
+        "mask": [
+          64,
+          110
+        ]
+      },
+      "agent_major_ok": true,
+      "log_prob_shape": [
+        64,
+        4
+      ],
+      "all_log_probs_finite": true,
+      "log_prob_min": -100000000.0,
+      "log_prob_max": 0.0,
+      "anchor_loss": 6.1991448402404785,
+      "anchor_loss_finite": true,
+      "teacher_agreement_at_1M": 0.1111111119389534,
+      "predict_vs_masked_heads_argmax_match": 1.0,
+      "preprocessing_paths_agree": true,
+      "illegal_teacher_labels_all_heads": 0.01953125,
+      "illegal_teacher_labels_at_decision_points": 0.0,
+      "no_illegal_labels_in_loss": true,
+      "PASS": true
+    }
+  ],
+  "ALL_PASS": true
+}

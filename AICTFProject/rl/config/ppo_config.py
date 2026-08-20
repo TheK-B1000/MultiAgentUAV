@@ -92,6 +92,14 @@ class PPOConfig:
     formal_run: bool = False
 
     max_decision_steps: int = 400
+    # SAPPO V1 strategy anchoring. Empty path = anchoring OFF, and OFF means
+    # structurally absent: no runner is constructed, so no anchor batch, forward,
+    # backward, optimizer step or scheduler step occurs.
+    sappo_anchor_dataset: str = ""
+    sappo_anchor_lambda: float = 0.10
+    sappo_anchor_cadence: int = 4
+    sappo_anchor_batch_size: int = 64
+
     # RULESET_V3_M1: own flag must be home to score. Default False keeps every
     # pre-V3 run bit-identical; the frozen V3 benchmark requires True. The other
     # five V3 rules (taggers_required=1, tag_min_interval_seconds=10.0,

@@ -308,6 +308,12 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.total_timesteps = int(args.total_steps)
     if getattr(args, "additional_steps", None) is not None:
         cfg.additional_timesteps = int(args.additional_steps)
+    if getattr(args, "sappo_anchor_dataset", None):
+        cfg.sappo_anchor_dataset = str(args.sappo_anchor_dataset)
+    if getattr(args, "sappo_anchor_lambda", None) is not None:
+        cfg.sappo_anchor_lambda = float(args.sappo_anchor_lambda)
+    if getattr(args, "sappo_anchor_cadence", None) is not None:
+        cfg.sappo_anchor_cadence = int(args.sappo_anchor_cadence)
     if args.load is not None:
         cfg.load_path = args.load
     elif args.resume is not None:
