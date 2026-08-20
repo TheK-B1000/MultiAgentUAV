@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-20 — SAPPO V1 terminal specialists completed and passed the frozen 192-paired-seed crossover gate in both directions. Result frozen as `SAPPO_V1_CROSSOVER_CONFIRMED`; K=2 latent compression is next but not started.
+> **Last updated:** 2026-08-20 — Experiment 2's prospective K=2 supervised latent-compression protocol is frozen. Implementation and training have not started. SAPPO V1 remains closed and immutable.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,7 +26,30 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED.** Terminal WR matrix: `pi_A=(A .7083, B .2812)`, `pi_B=(A .4844, B .5000)`. Paired LCB95: `delta_A=.1250`, `delta_B=.1302`. SAPPO is frozen; K=2 compression is next and unstarted. |
+| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED.** Terminal WR matrix: `pi_A=(A .7083, B .2812)`, `pi_B=(A .4844, B .5000)`. Paired LCB95: `delta_A=.1250`, `delta_B=.1302`. SAPPO is frozen. Experiment 2 K=2 compression is protocol-frozen, with implementation and training unstarted. |
+
+### Experiment 2: K=2 supervised latent compression — `PLANNED`
+
+The prospective protocol is frozen in
+[`EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json`](../artifacts/strategic_demand/EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json).
+It tests whether one shared, episode-persistent `K=2` policy can compress the
+confirmed SAPPO repertoire. The student has no router, no `q_phi`, and no
+opponent-identity input. The assigned mapping is `z0 <- pi_A` and
+`z1 <- pi_B`, so this is a supervised compression experiment classified as
+`DIAGNOSTIC_SUPERVISED_COMPRESSION`, not paper-faithful or label-free latent
+discovery.
+
+The single frozen attempt uses 2 M total environment steps, a static balanced
+8/8/8/8 split over `{z0,z1} x {A,B}`, and one extra objective only: masked
+teacher-policy KL with `lambda=0.1` at the established one-per-four PPO actor
+cadence. The terminal checkpoint alone is scored. Passing requires both
+forced-z crossover LCBs above zero, a paired-bootstrap 90% SAPPO matched-value
+retention LCB, and matched-state action identity aligned with both teachers.
+
+Seed reservations passed the full worktree and Git-history audit before the
+protocol was written: training `8100001..8100320`, development
+`8200001..8200192`, and evaluation `8300001..8300192`. No K=2 implementation,
+training, development evaluation, or terminal evaluation has started.
 
 ---
 
