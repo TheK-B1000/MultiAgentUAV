@@ -134,3 +134,99 @@ def teacher_agreement(
     n_heads, n_agents = hits.shape[1], decision_mask.shape[1]
     m = decision_mask.to(hits.dtype).repeat_interleave(n_heads // n_agents, dim=1)
     return float((hits * m).sum() / m.sum().clamp_min(1.0))
+
+
+class AnchorRunner:
+    """Interleaved teacher rehearsal — SAPPO V1, Reading 2.
+
+    Frozen semantics (SAPPO_V1_LOSS_SEMANTICS_AMENDMENT.json):
+
+        4 PPO actor minibatches execute unchanged
+        -> ZERO GRADS
+        -> one anchor-only optimizer step, L = lambda * NLL(teacher action)
+        -> ZERO GRADS
+
+    The anchor never shares a backward pass with the PPO surrogate, value,
+    entropy, latent, separation, communication, or strategy objectives.
+
+    Stale-gradient discipline
+    -------------------------
+    The PPO stepper zeroes gradients BEFORE its backward and leaves them
+    populated after ``step()``. So gradients from PPO minibatch 4 are still
+    resident when rehearsal begins. Without an explicit zero here they would
+    ride along into the anchor optimizer step: every counter would still read
+    0.25 and the "NLL-only rehearsal" claim would be quietly false. Hence
+    zero_grad both BEFORE the anchor backward and AFTER the anchor step.
+
+    Disabled means structurally absent: construct no runner at all. This class
+    is never instantiated with lambda=0 as a way of "turning it off", because a
+    nominal zero-loss step can still mutate optimizer state, advance counters,
+    or apply weight decay.
+    """
+
+    def __init__(self, model, optimizer, dataset, *, lambda_anchor: float,
+                 cadence: int = 4, max_grad_norm: float | None = None,
+                 device: str = "cpu"):
+        if lambda_anchor <= 0.0:
+            raise ValueError(
+                "AnchorRunner must not be constructed with lambda_anchor <= 0. "
+                "Disabled anchoring means NOT constructing the runner, so that "
+                "no optimizer or scheduler state can be mutated.")
+        if cadence < 1:
+            raise ValueError("cadence must be >= 1")
+        self.model = model
+        self.optimizer = optimizer
+        self.dataset = dataset
+        self.lambda_anchor = float(lambda_anchor)
+        self.cadence = int(cadence)
+        self.max_grad_norm = max_grad_norm
+        self.device = device
+        self.n_ppo_actor_minibatches = 0
+        self.n_anchor_updates = 0
+        self.last_anchor_loss = float("nan")
+
+    def note_ppo_minibatch(self) -> bool:
+        """Call once per completed PPO actor minibatch.
+
+        Returns True iff this call completed a full group and an anchor step
+        was performed. No trailing anchor update is ever emitted for a partial
+        group -- the ratio is never forced.
+        """
+        self.n_ppo_actor_minibatches += 1
+        if self.n_ppo_actor_minibatches % self.cadence != 0:
+            return False
+        self._anchor_step()
+        return True
+
+    def _anchor_step(self) -> None:
+        import torch as _t
+
+        obs, actions, mask = self.dataset.sample(device=self.device)
+        # Clear gradients left over from PPO minibatch `cadence`.
+        self.optimizer.zero_grad(set_to_none=True)
+        loss = self.lambda_anchor * anchor_loss(self.model, obs, actions, mask)
+        loss.backward()
+        if self.max_grad_norm is not None:
+            _t.nn.utils.clip_grad_norm_(
+                [p for g in self.optimizer.param_groups for p in g["params"]],
+                float(self.max_grad_norm))
+        self.optimizer.step()
+        # Leave no anchor gradients behind for the next PPO minibatch.
+        self.optimizer.zero_grad(set_to_none=True)
+        self.n_anchor_updates += 1
+        self.last_anchor_loss = float(loss.detach())
+
+    def telemetry(self) -> dict:
+        """Counters for the frozen cadence check. Measured, never assumed."""
+        expected = self.n_ppo_actor_minibatches // self.cadence
+        return {
+            "anchor_lambda": self.lambda_anchor,
+            "anchor_cadence": self.cadence,
+            "n_ppo_actor_minibatches": self.n_ppo_actor_minibatches,
+            "n_anchor_updates": self.n_anchor_updates,
+            "expected_complete_groups": expected,
+            "anchor_per_ppo_ratio": (self.n_anchor_updates / self.n_ppo_actor_minibatches
+                                     if self.n_ppo_actor_minibatches else 0.0),
+            "complete_group_ratio_is_one": (self.n_anchor_updates == expected),
+            "last_anchor_loss": self.last_anchor_loss,
+        }

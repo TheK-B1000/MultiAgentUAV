@@ -145,3 +145,135 @@ def test_5b_teacher_agreement_is_bounded():
               torch.zeros(4, 5), torch.zeros(4, 50)]
     agr = teacher_agreement(_StubModel(logits), {}, acts, mask)
     assert 0.0 <= agr <= 1.0, agr
+
+
+# ---------------------------------------------------------------------------
+# Tests 3 and 6 -- statements about the update loop, and the stale-gradient
+# launch blocker. All are launch blockers for the +500k continuation.
+# ---------------------------------------------------------------------------
+
+class _StubDataset:
+    def __init__(self, actions, mask):
+        self._a, self._m = actions, mask
+
+    def sample(self, device="cpu"):
+        return {}, self._a, self._m
+
+
+class _StubOptim:
+    """Records whether it was stepped, so 'disabled' can be proven inert."""
+
+    def __init__(self, params):
+        self.param_groups = [{"params": list(params)}]
+        self.n_steps = 0
+        self.n_zero_grads = 0
+
+    def zero_grad(self, set_to_none=True):
+        self.n_zero_grads += 1
+        for p in self.param_groups[0]["params"]:
+            p.grad = None if set_to_none else torch.zeros_like(p)
+
+    def step(self):
+        self.n_steps += 1
+        with torch.no_grad():
+            for p in self.param_groups[0]["params"]:
+                if p.grad is not None:
+                    p -= 0.1 * p.grad
+
+
+def _runner(logits, actions, mask, lam=0.10, cadence=4):
+    from rl.custom_ppo.strategy_anchor import AnchorRunner
+    model = _StubModel(logits)
+    opt = _StubOptim(logits)
+    return AnchorRunner(model, opt, _StubDataset(actions, mask),
+                        lambda_anchor=lam, cadence=cadence), opt
+
+
+def test_3_disabled_is_structurally_absent():
+    """Disabled anchoring must not be expressible as lambda=0.
+
+    A nominal zero-loss step can still mutate optimizer state, advance
+    counters, or apply weight decay, so 'off' must mean 'no runner'.
+    """
+    from rl.custom_ppo.strategy_anchor import AnchorRunner
+    with pytest.raises(ValueError, match="must not be constructed"):
+        AnchorRunner(None, None, None, lambda_anchor=0.0)
+    with pytest.raises(ValueError, match="must not be constructed"):
+        AnchorRunner(None, None, None, lambda_anchor=-1.0)
+
+
+def test_3b_no_runner_means_no_optimizer_mutation():
+    """With no runner, the PPO path performs zero anchor-driven work."""
+    logits = [torch.zeros(1, 3, requires_grad=True),
+              torch.zeros(1, 4, requires_grad=True)]
+    opt = _StubOptim(logits)
+    before = [l.detach().clone() for l in logits]
+    runner = None
+    for _ in range(16):                      # 16 PPO minibatches, anchoring off
+        if runner is not None:               # the integration guard
+            runner.note_ppo_minibatch()
+    assert opt.n_steps == 0, "optimizer stepped with anchoring disabled"
+    assert opt.n_zero_grads == 0, "zero_grad called with anchoring disabled"
+    for b, l in zip(before, logits):
+        assert torch.equal(b, l.detach()), "parameters changed with anchoring disabled"
+
+
+def test_6_measured_cadence_is_one_per_four():
+    """Count real optimizer steps, not the configured constant."""
+    logits = [torch.zeros(1, 3, requires_grad=True),
+              torch.zeros(1, 4, requires_grad=True)]
+    r, opt = _runner(logits, torch.tensor([[1, 2]]), None)
+    for _ in range(16):
+        r.note_ppo_minibatch()
+    t = r.telemetry()
+    assert t["n_ppo_actor_minibatches"] == 16
+    assert t["n_anchor_updates"] == 4, t
+    assert t["anchor_per_ppo_ratio"] == 0.25, t
+    assert t["complete_group_ratio_is_one"] is True
+    assert opt.n_steps == 4, "anchor optimizer steps != anchor updates"
+
+
+def test_6b_partial_group_emits_no_trailing_anchor():
+    """The ratio must never be forced on an incomplete group."""
+    logits = [torch.zeros(1, 3, requires_grad=True),
+              torch.zeros(1, 4, requires_grad=True)]
+    r, opt = _runner(logits, torch.tensor([[1, 2]]), None)
+    for _ in range(11):                      # 2 complete groups + 3 leftover
+        r.note_ppo_minibatch()
+    t = r.telemetry()
+    assert t["n_anchor_updates"] == 2, t
+    assert t["expected_complete_groups"] == 2
+    assert t["complete_group_ratio_is_one"] is True
+    assert opt.n_steps == 2
+
+
+def test_stale_gradient_blocker_no_ppo_grads_survive_into_anchor_step():
+    """LAUNCH BLOCKER: leftover PPO gradients must not ride into the anchor step.
+
+    Simulates the real hazard: the PPO stepper leaves gradients populated after
+    step(), so a huge stale gradient is planted on a parameter the anchor loss
+    does NOT touch. If the runner failed to zero first, that stale gradient
+    would be applied by the anchor optimizer step while every counter still
+    read 0.25.
+    """
+    anchor_param = torch.zeros(1, 3, requires_grad=True)
+    unrelated = torch.zeros(1, 4, requires_grad=True)   # e.g. a critic-only head
+    from rl.custom_ppo.strategy_anchor import AnchorRunner
+
+    model = _StubModel([anchor_param, torch.zeros(1, 4)])
+    opt = _StubOptim([anchor_param, unrelated])
+    r = AnchorRunner(model, opt, _StubDataset(torch.tensor([[1, 2]]), None),
+                     lambda_anchor=0.10, cadence=4)
+
+    unrelated.grad = torch.full_like(unrelated, 1000.0)   # stale PPO gradient
+    unrelated_before = unrelated.detach().clone()
+
+    for _ in range(4):
+        r.note_ppo_minibatch()
+
+    assert r.n_anchor_updates == 1
+    assert torch.equal(unrelated.detach(), unrelated_before), (
+        "STALE PPO GRADIENT WAS APPLIED during the anchor step -- the "
+        "'NLL-only rehearsal' claim would be false")
+    assert unrelated.grad is None or float(unrelated.grad.abs().sum()) == 0.0, (
+        "anchor step left stale gradients resident")
