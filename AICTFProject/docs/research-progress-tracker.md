@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-20 — Experiment 2's frozen K=2 supervised latent-compression treatment is implemented and passing its no-environment lifecycle smoke. Production training has not started. SAPPO V1 remains closed and immutable.
+> **Last updated:** 2026-08-20 — Experiment 2's frozen K=2 supervised latent-compression treatment is in production training from the single authorized launch. Its first 8,192-step interval proves the treatment is active at the exact 1:4 cadence. SAPPO V1 remains closed and immutable.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,9 +26,9 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED.** Terminal WR matrix: `pi_A=(A .7083, B .2812)`, `pi_B=(A .4844, B .5000)`. Paired LCB95: `delta_A=.1250`, `delta_B=.1302`. SAPPO is frozen. Experiment 2 K=2 compression is protocol-frozen and implemented; production training remains unstarted. |
+| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED.** Terminal WR matrix: `pi_A=(A .7083, B .2812)`, `pi_B=(A .4844, B .5000)`. Paired LCB95: `delta_A=.1250`, `delta_B=.1302`. SAPPO is frozen. Experiment 2 K=2 compression is protocol-frozen, implementation-gated, and now training under its single authorized 2 M-step run. |
 
-### Experiment 2: K=2 supervised latent compression — `IMPLEMENTED / NOT LAUNCHED`
+### Experiment 2: K=2 supervised latent compression — `VALID TREATMENT / TRAINING`
 
 The prospective protocol is frozen in
 [`EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json`](../artifacts/strategic_demand/EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json).
@@ -58,10 +58,20 @@ measured one real Adam teacher update after four PPO completions. It reduced
 mapped KL for both modes (`z0: 2.5586 -> 1.6565`, `z1: 2.6986 -> 1.2898`)
 without constructing an environment or consuming an experiment seed.
 
+Production launch provenance was committed at `0d131a18`, then the launcher was
+invoked once with `--launch`. The first permanent runtime interval at 8,192
+steps reports 64 PPO actor updates, 16 teacher updates, exact ratio `0.25`,
+`lambda=0.1`, K=2 with `q_phi` absent, and realized cell counts/steps of
+8/8/8/8 and 2,048 each. Both mapped teacher KLs are live (`z0=1.6350`,
+`z1=1.4573`) and no treatment invariant fired. The owning evidence is
+`EXP2_K2_PRODUCTION_LAUNCH_VALIDATED.json`. These values are health diagnostics
+only and cannot select a checkpoint, alter the treatment, or declare success.
+
 Seed reservations passed the full worktree and Git-history audit before the
 protocol was written: training `8100001..8100320`, development
 `8200001..8200192`, and evaluation `8300001..8300192`. No K=2 production
-training, development evaluation, or terminal evaluation has started.
+development evaluation or terminal evaluation has started. Production training
+continues to the frozen 2 M terminal without intervention.
 
 ---
 
