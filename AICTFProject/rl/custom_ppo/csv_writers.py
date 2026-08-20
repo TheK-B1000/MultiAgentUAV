@@ -196,6 +196,14 @@ def _episode_fieldnames() -> list[str]:
 
 def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
     fields = [
+        # SAPPO V1 rehearsal counters. Present unconditionally so a run with
+        # anchoring silently disabled shows n_anchor_updates=0 in the FIRST
+        # reporting interval instead of completing undetected, which is exactly
+        # how a 2x500k no-op run reached its terminal checkpoints.
+        "sappo_n_ppo_actor_updates",
+        "sappo_n_anchor_updates",
+        "sappo_anchor_to_ppo_ratio",
+        "sappo_anchor_loss",
         "update",
         "run_id",
         "run_pid",
