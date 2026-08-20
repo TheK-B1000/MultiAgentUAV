@@ -1,0 +1,65 @@
+{
+  "artifact_id": "EXP2_K2_PRODUCTION_LAUNCH_PROVENANCE",
+  "protocol_id": "EXP2_K2_LATENT_COMPRESSION_V1",
+  "recorded_before_launch_utc": "2026-08-20T23:51:17Z",
+  "implementation_commit": "89436366e5cc61d73a66b269a9c0f8f49e5c305f",
+  "frozen_protocol_commit": "696dd24afb1363a4cc89f54956b93aa2fdee8ee9",
+  "frozen_protocol_sha256": "26145bcafbf4aaaa31137f74f3ebddfd78a7e31553c4f9d2d8756c69610c48f7",
+  "implementation_gate": {
+    "path": "artifacts/strategic_demand/EXP2_K2_IMPLEMENTATION_GATE.json",
+    "sha256": "04ed9ad526174f3bb3a353408a4406f53903734ab1d77c6e3f8d682ab476740b",
+    "verdict": "PASS",
+    "production_launch_authorized": true
+  },
+  "launcher": {
+    "path": "experiments/run_exp2_k2_latent_compression.py",
+    "sha256": "cca96047920128b3a854cbc7cdf0ddb5afaec030f5e1074d71c485bacd3418d8",
+    "invocation": "python experiments/run_exp2_k2_latent_compression.py --launch",
+    "one_attempt_guard": true
+  },
+  "frozen_teachers": {
+    "z0_pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "z1_pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "training_seed_block": {
+    "range": "8100001..8100320",
+    "master_seed": 8100001,
+    "audit_path": "artifacts/strategic_demand/EXP2_K2_TRAINING_BLOCK_PRELAUNCH_AUDIT.json",
+    "audit_sha256": "2a16b584a7ae4ef2f5b09853077fbd901536ff4d84144767fa1a4d6988e6aeef",
+    "audit_verdict": "CLEAN"
+  },
+  "reserved_nontraining_blocks": {
+    "development": {
+      "range": "8200001..8200192",
+      "audit_sha256": "da0ed1eabf9560fbe766fc62e08b77af89406945ec6e2a095fe20abd1b5b2691",
+      "verdict": "CLEAN"
+    },
+    "evaluation": {
+      "range": "8300001..8300192",
+      "audit_sha256": "876aaf7ce3263e63c9b8563e1745b6aba9638890febe04a61e65f9af27774cdd",
+      "verdict": "CLEAN"
+    }
+  },
+  "production_contract": {
+    "total_environment_steps": 2000000,
+    "K": 2,
+    "persistent_forced_z": true,
+    "static_cells": {
+      "z0_A": 8,
+      "z0_B": 8,
+      "z1_A": 8,
+      "z1_B": 8
+    },
+    "teacher_lambda": 0.1,
+    "teacher_to_ppo_cadence": "1:4",
+    "terminal_checkpoint_only": true,
+    "one_scientific_attempt": true
+  },
+  "prelaunch_state": {
+    "production_directory": "artifacts/strategic_demand/exp2_k2_latent_compression/exp2_k2_supervised_compression_seed8100001_2m",
+    "production_directory_existed": false,
+    "scoped_implementation_tree_clean": true,
+    "production_training_started": false
+  },
+  "scope_exclusion": "The unrelated pre-existing rl/population/population_trainer.py syntax error is outside EXP2 and was not modified."
+}
