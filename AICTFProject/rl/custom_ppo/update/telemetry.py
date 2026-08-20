@@ -17,6 +17,30 @@ class AggregationMode(Enum):
 
 
 DEFAULT_METRIC_SCHEMA: dict[str, AggregationMode] = {
+    # EXP2 treatment counters are cumulative runner state and must report the
+    # final value from the interval, not the mean of intermediate counts.
+    "exp2_n_ppo_actor_updates": AggregationMode.LAST,
+    "exp2_n_teacher_updates": AggregationMode.LAST,
+    "exp2_teacher_to_ppo_ratio": AggregationMode.LAST,
+    "exp2_teacher_loss": AggregationMode.LAST,
+    "exp2_teacher_kl": AggregationMode.LAST,
+    "exp2_teacher_kl_z0": AggregationMode.LAST,
+    "exp2_teacher_kl_z1": AggregationMode.LAST,
+    "exp2_teacher_agreement_z0": AggregationMode.LAST,
+    "exp2_teacher_agreement_z1": AggregationMode.LAST,
+    "exp2_teacher_rows_z0": AggregationMode.LAST,
+    "exp2_teacher_rows_z1": AggregationMode.LAST,
+    "exp2_teacher_active_heads": AggregationMode.LAST,
+    "exp2_teacher_active_heads_z0": AggregationMode.LAST,
+    "exp2_teacher_active_heads_z1": AggregationMode.LAST,
+    "exp2_cell_count_z0_A": AggregationMode.LAST,
+    "exp2_cell_count_z0_B": AggregationMode.LAST,
+    "exp2_cell_count_z1_A": AggregationMode.LAST,
+    "exp2_cell_count_z1_B": AggregationMode.LAST,
+    "exp2_cell_steps_z0_A": AggregationMode.LAST,
+    "exp2_cell_steps_z0_B": AggregationMode.LAST,
+    "exp2_cell_steps_z1_A": AggregationMode.LAST,
+    "exp2_cell_steps_z1_B": AggregationMode.LAST,
     "policy_loss": AggregationMode.MEAN,
     "value_loss": AggregationMode.MEAN,
     "entropy": AggregationMode.MEAN,

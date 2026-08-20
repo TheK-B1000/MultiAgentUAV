@@ -127,6 +127,55 @@ class RouterSamplingState:
             getattr(trainer.cfg, "latent_assignment_mode", "router") or "router"
         )
 
+        if latent_assignment_mode == "static_env":
+            # EXP2 supervised compression: the environment index fixes z for
+            # every episode in that vector slot. Auto-reset marks the slot as
+            # needing a strategy sample, but the same configured ID is restored;
+            # no router, opponent lookup, or stochastic selector participates.
+            K = int(trainer.latent_k)
+            batch = int(global_state.shape[0])
+            configured = tuple(
+                int(v) for v in getattr(trainer.cfg, "forced_latent_env_ids", ())
+            )
+            if len(configured) != batch:
+                raise RuntimeError(
+                    "static_env latent assignment requires exactly one ID per "
+                    f"environment: got {len(configured)} IDs for batch {batch}"
+                )
+            if any(v < 0 or v >= K for v in configured):
+                raise RuntimeError(
+                    f"static_env latent IDs must lie in [0, {K}): {configured}"
+                )
+            assigned = torch.as_tensor(configured, dtype=torch.long, device=device)
+            episode_start = self.host.needs_strategy_sample.clone()
+            prev_z = self.host.current_z.clone()
+            self.host.current_z = assigned.clone()
+            if bool(episode_start.any().item()):
+                start_idx = torch.where(episode_start)[0]
+                self.host.episode_forced_z[start_idx] = True
+                self.host.episode_forced_z_id[start_idx] = assigned.index_select(0, start_idx)
+                self.host.episode_behavior_sum[start_idx] = 0.0
+                self.host.episode_behavior_count[start_idx] = 0
+                self.host.episode_contrast_bucket[start_idx] = strategy_experience_bucket_ids(
+                    global_state.index_select(0, start_idx)
+                ).detach()
+            self.host.needs_strategy_sample[episode_start] = False
+            fixed_logits = torch.full(
+                (batch, K), -1.0e8, dtype=torch.float32, device=device
+            )
+            fixed_logits.scatter_(1, assigned.unsqueeze(1), 0.0)
+            false_mask = torch.zeros((batch,), dtype=torch.bool, device=device)
+            return assigned, prev_z, {
+                "z": assigned,
+                "prev_z": prev_z,
+                "z_log_prob": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "z_entropy": torch.zeros((batch,), dtype=torch.float32, device=device),
+                "z_logits": fixed_logits,
+                "z_resampled": episode_start,
+                "z_forced": torch.ones((batch,), dtype=torch.bool, device=device),
+                "z_persist_mask": false_mask,
+            }
+
         if latent_assignment_mode == "balanced_episode":
             # Staggered round-robin: z = (episode_counter + env_index) % K.
             # Each env is offset by its own index so all K latents are represented

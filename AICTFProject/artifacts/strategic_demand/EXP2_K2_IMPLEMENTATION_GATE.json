@@ -1,0 +1,90 @@
+{
+  "artifact_id": "EXP2_K2_IMPLEMENTATION_GATE",
+  "protocol_id": "EXP2_K2_LATENT_COMPRESSION_V1",
+  "classification": "IMPLEMENTATION_GATE_NOT_A_SCIENTIFIC_RESULT",
+  "frozen_protocol_commit": "696dd24afb1363a4cc89f54956b93aa2fdee8ee9",
+  "verdict": "PASS",
+  "production_launch_authorized": true,
+  "production_training_started": false,
+  "environment_steps_consumed_by_gate": 0,
+  "reserved_seed_consumed_by_gate": false,
+  "claim_boundary": "This is supervised latent repertoire compression, not unsupervised or label-free latent strategy discovery.",
+  "treatment": {
+    "shared_policy_count": 1,
+    "K": 2,
+    "z_lifetime": "static per vector slot and persistent across each full episode",
+    "q_phi": "ABSENT",
+    "router": "ABSENT",
+    "teacher_mapping": {
+      "z0": "SAPPO pi_A",
+      "z1": "SAPPO pi_B"
+    },
+    "kl_direction": "KL(pi_teacher || pi_student(.|o,z))",
+    "lambda": 0.1,
+    "cadence": "1 teacher update per 4 completed PPO actor minibatches",
+    "teacher_batch_size": 64,
+    "static_cells": {
+      "z0_A": 8,
+      "z0_B": 8,
+      "z1_A": 8,
+      "z1_B": 8
+    }
+  },
+  "frozen_teacher_sha256": {
+    "z0_pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "z1_pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "checks": {
+    "z_reaches_shared_actor": "PASS",
+    "z_persists_through_episode_and_auto_reset": "PASS",
+    "q_phi_and_router_structurally_absent": "PASS",
+    "teacher_mapping_is_z_only": "PASS",
+    "teacher_full_hashes_match": "PASS",
+    "teacher_and_student_use_policy_mask_logits": "PASS",
+    "teacher_to_student_kl_direction": "PASS",
+    "lambda_applied_once_at_frozen_cadence": "PASS",
+    "disabled_path_structurally_absent": "PASS",
+    "opponent_id_absent_from_teacher_api_and_policy_input": "PASS",
+    "training_cells_exactly_8_8_8_8": "PASS",
+    "resume_preserves_architecture_cadence_rng_and_counters": "PASS",
+    "unconditional_noop_detecting_telemetry": "PASS",
+    "construct_then_attach_lifecycle": "PASS",
+    "terminal_only_and_one_attempt_launch_guards": "PASS"
+  },
+  "live_teacher_lifecycle_smoke": {
+    "artifact": "artifacts/strategic_demand/EXP2_K2_TEACHER_KL_SMOKE.json",
+    "verdict": "PASS",
+    "ppo_actor_updates": 4,
+    "teacher_updates": 1,
+    "z0_teacher_kl_before": 2.558594226837158,
+    "z0_teacher_kl_after": 1.6565322875976562,
+    "z1_teacher_kl_before": 2.6985766887664795,
+    "z1_teacher_kl_after": 1.2897706031799316,
+    "teacher_parameters_frozen": true,
+    "environment_steps": 0
+  },
+  "tests": {
+    "focused_launch_blockers": "47 passed",
+    "mandated_preset_and_trainer_regressions": "131 passed, 1721 subtests passed",
+    "preset_snapshot_check": "UP_TO_DATE",
+    "diff_check": "PASS",
+    "changed_file_compile": "PASS",
+    "unrelated_repository_compile_issue": "rl/population/population_trainer.py has a pre-existing unterminated triple-quoted string and is outside this patch"
+  },
+  "prelaunch_seed_audits": {
+    "training_8100001_8100320": "CLEAN",
+    "development_8200001_8200192": "CLEAN",
+    "evaluation_8300001_8300192": "CLEAN",
+    "git_history_positive_control_commits": 12
+  },
+  "implementation_sha256": {
+    "experiments/run_exp2_k2_latent_compression.py": "cca96047920128b3a854cbc7cdf0ddb5afaec030f5e1074d71c485bacd3418d8",
+    "experiments/smoke_exp2_teacher_compression.py": "31f290b126a71b188ff62cf92a02b4658beea5b6bc20493c18e57107fba31cd4",
+    "rl/custom_ppo/exp2_teacher_compression.py": "0473be99fc8b0c65ff2d50c8db0102a1887acd9edadf09a08144bb92a76e0626",
+    "rl/custom_ppo/update/updater.py": "fe419b9eef78b93c30179cdd3ec982be178b78d547b68628e06e97e13d4a538b",
+    "rl/custom_ppo/policy.py": "7db10f1a4c5938493064dc6a18285bc35f6a0a8241db1d3182d4238fb6c3853c",
+    "tests/test_exp2_k2_compression.py": "7b523872fec524d41795deecb9f6e13872d675c6f1df9124e8e9eb8581996769",
+    "artifacts/strategic_demand/EXP2_K2_TEACHER_KL_SMOKE.json": "25a3d616ccebf7a22db10377c6c718fc47949d2e8ede05749edd13086034b45e"
+  },
+  "next_action": "Commit this implementation scope. Do not launch the 2M run in the implementation commit."
+}

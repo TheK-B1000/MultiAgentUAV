@@ -68,6 +68,7 @@ class PPOUpdater:
         # Absent runner still means structurally absent: no batch fetch, no
         # forward, no backward, no optimizer or scheduler step.
         self._sappo_seen_ppo_minibatches = 0
+        self._pending_exp2_teacher_state: dict[str, Any] | None = None
         self.cf_grad_ratio_violations = 0
         seed = int(getattr(cfg, "seed", 0) or 0) + 31_337
         self._z_separation_generator = torch.Generator(device=device)
@@ -76,7 +77,13 @@ class PPOUpdater:
         self._post_update = PostUpdatePipeline(intervention_evidence=self._intervention_evidence)
 
     def state_dict(self) -> dict[str, Any]:
-        return {"z_separation_generator": self._z_separation_generator.get_state()}
+        out = {"z_separation_generator": self._z_separation_generator.get_state()}
+        runner = self._exp2_teacher_runner()
+        if runner is not None:
+            out["exp2_teacher_compression"] = runner.state_dict()
+        elif self._pending_exp2_teacher_state is not None:
+            out["exp2_teacher_compression"] = dict(self._pending_exp2_teacher_state)
+        return out
 
     def load_state_dict(self, state: dict[str, Any]) -> None:
         gen_state = state.get("z_separation_generator")
@@ -84,6 +91,13 @@ class PPOUpdater:
             if isinstance(gen_state, torch.Tensor):
                 gen_state = gen_state.cpu()
             self._z_separation_generator.set_state(gen_state)
+        pending = state.get("exp2_teacher_compression")
+        self._pending_exp2_teacher_state = dict(pending) if pending is not None else None
+
+    def consume_pending_exp2_teacher_state(self) -> dict[str, Any] | None:
+        state = self._pending_exp2_teacher_state
+        self._pending_exp2_teacher_state = None
+        return state
 
     def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:
         return resolve_latent_lam_h(self.cfg, global_step=global_step, total_timesteps=total_timesteps)
@@ -91,6 +105,10 @@ class PPOUpdater:
     def _anchor_runner(self):
         """Read the rehearsal runner at USE time, never cached at construction."""
         return getattr(self.runtime, "sappo_anchor_runner", None)
+
+    def _exp2_teacher_runner(self):
+        """Read the EXP2 runner at use time; attachment occurs after loading."""
+        return getattr(self.runtime, "exp2_teacher_compression_runner", None)
 
     def _assert_anchor_cadence(self, runner) -> None:
         """ABORT the run if rehearsal is not actually happening.
@@ -109,6 +127,18 @@ class PPOUpdater:
                 f"{expected} (cadence 1:{runner.cadence}). Rehearsal is not "
                 "being applied; aborting rather than producing a run whose "
                 "defining treatment is absent.")
+
+    @staticmethod
+    def _assert_exp2_teacher_cadence(runner) -> None:
+        n_ppo = int(runner.n_ppo_actor_minibatches)
+        n_teacher = int(runner.n_teacher_updates)
+        expected = n_ppo // int(runner.cadence)
+        if n_teacher != expected:
+            raise RuntimeError(
+                f"EXP2 teacher cadence violated: {n_teacher} teacher updates "
+                f"after {n_ppo} PPO actor minibatches, expected {expected} "
+                f"(cadence 1:{runner.cadence})."
+            )
 
 
     def update(
@@ -278,6 +308,9 @@ class PPOUpdater:
                 )
                 accumulator.record_minibatch(result.telemetry)
                 runner = self._anchor_runner()
+                exp2_runner = self._exp2_teacher_runner()
+                if runner is not None and exp2_runner is not None:
+                    raise RuntimeError("SAPPO and EXP2 teacher runners cannot be active together")
                 if runner is not None:
                     # Counts a COMPLETED PPO actor minibatch; the runner steps
                     # only on full groups and never emits a trailing update.
@@ -294,6 +327,13 @@ class PPOUpdater:
                             runner.n_anchor_updates / max(1, runner.n_ppo_actor_minibatches)),
                         "sappo_anchor_loss": float(runner.last_anchor_loss),
                     })
+                if exp2_runner is not None:
+                    # Pass the actual completed PPO minibatch so teacher logits
+                    # are evaluated on the student's on-policy states and z.
+                    exp2_runner.realized_environment_steps = int(step)
+                    exp2_runner.note_ppo_minibatch(batch)
+                    self._assert_exp2_teacher_cadence(exp2_runner)
+                    accumulator.record_minibatch(exp2_runner.telemetry())
                 measurement = result.separation_measurement
                 if measurement is not None and measurement.valid and measurement.values is not None:
                     valid_cf_pair_measurements.append(measurement.values)

@@ -100,6 +100,18 @@ class PPOConfig:
     sappo_anchor_cadence: int = 4
     sappo_anchor_batch_size: int = 64
 
+    # EXP2 K=2 supervised repertoire compression. Default OFF means the two
+    # frozen teacher checkpoints are never opened and no teacher runner exists.
+    # These fields are separate from SAPPO's offline hard-action dataset path:
+    # EXP2 queries frozen policy distributions online on student-visited states.
+    exp2_teacher_compression_enabled: bool = False
+    exp2_teacher_checkpoints: tuple[str, ...] = field(default_factory=tuple)
+    exp2_teacher_sha256: tuple[str, ...] = field(default_factory=tuple)
+    exp2_teacher_lambda: float = 0.10
+    exp2_teacher_cadence: int = 4
+    exp2_teacher_batch_size: int = 64
+    exp2_protocol_path: str = ""
+
     # RULESET_V3_M1: own flag must be home to score. Default False keeps every
     # pre-V3 run bit-identical; the frozen V3 benchmark requires True. The other
     # five V3 rules (taggers_required=1, tag_min_interval_seconds=10.0,
@@ -173,6 +185,10 @@ class PPOConfig:
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True
     latent_k: int = 4
+    # Default True preserves every existing latent checkpoint and preset. EXP2
+    # sets False because z is externally assigned and no q_phi/router is part
+    # of the frozen supervised-compression architecture.
+    latent_strategy_encoder_enabled: bool = True
     latent_z_embed_dim: int = 16
     latent_actor_conditioning: Literal["concat", "film_v6"] = "concat"
     latent_actor_z_onehot_enabled: bool = False
@@ -820,6 +836,10 @@ class PPOConfig:
     # "balanced_arc"     -- Within each episode switch z every forced_latent_arc_steps,
     #                       cycling through K in order.
     latent_assignment_mode: str = "router"
+    # Per-environment persistent z IDs for latent_assignment_mode="static_env".
+    # Empty outside EXP2. The tuple length must equal n_envs and every ID must
+    # lie in [0, latent_k).
+    forced_latent_env_ids: tuple[int, ...] = field(default_factory=tuple)
     # Latent ID used when latent_assignment_mode == "fixed".
     forced_latent_id: int = 0
     # Steps between z switches when latent_assignment_mode == "balanced_arc".

@@ -43,6 +43,9 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
         kwargs.update(
             {
                 "latent_k": int(cfg.get("latent_k", 4)),
+                "strategy_encoder_enabled": bool(
+                    cfg.get("latent_strategy_encoder_enabled", True)
+                ),
                 "z_embed_dim": int(cfg.get("latent_z_embed_dim", 16)),
                 "router_context_mode": router_context_mode,
                 "router_context_dimension": int(cfg.get("router_context_dimension", 0) or 0),

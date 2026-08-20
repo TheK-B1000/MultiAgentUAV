@@ -196,6 +196,30 @@ def _episode_fieldnames() -> list[str]:
 
 def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
     fields = [
+        # EXP2 online teacher-compression treatment. Unconditional columns make
+        # a configured-but-silent runner visible from the first CSV interval.
+        "exp2_n_ppo_actor_updates",
+        "exp2_n_teacher_updates",
+        "exp2_teacher_to_ppo_ratio",
+        "exp2_teacher_loss",
+        "exp2_teacher_kl",
+        "exp2_teacher_kl_z0",
+        "exp2_teacher_kl_z1",
+        "exp2_teacher_agreement_z0",
+        "exp2_teacher_agreement_z1",
+        "exp2_teacher_rows_z0",
+        "exp2_teacher_rows_z1",
+        "exp2_teacher_active_heads",
+        "exp2_teacher_active_heads_z0",
+        "exp2_teacher_active_heads_z1",
+        "exp2_cell_count_z0_A",
+        "exp2_cell_count_z0_B",
+        "exp2_cell_count_z1_A",
+        "exp2_cell_count_z1_B",
+        "exp2_cell_steps_z0_A",
+        "exp2_cell_steps_z0_B",
+        "exp2_cell_steps_z1_A",
+        "exp2_cell_steps_z1_B",
         # SAPPO V1 rehearsal counters. Present unconditionally so a run with
         # anchoring silently disabled shows n_anchor_updates=0 in the FIRST
         # reporting interval instead of completing undetected, which is exactly

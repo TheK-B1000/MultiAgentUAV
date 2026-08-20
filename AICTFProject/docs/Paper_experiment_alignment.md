@@ -424,6 +424,24 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **EXP2 K=2 supervised compression implementation, not a paper-faithful
+  preset:** Added a default-off online frozen-teacher path for the prospectively
+  frozen `EXP2_K2_LATENT_COMPRESSION_V1` protocol. One shared concat-conditioned
+  actor receives persistent externally assigned `z in {0,1}` while `q_phi` and
+  the router are structurally absent. The only extra update is
+  `0.1 * KL(pi_SAPPO teacher || pi_student(.|o,z))` at one update per four PPO
+  actor minibatches, using the policy's own legal-mask function and the fixed
+  mapping `z0 -> pi_A`, `z1 -> pi_B`. This is
+  `DIAGNOSTIC_SUPERVISED_COMPRESSION`, not Summer-/paper-faithful or label-free
+  discovery. Added late-attachment, fail-fast cadence, checkpoint-resume,
+  immutable full teacher-hash, static 8/8/8/8 cell, and unconditional telemetry
+  guards plus `tests/test_exp2_k2_compression.py`. The no-environment smoke
+  loads both frozen SAPPO checkpoints and verifies both mapped KLs decrease.
+  Regenerated `tests/preset_snapshots.json`; the additive resync introduces 23
+  previously unsnapshotted default-valued config keys across all entries,
+  including seven `exp2_*` keys, `latent_strategy_encoder_enabled`,
+  `forced_latent_env_ids`, the four existing `sappo_anchor_*` keys, and existing
+  G0/R1 ruleset/reward/provenance fields. No existing snapshot value changed.
 - **Preset registry de-duplication + snapshot resync (no semantic change):**
   `rl/presets/_registry_source.py::_get_preset_dict` was a hand-maintained
   copy of `PRESET_REGISTRY`, kept only to break the `rl.presets` ↔

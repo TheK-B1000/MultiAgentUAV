@@ -25,8 +25,10 @@ never from ``rl.train_ppo`` or ``rl.training.cli``.
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import os
+from pathlib import Path
 from typing import Any, Callable, Optional
 
 from rl.config.ppo_config import PPOConfig
@@ -65,7 +67,7 @@ from rl.training.run_context import RunContext
 def _validate_config_gates(cfg: PPOConfig) -> None:
     """Raise typed errors for configs that must not start a training run.
 
-    Two gates are checked in order:
+    Three gates are checked in order:
 
     1. **Evaluation-only preset**: some presets (e.g. v6i2 promoted eval configs)
        set ``evaluation_only_preset=True`` to prevent accidental PPO training.
@@ -73,6 +75,7 @@ def _validate_config_gates(cfg: PPOConfig) -> None:
        match the prior 8x sweep config exactly (modulo a small allowed-diff set)
        so the ablation comparison is apples-to-apples.
     """
+    _validate_exp2_config_gates(cfg)
     # A formal run must carry the evidence needed to audit its own tagging.
     # Checked at start, not at report time: discovering after a million steps
     # that the tag ledger was never recorded costs the whole run.
@@ -129,6 +132,49 @@ def _validate_config_gates(cfg: PPOConfig) -> None:
                 "Configuration mismatch vs prior 8x sweep config:\n" + "\n".join(mismatches)
             )
 
+
+def _validate_exp2_config_gates(cfg: PPOConfig) -> None:
+    """Fail closed on any drift from the frozen EXP2 treatment."""
+    if not bool(getattr(cfg, "exp2_teacher_compression_enabled", False)):
+        return
+    errors: list[str] = []
+    if not bool(getattr(cfg, "use_latent_strategy", False)) or int(cfg.latent_k) != 2:
+        errors.append("student must use latent strategy with K=2")
+    if bool(getattr(cfg, "latent_strategy_encoder_enabled", True)):
+        errors.append("q_phi/router must be structurally disabled")
+    if str(getattr(cfg, "latent_assignment_mode", "")) != "static_env":
+        errors.append("latent_assignment_mode must be static_env")
+    ids = tuple(int(v) for v in getattr(cfg, "forced_latent_env_ids", ()))
+    if len(ids) != int(cfg.n_envs) or ids.count(0) != int(cfg.n_envs) // 2 or ids.count(1) != int(cfg.n_envs) // 2:
+        errors.append("forced_latent_env_ids must contain exactly half z0 and half z1")
+    if abs(float(cfg.exp2_teacher_lambda) - 0.10) > 1e-12:
+        errors.append("teacher lambda must equal 0.10")
+    if int(cfg.exp2_teacher_cadence) != 4 or int(cfg.exp2_teacher_batch_size) != 64:
+        errors.append("teacher cadence/batch must equal 4/64")
+    if str(getattr(cfg, "sappo_anchor_dataset", "") or ""):
+        errors.append("SAPPO offline anchor path must be absent")
+    if len(tuple(cfg.exp2_teacher_checkpoints)) != 2 or len(tuple(cfg.exp2_teacher_sha256)) != 2:
+        errors.append("exactly two teacher checkpoints and hashes are required")
+    if any(float(getattr(cfg, name, 0.0) or 0.0) != 0.0 for name in (
+        "latent_strategy_ppo_coef", "latent_lam_h", "latent_lam_p",
+        "latent_kl_consecutive", "latent_episode_strategy_coef",
+        "latent_actor_z_separation_coef", "latent_behavior_contrast_coef",
+    )):
+        errors.append("router/diversity/separation objectives must all be zero")
+    protocol = Path(str(getattr(cfg, "exp2_protocol_path", "") or ""))
+    if not protocol.is_file():
+        errors.append(f"frozen protocol missing: {protocol}")
+    else:
+        try:
+            payload = json.loads(protocol.read_text(encoding="utf-8"))
+            if payload.get("protocol_id") != "EXP2_K2_LATENT_COMPRESSION_V1":
+                errors.append("unexpected EXP2 protocol_id")
+            if payload.get("status") != "FROZEN_BEFORE_IMPLEMENTATION_OR_TRAINING":
+                errors.append("EXP2 protocol is not in the frozen pretraining state")
+        except Exception as exc:
+            errors.append(f"EXP2 protocol unreadable: {exc}")
+    if errors:
+        raise RuntimeError("EXP2 frozen-config gate failed: " + "; ".join(errors))
 
 # ---------------------------------------------------------------------------
 # Main orchestration entry point
@@ -246,6 +292,7 @@ def orchestrate_training_run(
         maybe_extend_total_timesteps(cfg, trainer)
         maybe_configure_periodic_checkpoints(cfg, trainer)
         _maybe_attach_sappo_anchor(cfg, trainer)
+        _maybe_attach_exp2_teacher_compression(cfg, trainer)
 
         artifact_only = bool(getattr(cfg, "formal_artifact_bundle_only", False))
         if artifact_only:
@@ -426,3 +473,77 @@ def _maybe_attach_sappo_anchor(cfg, trainer) -> None:
     trainer.sappo_anchor_runner = runner
     print(f"[SAPPO] anchor rehearsal ATTACHED: lambda={runner.lambda_anchor} "
           f"cadence=1:{runner.cadence} dataset={ds.describe()}")
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
+    """Attach frozen online teachers after checkpoint load and before learn()."""
+    if not bool(getattr(cfg, "exp2_teacher_compression_enabled", False)):
+        return
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("EXP2 cannot coexist with the SAPPO offline anchor runner")
+    model = trainer.model
+    if int(getattr(model, "latent_k", 0)) != 2:
+        raise RuntimeError("EXP2 student model did not resolve K=2")
+    if getattr(model, "strategy_encoder", None) is not None:
+        raise RuntimeError("EXP2 student unexpectedly constructed q_phi")
+
+    checkpoints = tuple(Path(str(p)) for p in cfg.exp2_teacher_checkpoints)
+    expected_hashes = tuple(str(v).lower() for v in cfg.exp2_teacher_sha256)
+    for path, expected in zip(checkpoints, expected_hashes):
+        if not path.is_file():
+            raise RuntimeError(f"EXP2 teacher checkpoint missing: {path}")
+        actual = _sha256(path)
+        if actual != expected:
+            raise RuntimeError(
+                f"EXP2 teacher hash mismatch for {path}: {actual} != {expected}"
+            )
+
+    from rl.custom_ppo.exp2_teacher_compression import Exp2TeacherCompressionRunner
+    from rl.custom_ppo.inference import load_custom_ppo_policy
+
+    teachers = {}
+    for z, path in enumerate(checkpoints):
+        loaded = load_custom_ppo_policy(
+            str(path), trainer.env.observation_space, trainer.env.action_space,
+            device=str(trainer.device),
+        )
+        teacher = loaded.model
+        if bool(getattr(teacher, "uses_latent_strategy", False)):
+            raise RuntimeError(f"EXP2 teacher z={z} must be a non-latent SAPPO policy")
+        if tuple(teacher.action_dims) != tuple(model.action_dims):
+            raise RuntimeError(f"EXP2 teacher z={z} action space differs from student")
+        teachers[z] = teacher
+
+    runner = Exp2TeacherCompressionRunner(
+        model,
+        trainer.optimizer,
+        teachers,
+        lambda_teacher=float(cfg.exp2_teacher_lambda),
+        cadence=int(cfg.exp2_teacher_cadence),
+        batch_size=int(cfg.exp2_teacher_batch_size),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        seed=int(getattr(cfg, "seed", 0)) + 92_011,
+        device=str(trainer.device),
+    )
+    pending = trainer.updater.consume_pending_exp2_teacher_state()
+    if cfg.load_path and pending is None:
+        raise RuntimeError(
+            "EXP2 resume checkpoint has no teacher-runner state; refusing a "
+            "cadence-reset resume"
+        )
+    if pending is not None:
+        runner.load_state_dict(pending)
+    trainer.exp2_teacher_compression_runner = runner
+    print(
+        "[EXP2] online teacher KL ATTACHED: "
+        f"lambda={runner.lambda_teacher} cadence=1:{runner.cadence} "
+        f"batch={runner.batch_size} mapping=z0:pi_A,z1:pi_B q_phi=ABSENT"
+    )

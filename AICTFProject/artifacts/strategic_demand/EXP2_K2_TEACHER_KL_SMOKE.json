@@ -1,0 +1,48 @@
+{
+  "artifact_id": "EXP2_K2_TEACHER_KL_SMOKE",
+  "classification": "IMPLEMENTATION_SMOKE_NOT_A_SCIENTIFIC_RESULT",
+  "environment_steps": 0,
+  "seed_block_consumed": false,
+  "smoke_seed": 20260820,
+  "protocol_id": "EXP2_K2_LATENT_COMPRESSION_V1",
+  "teacher_sha256": [
+    "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  ],
+  "student_q_phi": "ABSENT",
+  "teacher_mapping": {
+    "z0": "pi_A_SAPPO",
+    "z1": "pi_B_SAPPO"
+  },
+  "lambda": 0.1,
+  "cadence": 4,
+  "batch_size": 64,
+  "n_ppo_actor_updates": 4,
+  "n_teacher_updates": 1,
+  "before": {
+    "kl_z0": 2.558594226837158,
+    "agreement_z0": 0.2109375,
+    "rows_z0": 32.0,
+    "active_heads_z0": 128.0,
+    "kl_z1": 2.6985766887664795,
+    "agreement_z1": 0.0859375,
+    "rows_z1": 32.0,
+    "active_heads_z1": 128.0,
+    "kl": 2.6285853385925293,
+    "active_heads": 256.0
+  },
+  "after": {
+    "kl_z0": 1.6565322875976562,
+    "agreement_z0": 0.375,
+    "rows_z0": 32.0,
+    "active_heads_z0": 128.0,
+    "kl_z1": 1.2897706031799316,
+    "agreement_z1": 1.0,
+    "rows_z1": 32.0,
+    "active_heads_z1": 128.0,
+    "kl": 1.473151445388794,
+    "active_heads": 256.0
+  },
+  "verdict": "PASS",
+  "utc": "2026-08-20T23:16:24Z"
+}
