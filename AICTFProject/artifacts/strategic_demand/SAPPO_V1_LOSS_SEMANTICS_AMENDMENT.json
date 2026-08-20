@@ -1,0 +1,71 @@
+{
+  "record_id": "SAPPO_V1_LOSS_SEMANTICS_AMENDMENT",
+  "status": "FROZEN_BEFORE_FIRST_SAPPO_TRAINING_STEP",
+  "frozen_utc": "2026-08-20T02:30:00Z",
+  "parent_freeze": "artifacts/strategic_demand/STRATEGY_ANCHORED_PPO_V1_FROZEN.json (7682f29e)",
+  "parent_not_edited": "the parent freeze is preserved unchanged. It contains both an equation phrasing and a cadence phrasing; this record resolves which is authoritative, prospectively, rather than pretending the ambiguity never existed.",
+
+  "authoritative_phrasing": "1 anchor minibatch per four PPO actor minibatches",
+
+  "implementation_semantics": {
+    "1": "four ordinary PPO actor minibatches execute UNCHANGED",
+    "2": "after the fourth completed actor minibatch, execute ONE separate anchor-only optimizer step",
+    "3": "L_anchor = 0.10 * mean[-log pi(a_teacher | o)]",
+    "4": "anchor gradients are NOT combined with PPO surrogate, value, entropy, latent, separation, communication, or strategy-objective gradients in the same backward pass",
+    "5": "no decay, no schedule",
+    "6": "no trailing anchor update after fewer than four completed PPO actor minibatches"
+  },
+
+  "why_reading_2": {
+    "literal": "'an anchor minibatch' is a minibatch, not a loss term",
+    "test_3_becomes_structural": "with anchoring disabled no extra optimizer step exists, so the PPO path is untouched BY CONSTRUCTION rather than verified within floating-point tolerance inside a 976-line, 61-branch loss assembly",
+    "no_clipping_interaction": "the anchor gradient cannot distort PPO's ratio/clipping behaviour on a minibatch, because it never shares a backward pass with the clipped surrogate",
+    "interpretability": "two clean operations -- PPO optimizes performance, rehearsal restores strategic memory -- instead of a hybrid loss whose gradients interact inside PPO's clipping machinery",
+    "accepted_cost": "anchor and PPO gradients never combine within a step, so coupling is slightly weaker than a joint loss. Acceptable for a deliberately boring V1 that asks only whether rehearsal prevents drift."
+  },
+
+  "disabled_means_structurally_absent": {
+    "requirement": "when anchoring is disabled, the anchor operation is SKIPPED ENTIRELY",
+    "prohibited": "loss = 0.0 * anchor_loss; loss.backward(); optimizer.step() -- a nominal zero-loss step can still mutate optimizer state, step counters, schedulers, or apply weight decay",
+    "must_not_occur_when_disabled": [
+      "anchor batch fetch", "anchor forward pass", "anchor backward pass",
+      "optimizer.step()", "scheduler step",
+      "any anchor RNG consumption that could shift PPO sampling"
+    ]
+  },
+
+  "anchor_step_scope": {
+    "optimizes": "parameters reachable from the EXISTING actor distribution, to raise pi(a_teacher | o)",
+    "loss_source": "anchor NLL only",
+    "must_not_evaluate_or_add": [
+      "PPO clipped surrogate", "critic/value loss", "entropy bonus",
+      "latent separation loss", "communication entropy", "existing strategy objectives"
+    ],
+    "architectural_sharing": "if the actor shares upstream representation with other components, that EXISTING sharing is documented, not redesigned. The one-change story is preserved."
+  },
+
+  "test_3_requirements": {
+    "claim": "SAPPO disabled reproduces the pre-SAPPO trainer path",
+    "fixture": "strongest deterministic CPU fixture available; GPU nondeterminism is not an excuse to weaken the assertion",
+    "must_match": [
+      "same sampled minibatches", "same actor losses", "same optimizer-step count",
+      "same parameter tensors after update", "same optimizer state where practical",
+      "no anchor counters incremented"
+    ]
+  },
+
+  "test_6_requirements": {
+    "count": ["N_ppo_actor_minibatches", "N_anchor_updates"],
+    "complete_groups": "N_anchor == floor(N_ppo_actor / 4)",
+    "ratio_when_loop_ends_on_full_groups": 0.25,
+    "partial_group_rule": "do NOT invent a trailing anchor update to force the ratio. Report raw counts and N_anchor / floor(N_ppo_actor/4) == 1 for scheduled complete groups.",
+    "why_measured": "an implementation can be logically correct while a loop-nesting mistake yields 1:1 or 1:16 rehearsal. The cadence must be measured, not asserted from the configured constant."
+  },
+
+  "unchanged_from_parent": [
+    "lambda_anchor = 0.10", "same-style anchors only (pi_A <- GUARD, pi_B <- BREACH)",
+    "resume from 1M terminals, +500k each", "1.5M terminal scored only",
+    "evaluation on 7800001..7800192 with the identical R2 gate",
+    "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0 as the only scientific verdict"
+  ]
+}
