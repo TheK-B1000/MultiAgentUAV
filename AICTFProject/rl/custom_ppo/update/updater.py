@@ -56,6 +56,12 @@ class PPOUpdater:
         self.hparams = hparams
         self.latent_state = latent_state
         self.runtime = runtime
+        # SAPPO V1 (Reading 2): optional interleaved teacher rehearsal. When
+        # None -- the default -- no anchor batch is fetched, no anchor forward
+        # or backward runs, and no optimizer or scheduler step occurs, so the
+        # PPO path is untouched BY CONSTRUCTION rather than by a zero-scaled
+        # loss term. See SAPPO_V1_LOSS_SEMANTICS_AMENDMENT.json.
+        self.anchor_runner = getattr(runtime, "sappo_anchor_runner", None)
         self.cf_grad_ratio_violations = 0
         seed = int(getattr(cfg, "seed", 0) or 0) + 31_337
         self._z_separation_generator = torch.Generator(device=device)
@@ -242,6 +248,10 @@ class PPOUpdater:
                     updater_state=updater_state,
                 )
                 accumulator.record_minibatch(result.telemetry)
+                if self.anchor_runner is not None:
+                    # Counts a COMPLETED PPO actor minibatch; the runner steps
+                    # only on full groups and never emits a trailing update.
+                    self.anchor_runner.note_ppo_minibatch()
                 measurement = result.separation_measurement
                 if measurement is not None and measurement.valid and measurement.values is not None:
                     valid_cf_pair_measurements.append(measurement.values)
