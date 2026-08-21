@@ -1,0 +1,24 @@
+{
+  "record": "SAPPO teacher representability probe",
+  "utc": "2026-08-19T22:23:24Z",
+  "status": "ENGINEERING PREREQUISITE, not a strategic claim",
+  "question": "does a PPO-action-space replay of the projected teacher reproduce the teacher's advantage on its own pole?",
+  "seeds": "7900001..7900003 (training-only)",
+  "results": {
+    "A": {
+      "TRUE": 0.3333333333333333,
+      "PROJECTED": 1.0,
+      "OPPOSITE": 0.6666666666666666,
+      "mean_projection_error_cells": 1.8482033809026082,
+      "n": 3
+    },
+    "B": {
+      "TRUE": 1.0,
+      "PROJECTED": 0.6666666666666666,
+      "OPPOSITE": 0.0,
+      "mean_projection_error_cells": 2.030538558959961,
+      "n": 3
+    }
+  },
+  "reading": "PROJECTED close to TRUE and clearly above OPPOSITE => the teacher is representable and SAPPO V1 is well posed. PROJECTED collapsing toward OPPOSITE => cloning toward the projected teacher would anchor the student to something that is NOT the validated strategy, and the anchor dataset must be built differently before any training."
+}

@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-08-20T09:34:01.928352Z",
+  "evaluation_run_id": "sappo_pi_B_specialist_1p5M_seed7200001",
+  "source_training_run_id": "sappo_pi_B_specialist_1p5M_seed7200001",
+  "source_checkpoint_fingerprint": "2a9d1ef19d2190f68482b41c1595c826b0b9516efdb02effca548e68d0229828",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "sappo_pi_B_specialist_1p5M_seed7200001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

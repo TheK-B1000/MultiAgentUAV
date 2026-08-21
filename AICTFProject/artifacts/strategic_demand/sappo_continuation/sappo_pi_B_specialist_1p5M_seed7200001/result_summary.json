@@ -1,0 +1,16 @@
+{
+  "verdict": "TRAINING_COMPLETE",
+  "total_timesteps": 1500000,
+  "global_step": 1501184,
+  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_B_specialist_1p5M_seed7200001\\ckpts\\final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+  "n_episode_rows": 2088,
+  "artifact_identity": {
+    "run_id": "sappo_pi_B_specialist_1p5M_seed7200001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}
