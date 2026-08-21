@@ -1,0 +1,66 @@
+{
+  "record_id": "EXP1_SAPPO_CROSSOVER_CONFIRMED",
+  "status": "CONFIRMED",
+  "utc": "2026-08-20T16:00:00Z",
+  "protocol": "artifacts/strategic_demand/STRATEGY_ANCHORED_PPO_V1_FROZEN.json",
+  "semantics": "artifacts/strategic_demand/SAPPO_V1_LOSS_SEMANTICS_AMENDMENT.json",
+  "terminals": "artifacts/strategic_demand/SAPPO_V1_TERMINAL_SHA256.json",
+  "raw": "artifacts/strategic_demand/sappo_crossover/{summary.json,episode_rows.csv}",
+
+  "verdict": "SAPPO_V1_CROSSOVER_CONFIRMED",
+  "block": "7800001..7800192, 192 paired seeds, 768 episodes, now SPENT",
+  "procedure": "IDENTICAL to R2: same paired design, same bootstrap (rng 7, n_boot 20000, alpha 0.05), same gate, one block, no extension, no new statistic",
+
+  "learned_payoff_matrix": {
+    "pi_A_SAPPO": {"A": 0.7083, "B": 0.2812},
+    "pi_B_SAPPO": {"A": 0.4844, "B": 0.5000}
+  },
+
+  "gates": {
+    "delta_A": {"contrast": "WR(pi_A,A) - WR(pi_B,A)", "point": 0.2240,
+                "lcb95": 0.1250, "passes": true},
+    "delta_B": {"contrast": "WR(pi_B,B) - WR(pi_A,B)", "point": 0.2188,
+                "lcb95": 0.1302, "passes": true},
+    "rule": "LCB95 > 0 in BOTH directions; no magnitude floor by design"
+  },
+
+  "comparison_to_vanilla_R2": {
+    "table": {
+      "R2_vanilla":  {"delta_A": 0.0833, "A_lcb": -0.0156, "A_np_nn_D": [55, 39, 94],
+                      "A_purity": 0.585,
+                      "delta_B": 0.0625, "B_lcb": -0.0260, "B_np_nn_D": [47, 35, 82],
+                      "B_purity": 0.573, "verdict": "FAIL"},
+      "SAPPO_V1":    {"delta_A": 0.2240, "A_lcb": 0.1250,  "A_np_nn_D": [71, 28, 99],
+                      "A_purity": 0.717,
+                      "delta_B": 0.2188, "B_lcb": 0.1302,  "B_np_nn_D": [65, 23, 88],
+                      "B_purity": 0.739, "verdict": "PASS"}
+    },
+    "the_mechanism": {
+      "D_did_not_fall": "discordant pairs ROSE, 94->99 on A and 82->88 on B",
+      "purity_rose_sharply": "58.5% -> 71.7% on A, 57.3% -> 73.9% on B",
+      "reading": "the specialists disagree slightly MORE often, but when they disagree the correct specialist now wins roughly three times in four instead of barely better than a coin flip. This is the 'similar number of disagreements, correct specialist dominates them' route, not the 'fewer disagreements' route.",
+      "why_R2_failed": "R2's failure was never directional -- both point estimates had the right sign. The disagreements were too BALANCED (55v39, 47v35), so Var(d) = D/n - delta^2 stayed large and the LCBs crossed zero."
+    },
+    "effect_sizes": "both contrasts roughly tripled: +0.083 -> +0.224 and +0.063 -> +0.219"
+  },
+
+  "coincidence_checked_not_assumed": {
+    "observation": "WR(pi_B, A) = 0.4844 in BOTH R2 and SAPPO, exactly 93/192",
+    "checked": "different blocks (7500001 vs 7800001), different episodes",
+    "conclusion": "coincidence on a discrete 192-seed grid, not duplicated data"
+  },
+
+  "what_this_licenses": {
+    "claim": "vanilla PPO produced weak, statistically unreliable specialization; strategy anchoring converted it into a CONFIRMED complementary repertoire on an untouched block, under the identical procedure, with no threshold moved and no extension used",
+    "unlocks": "EXPERIMENT 2 (K=2 latent compression) -- two specialists now demonstrably worth compressing",
+    "does_NOT_claim": "that a latent network can hold both modes. That is exactly what Experiment 2 tests, and it is the first time in this campaign that question has been well-posed."
+  },
+
+  "provenance": {
+    "pi_A_terminal_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B_terminal_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+    "both_resumed_from": "the original R1 1M terminals, NOT the accidental vanilla 1.5M checkpoints",
+    "measured_anchor_cadence": 0.249903,
+    "demo_run_id": "6cca922e683b"
+  }
+}

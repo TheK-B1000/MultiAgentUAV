@@ -1,0 +1,45 @@
+{
+  "protocol_id": "EXP3_HELDOUT_STRATEGIC_FAMILIES",
+  "status": "PROTOCOL_FROZEN_NO_RESULTS_GENERATED",
+  "frozen_utc": "2026-08-20T15:30:00Z",
+  "gated_behind": ["EXPERIMENT 1 (SAPPO crossover)", "EXPERIMENT 2 (K=2 latent)"],
+  "may_not_run_until": "both upstream gates are earned",
+
+  "question": "Did we learn transferable STRATEGIES, or memorise two specific opponents?",
+
+  "treated_as_a_second_preregistered_benchmark": {
+    "rationale": "if the held-out variants are tuned after seeing learned-policy results, 'unseen' erodes immediately. They are frozen with the same discipline as the V3 poles.",
+    "generate": "A1..A3 and B1..B3 as frozen SDS genome overlays on the canonical bases",
+    "validate_with": "the SCRIPTED GUARD/BREACH reference policies ONLY, on a separate development block",
+    "validation_criterion": "each variant must preserve its intended strategic family: A-like variants demand GUARD (WR(GUARD) > WR(BREACH)), B-like variants demand BREACH",
+    "then": "FREEZE. The learned policies must NEVER be used to tune, select, or filter the variants.",
+    "prohibited": "regenerating a variant because a learned policy performed unexpectedly on it"
+  },
+
+  "mutation_axes": {
+    "allowed": ["attack timing", "approach speed", "lane preference", "aggression",
+                "defender depth", "interception behaviour", "inter-robot spacing"],
+    "constraint": "physically meaningful characteristics only, drawn from the SAME legal gene ranges already frozen in experiments/sds_genome.py. The strategic FAMILY must remain intact; these are not new strategies.",
+    "ranges_declared_prospectively": "the allowable range per axis is fixed in this record before any variant is generated"
+  },
+
+  "seed_blocks": {
+    "variant_development": "a fresh audited block, used ONLY for scripted-reference family validation",
+    "held_out_evaluation": "a separate fresh audited block, untouched until the comparison runs",
+    "rule": "audit both with scripts/audit_seed_block.py over the FULL range including git history, before use"
+  },
+
+  "comparison_table": {
+    "rows": ["Generalist PPO", "SAPPO repertoire", "Latent K=2"],
+    "columns": ["Seen A/B", "Unseen A-like", "Unseen B-like", "Worst case"],
+    "claim_under_test": "the latent modes capture transferable strategic responses rather than opponent-specific behaviours",
+    "worst_case_matters": "a method that wins on average but collapses on one variant has not generalised"
+  },
+
+  "prohibited": [
+    "tuning variants against learned policies",
+    "selecting which variants to report after seeing results",
+    "reusing the variant-development block for the held-out comparison",
+    "running any part of this before Experiments 1 and 2 pass"
+  ]
+}
