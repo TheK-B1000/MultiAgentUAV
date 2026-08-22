@@ -1,0 +1,136 @@
+{
+  "record_id": "EXP2B_BRANCH_PLAN",
+  "status": "FROZEN_BEFORE_EXP2B_SUMMARY_EXISTS",
+  "frozen_utc": "2026-08-22T09:00:00Z",
+  "authority": "PI directive",
+  "purpose": "autonomy without permission to fish. One predefined branch may execute; no new thresholds, no reruns of failed blocks, no tuning ladder.",
+
+  "current_state": {
+    "EXP1_SAPPO": "PASS, frozen, committed (23cb8a9f)",
+    "EXP2_balanced_cross_pole": "crossover FAIL (LCB -0.0729 / -0.1354), retention PASS (0.991), identity PASS. Frozen permanently.",
+    "EXP2B": "training complete and valid; terminal evaluation running on the frozen untouched block",
+    "EXP3": "LOCKED, protocol frozen, no results",
+    "EXP4": "LOCKED, protocol frozen, no results"
+  },
+
+  "primary_rule": "wait for the authoritative EXP2B summary.json",
+  "prohibited_while_running": [
+    "rerun EXP2B",
+    "extend its seed block",
+    "alter gates",
+    "alter confidence procedures",
+    "select a different checkpoint",
+    "reinterpret partial cells",
+    "tune coefficients based on the result",
+    "start EXP3 or another latent variant before EXP2B has a frozen verdict"
+  ],
+
+  "BRANCH_A_if_EXP2B_PASSES_ALL_GATES": {
+    "requires": "conjunctive: strategic crossover PASS AND retention PASS AND behavioral identity PASS",
+    "A1_freeze_artifacts": [
+      "terminal checkpoint SHA256",
+      "evaluator SHA256",
+      "all 1536 episode rows",
+      "seed block",
+      "full 8-cell payoff matrix",
+      "delta_A and delta_B",
+      "bootstrap LCB95",
+      "n+/n-/D and directional purity",
+      "retention estimate + confidence bound",
+      "every behavioral-identity metric",
+      "implementation/protocol/launch commits",
+      "verdict: EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_CONFIRMED"
+    ],
+    "A2": "commit before starting anything else",
+    "A3": "update research-progress-tracker.md: EXP2 NOT CONFIRMED/frozen, EXP2B CONFIRMED/frozen, EXP3 UNLOCKED/unstarted, EXP4 LOCKED",
+    "A4": "verify the EXP3 protocol was frozen BEFORE any EXP3 results exist; do NOT modify its gates based on EXP2B",
+    "A5": "launch EXPERIMENT 3 held-out strategic generalization",
+    "EXP3_question": "do the learned z0/z1 modes represent transferable GUARD/BREACH strategic families rather than memorising A0/B0?",
+    "EXP3_first_interval_proofs": [
+      "correct opponent overlays",
+      "held-out IDs were not used in training",
+      "correct checkpoint hashes",
+      "seed-block provenance",
+      "freeze launch evidence"
+    ],
+    "EXP3_PASS": "freeze + commit, unlock EXP4, launch under its already-frozen protocol",
+    "EXP3_FAIL": "freeze the negative, do NOT automatically launch EXP4, stop and request PI decision"
+  },
+
+  "BRANCH_B_if_EXP2B_FAILS_ANY_GATE": {
+    "B1": "freeze EXP2B as a valid negative BEFORE creating any variant; same artifact list as A1; verdict EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_NOT_CONFIRMED",
+    "B2": "commit the negative result",
+    "B3": "do NOT unlock EXP3; EXP3 and EXP4 remain locked",
+    "B4": "descriptive postmortem using EXISTING checkpoints and rows only; no new training",
+    "case_B4_1": {
+      "signature": "crossover FAIL, retention PASS, identity PASS",
+      "interpretation": "assigned-pole optimisation was insufficient; shared-policy interference becomes the leading next hypothesis",
+      "unlocks": "EXP2C, and this case alone unlocks it"
+    },
+    "case_B4_2": {
+      "signature": "crossover improves substantially but one gate narrowly fails",
+      "action": "do NOT rerun or loosen the gate. Freeze as FAIL. Use the effect descriptively only."
+    },
+    "case_B4_3": {
+      "signature": "retention FAIL and/or identity FAIL",
+      "action": "do NOT proceed to another latent architecture. STOP and request PI decision, because the failure mechanism differs from the preregistered shared-interference hypothesis."
+    }
+  },
+
+  "EXP2C_only_after_case_B4_1": {
+    "name": "MODE-SPECIFIC ACTOR ADAPTER / HEAD COMPRESSION",
+    "hypothesis": "even with assigned-pole optimisation, shared actor parameters may cause destructive interference between z0 and z1. A small z-specific actor component may preserve payoff specialisation while retaining a largely shared policy.",
+    "preserved": [
+      "shared observation encoder/trunk",
+      "one model / one checkpoint",
+      "K=2 persistent z",
+      "assigned-pole training 16 x z0|A and 16 x z1|B",
+      "2M total budget",
+      "SAPPO teacher hashes",
+      "lambda=0.1",
+      "1:4 teacher cadence",
+      "PPO configuration",
+      "ruleset",
+      "reward",
+      "terminal-only evaluation",
+      "crossover, retention and identity gates UNCHANGED"
+    ],
+    "only_change": "a minimal z-specific actor specialisation component (shared trunk -> z0 head / z1 head). Smallest change consistent with the existing implementation. NOT two independent PPO networks.",
+    "prerequisites_before_training": [
+      "freeze EXP2C protocol",
+      "reserve fresh training/development/evaluation seed blocks",
+      "full-history audit all blocks",
+      "commit the protocol",
+      "implement the architecture change",
+      "pin a resolved-config diff proving the ONLY scientific change from EXP2B is the z-specific actor component",
+      "run implementation tests",
+      "integrated teacher smoke: a z0 update reduces KL to SAPPO pi_A and a z1 update reduces KL to SAPPO pi_B",
+      "verify no cross-label contamination",
+      "verify persistent z",
+      "verify assigned cells remain 16/0/0/16",
+      "verify 1:4 teacher cadence",
+      "verify no opponent identity is exposed"
+    ],
+    "launch": "ONE 2M production run; freeze first-interval proofs of the z-specific actor path, cells, teacher mapping, cadence and provenance; then leave untouched to terminal",
+    "evaluation": "fresh untouched terminal block, EXACTLY the same success gates",
+    "EXP2C_PASS": "freeze + commit; EXP3 unlocks",
+    "EXP2C_FAIL": "freeze + commit the negative; STOP latent architecture experimentation; do NOT create EXP2D; request PI decision and begin paper framing around: explicit SAPPO repertoire succeeds, while naive shared latent compression and controlled follow-up variants do not reliably preserve complementary payoff structure"
+  },
+
+  "deferred_do_not_start": [
+    "fictitious play", "double oracle", "PSRO", "VGC scaling ladder",
+    "exploitability", "K=4 / K=8", "3v3", "physical robots",
+    "LLM opponent evolution", "arbitrary lambda tuning",
+    "additional EXP2 variants beyond EXP2C"
+  ],
+
+  "governance_sequence": "freeze hypothesis/protocol -> audit fresh seeds -> commit -> implement -> test treatment instantiation -> launch once -> terminal checkpoint only -> frozen evaluation -> freeze result -> commit result -> only then unlock next experiment",
+
+  "never_convert_a_failure_into_a_success_by": [
+    "more seeds", "changed estimator", "changed confidence interval",
+    "changed effect floor", "checkpoint selection", "post-hoc exclusion", "parameter tuning"
+  ],
+
+  "ICRA_priority": "SAPPO (done) -> K=2 compression -> held-out generalisation -> deployment realism + mode stability -> write paper",
+  "scope": "do not expand"
+}
