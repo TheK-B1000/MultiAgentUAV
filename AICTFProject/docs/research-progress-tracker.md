@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-21 — Experiment 2 training completed valid at the frozen 2 M terminal. The single terminal evaluation on `8300001..8300192` is running from the hash-locked final checkpoint. SAPPO V1 remains closed and immutable.
+> **Last updated:** 2026-08-22 — Experiment 2 completed as a valid negative result: retention and behavioral identity passed, but both strategic-crossover LCBs failed. EXP2 is frozen; EXP3 and EXP4 remain locked. EXP2B is the next prospective causal ablation.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,9 +26,9 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED.** Terminal WR matrix: `pi_A=(A .7083, B .2812)`, `pi_B=(A .4844, B .5000)`. Paired LCB95: `delta_A=.1250`, `delta_B=.1302`. SAPPO is frozen. Experiment 2 completed valid training and its frozen terminal evaluation is running. |
+| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED. EXP2 VALID FAIL.** EXP2 forced-mode matrix: `z0=(A .7344, B .6302)`, `z1=(A .7135, B .5990)`. Crossover LCB95: `delta_A=-.0729`, `delta_B=-.1354`; retention and identity passed. EXP3/EXP4 remain locked. |
 
-### Experiment 2: K=2 supervised latent compression — `VALID TERMINAL / EVALUATING`
+### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
 The prospective protocol is frozen in
 [`EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json`](../artifacts/strategic_demand/EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json).
@@ -78,8 +78,19 @@ are committed at `943c9055`; 14 focused tests and the permitted development
 smoke passed. The single formal evaluation launched on `8300001..8300192` at
 2026-08-21 11:17:31Z. Its evaluator SHA256 is
 `393e3479bfe170498772583ceebe76324a3e914907e2e5950b0aa5f7b9934c2c`.
-No payoff, retention, behavioral-identity, or overall EXP2 verdict exists until
-that worker writes its terminal `summary.json`.
+The worker completed all 1,536 episodes with empty stderr. The permanent result
+record is `EXP2_K2_LATENT_COMPRESSION_NOT_CONFIRMED.json`. Both crossover gates
+failed: `delta_A=+.0208`, LCB95 `-.0729`; `delta_B=-.0313`, LCB95 `-.1354`.
+Retention passed at `rho=1.0940`, LCB95 `.9912`, and all three action-identity
+gates passed. EXP2 therefore preserved performance and teacher-aligned action
+differences without preserving complementary payoff structure.
+
+The leading post-result mechanism is prospective, not established: balanced
+cross-pole PPO optimization may have pushed both modes toward generalist payoff
+behavior. EXP2B will test that mechanism by changing only the live training-cell
+assignment from `8/8/8/8` over `z0|A,z0|B,z1|A,z1|B` to `16/0/0/16`, while
+keeping the crossed cells in terminal evaluation. EXP2 alone does not prove
+causality. EXP3 and EXP4 remain locked.
 
 ---
 

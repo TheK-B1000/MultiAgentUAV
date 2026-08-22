@@ -1,0 +1,107 @@
+{
+  "record": "EXP2 K=2 supervised latent compression permanent result freeze",
+  "status": "FROZEN",
+  "verdict": "EXP2_K2_LATENT_COMPRESSION_NOT_CONFIRMED",
+  "frozen_at_utc": "2026-08-22T03:03:38Z",
+  "claim": "The valid EXP2 treatment retained matched-pole performance and distinct teacher-aligned action modes, but did not preserve the explicit SAPPO repertoire's complementary payoff structure.",
+  "causal_boundary": "EXP2 suggests that balanced cross-pole PPO optimization may have erased strategic specialization, but EXP2 alone does not prove causality. EXP2B is the prospective controlled ablation designed to test that mechanism.",
+  "protocol": {
+    "path": "artifacts/strategic_demand/EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json",
+    "protocol_id": "EXP2_K2_LATENT_COMPRESSION_V1",
+    "seed_block": "8300001..8300192",
+    "paired_seeds": 192,
+    "episodes_per_cell": 192,
+    "total_episodes": 1536,
+    "bootstrap": {
+      "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    }
+  },
+  "implementation": {
+    "evaluator": "experiments/eval_exp2_k2_terminal.py",
+    "evaluator_git_commit": "943c90559e3247548d9cc90484af956601a16189",
+    "evaluator_sha256": "393e3479bfe170498772583ceebe76324a3e914907e2e5950b0aa5f7b9934c2c"
+  },
+  "checkpoints": {
+    "student_terminal": {
+      "path": "artifacts/strategic_demand/exp2_k2_latent_compression/exp2_k2_supervised_compression_seed8100001_2m/ckpts/final_exp2_k2_supervised_compression_seed8100001_2m.zip",
+      "sha256": "a4a34c8310b50abb779f7fff8f3921a272c3ec9e23e3cec4f4e96076a84cd44f"
+    },
+    "teacher_pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "teacher_pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "payoff_matrix": {
+    "z0|A": 0.734375,
+    "z0|B": 0.6302083333333334,
+    "z1|A": 0.7135416666666666,
+    "z1|B": 0.5989583333333334,
+    "pi_A|A": 0.6770833333333334,
+    "pi_A|B": 0.34375,
+    "pi_B|A": 0.53125,
+    "pi_B|B": 0.5416666666666666
+  },
+  "strategic_crossover": {
+    "delta_A_z": {
+      "contrast": "WR(z0,A) - WR(z1,A)",
+      "mean": 0.020833333333333332,
+      "lcb95": -0.07291666666666667,
+      "ucb95": 0.11458333333333333,
+      "n_plus": 43,
+      "n_minus": 39,
+      "discordant": 82,
+      "purity": 0.524390243902439,
+      "passes": false
+    },
+    "delta_B_z": {
+      "contrast": "WR(z1,B) - WR(z0,B)",
+      "mean": -0.03125,
+      "lcb95": -0.13541666666666666,
+      "ucb95": 0.07291666666666667,
+      "n_plus": 46,
+      "n_minus": 52,
+      "discordant": 98,
+      "purity": 0.469387755102041,
+      "passes": false
+    },
+    "gate": "LCB95(delta_A_z) > 0 AND LCB95(delta_B_z) > 0",
+    "passes": false
+  },
+  "retention": {
+    "student_matched_value": 0.6666666666666666,
+    "teacher_matched_value": 0.609375,
+    "rho": 1.094017094017094,
+    "lcb95": 0.9912387202625103,
+    "ucb95": 1.2114558624195186,
+    "gate": "paired-bootstrap LCB95(rho) >= 0.90",
+    "passes": true
+  },
+  "behavioral_action_identity": {
+    "jsd_bits": {"mean": 0.14312578992712785, "lcb95": 0.14246406940850684, "ucb95": 0.1437674056033017, "passes": true},
+    "teacher_A_alignment_margin_bits": {"mean": 0.5475245085320116, "lcb95": 0.5270859619846088, "ucb95": 0.5679520484876709, "passes": true},
+    "teacher_B_alignment_margin_bits": {"mean": 0.5761944161778434, "lcb95": 0.5570867681911323, "ucb95": 0.5949631460332472, "passes": true},
+    "argmax_disagreement": {"mean": 0.27770160221089696, "lcb95": 0.27587673764768494, "ucb95": 0.279516039771881},
+    "passes": true
+  },
+  "artifacts": {
+    "terminal_freeze": {"path": "artifacts/strategic_demand/exp2_k2_terminal_evaluation/terminal_freeze.json", "sha256": "997ac2c5fa20df60a6a3bcd5f37f3360f2d76d995ba2cbd762f23224b1ec1b38"},
+    "episode_rows": {"path": "artifacts/strategic_demand/exp2_k2_terminal_evaluation/episode_rows.csv", "rows": 1536, "sha256": "781315a1753a028ae07a6bd79314afb3be996724a3308cf16e6c72af87373420"},
+    "action_identity_by_seed": {"path": "artifacts/strategic_demand/exp2_k2_terminal_evaluation/action_identity_by_seed.csv", "rows": 192, "sha256": "8c1576437c7cf4eed877c3117b6118845b3aac4e78c5087bd428fea116385ec7"},
+    "summary": {"path": "artifacts/strategic_demand/exp2_k2_terminal_evaluation/summary.json", "sha256": "97e1c7597353dad706d4781a836656a75e227646651c625d7ffa18d2fe45c2f3"},
+    "stdout": {"path": "artifacts/strategic_demand/exp2_k2_terminal_evaluation/evaluation.stdout.log", "sha256": "9e9e449db2f527867e2edab75f8e7d9f25e262f17b8e7e99335068c08a8afdba"},
+    "stderr": {"path": "artifacts/strategic_demand/exp2_k2_terminal_evaluation/evaluation.stderr.log", "bytes": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+  },
+  "downstream": {
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED",
+    "EXP2B": "AUTHORIZED ONLY AS A NEW PROSPECTIVE CAUSAL ABLATION; EXP2 remains permanently negative"
+  },
+  "immutability": {
+    "rerun": "FORBIDDEN",
+    "extension": "FORBIDDEN",
+    "threshold_change": "FORBIDDEN",
+    "checkpoint_selection": "FORBIDDEN",
+    "artifact_regeneration": "FORBIDDEN"
+  }
+}
