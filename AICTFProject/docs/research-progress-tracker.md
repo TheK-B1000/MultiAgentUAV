@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-22 — Experiment 2 completed as a valid negative result: retention and behavioral identity passed, but both strategic-crossover LCBs failed. EXP2 is frozen; EXP3 and EXP4 remain locked. EXP2B is the next prospective causal ablation.
+> **Last updated:** 2026-08-22 — EXP2B implementation gate passed at commit `a6c28a56`; production remains unstarted. EXP2 is permanently frozen as a valid negative result. EXP3 and EXP4 remain locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -92,7 +92,7 @@ assignment from `8/8/8/8` over `z0|A,z0|B,z1|A,z1|B` to `16/0/0/16`, while
 keeping the crossed cells in terminal evaluation. EXP2 alone does not prove
 causality. EXP3 and EXP4 remain locked.
 
-### Experiment 2B: specialization-preserving latent compression — `PROTOCOL FROZEN / UNSTARTED`
+### Experiment 2B: specialization-preserving latent compression — `IMPLEMENTATION GATE PASS / PRODUCTION UNSTARTED`
 
 The prospective causal-ablation protocol is
 `EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json`. It freezes
@@ -107,6 +107,13 @@ margins: training `8400001..8400320`, development `8500001..8500192`, and
 evaluation `8600001..8600192`. Observational actor-gradient cosine telemetry is
 non-gating and must prove zero parameter, optimizer, `.grad`, and RNG mutation.
 No EXP2B implementation or training step existed when the protocol was frozen.
+Implementation commit `a6c28a56` now realizes only the assigned-cell delta and
+adds non-gating actor-gradient-cosine telemetry. The live zero-step proof and a
+4,096-step development-seed trainer smoke both resolved `16/0/0/16`; the smoke
+executed 32 PPO actor updates and 8 teacher updates (ratio `.25`) with M1 and
+the frozen teacher mapping intact. The immutable launch gate is
+`EXP2B_IMPLEMENTATION_GATE.json`. No production step had been spent when that
+gate was written.
 
 ---
 
