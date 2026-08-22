@@ -1,0 +1,49 @@
+{
+  "artifact_id": "EXP2B_FIRST_INTERVAL_TREATMENT_EVIDENCE_V1",
+  "frozen_at_utc": "2026-08-22T04:11:05Z",
+  "verdict": "VALID_TREATMENT_RUNNING",
+  "claim_boundary": "This artifact proves production treatment instantiation only. It cannot declare EXP2B scientific success.",
+  "lineage": {
+    "protocol_commit": "62c907a6148d4a5ff5acec5d955aec44a7d2ad28",
+    "implementation_commit": "a6c28a563e2469214c07e3535581f912da9b124b",
+    "launch_gate_commit": "048aa480044860e2fa54c36b273666c4a23c4299",
+    "training_manifest_sha256": "6bcf0fbcb27dc823bc5fd876d47d150795cab2b6dcc39b832f0e49459b54a86b"
+  },
+  "launch": {
+    "pid_at_freeze": 17144,
+    "matching_workers": 1,
+    "command": "python experiments/run_exp2b_specialization_preserving_compression.py --launch",
+    "seed": 8400001,
+    "target_environment_steps": 2000000,
+    "production_directory_was_absent_before_launch": true
+  },
+  "first_interval": {
+    "timesteps": 4096,
+    "ppo_actor_updates": 32,
+    "teacher_updates": 8,
+    "teacher_to_ppo_ratio": 0.25,
+    "teacher_lambda": 0.1,
+    "teacher_loss": 0.1660381406545639,
+    "teacher_kl": 1.6603813171386719,
+    "gradient_cosine": 0.11214791238307953,
+    "gradient_cosine_count": 1,
+    "latent_occupancy": {"z0": 0.5, "z1": 0.5},
+    "cell_counts": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16},
+    "cell_steps": {"z0_A": 2048, "z0_B": 0, "z1_A": 0, "z1_B": 2048}
+  },
+  "treatment": {
+    "K": 2,
+    "persistent_forced_z": true,
+    "teacher_mapping": "z0->pi_A,z1->pi_B",
+    "teacher_pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "teacher_pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "own_flag_home_required_to_score": true,
+    "q_phi": "ABSENT",
+    "router": "ABSENT",
+    "opponent_identity_input": "ABSENT",
+    "crossed_training_cells": 0,
+    "invariant_violations": []
+  },
+  "next_action": "Leave the frozen 2M run untouched unless a mechanical or invariant failure occurs. Terminal evaluation alone decides the scientific result."
+}

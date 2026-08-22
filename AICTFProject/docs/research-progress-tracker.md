@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-22 — EXP2B implementation gate passed at commit `a6c28a56`; production remains unstarted. EXP2 is permanently frozen as a valid negative result. EXP3 and EXP4 remain locked.
+> **Last updated:** 2026-08-22 — EXP2B production is running from the frozen lineage. Its first 4,096-step interval proved the intended `16/0/0/16` treatment and exact `.25` teacher cadence. EXP2 remains a permanent valid negative result; EXP3 and EXP4 remain locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -92,7 +92,7 @@ assignment from `8/8/8/8` over `z0|A,z0|B,z1|A,z1|B` to `16/0/0/16`, while
 keeping the crossed cells in terminal evaluation. EXP2 alone does not prove
 causality. EXP3 and EXP4 remain locked.
 
-### Experiment 2B: specialization-preserving latent compression — `IMPLEMENTATION GATE PASS / PRODUCTION UNSTARTED`
+### Experiment 2B: specialization-preserving latent compression — `VALID TREATMENT / PRODUCTION RUNNING`
 
 The prospective causal-ablation protocol is
 `EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json`. It freezes
@@ -114,6 +114,14 @@ executed 32 PPO actor updates and 8 teacher updates (ratio `.25`) with M1 and
 the frozen teacher mapping intact. The immutable launch gate is
 `EXP2B_IMPLEMENTATION_GATE.json`. No production step had been spent when that
 gate was written.
+
+Production launched exactly once from commit `048aa480` with seed `8400001`.
+The immutable first-interval record is
+`EXP2B_FIRST_INTERVAL_TREATMENT_EVIDENCE.json`. At 4,096 steps it records
+`16 x z0|A`, `16 x z1|B`, zero crossed cells, 32 PPO actor updates, 8 teacher
+updates, ratio `.25`, active teacher KL, and no treatment invariant violation.
+These are treatment-health facts only. The frozen terminal gates retain sole
+authority over the EXP2B scientific verdict.
 
 ---
 
