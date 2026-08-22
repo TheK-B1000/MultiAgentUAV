@@ -220,6 +220,12 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         "exp2_cell_steps_z0_B",
         "exp2_cell_steps_z1_A",
         "exp2_cell_steps_z1_B",
+        "exp2b_gradient_cosine_last",
+        "exp2b_gradient_cosine_mean",
+        "exp2b_gradient_cosine_p10",
+        "exp2b_gradient_cosine_p50",
+        "exp2b_gradient_cosine_p90",
+        "exp2b_gradient_cosine_count",
         # SAPPO V1 rehearsal counters. Present unconditionally so a run with
         # anchoring silently disabled shows n_anchor_updates=0 in the FIRST
         # reporting interval instead of completing undetected, which is exactly

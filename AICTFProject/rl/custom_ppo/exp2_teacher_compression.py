@@ -16,14 +16,19 @@ forwards, gradients, optimizer steps, and counters are structurally absent.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import random
 from typing import Any, Mapping
 
+import numpy as np
 import torch
+
+from rl.ppo_core import ppo_policy_loss
 
 __all__ = [
     "Exp2TeacherCompressionRunner",
     "decision_eligible_agents",
     "teacher_student_kl",
+    "exp2b_actor_gradient_cosine",
 ]
 
 
@@ -172,6 +177,135 @@ def teacher_student_kl(
     return loss, telemetry
 
 
+def _shared_actor_parameters(model: Any) -> list[torch.nn.Parameter]:
+    """Shared actor parameters only; exclude the two-row strategy embedding."""
+    params: list[torch.nn.Parameter] = []
+    for name, parameter in model.named_parameters():
+        if not parameter.requires_grad:
+            continue
+        if name.startswith("actor_cnn."):
+            params.append(parameter)
+        elif name.startswith("latent_actor.") and "strategy_embedding" not in name:
+            params.append(parameter)
+    if not params:
+        raise RuntimeError("EXP2B gradient telemetry found no shared actor parameters")
+    return params
+
+
+def _rng_snapshot() -> dict[str, Any]:
+    return {
+        "python": random.getstate(),
+        "numpy": np.random.get_state(),
+        "torch_cpu": torch.random.get_rng_state().clone(),
+        "torch_cuda": [state.clone() for state in torch.cuda.get_rng_state_all()]
+        if torch.cuda.is_available() else [],
+    }
+
+
+def _restore_rng(snapshot: Mapping[str, Any]) -> None:
+    random.setstate(snapshot["python"])
+    np.random.set_state(snapshot["numpy"])
+    torch.random.set_rng_state(snapshot["torch_cpu"])
+    if snapshot["torch_cuda"]:
+        torch.cuda.set_rng_state_all(snapshot["torch_cuda"])
+
+
+def _same_numpy_rng(left, right) -> bool:
+    return (
+        left[0] == right[0]
+        and np.array_equal(left[1], right[1])
+        and left[2:] == right[2:]
+    )
+
+
+def _assert_rng_unchanged(before: dict[str, Any], after: dict[str, Any]) -> None:
+    if before["python"] != after["python"]:
+        raise RuntimeError("EXP2B gradient telemetry mutated Python RNG state")
+    if not _same_numpy_rng(before["numpy"], after["numpy"]):
+        raise RuntimeError("EXP2B gradient telemetry mutated NumPy RNG state")
+    if not torch.equal(before["torch_cpu"], after["torch_cpu"]):
+        raise RuntimeError("EXP2B gradient telemetry mutated Torch CPU RNG state")
+    if len(before["torch_cuda"]) != len(after["torch_cuda"]) or any(
+        not torch.equal(a, b) for a, b in zip(before["torch_cuda"], after["torch_cuda"])
+    ):
+        raise RuntimeError("EXP2B gradient telemetry mutated Torch CUDA RNG state")
+
+
+def exp2b_actor_gradient_cosine(
+    model: Any,
+    batch: Mapping[str, torch.Tensor],
+    *,
+    clip_range: float,
+) -> float:
+    """Mutation-free cosine between assigned-cell actor PPO gradients.
+
+    EXP2B has a one-to-one live mapping, so z=0 identifies z0|A and z=1
+    identifies z1|B without exposing opponent identity to the model.
+    """
+    z = batch["z"].long()
+    rows0, rows1 = torch.where(z == 0)[0], torch.where(z == 1)[0]
+    n = min(int(rows0.numel()), int(rows1.numel()))
+    if n < 1:
+        raise RuntimeError("EXP2B gradient telemetry requires both assigned cells")
+    rows_by_z = (rows0[:n], rows1[:n])
+    params = _shared_actor_parameters(model)
+    versions = [int(parameter._version) for parameter in params]
+    grads_before = [None if p.grad is None else p.grad.detach().clone() for p in params]
+    rng_before = _rng_snapshot()
+
+    advantages = batch["advantages"]
+    if advantages.numel() > 1:
+        advantages = (advantages - advantages.mean()) / (advantages.std(unbiased=False) + 1e-8)
+    gradients = []
+    try:
+        for mode, rows in enumerate(rows_by_z):
+            obs = {
+                "grid": batch["obs_grid"].index_select(0, rows),
+                "vec": batch["obs_vec"].index_select(0, rows),
+                "agent_mask": batch["obs_agent_mask"].index_select(0, rows),
+                "mask": batch["obs_mask"].index_select(0, rows),
+            }
+            mode_z = torch.full((n,), mode, dtype=torch.long, device=z.device)
+            _values, log_prob, _entropy, _aux = model.evaluate_actions(
+                obs,
+                batch["global_state"].index_select(0, rows),
+                batch["actions"].index_select(0, rows),
+                z_idx=mode_z,
+            )
+            loss, _ = ppo_policy_loss(
+                log_prob,
+                batch["log_probs"].index_select(0, rows),
+                advantages.index_select(0, rows),
+                float(clip_range),
+            )
+            gradients.append(torch.autograd.grad(loss, params, allow_unused=True))
+    finally:
+        rng_after = _rng_snapshot()
+        _restore_rng(rng_before)
+
+    if versions != [int(parameter._version) for parameter in params]:
+        raise RuntimeError("EXP2B gradient telemetry mutated an actor parameter")
+    for parameter, before in zip(params, grads_before):
+        after = parameter.grad
+        if before is None and after is not None:
+            raise RuntimeError("EXP2B gradient telemetry populated a .grad field")
+        if before is not None and (after is None or not torch.equal(before, after)):
+            raise RuntimeError("EXP2B gradient telemetry mutated a .grad field")
+    _assert_rng_unchanged(rng_before, rng_after)
+
+    flat = []
+    for mode_grads in gradients:
+        flat.append(torch.cat([
+            torch.zeros(parameter.numel(), device=parameter.device)
+            if grad is None else grad.reshape(-1)
+            for parameter, grad in zip(params, mode_grads)
+        ]))
+    denom = torch.norm(flat[0]) * torch.norm(flat[1])
+    if float(denom.detach().cpu()) <= 1e-12:
+        return 0.0
+    return float((torch.dot(flat[0], flat[1]) / denom).detach().cpu())
+
+
 class Exp2TeacherCompressionRunner:
     """One frozen teacher-KL update per complete PPO cadence group."""
 
@@ -187,6 +321,9 @@ class Exp2TeacherCompressionRunner:
         max_grad_norm: float | None,
         seed: int,
         device: str | torch.device,
+        cell_counts: tuple[int, int, int, int] = (8, 8, 8, 8),
+        gradient_cosine_enabled: bool = False,
+        clip_range: float = 0.2,
     ) -> None:
         if float(lambda_teacher) <= 0.0:
             raise ValueError("disabled EXP2 compression means no runner; lambda must be > 0")
@@ -202,6 +339,13 @@ class Exp2TeacherCompressionRunner:
         self.batch_size = int(batch_size)
         self.max_grad_norm = max_grad_norm
         self.device = torch.device(device)
+        if len(cell_counts) != 4 or any(int(v) < 0 for v in cell_counts) or sum(cell_counts) != 32:
+            raise ValueError("EXP2 cell_counts must be four non-negative counts summing to 32")
+        self.cell_counts = tuple(int(v) for v in cell_counts)
+        self.gradient_cosine_enabled = bool(gradient_cosine_enabled)
+        self.clip_range = float(clip_range)
+        self.gradient_cosine_history: list[float] = []
+        self.last_gradient_cosine_step = -1
         self.n_ppo_actor_minibatches = 0
         self.n_teacher_updates = 0
         self.last_teacher_loss = float("nan")
@@ -252,6 +396,14 @@ class Exp2TeacherCompressionRunner:
         return obs, z, decision
 
     def note_ppo_minibatch(self, batch: Mapping[str, torch.Tensor]) -> bool:
+        if (
+            self.gradient_cosine_enabled
+            and self.last_gradient_cosine_step != int(self.realized_environment_steps)
+        ):
+            self.gradient_cosine_history.append(
+                exp2b_actor_gradient_cosine(self.student, batch, clip_range=self.clip_range)
+            )
+            self.last_gradient_cosine_step = int(self.realized_environment_steps)
         self.n_ppo_actor_minibatches += 1
         if self.n_ppo_actor_minibatches % self.cadence:
             return False
@@ -283,6 +435,10 @@ class Exp2TeacherCompressionRunner:
             "batch_size": int(self.batch_size),
             "lambda_teacher": float(self.lambda_teacher),
             "realized_environment_steps": int(self.realized_environment_steps),
+            "cell_counts": tuple(self.cell_counts),
+            "gradient_cosine_enabled": bool(self.gradient_cosine_enabled),
+            "gradient_cosine_history": list(self.gradient_cosine_history),
+            "last_gradient_cosine_step": int(self.last_gradient_cosine_step),
         }
 
     def load_state_dict(self, state: Mapping[str, Any]) -> None:
@@ -303,12 +459,21 @@ class Exp2TeacherCompressionRunner:
         self.last_teacher_loss = float(state.get("last_teacher_loss", float("nan")))
         self.last_metrics = dict(state.get("last_metrics", {}) or {})
         self.realized_environment_steps = int(state.get("realized_environment_steps", 0))
+        if tuple(int(v) for v in state.get("cell_counts", self.cell_counts)) != self.cell_counts:
+            raise RuntimeError("EXP2 resume cell counts differ from checkpoint")
+        if bool(state.get("gradient_cosine_enabled", self.gradient_cosine_enabled)) != self.gradient_cosine_enabled:
+            raise RuntimeError("EXP2 resume gradient telemetry contract differs")
+        self.gradient_cosine_history = [float(v) for v in state.get("gradient_cosine_history", [])]
+        self.last_gradient_cosine_step = int(state.get("last_gradient_cosine_step", -1))
         rng_state = state.get("rng_state")
         if rng_state is not None:
             self._rng.set_state(rng_state.cpu() if isinstance(rng_state, torch.Tensor) else rng_state)
 
     def telemetry(self) -> dict[str, float]:
-        per_cell_steps = float(self.realized_environment_steps) / 4.0
+        cell_steps = [
+            float(self.realized_environment_steps) * float(count) / 32.0
+            for count in self.cell_counts
+        ]
         out = {
             "exp2_n_ppo_actor_updates": float(self.n_ppo_actor_minibatches),
             "exp2_n_teacher_updates": float(self.n_teacher_updates),
@@ -316,15 +481,25 @@ class Exp2TeacherCompressionRunner:
                 self.n_teacher_updates / max(1, self.n_ppo_actor_minibatches)
             ),
             "exp2_teacher_loss": float(self.last_teacher_loss),
-            "exp2_cell_count_z0_A": 8.0,
-            "exp2_cell_count_z0_B": 8.0,
-            "exp2_cell_count_z1_A": 8.0,
-            "exp2_cell_count_z1_B": 8.0,
-            "exp2_cell_steps_z0_A": per_cell_steps,
-            "exp2_cell_steps_z0_B": per_cell_steps,
-            "exp2_cell_steps_z1_A": per_cell_steps,
-            "exp2_cell_steps_z1_B": per_cell_steps,
+            "exp2_cell_count_z0_A": float(self.cell_counts[0]),
+            "exp2_cell_count_z0_B": float(self.cell_counts[1]),
+            "exp2_cell_count_z1_A": float(self.cell_counts[2]),
+            "exp2_cell_count_z1_B": float(self.cell_counts[3]),
+            "exp2_cell_steps_z0_A": cell_steps[0],
+            "exp2_cell_steps_z0_B": cell_steps[1],
+            "exp2_cell_steps_z1_A": cell_steps[2],
+            "exp2_cell_steps_z1_B": cell_steps[3],
         }
+        if self.gradient_cosine_history:
+            values = torch.tensor(self.gradient_cosine_history, dtype=torch.float64)
+            out.update({
+                "exp2b_gradient_cosine_last": float(values[-1]),
+                "exp2b_gradient_cosine_mean": float(values.mean()),
+                "exp2b_gradient_cosine_p10": float(torch.quantile(values, 0.10)),
+                "exp2b_gradient_cosine_p50": float(torch.quantile(values, 0.50)),
+                "exp2b_gradient_cosine_p90": float(torch.quantile(values, 0.90)),
+                "exp2b_gradient_cosine_count": float(values.numel()),
+            })
         for key, value in self.last_metrics.items():
             out[f"exp2_teacher_{key}"] = float(value)
         return out

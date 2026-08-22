@@ -167,7 +167,10 @@ def _validate_exp2_config_gates(cfg: PPOConfig) -> None:
     else:
         try:
             payload = json.loads(protocol.read_text(encoding="utf-8"))
-            if payload.get("protocol_id") != "EXP2_K2_LATENT_COMPRESSION_V1":
+            if payload.get("protocol_id") not in {
+                "EXP2_K2_LATENT_COMPRESSION_V1",
+                "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1",
+            }:
                 errors.append("unexpected EXP2 protocol_id")
             if payload.get("status") != "FROZEN_BEFORE_IMPLEMENTATION_OR_TRAINING":
                 errors.append("EXP2 protocol is not in the frozen pretraining state")
@@ -522,6 +525,11 @@ def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
             raise RuntimeError(f"EXP2 teacher z={z} action space differs from student")
         teachers[z] = teacher
 
+    protocol_payload = json.loads(Path(str(cfg.exp2_protocol_path)).read_text(encoding="utf-8"))
+    is_exp2b = (
+        protocol_payload.get("protocol_id")
+        == "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1"
+    )
     runner = Exp2TeacherCompressionRunner(
         model,
         trainer.optimizer,
@@ -532,6 +540,9 @@ def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
         max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
         seed=int(getattr(cfg, "seed", 0)) + 92_011,
         device=str(trainer.device),
+        cell_counts=(16, 0, 0, 16) if is_exp2b else (8, 8, 8, 8),
+        gradient_cosine_enabled=is_exp2b,
+        clip_range=float(getattr(cfg, "clip_range", 0.2)),
     )
     pending = trainer.updater.consume_pending_exp2_teacher_state()
     if cfg.load_path and pending is None:
@@ -543,7 +554,8 @@ def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
         runner.load_state_dict(pending)
     trainer.exp2_teacher_compression_runner = runner
     print(
-        "[EXP2] online teacher KL ATTACHED: "
+        f"[{'EXP2B' if is_exp2b else 'EXP2'}] online teacher KL ATTACHED: "
         f"lambda={runner.lambda_teacher} cadence=1:{runner.cadence} "
-        f"batch={runner.batch_size} mapping=z0:pi_A,z1:pi_B q_phi=ABSENT"
+        f"batch={runner.batch_size} mapping=z0:pi_A,z1:pi_B q_phi=ABSENT "
+        f"cells={runner.cell_counts} grad_cosine={runner.gradient_cosine_enabled}"
     )
