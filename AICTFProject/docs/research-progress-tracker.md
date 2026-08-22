@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-22 — EXP2B production is running from the frozen lineage. Its first 4,096-step interval proved the intended `16/0/0/16` treatment and exact `.25` teacher cadence. EXP2 remains a permanent valid negative result; EXP3 and EXP4 remain locked.
+> **Last updated:** 2026-08-22 — EXP2B completed valid training and its frozen terminal evaluation is running on untouched block `8600001..8600192`. EXP2 remains a permanent valid negative result; EXP3 and EXP4 remain locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -92,7 +92,7 @@ assignment from `8/8/8/8` over `z0|A,z0|B,z1|A,z1|B` to `16/0/0/16`, while
 keeping the crossed cells in terminal evaluation. EXP2 alone does not prove
 causality. EXP3 and EXP4 remain locked.
 
-### Experiment 2B: specialization-preserving latent compression — `VALID TREATMENT / PRODUCTION RUNNING`
+### Experiment 2B: specialization-preserving latent compression — `TRAINING COMPLETE + VALID / TERMINAL EVALUATION RUNNING`
 
 The prospective causal-ablation protocol is
 `EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json`. It freezes
@@ -122,6 +122,14 @@ The immutable first-interval record is
 updates, ratio `.25`, active teacher KL, and no treatment invariant violation.
 These are treatment-health facts only. The frozen terminal gates retain sole
 authority over the EXP2B scientific verdict.
+
+Training terminated cleanly at 2,002,944 environment steps. The final
+checkpoint SHA256 is `4b0a0e08051be6abba8b34c11d34c5b7dd82616903fa87f39f859e65a7115a0b`
+and matches the evaluation manifest. The single frozen terminal evaluation was
+then launched from evaluator commit `ec61be42` on `8600001..8600192`; complete
+wrapper plus shared-scoring provenance is frozen in
+`EXP2B_EVALUATION_LAUNCH_PROVENANCE.json`. No diagnostic can declare success
+before all 1,536 rows and the unchanged gates are complete.
 
 ---
 
