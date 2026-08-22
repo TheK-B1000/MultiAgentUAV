@@ -92,6 +92,22 @@ assignment from `8/8/8/8` over `z0|A,z0|B,z1|A,z1|B` to `16/0/0/16`, while
 keeping the crossed cells in terminal evaluation. EXP2 alone does not prove
 causality. EXP3 and EXP4 remain locked.
 
+### Experiment 2B: specialization-preserving latent compression — `PROTOCOL FROZEN / UNSTARTED`
+
+The prospective causal-ablation protocol is
+`EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json`. It freezes
+the single scientific delta before implementation: PPO training assignment is
+`16 x z0|A + 16 x z1|B`; crossed cells are evaluation-only. Architecture,
+teachers, hashes, `lambda=.1`, 1:4 cadence, PPO settings, 2 M budget, persistent
+z, no-router contract, terminal-only scoring, bootstrap, retention, identity,
+and crossover gates remain unchanged from EXP2.
+
+Fresh blocks passed worktree plus all-branch history audits with 5,000-seed
+margins: training `8400001..8400320`, development `8500001..8500192`, and
+evaluation `8600001..8600192`. Observational actor-gradient cosine telemetry is
+non-gating and must prove zero parameter, optimizer, `.grad`, and RNG mutation.
+No EXP2B implementation or training step existed when the protocol was frozen.
+
 ---
 
 ## 1. Run-status legend

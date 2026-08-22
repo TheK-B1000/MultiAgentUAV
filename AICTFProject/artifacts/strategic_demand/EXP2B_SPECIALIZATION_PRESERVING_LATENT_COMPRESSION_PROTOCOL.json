@@ -1,0 +1,157 @@
+{
+  "protocol_id": "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION_OR_TRAINING",
+  "frozen_at_utc": "2026-08-22T03:17:09Z",
+  "provenance_commit_before_freeze": "1ffd32b005cc1a25dc2a99380ea2ccbe80f55273",
+  "classification": "DIAGNOSTIC_SUPERVISED_COMPRESSION_CAUSAL_ABLATION",
+  "question": "Does assigning each latent's PPO task optimization only to its mapped strategic pole preserve the explicit SAPPO repertoire's complementary payoff structure inside one shared K=2 policy?",
+  "motivation_and_causal_boundary": {
+    "observed_EXP2_result": "EXP2 retained performance and teacher-aligned action identity but failed both strategic-crossover gates.",
+    "hypothesis": "Balanced cross-pole PPO optimization may have pushed both latent modes toward generalist payoff behavior despite mode-specific teacher rehearsal.",
+    "boundary": "EXP2 suggests this mechanism but does not prove causality. EXP2B is the prospective controlled ablation designed to test it.",
+    "if_EXP2B_passes": "Assigned-pole optimization restored strategic payoff specialization under shared-policy compression, whereas balanced cross-pole optimization preserved performance and behavioral diversity but did not preserve complementary payoff structure.",
+    "if_EXP2B_fails": "The cross-pole-pressure hypothesis is weakened; the compression failure may instead involve shared-representation interference, optimization interference, teacher-state mismatch, or another mechanism.",
+    "parent_result": "artifacts/strategic_demand/EXP2_K2_LATENT_COMPRESSION_NOT_CONFIRMED.json",
+    "parent_result_sha256": "dd3ec61a6600cb065b1032eb4fe4265d5e46cc1695afcdde8ee537bc5aba6158"
+  },
+  "precedence": {
+    "older_handoff": "artifacts/strategic_demand/POST_EXP2_HANDOFF_PLAN_FROZEN.json",
+    "older_failure_branch": "EXP2_FAIL previously stopped the latent-compression route.",
+    "explicit_later_authorization": "After observing and freezing the valid EXP2 failure, the user authorized one new prospective causal ablation with unchanged gates. This protocol does not alter, rescue, or rerun EXP2.",
+    "EXP2_status": "PERMANENTLY EXP2_K2_LATENT_COMPRESSION_NOT_CONFIRMED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED"
+  },
+  "single_scientific_delta": {
+    "field": "PPO live training-cell assignment",
+    "EXP2": {"z0_A": 8, "z0_B": 8, "z1_A": 8, "z1_B": 8},
+    "EXP2B": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16},
+    "semantic_change": "z0 receives PPO task optimization only on pole A; z1 receives PPO task optimization only on pole B.",
+    "crossed_cells": "z0|B and z1|A are terminal-evaluation conditions only and never PPO training conditions.",
+    "required_resolved_diff": "The implementation/config/live-environment comparison against EXP2 must show only 8/8/8/8 -> 16/0/0/16 plus run identity, artifact paths, fresh seed, protocol path, and checkpoint paths required by the new run. No other scientific field may change."
+  },
+  "frozen_shared_contract": {
+    "architecture": "one shared decentralized concat-conditioned K=2 actor and one shared centralized scalar critic",
+    "z_lifetime": "static per environment and persistent for the full episode",
+    "router": "ABSENT",
+    "q_phi": "ABSENT",
+    "opponent_identity_input": "FORBIDDEN in actor, critic, and latent assignment",
+    "teacher_mapping": {"z0": "frozen SAPPO pi_A", "z1": "frozen SAPPO pi_B"},
+    "teacher_pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "teacher_pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+    "teacher_KL": "mean masked categorical KL(pi_teacher || pi_student(.|o,z)) on decision-eligible student-rollout observations",
+    "teacher_lambda": 0.1,
+    "teacher_cadence": "one teacher actor update per four PPO actor minibatch updates, no trailing update",
+    "teacher_batch_size": 64,
+    "PPO": "exact EXP2/G0-V5 PPO architecture, optimizer, rollout, reward, normalization, and masking settings",
+    "ruleset": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "map": "map_a_open",
+    "pole_A": "OP6 plus frozen min_alive_for_defender=2 genome overlay",
+    "pole_B": "canonical OP7 with no stale overlay",
+    "normal_CTF_reward": "UNCHANGED",
+    "total_environment_steps": 2000000,
+    "parallel_envs": 32,
+    "checkpoint_cadence": 100000,
+    "scored_checkpoint": "terminal checkpoint from the first completed rollout at or beyond 2,000,000 steps",
+    "intermediate_checkpoints": "diagnostic only and ineligible for scoring",
+    "additional_losses": "FORBIDDEN",
+    "training_attempts": 1
+  },
+  "live_training_assignment": {
+    "slots_0_through_15": {"z": 0, "pole": "A", "opponent": "OP6+overlay"},
+    "slots_16_through_31": {"z": 1, "pole": "B", "opponent": "OP7 canonical"},
+    "expected_counts": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16},
+    "expected_total_steps_per_cell": {"z0_A": 1000000, "z0_B": 0, "z1_A": 0, "z1_B": 1000000},
+    "fail_fast_assertions": [
+      "live batch is exactly 16/0/0/16 before step 1",
+      "every z0 environment resolves pole A including min_alive_for_defender=2",
+      "every z1 environment resolves canonical OP7 with no A overlay",
+      "z is unchanged through episode reset and auto-reset",
+      "teacher A supervises only z0 and teacher B supervises only z1",
+      "no training seed leaves 8400001..8400320",
+      "teacher-to-PPO cadence invariant holds at every update"
+    ]
+  },
+  "observational_gradient_interference_telemetry": {
+    "metric": "cosine(g_z0_A, g_z1_B) over shared actor parameters",
+    "gradient_source": "actor PPO surrogate only, using equal-sized z0|A and z1|B samples from the same completed rollout",
+    "execution": "torch.autograd.grad on a detached diagnostic graph; no optimizer step, no gradient accumulation into model .grad fields, no parameter or optimizer-state mutation",
+    "rng_contract": "snapshot and restore Python, NumPy, CPU Torch, and CUDA RNG state; telemetry must not alter minibatch order or training samples",
+    "cadence": "once per completed PPO rollout/update interval",
+    "reporting": "descriptive time series plus terminal mean/quantiles",
+    "gate": "NONE",
+    "selection_use": "FORBIDDEN",
+    "failure_policy": "Telemetry failure aborts before production launch if found in smoke; during production it must be fail-loud because silent mutation would invalidate comparability."
+  },
+  "seed_blocks": {
+    "training": {"range": "8400001..8400320", "master_seed": 8400001, "audit": "artifacts/strategic_demand/EXP2B_TRAINING_BLOCK_PRELAUNCH_AUDIT.json", "audit_sha256": "e7ae98ee7bb1399f6e6cd58b2ab69fc8cf712101e0617b91d465e895cd091857", "verdict": "CLEAN"},
+    "development": {"range": "8500001..8500192", "audit": "artifacts/strategic_demand/EXP2B_DEVELOPMENT_BLOCK_PRELAUNCH_AUDIT.json", "audit_sha256": "55431f4da3cef64ad11f8c6db8a0bdba19fa642dfd3536be20851b4fe666e174", "verdict": "CLEAN", "may_declare_success": false},
+    "evaluation": {"range": "8600001..8600192", "paired_seeds": 192, "audit": "artifacts/strategic_demand/EXP2B_EVALUATION_BLOCK_PRELAUNCH_AUDIT.json", "audit_sha256": "b9edd67017cf2eb18544e671234fd2dbb03722321cc8aeef887425a0aeddeB3b", "verdict": "CLEAN", "extension_forbidden": true},
+    "audit_tool": {"path": "scripts/audit_seed_block.py", "sha256": "e57a43283b8acac8fb303cf5b8aed523696e8bd3c8f9ef031a3fce3376b18b34", "history_positive_control": "2600001..2600032", "positive_control_commits": 14, "margin": 5000},
+    "future_reaudit_exclusions": [
+      "artifacts/strategic_demand/EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json",
+      "artifacts/strategic_demand/EXP2B_TRAINING_BLOCK_PRELAUNCH_AUDIT.json",
+      "artifacts/strategic_demand/EXP2B_DEVELOPMENT_BLOCK_PRELAUNCH_AUDIT.json",
+      "artifacts/strategic_demand/EXP2B_EVALUATION_BLOCK_PRELAUNCH_AUDIT.json",
+      "docs/research-progress-tracker.md",
+      "experiments/run_exp2b_specialization_preserving_compression.py",
+      "experiments/eval_exp2b_k2_terminal.py",
+      "tests/test_exp2b_specialization_preserving_compression.py"
+    ]
+  },
+  "terminal_evaluation": {
+    "deterministic": true,
+    "student_cells": ["z0|A", "z0|B", "z1|A", "z1|B"],
+    "teacher_reference_cells": ["pi_A|A", "pi_A|B", "pi_B|A", "pi_B|B"],
+    "episodes_per_cell": 192,
+    "total_episodes": 1536,
+    "raw_rows_required": true,
+    "bootstrap": {"procedure": "paired percentile bootstrap over seed-level episode outcomes", "samples": 20000, "alpha": 0.05, "rng_seed": 7},
+    "same_gates_as_EXP2": true
+  },
+  "gates": {
+    "strategic_crossover": {
+      "delta_A_z": "WR(z0,A) - WR(z1,A)",
+      "delta_B_z": "WR(z1,B) - WR(z0,B)",
+      "pass": "LCB95(delta_A_z) > 0 AND LCB95(delta_B_z) > 0",
+      "effect_floor": "NONE"
+    },
+    "retention": {
+      "student_matched_value": "(WR(z0,A) + WR(z1,B)) / 2",
+      "teacher_matched_value": "(WR(pi_A,A) + WR(pi_B,B)) / 2 on the same 8600001..8600192 seeds",
+      "rho": "student_matched_value / teacher_matched_value",
+      "pass": "paired-bootstrap LCB95(rho) >= 0.90"
+    },
+    "behavioral_action_identity": {
+      "matched_state_source": "all decision-eligible local observations from all eight terminal evaluation cells",
+      "pass": "LCB95(JSD(z0,z1)) > 0 AND LCB95(KL(pi_A||z1)-KL(pi_A||z0)) > 0 AND LCB95(KL(pi_B||z0)-KL(pi_B||z1)) > 0",
+      "bootstrap_unit": "evaluation seed"
+    },
+    "trajectory_reporting": "same preregistered EXP2 telemetry, descriptive only and unable to rescue any failed primary gate",
+    "overall_pass": "all crossover, retention, behavioral-identity, provenance, and runtime gates pass"
+  },
+  "one_attempt_rule": {
+    "scientific_attempts": 1,
+    "forbidden_after_any_development_or_evaluation_result": [
+      "changing K", "changing lambda or cadence", "adding or removing a loss",
+      "changing teacher mapping", "changing assignment", "changing architecture or initialization",
+      "extending the training budget", "selecting an intermediate checkpoint",
+      "changing or extending the evaluation block", "rerunning with a new seed because the result is unattractive"
+    ],
+    "invalid_run_exception": "Only a fail-fast provenance, plumbing, or runtime invariant can invalidate a run before scoring. The identical frozen scientific configuration may relaunch only after a typed invalid-run record and engineering fix.",
+    "valid_fail": "A valid run missing any gate is the permanent EXP2B result. EXP3 and EXP4 remain locked."
+  },
+  "launch_lock": {
+    "implementation_started": false,
+    "training_started": false,
+    "required_before_step_1": [
+      "resolved config diff against EXP2 proves no unintended scientific delta",
+      "unit and lifecycle tests prove 16/0/0/16 assignment and persistent z",
+      "integrated live smoke proves exact opponent profiles and cell counts",
+      "teacher hashes and terminal parent implementation hashes match",
+      "gradient-cosine telemetry proves zero parameter, optimizer, .grad, and RNG mutation",
+      "fresh seed blocks re-audit CLEAN with reservation records excluded",
+      "production run directory does not exist"
+    ]
+  }
+}
