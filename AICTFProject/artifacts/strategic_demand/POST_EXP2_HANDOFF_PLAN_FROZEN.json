@@ -1,0 +1,69 @@
+{
+  "record_id": "POST_EXP2_HANDOFF_PLAN",
+  "status": "FROZEN_BEFORE_EXP2_SUMMARY_EXISTS",
+  "frozen_utc": "2026-08-21T09:00:00Z",
+  "why_frozen_now": "so nobody improvises after seeing the result. Both branches are written before the data exists.",
+  "at_freeze_time": "EXP2 terminal evaluation running, ~24 episodes remaining, no summary.json yet",
+
+  "step_1_score_once": {
+    "action": "wait for summary.json and score EXP2 exactly ONCE",
+    "record": ["all 8 cell win rates", "delta_A_z", "delta_B_z", "both LCB95",
+               "discordant counts n+/n-/D and purity for each contrast",
+               "90% retention ratio vs the SAPPO reference cells",
+               "every behavioral-identity gate SEPARATELY",
+               "final conjunctive verdict"],
+    "prohibited": ["rerun", "extension", "threshold change", "reporting a subset of gates"]
+  },
+
+  "step_2_if_PASS": {
+    "action": "freeze and commit the K=2 result immediately",
+    "bind": ["latent terminal checkpoint SHA256", "evaluator script SHA256",
+             "raw episode rows", "summary.json", "seed block",
+             "crossover statistics", "retention", "behavioral gates", "final verdict"],
+    "then": "mark K=2 CLOSED and unlock EXPERIMENT 3 ONLY",
+    "not_unlocked": "Experiment 4 remains locked until Experiment 3 passes"
+  },
+
+  "step_3_experiment_3": {
+    "protocol": "artifacts/strategic_demand/EXP3_HELDOUT_FAMILIES_PROTOCOL.json (already frozen)",
+    "action": "generate and evaluate ONLY the preregistered A-like and B-like held-out families",
+    "prohibited": "any tuning against the latent policy; variants are validated with the scripted GUARD/BREACH references only",
+    "comparison": ["generalist PPO", "explicit SAPPO repertoire", "K=2 latent controller"],
+    "question": "do the learned z modes generalize as STRATEGIES, or did they memorise A0/B0?"
+  },
+
+  "step_4_if_EXP3_PASS": {
+    "action": "freeze and commit EXP3, then unlock EXPERIMENT 4",
+    "protocol": "artifacts/strategic_demand/EXP4_DEPLOYMENT_REALISM_PROTOCOL.json (already frozen)",
+    "tests": ["performance degradation across the frozen perturbation levels",
+              "mode stability: does forced z0 stay GUARD-like and z1 stay BREACH-like under perturbation"]
+  },
+
+  "step_5_after_EXP4": {
+    "action": "STOP experiments and write the ICRA paper",
+    "prohibited_unless_a_reviewer_level_hole_appears_in_the_draft": [
+      "fictitious play", "double oracle", "PSRO", "VGC diversity scaling",
+      "exploitability search", "K=4/K=8", "3v3", "physical robots", "LLM opponent evolution"
+    ]
+  },
+
+  "failure_branches_explicit": {
+    "EXP2_FAIL": {
+      "action": "freeze the EXP2 failure record; STOP downstream EXP3 and EXP4",
+      "paper_pivots_to": "explicit SAPPO repertoire succeeds, latent compression does not",
+      "note": "this remains a publishable result: strategic demand validated, vanilla PPO insufficient, anchoring sufficient for an explicit repertoire, compression into one network unsuccessful"
+    },
+    "EXP3_FAIL": {
+      "action": "freeze the negative; do NOT proceed to EXP4 as if generalization worked",
+      "paper_frames_as": "successful strategic preservation and compression, but limited transfer to unseen strategic families"
+    },
+    "EXP4_FAIL": {
+      "action": "freeze the result",
+      "paper_reports": "latent strategic identity degrades under deployment uncertainty",
+      "note": "mode-stability failure is a distinct and reportable finding from win-rate degradation"
+    }
+  },
+
+  "sticky_note": "EXP2 summary -> freeze result -> if PASS, EXP3 -> if PASS, EXP4 -> write ICRA",
+  "until_the_summary_lands": "ZERO code or design changes"
+}
