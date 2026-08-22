@@ -34,6 +34,10 @@ from rl.custom_ppo.exp2_teacher_compression import decision_eligible_agents  # n
 
 SD = ROOT / "artifacts" / "strategic_demand"
 PROTOCOL = SD / "EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json"
+PROTOCOL_ID = "EXP2_K2_LATENT_COMPRESSION_V1"
+EXPERIMENT_ID = "EXP2_K2_LATENT_COMPRESSION"
+SEED_BLOCK = "8300001..8300192"
+DEVELOPMENT_SEED = 8_200_001
 TRAIN_DIR = SD / "exp2_k2_latent_compression/exp2_k2_supervised_compression_seed8100001_2m"
 STUDENT = TRAIN_DIR / "ckpts/final_exp2_k2_supervised_compression_seed8100001_2m.zip"
 TEACHER_A = SD / "sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip"
@@ -77,8 +81,8 @@ def _sha256(path: Path) -> str:
 
 def _load_protocol() -> dict[str, Any]:
     payload = json.loads(PROTOCOL.read_text(encoding="utf-8"))
-    if payload.get("protocol_id") != "EXP2_K2_LATENT_COMPRESSION_V1":
-        raise RuntimeError("wrong EXP2 protocol")
+    if payload.get("protocol_id") != PROTOCOL_ID:
+        raise RuntimeError(f"wrong {EXPERIMENT_ID} protocol")
     terminal = payload["terminal_evaluation"]
     bootstrap = terminal["bootstrap"]
     if terminal["episodes_per_cell"] != N_PAIRED:
@@ -90,7 +94,7 @@ def _load_protocol() -> dict[str, Any]:
         "rng_seed": BOOTSTRAP_SEED,
     }:
         raise RuntimeError("bootstrap contract drift")
-    if payload["seed_blocks"]["evaluation"]["range"] != "8300001..8300192":
+    if payload["seed_blocks"]["evaluation"]["range"] != SEED_BLOCK:
         raise RuntimeError("evaluation seed block drift")
     return payload
 
@@ -107,7 +111,7 @@ def guard_rails(*, launch: bool) -> dict[str, Any]:
             raise RuntimeError(f"checkpoint hash mismatch for {name}")
     result_files = (OUT / "summary.json", OUT / "episode_rows.csv", OUT / "action_identity_by_seed.csv")
     if launch and any(path.exists() for path in result_files):
-        raise RuntimeError("EXP2 evaluation output already exists; the frozen block is spend-once")
+        raise RuntimeError(f"{EXPERIMENT_ID} evaluation output already exists; the frozen block is spend-once")
     return {"protocol": protocol, "checkpoint_hashes": hashes}
 
 
@@ -368,7 +372,7 @@ def main() -> int:
     preflight = guard_rails(launch=args.launch)
     print(json.dumps({
         "mode": "LAUNCH" if args.launch else ("DEVELOPMENT_SMOKE" if args.development_smoke else "CONTRACT_ONLY"),
-        "block": "8300001..8300192",
+        "block": SEED_BLOCK,
         "cells": [f"{p}|{pole}" for p in POLICY_CELLS for pole in POLES],
         "episodes": len(POLICY_CELLS) * len(POLES) * N_PAIRED,
         "checkpoint_hashes": preflight["checkpoint_hashes"],
@@ -382,9 +386,9 @@ def main() -> int:
 
     OUT.mkdir(parents=True, exist_ok=True)
     freeze = {
-        "record": "EXP2 terminal checkpoint locked before evaluation",
+        "record": f"{EXPERIMENT_ID} terminal checkpoint locked before evaluation",
         "utc": _now(), "protocol": str(PROTOCOL.relative_to(ROOT)),
-        "seed_block": "8300001..8300192", "checkpoint_hashes": preflight["checkpoint_hashes"],
+        "seed_block": SEED_BLOCK, "checkpoint_hashes": preflight["checkpoint_hashes"],
         "evaluator": str(Path(__file__).resolve().relative_to(ROOT)),
         "evaluator_sha256": _sha256(Path(__file__).resolve()),
         "terminal_checkpoint_only": True,
@@ -411,7 +415,7 @@ def main() -> int:
             smoke_rows.append({"episode": row, "action_identity": identity})
         print(json.dumps({
             "verdict": "DEVELOPMENT_SMOKE_PASS",
-            "seed": 8_200_001,
+            "seed": DEVELOPMENT_SEED,
             "cells": smoke_rows,
             "evaluation_block_untouched": True,
         }, indent=2))
@@ -474,10 +478,10 @@ def main() -> int:
             }
 
     overall_pass = bool(delta_a["passes"] and delta_b["passes"] and retention["passes"] and action_pass)
-    verdict = "EXP2_K2_LATENT_COMPRESSION_CONFIRMED" if overall_pass else "EXP2_K2_LATENT_COMPRESSION_NOT_CONFIRMED"
+    verdict = f"{EXPERIMENT_ID}_CONFIRMED" if overall_pass else f"{EXPERIMENT_ID}_NOT_CONFIRMED"
     summary = {
-        "record": "EXP2 K=2 frozen terminal evaluation", "utc": _now(),
-        "protocol": str(PROTOCOL.relative_to(ROOT)), "block": "8300001..8300192",
+        "record": f"{EXPERIMENT_ID} frozen terminal evaluation", "utc": _now(),
+        "protocol": str(PROTOCOL.relative_to(ROOT)), "block": SEED_BLOCK,
         "n_paired": N_PAIRED, "total_episodes": len(rows),
         "checkpoint_hashes": preflight["checkpoint_hashes"], "payoff_matrix": matrix,
         "delta_A_z": delta_a, "delta_B_z": delta_b,
