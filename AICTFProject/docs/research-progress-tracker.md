@@ -140,7 +140,7 @@ permanent record is
 Under preregistered branch case B4.1, assigned-pole optimization was
 insufficient and the simple cross-pole-pressure explanation is weakened.
 
-### Experiment 2C: mode-specific actor compression — `UNLOCKED / UNSTARTED`
+### Experiment 2C: mode-specific actor compression — `PROTOCOL FROZEN / UNSTARTED`
 
 EXP2C is unlocked only by the frozen B4.1 signature: crossover FAIL, retention
 PASS, identity PASS. Its prospective question is whether destructive
@@ -152,6 +152,17 @@ blocks, architecture choice, resolved-config delta, and implementation gate
 must be frozen and committed before any training step. EXP3 and EXP4 remain
 locked. EXP2C is the last automatic latent architecture variant; a valid FAIL
 stops latent architecture experimentation and forbids EXP2D.
+
+The prospective protocol is
+`EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_PROTOCOL.json`. It freezes exactly two
+private final `Linear(hidden_dim, action_dim)` projections selected by z after
+the unchanged shared CNN and actor body. Both heads start as exact copies of
+the ordinary shared head. Private adapters, private deep trunks, private
+critics, and independent PPO models are forbidden. All other EXP2B treatment
+and terminal gates remain unchanged. Fresh audited blocks are training
+`8700001..8700320`, development `8800001..8800192`, and evaluation
+`8900001..8900192`. No EXP2C implementation, environment construction, or
+training step existed when this protocol was frozen.
 
 ---
 
