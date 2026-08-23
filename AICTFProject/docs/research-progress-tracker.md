@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-23 — EXP2B is a valid frozen negative. EXP2C launched exactly once from commit `7c9c720c`; its first production interval proves the frozen treatment is active. Training is running to the terminal-only 2 M checkpoint. EXP3 and EXP4 remain locked.
+> **Last updated:** 2026-08-23 — EXP2C training completed validly at 2,002,944 steps. Its frozen terminal evaluation is running on `8900001..8900192`; the first launch failed mechanically before scoring and the identical corrected evaluator is now scoring. EXP3 and EXP4 remain locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,7 +26,7 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C VALID TREATMENT + TRAINING.** First interval: 4,096 steps, `16/0/0/16`, 32 PPO updates, 8 teacher updates, ratio `.25`, both private heads active and moving. EXP3/EXP4 remain locked. |
+| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C TRAINING COMPLETE + VALID / TERMINAL EVALUATION RUNNING.** Terminal SHA `0a763759...f646c07`; untouched block `8900001..8900192`. EXP3/EXP4 remain locked. |
 
 ### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
@@ -140,7 +140,7 @@ permanent record is
 Under preregistered branch case B4.1, assigned-pole optimization was
 insufficient and the simple cross-pole-pressure explanation is weakened.
 
-### Experiment 2C: mode-specific actor compression — `VALID TREATMENT / TRAINING`
+### Experiment 2C: mode-specific actor compression — `TRAINING COMPLETE + VALID / TERMINAL EVALUATION RUNNING`
 
 EXP2C is unlocked only by the frozen B4.1 signature: crossover FAIL, retention
 PASS, identity PASS. Its prospective question is whether destructive
@@ -182,6 +182,18 @@ updates, 8 teacher updates, ratio `.25`, `lambda=.1`, mapped gradients on both
 private heads, and empty stderr. These are treatment-health facts only. The
 2 M terminal checkpoint and untouched `8900001..8900192` evaluation retain
 sole authority over crossover, retention, identity, and the scientific verdict.
+
+Training completed at 2,002,944 steps with terminal checkpoint SHA256
+`0a763759d49e6ba0ef1d78b25aba04cbc99a4cbcf50df8c19b201e941f646c07`.
+Evaluation attempt 1 failed during checkpoint construction before scoring any
+episode because the loader omitted the default-off EXP2C architecture flag; a
+secondary compatibility error path also referenced an uninitialized variable.
+The typed invalid record is `EXP2C_EVALUATION_INVALID_ATTEMPT_1.json`. Fix
+commit `0559d0ed` is pinned by loading the real terminal checkpoint with two
+private heads. The identical evaluation relaunched with zero prior result rows,
+passed exact checkpoint behavioral-equivalence checks, and is scoring all eight
+cells. Launch provenance is frozen in
+`EXP2C_EVALUATION_LAUNCH_PROVENANCE.json`.
 
 ---
 

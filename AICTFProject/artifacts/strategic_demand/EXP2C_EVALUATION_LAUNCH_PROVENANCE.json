@@ -1,0 +1,34 @@
+{
+  "artifact_type": "EXP2C_EVALUATION_LAUNCH_PROVENANCE",
+  "status": "RUNNING",
+  "scientific_verdict": "PENDING",
+  "seed_block": "8900001..8900192",
+  "episodes": 1536,
+  "cells": ["z0|A", "z0|B", "z1|A", "z1|B", "pi_A|A", "pi_A|B", "pi_B|A", "pi_B|B"],
+  "terminal_checkpoint_sha256": "0a763759d49e6ba0ef1d78b25aba04cbc99a4cbcf50df8c19b201e941f646c07",
+  "teacher_sha256": [
+    "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  ],
+  "evaluator": "experiments/eval_exp2c_k2_terminal.py",
+  "evaluator_commit": "9480fd7cbea950b9a969894b869cd7527a04afd9",
+  "evaluator_sha256": "e06eec66efdffe290331819625053836a6b7864a3749a18523bb2f68b1b1ced4",
+  "bootstrap": {"samples": 20000, "alpha": 0.05, "rng_seed": 7},
+  "attempt_1": {
+    "verdict": "INVALID_BEFORE_SCORING",
+    "evaluation_rows_consumed": 0,
+    "record": "EXP2C_EVALUATION_INVALID_ATTEMPT_1.json"
+  },
+  "attempt_2": {
+    "launched_utc": "2026-08-23T18:12:08Z",
+    "process_id_at_launch": 10764,
+    "loader_fix_commit": "0559d0edf8c54c7d31d9e8e052f0e30462cac7e6",
+    "prelaunch_result_files": 0,
+    "checkpoint_behavioral_equivalence": "PASS_EXACT",
+    "stderr_bytes_at_first_scoring_cell": 0,
+    "first_cell": "z0|A"
+  },
+  "gates_unchanged": true,
+  "terminal_checkpoint_only": true,
+  "claim_boundary": "No scientific interpretation until all 1536 rows, action-identity rows, paired bootstrap gates, retention, and provenance checks complete."
+}
