@@ -1,0 +1,118 @@
+{
+  "record": "EXP2B specialization-preserving latent compression permanent result freeze",
+  "status": "FROZEN",
+  "verdict": "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_NOT_CONFIRMED",
+  "frozen_at_utc": "2026-08-23T03:15:51Z",
+  "branch_case": "B4.1",
+  "claim": "The valid assigned-pole EXP2B treatment retained matched-pole performance and teacher-aligned action identity, but did not preserve the explicit SAPPO repertoire's complementary payoff structure.",
+  "causal_boundary": "EXP2B weakens the hypothesis that balanced cross-pole PPO pressure alone caused EXP2's crossover failure. Assigned-pole optimization was insufficient. It does not by itself prove shared-actor interference; EXP2C is the prospective controlled ablation for that mechanism.",
+  "protocol": {
+    "path": "artifacts/strategic_demand/EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json",
+    "protocol_id": "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1",
+    "branch_plan": "artifacts/strategic_demand/EXP2B_BRANCH_PLAN_FROZEN.json",
+    "branch_plan_commit": "3b095e86",
+    "seed_block": "8600001..8600192",
+    "paired_seeds": 192,
+    "episodes_per_cell": 192,
+    "total_episodes": 1536,
+    "bootstrap": {
+      "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    }
+  },
+  "implementation": {
+    "evaluator_commit": "ec61be42c255e5df5768b8dc5dc7424b1b37d251",
+    "experiment_wrapper": {
+      "path": "experiments/eval_exp2b_k2_terminal.py",
+      "sha256": "210ea88c1ad862d05f16612ce6d3a8208eec85759c17d597d1284433d86ad4a9"
+    },
+    "shared_scoring_implementation": {
+      "path": "experiments/eval_exp2_k2_terminal.py",
+      "sha256": "e06eec66efdffe290331819625053836a6b7864a3749a18523bb2f68b1b1ced4"
+    }
+  },
+  "checkpoints": {
+    "student_terminal": {
+      "path": "artifacts/strategic_demand/exp2b_specialization_preserving_compression/exp2b_specialization_preserving_seed8400001_2m/ckpts/final_exp2b_specialization_preserving_seed8400001_2m.zip",
+      "sha256": "4b0a0e08051be6abba8b34c11d34c5b7dd82616903fa87f39f859e65a7115a0b"
+    },
+    "teacher_pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "teacher_pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "payoff_matrix": {
+    "z0|A": 0.71875,
+    "z0|B": 0.5989583333333334,
+    "z1|A": 0.765625,
+    "z1|B": 0.59375,
+    "pi_A|A": 0.640625,
+    "pi_A|B": 0.328125,
+    "pi_B|A": 0.5260416666666666,
+    "pi_B|B": 0.5416666666666666
+  },
+  "strategic_crossover": {
+    "delta_A_z": {
+      "contrast": "WR(z0,A) - WR(z1,A)",
+      "mean": -0.046875,
+      "lcb95": -0.13541666666666666,
+      "ucb95": 0.041666666666666664,
+      "n_plus": 32,
+      "n_minus": 41,
+      "discordant": 73,
+      "purity": 0.438356164383562,
+      "passes": false
+    },
+    "delta_B_z": {
+      "contrast": "WR(z1,B) - WR(z0,B)",
+      "mean": -0.005208333333333333,
+      "lcb95": -0.09895833333333333,
+      "ucb95": 0.08854166666666667,
+      "n_plus": 43,
+      "n_minus": 44,
+      "discordant": 87,
+      "purity": 0.494252873563218,
+      "passes": false
+    },
+    "gate": "LCB95(delta_A_z) > 0 AND LCB95(delta_B_z) > 0",
+    "passes": false
+  },
+  "retention": {
+    "student_matched_value": 0.65625,
+    "teacher_matched_value": 0.5911458333333334,
+    "rho": 1.1101321585903083,
+    "lcb95": 1.0042016806722691,
+    "ucb95": 1.2285714285714286,
+    "gate": "paired-bootstrap LCB95(rho) >= 0.90",
+    "passes": true
+  },
+  "behavioral_action_identity": {
+    "jsd_bits": {"mean": 0.1286265366360714, "lcb95": 0.12777945979173097, "ucb95": 0.1294923283488101, "passes": true},
+    "teacher_A_alignment_margin_bits": {"mean": 0.30506128015903194, "lcb95": 0.28449720110176896, "ucb95": 0.3254803182633737, "passes": true},
+    "teacher_B_alignment_margin_bits": {"mean": 1.1648599107503446, "lcb95": 1.1506340502562755, "ucb95": 1.1791177127595227, "passes": true},
+    "argmax_disagreement": {"mean": 0.28764650786198526, "lcb95": 0.28486499216838856, "ucb95": 0.2905260550103158},
+    "passes": true
+  },
+  "artifacts": {
+    "terminal_freeze": {"path": "artifacts/strategic_demand/exp2b_k2_terminal_evaluation/terminal_freeze.json", "sha256": "a11f9e27a626fd9fd2bfce6146a4c3b9c11e4767f1e7fa0812103532769b24e8"},
+    "episode_rows": {"path": "artifacts/strategic_demand/exp2b_k2_terminal_evaluation/episode_rows.csv", "rows": 1536, "sha256": "b4172a9738da5208fdf5ae0d4f75e7788c40eb4714c57af072b22fb1da1e11db"},
+    "action_identity_by_seed": {"path": "artifacts/strategic_demand/exp2b_k2_terminal_evaluation/action_identity_by_seed.csv", "rows": 192, "sha256": "25e4db9e922ab112c008c39865876612b84448e4953da8f58713089f77f07edb"},
+    "summary": {"path": "artifacts/strategic_demand/exp2b_k2_terminal_evaluation/summary.json", "sha256": "37ccbecb7eac6dd443cca1e089a53f4312c6775c2ad722e2ae73cdf287540ec7"},
+    "stdout": {"path": "artifacts/strategic_demand/EXP2B_EVALUATION_STDOUT.log", "sha256": "5c2ad87465578fa852a2149c0da471442fd852ffca01fbe17e48eaac42b010d8"},
+    "stderr": {"path": "artifacts/strategic_demand/EXP2B_EVALUATION_STDERR.log", "bytes": 0, "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}
+  },
+  "branch_resolution": {
+    "signature": "crossover FAIL, retention PASS, identity PASS",
+    "case": "B4.1",
+    "EXP2C": "UNLOCKED / UNSTARTED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED"
+  },
+  "immutability": {
+    "rerun": "FORBIDDEN",
+    "extension": "FORBIDDEN",
+    "threshold_change": "FORBIDDEN",
+    "checkpoint_selection": "FORBIDDEN",
+    "artifact_regeneration": "FORBIDDEN"
+  }
+}

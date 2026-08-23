@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-22 — EXP2B completed valid training and its frozen terminal evaluation is running on untouched block `8600001..8600192`. EXP2 remains a permanent valid negative result; EXP3 and EXP4 remain locked.
+> **Last updated:** 2026-08-23 — EXP2B is a valid frozen negative: crossover failed while retention and identity passed. Preregistered branch B4.1 unlocks EXP2C as the final automatic latent variant; EXP2C is unstarted. EXP3 and EXP4 remain locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,7 +26,7 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO V1 EVALUATED / CROSSOVER CONFIRMED. EXP2 VALID FAIL.** EXP2 forced-mode matrix: `z0=(A .7344, B .6302)`, `z1=(A .7135, B .5990)`. Crossover LCB95: `delta_A=-.0729`, `delta_B=-.1354`; retention and identity passed. EXP3/EXP4 remain locked. |
+| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C UNLOCKED + UNSTARTED.** EXP2B crossover LCB95: `delta_A=-.1354`, `delta_B=-.0990`; retention and identity passed. EXP3/EXP4 remain locked. |
 
 ### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
@@ -92,7 +92,7 @@ assignment from `8/8/8/8` over `z0|A,z0|B,z1|A,z1|B` to `16/0/0/16`, while
 keeping the crossed cells in terminal evaluation. EXP2 alone does not prove
 causality. EXP3 and EXP4 remain locked.
 
-### Experiment 2B: specialization-preserving latent compression — `TRAINING COMPLETE + VALID / TERMINAL EVALUATION RUNNING`
+### Experiment 2B: specialization-preserving latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
 The prospective causal-ablation protocol is
 `EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json`. It freezes
@@ -130,6 +130,28 @@ then launched from evaluator commit `ec61be42` on `8600001..8600192`; complete
 wrapper plus shared-scoring provenance is frozen in
 `EXP2B_EVALUATION_LAUNCH_PROVENANCE.json`. No diagnostic can declare success
 before all 1,536 rows and the unchanged gates are complete.
+
+The evaluation completed all 1,536 episode rows and 192 matched-state identity
+rows with empty stderr. Both crossover gates failed: `delta_A=-.0469`, LCB95
+`-.1354`; `delta_B=-.0052`, LCB95 `-.0990`. Retention passed at `rho=1.1101`,
+LCB95 `1.0042`, and every preregistered action-identity gate passed. The
+permanent record is
+`EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_NOT_CONFIRMED.json`.
+Under preregistered branch case B4.1, assigned-pole optimization was
+insufficient and the simple cross-pole-pressure explanation is weakened.
+
+### Experiment 2C: mode-specific actor compression — `UNLOCKED / UNSTARTED`
+
+EXP2C is unlocked only by the frozen B4.1 signature: crossover FAIL, retention
+PASS, identity PASS. Its prospective question is whether destructive
+interference in the fully shared actor prevents payoff specialization. The
+only authorized scientific change is a minimal mode-specific actor component
+after a shared observation encoder/trunk; EXP2C remains one model and one
+checkpoint, not two independent PPO policies. EXP2C protocol, fresh seed
+blocks, architecture choice, resolved-config delta, and implementation gate
+must be frozen and committed before any training step. EXP3 and EXP4 remain
+locked. EXP2C is the last automatic latent architecture variant; a valid FAIL
+stops latent architecture experimentation and forbids EXP2D.
 
 ---
 

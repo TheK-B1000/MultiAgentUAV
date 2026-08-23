@@ -1,0 +1,14 @@
+{
+  "record": "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION terminal checkpoint locked before evaluation",
+  "utc": "2026-08-22T12:07:38Z",
+  "protocol": "artifacts\\strategic_demand\\EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json",
+  "seed_block": "8600001..8600192",
+  "checkpoint_hashes": {
+    "student": "4b0a0e08051be6abba8b34c11d34c5b7dd82616903fa87f39f859e65a7115a0b",
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "evaluator": "experiments\\eval_exp2_k2_terminal.py",
+  "evaluator_sha256": "e06eec66efdffe290331819625053836a6b7864a3749a18523bb2f68b1b1ced4",
+  "terminal_checkpoint_only": true
+}
