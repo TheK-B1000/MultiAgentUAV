@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-23 — EXP2B is a valid frozen negative. EXP2C protocol and implementation are frozen; its implementation gate passed with zero production evidence consumed. Production is authorized but unstarted. EXP3 and EXP4 remain locked.
+> **Last updated:** 2026-08-23 — EXP2B is a valid frozen negative. EXP2C launched exactly once from commit `7c9c720c`; its first production interval proves the frozen treatment is active. Training is running to the terminal-only 2 M checkpoint. EXP3 and EXP4 remain locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,7 +26,7 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C IMPLEMENTED + GATE PASS / PRODUCTION UNSTARTED.** EXP3/EXP4 remain locked. |
+| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C VALID TREATMENT + TRAINING.** First interval: 4,096 steps, `16/0/0/16`, 32 PPO updates, 8 teacher updates, ratio `.25`, both private heads active and moving. EXP3/EXP4 remain locked. |
 
 ### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
@@ -140,7 +140,7 @@ permanent record is
 Under preregistered branch case B4.1, assigned-pole optimization was
 insufficient and the simple cross-pole-pressure explanation is weakened.
 
-### Experiment 2C: mode-specific actor compression — `IMPLEMENTED / GATE PASS / PRODUCTION UNSTARTED`
+### Experiment 2C: mode-specific actor compression — `VALID TREATMENT / TRAINING`
 
 EXP2C is unlocked only by the frozen B4.1 signature: crossover FAIL, retention
 PASS, identity PASS. Its prospective question is whether destructive
@@ -172,6 +172,16 @@ and a 4,096-step integrated trainer smoke resolved `16/0/0/16`, executed 32 PPO
 actor updates and 8 teacher updates, and moved both private heads. The immutable
 launch gate is `EXP2C_IMPLEMENTATION_GATE.json`. No production step had been
 spent when that gate was written.
+
+All three reserved blocks passed the full-history audit with a live positive
+control. Production launched exactly once from commit `7c9c720c` with seed
+`8700001`. The immutable first-interval record is
+`EXP2C_FIRST_INTERVAL_TREATMENT_EVIDENCE.json`. At 4,096 steps it records two
+active private final actor heads, exact `16/0/0/16` assigned cells, 32 PPO actor
+updates, 8 teacher updates, ratio `.25`, `lambda=.1`, mapped gradients on both
+private heads, and empty stderr. These are treatment-health facts only. The
+2 M terminal checkpoint and untouched `8900001..8900192` evaluation retain
+sole authority over crossover, retention, identity, and the scientific verdict.
 
 ---
 

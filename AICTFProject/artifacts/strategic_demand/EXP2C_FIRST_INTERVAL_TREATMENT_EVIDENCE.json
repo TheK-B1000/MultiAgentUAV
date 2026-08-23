@@ -1,0 +1,80 @@
+{
+  "artifact_type": "EXP2C_FIRST_INTERVAL_TREATMENT_EVIDENCE",
+  "captured_utc": "2026-08-23T13:25:40Z",
+  "verdict": "VALID_TREATMENT_RUNNING",
+  "scientific_verdict": "NOT_EVALUATED",
+  "launch": {
+    "git_sha": "7c9c720c83f4c8f17f401b0d433dc53b3b495fbd",
+    "process_id_at_launch": 35548,
+    "launch_count": 1,
+    "stderr_bytes": 0,
+    "run_tag": "exp2c_mode_specific_actor_seed8700001_2m",
+    "training_seed": 8700001,
+    "target_timesteps": 2000000
+  },
+  "prelaunch_seed_audits": {
+    "training_8700001_8700320": "CLEAN",
+    "development_8800001_8800192": "CLEAN",
+    "evaluation_8900001_8900192": "CLEAN",
+    "history_positive_control_commits": 15
+  },
+  "first_interval": {
+    "timesteps": 4096,
+    "ppo_actor_updates": 32,
+    "teacher_updates": 8,
+    "teacher_to_ppo_ratio": 0.25,
+    "teacher_lambda": 0.1,
+    "teacher_cadence": 4,
+    "teacher_loss": 0.17742983996868134,
+    "teacher_kl": 1.7742984294891357,
+    "teacher_kl_z0": 1.6790426969528198,
+    "teacher_kl_z1": 1.8653204441070557,
+    "cells": {
+      "z0_A_count": 16,
+      "z0_B_count": 0,
+      "z1_A_count": 0,
+      "z1_B_count": 16,
+      "z0_A_steps": 2048,
+      "z0_B_steps": 0,
+      "z1_A_steps": 0,
+      "z1_B_steps": 2048
+    },
+    "private_heads_active": true,
+    "private_head_count": 2,
+    "head0_max_abs_delta": 0.01140732690691948,
+    "head1_max_abs_delta": 0.011771908029913902,
+    "head0_teacher_grad_norm": 0.04136034473776817,
+    "head1_teacher_grad_norm": 0.07995276153087616,
+    "shared_actor_gradient_cosine": 0.027973316609859467,
+    "shared_actor_gradient_cosine_count": 1
+  },
+  "runtime_contract": {
+    "latent_k": 2,
+    "latent_assignment_mode": "static_env",
+    "persistent_forced_z": true,
+    "forced_latent_env_ids": "16x0_then_16x1",
+    "teacher_mapping": {"z0": "pi_A_SAPPO", "z1": "pi_B_SAPPO"},
+    "teacher_sha256": [
+      "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+      "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+    ],
+    "mode_specific_final_actor_heads": true,
+    "shared_body_unchanged": true,
+    "shared_critic_unchanged": true,
+    "opponent_identity_input_absent": true,
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "identity_override_used": false,
+    "formal_result_eligible": true
+  },
+  "cross_head_contamination_gate": {
+    "runtime_routing": "PASS",
+    "real_teacher_smoke_artifact": "EXP2C_REAL_TEACHER_SMOKE.json",
+    "z0_opposite_head_grad_norm": 0.0,
+    "z1_opposite_head_grad_norm": 0.0
+  },
+  "artifact_hashes_at_capture": {
+    "training_manifest_sha256": "9d9676e7a5700ffe63343b4f8f61c7b7fa7f95acb16b5b4dc70916b330deabc8",
+    "run_config_sha256": "006801ceba8dcd82ad2e749cf31c257211c2c021bf49047f62109ba961a636a6"
+  },
+  "claim_boundary": "Treatment validity only. Terminal evaluation on 8900001..8900192 owns crossover, retention, identity, and scientific pass/fail."
+}
