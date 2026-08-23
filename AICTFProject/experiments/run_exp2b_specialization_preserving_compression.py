@@ -132,10 +132,16 @@ def build_exp2b_config():
 
 def configure_exp2b_live_environment(
     env, cfg, *, contract: dict[str, Any], allow_development_seed: bool = False,
+    training_seed_range: tuple[int, int] = (8_400_001, 8_400_320),
+    development_seed_range: tuple[int, int] = (8_500_001, 8_500_192),
+    manifest_key: str = "exp2b_protocol",
+    context_label: str = "EXP2B specialization-preserving production construction",
 ):
-    seed_ok = 8_400_001 <= int(cfg.seed) <= 8_400_320
+    seed_ok = training_seed_range[0] <= int(cfg.seed) <= training_seed_range[1]
     if allow_development_seed:
-        seed_ok = seed_ok or (8_500_001 <= int(cfg.seed) <= 8_500_192)
+        seed_ok = seed_ok or (
+            development_seed_range[0] <= int(cfg.seed) <= development_seed_range[1]
+        )
     if not seed_ok:
         raise RuntimeError(f"EXP2B seed escaped frozen block: {cfg.seed}")
     core = env.core
@@ -154,7 +160,7 @@ def configure_exp2b_live_environment(
     env.reset()
     rows = assert_live_opponent_batch(
         core, genomes, allowed_keys=("OP6", "OP7"),
-        context="EXP2B specialization-preserving production construction",
+        context=context_label,
     )
     realized = {
         "z0_A": sum(z == 0 and key == "OP6" for z, key in zip(CELL_Z, CELL_KEYS)),
@@ -169,7 +175,7 @@ def configure_exp2b_live_environment(
         if row["live_opponent_key"] != expected_key:
             raise RuntimeError(f"EXP2B z/pole mapping mismatch at env {env_i}")
     return {
-        "exp2b_protocol": {
+        manifest_key: {
             **contract,
             "resolved_live_cells": realized,
             "resolved_opponent_rows": rows,

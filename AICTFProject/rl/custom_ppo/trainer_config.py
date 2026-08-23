@@ -866,6 +866,9 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 "latent_population_birth_per_z_action_heads": bool(
                     getattr(cfg, "latent_population_birth_per_z_action_heads", False)
                 ),
+                "exp2c_mode_specific_action_heads": bool(
+                    getattr(cfg, "exp2c_mode_specific_action_heads", False)
+                ),
                 "latent_lro_deep_branches": bool(
                     getattr(cfg, "latent_lro_deep_branches", False)
                 ),

@@ -238,6 +238,7 @@ class SharedActorCentralizedCritic(nn.Module):
         latent_z_residual_alpha: float = 0.0,
         latent_population_birth_active_z_only: bool = False,
         latent_population_birth_per_z_action_heads: bool = False,
+        exp2c_mode_specific_action_heads: bool = False,
         latent_lro_deep_branches: bool = False,
         communication_enabled: bool = False,
         comm_num_symbols: int = 4,
@@ -392,6 +393,7 @@ class SharedActorCentralizedCritic(nn.Module):
             latent_population_birth_per_z_action_heads=bool(
                 latent_population_birth_per_z_action_heads
             ),
+            exp2c_mode_specific_action_heads=bool(exp2c_mode_specific_action_heads),
             latent_lro_deep_branches=bool(latent_lro_deep_branches),
         )
         critic_extra_dim = self.latent_k if self.uses_latent_strategy else 0

@@ -235,6 +235,7 @@ class LatentConditionedActor(nn.Module):
         latent_z_residual_alpha: float = 0.0,
         latent_population_birth_active_z_only: bool = False,
         latent_population_birth_per_z_action_heads: bool = False,
+        exp2c_mode_specific_action_heads: bool = False,
         latent_lro_deep_branches: bool = False,
     ) -> None:
         super().__init__()
@@ -323,7 +324,10 @@ class LatentConditionedActor(nn.Module):
         self._population_birth_active_z_only = bool(
             latent_population_birth_active_z_only
         ) and self.enable_latent_z_residual
-        use_per_z_heads = (
+        self.exp2c_mode_specific_action_heads = bool(
+            exp2c_mode_specific_action_heads
+        ) and self.latent_k > 0
+        use_per_z_heads = self.exp2c_mode_specific_action_heads or (
             bool(latent_population_birth_per_z_action_heads)
             and self.enable_latent_z_residual
         )
@@ -386,7 +390,17 @@ class LatentConditionedActor(nn.Module):
             self.latent_adapters = None
             self.latent_adapter_gates = None
             self.latent_action_biases = None
-            self.latent_action_heads = None
+            if self.exp2c_mode_specific_action_heads:
+                self.latent_action_heads = nn.ModuleList([
+                    nn.Linear(self.hidden_dim, self.action_dim)
+                    for _ in range(self.latent_k)
+                ])
+                with torch.no_grad():
+                    for head in self.latent_action_heads:
+                        head.weight.copy_(self.action_head.weight)
+                        head.bias.copy_(self.action_head.bias)
+            else:
+                self.latent_action_heads = None
             self.latent_branch_trunks = None
             self._latent_z_alpha = 0.0
 

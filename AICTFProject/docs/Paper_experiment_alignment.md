@@ -424,6 +424,16 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **EXP2C mode-specific final actor heads, diagnostic supervised compression:**
+  Added the default-off `exp2c_mode_specific_action_heads` configuration field.
+  EXP2C keeps the shared observation body, critic, teachers, assigned-pole
+  schedule, and optimization contract from EXP2B, while selecting one of two
+  private final linear actor heads by persistent forced latent. The heads are
+  initialized as exact copies of the prior shared action head. This is a
+  `DIAGNOSTIC` supervised-compression ablation, not a paper-faithful preset.
+  Regenerated `tests/preset_snapshots.json`; the only change to every existing
+  preset is the additive default value
+  `exp2c_mode_specific_action_heads = false`, with no existing value changed.
 - **EXP2 K=2 supervised compression implementation, not a paper-faithful
   preset:** Added a default-off online frozen-teacher path for the prospectively
   frozen `EXP2_K2_LATENT_COMPRESSION_V1` protocol. One shared concat-conditioned

@@ -319,6 +319,9 @@ class PPOConfig:
     # action heads are Stage-2 trainable (shared action_head stays frozen).
     latent_population_birth_active_z_only: bool = False
     latent_population_birth_per_z_action_heads: bool = False
+    # EXP2C diagnostic: exactly K final linear actor heads selected by z.
+    # Unlike the population-birth path, this does not enable residual adapters.
+    exp2c_mode_specific_action_heads: bool = False
     # V6I26 Latent Response-Oracle (DIAGNOSTIC / Claim B):
     # Deep per-z trunks (last two MLP layers) + active-branch-only BR rounds.
     latent_lro_deep_branches: bool = False

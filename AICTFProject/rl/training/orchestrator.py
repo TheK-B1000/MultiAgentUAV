@@ -170,6 +170,7 @@ def _validate_exp2_config_gates(cfg: PPOConfig) -> None:
             if payload.get("protocol_id") not in {
                 "EXP2_K2_LATENT_COMPRESSION_V1",
                 "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1",
+                "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_V1",
             }:
                 errors.append("unexpected EXP2 protocol_id")
             if payload.get("status") != "FROZEN_BEFORE_IMPLEMENTATION_OR_TRAINING":
@@ -526,10 +527,20 @@ def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
         teachers[z] = teacher
 
     protocol_payload = json.loads(Path(str(cfg.exp2_protocol_path)).read_text(encoding="utf-8"))
-    is_exp2b = (
-        protocol_payload.get("protocol_id")
-        == "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1"
-    )
+    protocol_id = protocol_payload.get("protocol_id")
+    is_exp2b = protocol_id == "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1"
+    is_exp2c = protocol_id == "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_V1"
+    if is_exp2c:
+        actor = model.latent_actor
+        heads = getattr(actor, "latent_action_heads", None)
+        if heads is None or len(heads) != 2:
+            raise RuntimeError("EXP2C requires exactly two mode-specific final actor heads")
+        if getattr(actor, "latent_adapters", None) is not None:
+            raise RuntimeError("EXP2C forbids latent residual adapters")
+        if getattr(actor, "latent_branch_trunks", None) is not None:
+            raise RuntimeError("EXP2C forbids private deep actor trunks")
+        if not bool(getattr(actor, "exp2c_mode_specific_action_heads", False)):
+            raise RuntimeError("EXP2C private-head flag did not reach the live actor")
     runner = Exp2TeacherCompressionRunner(
         model,
         trainer.optimizer,
@@ -540,8 +551,8 @@ def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
         max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
         seed=int(getattr(cfg, "seed", 0)) + 92_011,
         device=str(trainer.device),
-        cell_counts=(16, 0, 0, 16) if is_exp2b else (8, 8, 8, 8),
-        gradient_cosine_enabled=is_exp2b,
+        cell_counts=(16, 0, 0, 16) if (is_exp2b or is_exp2c) else (8, 8, 8, 8),
+        gradient_cosine_enabled=is_exp2b or is_exp2c,
         clip_range=float(getattr(cfg, "clip_range", 0.2)),
     )
     pending = trainer.updater.consume_pending_exp2_teacher_state()
@@ -554,7 +565,7 @@ def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
         runner.load_state_dict(pending)
     trainer.exp2_teacher_compression_runner = runner
     print(
-        f"[{'EXP2B' if is_exp2b else 'EXP2'}] online teacher KL ATTACHED: "
+        f"[{'EXP2C' if is_exp2c else ('EXP2B' if is_exp2b else 'EXP2')}] online teacher KL ATTACHED: "
         f"lambda={runner.lambda_teacher} cadence=1:{runner.cadence} "
         f"batch={runner.batch_size} mapping=z0:pi_A,z1:pi_B q_phi=ABSENT "
         f"cells={runner.cell_counts} grad_cosine={runner.gradient_cosine_enabled}"

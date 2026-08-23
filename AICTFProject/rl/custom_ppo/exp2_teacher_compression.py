@@ -185,7 +185,11 @@ def _shared_actor_parameters(model: Any) -> list[torch.nn.Parameter]:
             continue
         if name.startswith("actor_cnn."):
             params.append(parameter)
-        elif name.startswith("latent_actor.") and "strategy_embedding" not in name:
+        elif (
+            name.startswith("latent_actor.")
+            and "strategy_embedding" not in name
+            and "latent_action_heads" not in name
+        ):
             params.append(parameter)
     if not params:
         raise RuntimeError("EXP2B gradient telemetry found no shared actor parameters")
@@ -346,6 +350,13 @@ class Exp2TeacherCompressionRunner:
         self.clip_range = float(clip_range)
         self.gradient_cosine_history: list[float] = []
         self.last_gradient_cosine_step = -1
+        private_heads = getattr(getattr(student, "latent_actor", None), "latent_action_heads", None)
+        self.exp2c_private_heads = list(private_heads) if private_heads is not None else []
+        self.exp2c_private_head_initial = [
+            [parameter.detach().clone() for parameter in head.parameters()]
+            for head in self.exp2c_private_heads
+        ]
+        self.exp2c_last_teacher_head_grad_norms = [0.0] * len(self.exp2c_private_heads)
         self.n_ppo_actor_minibatches = 0
         self.n_teacher_updates = 0
         self.last_teacher_loss = float("nan")
@@ -412,6 +423,16 @@ class Exp2TeacherCompressionRunner:
         kl, metrics = teacher_student_kl(self.student, self.teachers, obs, z, decision)
         loss = self.lambda_teacher * kl
         loss.backward()
+        if self.exp2c_private_heads:
+            norms = []
+            for head in self.exp2c_private_heads:
+                pieces = [
+                    parameter.grad.detach().reshape(-1)
+                    for parameter in head.parameters()
+                    if parameter.grad is not None
+                ]
+                norms.append(float(torch.cat(pieces).norm().cpu()) if pieces else 0.0)
+            self.exp2c_last_teacher_head_grad_norms = norms
         if self.max_grad_norm is not None:
             torch.nn.utils.clip_grad_norm_(
                 [p for group in self.optimizer.param_groups for p in group["params"]],
@@ -499,6 +520,26 @@ class Exp2TeacherCompressionRunner:
                 "exp2b_gradient_cosine_p50": float(torch.quantile(values, 0.50)),
                 "exp2b_gradient_cosine_p90": float(torch.quantile(values, 0.90)),
                 "exp2b_gradient_cosine_count": float(values.numel()),
+            })
+        if self.exp2c_private_heads:
+            if len(self.exp2c_private_heads) != 2:
+                raise RuntimeError("EXP2C telemetry requires exactly two private heads")
+            deltas = [
+                max(
+                    float((parameter.detach() - before).abs().max().cpu())
+                    for parameter, before in zip(head.parameters(), initial)
+                )
+                for head, initial in zip(
+                    self.exp2c_private_heads, self.exp2c_private_head_initial
+                )
+            ]
+            out.update({
+                "exp2c_private_heads_active": 1.0,
+                "exp2c_private_head_count": 2.0,
+                "exp2c_head0_max_abs_delta": deltas[0],
+                "exp2c_head1_max_abs_delta": deltas[1],
+                "exp2c_head0_teacher_grad_norm": self.exp2c_last_teacher_head_grad_norms[0],
+                "exp2c_head1_teacher_grad_norm": self.exp2c_last_teacher_head_grad_norms[1],
             })
         for key, value in self.last_metrics.items():
             out[f"exp2_teacher_{key}"] = float(value)
