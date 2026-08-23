@@ -76,5 +76,6 @@
     "manifest_sha256": "aab90fa96685a64578fbc3858bff03c4c3fa5c3dc60e9ae622f877f74a3265fe",
     "checkpoint_sha256": "2c94218032e38a59c84e5d1df0549bcace2e1c5a7c37bd42987944bec4238f46"
   },
-  "launch_authorized": true
+  "launch_authorized": true,
+  "production_launch_authorized": true
 }

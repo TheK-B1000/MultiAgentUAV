@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import dataclasses
+import json
+from pathlib import Path
 
 import torch
 
@@ -9,6 +11,16 @@ from experiments.run_exp2c_mode_specific_actor_compression import build_exp2c_co
 from rl.custom_ppo import SharedActorCentralizedCritic
 from rl.custom_ppo.exp2_teacher_compression import _shared_actor_parameters
 from tests.test_exp2_k2_compression import _action_space, _obs, _obs_space
+
+
+def test_committed_implementation_gate_authorizes_production_launch():
+    gate_path = Path(__file__).resolve().parents[1] / (
+        "artifacts/strategic_demand/EXP2C_IMPLEMENTATION_GATE.json"
+    )
+    gate = json.loads(gate_path.read_text(encoding="utf-8"))
+    assert gate["verdict"] == "PASS"
+    assert gate["production_steps_consumed"] == 0
+    assert gate["production_launch_authorized"] is True
 
 
 def _model(*, private_heads: bool) -> SharedActorCentralizedCritic:
