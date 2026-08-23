@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-23 — EXP2B is a valid frozen negative: crossover failed while retention and identity passed. Preregistered branch B4.1 unlocks EXP2C as the final automatic latent variant; EXP2C is unstarted. EXP3 and EXP4 remain locked.
+> **Last updated:** 2026-08-23 — EXP2B is a valid frozen negative. EXP2C protocol and implementation are frozen; its implementation gate passed with zero production evidence consumed. Production is authorized but unstarted. EXP3 and EXP4 remain locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,7 +26,7 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C UNLOCKED + UNSTARTED.** EXP2B crossover LCB95: `delta_A=-.1354`, `delta_B=-.0990`; retention and identity passed. EXP3/EXP4 remain locked. |
+| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C IMPLEMENTED + GATE PASS / PRODUCTION UNSTARTED.** EXP3/EXP4 remain locked. |
 
 ### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
@@ -140,7 +140,7 @@ permanent record is
 Under preregistered branch case B4.1, assigned-pole optimization was
 insufficient and the simple cross-pole-pressure explanation is weakened.
 
-### Experiment 2C: mode-specific actor compression — `PROTOCOL FROZEN / UNSTARTED`
+### Experiment 2C: mode-specific actor compression — `IMPLEMENTED / GATE PASS / PRODUCTION UNSTARTED`
 
 EXP2C is unlocked only by the frozen B4.1 signature: crossover FAIL, retention
 PASS, identity PASS. Its prospective question is whether destructive
@@ -163,6 +163,15 @@ and terminal gates remain unchanged. Fresh audited blocks are training
 `8700001..8700320`, development `8800001..8800192`, and evaluation
 `8900001..8900192`. No EXP2C implementation, environment construction, or
 training step existed when this protocol was frozen.
+
+Implementation commit `06711331` realizes only the frozen private-final-head
+delta. The focused gate passed 40 tests; the broader latent/PPO regression gate
+passed 221 tests and 1,721 subtests. A real frozen-teacher smoke proved each
+mapped latent updates only its own private head while reducing its mapped KL,
+and a 4,096-step integrated trainer smoke resolved `16/0/0/16`, executed 32 PPO
+actor updates and 8 teacher updates, and moved both private heads. The immutable
+launch gate is `EXP2C_IMPLEMENTATION_GATE.json`. No production step had been
+spent when that gate was written.
 
 ---
 

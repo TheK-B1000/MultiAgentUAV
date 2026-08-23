@@ -1,0 +1,80 @@
+{
+  "artifact_type": "EXP2C_IMPLEMENTATION_GATE",
+  "created_utc": "2026-08-23",
+  "verdict": "PASS",
+  "production_steps_consumed": 0,
+  "protocol_commit": "927af032",
+  "implementation_commit": "0671133107c2c8d3c7de59c4558294f2f842167f",
+  "protocol_sha256": "0b8246e183f996d6979c5fb70db5c7328363eda3b6af091bdb8b513a775a888d",
+  "scientific_delta": {
+    "field": "exp2c_mode_specific_action_heads",
+    "exp2b": false,
+    "exp2c": true,
+    "architecture": "two z-selected final Linear(hidden_dim, action_dim) actor heads after the unchanged shared body",
+    "forbidden_changes_absent": [
+      "private actor trunk",
+      "private critic",
+      "FiLM",
+      "residual adapter",
+      "independent PPO models"
+    ]
+  },
+  "resolved_config_diff_from_exp2b": [
+    "checkpoint_dir",
+    "episode_csv_path",
+    "exp2_protocol_path",
+    "exp2c_mode_specific_action_heads",
+    "metrics_csv_path",
+    "run_tag",
+    "seed"
+  ],
+  "only_scientific_diff": "exp2c_mode_specific_action_heads",
+  "frozen_treatment": {
+    "training_cells": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16},
+    "latent_k": 2,
+    "persistent_z": true,
+    "teacher_lambda": 0.1,
+    "teacher_cadence": "1:4",
+    "total_timesteps": 2000000,
+    "ruleset": "RULESET_V3_M1"
+  },
+  "focused_tests": {
+    "result": "PASS",
+    "count": 40
+  },
+  "broad_regression_gate": {
+    "result": "PASS",
+    "tests_passed": 221,
+    "subtests_passed": 1721
+  },
+  "real_teacher_smoke": {
+    "result": "PASS",
+    "artifact": "EXP2C_REAL_TEACHER_SMOKE.json",
+    "artifact_sha256": "8d25f55105e3f93ce79984dc2db6263fe976b9068f495582eb0264739a8bee4b",
+    "z0_own_head_grad_norm": 0.8021139,
+    "z0_opposite_head_grad_norm": 0.0,
+    "z1_own_head_grad_norm": 1.1905705,
+    "z1_opposite_head_grad_norm": 0.0,
+    "z0_teacher_kl_before": 2.61266,
+    "z0_teacher_kl_after": 2.30204,
+    "z1_teacher_kl_before": 2.77381,
+    "z1_teacher_kl_after": 2.06950
+  },
+  "integrated_trainer_smoke": {
+    "result": "PASS",
+    "environment_steps": 4096,
+    "ppo_actor_updates": 32,
+    "teacher_updates": 8,
+    "teacher_to_ppo_ratio": 0.25,
+    "training_cells": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16},
+    "private_head_count": 2,
+    "head0_max_abs_delta": 0.00152518,
+    "head1_max_abs_delta": 0.00172450,
+    "head0_teacher_grad_norm": 0.03080888,
+    "head1_teacher_grad_norm": 0.06306241,
+    "metrics_sha256": "ff03ceb5a3081abd375b65145268c102ef1adcd3d5edc5470c6d297726bf8ff0",
+    "manifest_sha256": "aab90fa96685a64578fbc3858bff03c4c3fa5c3dc60e9ae622f877f74a3265fe",
+    "checkpoint_sha256": "2c94218032e38a59c84e5d1df0549bcace2e1c5a7c37bd42987944bec4238f46"
+  },
+  "launch_authorized": true
+}
