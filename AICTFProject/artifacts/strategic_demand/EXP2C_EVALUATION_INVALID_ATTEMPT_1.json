@@ -1,0 +1,17 @@
+{
+  "artifact_type": "EXP2C_EVALUATION_INVALID_ATTEMPT",
+  "attempt": 1,
+  "utc": "2026-08-23T18:09:54Z",
+  "verdict": "INVALID_BEFORE_SCORING",
+  "evaluation_rows_consumed": 0,
+  "seed_block": "8900001..8900192",
+  "checkpoint_sha256": "0a763759d49e6ba0ef1d78b25aba04cbc99a4cbcf50df8c19b201e941f646c07",
+  "evaluator_commit": "9480fd7cbea950b9a969894b869cd7527a04afd9",
+  "failure": {
+    "stage": "student checkpoint construction before first environment episode",
+    "primary": "checkpoint loader did not forward exp2c_mode_specific_action_heads from stored config",
+    "secondary": "compatibility error path referenced _adapter_bypass_set before initialization"
+  },
+  "scientific_configuration_changed": false,
+  "authorized_resolution": "Correct checkpoint reconstruction and error-path initialization, prove the real terminal checkpoint loads with exactly two private heads, then relaunch the identical frozen evaluation."
+}

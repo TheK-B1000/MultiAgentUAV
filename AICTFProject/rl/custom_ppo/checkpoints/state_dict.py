@@ -361,6 +361,7 @@ def _load_model_state_dict_compat(
         if allowed_latents is None:
             allowed_latents = list(range(latent_k))
             
+        _adapter_bypass_set = False
         try:
             from rl.custom_ppo.checkpoints.loader import _model_kwargs_from_cfg
 
@@ -379,7 +380,6 @@ def _load_model_state_dict_compat(
             # V6I22E/V6I23: if adapters or per-z heads are newly initialized,
             # temporarily bypass residual + per-z heads so the equivalence check
             # confirms the shared trunk is intact.
-            _adapter_bypass_set = False
             _fixed_alpha_mode = (
                 bool(newly_initialized)
                 and (

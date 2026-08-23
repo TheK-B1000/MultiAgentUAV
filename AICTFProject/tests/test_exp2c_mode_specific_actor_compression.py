@@ -9,6 +9,7 @@ import torch
 from experiments.run_exp2b_specialization_preserving_compression import build_exp2b_config
 from experiments.run_exp2c_mode_specific_actor_compression import build_exp2c_config
 from rl.custom_ppo import SharedActorCentralizedCritic
+from rl.custom_ppo.checkpoints.loader import load_custom_ppo_checkpoint
 from rl.custom_ppo.exp2_teacher_compression import _shared_actor_parameters
 from tests.test_exp2_k2_compression import _action_space, _obs, _obs_space
 
@@ -21,6 +22,20 @@ def test_committed_implementation_gate_authorizes_production_launch():
     assert gate["verdict"] == "PASS"
     assert gate["production_steps_consumed"] == 0
     assert gate["production_launch_authorized"] is True
+
+
+def test_real_exp2c_terminal_checkpoint_reconstructs_private_heads():
+    checkpoint = Path(__file__).resolve().parents[1] / (
+        "artifacts/strategic_demand/exp2c_mode_specific_actor_compression/"
+        "exp2c_mode_specific_actor_seed8700001_2m/ckpts/"
+        "final_exp2c_mode_specific_actor_seed8700001_2m.zip"
+    )
+    loaded = load_custom_ppo_checkpoint(
+        str(checkpoint), _obs_space(), _action_space(), device="cpu"
+    )
+    heads = loaded.policy.model.latent_actor.latent_action_heads
+    assert heads is not None
+    assert len(heads) == 2
 
 
 def _model(*, private_heads: bool) -> SharedActorCentralizedCritic:
