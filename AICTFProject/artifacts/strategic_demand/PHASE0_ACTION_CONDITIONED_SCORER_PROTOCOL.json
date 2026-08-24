@@ -4,9 +4,7 @@
   "frozen_utc": "2026-08-24T13:00:00Z",
   "authority": "PI authorisation following EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_NOT_CONFIRMED (25a4fcbe)",
   "position_in_sequence": "Phase 0 feasibility prerequisite for SPPPO. This is NOT EXP2D and NOT a latent-architecture variant; the latent ladder is closed.",
-
   "purpose": "determine whether a trustworthy action-conditioned strategic scorer can exist at all. If it cannot, SPPPO is not built.",
-
   "why_the_scorer_must_be_ACTION_conditioned": {
     "rejected_form": "Q_psi(o, z, pole)",
     "reason": "its output does not depend on the student's actions, so a ranking loss built from it has NO gradient into the actor. It could be perfectly satisfied while teaching the policy nothing about which action to change -- a scoreboard, not a teacher.",
@@ -17,13 +15,16 @@
       "V_hat(o, z1, B) > V_hat(o, z0, B)"
     ]
   },
-
   "NO_EVALUATION_LEAKAGE": {
     "rule": "no scored evaluation block may be used to fit Q_psi",
-    "excluded_from_fitting": ["EXP1 7800001..7800192", "EXP2", "EXP2B", "EXP2C evaluation blocks"],
+    "excluded_from_fitting": [
+      "EXP1 7800001..7800192",
+      "EXP2",
+      "EXP2B",
+      "EXP2C evaluation blocks"
+    ],
     "their_role": "external ground-truth reference ONLY. They must not be used to tune thresholds, select scorer architecture, or choose features. The scorer stands or falls before they are consulted."
   },
-
   "data_source_decision": {
     "source_1_rejected": {
       "candidate": "existing SAPPO training episode rows",
@@ -35,9 +36,13 @@
     },
     "source_2_adopted": "a fresh, prospectively reserved TRAINING-ONLY scorer block, disjoint from every development and evaluation block"
   },
-
   "collection": {
-    "cells": ["pi_A|A", "pi_A|B", "pi_B|A", "pi_B|B"],
+    "cells": [
+      "pi_A|A",
+      "pi_A|B",
+      "pi_B|A",
+      "pi_B|B"
+    ],
     "policies": "the frozen SAPPO terminals (sha 5bd5f54f..., 8e4fb58b...)",
     "per_decision_point_records": [
       "observation o_t",
@@ -53,14 +58,15 @@
     "decision_points_only": "inherit the SAPPO lesson: train on macro-decision points (blue_commit_ticks_left <= 0), not locked physics steps. The ranking objective concerns moments where commitment can change.",
     "policy_identity_must_not_be_a_feature": "otherwise the scorer can cheat by learning 'pi_A usually wins on A' instead of which decisions are payoff-relevant. It must learn (o, a, pole) -> future strategic value."
   },
-
   "GATE_0A_cell_level_replication": {
     "question": "does the fresh training-only sample contain the strategic signal we intend to learn?",
-    "requires": ["WR(pi_A, A) > WR(pi_B, A)", "WR(pi_B, B) > WR(pi_A, B)"],
+    "requires": [
+      "WR(pi_A, A) > WR(pi_B, A)",
+      "WR(pi_B, B) > WR(pi_A, B)"
+    ],
     "status": "NOT the scorer validation. A sanity check on the dataset.",
     "if_fails": "STOP. Do not train a critic on a dataset where the target structure is absent."
   },
-
   "GATE_0B_action_conditioned_scorer_validity": {
     "fit": "Q_psi on one portion of the fresh scorer data",
     "validate_on": "held-out scorer episodes/seeds (training-only split, never an evaluation block)",
@@ -72,21 +78,25 @@
     "calibration_requirement": "must hold PER policy/pole cell, not merely in aggregate. A scorer with good overall winner prediction that collapses the specific SAPPO ordering is useless for SPPPO.",
     "if_fails": "STOP. SPPPO is not built. The ranking gradient would be decorative."
   },
-
   "if_both_gates_pass": {
     "then": "Phase 1 -- freeze the SPPPO protocol prospectively",
-    "SPPPO_holds_fixed": ["EXP2C architecture (representational separation already demonstrated)",
-                          "K=2", "persistent z", "assigned-pole 16/0/0/16",
-                          "same SAPPO teachers", "same PPO settings", "same 2M budget",
-                          "same teacher cadence", "terminal-only evaluation",
-                          "crossover, retention and identity gates UNCHANGED",
-                          "fresh audited seeds"],
+    "SPPPO_holds_fixed": [
+      "EXP2C architecture (representational separation already demonstrated)",
+      "K=2",
+      "persistent z",
+      "assigned-pole 16/0/0/16",
+      "same SAPPO teachers",
+      "same PPO settings",
+      "same 2M budget",
+      "same teacher cadence",
+      "terminal-only evaluation",
+      "crossover, retention and identity gates UNCHANGED",
+      "fresh audited seeds"
+    ],
     "only_substantive_new_ingredient": "the strategic ranking objective, using the FROZEN Q_psi so the method cannot move the ruler while trying to satisfy it",
     "CFSD_role": "matched-state counterfactual teacher supervision is retained as SUPPORTING supervision, not the causal hypothesis. EXP2C already showed strong policy-level separation does not guarantee crossover."
   },
-
   "scientific_hypothesis_under_test": "teacher imitation can preserve behavioural identity, but a compressed repertoire additionally requires explicit preservation of the teachers' strategic response ORDERING",
-
   "evidence_motivating_it": {
     "SAPPO_explicit": "behaviour + payoff specialisation CONFIRMED",
     "EXP2": "behaviour + performance, no payoff specialisation",
@@ -94,12 +104,60 @@
     "EXP2C": "teacher-level behavioural separation (argmax 0.416 vs teachers 0.419), still no payoff specialisation",
     "inference": "behavioural separation alone is insufficient"
   },
-
   "prohibited": [
     "fitting Q_psi on any scored evaluation block",
     "using EXP1/EXP2/EXP2B/EXP2C rows to tune thresholds, select architecture, or choose features",
     "giving the scorer policy identity as an input feature",
     "proceeding to SPPPO if either Phase 0 gate fails",
     "reopening the latent-architecture ladder (no EXP2D)"
-  ]
+  ],
+  "AMENDMENT_BEFORE_ANY_DATA_2026_08_24": {
+    "status": "FROZEN. No Phase 0 data exists yet; this closes two structural holes before the first seed is spent, not after seeing results.",
+    "1_scorer_form": {
+      "per_agent_action": "a_i in {1..250}, the macro x waypoint pair (5 x 50) treated as ONE categorical",
+      "form": "Q_psi(o,a1,a2,p) = b(o,p) + u(o,p)^T e(a1) + v(o,p)^T e(a2) + e(a1)^T M(o,p) e(a2)",
+      "NOT_purely_additive": "a decomposition Q = Q1(o,a1,p) + Q2(o,a2,p) is rejected. GUARD/BREACH value may arise from COORDINATION between the two robots; an additive critic cannot represent it. The low-rank interaction term e(a1)^T M e(a2) preserves joint effects."
+    },
+    "2_expected_value_is_ANALYTIC_not_Monte_Carlo": {
+      "expected_action_embedding": "mu_i = sum_{a_i} pi_i(a_i | o, z) e(a_i)",
+      "closed_form": "V_hat(o,z,p) = b + u^T mu_1 + v^T mu_2 + mu_1^T M mu_2",
+      "why": "exact differentiable expectation without enumerating 62,500 joint actions and without Monte-Carlo noise in a term that will eventually push the actor. Valid because the student policy factorises across the two agents.",
+      "replaces": "the sampled-estimation option, which is rejected for the ranking term"
+    },
+    "3_matched_state_coverage_COUNTERFACTUAL_BRANCHING": {
+      "problem_being_closed": "pooling four pure cells does NOT give counterfactual support. On a state visited by pi_A|A, the actions pi_B would take are off-distribution for the scorer, so Gate 0B could test extrapolation quality instead of strategic-value quality.",
+      "mechanism_available": "REPLAY-TO-STATE branching. The engine has no snapshot/restore API, but it is deterministic: same seed + same action prefix reproduces the state exactly. VERIFIED before freezing -- identical blue_x to full float precision, identical commit ticks and scores, while a different seed diverges.",
+      "procedure": [
+        "roll a teacher on a training-only seed, recording the action prefix",
+        "select decision states (blue_commit_ticks_left <= 0)",
+        "for each selected state: rebuild the env on the same seed, replay the prefix to reach o exactly",
+        "branch 1: apply pi_A's action at o, continue",
+        "branch 2: apply pi_B's action at o, continue",
+        "record (o, a_A, p, G_A) and (o, a_B, p, G_B) for the SAME o"
+      ],
+      "fallback_if_branching_ever_fails": "prospectively frozen mixture behaviour mu(a|o,p) = 0.5 pi_A + 0.5 pi_B with logged propensities. Regarded as inferior because the return is then tied to the mixture continuation, which changes what Q means.",
+      "stop_rule": "if neither reliable branching nor defensible mixture collection can be established, STOP Phase 0. Do not pretend ordinary four-cell rollouts solve counterfactual coverage."
+    },
+    "4_continuation_semantics_EXPLICIT": {
+      "rule": "TEACHER-CONSISTENT continuation",
+      "branch_A": "after a_A, continue under pi_A",
+      "branch_B": "after a_B, continue under pi_B",
+      "why_it_must_be_frozen": "Q(o,a,p) is meaningless unless 'value after a' has a defined continuation policy. Leaving it implicit would make the target undefined.",
+      "what_it_asks": "can the scorer recognise the strategic value of the COMPLETE teacher response beginning from the same state?"
+    },
+    "5_gates_unchanged": {
+      "0A": "fresh four-cell block must reproduce WR(pi_A,A) > WR(pi_B,A) and WR(pi_B,B) > WR(pi_A,B)",
+      "0B": "on held-out MATCHED states, the frozen scorer must rank the appropriate teacher response higher on BOTH poles, per cell and not merely in aggregate"
+    },
+    "6_coverage_metrics_are_VALIDITY_EVIDENCE": {
+      "not": "a decorative diagnostic",
+      "report": [
+        "fraction of Gate 0B states with genuine counterfactual branch support",
+        "per-cell support counts",
+        "distance of queried teacher actions from the scorer's training support"
+      ],
+      "consequence": "Gate 0B is only credible on states with counterfactual support; states without it are reported separately and do not count toward the gate"
+    },
+    "7_stop_rule": "if adequate counterfactual support cannot be established, SPPPO is NOT launched"
+  }
 }
