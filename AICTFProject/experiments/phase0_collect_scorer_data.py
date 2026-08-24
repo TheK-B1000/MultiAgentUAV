@@ -34,6 +34,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import time
+
 import numpy as np
 import torch
 
@@ -239,12 +241,31 @@ def main() -> int:
 
     # ---------- FIRST-INTERVAL TREATMENT EVIDENCE ----------
     ev = {"record": "PHASE0 first-interval treatment evidence", "utc": _now(),
-          "seeds_checked": [], "checks": {}}
+          "seeds_checked": [], "checks": {}, "cost": {}}
     repro_ok, dup_ok, tertile_rows, cont_ok = True, True, [], True
-    for s in range(SEED_BASE, SEED_BASE + a.first_interval_seeds):
-        pole = "A" if (s - SEED_BASE) % 2 == 0 else "B"
-        src = source_policy_for(s, pole)
+    t_plain, n_plain, t_branch, n_branch = 0.0, 0, 0.0, 0
+    # COVERAGE FIX: the first evidence pass chose one pole per seed by parity,
+    # which exactly cancels the pole-B offset in source_policy_for() and drew
+    # pi_A as the source in every case -- so the pi_B-sourced path went
+    # unexercised. Enumerate the four (pole, source) combinations explicitly
+    # instead of relying on parity to produce them. Each seed covers opposite
+    # sources on its two poles, so two seeds span all four paths.
+    paths = []
+    for s in range(SEED_BASE, SEED_BASE + N_SEEDS):
+        for pole in ("A", "B"):
+            key = (pole, source_policy_for(s, pole))
+            if key not in [k for k, _ in paths]:
+                paths.append((key, s))
+            if len(paths) == 4:
+                break
+        if len(paths) == 4:
+            break
+    print("  evidence covers 4 paths:",
+          {f"{pole}|{src}": seed for (pole, src), seed in paths})
+    for (pole, src), s in paths:
+        _t0 = time.perf_counter()
         r = rollout(models[src], pole, s, a.device, record_prefix=True)
+        t_plain += time.perf_counter() - _t0; n_plain += 1
         pts, notes = select_tertile_points(r["decision_steps"], r["steps"])
         tertile_rows.append({"seed": s, "pole": pole, "source": src,
                              "split": split_for(s), "steps": r["steps"],
@@ -253,7 +274,9 @@ def main() -> int:
         if len(set(pts)) != len(pts):
             dup_ok = False
         if pts:
+            _t1 = time.perf_counter()
             b = branch_at(models, pole, s, r["prefix"], pts[0], a.device)
+            t_branch += time.perf_counter() - _t1; n_branch += 1
             if b is None:
                 continue
             # replay reproduction: the same restored state must feed both teachers
@@ -265,7 +288,10 @@ def main() -> int:
                 pass  # identical action is legal; teachers may agree at some states
         ev["seeds_checked"].append(s)
 
+    covered = sorted({(r["pole"], r["source"]) for r in tertile_rows})
     ev["checks"] = {
+        "four_path_coverage": [f"{p}|{t}" for p, t in covered],
+        "four_path_coverage_complete": len(covered) == 4,
         "source_balance_128_128_per_pole": bal,
         "tertile_selection": tertile_rows,
         "no_duplicate_branch_state_within_episode": dup_ok,
@@ -275,6 +301,20 @@ def main() -> int:
         "split_rule": f"first {N_TRAIN_SEEDS} seeds train, remaining {N_HELDOUT_SEEDS} held-out",
         "no_evaluation_seed_in_block": True,
         "forbidden_bases_checked": sorted(FORBIDDEN_BASES),
+    }
+    per_plain = t_plain / max(1, n_plain)
+    per_branch = t_branch / max(1, n_branch)
+    proj_s = N_SEEDS * 4 * per_plain + N_SEEDS * 2 * BRANCHES_PER_SOURCE * per_branch
+    ev["cost"] = {
+        "measured_plain_episode_seconds": round(per_plain, 2),
+        "measured_branch_point_seconds": round(per_branch, 2),
+        "branch_to_episode_ratio": round(per_branch / max(1e-9, per_plain), 2),
+        "n_plain_timed": n_plain, "n_branch_timed": n_branch,
+        "projected_full_collection_seconds": round(proj_s, 0),
+        "projected_full_collection_hours": round(proj_s / 3600.0, 2),
+        "note": ("branch timing here includes the DOUBLE build used for the "
+                 "reproduction check; production branches build two envs, not four, "
+                 "so the projection is conservative"),
     }
     (OUT / "first_interval_treatment_evidence.json").write_text(
         json.dumps(ev, indent=2), encoding="utf-8")

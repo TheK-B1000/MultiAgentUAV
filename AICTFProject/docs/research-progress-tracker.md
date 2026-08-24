@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-23 — EXP2C training completed validly at 2,002,944 steps. Its frozen terminal evaluation is running on `8900001..8900192`; the first launch failed mechanically before scoring and the identical corrected evaluator is now scoring. EXP3 and EXP4 remain locked.
+> **Last updated:** 2026-08-24 — EXP2C is not confirmed and the automatic latent-architecture ladder is closed. Phase 0 action-conditioned scorer feasibility is ready for full rebuild-per-branch collection; four-path evidence passed and environment reuse was permanently rejected. SPPPO remains locked behind Gates 0A and 0B with a prospectively frozen 1 M budget.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,7 +26,26 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C TRAINING COMPLETE + VALID / TERMINAL EVALUATION RUNNING.** Terminal SHA `0a763759...f646c07`; untouched block `8900001..8900192`. EXP3/EXP4 remain locked. |
+| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C FAIL.** Automatic latent variants stopped. Phase 0 scorer prerequisite is next; SPPPO 1 M remains locked behind Gates 0A/0B. |
+
+### Phase 0 action-conditioned scorer feasibility — `FULL COLLECTION READY`
+
+The frozen scorer block is `6500001..6500256`, split by seed into `160` train
+and `96` held out. The corrected first-interval evidence covers all four source
+paths with seeds `6500001` and `6500002`; replay-to-state reproduction and
+teacher-consistent continuation passed exactly. Environment reuse was tested
+over 24 comparisons spanning both poles, both teachers, and early/mid/late
+branches. It failed 20/24 comparisons, including restored observations, masks,
+RNG-sensitive state, telemetry, actions, returns, and outcomes, with only
+`1.007x` measured speedup. Reuse is permanently rejected.
+
+The authoritative full collector therefore uses a fresh seeded environment for
+every teacher continuation at every branch point. Frozen allocation remains
+`1,024` paired plain episodes plus `1,536` matched branch points, with no data
+growth after failure. Gate 0A must reproduce the SAPPO crossover; Gate 0B must
+recover the held-out matched-state action ordering on both poles. Either failure
+stops before SPPPO. If both pass, the SPPPO protocol may be frozen with the
+already prospective `1,000,000`-step terminal-only budget.
 
 ### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
