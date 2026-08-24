@@ -1,0 +1,14 @@
+{
+  "record": "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION terminal checkpoint locked before evaluation",
+  "utc": "2026-08-23T18:12:10Z",
+  "protocol": "artifacts\\strategic_demand\\EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_PROTOCOL.json",
+  "seed_block": "8900001..8900192",
+  "checkpoint_hashes": {
+    "student": "0a763759d49e6ba0ef1d78b25aba04cbc99a4cbcf50df8c19b201e941f646c07",
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "evaluator": "experiments\\eval_exp2_k2_terminal.py",
+  "evaluator_sha256": "e06eec66efdffe290331819625053836a6b7864a3749a18523bb2f68b1b1ced4",
+  "terminal_checkpoint_only": true
+}
