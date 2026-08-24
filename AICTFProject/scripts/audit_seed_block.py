@@ -177,6 +177,8 @@ def build_inventories(exclude: tuple[str, ...] = ()) -> tuple[dict, dict, list]:
             continue
         for mm in INT_RE.finditer(txt):
             add(broad, int(mm.group(1)), rel)
+        for a, b in endpoint_ranges(txt):
+            blocks.append((f"<endpoint-range>", a, b - a + 1, rel))
         if ext == ".json":
             try:
                 walk_json(json.loads(txt), rel)
@@ -200,6 +202,25 @@ def build_inventories(exclude: tuple[str, ...] = ()) -> tuple[dict, dict, list]:
                 add(declared, int(mm.group(2).replace("_", "")), f"{rel}::{mm.group(1)}")
 
     return declared, broad, blocks
+
+
+RANGE_PAIR_RE = re.compile(r"\[\s*(\d{6,12})\s*,\s*(\d{6,12})\s*\]")
+
+
+def endpoint_ranges(text: str) -> list[tuple[int, int]]:
+    """Seed ranges written as [start, end] rather than (base, n).
+
+    Blind spot found 2026-08-24: LATENT_BIRTH_PROTOCOL_FROZEN.json declares
+    "c1_crossover": [9700000, 9700029] -- thirty used seeds of which only two
+    appear literally. A window overlapping the interior would have matched
+    nothing. Endpoint pairs are therefore expanded to full intervals.
+    """
+    out = []
+    for m in RANGE_PAIR_RE.finditer(text):
+        a, b = int(m.group(1)), int(m.group(2))
+        if a < b and (b - a) <= 100_000:
+            out.append((a, b))
+    return out
 
 
 def window_regex(lo: int, n: int) -> str:
