@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-24 — EXP2C is not confirmed and the automatic latent-architecture ladder is closed. Phase 0 action-conditioned scorer feasibility is ready for full rebuild-per-branch collection; four-path evidence passed and environment reuse was permanently rejected. SPPPO remains locked behind Gates 0A and 0B with a prospectively frozen 1 M budget.
+> **Last updated:** 2026-08-24 — EXP2C is not confirmed and the automatic latent-architecture ladder is closed. Full Phase 0 action-conditioned scorer collection is running with authoritative rebuild-per-branch semantics. SPPPO remains locked behind Gates 0A and 0B with a prospectively frozen 1 M budget.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -28,7 +28,7 @@ It is **not** the source of truth for:
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
 | PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C FAIL.** Automatic latent variants stopped. Phase 0 scorer prerequisite is next; SPPPO 1 M remains locked behind Gates 0A/0B. |
 
-### Phase 0 action-conditioned scorer feasibility — `FULL COLLECTION READY`
+### Phase 0 action-conditioned scorer feasibility — `FULL COLLECTION RUNNING`
 
 The frozen scorer block is `6500001..6500256`, split by seed into `160` train
 and `96` held out. The corrected first-interval evidence covers all four source
@@ -46,6 +46,14 @@ growth after failure. Gate 0A must reproduce the SAPPO crossover; Gate 0B must
 recover the held-out matched-state action ordering on both poles. Either failure
 stops before SPPPO. If both pass, the SPPPO protocol may be frozen with the
 already prospective `1,000,000`-step terminal-only budget.
+
+The full collector launched once from commit `0ff2ed75` on seed block
+`6500001..6500256`. Startup reconstructed both frozen SAPPO checkpoints exactly,
+resolved `1,024` plain episodes plus `1,536` branch points, and produced empty
+stderr. The launch record is
+`PHASE0_FULL_COLLECTION_LAUNCH_PROVENANCE.json`. Completed seeds are written as
+atomic compressed shards with atomic per-seed summaries before the resumable
+manifest advances. No Gate 0A or Gate 0B claim exists while collection runs.
 
 ### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 

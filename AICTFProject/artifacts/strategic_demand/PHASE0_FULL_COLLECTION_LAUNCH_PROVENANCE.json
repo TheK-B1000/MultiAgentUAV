@@ -1,0 +1,19 @@
+{
+  "artifact_type": "PHASE0_FULL_COLLECTION_LAUNCH_PROVENANCE",
+  "status": "RUNNING",
+  "launched_utc": "2026-08-24T15:05:06Z",
+  "launch_commit": "0ff2ed75caff5f8821fc9ea233b30aa9557b68cb",
+  "process_id_at_launch": 30700,
+  "seed_block": "6500001..6500256",
+  "split": {"train_seeds": 160, "held_out_seeds": 96},
+  "plain_episodes": 1024,
+  "branch_points": 1536,
+  "branch_semantics": "fresh seeded environment rebuild per teacher per branch point",
+  "four_path_evidence_sha256": "2885701b2e7b11313ec2d3f3d2eb84b5545e1e58a7ee96003b9995fa44c0f7c1",
+  "reuse_rejection_sha256": "894c4c9b9ebeacf7910ddafbdb0dae89bf8320ae25cafd7d5953a56414f62edc",
+  "reuse_verdict": "FAIL_REJECT_REUSE",
+  "checkpoint_reconstruction": "PASS_EXACT",
+  "stderr_bytes_at_startup": 0,
+  "resume_contract": "one atomic compressed shard and one atomic summary file per completed seed; manifest advances only after both land",
+  "claim_boundary": "Collection health only. Gate 0A and Gate 0B remain unevaluated and solely determine whether SPPPO may be built."
+}
