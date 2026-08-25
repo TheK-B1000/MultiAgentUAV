@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-08-23T17:46:44.553184Z",
+  "evaluation_run_id": "exp2c_mode_specific_actor_seed8700001_2m",
+  "source_training_run_id": "exp2c_mode_specific_actor_seed8700001_2m",
+  "source_checkpoint_fingerprint": "0a763759d49e6ba0ef1d78b25aba04cbc99a4cbcf50df8c19b201e941f646c07",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "exp2c_mode_specific_actor_seed8700001_2m",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}
