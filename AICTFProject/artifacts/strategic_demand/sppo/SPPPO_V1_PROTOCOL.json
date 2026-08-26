@@ -214,5 +214,29 @@
     "reopening the latent-architecture ladder (no EXP2D)",
     "extending the lambda_R grid"
   ],
-  "frozen_utc": "2026-08-26T02:20:00Z"
+  "frozen_utc": "2026-08-26T02:20:00Z",
+  "BLOCK_ROLES_CLARIFIED": {
+    "ruling": "PI, 2026-08-26. No protocol amendment needed; this records the roles explicitly.",
+    "naming": "10100001..10100032 is the SPPPO TRAINING BLOCK. Do NOT call it the 'production-only training block' -- it is deliberately reused for development-stage model fitting AND final model fitting.",
+    "separation_that_matters": {
+      "10100001..10100032": "training data (shared by the sweep candidates and the 1M run)",
+      "10200001..10200032": "hyperparameter-SELECTION data (lambda_R only)",
+      "10300001..10300192": "final scientific evaluation, untouched by fitting and by selection"
+    },
+    "why_sharing_the_training_block_is_correct": "the candidates are allowed to learn from the same training distribution the final model learns from. What would have been wrong -- and was fixed before any step was spent -- is CHOOSING lambda_R from performance on those same training trajectories. Selection is out-of-sample on 102..., so standard train/dev/test logic holds.",
+    "the_lambda_question": "holding training data constant, which ranking strength generalises best to the development block?",
+    "the_production_question": "using that selected method and the same training block, what does a full 1M run achieve on the untouched final block?"
+  },
+  "PRODUCTION_RUN_HARD_RULES": {
+    "ruling": "PI, 2026-08-26, frozen before the sweep runs",
+    "1_fresh_initialisation": "the 1M production run must NOT continue from the winning 98,304-step candidate. It starts fresh from the same frozen initialisation the sweep used, and trains the full 1,000,000 steps on 10100001..10100032 with the selected lambda_R.",
+    "2_no_reuse_of_candidate_artifacts": [
+      "do NOT combine the five candidates' experience",
+      "do NOT select a lucky candidate checkpoint as the production model",
+      "do NOT count any candidate's 98,304 steps toward the 1M budget"
+    ],
+    "3_what_the_sweep_produces": "ONE hyperparameter value. Not a production model.",
+    "budget": "1,000,000 steps, one run, terminal checkpoint only, no extension",
+    "final_evaluation": "10300001..10300192, insulated from both parameter fitting and lambda selection"
+  }
 }
