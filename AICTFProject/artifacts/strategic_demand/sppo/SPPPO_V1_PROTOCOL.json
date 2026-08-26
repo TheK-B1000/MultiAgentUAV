@@ -1,0 +1,218 @@
+{
+  "record_id": "SPPPO_V1_PROTOCOL",
+  "status": "FROZEN",
+  "ratified_utc": "2026-08-26T02:00:00Z",
+  "authority": "PI rulings on SPPPO_V1_PROTOCOL_DRAFT.json",
+  "supersedes": "SPPPO_V1_PROTOCOL_DRAFT.json",
+  "one_line": "SAPPO rehearsal preserves what each strategy does; a frozen payoff critic supplies a separate constraint preserving which strategy should be preferred in each strategic context.",
+  "licensing_evidence": {
+    "gate_0A": "PASS -- delta_A +0.1211, delta_B +0.1875",
+    "gate_0B": "PASS -- LCB95(E[d_A]) +0.038284, LCB95(E[d_B]) +0.070432, 96 held-out seeds",
+    "scorer": "PHASE0_SCORER_FROZEN.json, sha256 930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf",
+    "claim_earned": "payoff-relevant strategic preference is learnable at the state-action level from fresh training-only counterfactual data",
+    "claim_NOT_earned": "that a ranking gradient built from it preserves payoff structure during compression. That is what SPPPO tests."
+  },
+  "THREE_SEPARATE_OPERATIONS": {
+    "ruling": "APPROVED -- the ranking update is a SEPARATE optimizer step, not a term inside PPO's clipped-surrogate backward pass",
+    "order": [
+      "1. PPO actor update (clipped surrogate) -- PPO remains PPO",
+      "2. teacher rehearsal update (SAPPO anchor, lambda_anchor 0.10, cadence 1:4) -- preserves behavioural memory",
+      "3. strategic ranking update (frozen cadence) -- preserves payoff-role structure"
+    ],
+    "why": "the same reasoning that made Reading 2 correct for SAPPO. Blending lambda_R * L_rank into PPO's backward pass would entangle three conceptually distinct operations and destroy the causal story.",
+    "consequence_for_lambda_R": "lambda_R scales a STANDALONE loss in its own optimizer step; it is not a loss-blending coefficient inside PPO. This is a structural correction to the draft, which had described L_SPPPO = L_existing + lambda_R * L_rank.",
+    "implementation_pattern": "follow the existing AnchorRunner: refuse lambda_R <= 0, zero_grad before AND after the step, and assert the update actually ran at the declared cadence",
+    "causal_story": "task learning + behaviour preservation + strategic-value preservation"
+  },
+  "L_rank_RATIFIED": {
+    "ruling": "HINGE APPROVED, logistic alternative rejected",
+    "form": "L_rank = E_o [ max(0, m - Delta(o)) ]",
+    "contrasts": {
+      "pole_A": "Delta_A(o) = V_hat(o, z0, A) - V_hat(o, z1, A)",
+      "pole_B": "Delta_B(o) = V_hat(o, z1, B) - V_hat(o, z0, B)"
+    },
+    "V_hat": "b + u^T mu_1 + v^T mu_2 + mu_1^T M mu_2,  mu_i = sum_{a_i} pi_theta(a_i | o, z) e(a_i)",
+    "why_hinge": "SPPPO preserves SUFFICIENT strategic ordering rather than maximising separation forever. Once Delta(o) >= m the objective is silent and contributes exactly zero gradient, leaving PPO free to optimise the actual task once the strategic constraint is satisfied."
+  },
+  "margin_m_RATIFIED": {
+    "value": 0.04,
+    "ruling": "m = 0.05 derived from Gate 0B magnitudes was REJECTED; m = 0.04 from train-side calibration is APPROVED",
+    "derivation": "m = 0.5 * min(d_A_train, d_B_train) = 0.5 * min(0.092121, 0.081662) = 0.040831, rounded prospectively to 0.04",
+    "provenance": "derived SOLELY from scorer train-side calibration available before Gate 0B, not from held-out Gate 0B effects",
+    "interpretation": "require each student mode to preserve roughly half of the weakest strategic separation the frozen scorer measured during train-side calibration",
+    "why_the_rejected_version_was_wrong": "Gate 0B answers 'is the scorer valid?', not 'how strong should the next training constraint be?'. Calibrating a training hyperparameter from its observed effect magnitude would let the held-out scorer-validation block influence SPPPO training and muddy the clean separation train -> fit -> held-out gate -> PASS.",
+    "must_not_cite": "Gate 0B's +0.066 / +0.099 may NOT be cited as the reason for m",
+    "rounding": "0.04 rather than 0.040831 -- the extra digits would be fake precision"
+  },
+  "lambda_R_SELECTION_EXPERIMENT_FROZEN_BEFORE_ANY_CANDIDATE_RUNS": {
+    "ruling": "development-only selection APPROVED with tightened governance",
+    "grid": [
+      0.03,
+      0.1,
+      0.3,
+      1.0
+    ],
+    "control": "one lambda_R = 0 control, making five runs total",
+    "selection_rule": "the SMALLEST lambda_R satisfying BOTH criteria below",
+    "criterion_1_moves_both_contrasts": {
+      "quantitative": [
+        "Delta_A(lambda) - Delta_A(0) > 0",
+        "Delta_B(lambda) - Delta_B(0) > 0"
+      ],
+      "measured_on": "terminal development contrast versus the zero-control",
+      "why_point_improvement_not_an_inferential_gate": "this is hyperparameter development, not the scientific result. The final untouched evaluation carries the inference.",
+      "no_human_judgement": "'moves' is defined numerically above and is not a judgement call"
+    },
+    "criterion_2_task_return": "PPO episodic return degrades by no more than 5% relative to the lambda_R = 0 control",
+    "governance": [
+      "same initialisation / starting checkpoint across all candidates",
+      "same development seed block for every candidate",
+      "same short development budget for every candidate, frozen before any candidate runs",
+      "ALL five candidates run to completion -- no early stopping based on interim ranking",
+      "the selection rule is computed only AFTER all candidates finish",
+      "no second grid if none qualify"
+    ],
+    "if_none_qualify": "SPPPO V1 = NOT WELL-POSED. STOP. No second grid, and no 'maybe 150k would have worked' -- the budget is frozen too.",
+    "development_budget_per_candidate": {
+      "value_env_steps": 98304,
+      "identical_across_all_five_candidates": true,
+      "lands_on_a_rollout_boundary": true,
+      "derivation": "n_envs 32 x n_steps 128 = 4096 env steps per PPO update; 98304 / 4096 = 24 PPO updates exactly, and 24 / 4 = 6 teacher rehearsal updates exactly at the inherited 1:4 cadence",
+      "CORRECTION_to_the_ruling_rationale": "the ruling cited 98304 = 12 x 8192 on the premise that the trainer operates on 8192-step rollout boundaries. It does not: 8192 is latent_specialist_rollout_max_samples, a SAMPLE CAP, while the EXP2B/EXP2C rollout is 4096. The VALUE is unaffected because 8192 = 2 x 4096, so 12 x 8192 = 24 x 4096 = 98304. Recorded because an implementer chasing an 8192 boundary could set n_steps=256 and silently change the PPO configuration this protocol declares unchanged.",
+      "total_development_steps": 491520,
+      "relative_to_production": "0.492M development vs 1M production"
+    },
+    "value_frozen_before_production": true,
+    "candidates": [
+      0,
+      0.03,
+      0.1,
+      0.3,
+      1.0
+    ],
+    "frozen_development_procedure": [
+      "five candidates: lambda_R = 0, 0.03, 0.1, 0.3, 1.0",
+      "98,304 steps exactly, each",
+      "same initialisation",
+      "same training seeds and order",
+      "same PPO config",
+      "same anchor treatment",
+      "same ranking cadence",
+      "same Q_psi",
+      "same margin m = 0.04",
+      "no early stopping",
+      "no checkpoint selection",
+      "terminal only"
+    ],
+    "evaluated_on": "the 32 DEVELOPMENT seeds, never the final evaluation block",
+    "TERMINAL_VALUES_ONLY": {
+      "rule": "the development comparison uses TERMINAL values only",
+      "why": "selecting a lambda_R because it looked strong at 49k and regressed by 98k would reintroduce checkpoint shopping through the back door",
+      "prohibited": "no interim-checkpoint comparison may influence the selection"
+    }
+  },
+  "Q_psi_IMMUTABLE": {
+    "ruling": "REQUIRED",
+    "rule": "Q_psi is frozen for the entire SPPPO run. No joint training of scorer and actor in V1.",
+    "reason": "otherwise the ruler moves while the policy learns to satisfy it, muddying the causal claim Phase 0 earned",
+    "enforcement": [
+      "load with requires_grad=False on every Q_psi parameter",
+      "assert no optimizer group contains a Q_psi parameter",
+      "assert the scorer SHA256 at launch AND at terminal, and record both",
+      "gradient flows into theta only through mu_1 and mu_2; b, u, v, P, Q depend on (o, p) alone and are constants w.r.t. theta"
+    ],
+    "not_used_at_evaluation": "the final gates are scored on actual payoff. Q_psi never touches evaluation."
+  },
+  "ranking_states_and_cadence": {
+    "states": "DECISION-POINT states (blue_commit_ticks_left <= 0) from the current on-policy PPO rollout batch",
+    "why_decision_points": "matches the distribution Q_psi was fit on; Q_psi never saw locked physics steps",
+    "both_modes_at_the_same_state": "the state is visited under its assigned mode, but V_hat is computed for BOTH z at that identical state -- the counterfactual structure Phase 0 validated",
+    "cadence": "one ranking step after each PPO update (1:1), as a separate optimizer step",
+    "cost": "two extra actor forward passes over the batch's decision-point states; no extra environment interaction and no teacher query",
+    "masking": "pi_theta MUST be the masked distribution matching evaluate_actions(). The unmasked-fallback defect in Phase 0 produced a sign-inverted diagnostic; the same failure inside a training loss would silently push the policy the wrong way with no diagnostic to catch it.",
+    "expectation": "ANALYTIC closed form only, never sampled; brute-force equivalence is unit-tested in tests/test_qpsi_scorer.py"
+  },
+  "OFF_SUPPORT_RISK_DIAGNOSTIC_ONLY": {
+    "ruling": "DIAGNOSTIC ONLY -- no online support threshold may modify training in V1",
+    "why_not_a_mechanism": "adding a support gate would introduce another mechanism and blur what SPPPO is testing",
+    "the_risk": "Q_psi was fit on TEACHER-visited state/action support. SPPPO may induce a new state distribution, so the ranking signal becomes progressively an extrapolation. Freezing Q_psi does not remove this; it is inherent to using a fixed scorer as a training signal.",
+    "telemetry_to_log": [
+      "distance / embedding novelty relative to scorer-training states",
+      "Q_psi prediction range",
+      "fraction of student actions outside teacher-action support proxies",
+      "ranking-loss activation rate (fraction of states with Delta < m)",
+      "Delta_A and Delta_B distributions over training",
+      "scorer extrapolation diagnostics where already available"
+    ],
+    "hard_rule": "none of these may alter training or determine success",
+    "purpose": "if SPPPO fails, we will know whether it spent most of training asking Q_psi questions far outside its support"
+  },
+  "INHERITED_not_open": {
+    "architecture": "EXP2C -- shared CNN/body, two mode-specific final actor heads, shared critic as already specified",
+    "K": 2,
+    "persistent_z": "forced, persistent across the episode",
+    "assigned_pole_training": "16 x z0|A and 16 x z1|B (16/0/0/16)",
+    "teachers": "frozen SAPPO terminals, sha 5bd5f54f... (pi_A) and 8e4fb58b... (pi_B)",
+    "teacher_supervision": "unchanged SAPPO anchor loss, lambda_anchor = 0.10, cadence 1:4",
+    "ppo_configuration": "unchanged",
+    "ruleset_reward_action_space": "unchanged",
+    "final_gates": "strategic crossover AND retention AND behavioural identity, UNCHANGED",
+    "sole_new_ingredient": "the strategic ranking update derived from frozen Q_psi"
+  },
+  "seed_blocks": {
+    "status": "AUDITED CLEAN on all four checks, with a valid positive control",
+    "training": {
+      "range": "10100001..10100032",
+      "n": 32,
+      "verdict": "CLEAN",
+      "audit": "sppo/SPPPO_TRAINING_BLOCK_AUDIT_10100001.json"
+    },
+    "development": {
+      "range": "10200001..10200032",
+      "n": 32,
+      "verdict": "CLEAN",
+      "audit": "sppo/SPPPO_DEVELOPMENT_BLOCK_AUDIT_10200001.json"
+    },
+    "evaluation": {
+      "range": "10300001..10300192",
+      "n": 192,
+      "verdict": "CLEAN",
+      "audit": "sppo/SPPPO_EVALUATION_BLOCK_AUDIT_10300001.json"
+    },
+    "positive_control": "2600001..2600032 returned 20 commits in every audit, so an empty candidate result is a true negative rather than a broken query",
+    "AUDIT_HYGIENE_NOTE": "the first audit pass returned COLLISION on training and development. Both were SELF-CONTAMINATION: the audit log had been redirected into the scanned tree and the protocol drafts name the candidate blocks, so the BROAD check found the auditor's own paperwork. declared/overlapping/history were empty throughout. Re-run with the log outside the tree and 'artifacts/strategic_demand/sppo/' excluded as reservation records -- the same treatment earlier audits gave NEXT_CONFIRMATION_BLOCK_RESERVED.json.",
+    "FOR_FUTURE_AUDITS": "exclude artifacts/strategic_demand/sppo/ -- it reserves these blocks, it does not spend them",
+    "why_suggest_is_insufficient": "--suggest is working-tree only. It reports 11000001 as clean while that block appears in 5 historical commits."
+  },
+  "PHASE_2_verification_before_production": {
+    "requirement": "prove a ranking update moves the intended quantities before spending the 1M run",
+    "must_show": [
+      "V_hat(o, z0, A) - V_hat(o, z1, A) increases",
+      "V_hat(o, z1, B) - V_hat(o, z0, B) increases",
+      "Q_psi bit-identical before and after (SHA re-checked)",
+      "no optimizer group contains Q_psi parameters",
+      "the MASKED distribution is the one being differentiated",
+      "a lambda_R = 0 control does not move the contrasts",
+      "the ranking step ran at the declared cadence (assert, do not assume)"
+    ],
+    "scope": "development block only"
+  },
+  "production": {
+    "runs": 1,
+    "budget": "1M steps",
+    "extension": "PROHIBITED",
+    "checkpoint": "terminal only, no checkpoint shopping",
+    "evaluation": "fresh untouched terminal block, unchanged gates",
+    "if_it_fails": "freeze the negative, do NOT create SPPPO V2, request a PI decision"
+  },
+  "unchanged_prohibitions": [
+    "fitting or updating Q_psi during SPPPO",
+    "using any scored evaluation block in any fitting",
+    "policy identity as a scorer input",
+    "target substitution (win flag is a calibration diagnostic, never a target)",
+    "data growth after failure",
+    "reopening the latent-architecture ladder (no EXP2D)",
+    "extending the lambda_R grid"
+  ],
+  "frozen_utc": "2026-08-26T02:20:00Z"
+}

@@ -1,0 +1,40 @@
+{
+ "block": {
+  "base": 10300001,
+  "n": 192,
+  "range": "10300001..10300192"
+ },
+ "margin_required": 5000,
+ "population_seed_offset_max": 300,
+ "declared_inventory_size": 2375,
+ "broad_inventory_size": 24012,
+ "excluded_as_reservation_records": [
+  "scripts/audit_seed_block.py",
+  "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
+  "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_",
+  "artifacts/strategic_demand/CONFIRMATION_N_AMENDMENT_192.json",
+  "artifacts/strategic_demand/NEXT_CONFIRMATION_BLOCK_RESERVED.json",
+  "artifacts/strategic_demand/REPERTOIRE_LADDER_FROZEN.json",
+  "artifacts/strategic_demand/R_LADDER_BLOCK_AUDITS.json",
+  "artifacts/strategic_demand/V3_BENCHMARK_FROZEN.json",
+  "artifacts/strategic_demand/SEARCH_RUN_SDS2_SCREENING_FROZEN.json",
+  "artifacts/strategic_demand/CANDIDATE_A2_SDS2_INIT_3_FROZEN.json",
+  "artifacts/strategic_demand/sppo/"
+ ],
+ "exclusion_caveat": "these paths RESERVE a block rather than USE it and are skipped in every check; any other file naming a seed in the window counts as a collision",
+ "check_1_declared_hits": [],
+ "check_2_broad_hits": [],
+ "check_3_overlapping_blocks": [],
+ "gap_below": 300002,
+ "gap_above": 4868227,
+ "check_4_history": {
+  "commits": [],
+  "query_ok": true,
+  "positive_control_block": "2600001..2600032",
+  "positive_control_commits": 20,
+  "positive_control_valid": true,
+  "note": "control returned hits, so an empty result for the candidate is a true negative"
+ },
+ "margin_ok": true,
+ "verdict": "CLEAN"
+}
