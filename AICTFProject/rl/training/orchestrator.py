@@ -297,6 +297,7 @@ def orchestrate_training_run(
         maybe_configure_periodic_checkpoints(cfg, trainer)
         _maybe_attach_sappo_anchor(cfg, trainer)
         _maybe_attach_exp2_teacher_compression(cfg, trainer)
+        _maybe_attach_sppo_ranking(cfg, trainer)
 
         artifact_only = bool(getattr(cfg, "formal_artifact_bundle_only", False))
         if artifact_only:
@@ -485,6 +486,41 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _maybe_attach_sppo_ranking(cfg, trainer) -> None:
+    """Attach the SPPPO strategic ranking runner, or attach nothing at all.
+
+    lambda == 0.0 is the frozen development CONTROL: no Q_psi is loaded, no
+    runner is constructed, and no attribute is set, so the updater's
+    getattr(runtime, "sppo_ranking_runner", None) misses and the branch is never
+    entered. A runner scaled by zero would still mutate optimizer state, advance
+    counters and consume RNG -- that is a different experiment wearing the
+    control's name.
+    """
+    lam = float(getattr(cfg, "sppo_lambda_rank", 0.0))
+    if lam == 0.0:
+        return
+    from rl.scorer.attach import attach_ranking_runner
+
+    runner = attach_ranking_runner(
+        trainer,
+        trainer.model,
+        trainer.optimizer,
+        lambda_rank=lam,
+        margin=float(getattr(cfg, "sppo_ranking_margin", 0.04)),
+        cadence=int(getattr(cfg, "sppo_ranking_cadence", 1)),
+        qpsi_path=str(getattr(cfg, "sppo_qpsi_path", "")),
+        expected_sha256=str(getattr(cfg, "sppo_qpsi_sha256", "")),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        device=str(trainer.device),
+    )
+    print(
+        f"[SPPPO] strategic ranking ATTACHED: lambda={runner.lambda_rank} "
+        f"margin={runner.margin} cadence=1:{runner.cadence} "
+        f"qpsi_sha={runner._qpsi_sha[:16]}... pole=TRUE opponent_id "
+        f"z_map={runner.z_to_pole}"
+    )
 
 
 def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:

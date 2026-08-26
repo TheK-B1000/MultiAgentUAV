@@ -109,6 +109,14 @@ class PPOConfig:
     exp2_teacher_sha256: tuple[str, ...] = field(default_factory=tuple)
     exp2_teacher_lambda: float = 0.10
     exp2_teacher_cadence: int = 4
+    # SPPPO V1 strategic ranking (SPPPO_V1_PROTOCOL.json). lambda == 0.0 is the
+    # frozen development CONTROL and means NO runner is constructed at all --
+    # structural absence, never a runner scaled by zero.
+    sppo_lambda_rank: float = 0.0
+    sppo_ranking_margin: float = 0.04
+    sppo_ranking_cadence: int = 1
+    sppo_qpsi_path: str = "artifacts/strategic_demand/phase0_scorer_data/qpsi_frozen.pt"
+    sppo_qpsi_sha256: str = "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf"
     exp2_teacher_batch_size: int = 64
     exp2_protocol_path: str = ""
 
