@@ -1,0 +1,16 @@
+{
+  "verdict": "TRAINING_COMPLETE",
+  "total_timesteps": 98304,
+  "global_step": 98304,
+  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\ckpts\\final_sppo_dev_lambda0p0_seed10100001.zip",
+  "n_episode_rows": 392,
+  "artifact_identity": {
+    "run_id": "sppo_dev_lambda0p0_seed10100001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

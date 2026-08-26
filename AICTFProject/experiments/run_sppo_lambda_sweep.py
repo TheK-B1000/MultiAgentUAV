@@ -77,6 +77,8 @@ ALLOWED_DIFFS = {
     "sppo_lambda_rank", "run_tag", "checkpoint_dir",
     "metrics_csv_path", "episode_csv_path",
 }
+# opponent_randomize is set identically on EVERY candidate including the control,
+# so it is part of the shared base and never appears in a candidate-vs-control diff.
 
 
 def _stable_hash(value: Any) -> str:
@@ -128,6 +130,23 @@ def build_candidate(lam: float):
     cfg.total_timesteps = DEV_STEPS
     cfg.sppo_ranking_margin = MARGIN
     cfg.sppo_ranking_cadence = 1
+    # AMENDMENT_ASSIGNED_POLE_PERSISTENCE. EXP2C runs mode=OPPONENT_POOL, which
+    # resamples the opponent 50/50 on every episode reset, so its stated
+    # 16 x z0|A / 16 x z1|B treatment never actually ran (measured occupancy was
+    # at chance for both EXP2B and EXP2C).
+    #
+    # opponent_randomize=False ALONE CANNOT FIX THIS: config_validation does
+    #     if cfg.mode == OPPONENT_POOL: cfg.opponent_randomize = True
+    # so the mode overwrites the flag. The run mode itself must change.
+    #
+    # FIXED_OPPONENT is the minimal mechanism: it disables the pool resampler
+    # while leaving per-env assignment intact, because set_next_opponent writes
+    # sticky per-env state and nothing re-assigns it (no pool sampler, no
+    # curriculum, no snapshots). CURRICULUM is disqualified -- it forces
+    # use_latent_strategy=False, which SPPPO requires.
+    from rl.config.ppo_config import TrainMode
+    cfg.mode = TrainMode.FIXED_OPPONENT.value
+    cfg.opponent_randomize = False
     base = dataclasses.asdict(cfg)              # identical for every candidate
 
     cfg.sppo_lambda_rank = float(lam)

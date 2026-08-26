@@ -1,0 +1,140 @@
+{
+  "record": "SPPPO V1 lambda_R development sweep contract",
+  "protocol": "sppo/SPPPO_V1_PROTOCOL.json",
+  "grid": [
+    0.0,
+    0.03,
+    0.1,
+    0.3,
+    1.0
+  ],
+  "grid_extension": "PROHIBITED",
+  "control": 0.0,
+  "steps_per_candidate": 98304,
+  "train_seed": 10100001,
+  "selection_block": "10200001..10200032",
+  "selection_is_out_of_sample": true,
+  "margin": 0.04,
+  "ranking_cadence": 1,
+  "shared_base_config_sha256": "f4380c93b226d23a83c6ceb97c068a91079b26ce38a7ac282c6cb21fc6719e2a",
+  "resolved_config_sha256": {
+    "0.0": "8c3d8e4e261ed21d49197b277a7295bf002f8a58116727c6f5efcc6abd85ee5c",
+    "0.03": "591a608a4d06c5f2fe0d18609ede4e27aa48c1bc2affea26305642723778c732",
+    "0.1": "231b5a63c64b6fb029081846da50d019125fd9f9883426c8d7f47ce257d7abc8",
+    "0.3": "fc9ada329dac058d58bbfa59fb6f95ff4e6cd6ce75a952c419cc6e0b6c47fc76",
+    "1.0": "102723211d00df9a67d5423b049e4b0f5daf847dfdb70e9edaf58b44cd65ae98"
+  },
+  "resolved_config_diff_vs_control": {
+    "0.03": {
+      "checkpoint_dir": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\ckpts",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\ckpts"
+      },
+      "episode_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\episode_rows.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\episode_rows.csv"
+      },
+      "metrics_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\metrics.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\metrics.csv"
+      },
+      "run_tag": {
+        "control": "sppo_dev_lambda0p0_seed10100001",
+        "candidate": "sppo_dev_lambda0p03_seed10100001"
+      },
+      "sppo_lambda_rank": {
+        "control": 0.0,
+        "candidate": 0.03
+      }
+    },
+    "0.1": {
+      "checkpoint_dir": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\ckpts",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\ckpts"
+      },
+      "episode_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\episode_rows.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\episode_rows.csv"
+      },
+      "metrics_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\metrics.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\metrics.csv"
+      },
+      "run_tag": {
+        "control": "sppo_dev_lambda0p0_seed10100001",
+        "candidate": "sppo_dev_lambda0p1_seed10100001"
+      },
+      "sppo_lambda_rank": {
+        "control": 0.0,
+        "candidate": 0.1
+      }
+    },
+    "0.3": {
+      "checkpoint_dir": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\ckpts",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p3_seed10100001\\ckpts"
+      },
+      "episode_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\episode_rows.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p3_seed10100001\\episode_rows.csv"
+      },
+      "metrics_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\metrics.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p3_seed10100001\\metrics.csv"
+      },
+      "run_tag": {
+        "control": "sppo_dev_lambda0p0_seed10100001",
+        "candidate": "sppo_dev_lambda0p3_seed10100001"
+      },
+      "sppo_lambda_rank": {
+        "control": 0.0,
+        "candidate": 0.3
+      }
+    },
+    "1.0": {
+      "checkpoint_dir": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\ckpts",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda1p0_seed10100001\\ckpts"
+      },
+      "episode_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\episode_rows.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda1p0_seed10100001\\episode_rows.csv"
+      },
+      "metrics_csv_path": {
+        "control": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p0_seed10100001\\metrics.csv",
+        "candidate": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda1p0_seed10100001\\metrics.csv"
+      },
+      "run_tag": {
+        "control": "sppo_dev_lambda0p0_seed10100001",
+        "candidate": "sppo_dev_lambda1p0_seed10100001"
+      },
+      "sppo_lambda_rank": {
+        "control": 0.0,
+        "candidate": 1.0
+      }
+    }
+  },
+  "scientific_diff_fields": {
+    "0.03": [
+      "sppo_lambda_rank"
+    ],
+    "0.1": [
+      "sppo_lambda_rank"
+    ],
+    "0.3": [
+      "sppo_lambda_rank"
+    ],
+    "1.0": [
+      "sppo_lambda_rank"
+    ]
+  },
+  "single_axis_verified": true,
+  "control_is_structurally_absent": "lambda_rank = 0.0 makes _maybe_attach_sppo_ranking return before loading Q_psi or constructing a runner; no attribute is set",
+  "run_tags": {
+    "0.0": "sppo_dev_lambda0p0_seed10100001",
+    "0.03": "sppo_dev_lambda0p03_seed10100001",
+    "0.1": "sppo_dev_lambda0p1_seed10100001",
+    "0.3": "sppo_dev_lambda0p3_seed10100001",
+    "1.0": "sppo_dev_lambda1p0_seed10100001"
+  }
+}

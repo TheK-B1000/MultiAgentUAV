@@ -238,5 +238,77 @@
     "3_what_the_sweep_produces": "ONE hyperparameter value. Not a production model.",
     "budget": "1,000,000 steps, one run, terminal checkpoint only, no extension",
     "final_evaluation": "10300001..10300192, insulated from both parameter fitting and lambda selection"
+  },
+  "AMENDMENT_ASSIGNED_POLE_PERSISTENCE": {
+    "status": "FROZEN BEFORE ANY VALID SWEEP CANDIDATE RUNS",
+    "utc": "2026-08-26T04:05:00Z",
+    "authority": "PI ruling",
+    "change": "cfg.mode: OPPONENT_POOL -> FIXED_OPPONENT, plus opponent_randomize = False",
+    "why": "the frozen treatment is assigned-pole training, 16 x z0|A and 16 x z1|B. With opponent_randomize = True the environment pins the assignment for the first episode and then resamples 50/50, so the treatment is not instantiated. Keeping randomisation and dropping the consistency check would redefine the experiment into 'latent stays fixed while opponents drift', which is a different experiment from the one that was frozen.",
+    "WHY_THIS_IS_NOT_RESULT_DRIVEN": [
+      "the sweep was halted by a RUNTIME INTEGRITY CHECK, not by a result",
+      "no candidate comparison had been made -- only the control had finished and no contrast had been read",
+      "no gate, threshold, effect floor, confidence procedure or selection rule changes",
+      "the change makes the LIVE ENVIRONMENT match the prospectively stated 16/0/0/16 treatment; it does not tune anything toward an outcome"
+    ],
+    "applies_to": [
+      "all five lambda_R candidates including the control",
+      "the 1M production run"
+    ],
+    "restart_required": "the entire five-way sweep restarts from scratch, control included, so every candidate shares identical conditions. The lambda_R = 0.0 run completed under the old randomised condition and is DISCARDED, not reused.",
+    "evidence": "artifacts/strategic_demand/ASSIGNED_POLE_PERSISTENCE_NOT_ENFORCED.json",
+    "inherited_from_EXP2C_caveat": "this is a documented DEPARTURE from 'EXP2C inherited unchanged'. EXP2C itself did not instantiate its stated assigned-pole treatment, so inheriting its behaviour verbatim would inherit the defect. The departure is recorded rather than silently absorbed.",
+    "SUPERSEDED_FIRST_ATTEMPT": {
+      "was": "opponent_randomize = False alone",
+      "why_it_was_inadequate": "config_validation.py does `if cfg.mode == OPPONENT_POOL: cfg.opponent_randomize = True`. The mode OVERWRITES the flag, so the first amendment would have been silently reverted at validation time and the sweep would have run under the exact condition it was meant to eliminate. Caught before commit, not after."
+    },
+    "mechanism_chosen": {
+      "mode": "FIXED_OPPONENT -- the minimal existing mechanism",
+      "why_it_works": "it disables the pool resampler while leaving per-env assignment intact. set_next_opponent writes sticky per-env state arrays, and with no pool sampler, no curriculum and no snapshots, nothing re-assigns them.",
+      "why_it_is_not_globally_uniform": "fixed_opponent_tag only supplies the initial key at env_factory construction; configure_sppo_live_environment then writes per-env assignments that persist. The 16/16 split survives.",
+      "why_CURRICULUM_was_disqualified": "it forces use_latent_strategy = False, which SPPPO requires",
+      "modes_surveyed": {
+        "OPPONENT_POOL": "resamples 50/50 each episode; forces opponent_randomize=True",
+        "FIXED_OPPONENT": "no resampler; per-env assignment persists; telemetry labels only",
+        "CURRICULUM": "curriculum re-assigns AND disables latents"
+      }
+    },
+    "acceptance_test": {
+      "artifact": "artifacts/strategic_demand/sppo/SPPPO_POLE_PERSISTENCE_SMOKE.json",
+      "generator": "experiments/smoke_sppo_pole_persistence.py",
+      "requirement": "z0 -> OP6 100%, z1 -> OP7 100%, 0 mismatches, ACROSS episode resets",
+      "result": {
+        "z0_OP6": 1.0,
+        "z1_OP7": 1.0,
+        "total_mismatches": 0,
+        "completed_episodes": 96,
+        "crossed_episode_resets": true
+      },
+      "why_it_must_cross_resets": "construction-time validation is exactly what EXP2B/EXP2C passed before drifting",
+      "runtime_assertion_permanent": "RankingRunner's per-minibatch z/pole check remains active for the whole run, so any future violation aborts immediately rather than being discovered later"
+    },
+    "SCOPE_BOUNDARY": {
+      "changed": [
+        "cfg.mode",
+        "cfg.opponent_randomize"
+      ],
+      "unchanged": [
+        "environment",
+        "curriculum",
+        "reward",
+        "observation",
+        "dynamics",
+        "PPO",
+        "teacher rehearsal",
+        "latent settings",
+        "all gates and thresholds"
+      ]
+    },
+    "COMPARISON_LANGUAGE_REQUIRED": {
+      "do_NOT_write": "SPPPO differs from EXP2C only by the ranking objective -- this is no longer true",
+      "accurate": "SPPPO V1 combines the previously frozen EXP2C architecture with CORRECTED persistent assigned-pole training and, for nonzero candidates, the strategic ranking objective.",
+      "within_the_sweep": "the lambda_R sweep remains single-axis: all five candidates receive the same corrected fixed-pole treatment and differ only in lambda_R.",
+      "significance": "SPPPO may be the FIRST experiment in this branch that actually executes z0 <-> A and z1 <-> B for an entire training run."
+    }
   }
 }
