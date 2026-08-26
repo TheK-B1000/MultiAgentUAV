@@ -1,0 +1,52 @@
+{
+  "record": "PHASE0 Gate 0A -- cell-level replication",
+  "utc": "2026-08-26T00:42:49Z",
+  "protocol_ref": "PHASE0_ACTION_CONDITIONED_SCORER_PROTOCOL.json::GATE_0A_cell_level_replication",
+  "block": "6500001..6500256",
+  "n_episodes": 1024,
+  "win_counts": {
+    "pi_A|A": 166,
+    "pi_B|A": 135,
+    "pi_A|B": 87,
+    "pi_B|B": 135
+  },
+  "n_per_cell": {
+    "pi_A|A": 256,
+    "pi_B|A": 256,
+    "pi_A|B": 256,
+    "pi_B|B": 256
+  },
+  "win_rates": {
+    "pi_A|A": 0.6484375,
+    "pi_B|A": 0.52734375,
+    "pi_A|B": 0.33984375,
+    "pi_B|B": 0.52734375
+  },
+  "requirement": {
+    "WR(pi_A,A) > WR(pi_B,A)": {
+      "lhs": 0.6484375,
+      "rhs": 0.52734375,
+      "holds": true
+    },
+    "WR(pi_B,B) > WR(pi_A,B)": {
+      "lhs": 0.52734375,
+      "rhs": 0.33984375,
+      "holds": true
+    }
+  },
+  "VERDICT": "PASS",
+  "if_fail_rule": "STOP. Do not fit a critic on a dataset where the target structure is absent.",
+  "diagnostic_only_not_gating": {
+    "note": "paired by seed; no bootstrap/LCB specified for 0A in the frozen protocol",
+    "pole_A": {
+      "pi_B_wins": 44,
+      "pi_A_wins": 75,
+      "tie": 137
+    },
+    "pole_B": {
+      "tie": 112,
+      "pi_B_wins": 96,
+      "pi_A_wins": 48
+    }
+  }
+}
