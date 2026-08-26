@@ -56,5 +56,19 @@
   ],
   "SELECTED_LAMBDA_R": 1.0,
   "VERDICT": "LAMBDA_SELECTED",
-  "consequence": "freeze lambda_R = 1.0 before production"
+  "consequence": "freeze lambda_R = 1.0 before production",
+  "BOUNDARY_SELECTION": {
+    "caveat": "The selected value lies at the maximum of the preregistered lambda grid. This does not alter the frozen selection verdict but prevents interpreting lambda_R = 1.0 as an estimated optimum.",
+    "permitted_claim": "lambda_R = 1.0 was the ONLY value in the prospectively frozen grid satisfying the development-selection criterion.",
+    "PROHIBITED_claim": "lambda_R = 1.0 is optimal.",
+    "what_the_data_suggest": "delta_A recovers monotonically as lambda rises (-0.0870, -0.0606, -0.0422, +0.0106), the signature of a useful regime that may continue BEYOND the tested range. Grid extension was explicitly prohibited, so this remains unanswered rather than resolved.",
+    "why_the_verdict_stands": "changing the decision because we dislike where the selected point landed would itself violate the preregistration."
+  },
+  "EVALUATOR_PROVENANCE": {
+    "classification": "CORRECTED BEFORE SCORING -- not an invalid evaluation",
+    "what_happened": "the initial evaluator used R2.build_env, the single-env Phase 0 scoring builder, which would have produced a length-1 pole vector against a 32-wide batch. Rejected by inspection.",
+    "replacement": "build_training_env with training's own 32-env construction, explicit per-env z/pole assertion, actions under the assigned z via masked argmax, and a post-hoc check that Q_psi is bit-identical.",
+    "no_contamination": "SPPPO_DEV_EVALUATION.json was created exactly once, by commit b3072f9d, which contains the rewritten evaluator. The rejected implementation never scored a 102... row.",
+    "recurrence_note": "this is the second 'looks right at setup, wrong at runtime' defect in this branch. A regression test now pins the evaluator's env construction."
+  }
 }

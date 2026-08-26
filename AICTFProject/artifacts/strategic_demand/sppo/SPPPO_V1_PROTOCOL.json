@@ -310,5 +310,12 @@
       "within_the_sweep": "the lambda_R sweep remains single-axis: all five candidates receive the same corrected fixed-pole treatment and differ only in lambda_R.",
       "significance": "SPPPO may be the FIRST experiment in this branch that actually executes z0 <-> A and z1 <-> B for an entire training run."
     }
+  },
+  "LAMBDA_R_FROZEN": {
+    "value": 1.0,
+    "frozen_utc": "2026-08-26T06:00:00Z",
+    "source": "SPPPO_LAMBDA_SELECTION.json (frozen rule, out-of-sample development block)",
+    "boundary_caveat": "at the maximum of the preregistered grid; NOT an estimated optimum",
+    "production_unlocked": true
   }
 }
