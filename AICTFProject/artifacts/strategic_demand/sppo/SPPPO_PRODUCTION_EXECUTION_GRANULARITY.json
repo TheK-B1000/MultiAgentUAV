@@ -1,0 +1,26 @@
+{
+  "record_id": "SPPPO_PRODUCTION_EXECUTION_GRANULARITY",
+  "status": "FROZEN_EXECUTION_NOTE",
+  "utc": "2026-08-26T08:35:00Z",
+  "declared_budget": 1000000,
+  "realised_steps": 1003520,
+  "overshoot": {
+    "steps": 3520,
+    "fraction_of_budget": 0.00352
+  },
+  "cause": "rollout granularity. n_envs 32 x n_steps 128 = 4096 env steps per PPO update. 1,000,000 / 4096 = 244.14, so the trainer completes update 245 rather than truncating mid-rollout. 245 x 4096 = 1,003,520.",
+  "classification": "EXECUTION GRANULARITY, not a budget violation or an extension",
+  "why_it_is_not_an_extension": [
+    "the overshoot is a property of the fixed rollout size, decided before launch, not a decision made after seeing results",
+    "no checkpoint was written at 1,000,000 that was then continued -- there is exactly one checkpoint, written at the end of update 245",
+    "the run was never inspected, paused, or resumed; it ran untouched to completion",
+    "truncating mid-rollout would have produced a partial update whose gradient was computed on fewer transitions than every other update in the run"
+  ],
+  "smallest_attainable_alternatives": {
+    "244_updates": 999424,
+    "245_updates": 1003520
+  },
+  "note": "999,424 was the nearest under-budget alternative. Neither lands exactly on 1,000,000, because 1,000,000 is not a multiple of 4096. The protocol's 'exactly 1M' should be read as the declared budget, realised to the nearest whole rollout.",
+  "recommended_reporting": "report 1,003,520 realised steps (245 PPO updates) with this note, not '1M' unqualified",
+  "applies_equally_to": "the development sweep, where 98,304 = 24 x 4096 happens to be an exact multiple and so showed no overshoot"
+}
