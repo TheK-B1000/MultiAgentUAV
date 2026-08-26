@@ -1,0 +1,60 @@
+{
+  "record": "SPPPO V1 lambda_R selection",
+  "status": "FROZEN_RESULT",
+  "rule": "smallest lambda_R with both contrast gains > 0 and return degradation <= 5%",
+  "terminal_values_only": true,
+  "selection_source": "SPPPO_DEV_EVALUATION.json (out-of-sample development block)",
+  "training_telemetry_used_for_selection": false,
+  "control_terminal": {
+    "lambda": 0.0,
+    "timesteps": 98304,
+    "delta_A": 0.10632527800852026,
+    "delta_B": -0.02490469319926578,
+    "ep_rew_mean": 0.04488970081899879,
+    "n_rank_updates": 0.0
+  },
+  "candidates": [
+    {
+      "lambda": 0.03,
+      "delta_A_gain": -0.086977,
+      "delta_B_gain": 0.041452,
+      "return_degradation": -0.740243,
+      "moves_both_contrasts": false,
+      "return_within_tolerance": true,
+      "qualifies": false
+    },
+    {
+      "lambda": 0.1,
+      "delta_A_gain": -0.060589,
+      "delta_B_gain": 0.043226,
+      "return_degradation": -1.032048,
+      "moves_both_contrasts": false,
+      "return_within_tolerance": true,
+      "qualifies": false
+    },
+    {
+      "lambda": 0.3,
+      "delta_A_gain": -0.042163,
+      "delta_B_gain": 0.074966,
+      "return_degradation": -1.334337,
+      "moves_both_contrasts": false,
+      "return_within_tolerance": true,
+      "qualifies": false
+    },
+    {
+      "lambda": 1.0,
+      "delta_A_gain": 0.010611,
+      "delta_B_gain": 0.096031,
+      "return_degradation": -1.146751,
+      "moves_both_contrasts": true,
+      "return_within_tolerance": true,
+      "qualifies": true
+    }
+  ],
+  "qualifying": [
+    1.0
+  ],
+  "SELECTED_LAMBDA_R": 1.0,
+  "VERDICT": "LAMBDA_SELECTED",
+  "consequence": "freeze lambda_R = 1.0 before production"
+}

@@ -1,5 +1,5 @@
 {
-  "utc_timestamp": "2026-08-26T03:15:00.935380Z",
+  "utc_timestamp": "2026-08-26T04:14:30.629999Z",
   "run_tag": "sppo_dev_lambda0p0_seed10100001",
   "seed": 10100001,
   "total_timesteps": 98304,
@@ -9,8 +9,8 @@
   "cli_preset": null,
   "tag_telemetry_enabled": true,
   "formal_run": true,
-  "git_sha": "f8094daa2e2cba70b2909ec51840e90facc7cb2d",
-  "git_describe": "refactor-complete-296-gf8094daa-dirty",
+  "git_sha": "5ed244472aade2e711d83f10221749a53bcd14ff",
+  "git_describe": "refactor-complete-297-g5ed24447-dirty",
   "git_root": "K:\\MultiAgentUAV",
   "git_error": null,
   "sppo_protocol": {

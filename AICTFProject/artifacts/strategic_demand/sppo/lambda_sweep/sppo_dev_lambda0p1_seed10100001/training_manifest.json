@@ -1,11 +1,11 @@
 {
-  "utc_timestamp": "2026-08-26T04:27:23.239950Z",
-  "run_tag": "sppo_dev_lambda0p03_seed10100001",
+  "utc_timestamp": "2026-08-26T04:39:37.618831Z",
+  "run_tag": "sppo_dev_lambda0p1_seed10100001",
   "seed": 10100001,
   "total_timesteps": 98304,
-  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\ckpts",
-  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\episode_rows.csv",
-  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\metrics.csv",
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\ckpts",
+  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\episode_rows.csv",
+  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\metrics.csv",
   "cli_preset": null,
   "tag_telemetry_enabled": true,
   "formal_run": true,
@@ -1785,7 +1785,7 @@
     "own_flag_home_required_to_score": true
   },
   "artifact_identity": {
-    "run_id": "sppo_dev_lambda0p03_seed10100001",
+    "run_id": "sppo_dev_lambda0p1_seed10100001",
     "canonical_map": "map_a",
     "resolved_map": "map_a_open",
     "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",

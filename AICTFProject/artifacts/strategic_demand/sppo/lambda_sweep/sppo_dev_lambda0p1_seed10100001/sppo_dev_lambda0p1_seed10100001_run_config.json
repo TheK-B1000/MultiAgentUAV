@@ -1,5 +1,5 @@
 {
-  "utc_timestamp": "2026-08-26T04:27:23.237943Z",
+  "utc_timestamp": "2026-08-26T04:39:37.616832Z",
   "argv": [
     "experiments/run_sppo_lambda_sweep.py",
     "--launch"
@@ -10,11 +10,11 @@
   "git_describe": "refactor-complete-297-g5ed24447-dirty",
   "git_root": "K:\\MultiAgentUAV",
   "git_error": null,
-  "run_tag": "sppo_dev_lambda0p03_seed10100001",
-  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\ckpts",
+  "run_tag": "sppo_dev_lambda0p1_seed10100001",
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\ckpts",
   "total_timesteps": 98304,
-  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\metrics.csv",
-  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\episode_rows.csv",
+  "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\metrics.csv",
+  "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\episode_rows.csv",
   "strategy_experience_csv_path": null,
   "load_path": null,
   "cli_preset": null,
@@ -26,7 +26,7 @@
     "training_events_schema_version": 1,
     "performance_metrics_schema_version": 1,
     "events_jsonl_path": "",
-    "artifact_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\ckpts"
+    "artifact_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\ckpts"
   },
   "resolved_ppo_config": {
     "seed": 10100001,
@@ -46,13 +46,13 @@
     "lr_floor_frac": 0.1,
     "max_grad_norm": 0.5,
     "device": "cuda",
-    "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\ckpts",
+    "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\ckpts",
     "load_path": null,
     "allow_active_actor_module_migration": false,
-    "run_tag": "sppo_dev_lambda0p03_seed10100001",
+    "run_tag": "sppo_dev_lambda0p1_seed10100001",
     "enable_metrics_csv": true,
-    "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\metrics.csv",
-    "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p03_seed10100001\\episode_rows.csv",
+    "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\metrics.csv",
+    "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\lambda_sweep\\sppo_dev_lambda0p1_seed10100001\\episode_rows.csv",
     "strategy_experience_csv_path": null,
     "fresh_metrics_csv": false,
     "cli_preset": null,
@@ -85,7 +85,7 @@
     ],
     "exp2_teacher_lambda": 0.1,
     "exp2_teacher_cadence": 4,
-    "sppo_lambda_rank": 0.03,
+    "sppo_lambda_rank": 0.1,
     "sppo_ranking_margin": 0.04,
     "sppo_ranking_cadence": 1,
     "sppo_qpsi_path": "artifacts/strategic_demand/phase0_scorer_data/qpsi_frozen.pt",
@@ -544,7 +544,7 @@
     "checkpoint_run_start_step": 0
   },
   "artifact_identity": {
-    "run_id": "sppo_dev_lambda0p03_seed10100001",
+    "run_id": "sppo_dev_lambda0p1_seed10100001",
     "canonical_map": "map_a",
     "resolved_map": "map_a_open",
     "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",

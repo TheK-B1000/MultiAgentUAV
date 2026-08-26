@@ -10,15 +10,21 @@ would have chosen lambda_R from the same trajectories the candidates were
 optimised on. Training telemetry remains diagnostic; the selector consumes only
 what this file produces.
 
-For each terminal checkpoint, on each development seed, under the frozen
-16 x z0|A / 16 x z1|B cell layout:
+The environment is built with build_training_env -- the SAME 32-env construction
+training uses -- not the single-env Phase 0 scoring builder. An earlier version
+of this file used the latter and would have produced a length-1 pole vector
+against a 32-wide batch. The per-env z/pole assertion from
+configure_exp2b_live_environment runs here too, so a broken cell layout aborts
+the evaluation instead of silently mis-scoring it.
+
+Actions are taken under the env's ASSIGNED z (forced per cell, matching training)
+via the masked logits path. Delta is computed by evaluating BOTH z at each
+decision state and orienting by the TRUE pole from the live opponent key:
 
     Delta_A(o) = V_hat(o, z0, A) - V_hat(o, z1, A)      on pole-A envs
     Delta_B(o) = V_hat(o, z1, B) - V_hat(o, z0, B)      on pole-B envs
 
-V_hat is the analytic expectation under the MASKED policy distribution, scored
-by the frozen Q_psi whose SHA is verified before use. Q_psi is never updated
-here -- this is measurement only.
+Q_psi is frozen, SHA-verified, and never updated -- this is measurement only.
 
 Run:  python experiments/eval_sppo_dev_candidates.py --device cuda
 """
@@ -38,10 +44,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 SD = ROOT / "artifacts" / "strategic_demand"
-OUT = SD / "sppo" / "lambda_sweep"
 RESULT = SD / "sppo" / "SPPPO_DEV_EVALUATION.json"
 
-DEV_SEEDS = list(range(10_200_001, 10_200_033))       # 32 development seeds
+DEV_SEED = 10_200_001
+DEV_RANGE = (10_200_001, 10_200_032)
 MAX_STEPS = 240
 
 
@@ -49,92 +55,94 @@ def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def evaluate_candidate(ckpt_path, qpsi, seeds, device):
-    """Roll the terminal policy on development seeds and score contrasts."""
+def _masked_argmax(inner, obs_t, z_idx):
+    """Deterministic action under the ASSIGNED z, using PPO's own masking."""
+    flat = inner._mask_logits(inner.policy_logits(obs_t, z_idx=z_idx), obs_t["mask"])
+    heads = torch.split(flat, list(inner.action_dims), dim=-1)
+    return torch.stack([h.argmax(dim=-1) for h in heads], dim=-1)
+
+
+def evaluate_candidate(lam, qpsi, device, n_episodes):
+    from experiments.run_sppo_lambda_sweep import build_candidate, _tag, OUT
+    from experiments.run_exp2b_specialization_preserving_compression import (
+        CELL_Z, configure_exp2b_live_environment,
+    )
     from rl.custom_ppo import load_custom_ppo_policy
     from rl.scorer.ranking import POLE_A, POLE_B, strategic_contrast
-    from experiments.run_exp2b_specialization_preserving_compression import (
-        CELL_KEYS, CELL_Z, pole_A_genome,
-    )
-    from experiments.opponent_spec import (
-        assert_live_opponent_batch, install_keyed_opponent_overlays,
-    )
-    from rl.curriculum import phase_from_tag
-    import experiments.r2_learned_crossover as R2
+    from rl.training.env_factory import build_training_env
 
-    per_seed = {"A": [], "B": [], "ret": []}
-    for seed in seeds:
-        env = R2.build_env(device, seed)
-        core = env.core
-        try:
-            model = load_custom_ppo_policy(str(ckpt_path), env.observation_space,
-                                           env.action_space, device=device)
-            inner = getattr(model, "model", model)
-            core._bt_profile_override = None
-            core._sds_opening_hold_steps = 0
-            genomes = {"OP6": pole_A_genome()}
-            install_keyed_opponent_overlays(core, genomes)
-            for i, key in enumerate(CELL_KEYS):
-                env.env_method("set_phase", phase_from_tag(key), indices=[i])
-                env.env_method("set_next_opponent", "SCRIPTED", key, indices=[i])
-            obs = env.reset()
-            rows = assert_live_opponent_batch(
-                core, genomes, allowed_keys=("OP6", "OP7"),
-                context=f"SPPPO dev eval seed {seed}")
-            # TRUE pole per env from the live opponent, not from z
-            pole = torch.tensor(
-                [POLE_A if r["live_opponent_key"] == "OP6" else POLE_B for r in rows],
-                dtype=torch.long, device=device)
-            z = torch.tensor(CELL_Z, dtype=torch.long, device=device)
-            expected = torch.where(z == 0, torch.full_like(z, POLE_A),
-                                   torch.full_like(z, POLE_B))
-            if not bool((pole == expected).all()):
-                raise RuntimeError(f"seed {seed}: live z/pole assignment is broken")
+    cfg, _, parent_contract = build_candidate(lam)
+    cfg.seed = DEV_SEED                       # DEVELOPMENT block
+    ck_dir = OUT / _tag(lam) / "ckpts"
+    ckpts = sorted(ck_dir.glob("final_*")) or sorted(ck_dir.glob("*.zip"))
+    if not ckpts:
+        raise SystemExit(f"REFUSING: no terminal checkpoint for lambda={lam} in {ck_dir}")
 
-            dA, dB, rew = [], [], np.zeros(int(core.B))
-            for t in range(MAX_STEPS):
-                decision = (core.blue_commit_ticks_left[:, 0] <= 0)
+    env = build_training_env(cfg, initial_phase="OP6", initial_opponent_tag="OP6")
+    try:
+        manifest = configure_exp2b_live_environment(
+            env, cfg, contract=parent_contract, allow_development_seed=True,
+            training_seed_range=(10_100_001, 10_100_032),
+            development_seed_range=DEV_RANGE,
+            manifest_key="sppo_dev_eval",
+            context_label=f"SPPPO dev evaluation lambda={lam}")
+        rows = manifest["sppo_dev_eval"]["resolved_opponent_rows"]
+        pole = torch.tensor(
+            [POLE_A if r["live_opponent_key"] == "OP6" else POLE_B for r in rows],
+            dtype=torch.long, device=device)
+        z = torch.tensor(CELL_Z, dtype=torch.long, device=device)
+        if pole.shape[0] != int(env.core.B):
+            raise RuntimeError(f"pole vector {pole.shape[0]} != {int(env.core.B)} envs")
+        expected = torch.where(z == 0, torch.full_like(z, POLE_A), torch.full_like(z, POLE_B))
+        if not bool((pole == expected).all()):
+            raise RuntimeError("live z/pole assignment is broken at evaluation")
+
+        model = load_custom_ppo_policy(str(ckpts[-1]), env.observation_space,
+                                       env.action_space, device=device)
+        inner = getattr(model, "model", model)
+        dA, dB, ep_returns = [], [], []
+        obs = env.reset()
+        for _ep in range(n_episodes):
+            rew = np.zeros(int(env.core.B), dtype=np.float64)
+            for _t in range(MAX_STEPS):
+                o = {k: torch.as_tensor(np.asarray(obs[k]), dtype=torch.float32,
+                                        device=device)
+                     for k in ("grid", "vec", "agent_mask", "mask")}
+                decision = (env.core.blue_commit_ticks_left[:, 0] <= 0)
                 if bool(decision.any()):
-                    o = {"grid": torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
-                         "vec": torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),
-                         "agent_mask": torch.as_tensor(obs["agent_mask"], dtype=torch.float32, device=device),
-                         "mask": torch.as_tensor(obs["mask"], dtype=torch.float32, device=device)}
                     with torch.no_grad():
                         delta, _, _ = strategic_contrast(inner, qpsi, o, pole)
-                    d = delta.cpu().numpy()
-                    m = decision.cpu().numpy()
+                    d = delta.cpu().numpy(); m = decision.cpu().numpy()
                     p = pole.cpu().numpy()
                     dA.extend(d[(p == POLE_A) & m].tolist())
                     dB.extend(d[(p == POLE_B) & m].tolist())
-                act, _ = model.predict(obs, deterministic=True)
-                obs, r, done, _info = env.step(act)
-                rew = rew + np.asarray(r, dtype=np.float64)
-                if bool(np.asarray(done).all()):
+                with torch.no_grad():
+                    act = _masked_argmax(inner, o, z).cpu().numpy()
+                obs, r, done, _i = env.step(act)
+                rew += np.asarray(r, dtype=np.float64)
+                if bool(np.asarray(done).any()):
                     break
-            if dA:
-                per_seed["A"].append(float(np.mean(dA)))
-            if dB:
-                per_seed["B"].append(float(np.mean(dB)))
-            per_seed["ret"].append(float(rew.mean()))
-        finally:
-            env.close()
-    return {
-        "delta_A": float(np.mean(per_seed["A"])) if per_seed["A"] else float("nan"),
-        "delta_B": float(np.mean(per_seed["B"])) if per_seed["B"] else float("nan"),
-        "ep_rew_mean": float(np.mean(per_seed["ret"])) if per_seed["ret"] else float("nan"),
-        "n_seeds": len(per_seed["ret"]),
-        "per_seed_delta_A": [round(v, 6) for v in per_seed["A"]],
-        "per_seed_delta_B": [round(v, 6) for v in per_seed["B"]],
-    }
+            ep_returns.append(float(rew.mean()))
+        return {
+            "delta_A": float(np.mean(dA)) if dA else float("nan"),
+            "delta_B": float(np.mean(dB)) if dB else float("nan"),
+            "ep_rew_mean": float(np.mean(ep_returns)),
+            "n_decision_states_A": len(dA), "n_decision_states_B": len(dB),
+            "n_episodes": n_episodes, "n_envs": int(env.core.B),
+            "checkpoint": ckpts[-1].name,
+        }
+    finally:
+        env.close()
 
 
 def main() -> int:
-    from experiments.run_sppo_lambda_sweep import LAMBDA_GRID, _tag
+    from experiments.run_sppo_lambda_sweep import LAMBDA_GRID
     from rl.scorer.attach import SPPPO_QPSI_PATH, SPPPO_QPSI_SHA256
     from rl.scorer.ranking import load_frozen_qpsi
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--device", default="cuda")
+    ap.add_argument("--episodes", type=int, default=4)
     a = ap.parse_args()
     if RESULT.is_file():
         raise SystemExit(f"REFUSING: {RESULT} exists; the development evaluation is one-shot")
@@ -142,37 +150,42 @@ def main() -> int:
     device = a.device if torch.cuda.is_available() or a.device == "cpu" else "cpu"
     qpsi = load_frozen_qpsi(ROOT / SPPPO_QPSI_PATH,
                             expected_sha256=SPPPO_QPSI_SHA256, device=device)
+    sha_before = {k: v.detach().cpu().clone() for k, v in qpsi.state_dict().items()}
+
     print(f"SPPPO DEVELOPMENT EVALUATION  {_now()}")
-    print(f"  seeds  {DEV_SEEDS[0]}..{DEV_SEEDS[-1]}  ({len(DEV_SEEDS)})")
+    print(f"  block  {DEV_RANGE[0]}..{DEV_RANGE[1]}   32 envs x {a.episodes} episodes")
     print(f"  qpsi   {SPPPO_QPSI_SHA256[:16]}...  frozen, measurement only\n")
 
     results = {}
     for lam in LAMBDA_GRID:
-        ck_dir = OUT / _tag(lam) / "ckpts"
-        ckpts = sorted(ck_dir.glob("final_*")) or sorted(ck_dir.glob("*.zip"))
-        if not ckpts:
-            raise SystemExit(f"REFUSING: no terminal checkpoint for lambda={lam} in {ck_dir}")
-        print(f"  lambda_R = {lam}  <- {ckpts[-1].name}", flush=True)
-        r = evaluate_candidate(ckpts[-1], qpsi, DEV_SEEDS, device)
-        r["checkpoint"] = ckpts[-1].name
+        print(f"  lambda_R = {lam} ...", flush=True)
+        r = evaluate_candidate(lam, qpsi, device, a.episodes)
         results[str(lam)] = r
         print(f"     delta_A {r['delta_A']:+.6f}   delta_B {r['delta_B']:+.6f}   "
-              f"return {r['ep_rew_mean']:+.4f}")
+              f"return {r['ep_rew_mean']:+.4f}   states {r['n_decision_states_A']}/"
+              f"{r['n_decision_states_B']}", flush=True)
+
+    for k, v in qpsi.state_dict().items():
+        if not torch.equal(v.detach().cpu(), sha_before[k]):
+            raise RuntimeError("Q_psi mutated during evaluation")
 
     rec = {
         "record": "SPPPO V1 development evaluation of lambda_R candidates",
         "status": "FROZEN_RESULT",
         "utc": _now(),
         "train_block": "10100001..10100032",
-        "evaluation_block": f"{DEV_SEEDS[0]}..{DEV_SEEDS[-1]}",
-        "out_of_sample": "candidates were TRAINED on the training block; this measures them on the development block",
+        "evaluation_block": f"{DEV_RANGE[0]}..{DEV_RANGE[1]}",
+        "out_of_sample": "candidates were TRAINED on the training block; measured here on the development block",
+        "env_construction": "build_training_env, 32 envs, same as training; per-env z/pole asserted",
+        "actions": "deterministic masked argmax under the ASSIGNED z per cell",
         "qpsi_sha256": SPPPO_QPSI_SHA256,
         "qpsi_mutated": False,
+        "episodes_per_candidate": a.episodes,
         "results": results,
         "note": "training-time telemetry is diagnostic only and is NOT the selection quantity",
     }
     RESULT.write_text(json.dumps(rec, indent=2), encoding="utf-8")
-    print(f"\n  -> {RESULT}")
+    print(f"\n  Q_psi unchanged after all candidates\n  -> {RESULT}")
     return 0
 
 
