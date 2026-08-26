@@ -240,6 +240,22 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         "sappo_n_anchor_updates",
         "sappo_anchor_to_ppo_ratio",
         "sappo_anchor_loss",
+        # SPPPO V1 strategic-ranking counters. Same reasoning, same failure mode:
+        # present unconditionally so an inert ranking seam reads
+        # sppo_n_rank_updates=0 in the FIRST interval. delta_A / delta_B are the
+        # quantities the whole method exists to move, so they are logged every
+        # interval rather than reconstructed afterwards. For the lambda_R = 0
+        # control no runner exists, so these stay BLANK -- structural absence,
+        # not zeros emitted by a live runner.
+        "sppo_n_ppo_actor_updates",
+        "sppo_n_rank_updates",
+        "sppo_rank_to_ppo_ratio",
+        "sppo_rank_loss",
+        "sppo_rank_activation_rate",
+        "sppo_delta_A",
+        "sppo_delta_B",
+        "sppo_lambda_rank",
+        "sppo_margin",
         "update",
         "run_id",
         "run_pid",

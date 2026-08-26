@@ -110,6 +110,38 @@ class PPOUpdater:
         """Read the EXP2 runner at use time; attachment occurs after loading."""
         return getattr(self.runtime, "exp2_teacher_compression_runner", None)
 
+    def _ranking_runner(self):
+        """Read the SPPPO ranking runner at USE time, never cached.
+
+        Same seam that silently disabled SAPPO rehearsal for a whole 2x500k run:
+        this updater is built before the orchestrator attaches the runner, so
+        caching here would capture None and the ranking branch would never fire
+        while every other counter looked healthy.
+
+        Absent runner means structurally absent -- the lambda_R = 0 control
+        performs no batch fetch, no forward, no backward, no optimizer step and
+        consumes no RNG.
+        """
+        return getattr(self.runtime, "sppo_ranking_runner", None)
+
+    def _assert_ranking_cadence(self, runner) -> None:
+        """ABORT if the ranking update is not actually happening.
+
+        Logging alone is not enough. The defining treatment of SPPPO is this
+        update; a broken seam must die in the first few minibatches rather than
+        be discovered after 1M steps of a run that is silently vanilla EXP2C.
+        """
+        n_ppo = int(runner.n_ppo_actor_minibatches)
+        n_rank = int(runner.n_ranking_updates)
+        expected = n_ppo // int(runner.cadence)
+        if n_rank != expected:
+            raise RuntimeError(
+                f"SPPPO ranking cadence violated: {n_rank} ranking updates after "
+                f"{n_ppo} PPO actor minibatches, expected {expected} "
+                f"(cadence 1:{runner.cadence}). The strategic ranking treatment "
+                "is not being applied; aborting rather than producing a run "
+                "whose defining treatment is absent.")
+
     def _assert_anchor_cadence(self, runner) -> None:
         """ABORT the run if rehearsal is not actually happening.
 
@@ -334,6 +366,29 @@ class PPOUpdater:
                     exp2_runner.note_ppo_minibatch(batch)
                     self._assert_exp2_teacher_cadence(exp2_runner)
                     accumulator.record_minibatch(exp2_runner.telemetry())
+                rank_runner = self._ranking_runner()
+                if rank_runner is not None:
+                    # Third separate operation. The ranking step never shares a
+                    # backward pass with the PPO surrogate; it runs on the same
+                    # on-policy states the actor just trained on.
+                    rank_runner.note_ppo_minibatch(batch)
+                    self._assert_ranking_cadence(rank_runner)
+                    # Visible from the FIRST reporting interval, so an inert
+                    # ranking seam shows up as n_rank_updates=0 immediately.
+                    d = rank_runner.last_diag
+                    accumulator.record_minibatch({
+                        "sppo_n_ppo_actor_updates": float(rank_runner.n_ppo_actor_minibatches),
+                        "sppo_n_rank_updates": float(rank_runner.n_ranking_updates),
+                        "sppo_rank_to_ppo_ratio": float(
+                            rank_runner.n_ranking_updates
+                            / max(1, rank_runner.n_ppo_actor_minibatches)),
+                        "sppo_rank_loss": float(rank_runner.last_loss),
+                        "sppo_rank_activation_rate": float(d.get("activation_rate", float("nan"))),
+                        "sppo_delta_A": float(d.get("delta_A_mean", float("nan"))),
+                        "sppo_delta_B": float(d.get("delta_B_mean", float("nan"))),
+                        "sppo_lambda_rank": float(rank_runner.lambda_rank),
+                        "sppo_margin": float(rank_runner.margin),
+                    })
                 measurement = result.separation_measurement
                 if measurement is not None and measurement.valid and measurement.values is not None:
                     valid_cf_pair_measurements.append(measurement.values)
