@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-24 — EXP2C is not confirmed and the automatic latent-architecture ladder is closed. Full Phase 0 action-conditioned scorer collection is running with authoritative rebuild-per-branch semantics. SPPPO remains locked behind Gates 0A and 0B with a prospectively frozen 1 M budget.
+> **Last updated:** 2026-08-27 — SPPPO V1 is CLOSED as a valid final negative (`SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED`). Phase 0 collection and Gates 0A/0B passed; the 1 M production run and untouched 192-seed final evaluation completed under persistent assigned-pole training plus strategic ranking. No SPPPO V2 without a fresh prospective PI decision.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -26,9 +26,31 @@ It is **not** the source of truth for:
 | M1 post-block recovery test | **PASS** (`experiments/test_m1_own_flag_home_scoring.py` [5]) |
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
-| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C FAIL.** Automatic latent variants stopped. Phase 0 scorer prerequisite is next; SPPPO 1 M remains locked behind Gates 0A/0B. |
+| PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C FAIL / SPPPO V1 FAIL (CLOSED).** Automatic latent variants and the SPPPO V1 branch are closed. Phase 0 Gates 0A/0B passed; SPPPO V1 completed its frozen 1 M run and final 192-seed evaluation. |
 
-### Phase 0 action-conditioned scorer feasibility — `FULL COLLECTION RUNNING`
+### SPPPO V1 — `CLOSED / NOT CONFIRMED`
+
+The frozen protocol is
+[`SPPPO_V1_PROTOCOL.json`](../artifacts/strategic_demand/sppo/SPPPO_V1_PROTOCOL.json).
+Phase 0 collection completed; Gate 0A and Gate 0B passed. The development
+lambda sweep selected `lambda_R = 1.0` on the out-of-sample `10200001..10200032`
+block. The single 1 M production run maintained persistent assigned-pole training
+(`z0 <-> OP6`, `z1 <-> OP7`, zero consistency violations) with strategic ranking
+attached. The untouched final evaluation on `10300001..10300192` is complete.
+
+Authoritative verdict:
+[`SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED.json`](../artifacts/strategic_demand/sppo/SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED.json).
+Branch closure:
+[`SPPPO_V1_CLOSED.json`](../artifacts/strategic_demand/sppo/SPPPO_V1_CLOSED.json).
+
+Both crossover contrasts were correctly signed at the mean (`delta_A = +0.0365`,
+`delta_B = +0.0521`) but neither LCB95 cleared zero. Retention passed strongly
+(`rho = 1.221`, `LCB95 = 1.107`). JSD and Pole-A identity passed; Pole-B identity
+failed (`margin_B = -0.0309`, `LCB95 = -0.0364`). Classification is **FAIL, not
+INVALID**. No rerun, grid extension, seed expansion, or SPPPO V2 without a fresh
+prospective PI decision.
+
+### Phase 0 action-conditioned scorer feasibility — `COMPLETE + PASS`
 
 The frozen scorer block is `6500001..6500256`, split by seed into `160` train
 and `96` held out. The corrected first-interval evidence covers all four source
@@ -47,13 +69,11 @@ recover the held-out matched-state action ordering on both poles. Either failure
 stops before SPPPO. If both pass, the SPPPO protocol may be frozen with the
 already prospective `1,000,000`-step terminal-only budget.
 
-The full collector launched once from commit `0ff2ed75` on seed block
-`6500001..6500256`. Startup reconstructed both frozen SAPPO checkpoints exactly,
-resolved `1,024` plain episodes plus `1,536` branch points, and produced empty
-stderr. The launch record is
-`PHASE0_FULL_COLLECTION_LAUNCH_PROVENANCE.json`. Completed seeds are written as
-atomic compressed shards with atomic per-seed summaries before the resumable
-manifest advances. No Gate 0A or Gate 0B claim exists while collection runs.
+The full collector completed all `256` seeds on rebuild-per-branch semantics.
+Gate 0A reproduced the SAPPO crossover on all `1,024` plain episodes. Gate 0B
+passed on the untouched `96`-seed held-out split after the win-margin target
+amendment. Collection artifacts remain under
+`phase0_scorer_data/full_collection_rebuild_per_branch/`.
 
 ### Experiment 2: K=2 supervised latent compression — `VALID / NOT CONFIRMED / FROZEN`
 
