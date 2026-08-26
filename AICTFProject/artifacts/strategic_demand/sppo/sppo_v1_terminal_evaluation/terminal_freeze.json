@@ -1,0 +1,14 @@
+{
+  "record": "SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO terminal checkpoint locked before evaluation",
+  "utc": "2026-08-26T08:40:12Z",
+  "protocol": "artifacts\\strategic_demand\\sppo\\SPPPO_V1_PROTOCOL.json",
+  "seed_block": "10300001..10300192",
+  "checkpoint_hashes": {
+    "student": "1260e420b85ad01b1aecf433d65688adf153538195d30511e26a3585b7285f1f",
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "evaluator": "experiments\\eval_exp2_k2_terminal.py",
+  "evaluator_sha256": "e06eec66efdffe290331819625053836a6b7864a3749a18523bb2f68b1b1ced4",
+  "terminal_checkpoint_only": true
+}
