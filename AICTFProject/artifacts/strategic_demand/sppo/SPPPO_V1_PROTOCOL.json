@@ -175,9 +175,10 @@
     },
     "evaluation": {
       "range": "10300001..10300192",
-      "n": 192,
+      "paired_seeds": 192,
+      "audit": "artifacts/strategic_demand/sppo/SPPPO_EVALUATION_BLOCK_AUDIT_10300001.json",
       "verdict": "CLEAN",
-      "audit": "sppo/SPPPO_EVALUATION_BLOCK_AUDIT_10300001.json"
+      "extension_forbidden": true
     },
     "positive_control": "2600001..2600032 returned 20 commits in every audit, so an empty candidate result is a true negative rather than a broken query",
     "AUDIT_HYGIENE_NOTE": "the first audit pass returned COLLISION on training and development. Both were SELF-CONTAMINATION: the audit log had been redirected into the scanned tree and the protocol drafts name the candidate blocks, so the BROAD check found the auditor's own paperwork. declared/overlapping/history were empty throughout. Re-run with the log outside the tree and 'artifacts/strategic_demand/sppo/' excluded as reservation records -- the same treatment earlier audits gave NEXT_CONFIRMATION_BLOCK_RESERVED.json.",
@@ -317,5 +318,55 @@
     "source": "SPPPO_LAMBDA_SELECTION.json (frozen rule, out-of-sample development block)",
     "boundary_caveat": "at the maximum of the preregistered grid; NOT an estimated optimum",
     "production_unlocked": true
+  },
+  "protocol_id": "SPPPO_V1",
+  "terminal_evaluation": {
+    "deterministic": true,
+    "student_cells": [
+      "z0|A",
+      "z0|B",
+      "z1|A",
+      "z1|B"
+    ],
+    "teacher_reference_cells": [
+      "pi_A|A",
+      "pi_A|B",
+      "pi_B|A",
+      "pi_B|B"
+    ],
+    "episodes_per_cell": 192,
+    "total_episodes": 1536,
+    "raw_rows_required": true,
+    "bootstrap": {
+      "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    },
+    "same_gates_as_EXP2_and_EXP2B": true,
+    "inherited_verbatim_from": "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_PROTOCOL.json::terminal_evaluation",
+    "nothing_changed": "episodes_per_cell, bootstrap procedure/samples/alpha/rng_seed, student and teacher cells, and the gate definitions are byte-identical to EXP2C. Only the seed block and checkpoint identity differ.",
+    "Q_psi_absent_from_evaluation": "the inherited evaluator contains zero references to qpsi/scorer/ranking. Payoff in the real environment is authoritative.",
+    "PROVENANCE_OF_THIS_BLOCK": {
+      "classification": "SPEC COMPLETION FOR LOADER VERIFICATION -- not a scientific amendment",
+      "what_was_added": "protocol_id, terminal_evaluation, seed_blocks.evaluation",
+      "why": "the inherited EXP2 evaluator's _load_protocol() verifies episodes_per_cell, the bootstrap dict and the evaluation seed range against the protocol. Without these fields it cannot machine-check the contract and would refuse to load.",
+      "what_did_NOT_change": [
+        "gates",
+        "thresholds",
+        "bootstrap procedure/samples/alpha/rng_seed",
+        "cell definitions",
+        "seed count",
+        "confidence-bound convention"
+      ],
+      "byte_identical_to": "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_PROTOCOL.json::terminal_evaluation",
+      "verified_by": "tests/test_sppo_final_evaluator_contract.py::test_protocol_declares_the_same_terminal_contract_as_exp2c"
+    },
+    "CONSTANT_DISAMBIGUATION": {
+      "N_PAIRED": "192 -- the EVALUATION SEED COUNT, equal to the block width 10300001..10300192",
+      "MAX_STEPS": "240 -- the EPISODE STEP HORIZON, an inherited env constant",
+      "why_recorded": "a prose summary listed '20000 / 0.05 / 7 / 240' without labels, which could be misread as 240 paired seeds and imply 48 seeds beyond the block. No 240-seed quantity exists anywhere in the evaluation.",
+      "episodes": "N_PAIRED 192 x 8 cells = 1536"
+    }
   }
 }
