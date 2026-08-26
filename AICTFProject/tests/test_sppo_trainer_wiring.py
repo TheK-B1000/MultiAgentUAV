@@ -72,7 +72,7 @@ class SeamHarness:
 
 
 def _ppo_batch(n=32, seed=21):
-    """A raw PPO minibatch: obs_* fields plus z, no opponent field."""
+    """A PPO minibatch WITHOUT opponent_id -- used only to prove it is refused."""
     gen = torch.Generator().manual_seed(seed)
     o = _obs(n, gen)
     return {
@@ -86,7 +86,7 @@ def test_runner_attached_after_construction_still_fires():
     """The exact seam the SAPPO no-op broke."""
     runtime = FakeRuntime()
     harness = SeamHarness(runtime)          # built BEFORE the runner exists
-    batch = _ppo_batch()
+    batch = _real_batch()
 
     assert harness.ppo_minibatch(batch) is False, "no runner: nothing should run"
     assert harness.records == []
@@ -100,26 +100,13 @@ def test_runner_attached_after_construction_still_fires():
     assert harness.records[-1]["sppo_n_rank_updates"] == 1.0
 
 
-def test_pole_is_derived_from_z_in_a_raw_ppo_batch():
-    """The batch carries no opponent field, so z must resolve the pole."""
-    model, q = TinyActor(), _frozen_qpsi()
-    opt = torch.optim.SGD(model.parameters(), lr=0.1)
-    runner = RankingRunner(model, q, opt, lambda_rank=0.3, margin=0.04, cadence=1)
-    batch = _ppo_batch(n=32)
-    obs, pole, _ = runner._sample(batch)
-
-    assert set(obs) == {"grid", "vec", "agent_mask", "mask"}
-    assert (pole[:16] == POLE_A).all(), "z=0 rows must map to pole A"
-    assert (pole[16:] == POLE_B).all(), "z=1 rows must map to pole B"
-    assert runner.telemetry()["z_to_pole"] == {0: POLE_A, 1: POLE_B}
-
-
 def test_unmapped_z_is_rejected_rather_than_guessed():
+    """K=4 by mistake must abort, not silently map into the K=2 pole space."""
     model, q = TinyActor(), _frozen_qpsi()
     opt = torch.optim.SGD(model.parameters(), lr=0.1)
     runner = RankingRunner(model, q, opt, lambda_rank=0.3, margin=0.04)
-    batch = _ppo_batch(n=8)
-    batch["z"] = torch.tensor([0, 1, 2, 3, 0, 1, 2, 3])      # K=4 by mistake
+    batch = _real_batch(n=8)
+    batch["z"] = torch.tensor([0, 1, 2, 3, 0, 1, 2, 3])
     with pytest.raises(RuntimeError, match="no pole mapping"):
         runner._sample(batch)
 
@@ -133,10 +120,10 @@ def test_cadence_violation_aborts_the_run():
     runner = RankingRunner(model, q, opt, lambda_rank=0.3, margin=0.04, cadence=1)
     runtime.sppo_ranking_runner = runner
 
-    harness.ppo_minibatch(_ppo_batch())
+    harness.ppo_minibatch(_real_batch())
     runner.n_ranking_updates = 0            # simulate an inert ranking branch
     with pytest.raises(RuntimeError, match="cadence violated"):
-        harness.ppo_minibatch(_ppo_batch())
+        harness.ppo_minibatch(_real_batch())
 
 
 def test_all_required_telemetry_keys_present_and_finite():
@@ -150,7 +137,7 @@ def test_all_required_telemetry_keys_present_and_finite():
         model, q, opt, lambda_rank=0.3, margin=0.04, cadence=1)
 
     for _ in range(4):
-        harness.ppo_minibatch(_ppo_batch())
+        harness.ppo_minibatch(_real_batch())
     rec = harness.records[-1]
 
     required = ["sppo_n_ppo_actor_updates", "sppo_n_rank_updates",
@@ -172,7 +159,7 @@ def test_deltas_move_upward_across_the_seam():
     runtime.sppo_ranking_runner = RankingRunner(
         model, q, opt, lambda_rank=1.0, margin=0.04, cadence=1)
 
-    batch = _ppo_batch()
+    batch = _real_batch()
     for _ in range(20):
         harness.ppo_minibatch(batch)
 
@@ -191,7 +178,7 @@ def test_qpsi_sha_unchanged_across_the_seam():
 
     before = runner.assert_qpsi_unchanged()
     for _ in range(6):
-        harness.ppo_minibatch(_ppo_batch())
+        harness.ppo_minibatch(_real_batch())
     assert runner.assert_qpsi_unchanged() == before, "Q_psi drifted during training"
 
 
@@ -200,7 +187,7 @@ def test_lambda_zero_control_emits_no_ranking_rows():
     runtime = FakeRuntime()                  # no runner ever attached
     harness = SeamHarness(runtime)
     for _ in range(5):
-        assert harness.ppo_minibatch(_ppo_batch()) is False
+        assert harness.ppo_minibatch(_real_batch()) is False
     assert harness.records == [], "the control emitted ranking telemetry"
 
 
@@ -213,3 +200,109 @@ def test_csv_schema_carries_the_sppo_columns():
                 "sppo_rank_activation_rate", "sppo_delta_A", "sppo_delta_B",
                 "sppo_lambda_rank", "sppo_margin"):
         assert f'"{col}"' in src, f"{col} missing from the fixed CSV schema"
+
+
+# ===================== TRUE-POLE PROVENANCE (orchestrator path) =====================
+# Pole must come from real rollout metadata, never from the latent label. z is
+# the thing being scored; using it as the scorer's pole input would make a
+# broken env/pole assignment invisible behind healthy cadence and loss metrics.
+
+from rl.scorer.ranking import OPPONENT_ID_TO_POLE  # noqa: E402
+
+OP6, OP7 = 5, 6          # pole A, pole B
+
+
+def _real_batch(n=32, seed=31, corrupt=False):
+    """A PPO minibatch as the collector actually writes it, incl. opponent_id."""
+    b = _ppo_batch(n, seed)
+    opp = torch.tensor([OP6] * (n // 2) + [OP7] * (n // 2))
+    if corrupt:
+        opp[0] = OP7                      # a z=0 env actually facing pole B
+    b["opponent_id"] = opp
+    return b
+
+
+def _runner(model, q, lr=0.1, lam=0.3):
+    opt = torch.optim.SGD(model.parameters(), lr=lr)
+    return RankingRunner(model, q, opt, lambda_rank=lam, margin=0.04, cadence=1,
+                         z_to_pole={0: POLE_A, 1: POLE_B},
+                         opponent_to_pole=dict(OPPONENT_ID_TO_POLE))
+
+
+def test_pole_comes_from_opponent_id_not_from_z():
+    r = _runner(TinyActor(), _frozen_qpsi())
+    _, pole, _ = r._sample(_real_batch())
+    assert (pole[:16] == POLE_A).all() and (pole[16:] == POLE_B).all()
+    t = r.telemetry()
+    assert t["pole_source"].startswith("TRUE rollout opponent_id")
+    assert t["n_pole_consistency_checks"] == 1
+
+
+def test_z_pole_mismatch_aborts():
+    """The integrity check that replaced the old limitation."""
+    r = _runner(TinyActor(), _frozen_qpsi())
+    with pytest.raises(RuntimeError, match="z/pole consistency violated"):
+        r._sample(_real_batch(corrupt=True))
+
+
+def test_missing_opponent_id_is_refused_not_inferred():
+    r = _runner(TinyActor(), _frozen_qpsi())
+    b = _ppo_batch()                      # no opponent_id
+    with pytest.raises(RuntimeError, match="no opponent_id"):
+        r._sample(b)
+
+
+def test_opponent_outside_the_frozen_pole_map_aborts():
+    r = _runner(TinyActor(), _frozen_qpsi())
+    b = _real_batch()
+    b["opponent_id"] = torch.full_like(b["opponent_id"], 2)   # OP3
+    with pytest.raises(RuntimeError, match="outside the frozen"):
+        r._sample(b)
+
+
+def test_attach_lambda_zero_creates_nothing():
+    """Control: no runner object, no attribute, nothing to enter."""
+    from rl.scorer.attach import attach_ranking_runner
+    runtime, model = FakeRuntime(), TinyActor()
+    opt = torch.optim.SGD(model.parameters(), lr=0.1)
+    out = attach_ranking_runner(runtime, model, opt, lambda_rank=0.0, device="cpu")
+    assert out is None
+    assert not hasattr(runtime, "sppo_ranking_runner")
+    assert SeamHarness(runtime).ppo_minibatch(_real_batch()) is False
+
+
+def test_attach_verifies_the_frozen_qpsi_sha():
+    """A scorer that is not the frozen one must be refused."""
+    from rl.scorer.attach import attach_ranking_runner
+    runtime, model = FakeRuntime(), TinyActor()
+    opt = torch.optim.SGD(model.parameters(), lr=0.1)
+    with pytest.raises(RuntimeError, match="sha256"):
+        attach_ranking_runner(runtime, model, opt, lambda_rank=0.3,
+                              expected_sha256="0" * 64, device="cpu")
+
+
+@pytest.mark.skipif(not __import__("pathlib").Path(
+    "artifacts/strategic_demand/phase0_scorer_data/qpsi_frozen.pt").is_file(),
+    reason="frozen scorer weights not present")
+def test_attach_real_qpsi_and_run_through_the_seam():
+    """Full orchestrator path against the REAL frozen scorer."""
+    from rl.scorer.attach import attach_ranking_runner, SPPPO_QPSI_SHA256
+    runtime, model = FakeRuntime(), TinyActor()
+    opt = torch.optim.SGD(model.parameters(), lr=0.5)
+    runner = attach_ranking_runner(runtime, model, opt, lambda_rank=0.3, device="cpu")
+
+    assert runner is not None
+    assert runtime.sppo_ranking_runner is runner
+    assert runner._qpsi_sha == SPPPO_QPSI_SHA256
+    assert runner.margin == 0.04
+    assert all(not p.requires_grad for p in runner.qpsi.parameters())
+
+    harness = SeamHarness(runtime)
+    before = runner.assert_qpsi_unchanged()
+    for _ in range(6):
+        assert harness.ppo_minibatch(_real_batch()) is True
+    assert runner.assert_qpsi_unchanged() == before
+    rec = harness.records[-1]
+    assert rec["sppo_n_rank_updates"] == 6.0
+    assert rec["sppo_rank_to_ppo_ratio"] == 1.0
+    assert runner.telemetry()["n_pole_consistency_checks"] == 6

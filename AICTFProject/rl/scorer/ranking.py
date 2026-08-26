@@ -54,6 +54,13 @@ __all__ = [
 POLE_A, POLE_B = 0, 1
 Z_FOR_POLE = {POLE_A: 0, POLE_B: 1}      # z0 is appropriate on A, z1 on B
 
+# TRUE pole provenance. The rollout buffer already carries ``opponent_id`` as
+# trainer-only context (OP1->0 ... OP12->11), written by the collector and never
+# read into the actor's observation. Pole A is OP6 (id 5), pole B is OP7 (id 6).
+# This is privileged information in the centralized-critic sense: available to
+# the training objective, absent from the deployed policy input.
+OPPONENT_ID_TO_POLE = {5: POLE_A, 6: POLE_B}      # OP6 -> A, OP7 -> B
+
 
 def load_frozen_qpsi(path, *, expected_sha256: str | None = None,
                      device: str = "cpu") -> QPsi:
@@ -201,6 +208,7 @@ class RankingRunner:
     def __init__(self, model, qpsi: QPsi, optimizer, *, lambda_rank: float,
                  margin: float, cadence: int = 1,
                  z_to_pole: Optional[Dict[int, int]] = None,
+                 opponent_to_pole: Optional[Dict[int, int]] = None,
                  max_grad_norm: float | None = None, device: str = "cpu"):
         if lambda_rank <= 0.0:
             raise ValueError(
@@ -228,6 +236,9 @@ class RankingRunner:
         # If that env assignment were ever broken, this derivation would score
         # rows against the wrong pole silently -- see LIMITATION in telemetry().
         self.z_to_pole = dict(z_to_pole) if z_to_pole is not None else {0: POLE_A, 1: POLE_B}
+        self.opponent_to_pole = (dict(opponent_to_pole) if opponent_to_pole is not None
+                                 else dict(OPPONENT_ID_TO_POLE))
+        self.n_pole_consistency_checks = 0
         self.max_grad_norm = max_grad_norm
         self.device = device
         self.n_ppo_actor_minibatches = 0
@@ -252,21 +263,57 @@ class RankingRunner:
     def _sample(self, batch):
         """Build (obs, pole, decision_mask) from a PPO minibatch.
 
-        Accepts either a pre-built {"obs","pole"} mapping (unit tests) or a raw
-        PPO batch carrying obs_grid/obs_vec/obs_agent_mask/obs_mask and z.
+        Pole comes from the TRUE rollout metadata ``opponent_id``, not from the
+        latent label. Deriving it from z would make the scorer's pole input a
+        restatement of the thing being scored: if env/pole routing ever drifted,
+        Q_psi(o, a, WRONG POLE) would be optimised while every cadence and loss
+        metric still looked healthy.
+
+        The frozen 16/0/0/16 treatment asserts z0 => A and z1 => B, so any
+        disagreement between the latent label and the real opponent ABORTS.
+
+        Accepts a pre-built {"obs","pole"} mapping for unit tests, where the
+        pole is supplied explicitly and there is nothing to cross-check.
         """
         if "obs" in batch and "pole" in batch:
             return batch["obs"], batch["pole"], batch.get("decision_mask")
         obs = {"grid": batch["obs_grid"], "vec": batch["obs_vec"],
                "agent_mask": batch["obs_agent_mask"], "mask": batch["obs_mask"]}
+        if "opponent_id" not in batch:
+            raise RuntimeError(
+                "PPO minibatch carries no opponent_id, so the TRUE pole cannot be "
+                "established. Refusing to fall back to deriving pole from z: that "
+                "would hide a broken env/pole assignment behind healthy metrics.")
         z = batch["z"].long().reshape(-1)
-        unknown = set(int(v) for v in torch.unique(z).tolist()) - set(self.z_to_pole)
-        if unknown:
-            raise RuntimeError(f"batch contains z values {sorted(unknown)} with no pole mapping")
-        pole = torch.zeros_like(z)
+        opp = batch["opponent_id"].long().reshape(-1)
+
+        unknown_z = set(int(v) for v in torch.unique(z).tolist()) - set(self.z_to_pole)
+        if unknown_z:
+            raise RuntimeError(f"batch contains z values {sorted(unknown_z)} with no pole mapping")
+        unknown_o = set(int(v) for v in torch.unique(opp).tolist()) - set(self.opponent_to_pole)
+        if unknown_o:
+            raise RuntimeError(
+                f"batch contains opponent_id {sorted(unknown_o)} outside the frozen "
+                f"pole map {self.opponent_to_pole}; SPPPO V1 trains on OP6/OP7 only")
+
+        true_pole = torch.zeros_like(opp)
+        for ov, pv in self.opponent_to_pole.items():
+            true_pole = torch.where(opp == int(ov), torch.full_like(opp, int(pv)), true_pole)
+        z_pole = torch.zeros_like(z)
         for zv, pv in self.z_to_pole.items():
-            pole = torch.where(z == int(zv), torch.full_like(z, int(pv)), pole)
-        return obs, pole, batch.get("decision_mask")
+            z_pole = torch.where(z == int(zv), torch.full_like(z, int(pv)), z_pole)
+
+        bad = (true_pole != z_pole)
+        if bool(bad.any()):
+            i = int(torch.nonzero(bad)[0])
+            raise RuntimeError(
+                f"z/pole consistency violated on {int(bad.sum())}/{len(z)} rows: "
+                f"row {i} has z={int(z[i])} (expects pole {int(z_pole[i])}) but "
+                f"opponent_id={int(opp[i])} (true pole {int(true_pole[i])}). The "
+                "frozen 16/0/0/16 assignment is broken; aborting rather than "
+                "scoring against the wrong pole.")
+        self.n_pole_consistency_checks += 1
+        return obs, true_pole, batch.get("decision_mask")
 
     def _ranking_step(self, batch) -> None:
         obs, pole, dmask = self._sample(batch)
@@ -309,9 +356,8 @@ class RankingRunner:
             "last_ranking_loss": self.last_loss,
             "qpsi_sha256_at_load": self._qpsi_sha,
             "z_to_pole": dict(self.z_to_pole),
-            "LIMITATION_pole_derived_from_z": (
-                "the rollout batch carries no opponent field, so pole is derived "
-                "from z under the frozen 16/0/0/16 assignment. A broken env "
-                "assignment would not be detected here."),
+            "opponent_to_pole": dict(self.opponent_to_pole),
+            "pole_source": "TRUE rollout opponent_id, cross-checked against z",
+            "n_pole_consistency_checks": self.n_pole_consistency_checks,
             **{f"last_{k}": v for k, v in self.last_diag.items()},
         }
