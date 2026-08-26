@@ -1,0 +1,53 @@
+{
+  "record_id": "D0_REPORTING_SPEC",
+  "status": "FROZEN_WHILE_D0_IS_STILL_RUNNING -- before the 192-seed outcome exists",
+  "utc": "2026-08-26T23:52:00Z",
+  "authority": "PI directive",
+  "why_frozen_now": "specifying the analysis after seeing the result would make it a choice about the outcome. D0's 192-seed rows do not exist yet; the 8-seed smoke is directional only and its quartile cutoff was computed within its own small sample.",
+  "classification": "MECHANISM DIAGNOSTIC. None of these quantities is a gate. No PASS/FAIL verdict is produced, no threshold is defined, and nothing here can alter the frozen SPPPO_V1_NOT_CONFIRMED result.",
+  "bootstrap": {
+    "unit": "SEED, not decision point",
+    "why": "decision points within an episode are heavily clustered -- 1,539 rows from 8 seeds have an effective sample size nearer 8 than 1,539. This is the same clustering that drove the seed-level bootstrap in Gate 0B.",
+    "procedure": "resample the 192 seeds WITH REPLACEMENT; carry every decision point belonging to each sampled seed into the replicate; recompute the diagnostic quantity inside the replicate",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "quartile_handling": "the worst-quartile cutoff is RECOMPUTED INSIDE each replicate, so the interval reflects both which seeds were drawn and where the failure-region boundary lands"
+  },
+  "three_separate_questions": {
+    "Q1_is_the_failure_z0_being_closer_to_piB": {
+      "quantity": "fraction of pole-B decision points with margin_B_bits < 0, and its mean",
+      "reading": "margin_B_bits = KL(pi_B||z0) - KL(pi_B||z1). Negative means z0 is CLOSER to pi_B than z1 is -- separation achieved but misdirected."
+    },
+    "Q2_does_qpsi_rank_correctly_in_those_same_regions": {
+      "quantity": "P(delta_B_hat > 0.04) among decision points in the worst margin_B quartile",
+      "with": "seed-level bootstrap CI, quartile recomputed per replicate"
+    },
+    "Q3_do_the_bad_states_cluster": {
+      "quantity": "margin_B_bits and qpsi correct-rate by state category",
+      "categories": [
+        "carrying / not carrying",
+        "own flag home / stolen",
+        "early / mid / late tertile"
+      ],
+      "reading": "clustered failures point to a specific decision class; uniform spread does not"
+    }
+  },
+  "WORDING_DISCIPLINE": {
+    "if_qpsi_correct_rate_is_high_in_the_failure_region": "The evidence favors optimization/interference over scorer misranking as the dominant failure mode.",
+    "PROHIBITED_phrasing": [
+      "Q_psi was correct",
+      "Q_psi is exonerated",
+      "the scorer is fine"
+    ],
+    "why": "a high correct-RATE says nothing about whether the score margin was large enough to produce a gradient that survived, and the incorrect remainder may sit at the most consequential states. Sign and magnitude are different claims.",
+    "if_qpsi_correctness_collapses_in_high_consequence_B_states": "the fork swings back toward SURROGATE_FAILURE"
+  },
+  "what_this_cannot_do": [
+    "change the frozen SPPPO_V1_NOT_CONFIRMED verdict",
+    "re-score any gate or alter any threshold",
+    "consume new seeds -- it replays the ALREADY-SCORED 10300001..10300192 block",
+    "authorize training. SPPPO V2 remains unbuilt pending the fork outcome."
+  ],
+  "implemented_by": "experiments/analyze_d0_seed_bootstrap.py (written before D0 finished)"
+}
