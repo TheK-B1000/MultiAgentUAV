@@ -1,0 +1,67 @@
+{
+  "record": "SPPPO V1 production FIRST-INTERVAL runtime evidence",
+  "status": "FROZEN_RUNTIME_EVIDENCE",
+  "captured_after_interval": 1,
+  "note": "this is RUNTIME evidence, captured only after the first interval existed. The prospective declaration is a separate artifact, SPPPO_PRODUCTION_LAUNCH_CONTRACT.json.",
+  "run_tag": "sppo_v1_production_1M_seed10100001",
+  "checks": {
+    "ranking_attached_at_frozen_lambda": {
+      "ok": true,
+      "evidence": "[SPPPO] strategic ranking ATTACHED: lambda=1.0 margin=0.04 cadence=1:1 qpsi_sha=930051a725e55e4f... pole=TRUE opponent_id z_map={0: 0, 1: 1}"
+    },
+    "qpsi_sha_frozen": {
+      "ok": true,
+      "evidence": "930051a725e55e4f... in the attach line"
+    },
+    "ranking_margin_and_cadence": {
+      "ok": true,
+      "evidence": "margin=0.04 cadence=1:1"
+    },
+    "pole_source_is_true_opponent_id": {
+      "ok": true,
+      "evidence": "pole=TRUE opponent_id"
+    },
+    "teacher_rehearsal_unchanged": {
+      "ok": true,
+      "evidence": "[EXP2C] online teacher KL ATTACHED: lambda=0.1 cadence=1:4 batch=64 mapping=z0:pi_A,z1:pi_B q_phi=ABSENT cells=(16, 0, 0, 16) grad_cosine=True"
+    },
+    "cells_16_0_0_16": {
+      "ok": true,
+      "evidence": "cells=(16, 0, 0, 16)"
+    },
+    "strict_pole_occupancy": {
+      "ok": true,
+      "evidence": "OP6 z_occ=[1.0,0.0]  OP7 z_occ=[0.0,1.0]"
+    },
+    "zero_z_pole_mismatches": {
+      "ok": true,
+      "evidence": "per-minibatch assertion live and never fired"
+    },
+    "ranking_telemetry_populated": {
+      "ok": true,
+      "evidence": {
+        "sppo_n_rank_updates": "16.5",
+        "sppo_rank_to_ppo_ratio": "1.0",
+        "sppo_rank_loss": "0.03517955238930881",
+        "sppo_rank_activation_rate": "0.977783203125",
+        "sppo_delta_A": "0.010977193383041595",
+        "sppo_delta_B": "-0.0011382918889637494"
+      }
+    },
+    "ranking_cadence_measured_1to1": {
+      "ok": true,
+      "evidence": "rank_to_ppo_ratio=1.0 at interval 1"
+    },
+    "timestep_origin_is_zero_not_98304": {
+      "ok": true,
+      "evidence": "first interval timesteps=4096 (one 4096 rollout; NOT resumed at 98304)"
+    }
+  },
+  "all_pass": true,
+  "failed": [],
+  "contrast_with_EXP2B_EXP2C": {
+    "EXP2B": "P(OP6|z0) 0.505, P(OP6|z1) 0.495 -- treatment absent",
+    "EXP2C": "P(OP6|z0) 0.496, P(OP6|z1) 0.493 -- treatment absent",
+    "SPPPO_production": "OP6 z_occ=[1.00,0.00], OP7 z_occ=[0.00,1.00] -- instantiated"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "record_id": "SPPPO_V1_PRODUCTION_TERMINAL",
+  "status": "FROZEN_TERMINAL_CHECKPOINT",
+  "utc": "2026-08-26T08:25:00Z",
+  "run_tag": "sppo_v1_production_1M_seed10100001",
+  "checkpoint": {
+    "name": "final_sppo_v1_production_1M_seed10100001.zip",
+    "sha256": "1260e420b85ad01b1aecf433d65688adf153538195d30511e26a3585b7285f1f",
+    "bytes": 42265601,
+    "count_in_dir": 1,
+    "terminal_only": "periodic checkpointing disabled; selection structurally impossible"
+  },
+  "budget": {
+    "requested": 1000000,
+    "realised": 1003520,
+    "note": "245 rollouts x 4096; the trainer completes the rollout that crosses 1M",
+    "started_at": 0,
+    "resumed_from": null,
+    "development_steps_counted": 0
+  },
+  "treatment_integrity_over_the_WHOLE_run": {
+    "intervals": 245,
+    "intervals_with_cadence_not_1to1": 0,
+    "intervals_with_blank_ranking_telemetry": 0,
+    "z_pole_consistency_violations": 0,
+    "cadence_assertion_fired": false,
+    "assigned_pole_occupancy": {
+      "P(OP6|z0)": 1.0,
+      "P(OP7|z1)": 1.0,
+      "training_episodes": 4237
+    },
+    "qpsi_sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf",
+    "lambda_R": 1.0,
+    "margin": 0.04,
+    "ranking_cadence": 1,
+    "teacher_lambda": 0.1,
+    "teacher_cadence": 4,
+    "cells": "16/0/0/16"
+  },
+  "training_side_trajectory_DIAGNOSTIC_ONLY": {
+    "warning": "these are TRAINING-side quantities on the training block. They are NOT the result. The untouched 10300001..10300192 block decides whether SPPPO worked, on payoff gates with Q_psi absent.",
+    "delta_A": {
+      "first": 0.010977,
+      "last": 0.06859
+    },
+    "delta_B": {
+      "first": -0.001138,
+      "last": 0.056841
+    },
+    "rank_loss": {
+      "first": 0.03518,
+      "last": 0.017052
+    },
+    "activation_rate": {
+      "first": 0.977783,
+      "last": 0.473145
+    }
+  },
+  "next_and_only_next": "build the 192-seed final evaluator reusing the EXP2C terminal gates (crossover, retention, behavioural identity) on payoff, with Q_psi absent from that path, then run it ONCE on 10300001..10300192."
+}
