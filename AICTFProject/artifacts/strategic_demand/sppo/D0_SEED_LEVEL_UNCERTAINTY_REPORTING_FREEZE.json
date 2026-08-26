@@ -1,0 +1,66 @@
+{
+  "record": "SPPPO V1 D0 seed-level uncertainty reporting decision",
+  "status": "FROZEN_DIAGNOSTIC_ONLY_WHILE_D0_RUNNING",
+  "frozen_utc": "2026-08-26T23:51:09Z",
+  "repository_head_at_freeze": "0b19f8aef14eabc7468e4b4840892a8669295bf3",
+  "live_D0_state_at_freeze": {
+    "completed_seeds": 24,
+    "target_seeds": 192,
+    "decision_rows_so_far": 4534,
+    "complete_192_seed_D0_outputs_existed": false,
+    "preexisting_smoke_outputs": {
+      "status": "NON_AUTHORITATIVE_8_SEED_SMOKE, expected to be replaced by the already-running 192-seed D0",
+      "base_report_sha256": "9cd7781c6d5557500033431af928474621a7ad014f2b0626902e75088b4f916f",
+      "decision_rows_sha256": "68857e64f05d4fd8d67846538d69f192b82971f74959075b49c77fa9a0cf0b04",
+      "n_seeds": 8,
+      "n_decision_points": 1539
+    },
+    "runner_sha256_before_uncertainty_patch": "f686e1862c530d343ca8a81d2fde1228c568883500fd002d33546a166b46625c",
+    "frozen_terminal_summary_sha256": "04672a8463c09aa64c0a1cfaed2c8bf53147a1463e286e000e8dc1a59c7056ef"
+  },
+  "classification": "DIAGNOSTIC",
+  "scientific_delta": "Reporting uncertainty only. No training, scorer fitting, gate re-scoring, new seeds, threshold changes, or method selection.",
+  "bootstrap": {
+    "unit": "seed",
+    "seed_block": "10300001..10300192",
+    "n_seeds": 192,
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "resampling_rule": "Sample 192 seeds with replacement. Carry every decision row belonging to each sampled seed with the sampled seed multiplicity.",
+    "quartile_quantile_method": "weighted inverted-CDF over decision rows using sampled seed multiplicities",
+    "interval": "percentile 95% interval",
+    "cluster_protection": "Decision points are never resampled independently."
+  },
+  "worst_quartile_rule": {
+    "quantity": "margin_B_bits",
+    "tail": "lowest 25%",
+    "replicate_behavior": "Recompute the weighted 25th-percentile cutoff inside every seed-bootstrap replicate, then recompute all worst-quartile quantities using that replicate-local cutoff.",
+    "reason": "Uncertainty must include both sampled-seed composition and movement of the failure-region boundary."
+  },
+  "reported_with_seed_level_uncertainty": [
+    "mean margin_B_bits",
+    "fraction margin_B_bits < 0",
+    "mean delta_B_hat_qpsi",
+    "Q_psi intended-order correct rate",
+    "the same quantities in the replicate-local worst quartile",
+    "the same quantities within descriptive decision categories"
+  ],
+  "three_diagnostic_questions": [
+    "Does the Pole-B identity failure arise because z0 is closer to pi_B than z1?",
+    "Does Q_psi usually retain the intended z1-over-z0 ordering in the same failure region, with seed-level uncertainty?",
+    "Do bad Pole-B identity states cluster into recognizable decision categories?"
+  ],
+  "non_gating_rule": "No D0 statistic, confidence interval, quartile, category, or fork label is a new PASS/FAIL gate or may alter the frozen SPPPO V1 verdict.",
+  "diagnostic_interpretation_rule": {
+    "optimization_interference_favored": "worst-quartile Q_psi correct-rate LCB95 > 0.5",
+    "surrogate_misranking_favored": "worst-quartile Q_psi correct-rate UCB95 < 0.5",
+    "otherwise": "mechanism evidence inconclusive",
+    "status": "diagnostic language only, never a gate"
+  },
+  "wording_rule": {
+    "optimization_favored": "The evidence favors optimization/interference over scorer misranking as the dominant failure mode.",
+    "prohibited_overclaim": "Q_psi was correct."
+  },
+  "execution_rule": "Allow the live D0 replay to finish unchanged. Apply this frozen reporting analysis afterward to its complete raw decision-row artifact; do not recollect or rerun episodes."
+}
