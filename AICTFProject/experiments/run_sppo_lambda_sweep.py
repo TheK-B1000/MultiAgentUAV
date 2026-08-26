@@ -4,7 +4,8 @@ Protocol: artifacts/strategic_demand/sppo/SPPPO_V1_PROTOCOL.json
 
     candidates   lambda_R in {0, 0.03, 0.1, 0.3, 1.0}
     budget       98,304 environment steps EACH  (= 24 PPO updates at 4096/update)
-    block        development seeds 10200001..10200032
+    train        10100001..10100032   (candidates are TRAINED here)
+    select       10200001..10200032   (terminal checkpoints EVALUATED here)
     selection    computed ONLY after all five terminate, on TERMINAL values only
 
     qualify:  Delta_A(lambda) - Delta_A(0) > 0
@@ -47,19 +48,26 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from experiments.run_exp2b_specialization_preserving_compression import (  # noqa: E402
+    configure_exp2b_live_environment,
+)
 from experiments.run_exp2c_mode_specific_actor_compression import (  # noqa: E402
-    build_exp2c_config, configure_exp2c_live_environment,
+    build_exp2c_config,
 )
 
 SD = ROOT / "artifacts" / "strategic_demand"
 PROTOCOL = SD / "sppo" / "SPPPO_V1_PROTOCOL.json"
 OUT = SD / "sppo" / "lambda_sweep"
 SELECTION = SD / "sppo" / "SPPPO_LAMBDA_SELECTION.json"
+DEV_EVAL = SD / "sppo" / "SPPPO_DEV_EVALUATION.json"
 
 LAMBDA_GRID = [0.0, 0.03, 0.1, 0.3, 1.0]        # frozen; extension PROHIBITED
 CONTROL = 0.0
 DEV_STEPS = 98_304                               # 24 PPO updates at 4096/update
-DEV_SEED = 10_200_001                            # development block base
+TRAIN_SEED = 10_100_001                          # candidates TRAIN here
+DEV_SEED = 10_200_001                            # terminal checkpoints are SELECTED here
+TRAIN_RANGE = (10_100_001, 10_100_032)
+DEV_RANGE = (10_200_001, 10_200_032)
 MARGIN = 0.04
 RETURN_TOLERANCE = 0.05                          # <= 5% degradation vs control
 
@@ -77,7 +85,25 @@ def _stable_hash(value: Any) -> str:
 
 
 def _tag(lam: float) -> str:
-    return f"sppo_dev_lambda{str(lam).replace('.', 'p')}_seed{DEV_SEED}"
+    return f"sppo_dev_lambda{str(lam).replace('.', 'p')}_seed{TRAIN_SEED}"
+
+
+def configure_sppo_live_environment(env, cfg, *, contract):
+    """SPPPO's own frozen seed ranges -- NOT EXP2C's.
+
+    The first launch reused EXP2C's configure function, which hardcodes
+    8700001/8800001, and the guard correctly refused SPPPO's audited blocks.
+    Everything else about the live contract is inherited unchanged: RULESET_V3
+    M1, 32 environments, the 16/0/0/16 cell layout, and the per-env z/pole
+    assertion.
+    """
+    return configure_exp2b_live_environment(
+        env, cfg, contract=contract, allow_development_seed=False,
+        training_seed_range=TRAIN_RANGE,
+        development_seed_range=DEV_RANGE,
+        manifest_key="sppo_protocol",
+        context_label="SPPPO V1 lambda_R development sweep construction",
+    )
 
 
 def _load_protocol() -> dict:
@@ -98,7 +124,7 @@ def _load_protocol() -> dict:
 def build_candidate(lam: float):
     """One candidate config, derived from the single shared EXP2C base."""
     cfg, parent_contract = build_exp2c_config()
-    cfg.seed = DEV_SEED
+    cfg.seed = TRAIN_SEED
     cfg.total_timesteps = DEV_STEPS
     cfg.sppo_ranking_margin = MARGIN
     cfg.sppo_ranking_cadence = 1
@@ -153,7 +179,7 @@ def build_sweep_contract() -> dict:
         raise RuntimeError("the control must carry lambda_rank exactly 0.0")
     for lam in LAMBDA_GRID:
         r = resolved[lam]
-        if int(r["total_timesteps"]) != DEV_STEPS or int(r["seed"]) != DEV_SEED:
+        if int(r["total_timesteps"]) != DEV_STEPS or int(r["seed"]) != TRAIN_SEED:
             raise RuntimeError(f"lambda={lam} budget/seed drift")
         if float(r["sppo_ranking_margin"]) != MARGIN or int(r["sppo_ranking_cadence"]) != 1:
             raise RuntimeError(f"lambda={lam} margin/cadence drift")
@@ -165,7 +191,9 @@ def build_sweep_contract() -> dict:
         "grid_extension": "PROHIBITED",
         "control": CONTROL,
         "steps_per_candidate": DEV_STEPS,
-        "development_seed": DEV_SEED,
+        "train_seed": TRAIN_SEED,
+        "selection_block": f"{DEV_RANGE[0]}..{DEV_RANGE[1]}",
+        "selection_is_out_of_sample": True,
         "margin": MARGIN,
         "ranking_cadence": 1,
         "shared_base_config_sha256": next(iter(set(base_hashes.values()))),
@@ -182,7 +210,36 @@ def build_sweep_contract() -> dict:
 
 # ------------------------------------------------------------------ selection
 def _terminal_row(lam: float) -> dict:
-    """TERMINAL metrics only. Interim rows are deliberately never read."""
+    """Terminal DEVELOPMENT-BLOCK evaluation for one candidate.
+
+    Selection reads the out-of-sample development evaluation, never the
+    training-time telemetry. An earlier driver trained on the development block
+    and selected from those same trajectories, which would have made the
+    lambda_R choice in-sample. Training telemetry stays diagnostic.
+    """
+    if not DEV_EVAL.is_file():
+        raise RuntimeError(
+            f"{DEV_EVAL} is missing. Run experiments/eval_sppo_dev_candidates.py "
+            "first: selection consumes the development evaluation, not training rows.")
+    payload = json.loads(DEV_EVAL.read_text(encoding="utf-8"))
+    results = payload["results"]
+    key = str(lam)
+    if key not in results:
+        raise RuntimeError(f"lambda={lam} has no development evaluation; candidate did not run")
+    r = results[key]
+    steps = _terminal_training_steps(lam)
+    if steps < DEV_STEPS:
+        raise RuntimeError(
+            f"lambda={lam} trained only {steps} < {DEV_STEPS} steps; the frozen "
+            "budget requires every candidate to run to completion")
+    return {"lambda": lam, "timesteps": steps,
+            "delta_A": float(r["delta_A"]), "delta_B": float(r["delta_B"]),
+            "ep_rew_mean": float(r["ep_rew_mean"]),
+            "n_rank_updates": _terminal_rank_updates(lam)}
+
+
+def _terminal_training_steps(lam: float) -> int:
+    """Training completion is still verified from the run's own metrics.csv."""
     import csv
     path = OUT / _tag(lam) / "metrics.csv"
     if not path.is_file():
@@ -191,17 +248,17 @@ def _terminal_row(lam: float) -> dict:
         rows = list(csv.DictReader(fh))
     if not rows:
         raise RuntimeError(f"lambda={lam} metrics.csv is empty")
-    last = rows[-1]
-    steps = int(float(last.get("timesteps") or 0))
-    if steps < DEV_STEPS:
-        raise RuntimeError(
-            f"lambda={lam} terminated at {steps} < {DEV_STEPS} steps; the frozen "
-            "budget requires every candidate to run to completion")
-    f = lambda k: (float(last[k]) if last.get(k) not in (None, "") else float("nan"))
-    return {"lambda": lam, "timesteps": steps,
-            "delta_A": f("sppo_delta_A"), "delta_B": f("sppo_delta_B"),
-            "ep_rew_mean": f("ep_rew_mean"),
-            "n_rank_updates": f("sppo_n_rank_updates")}
+    return int(float(rows[-1].get("timesteps") or 0))
+
+
+def _terminal_rank_updates(lam: float) -> float:
+    """Used only to prove the control was structurally absent."""
+    import csv
+    path = OUT / _tag(lam) / "metrics.csv"
+    with path.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    v = rows[-1].get("sppo_n_rank_updates")
+    return float(v) if v not in (None, "") else 0.0
 
 
 def select() -> dict:
@@ -240,6 +297,8 @@ def select() -> dict:
         "status": "FROZEN_RESULT",
         "rule": "smallest lambda_R with both contrast gains > 0 and return degradation <= 5%",
         "terminal_values_only": True,
+        "selection_source": "SPPPO_DEV_EVALUATION.json (out-of-sample development block)",
+        "training_telemetry_used_for_selection": False,
         "control_terminal": ctl,
         "candidates": rows,
         "qualifying": qualifying,
@@ -289,9 +348,8 @@ def main() -> int:
               f"({DEV_STEPS} steps) ===", flush=True)
         orchestrate_training_run(
             cfg,
-            pre_rollout_env_setup=partial(configure_exp2c_live_environment,
-                                          contract=parent_contract,
-                                          allow_development_seed=True),
+            pre_rollout_env_setup=partial(configure_sppo_live_environment,
+                                          contract=parent_contract),
         )
     print("\nAll five candidates complete. Run --select to apply the frozen rule.")
     return 0

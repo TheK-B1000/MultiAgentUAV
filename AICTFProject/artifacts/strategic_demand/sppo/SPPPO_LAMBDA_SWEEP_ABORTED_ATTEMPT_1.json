@@ -1,0 +1,21 @@
+{
+  "record_id": "SPPPO_LAMBDA_SWEEP_ABORTED_ATTEMPT_1",
+  "status": "INVALID_BEFORE_TRAINING",
+  "utc": "2026-08-26T03:05:00Z",
+  "training_steps_consumed": 0,
+  "candidates_completed": 0,
+  "checkpoints_written": 0,
+  "what_happened": "The launch aborted on the first candidate (lambda_R = 0.0) during live environment construction, before any training step. The driver reused configure_exp2c_live_environment, which hardcodes EXP2C's frozen seed ranges (train 8700001..8700320, dev 8800001..8800192). SPPPO's audited blocks are different, so the guard raised 'EXP2B seed escaped frozen block: 10200001'.",
+  "the_guard_worked": "the seed-block guard refused before a step was spent. It also enforces the 16/0/0/16 cell layout and per-env z/pole mapping, which independently complements the batch-level pole consistency check in RankingRunner.",
+  "SECOND_AND_MORE_SERIOUS_DEFECT": {
+    "found": "while diagnosing the crash, not by the crash itself",
+    "defect": "the driver TRAINED all five candidates on seed 10200001 -- the DEVELOPMENT block -- and read Delta_A/Delta_B from training-time telemetry. Selection would then have been in-sample on the very block reserved for choosing lambda_R.",
+    "why_it_matters": "training all five candidates on the development block and selecting from those same trajectories makes the lambda choice in-sample and defeats the purpose of reserving a development block at all.",
+    "PI_ruling": "train on 10100001..10100032; evaluate terminal checkpoints on 10200001..10200032; the selector consumes ONLY the separate development evaluation. Training-time telemetry may remain diagnostic but is not the selection quantity. The 98,304-step per-candidate TRAINING budget is unchanged."
+  },
+  "why_preserved_not_deleted": "the first driver wiring was wrong on a scientific axis, not merely a path. Deleting the attempt would erase the fact that the train/selection split was initially conflated.",
+  "artifacts_from_this_attempt": [
+    "lambda_sweep/SWEEP_CONTRACT.json (superseded)"
+  ],
+  "successor": "the corrected launch regenerates SWEEP_CONTRACT.json from scratch"
+}
