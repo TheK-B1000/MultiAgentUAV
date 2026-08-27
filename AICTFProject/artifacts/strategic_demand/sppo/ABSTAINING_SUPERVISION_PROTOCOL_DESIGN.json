@@ -1,6 +1,6 @@
 {
   "record_id": "ABSTAINING_STRATEGIC_SUPERVISION_PROTOCOL",
-  "status": "DESIGN COMPLETE (STRUCTURE) -- NUMERIC THRESHOLDS DELIBERATELY UNSET. Not frozen. Nothing authorized to run.",
+  "status": "FROZEN (STRUCTURE) -- ABSTAINING_SUPERVISION_PROTOCOL_FROZEN. tau, rho and o_max intentionally UNSET pending CALIB. Implementation NOT AUTHORIZED.",
   "utc": "2026-08-27T18:23:02Z",
   "authority": "PI authorized protocol DESIGN on 2026-08-27, sequenced SECOND after stratified-regime collection.",
   "depends_on": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json. This protocol CANNOT be numerically frozen until that collection exists.",
@@ -84,9 +84,39 @@
     "evidence_chain": "EXP1 -> SPPPO V1 -> D0 -> D1 -> D2 -> D3 -> D4 -> D5 -> D6 (infeasible) -> D6B (not run, underpowered) -> RASR (INVALID) -> stratified collection -> this protocol."
   },
   "AUTHORIZATION": {
-    "design_structure": "AUTHORIZED and complete.",
-    "numeric_freeze": "BLOCKED until the stratified collection exists and CALIB is available.",
+    "design_structure": "COMPLETE and FROZEN by PI ruling 2026-08-27 at commit c318bcea.",
+    "numeric_freeze": "BLOCKED until the stratified collection exists and CALIB is available. This is by design.",
     "implementation": "NOT AUTHORIZED.",
     "training_or_PPO_launch": "NOT AUTHORIZED."
+  },
+  "FREEZE_RECORD": {
+    "authority": "PI ruling, 2026-08-27",
+    "frozen_at_commit": "c318bcea",
+    "utc": "2026-08-27T18:26:03Z",
+    "ruling_verbatim_summary": [
+      "FREEZE BOTH PROTOCOLS AT c318bcea",
+      "DO NOT LAUNCH THE 35.3h COLLECTION YET",
+      "tau, rho, o_max intentionally UNSET pending calibration",
+      "NO PPO TRAINING",
+      "RASR remains INVALID and closed to repair"
+    ],
+    "cost_correction_was_before_the_freeze": "The PI was told the measured cost is 35.3 h / 2.8x RASR DEV, correcting the ~2x quoted when the 16-cell geometry was chosen, BEFORE this freeze was ordered. The geometry was reaffirmed on the corrected number.",
+    "why_the_cost_did_not_change_the_geometry": "PI reasoning, recorded because it is the justification a future reader will need: horizon is not decorative metadata. D5 showed it materially changes the target, and the abstaining successor is specifically at risk of behaving badly in late-game cells. Reverting to 8 cells would save time by weakening coverage exactly where the new method is most vulnerable. The expensive part of the last arc was not that training failed -- it was repeatedly discovering AFTERWARD that the measurement assumptions were wrong. This collection is instrumentation built before the rocket is fired.",
+    "what_freezing_does_and_does_not_commit": "Freezing does NOT commit the project to spending the 35.3 h. It commits the project to stop redesigning the experiment in response to future observations. The launch decision is separate and remains open.",
+    "AMENDMENT_RULE": "This document is frozen. Substantive changes require a separately committed, dated AMENDMENT record stating what changed and why, in the manner of D2_SPEC_AMENDMENT_*. Silent edits are prohibited. Any implementing script MUST verify the status string below and refuse to run if it does not match.",
+    "DRIFT_DETECTION": "The frozen design content is the file as committed at c318bcea. Hashes are recorded per document below. A future reader can verify the substantive design is unchanged with: git show c318bcea:<path> | sha256sum",
+    "frozen_content": {
+      "path": "AICTFProject/artifacts/strategic_demand/sppo/ABSTAINING_SUPERVISION_PROTOCOL_DESIGN.json",
+      "git_blob": "6296a041a034092d740acea9faf9adc20f4dae69",
+      "sha256": "c8ec88ffaef43e66fa8553177c48e38937ac705d4d9f942dbf5c66485268fa0d",
+      "bytes": 7633
+    },
+    "UNSET_IS_NOT_INCOMPLETE": "PI ruling: leaving tau, rho and o_max unset is correct sequencing, not an unfinished protocol. What is frozen is the STRUCTURE -- the three classes and their wording, the label rule, the two degenerate solutions and how each is excluded, the achievable-mass normalization, the stratification over 16 cells, the split discipline, and the threshold-provenance rule. The numbers are the only thing deferred, and they are deferred to a point where they can be estimated with real support rather than guessed.",
+    "what_the_collection_will_make_estimable": [
+      "how much resolvable mass actually exists in each of the 16 cells",
+      "what realistic commitment coverage looks like",
+      "what over-commitment looks like on truly tied states"
+    ],
+    "calibration_timing": "Thresholds are calibrated on CALIB and frozen BEFORE policy training. Calibrating after training, or on EVAL, or in response to a failed gate, is prohibited."
   }
 }
