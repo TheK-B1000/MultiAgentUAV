@@ -1,0 +1,100 @@
+{
+  "record_id": "STRATIFIED_REGIME_COLLECTION_PROTOCOL",
+  "status": "DESIGN COMPLETE -- AWAITING PI FREEZE. Not frozen. Nothing authorized to run.",
+  "utc": "2026-08-27T18:21:53Z",
+  "authority": "PI authorized protocol DESIGN on 2026-08-27 and selected the 16-cell geometry. Freezing is a PI act, not this session's.",
+  "sequence_position": "FIRST of two. The abstaining-supervision protocol depends on this collection existing and MUST NOT be frozen numerically before it.",
+  "purpose": "Guarantee independent seed support in every pole x regime x horizon cell by DESIGN, rather than relying on where uniform branch-point sampling happens to land. Fixes the defect that invalidated RASR.",
+  "what_it_does_not_claim": "This is a data-collection protocol. It does not test any hypothesis, does not qualify any scorer, and produces no verdict about strategy learning. Its only output is an evidence base with audited per-cell support.",
+  "CELL_GEOMETRY": {
+    "cells": 16,
+    "definition": "pole {A,B} x regime {r0 home_not_carrying, r1 home_carrying, r2 stolen_not_carrying, r3 stolen_carrying} x horizon {not_late, late}",
+    "horizon_split": "branch_step > 127 is 'late'. This is the D5 late tertile boundary, REUSED UNCHANGED and NOT refit. Refitting on new data would break comparability with D3/D4/D5.",
+    "regime_source": "QPsi.regime_from_vec, the same tagger used in D3/D4/D5 and verified 0/240 mismatches against live core ground truth",
+    "why_16_and_not_24": "24 cells (D5 tertiles) is INFEASIBLE: B_r3_early needs ~768 seeds, B_r2_early ~439. Stolen-flag states barely exist early because flag theft takes time. Measured and recorded in STRATIFIED_COLLECTION_FEASIBILITY.json.",
+    "why_16_and_not_8": "PI ruling: an ungated horizon band does not prevent the model abstaining precisely on late-game states, which is the failure mode D3-D6 uncovered. The floor must bind where the risk lives."
+  },
+  "SUPPORT_FLOOR": {
+    "rule": "Every one of the 16 cells must contain branch states drawn from at least 32 DISTINCT seeds.",
+    "on_failure": "Collection is INVALID. The successor protocol stops without data growth. Same consequence structure as RASR.",
+    "checked": "ONCE, after the full frozen budget is collected. Never during.",
+    "inherited_from": "RASR_PPO_CAUSAL_LADDER_PROTOCOL.json support_validity, deliberately unchanged in value so the two are comparable."
+  },
+  "BUDGET_FIXED_PROSPECTIVELY": {
+    "seeds": 160,
+    "seed_block": "10700001..10700160",
+    "block_audit": "Verified unused. Spent blocks include 6500001-6500256 (Phase 0), 10100001/10200001 (SPPPO), 10300001-10300192 (SPPPO eval), 10400001-10400032 (RASR TRAIN), 10500001-10500096 (RASR DEV), 10600001-10600192 (RASR FINAL, sealed). Nothing in 107xxxxx is spent.",
+    "branch_points_per_seed": 12,
+    "branch_states_total": 1920,
+    "teacher_continuations_total": 3840,
+    "why_160_seeds": "The scarcest cells (B_r2_not_late, B_r2_late) have eligibility rate 33/96 = 0.344. At 160 seeds the expected count is 55 against a floor of 32. Under the Wilson 95% LOWER bound of that rate (~0.256) the expectation is still 41. At 96 seeds the expected count is 33 against a floor of 32 -- a coin flip. The budget is computed from the conservative bound, not the point estimate.",
+    "why_12_branch_points": "Simulated rarest-first allocation on the 96 existing DEV seeds: 10 pts/seed leaves the worst cell at 14/96; 12 reaches 33/96. Above 12 nothing improves, because the binding constraint becomes seed eligibility rather than slots. Median per-seed cell occupancy is 12, so 12 is exactly the point where slots stop being the bottleneck.",
+    "estimated_cost": {
+      "wall_clock_hours": 35.3,
+      "multiple_of_RASR_DEV": 2.8,
+      "basis": "RASR DEV median 7.8 min/seed at 6 branch pts; ~30% fixed rollout cost, remainder scaling linearly with branch continuations",
+      "DISCLOSURE": "The PI selected this geometry against a verbally quoted estimate of ~2x. The measured estimate is 2.8x (35.3 h vs 12.5 h). This correction was surfaced before any freeze; the launch decision is the PI's."
+    }
+  },
+  "ALLOCATION_RULE": {
+    "statement": "Within each seed, walk the 16 cells in a FROZEN rarest-first order and allocate one branch slot to each cell the seed actually visits, until 12 slots are spent.",
+    "frozen_rank_order": [
+      "B_r3_not_late",
+      "B_r2_not_late",
+      "B_r2_late",
+      "B_r3_late",
+      "A_r2_late",
+      "A_r1_late",
+      "A_r2_not_late",
+      "A_r0_late",
+      "A_r3_not_late",
+      "B_r1_late",
+      "B_r1_not_late",
+      "B_r0_late",
+      "A_r0_not_late",
+      "A_r1_not_late",
+      "A_r3_late",
+      "B_r0_not_late"
+    ],
+    "rank_provenance": "Ascending eligibility measured in STRATIFIED_COLLECTION_FEASIBILITY.json on the 96 RASR DEV seeds. FROZEN A PRIORI. It must NOT be recomputed from the new collection -- recomputing rank from the data being collected is an adaptive design and is prohibited.",
+    "within_cell_state_choice": "Uniform among that seed's visited states in the cell, numpy default_rng(rng_seed=13), frozen.",
+    "if_a_seed_visits_fewer_than_12_cells": "It contributes fewer than 12 branch states. No backfilling from abundant cells -- backfilling would re-create the uniform-sampling skew this protocol exists to remove.",
+    "measured_occupancy": "min 8, median 12, max 16 cells visited per seed"
+  },
+  "PROHIBITED_BY_CONSTRUCTION": [
+    "Adaptive stopping. 'Collect until the cells pass' is the exact repair forbidden for RASR and is forbidden here. The budget above is fixed before launch, run once, checked once.",
+    "Recomputing the rarest-first rank order from the new data.",
+    "Extending the seed block after seeing per-cell counts.",
+    "Lowering the 32-seed floor.",
+    "Pooling cells to manufacture support.",
+    "Dropping failing cells and proceeding on the survivors."
+  ],
+  "STRATIFICATION_WEIGHTING_RULE": {
+    "unbiased": "Per-cell estimates computed within a cell.",
+    "biased": "Any pooled or global quantity. This sample is deliberately NOT distributed like natural play.",
+    "requirement": "Any global number -- notably a global resolved-coverage rate -- must either be reweighted to natural visitation frequency using the measured per-cell visitation mass, or not reported as a global number at all. Reporting a stratified global coverage rate as if it were the natural-distribution rate is prohibited.",
+    "natural_visitation_mass_for_reweighting": "Measured from plain rows in the same collection; plain rows remain an unstratified record of natural visitation and must be retained for exactly this purpose."
+  },
+  "SPLITS": {
+    "rule": "The 160 seeds split into FIT / CALIB / EVAL by seed, disjoint, assigned before collection begins.",
+    "why": "The abstaining protocol's thresholds must be calibrated on data that is not its evaluation data. Standing project rule: no evaluation-block leakage into training or fitting data.",
+    "proposed": {
+      "FIT": "10700001..10700096 (96 seeds)",
+      "CALIB": "10700097..10700128 (32 seeds)",
+      "EVAL": "10700129..10700160 (32 seeds)"
+    },
+    "WARNING": "CALIB and EVAL at 32 seeds each CANNOT independently satisfy a 32-distinct-seed floor in the scarce cells -- a 32-seed split can at best contribute ~11 seeds to a cell with eligibility rate 0.344. The floor is defined over the FULL 160-seed collection, not per split. Any per-split per-cell claim is separately underpowered and must not be made. If the PI wants a per-split floor, the seed budget must grow substantially, and that is a fresh budget decision."
+  },
+  "MACHINERY": {
+    "reuse": "experiments/collect_rasr_dev_scorer_data.py collection loop, whose crash-safety was verified during the RASR DEV run: atomic shard writes via .tmp + os.replace, atomic JSON writes, manifest updated LAST after shard and summary land, skip-on-completed resume.",
+    "change_required": "Branch-point SELECTION only -- replace uniform choice with the frozen rarest-first allocation above. The rollout, branch_at, teacher-consistent continuation and shard schema are unchanged.",
+    "teachers": "pi_A and pi_B SHA-pinned exactly as in the RASR DEV manifest; any mismatch aborts."
+  },
+  "AUTHORIZATION": {
+    "design": "AUTHORIZED and complete.",
+    "freeze": "PI act. Not performed.",
+    "collection": "NOT AUTHORIZED.",
+    "fitting_training_or_PPO_launch": "NOT AUTHORIZED.",
+    "RASR_4M_launch": "Remains NOT AUTHORIZED and unaffected by this document."
+  }
+}

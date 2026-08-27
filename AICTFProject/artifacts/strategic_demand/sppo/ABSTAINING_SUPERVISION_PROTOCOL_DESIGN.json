@@ -1,0 +1,92 @@
+{
+  "record_id": "ABSTAINING_STRATEGIC_SUPERVISION_PROTOCOL",
+  "status": "DESIGN COMPLETE (STRUCTURE) -- NUMERIC THRESHOLDS DELIBERATELY UNSET. Not frozen. Nothing authorized to run.",
+  "utc": "2026-08-27T18:23:02Z",
+  "authority": "PI authorized protocol DESIGN on 2026-08-27, sequenced SECOND after stratified-regime collection.",
+  "depends_on": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json. This protocol CANNOT be numerically frozen until that collection exists.",
+  "THE_PROBLEM_THIS_ADDRESSES": "We were asking a whole-episode evaluation target (terminal win margin) to manufacture an A/B preference at every individual state. It cannot. 61.5% of pole-B branch states are tied, 91.2% of stolen-flag states, and home-regime ties climb 0.368 -> 0.564 -> 0.854 with lateness. Forcing a binary ranking onto tied states manufactures supervision the evidence does not contain.",
+  "THREE_CLASS_SUPERVISION": {
+    "classes": [
+      "A preferred",
+      "B preferred",
+      "preference not established"
+    ],
+    "wording_is_load_bearing": "The third class is PREFERENCE NOT ESTABLISHED. It is NOT 'A and B are equivalent'. A tie in a coarse target is a measurement limit, not a demonstrated equality. If this wording erodes, the protocol silently becomes the thing it was built to replace.",
+    "label_rule": {
+      "quantity": "Delta(s) = M(pi_B | s) - M(pi_A | s), terminal win margin, on paired branch states",
+      "A_preferred": "Delta < 0",
+      "B_preferred": "Delta > 0",
+      "preference_not_established": "Delta == 0",
+      "why_a_bare_equality_test_suffices": "Branch continuations are DETERMINISTIC -- model.predict(deterministic=True) throughout, from a replayed and exactly restored state, with teacher-consistent continuation. Verified in collect_rasr_dev_scorer_data.py and phase0_collect_scorer_data.py. So Delta is EXACT for that state, not a noisy sample of an expectation, and no significance test is needed to call a tie a tie. This is what makes the third class measurable rather than merely asserted."
+    }
+  },
+  "TWO_DEGENERATE_SOLUTIONS_BOTH_EXCLUDED": {
+    "note": "The PI flagged the first. The second is its dual and is equally fatal; it is closed here.",
+    "degenerate_1_always_abstain": {
+      "attack": "The model 'solves' ranking by never committing, scoring perfect accuracy on an empty resolved set.",
+      "closed_by": "RESOLVED_COVERAGE_FLOOR below, stratified over 16 cells."
+    },
+    "degenerate_2_always_commit": {
+      "attack": "The model commits on every state including tied ones. Because a tied state has no correct answer, a commitment there can never be scored WRONG -- so it inflates coverage at zero accuracy cost. Coverage measured over all states is therefore gameable in the opposite direction.",
+      "closed_by": [
+        "Coverage is measured ONLY over RESOLVABLE states (Delta != 0). Committing on a tied state earns no coverage credit.",
+        "OVER_COMMITMENT_CEILING below separately bounds the rate of claiming preference on tied states."
+      ]
+    }
+  },
+  "GATES_JOINTLY_FROZEN": {
+    "requirement": "tau and c_min are set TOGETHER, before any model is trained. Neither may be adjusted after seeing model behaviour.",
+    "gate_1_strategic_accuracy": {
+      "quantity": "accuracy | resolved = P(model's committed direction == label | label != tie AND model commits)",
+      "threshold": "tau -- UNSET",
+      "measured_on": "EVAL split"
+    },
+    "gate_2_resolved_coverage": {
+      "quantity": "coverage(cell) = P(model commits | state in cell AND label != tie)",
+      "threshold": "c_min(cell) -- UNSET",
+      "CRITICAL_FORM": "c_min MUST be expressed as a fraction of the ACHIEVABLE resolvable mass in each cell, NOT as an absolute fraction of all states in that cell. In stolen-flag cells roughly 91% of states are tied, so any absolute floor above ~9% is unachievable there and would fail the protocol for a reason that has nothing to do with the model. Proposed form: c_min(cell) = rho * achievable(cell), where rho is a single frozen fraction and achievable(cell) is the measured resolvable mass of that cell.",
+      "stratification": "Enforced per cell over all 16 pole x regime x horizon cells. A GLOBAL coverage number does not satisfy this gate.",
+      "why_stratified": "A global floor is satisfiable by committing confidently on early, flag-home, not-carrying states while abstaining on everything hard. That is exactly the blind spot D3-D6 spent the whole diagnostic arc exposing: the states where abstention is most tempting are the states where the strategic question matters most."
+    },
+    "gate_3_over_commitment_ceiling": {
+      "quantity": "over_commit(cell) = P(model commits | state in cell AND label == tie)",
+      "threshold": "o_max -- UNSET",
+      "purpose": "Bounds degenerate solution 2. Claiming a preference where the evidence establishes none is a failure even though it cannot be scored wrong."
+    }
+  },
+  "THRESHOLD_PROVENANCE": {
+    "rule": "tau, rho (hence c_min) and o_max are calibrated on the CALIB split ONLY, before any model training, and frozen at that point.",
+    "prohibited": [
+      "Setting any threshold after observing model behaviour.",
+      "Setting any threshold on the EVAL split.",
+      "Adjusting a threshold because a gate failed.",
+      "Reporting a global coverage number computed on stratified data as if it were the natural-distribution rate -- see the weighting rule in the collection protocol."
+    ],
+    "WHY_THE_NUMBERS_ARE_UNSET_IN_THIS_DOCUMENT": "achievable(cell) is not yet measurable. The existing DEV branch data has 2 states in pole_B/regime_2 and 11 in pole_B/regime_1 -- computing per-cell resolvable mass from that would produce noise dressed as calibration. The stratified collection exists precisely to make these quantities estimable. This is why the PI sequenced collection FIRST, and that sequencing is confirmed correct by the measurement."
+  },
+  "SPLIT_DISCIPLINE": {
+    "FIT": "model fitting only",
+    "CALIB": "threshold calibration only; never fitting, never evaluation",
+    "EVAL": "gate scoring only; touched once",
+    "standing_rule": "No evaluation-block leakage into training or fitting data."
+  },
+  "WHAT_A_PASS_WOULD_AND_WOULD_NOT_MEAN": {
+    "would_mean": "The model commits to a strategic direction where the payoff evidence establishes one, at the frozen accuracy, across every audited regime and horizon band -- without buying that accuracy by abstaining on the hard cells.",
+    "would_NOT_mean": [
+      "That A and B are equivalent wherever the model abstains. Abstention marks unresolved evidence, never demonstrated equivalence.",
+      "That the terminal win margin is an adequate state-level target. It is not; this protocol works around that limit rather than repairing it.",
+      "Anything about policy performance. This is a supervision-signal protocol, not a training result."
+    ]
+  },
+  "RELATIONSHIP_TO_PRIOR_WORK": {
+    "supersedes": "Nothing. SPPPO V1 remains CLOSED as a valid FAIL; RASR remains INVALID on support validity.",
+    "does_not_revive": "This is not a route to re-running RASR qualification, whose prohibited repairs stand.",
+    "evidence_chain": "EXP1 -> SPPPO V1 -> D0 -> D1 -> D2 -> D3 -> D4 -> D5 -> D6 (infeasible) -> D6B (not run, underpowered) -> RASR (INVALID) -> stratified collection -> this protocol."
+  },
+  "AUTHORIZATION": {
+    "design_structure": "AUTHORIZED and complete.",
+    "numeric_freeze": "BLOCKED until the stratified collection exists and CALIB is available.",
+    "implementation": "NOT AUTHORIZED.",
+    "training_or_PPO_launch": "NOT AUTHORIZED."
+  }
+}
