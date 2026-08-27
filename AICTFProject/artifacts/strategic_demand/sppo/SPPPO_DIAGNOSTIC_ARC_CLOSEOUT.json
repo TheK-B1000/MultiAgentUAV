@@ -1,0 +1,41 @@
+{
+  "record_id": "SPPPO_DIAGNOSTIC_ARC_CLOSEOUT",
+  "status": "FROZEN_RESEARCH_STATE",
+  "utc": "2026-08-27T09:45:00Z",
+  "authority": "PI closeout ruling",
+  "covers": "D0 (17d6d706) -> D1 (b2603bba) -> D2 (34eba999)",
+  "what_the_arc_established": "The original SPPPO V1 failure has been separated into TWO concrete problems, each localised to a specific component and game condition. This is a substantial narrowing from 'latent strategies did not work'.",
+  "PROBLEM_1_scorer_representation_failure": {
+    "where": "own_flag_stolen states on pole B",
+    "evidence_D0": "Q_psi correct-rate 0.244 [0.205, 0.285], margin_B -0.647 -- worst category",
+    "evidence_D1": "NOT proportionally starved (12% train vs 8% deploy); excluding it lifts the aggregate 0.709 -> 0.823, non-overlapping",
+    "evidence_D2": "4x density (50 -> 200 states) produced NO recovery: 0.123 / 0.185 / 0.155, non-monotonic, all confidently below chance (max UCB 0.277). Critically, mean d_B was NEGATIVE at all three rungs -- every scorer, at every density, learned the same WRONG strategic direction, actively preferring pi_A over the intended pi_B.",
+    "retired_hypothesis": "'Q_psi just needed more stolen-flag examples' -- not supported within the tested 4x range",
+    "leading_target": "scorer representation / target / capacity, NOT data volume",
+    "scope_limit_retained": "D2 does not prove no amount of data could help. 200 states was the ceiling reachable without new seeds, and only density-at-constant-loss-mass was tested."
+  },
+  "PROBLEM_2_optimization_interference": {
+    "where": "everywhere OUTSIDE stolen-flag states",
+    "evidence": "Q_psi is ~0.823 correct there, yet the 1M policy still failed confirmed crossover and B identity",
+    "status": "COMPLETELY UNTOUCHED by D1 and D2 -- exactly where D0 left it",
+    "implication": "a better scorer alone would not resolve SPPPO's failure; the policy must also PRESERVE a mostly-correct signal through PPO"
+  },
+  "PI_CAUTION_RECORDED": "D2 licenses the hypothesis that the CURRENT scorer formulation is inadequate in this regime. It does NOT license concluding that any particular successor -- including a regime-conditioned scorer -- will work. A regime-conditioned scorer is a principled next treatment but must earn its result PROSPECTIVELY, under its own frozen protocol.",
+  "successor_directions_named_by_PI": {
+    "note": "the PI referred to these as 'RASR-PPO' R1/R2/R3. Those labels are NOT defined anywhere in this session's record -- they may originate from the concurrent Cursor session or a prior conversation. Recorded here by the PI's description only; no specification is invented or implied.",
+    "R1_regime_conditioned_scorer": "attacks Problem 1 (what D2 isolated)",
+    "R2_R3_latent_specific_value_and_directed_identity": "attack Problem 2 (the separate optimization/identity problem)",
+    "authorization_status": "NONE authorized. Each requires a fresh prospective decision."
+  },
+  "artifacts_state": {
+    "SPPPO_V1": "CLOSED as valid FAIL, verdict untouched throughout the diagnostic arc",
+    "Gate_0B_held_out_96_seeds": "PERMANENTLY SPENT, never reused",
+    "INNER_VAL": "reused twice as a development-side diagnostic resource (Phase 0 calibration, then D2); a THIRD reuse requires a fresh PI ruling",
+    "n_regimes_4_scaffold_in_qpsi.py": "present but UNUSED and UNAUTHORIZED",
+    "quarantined": [
+      "D2_EVALUATION_ATTEMPT_1_INVALID (wrong 16-state eval set)",
+      "D0_SCOPE_CORRECTION (D0 does not decompose the pooled frozen margin_B)"
+    ]
+  },
+  "authorizes": "nothing. No training, no successor, no new seeds."
+}
