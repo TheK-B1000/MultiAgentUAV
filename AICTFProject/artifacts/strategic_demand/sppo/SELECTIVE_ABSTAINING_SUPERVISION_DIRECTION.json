@@ -56,5 +56,19 @@
     "threshold_provenance_rule": "tau and c_min must come from a prospective calibration study or EXISTING training-side evidence, frozen before the successor runs. Choosing either after seeing the successor's output is the prohibited move.",
     "the_bar_is_not_lowered": "the reframing does NOT relax 'be strategically right' into 'avoid being wrong'. The requirement becomes: be strategically right where evidence supports a distinction, AND explicitly admit uncertainty where it does not -- while still committing often enough, and in the right parts of the game, to constitute a meaningful strategic repertoire.",
     "validation_question": "Does the model abstain when evidence is genuinely ambiguous, while still committing often enough, and in the right parts of the game, to form a meaningful strategic repertoire?"
+  },
+  "STRONGEST_CURRENT_CONCLUSION": {
+    "utc": "2026-08-27T18:08:07Z",
+    "authority": "PI, stated directly; consolidates D3+D4+D5",
+    "statement": "The conclusion is NOT 'the scorer is broken'. It is: the state-level terminal-margin supervision signal frequently cannot distinguish the strategies, especially late in episodes and during stolen-flag situations.",
+    "why_this_is_deeper_than_the_earlier_readings": "We may have been trying to learn a precise STATE-LEVEL strategic ranking from a target designed for WHOLE-EPISODE strategy evaluation. Terminal win margin is a legitimate episode-level quantity; it is simply too low-resolution to express a preference at many individual states. That is a different and deeper failure class than data sparsity (D1) or scorer representational capacity (D2), both of which were investigated and neither of which explains the tie structure.",
+    "supporting_numbers_frozen": {
+      "D3_stolen_flag": "UNRESOLVED. PRIMARY -0.0434 [-0.1047,+0.0119] n=91/58 seeds; SECONDARY +0.1201 [-0.0323,+0.2778] n=150/71 seeds. Opposite signs, both cross zero. Neither teacher is demonstrably better conditional on reaching the regime.",
+      "D4_tie_rates": "61.5% of ALL pole-B branch states tied [0.581,0.648]; 91.2% of stolen-flag states tied [0.849,0.967].",
+      "D5_horizon": "Home regime alone, by frozen regime-blind tertile: 0.368 -> 0.564 -> 0.854. Lateness independently drives ties upward. Stolen excess survives horizon control (mid +0.226 [0.064,0.375], late +0.128 [0.066,0.185]) but roughly halves."
+    },
+    "what_follows": "Distinguish A-preferred from B-preferred from PREFERENCE-NOT-ESTABLISHED, rather than forcing every state into A or B. Forcing a binary ranking onto states where the target is tied manufactures supervision that the evidence does not contain. See THREE_CLASS_SUPERVISION.",
+    "naming_precision": "The third class is PREFERENCE NOT ESTABLISHED, not 'the strategies are equivalent'. A tie in a coarse target is a measurement limit, not a demonstrated equality. This distinction is the whole point and must not be eroded in any successor protocol.",
+    "status": "CONCLUSION RECORDED. No successor protocol authorized by this entry."
   }
 }

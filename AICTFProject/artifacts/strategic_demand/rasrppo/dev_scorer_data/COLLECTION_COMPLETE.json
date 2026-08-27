@@ -1,0 +1,17 @@
+{
+  "verdict": "COLLECTION_COMPLETE",
+  "utc": "2026-08-27T17:58:15Z",
+  "seed_block": [
+    10500001,
+    10500096,
+    96
+  ],
+  "completed_seeds": 96,
+  "plain_episodes": 384,
+  "branch_states": 576,
+  "branch_continuations": 1152,
+  "semantics": "fresh rebuild per teacher per branch",
+  "use": "DEV qualification only; never scorer fitting",
+  "train_104_seeds_used_for_fitting": false,
+  "final_106_seeds_touched": false
+}

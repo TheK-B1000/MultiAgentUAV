@@ -1,0 +1,84 @@
+{
+  "record": "RASR-PPO DEV four-regime scorer qualification",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-27T18:02:07Z",
+  "one_shot": true,
+  "protocol": "artifacts\\strategic_demand\\rasrppo\\RASR_PPO_CAUSAL_LADDER_PROTOCOL.json",
+  "data": {
+    "path": "artifacts\\strategic_demand\\rasrppo\\dev_scorer_data",
+    "seed_block": [
+      10500001,
+      10500096,
+      96
+    ],
+    "use": "qualification only; never fitting",
+    "train_104_seeds_used_for_fitting": false,
+    "final_106_seeds_touched": false
+  },
+  "scorers": {
+    "R1": {
+      "path": "artifacts\\strategic_demand\\rasrppo\\qpsi_regime_frozen.pt",
+      "sha256": "44c0680e037939de287ad4201fead6312bc92b6bcd1fd902f568868cb24b760a"
+    },
+    "S0": {
+      "path": "artifacts\\strategic_demand\\phase0_scorer_data\\qpsi_frozen.pt",
+      "sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf"
+    }
+  },
+  "support_validity": {
+    "minimum_distinct_dev_seeds_per_pole_regime": 32,
+    "cells": {
+      "pole_A_regime_0": {
+        "n_states": 115,
+        "n_distinct_dev_seeds": 73
+      },
+      "pole_A_regime_1": {
+        "n_states": 27,
+        "n_distinct_dev_seeds": 26
+      },
+      "pole_A_regime_2": {
+        "n_states": 11,
+        "n_distinct_dev_seeds": 11
+      },
+      "pole_A_regime_3": {
+        "n_states": 135,
+        "n_distinct_dev_seeds": 77
+      },
+      "pole_B_regime_0": {
+        "n_states": 239,
+        "n_distinct_dev_seeds": 94
+      },
+      "pole_B_regime_1": {
+        "n_states": 11,
+        "n_distinct_dev_seeds": 10
+      },
+      "pole_B_regime_2": {
+        "n_states": 2,
+        "n_distinct_dev_seeds": 2
+      },
+      "pole_B_regime_3": {
+        "n_states": 36,
+        "n_distinct_dev_seeds": 24
+      }
+    },
+    "invalid_cells": [
+      "pole_A_regime_1",
+      "pole_A_regime_2",
+      "pole_B_regime_1",
+      "pole_B_regime_2",
+      "pole_B_regime_3"
+    ]
+  },
+  "bootstrap": {
+    "unit": "DEV seed; retain every state belonging to a sampled seed",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "procedure": "paired percentile bootstrap"
+  },
+  "verdict": "INVALID",
+  "primary_gate": {},
+  "specific_D1_repair_gate": {},
+  "secondary_reports_not_gates": {},
+  "consequence": "STOP without data growth; support validity failed"
+}

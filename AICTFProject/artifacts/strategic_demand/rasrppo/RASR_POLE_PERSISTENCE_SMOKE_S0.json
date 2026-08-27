@@ -1,0 +1,39 @@
+{
+  "record": "RASR-PPO assigned-pole persistence live smoke",
+  "status": "FROZEN_RESULT",
+  "arm": "S0",
+  "classification": "DIAGNOSTIC",
+  "requirement": "16 z0|A, 0 z0|B, 0 z1|A, 16 z1|B environment assignment; z0->OP6 and z1->OP7 across episode resets with zero mismatches",
+  "training_seed": 10400001,
+  "steps": 24576,
+  "completed_episodes": 96,
+  "min_episodes_per_env": null,
+  "crossed_episode_resets": true,
+  "by_latent": {
+    "z0": {
+      "n_episodes": 48,
+      "expected": "SCRIPTED:OP6",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP6": 48
+      }
+    },
+    "z1": {
+      "n_episodes": 48,
+      "expected": "SCRIPTED:OP7",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP7": 48
+      }
+    }
+  },
+  "total_mismatches": 0,
+  "scientific_flags": {
+    "rasr_regime_qpsi": false,
+    "rasr_private_critic_heads": false,
+    "rasr_directed_identity": false
+  },
+  "verdict": "PASS"
+}

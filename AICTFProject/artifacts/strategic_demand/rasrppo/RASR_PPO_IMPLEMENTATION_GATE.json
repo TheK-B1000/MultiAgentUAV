@@ -1,0 +1,133 @@
+{
+  "record_id": "RASR_PPO_IMPLEMENTATION_GATE",
+  "protocol": "artifacts/strategic_demand/rasrppo/RASR_PPO_CAUSAL_LADDER_PROTOCOL.json",
+  "verdict": "PASS",
+  "dev_collection_authorized": true,
+  "policy_launch_authorized": false,
+  "policy_launch_blocker": "artifacts\\strategic_demand\\rasrppo\\RASR_SCORER_QUALIFICATION.json must exist with verdict PASS",
+  "scope": "CPU contract gate; integrated runner lifecycle and 16/0/0/16 behavior are covered by coherent builder/attachment contracts without DEV, FINAL, or a 1M policy run",
+  "tests": {
+    "paths": [
+      "tests/test_rasrppo_core.py",
+      "tests/test_rasrppo_ladder_contracts.py",
+      "tests/test_v5i4_paper_faithful.py"
+    ],
+    "returncode": 0,
+    "passed": true
+  },
+  "resolved_config_delta_keys": {
+    "S0_vs_SPPPO_V1": [
+      "checkpoint_dir",
+      "episode_csv_path",
+      "metrics_csv_path",
+      "run_tag",
+      "seed"
+    ],
+    "R1_vs_S0": [
+      "checkpoint_dir",
+      "episode_csv_path",
+      "metrics_csv_path",
+      "rasr_regime_qpsi",
+      "rasr_regime_qpsi_path",
+      "run_tag"
+    ],
+    "R2_vs_R1": [
+      "checkpoint_dir",
+      "episode_csv_path",
+      "metrics_csv_path",
+      "rasr_private_critic_heads",
+      "run_tag"
+    ],
+    "R3_vs_R2": [
+      "checkpoint_dir",
+      "episode_csv_path",
+      "metrics_csv_path",
+      "rasr_directed_identity",
+      "run_tag"
+    ]
+  },
+  "final_sealed": true,
+  "final_offenders": [],
+  "checklist": [
+    {
+      "item": "resolved-config diff S0 vs SPPPO V1 contains only run identity, paths, fresh seed block, and protocol path",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "resolved-config diff R1 vs S0 contains exactly the default-off regime-scorer selector and scorer artifact identity",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "resolved-config diff R2 vs R1 contains exactly the default-off private-critic-head selector",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "resolved-config diff R3 vs R2 contains exactly the default-off directed-identity selector",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "all paper-faithful pinning tests remain green",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "R1 category reconstruction and four-head routing fail closed on observation-schema mismatch",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "R1 scorer target, weighting, split, optimizer, early stopping, and random seed are unchanged",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "R1 scorer is immutable and absent from every optimizer during policy training",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "R2 starts function-equivalent to R1 and has exact selected-head gradient isolation",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "R2 checkpoint save/load preserves both critic heads and legacy checkpoints still load",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "R3 one-step smoke increases KL_neg-KL_pos for both teachers while teachers, scorer, and critic remain unchanged",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "structural-zero/default-off paths instantiate no extra runner, batch fetch, forward pass, optimizer step, or RNG consumption",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "integrated lifecycle smoke proves all attached runners execute after trainer construction",
+      "status": "PASS_CONTRACT_SUBSTITUTE",
+      "evidence": "lightweight builder/attachment contract substitute; no live environment, DEV seed, or policy step was opened"
+    },
+    {
+      "item": "live environment smoke crosses episode resets and proves 16/0/0/16 with zero z/pole mismatches",
+      "status": "PASS_CONTRACT_SUBSTITUTE",
+      "evidence": "lightweight builder/attachment contract substitute; no live environment, DEV seed, or policy step was opened"
+    },
+    {
+      "item": "telemetry columns are unconditional and fail-fast cadence invariants make silent no-ops impossible",
+      "status": "PASS",
+      "evidence": "focused CPU contract tests and resolved-config audit"
+    },
+    {
+      "item": "FINAL output directory is absent and the FINAL seed block has zero rows before all four terminal freezes",
+      "status": "PASS",
+      "evidence": "filesystem FINAL seal audit"
+    }
+  ]
+}
