@@ -45,5 +45,23 @@
     "does NOT touch the running RASR DEV collector or the 105... block",
     "does NOT touch FINAL 10600001..10600192",
     "does NOT flip any RASR gate; the 4M PPO launch remains paused"
-  ]
+  ],
+  "DISPOSITION": {
+    "status": "NOT_RUN -- STRUCTURALLY UNDERPOWERED",
+    "utc": "2026-08-27T16:20:00Z",
+    "authority": "PI ruling",
+    "explicitly_not": [
+      "FAIL",
+      "INVALID",
+      "INCONCLUSIVE_AFTER_RUNNING"
+    ],
+    "reason": "the pre-freeze feasibility audit established the ceiling: 33 early-stolen points across SIX seeds, 64% from a single seed. A seed-level bootstrap on that basis cannot distinguish genuine indifference from horizon censoring. Running it would have manufactured a formal UNRESOLVED label around something already known to be structurally underidentified.",
+    "no_resources_spent": {
+      "seeds": 0,
+      "branches_collected": 0,
+      "gpu_time": 0
+    },
+    "the_scarcity_is_a_game_property": "stolen-flag branch states run 1/33/57 across early/mid/late (D5). A mutual-theft standoff TAKES TIME to develop, so 'stolen-flag early' is nearly a contradiction in this environment. The stolen regime is intrinsically a late-game condition -- itself a finding, not a sampling failure.",
+    "why_this_does_not_block_progress": "D5's actionable conclusion already stands alone: a terminal-payoff tie cannot safely be interpreted as strategic indifference. The exact censoring fraction is not required to design around the ambiguity."
+  }
 }

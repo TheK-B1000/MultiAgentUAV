@@ -1,0 +1,38 @@
+{
+  "record_id": "SELECTIVE_ABSTAINING_SUPERVISION_DIRECTION",
+  "status": "FROZEN_RESEARCH_DIRECTION -- not a protocol, implementation NOT authorized",
+  "utc": "2026-08-27T16:20:00Z",
+  "authority": "PI ruling",
+  "the_reframing": {
+    "old_question": "Which strategy is better at this state? -- asked of EVERY state",
+    "why_it_was_wrong": "D3/D4/D5 showed the terminal-margin target frequently cannot answer it: 61.5% of pole-B branch states are tied, and even ordinary LATE HOME states reach 85.4%. The scorer was being asked to manufacture a preference the target does not contain.",
+    "new_question": "FIRST: is there enough payoff evidence at this state to say strategy matters? THEN, only if yes: which strategy?"
+  },
+  "THREE_CLASS_SUPERVISION": {
+    "A_preferred": "apply A-directed strategic ranking pressure",
+    "B_preferred": "apply B-directed strategic ranking pressure",
+    "UNRESOLVED": "apply NO ranking loss -- AND do not use the state as evidence that the modes ought to converge. A tie means 'our measurement does not establish a preference here', NOT 'these strategies are equivalent here'.",
+    "why_this_beats_the_earlier_tie_gating_idea": "the earlier proposal was tie -> no pressure, which silently treats a tie as evidence OF equivalence. D5 showed ties are substantially horizon-censored, so that would teach the model strategies are equivalent across most of late-episode play in BOTH regimes. Abstaining protects against censoring without pretending to have resolved it."
+  },
+  "definition_arrived_at": "A latent strategy is a persistent high-level role that is forced to differentiate from other roles ONLY where actual payoff evidence identifies a strategic choice, while ambiguous states are left UNCLASSIFIED rather than falsely labelled equivalent.",
+  "evidence_chain": {
+    "EXP1": "SAPPO specialists confirmed complementary -- the strategies themselves work",
+    "EXP2_2B_2C": "compression failed; 2B/2C never instantiated their stated assigned-pole treatment",
+    "SPPPO_V1": "NOT_CONFIRMED; retention/jsd/margin_A pass, crossover and margin_B fail",
+    "D0": "mixed mechanism: aggregate 0.709 favours interference, own_flag_stolen 0.244",
+    "D1": "not proportional starvation; excluding stolen lifts 0.709 -> 0.823",
+    "D2": "4x density does not recover Q_psi -- later refined by D3/D4, not invalidated",
+    "D3": "91.2% of stolen-flag branch pairs TIED -- target-resolution problem found",
+    "D4": "stolen uniquely degenerate AND target coarse everywhere (57.5% tied at best)",
+    "D5": "regime AND horizon both matter; regime effect roughly halves under horizon control",
+    "D6": "INFEASIBLE -- horizon is an observation input, not a timer",
+    "D6B": "NOT RUN -- structurally underpowered (33 points, 6 seeds)"
+  },
+  "horizon_is_part_of_the_strategic_state": "the failed D6 check established that the policy observes normalized episode progress (obs channel 14) and scripted RED responds to it too. Horizon is not nuisance noise. 'BREACH with 180 steps left' may rationally differ from 'BREACH with 15 steps left' without ceasing to be BREACH -- strengthening the hierarchical framing.",
+  "authorization_status": {
+    "implementation": "NOT AUTHORIZED. Direction record only.",
+    "requires": "its own prospective freeze, fresh audited blocks, and a PI decision",
+    "RASR": "DEV collection and DEV qualification may proceed; 4M PPO launch remains PAUSED",
+    "why_RASR_stays_paused": "a qualification PASS would show the regime scorer fits the FROZEN target -- not that the target is the right state-level quantity. D4/D5 were discovered after RASR was frozen."
+  }
+}
