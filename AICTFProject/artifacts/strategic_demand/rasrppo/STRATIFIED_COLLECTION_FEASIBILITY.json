@@ -1,0 +1,80 @@
+{
+  "record": "Stratified-regime collection: DESIGN FEASIBILITY ANALYSIS",
+  "status": "FEASIBILITY_ANALYSIS -- design input only. NOT a protocol. NOT frozen. NOTHING AUTHORIZED TO RUN.",
+  "utc": "2026-08-27T18:16:32Z",
+  "authority": "PI authorized DESIGN of a stratified-regime collection protocol; explicitly NO collection, training, or PPO launch.",
+  "why_this_ran_before_any_freeze": "The D6 precedent: a protocol must be checked for physical feasibility BEFORE it is frozen, or the freeze commits us to something unachievable. D6 was caught this way at zero cost. This analysis reads ONLY existing RASR DEV plain rows -- no environment steps, no new seeds, no FINAL access.",
+  "data_source": "artifacts/strategic_demand/rasrppo/dev_scorer_data -- 96 seeds, 72392 plain (visited) states, 576 branch states",
+  "HEADLINE_FINDING": "The RASR support failure is a SAMPLING DESIGN defect, not a scarcity fact. All 8 pole x regime cells clear the 32-distinct-seed floor at the visitation level. Stratified branch-point selection repairs it at the SAME seed budget.",
+  "eight_cell_geometry_pole_x_regime": {
+    "visitation_seeds": {
+      "A_r0": 96,
+      "A_r1": 96,
+      "A_r2": 88,
+      "A_r3": 96,
+      "B_r0": 96,
+      "B_r1": 95,
+      "B_r2": 53,
+      "B_r3": 51
+    },
+    "all_cells_feasible": true,
+    "simulated_rarest_first_allocation": {
+      "6_branch_points_per_seed": "FAILS -- B_r0 reaches only 31 of the required 32 seeds; the rarest-first rule starves the tail cells",
+      "8_branch_points_per_seed": "PASSES all 8 cells, every cell at or above its eligibility count",
+      "note": "8 = one slot per cell. This is the natural budget for an 8-cell design."
+    },
+    "cost": "1.33x the RASR DEV branch-continuation cost at an unchanged 96-seed block",
+    "margin": "scarcest cell B_r3 at 51/96 seeds = rate 0.53; floor 32 sits ~4 SD below the expected 51 on a fresh block. Comfortable."
+  },
+  "twentyfour_cell_geometry_pole_x_regime_x_D5_tertile": {
+    "bands": "D5 frozen regime-blind tertiles reused unchanged: early<=49, mid<=127, late>127",
+    "infeasible_cells": {
+      "B_r3_early": {
+        "seeds": 4,
+        "rate": 0.042,
+        "seeds_needed_for_32": 768,
+        "multiple_of_RASR_block": 8.0
+      },
+      "B_r2_early": {
+        "seeds": 7,
+        "rate": 0.073,
+        "seeds_needed_for_32": 439,
+        "multiple_of_RASR_block": 4.6
+      },
+      "B_r2_mid": {
+        "seeds": 29,
+        "rate": 0.302,
+        "seeds_needed_for_32": 106,
+        "multiple_of_RASR_block": 1.1
+      }
+    },
+    "verdict": "INFEASIBLE at any sane budget. Two cells need 4.6x-8x the seed block.",
+    "why_not_a_sampling_artifact": "Stolen-flag states barely exist early in an episode because flag theft takes time. This is the D5 finding recurring: stolen states concentrate late (D5's early tertile held a single stolen branch state). The emptiness is a temporal property of the game, not a selection defect, and no collection design removes it."
+  },
+  "sixteen_cell_geometry_pole_x_regime_x_late_vs_not_late": {
+    "split": "D5 late boundary 127, reused unchanged",
+    "all_16_cells_pass_at_96_seeds": true,
+    "THIN_MARGIN_WARNING": "B_r2_not_late and B_r2_late each sit at 33 seeds against a floor of 32 -- ONE seed of margin. Rate 33/96 = 0.344; on a FRESH 96-seed block the expected count is 33 with SD 4.7, so P(landing below 32) is roughly 0.4. At 96 seeds this geometry is close to a coin flip on its own validity.",
+    "seed_budget_required_for_real_margin": {
+      "128_seeds": "expected 44, floor 32 sits ~2.2 SD below -- adequate under the point estimate",
+      "160_seeds": "safe even under the Wilson 95% LOWER bound of the eligibility rate (~0.256), where 128 seeds would land right on the floor",
+      "recommendation": "160 seeds if this geometry is chosen, on the conservative rate rather than the point estimate"
+    },
+    "cost": "~1.8x-2.2x RASR DEV total"
+  },
+  "DECISION_REQUIRED_FROM_PI": {
+    "question": "Which cell geometry carries the prospectively frozen 32-distinct-seed floor?",
+    "why_it_is_not_mine_to_make": "The PI's stated requirement was that coverage be REPORTED by pole x regime and by horizon band. Reporting and GATING are different commitments. The stated REASON for wanting horizon structure was to stop the model abstaining precisely on late-game states -- and a report with no floor does not prevent that. So the letter of the instruction and its purpose point at different geometries. That is a scope-and-budget call, not an engineering detail.",
+    "options": {
+      "A_gate_on_8_cells": "Floor on pole x regime; horizon reported descriptively, ungated. 96 seeds, 8 branch pts. Safe margins. Does not gate the late-game abstention risk.",
+      "B_gate_on_16_cells": "Floor on pole x regime x (late / not_late). Requires ~160 seeds for honest margin. Gates the late-game abstention risk directly. ~2x cost.",
+      "C_gate_on_24_cells": "Rejected as infeasible by the measurements above; recorded so it is not revisited."
+    }
+  },
+  "carried_forward_into_any_freeze": [
+    "Adaptive stopping is PROHIBITED. 'Collect until the cells pass' is the exact repair forbidden for RASR. The seed block and branch budget must be fixed prospectively from these measured rates, run once, and checked once.",
+    "Eligibility rates here are estimated from 96 seeds and carry sampling error. Any budget must be computed from a conservative LOWER bound on the rate, not the point estimate.",
+    "Stratified sampling makes per-cell estimates unbiased WITHIN cell but biases any pooled/global quantity. A global resolved-coverage number computed on stratified data is NOT the natural-distribution coverage and must either be reweighted to natural frequency or not reported as global. This matters directly for the abstention floor."
+  ],
+  "authorization": "NONE. No collection, no fitting, no training, no PPO launch. Design input only."
+}

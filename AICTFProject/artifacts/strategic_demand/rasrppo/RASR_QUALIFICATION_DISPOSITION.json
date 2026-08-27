@@ -93,5 +93,50 @@
     "ladder_status": "S0/R1/R2/R3 policy launch remains NOT AUTHORIZED. policy_launch_authorized stays false; its stated blocker (qualification with verdict PASS) is not satisfied and must not be edited to accommodate this outcome."
   },
   "open_question_created_not_answered": "How do we design a valid qualification/training dataset when strategically important regimes occur too rarely under ordinary random rollouts? A stratified state-collection design -- deliberately collecting enough independent seeds per strategic regime rather than hoping cells appear naturally -- is the obvious candidate direction. It is NOT authorized here and must NOT be patched into this frozen RASR run. It would require its own prospective freeze.",
-  "plain_language": "RASR reached its safety gate and stopped because some game situations were too sparse to evaluate reliably. We do not know whether the new scorer works or fails. The protocol protected us from making that claim without enough evidence."
+  "plain_language": "RASR reached its safety gate and stopped because some game situations were too sparse to evaluate reliably. We do not know whether the new scorer works or fails. The protocol protected us from making that claim without enough evidence.",
+  "CORRECTION_2026_08_27_CAUSE_WAS_SELECTION_NOT_VISITATION": {
+    "utc": "2026-08-27T18:15:08Z",
+    "status": "CORRECTS THIS RECORD'S OWN CAUSAL CLAIM. Original text above is preserved verbatim and NOT rewritten.",
+    "what_this_record_originally_claimed": [
+      "'Evidence about a strategic regime is available only from policies that enter it.'",
+      "'A bigger random DEV block would not have repaired this. More pole-B seeds mostly buy more regime_0.'"
+    ],
+    "what_the_measurement_shows": "Both claims are true in general but are NOT the operative cause of the RASR INVALID verdict. A plain-row visitation audit of the same 96 DEV seeds shows ALL EIGHT pole x regime cells clear the 32-distinct-seed floor at the VISITATION level. The states were present in the trajectories the whole time.",
+    "visitation_vs_capture": {
+      "note": "72392 plain (visited) states across 96 seeds; only 576 branch states were spent (6 per seed).",
+      "pole_B_regime_2": {
+        "visited_states": 401,
+        "visited_in_seeds": 53,
+        "branch_states_captured": 2,
+        "captured_in_seeds": 2
+      },
+      "pole_B_regime_3": {
+        "visited_states": 4039,
+        "visited_in_seeds": 51,
+        "branch_states_captured": 36,
+        "captured_in_seeds": 24
+      },
+      "pole_A_regime_2": {
+        "visited_states": 1192,
+        "visited_in_seeds": 88,
+        "branch_states_captured": 11,
+        "captured_in_seeds": 11
+      },
+      "pole_B_regime_1": {
+        "visited_states": 2117,
+        "visited_in_seeds": 95,
+        "branch_states_captured": 11,
+        "captured_in_seeds": 10
+      }
+    },
+    "arithmetic_confirming_the_mechanism": "pole_B/regime_2 is 401/72392 = 0.55% of visited states. With 576 uniformly drawn branch points the expected capture is 0.0055 * 576 = 3.2 states. Observed: 2. The shortfall is exactly what uniform selection predicts.",
+    "corrected_cause": "RASR was invalidated by BRANCH-POINT SELECTION DESIGN -- a uniform 6-per-seed branch budget spread across a heavily skewed visitation distribution -- NOT by policy visitation scarcity. This is a materially more repairable defect than this record originally asserted.",
+    "what_survives_unchanged": [
+      "The INVALID verdict itself. The frozen 32-seed floor was not met; the protocol's refusal stands.",
+      "INVALID != FAIL. The R1-vs-S0 comparison was never computed and remains unknown.",
+      "Every prohibited repair listed above remains prohibited. This correction is NOT a route to re-running RASR qualification on the same DEV block.",
+      "Visitation IS pole-biased and that bias is real: regime_2 appears in 88 pole-A seeds vs 53 pole-B seeds; regime_3 in 96 vs 51. The bias simply was not the binding constraint."
+    ],
+    "why_recorded_rather_than_edited": "The original claim was committed at e05d4505 and informed a PI ruling. Overwriting it would erase the fact that the project briefly held a wrong causal model, which is itself part of the evidence trail."
+  }
 }
