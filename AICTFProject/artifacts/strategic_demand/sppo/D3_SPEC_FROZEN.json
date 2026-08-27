@@ -1,0 +1,58 @@
+{
+  "record_id": "D3_SPEC_FROZEN",
+  "status": "FROZEN_BEFORE_ANY_D3_QUANTITY_IS_COMPUTED",
+  "utc": "2026-08-27T13:05:00Z",
+  "authority": "PI ruling",
+  "name": "Conditional Teacher Preference Audit",
+  "classification": "DIAGNOSTIC ONLY. No training, no new seeds, no FINAL access, no RASR interference.",
+  "the_question": "Gate 0A established WR(pi_B,B)=0.5273 > WR(pi_A,B)=0.3398 -- a WHOLE-EPISODE marginal average. It does NOT establish that pi_B beats pi_A at every pole-B state. D3 asks the conditional question directly: in own_flag_stolen pole-B states, which teacher actually produces the better terminal outcome?",
+  "why_it_matters": "every D2 conclusion assumed d_B < 0 means Q_psi is inverted. If pi_A genuinely wins in that regime, Q_psi may be learning the CORRECT conditional response and the assumption 'pole B means pi_B everywhere' is what is wrong. Note also that three independent fits at three densities converged on the SAME direction -- consensus is what learning a real signal looks like, not what capacity failure usually looks like.",
+  "primary_quantity": {
+    "definition": "Delta_branch(s) = M(pi_B | s) - M(pi_A | s)",
+    "M": "terminal win margin, blue_score - red_score -- the SAME target Q_psi was fit on (PHASE0_SCORER_TARGET_AMENDMENT)",
+    "states": "paired branch states with pole == B AND regime == own_flag_stolen",
+    "pairing": "both teachers branched from the IDENTICAL restored state, teacher-consistent continuation -- the pairing is already in the stored data"
+  },
+  "data_sources_REPORTED_SEPARATELY": {
+    "1_PRIMARY_phase0_original": {
+      "path": "artifacts/strategic_demand/phase0_scorer_data/full_collection_rebuild_per_branch/seed_shards",
+      "role": "PRIMARY evidence -- collected without any knowledge of the stolen-flag finding"
+    },
+    "2_SECONDARY_d2_supplement": {
+      "path": "artifacts/strategic_demand/sppo/d2_density/supplement_shards",
+      "role": "source-stratified CHECK only -- collected AFTER the stolen-flag finding, specifically targeting that regime"
+    },
+    "pooling_rule": "pooled only as an ADDITIONAL descriptive estimate, never as the headline. Keeping them separate prevents the targeted D2 collection from silently dominating the original Phase 0 evidence."
+  },
+  "bootstrap": {
+    "unit": "SEED, paired",
+    "rule": "resample seeds with replacement, carrying ALL branch states belonging to each sampled seed together",
+    "prohibited": "bootstrapping individual states as independent observations",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "why": "branch states within a seed are correlated; the same convention used in Gate 0B, D0, D1, D2"
+  },
+  "PERMITTED_READINGS": {
+    "delta_positive": "BREACH really is better in stolen-flag pole-B states -> Q_psi < 0 there IS genuine misranking, and D2's capacity/representation diagnosis becomes MUCH stronger",
+    "delta_negative": "GUARD is actually better after the flag is stolen -> Q_psi may be learning the CORRECT conditional response, and the 'pole B means pi_B everywhere' assumption was wrong",
+    "near_zero_or_wide": "conditional preference UNRESOLVED",
+    "decided_by": "the seed-level paired bootstrap CI, not the point estimate alone"
+  },
+  "D2_IS_NOT_OVERWRITTEN": {
+    "rule": "whatever D3 finds, D2 is preserved unmodified",
+    "if_pi_A_wins_conditionally": [
+      "PRESERVE: 'D2 correctly found that Q_psi does not match the global pole-B teacher ordering in stolen-flag states.'",
+      "ADD: 'Subsequent conditional branch analysis showed the global teacher ordering itself does not hold in that regime.'",
+      "EFFECT: D2 becomes a SCOPE/ASSUMPTION CORRECTION, not an erased experiment."
+    ]
+  },
+  "scientific_stakes_if_pi_A_wins": "strategic identity would be STATE-CONDITIONAL: a latent may remain 'BREACH' at the strategic level while the correct local tactic during flag loss temporarily looks GUARD-like. That would make 'force z1 to be globally pi_B-like' the wrong objective and the identity metric itself too rigid -- and would directly support the hierarchical framing (persistent strategy z + context-dependent tactical regime r). It would also make the already-running RASR R1 regime-aware scorer especially relevant, since R1 effectively tests whether 'pole B + flag home' and 'pole B + flag stolen' are strategically different situations.",
+  "hard_boundaries": [
+    "does NOT touch the running RASR DEV collector (PID 29532) or its 105... block",
+    "does NOT touch FINAL 10600001..10600192",
+    "does NOT consume new seeds or run any environment step -- reads stored terminal outcomes only",
+    "does NOT authorize training, a successor method, or any RASR advancement",
+    "does NOT alter SPPPO_V1_NOT_CONFIRMED"
+  ]
+}
