@@ -1,0 +1,51 @@
+{
+  "record_id": "D1_IMPLEMENTATION_FROZEN",
+  "status": "FROZEN_BEFORE_D1_OUTPUTS",
+  "frozen_at_utc": "2026-08-27T02:10:00Z",
+  "scientific_protocol_commit": "4c0a8fd4",
+  "scientific_protocol": "artifacts/strategic_demand/sppo/D1_PROTOCOL_FROZEN.json",
+  "scientific_protocol_sha256": "a19150dcbb0d534eaa974221cc2e218804fa506b97df451e19058fd56b53ee4f",
+  "runner": "experiments/run_sppo_d1_localization.py",
+  "runner_sha256": "0ecc26707b42a52ae133afcf780ead79fb9f1b21c73b65a29b03b8c206ac1fae",
+  "tests": "tests/test_sppo_d1_localization.py",
+  "inputs": {
+    "D0_rows": "artifacts/strategic_demand/sppo/D0_pole_b_decision_rows.csv",
+    "D0_rows_sha256": "52b1c9db9898dfdcdeeba2a23f44e49811e6e63472e84361b6fd3875ede1cbfe",
+    "D0_uncertainty": "artifacts/strategic_demand/sppo/D0_pole_b_diagnostic_with_seed_uncertainty.json",
+    "D0_uncertainty_sha256": "f306d2e46c2d5caa42c1c53ba850c9003af5290281f9964066856d79c6980ce0",
+    "phase0_fit_data": "artifacts/strategic_demand/phase0_scorer_data/full_collection_rebuild_per_branch/ (TRAIN seeds 6500001..6500160 only)"
+  },
+  "observation_reconstruction_contract": {
+    "n_agents": 2,
+    "vec_dim": 20,
+    "carrying_feature_index": 10,
+    "map": "20x20",
+    "blue_home": [2.0, 10.0],
+    "fail_closed_on_schema_mismatch": true,
+    "fail_closed_on_flag_reconstruction_disagreement": true,
+    "unit_tests": [
+      "home vs stolen classification from known examples",
+      "reject wrong vec_dim",
+      "reject wrong n_agents",
+      "reject agent disagreement on flag reconstruction"
+    ]
+  },
+  "primary_vs_secondary": {
+    "D1A_primary": "raw_fit_rows counts/proportions + seed-level uncertainty",
+    "D1A_secondary": "secondary_training_weight_diagnostic (loss-weighted; not interpretive authority)"
+  },
+  "launch_constraints": [
+    "Phase-0 TRAIN-ONLY for D1A",
+    "existing 192-seed D0 rows for D1B",
+    "no environment replay",
+    "no new seeds",
+    "no training",
+    "no held-out Gate-0B or final-evaluation data in D1A"
+  ],
+  "branch_invariants": {
+    "SPPPO_V1": "REMAINS CLOSED",
+    "SPPPO_V2": "NOT AUTHORIZED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED"
+  }
+}
