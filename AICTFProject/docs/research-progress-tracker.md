@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-27 — SPPPO V1 CLOSED (`NOT_CONFIRMED`). D0 complete (fork: `OPTIMISATION_INTERFERENCE`). D1 authorized and frozen prospectively as diagnostic-only (`D1_PROTOCOL_FROZEN.json`): Phase-0 support audit + D0 localization excluding `own_flag_stolen`. No new seeds/training; no SPPPO V2; EXP3/EXP4 locked.
+> **Last updated:** 2026-08-27 — D1 COMPLETE (`coverage was not the problem`; regime-specific Q_ψ ranking failure on `own_flag_stolen`, with localized drag `0.709→0.823`). SPPPO V1 CLOSED. Successor method still NOT AUTHORIZED. EXP3/EXP4 locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -61,6 +61,15 @@ proportions; **D1B** recomputes worst-quartile Q_psi correct-rate after removing
 `own_flag_stolen` with seed-level bootstrap and replicate-internal quartile cuts.
 D1B is labeled a postmortem follow-up diagnostic, not a gate. No training until
 D1 resolves.
+
+**D1 COMPLETE** (`d54034b7`; closeout
+[`D1_COMPLETE.json`](../artifacts/strategic_demand/sppo/D1_COMPLETE.json)).
+Coverage is ruled out: Phase-0 raw \(P(\mathrm{stolen})=0.310\),
+\(P(\mathrm{carrying})=0.355\) vs lower D0 `z1|B` rates. The stronger diagnosis
+is a regime-specific \(Q_\psi\) ranking failure around `own_flag_stolen`, which
+materially depresses worst-quartile correctness (`0.709 → 0.823` after exclusion).
+Future targets (scorer regime representation; latent optimization interference)
+are identified but **not authorized**. Do not jump to collecting more data.
 
 ### Phase 0 action-conditioned scorer feasibility — `COMPLETE + PASS`
 

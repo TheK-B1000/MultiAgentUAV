@@ -1,0 +1,52 @@
+{
+  "record_id": "D1_COMPLETE",
+  "status": "COMPLETE",
+  "utc": "2026-08-27T02:15:00Z",
+  "classification": "DIAGNOSTIC_ONLY_NOT_A_GATE",
+  "authoritative_result": "artifacts/strategic_demand/sppo/D1_RESULT.json",
+  "authoritative_result_commit": "d54034b7",
+  "scientific_protocol_commit": "4c0a8fd4",
+  "implementation_freeze_commit": "e8ee6c9d",
+  "invalid_attempt": "artifacts/strategic_demand/sppo/D1_EVALUATION_INVALID_ATTEMPT_1.json",
+  "main_takeaway": "coverage was not the problem",
+  "mechanistic_diagnosis": {
+    "primary": "Q_psi has a regime-specific ranking failure, especially around own_flag_stolen",
+    "evidence_D1A": {
+      "phase0_P_stolen": 0.30997254371542654,
+      "phase0_P_carrying": 0.3550526852894249,
+      "D0_z1B_P_stolen": 0.08143859944234528,
+      "D0_z1B_P_carrying": 0.15507453087507199,
+      "interpretation": "Phase-0 fit data over-represented stolen/carrying relative to D0 z1|B; absence/rarity is ruled out as the dominant explanation."
+    },
+    "evidence_D1B": {
+      "D0_worst_quartile_qpsi_correct_rate": 0.7093959731543624,
+      "D1B_excluding_stolen_worst_quartile_qpsi_correct_rate": 0.8228202630297126,
+      "D1B_lcb95": 0.8090579116395917,
+      "D1B_ucb95": 0.8356763559138785,
+      "interpretation": "Localized stolen-flag failure materially depresses the aggregate worst-quartile picture (0.709 -> 0.823)."
+    },
+    "combined_story": "Most of the strategic-ranking signal is reasonably aligned, but the scorer becomes systematically unreliable in a particular high-pressure game regime. Separately, even where the scorer is mostly right, the policy still shows evidence of optimization/interference failing to preserve that signal reliably in the intended latent."
+  },
+  "future_research_targets_NOT_AUTHORIZED": [
+    "fix the scorer's stolen-flag regime representation (what it learns about those states, not merely how many examples)",
+    "reduce latent optimization interference"
+  ],
+  "explicitly_weakened": [
+    "collect more data / coverage rescue as the next scorer fix"
+  ],
+  "branch_state": {
+    "D1": "COMPLETE",
+    "SPPPO_V1": "CLOSED",
+    "SUCCESSOR_METHOD": "NOT AUTHORIZED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED",
+    "new_training": "FORBIDDEN",
+    "new_seeds": "FORBIDDEN"
+  },
+  "immutability": {
+    "rerun_D1": "FORBIDDEN",
+    "reinterpret_as_gate": "FORBIDDEN",
+    "reopen_SPPPO_V1": "FORBIDDEN",
+    "auto_start_successor": "FORBIDDEN"
+  }
+}
