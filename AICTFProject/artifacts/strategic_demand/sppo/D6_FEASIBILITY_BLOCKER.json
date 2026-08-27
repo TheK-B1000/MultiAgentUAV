@@ -1,0 +1,51 @@
+{
+  "record_id": "D6_FEASIBILITY_BLOCKER",
+  "status": "BLOCKED_AS_SPECIFIED -- no data collected, no seeds spent",
+  "utc": "2026-08-27T15:55:00Z",
+  "authority": "self-caught during pre-freeze feasibility check",
+  "what_was_authorized": "D6: reconstruct a tied branch state and re-run both frozen teachers with EXTENDED continuation horizon, holding everything else fixed, to test whether native ties resolve when given more time.",
+  "WHY_IT_CANNOT_BE_DONE_THAT_WAY": {
+    "finding": "max_decision_steps is NOT merely a termination check -- it is an input to the observation, the reward, and the scripted opponent",
+    "code_sites": {
+      "_observations.py:200": "obs[...,14] = step_count / max_steps  (documented as 'decision fraction in [0,1]')",
+      "_observations.py:192": "time_frac = sim_step_count / max_sim_steps",
+      "_bt_red.py:375": "time_frac = step_count / max_steps  -- scripted RED behaviour",
+      "_scripted_red.py:334": "time_frac = step_count / max_steps  -- scripted RED behaviour",
+      "_rewards.py:278": "step_count / max_steps",
+      "_step.py:479": "truncated = step_count >= max_steps | sim_step_count >= max_sim_steps | stalemate"
+    },
+    "empirical_confirmation": {
+      "test": "identical seed/config, only max_decision_steps changed 240 -> 480, fixed action, 5 steps",
+      "obs_channel_14_at_240": [
+        0.004167,
+        0.008333,
+        0.0125,
+        0.016667,
+        0.020833
+      ],
+      "obs_channel_14_at_480": [
+        0.002083,
+        0.004167,
+        0.00625,
+        0.008333,
+        0.010417
+      ],
+      "conclusion": "the observation differs from step 1 onward"
+    },
+    "consequence": "replay-to-state rebuilds the env and replays the action prefix. Under a changed horizon the teachers see a DIFFERENT observation at every prefix step, so they may take different actions and the intended branch state is never reconstructed. The scripted opponent's own time_frac also changes, altering RED's behaviour. The 'only the timer changed' premise does not hold: horizon would be confounded with observation shift AND opponent shift."
+  },
+  "WHAT_WOULD_STILL_BE_VALID": {
+    "option_A_matched_remaining_horizon": "keep max_decision_steps FIXED at 240 and compare tie rates at matched REMAINING horizon (240 - branch_step) across regimes. Uses existing data, no new collection, no observation change. Weaker than an intervention -- still correlational -- but uncontaminated. Note D5 already partly does this via branch-step tertiles.",
+    "option_B_early_branching_only": "collect NEW branch points restricted to EARLY steps, where remaining horizon is ample, and compare stolen vs home tie rates there. D5's early tertile had only ONE stolen state, so this is the genuinely missing cell. Requires new collection on already-audited seeds, no horizon change, no observation change.",
+    "option_C_accept_the_confound_explicitly": "treat 'censored vs indifferent' as unidentifiable under the current environment and design the supervision rule to be robust to it rather than to resolve it.",
+    "not_recommended": "changing max_decision_steps and accepting the observation shift -- it would silently confound the very thing D6 exists to isolate."
+  },
+  "RECOMMENDATION": "Option B is the closest valid analogue of the authorized intervention. D5 showed the early tertile is where stolen-flag data is essentially absent (n=1), and early states are precisely where horizon censoring is least severe. Collecting stolen-flag branch points at EARLY steps directly tests 'do stolen-flag states stay tied when horizon is ample?' without touching the timer.",
+  "hard_boundaries_observed": [
+    "no seeds spent",
+    "no data collected",
+    "no environment modified",
+    "RASR collector untouched",
+    "no RASR gate flipped"
+  ]
+}
