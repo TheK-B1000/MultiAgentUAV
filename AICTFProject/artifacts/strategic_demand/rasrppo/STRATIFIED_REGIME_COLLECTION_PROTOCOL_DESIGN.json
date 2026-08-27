@@ -93,8 +93,8 @@
   "AUTHORIZATION": {
     "design": "COMPLETE.",
     "freeze": "PERFORMED by PI ruling 2026-08-27 at commit c318bcea.",
-    "collection_launch": "NOT AUTHORIZED. This is the next and only open PI decision for this protocol.",
-    "the_open_question": "Is the information expected from the 35.3 h stratified collection worth that compute budget? The design question is settled; only the spend question remains.",
+    "collection_launch": "AUTHORIZED by PI ruling 2026-08-27. See LAUNCH_AUTHORIZATION. Run ONCE, to the full frozen budget; adaptive stopping and mid-run parameter changes remain prohibited.",
+    "the_open_question": "RESOLVED. The PI authorized the spend. No open decision remains for this protocol.",
     "fitting_training_or_PPO_launch": "NOT AUTHORIZED.",
     "RASR_4M_launch": "Remains NOT AUTHORIZED and unaffected by this document."
   },
@@ -131,5 +131,19 @@
       "support_floor": "32 distinct seeds per cell, checked once, over the FULL 160-seed collection",
       "estimated_cost_hours": 35.3
     }
+  },
+  "LAUNCH_AUTHORIZATION": {
+    "record": "AMENDMENT 1 -- launch authorization. The frozen DESIGN is unchanged.",
+    "utc": "2026-08-27T18:32:55Z",
+    "authority": "PI ruling, 2026-08-27",
+    "ruling": "35.3h STRATIFIED COLLECTION LAUNCH AUTHORIZED",
+    "still_blocked_by_the_same_ruling": [
+      "ABSTAINING-SUPERVISION IMPLEMENTATION STILL BLOCKED",
+      "NO PPO TRAINING"
+    ],
+    "pi_reasoning": "This is not 'more data just in case'. It is the instrumentation needed to answer the new question correctly. The previous pipeline had two structural weaknesses: uniform branch sampling produced missing pole x regime support, and forced A/B labels produced fake strategic preferences on ambiguous states. This collection fixes the first by deliberately covering 2 poles x 4 regimes x 2 horizon bands = 16 cells, and supplies the evidence to calibrate the second -- tau, rho, o_max -- without guessing. The alternative is cheaper now and potentially much more expensive later: another multi-million-step PPO run discovered afterward to have been underpowered. That tax has already been paid several times.",
+    "sequencing_required_by_the_ruling": "Collection finishes FIRST. Then the prospectively designated CALIB split alone estimates the unresolved/resolvable structure and freezes tau, rho, o_max. Only after those gates are fixed does the question of implementing -- and eventually training -- the abstaining scorer arise.",
+    "what_this_amendment_does_NOT_change": "No design parameter moves. Cells, seeds, block, branch points, allocation rule, rank order, support floor and split boundaries are exactly as frozen at c318bcea. The design content hash recorded in FREEZE_RECORD remains the authoritative baseline for drift detection; this amendment changes authorization state only.",
+    "amendment_rule_followed": "Recorded as a dated amendment block rather than a silent edit, per FREEZE_RECORD.AMENDMENT_RULE."
   }
 }
