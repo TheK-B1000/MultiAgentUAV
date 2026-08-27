@@ -1,0 +1,158 @@
+{
+  "record": "D5 Regime x Horizon Tie-Rate Audit",
+  "status": "DIAGNOSTIC_RESULT -- stored outcomes only",
+  "utc": "2026-08-27T15:30:53Z",
+  "frozen_tertiles": {
+    "early": "<= 49",
+    "mid": "<= 127",
+    "late": "> 127",
+    "derived": "regime-blind from the global pole-B branch_step distribution"
+  },
+  "bootstrap": {
+    "unit": "seed",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "PRIMARY_per_tertile": {
+    "early": {
+      "stolen": {
+        "label": "early/stolen",
+        "n_states": 1,
+        "n_seeds": 1,
+        "n_tied": 1,
+        "tie_rate": {
+          "mean": 1.0,
+          "lcb95": 1.0,
+          "ucb95": 1.0
+        }
+      },
+      "home": {
+        "label": "early/home",
+        "n_states": 256,
+        "n_seeds": 255,
+        "n_tied": 94,
+        "tie_rate": {
+          "mean": 0.36772094648798304,
+          "lcb95": 0.30980392156862746,
+          "ucb95": 0.42745098039215684
+        }
+      }
+    },
+    "mid": {
+      "stolen": {
+        "label": "mid/stolen",
+        "n_states": 33,
+        "n_seeds": 33,
+        "n_tied": 26,
+        "tie_rate": {
+          "mean": 0.7876833333333333,
+          "lcb95": 0.6363636363636364,
+          "ucb95": 0.9090909090909091
+        }
+      },
+      "home": {
+        "label": "mid/home",
+        "n_states": 222,
+        "n_seeds": 219,
+        "n_tied": 125,
+        "tie_rate": {
+          "mean": 0.5635552573475052,
+          "lcb95": 0.497737556561086,
+          "ucb95": 0.6289592760180995
+        }
+      }
+    },
+    "late": {
+      "stolen": {
+        "label": "late/stolen",
+        "n_states": 57,
+        "n_seeds": 54,
+        "n_tied": 56,
+        "tie_rate": {
+          "mean": 0.982334954704719,
+          "lcb95": 0.9454545454545454,
+          "ucb95": 1.0
+        }
+      },
+      "home": {
+        "label": "late/home",
+        "n_states": 199,
+        "n_seeds": 198,
+        "n_tied": 170,
+        "tie_rate": {
+          "mean": 0.854257937287974,
+          "lcb95": 0.8040201005025126,
+          "ucb95": 0.9
+        }
+      }
+    }
+  },
+  "PRIMARY_within_tertile_difference": {
+    "early": {
+      "mean": 0.6324367384990803,
+      "lcb95": 0.5725490196078431,
+      "ucb95": 0.69140625
+    },
+    "mid": {
+      "mean": 0.22551177707830425,
+      "lcb95": 0.06432552638400449,
+      "ucb95": 0.3753374713731298
+    },
+    "late": {
+      "mean": 0.1280155257159069,
+      "lcb95": 0.06636536648227306,
+      "ucb95": 0.18536585365853664
+    }
+  },
+  "SECONDARY_contextual": {
+    "carrying": {
+      "label": "carrying",
+      "n_states": 120,
+      "n_seeds": 79,
+      "n_tied": 97,
+      "tie_rate": {
+        "mean": 0.8078249635631477,
+        "lcb95": 0.7272727272727273,
+        "ucb95": 0.8818897637795275
+      }
+    },
+    "not_carrying": {
+      "label": "not_carrying",
+      "n_states": 648,
+      "n_seeds": 252,
+      "n_tied": 375,
+      "tie_rate": {
+        "mean": 0.578868716763737,
+        "lcb95": 0.5418715462881736,
+        "ucb95": 0.6153846153846154
+      }
+    }
+  },
+  "tertiles_with_stolen_excess_excluding_zero": [
+    "early",
+    "mid",
+    "late"
+  ],
+  "VERDICT": "REGIME_EFFECT_SURVIVES_HORIZON_CONTROL",
+  "reading": "stolen remains markedly more tied than home WITHIN matched tertiles -> D4's stolen-flag pathology is real and independent of horizon; regime-aware strategic modelling remains strongly justified.",
+  "INTERPRETATION": {
+    "EARLY_TERTILE_IS_UNINTERPRETABLE": {
+      "n_stolen_states": 1,
+      "problem": "the early tertile contains exactly ONE stolen state. Its tie rate of 1.000 [1.000,1.000] is a single observation, and the reported DELTA +0.632 [+0.573,+0.691] derives its apparent precision entirely from the home side. This cell supports no claim.",
+      "effect_on_the_verdict": "my verdict logic counted early among the significant tertiles. Dropping it entirely, mid (n=33) and late (n=57) still both exclude zero, so the verdict is ROBUST to discarding the n=1 cell -- but the early row must not be cited as evidence."
+    },
+    "BOTH_EFFECTS_ARE_REAL": {
+      "again_my_verdict_label_reports_only_one": "as in D4, the if/elif logic emitted a single label. The frozen readings 'regime_effect_survives' and 'both_matter' are BOTH satisfied here.",
+      "horizon_effect_is_large_and_independent": "the HOME regime alone -- with no stolen states involved -- goes 0.368 -> 0.564 -> 0.854 across early/mid/late. That is a very large horizon effect on its own, confirming the confound was genuine: ties substantially reflect remaining horizon.",
+      "stolen_states_ARE_concentrated_late": "stolen counts by tertile are 1 / 33 / 57. Stolen-flag states overwhelmingly occur late, exactly as the confound predicted.",
+      "regime_effect_survives_but_ATTENUATED": "uncontrolled, D4 reported stolen 0.912 vs home 0.575, a gap of +0.337. Within matched tertiles the gap is +0.226 [+0.064,+0.375] (mid) and +0.128 [+0.066,+0.185] (late). Both exclude zero, so the regime effect is real -- but controlling for horizon roughly HALVES it. D4's headline overstated the regime contribution by conflating it with when those states occur."
+    },
+    "HONEST_VERDICT": "REGIME AND HORIZON BOTH MATTER. The stolen-flag regime is genuinely more tie-prone than the home regime at matched branch steps, so regime-aware modelling retains justification. But horizon independently drives tie rate at least as strongly, and stolen states are heavily concentrated late, so a substantial part of D4's apparent regime pathology was temporal.",
+    "CONSEQUENCE_FOR_SELECTIVE_SUPERVISION": "the design cannot treat 'tie' as 'strategically indifferent'. Even in the well-behaved home regime, 85.4% of LATE states are tied -- almost certainly because the horizon is too short for a difference to surface, not because GUARD and BREACH are equivalent there. A tie-gated rule would silence supervision across most of late-episode play in BOTH regimes. Splitting ties into 'genuinely indifferent' vs 'horizon-censored' is now a prerequisite, not a refinement.",
+    "NOT_ESTABLISHED": [
+      "that late ties are censored rather than genuine -- strongly suggested by the monotone horizon gradient, but not directly demonstrated",
+      "that the mid/late regime excess reflects strategic equivalence rather than some other regime-correlated property"
+    ]
+  }
+}
