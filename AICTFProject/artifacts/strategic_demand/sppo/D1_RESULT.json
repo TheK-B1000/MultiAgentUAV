@@ -1,0 +1,310 @@
+{
+  "record": "SPPPO D1 pole-B localization diagnostic",
+  "status": "DIAGNOSTIC_ONLY_NOT_A_GATE",
+  "protocol": "artifacts\\strategic_demand\\sppo\\D1_PROTOCOL_FROZEN.json",
+  "protocol_sha256": "a19150dcbb0d534eaa974221cc2e218804fa506b97df451e19058fd56b53ee4f",
+  "implementation_freeze": "artifacts\\strategic_demand\\sppo\\D1_IMPLEMENTATION_FROZEN.json",
+  "implementation_freeze_sha256": "6330f37cc0cdfdf0114e292e1235d039cf381bd4e99201700e9974dc62dba01e",
+  "runner_sha256": "0ecc26707b42a52ae133afcf780ead79fb9f1b21c73b65a29b03b8c206ac1fae",
+  "inputs": {
+    "D0_rows": "artifacts/strategic_demand/sppo/D0_pole_b_decision_rows.csv",
+    "D0_rows_sha256": "52b1c9db9898dfdcdeeba2a23f44e49811e6e63472e84361b6fd3875ede1cbfe",
+    "D0_uncertainty": "artifacts/strategic_demand/sppo/D0_pole_b_diagnostic_with_seed_uncertainty.json",
+    "D0_uncertainty_sha256": "f306d2e46c2d5caa42c1c53ba850c9003af5290281f9964066856d79c6980ce0",
+    "phase0_fit_data": "artifacts/strategic_demand/phase0_scorer_data/full_collection_rebuild_per_branch/ (TRAIN seeds 6500001..6500160 only)"
+  },
+  "bootstrap": {
+    "unit": "seed",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "quartile_cutoff": "recomputed per replicate"
+  },
+  "D1A": {
+    "train_seed_block": "6500001..6500160",
+    "n_train_seeds": 160,
+    "held_out_shards_opened": 0,
+    "n_plain_fit_rows": 121549,
+    "n_branch_fit_rows_including_teacher_action_pairs": 1920,
+    "n_total_fit_rows": 123469,
+    "data_sha256": "13c2c74cb0902fc0718335b8e2632abb0c706c2d1de8d7d3b6f0769d382cee6d",
+    "category_reconstruction": {
+      "expected_n_agents": 2,
+      "expected_vec_dim": 20,
+      "carrying_feature_index": 10,
+      "map_cols": 20,
+      "map_rows": 20,
+      "home_x": 2.0,
+      "home_y": 10.0,
+      "max_flag_reconstruction_disagreement_between_agents": 4.2649612623790745e-06
+    },
+    "categories": {
+      "own_flag_stolen": {
+        "raw_fit_rows": {
+          "count": 38272,
+          "total": 123469,
+          "proportion": {
+            "point": 0.30997254371542654,
+            "lcb95": 0.28987753406567635,
+            "ucb95": 0.3300802586180775
+          }
+        },
+        "by_pole_raw_rows": {
+          "A": {
+            "count": 30121,
+            "total": 59479,
+            "proportion": {
+              "point": 0.5064140284806402,
+              "lcb95": 0.4745648452531259,
+              "ucb95": 0.5374520726047239
+            }
+          },
+          "B": {
+            "count": 8151,
+            "total": 63990,
+            "proportion": {
+              "point": 0.1273792780121894,
+              "lcb95": 0.10258187970686049,
+              "ucb95": 0.15368775731978251
+            }
+          }
+        },
+        "secondary_training_weight_diagnostic": {
+          "note": "Episode-normalized/loss weighting used in Q_psi fitting. Effective influence may differ from raw row frequency. Secondary only; not the frozen D1A primary quantity.",
+          "effective_count": 788.8043870921247,
+          "effective_total": 2560.0000017262064,
+          "proportion": {
+            "point": 0.3081267135000916,
+            "lcb95": 0.2813984704815033,
+            "ucb95": 0.3354748778851726
+          }
+        }
+      },
+      "own_flag_home": {
+        "raw_fit_rows": {
+          "count": 85197,
+          "total": 123469,
+          "proportion": {
+            "point": 0.6900274562845734,
+            "lcb95": 0.6696515292300846,
+            "ucb95": 0.7104285264305147
+          }
+        },
+        "by_pole_raw_rows": {
+          "A": {
+            "count": 29358,
+            "total": 59479,
+            "proportion": {
+              "point": 0.4935859715193598,
+              "lcb95": 0.4626810007692454,
+              "ucb95": 0.525958437087116
+            }
+          },
+          "B": {
+            "count": 55839,
+            "total": 63990,
+            "proportion": {
+              "point": 0.8726207219878106,
+              "lcb95": 0.8470358933517055,
+              "ucb95": 0.8972833697658542
+            }
+          }
+        },
+        "secondary_training_weight_diagnostic": {
+          "note": "Episode-normalized/loss weighting used in Q_psi fitting. Effective influence may differ from raw row frequency. Secondary only; not the frozen D1A primary quantity.",
+          "effective_count": 1771.1956146340817,
+          "effective_total": 2560.0000017262064,
+          "proportion": {
+            "point": 0.6918732864999084,
+            "lcb95": 0.6651218682038929,
+            "ucb95": 0.7193121441843237
+          }
+        }
+      },
+      "carrying": {
+        "raw_fit_rows": {
+          "count": 43838,
+          "total": 123469,
+          "proportion": {
+            "point": 0.35505268528942485,
+            "lcb95": 0.3372047748842981,
+            "ucb95": 0.3727230158732885
+          }
+        },
+        "by_pole_raw_rows": {
+          "A": {
+            "count": 32886,
+            "total": 59479,
+            "proportion": {
+              "point": 0.552901023890785,
+              "lcb95": 0.5260147752900087,
+              "ucb95": 0.5799029899820113
+            }
+          },
+          "B": {
+            "count": 10952,
+            "total": 63990,
+            "proportion": {
+              "point": 0.17115174245975934,
+              "lcb95": 0.14831982628070678,
+              "ucb95": 0.19509573128771715
+            }
+          }
+        },
+        "secondary_training_weight_diagnostic": {
+          "note": "Episode-normalized/loss weighting used in Q_psi fitting. Effective influence may differ from raw row frequency. Secondary only; not the frozen D1A primary quantity.",
+          "effective_count": 905.9979825932533,
+          "effective_total": 2560.0000017262064,
+          "proportion": {
+            "point": 0.35390546171185133,
+            "lcb95": 0.32820614295667405,
+            "ucb95": 0.3798470430118378
+          }
+        }
+      },
+      "not_carrying": {
+        "raw_fit_rows": {
+          "count": 79631,
+          "total": 123469,
+          "proportion": {
+            "point": 0.6449473147105751,
+            "lcb95": 0.6271850184211676,
+            "ucb95": 0.662865774577359
+          }
+        },
+        "by_pole_raw_rows": {
+          "A": {
+            "count": 26593,
+            "total": 59479,
+            "proportion": {
+              "point": 0.447098976109215,
+              "lcb95": 0.42045361977026996,
+              "ucb95": 0.47416800298482015
+            }
+          },
+          "B": {
+            "count": 53038,
+            "total": 63990,
+            "proportion": {
+              "point": 0.8288482575402406,
+              "lcb95": 0.8047939544236278,
+              "ucb95": 0.8518935796343639
+            }
+          }
+        },
+        "secondary_training_weight_diagnostic": {
+          "note": "Episode-normalized/loss weighting used in Q_psi fitting. Effective influence may differ from raw row frequency. Secondary only; not the frozen D1A primary quantity.",
+          "effective_count": 1654.0020191329531,
+          "effective_total": 2560.0000017262064,
+          "proportion": {
+            "point": 0.6460945382881487,
+            "lcb95": 0.6196751457010354,
+            "ucb95": 0.6718391697271848
+          }
+        }
+      }
+    }
+  },
+  "D1B": {
+    "label": "POSTMORTEM FOLLOW-UP DIAGNOSTIC -- not independent confirmation; not a new gate",
+    "stratum": "own_flag_home (== exclude own_flag_stolen by frozen complementary definitions)",
+    "primary_excluding_own_flag_stolen": {
+      "n_rows": 32845,
+      "point_quartile_cutoff": -0.30842405557632446,
+      "bootstrap_cutoff_lcb95": -0.3277244567871094,
+      "bootstrap_cutoff_ucb95": -0.2879721283912661,
+      "qpsi_correct_rate": {
+        "point": 0.8228202630297126,
+        "lcb95": 0.8090579116395917,
+        "ucb95": 0.8356763559138785
+      }
+    },
+    "complementary_own_flag_home": "identical to primary_excluding_own_flag_stolen"
+  },
+  "phase0_vs_D0": {
+    "own_flag_stolen": {
+      "phase0_raw_fit_row_proportion": {
+        "point": 0.30997254371542654,
+        "lcb95": 0.28987753406567635,
+        "ucb95": 0.3300802586180775
+      },
+      "D0_z1_B_raw_decision_proportion": {
+        "point": 0.08143859943507564,
+        "lcb95": 0.05935679877473484,
+        "ucb95": 0.10560652288734673
+      },
+      "point_difference_phase0_minus_D0": 0.2285339442803509,
+      "secondary_phase0_loss_weighted_proportion": {
+        "point": 0.3081267135000916,
+        "lcb95": 0.2813984704815033,
+        "ucb95": 0.3354748778851726
+      }
+    },
+    "own_flag_home": {
+      "phase0_raw_fit_row_proportion": {
+        "point": 0.6900274562845734,
+        "lcb95": 0.6696515292300846,
+        "ucb95": 0.7104285264305147
+      },
+      "D0_z1_B_raw_decision_proportion": {
+        "point": 0.9185614005649243,
+        "lcb95": 0.8946454311719547,
+        "ucb95": 0.9407764426753799
+      },
+      "point_difference_phase0_minus_D0": -0.2285339442803509,
+      "secondary_phase0_loss_weighted_proportion": {
+        "point": 0.6918732864999084,
+        "lcb95": 0.6651218682038929,
+        "ucb95": 0.7193121441843237
+      }
+    },
+    "carrying": {
+      "phase0_raw_fit_row_proportion": {
+        "point": 0.35505268528942485,
+        "lcb95": 0.3372047748842981,
+        "ucb95": 0.3727230158732885
+      },
+      "D0_z1_B_raw_decision_proportion": {
+        "point": 0.15507453086109013,
+        "lcb95": 0.13458027413300203,
+        "ucb95": 0.17728275990869674
+      },
+      "point_difference_phase0_minus_D0": 0.19997815442833472,
+      "secondary_phase0_loss_weighted_proportion": {
+        "point": 0.35390546171185133,
+        "lcb95": 0.32820614295667405,
+        "ucb95": 0.3798470430118378
+      }
+    },
+    "not_carrying": {
+      "phase0_raw_fit_row_proportion": {
+        "point": 0.6449473147105751,
+        "lcb95": 0.6271850184211676,
+        "ucb95": 0.662865774577359
+      },
+      "D0_z1_B_raw_decision_proportion": {
+        "point": 0.8449254691389099,
+        "lcb95": 0.822426862782406,
+        "ucb95": 0.8652668019565962
+      },
+      "point_difference_phase0_minus_D0": -0.19997815442833478,
+      "secondary_phase0_loss_weighted_proportion": {
+        "point": 0.6460945382881487,
+        "lcb95": 0.6196751457010354,
+        "ucb95": 0.6718391697271848
+      }
+    }
+  },
+  "branch_invariants": {
+    "SPPPO_V1": "REMAINS CLOSED",
+    "SPPPO_V2": "NOT AUTHORIZED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED",
+    "new_training": "FORBIDDEN",
+    "new_seeds": "FORBIDDEN",
+    "seed_block_growth": "FORBIDDEN",
+    "gate_re_scoring": "FORBIDDEN",
+    "threshold_invention": "FORBIDDEN"
+  },
+  "interpretation": "Descriptive mechanism localization only; no retrospective threshold or authorization. Loss-weighted coverage is secondary."
+}
