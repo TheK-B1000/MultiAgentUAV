@@ -1,0 +1,314 @@
+{
+  "record": "D4 Target Resolution Audit",
+  "status": "DIAGNOSTIC_RESULT -- stored outcomes only, no environment steps",
+  "utc": "2026-08-27T15:21:59Z",
+  "scope": "pole B only, per the frozen spec",
+  "bootstrap": {
+    "unit": "seed",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "PRIMARY_phase0": {
+    "marginals": {
+      "own_flag_stolen": {
+        "label": "own_flag_stolen",
+        "n_states": 91,
+        "n_seeds": 58,
+        "n_tied": 83,
+        "n_informative": 8,
+        "tie_rate": {
+          "mean": 0.9119032284095292,
+          "lcb95": 0.8494623655913979,
+          "ucb95": 0.967032967032967
+        },
+        "among_non_tied": {
+          "n": 8,
+          "frac_favouring_piB": {
+            "mean": 0.25129375,
+            "lcb95": 0.0,
+            "ucb95": 0.625
+          },
+          "frac_favouring_piA": {
+            "mean": 0.74870625,
+            "lcb95": 0.375,
+            "ucb95": 1.0
+          },
+          "raw_piB": 2,
+          "raw_piA": 6
+        }
+      },
+      "own_flag_home": {
+        "label": "own_flag_home",
+        "n_states": 677,
+        "n_seeds": 255,
+        "n_tied": 389,
+        "n_informative": 288,
+        "tie_rate": {
+          "mean": 0.5748973889101046,
+          "lcb95": 0.5384615384615384,
+          "ucb95": 0.6107871720116618
+        },
+        "among_non_tied": {
+          "n": 288,
+          "frac_favouring_piB": {
+            "mean": 0.7290934703948853,
+            "lcb95": 0.6678321678321678,
+            "ucb95": 0.7864077669902912
+          },
+          "frac_favouring_piA": {
+            "mean": 0.2709065296051148,
+            "lcb95": 0.21359223300970873,
+            "ucb95": 0.3321678321678322
+          },
+          "raw_piB": 210,
+          "raw_piA": 78
+        }
+      },
+      "carrying": {
+        "label": "carrying",
+        "n_states": 120,
+        "n_seeds": 79,
+        "n_tied": 97,
+        "n_informative": 23,
+        "tie_rate": {
+          "mean": 0.8078249635631477,
+          "lcb95": 0.7272727272727273,
+          "ucb95": 0.8818897637795275
+        },
+        "among_non_tied": {
+          "n": 23,
+          "frac_favouring_piB": {
+            "mean": 0.47973151348017573,
+            "lcb95": 0.2608695652173913,
+            "ucb95": 0.7142857142857143
+          },
+          "frac_favouring_piA": {
+            "mean": 0.5202684865198243,
+            "lcb95": 0.2857142857142857,
+            "ucb95": 0.7391304347826086
+          },
+          "raw_piB": 11,
+          "raw_piA": 12
+        }
+      },
+      "not_carrying": {
+        "label": "not_carrying",
+        "n_states": 648,
+        "n_seeds": 252,
+        "n_tied": 375,
+        "n_informative": 273,
+        "tie_rate": {
+          "mean": 0.578868716763737,
+          "lcb95": 0.5418715462881736,
+          "ucb95": 0.6153846153846154
+        },
+        "among_non_tied": {
+          "n": 273,
+          "frac_favouring_piB": {
+            "mean": 0.7361090797809922,
+            "lcb95": 0.674074074074074,
+            "ucb95": 0.7949640287769785
+          },
+          "frac_favouring_piA": {
+            "mean": 0.2638909202190078,
+            "lcb95": 0.20503597122302158,
+            "ucb95": 0.32592592592592595
+          },
+          "raw_piB": 201,
+          "raw_piA": 72
+        }
+      },
+      "ALL_pole_B": {
+        "label": "ALL pole-B states",
+        "n_states": 768,
+        "n_seeds": 256,
+        "n_tied": 472,
+        "n_informative": 296,
+        "tie_rate": {
+          "mean": 0.6146414713541667,
+          "lcb95": 0.5807291666666666,
+          "ucb95": 0.6484700520833305
+        },
+        "among_non_tied": {
+          "n": 296,
+          "frac_favouring_piB": {
+            "mean": 0.7161705325138192,
+            "lcb95": 0.6531986531986532,
+            "ucb95": 0.7759802697302692
+          },
+          "frac_favouring_piA": {
+            "mean": 0.2838294674861807,
+            "lcb95": 0.22401973026973027,
+            "ucb95": 0.3468013468013468
+          },
+          "raw_piB": 212,
+          "raw_piA": 84
+        }
+      }
+    },
+    "four_way": {
+      "home_not_carrying": {
+        "label": "home_not_carrying",
+        "n_states": 640,
+        "n_seeds": 252,
+        "n_tied": 369,
+        "n_informative": 271,
+        "tie_rate": {
+          "mean": 0.5767153883527099,
+          "lcb95": 0.5390625,
+          "ucb95": 0.6136012364760433
+        },
+        "among_non_tied": {
+          "n": 271,
+          "frac_favouring_piB": {
+            "mean": 0.7341760798454152,
+            "lcb95": 0.671813198149076,
+            "ucb95": 0.7931066891366344
+          },
+          "frac_favouring_piA": {
+            "mean": 0.2658239201545849,
+            "lcb95": 0.20689331086336532,
+            "ucb95": 0.32818680185092386
+          },
+          "raw_piB": 199,
+          "raw_piA": 72
+        }
+      },
+      "home_carrying": {
+        "label": "home_carrying",
+        "n_states": 37,
+        "n_seeds": 35,
+        "n_tied": 20,
+        "n_informative": 17,
+        "tie_rate": {
+          "mean": 0.5408070319243581,
+          "lcb95": 0.3783783783783784,
+          "ucb95": 0.7027027027027027
+        },
+        "among_non_tied": {
+          "n": 17,
+          "frac_favouring_piB": {
+            "mean": 0.6449825205388305,
+            "lcb95": 0.4117647058823529,
+            "ucb95": 0.875
+          },
+          "frac_favouring_piA": {
+            "mean": 0.3550174794611694,
+            "lcb95": 0.125,
+            "ucb95": 0.5882352941176471
+          },
+          "raw_piB": 11,
+          "raw_piA": 6
+        }
+      },
+      "stolen_not_carrying": {
+        "label": "stolen_not_carrying",
+        "n_states": 8,
+        "n_seeds": 8,
+        "n_tied": 6,
+        "n_informative": 2,
+        "tie_rate": {
+          "mean": 0.74919375,
+          "lcb95": 0.375,
+          "ucb95": 1.0
+        },
+        "among_non_tied": {
+          "n": 2,
+          "frac_favouring_piB": {
+            "mean": 1.0,
+            "lcb95": 1.0,
+            "ucb95": 1.0
+          },
+          "frac_favouring_piA": {
+            "mean": 0.0,
+            "lcb95": 0.0,
+            "ucb95": 0.0
+          },
+          "raw_piB": 2,
+          "raw_piA": 0
+        }
+      },
+      "stolen_carrying": {
+        "label": "stolen_carrying",
+        "n_states": 83,
+        "n_seeds": 51,
+        "n_tied": 77,
+        "n_informative": 6,
+        "tie_rate": {
+          "mean": 0.9277559856916936,
+          "lcb95": 0.8701028138528139,
+          "ucb95": 0.9764705882352941
+        },
+        "among_non_tied": {
+          "n": 6,
+          "frac_favouring_piB": {
+            "mean": 0.0,
+            "lcb95": 0.0,
+            "ucb95": 0.0
+          },
+          "frac_favouring_piA": {
+            "mean": 1.0,
+            "lcb95": 1.0,
+            "ucb95": 1.0
+          },
+          "raw_piB": 0,
+          "raw_piA": 6
+        }
+      }
+    }
+  },
+  "SECONDARY_d2_supplement_stolen_only_never_pooled": {
+    "label": "D2 supplement, stolen only (NOT pooled)",
+    "n_states": 150,
+    "n_seeds": 71,
+    "n_tied": 112,
+    "n_informative": 38,
+    "tie_rate": {
+      "mean": 0.7458582459732112,
+      "lcb95": 0.6474358974358975,
+      "ucb95": 0.8387096774193549
+    },
+    "among_non_tied": {
+      "n": 38,
+      "frac_favouring_piB": {
+        "mean": 0.6555513912147221,
+        "lcb95": 0.43902439024390244,
+        "ucb95": 0.851063829787234
+      },
+      "frac_favouring_piA": {
+        "mean": 0.3444486087852779,
+        "lcb95": 0.14893617021276595,
+        "ucb95": 0.5609756097560976
+      },
+      "raw_piB": 25,
+      "raw_piA": 13
+    }
+  },
+  "VERDICT": "STOLEN_UNIQUELY_TARGET_DEGENERATE",
+  "reading": "stolen-flag ~90% tied while other regimes are markedly lower -> the stolen-flag regime is genuinely TARGET-DEGENERATE. RASR R1 still makes sense, but a regime-aware scorer may need a more discriminative training signal specifically in that regime.",
+  "INTERPRETATION": {
+    "BOTH_FROZEN_READINGS_ARE_TRUE": {
+      "problem_with_my_verdict_logic": "the frozen verdict used if/elif, so it could report only ONE reading. Both conditions are in fact satisfied and the single label understates the result.",
+      "reading_1_stolen_uniquely_degenerate_TRUE": "stolen 0.912 [0.849, 0.967] vs home 0.575 [0.538, 0.611] -- NON-OVERLAPPING. The stolen-flag regime is genuinely and distinctly more target-degenerate.",
+      "reading_2_target_coarse_in_general_ALSO_TRUE": "even the BEST regime is 57.5% tied, with LCB 0.538 > 0.5. Across all pole-B branch states 61.5% are tied and only 296 of 768 carry any directional signal. Terminal win margin IS too coarse for state-level supervision generally -- stolen-flag is not the only place this bites, it is where it bites hardest.",
+      "honest_label": "BOTH: stolen-flag is uniquely degenerate AND the target is coarse everywhere"
+    },
+    "REFINEMENT_the_stolen_effect_is_really_stolen_AND_carrying": {
+      "stolen_carrying": "n=83, tie 0.928 [0.870, 0.976] -- this drives the entire stolen result",
+      "stolen_not_carrying": "n=8, tie 0.749 [0.375, 1.000] -- essentially no data, CI spans the whole range",
+      "consequence": "'own_flag_stolen' in this dataset is overwhelmingly 'our flag stolen AND we are carrying theirs' -- a mutual-theft standoff. That is a narrower and more interpretable condition than 'flag stolen': when both teams hold each other's flag, the outcome may be decided by the race rather than by strategic choice, which would explain near-total indifference.",
+      "caution": "the stolen_not_carrying cell cannot support any claim at n=8"
+    },
+    "carrying_is_also_elevated": "carrying 0.808 [0.727, 0.882] vs not_carrying 0.579 [0.542, 0.615] -- also non-overlapping, a second elevated regime",
+    "SCOPE_FOR_SELECTIVE_SUPERVISION": {
+      "informative_pole_B_branch_states": "296 of 768 (38.5%)",
+      "implication": "a 'supervise only where strategy matters' design would discard ~61% of pole-B branch states, including ~58% of the well-behaved home regime. This is not a small correction confined to a pathological corner -- it restructures the majority of the supervision set."
+    },
+    "D2_REFINEMENT_APPLIED": {
+      "preserved_verbatim": "At 50/100/200 samples, the scorer failed to recover the expected global teacher ordering.",
+      "added": "D3 established that the conditional branch target is overwhelmingly tied in that regime (91.2%), and D4 confirmed it is uniquely so while also showing the target is coarse generally (57.5% tied even at best). D2's REPRESENTATION_CAPACITY_LIMITED interpretation therefore may not uniquely identify model capacity: increased density plausibly supplied more examples carrying zero directional supervision.",
+      "classification": "refinement of interpretation, NOT invalidation"
+    }
+  }
+}

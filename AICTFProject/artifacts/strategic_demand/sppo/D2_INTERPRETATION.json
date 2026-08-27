@@ -36,5 +36,10 @@
   },
   "what_this_supports_for_a_successor": "the scorer-side fix is NOT simply 'collect more counterfactual examples in this regime.' Evidence favors the target/representation being unable to express what makes pi_B preferable when the team's own flag is stolen. A regime-conditioned scorer, a richer strategic target, or a different value decomposition become the justified directions -- each of which requires its own fresh prospective decision.",
   "still_unresolved": "the SECOND problem D0 identified -- optimization/interference outside stolen-flag states, where Q_psi is mostly correct (0.823) yet the signal does not survive PPO -- is untouched by D2 and remains open.",
-  "authorizes": "nothing. SPPPO V1 remains CLOSED. No training. No successor method."
+  "authorizes": "nothing. SPPPO V1 remains CLOSED. No training. No successor method.",
+  "REFINED_BY_D3_AND_D4": {
+    "preserved_verbatim": "At 50/100/200 samples, the scorer failed to recover the expected global teacher ordering.",
+    "added": "D3 established that the conditional branch target is overwhelmingly tied in that regime (91.2%), and D4 confirmed it is uniquely so while also showing the target is coarse generally (57.5% tied even at best). D2's REPRESENTATION_CAPACITY_LIMITED interpretation therefore may not uniquely identify model capacity: increased density plausibly supplied more examples carrying zero directional supervision.",
+    "classification": "refinement of interpretation, NOT invalidation"
+  }
 }
