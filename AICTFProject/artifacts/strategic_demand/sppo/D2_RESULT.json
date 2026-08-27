@@ -1,0 +1,48 @@
+{
+  "record": "D2 recovery evaluation result",
+  "status": "DIAGNOSTIC_ONLY",
+  "utc": "2026-08-27T09:21:37Z",
+  "metric": "d_B(o) = V_hat(o,pi_B,B) - V_hat(o,pi_A,B), teacher-vs-teacher, Gate 0B convention",
+  "eval_set": "INNER_VAL own_flag_stolen pole-B subset -- reused development-side diagnostic resource, NOT held-out confirmation, NOT a gate",
+  "bootstrap": {
+    "unit": "seed",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "rungs": {
+    "1": {
+      "n_states": 1958,
+      "n_seeds": 27,
+      "d_B_mean": -0.014937154948711395,
+      "qpsi_correct_rate": {
+        "mean": 0.12299152912914238,
+        "lcb95": 0.07586206896551724,
+        "ucb95": 0.17793446479486633
+      }
+    },
+    "2": {
+      "n_states": 1958,
+      "n_seeds": 27,
+      "d_B_mean": -0.00581343611702323,
+      "qpsi_correct_rate": {
+        "mean": 0.18452786238108884,
+        "lcb95": 0.10889501020852953,
+        "ucb95": 0.2765544271668936
+      }
+    },
+    "3": {
+      "n_states": 1958,
+      "n_seeds": 27,
+      "d_B_mean": -0.015012490563094616,
+      "qpsi_correct_rate": {
+        "mean": 0.1551551879726295,
+        "lcb95": 0.09289228290015986,
+        "ucb95": 0.2368084162835684
+      }
+    }
+  },
+  "monotonic_50_100_200": false,
+  "rung3_LCB95_clears_rung1_point_estimate": false,
+  "VERDICT": "REPRESENTATION_CAPACITY_LIMITED"
+}

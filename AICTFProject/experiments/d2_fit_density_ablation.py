@@ -1,12 +1,13 @@
 """D2 -- fit Q_psi at each density rung. Implements D2_SPEC_FROZEN.json +
-D2_SPEC_AMENDMENT_1.json.
+D2_SPEC_AMENDMENT_1.json + D2_SPEC_AMENDMENT_3.json.
 
 Reuses phase0_fit_qpsi.py's architecture, target, loss, optimizer, schedule and
 torch_seed UNCHANGED. The only thing that varies across rungs is the branch-row
 set fed to fitting, via the frozen mixture-mass-control rule:
 
-    stolen pole-B branch rows get weight 50.0 / n_stolen_this_rung each
-    (1.0 / 0.5 / 0.25 at rungs 1/2/3 respectively)
+    stolen pole-B branch ROWS get weight 100.0 / n_stolen_rows_this_rung each
+    (1.0 / 0.5 / 0.25 at rungs 1/2/3 respectively -- see D2_SPEC_AMENDMENT_3:
+    the baseline's 50 stolen STATES are 100 stolen ROWS, two per state)
     every other row (all plain rows, pole-A branches, non-stolen pole-B
     branches) keeps its ORIGINAL weight and count, unmodified at every rung
 
@@ -42,8 +43,11 @@ SELECTION = SPPO / "D2_POINT_SELECTION.json"
 OUT_DIR = D2_DIR / "fits"
 RECORD = SPPO / "D2_FIT_RESULT.json"
 
-BASELINE_STOLEN_N = 50
-RUNGS = {1: 0, 2: 50, 3: 150}          # rung -> cumulative NEW points included
+# UNITS (D2_SPEC_AMENDMENT_3): load_split emits TWO rows per branch state, one
+# per teacher. The baseline's 50 stolen pole-B STATES are 100 stolen pole-B ROWS.
+# Everything below is counted in ROWS so both sides of the guard match.
+BASELINE_STOLEN_ROWS = 100             # 50 states x 2 teachers
+RUNGS_NEW_STATES = {1: 0, 2: 50, 3: 150}   # rung -> cumulative NEW states added
 TRAIN_CFG = {"lr": 3e-4, "batch_size": 512, "max_epochs": 60,
             "early_stop_patience": 8, "torch_seed": 7}
 POLE_B = 1
@@ -69,10 +73,13 @@ def _load_supplement_branch_rows(seeds_and_steps: list[tuple[int, int]]):
         n = z["branch_pole"].shape[0]
         for i in range(n):
             for ti, tag in enumerate(("pi_A", "pi_B")):
-                B["grid"].append(z["branch_obs_grid"][i])
-                B["vec"].append(z["branch_obs_vec"][i])
-                B["amask"].append(z["branch_obs_agent_mask"][i])
-                B["mask"].append(z["branch_obs_mask"][i])
+                # strip the vec-env leading dim, matching load_split's [:, 0]
+                # convention exactly -- supplement shards store (n,1,2,...) as
+                # written by branch_at()'s obs snapshot
+                B["grid"].append(z["branch_obs_grid"][i, 0])
+                B["vec"].append(z["branch_obs_vec"][i, 0])
+                B["amask"].append(z["branch_obs_agent_mask"][i, 0])
+                B["mask"].append(z["branch_obs_mask"][i, 0])
                 B["pole"].append(POLE_B)
                 B["action"].append(z[f"branch_{tag}_action"][i])
                 blue = float(z[f"branch_{tag}_blue"][i]); red = float(z[f"branch_{tag}_red"][i])
@@ -93,8 +100,8 @@ def _is_stolen(vec_row: np.ndarray, model: QPsi) -> np.ndarray:
 
 
 def build_rung_tensors(rung: int, baseline_split, supplement_all, tagger_model):
-    """Baseline branch/plain rows UNCHANGED, plus the first RUNGS[rung] new
-    supplement rows, with the frozen weight-rescaling rule applied."""
+    """Baseline rows UNCHANGED, plus the first RUNGS_NEW_STATES[rung] new
+    supplement states (2 rows each), with the frozen weight-rescaling rule."""
     t = lambda a, dt: torch.as_tensor(a, dtype=dt)
 
     # plain rows: untouched at every rung
@@ -113,9 +120,10 @@ def build_rung_tensors(rung: int, baseline_split, supplement_all, tagger_model):
     if on_b.any():
         b_stolen[on_b] = _is_stolen(b_vec[on_b], tagger_model)
 
-    n_new = RUNGS[rung]
-    if n_new > 0:
-        sup = {k: v[:n_new * 2] for k, v in supplement_all.items()}   # 2 rows/point
+    n_new_states = RUNGS_NEW_STATES[rung]
+    n_new_rows = n_new_states * 2
+    if n_new_states > 0:
+        sup = {k: v[:n_new_rows] for k, v in supplement_all.items()}   # 2 rows/state
         s_stolen = _is_stolen(sup["vec"], tagger_model)                # all pole-B by construction
         if not s_stolen.all():
             raise RuntimeError("supplement rows were selected as stolen but re-tag disagrees")
@@ -129,10 +137,13 @@ def build_rung_tensors(rung: int, baseline_split, supplement_all, tagger_model):
             b_grid, b_vec, b_amask, b_mask, b_pole, b_act, b_y, b_stolen)
 
     n_stolen_total = int(stolen.sum())
-    if n_stolen_total != BASELINE_STOLEN_N + n_new:
-        raise RuntimeError(f"rung {rung}: expected {BASELINE_STOLEN_N + n_new} stolen rows, got {n_stolen_total}")
+    expected_rows = BASELINE_STOLEN_ROWS + n_new_rows
+    if n_stolen_total != expected_rows:
+        raise RuntimeError(f"rung {rung}: expected {expected_rows} stolen ROWS, got {n_stolen_total}")
     w = np.ones(len(pole), dtype=np.float32)
-    w[stolen] = BASELINE_STOLEN_N / n_stolen_total   # mixture-mass-control rule
+    # mixture-mass control: total stolen mass held at the baseline's own 100.0,
+    # giving 1.0 / 0.5 / 0.25 per row at rungs 1 / 2 / 3
+    w[stolen] = BASELINE_STOLEN_ROWS / n_stolen_total
 
     b_grid_t, b_vec_t = t(grid, torch.float32), t(vec, torch.float32)
     b_amask_t, b_pole_t = t(amask, torch.float32), t(pole, torch.long)
@@ -230,7 +241,7 @@ def main() -> int:
 
     results = {}
     for rung in (1, 2, 3):
-        print(f"  fitting rung {rung} (+{RUNGS[rung]} new points)...", flush=True)
+        print(f"  fitting rung {rung} (+{RUNGS_NEW_STATES[rung]} new states)...", flush=True)
         data = build_rung_tensors(rung, fit_split, supplement_all, tagger)
         model, r = fit_one_rung(rung, data, val_data, device)
         results[str(rung)] = r

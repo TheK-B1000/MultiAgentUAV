@@ -1,0 +1,40 @@
+{
+  "record_id": "D2_INTERPRETATION",
+  "status": "DIAGNOSTIC_RESULT -- applies the frozen D2 reading rules",
+  "utc": "2026-08-27T09:30:00Z",
+  "headline": {
+    "rung_1_50_states": {
+      "mean": 0.12299152912914238,
+      "lcb95": 0.07586206896551724,
+      "ucb95": 0.17793446479486633
+    },
+    "rung_2_100_states": {
+      "mean": 0.18452786238108884,
+      "lcb95": 0.10889501020852953,
+      "ucb95": 0.2765544271668936
+    },
+    "rung_3_200_states": {
+      "mean": 0.1551551879726295,
+      "lcb95": 0.09289228290015986,
+      "ucb95": 0.2368084162835684
+    },
+    "d_B_means": {
+      "1": -0.014937154948711395,
+      "2": -0.00581343611702323,
+      "3": -0.015012490563094616
+    },
+    "eval_set": "1,958 INNER_VAL own_flag_stolen pole-B states across 27 seeds"
+  },
+  "VERDICT": "REPRESENTATION_CAPACITY_LIMITED",
+  "why_this_verdict": "Quadrupling stolen-flag training density (50 -> 200 states, 100 -> 400 rows) did NOT produce reliable recovery. Correct-rate went 0.123 -> 0.185 -> 0.155: non-monotonic, with heavily overlapping CIs, and rung 3's LCB95 (0.093) does not clear rung 1's point estimate (0.123). Every rung remains CONFIDENTLY below chance -- the highest upper bound across all three is 0.277, far below 0.5. This is the frozen spec's second reading: 'stays inverted at 4x -> representation/target/capacity problem, more data is not the fix.'",
+  "d_B_is_systematically_negative": "mean d_B = V_hat(o,pi_B,B) - V_hat(o,pi_A,B) is negative at every rung (-0.0149, -0.0058, -0.0150). Q_psi does not merely fail to prefer pi_B in stolen-flag pole-B states -- it actively prefers pi_A, the wrong teacher for that pole. Consistent with D0's finding that this regime is confidently inverted rather than merely uncertain.",
+  "HONEST_CAVEATS": {
+    "1_non_monotonic_is_noise_not_decline": "rung 2 (0.185) exceeding rung 3 (0.155) should NOT be read as more data hurting. The CIs overlap almost entirely; this is run-to-run variation, exactly what the frozen monotonicity requirement exists to prevent over-reading in either direction.",
+    "2_a_small_upward_nudge_exists_but_is_not_significant": "0.123 -> 0.185/0.155 is directionally positive, but rung 1's CI [0.076, 0.178] overlaps both higher rungs substantially. The frozen bar (rung 3 LCB95 clearing rung 1's point estimate) is not met. Calling this 'partial recovery' would be over-reading.",
+    "3_what_was_tested_is_density_at_CONSTANT_loss_mass": "the mixture-mass-control rule held the stolen category's total loss influence fixed, so this tested 'more distinct examples to average over,' NOT 'more examples AND more loss weight.' The latter was deliberately excluded to avoid confounding density with rebalancing. It remains untested and is NOT authorized by this record.",
+    "4_ceiling_of_this_ablation": "200 stolen states is the maximum reachable without new seeds. If the true requirement were an order of magnitude beyond that, this ablation could not distinguish 'needs vastly more' from 'cannot be learned by this architecture.' D2 shows 4x is insufficient; it does not prove no amount would suffice."
+  },
+  "what_this_supports_for_a_successor": "the scorer-side fix is NOT simply 'collect more counterfactual examples in this regime.' Evidence favors the target/representation being unable to express what makes pi_B preferable when the team's own flag is stolen. A regime-conditioned scorer, a richer strategic target, or a different value decomposition become the justified directions -- each of which requires its own fresh prospective decision.",
+  "still_unresolved": "the SECOND problem D0 identified -- optimization/interference outside stolen-flag states, where Q_psi is mostly correct (0.823) yet the signal does not survive PPO -- is untouched by D2 and remains open.",
+  "authorizes": "nothing. SPPPO V1 remains CLOSED. No training. No successor method."
+}
