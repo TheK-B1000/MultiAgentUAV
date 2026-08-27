@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-27 — SPPPO V1 is CLOSED as a valid final negative (`SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED`). Phase 0 collection and Gates 0A/0B passed; the 1 M production run and untouched 192-seed final evaluation completed under persistent assigned-pole training plus strategic ranking. No SPPPO V2 without a fresh prospective PI decision.
+> **Last updated:** 2026-08-27 — SPPPO V1 CLOSED (`NOT_CONFIRMED`). D0 complete (fork: `OPTIMISATION_INTERFERENCE`). D1 authorized and frozen prospectively as diagnostic-only (`D1_PROTOCOL_FROZEN.json`): Phase-0 support audit + D0 localization excluding `own_flag_stolen`. No new seeds/training; no SPPPO V2; EXP3/EXP4 locked.
 
 ### Current non-latent campaign (V3 M1)
 

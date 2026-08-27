@@ -1,0 +1,132 @@
+{
+  "record_id": "D1_PROTOCOL_FROZEN",
+  "status": "FROZEN_BEFORE_ANY_COMPUTATION",
+  "frozen_at_utc": "2026-08-27T01:57:00Z",
+  "authority": "PI prospective ruling after completed D0",
+  "classification": "DIAGNOSTIC ONLY",
+  "question": "Is the spectacular Q_psi failure in own_flag_stolen states primarily an off-support/data-coverage problem, and how much is that localized failure depressing the otherwise optimization/interference-looking aggregate?",
+  "predecessor": {
+    "D0": "artifacts/strategic_demand/sppo/D0_pole_b_diagnostic.json",
+    "D0_rows": "artifacts/strategic_demand/sppo/D0_pole_b_decision_rows.csv",
+    "D0_fork": "OPTIMISATION_INTERFERENCE",
+    "D0_n_seeds": 192,
+    "D0_n_decision_points": 35757,
+    "D0_own_flag_stolen_qpsi_correct_rate": 0.2438186813186813,
+    "D0_own_flag_home_qpsi_correct_rate": 0.8297153295783224,
+    "D0_worst_quartile_qpsi_correct_rate": 0.7093959731543624,
+    "note": "own_flag_stolen was discovered from D0; D1B is therefore a postmortem follow-up diagnostic, not independent confirmation and not a new gate."
+  },
+  "branch_invariants": {
+    "SPPPO_V1": "REMAINS CLOSED",
+    "SPPPO_V2": "NOT AUTHORIZED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED",
+    "new_training": "FORBIDDEN",
+    "new_seeds": "FORBIDDEN",
+    "seed_block_growth": "FORBIDDEN",
+    "gate_re_scoring": "FORBIDDEN",
+    "threshold_invention": "FORBIDDEN"
+  },
+  "exact_categories": [
+    "own_flag_stolen",
+    "own_flag_home",
+    "carrying",
+    "not_carrying"
+  ],
+  "category_definitions": {
+    "own_flag_home": "own_flag_home == true (same boolean as D0 rows)",
+    "own_flag_stolen": "own_flag_home == false (complement of own_flag_home; same as D0)",
+    "carrying": "blue_carrying == true (same as D0)",
+    "not_carrying": "blue_carrying == false (same as D0)"
+  },
+  "D1A": {
+    "title": "Phase-0 scorer support audit",
+    "purpose": "Measure how much representation the Q_psi fitting data actually had of the four frozen categories, and compare those proportions to the frozen D0 z1|B trajectory distribution.",
+    "data": {
+      "fitting_source": "exact Phase 0 train data used to fit Q_psi",
+      "train_seeds": "6500001..6500160 (160 TRAIN only)",
+      "held_out": "FORBIDDEN for D1A fitting-support counts",
+      "qpsi_freeze": "artifacts/strategic_demand/PHASE0_SCORER_FROZEN.json",
+      "collection": "artifacts/strategic_demand/phase0_scorer_data/full_collection_rebuild_per_branch/"
+    },
+    "required_reports": [
+      "counts per category",
+      "proportions per category",
+      "breakdown by pole where available",
+      "seed-level uncertainty (seed-level bootstrap or seed-level means with CI)",
+      "comparison of Phase-0 fit proportions vs D0 z1|B trajectory proportions for the same four categories"
+    ],
+    "explicitly_forbidden": [
+      "inventing a retrospective off-support threshold",
+      "re-fitting Q_psi",
+      "using held-out Phase 0 seeds for support counts",
+      "collecting new trajectories"
+    ],
+    "permitted_interpretation": "Whether the scorer was trained on very little of the state class where it later became confidently inverted. Descriptive coverage comparison only."
+  },
+  "D1B": {
+    "title": "Pre-specified localization analysis on existing D0 rows",
+    "purpose": "Test whether Q_psi's aggregate weakness is largely concentrated in flag-stolen states.",
+    "data": {
+      "source": "artifacts/strategic_demand/sppo/D0_pole_b_decision_rows.csv",
+      "n_seeds": 192,
+      "block": "10300001..10300192",
+      "new_replay": "FORBIDDEN -- reuse existing D0 rows only"
+    },
+    "procedure": {
+      "unit": "seed",
+      "bootstrap": "seed-level percentile bootstrap",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "quartile_rule": "Within each bootstrap replicate, recompute the worst-quartile cutoff of margin_B_bits on the retained rows of that replicate (exactly as D0's within-sample quartile construction, but now per replicate after exclusion).",
+      "primary_analysis": "Remove own_flag_stolen states; recompute worst-quartile Q_psi correct-rate with replicate-internal quartile cutoff; report point estimate and seed-level LCB95/UCB95.",
+      "complementary_stratum": "Report the corresponding own_flag_home result (same bootstrap/quartile procedure on own_flag_home-only rows)."
+    },
+    "label": "POSTMORTEM FOLLOW-UP DIAGNOSTIC -- not independent confirmation; not a new gate",
+    "why_postmortem": "own_flag_stolen was discovered from inspecting D0 category breakdowns."
+  },
+  "bootstrap_contract": {
+    "unit": "seed (not decision point)",
+    "rationale": "Decision points are heavily clustered within episodes; effective sample size tracks seeds, not raw decision counts. Same clustering lesson that drove Gate 0B's seed-level bootstrap.",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "outcome_signatures": {
+    "LOCALIZED_OFF_SUPPORT_PLUS_BROADER_INTERFERENCE": {
+      "when": "Phase 0 barely contained flag-stolen states AND excluding them makes Q_psi look substantially stronger on the worst-quartile correct-rate",
+      "favors": "localized surrogate off-support + broader optimization interference"
+    },
+    "SCORER_REGIME_FAILURE": {
+      "when": "flag-stolen states were well represented in Phase 0 fit data but Q_psi is still confidently inverted there",
+      "favors": "scorer target/capacity/representation failure in that game regime (not mere coverage)"
+    },
+    "DIFFUSE_INTERFERENCE": {
+      "when": "removing flag-stolen states barely changes the aggregate worst-quartile Q_psi correct-rate",
+      "favors": "interference problem more diffuse than D0 currently suggests"
+    },
+    "UNRESOLVED": {
+      "when": "seed-level uncertainty remains broad enough that the localization hypotheses cannot be separated",
+      "action": "record UNRESOLVED; still no training"
+    }
+  },
+  "permitted_claims_after_D1": [
+    "Evidence about whether own_flag_stolen failure is concentrated coverage vs regime failure vs diffuse interference",
+    "Descriptive Phase-0 vs D0 distribution comparisons with seed-level uncertainty"
+  ],
+  "prohibited_claims_after_D1": [
+    "Q_psi is correct",
+    "Q_psi is exonerated",
+    "SPPPO V1 would have passed under a different gate",
+    "Authorization of SPPPO V2 or any new training run",
+    "Any new scientific gate or threshold"
+  ],
+  "successor_method_policy": "Do not build the successor method until D1 completes. D1 can change its shape: sparse flag-stolen coverage may require targeted counterfactual data in those states; well-supported inversion argues against 'just collect more examples'; strong Q_psi outside the localized regime still leaves the separate optimization problem of attaching a mostly-correct strategic signal to z1.",
+  "immutability": {
+    "protocol_edit_after_results": "FORBIDDEN",
+    "outcome_signature_rewrite": "FORBIDDEN",
+    "category_redefinition": "FORBIDDEN",
+    "bootstrap_parameter_change": "FORBIDDEN"
+  }
+}
