@@ -1,0 +1,49 @@
+{
+  "record_id": "D6B_SPEC_FROZEN",
+  "status": "FROZEN_BEFORE_ANY_COLLECTION",
+  "utc": "2026-08-27T16:05:00Z",
+  "authority": "PI ruling",
+  "name": "Native-Horizon Early-Stolen Audit",
+  "supersedes": "the original D6 horizon intervention, recorded INFEASIBLE in D6_FEASIBILITY_BLOCKER.json",
+  "the_question": "When a stolen-flag state occurs NATURALLY while plenty of native game horizon remains, is the teacher preference still mostly tied? Deliberately weaker than the impossible same-state horizon counterfactual -- it does not manipulate the timer at all.",
+  "rules_frozen": {
+    "window": "branch_step <= 49, the already-frozen D5 early boundary",
+    "pole": "B only",
+    "states": "NATURAL own_flag_stolen only -- the stolen condition is never manufactured",
+    "seeds": "already-audited Phase 0 TRAIN seeds only. No RASR 105..., no FINAL 106..., no new seed IDs.",
+    "machinery": "the existing replay-to-state + paired pi_A/pi_B branch procedure, terminal win-margin outcome, all unchanged",
+    "exhaustiveness": "collect ALL eligible states; do not stop when a convenient answer appears",
+    "bootstrap": {
+      "unit": "SEED",
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "rule": "carry all eligible early-stolen states of a sampled seed together"
+    },
+    "contextual_control": "early own_flag_home in the SAME step window"
+  },
+  "ELIGIBLE_POOL_MEASURED_BEFORE_FREEZING": {
+    "early_stolen_decision_points": 33,
+    "seeds_contributing": 6,
+    "per_seed": {
+      "min": 1,
+      "max": 21,
+      "median": 2
+    },
+    "early_home_decision_points": 6029,
+    "POWER_WARNING_RECORDED_IN_ADVANCE": "the seed-level bootstrap has an effective n of SIX. One seed contributes 21 of the 33 points (64%), so resampling will be extremely lumpy and most replicates will be dominated by whether that single seed is drawn. This audit is very likely to return UNRESOLVED, and that expectation is recorded BEFORE collection so a null result is not later described as surprising, and a non-null result from a 6-seed bootstrap is not over-read.",
+    "why_the_pool_is_this_small": "D5 already showed stolen-flag states are heavily concentrated late (counts 1/33/57 across early/mid/late tertiles in the branch data). Early stolen states are rare in this environment because a mutual-theft standoff takes time to develop. The scarcity is itself a property of the game, not a sampling failure."
+  },
+  "PERMITTED_READINGS": {
+    "horizon_censoring_contributes": "early stolen tie rate MUCH lower than late stolen -> late 'ties' cannot safely be read as strategic indifference",
+    "regime_degeneracy_survives": "early stolen still overwhelmingly tied despite ~190+ steps remaining -> the stolen/mutual-theft regime genuinely drives convergence, not merely the clock",
+    "unresolved": "early stolen data too sparse to support the frozen uncertainty requirement -> UNRESOLVED, with no story inflation"
+  },
+  "CONCEPTUAL_FINDING_FROM_THE_FAILED_D6_CHECK": "time-to-go is already part of the strategic state: the policy observes normalized episode progress (obs channel 14) and the scripted RED responds to it too. A future latent-strategy model should therefore not treat horizon as nuisance noise. 'BREACH with 180 steps left' may rationally differ from 'BREACH with 15 steps left' without ceasing to be BREACH -- which strengthens the hierarchical framing rather than weakening it.",
+  "hard_boundaries": [
+    "does NOT modify max_decision_steps or any environment parameter",
+    "does NOT touch the running RASR DEV collector or the 105... block",
+    "does NOT touch FINAL 10600001..10600192",
+    "does NOT flip any RASR gate; the 4M PPO launch remains paused"
+  ]
+}
