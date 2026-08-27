@@ -1,0 +1,18 @@
+{
+  "record_id": "D2_SPEC_AMENDMENT_2",
+  "status": "FROZEN_BEFORE_ANY_EVALUATION_RUNS",
+  "utc": "2026-08-27T14:55:00Z",
+  "authority": "self-caught correction, before execution",
+  "amends": "D2_SPEC_FROZEN.json's evaluation metric definition",
+  "the_error": "D2_SPEC_FROZEN.json defined the recovery metric as V_hat(o,z1,B) - V_hat(o,z0,B), copying D0/D1B's convention of querying the CLOSED SPPPO production student's z0/z1 latent modes. D2 is declared a SCORER-ONLY ABLATION; reaching into the closed SPPPO student model contradicts that framing and is not needed to test Q_psi's own generalisation.",
+  "the_correction": "use Gate 0B's OWN original convention instead: d_B(o) = V_hat(o, pi_B, B) - V_hat(o, pi_A, B), querying the two FROZEN SAPPO TEACHERS (pi_A, pi_B) directly via teacher_action_dists(), exactly as phase0_gate0b.py already does. This is a purely self-contained property of Q_psi plus the frozen teachers -- no student model, closed or otherwise, is touched anywhere in D2.",
+  "metric": "fraction of INNER_VAL own_flag_stolen pole-B states where d_B(o) = V_hat(o,pi_B,B) - V_hat(o,pi_A,B) > 0.04",
+  "unchanged": [
+    "ladder (50/100/200)",
+    "mixture-mass-control rule",
+    "round-robin selection",
+    "one fit per rung",
+    "seed-level bootstrap (n_boot 20000, alpha 0.05, rng_seed 7)",
+    "monotonicity/meaningful-margin requirement"
+  ]
+}
