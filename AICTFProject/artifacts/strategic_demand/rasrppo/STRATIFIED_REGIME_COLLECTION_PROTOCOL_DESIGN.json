@@ -180,6 +180,29 @@
       ],
       "seed_10700001": "Quarantined at artifacts/strategic_demand/stratified_quarantine_preamendment/. To be RECOLLECTED from scratch under the amended rule so the full 160-seed block is homogeneous under one rule.",
       "cost": "1 seed, ~14 minutes, against a ~35 h run with roughly 3-to-1 odds of invalidating itself."
+    },
+    "OPERATIONAL_NOTE_BRANCH_BUDGET_IS_A_CEILING": {
+      "utc": "2026-08-27T22:32:26Z",
+      "type": "NON-NORMATIVE CLARIFICATION. Changes no rule; records measured expectations so a realised total below 1920 is not later misread as a defect.",
+      "prompted_by": "seed 10700009 produced 11 branch points rather than 12, queried by the PI as a possible collector defect",
+      "diagnosis": "Benign and anticipated. Seed 10700009 visited 11 of the 16 cells and all 11 were chosen; visited-but-not-chosen was empty. There was no 12th legal candidate to leave unused, so the allocator did not skip anything.",
+      "rule_it_exercises": "ALLOCATION_RULE.if_a_seed_visits_fewer_than_12_cells -- a seed contributes fewer than 12 branch states, and backfilling from abundant cells is prohibited because it would re-create the uniform skew this protocol exists to remove. 12 is a per-seed budget CEILING, not an exact requirement.",
+      "measured_expectation_from_the_96_seed_occupancy_distribution": {
+        "cells_visited_per_seed": {
+          "min": 8,
+          "median": 12,
+          "max": 16,
+          "mean": 12.23
+        },
+        "seeds_visiting_fewer_than_12_cells": "31 of 96 = 32%",
+        "mean_branch_points_after_capping_at_12": 11.45,
+        "projected_total_branch_states_over_160_seeds": 1832,
+        "nominal_ceiling": 1920,
+        "expected_shortfall": "88 states, 4.6%"
+      },
+      "why_the_support_floor_is_unaffected": "B_r2_not_late and B_r2_late sit at ranks 2 and 3 of the frozen rarest-first order with 12 slots available, so any seed that visits them is guaranteed a slot before the budget is exhausted. Per-cell distinct-seed support therefore tracks cell PRESENCE exactly, which is the quantity the 0.344 -> 55-of-160 projection was computed from. Low-occupancy seeds reduce the total branch-state count, not the per-cell seed support.",
+      "evidence_the_scarce_cell_mechanism_works": "Seed 10700009 visited B_r2_late with only 2 candidate states and the rarest-first rule spent a slot on it. The cell whose starvation invalidated RASR was served on a seed where it barely appeared.",
+      "scope_of_this_inspection": "Collector mechanics only. No per-cell support counts were compared against the 32-seed floor; that remains a single post-collection audit."
     }
   }
 }
