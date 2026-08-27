@@ -1,20 +1,16 @@
 """Collect the frozen 16-cell STRATIFIED REGIME block.
 
 Implements STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json, frozen by PI ruling
-at commit c318bcea and launch-authorized 2026-08-27.
+at commit c318bcea, launch-authorized 2026-08-27, and amended by AMENDMENT_2
+(all four (policy, pole) trajectories eligible; secondary source-balance tie-break).
 
 This is a selection-only adaptation of ``collect_rasr_dev_scorer_data.py``. The
 rollout, branch_at, teacher-consistent continuation and shard schema are unchanged
--- the ONLY difference is which decision points become branch states.
+-- the ONLY scientific deltas vs RASR are (1) which decision points become branch
+states and (2) AMENDMENT_2 eligibility / provenance / tie-break.
 
-RASR chose branch points by tertile, uniformly over a heavily skewed visitation
-distribution, and 5 of 8 pole x regime cells fell below the 32-distinct-seed floor.
-The states were present in the trajectories the whole time; uniform selection simply
-never landed on them. Here, each seed walks the 16 cells in a FROZEN rarest-first
-order and spends one branch slot on each cell it actually visits, up to 12.
-
-Every counterfactual continuation reconstructs a fresh seeded environment;
-environment reuse across branch teachers or branch points is forbidden.
+Attempt 1 (source-only eligibility) is STOPPED BEFORE FULL COLLECTION /
+FEASIBILITY DEFECT; its seed is quarantined and recollected under this file.
 """
 from __future__ import annotations
 
@@ -58,7 +54,6 @@ SPLITS = {"FIT": range(10_700_001, 10_700_097),
           "CALIB": range(10_700_097, 10_700_129),
           "EVAL": range(10_700_129, 10_700_161)}
 
-# blocks that are already spent; the new block must not intersect any of them
 FORBIDDEN = [range(6_500_001, 6_500_257), range(10_400_001, 10_400_033),
              range(10_500_001, 10_500_097), range(10_600_001, 10_600_193),
              range(10_300_001, 10_300_193)]
@@ -67,6 +62,9 @@ EXPECTED_TEACHER_SHA = {
     "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
     "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
 }
+
+POLICIES = ("pi_A", "pi_B")
+POLES = ("A", "B")
 
 
 def _now() -> str:
@@ -77,15 +75,38 @@ def cell_name(cell) -> str:
     return f"{cell[0]}_r{cell[1]}_{cell[2]}"
 
 
-def source_policy_for(seed: int, pole: str) -> str:
-    """Unchanged in structure from the RASR collector; only the base moves."""
-    if seed not in SEEDS or pole not in ("A", "B"):
-        raise ValueError("source assignment escaped the frozen block")
-    return ("pi_A", "pi_B")[(seed - BASE + (pole == "B")) % 2]
-
-
 def _copy_obs(obs):
     return {key: np.asarray(value).copy() for key, value in obs.items()}
+
+
+def _empty_source_counts() -> dict[str, dict[str, int]]:
+    return {cell_name(cell): {"pi_A": 0, "pi_B": 0} for cell in FROZEN_RANK}
+
+
+def rebuild_source_counts_from_shards(
+    completed_seeds: list[int], shards_dir: Path
+) -> dict[str, dict[str, int]]:
+    """Mandatory resume rebuild: reproduce the uninterrupted global counter."""
+    counts = _empty_source_counts()
+    for seed in sorted(int(s) for s in completed_seeds):
+        shard = shards_dir / f"seed_{seed}.npz"
+        if not shard.is_file():
+            raise RuntimeError(
+                f"REFUSING: completed seed {seed} has no shard for counter rebuild"
+            )
+        with np.load(shard, allow_pickle=False) as data:
+            cells = [str(c) for c in data["branch_cell"]]
+            sources = np.asarray(data["branch_source_policy"], dtype=np.int64)
+            if len(cells) != len(sources):
+                raise RuntimeError(f"REFUSING: shard {shard.name} cell/source length mismatch")
+            for name, source_idx in zip(cells, sources):
+                policy = "pi_A" if int(source_idx) == 0 else "pi_B"
+                if name not in counts:
+                    raise RuntimeError(
+                        f"REFUSING: shard {shard.name} has unknown cell {name!r}"
+                    )
+                counts[name][policy] += 1
+    return counts
 
 
 def _preflight() -> dict:
@@ -95,9 +116,15 @@ def _preflight() -> dict:
     spec = json.loads(PROTOCOL.read_text(encoding="utf-8"))
     if not spec["status"].startswith("FROZEN -- STRATIFIED_16CELL_COLLECTION_PROTOCOL_FROZEN"):
         raise RuntimeError(f"REFUSING: protocol is not frozen: {spec['status']!r}")
+    if "AMENDMENT_2_ALL_FOUR_TRAJECTORIES_ELIGIBLE" not in spec:
+        raise RuntimeError("REFUSING: AMENDMENT_2 is absent from the protocol")
     auth = spec["AUTHORIZATION"]["collection_launch"]
     if not auth.startswith("AUTHORIZED"):
         raise RuntimeError(f"REFUSING: collection launch is not authorized: {auth!r}")
+    if "AMENDMENT_2" not in auth:
+        raise RuntimeError(
+            "REFUSING: collection launch authorization does not cite AMENDMENT_2"
+        )
 
     frozen = spec["FREEZE_RECORD"]["frozen_parameters_restated"]
     drift = []
@@ -181,46 +208,73 @@ def _split_of(seed: int) -> str:
     raise ValueError(f"seed {seed} is outside every split")
 
 
-def _cells_for(tagger, records, pole: str):
-    """Bucket a source trajectory's decision steps by (pole, regime, horizon)."""
+def _cells_for(tagger, records, pole: str, policy: str):
+    """Bucket a trajectory's decision steps by (pole, regime, horizon).
+
+    Candidates carry source-policy provenance; cell identity ignores policy.
+    """
     import torch
     if not records:
         return {}
     vec = np.stack([np.asarray(r["obs"]["vec"])[0] for r in records])   # (N,2,20)
     regimes = tagger.regime_from_vec(torch.as_tensor(vec, dtype=torch.float32)).numpy()
-    buckets: dict[tuple, list[int]] = {}
+    buckets: dict[tuple, list[tuple[str, int]]] = {}
     for record, regime in zip(records, regimes):
         step = int(record["step"])
         cell = (pole, int(regime), "late" if step > LATE_BOUNDARY else "not_late")
-        buckets.setdefault(cell, []).append(step)
+        buckets.setdefault(cell, []).append((policy, step))
     return buckets
 
 
-def select_stratified_points(tagger, sources, seed: int):
-    """The frozen allocation rule.
+def select_stratified_points(
+    tagger,
+    sources: dict[tuple[str, str], tuple],
+    seed: int,
+    source_counts: dict[str, dict[str, int]],
+):
+    """Rarest-first allocation over all four (policy, pole) trajectories.
 
-    Walk the 16 cells in FROZEN_RANK order; for each cell this seed actually
-    visits, spend one branch slot, until BRANCH_POINTS_PER_SEED are gone. No
-    backfilling from abundant cells -- backfilling would re-create the uniform
-    sampling skew this protocol exists to remove.
+    AMENDMENT_2: every (policy, pole) path is eligible. Cell identity is still
+    pole x regime x horizon only. When both policies supply candidates for a
+    cell, prefer the policy currently less represented in that cell (secondary
+    tie-break); if equal, use the frozen uniform RNG.
     """
-    buckets: dict[tuple, list[int]] = {}
-    for pole, (_, _, records, _) in sources.items():
-        buckets.update(_cells_for(tagger, records, pole))
+    buckets: dict[tuple, list[tuple[str, int]]] = {}
+    for (policy, pole), (_, records, _) in sources.items():
+        for cell, candidates in _cells_for(tagger, records, pole, policy).items():
+            buckets.setdefault(cell, []).extend(candidates)
+
+    visited = {
+        cell_name(cell): len(candidates) for cell, candidates in sorted(buckets.items())
+    }
     rng = np.random.default_rng([RNG_SEED, seed])
-    chosen: dict[str, list[tuple[int, tuple]]] = {"A": [], "B": []}
+    # selections: list of (pole, policy, step, cell)
+    selections: list[tuple[str, str, int, tuple]] = []
     slots = BRANCH_POINTS_PER_SEED
     for cell in FROZEN_RANK:
         if slots == 0:
             break
-        steps = buckets.get(cell)
-        if not steps:
+        candidates = buckets.get(cell)
+        if not candidates:
             continue
-        chosen[cell[0]].append((int(rng.choice(sorted(steps))), cell))
+        name = cell_name(cell)
+        count_a = int(source_counts[name]["pi_A"])
+        count_b = int(source_counts[name]["pi_B"])
+        if count_a < count_b:
+            preferred = [c for c in candidates if c[0] == "pi_A"] or list(candidates)
+        elif count_b < count_a:
+            preferred = [c for c in candidates if c[0] == "pi_B"] or list(candidates)
+        else:
+            preferred = list(candidates)
+        # Stable order then uniform draw among the preferred set.
+        preferred = sorted(preferred, key=lambda item: (item[0], item[1]))
+        policy, step = preferred[int(rng.integers(0, len(preferred)))]
+        selections.append((cell[0], policy, int(step), cell))
+        source_counts[name][policy] += 1
         slots -= 1
-    for pole in ("A", "B"):
-        chosen[pole].sort()
-    return chosen, {cell_name(c): len(v) for c, v in sorted(buckets.items())}
+
+    selections.sort(key=lambda item: (item[0], item[2], item[1]))
+    return selections, visited
 
 
 def _branch_one(model, policy: str, pole: str, seed: int, prefix, step: int, device: str):
@@ -233,10 +287,14 @@ def _branch_one(model, policy: str, pole: str, seed: int, prefix, step: int, dev
             env.step_async(prefix[index])
             obs, _, done, info = env.step_wait()
             if bool(np.asarray(done).any()):
-                raise RuntimeError(f"episode ended before branch seed={seed} pole={pole} step={step}")
+                raise RuntimeError(
+                    f"episode ended before branch seed={seed} pole={pole} step={step}"
+                )
         restored = _copy_obs(obs)
         rewards = []
-        branch_action = np.asarray(model.predict(restored, deterministic=True)[0]).reshape(-1).astype(np.int64)
+        branch_action = np.asarray(
+            model.predict(restored, deterministic=True)[0]
+        ).reshape(-1).astype(np.int64)
         action = branch_action
         terminal = None
         for _ in range(step, R2.MAX_STEPS):
@@ -246,12 +304,19 @@ def _branch_one(model, policy: str, pole: str, seed: int, prefix, step: int, dev
             if bool(np.asarray(done).any()):
                 terminal = P0._terminal(core, info)
                 break
-            action = np.asarray(model.predict(obs, deterministic=True)[0]).reshape(-1).astype(np.int64)
+            action = np.asarray(
+                model.predict(obs, deterministic=True)[0]
+            ).reshape(-1).astype(np.int64)
         if terminal is None:
             terminal = (int(core.blue_score[0]), int(core.red_score[0]))
         blue, red = terminal
-        return {"obs": restored, "action": branch_action,
-                "return": np.stack(rewards).sum(axis=0), "blue": blue, "red": red}
+        return {
+            "obs": restored,
+            "action": branch_action,
+            "return": np.stack(rewards).sum(axis=0),
+            "blue": blue,
+            "red": red,
+        }
     finally:
         env.close()
 
@@ -263,60 +328,99 @@ def _stack(arrays, prefix, records):
     arrays[f"{prefix}_return"] = np.stack([r["return"] for r in records])
 
 
-def _collect_seed(models, tagger, seed: int, device: str):
-    summaries, plain_records, sources = [], [], {}
-    for policy in ("pi_A", "pi_B"):
-        for pole in ("A", "B"):
-            summary, records, prefix, decisions = _plain_episode(models[policy], policy, pole, seed, device)
+def _collect_seed(models, tagger, seed: int, device: str, source_counts):
+    summaries, plain_records = [], []
+    # AMENDMENT_2: retain all four (policy, pole) trajectories.
+    sources: dict[tuple[str, str], tuple] = {}
+    for policy in POLICIES:
+        for pole in POLES:
+            summary, records, prefix, decisions = _plain_episode(
+                models[policy], policy, pole, seed, device
+            )
             summaries.append(summary)
             for record in records:
                 record.update({"policy": policy, "pole": pole})
             plain_records.extend(records)
-            if policy == source_policy_for(seed, pole):
-                sources[pole] = (policy, prefix, records, decisions)
+            sources[(policy, pole)] = (prefix, records, decisions)
 
-    chosen, visited = select_stratified_points(tagger, sources, seed)
-    n_chosen = sum(len(v) for v in chosen.values())
-    if n_chosen == 0:
+    selections, visited = select_stratified_points(
+        tagger, sources, seed, source_counts
+    )
+    if not selections:
         raise RuntimeError(f"seed={seed} selected no branch points")
 
     branches = []
-    for pole in ("A", "B"):
-        source, prefix, _, _ = sources[pole]
-        for branch_index, (step, cell) in enumerate(chosen[pole]):
-            pair = [_branch_one(models[policy], policy, pole, seed, prefix, step, device)
-                    for policy in ("pi_A", "pi_B")]
-            if not all(np.array_equal(pair[0]["obs"][k], pair[1]["obs"][k]) for k in pair[0]["obs"]):
-                raise RuntimeError(f"matched branch state mismatch seed={seed} pole={pole} step={step}")
-            branches.append({"seed": seed, "pole": pole, "source_policy": source,
-                             "step": step, "branch_index": branch_index,
-                             "cell": cell_name(cell), "regime": cell[1],
-                             "horizon": cell[2], "pair": pair})
+    for branch_index, (pole, source_policy, step, cell) in enumerate(selections):
+        prefix, _, _ = sources[(source_policy, pole)]
+        pair = [
+            _branch_one(models[policy], policy, pole, seed, prefix, step, device)
+            for policy in POLICIES
+        ]
+        if not all(
+            np.array_equal(pair[0]["obs"][k], pair[1]["obs"][k])
+            for k in pair[0]["obs"]
+        ):
+            raise RuntimeError(
+                f"matched branch state mismatch seed={seed} pole={pole} step={step}"
+            )
+        branches.append({
+            "seed": seed,
+            "pole": pole,
+            "source_policy": source_policy,
+            "step": step,
+            "branch_index": branch_index,
+            "cell": cell_name(cell),
+            "regime": cell[1],
+            "horizon": cell[2],
+            "pair": pair,
+        })
 
     arrays = {
-        "plain_seed": np.asarray([r["step"] * 0 + seed for r in plain_records], dtype=np.int64),
+        "plain_seed": np.asarray(
+            [seed for _ in plain_records], dtype=np.int64
+        ),
         "plain_step": np.asarray([r["step"] for r in plain_records], dtype=np.int32),
-        "plain_policy": np.asarray([0 if r["policy"] == "pi_A" else 1 for r in plain_records], dtype=np.int8),
-        "plain_pole": np.asarray([0 if r["pole"] == "A" else 1 for r in plain_records], dtype=np.int8),
+        "plain_policy": np.asarray(
+            [0 if r["policy"] == "pi_A" else 1 for r in plain_records], dtype=np.int8
+        ),
+        "plain_pole": np.asarray(
+            [0 if r["pole"] == "A" else 1 for r in plain_records], dtype=np.int8
+        ),
         "branch_seed": np.asarray([seed] * len(branches), dtype=np.int64),
         "branch_step": np.asarray([b["step"] for b in branches], dtype=np.int32),
-        "branch_index": np.asarray([b["branch_index"] for b in branches], dtype=np.int8),
-        "branch_pole": np.asarray([0 if b["pole"] == "A" else 1 for b in branches], dtype=np.int8),
-        "branch_source_policy": np.asarray([0 if b["source_policy"] == "pi_A" else 1 for b in branches], dtype=np.int8),
+        "branch_index": np.asarray(
+            [b["branch_index"] for b in branches], dtype=np.int8
+        ),
+        "branch_pole": np.asarray(
+            [0 if b["pole"] == "A" else 1 for b in branches], dtype=np.int8
+        ),
+        "branch_source_policy": np.asarray(
+            [0 if b["source_policy"] == "pi_A" else 1 for b in branches], dtype=np.int8
+        ),
         "branch_regime": np.asarray([b["regime"] for b in branches], dtype=np.int8),
-        "branch_is_late": np.asarray([b["horizon"] == "late" for b in branches], dtype=np.int8),
+        "branch_is_late": np.asarray(
+            [b["horizon"] == "late" for b in branches], dtype=np.int8
+        ),
         "branch_cell": np.asarray([b["cell"] for b in branches], dtype="U24"),
     }
     _stack(arrays, "plain", plain_records)
     for key in branches[0]["pair"][0]["obs"]:
-        arrays[f"branch_obs_{key}"] = np.stack([b["pair"][0]["obs"][key] for b in branches])
-    for policy_index, policy in enumerate(("pi_A", "pi_B")):
+        arrays[f"branch_obs_{key}"] = np.stack(
+            [b["pair"][0]["obs"][key] for b in branches]
+        )
+    for policy_index, policy in enumerate(POLICIES):
         items = [b["pair"][policy_index] for b in branches]
         arrays[f"branch_{policy}_action"] = np.stack([i["action"] for i in items])
         arrays[f"branch_{policy}_return"] = np.stack([i["return"] for i in items])
-        arrays[f"branch_{policy}_blue"] = np.asarray([i["blue"] for i in items], dtype=np.int16)
-        arrays[f"branch_{policy}_red"] = np.asarray([i["red"] for i in items], dtype=np.int16)
-    return summaries, arrays, [b["cell"] for b in branches], visited
+        arrays[f"branch_{policy}_blue"] = np.asarray(
+            [i["blue"] for i in items], dtype=np.int16
+        )
+        arrays[f"branch_{policy}_red"] = np.asarray(
+            [i["red"] for i in items], dtype=np.int16
+        )
+    return summaries, arrays, [b["cell"] for b in branches], visited, [
+        b["source_policy"] for b in branches
+    ]
 
 
 def _write_json_atomic(path: Path, value) -> None:
@@ -329,15 +433,24 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--limit", type=int, default=0,
-                        help="stop after N seeds; SMOKE USE ONLY, never for the frozen run")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="stop after N seeds; SMOKE USE ONLY, never for the frozen run",
+    )
     args = parser.parse_args()
 
     spec = _preflight()
+    amendment = spec["AMENDMENT_2_ALL_FOUR_TRAJECTORIES_ELIGIBLE"]
     contract = {
         "mode": "DRY_RUN" if args.dry_run else "STRATIFIED_COLLECTION",
         "protocol": str(PROTOCOL.relative_to(ROOT)),
         "protocol_status": spec["status"],
+        "amendment_2": True,
+        "amendment_2_ruling": amendment["ruling"],
+        "eligibility": "all four (policy, pole) trajectories",
+        "source_balance_tie_break": True,
         "seed_block": [SEEDS[0], SEEDS[-1], len(SEEDS)],
         "splits": {k: [min(v), max(v), len(v)] for k, v in SPLITS.items()},
         "cells": len(FROZEN_RANK),
@@ -348,11 +461,15 @@ def main() -> int:
         "late_boundary": LATE_BOUNDARY,
         "rng_seed": RNG_SEED,
         "support_floor_per_cell": SUPPORT_FLOOR,
-        "support_floor_scope": "checked ONCE over the FULL block after collection; never per split, never during",
+        "support_floor_scope": (
+            "checked ONCE over the FULL block after collection; "
+            "never per split, never during"
+        ),
         "environment_semantics": "fresh rebuild per teacher per branch; reuse forbidden",
         "output": str(OUT.relative_to(ROOT)),
         "teacher_sha256": EXPECTED_TEACHER_SHA,
         "final_106_seeds_touched": False,
+        "attempt_1_disposition": amendment["attempt_1_disposition"]["classification"],
     }
     print(json.dumps(contract, indent=2), flush=True)
     if args.dry_run:
@@ -370,41 +487,89 @@ def main() -> int:
     probe = R2.build_env(args.device, SEEDS[0])
     observation_space, action_space = probe.observation_space, probe.action_space
     probe.close()
-    models = {name: load_custom_ppo_policy(str(path), observation_space, action_space, device=args.device)
-              for name, path in P0.TEACHERS.items()}
+    models = {
+        name: load_custom_ppo_policy(
+            str(path), observation_space, action_space, device=args.device
+        )
+        for name, path in P0.TEACHERS.items()
+    }
 
     manifest_path = OUT / "collection_manifest.json"
     completed: list[int] = []
     if manifest_path.exists():
-        completed = [int(s) for s in json.loads(manifest_path.read_text(encoding="utf-8")).get("completed_seeds", [])]
+        completed = [
+            int(s)
+            for s in json.loads(manifest_path.read_text(encoding="utf-8")).get(
+                "completed_seeds", []
+            )
+        ]
     if not set(completed).issubset(SEEDS):
         raise RuntimeError("REFUSING: manifest contains a seed outside the frozen block")
+
+    # Mandatory: rebuild the global source-balance counter from completed shards
+    # before any new selection so resume matches an uninterrupted run.
+    source_counts = rebuild_source_counts_from_shards(completed, shards)
+    print(
+        json.dumps(
+            {
+                "source_balance_counter_rebuilt_from_shards": True,
+                "completed_seeds_for_rebuild": len(completed),
+                "source_counts": source_counts,
+            },
+            indent=2,
+        ),
+        flush=True,
+    )
 
     todo = [s for s in SEEDS if s not in completed]
     if args.limit:
         todo = todo[: args.limit]
     for seed in todo:
-        summaries, arrays, cells, visited = _collect_seed(models, tagger, seed, args.device)
+        summaries, arrays, cells, visited, sources = _collect_seed(
+            models, tagger, seed, args.device, source_counts
+        )
         shard = shards / f"seed_{seed}.npz"
         with shard.with_suffix(".npz.tmp").open("wb") as handle:
             np.savez_compressed(handle, **arrays)
         os.replace(shard.with_suffix(".npz.tmp"), shard)
-        _write_json_atomic(summaries_dir / f"seed_{seed}.json",
-                           {"episodes": summaries, "branch_cells": cells,
-                            "visited_cell_counts": visited, "split": _split_of(seed)})
+        _write_json_atomic(
+            summaries_dir / f"seed_{seed}.json",
+            {
+                "episodes": summaries,
+                "branch_cells": cells,
+                "branch_source_policies": sources,
+                "visited_cell_counts": visited,
+                "split": _split_of(seed),
+                "amendment_2": True,
+            },
+        )
         completed.append(seed)
-        _write_json_atomic(manifest_path, {
-            "record": "16-cell stratified regime collection",
-            "protocol": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json, frozen c318bcea",
-            "updated_utc": _now(),
-            "semantics": "fresh rebuild per teacher per branch",
-            "completed_seeds": completed,
-            "target_seeds": len(SEEDS),
-            "branch_points_per_seed": BRANCH_POINTS_PER_SEED,
-            "teacher_sha256": EXPECTED_TEACHER_SHA,
-        })
-        print(f"seed {seed} [{_split_of(seed)}] {len(cells)} branch pts "
-              f"({len(completed)}/{len(SEEDS)})", flush=True)
+        _write_json_atomic(
+            manifest_path,
+            {
+                "record": "16-cell stratified regime collection",
+                "protocol": (
+                    "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json, "
+                    "frozen c318bcea + AMENDMENT_2"
+                ),
+                "amendment_2": True,
+                "updated_utc": _now(),
+                "semantics": "fresh rebuild per teacher per branch",
+                "eligibility": "all four (policy, pole) trajectories",
+                "completed_seeds": completed,
+                "target_seeds": len(SEEDS),
+                "branch_points_per_seed": BRANCH_POINTS_PER_SEED,
+                "teacher_sha256": EXPECTED_TEACHER_SHA,
+                "source_counts_after_seed": {
+                    cell: dict(counts) for cell, counts in source_counts.items()
+                },
+            },
+        )
+        print(
+            f"seed {seed} [{_split_of(seed)}] {len(cells)} branch pts "
+            f"sources={sources} ({len(completed)}/{len(SEEDS)})",
+            flush=True,
+        )
 
     if len(completed) < len(SEEDS):
         print(f"\nPARTIAL: {len(completed)}/{len(SEEDS)}. No COMPLETE marker written.")
@@ -414,10 +579,15 @@ def main() -> int:
     temporary = episode_path.with_suffix(".jsonl.tmp")
     with temporary.open("w", encoding="utf-8") as handle:
         for seed in SEEDS:
-            rows = json.loads((summaries_dir / f"seed_{seed}.json").read_text(encoding="utf-8"))
+            rows = json.loads(
+                (summaries_dir / f"seed_{seed}.json").read_text(encoding="utf-8")
+            )
             for row in rows["episodes"]:
                 handle.write(json.dumps(row) + "\n")
     os.replace(temporary, episode_path)
+
+    # Realized source composition per cell (report, not a gate).
+    composition = rebuild_source_counts_from_shards(completed, shards)
     _write_json_atomic(COMPLETE, {
         "verdict": "COLLECTION_COMPLETE",
         "utc": _now(),
@@ -425,7 +595,13 @@ def main() -> int:
         "completed_seeds": len(completed),
         "splits": {k: [min(v), max(v), len(v)] for k, v in SPLITS.items()},
         "semantics": "fresh rebuild per teacher per branch",
-        "support_floor_check": "NOT PERFORMED HERE -- a separate one-shot audit scores the 32-distinct-seed floor over all 16 cells",
+        "amendment_2": True,
+        "eligibility": "all four (policy, pole) trajectories",
+        "realized_source_composition_per_cell": composition,
+        "support_floor_check": (
+            "NOT PERFORMED HERE -- a separate one-shot audit scores the "
+            "32-distinct-seed floor over all 16 cells"
+        ),
         "final_106_seeds_touched": False,
     })
     print("\nCOLLECTION_COMPLETE written.")

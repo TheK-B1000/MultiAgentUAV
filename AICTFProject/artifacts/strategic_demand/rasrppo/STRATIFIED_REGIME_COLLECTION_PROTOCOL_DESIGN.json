@@ -1,6 +1,6 @@
 {
   "record_id": "STRATIFIED_REGIME_COLLECTION_PROTOCOL",
-  "status": "FROZEN -- STRATIFIED_16CELL_COLLECTION_PROTOCOL_FROZEN. Collection launch NOT AUTHORIZED.",
+  "status": "FROZEN -- STRATIFIED_16CELL_COLLECTION_PROTOCOL_FROZEN. Collection launch AUTHORIZED as AMENDED by AMENDMENT_2 (2026-08-27 PI Option B).",
   "utc": "2026-08-27T18:21:53Z",
   "authority": "PI authorized protocol DESIGN on 2026-08-27 and selected the 16-cell geometry. Freezing is a PI act, not this session's.",
   "sequence_position": "FIRST of two. The abstaining-supervision protocol depends on this collection existing and MUST NOT be frozen numerically before it.",
@@ -93,7 +93,7 @@
   "AUTHORIZATION": {
     "design": "COMPLETE.",
     "freeze": "PERFORMED by PI ruling 2026-08-27 at commit c318bcea.",
-    "collection_launch": "AUTHORIZED by PI ruling 2026-08-27. See LAUNCH_AUTHORIZATION. Run ONCE, to the full frozen budget; adaptive stopping and mid-run parameter changes remain prohibited.",
+    "collection_launch": "AUTHORIZED by PI ruling 2026-08-27, as AMENDED by AMENDMENT_2. Run ONCE to the full frozen budget under the amended eligibility rule. Adaptive stopping and mid-run parameter changes remain prohibited.",
     "the_open_question": "RESOLVED. The PI authorized the spend. No open decision remains for this protocol.",
     "fitting_training_or_PPO_launch": "NOT AUTHORIZED.",
     "RASR_4M_launch": "Remains NOT AUTHORIZED and unaffected by this document."
@@ -145,5 +145,41 @@
     "sequencing_required_by_the_ruling": "Collection finishes FIRST. Then the prospectively designated CALIB split alone estimates the unresolved/resolvable structure and freezes tau, rho, o_max. Only after those gates are fixed does the question of implementing -- and eventually training -- the abstaining scorer arise.",
     "what_this_amendment_does_NOT_change": "No design parameter moves. Cells, seeds, block, branch points, allocation rule, rank order, support floor and split boundaries are exactly as frozen at c318bcea. The design content hash recorded in FREEZE_RECORD remains the authoritative baseline for drift detection; this amendment changes authorization state only.",
     "amendment_rule_followed": "Recorded as a dated amendment block rather than a silent edit, per FREEZE_RECORD.AMENDMENT_RULE."
+  },
+  "AMENDMENT_2_ALL_FOUR_TRAJECTORIES_ELIGIBLE": {
+    "record": "AMENDMENT 2 -- branch eligibility. Prospective: made BEFORE relaunch and BEFORE any target or scorer outcome was observed.",
+    "utc": "2026-08-27T19:11:34Z",
+    "authority": "PI ruling, 2026-08-27",
+    "ruling": "OPTION B AUTHORIZED. Amend before relaunch. Keep 160 seeds, 12 branches, 16 cells, 32-seed floor. Recollect seed 10700001 under the amended rule.",
+    "why_this_is_defensible": "No target or scorer outcome was observed. The only thing learned from attempt 1 was that the prospective sampling plan could not meet its OWN support requirement. Attempt 1 is classified STOPPED BEFORE FULL COLLECTION / FEASIBILITY DEFECT -- not FAIL, and not a scientific INVALID result.",
+    "the_defect_being_repaired": "The source-only restriction came from RASR's collection mechanics, not from the scientific definition of the new 16 cells. Under it, eligibility for the scarce cells was roughly half what the feasibility analysis assumed (B_r2 at 17-18/96 source-only versus 33/96 across all trajectories), leaving the binding cell B_r2_late at 28.3 expected distinct seeds against a floor of 32.",
+    "AMENDED_RULES": [
+      "All four (source policy, pole) trajectories are eligible for branch selection.",
+      "Cell identity remains determined ONLY by pole x regime x horizon.",
+      "The rarest-first selection rule remains unchanged.",
+      "Total budget remains 160 seeds x 12 branches.",
+      "The >=32-distinct-seed floor remains unchanged.",
+      "Source-policy provenance must be stored for every selected branch.",
+      "Realized pi_A / pi_B source composition must be reported per cell.",
+      "Selection must not use payoff, Q_psi output, teacher preference, or the eventual tie/non-tie outcome."
+    ],
+    "SOURCE_BALANCE_TIE_BREAK": {
+      "rule": "When a cell has eligible candidates from both policies, prefer the source policy currently less represented in that cell. If the two are equally represented, fall back to the frozen uniform RNG choice.",
+      "purpose": "Prevents the relaxation from silently introducing a new bias in source composition. Frozen NOW rather than inspected afterward and judged by eye -- deciding post hoc that the realized balance 'looked bad' would be exactly the kind of after-the-fact adjustment this project prohibits.",
+      "priority": "SECONDARY. The 32-distinct-seed support objective remains primary; the tie-break only orders otherwise-equivalent candidates.",
+      "uses_no_outcome_information": "The counter tracks source-policy provenance only. It never consults payoff, Q_psi, teacher preference, or tie status, so it cannot bias the target.",
+      "determinism_and_resume": "The counter is global across seeds and therefore order-dependent. Seeds are processed in fixed ascending order, and on resume the counter is REBUILT from the completed shards before any new selection, so an interrupted run reproduces the uninterrupted result exactly. This rebuild is mandatory, not optional."
+    },
+    "what_this_amendment_does_NOT_change": "Cells, seeds, block, branch points per seed, rank order, support floor, split boundaries and the late boundary are all exactly as frozen at c318bcea. Only the ELIGIBILITY of already-collected trajectories changes, plus the secondary tie-break above.",
+    "scientific_consequence_to_report_not_assume": "Branch states become a mixture of pi_A-visited and pi_B-visited states rather than one designated policy per pole. Because cells do not reference source policy, cell semantics are unchanged -- but the realized composition is now an empirical property of the collection and must be reported per cell rather than assumed balanced.",
+    "attempt_1_disposition": {
+      "classification": "STOPPED BEFORE FULL COLLECTION / FEASIBILITY DEFECT",
+      "not": [
+        "FAIL",
+        "INVALID"
+      ],
+      "seed_10700001": "Quarantined at artifacts/strategic_demand/stratified_quarantine_preamendment/. To be RECOLLECTED from scratch under the amended rule so the full 160-seed block is homogeneous under one rule.",
+      "cost": "1 seed, ~14 minutes, against a ~35 h run with roughly 3-to-1 odds of invalidating itself."
+    }
   }
 }
