@@ -1,0 +1,79 @@
+{
+  "record": "D3 Conditional Teacher Preference Audit",
+  "status": "DIAGNOSTIC_RESULT -- reads stored outcomes only, no environment steps",
+  "utc": "2026-08-27T15:17:40Z",
+  "quantity": "Delta_branch(s) = M(pi_B|s) - M(pi_A|s), terminal win margin",
+  "states": "paired branch states, pole B AND own_flag_stolen",
+  "bootstrap": {
+    "unit": "seed (paired)",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "sources": {
+    "PRIMARY_phase0_original": {
+      "label": "Phase 0 original branch pairs",
+      "n_states": 91,
+      "n_seeds": 58,
+      "delta_branch": {
+        "mean": -0.04342591842503266,
+        "lcb95": -0.10465116279069768,
+        "ucb95": 0.011904761904761904
+      },
+      "raw_mean": -0.04395604395604396,
+      "frac_states_favouring_piB": 0.02197802197802198,
+      "frac_states_favouring_piA": 0.06593406593406594,
+      "frac_states_tied": 0.9120879120879121
+    },
+    "SECONDARY_d2_supplement": {
+      "label": "D2 supplement (targeted, post-finding)",
+      "n_states": 150,
+      "n_seeds": 71,
+      "delta_branch": {
+        "mean": 0.12009397584967951,
+        "lcb95": -0.03225806451612903,
+        "ucb95": 0.2777777777777778
+      },
+      "raw_mean": 0.12,
+      "frac_states_favouring_piB": 0.16666666666666666,
+      "frac_states_favouring_piA": 0.08666666666666667,
+      "frac_states_tied": 0.7466666666666667
+    },
+    "POOLED_descriptive_only": {
+      "label": "pooled (descriptive only)",
+      "n_states": 241,
+      "n_seeds": 96,
+      "delta_branch": {
+        "mean": 0.058290325416491644,
+        "lcb95": -0.04291845493562232,
+        "ucb95": 0.16877637130801687
+      },
+      "raw_mean": 0.058091286307053944,
+      "frac_states_favouring_piB": 0.11203319502074689,
+      "frac_states_favouring_piA": 0.07883817427385892,
+      "frac_states_tied": 0.8091286307053942
+    }
+  },
+  "verdict_basis": "PRIMARY (Phase 0 original) only; the D2 supplement is a source-stratified check",
+  "VERDICT": "UNRESOLVED",
+  "reading": "conditional preference UNRESOLVED",
+  "D2_preserved": "D2 is not overwritten under any outcome; see D3_SPEC_FROZEN.json::D2_IS_NOT_OVERWRITTEN",
+  "INTERPRETATION": {
+    "verdict_restated": "UNRESOLVED on the PRIMARY source -- neither teacher is shown better in stolen-flag pole-B states",
+    "THE_MORE_IMPORTANT_FINDING": {
+      "observation": "91.2% of PRIMARY states are TIED: branching to pi_B versus pi_A produces the IDENTICAL terminal win margin. Only 8 of 91 primary states carry any signal at all. The D2 supplement is less extreme but still 74.7% tied (38 of 150 informative).",
+      "a_third_possibility_neither_hypothesis_anticipated": "the question was framed as 'is pi_B better, or is pi_A better?'. The data says: in this regime the choice usually does not change the terminal outcome AT ALL. This is neither 'Q_psi is wrong' nor 'Q_psi is right' -- it is a near-signal-free regime.",
+      "consequence_for_D2": "if ~90% of stolen-flag states are tied under the fitting target, then Q_psi was asked to learn a state-level preference where almost none exists. Its confident-looking d_B < 0 may be fitting the small noisy non-tied remainder rather than exhibiting a capacity limit. It also explains D2 directly: 4x more examples of a mostly-tied signal is still mostly tied, so no recovery would be expected regardless of scorer capacity.",
+      "consequence_for_the_target_choice": "terminal win margin is integer-valued over roughly -2..+3 and frequently identical across a single branch decision. It was the CORRECT choice for the GLOBAL ordering (PHASE0_TARGET_UNDERSPECIFICATION showed MC return was anti-correlated with payoff), but it may be too COARSE to discriminate at the individual-state level. That is a target-resolution problem, distinct from both scorer capacity and data volume."
+    },
+    "sources_disagree_in_direction": "PRIMARY -0.0434 [-0.1047, +0.0119] vs SECONDARY +0.1201 [-0.0323, +0.2778] -- opposite signs, both CIs crossing zero. Keeping them separate was the right call; pooling alone would have hidden the disagreement behind +0.0583.",
+    "what_is_NOT_established": [
+      "that pi_A is genuinely better when the flag is stolen -- NOT shown",
+      "that pi_B is genuinely better there -- NOT shown",
+      "that Q_psi is correct -- NOT shown",
+      "that Q_psi is wrong -- NOT shown either; D2's capacity reading is now weakened but not refuted"
+    ],
+    "REQUIRES_AUTHORIZATION_BEFORE_COMPUTING": "the decisive control is whether the ~90% tie rate is SPECIFIC to stolen-flag states or a general property of terminal win margin at the state level. If non-stolen pole-B states are similarly tied, the problem is the target's resolution everywhere and the stolen-flag regime is not special. If they are far less tied, the stolen regime is genuinely degenerate. That comparison is a NEW quantity outside the frozen D3 spec and has NOT been computed.",
+    "D2_status": "PRESERVED unmodified. Its finding stands; this weakens the capacity INTERPRETATION, it does not erase the experiment."
+  }
+}
