@@ -1,0 +1,271 @@
+{
+  "record": "SPPPO V1 D0 with prospectively frozen seed-level uncertainty",
+  "status": "DIAGNOSTIC_ONLY_NOT_A_GATE",
+  "inputs": {
+    "rows": "artifacts\\strategic_demand\\sppo\\D0_pole_b_decision_rows.csv",
+    "rows_sha256": "52b1c9db9898dfdcdeeba2a23f44e49811e6e63472e84361b6fd3875ede1cbfe",
+    "base_report": "artifacts\\strategic_demand\\sppo\\D0_pole_b_diagnostic.json",
+    "base_report_sha256": "7f3ccbf6586391e269f3536d2517e6805847db9bf804cdcc5f23badb3e581d3c",
+    "reporting_freeze": "artifacts\\strategic_demand\\sppo\\D0_SEED_LEVEL_UNCERTAINTY_REPORTING_FREEZE.json",
+    "reporting_freeze_sha256": "487a90ec56e6e183a52288c2deb7d953f3614f47f692d674d97ef99637444b70"
+  },
+  "bootstrap": {
+    "unit": "seed",
+    "seed_block": "10300001..10300192",
+    "n_seeds": 192,
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "resampling_rule": "Sample 192 seeds with replacement. Carry every decision row belonging to each sampled seed with the sampled seed multiplicity.",
+    "quartile_quantile_method": "weighted inverted-CDF over decision rows using sampled seed multiplicities",
+    "interval": "percentile 95% interval",
+    "cluster_protection": "Decision points are never resampled independently."
+  },
+  "n_seeds": 192,
+  "n_decision_points": 35757,
+  "worst_quartile": {
+    "point_cutoff": -0.38796424865722656,
+    "bootstrap_cutoff_lcb95": -0.4248732328414917,
+    "bootstrap_cutoff_ucb95": -0.35112619400024414,
+    "method": "replicate-local weighted inverted-CDF cutoff"
+  },
+  "seed_level_uncertainty": {
+    "ALL": {
+      "mean_margin_B_bits": {
+        "point": 0.2555203853903756,
+        "lcb95": 0.21988343314179232,
+        "ucb95": 0.28974500457306196,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.40176748608664037,
+        "lcb95": 0.38974086134575237,
+        "ucb95": 0.4141296407227811,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.08813770071803365,
+        "lcb95": 0.08544879943354411,
+        "ucb95": 0.0908131275442169,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.7820007271303521,
+        "lcb95": 0.7653820132850709,
+        "ucb95": 0.797460174143109,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "carrying": {
+      "mean_margin_B_bits": {
+        "point": 0.10133412340345202,
+        "lcb95": -0.04061781974302568,
+        "ucb95": 0.26465729304287755,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.4533814247069432,
+        "lcb95": 0.40381889479833794,
+        "ucb95": 0.49639838633335365,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.03323397868127303,
+        "lcb95": 0.028128295098328877,
+        "ucb95": 0.03913224827318902,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.424526600541028,
+        "lcb95": 0.3872000908963171,
+        "ucb95": 0.46770399462851536,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "not_carrying": {
+      "mean_margin_B_bits": {
+        "point": 0.2838191680832622,
+        "lcb95": 0.26328910159096747,
+        "ucb95": 0.3048922152522326,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.3922944525354164,
+        "lcb95": 0.3832854646385509,
+        "ucb95": 0.40133665505138116,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.09821452908735172,
+        "lcb95": 0.09614409929604639,
+        "ucb95": 0.10035792841946287,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.847610221104197,
+        "lcb95": 0.8383215092320471,
+        "ucb95": 0.8565532266018201,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "own_flag_home": {
+      "mean_margin_B_bits": {
+        "point": 0.3357089957078582,
+        "lcb95": 0.31547882307494796,
+        "ucb95": 0.3563030624380917,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.3767696757497336,
+        "lcb95": 0.3682409904457301,
+        "ucb95": 0.38540022685537156,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.09518232680905385,
+        "lcb95": 0.09319048639794214,
+        "ucb95": 0.09725781246228565,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.8297153295783224,
+        "lcb95": 0.8200261047906878,
+        "ucb95": 0.8389568004720667,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "own_flag_stolen": {
+      "mean_margin_B_bits": {
+        "point": -0.6489421509687308,
+        "lcb95": -0.7458669104311646,
+        "ucb95": -0.5428867858766238,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.6837225274725275,
+        "lcb95": 0.6518576086978408,
+        "ucb95": 0.7122732201358583,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.008680027654998331,
+        "lcb95": 0.003067030967671577,
+        "ucb95": 0.014766952104455066,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.2438186813186813,
+        "lcb95": 0.20617285025320875,
+        "ucb95": 0.28585155236466564,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "early": {
+      "mean_margin_B_bits": {
+        "point": 0.23487102330253398,
+        "lcb95": 0.2066572451017173,
+        "ucb95": 0.2622512385198484,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.41502504173622706,
+        "lcb95": 0.4031063562180689,
+        "ucb95": 0.4270039525112648,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.11536927830633117,
+        "lcb95": 0.11284599487992109,
+        "ucb95": 0.11790772234992755,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.9020868113522538,
+        "lcb95": 0.8920218753915184,
+        "ucb95": 0.9117080705022926,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "mid": {
+      "mean_margin_B_bits": {
+        "point": 0.28088560205127255,
+        "lcb95": 0.23323318752666125,
+        "ucb95": 0.325813709313583,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.3911621666946168,
+        "lcb95": 0.3753777843319415,
+        "ucb95": 0.40709904553359916,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.08513645548834202,
+        "lcb95": 0.08150255564688519,
+        "ucb95": 0.08856967283249471,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.7824920342109676,
+        "lcb95": 0.759017560139089,
+        "ucb95": 0.8041414089226737,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "late": {
+      "mean_margin_B_bits": {
+        "point": 0.25086877657377654,
+        "lcb95": 0.18718536586332676,
+        "ucb95": 0.31137865745962695,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 0.399038055860265,
+        "lcb95": 0.3784835331722122,
+        "ucb95": 0.4202203035809516,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.06362994197206265,
+        "lcb95": 0.059372888805671896,
+        "ucb95": 0.06778505258340654,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.6601130706269513,
+        "lcb95": 0.6292481661959602,
+        "ucb95": 0.6893032137825945,
+        "valid_bootstrap_samples": 20000
+      }
+    },
+    "worst_quartile_margin_B": {
+      "mean_margin_B_bits": {
+        "point": -1.0904238507551636,
+        "lcb95": -1.1558928195900087,
+        "ucb95": -1.0278207068849894,
+        "valid_bootstrap_samples": 20000
+      },
+      "frac_margin_B_negative": {
+        "point": 1.0,
+        "lcb95": 1.0,
+        "ucb95": 1.0,
+        "valid_bootstrap_samples": 20000
+      },
+      "mean_delta_B_hat": {
+        "point": 0.080956783531217,
+        "lcb95": 0.07521995852657001,
+        "ucb95": 0.08624348969063482,
+        "valid_bootstrap_samples": 20000
+      },
+      "qpsi_correct_rate": {
+        "point": 0.7093959731543624,
+        "lcb95": 0.6698009415755365,
+        "ucb95": 0.7448026277697536,
+        "valid_bootstrap_samples": 20000
+      }
+    }
+  },
+  "diagnostic_interpretation": "EVIDENCE_FAVORS_OPTIMIZATION_INTERFERENCE",
+  "paper_safe_wording": "The evidence favors optimization/interference over scorer misranking as the dominant failure mode.",
+  "non_gating": "This report does not alter SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED or authorize a new method."
+}
