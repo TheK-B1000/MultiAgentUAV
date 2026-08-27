@@ -1,0 +1,78 @@
+{
+  "record_id": "D2_SPEC_FROZEN",
+  "status": "FROZEN_BEFORE_ANY_NEW_BRANCH_IS_COLLECTED",
+  "utc": "2026-08-27T14:20:00Z",
+  "authority": "PI directive, feasibility verified before freezing, eval-set choice ratified",
+  "predecessor": "D1 (commit b2603bba)",
+  "classification": "SCORER-ONLY ABLATION. No PPO training. No new PPO seeds. SPPPO V1 remains CLOSED.",
+  "the_question": "Does own_flag_stolen ranking correctness recover as the ABSOLUTE number of stolen-flag branch pairs increases, holding architecture/target/loss/data-family fixed? Distinguishes absolute-density-limited from representation/capacity-limited.",
+  "CORRECTION_BEFORE_FREEZING": {
+    "what": "the working figure of ~91 stolen branch pairs was the FULL 256-seed count from D1A (train+held-out combined)",
+    "the_real_baseline": "the 128 INNER_FIT seeds Q_psi was ACTUALLY fit on contain only 50 stolen branch pairs on pole B (out of 384 total pole-B branch pairs)",
+    "corrected_ladder_anchor": 50
+  },
+  "density_ladder": {
+    "rung_1_baseline": 50,
+    "rung_2": 100,
+    "rung_3": 200,
+    "design": "NESTED, not independently sampled -- rung_2's extra 50 pairs are a strict subset of rung_3's extra 150, so rung_3's data is a superset of rung_2's, which is a superset of rung_1's. Isolates density as the only variable across rungs.",
+    "new_branches_required": 150,
+    "source_pool": "3,529 stolen-flag decision points available across 71 of the 128 INNER_FIT seeds -- verified before freezing, zero new seeds required"
+  },
+  "point_selection": {
+    "procedure": "frozen RNG draw, capped per seed, from the 3,529-point pool",
+    "cap_rationale": "prevents the density increase from being secretly 'a few seeds supply all the new signal' -- an increase in seed-diversity of evidence, not just point-count, confounded with density",
+    "rng_seed": 11,
+    "cap_per_seed": 8,
+    "selection_is_frozen_before_any_branch_is_run": true
+  },
+  "collection_mechanism": {
+    "reuses_unchanged": "the exact replay-to-state + branch-both-teachers procedure from phase0_collect_scorer_data.branch_at() -- same frozen SAPPO teachers, same continuation semantics (teacher-consistent), same env construction",
+    "output": "supplement branch shards, stored separately from the original Phase 0 shards, merged only at load time",
+    "no_seed_audit_needed": "all seeds are already-audited INNER_FIT train seeds; no new seed enters the corpus"
+  },
+  "refit_procedure": {
+    "reuses_unchanged": [
+      "QPsi architecture (n_regimes=1, the ORIGINAL frozen form)",
+      "terminal win margin target",
+      "weighted MSE loss (plain rows 1/episode_len, branch rows 1.0)",
+      "Adam lr=3e-4, batch_size=512, max_epochs=60, early_stop_patience=8, torch_seed=7",
+      "the exact phase0_fit_qpsi.py training loop"
+    ],
+    "only_change": "the branch-row set fed into fitting, per rung",
+    "rung_1_is_a_FRESH_refit_not_the_original_checkpoint": "comparing the ORIGINAL frozen checkpoint against NEW refits at higher density would confound density with run-to-run noise -- SPPPO's own production run showed CUDA nondeterminism between nominally identical runs. All three rungs are fresh refits under identical infrastructure; only the data differs.",
+    "one_fit_per_rung": "exactly one fitting run per rung, frozen before comparison, no re-tries, no cherry-picking",
+    "n_regimes_4_scaffold": "explicitly NOT used. This ablation tests the ORIGINAL architecture's data-density sensitivity, not a new architecture."
+  },
+  "evaluation": {
+    "set": "INNER_VAL (32 seeds), restricted to its own_flag_stolen subset: 1,147 decision points across 17 seeds",
+    "PI_ratified": "reuse INNER_VAL for this second diagnostic purpose -- Gate 0B's 96 held-out seeds are permanently spent and excluded; INNER_VAL was never a one-shot confirmatory resource, only Phase 0's non-gate train-side calibration set",
+    "classification": "DIAGNOSTIC ONLY. NOT a new Gate 0B. NOT independent confirmation of anything.",
+    "metric": "Q_psi correct-rate: fraction of INNER_VAL stolen-flag decision points where V_hat(o,z1,B) - V_hat(o,z0,B) > 0.04 (the frozen SPPPO margin), per rung",
+    "bootstrap": {
+      "unit": "seed",
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "note": "same convention as Gate 0B / D0 / D1"
+    }
+  },
+  "PERMITTED_READING": {
+    "recovers_substantially": "correct-rate rises from ~0.24 (D0 finding) substantially toward the 0.80+ range seen in other categories -> absolute sample density was the dominant scorer problem; a successor should include targeted counterfactual collection for rare/high-stakes regimes",
+    "stays_inverted": "correct-rate remains near or below chance despite 4x the data -> representation/target/capacity problem; more data is not the fix; a regime-conditioned scorer or richer target becomes justified",
+    "prohibited": [
+      "declaring a successor architecture from D2 alone",
+      "using D2's refit scorers for anything beyond this ablation",
+      "extending the ladder beyond rung 3 after seeing rung 3's result",
+      "reusing INNER_VAL a third time for any future diagnostic without a fresh PI ruling"
+    ]
+  },
+  "sequencing": "D2 only. Optimization interference (the second known problem) is explicitly deferred -- not mixed into this experiment.",
+  "what_this_does_not_authorize": [
+    "SPPPO V2",
+    "any PPO training",
+    "any new seed block",
+    "the n_regimes=4 scaffold",
+    "reopening SPPPO_V1_NOT_CONFIRMED"
+  ]
+}
