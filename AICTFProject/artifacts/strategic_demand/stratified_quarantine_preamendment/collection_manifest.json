@@ -1,0 +1,15 @@
+{
+  "record": "16-cell stratified regime collection",
+  "protocol": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json, frozen c318bcea",
+  "updated_utc": "2026-08-27T19:06:47Z",
+  "semantics": "fresh rebuild per teacher per branch",
+  "completed_seeds": [
+    10700001
+  ],
+  "target_seeds": 160,
+  "branch_points_per_seed": 12,
+  "teacher_sha256": {
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  }
+}
