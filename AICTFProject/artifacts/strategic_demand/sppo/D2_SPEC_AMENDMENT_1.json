@@ -1,0 +1,44 @@
+{
+  "record_id": "D2_SPEC_AMENDMENT_1",
+  "status": "FROZEN_BEFORE_COLLECTION_RUNS -- collection script written but not yet executed, zero GPU work spent",
+  "utc": "2026-08-27T14:35:00Z",
+  "authority": "PI ruling",
+  "amends": "D2_SPEC_FROZEN.json (commit c6d99391)",
+  "ratified_unchanged": {
+    "ladder": "50 / 100 / 200, nested, anchored on the corrected INNER_FIT-only baseline",
+    "new_branches_needed": 150,
+    "no_new_seed_block": "confirmed -- 'no new environment collection' meant no new SEEDS, not a ban on replaying/branching the 128 already-audited INNER_FIT seeds",
+    "eval_set": "INNER_VAL stolen-flag subset, labeled reused development-side diagnostic resource, not held-out confirmation and not a new gate"
+  },
+  "AMENDMENT_1_true_round_robin_selection": {
+    "problem_with_the_frozen_procedure": "the committed selection shuffles the 71 eligible seeds then fills each seed up to cap_per_seed=8 before moving to the next -- at 150 total points this could exhaust after only ~19 seeds, leaving most of the 71 eligible seeds completely untouched. That is breadth-last, not breadth-first.",
+    "corrected_procedure": "true round-robin: shuffle the 71 eligible seeds ONCE (rng_seed=11) to fix an order; then in repeated PASSES over that fixed order, draw exactly ONE new point per seed per pass (each seed's own points shuffled once, drawn in that shuffled order across passes); skip a seed once its own points are exhausted; stop at exactly 150 total. With 71 eligible seeds this reaches full breadth (all 71 touched) within the first ~3 passes.",
+    "why": "every eligible seed contributes before any seed is sampled deeply, so the density increase reflects added STATE DIVERSITY, not a few prolific seeds"
+  },
+  "AMENDMENT_2_mixture_proportion_control": {
+    "problem": "adding stolen pole-B branch rows at fixed per-row weight 1.0 while leaving every other row's weight and count untouched increases the STOLEN category's total weight-mass in the loss as count grows (50->100->200), confounding 'more examples' with 'the loss now cares more about this regime' (rebalancing).",
+    "rule_frozen_before_fitting": "hold the STOLEN pole-B branch category's TOTAL weight-mass constant across rungs, at the baseline's own mass (50 rows x 1.0 = 50.0). Each stolen pole-B branch row at rung k is weighted 50.0 / n_k: rung_1 (n=50) -> 1.0 each [unchanged], rung_2 (n=100) -> 0.5 each, rung_3 (n=200) -> 0.25 each. Every other row (all plain rows, all pole-A branches, all non-stolen pole-B branches) keeps its ORIGINAL weight and count, unmodified at every rung.",
+    "what_this_isolates": "whether averaging a FIXED total loss-influence over MORE DISTINCT stolen-flag states (better coverage, less per-point noise/overfitting) improves generalisation -- separated from whether the fit simply reallocates attention toward the category.",
+    "explicitly_not_the_alternative": "scaling every other category's data up proportionally, since that would require new collection outside the stolen regime too"
+  },
+  "AMENDMENT_3_monotonicity_and_meaningful_margin": {
+    "rule": "the 'absolute density is the dominant problem' reading requires CLEAR, preferably MONOTONIC improvement across 50 -> 100 -> 200 (correct-rate rising at each step, not merely rung_3 > rung_1), by a margin that does not vanish under the seed-level bootstrap CI -- i.e. rung_3's LCB95 must clear rung_1's point estimate, not merely overlap it favourably.",
+    "small_or_non_monotonic": "labeled INCONCLUSIVE rather than attributed to density, even if the raw point estimates trend upward",
+    "given_cuda_nondeterminism": "one fit per rung does not eliminate optimisation noise (SPPPO's own production run already demonstrated this); the monotonicity/margin requirement exists specifically to avoid over-reading a single noisy refit"
+  },
+  "next_actions_authorized": [
+    "fix the collection script's selection algorithm to true round-robin",
+    "run collection (150 branches, already-audited seeds only)",
+    "implement the weight-rescaling rule in the refit script",
+    "one fit per rung, frozen, no re-tries",
+    "evaluate on the fixed INNER_VAL stolen subset"
+  ],
+  "still_prohibited": [
+    "SPPPO V2",
+    "any PPO training",
+    "any new seed block",
+    "the n_regimes=4 scaffold",
+    "ladder extension after seeing results",
+    "reusing INNER_VAL a third time without a fresh ruling"
+  ]
+}
