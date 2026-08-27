@@ -50,6 +50,18 @@ failed (`margin_B = -0.0309`, `LCB95 = -0.0364`). Classification is **FAIL, not
 INVALID**. No rerun, grid extension, seed expansion, or SPPPO V2 without a fresh
 prospective PI decision.
 
+Postmortem D0 on the already-scored `10300001..10300192` block found an
+`OPTIMISATION_INTERFERENCE` fork at the worst-quartile of `margin_B`, with a
+spectacular localized Q_psi inversion on `own_flag_stolen` states
+(~24% correct-rate vs ~83% on `own_flag_home`). D1 is authorized and frozen
+before computation in
+[`D1_PROTOCOL_FROZEN.json`](../artifacts/strategic_demand/sppo/D1_PROTOCOL_FROZEN.json):
+**D1A** audits Phase-0 train support for the four frozen categories vs D0 `z1|B`
+proportions; **D1B** recomputes worst-quartile Q_psi correct-rate after removing
+`own_flag_stolen` with seed-level bootstrap and replicate-internal quartile cuts.
+D1B is labeled a postmortem follow-up diagnostic, not a gate. No training until
+D1 resolves.
+
 ### Phase 0 action-conditioned scorer feasibility — `COMPLETE + PASS`
 
 The frozen scorer block is `6500001..6500256`, split by seed into `160` train
