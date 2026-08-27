@@ -37,5 +37,11 @@
       "D0_SCOPE_CORRECTION (D0 does not decompose the pooled frozen margin_B)"
     ]
   },
-  "authorizes": "nothing. No training, no successor, no new seeds."
+  "authorizes": "nothing. No training, no successor, no new seeds.",
+  "SUPERSEDED_SUCCESSOR_CLAIM": {
+    "utc": "2026-08-27T11:50:00Z",
+    "what_was_wrong": "this record stated 'successor: none designed, none authorized' and described R1/R2/R3 as undefined. RASR-PPO was in fact prospectively frozen at commit 3f2bf30a on 2026-08-26 22:37 -- BEFORE the D1 and D2 work recorded here -- then implemented, gated, and put into execution.",
+    "corrected_by": "artifacts/strategic_demand/rasrppo/RASR_EXECUTION_STATE_RECONCILIATION.json",
+    "what_still_stands": "every D0/D1/D2 finding in this record is unaffected. Only the successor-status claims are superseded."
+  }
 }
