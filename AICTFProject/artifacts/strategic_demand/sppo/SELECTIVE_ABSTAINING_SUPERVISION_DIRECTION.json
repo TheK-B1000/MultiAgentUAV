@@ -34,5 +34,27 @@
     "requires": "its own prospective freeze, fresh audited blocks, and a PI decision",
     "RASR": "DEV collection and DEV qualification may proceed; 4M PPO launch remains PAUSED",
     "why_RASR_stays_paused": "a qualification PASS would show the regime scorer fits the FROZEN target -- not that the target is the right state-level quantity. D4/D5 were discovered after RASR was frozen."
+  },
+  "ABSTENTION_IS_A_FIRST_CLASS_PROTOCOL_RISK": {
+    "utc": "2026-08-27T16:40:00Z",
+    "authority": "PI ruling -- recorded BEFORE any successor protocol exists",
+    "the_degenerate_solution": "if the model may output UNRESOLVED, a trivial winning strategy exists: abstain on everything and never make a wrong strategic call. Any successor protocol must make this impossible BY CONSTRUCTION, not detect it afterwards.",
+    "two_thresholds_must_be_frozen_JOINTLY": {
+      "quality_on_resolved_states": "strategic_accuracy | resolved >= tau",
+      "coverage_floor": "P(resolved) >= c_min",
+      "why_jointly": "either alone is gameable -- accuracy alone rewards abstaining, coverage alone rewards guessing"
+    },
+    "COVERAGE_MUST_BE_STRATIFIED_NOT_GLOBAL": {
+      "requirement": "coverage floors reported and enforced BY REGIME and BY HORIZON, not as one global number",
+      "why": "a model could satisfy a global coverage floor while abstaining on every difficult late-game or carrying state -- recreating exactly the blind spot D3-D6 spent this entire arc uncovering. The states where abstention is most tempting are the states where the strategic question matters most.",
+      "strata_implied_by_the_diagnostics": [
+        "own_flag_stolen vs own_flag_home",
+        "carrying vs not_carrying",
+        "early / mid / late branch step"
+      ]
+    },
+    "threshold_provenance_rule": "tau and c_min must come from a prospective calibration study or EXISTING training-side evidence, frozen before the successor runs. Choosing either after seeing the successor's output is the prohibited move.",
+    "the_bar_is_not_lowered": "the reframing does NOT relax 'be strategically right' into 'avoid being wrong'. The requirement becomes: be strategically right where evidence supports a distinction, AND explicitly admit uncertainty where it does not -- while still committing often enough, and in the right parts of the game, to constitute a meaningful strategic repertoire.",
+    "validation_question": "Does the model abstain when evidence is genuinely ambiguous, while still committing often enough, and in the right parts of the game, to form a meaningful strategic repertoire?"
   }
 }
