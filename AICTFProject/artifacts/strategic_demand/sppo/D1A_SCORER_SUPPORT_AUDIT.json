@@ -1,0 +1,331 @@
+{
+  "record": "D1A Phase-0 scorer support audit",
+  "status": "DIAGNOSTIC_ONLY -- implements D1_SPEC_FROZEN.json",
+  "utc": "2026-08-27T04:08:03Z",
+  "n_shards_scanned": 256,
+  "tagging": "QPsi.regime_from_vec, verified 0/240 mismatches vs live core ground truth",
+  "bootstrap": {
+    "unit": "seed",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "by_population": {
+    "plain": {
+      "A": {
+        "home_not_carrying": {
+          "n": 37128,
+          "n_total_in_population": 94157,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.3942179921513594,
+            "lcb95": 0.37391053023213283,
+            "ucb95": 0.4150837253360001
+          }
+        },
+        "home_carrying": {
+          "n": 7398,
+          "n_total_in_population": 94157,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.0785479618323845,
+            "lcb95": 0.07256240135627999,
+            "ucb95": 0.08468862411465616
+          }
+        },
+        "stolen_not_carrying": {
+          "n": 3347,
+          "n_total_in_population": 94157,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.03555444938574469,
+            "lcb95": 0.031836158723558335,
+            "ucb95": 0.0394125260835264
+          }
+        },
+        "stolen_carrying": {
+          "n": 46284,
+          "n_total_in_population": 94157,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.4916795966305114,
+            "lcb95": 0.46568189332472526,
+            "ucb95": 0.5174200633876405
+          }
+        },
+        "marginal_own_flag_home": {
+          "n": 44526,
+          "n_total_in_population": 94157,
+          "proportion": {
+            "mean": 0.47276595398374394,
+            "lcb95": 0.4481329415511768,
+            "ucb95": 0.49780950314096495
+          }
+        },
+        "marginal_own_flag_stolen": {
+          "n": 49631,
+          "n_total_in_population": 94157,
+          "proportion": {
+            "mean": 0.5272340460162561,
+            "lcb95": 0.502190496859035,
+            "ucb95": 0.5518670584488232
+          }
+        },
+        "marginal_carrying": {
+          "n": 53682,
+          "n_total_in_population": 94157,
+          "proportion": {
+            "mean": 0.5702275584628959,
+            "lcb95": 0.5486431023841548,
+            "ucb95": 0.5916510547214829
+          }
+        },
+        "marginal_not_carrying": {
+          "n": 40475,
+          "n_total_in_population": 94157,
+          "proportion": {
+            "mean": 0.42977244153710414,
+            "lcb95": 0.408348945278517,
+            "ucb95": 0.45135689761584524
+          }
+        }
+      },
+      "B": {
+        "home_not_carrying": {
+          "n": 82768,
+          "n_total_in_population": 101050,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.8190668416870507,
+            "lcb95": 0.799106870756972,
+            "ucb95": 0.838286805640921
+          }
+        },
+        "home_carrying": {
+          "n": 5868,
+          "n_total_in_population": 101050,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.05807659898516333,
+            "lcb95": 0.054498517356729885,
+            "ucb95": 0.0616262647052032
+          }
+        },
+        "stolen_not_carrying": {
+          "n": 1541,
+          "n_total_in_population": 101050,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.015257321861763009,
+            "lcb95": 0.012873790295675296,
+            "ucb95": 0.017749975560646534
+          }
+        },
+        "stolen_carrying": {
+          "n": 10873,
+          "n_total_in_population": 101050,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.1075992374660229,
+            "lcb95": 0.08808698013731867,
+            "ucb95": 0.1277481298550535
+          }
+        },
+        "marginal_own_flag_home": {
+          "n": 88636,
+          "n_total_in_population": 101050,
+          "proportion": {
+            "mean": 0.8771434406722141,
+            "lcb95": 0.8562544990663986,
+            "ucb95": 0.8972219828720469
+          }
+        },
+        "marginal_own_flag_stolen": {
+          "n": 12414,
+          "n_total_in_population": 101050,
+          "proportion": {
+            "mean": 0.12285655932778589,
+            "lcb95": 0.1027780171279531,
+            "ucb95": 0.14374550093360133
+          }
+        },
+        "marginal_carrying": {
+          "n": 16741,
+          "n_total_in_population": 101050,
+          "proportion": {
+            "mean": 0.16567583645118622,
+            "lcb95": 0.14699439701978212,
+            "ucb95": 0.18493313111889484
+          }
+        },
+        "marginal_not_carrying": {
+          "n": 84309,
+          "n_total_in_population": 101050,
+          "proportion": {
+            "mean": 0.8343241635488139,
+            "lcb95": 0.8150668688811051,
+            "ucb95": 0.8530056029802179
+          }
+        }
+      }
+    },
+    "branch": {
+      "A": {
+        "home_not_carrying": {
+          "n": 316,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.4112802734375,
+            "lcb95": 0.3710611979166667,
+            "ucb95": 0.453125
+          }
+        },
+        "home_carrying": {
+          "n": 56,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.0729259765625,
+            "lcb95": 0.0546875,
+            "ucb95": 0.09244791666666667
+          }
+        },
+        "stolen_not_carrying": {
+          "n": 31,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.04037877604166667,
+            "lcb95": 0.02734375,
+            "ucb95": 0.0546875
+          }
+        },
+        "stolen_carrying": {
+          "n": 365,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.4754149739583333,
+            "lcb95": 0.4322916666666667,
+            "ucb95": 0.51953125
+          }
+        },
+        "marginal_own_flag_home": {
+          "n": 372,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.48420625,
+            "lcb95": 0.44140625,
+            "ucb95": 0.52734375
+          }
+        },
+        "marginal_own_flag_stolen": {
+          "n": 396,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.51579375,
+            "lcb95": 0.47265625,
+            "ucb95": 0.55859375
+          }
+        },
+        "marginal_carrying": {
+          "n": 421,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.5483409505208333,
+            "lcb95": 0.5065104166666666,
+            "ucb95": 0.5911458333333334
+          }
+        },
+        "marginal_not_carrying": {
+          "n": 347,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.45165904947916663,
+            "lcb95": 0.4088541666666667,
+            "ucb95": 0.4934895833333333
+          }
+        }
+      },
+      "B": {
+        "home_not_carrying": {
+          "n": 640,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.83325703125,
+            "lcb95": 0.80078125,
+            "ucb95": 0.8645833333333334
+          }
+        },
+        "home_carrying": {
+          "n": 37,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.048228580729166665,
+            "lcb95": 0.033854166666666664,
+            "ucb95": 0.06380208333333333
+          }
+        },
+        "stolen_not_carrying": {
+          "n": 8,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.010462955729166666,
+            "lcb95": 0.00390625,
+            "ucb95": 0.018229166666666668
+          }
+        },
+        "stolen_carrying": {
+          "n": 83,
+          "n_total_in_population": 768,
+          "n_seeds_with_any_data": 256,
+          "proportion": {
+            "mean": 0.10805143229166668,
+            "lcb95": 0.08072916666666667,
+            "ucb95": 0.13671875
+          }
+        },
+        "marginal_own_flag_home": {
+          "n": 677,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.8814856119791666,
+            "lcb95": 0.8515625,
+            "ucb95": 0.9088541666666666
+          }
+        },
+        "marginal_own_flag_stolen": {
+          "n": 91,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.11851438802083332,
+            "lcb95": 0.09114583333333333,
+            "ucb95": 0.1484375
+          }
+        },
+        "marginal_carrying": {
+          "n": 120,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.15628001302083336,
+            "lcb95": 0.125,
+            "ucb95": 0.18880208333333334
+          }
+        },
+        "marginal_not_carrying": {
+          "n": 648,
+          "n_total_in_population": 768,
+          "proportion": {
+            "mean": 0.8437199869791666,
+            "lcb95": 0.8111979166666666,
+            "ucb95": 0.875
+          }
+        }
+      }
+    }
+  }
+}
