@@ -1,0 +1,433 @@
+{
+  "record_id": "RASR_PPO_CAUSAL_LADDER_PROTOCOL",
+  "method_name": "Regime-Aware Strategic Role PPO",
+  "short_name": "RASR-PPO",
+  "status": "FROZEN_DESIGN_ONLY_NO_IMPLEMENTATION_AUTHORIZED",
+  "frozen_utc": "2026-08-27T02:33:00Z",
+  "authority": "PI prospective ruling after SPPPO V1 closure and D0/D1 completion",
+  "scientific_question": "Which of regime-conditioned payoff scoring, latent-specific centralized value heads, and directed teacher identity is required to preserve the confirmed SAPPO repertoire inside one persistent K=2 controller?",
+  "hard_boundaries": {
+    "implementation": "NOT AUTHORIZED",
+    "training": "NOT AUTHORIZED",
+    "development_collection": "NOT AUTHORIZED",
+    "final_evaluation": "NOT AUTHORIZED",
+    "SPPPO_V1": "CLOSED; its NOT_CONFIRMED verdict is immutable",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED",
+    "paper_faithful_claim": "FORBIDDEN",
+    "label_free_discovery_claim": "FORBIDDEN",
+    "SPPPO_V2_name": "FORBIDDEN; this is a fresh supervised-compression method family"
+  },
+  "licensing_evidence": {
+    "D1_complete": {
+      "path": "artifacts/strategic_demand/sppo/D1_COMPLETE.json",
+      "sha256": "5e7c3bff419078b4245e6888bc82e30c48076bf8f1182d5b6e54dec6aa695d03",
+      "commit": "1e991f22",
+      "finding": "Coverage was not the dominant problem; Q_psi has a localized own_flag_stolen ranking failure, while broader evidence still favors policy-side optimization/interference."
+    },
+    "D1_result": {
+      "path": "artifacts/strategic_demand/sppo/D1_RESULT.json",
+      "sha256": "45ad2fa895d5e01d5ef2defb4c4ba7884c50745ca34ffa5e3e6260f75fd500a5"
+    },
+    "SPPPO_V1_protocol": {
+      "path": "artifacts/strategic_demand/sppo/SPPPO_V1_PROTOCOL.json",
+      "sha256": "d4a9628fe6cb3ac2bc05827422fffba7011c039f9b0ae3296b2033b951915b95"
+    },
+    "SPPPO_V1_negative_result": {
+      "path": "artifacts/strategic_demand/sppo/SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED.json",
+      "sha256": "a1ab12de20620fba0958b33c76b07aef9319f897c098e517aba009a665f8c6b1"
+    },
+    "frozen_S0_scorer": {
+      "path": "artifacts/strategic_demand/phase0_scorer_data/qpsi_frozen.pt",
+      "sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf"
+    },
+    "frozen_teachers": {
+      "pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+      "pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+    }
+  },
+  "classification": {
+    "repository_classification": "SUMMER-COMPATIBLE EXTENSION",
+    "scope": "compound supervised strategic-compression extension",
+    "why_supported": "The fidelity rules explicitly classify deliberate extension mechanisms and compound extension ladders as SUMMER-COMPATIBLE EXTENSION when every deviation is enumerated and the canonical paper-faithful row remains available.",
+    "not_paper_faithful_because": [
+      "K=2 has assigned semantic meanings",
+      "z is forced and persistent rather than inferred by q_phi",
+      "teacher identities supervise fixed z modes",
+      "the actor inherits mode-specific final heads",
+      "an external payoff scorer supplies a standalone ranking update",
+      "R1 adds explicit handcrafted scorer regimes",
+      "R2 adds z-specific critic heads",
+      "R3 adds a directed contrastive teacher objective"
+    ],
+    "allowed_claim": "A supervised persistent K=2 controller did or did not preserve a previously confirmed explicit repertoire under the prospectively frozen treatment ladder.",
+    "forbidden_claims": [
+      "latent meanings were discovered label-free",
+      "RASR-PPO is the Summer or paper-faithful method",
+      "the regime signal is available to the decentralized actor",
+      "a single matched-initialization ladder establishes robustness over training randomness"
+    ]
+  },
+  "proposed_preset_review": {
+    "identity": {
+      "proposed_names": [
+        "rasrppo_s0_same_block_control",
+        "rasrppo_r1_regime_scorer",
+        "rasrppo_r2_private_critic",
+        "rasrppo_r3_directed_identity"
+      ],
+      "parents": {
+        "S0": "exact frozen SPPPO V1 treatment, reproduced only as this study's same-block control",
+        "R1": "S0",
+        "R2": "R1",
+        "R3": "R2"
+      },
+      "classification": "SUMMER-COMPATIBLE EXTENSION; S0 is a diagnostic control arm",
+      "research_question": "Do the three prospectively isolated mechanisms repair the scorer-regime, value-interference, and directed-identity failures identified by D0/D1?"
+    },
+    "fidelity_impact": {
+      "actor_architecture_changed_vs_SPPPO": false,
+      "router_objective_changed": false,
+      "router_present": false,
+      "exploration_schedule_changed": false,
+      "environment_reward_changed": false,
+      "supervision_added_beyond_SPPPO": "R3 changes the existing teacher objective from positive-only to directed contrastive identity; teacher mapping is otherwise unchanged",
+      "auxiliary_task_added": "R1 replaces the frozen scorer with a regime-conditioned scorer trained on the same target and data rules",
+      "resampling_changed": false
+    },
+    "required_repository_updates_before_implementation": [
+      "add default-off configuration fields for each rung",
+      "add explicit preset registry entries with no paper-faithful aliases",
+      "add the four rows and resolved-config deltas to latent-preset-registry.md",
+      "add focused architecture, gradient-routing, lifecycle, checkpoint, and evaluator tests",
+      "keep every existing paper-faithful pinning test green",
+      "do not modify preset snapshots unless an intentional scalar preset field requires it; document any snapshot delta",
+      "update research-progress-tracker.md at implementation gate, launch, terminal, and verdict boundaries"
+    ]
+  },
+  "same_block_control_rule": {
+    "S0_definition": "Exact SPPPO V1 scientific treatment on the new TRAIN block: corrected persistent assigned-pole training, old frozen Q_psi, lambda_R=1.0, ranking margin=0.04, ranking cadence=1:1, ordinary teacher rehearsal lambda=0.1 at 1:4, EXP2C actor architecture, shared critic.",
+    "boundary": "S0 is not a rerun, repair, reopening, or re-adjudication of SPPPO V1. It is a new-study control needed to isolate successor deltas on the same initialization, training block, and final block.",
+    "old_verdict_immutable": true
+  },
+  "shared_contract_all_arms": {
+    "ruleset": "RULESET_V3_M1",
+    "opponents": {
+      "A": "OP6 plus frozen min_alive_for_defender=2 overlay",
+      "B": "canonical OP7"
+    },
+    "K": 2,
+    "z_lifetime": "forced and persistent for the full episode",
+    "z_mapping": {
+      "z0": "pole A / SAPPO pi_A / GUARD",
+      "z1": "pole B / SAPPO pi_B / BREACH"
+    },
+    "router": "ABSENT",
+    "q_phi": "ABSENT",
+    "actor": "one shared policy object; shared CNN/body; two inherited mode-specific final actor heads",
+    "actor_inputs": "local observation plus z only",
+    "actor_forbidden_inputs": [
+      "opponent identity",
+      "pole identity",
+      "regime r",
+      "global state",
+      "teacher identity",
+      "future information"
+    ],
+    "training_cells": {
+      "z0_A": 16,
+      "z0_B": 0,
+      "z1_A": 0,
+      "z1_B": 16
+    },
+    "opponent_mode": "FIXED_OPPONENT",
+    "opponent_randomize": false,
+    "PPO_configuration": "bit-for-bit SPPPO V1 except the single rung-specific delta",
+    "reward_observation_action_dynamics": "unchanged",
+    "teacher_mapping": {
+      "z0": "pi_A",
+      "z1": "pi_B"
+    },
+    "teacher_legal_action_masking": "identical masked distributions for teacher and student",
+    "ranking": {
+      "lambda_R": 1.0,
+      "hinge_margin": 0.04,
+      "cadence": "one standalone actor-only ranking update after every PPO update",
+      "optimizer_relationship": "separate RankingRunner step, never blended into PPO backward",
+      "scorer_frozen_during_PPO": true
+    },
+    "budget_per_arm": {
+      "requested_environment_steps": 1000000,
+      "rollout_boundary_rule": "complete the 4096-step rollout that crosses 1M",
+      "fresh_initialization": true,
+      "resume_from_prior_arm": false,
+      "periodic_checkpointing": false,
+      "scored_checkpoint": "terminal only"
+    },
+    "training_replicates": {
+      "count": 1,
+      "reason": "inherits the established one-canonical-training-seed policy for this supervised-compression branch",
+      "claim_limit": "matched-initialization causal screen only; not robustness over training randomness"
+    }
+  },
+  "causal_ladder": {
+    "S0": {
+      "name": "same-block SPPPO control",
+      "scientific_delta_vs_parent": "none; new run identity and fresh reserved seeds only",
+      "scorer": "old frozen Q_psi",
+      "critic": "shared centralized scalar critic",
+      "teacher_objective": "ordinary positive-only SAPPO rehearsal"
+    },
+    "R1": {
+      "name": "regime-conditioned scorer",
+      "parent": "S0",
+      "only_scientific_delta": "replace old Q_psi with the prospectively specified regime-conditioned Q_psi^r",
+      "critic": "S0-identical shared centralized scalar critic",
+      "teacher_objective": "S0-identical ordinary rehearsal"
+    },
+    "R2": {
+      "name": "latent-specific centralized value heads",
+      "parent": "R1",
+      "only_scientific_delta": "replace the shared final critic scalar head with two z-specific scalar heads",
+      "scorer": "R1-identical Q_psi^r",
+      "teacher_objective": "R1-identical ordinary rehearsal"
+    },
+    "R3": {
+      "name": "directed contrastive identity",
+      "parent": "R2",
+      "only_scientific_delta": "replace positive-only teacher rehearsal loss with the frozen directed identity loss",
+      "scorer": "R2-identical Q_psi^r",
+      "critic": "R2-identical z-specific critic heads"
+    },
+    "execution_rule": "After all implementation and scorer-qualification gates pass, train S0, R1, R2, and R3 independently. No rung's training-side or DEV result may determine whether a later rung trains. FINAL remains unopened until all four terminal checkpoints and hashes are frozen."
+  },
+  "R1_regime_scorer_contract": {
+    "target": "terminal blue_score - red_score win margin",
+    "target_changed_from_phase0": false,
+    "training_data": "exact Phase-0 TRAIN seeds 6500001..6500160 only",
+    "fit_split": "same frozen 128 fit / 32 inner-validation split",
+    "weighting": "same episode-normalized plain-row weights and unit branch-row weights",
+    "optimizer_early_stopping_and_seed": "unchanged from phase0_fit_qpsi.py",
+    "joint_action_form": "same low-rank action-conditioned bilinear Q_psi form",
+    "policy_identity_input": "ABSENT",
+    "regime_encoding": {
+      "definition": "r = 2 * I(own_flag_home == false) + I(blue_carrying == true)",
+      "values": {
+        "0": "own flag home, blue not carrying",
+        "1": "own flag home, blue carrying",
+        "2": "own flag stolen, blue not carrying",
+        "3": "own flag stolen, blue carrying"
+      },
+      "own_flag_home": "reconstruct the blue flag position from the existing two-agent observation vector and compare with frozen home=(2,10); fail closed on schema or inter-agent reconstruction mismatch",
+      "blue_carrying": "any live blue agent has frozen carrying feature index 10 > 0.5",
+      "actor_visibility": "NONE; r is scorer-only centralized training context"
+    },
+    "architecture_delta": "Keep conv, pole embedding, shared state trunk, and action embedding unchanged. Replace the single set of action-conditioned projections (b,u,v,P,Q) with four r-selected projection sets. No other scorer capacity changes.",
+    "initialization": "fresh fit with the same frozen torch seed and initialization rules as Phase 0; no warm start from S0 Q_psi",
+    "frozen_during_policy_training": true,
+    "no_second_scorer": "If qualification fails, stop. Do not change target, add samples to fitting, merge regimes, tune head capacity, or train a second scorer."
+  },
+  "DEV_scorer_qualification": {
+    "purpose": "fresh validation only; DEV data may never be added to scorer fitting",
+    "collection": "same rebuild-per-branch semantics as authoritative Phase 0; environment reuse remains forbidden",
+    "teachers": "same frozen SAPPO pi_A and pi_B",
+    "states": "decision-eligible branch states from all four teacher/pole paths",
+    "contrasts": {
+      "d_A_r": "E[V_Q(pi_A)-V_Q(pi_B) | pole A, regime r]",
+      "d_B_r": "E[V_Q(pi_B)-V_Q(pi_A) | pole B, regime r]"
+    },
+    "primary_gate": "LCB95(d_A_r)>0 and LCB95(d_B_r)>0 for each r in {0,1,2,3}",
+    "specific_D1_repair_gate": "LCB95(d_B_stolen_R1 - d_B_stolen_S0)>0, where stolen pools r in {2,3}",
+    "support_validity": "Each pole/regime cell must contain rows from at least 32 distinct DEV seeds; otherwise qualification is INVALID and the ladder stops without data growth.",
+    "bootstrap": {
+      "unit": "DEV seed; retain every state belonging to a sampled seed",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "procedure": "paired percentile bootstrap; compare S0 and R1 on byte-identical states and masks"
+    },
+    "secondary_reports_not_gates": [
+      "correct-rate by flag/carrying regime",
+      "weighted MSE by regime",
+      "prediction range and calibration by regime"
+    ],
+    "if_fail": "Freeze SCORER_QUALIFICATION_FAIL and stop before all four 1M policy runs. No replacement scorer is authorized."
+  },
+  "R2_private_critic_contract": {
+    "mathematical_object": "centralized scalar V_phi(s,z), never V(o) and never counterfactual Q(s,a')",
+    "architecture_delta": "Keep the entire R1 centralized critic input and shared 128-128 trunk unchanged. Replace only the final shared scalar projection with head_V0 and head_V1, selected by z.",
+    "initial_function_equivalence": "Copy the ordinary shared scalar head weights and bias into both private heads so R1 and R2 value outputs are exactly equal for z0 and z1 before training.",
+    "gradient_routing": "z0 rows update head_V0 and not head_V1; z1 rows update head_V1 and not head_V0. Shared trunk remains shared.",
+    "GAE_and_returns": "Each row's value, bootstrap value, clipped value loss, and GAE use its selected z head; no cross-mode baseline mixing.",
+    "optimizer": "existing PPO optimizer only; no new critic optimizer, coefficient, cadence, or value target",
+    "actor_and_ranking": "bit-identical to R1"
+  },
+  "R3_directed_identity_contract": {
+    "teacher_A_positive_mode": "z0",
+    "teacher_B_positive_mode": "z1",
+    "definitions": {
+      "kA_pos": "KL(pi_A || pi_theta(.|o,z0))",
+      "kA_neg": "KL(pi_A || pi_theta(.|o,z1))",
+      "kB_pos": "KL(pi_B || pi_theta(.|o,z1))",
+      "kB_neg": "KL(pi_B || pi_theta(.|o,z0))"
+    },
+    "identity_margin_mI": 0.0,
+    "per_teacher_loss": "KL_pos + max(0, mI - (KL_neg - KL_pos))",
+    "combined_loss": "0.5 * (L_A + L_B)",
+    "coefficient": 0.1,
+    "coefficient_rule": "The inherited teacher lambda 0.1 multiplies the whole directed loss; no additional beta or tunable coefficient exists.",
+    "cadence": "one directed teacher update per four completed PPO actor minibatch updates, floor rule, no trailing update",
+    "optimizer_relationship": "same separate AnchorRunner optimizer step as ordinary rehearsal; never blended into PPO or RankingRunner backward",
+    "updated_parameters": "actor parameters only",
+    "frozen_parameters": [
+      "both SAPPO teachers",
+      "Q_psi^r",
+      "critic during the teacher step"
+    ],
+    "masking": "teacher and both student modes use the same legal-action mask on byte-identical observations",
+    "why_zero_margin": "Freezes the required direction without inventing an uncalibrated effect-size hyperparameter after seeing SPPPO's identity failure."
+  },
+  "seed_blocks": {
+    "status": "ALL CLEAN ON FOUR CHECKS WITH POSITIVE CONTROL",
+    "audit_tool": {
+      "path": "scripts/audit_seed_block.py",
+      "sha256": "2a8fd95c18677cb1c56a83309b548e20b93c2c049626754ab2be5a3876aba18f",
+      "positive_control": "2600001..2600032",
+      "positive_control_commits": 21
+    },
+    "TRAIN": {
+      "range": "10400001..10400032",
+      "n": 32,
+      "use": "same 32-env training block for S0/R1/R2/R3; base seed 10400001",
+      "audit": "artifacts/strategic_demand/rasrppo/RASR_TRAINING_BLOCK_AUDIT_10400001.json",
+      "audit_sha256": "aad026a5229b1b6365c620c07f7026c906ec4cfed88ba88c4fc2d1887157c1d9",
+      "verdict": "CLEAN"
+    },
+    "DEV": {
+      "range": "10500001..10500096",
+      "n": 96,
+      "use": "fresh regime-scorer qualification only; never scorer fitting and never final model selection",
+      "audit": "artifacts/strategic_demand/rasrppo/RASR_DEVELOPMENT_BLOCK_AUDIT_10500001.json",
+      "audit_sha256": "f92116fc77b5d13063505b27d5e6a8f8c052165f211a5a033e97a50873615a3f",
+      "verdict": "CLEAN"
+    },
+    "FINAL": {
+      "range": "10600001..10600192",
+      "n": 192,
+      "use": "single shared terminal evaluation for all four frozen arms",
+      "audit": "artifacts/strategic_demand/rasrppo/RASR_FINAL_BLOCK_AUDIT_10600001.json",
+      "audit_sha256": "dae43d9f70a60928d9be26c2d2b9c19de5af0214454d4dbae209a2da5adb0d13",
+      "verdict": "CLEAN",
+      "must_remain_unopened_until": "all four terminal checkpoints and full SHA256s are frozen"
+    },
+    "extension_forbidden": true
+  },
+  "implementation_gate_before_any_DEV_or_policy_step": [
+    "resolved-config diff S0 vs SPPPO V1 contains only run identity, paths, fresh seed block, and protocol path",
+    "resolved-config diff R1 vs S0 contains exactly the default-off regime-scorer selector and scorer artifact identity",
+    "resolved-config diff R2 vs R1 contains exactly the default-off private-critic-head selector",
+    "resolved-config diff R3 vs R2 contains exactly the default-off directed-identity selector",
+    "all paper-faithful pinning tests remain green",
+    "R1 category reconstruction and four-head routing fail closed on observation-schema mismatch",
+    "R1 scorer target, weighting, split, optimizer, early stopping, and random seed are unchanged",
+    "R1 scorer is immutable and absent from every optimizer during policy training",
+    "R2 starts function-equivalent to R1 and has exact selected-head gradient isolation",
+    "R2 checkpoint save/load preserves both critic heads and legacy checkpoints still load",
+    "R3 one-step smoke increases KL_neg-KL_pos for both teachers while teachers, scorer, and critic remain unchanged",
+    "structural-zero/default-off paths instantiate no extra runner, batch fetch, forward pass, optimizer step, or RNG consumption",
+    "integrated lifecycle smoke proves all attached runners execute after trainer construction",
+    "live environment smoke crosses episode resets and proves 16/0/0/16 with zero z/pole mismatches",
+    "telemetry columns are unconditional and fail-fast cadence invariants make silent no-ops impossible",
+    "FINAL output directory is absent and the FINAL seed block has zero rows before all four terminal freezes"
+  ],
+  "terminal_evaluation": {
+    "when": "only after S0/R1/R2/R3 each complete valid training and freeze one terminal checkpoint hash",
+    "deterministic": true,
+    "student_cells_per_arm": [
+      "z0|A",
+      "z0|B",
+      "z1|A",
+      "z1|B"
+    ],
+    "teacher_reference_cells_shared_once": [
+      "pi_A|A",
+      "pi_A|B",
+      "pi_B|A",
+      "pi_B|B"
+    ],
+    "episodes_per_cell": 192,
+    "student_episodes": 3072,
+    "teacher_reference_episodes": 768,
+    "total_episodes": 3840,
+    "raw_rows_required": true,
+    "Q_psi_in_evaluation": "ABSENT",
+    "bootstrap": {
+      "unit": "FINAL evaluation seed; keep all arm/cell/matched-state rows for one seed together",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "procedure": "paired percentile bootstrap"
+    },
+    "absolute_gates_per_arm": {
+      "crossover": "LCB95(WR(z0,A)-WR(z1,A))>0 and LCB95(WR(z1,B)-WR(z0,B))>0",
+      "retention": "paired-bootstrap LCB95(((WR(z0,A)+WR(z1,B))/2) / ((WR(pi_A,A)+WR(pi_B,B))/2)) >= 0.90",
+      "behavioral_identity": "LCB95(JSD(z0,z1))>0 and LCB95(KL(pi_A||z1)-KL(pi_A||z0))>0 and LCB95(KL(pi_B||z0)-KL(pi_B||z1))>0",
+      "overall": "all crossover, retention, behavioral-identity, provenance, and runtime gates pass"
+    },
+    "trajectory_telemetry": "unchanged EXP2/SPPPO home-defense, simultaneous-attacker, enemy-half, commitment, interception, flag-role, and matched-state action reports; descriptive only"
+  },
+  "ablation_success_definitions": {
+    "arm_level": "Report the unchanged absolute gate verdict independently for S0, R1, R2, and R3.",
+    "R1_repairs_stolen_scorer": {
+      "data": "fresh DEV, not FINAL",
+      "pass": "R1 passes every absolute DEV regime-ordering gate and LCB95(d_B_stolen_R1-d_B_stolen_S0)>0",
+      "bootstrap_unit": "DEV seed"
+    },
+    "R2_improves_payoff_crossover_beyond_R1": {
+      "Gamma_A": "[WR_R2(z0,A)-WR_R2(z1,A)] - [WR_R1(z0,A)-WR_R1(z1,A)]",
+      "Gamma_B": "[WR_R2(z1,B)-WR_R2(z0,B)] - [WR_R1(z1,B)-WR_R1(z0,B)]",
+      "pass": "LCB95(Gamma_A)>0 and LCB95(Gamma_B)>0",
+      "bootstrap_unit": "FINAL evaluation seed with all R1/R2 cells paired"
+    },
+    "R3_repairs_directed_B_identity_beyond_R2": {
+      "M_B_arm": "E[KL(pi_B||z0)-KL(pi_B||z1)] on matched FINAL states",
+      "Gamma_MB": "M_B_R3-M_B_R2",
+      "pass": "LCB95(M_B_R3)>0 and LCB95(Gamma_MB)>0, while R3 also passes the full absolute behavioral-identity gate",
+      "bootstrap_unit": "FINAL evaluation seed with every matched state retained inside its seed cluster"
+    },
+    "additional_required_reports_not_gates": [
+      "paired R1-S0 crossover differences",
+      "paired R3-R2 crossover differences",
+      "discordant win counts and purity for every arm/pole",
+      "per-seed scatter for every absolute and incremental contrast"
+    ],
+    "no_effect_floor_beyond_frozen_gates": true
+  },
+  "decision_logic_after_FINAL": {
+    "S0_passes": "Do not rewrite the closed SPPPO V1 verdict. Record that the same-block control passed at this matched initialization; successor-necessity evidence is inconclusive and EXP3 remains locked pending a separate PI ruling.",
+    "S0_fails_and_one_or_more_successor_arms_pass": "Select the earliest passing rung as the minimal successful treatment. Claims about the specific mechanism additionally require its frozen ablation-success comparison to pass.",
+    "R3_passes": "The full Regime-Aware Strategic Role PPO bundle is confirmed at this matched initialization only if R3 passes every unchanged absolute gate.",
+    "no_successor_arm_passes": "Freeze the negative ladder and stop. No R4, no larger identity margin, no coefficient sweep, no new scorer target, no extra seeds, and no automatic successor variant.",
+    "EXP3_unlock": "NOT AUTOMATIC from this single-training-seed causal screen. A passing rung identifies the candidate for a separately prospectively authorized multi-training-seed confirmation required by the repository headline protocol."
+  },
+  "stopping_and_immutability": {
+    "scorer_qualification_fail": "stop before policy training",
+    "valid_arm_training_result": "never extend, resume for more budget, or replace with an intermediate checkpoint",
+    "mechanical_invalidity": "freeze the failed attempt and repair only the violated implementation contract; restart that arm from timestep zero before any FINAL access",
+    "all_rungs_train_regardless_of_other_rung_training_diagnostics": true,
+    "FINAL_open_once": true,
+    "forbidden_after_any_DEV_or_FINAL_result": [
+      "regime redefinition",
+      "scorer target or weighting change",
+      "scorer head merge/split/capacity tuning",
+      "lambda_R or ranking-margin change",
+      "critic depth or private-trunk expansion",
+      "identity margin, coefficient, cadence, or optimizer change",
+      "checkpoint selection",
+      "seed-block extension",
+      "gate or bootstrap change",
+      "R4 or any automatic successor"
+    ]
+  },
+  "next_and_only_next": "Commit this design freeze and its three CLEAN audit artifacts. Do not implement or launch until a separate PI authorization explicitly opens the implementation phase."
+}

@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-27 — D1 COMPLETE (`coverage was not the problem`; regime-specific Q_ψ ranking failure on `own_flag_stolen`, with localized drag `0.709→0.823`). SPPPO V1 CLOSED. Successor method still NOT AUTHORIZED. EXP3/EXP4 locked.
+> **Last updated:** 2026-08-27 — D1 COMPLETE (`coverage was not the problem`; regime-specific Q_ψ ranking failure on `own_flag_stolen`, with localized drag `0.709→0.823`). SPPPO V1 CLOSED. The design-only S0→R1→R2→R3 RASR-PPO causal ladder is prospectively frozen; implementation and training remain NOT AUTHORIZED. EXP3/EXP4 locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -70,6 +70,32 @@ is a regime-specific \(Q_\psi\) ranking failure around `own_flag_stolen`, which
 materially depresses worst-quartile correctness (`0.709 → 0.823` after exclusion).
 Future targets (scorer regime representation; latent optimization interference)
 are identified but **not authorized**. Do not jump to collecting more data.
+
+### RASR-PPO successor causal ladder — `DESIGN FROZEN / UNIMPLEMENTED`
+
+The prospective protocol is
+[`RASR_PPO_CAUSAL_LADDER_PROTOCOL.json`](../artifacts/strategic_demand/rasrppo/RASR_PPO_CAUSAL_LADDER_PROTOCOL.json).
+It defines a fresh supervised-compression method family rather than an SPPPO V2:
+S0 reproduces the exact frozen SPPPO V1 treatment only as a same-block control;
+R1 changes only the payoff scorer representation to four explicit flag/carrying
+regime heads while retaining terminal win margin; R2 adds only two final
+z-specific heads to the centralized scalar critic `V_phi(s,z)`; R3 changes only
+positive teacher rehearsal into the frozen directed contrastive identity loss.
+
+All four arms use one fresh matched initialization, the same 1 M terminal-only
+budget, corrected persistent 16/0/0/16 pole assignment, and unchanged payoff,
+retention, and behavioral-identity gates. Fresh blocks passed declared, broad,
+span, and full-history checks with a valid positive control: TRAIN
+`10400001..10400032`, DEV `10500001..10500096`, and FINAL
+`10600001..10600192`. DEV is scorer qualification only and may never enter
+fitting. FINAL remains unopened until all four valid terminal hashes exist.
+
+Classification is **SUMMER-COMPATIBLE EXTENSION**, not paper-faithful and not
+label-free latent discovery. This turn authorizes protocol design only. No
+preset, runner, scorer, critic, loss, collection, training, or evaluation is
+authorized. A passing single-training-seed arm would nominate a candidate for a
+separately frozen multi-training-seed confirmation; it does not automatically
+unlock EXP3.
 
 ### Phase 0 action-conditioned scorer feasibility — `COMPLETE + PASS`
 
