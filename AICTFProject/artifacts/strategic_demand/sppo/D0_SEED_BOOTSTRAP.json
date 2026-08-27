@@ -1,0 +1,142 @@
+{
+  "record": "D0 seed-level bootstrap (implements D0_REPORTING_SPEC_FROZEN.json)",
+  "status": "MECHANISM_DIAGNOSTIC_ONLY -- no gate, no threshold, no verdict change",
+  "utc": "2026-08-27T01:34:45Z",
+  "spec_frozen_before_data": true,
+  "n_seeds": 192,
+  "n_decision_points": 35757,
+  "bootstrap": {
+    "unit": "seed",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "quartile_recomputed_per_replicate": true
+  },
+  "Q1_failure_is_z0_closer_to_piB": {
+    "fraction_margin_B_negative": {
+      "mean": 0.40186222706366287,
+      "lcb95": 0.38999381647600956,
+      "ucb95": 0.41420784806143895
+    },
+    "mean_margin_B_bits": {
+      "mean": 0.25529195817705624,
+      "lcb95": 0.2201992326409598,
+      "ucb95": 0.28948277229452457
+    },
+    "reading": "margin_B_bits = KL(pi_B||z0) - KL(pi_B||z1); negative = z0 closer to pi_B"
+  },
+  "Q2_qpsi_ranking_in_the_failure_region": {
+    "qpsi_correct_rate_worst_quartile": {
+      "mean": 0.7087670437157598,
+      "lcb95": 0.6701684348757372,
+      "ucb95": 0.7447054627379964
+    },
+    "mean_delta_B_hat_worst_quartile": {
+      "mean": 0.08092602061785002,
+      "lcb95": 0.07530665873141888,
+      "ucb95": 0.08631650808358426
+    },
+    "worst_quartile_cutoff": {
+      "mean": -0.3882546266466379,
+      "lcb95": -0.42555429264903066,
+      "ucb95": -0.351611801609397
+    },
+    "qpsi_margin_threshold": 0.04
+  },
+  "Q3_clustering_by_category": {
+    "carrying": {
+      "mean_margin_B_bits": {
+        "mean": 0.1047202932220493,
+        "lcb95": -0.03966668667758208,
+        "ucb95": 0.2632053775263425
+      },
+      "qpsi_correct_rate": {
+        "mean": 0.42525477126200795,
+        "lcb95": 0.3869014780044987,
+        "ucb95": 0.4670320681099517
+      }
+    },
+    "not_carrying": {
+      "mean_margin_B_bits": {
+        "mean": 0.2838143140374815,
+        "lcb95": 0.2633149147172593,
+        "ucb95": 0.3046817977819213
+      },
+      "qpsi_correct_rate": {
+        "mean": 0.847644381014218,
+        "lcb95": 0.8383794415341608,
+        "ucb95": 0.8567267696645435
+      }
+    },
+    "own_flag_home": {
+      "mean_margin_B_bits": {
+        "mean": 0.3356861820022961,
+        "lcb95": 0.31553297645593426,
+        "ucb95": 0.355961885232338
+      },
+      "qpsi_correct_rate": {
+        "mean": 0.8297470997541976,
+        "lcb95": 0.820036974562746,
+        "ucb95": 0.8391161007067259
+      }
+    },
+    "own_flag_stolen": {
+      "mean_margin_B_bits": {
+        "mean": -0.6467014963774987,
+        "lcb95": -0.7443776419196907,
+        "ucb95": -0.5424304415016703
+      },
+      "qpsi_correct_rate": {
+        "mean": 0.24406621146941024,
+        "lcb95": 0.2051279405695419,
+        "ucb95": 0.28540245316989227
+      }
+    },
+    "early": {
+      "mean_margin_B_bits": {
+        "mean": 0.23491827243412536,
+        "lcb95": 0.20667822084577311,
+        "ucb95": 0.2625338606239166
+      },
+      "qpsi_correct_rate": {
+        "mean": 0.9020752272869605,
+        "lcb95": 0.8918940985031255,
+        "ucb95": 0.9115567583587811
+      }
+    },
+    "mid": {
+      "mean_margin_B_bits": {
+        "mean": 0.28062950898504785,
+        "lcb95": 0.23327460844420586,
+        "ucb95": 0.32528165078193166
+      },
+      "qpsi_correct_rate": {
+        "mean": 0.7824723646367464,
+        "lcb95": 0.759018553479587,
+        "ucb95": 0.8046037186236993
+      }
+    },
+    "late": {
+      "mean_margin_B_bits": {
+        "mean": 0.25038912215531295,
+        "lcb95": 0.18743867906179837,
+        "ucb95": 0.3101748067268682
+      },
+      "qpsi_correct_rate": {
+        "mean": 0.659775213107556,
+        "lcb95": 0.6287237764844124,
+        "ucb95": 0.689102532735941
+      }
+    }
+  },
+  "WORDING_DISCIPLINE": {
+    "if_qpsi_correct_rate_is_high_in_the_failure_region": "The evidence favors optimization/interference over scorer misranking as the dominant failure mode.",
+    "PROHIBITED_phrasing": [
+      "Q_psi was correct",
+      "Q_psi is exonerated",
+      "the scorer is fine"
+    ],
+    "why": "a high correct-RATE says nothing about whether the score margin was large enough to produce a gradient that survived, and the incorrect remainder may sit at the most consequential states. Sign and magnitude are different claims.",
+    "if_qpsi_correctness_collapses_in_high_consequence_B_states": "the fork swings back toward SURROGATE_FAILURE"
+  }
+}

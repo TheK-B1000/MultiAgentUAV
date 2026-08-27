@@ -1,0 +1,103 @@
+{
+  "record": "SPPPO V1 postmortem D0 -- pole-B strategic identity decomposition",
+  "status": "DIAGNOSTIC_ONLY -- no training, no new seeds, no gate re-scoring",
+  "utc": "2026-08-27T01:33:52Z",
+  "reuses_unchanged": [
+    "eval_exp2_k2_terminal.action_identity (THE frozen metric)",
+    "rl.scorer.ranking.strategic_contrast"
+  ],
+  "what_margin_B_negative_means": "margin_B_bits = KL(pi_B||z0) - KL(pi_B||z1). Negative means z0 is CLOSER to pi_B than z1 is: the wrong mode resembles the BREACH teacher.",
+  "n_seeds": 192,
+  "n_decision_points": 35757,
+  "categories": {
+    "ALL": {
+      "label": "all decisions",
+      "n": 35757,
+      "mean_margin_B_bits": 0.2555203853903756,
+      "frac_margin_B_negative": 0.40176748608664037,
+      "mean_delta_B_hat": 0.08813770071803365,
+      "qpsi_correct_rate": 0.7820007271303521
+    },
+    "worst_quartile_margin_B": {
+      "label": "margin_B in worst 25%",
+      "n": 8940,
+      "mean_margin_B_bits": -1.0904238507551636,
+      "frac_margin_B_negative": 1.0,
+      "mean_delta_B_hat": 0.080956783531217,
+      "qpsi_correct_rate": 0.7093959731543624
+    },
+    "best_quartile_margin_B": {
+      "label": "margin_B in best 25%",
+      "n": 8940,
+      "mean_margin_B_bits": 1.6552152723407318,
+      "frac_margin_B_negative": 0.0,
+      "mean_delta_B_hat": 0.09972669125588765,
+      "qpsi_correct_rate": 0.8240492170022371
+    },
+    "carrying": {
+      "label": "blue carrying flag",
+      "n": 5545,
+      "mean_margin_B_bits": 0.10133412340345202,
+      "frac_margin_B_negative": 0.4533814247069432,
+      "mean_delta_B_hat": 0.03323397868127303,
+      "qpsi_correct_rate": 0.424526600541028
+    },
+    "not_carrying": {
+      "label": "not carrying",
+      "n": 30212,
+      "mean_margin_B_bits": 0.2838191680832622,
+      "frac_margin_B_negative": 0.3922944525354164,
+      "mean_delta_B_hat": 0.09821452908735172,
+      "qpsi_correct_rate": 0.847610221104197
+    },
+    "own_flag_home": {
+      "label": "own flag home",
+      "n": 32845,
+      "mean_margin_B_bits": 0.3357089957078582,
+      "frac_margin_B_negative": 0.3767696757497336,
+      "mean_delta_B_hat": 0.09518232680905385,
+      "qpsi_correct_rate": 0.8297153295783224
+    },
+    "own_flag_stolen": {
+      "label": "own flag stolen",
+      "n": 2912,
+      "mean_margin_B_bits": -0.6489421509687308,
+      "frac_margin_B_negative": 0.6837225274725275,
+      "mean_delta_B_hat": 0.008680027654998331,
+      "qpsi_correct_rate": 0.2438186813186813
+    },
+    "early": {
+      "label": "early tertile",
+      "n": 11980,
+      "mean_margin_B_bits": 0.23487102330253398,
+      "frac_margin_B_negative": 0.41502504173622706,
+      "mean_delta_B_hat": 0.11536927830633117,
+      "qpsi_correct_rate": 0.9020868113522538
+    },
+    "mid": {
+      "label": "mid tertile",
+      "n": 11926,
+      "mean_margin_B_bits": 0.28088560205127255,
+      "frac_margin_B_negative": 0.3911621666946168,
+      "mean_delta_B_hat": 0.08513645548834202,
+      "qpsi_correct_rate": 0.7824920342109676
+    },
+    "late": {
+      "label": "late tertile",
+      "n": 11851,
+      "mean_margin_B_bits": 0.25086877657377654,
+      "frac_margin_B_negative": 0.399038055860265,
+      "mean_delta_B_hat": 0.06362994197206265,
+      "qpsi_correct_rate": 0.6601130706269513
+    }
+  },
+  "fraction_of_all_decisions_with_negative_margin_B": 0.40176748608664037,
+  "DIAGNOSTIC_FORK_VERDICT": "OPTIMISATION_INTERFERENCE",
+  "fork_basis": {
+    "states": "worst quartile of margin_B_bits",
+    "qpsi_correct_rate_there": 0.7093959731543624,
+    "OPTIMISATION_INTERFERENCE": "Q_psi right, pressure did not transfer",
+    "SURROGATE_FAILURE": "Q_psi itself cannot distinguish the failing states"
+  },
+  "raw_rows": "artifacts\\strategic_demand\\sppo\\D0_pole_b_decision_rows.csv"
+}
