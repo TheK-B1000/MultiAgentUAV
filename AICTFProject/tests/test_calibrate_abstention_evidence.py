@@ -172,6 +172,54 @@ def test_only_calib_seeds_are_read(tmp_path):
     assert seeds_seen == set(CAL.CALIB_SEEDS)
 
 
+def test_frozen_floor_is_five_and_is_read_from_the_protocol():
+    """The floor lives in the protocol, not in this script's source."""
+    assert CAL._minimum_support_declared() == 5
+
+
+def test_a_cell_with_seeds_but_zero_resolvable_is_NOT_insufficient(tmp_path):
+    """The instrument must not reject the finding it exists to detect."""
+    data = _make_calib(tmp_path, CAL.CELLS, [0] * 16)          # every cell fully tied
+    ev = CAL.build_evidence(CAL.collect_calib(data), minimum=5)
+    assert ev["VERDICT"] == "EVIDENCE_COMPLETE"
+    assert ev["cells_below_minimum"] == []
+    cell = ev["cells"]["B_r2_late"]
+    assert cell["resolvable_mass"]["mean"] == pytest.approx(0.0)
+    assert cell["n_seeds"] >= 5
+
+
+def test_all_tied_cell_is_flagged_degenerate_with_a_rule_of_three_bound(tmp_path):
+    """[0,0] from a bootstrap asserts precision the protocol forbids."""
+    data = _make_calib(tmp_path, ["B_r2_late"] * 2, [0, 0])
+    ev = CAL.build_evidence(CAL.collect_calib(data), minimum=5)
+    cell = ev["cells"]["B_r2_late"]
+    assert cell["degenerate_bootstrap"] is True
+    assert cell["rule_of_three_ucb95"] == pytest.approx(3.0 / len(CAL.CALIB_SEEDS))
+    assert "NOT insufficient support" in cell["rule_of_three_note"]
+
+
+def test_mixed_cell_is_not_flagged_degenerate(tmp_path):
+    """Only a collapsed interval earns the flag."""
+    data = _make_calib(tmp_path, ["A_r0_late"] * 4, [1, -1, 0, 0])
+    per_cell = CAL.collect_calib(data)
+    # perturb one seed so the seeds are not all identical
+    per_cell["A_r0_late"][CAL.CALIB_LO] = {"b_preferred": 4, "a_preferred": 0,
+                                           "not_established": 0}
+    ev = CAL.build_evidence(per_cell, minimum=5)
+    cell = ev["cells"]["A_r0_late"]
+    assert cell["degenerate_bootstrap"] is False
+    assert cell["resolvable_mass"]["lcb95"] < cell["resolvable_mass"]["ucb95"]
+    assert "rule_of_three_ucb95" not in cell
+
+
+def test_resolvable_cell_never_gets_a_rule_of_three_bound(tmp_path):
+    """The bound is only meaningful when the count is genuinely zero."""
+    data = _make_calib(tmp_path, ["A_r0_late"] * 2, [1, 1])
+    cell = CAL.build_evidence(CAL.collect_calib(data), minimum=5)["cells"]["A_r0_late"]
+    assert cell["degenerate_bootstrap"] is True        # identical seeds
+    assert "rule_of_three_ucb95" not in cell           # but nonzero resolvable
+
+
 def test_not_established_is_never_described_as_equivalence(tmp_path):
     ev = CAL.build_evidence(CAL.collect_calib(_make_calib(tmp_path)), minimum=1)
     text = ev["label_semantics"]["not_established"]

@@ -118,5 +118,73 @@
       "what over-commitment looks like on truly tied states"
     ],
     "calibration_timing": "Thresholds are calibrated on CALIB and frozen BEFORE policy training. Calibrating after training, or on EVAL, or in response to a failed gate, is prohibited."
+  },
+  "AMENDMENT_1_CALIB_ADEQUACY_FLOOR": {
+    "record": "AMENDMENT 1 -- CALIB per-cell adequacy floor. Frozen PROSPECTIVELY, before any CALIB seed was collected.",
+    "utc": "2026-08-28T01:09:48Z",
+    "authority": "PI ruling, 2026-08-28",
+    "minimum_calib_seeds_per_cell": 5,
+    "scope": "All 16 pole x regime x horizon cells must meet it simultaneously. No exceptions, no pooling.",
+    "statement": "CALIB per-cell adequacy requires >=5 distinct CALIB seeds in every pole x regime x horizon cell. This is an EVIDENCE-AVAILABILITY FLOOR, NOT A PRECISION GUARANTEE. Sparse CALIB cells remain subject to seed-clustered uncertainty, which Stage 2 must propagate conservatively.",
+    "TWO_FLOORS_WITH_DIFFERENT_JOBS": {
+      "collection_floor": {
+        "value": 32,
+        "question_it_answers": "Does this cell have enough independent-seed evidence to be scientifically usable at all?",
+        "where": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json, over the FULL 160-seed block"
+      },
+      "calib_floor": {
+        "value": 5,
+        "question_it_answers": "Did this cell appear often enough in the 32-seed CALIB split that we may attempt to estimate its resolvable mass?"
+      },
+      "why_they_must_differ": "The scientific evidence requirement is already carried by the collection floor. By the time CALIB is read, every cell has ALREADY been proven to hold >=32 distinct seeds across the full block. The CALIB floor is not a second scientific gate; it only asks whether estimation may be attempted on this split.",
+      "the_governing_principle": "The floor determines whether we are ALLOWED TO ESTIMATE. The uncertainty determines HOW MUCH WE TRUST the estimate. Those are different jobs and must not be conflated into one number."
+    },
+    "NO_MINIMUM_ON_RESOLVED_OUTCOMES": {
+      "rule": "There is NO requirement that a cell contain any minimum number of resolvable (Delta != 0) states.",
+      "why": "The entire purpose of calibration is to DISCOVER how much resolvable mass exists. Requiring resolvable outcomes would let the measuring instrument reject the very finding it was built to detect.",
+      "worked_case": "A cell with 8 seeds and 0 resolvable outcomes is NOT insufficient support. It is evidence that resolvable mass may be extremely low -- exactly what D3/D4/D5 found and what the abstaining design exists to handle.",
+      "slogan": "5 seeds does NOT mean 5 resolvable examples. It means 5 independent chances to look."
+    },
+    "how_5_was_chosen": {
+      "decision_history_all_pre_data": "Ruled 8, revised to 6, then to 5. Every revision happened BEFORE a single CALIB seed existed and was driven by arithmetic, never by observed counts. Recorded in full because the sequence itself is evidence that the bar was not lowered after a failure.",
+      "why_8_was_withdrawn": "8 is defensible per-cell (P=0.907 at the conservative scarce-cell rate 0.344) but the floor binds on all 16 cells AT ONCE. Evaluating it one cell at a time was misleading: the joint pass probability is 0.790 on point estimates and 0.248 under the Wilson lower bound the 160-seed budget was itself computed from.",
+      "joint_probability_table": {
+        "floor_5": {
+          "point": 0.989,
+          "wilson_lower": 0.863
+        },
+        "floor_6": {
+          "point": 0.964,
+          "wilson_lower": 0.697
+        },
+        "floor_7": {
+          "point": 0.904,
+          "wilson_lower": 0.471
+        },
+        "floor_8": {
+          "point": 0.79,
+          "wilson_lower": 0.248
+        },
+        "floor_9": {
+          "point": 0.615,
+          "wilson_lower": 0.095
+        }
+      },
+      "binding_cells": [
+        "B_r2_late",
+        "B_r2_not_late"
+      ],
+      "why_not_lower_than_5": "Five distinct seeds is already a small independent-cluster sample. It is enough to attempt estimation and not enough to pretend precision. Below 5 the estimate stops being worth attempting at all.",
+      "THE_PROTOCOL_TRAP_THIS_AVOIDS": "Under an 8-seed rule we could finish the entire 35-hour collection correctly and then have the experiment blocked because one rare cell happened to land at 7 CALIB seeds -- and we would rightly refuse to change 8 -> 7 afterwards, having already seen the data. The two errors are asymmetric: an over-loose floor costs precision in two cells, which Stage 2 absorbs; an over-tight floor strands the whole collection behind a rule we are then forbidden to relax.",
+      "worked_example": "If CALIB ends up holding 6 distinct seeds for B_r2_late: under an 8-seed rule the entire calibration is blocked; under a 5-seed rule we may estimate it, the interval is wide, and Stage 2 behaves cautiously. The latter is the more sensible outcome given the full dataset has already proven that cell holds >=32 independent seeds."
+    },
+    "UNCERTAINTY_MUST_BE_REPORTED_NOT_JUST_POINT_ESTIMATES": {
+      "rule": "For every cell, Stage 1 reports r_c = #(Delta!=0)/n_c together with a seed-level 95% interval. A point estimate alone is not acceptable output.",
+      "why": "1/10 resolvable reads as 10%, but 10% is not known precisely from ten observations.",
+      "clustering": "The interval resamples whole seeds; branch states within a seed are not independent.",
+      "BOUNDARY_CASE_EXPLICITLY_HANDLED": "When every seed in a cell shows the same resolvable fraction -- most importantly when all are zero -- a nonparametric bootstrap returns a degenerate interval such as [0, 0], asserting exactly the precision this rule forbids. Stage 1 flags such cells as degenerate_bootstrap, and for the all-zero case additionally reports a rule-of-three upper bound of about 3/n_seeds so the uncertainty is visible rather than silently zero."
+    },
+    "consequence_if_unmet": "If any cell holds fewer than 5 distinct CALIB seeds, calibration is classified CALIBRATION_CANNOT_PROCEED. Do not select thresholds, do not lower the floor, and do not grow the data. A fresh PI decision is required and it may not simply relax this number.",
+    "prospective_status": "Frozen 2026-08-28 while the collection stood at roughly 21 of 160 seeds. CALIB begins at seed 10700097 and none had been collected. No CALIB count influenced this choice."
   }
 }

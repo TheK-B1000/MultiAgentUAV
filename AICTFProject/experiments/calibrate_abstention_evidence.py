@@ -170,13 +170,32 @@ def build_evidence(per_cell: dict, minimum: int | None) -> dict:
         total = sum(labels.values())
         resolved_num = {s: v["b_preferred"] + v["a_preferred"] for s, v in by_seed.items()}
         den = {s: sum(v.values()) for s, v in by_seed.items()}
-        cells_out[cell] = {
+        mass = _seed_bootstrap(resolved_num, den)
+        entry = {
             "n_branch_states": total,
             "n_seeds": len(by_seed),
             "labels": labels,
-            "resolvable_mass": _seed_bootstrap(resolved_num, den),
+            "resolvable_mass": mass,
             "tie_rate_point": (labels["not_established"] / total) if total else None,
         }
+        # A nonparametric bootstrap cannot express uncertainty when every seed shows
+        # the same value: an all-tied cell returns [0, 0], asserting precision the
+        # protocol forbids. Flag it and supply a rule-of-three bound instead.
+        if mass is not None and mass["lcb95"] == mass["ucb95"]:
+            entry["degenerate_bootstrap"] = True
+            entry["degenerate_reason"] = (
+                "every CALIB seed in this cell gave the same resolvable fraction, so the "
+                "seed-clustered bootstrap collapses to a point; the interval is an "
+                "artifact of the estimator, not evidence of precision")
+            if labels["b_preferred"] + labels["a_preferred"] == 0:
+                entry["rule_of_three_ucb95"] = 3.0 / max(1, len(by_seed))
+                entry["rule_of_three_note"] = (
+                    "zero resolvable states across n seeds bounds the rate at roughly "
+                    "3/n with 95% confidence; this is NOT insufficient support, it is a "
+                    "measurement that resolvable mass may be very low")
+        else:
+            entry["degenerate_bootstrap"] = False
+        cells_out[cell] = entry
 
     counted = {c: v for c, v in cells_out.items() if v["n_branch_states"] > 0}
     empty = [c for c, v in cells_out.items() if v["n_branch_states"] == 0]
