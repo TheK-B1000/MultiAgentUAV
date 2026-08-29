@@ -46,5 +46,45 @@
     "env-setup manifest did not propagate resolved_live_cells / resolved_opponent_rows; the Pole-A overlay verification ran but was not captured as evidence, and this smoke will not pass on an uncaptured check"
   ],
   "authorizes": "nothing; PPO launch remains a separate PI decision",
-  "EVAL_touched": false
+  "EVAL_touched": false,
+  "CLASSIFICATION": "FAIL, INSUFFICIENT OBSERVABILITY",
+  "classification_meaning": "Live mapping is confirmed across 192 episodes, but per-env reset persistence and recorded overlay provenance are not yet demonstrated. We are no longer debugging the mapping -- we are debugging the PROOF APPARATUS.",
+  "STATE": {
+    "mapping_correctness": "ESTABLISHED -- z0->OP6 96/96, z1->OP7 96/96, zero mismatches, echoed by trainer diagnostics",
+    "reset_persistence_per_env": "NOT ESTABLISHED -- episode CSV carries no env identifier",
+    "overlay_runtime_check": "EXISTS -- assert_live_opponent_batch raises on mismatch",
+    "overlay_evidence_in_record": "NOT ESTABLISHED -- manifest key not propagated"
+  },
+  "THE_PATTERN_BEING_KILLED_OFF": "missing evidence -> None -> accidentally treated as acceptable. This is the same shape as the opponent_randomize ghost-field bug, where a guard read a non-existent attribute and getattr's default silently passed the very configuration it existed to reject. Absence of evidence must be a hard failure, never a default.",
+  "NEXT_SESSION_ONE_JOB": {
+    "job": "Instrument PoleAssignmentAuditor as the authoritative reset witness.",
+    "why_it_is_the_right_instrument": "It is already wired at the per-episode close in rl/custom_ppo/latent/credit/episode/manager.py and receives the real env_index, which the episode CSV never carried. It needs a trainer attach point that orchestrate_training_run does not yet expose.",
+    "must_record_per_observation": [
+      "env_index",
+      "latent z",
+      "live opponent identity",
+      "resolved pole",
+      "overlay identity / active overlay",
+      "episode-close count for that env",
+      "assignment mismatch flag",
+      "overlay mismatch flag"
+    ],
+    "pass_requires": [
+      "32/32 envs observed",
+      "min episode closes per env >= 2",
+      "z0 envs always resolve Pole A",
+      "z1 envs always resolve Pole B",
+      "OP6 overlay verified on every relevant observation",
+      "OP7 overlay absent on every relevant observation",
+      "mapping mismatches = 0",
+      "overlay mismatches = 0"
+    ],
+    "missing_instrumentation_is_itself_a_hard_failure": [
+      "missing env_index evidence -> FAIL",
+      "missing overlay evidence -> FAIL",
+      "missing live opponent evidence -> FAIL"
+    ],
+    "also_fix": "manifest propagation, so the persisted record contains the same facts the runtime assertion checked. A check that can throw gives safety; a persisted artifact gives auditability. Both are required.",
+    "utc": "2026-08-29T13:40:02Z"
+  }
 }
