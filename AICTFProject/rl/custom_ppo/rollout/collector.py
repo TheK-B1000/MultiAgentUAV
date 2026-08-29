@@ -58,6 +58,7 @@ from rl.global_state import (
     GLOBAL_STATE_FLAG_TERRITORY_SLICE,
     augment_with_strategy_phase,
 )
+from rl import launch_audit_hooks
 from rl.custom_ppo.latent.router_sampling import (
     build_current_plus_delta_router_context,
     router_current_plus_delta_enabled,
@@ -1147,6 +1148,27 @@ class RolloutCollector:
             self.hparams.latent_v3i3_event_preference_enabled
             or self.hparams.latent_v3i3_refresh_log_enabled
         )
+        # Runtime audit observation is UNGATED. It previously reached
+        # launch_audit_hooks only via record_episode_strategy_outcome, which sits
+        # behind latent_episode_strategy_ppo / forced-z logging -- so with those off
+        # an attached auditor silently observed nothing and reported 0/32 envs. An
+        # audit hook whose liveness depends on an unrelated training feature is the
+        # same inert-guard failure as reading a field that does not exist.
+        if launch_audit_hooks.get(self.runtime) is not None:
+            for env_i, done_i in enumerate(dones):
+                if not bool(done_i):
+                    continue
+                info = dict(infos[env_i])
+                forced = bool(latent_state.episode_forced_z[env_i].detach().cpu().item())
+                z_val = int(
+                    (latent_state.episode_forced_z_id if forced else latent_state.current_z)[env_i]
+                    .detach().cpu().item()
+                )
+                launch_audit_hooks.observe_episode_close(
+                    self.runtime, env_i, z_val,
+                    int(_opponent_id_int_from_info(self.cfg, info)),
+                )
+
         if episode_strategy_ppo_on or v3i3_finalize_on or forced_z_logging_on:
             for env_i, done_i in enumerate(dones):
                 if not bool(done_i):

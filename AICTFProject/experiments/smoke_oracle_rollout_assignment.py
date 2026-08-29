@@ -51,6 +51,10 @@ EXPECTED = {"0": "SCRIPTED:OP6", "1": "SCRIPTED:OP7"}
 EXPECTED_CELLS = {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16}
 # a dedicated smoke block, disjoint from the 10700001..10700160 collection block
 SMOKE_SEED = 10_800_001
+# scripted opponent integer ids as the trainer resolves them live (OP1->0 .. OP12->11)
+OPPONENT_ID_TO_POLE = {5: "A", 6: "B"}      # OP6 -> Pole A, OP7 -> Pole B
+MIN_RESETS_PER_ENV = 2
+EXPECTED_ENVS = 32
 
 
 def _now() -> str:
@@ -111,6 +115,7 @@ def main() -> int:
     from experiments.run_exp2b_specialization_preserving_compression import (
         configure_exp2b_live_environment,
     )
+    from rl import launch_audit_hooks as hooks
     from rl.launch_gate import check_fresh_training, check_opponent_mode
     from rl.training.orchestrator import orchestrate_training_run
 
@@ -124,6 +129,21 @@ def main() -> int:
     print(f"  requires: z0 -> OP6 + pole_A overlay, z1 -> OP7, zero mismatches\n", flush=True)
     failures = [c.detail for c in (opp, fresh) if not c.passed]
 
+    # POLES: OP6 -> Pole A, OP7 -> Pole B. Opponent ids are the scripted indices the
+    # trainer resolves live; the auditor maps them back to poles itself.
+    auditors = {}
+
+    def _attach(trainer, _cfg):
+        """Runtime-observer seam: attach the auditor to the LIVE trainer."""
+        a = hooks.attach(
+            trainer,
+            z_to_pole={0: "A", 1: "B"},
+            opponent_to_pole=OPPONENT_ID_TO_POLE,
+            hard_fail=False,          # collect all evidence, judge at the end
+            artifact_dir=OUT_DIR,
+        )
+        auditors["a"] = a
+
     contract = {"record": "oracle-gated rollout assignment smoke", "utc": _now()}
     manifest = orchestrate_training_run(
         cfg,
@@ -134,28 +154,22 @@ def main() -> int:
             manifest_key="oracle_rollout_protocol",
             context_label="oracle-gated rollout assignment smoke",
         ),
+        post_trainer_setup=_attach,
     )
+    auditor = auditors.get("a")
+    if auditor is None:
+        failures.append("the runtime-observer seam never fired; no auditor was attached")
 
     with Path(cfg.episode_csv_path).open(newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
     if not rows:
         raise SystemExit("REFUSING: no completed episodes; the smoke proved nothing")
 
-    # Discover the env-identifying column rather than assuming its name. A previous
-    # attempt assumed "env_index", found nothing, and silently reported None for
-    # per-env coverage -- so persistence was never actually established. Absence is
-    # now a hard failure, not a default.
-    ENV_COL_CANDIDATES = ("env_index", "env", "env_id", "worker", "vec_index")
-    env_col = next((c for c in ENV_COL_CANDIDATES if c in rows[0]), None)
-    if env_col is None:
-        failures.append(
-            f"episode CSV has no env-identifying column (looked for "
-            f"{list(ENV_COL_CANDIDATES)}); per-env reset coverage cannot be verified "
-            f"and this smoke will not pass on an aggregate. Columns present: "
-            f"{sorted(rows[0])[:12]}")
-
+    # PER-ENV EVIDENCE comes from the runtime auditor, not the episode CSV. That file
+    # carries no env identifier at all -- episode_id is a global counter -- which is
+    # why an earlier attempt could not prove per-env coverage. The auditor observes
+    # env_index at every episode close, inside the trainer.
     counts = collections.Counter((r["latent_z"], r["opponent"]) for r in rows)
-    per_env = collections.Counter(r[env_col] for r in rows) if env_col else {}
     by_latent, mismatches = {}, 0
     for z in ("0", "1"):
         total = sum(v for (zz, _), v in counts.items() if zz == z)
@@ -170,27 +184,18 @@ def main() -> int:
             "pct_expected": good / total, "mismatches": bad,
             "observed": {op: c for (zz, op), c in counts.items() if zz == z}}
         print(f"  z={z}  n={total:4d}  {EXPECTED[z]}={good / total:.4f}  mismatches={bad}")
-
-    # PER-ENV reset coverage, not an aggregate. An env that produced N episodes
-    # crossed N-1 resets; every env must cross at least MIN_RESETS_PER_ENV.
-    MIN_RESETS_PER_ENV = 2
-    resets_per_env = {e: n - 1 for e, n in per_env.items()}
-    envs_seen = len(per_env)
-    envs_with_reset = sum(1 for v in resets_per_env.values() if v >= 1)
-    min_resets = min(resets_per_env.values()) if resets_per_env else None
-
     if mismatches:
-        failures.append(f"{mismatches} live (z, opponent) mismatches")
-    if env_col:
-        if envs_seen != 32:
-            failures.append(f"only {envs_seen}/32 environments produced episodes")
-        if envs_with_reset != 32:
-            failures.append(f"only {envs_with_reset}/32 environments crossed a reset")
-        if min_resets is not None and min_resets < MIN_RESETS_PER_ENV:
-            failures.append(
-                f"min resets per env is {min_resets}, below the required "
-                f"{MIN_RESETS_PER_ENV}; persistence through the trainer lifecycle is "
-                "not established")
+        failures.append(f"{mismatches} live (z, opponent) mismatches in episode rows")
+
+    coverage = None
+    if auditor is not None:
+        coverage = auditor.coverage(expected_envs=EXPECTED_ENVS,
+                                    min_resets=MIN_RESETS_PER_ENV)
+        failures.extend(coverage["failures"])
+        print(f"  envs observed {coverage['envs_observed']}/{EXPECTED_ENVS}   "
+              f"min resets {coverage['min_resets_observed']} "
+              f"(required >= {MIN_RESETS_PER_ENV})   "
+              f"per-env mismatches {coverage['total_mismatches']}")
 
     # Overlay evidence. assert_live_opponent_batch inside the env setup raises on a
     # mismatch, so reaching this point already implies it held -- but the record must
@@ -207,10 +212,26 @@ def main() -> int:
     else:
         if cells != EXPECTED_CELLS:
             failures.append(f"live cells are not 16/0/0/16: {cells}")
-        overlay_mismatches = sum(
-            1 for r in opp_rows
-            if (str(r.get("live_opponent_key")) == "OP6") != bool(r.get("profile_override_active", r.get("overlay_active")))
-        )
+        # Overlay presence is read from PROVENANCE fields, not from the resolved
+        # profile's values. OP7's base profile already carries
+        # min_alive_for_defender=2, so checking the overlay by its EFFECT would
+        # falsely pass Pole B. genome_id / requested_overlay are what distinguish
+        # "overlay applied" from "base happens to match".
+        REQUIRED_ROW_FIELDS = ("env_index", "live_opponent_key", "genome_id",
+                               "requested_overlay")
+        missing_fields = sorted(
+            {f for r in opp_rows for f in REQUIRED_ROW_FIELDS if f not in r})
+        if missing_fields:
+            failures.append(
+                f"overlay evidence rows are missing {missing_fields}; the check cannot "
+                "verify its own precondition and will not assume the safe case")
+            overlay_mismatches = None
+        else:
+            def _has_overlay(r) -> bool:
+                return bool(r.get("genome_id")) and bool(r.get("requested_overlay"))
+            overlay_mismatches = sum(
+                1 for r in opp_rows
+                if (str(r["live_opponent_key"]) == "OP6") != _has_overlay(r))
         if overlay_mismatches:
             failures.append(
                 f"{overlay_mismatches} environments have the Pole-A overlay attached to "
@@ -230,12 +251,8 @@ def main() -> int:
             "profile per environment, so the Pole-A overlay is confirmed ACTIVE"),
         "seed": int(cfg.seed), "steps": int(cfg.total_timesteps),
         "completed_episodes": len(rows),
-        "env_column_used": env_col,
-        "envs_seen": envs_seen,
-        "envs_with_reset": f"{envs_with_reset}/32",
-        "min_resets_per_env": min_resets,
-        "min_resets_required": MIN_RESETS_PER_ENV,
-        "resets_per_env": dict(sorted(resets_per_env.items())) if env_col else None,
+        "evidence_source": "runtime auditor at per-episode close (env_index), NOT the episode CSV",
+        "coverage": coverage,
         "by_latent": by_latent,
         "mapping_mismatches": mismatches,
         "overlay_mismatches": overlay_mismatches,
@@ -249,9 +266,8 @@ def main() -> int:
 
     if not args.keep:
         shutil.rmtree(OUT_DIR, ignore_errors=True)
-    print(f"\n  episodes {len(rows)}   envs_with_reset {envs_with_reset}/32   "
-          f"min_resets_per_env {min_resets} (required >= {MIN_RESETS_PER_ENV})")
-    print(f"  mapping_mismatches {mismatches}   overlay_mismatches {overlay_mismatches}")
+    print(f"\n  episodes {len(rows)}   mapping_mismatches {mismatches}   "
+          f"overlay_mismatches {overlay_mismatches}")
     print(f"  VERDICT: {verdict}")
     for f in failures:
         print(f"    FAIL: {f}")

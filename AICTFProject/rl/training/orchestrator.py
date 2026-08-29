@@ -190,7 +190,8 @@ def orchestrate_training_run(
     pre_rollout_env_setup: Optional[
         Callable[[Any, PPOConfig], Optional[dict[str, Any]]]
     ] = None,
-) -> None:
+    post_trainer_setup: Optional[Callable[[Any, PPOConfig], None]] = None,
+) -> Optional[dict[str, Any]]:
     """Run the full local PPO/MAPPO training path.
 
     This is the canonical implementation extracted from
@@ -299,6 +300,14 @@ def orchestrate_training_run(
         _maybe_attach_exp2_teacher_compression(cfg, trainer)
         _maybe_attach_sppo_ranking(cfg, trainer)
 
+        # Runtime-observer seam. Callers attach auditors to the live trainer here,
+        # after every treatment attachment and before the first rollout step, so an
+        # observer sees the run exactly as it will execute. Deliberately a callback
+        # rather than returning the trainer: observers plug in, callers do not get a
+        # handle to mutate the scientific treatment.
+        if post_trainer_setup is not None:
+            post_trainer_setup(trainer, cfg)
+
         artifact_only = bool(getattr(cfg, "formal_artifact_bundle_only", False))
         if artifact_only:
             _write_formal_artifact_bundle_smoke(cfg, trainer, run_identity)
@@ -327,6 +336,12 @@ def orchestrate_training_run(
             _write_in_run_eval_and_summary(cfg, trainer, run_identity, checkpoint_path=final_path)
     finally:
         teardown_training(cfg, trainer, env, run_context.run_lock)
+
+    # Return what pre_rollout_env_setup resolved. The env setup already asserts its
+    # invariants and raises on violation, but a check that throws only protects the
+    # run -- the caller needs the same facts back to PERSIST as evidence that the
+    # check saw what the record claims. Both jobs, not one.
+    return training_manifest_extra
 
 
 def _checkpoint_file_fingerprint(path: str) -> str:
