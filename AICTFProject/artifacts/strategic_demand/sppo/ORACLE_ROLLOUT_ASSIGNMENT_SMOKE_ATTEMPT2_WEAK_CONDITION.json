@@ -1,0 +1,46 @@
+{
+  "record": "Oracle-gated rollout assignment live smoke",
+  "status": "QUARANTINED_PASSED_A_WEAKER_CONDITION",
+  "classification": "DIAGNOSTIC",
+  "utc": "2026-08-29T13:20:44Z",
+  "implements": "ORACLE_GATED_REHEARSAL_SPEC.json AMENDMENT_1",
+  "VERDICT": "PASS",
+  "requirement": "z0 -> OP6 + SDS2_A_payoff_INIT_3 overlay, z1 -> OP7, opponent_randomize False, persistent across every reset",
+  "verification_is_live_not_configurational": "counts come from completed-episode rows, and assert_live_opponent_batch inside the env setup reads the resolved opponent AND behaviour-tree profile per environment, so the Pole-A overlay is confirmed ACTIVE",
+  "seed": 10800001,
+  "steps": 49152,
+  "completed_episodes": 192,
+  "min_episodes_per_env": null,
+  "crossed_resets": true,
+  "by_latent": {
+    "z0": {
+      "n_episodes": 96,
+      "expected": "SCRIPTED:OP6",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP6": 96
+      }
+    },
+    "z1": {
+      "n_episodes": 96,
+      "expected": "SCRIPTED:OP7",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP7": 96
+      }
+    }
+  },
+  "total_mismatches": 0,
+  "resolved_live_cells": null,
+  "resolved_opponent_rows": null,
+  "rasr_arms_enabled": false,
+  "failures": [],
+  "authorizes": "nothing; PPO launch remains a separate PI decision",
+  "EVAL_touched": false,
+  "quarantine_reason": "Attempt 2 returned PASS against crossed_resets = (episodes > 32), a WEAK AGGREGATE. 192 episodes across 32 envs could in principle come from a few environments cycling many times while others never reset at all, so per-env persistence was not actually established. Two silent gaps confirmed it: min_episodes_per_env came back None because the expected env-index column is absent from the episode CSV, and resolved_live_cells came back None because the env-setup manifest key was not propagated -- so the overlay verification, though it did run inside assert_live_opponent_batch and would have raised on mismatch, was never captured as evidence in this record.",
+  "what_it_does_establish": "z0 -> OP6 and z1 -> OP7 at 1.0000 with zero mismatches over 192 episodes, and the run completed, which means assert_live_opponent_batch did not raise. That is real but it is weaker than the required bar.",
+  "superseded_by": "a strengthened attempt requiring per-env reset coverage and captured overlay evidence",
+  "utc_quarantined": "2026-08-29T13:21:57Z"
+}

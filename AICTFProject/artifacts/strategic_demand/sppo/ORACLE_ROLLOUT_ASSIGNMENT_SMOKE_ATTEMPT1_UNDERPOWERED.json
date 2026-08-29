@@ -1,0 +1,47 @@
+{
+  "record": "Oracle-gated rollout assignment live smoke",
+  "status": "QUARANTINED_UNDERPOWERED_ATTEMPT",
+  "classification": "DIAGNOSTIC",
+  "utc": "2026-08-29T13:13:59Z",
+  "implements": "ORACLE_GATED_REHEARSAL_SPEC.json AMENDMENT_1",
+  "VERDICT": "FAIL",
+  "requirement": "z0 -> OP6 + SDS2_A_payoff_INIT_3 overlay, z1 -> OP7, opponent_randomize False, persistent across every reset",
+  "verification_is_live_not_configurational": "counts come from completed-episode rows, and assert_live_opponent_batch inside the env setup reads the resolved opponent AND behaviour-tree profile per environment, so the Pole-A overlay is confirmed ACTIVE",
+  "seed": 10800001,
+  "steps": 12288,
+  "completed_episodes": 32,
+  "min_episodes_per_env": null,
+  "crossed_resets": false,
+  "by_latent": {
+    "z0": {
+      "n_episodes": 16,
+      "expected": "SCRIPTED:OP6",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP6": 16
+      }
+    },
+    "z1": {
+      "n_episodes": 16,
+      "expected": "SCRIPTED:OP7",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP7": 16
+      }
+    }
+  },
+  "total_mismatches": 0,
+  "resolved_live_cells": null,
+  "resolved_opponent_rows": null,
+  "rasr_arms_enabled": false,
+  "failures": [
+    "only 32 episodes for 32 envs; resets were not exercised"
+  ],
+  "authorizes": "nothing; PPO launch remains a separate PI decision",
+  "EVAL_touched": false,
+  "quarantine_reason": "Attempt 1 ran 12288 steps = 384 env-steps per environment, which completed exactly one episode per env. crossed_resets was False, so the persistence property -- the entire point of this smoke -- was never exercised. The z->pole mapping itself was PERFECT (z0->OP6 1.0000, z1->OP7 1.0000, zero mismatches), so this is an insufficiency of the TEST, not a property of the treatment.",
+  "why_rerunning_is_not_result_shopping": "The failure was 'resets were not exercised', i.e. the test was underpowered for the question. Running longer tests MORE, not less. Preserved rather than deleted so the sequence is visible.",
+  "utc_quarantined": "2026-08-29T13:14:30Z"
+}

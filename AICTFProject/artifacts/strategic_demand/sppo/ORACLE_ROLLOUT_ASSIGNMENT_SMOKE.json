@@ -1,0 +1,50 @@
+{
+  "record": "Oracle-gated rollout assignment live smoke",
+  "status": "FROZEN_RESULT",
+  "classification": "DIAGNOSTIC",
+  "utc": "2026-08-29T13:36:24Z",
+  "implements": "ORACLE_GATED_REHEARSAL_SPEC.json AMENDMENT_1",
+  "VERDICT": "FAIL",
+  "requirement": "z0 -> OP6 + SDS2_A_payoff_INIT_3 overlay, z1 -> OP7, opponent_randomize False, persistent across every reset",
+  "verification_is_live_not_configurational": "counts come from completed-episode rows, and assert_live_opponent_batch inside the env setup reads the resolved opponent AND behaviour-tree profile per environment, so the Pole-A overlay is confirmed ACTIVE",
+  "seed": 10800001,
+  "steps": 49152,
+  "completed_episodes": 192,
+  "env_column_used": null,
+  "envs_seen": 0,
+  "envs_with_reset": "0/32",
+  "min_resets_per_env": null,
+  "min_resets_required": 2,
+  "resets_per_env": null,
+  "by_latent": {
+    "z0": {
+      "n_episodes": 96,
+      "expected": "SCRIPTED:OP6",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP6": 96
+      }
+    },
+    "z1": {
+      "n_episodes": 96,
+      "expected": "SCRIPTED:OP7",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP7": 96
+      }
+    }
+  },
+  "mapping_mismatches": 0,
+  "overlay_mismatches": null,
+  "resolved_live_cells": null,
+  "resolved_opponent_rows": null,
+  "rasr_arms_enabled": false,
+  "failures": [
+    "episode CSV has no env-identifying column (looked for ['env_index', 'env', 'env_id', 'worker', 'vec_index']); per-env reset coverage cannot be verified and this smoke will not pass on an aggregate. Columns present: ['blue_attack_lower_crossings', 'blue_attack_upper_crossings', 'blue_intercept_lower_crossings', 'blue_intercept_upper_crossings', 'blue_return_lower_crossings', 'blue_return_upper_crossings', 'blue_route_lower_crossings', 'blue_route_upper_crossings', 'blue_score', 'canonical_map', 'collision_events_per_episode', 'collision_free_episode']",
+    "env-setup manifest did not propagate resolved_live_cells / resolved_opponent_rows; the Pole-A overlay verification ran but was not captured as evidence, and this smoke will not pass on an uncaptured check"
+  ],
+  "authorizes": "nothing; PPO launch remains a separate PI decision",
+  "EVAL_touched": false
+}
