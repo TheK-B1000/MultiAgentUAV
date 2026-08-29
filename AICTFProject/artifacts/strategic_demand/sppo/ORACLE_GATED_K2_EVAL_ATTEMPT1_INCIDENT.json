@@ -1,0 +1,42 @@
+{
+  "record": "EVAL attempt 1 -- INCIDENT, not a scientific result",
+  "status": "INCIDENT_RECORD -- frozen before the real attempt was launched",
+  "utc": "2026-08-29T18:35:59Z",
+  "WHAT_HAPPENED": "The eval process was killed mid-run by a shell-level `timeout 3000` (50 minutes) that I wrapped around the launch command myself, compounded by an identical 50-minute ceiling passed to the Bash tool's own timeout parameter. Neither ceiling was long enough: at ~31 sec/episode for 192 sequential single-environment episodes, the full run needed roughly 100 minutes. The process was killed at 18:27:11 UTC, mid-way through the z1|B cell.",
+  "ROOT_CAUSE": "Operator error in MY OWN launch command, not a defect in the eval script, not an environment fault, not a model or treatment problem. Verified: GPU idle afterward (2187 MiB used, 1% util), disk not full (18.5 GiB free), no Windows Application-log crash entry, no leftover run lock. All consistent with a clean kill signal, not a crash.",
+  "WHAT_WAS_SEEN_BEFORE_THE_KILL": {
+    "cells_completed": [
+      "z0|A",
+      "z0|B",
+      "z1|A"
+    ],
+    "cells_completed_win_rates": {
+      "z0|A": 0.5625,
+      "z0|B": 0.5,
+      "z1|A": 0.5938
+    },
+    "cells_NOT_reached": [
+      "z1|B",
+      "pi_A|A",
+      "pi_B|B"
+    ],
+    "NOT_seen": [
+      "delta_A",
+      "delta_B",
+      "any bootstrap CI",
+      "retention",
+      "the payoff matrix",
+      "the verdict"
+    ],
+    "artifact_written": "NONE -- neither ORACLE_GATED_K2_EVAL_RESULT.json nor the rows CSV exists",
+    "rows_csv_exists": false
+  },
+  "WHY_THIS_DOES_NOT_COMPROMISE_THE_ONE_SHOT_RULE": {
+    "the_scripts_own_guard_never_fired": "eval_oracle_gated_k2.py refuses to run if OUT.is_file(). That file was never written, so the guard was never triggered and a genuine one-shot attempt has not yet occurred.",
+    "no_model_or_treatment_change_was_possible": "The checkpoint under test was already frozen and sha256-verified before this attempt started (ORACLE_GATED_K2_MODEL_FROZEN.json, commit 417ef37f). Three win-rate point estimates offer no mechanism to alter a model that was fixed and hashed before they were seen -- there is no tuning knob they could have informed.",
+    "what_was_NOT_seen_is_the_part_that_would_have_mattered": "The gate is delta_A.lcb95 > 0 AND delta_B.lcb95 > 0. Neither delta, neither bootstrap interval, and no verdict were observed. The quantity the frozen criterion actually judges was never exposed.",
+    "disclosed_rather_than_hidden": "Per project discipline, this is recorded rather than quietly relaunched and forgotten. The next attempt is the genuine one-shot EVAL."
+  },
+  "FIX_BEFORE_RELAUNCH": "No shell-level or tool-level timeout will be imposed on the relaunch. The script runs to natural completion or genuine failure, whichever comes first.",
+  "DOES_NOT_ALTER": "ORACLE_GATED_K2_EVAL_SPEC.json, the frozen gate, or the model under test"
+}
