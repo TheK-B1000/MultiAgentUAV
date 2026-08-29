@@ -1,0 +1,38 @@
+{
+  "record": "KAPPA_SELECTION interpretation -- why calibration failed",
+  "status": "DIAGNOSTIC. Does NOT alter the frozen CALIBRATION_FAILED verdict.",
+  "utc": "2026-08-29T11:55:56Z",
+  "verdict_being_interpreted": "CALIBRATION_FAILED (KAPPA_SELECTION.json)",
+  "WHAT_DID_NOT_FAIL": {
+    "direction_prediction_generalises": "CALIB accuracy on all resolvable states, with no abstention, is 0.7241 -- above the frozen tau bar of 0.70 and slightly ABOVE the in-sample FIT accuracy of 0.703. The probe learned something real about WHICH teacher is preferred, and it did not overfit; the 2k-parameter head did its job.",
+    "plumbing": "Trunk hash verified, trunk bit-identical after fitting, optimizer restricted to the head, zero gradient from tied states, CALIB never used for fitting, EVAL never touched. This is not a repeat of the silent-treatment failures."
+  },
+  "WHAT_FAILED": {
+    "the_confidence_signal_is_uninformative_about_resolvability": {
+      "mean_confidence_resolvable": 0.6232,
+      "mean_confidence_tied": 0.6448,
+      "difference": -0.0216,
+      "auc_confidence_separates_resolvable_from_tied": 0.415,
+      "reading": "AUC 0.415 is BELOW 0.5. The probe is, if anything, slightly MORE confident on states where no preference exists. Confidence therefore carries no usable information about WHETHER a preference exists, only about which direction to guess if one does."
+    },
+    "consequence_for_kappa": "Because confidence does not separate the two populations, any kappa that reduces over-commitment reduces coverage at least as fast. At kappa=0.535 coverage is satisfied in all 15 non-exempt cells but over-commitment is 0.941; by kappa=0.60 over-commitment is still 0.709 while minimum cell coverage has already collapsed to 0.000. Over-commitment only falls below 0.10 around kappa=0.75, where 6 resolvable states remain committed out of 145. There is no crossing point."
+  },
+  "THE_MECHANISM_AND_ITS_TENSION": {
+    "cause": "The head was trained ONLY on resolvable states, because the protocol requires that tied states receive zero ranking pressure. It therefore never saw an example of what an unresolvable state looks like, and has no basis for assigning one low confidence. A softmax over two classes, fitted only where a correct class exists, will happily emit high confidence anywhere.",
+    "the_tension_this_exposes": "The rule that PROTECTS the third class semantically -- no A/B pressure on ties -- also STARVES the model of the signal it would need to RECOGNISE the third class. Abstention was specified as an emergent property of low confidence, but nothing in the training objective makes confidence track resolvability.",
+    "why_this_had_to_be_found_empirically": "It is not obvious a priori. A model that had genuinely learned the strategic structure might well have been less certain in states where that structure does not determine an answer. That hypothesis was reasonable, was frozen, was tested, and is now measured to be false for this probe.",
+    "what_it_does_NOT_establish": "It does not show that selective abstaining supervision is impossible. It shows that a two-class head trained only on resolvable examples does not produce a confidence signal usable for abstention. Whether an objective that explicitly models resolvability could do so is a DIFFERENT question this experiment did not ask."
+  },
+  "MUST_BE_READ_WITH": {
+    "thin_cell_limitation": "K2_PROBE_FIT.json documented, before any CALIB prediction existed, that B_r3_late (6), A_r3_late (8), B_r2_late (8) and B_r3_not_late (10) hold too few resolvable FIT examples for reliable cell-specific learning.",
+    "but_that_is_not_the_binding_cause_here": "The failure is not localised to thin cells. At kappa=0.535 ALL 15 non-exempt cells satisfy coverage; the binding violation is global over-commitment at 0.941. The confidence signal is uninformative everywhere, not merely where FIT support was thin."
+  },
+  "PROHIBITED": [
+    "lowering rho or raising o_max to manufacture a qualifying kappa",
+    "changing the probe architecture in response to this result and re-running as if fresh",
+    "re-fitting with cell weighting or oversampling",
+    "selecting kappa on any split other than CALIB",
+    "treating the 0.7241 direction accuracy as a gate pass -- tau is scored on EVAL, untouched"
+  ],
+  "STATUS": "HUMAN_DECISION_REQUIRED. No repair attempted."
+}
