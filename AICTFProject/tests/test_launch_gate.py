@@ -16,6 +16,7 @@ from rl.launch_gate import (
     COLLECTION_BLOCK,
     EXPERIMENT_CLASSES,
     NOT_APPLICABLE,
+    OPPONENT_RANDOMIZE_FIELD,
     Check,
     LaunchGateError,
     PoleAssignmentAuditor,
@@ -38,7 +39,7 @@ from rl.launch_gate import (
 @dataclass
 class FakeCfg:
     mode: str = "FIXED_OPPONENT"
-    randomize_scripted_opponent: bool = False
+    opponent_randomize: bool = False
     load_path: str | None = None
     n_envs: int = 32
     n_steps: int = 2048
@@ -197,7 +198,48 @@ def test_refuses_opponent_pool_mode():
 
 def test_refuses_fixed_opponent_with_randomization_flag():
     """FIXED_OPPONENT + randomize reproduces OPPONENT_POOL behaviour exactly."""
-    assert not check_opponent_mode(FakeCfg(randomize_scripted_opponent=True)).passed
+    assert not check_opponent_mode(FakeCfg(opponent_randomize=True)).passed
+
+
+def test_the_randomize_field_actually_exists_on_the_real_config():
+    """Regression: the guard once read a field name that did not exist.
+
+    getattr(cfg, "randomize_scripted_opponent", False) returned False for every
+    config, so the check passed the exact EXP2C setting it was written to catch.
+    The unit test passed too, because its fixture used the same wrong name -- test
+    and code shared one misconception. Binding to the REAL config is the only thing
+    that detects that class of error.
+    """
+    from rl.config.ppo_config import PPOConfig
+    assert hasattr(PPOConfig(), OPPONENT_RANDOMIZE_FIELD), (
+        f"{OPPONENT_RANDOMIZE_FIELD} is gone from PPOConfig; the opponent guard is "
+        "now inert and must be repointed, not deleted")
+
+
+def test_missing_randomize_field_fails_closed():
+    """A guard that cannot verify its precondition must refuse, not assume."""
+    class NoField:
+        mode = "FIXED_OPPONENT"
+    check = check_opponent_mode(NoField())
+    assert not check.passed and "cannot verify" in check.detail
+
+
+def test_real_exp2c_config_would_be_refused():
+    """The archived EXP2C run had opponent_randomize=True. It must not pass."""
+    from rl.config.ppo_config import PPOConfig
+    cfg = PPOConfig()
+    cfg.mode = "FIXED_OPPONENT"
+    cfg.opponent_randomize = True
+    check = check_opponent_mode(cfg)
+    assert not check.passed and "EXP2B/EXP2C defect" in check.detail
+
+
+def test_clean_real_config_passes():
+    from rl.config.ppo_config import PPOConfig
+    cfg = PPOConfig()
+    cfg.mode = "FIXED_OPPONENT"
+    cfg.opponent_randomize = False
+    assert check_opponent_mode(cfg).passed
 
 
 def test_refuses_accidental_resume():

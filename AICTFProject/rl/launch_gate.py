@@ -52,6 +52,10 @@ EXPERIMENT_CLASSES: dict[str, tuple[str, ...]] = {
 }
 NOT_APPLICABLE = "NOT_APPLICABLE_BY_DESIGN"
 
+# The PPOConfig field controlling per-episode scripted-opponent resampling. Named
+# here rather than inline so a test can assert it still exists on the real config.
+OPPONENT_RANDOMIZE_FIELD = "opponent_randomize"
+
 # Retained for callers that predate experiment classes; equals the strictest class.
 REQUIRED_THRESHOLDS = EXPERIMENT_CLASSES["ONLINE_ABSTENTION"]
 
@@ -234,13 +238,23 @@ def check_opponent_mode(cfg: Any) -> Check:
     because of this; measured occupancy came out ~50/50.
     """
     mode = str(getattr(cfg, "mode", ""))
-    randomize = bool(getattr(cfg, "randomize_scripted_opponent", False))
+    # The real PPOConfig field is `opponent_randomize`. An earlier version of this
+    # check read `randomize_scripted_opponent`, which does not exist -- so getattr
+    # returned False and the guard silently passed the exact EXP2C configuration it
+    # was written to catch. Missing-attribute is therefore treated as a FAILURE, not
+    # a default, so a rename can never quietly disable this again.
+    if not hasattr(cfg, OPPONENT_RANDOMIZE_FIELD):
+        return Check("opponent_mode", False,
+                     f"config has no {OPPONENT_RANDOMIZE_FIELD!r} field; the guard cannot "
+                     "verify per-episode resampling and must not assume it is off")
+    randomize = bool(getattr(cfg, OPPONENT_RANDOMIZE_FIELD))
     if mode != "FIXED_OPPONENT":
         return Check("opponent_mode", False, f"mode is {mode!r}, must be FIXED_OPPONENT")
     if randomize:
         return Check("opponent_mode", False,
-                     "mode is FIXED_OPPONENT but randomize_scripted_opponent is True, "
-                     "which reproduces OPPONENT_POOL behaviour")
+                     f"mode is FIXED_OPPONENT but {OPPONENT_RANDOMIZE_FIELD} is True, "
+                     "which reproduces OPPONENT_POOL behaviour -- this is the EXP2B/EXP2C "
+                     "defect verbatim")
     return Check("opponent_mode", True, "FIXED_OPPONENT, no per-episode resampling")
 
 
