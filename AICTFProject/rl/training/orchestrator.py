@@ -503,6 +503,17 @@ def _maybe_attach_sppo_ranking(cfg, trainer) -> None:
         return
     from rl.scorer.attach import attach_ranking_runner
 
+    regime_qpsi = bool(getattr(cfg, "rasr_regime_qpsi", False))
+    qpsi_path = (
+        str(getattr(cfg, "rasr_regime_qpsi_path", ""))
+        if regime_qpsi
+        else str(getattr(cfg, "sppo_qpsi_path", ""))
+    )
+    qpsi_sha = (
+        str(getattr(cfg, "rasr_regime_qpsi_sha256", ""))
+        if regime_qpsi
+        else str(getattr(cfg, "sppo_qpsi_sha256", ""))
+    )
     runner = attach_ranking_runner(
         trainer,
         trainer.model,
@@ -510,8 +521,9 @@ def _maybe_attach_sppo_ranking(cfg, trainer) -> None:
         lambda_rank=lam,
         margin=float(getattr(cfg, "sppo_ranking_margin", 0.04)),
         cadence=int(getattr(cfg, "sppo_ranking_cadence", 1)),
-        qpsi_path=str(getattr(cfg, "sppo_qpsi_path", "")),
-        expected_sha256=str(getattr(cfg, "sppo_qpsi_sha256", "")),
+        qpsi_path=qpsi_path,
+        expected_sha256=qpsi_sha,
+        required_n_regimes=4 if regime_qpsi else 1,
         max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
         device=str(trainer.device),
     )
@@ -590,6 +602,9 @@ def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
         cell_counts=(16, 0, 0, 16) if (is_exp2b or is_exp2c) else (8, 8, 8, 8),
         gradient_cosine_enabled=is_exp2b or is_exp2c,
         clip_range=float(getattr(cfg, "clip_range", 0.2)),
+        directed_identity_enabled=bool(
+            getattr(cfg, "rasr_directed_identity", False)
+        ),
     )
     pending = trainer.updater.consume_pending_exp2_teacher_state()
     if cfg.load_path and pending is None:

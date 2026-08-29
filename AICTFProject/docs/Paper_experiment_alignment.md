@@ -424,6 +424,32 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **RASR-PPO DEV qualification tooling and frozen scorer identity:** Added the
+  rebuild-per-branch DEV collector, one-shot four-regime scorer qualification,
+  and live assigned-pole persistence smoke. The scorer remains default-off, but
+  `PPOConfig.rasr_regime_qpsi_sha256` now defaults to the prospectively frozen
+  hash `44c0680e...b760a`; this is the only changed value in every pre-existing
+  resolved preset snapshot. No paper-faithful objective, actor path, alias, or
+  other scalar field changed.
+- **RASR-PPO ladder preset registration and launch gates:** Registered the
+  eight exclusive aliases for S0/R1/R2/R3 as a
+  `SUMMER-COMPATIBLE EXTENSION`; no paper-/Summer-/plan-faithful alias was
+  added. Added implementation-gate and scorer-qualification launch boundaries.
+  Regenerated `tests/preset_snapshots.json`; relative to HEAD this adds exactly
+  eight aliases and the five already-documented default-off RASR fields to all
+  541 pre-existing entries (`rasr_regime_qpsi`, its path/SHA fields,
+  `rasr_private_critic_heads`, `rasr_directed_identity`). No pre-existing field
+  value changed and no alias was removed.
+- **RASR-PPO core, supervised-compression extension:** Added default-off
+  configuration selectors for a four-regime frozen payoff scorer, two
+  z-specific final centralized-value heads, and directed teacher identity.
+  This is a `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful or label-free
+  row. Regenerated `tests/preset_snapshots.json`; the only changes to every
+  existing preset are the additive defaults `rasr_regime_qpsi = false`,
+  `rasr_regime_qpsi_path =
+  "artifacts/strategic_demand/rasrppo/qpsi_regime_frozen.pt"`,
+  `rasr_regime_qpsi_sha256 = ""`, `rasr_private_critic_heads = false`, and
+  `rasr_directed_identity = false`. No pre-existing snapshot value changed.
 - **EXP2C mode-specific final actor heads, diagnostic supervised compression:**
   Added the default-off `exp2c_mode_specific_action_heads` configuration field.
   EXP2C keeps the shared observation body, critic, teachers, assigned-pole

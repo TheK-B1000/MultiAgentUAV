@@ -239,6 +239,7 @@ class SharedActorCentralizedCritic(nn.Module):
         latent_population_birth_active_z_only: bool = False,
         latent_population_birth_per_z_action_heads: bool = False,
         exp2c_mode_specific_action_heads: bool = False,
+        rasr_private_critic_heads: bool = False,
         latent_lro_deep_branches: bool = False,
         communication_enabled: bool = False,
         comm_num_symbols: int = 4,
@@ -401,7 +402,10 @@ class SharedActorCentralizedCritic(nn.Module):
             global_state_dim=self.global_state_dim,
             hidden_dim=int(critic_hidden_dim),
             extra_dim=critic_extra_dim,
+            private_z_heads=bool(rasr_private_critic_heads),
         )
+        if self.critic.private_z_heads:
+            self.critic.copy_shared_head_into_private()
         if self.use_episode_strategy_value_head:
             episode_value_in = int(self.q_phi_input_dim + self.latent_k)
             self.episode_strategy_value_head = nn.Sequential(
@@ -494,6 +498,16 @@ class SharedActorCentralizedCritic(nn.Module):
             joint_action_dim=int(self.joint_action_onehot_dim),
             latent_k=int(self.latent_k),
         )
+        if self.critic.private_z_heads:
+            legacy_weight = prefix + "critic.net.4.weight"
+            legacy_bias = prefix + "critic.net.4.bias"
+            if legacy_weight in migrated and legacy_bias in migrated:
+                migrated[prefix + "critic.head_V0.weight"] = migrated[legacy_weight].clone()
+                migrated[prefix + "critic.head_V0.bias"] = migrated[legacy_bias].clone()
+                migrated[prefix + "critic.head_V1.weight"] = migrated[legacy_weight].clone()
+                migrated[prefix + "critic.head_V1.bias"] = migrated[legacy_bias].clone()
+                del migrated[legacy_weight]
+                del migrated[legacy_bias]
         state_dict.clear()
         state_dict.update(migrated)
         return super()._load_from_state_dict(

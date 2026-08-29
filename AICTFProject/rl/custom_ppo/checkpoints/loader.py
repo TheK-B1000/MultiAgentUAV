@@ -143,6 +143,9 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "exp2c_mode_specific_action_heads": bool(
                     cfg.get("exp2c_mode_specific_action_heads", False)
                 ),
+                "rasr_private_critic_heads": bool(
+                    cfg.get("rasr_private_critic_heads", False)
+                ),
                 # V6I26 LRO: deep per-z trunks (last two MLP layers).
                 "latent_lro_deep_branches": bool(
                     cfg.get("latent_lro_deep_branches", False)

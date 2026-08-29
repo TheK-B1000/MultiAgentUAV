@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-27 — D1 COMPLETE (`coverage was not the problem`; regime-specific Q_ψ ranking failure on `own_flag_stolen`, with localized drag `0.709→0.823`). SPPPO V1 CLOSED. The design-only S0→R1→R2→R3 RASR-PPO causal ladder is prospectively frozen; implementation and training remain NOT AUTHORIZED. EXP3/EXP4 locked.
+> **Last updated:** 2026-08-27 — RASR DEV qualification `INVALID` (support floor). Stratified 16-cell collection Attempt 1 = STOPPED BEFORE FULL COLLECTION / FEASIBILITY DEFECT (source-only). AMENDMENT_2 Option B authorized; amended collector relaunched on `10700001..10700160`. PPO arms still blocked. FINAL sealed. SPPPO V1 CLOSED; EXP3/EXP4 locked.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -71,31 +71,23 @@ materially depresses worst-quartile correctness (`0.709 → 0.823` after exclusi
 Future targets (scorer regime representation; latent optimization interference)
 are identified but **not authorized**. Do not jump to collecting more data.
 
-### RASR-PPO successor causal ladder — `DESIGN FROZEN / UNIMPLEMENTED`
+### RASR-PPO successor causal ladder — `STRATIFIED COLLECTION (AMENDMENT_2) RUNNING`
 
-The prospective protocol is
-[`RASR_PPO_CAUSAL_LADDER_PROTOCOL.json`](../artifacts/strategic_demand/rasrppo/RASR_PPO_CAUSAL_LADDER_PROTOCOL.json).
-It defines a fresh supervised-compression method family rather than an SPPPO V2:
-S0 reproduces the exact frozen SPPPO V1 treatment only as a same-block control;
-R1 changes only the payoff scorer representation to four explicit flag/carrying
-regime heads while retaining terminal win margin; R2 adds only two final
-z-specific heads to the centralized scalar critic `V_phi(s,z)`; R3 changes only
-positive teacher rehearsal into the frozen directed contrastive identity loss.
+DEV qualification on the original RASR block froze as **INVALID** (five
+pole×regime cells below the 32-distinct-seed floor). That stopped the S0–R3
+1 M arms. A prospective stratified 16-cell repair was designed; Attempt 1 used
+source-only eligibility and was **STOPPED BEFORE FULL COLLECTION / FEASIBILITY
+DEFECT** (not FAIL, not INVALID) after a one-seed smoke showed the plan could
+not meet its own support floor. Seed `10700001` is quarantined under
+`stratified_quarantine_preamendment/`.
 
-All four arms use one fresh matched initialization, the same 1 M terminal-only
-budget, corrected persistent 16/0/0/16 pole assignment, and unchanged payoff,
-retention, and behavioral-identity gates. Fresh blocks passed declared, broad,
-span, and full-history checks with a valid positive control: TRAIN
-`10400001..10400032`, DEV `10500001..10500096`, and FINAL
-`10600001..10600192`. DEV is scorer qualification only and may never enter
-fitting. FINAL remains unopened until all four valid terminal hashes exist.
-
-Classification is **SUMMER-COMPATIBLE EXTENSION**, not paper-faithful and not
-label-free latent discovery. This turn authorizes protocol design only. No
-preset, runner, scorer, critic, loss, collection, training, or evaluation is
-authorized. A passing single-training-seed arm would nominate a candidate for a
-separately frozen multi-training-seed confirmation; it does not automatically
-unlock EXP3.
+**AMENDMENT_2 (Option B)** is frozen: all four `(policy, pole)` trajectories are
+eligible; cell identity remains pole×regime×horizon; rarest-first, 160×12, and
+the 32-seed floor are unchanged; source provenance is stored; secondary
+source-balance tie-break is frozen with mandatory counter rebuild on resume.
+Amended full-block collection is running now on `10700001..10700160`. PPO launch
+and FINAL remain blocked until that collection completes and the support audit
+passes.
 
 ### Phase 0 action-conditioned scorer feasibility — `COMPLETE + PASS`
 

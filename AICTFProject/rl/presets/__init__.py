@@ -153,8 +153,25 @@ from rl.presets.other import (
     apply_latent_op3_wrmax_1m,
     apply_latent_op3_wrmax_train_2m,
 )
+from rl.presets.rasrppo import (
+    apply_rasrppo_r1_regime_scorer,
+    apply_rasrppo_r2_private_critic,
+    apply_rasrppo_r3_directed_identity,
+    apply_rasrppo_s0_same_block_control,
+)
 
 PRESET_REGISTRY = {
+    # RASR-PPO supervised-compression ladder. SUMMER-COMPATIBLE EXTENSION;
+    # deliberately no paper-/Summer-/plan-faithful aliases.
+    "rasrppo_s0_same_block_control": apply_rasrppo_s0_same_block_control,
+    "rasrppo_s0": apply_rasrppo_s0_same_block_control,
+    "rasrppo_r1_regime_scorer": apply_rasrppo_r1_regime_scorer,
+    "rasrppo_r1": apply_rasrppo_r1_regime_scorer,
+    "rasrppo_r2_private_critic": apply_rasrppo_r2_private_critic,
+    "rasrppo_r2": apply_rasrppo_r2_private_critic,
+    "rasrppo_r3_directed_identity": apply_rasrppo_r3_directed_identity,
+    "rasrppo_r3": apply_rasrppo_r3_directed_identity,
+
     # Plan-faithful family
     "plan_faithful_latent": apply_plan_faithful_latent,
     "plan_faithful_latent_persist_entropy": apply_plan_faithful_latent,

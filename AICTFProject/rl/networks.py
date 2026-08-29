@@ -114,20 +114,56 @@ class CentralizedCritic(nn.Module):
         global_state_dim: int = 19,
         hidden_dim: int = 128,
         extra_dim: int = 0,
+        private_z_heads: bool = False,
     ) -> None:
         super().__init__()
         self.global_state_dim = int(global_state_dim)
         self.extra_dim = int(extra_dim)
+        self.private_z_heads = bool(private_z_heads)
+        if self.private_z_heads and self.extra_dim != 2:
+            raise ValueError("private_z_heads requires extra_dim=2 for z0/z1 routing")
         input_dim = self.global_state_dim + self.extra_dim
         self.input_dim = int(input_dim)
         # 128–128 MLP to a scalar; Word spec names ``critic_input``; no custom init in the spec.
-        self.net = nn.Sequential(
-            nn.Linear(input_dim, int(hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(int(hidden_dim), int(hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(int(hidden_dim), 1),
-        )
+        if not self.private_z_heads:
+            self.net = nn.Sequential(
+                nn.Linear(input_dim, int(hidden_dim)),
+                nn.ReLU(),
+                nn.Linear(int(hidden_dim), int(hidden_dim)),
+                nn.ReLU(),
+                nn.Linear(int(hidden_dim), 1),
+            )
+        else:
+            self.net = nn.Sequential(
+                nn.Linear(input_dim, int(hidden_dim)),
+                nn.ReLU(),
+                nn.Linear(int(hidden_dim), int(hidden_dim)),
+                nn.ReLU(),
+            )
+            # Construct the ordinary shared projection first. It is deliberately
+            # unregistered and exists only until copy_shared_head_into_private()
+            # establishes exact R1/R2 initial-function equivalence.
+            object.__setattr__(self, "_shared_head_init", nn.Linear(int(hidden_dim), 1))
+            self.head_V0 = nn.Linear(int(hidden_dim), 1)
+            self.head_V1 = nn.Linear(int(hidden_dim), 1)
+
+    @property
+    def trunk(self) -> nn.Module:
+        """The shared two-layer critic trunk."""
+        return self.net
+
+    def copy_shared_head_into_private(self) -> None:
+        """Copy the ordinary scalar-head initialization into both z heads."""
+        if not self.private_z_heads:
+            return
+        source = getattr(self, "_shared_head_init", None)
+        if source is None:
+            raise RuntimeError("private critic shared initialization has already been consumed")
+        with torch.no_grad():
+            for head in (self.head_V0, self.head_V1):
+                head.weight.copy_(source.weight)
+                head.bias.copy_(source.bias)
+        object.__setattr__(self, "_shared_head_init", None)
 
     def _combine(self, global_state: torch.Tensor, extra: torch.Tensor | None) -> torch.Tensor:
         if global_state.dim() != 2 or global_state.shape[1] != self.global_state_dim:
@@ -152,7 +188,23 @@ class CentralizedCritic(nn.Module):
 
     def forward(self, global_state: torch.Tensor, extra: torch.Tensor | None = None) -> torch.Tensor:
         """Return scalar :math:`V(s,\\mathbf{a},z)` with shape ``(B, 1)``."""
-        return self.net(self._combine(global_state, extra))
+        combined = self._combine(global_state, extra)
+        if not self.private_z_heads:
+            return self.net(combined)
+        if extra is None:
+            raise ValueError("private_z_heads requires an explicit z one-hot extra")
+        z = extra.argmax(dim=-1)
+        if bool(((z < 0) | (z > 1)).any().item()):
+            raise ValueError("private critic supports only z0 and z1")
+        h = self.trunk(combined)
+        out = h.new_empty((h.shape[0], 1))
+        rows0 = torch.where(z == 0)[0]
+        rows1 = torch.where(z == 1)[0]
+        if int(rows0.numel()):
+            out[rows0] = self.head_V0(h.index_select(0, rows0))
+        if int(rows1.numel()):
+            out[rows1] = self.head_V1(h.index_select(0, rows1))
+        return out
 
 
 __all__ = ["CNNEncoder", "CentralizedCritic", "PPOPolicy", "orthogonal_init"]

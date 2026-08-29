@@ -869,6 +869,9 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 "exp2c_mode_specific_action_heads": bool(
                     getattr(cfg, "exp2c_mode_specific_action_heads", False)
                 ),
+                "rasr_private_critic_heads": bool(
+                    getattr(cfg, "rasr_private_critic_heads", False)
+                ),
                 "latent_lro_deep_branches": bool(
                     getattr(cfg, "latent_lro_deep_branches", False)
                 ),

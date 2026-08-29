@@ -117,6 +117,17 @@ class PPOConfig:
     sppo_ranking_cadence: int = 1
     sppo_qpsi_path: str = "artifacts/strategic_demand/phase0_scorer_data/qpsi_frozen.pt"
     sppo_qpsi_sha256: str = "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf"
+    # RASR-PPO successor ladder. All selectors are default-OFF so existing
+    # paper-faithful, EXP2, and SPPPO configurations retain structural absence.
+    rasr_regime_qpsi: bool = False
+    rasr_regime_qpsi_path: str = (
+        "artifacts/strategic_demand/rasrppo/qpsi_regime_frozen.pt"
+    )
+    rasr_regime_qpsi_sha256: str = (
+        "44c0680e037939de287ad4201fead6312bc92b6bcd1fd902f568868cb24b760a"
+    )
+    rasr_private_critic_heads: bool = False
+    rasr_directed_identity: bool = False
     exp2_teacher_batch_size: int = 64
     exp2_protocol_path: str = ""
 

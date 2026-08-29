@@ -27,6 +27,7 @@ from rl.ppo_core import ppo_policy_loss
 __all__ = [
     "Exp2TeacherCompressionRunner",
     "decision_eligible_agents",
+    "directed_identity_kl",
     "teacher_student_kl",
     "exp2b_actor_gradient_cosine",
 ]
@@ -174,6 +175,77 @@ def teacher_student_kl(
     loss = weighted_kl / float(total_heads)
     telemetry["kl"] = float(loss.detach().cpu())
     telemetry["active_heads"] = float(total_heads)
+    return loss, telemetry
+
+
+def directed_identity_kl(
+    student: Any,
+    teachers: Mapping[int, Any],
+    obs: Mapping[str, torch.Tensor],
+    z_idx: torch.Tensor,
+    decision_mask: torch.Tensor,
+    *,
+    identity_margin: float = 0.0,
+) -> tuple[torch.Tensor, dict[str, float]]:
+    """Directed teacher identity with positive and counter-mode KL terms.
+
+    Teacher A is positive for z0 and teacher B for z1. The same observations
+    and legal-action masks are used for each teacher's positive and negative
+    student mode.
+    """
+    if set(teachers) != {0, 1}:
+        raise ValueError(f"RASR directed identity requires teacher keys {{0,1}}, got {set(teachers)}")
+    if z_idx.dim() != 1 or int(z_idx.shape[0]) != int(decision_mask.shape[0]):
+        raise ValueError("z_idx and decision mask batch dimensions differ")
+    if float(identity_margin) != 0.0:
+        raise ValueError("RASR identity margin is frozen at 0.0")
+
+    values: dict[str, torch.Tensor] = {}
+    telemetry: dict[str, float] = {}
+    for teacher_z in (0, 1):
+        rows = torch.where(z_idx == teacher_z)[0]
+        if int(rows.numel()) == 0:
+            raise RuntimeError(f"RASR directed identity batch is missing teacher-{teacher_z} rows")
+        obs_rows = {key: value.index_select(0, rows) for key, value in obs.items()}
+        mask_rows = decision_mask.index_select(0, rows)
+        positive_z = teacher_z
+        negative_z = 1 - teacher_z
+        positive = _kl_for_rows(
+            teachers[teacher_z],
+            student,
+            obs_rows,
+            z_idx=torch.full(
+                (int(rows.numel()),), positive_z, dtype=torch.long, device=z_idx.device
+            ),
+            decision_mask=mask_rows,
+        )
+        negative = _kl_for_rows(
+            teachers[teacher_z],
+            student,
+            obs_rows,
+            z_idx=torch.full(
+                (int(rows.numel()),), negative_z, dtype=torch.long, device=z_idx.device
+            ),
+            decision_mask=mask_rows,
+        )
+        label = "A" if teacher_z == 0 else "B"
+        values[f"k{label}_pos"] = positive.kl
+        values[f"k{label}_neg"] = negative.kl
+        telemetry[f"k{label}_pos"] = float(positive.kl.detach().cpu())
+        telemetry[f"k{label}_neg"] = float(negative.kl.detach().cpu())
+        telemetry[f"identity_gap_{label}"] = float(
+            (negative.kl - positive.kl).detach().cpu()
+        )
+
+    margin = z_idx.new_tensor(float(identity_margin), dtype=torch.float32)
+    loss_a = values["kA_pos"] + torch.relu(
+        margin - (values["kA_neg"] - values["kA_pos"])
+    )
+    loss_b = values["kB_pos"] + torch.relu(
+        margin - (values["kB_neg"] - values["kB_pos"])
+    )
+    loss = 0.5 * (loss_a + loss_b)
+    telemetry["kl"] = float(loss.detach().cpu())
     return loss, telemetry
 
 
@@ -328,6 +400,7 @@ class Exp2TeacherCompressionRunner:
         cell_counts: tuple[int, int, int, int] = (8, 8, 8, 8),
         gradient_cosine_enabled: bool = False,
         clip_range: float = 0.2,
+        directed_identity_enabled: bool = False,
     ) -> None:
         if float(lambda_teacher) <= 0.0:
             raise ValueError("disabled EXP2 compression means no runner; lambda must be > 0")
@@ -347,6 +420,7 @@ class Exp2TeacherCompressionRunner:
             raise ValueError("EXP2 cell_counts must be four non-negative counts summing to 32")
         self.cell_counts = tuple(int(v) for v in cell_counts)
         self.gradient_cosine_enabled = bool(gradient_cosine_enabled)
+        self.directed_identity_enabled = bool(directed_identity_enabled)
         self.clip_range = float(clip_range)
         self.gradient_cosine_history: list[float] = []
         self.last_gradient_cosine_step = -1
@@ -420,7 +494,14 @@ class Exp2TeacherCompressionRunner:
             return False
         obs, z, decision = self._sample(batch)
         self.optimizer.zero_grad(set_to_none=True)
-        kl, metrics = teacher_student_kl(self.student, self.teachers, obs, z, decision)
+        if self.directed_identity_enabled:
+            kl, metrics = directed_identity_kl(
+                self.student, self.teachers, obs, z, decision, identity_margin=0.0
+            )
+        else:
+            kl, metrics = teacher_student_kl(
+                self.student, self.teachers, obs, z, decision
+            )
         loss = self.lambda_teacher * kl
         loss.backward()
         if self.exp2c_private_heads:
@@ -460,6 +541,7 @@ class Exp2TeacherCompressionRunner:
             "gradient_cosine_enabled": bool(self.gradient_cosine_enabled),
             "gradient_cosine_history": list(self.gradient_cosine_history),
             "last_gradient_cosine_step": int(self.last_gradient_cosine_step),
+            "directed_identity_enabled": bool(self.directed_identity_enabled),
         }
 
     def load_state_dict(self, state: Mapping[str, Any]) -> None:
@@ -484,6 +566,8 @@ class Exp2TeacherCompressionRunner:
             raise RuntimeError("EXP2 resume cell counts differ from checkpoint")
         if bool(state.get("gradient_cosine_enabled", self.gradient_cosine_enabled)) != self.gradient_cosine_enabled:
             raise RuntimeError("EXP2 resume gradient telemetry contract differs")
+        if bool(state.get("directed_identity_enabled", self.directed_identity_enabled)) != self.directed_identity_enabled:
+            raise RuntimeError("RASR resume directed-identity contract differs")
         self.gradient_cosine_history = [float(v) for v in state.get("gradient_cosine_history", [])]
         self.last_gradient_cosine_step = int(state.get("last_gradient_cosine_step", -1))
         rng_state = state.get("rng_state")

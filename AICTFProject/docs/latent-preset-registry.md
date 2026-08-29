@@ -206,6 +206,20 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i26_latent_response_oracle` (aliases include `v6i26`, `v6i26_lro`, `v6i26_phase_pod_population`) | `v6i23_population_birth` | `DIAGNOSTIC` | **LRO-Summer finite proof ladder** (Claim B). Primary claim: response-oracle birth of complementary latent strategies + sparse router that beats fixed-z and matched non-latent PPO. Not spontaneous emergence. Stage-1 at 4 eps/cell is screening only and may emit `PROMISING_DIRECTION`, never `ACCEPT`. Each response round selects its branch and target/anchor mixture from the current forced-z payoff matrix, excluding saturated cells instead of repeatedly assigning `z3`. Strategy acceptance requires `ΔG>0`, CI95 lower bound above zero, nonredundant payoff row, competence floor, forced-z behavior nonredundancy, ≥32 eps/cell, and ≥3 training seeds. One retry per failure mode; no coefficient carousel. Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`. Pinned by `tests/test_v6i26_latent_response_oracle.py`. |
 | `v6i26_lro_actor_step_ablation` (aliases `v6i26_actor_step`, `v6i26_actor_step_ablation`) | `v6i26_latent_response_oracle` | `DIAGNOSTIC` | Optimizer-control ablation: separate z-actor/critic clip + `latent_lro_z_actor_lr_mult` (CLI `--z-actor-lr-mult`). **2× FAIL** (KL under floor); **3× FAIL** (KL over ceiling) → **no further LR rungs**. Next control: `run_v6i26_actor_step_kl_ladder.py` (hold 3× LR; 1u checkpoints; first fixed-batch KL in `[1e-3,1e-2]`). Phase-2 `z3` remains LOCKED FAIL (no G, behavior redundant). |
 
+### 3.7 RASR-PPO supervised-compression causal ladder
+
+All four rows are `SUMMER-COMPATIBLE EXTENSION`, never paper-faithful or
+label-free discovery. Their only aliases are the two names shown per row.
+Output identity fields are `checkpoint_dir`, `metrics_csv_path`,
+`episode_csv_path`, and `run_tag`.
+
+| Preset aliases | Parent | Classification | Resolved-config delta keys only |
+|---|---|---|---|
+| `rasrppo_s0_same_block_control`, `rasrppo_s0` | SPPPO V1 production treatment (same-block control) | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, seed}` |
+| `rasrppo_r1_regime_scorer`, `rasrppo_r1` | S0 | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, rasr_regime_qpsi, rasr_regime_qpsi_path, rasr_regime_qpsi_sha256}`; the SHA field remains equal to its empty default until the prospectively frozen fit exists, so it does not appear in an `!=`-based diff before fitting |
+| `rasrppo_r2_private_critic`, `rasrppo_r2` | R1 | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, rasr_private_critic_heads}` |
+| `rasrppo_r3_directed_identity`, `rasrppo_r3` | R2 | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, rasr_directed_identity}` |
+
 ---
 
 ## 4. Deprecated naming surface (kept reachable, do not extend)

@@ -63,7 +63,8 @@ OPPONENT_ID_TO_POLE = {5: POLE_A, 6: POLE_B}      # OP6 -> A, OP7 -> B
 
 
 def load_frozen_qpsi(path, *, expected_sha256: str | None = None,
-                     device: str = "cpu") -> QPsi:
+                     device: str = "cpu",
+                     required_n_regimes: int | None = None) -> QPsi:
     """Load Q_psi immutable: requires_grad=False everywhere, SHA verified.
 
     Q_psi is frozen for the entire SPPPO run. If the scorer could move, the
@@ -78,6 +79,10 @@ def load_frozen_qpsi(path, *, expected_sha256: str | None = None,
             "Refusing to run SPPPO against a scorer that is not the frozen one.")
     ckpt = torch.load(path, map_location=device, weights_only=False)
     model = QPsi(QPsiConfig(**ckpt["config"])).to(device)
+    if required_n_regimes is not None and model.cfg.n_regimes != int(required_n_regimes):
+        raise RuntimeError(
+            f"Q_psi n_regimes={model.cfg.n_regimes} != required {required_n_regimes}"
+        )
     model.load_state_dict(ckpt["state_dict"])
     model.eval()
     for p in model.parameters():

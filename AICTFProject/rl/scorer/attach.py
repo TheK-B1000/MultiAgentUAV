@@ -39,6 +39,7 @@ def attach_ranking_runner(
     cadence: int = 1,
     qpsi_path: str | Path = SPPPO_QPSI_PATH,
     expected_sha256: str = SPPPO_QPSI_SHA256,
+    required_n_regimes: int = 1,
     max_grad_norm: float | None = None,
     device: str = "cpu",
 ) -> Optional[RankingRunner]:
@@ -62,7 +63,14 @@ def attach_ranking_runner(
     # Deferred so the control path never imports torch-heavy scorer machinery.
     from rl.scorer.ranking import load_frozen_qpsi
 
-    qpsi = load_frozen_qpsi(qpsi_path, expected_sha256=expected_sha256, device=device)
+    if not expected_sha256:
+        raise RuntimeError("ranking Q_psi requires a frozen non-empty SHA256")
+    qpsi = load_frozen_qpsi(
+        qpsi_path,
+        expected_sha256=expected_sha256,
+        device=device,
+        required_n_regimes=int(required_n_regimes),
+    )
     runner = RankingRunner(
         model, qpsi, optimizer,
         lambda_rank=float(lambda_rank),
