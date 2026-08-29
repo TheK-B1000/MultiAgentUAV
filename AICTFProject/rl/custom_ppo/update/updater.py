@@ -110,6 +110,15 @@ class PPOUpdater:
         """Read the EXP2 runner at use time; attachment occurs after loading."""
         return getattr(self.runtime, "exp2_teacher_compression_runner", None)
 
+    def _oracle_rehearsal_runner(self):
+        """Read the oracle-gated rehearsal runner at USE time, never cached.
+
+        Same seam that silently disabled SAPPO rehearsal for a whole 2x500k run: a
+        runner attached after construction is invisible to anything that cached the
+        lookup, so this resolves on every minibatch.
+        """
+        return getattr(self.runtime, "oracle_rehearsal_runner", None)
+
     def _ranking_runner(self):
         """Read the SPPPO ranking runner at USE time, never cached.
 
@@ -366,6 +375,23 @@ class PPOUpdater:
                     exp2_runner.note_ppo_minibatch(batch)
                     self._assert_exp2_teacher_cadence(exp2_runner)
                     accumulator.record_minibatch(exp2_runner.telemetry())
+                oracle_runner = self._oracle_rehearsal_runner()
+                if oracle_runner is not None:
+                    if exp2_runner is not None:
+                        raise RuntimeError(
+                            "oracle-gated rehearsal and EXP2 teacher compression cannot "
+                            "be active together: EXP2 applies UNGATED teacher pressure "
+                            "to every state, including the ties that must receive none")
+                    oracle_runner.note_ppo_minibatch()
+                    # Visible from the FIRST reporting interval, so an inert rehearsal
+                    # shows up as n_updates=0 immediately rather than after 1M steps.
+                    accumulator.record_minibatch({
+                        "oracle_n_ppo_minibatches": float(oracle_runner.n_ppo_minibatches),
+                        "oracle_n_rehearsal_updates": float(oracle_runner.n_updates),
+                        "oracle_rehearsal_loss": float(oracle_runner.last_loss),
+                        "oracle_tied_exposures": float(oracle_runner.bank.tied_exposures),
+                    })
+
                 rank_runner = self._ranking_runner()
                 if rank_runner is not None:
                     # Third separate operation. The ranking step never shares a

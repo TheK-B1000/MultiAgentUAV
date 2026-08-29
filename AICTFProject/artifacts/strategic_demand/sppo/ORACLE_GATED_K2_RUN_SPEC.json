@@ -1,0 +1,57 @@
+{
+  "record_id": "ORACLE_GATED_K2_PRODUCTION_RUN",
+  "status": "FROZEN_RUN_SPEC -- authorized, not yet launched",
+  "utc": "2026-08-29T14:38:01Z",
+  "authority": "PI scientific authorization, 2026-08-29",
+  "experiment_class": "ORACLE_GATED_REHEARSAL",
+  "THE_QUESTION": "Can one shared latent-conditioned PPO policy preserve two complementary strategic roles when each latent receives its associated on-policy strategic environment, while selective counterfactual rehearsal only reinforces the states where its specialist is actually better?",
+  "AUTHORIZED_TREATMENT": {
+    "initialisation": "FRESH, step 0. No checkpoint weights, no optimizer reuse.",
+    "architecture": "K=2 EXP2C-style, 3,534,144 params",
+    "z0_rollout": "Pole A -- OP6 + SDS2_A_payoff_INIT_3 overlay (16 envs)",
+    "z1_rollout": "Pole B -- OP7, no overlay (16 envs)",
+    "mode": "FIXED_OPPONENT",
+    "opponent_randomize": false,
+    "assignment": "persistent latent-to-pole across every reset",
+    "rehearsal": {
+      "gate": "exact FIT branch labels",
+      "A_preferred_delta_lt_0": "z0 toward pi_A",
+      "B_preferred_delta_gt_0": "z1 toward pi_B",
+      "tied_delta_eq_0": "ZERO strategic pressure; other latent untouched",
+      "bank": "the 428 eligible FIT states only"
+    },
+    "auditors": "all active and FAIL-CLOSED"
+  },
+  "PARAMETERS_RESOLVED": {
+    "total_timesteps": 1000000,
+    "training_seed": 10900001,
+    "seed_block_audit": "10700001-10700160 is the stratified collection (FIT/CALIB/EVAL); 10800001 is the rollout smoke. 10900001 is clean.",
+    "rehearsal_lambda": 0.1,
+    "rehearsal_cadence": 4,
+    "rehearsal_batch_size": 64,
+    "rehearsal_param_provenance": "The spec froze cadence and strength by POINTER -- 'unchanged from the existing validated SAPPO-style rehearsal'. Resolved from PPOConfig defaults sappo_anchor_lambda / _cadence / _batch_size. Looked up, not invented."
+  },
+  "BUDGET_DECISION_AND_ITS_CAVEAT": {
+    "chosen": 1000000,
+    "matches": "SPPPO V1 production budget",
+    "CAVEAT_TO_STATE_IN_ANY_COMPARISON": "EXP2C -- the closest thing to a control for this experiment, being the same architecture and poles WITHOUT oracle-gated rehearsal -- ran 2,002,944 steps. This run is half that. Any comparison between them therefore carries a budget difference and cannot attribute a difference in outcome to oracle gating alone. Recorded now, before the result exists, so it is a stated limitation rather than a discovered one.",
+    "what_would_remove_the_caveat": "a 2M arm, which is a separate budget decision"
+  },
+  "GATES": {
+    "tau": 0.7,
+    "rho": "N/A",
+    "o_max": "N/A",
+    "kappa": "N/A",
+    "gold_standard": "strategic payoff and crossover on EVAL, scored once"
+  },
+  "STOP_CONDITION": {
+    "rule": "If ANY runtime auditor fires, classify the attempt INVALID_TREATMENT and STOP.",
+    "prohibited": "repairing the treatment mid-run and continuing",
+    "why": "a run whose treatment changed partway through answers no question"
+  },
+  "EVAL_BOUNDARY": {
+    "block": "10700129..10700160",
+    "status": "SEALED during training",
+    "rule": "This authorizes TRAINING, not looking at EVAL."
+  }
+}
