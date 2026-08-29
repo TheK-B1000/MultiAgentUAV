@@ -1,0 +1,132 @@
+{
+  "record": "K=2 preference probe -- frozen Q_psi trunk + tiny head (Option B)",
+  "status": "FIT_COMPLETE",
+  "utc": "2026-08-29T11:52:25Z",
+  "authority": "PI ruling 2026-08-29: Option B, FIT-only, no weighting or oversampling",
+  "architecture": {
+    "trunk": "Q_psi.encode(grid, vec, agent_mask, pole) -> h(256), FROZEN",
+    "trunk_checkpoint": "artifacts\\strategic_demand\\phase0_scorer_data\\qpsi_frozen.pt",
+    "trunk_sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf",
+    "trunk_params_frozen": 154736,
+    "head": "Linear(256,8) ReLU Linear(8,2)",
+    "head_params_trainable": 2074,
+    "params_per_resolvable_example": 4.85
+  },
+  "confidence_signal": {
+    "definition": "max softmax probability over the two classes, in [0.5, 1.0]",
+    "monotone_equivalent_to": "the probability margin |p_B - p_A|, so kappa thresholding is identical either way",
+    "consumed_by": "kappa selection on CALIB, per AMENDMENT_3"
+  },
+  "data": {
+    "split": "FIT only",
+    "seed_range": [
+      10700001,
+      10700096
+    ],
+    "branch_states": 1109,
+    "resolvable_used_for_training": 428,
+    "tied_excluded_from_loss": 681,
+    "CALIB_loaded": false,
+    "EVAL_touched": false
+  },
+  "ties_receive_zero_pressure": {
+    "enforced": "only Delta != 0 states enter the loss",
+    "verified_updates_on_tied": 0
+  },
+  "per_cell_fit_support": {
+    "A_r0_late": {
+      "states": 77,
+      "resolvable": 34
+    },
+    "A_r0_not_late": {
+      "states": 95,
+      "resolvable": 61
+    },
+    "A_r1_late": {
+      "states": 73,
+      "resolvable": 20
+    },
+    "A_r1_not_late": {
+      "states": 83,
+      "resolvable": 48
+    },
+    "A_r2_late": {
+      "states": 47,
+      "resolvable": 12
+    },
+    "A_r2_not_late": {
+      "states": 77,
+      "resolvable": 45
+    },
+    "A_r3_late": {
+      "states": 68,
+      "resolvable": 8
+    },
+    "A_r3_not_late": {
+      "states": 94,
+      "resolvable": 39
+    },
+    "B_r0_late": {
+      "states": 95,
+      "resolvable": 23
+    },
+    "B_r0_not_late": {
+      "states": 46,
+      "resolvable": 26
+    },
+    "B_r1_late": {
+      "states": 88,
+      "resolvable": 19
+    },
+    "B_r1_not_late": {
+      "states": 95,
+      "resolvable": 54
+    },
+    "B_r2_late": {
+      "states": 36,
+      "resolvable": 8
+    },
+    "B_r2_not_late": {
+      "states": 40,
+      "resolvable": 15
+    },
+    "B_r3_late": {
+      "states": 57,
+      "resolvable": 6
+    },
+    "B_r3_not_late": {
+      "states": 38,
+      "resolvable": 10
+    }
+  },
+  "DOCUMENTED_LIMITATION": {
+    "cells_with_fewer_than_12_resolvable_fit_examples": [
+      "B_r3_late",
+      "A_r3_late",
+      "B_r2_late",
+      "B_r3_not_late"
+    ],
+    "statement": "These cells contain too few resolvable FIT examples to support reliable cell-specific learning. If kappa later fails because CALIB requires coverage in such a cell, that result MUST be interpreted jointly with this documented FIT support, and NOT as clean evidence that selective supervision itself is impossible.",
+    "recorded_before": "any CALIB prediction or kappa selection"
+  },
+  "optimisation": {
+    "epochs": 60,
+    "batch": 64,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "rng_seed": 17,
+    "updates": 420,
+    "no_oversampling": true,
+    "no_cell_weighting": true
+  },
+  "guards_passed": [
+    "trunk checkpoint sha256 matches the frozen artifact",
+    "trunk parameters bit-identical before and after fitting",
+    "optimizer holds only head parameters",
+    "FIT only; CALIB not loaded; EVAL not touched",
+    "tied states contributed zero gradient"
+  ],
+  "fit_accuracy_on_resolvable": 0.7033,
+  "fit_accuracy_caveat": "In-sample. Says nothing about generalisation; CALIB gets the first real say.",
+  "head_weights": "artifacts\\strategic_demand\\sppo\\k2_probe\\k2_probe_head.pt"
+}
