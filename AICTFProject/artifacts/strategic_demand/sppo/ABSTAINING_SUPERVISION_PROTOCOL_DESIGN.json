@@ -38,9 +38,11 @@
     "requirement": "tau and c_min are set TOGETHER, before any model is trained. Neither may be adjusted after seeing model behaviour.",
     "gate_1_strategic_accuracy": {
       "quantity": "accuracy | resolved = P(model's committed direction == label | label != tie AND model commits)",
-      "threshold": "tau -- UNSET",
+      "threshold": "tau = 0.70",
       "measured_on": "EVAL split",
-      "role_clarified_by_amendment_3": "tau is the SCIENTIFIC SUCCESS CRITERION -- how accurate the method must be on EVAL to count as working. It is NOT a tuning parameter and is NOT selected from CALIB model outputs. The commit/abstain decision threshold is kappa, a separate symbol."
+      "role_clarified_by_amendment_3": "tau is the SCIENTIFIC SUCCESS CRITERION -- how accurate the method must be on EVAL to count as working. It is NOT a tuning parameter and is NOT selected from CALIB model outputs. The commit/abstain decision threshold is kappa, a separate symbol.",
+      "tau": 0.7,
+      "statistical_form": "POINT ESTIMATE, exactly as originally frozen. accuracy|resolved >= 0.70 on EVAL. No bootstrap, no lower bound, no seed clustering is applied to this gate. The number was inserted into the existing form; the geometry was NOT changed."
     },
     "gate_2_resolved_coverage": {
       "quantity": "coverage(cell) = P(model commits | state in cell AND label != tie)",
@@ -282,5 +284,41 @@
       "live smoke must return PASS",
       "latent launch decision"
     ]
+  },
+  "AMENDMENT_4_TAU_FROZEN": {
+    "record": "AMENDMENT 4 -- tau frozen at 0.70.",
+    "utc": "2026-08-29T11:43:52Z",
+    "authority": "PI ruling, 2026-08-29",
+    "tau": 0.7,
+    "quantity": "accuracy on committed, resolvable EVAL examples -- the frozen gate_1 quantity, unchanged",
+    "WHY_NOW_IS_THE_CLEANEST_POSSIBLE_MOMENT": "At the time of freezing there is no probe architecture, no fitted model, no FIT performance, no CALIB predictions, no kappa and no EVAL result. The success bar therefore cannot have been influenced by whether the model looks good. This is the strongest form of preregistration available for a success criterion.",
+    "why_0.70": {
+      "baseline": "Binary strategic preference has a natural 50% chance baseline.",
+      "rationale": "0.70 demands substantial improvement over chance without requiring near-perfect classification from a problem already known to be difficult and highly state-dependent.",
+      "loophole_it_closes": "Without a real accuracy bar, a model could satisfy rho by making many mediocre commitments -- committing on 60% of resolvable states while getting only 55% of them right would clear rho and still be worthless. gate_1 rejects that.",
+      "the_triangle": {
+        "gate_1": "Be right when you speak.",
+        "gate_2": "Speak often enough when an answer exists.",
+        "gate_3": "Stay quiet when the evidence does not establish one.",
+        "why_all_three_are_needed": "High accuracy bought by committing on 5% of resolvable states fails rho. High coverage bought by committing everywhere fails o_max. Many mediocre commitments fail tau. No two of the three suffice."
+      }
+    },
+    "STATISTICAL_FORM_VERIFIED_NOT_ASSUMED": {
+      "checked": "gate_1 was read before the number was inserted. It specifies a bare point quantity -- accuracy|resolved = P(...) with threshold tau, measured_on EVAL. It contains no bootstrap, no lower bound and no clustering. The words bootstrap, seed-level and clustered appear in this protocol ONLY inside AMENDMENT_1, which governs Stage-1 CALIB measurement, not the gates.",
+      "consequence": "tau = 0.70 applies to the POINT ESTIMATE. The gate geometry was not silently altered.",
+      "OPEN_QUESTION_SURFACED_NOT_DECIDED": {
+        "issue": "Every prior gate in this project -- Gate 0B, EXP2 terminal, SPPPO V1 -- required a seed-clustered lcb95 to clear the bar. These abstention gates do not. That is a real difference in evidentiary standard, and it was inherited from the original freeze rather than chosen deliberately.",
+        "magnitude_estimated_from_CALIB_only_EVAL_untouched": "CALIB holds 365 branch states across 32 seeds, 145 resolvable (39.7%). EVAL is also 32 seeds, so expect a similar count. At the minimum permitted coverage of 0.50 that is roughly 72 committed resolvable examples. At n=72 a truly-0.60 model measures >= 0.70 with probability about 0.041 ignoring clustering, and clustering widens this because examples within a seed are not independent.",
+        "status": "NOT changed. The PI ruled explicitly that the number must be inserted into the existing form without altering the geometry, and that instruction is followed here. If the evidentiary standard should be raised to a seed-clustered lower bound, that is a separate deliberate amendment, and it must be made before EVAL is examined.",
+        "why_recorded_rather_than_quietly_applied": "Adding a lower-bound requirement would make the gate strictly harder to pass. Doing so unilaterally, after the point-estimate form had been frozen, would be changing the bar without authority -- the mirror image of relaxing it."
+      }
+    },
+    "ALL_THREE_GATES_NOW_FROZEN": {
+      "tau": 0.7,
+      "rho": 0.5,
+      "o_max": 0.1,
+      "kappa": "UNSET -- requires a model, selected on CALIB by the AMENDMENT_3 procedure"
+    },
+    "prospective_status": "Frozen 2026-08-29 before any K=2 implementation existed. No probe, no predictions, no EVAL access at the time of this decision."
   }
 }
