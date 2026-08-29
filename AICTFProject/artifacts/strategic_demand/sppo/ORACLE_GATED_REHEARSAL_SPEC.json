@@ -123,5 +123,53 @@
     "pushing the non-preferred latent away on a resolved state",
     "any A/B pressure on a tied state",
     "launching PPO before the live smoke returns PASS"
-  ]
+  ],
+  "AMENDMENT_1_PERSISTENT_Z_TO_POLE_ROLLOUT": {
+    "record": "AMENDMENT 1 -- restore persistent latent-to-pole assignment in the ROLLOUT.",
+    "utc": "2026-08-29T12:54:04Z",
+    "authority": "PI ruling, 2026-08-29",
+    "frozen_before": "any rollout implementation, any PPO step",
+    "THE_RULING": {
+      "z0": "permanently assigned to Pole A rollout environments",
+      "z1": "permanently assigned to Pole B rollout environments",
+      "persistence": "fixed across EVERY episode reset",
+      "opponent_randomize": false
+    },
+    "FIXED_OPPONENT_DOES_NOT_MEAN_ONE_GLOBAL_OPPONENT": "It means each environment gets one fixed opponent assignment that never changes. 16 environments permanently on the Pole-A opponent for z0, 16 permanently on the Pole-B opponent for z1.",
+    "WHY": "Without it the two halves of the treatment fight different scientific stories. The rehearsal bank says 'reinforce z0 toward pi_A where A is measurably better'. If ordinary PPO gives both latents an identical rollout distribution, the main objective continually pushes both latents toward the same general solution while the rehearsal loss tries to hold them apart. Persistent pole assignment makes the on-policy experience and the selective rehearsal point in compatible directions.",
+    "AND_IT_BLUNTS_THE_MEMORISATION_THREAT": "With a shared rollout opponent, any eventual differentiation would come almost entirely from replaying 428 fixed states -- making the primary validity threat worse and muddying the causal question. Persistent pole assignment gives the rehearsal signal real on-policy ecological support.",
+    "THE_DISTINCTION_THAT_MUST_NOT_BE_CONFLATED": {
+      "rollout_assignment": "uses POLE",
+      "rehearsal_gating": "uses MEASURED PREFERENCE",
+      "why_it_matters": "A pole-B state can be A-preferred -- 44 such states exist in FIT. Rollout assignment is by pole; rehearsal anchoring is by which teacher the payoff evidence actually favours. Conflating them would anchor z1 toward pi_A on those states and destroy the specialisation the experiment is testing."
+    },
+    "POLE_IS_NOT_JUST_AN_OPPONENT_TAG": {
+      "finding": "Pole A is OP6 PLUS a frozen genome overlay (SDS2_A_payoff_INIT_3, overlay {'min_alive_for_defender': 2} -- a CONDITIONAL defender). Pole B is OP7 with NO overlay. POLES = {'A': 'OP6', 'B': 'OP7'}.",
+      "why_this_nearly_broke_the_ruling": "Assigning z0's environments to plain OP6 would have put them against a DIFFERENT opponent than the pole-A states in the rehearsal bank were collected against. The ecological support would have been against the wrong adversary, silently undermining the entire rationale for this amendment.",
+      "resolution": "install_keyed_opponent_overlays(core, {'OP6': pole_A_genome()}) keys the overlay by LIVE OPPONENT TAG, not env index. Environments running OP6 receive it, environments running OP7 do not, and its docstring states it stays synchronized with the per-environment opponent sampler ACROSS AUTO-RESETS without a stale per-env list -- the exact EXP2B failure mode, already designed against.",
+      "required": "The overlay MUST be installed. Plain OP6 is not Pole A."
+    },
+    "RUNTIME_REQUIREMENTS": [
+      "the runtime auditor checks EVERY reset, not episode 1",
+      "zero resets is INVALID -- the treatment may never have instantiated",
+      "any mismatch is INVALID_TREATMENT, not a scientific FAIL",
+      "per-reset (z, live opponent) pairs are the observable, not config intent"
+    ],
+    "FINAL_EVALUATION_CROSSES_BOTH_LATENTS_AGAINST_BOTH_POLES": {
+      "cells": [
+        "z0 on Pole A",
+        "z0 on Pole B",
+        "z1 on Pole A",
+        "z1 on Pole B"
+      ],
+      "desired_crossover": [
+        "V(z0, A) > V(z1, A)",
+        "V(z1, B) > V(z0, B)"
+      ],
+      "what_it_distinguishes": "complementary latent roles from two labels attached to the same behaviour",
+      "note": "the actor remains ONE shared K=2 network; this is not two separate specialists"
+    },
+    "WHAT_THIS_EXPERIMENT_ASKS": "Can one shared latent-conditioned PPO policy preserve two complementary strategic roles when each latent receives its associated on-policy strategic environment, while selective counterfactual rehearsal only reinforces the states where its specialist is actually better?",
+    "STATUS": "FROZEN. The rollout-assignment smoke has NOT yet been run; PPO remains unauthorized."
+  }
 }
