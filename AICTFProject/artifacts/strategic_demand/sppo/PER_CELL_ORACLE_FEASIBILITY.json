@@ -1,0 +1,206 @@
+{
+  "record": "Per-cell oracle threshold feasibility (diagnostic)",
+  "status": "DIAGNOSTIC -- CALIB only, no retraining, no EVAL, no new model",
+  "utc": "2026-08-29T12:08:06Z",
+  "question": "If every cell had its own kappa_c chosen with full knowledge of the CALIB labels, could the frozen gates be satisfied?",
+  "ORACLE_CAVEAT": "Thresholds are chosen using the labels they are scored against. This is an UPPER BOUND on achievable per-cell performance; any honest procedure does strictly worse.",
+  "decomposition_note": "Exact, not approximate: cells partition the states and the over-commitment denominator is fixed, so minimising total tied commits means minimising each cell independently under its own coverage floor.",
+  "frozen_constraints": {
+    "rho": 0.5,
+    "o_max": 0.1,
+    "tau": 0.7
+  },
+  "global_auc": 0.7041,
+  "o_star_min": 0.3455,
+  "clears_o_max": false,
+  "cells_infeasible_at_any_threshold": [],
+  "per_cell": {
+    "A_r0_late": {
+      "n_resolvable": 7,
+      "n_tied": 16,
+      "auc": 0.6875,
+      "oracle_kappa": 0.3169,
+      "coverage_at_oracle": 0.7143,
+      "tied_commits_at_oracle": 7,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "A_r0_not_late": {
+      "n_resolvable": 26,
+      "n_tied": 6,
+      "auc": 0.2885,
+      "oracle_kappa": 0.5882,
+      "coverage_at_oracle": 0.7692,
+      "tied_commits_at_oracle": 5,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "A_r1_late": {
+      "n_resolvable": 4,
+      "n_tied": 17,
+      "auc": 0.4706,
+      "oracle_kappa": 0.3662,
+      "coverage_at_oracle": 0.5,
+      "tied_commits_at_oracle": 8,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "A_r1_not_late": {
+      "n_resolvable": 16,
+      "n_tied": 12,
+      "auc": 0.401,
+      "oracle_kappa": 0.6047,
+      "coverage_at_oracle": 0.5,
+      "tied_commits_at_oracle": 7,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "A_r2_late": {
+      "n_resolvable": 8,
+      "n_tied": 5,
+      "auc": 0.35,
+      "oracle_kappa": 0.3745,
+      "coverage_at_oracle": 0.5,
+      "tied_commits_at_oracle": 2,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "A_r2_not_late": {
+      "n_resolvable": 16,
+      "n_tied": 12,
+      "auc": 0.5625,
+      "oracle_kappa": 0.6009,
+      "coverage_at_oracle": 0.5,
+      "tied_commits_at_oracle": 4,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "A_r3_late": {
+      "n_resolvable": 3,
+      "n_tied": 21,
+      "auc": 0.7302,
+      "oracle_kappa": 0.2035,
+      "coverage_at_oracle": 0.6667,
+      "tied_commits_at_oracle": 6,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "A_r3_not_late": {
+      "n_resolvable": 18,
+      "n_tied": 12,
+      "auc": 0.6204,
+      "oracle_kappa": 0.3228,
+      "coverage_at_oracle": 0.6111,
+      "tied_commits_at_oracle": 5,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r0_late": {
+      "n_resolvable": 9,
+      "n_tied": 23,
+      "auc": 0.5121,
+      "oracle_kappa": 0.2917,
+      "coverage_at_oracle": 0.5556,
+      "tied_commits_at_oracle": 9,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r0_not_late": {
+      "n_resolvable": 11,
+      "n_tied": 9,
+      "auc": 0.7071,
+      "oracle_kappa": 0.4568,
+      "coverage_at_oracle": 0.6364,
+      "tied_commits_at_oracle": 3,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r1_late": {
+      "n_resolvable": 5,
+      "n_tied": 26,
+      "auc": 0.6615,
+      "oracle_kappa": 0.3698,
+      "coverage_at_oracle": 0.6,
+      "tied_commits_at_oracle": 5,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r1_not_late": {
+      "n_resolvable": 11,
+      "n_tied": 21,
+      "auc": 0.5325,
+      "oracle_kappa": 0.5098,
+      "coverage_at_oracle": 0.6364,
+      "tied_commits_at_oracle": 11,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r2_late": {
+      "n_resolvable": 4,
+      "n_tied": 7,
+      "auc": 0.7143,
+      "oracle_kappa": 0.3657,
+      "coverage_at_oracle": 0.5,
+      "tied_commits_at_oracle": 0,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r2_not_late": {
+      "n_resolvable": 4,
+      "n_tied": 7,
+      "auc": 0.3929,
+      "oracle_kappa": 0.4206,
+      "coverage_at_oracle": 0.5,
+      "tied_commits_at_oracle": 3,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r3_late": {
+      "n_resolvable": 0,
+      "n_tied": 15,
+      "auc": null,
+      "oracle_kappa": 0.3357,
+      "coverage_at_oracle": null,
+      "tied_commits_at_oracle": 0,
+      "exempt_no_resolvable_mass": true,
+      "infeasible_at_any_threshold": false
+    },
+    "B_r3_not_late": {
+      "n_resolvable": 3,
+      "n_tied": 11,
+      "auc": 0.8788,
+      "oracle_kappa": 0.3889,
+      "coverage_at_oracle": 0.6667,
+      "tied_commits_at_oracle": 1,
+      "exempt_no_resolvable_mass": false,
+      "infeasible_at_any_threshold": false
+    }
+  },
+  "VERDICT": "PER_CELL_CALIBRATION_CANNOT_SUFFICE",
+  "reading": "o*_min = 0.3455 exceeds the 0.1 ceiling even with oracle knowledge of the labels. Per-cell thresholds CANNOT fix this. The problem is not that cells sit on different score scales -- the resolvability representation does not separate ties sharply enough within cells. The next problem is REPRESENTATION, not calibration, and adding threshold machinery would be wasted effort.",
+  "does_not_alter": "the frozen CALIBRATION_FAILED verdicts of probe 1 or probe 2",
+  "EVAL_touched": false,
+  "WHY_THE_ORACLE_FAILS_AUC_DECOMPOSITION": {
+    "utc": "2026-08-29T12:08:59Z",
+    "global_auc": 0.7041,
+    "mean_within_cell_auc": 0.5673,
+    "median_within_cell_auc": 0.5625,
+    "pair_weighted_within_cell_auc": 0.5449,
+    "cells_with_within_cell_auc_below_chance": 5,
+    "cells_scored": 15,
+    "best_within_cell": {
+      "B_r3_not_late": 0.8788,
+      "A_r3_late": 0.7302,
+      "B_r2_late": 0.7143
+    },
+    "worst_within_cell": {
+      "A_r0_not_late": 0.2885,
+      "A_r2_late": 0.35,
+      "B_r2_not_late": 0.3929
+    },
+    "the_finding": "The global AUC of 0.7041 is largely a BETWEEN-cell effect. The resolvability head learned that some regimes are more resolvable than others -- which is real, useful, and consistent with D4/D5 -- but WITHIN a cell it barely discriminates, at a pair-weighted mean AUC of 0.5449 with 5 of 15 cells below chance.",
+    "why_this_makes_per_cell_thresholds_futile": "A per-cell kappa removes precisely the between-cell information the global number depended on. What remains inside each cell is near-chance ordering, so no set of per-cell cutoffs -- even oracle ones -- can trade coverage against over-commitment efficiently. This is why o*_min = 0.3455 rather than something near the ceiling.",
+    "what_the_model_actually_learned": "A regime-level base rate, not a state-level resolvability judgement. It can say 'late stolen-flag states tend to be unresolvable'. It cannot say 'THIS state is unresolvable'.",
+    "consequence_for_the_next_experiment": "The deficit is representational. Improving it requires a resolvability signal that discriminates WITHIN a regime, which the frozen Q_psi trunk -- fit on terminal margin, and shown capacity-limited in stolen-flag states by D2 -- may simply not encode. Threshold machinery of any kind is the wrong lever."
+  }
+}
