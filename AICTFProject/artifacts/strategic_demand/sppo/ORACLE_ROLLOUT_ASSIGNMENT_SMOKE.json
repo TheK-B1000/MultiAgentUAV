@@ -85,6 +85,33 @@
       "missing live opponent evidence -> FAIL"
     ],
     "also_fix": "manifest propagation, so the persisted record contains the same facts the runtime assertion checked. A check that can throw gives safety; a persisted artifact gives auditability. Both are required.",
-    "utc": "2026-08-29T13:40:02Z"
+    "utc": "2026-08-29T13:40:02Z",
+    "SEAM_DESIGN_RULED": {
+      "utc": "2026-08-29T13:44:16Z",
+      "authority": "PI ruling, 2026-08-29",
+      "decision": "Expose a first-class trainer runtime-observer hook, conceptually on_episode_close(env_index, live_opponent, ...). PoleAssignmentAuditor plugs into that seam. The smoke must NOT reach into trainer internals.",
+      "why": "gives a reusable place for future auditors without contaminating the scientific treatment itself",
+      "HALF_OF_IT_ALREADY_EXISTS": "The OBSERVATION point is live: rl/custom_ppo/latent/credit/episode/manager.py already calls launch_audit_hooks.observe_episode_close(trainer, env_i, z_val, opponent_id) at every episode close, with the real env_index the episode CSV never carried. What is missing is only the ATTACHMENT side -- orchestrate_training_run does not return or expose the trainer, so nothing can call attach() on it. The next session completes a seam that is already carrying the right data past the right point, rather than designing one.",
+      "remaining_work_is_mechanical": [
+        "record every env_index at episode close",
+        "prove all 32 envs actually crossed resets",
+        "record the live opponent",
+        "record Pole-A overlay resolution",
+        "propagate those observations into the persisted smoke artifact",
+        "refuse PASS if any expected field is absent",
+        "require zero assignment and zero overlay mismatches"
+      ]
+    }
+  },
+  "STANDING_RULE_EARNED_THIS_SESSION": {
+    "rule": "For experiment-critical evidence, absence is an ERROR STATE, never a safe default.",
+    "authority": "PI, 2026-08-29; intended to survive this project",
+    "paid_for_itself_three_times_in_one_session": [
+      "opponent_randomize: guard read a ghost field; getattr's default silently passed the exact EXP2C config it existed to reject",
+      "min_episodes_per_env: absent CSV column -> None -> per-env coverage treated as fine",
+      "resolved_live_cells: unpropagated manifest key -> None -> overlay treated as verified"
+    ],
+    "why_it_is_not_obvious": "The first instance shipped INSIDE a guardrail written specifically to prevent that class of failure, and its unit test passed because the fixture repeated the same wrong field name. A guard validated only against a fixture that mirrors its own assumption is indistinguishable from a working one.",
+    "the_underlying_distinction": "Runtime safety and scientific evidence are different jobs. A check can protect the run; the artifact has to prove afterward that the check actually saw what we claim it saw."
   }
 }
