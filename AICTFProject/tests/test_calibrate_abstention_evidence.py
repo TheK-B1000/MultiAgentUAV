@@ -39,10 +39,25 @@ def _make_calib(tmp_path: Path, per_seed_cells=None, per_seed_deltas=None) -> Pa
 
 # ------------------------------------------------------------------- refusal
 
-def test_refuses_on_real_repo_state_today():
-    """Same tripwire as the smoke harness: if this passes, explain why."""
-    with pytest.raises(LaunchGateError, match="CALIBRATION REFUSED"):
-        CAL.preflight()
+def test_preflight_now_passes_because_the_artifacts_were_earned():
+    """This test previously asserted REFUSAL, and it fired on 2026-08-29.
+
+    That was the tripwire doing its job: it forced someone to look at why the guard
+    had gone green. The answer was legitimate rather than drift --
+
+        COLLECTION_COMPLETE  160/160, exact frozen block, written 07:28:04Z
+        SUPPORT_VALIDITY     VALID, 16/16 cells, scarcest cell 59 seeds vs floor 32
+        CALIB                32/32 seeds present
+        FINAL                never touched
+
+    so the assertion was flipped rather than deleted. It now pins the earned state:
+    if any of those artifacts vanish or degrade, this fails and says so.
+    """
+    checks = CAL.preflight()
+    assert all(c.passed for c in checks), [c.detail for c in checks if not c.passed]
+    by_name = {c.name: c for c in checks}
+    assert "16/16" in by_name["support_floor"].detail
+    assert by_name["final_untouched"].passed
 
 
 def test_refusal_names_each_missing_prerequisite(tmp_path):

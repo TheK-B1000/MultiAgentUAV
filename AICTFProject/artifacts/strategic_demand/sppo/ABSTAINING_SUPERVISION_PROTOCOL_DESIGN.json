@@ -43,15 +43,32 @@
     },
     "gate_2_resolved_coverage": {
       "quantity": "coverage(cell) = P(model commits | state in cell AND label != tie)",
-      "threshold": "c_min(cell) -- UNSET",
-      "CRITICAL_FORM": "c_min MUST be expressed as a fraction of the ACHIEVABLE resolvable mass in each cell, NOT as an absolute fraction of all states in that cell. In stolen-flag cells roughly 91% of states are tied, so any absolute floor above ~9% is unachievable there and would fail the protocol for a reason that has nothing to do with the model. Proposed form: c_min(cell) = rho * achievable(cell), where rho is a single frozen fraction and achievable(cell) is the measured resolvable mass of that cell.",
+      "threshold": "c_min = rho = 0.50, FLAT across all 16 cells",
       "stratification": "Enforced per cell over all 16 pole x regime x horizon cells. A GLOBAL coverage number does not satisfy this gate.",
-      "why_stratified": "A global floor is satisfiable by committing confidently on early, flag-home, not-carrying states while abstaining on everything hard. That is exactly the blind spot D3-D6 spent the whole diagnostic arc exposing: the states where abstention is most tempting are the states where the strategic question matters most."
+      "why_stratified": "A global floor is satisfiable by committing confidently on early, flag-home, not-carrying states while abstaining on everything hard. That is exactly the blind spot D3-D6 spent the whole diagnostic arc exposing: the states where abstention is most tempting are the states where the strategic question matters most.",
+      "STRUCK_CRITICAL_FORM": {
+        "status": "STRUCK by AMENDMENT_2, 2026-08-29. Preserved verbatim, not deleted.",
+        "original_text": "c_min MUST be expressed as a fraction of the ACHIEVABLE resolvable mass in each cell, NOT as an absolute fraction of all states in that cell. In stolen-flag cells roughly 91% of states are tied, so any absolute floor above ~9% is unachievable there and would fail the protocol for a reason that has nothing to do with the model. Proposed form: c_min(cell) = rho * achievable(cell), where rho is a single frozen fraction and achievable(cell) is the measured resolvable mass of that cell.",
+        "why_struck": "Double normalization. The quantity line already conditions on label != tie, so coverage is ALREADY expressed as a fraction of the resolvable states -- a model committing on every resolvable state scores 1.0 however tied the cell is. CRITICAL_FORM then multiplied the floor by achievable mass a second time.",
+        "why_the_error_happened": "CRITICAL_FORM was reasoned about coverage as an ABSOLUTE fraction of all states in a cell, where the normalization is genuinely necessary. The quantity was written conditionally. Each half was correct in isolation; together they double-count.",
+        "the_inversion_it_caused": "Under the struck form the least resolvable cells received the lowest bar: B_r3_late r_c=0.000 -> c_min=0.000 (total abstention passes), A_r3_late 0.125 -> 0.062, against A_r0_not_late 0.813 -> 0.407. That is backwards against this gate's own stated rationale -- the states where abstention is most tempting are the states where the strategic question matters most -- and it would have re-opened the exact D3-D6 blind spot the gate exists to close.",
+        "caught": "Before any implementation, during pre-implementation verification of the frozen definitions against the PI's Stage-2 interpretation."
+      },
+      "ZERO_RESOLVABLE_MASS_RULE": {
+        "status": "FROZEN by AMENDMENT_2, 2026-08-29",
+        "problem": "A cell with no resolvable states makes P(commit | label != tie) a 0/0 form. gate_2 is UNDEFINED there, not merely small. B_r3_late measured 0 of 15 resolvable in CALIB.",
+        "rule": "If a cell contains zero resolvable states on the split being scored, it is EXEMPT from gate_2. The exemption is recorded explicitly in the result, never silently skipped.",
+        "what_still_binds": "gate_3 remains fully binding in exempt cells. The model may abstain freely where no preference is establishable, but may NOT manufacture preference there.",
+        "why_not_fail": "Failing the cell would penalise the model for a property of the TARGET that it cannot influence -- the same error the struck CRITICAL_FORM was originally trying to avoid.",
+        "why_not_defer": "Deferring the rule until EVAL composition is known would mean choosing a gate rule after seeing the data it governs. Frozen now instead, while EVAL is unexamined."
+      },
+      "rho": 0.5
     },
     "gate_3_over_commitment_ceiling": {
       "quantity": "over_commit(cell) = P(model commits | state in cell AND label == tie)",
-      "threshold": "o_max -- UNSET",
-      "purpose": "Bounds degenerate solution 2. Claiming a preference where the evidence establishes none is a failure even though it cannot be scored wrong."
+      "threshold": "o_max = 0.10",
+      "purpose": "Bounds degenerate solution 2. Claiming a preference where the evidence establishes none is a failure even though it cannot be scored wrong.",
+      "o_max": 0.1
     }
   },
   "THRESHOLD_PROVENANCE": {
@@ -186,5 +203,31 @@
     },
     "consequence_if_unmet": "If any cell holds fewer than 5 distinct CALIB seeds, calibration is classified CALIBRATION_CANNOT_PROCEED. Do not select thresholds, do not lower the floor, and do not grow the data. A fresh PI decision is required and it may not simply relax this number.",
     "prospective_status": "Frozen 2026-08-28 while the collection stood at roughly 21 of 160 seeds. CALIB begins at seed 10700097 and none had been collected. No CALIB count influenced this choice."
+  },
+  "AMENDMENT_2_GATE_GEOMETRY_AND_THRESHOLDS": {
+    "record": "AMENDMENT 2 -- gate_2 form corrected, rho and o_max frozen, tau explicitly still UNSET.",
+    "utc": "2026-08-29T11:36:07Z",
+    "authority": "PI ruling, 2026-08-29",
+    "made_before": "any implementation, any model, any EVAL access",
+    "FROZEN_NOW": {
+      "rho": 0.5,
+      "rho_meaning": "Of the states where A and B genuinely can be distinguished, the system must commit on at least half. Flat across all 16 cells.",
+      "o_max": 0.1,
+      "o_max_meaning": "Of the states where the target establishes no preference, the system may falsely commit on at most 10%.",
+      "why_these_values": "The new evidence shows resolvability is extremely heterogeneous -- 0.813 in A_r0_not_late down to 0.000 in B_r3_late. Demanding near-total commitment would recreate the problem the abstaining design exists to solve. Permitting 20-30% false commitment would make 'preference not established' cosmetic.",
+      "the_geometry_this_produces": {
+        "always_abstain": "coverage = 0 -> FAILS gate_2",
+        "always_commit": "over_commit ~ 1 -> FAILS gate_3",
+        "conclusion": "Both degenerate solutions are excluded by construction, which was the design goal."
+      }
+    },
+    "TAU_REMAINS_UNSET_AND_CANNOT_YET_BE_SET": {
+      "status": "UNSET. Not deferred by preference -- structurally impossible today.",
+      "why": "tau cannot be selected from CALIB because THERE IS NO MODEL. CALIBRATION_EVIDENCE.json contains only labels derived from Delta -- pure target measurement, zero model output. A selection procedure that maximises correctness on committed states presupposes model predictions to threshold, and none exist.",
+      "AMBIGUITY_TO_RESOLVE_BEFORE_TAU_IS_FROZEN": "gate_1 as frozen defines tau as a PASS BAR on accuracy, measured_on EVAL. The PI's Stage-2 procedure treats tau as a CONFIDENCE CUTOFF that determines commit versus abstain, which is what makes rho and o_max its consequences. These are different objects. Only the second is selectable, and only once a model exists. This must be resolved explicitly rather than by whichever reading the implementation happens to adopt.",
+      "what_this_blocks": "Nothing that can run today. Stage 2 cannot execute without a model regardless.",
+      "split_discipline_note": "Whichever reading wins, selection happens on CALIB and scoring on EVAL. gate_1's measured_on:EVAL and THRESHOLD_PROVENANCE's calibrate-on-CALIB are consistent, not in conflict."
+    },
+    "B_R3_LATE_READING_IS_SACRED": "15 of 15 tied in CALIB does NOT mean A and B are strategically identical in late stolen-carrying B-pole states. It means that under this target and this calibration sample, preference could not be established. The latent treatment must not apply a strategy-separation loss there. This is the distinction the entire third class exists to protect."
   }
 }
