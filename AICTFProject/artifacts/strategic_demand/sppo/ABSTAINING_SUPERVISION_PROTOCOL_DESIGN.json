@@ -345,5 +345,41 @@
       "Omitting the clustered interval from the EVAL report.",
       "Deciding after seeing EVAL which of the two to emphasise."
     ]
+  },
+  "AMENDMENT_6_EXPERIMENT_CLASS_AWARE_GATES": {
+    "record": "AMENDMENT 6 -- gates apply BY EXPERIMENT CLASS, not globally.",
+    "utc": "2026-08-29T12:29:01Z",
+    "authority": "PI ruling, 2026-08-29",
+    "why": "Oracle-gated rehearsal uses exact FIT branch labels to gate supervision during TRAINING only. The resulting policy has no test-time abstention mechanism, so kappa does not exist for it. Removing kappa from a GLOBAL requirement list would have let a future online-abstention run launch without a commit/abstain cutoff.",
+    "classes": {
+      "ONLINE_ABSTENTION": {
+        "requires": [
+          "tau",
+          "rho",
+          "o_max",
+          "kappa"
+        ],
+        "status": "unchanged; probe 1 and probe 2 belong here"
+      },
+      "ORACLE_GATED_REHEARSAL": {
+        "requires": [
+          "tau"
+        ],
+        "not_applicable_by_design": [
+          "rho",
+          "o_max",
+          "kappa"
+        ]
+      }
+    },
+    "THE_DEEPER_POINT_ABOUT_RHO_AND_O_MAX": "rho and o_max measure P(commit | resolvable) and P(commit | unresolved). Without a test-time abstention mechanism there is no commit/abstain decision to measure. Worse, if EVAL oracle labels were used to decide when to commit, the gates would trivially return rho=1 and o=0 -- a meaningless pass. They are therefore NOT APPLICABLE to this class, not merely unmet.",
+    "tau_survives": "tau = 0.70 remains meaningful as EVAL direction accuracy on resolvable states.",
+    "the_real_downstream_test": "Strategic payoff and crossover remain the gold standard. Preserving complementary latent roles is judged there, not by any threshold in this document.",
+    "implementation_safeguards": [
+      "the caller declares the class it is launching and the artifact declares the class it was written for; both must agree, so a permissive artifact cannot launch a stricter run",
+      "thresholds a class does not use must be POSITIVELY marked NOT_APPLICABLE_BY_DESIGN rather than omitted, so absence-by-design is distinguishable from absence-by-omission",
+      "the default class is the strictest, so forgetting to pass one can only over-require",
+      "an unknown class name is refused outright"
+    ]
   }
 }

@@ -14,6 +14,8 @@ import pytest
 from rl.launch_gate import (
     CALIB_BLOCK,
     COLLECTION_BLOCK,
+    EXPERIMENT_CLASSES,
+    NOT_APPLICABLE,
     Check,
     LaunchGateError,
     PoleAssignmentAuditor,
@@ -70,6 +72,7 @@ def _make_audit(tmp_path: Path, *, verdict="VALID", worst=41) -> Path:
 
 def _make_thresholds(tmp_path: Path, **over) -> Path:
     rec = {"status": "FROZEN", "calibrated_on": "CALIB",
+           "experiment_class": "ONLINE_ABSTENTION",
            "thresholds": {"tau": 0.8, "rho": 0.5, "o_max": 0.1, "kappa": 0.6}}
     rec.update(over)
     path = tmp_path / "ABSTENTION_THRESHOLDS.json"
@@ -169,6 +172,7 @@ def test_refuses_when_any_single_threshold_is_missing(tmp_path, missing):
     defined abstention behaviour, which collapses three classes back to two.
     """
     rec = {"status": "FROZEN", "calibrated_on": "CALIB",
+           "experiment_class": "ONLINE_ABSTENTION",
            "thresholds": {"tau": 0.8, "rho": 0.5, "o_max": 0.1, "kappa": 0.6}}
     del rec["thresholds"][missing]
     path = tmp_path / "t.json"
@@ -317,3 +321,62 @@ def test_use_time_lookup_returns_the_live_hook():
     registry = {"h": lambda: "first"}
     registry["h"] = lambda: "second"          # rebound after registration
     assert use_time_lookup(registry, "h")() == "second"
+
+
+# ------------------------------------------------- experiment-class awareness
+
+def _oracle_thresholds(tmp_path: Path, **over) -> Path:
+    """ORACLE_GATED_REHEARSAL: only tau applies; the rest are N/A by design."""
+    rec = {"status": "FROZEN", "calibrated_on": "CALIB",
+           "experiment_class": "ORACLE_GATED_REHEARSAL",
+           "thresholds": {"tau": 0.70, "rho": NOT_APPLICABLE,
+                          "o_max": NOT_APPLICABLE, "kappa": NOT_APPLICABLE}}
+    rec.update(over)
+    path = tmp_path / "ABSTENTION_THRESHOLDS.json"
+    path.write_text(json.dumps(rec))
+    return path
+
+
+def test_oracle_gated_rehearsal_needs_only_tau(tmp_path):
+    """kappa/rho/o_max have nothing to measure without a test-time abstention rule."""
+    check = check_thresholds_frozen(_oracle_thresholds(tmp_path), "ORACLE_GATED_REHEARSAL")
+    assert check.passed, check.detail
+    assert "N/A by design" in check.detail
+
+
+def test_online_abstention_still_requires_all_four(tmp_path):
+    """The permissive class must not weaken the strict one."""
+    assert not check_thresholds_frozen(_oracle_thresholds(tmp_path), "ONLINE_ABSTENTION").passed
+
+
+def test_permissive_artifact_cannot_launch_a_stricter_run(tmp_path):
+    """Artifact and caller must agree on the class."""
+    check = check_thresholds_frozen(_oracle_thresholds(tmp_path), "ONLINE_ABSTENTION")
+    assert not check.passed and "may not launch a stricter run" in check.detail
+
+
+def test_strict_artifact_cannot_be_used_for_a_different_class(tmp_path):
+    check = check_thresholds_frozen(_make_thresholds(tmp_path), "ORACLE_GATED_REHEARSAL")
+    assert not check.passed and "experiment_class" in check.detail
+
+
+def test_unused_thresholds_must_be_disclaimed_not_omitted(tmp_path):
+    """Absence-by-design must be distinguishable from absence-by-omission."""
+    path = _oracle_thresholds(tmp_path)
+    rec = json.loads(path.read_text())
+    del rec["thresholds"]["kappa"]                 # omitted rather than disclaimed
+    path.write_text(json.dumps(rec))
+    check = check_thresholds_frozen(path, "ORACLE_GATED_REHEARSAL")
+    assert not check.passed and "NOT_APPLICABLE_BY_DESIGN" in check.detail
+
+
+def test_unknown_experiment_class_is_refused(tmp_path):
+    check = check_thresholds_frozen(_oracle_thresholds(tmp_path), "SOMETHING_INVENTED")
+    assert not check.passed and "unknown experiment class" in check.detail
+
+
+def test_default_class_is_the_strictest():
+    """Forgetting to pass a class can only ever over-require, never under-require."""
+    assert EXPERIMENT_CLASSES["ONLINE_ABSTENTION"] == ("tau", "rho", "o_max", "kappa")
+    strictest = max(EXPERIMENT_CLASSES.values(), key=len)
+    assert EXPERIMENT_CLASSES["ONLINE_ABSTENTION"] == strictest

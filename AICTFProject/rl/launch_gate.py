@@ -33,11 +33,27 @@ N_CELLS = 16
 COLLECTION_BLOCK = (10_700_001, 10_700_160)
 CALIB_BLOCK = (10_700_097, 10_700_128)
 FINAL_BLOCKS = ((10_600_001, 10_600_192),)   # RASR FINAL: sealed, never touched
-# All four must be frozen before launch. kappa is the commit/abstain confidence
-# cutoff and is a SEPARATE object from tau, the Gate-1 EVAL accuracy criterion --
-# see AMENDMENT_3. A run that starts with kappa unfrozen has no defined abstention
-# behaviour at all, which silently collapses the three-class design to two.
-REQUIRED_THRESHOLDS = ("tau", "rho", "o_max", "kappa")
+# Thresholds are required BY EXPERIMENT CLASS, never globally. Dropping kappa from a
+# global list would let an online-abstention run launch without a commit/abstain
+# cutoff, which silently collapses the three-class design to two.
+#
+# ONLINE_ABSTENTION       the policy decides at test time whether to commit, so all
+#                         four apply.
+# ORACLE_GATED_REHEARSAL  exact FIT branch labels gate supervision during TRAINING
+#                         only. The policy has no test-time abstention mechanism, so
+#                         kappa does not exist and rho/o_max -- which measure
+#                         P(commit | resolvable) and P(commit | unresolved) -- have
+#                         nothing to measure. Scoring them against EVAL oracle labels
+#                         would trivially return rho=1, o=0 and mean nothing. tau
+#                         survives as EVAL direction accuracy on resolvable states.
+EXPERIMENT_CLASSES: dict[str, tuple[str, ...]] = {
+    "ONLINE_ABSTENTION": ("tau", "rho", "o_max", "kappa"),
+    "ORACLE_GATED_REHEARSAL": ("tau",),
+}
+NOT_APPLICABLE = "NOT_APPLICABLE_BY_DESIGN"
+
+# Retained for callers that predate experiment classes; equals the strictest class.
+REQUIRED_THRESHOLDS = EXPERIMENT_CLASSES["ONLINE_ABSTENTION"]
 
 
 class LaunchGateError(RuntimeError):
@@ -143,24 +159,56 @@ def check_calib_split(data_dir: Path) -> Check:
     return Check("calib_split", True, f"CALIB {lo}..{hi} complete ({len(present)} seeds)")
 
 
-def check_thresholds_frozen(thresholds_path: Path) -> Check:
-    """tau, rho and o_max must exist, be numeric, and be marked frozen."""
+def check_thresholds_frozen(thresholds_path: Path,
+                            experiment_class: str = "ONLINE_ABSTENTION") -> Check:
+    """Thresholds required by the run's experiment class must be frozen and numeric.
+
+    The caller declares which class it is launching and the artifact declares which
+    class it was written for; both must agree. Without that, an artifact for a
+    permissive class could be used to launch a stricter run.
+
+    Thresholds a class does not use must be POSITIVELY marked NOT_APPLICABLE_BY_DESIGN
+    rather than simply left out, so absence-by-design is distinguishable from
+    absence-by-omission.
+    """
     thresholds_path = Path(thresholds_path)
+    if experiment_class not in EXPERIMENT_CLASSES:
+        return Check("thresholds_frozen", False,
+                     f"unknown experiment class {experiment_class!r}; "
+                     f"known: {sorted(EXPERIMENT_CLASSES)}")
     if not thresholds_path.is_file():
         return Check("thresholds_frozen", False,
                      f"{thresholds_path.name} does not exist; calibration has not happened")
     rec = json.loads(thresholds_path.read_text(encoding="utf-8"))
     if not str(rec.get("status", "")).startswith("FROZEN"):
         return Check("thresholds_frozen", False, f"status is {rec.get('status')!r}")
+
+    declared = rec.get("experiment_class")
+    if declared != experiment_class:
+        return Check("thresholds_frozen", False,
+                     f"artifact declares experiment_class {declared!r} but the run is "
+                     f"{experiment_class!r}; a permissive artifact may not launch a stricter run")
+
+    required = EXPERIMENT_CLASSES[experiment_class]
     values = rec.get("thresholds", {})
-    missing = [k for k in REQUIRED_THRESHOLDS if not isinstance(values.get(k), (int, float))]
+    missing = [k for k in required if not isinstance(values.get(k), (int, float))]
     if missing:
         return Check("thresholds_frozen", False, f"missing or non-numeric: {missing}")
+
+    # everything this class does NOT require must be explicitly disclaimed
+    unused = [k for k in ("tau", "rho", "o_max", "kappa") if k not in required]
+    undeclared = [k for k in unused if values.get(k) != NOT_APPLICABLE]
+    if undeclared:
+        return Check("thresholds_frozen", False,
+                     f"{experiment_class} does not use {undeclared}, which must be marked "
+                     f"{NOT_APPLICABLE!r} rather than omitted")
     if rec.get("calibrated_on") != "CALIB":
         return Check("thresholds_frozen", False,
                      f"calibrated_on is {rec.get('calibrated_on')!r}, must be 'CALIB'")
-    shown = {k: values[k] for k in REQUIRED_THRESHOLDS}
-    return Check("thresholds_frozen", True, f"frozen on CALIB: {shown}")
+    shown = {k: values[k] for k in required}
+    return Check("thresholds_frozen", True,
+                 f"{experiment_class} frozen on CALIB: {shown}"
+                 + (f"; N/A by design: {unused}" if unused else ""))
 
 
 def check_content_hashes(expected: Mapping[str, str]) -> Check:
@@ -269,15 +317,20 @@ def require_launch_authorized(
     expected_hashes: Mapping[str, str] | None = None,
     search_roots: Sequence[Path] = (),
     strict_process_check: bool = True,
+    experiment_class: str = "ONLINE_ABSTENTION",
 ) -> list[Check]:
-    """Run every static check. Raise unless all blocking checks pass."""
+    """Run every static check. Raise unless all blocking checks pass.
+
+    ``experiment_class`` is what the CALLER declares it is launching. It defaults to
+    the strictest class so that forgetting to pass it can only ever over-require.
+    """
     checks = [
         check_collection_complete(data_dir),
         check_seed_block(data_dir),
         check_support_floor(audit_path),
         check_calib_split(data_dir),
         check_final_untouched(*search_roots),
-        check_thresholds_frozen(thresholds_path),
+        check_thresholds_frozen(thresholds_path, experiment_class),
         check_opponent_mode(cfg),
         check_fresh_training(cfg),
         check_rollout_overshoot(cfg),
