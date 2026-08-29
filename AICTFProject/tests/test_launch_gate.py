@@ -70,7 +70,7 @@ def _make_audit(tmp_path: Path, *, verdict="VALID", worst=41) -> Path:
 
 def _make_thresholds(tmp_path: Path, **over) -> Path:
     rec = {"status": "FROZEN", "calibrated_on": "CALIB",
-           "thresholds": {"tau": 0.8, "rho": 0.7, "o_max": 0.1}}
+           "thresholds": {"tau": 0.8, "rho": 0.5, "o_max": 0.1, "kappa": 0.6}}
     rec.update(over)
     path = tmp_path / "ABSTENTION_THRESHOLDS.json"
     path.write_text(json.dumps(rec))
@@ -161,11 +161,15 @@ def test_refuses_when_thresholds_not_frozen(tmp_path):
     assert not check_thresholds_frozen(_make_thresholds(tmp_path, status="DRAFT")).passed
 
 
-@pytest.mark.parametrize("missing", ["tau", "rho", "o_max"])
+@pytest.mark.parametrize("missing", ["tau", "rho", "o_max", "kappa"])
 def test_refuses_when_any_single_threshold_is_missing(tmp_path, missing):
-    """All three are jointly frozen; two out of three is not a partial pass."""
+    """All four are jointly frozen; three out of four is not a partial pass.
+
+    kappa matters most here: a run launched without a commit/abstain cutoff has no
+    defined abstention behaviour, which collapses three classes back to two.
+    """
     rec = {"status": "FROZEN", "calibrated_on": "CALIB",
-           "thresholds": {"tau": 0.8, "rho": 0.7, "o_max": 0.1}}
+           "thresholds": {"tau": 0.8, "rho": 0.5, "o_max": 0.1, "kappa": 0.6}}
     del rec["thresholds"][missing]
     path = tmp_path / "t.json"
     path.write_text(json.dumps(rec))

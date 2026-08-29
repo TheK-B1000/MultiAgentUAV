@@ -39,7 +39,8 @@
     "gate_1_strategic_accuracy": {
       "quantity": "accuracy | resolved = P(model's committed direction == label | label != tie AND model commits)",
       "threshold": "tau -- UNSET",
-      "measured_on": "EVAL split"
+      "measured_on": "EVAL split",
+      "role_clarified_by_amendment_3": "tau is the SCIENTIFIC SUCCESS CRITERION -- how accurate the method must be on EVAL to count as working. It is NOT a tuning parameter and is NOT selected from CALIB model outputs. The commit/abstain decision threshold is kappa, a separate symbol."
     },
     "gate_2_resolved_coverage": {
       "quantity": "coverage(cell) = P(model commits | state in cell AND label != tie)",
@@ -229,5 +230,57 @@
       "split_discipline_note": "Whichever reading wins, selection happens on CALIB and scoring on EVAL. gate_1's measured_on:EVAL and THRESHOLD_PROVENANCE's calibrate-on-CALIB are consistent, not in conflict."
     },
     "B_R3_LATE_READING_IS_SACRED": "15 of 15 tied in CALIB does NOT mean A and B are strategically identical in late stolen-carrying B-pole states. It means that under this target and this calibration sample, preference could not be established. The latent treatment must not apply a strategy-separation loss there. This is the distinction the entire third class exists to protect."
+  },
+  "AMENDMENT_3_KAPPA_SEPARATED_FROM_TAU": {
+    "record": "AMENDMENT 3 -- introduce kappa; freeze its selection procedure before any probe is fitted.",
+    "utc": "2026-08-29T11:39:17Z",
+    "authority": "PI ruling, 2026-08-29",
+    "made_before": "the K=2 probe exists, any fitting, any CALIB prediction, any EVAL access",
+    "WHY_A_NEW_SYMBOL": "tau was being asked to do two jobs: serve as the frozen Gate-1 accuracy bar AND act as the confidence cutoff whose position produces coverage and over-commitment. Repurposing it would have rewritten the meaning of an already-frozen gate and made the history harder to interpret. One overloaded Greek letter would have been quietly running half the experiment.",
+    "THE_FOUR_ROLES": {
+      "tau": "How accurate must the method be on EVAL to count as successful? Gate-1 pass bar.",
+      "rho": "On resolvable states, how often must it commit? Frozen at 0.50.",
+      "o_max": "On unresolved states, how often may it incorrectly commit? Frozen at 0.10.",
+      "kappa": "What confidence level makes the model commit instead of abstain? The decision threshold."
+    },
+    "KAPPA": {
+      "definition": "Model confidence cutoff for commit versus abstain.",
+      "status": "UNSET until a K=2 model and CALIB predictions exist. Structurally impossible today, exactly as tau was.",
+      "selected_on": "CALIB predictions ONLY. Never FIT, never EVAL.",
+      "SELECTION_PROCEDURE_FROZEN_NOW": [
+        "1. Sweep candidate kappa values using CALIB predictions only.",
+        "2. Require per-cell conditional coverage P(commit | resolvable) >= 0.50 in every cell WHERE RESOLVABLE MASS EXISTS.",
+        "3. Require unresolved over-commitment o <= 0.10.",
+        "4. Among qualifying kappa, maximize accuracy on committed resolvable CALIB examples.",
+        "5. If tied, choose the HIGHER, more conservative kappa.",
+        "6. If no kappa satisfies the frozen constraints, CALIBRATION FAILS. Do not relax them."
+      ],
+      "why_frozen_before_fitting": "A selection rule written after seeing model predictions is a rule chosen to be satisfiable. Freezing it now, while no probe exists, makes step 6 a real possibility rather than a formality.",
+      "step_6_is_not_decorative": "If no kappa clears both constraints, that is a genuine negative finding about the method -- the model cannot commit often enough on resolvable states without over-committing on unresolved ones. It must be recorded as a FAIL, not repaired by moving rho or o_max.",
+      "zero_resolvable_cells": "B_r3_late and any other cell with zero resolvable CALIB mass is exempt from the step-2 coverage requirement, per AMENDMENT_2's ZERO_RESOLVABLE_MASS_RULE. o_max still applies there."
+    },
+    "TAU": {
+      "status": "Numerically UNSET, but no longer blocking.",
+      "role": "Gate-1 EVAL accuracy criterion. A scientific success criterion, not a tuning parameter.",
+      "must_not": "Be selected from CALIB model outputs. That would turn a success criterion into a fitted quantity.",
+      "when_frozen": "Before EVAL is examined. This decision does NOT block implementation of the K=2 probe.",
+      "measured_on": "EVAL, unchanged from the original freeze."
+    },
+    "SPLIT_FLOW_FROZEN": {
+      "FIT": "fit/train the K=2 probe. 10700001..10700096.",
+      "CALIB": "produce predictions; select and freeze kappa. 10700097..10700128.",
+      "EVAL": "judge the final gates once. 10700129..10700160.",
+      "invariant": "No split is used for more than its stated purpose. CALIB never trains; EVAL is touched once, last."
+    },
+    "ARCHITECTURE_REQUIREMENT_ON_THE_PROBE": "The K=2 probe MUST expose a per-state confidence signal, because kappa thresholds it. A probe that emits only a hard A/B decision cannot implement abstention at all and would silently reduce the three-class design back to the two-class one it replaces.",
+    "NEXT_SEQUENCE_FROZEN": [
+      "implement K=2 treatment probe, exposing a confidence signal",
+      "fit on FIT only",
+      "produce CALIB predictions",
+      "select and freeze kappa by the procedure above",
+      "freeze the separate Gate-1 tau criterion, before touching EVAL",
+      "live smoke must return PASS",
+      "latent launch decision"
+    ]
   }
 }

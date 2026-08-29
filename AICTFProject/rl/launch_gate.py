@@ -33,7 +33,11 @@ N_CELLS = 16
 COLLECTION_BLOCK = (10_700_001, 10_700_160)
 CALIB_BLOCK = (10_700_097, 10_700_128)
 FINAL_BLOCKS = ((10_600_001, 10_600_192),)   # RASR FINAL: sealed, never touched
-REQUIRED_THRESHOLDS = ("tau", "rho", "o_max")
+# All four must be frozen before launch. kappa is the commit/abstain confidence
+# cutoff and is a SEPARATE object from tau, the Gate-1 EVAL accuracy criterion --
+# see AMENDMENT_3. A run that starts with kappa unfrozen has no defined abstention
+# behaviour at all, which silently collapses the three-class design to two.
+REQUIRED_THRESHOLDS = ("tau", "rho", "o_max", "kappa")
 
 
 class LaunchGateError(RuntimeError):
