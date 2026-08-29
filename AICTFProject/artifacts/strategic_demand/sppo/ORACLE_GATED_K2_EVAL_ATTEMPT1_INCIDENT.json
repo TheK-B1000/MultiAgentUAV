@@ -38,5 +38,43 @@
     "disclosed_rather_than_hidden": "Per project discipline, this is recorded rather than quietly relaunched and forgotten. The next attempt is the genuine one-shot EVAL."
   },
   "FIX_BEFORE_RELAUNCH": "No shell-level or tool-level timeout will be imposed on the relaunch. The script runs to natural completion or genuine failure, whichever comes first.",
-  "DOES_NOT_ALTER": "ORACLE_GATED_K2_EVAL_SPEC.json, the frozen gate, or the model under test"
+  "DOES_NOT_ALTER": "ORACLE_GATED_K2_EVAL_SPEC.json, the frozen gate, or the model under test",
+  "CLASSIFICATION": "EVAL ATTEMPT 1: INFRASTRUCTURE TIMEOUT, INCOMPLETE",
+  "classification_is_not": [
+    "FAIL",
+    "NOT_CONFIRMED",
+    "a scientific result of any kind"
+  ],
+  "CORRECTION_EVAL_IS_NOT_UNTOUCHED": {
+    "utc": "2026-08-29T18:36:42Z",
+    "authority": "PI ruling, 2026-08-29",
+    "the_correction": "EVAL can no longer honestly be described as 'untouched'. Three point estimates were seen. The accurate statement is: EVAL PARTIALLY OBSERVED due to infrastructure timeout; no adaptive action permitted or taken.",
+    "why_this_matters": "'Untouched' would have been a convenient overstatement. The honest record is that the seal was broken by accident, that what was exposed is precisely enumerated, and that nothing was changed in response."
+  },
+  "ATTEMPT_1_PEEK_PRESERVED_VERBATIM": {
+    "cause": "shell timeout at 50 min",
+    "completed_cells_observed": "3/6",
+    "z0|A": 0.5625,
+    "z0|B": 0.5,
+    "z1|A": 0.5938,
+    "deltas": "not computed",
+    "LCB95": "not computed",
+    "verdict": "none",
+    "artifact": "none",
+    "adaptive_changes_after_peek": "none",
+    "classification": "infrastructure timeout / incomplete evaluation"
+  },
+  "THESE_THREE_NUMBERS_MUST_NOT_BE_INTERPRETED_YET": {
+    "rule": "No interpretation of the partial point estimates is permitted before Attempt 2 completes. Reasoning about them now would convert an accidental peek into an adaptive analysis.",
+    "worked_example_of_the_trap": "z1|A (0.5938) exceeding z0|A (0.5625) may LOOK concerning for the crossover hypothesis. But the frozen gate is a PAIRED delta with an LCB95 criterion, not a comparison of marginal point estimates. Drawing a conclusion from the latter would be exactly the substitution the frozen criterion exists to prevent.",
+    "what_is_permitted": "reporting the numbers as an incident record, which is what this file does"
+  },
+  "ATTEMPT_2_CHANGES_NOTHING": {
+    "seeds": "unchanged, 10700129..10700160",
+    "model": "unchanged, sha b2d5d8868b60b8a5b2cdc49d64213bb646f58838b70b41c6049622d7c0764cb0",
+    "evaluator_logic": "unchanged",
+    "criterion": "unchanged, delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "the_only_difference": "no artificial time ceiling, so the calculation can finish",
+    "no_fresh_eval_block": "Not required and not used. The timeout was infrastructure failure, not a scientific decision, and no hyperparameter or checkpoint can change in response to what was seen."
+  }
 }
