@@ -1,0 +1,74 @@
+{
+  "record_id": "ORACLE_GATED_K2_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_EVAL_IS_OPENED",
+  "utc": "2026-08-29T17:35:07Z",
+  "authority": "PI, 2026-08-29: EVAL SCORING AUTHORIZED",
+  "THE_QUESTION": "Did the shared K=2 policy learn complementary latent strategies that generalize beyond the heavily replayed 428-state FIT bank?",
+  "WHY_THIS_MATTERS_MORE_THAN_USUAL": "The rehearsal bank was replayed 188.86 times during training. A strong held-out crossover argues the treatment learned something beyond memorising that fixed bank. A failure says even correctly gated rehearsal did not transfer.",
+  "MODEL_UNDER_TEST": {
+    "checkpoint": "final_oracle_gated_k2_production.zip",
+    "sha256": "b2d5d8868b60b8a5b2cdc49d64213bb646f58838b70b41c6049622d7c0764cb0",
+    "frozen_in": "ORACLE_GATED_K2_MODEL_FROZEN.json, commit 417ef37f",
+    "terminal_checkpoint_only": true,
+    "periodic_checkpoints_ineligible": "all 10, hashes recorded in the freeze record"
+  },
+  "SEEDS": {
+    "block": "10700129..10700160",
+    "n": 32,
+    "never_used_for": [
+      "training",
+      "rehearsal",
+      "calibration",
+      "any prior audit"
+    ]
+  },
+  "CELLS": {
+    "primary": [
+      "z0 on Pole A",
+      "z1 on Pole A",
+      "z0 on Pole B",
+      "z1 on Pole B"
+    ],
+    "secondary_context_only": [
+      "pi_A on Pole A",
+      "pi_B on Pole B"
+    ],
+    "pole_A": "OP6 + SDS2_A_payoff_INIT_3 overlay",
+    "pole_B": "OP7, no overlay",
+    "why_the_overlay_matters_here_too": "Pole A is not plain OP6. Evaluating z0 against vanilla OP6 would score it against a different opponent than it trained on."
+  },
+  "PRIMARY_GATE_CROSSOVER": {
+    "metric": "episode win indicator (blue_score > red_score), per evaluation seed",
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "statistic": "paired percentile bootstrap over seed-level episode outcomes",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "unit": "evaluation seed",
+    "provenance": "This is the EXISTING frozen convention from eval_exp2_k2_terminal.py, adopted unchanged so the criterion cannot be accused of having been chosen for this result. Point estimates alone do not pass the gate.",
+    "verdict_labels": {
+      "pass": "ORACLE_GATED_K2_CROSSOVER_CONFIRMED",
+      "fail": "ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED"
+    }
+  },
+  "SECONDARY_REPORTED_NOT_GATED": {
+    "retention": "0.5*(wins(z0,A)+wins(z1,B)) / 0.5*(wins(pi_A,A)+wins(pi_B,B))",
+    "status": "REPORTED FOR CONTEXT ONLY. No retention bar was authorized for this experiment, so it does not gate the verdict and must not be introduced as a gate after the numbers are seen.",
+    "per_cell_win_rates": "all six cells reported with seed-level CIs"
+  },
+  "EPISODES_PER_CELL": {
+    "value": 1,
+    "note": "one deterministic episode per (cell, seed); 32 seeds gives 32 paired observations per cell"
+  },
+  "PROHIBITED_AFTER_SEEING_EVAL": [
+    "choosing a different checkpoint",
+    "adjusting the treatment and re-running",
+    "changing the metric, statistic, alpha, or criterion",
+    "adding seeds to the EVAL block",
+    "promoting retention or any secondary quantity into a gate",
+    "reporting point estimates as if they passed the frozen criterion"
+  ],
+  "IF_NEGATIVE": "Recorded as ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED. A treatment verified end to end that still fails to transfer is a scientific finding about oracle-gated rehearsal, not a defect to repair. The 188.86x replay factor and the 1M-vs-2M budget difference against EXP2C are both already on record as interpretive context, frozen before the result existed.",
+  "ONE_SHOT": "EVAL is opened once. This spec is frozen before it is read."
+}
