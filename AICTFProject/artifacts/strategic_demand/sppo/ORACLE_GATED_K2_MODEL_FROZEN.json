@@ -1,0 +1,102 @@
+{
+  "record_id": "ORACLE_GATED_K2_MODEL_FROZEN",
+  "status": "FROZEN_MODEL -- frozen BEFORE EVAL was opened",
+  "utc": "2026-08-29T17:33:14Z",
+  "authority": "PI, 2026-08-29: freeze the completed model exactly as it exists, then EVAL scoring is authorized",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/oracle_gated_k2_production/ckpts/final_oracle_gated_k2_production.zip",
+    "sha256": "b2d5d8868b60b8a5b2cdc49d64213bb646f58838b70b41c6049622d7c0764cb0",
+    "bytes": 42030323,
+    "global_step": 1003520,
+    "requested_total_timesteps": 1000000,
+    "overshoot": 3520,
+    "overshoot_note": "Rollout granularity: training stops at the first rollout boundary at or beyond the requested budget, so the terminal step exceeds 1,000,000 by 3,520. Expected and recorded, not a deviation.",
+    "updates_completed": 245
+  },
+  "CHECKPOINT_ELIGIBILITY_IS_CLOSED": {
+    "eligible_for_evaluation": "final_oracle_gated_k2_production.zip ONLY",
+    "periodic_checkpoints_exist": 10,
+    "periodic_are_NOT_eligible": true,
+    "why_this_is_stated_explicitly": "Ten periodic checkpoints at 100k..1M were written during the run. Their existence is a checkpoint-shopping surface. The project rule is TERMINAL CHECKPOINT ONLY, and every periodic hash is recorded below so that substituting one for the terminal checkpoint is detectable rather than invisible.",
+    "periodic_sha256": {
+      "ckpt_oracle_gated_k2_production_100000.zip": "4679a35971286083edbe338cfcdd0334a4e91af45217b523dfb5bd365ac214d0",
+      "ckpt_oracle_gated_k2_production_1000000.zip": "4f72bc2c9cc4019796e4feb72bde4dd71fecb25823ae997b9bb5a4217b8b240e",
+      "ckpt_oracle_gated_k2_production_200000.zip": "2f64d7b525c6d777fa1bc68e4b7a1707b8750f1ff4b52076235bb36cd8e56e1a",
+      "ckpt_oracle_gated_k2_production_300000.zip": "b6dae383dfa3c1f0467995434b822cdbeda00f6bd00f9c998a00b84c13ff5bd2",
+      "ckpt_oracle_gated_k2_production_400000.zip": "80f01204f086a2484be80001728bd96a3a65beddb90e26d02e6d0015c8fe056d",
+      "ckpt_oracle_gated_k2_production_500000.zip": "5e14d908a24887fcba04de7fc4b1cb584cb6a96e0982a43135181d44c25decf2",
+      "ckpt_oracle_gated_k2_production_600000.zip": "2f61ab5ecb8dcc32ce1e45fedb7f9b66caa04b7e03791ef19c3f363b85ea223d",
+      "ckpt_oracle_gated_k2_production_700000.zip": "2665855d13eae8e7f9993cd111a7a0dbb233a95efc21c55d1b94ce1b26b7bd81",
+      "ckpt_oracle_gated_k2_production_800000.zip": "cf16b5313d21e13bb9848ecd9b07673ada28db2bd22a4e3c3be2a940336263c1",
+      "ckpt_oracle_gated_k2_production_900000.zip": "9101eec21885098933936646eeb731a662bd59246e6f6c8cce4ea609ad81fd7c"
+    }
+  },
+  "CONFIG_AND_SEED": {
+    "seed": 10900001,
+    "latent_k": 2,
+    "mode": "FIXED_OPPONENT",
+    "opponent_randomize": false,
+    "latent_assignment_mode": "static_env",
+    "forced_latent_env_ids": "16x z0 + 16x z1",
+    "exp2_teacher_compression_enabled": false,
+    "why_that_last_field_matters": "EXP2C's ungated teacher compression was inherited by default and would have applied strategic pressure to the 681 tied states, inverting the treatment. It was explicitly disabled; the terminal checkpoint's own stored cfg confirms False.",
+    "fresh_step_0": true,
+    "checkpoint_weights_loaded": false,
+    "optimizer_state_reused": false
+  },
+  "PROVENANCE_COMMITS": {
+    "runner_and_wiring": "dedc6adf",
+    "rollout_assignment_smoke_PASS": "26eafaef",
+    "rehearsal_smoke_PASS": "11e54ba7",
+    "regression_cases": "d13f8dec",
+    "treatment_spec_frozen": "fc3a7b61",
+    "persistent_z_to_pole_amendment": "c54dcb4c",
+    "rasr_provenance_baseline": "417d354a",
+    "head_at_freeze": "dedc6adfcf095abb5cbd52a5780ce0d33811870c"
+  },
+  "FULL_RUN_AUDITOR_SUMMARY": {
+    "episodes_observed": 4243,
+    "pole_violations": 0,
+    "unknown_opponents": {},
+    "envs_observed": 32,
+    "min_resets_per_env": 129,
+    "total_mismatches": 0,
+    "auditors_were_fail_closed": true,
+    "reading": "Every treatment invariant held for the entire run: 4,243 audited episode closes with zero pole-assignment drift, zero unknown opponents, all 32 environments observed with a minimum of 129 resets each, zero mismatches."
+  },
+  "REHEARSAL": {
+    "updates": 1263,
+    "lambda": 0.1,
+    "cadence": 4,
+    "batch_size": 64,
+    "bank_eligible": 428,
+    "bank_A_preferred": 225,
+    "bank_B_preferred": 203,
+    "tied_excluded": 681,
+    "tied_exposures": 0,
+    "latent_exposures": {
+      "z0": 42682,
+      "z1": 38150
+    },
+    "replay_factor": 188.86,
+    "REPLAY_FACTOR_IS_THE_PRIMARY_VALIDITY_THREAT": "188.86x. The 428-state bank was replayed ~189 times over the run. This was flagged as the primary threat when the treatment was frozen, before any result existed, and it is now a measured quantity. Held-out EVAL is the only instrument that distinguishes generalisation from memorisation of that bank.",
+    "zero_tied_pressure_held_for_the_entire_run": true
+  },
+  "BUDGET_CAVEAT": "This treatment ran 1,000,000 requested steps (1,003,520 terminal). EXP2C -- the closest available control, being the same architecture and poles WITHOUT oracle-gated rehearsal -- ran 2,002,944 steps. Any comparison between them carries a roughly 2x budget difference and cannot attribute an outcome difference to oracle gating alone. Recorded before EVAL was opened.",
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "No model selection, no tuning, and no checkpoint choice will occur using EVAL. The terminal checkpoint above is the only artifact that will be scored, and it was fixed before EVAL was read.",
+    "prohibited_after_seeing_EVAL": [
+      "choosing a different checkpoint",
+      "adjusting the treatment and re-running",
+      "changing the evaluation metric, statistic, or criterion",
+      "adding seeds to the EVAL block",
+      "re-scoring with a different estimator"
+    ],
+    "if_the_result_is_negative": "It is recorded as a negative result. A treatment that was verified end to end and still failed to transfer is a finding, not a bug to repair."
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "10700129..10700160",
+    "touched": false,
+    "verified": "no EVAL seed appears in any training artifact"
+  }
+}
