@@ -320,5 +320,30 @@
       "kappa": "UNSET -- requires a model, selected on CALIB by the AMENDMENT_3 procedure"
     },
     "prospective_status": "Frozen 2026-08-29 before any K=2 implementation existed. No probe, no predictions, no EVAL access at the time of this decision."
+  },
+  "AMENDMENT_5_UNCERTAINTY_REPORTED_NOT_GATED": {
+    "record": "AMENDMENT 5 -- seed-clustered uncertainty is MANDATORY TO REPORT and MUST NOT gate.",
+    "utc": "2026-08-29T11:48:35Z",
+    "authority": "PI ruling, 2026-08-29",
+    "resolves": "the open question raised in AMENDMENT_4 about gate_1's statistical form",
+    "ruling": {
+      "gate_1_PASS_FAIL": "accuracy >= 0.70, POINT ESTIMATE. Unchanged.",
+      "mandatory_reporting": "EVAL must report the seed-clustered 95% interval and lower bound ALONGSIDE the point estimate. Reporting is required; gating on it is prohibited."
+    },
+    "why_not_gate_on_the_lower_bound": {
+      "it_is_not_a_stylistic_change": "Requiring lcb95 >= 0.70 would not merely add uncertainty reporting, it would substantially raise the effective bar. At the expected ~72 committed resolvable EVAL examples, the first count whose Wilson lcb95 clears 0.70 is 59/72 -- an observed accuracy of 0.819. Seed clustering would make it stricter still.",
+      "verified_not_assumed": "Computed directly: 58/72 gives lcb95 0.6997, 59/72 gives 0.7152.",
+      "the_two_claims_differ": {
+        "frozen": "the model must achieve at least 70% accuracy",
+        "would_have_become": "we must be 95% confident the underlying accuracy exceeds 70%"
+      },
+      "conclusion": "Both are defensible, but they answer different questions. tau = 0.70 was frozen as a POINT-ESTIMATE success criterion before implementation, and it will not be quietly transformed into the stronger claim for stylistic consistency with older gates."
+    },
+    "what_the_paper_reports": "Gate 1 passed at <point> accuracy, seed-clustered 95% interval [lo, hi]. This preserves the preregistered gate while exposing whether the estimate is fragile.",
+    "prohibited": [
+      "Gating on the lower bound instead of the point estimate.",
+      "Omitting the clustered interval from the EVAL report.",
+      "Deciding after seeing EVAL which of the two to emphasise."
+    ]
   }
 }
