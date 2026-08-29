@@ -1,0 +1,59 @@
+{
+  "record_id": "STATE_LEVEL_RESOLVABILITY_REPRESENTATION_AUDIT",
+  "status": "FROZEN -- SPEC_FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-08-29T12:17:03Z",
+  "authority": "PI ruling, 2026-08-29",
+  "kind": "DIAGNOSTIC. Not PPO. Not a gate. No kappa selection.",
+  "THE_ONE_QUESTION": "Is the missing state-level resolvability signal PRESENT in the raw observation but LOST by the frozen Q_psi representation?",
+  "why_now": "Per-cell oracle feasibility gave o*_min = 0.3455 against a 0.10 ceiling, so threshold machinery is exhausted. The AUC decomposition showed global 0.7041 but pair-weighted within-cell 0.5449 -- the head learned which REGIMES tend to be resolvable, not which STATES are. That deficit is representational, and this audit asks whether the representation or the observation is the limit.",
+  "PRIMARY_METRIC": "pair-weighted WITHIN-cell AUC on CALIB (global AUC reported as secondary)",
+  "why_within_cell": "Global AUC is inflated by between-cell base rates, which per-cell thresholds cannot exploit. Within-cell AUC is the quantity that actually determines whether abstention is achievable.",
+  "ARMS": {
+    "arm_1_cell_only_baseline": {
+      "input": "cell identity alone (pole x regime x horizon)",
+      "purpose": "measures what the 0.7041 gets FOR FREE from regime identity",
+      "expected_within_cell_auc": "0.5 by construction -- the score is constant inside a cell"
+    },
+    "arm_2_frozen_qpsi": {
+      "input": "Q_psi.encode(grid, vec, agent_mask, pole) -> h(256), FROZEN",
+      "source": "probe 2, already measured",
+      "reference_values": {
+        "global_auc": 0.7041,
+        "pair_weighted_within_cell_auc": 0.5449
+      }
+    },
+    "arm_3_dedicated_small_encoder": {
+      "input": "IDENTICAL raw inputs to arm 2 -- grid, vec, agent_mask, pole",
+      "why_identical": "Arms 2 and 3 must differ ONLY in representation. Giving arm 3 extra inputs would confound representation with information.",
+      "architecture": "small conv + MLP, deliberately far below the 311k Q_psi scale",
+      "trained_on": "resolvable vs preference-not-established, ALL FIT states"
+    }
+  },
+  "ARM_4_FULL_STATE_ORACLE_IS_INFEASIBLE": {
+    "status": "CANNOT RUN on existing data. Recorded rather than silently dropped.",
+    "reason": "The PI conditioned this arm on the collector having stored simulator information beyond the policy observation. It did not. Shards contain only branch_obs_grid, branch_obs_vec, branch_obs_agent_mask and branch_obs_mask -- all policy-visible. No core/privileged state was ever written.",
+    "what_it_would_cost": "a fresh collection with new environment steps, out of scope for a no-new-seeds diagnostic",
+    "consequence": "The partial-observability fork CANNOT be separated from the target-difficulty fork by this audit. If arm 3 also lands near 0.55, the honest conclusion is 'either the observation is insufficient OR resolvability is genuinely hard', and those two remain entangled until a privileged-state collection exists."
+  },
+  "PREREGISTERED_FORKS": {
+    "arm_3_much_greater_than_0.545": "The Q_psi representation was the bottleneck. A dedicated resolvability representation is justified.",
+    "arm_3_near_0.50_to_0.55": "Making Q_psi bigger or unfreezing it is unlikely to help. Evidence points to observation sufficiency or the target itself -- and per ARM_4, those stay entangled.",
+    "either_way": "No kappa selection. No threshold machinery. No constraint changes."
+  },
+  "UNCHANGED_AND_UNTOUCHED": {
+    "tau": 0.7,
+    "rho": 0.5,
+    "o_max": 0.1,
+    "direction_head": "frozen; no tie state ever exerts A or B pressure",
+    "EVAL": "NOT TOUCHED",
+    "new_seeds": "NONE",
+    "PPO": "NOT AUTHORIZED"
+  },
+  "PROBE_2_PRESERVED_AS": "EXPLICIT RESOLVABILITY SUPERVISION IMPROVES GLOBAL PREDICTION BUT NOT SUFFICIENT STATE-LEVEL SEPARATION",
+  "PROHIBITED": [
+    "selecting kappa from any arm of this audit",
+    "relaxing tau, rho or o_max",
+    "giving arm 3 inputs arm 2 did not have",
+    "touching EVAL"
+  ]
+}
