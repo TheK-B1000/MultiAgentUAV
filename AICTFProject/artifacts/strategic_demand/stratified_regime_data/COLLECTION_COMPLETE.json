@@ -1,0 +1,98 @@
+{
+  "verdict": "COLLECTION_COMPLETE",
+  "utc": "2026-08-29T07:28:04Z",
+  "seed_block": [
+    10700001,
+    10700160,
+    160
+  ],
+  "completed_seeds": 160,
+  "splits": {
+    "FIT": [
+      10700001,
+      10700096,
+      96
+    ],
+    "CALIB": [
+      10700097,
+      10700128,
+      32
+    ],
+    "EVAL": [
+      10700129,
+      10700160,
+      32
+    ]
+  },
+  "semantics": "fresh rebuild per teacher per branch",
+  "amendment_2": true,
+  "eligibility": "all four (policy, pole) trajectories",
+  "realized_source_composition_per_cell": {
+    "B_r3_not_late": {
+      "pi_A": 25,
+      "pi_B": 35
+    },
+    "B_r2_not_late": {
+      "pi_A": 39,
+      "pi_B": 27
+    },
+    "B_r2_late": {
+      "pi_A": 41,
+      "pi_B": 18
+    },
+    "B_r3_late": {
+      "pi_A": 32,
+      "pi_B": 54
+    },
+    "A_r2_late": {
+      "pi_A": 46,
+      "pi_B": 30
+    },
+    "A_r1_late": {
+      "pi_A": 75,
+      "pi_B": 42
+    },
+    "A_r2_not_late": {
+      "pi_A": 65,
+      "pi_B": 67
+    },
+    "A_r0_late": {
+      "pi_A": 77,
+      "pi_B": 45
+    },
+    "A_r3_not_late": {
+      "pi_A": 77,
+      "pi_B": 77
+    },
+    "B_r1_late": {
+      "pi_A": 74,
+      "pi_B": 74
+    },
+    "B_r1_not_late": {
+      "pi_A": 79,
+      "pi_B": 79
+    },
+    "B_r0_late": {
+      "pi_A": 80,
+      "pi_B": 79
+    },
+    "A_r0_not_late": {
+      "pi_A": 79,
+      "pi_B": 80
+    },
+    "A_r1_not_late": {
+      "pi_A": 70,
+      "pi_B": 70
+    },
+    "A_r3_late": {
+      "pi_A": 58,
+      "pi_B": 58
+    },
+    "B_r0_not_late": {
+      "pi_A": 42,
+      "pi_B": 42
+    }
+  },
+  "support_floor_check": "NOT PERFORMED HERE -- a separate one-shot audit scores the 32-distinct-seed floor over all 16 cells",
+  "final_106_seeds_touched": false
+}

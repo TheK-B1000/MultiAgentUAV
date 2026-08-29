@@ -1,0 +1,99 @@
+{
+  "episodes": [
+    {
+      "seed": 10700135,
+      "split": "EVAL",
+      "policy": "pi_A",
+      "pole": "A",
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1,
+      "steps": 240,
+      "decision_records": 180
+    },
+    {
+      "seed": 10700135,
+      "split": "EVAL",
+      "policy": "pi_A",
+      "pole": "B",
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0,
+      "steps": 240,
+      "decision_records": 230
+    },
+    {
+      "seed": 10700135,
+      "split": "EVAL",
+      "policy": "pi_B",
+      "pole": "A",
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0,
+      "steps": 240,
+      "decision_records": 225
+    },
+    {
+      "seed": 10700135,
+      "split": "EVAL",
+      "policy": "pi_B",
+      "pole": "B",
+      "blue": 0,
+      "red": 2,
+      "win": 0,
+      "margin": -2,
+      "steps": 240,
+      "decision_records": 182
+    }
+  ],
+  "branch_cells": [
+    "A_r2_not_late",
+    "A_r0_not_late",
+    "A_r3_not_late",
+    "A_r0_late",
+    "A_r2_late",
+    "B_r2_not_late",
+    "B_r3_not_late",
+    "B_r1_not_late",
+    "B_r2_late",
+    "B_r3_late",
+    "B_r0_late",
+    "B_r1_late"
+  ],
+  "branch_source_policies": [
+    "pi_B",
+    "pi_A",
+    "pi_B",
+    "pi_A",
+    "pi_A",
+    "pi_B",
+    "pi_B",
+    "pi_A",
+    "pi_B",
+    "pi_B",
+    "pi_B",
+    "pi_A"
+  ],
+  "visited_cell_counts": {
+    "A_r0_late": 78,
+    "A_r0_not_late": 51,
+    "A_r1_not_late": 1,
+    "A_r2_late": 2,
+    "A_r2_not_late": 1,
+    "A_r3_late": 120,
+    "A_r3_not_late": 152,
+    "B_r0_late": 182,
+    "B_r0_not_late": 190,
+    "B_r1_late": 3,
+    "B_r1_not_late": 5,
+    "B_r2_late": 9,
+    "B_r2_not_late": 16,
+    "B_r3_late": 6,
+    "B_r3_not_late": 1
+  },
+  "split": "EVAL",
+  "amendment_2": true
+}

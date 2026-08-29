@@ -1,0 +1,298 @@
+{
+  "record": "Abstention calibration -- STAGE 1 EVIDENCE (measurement only)",
+  "status": "FROZEN_EVIDENCE",
+  "utc": "2026-08-29T07:28:49Z",
+  "stage": "1 of 2. This program measures; a separate preregistered program decides.",
+  "what_this_file_does_not_contain": "tau, rho and o_max. No value, no default, no fallback. Selecting them here would let the measurement drift toward agreeable thresholds.",
+  "split": {
+    "name": "CALIB",
+    "seeds": [
+      10700097,
+      10700128,
+      32
+    ],
+    "FIT_used": false,
+    "EVAL_used": false,
+    "FINAL_touched": false
+  },
+  "quantity": "Delta(s) = M(pi_B|s) - M(pi_A|s), terminal win margin",
+  "determinism": "Branch continuations are deterministic from an exactly restored state, so Delta is exact and a tie is a real tie, not a noisy draw. No significance test is applied to an exact equality.",
+  "label_semantics": {
+    "b_preferred": "Delta > 0",
+    "a_preferred": "Delta < 0",
+    "not_established": "Delta == 0 -- preference NOT established. A measurement limit of a coarse target, never a claim that A and B are equivalent."
+  },
+  "bootstrap": {
+    "unit": "seed (clustered)",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "why": "Branch states within a seed are not independent; resampling them individually would understate uncertainty by about the per-seed cluster size."
+  },
+  "minimum_calib_seeds_per_cell": 5,
+  "cells": {
+    "A_r0_not_late": {
+      "n_branch_states": 32,
+      "n_seeds": 32,
+      "labels": {
+        "b_preferred": 8,
+        "a_preferred": 18,
+        "not_established": 6
+      },
+      "resolvable_mass": {
+        "mean": 0.8131734375,
+        "lcb95": 0.65625,
+        "ucb95": 0.9375
+      },
+      "tie_rate_point": 0.1875,
+      "degenerate_bootstrap": false
+    },
+    "A_r0_late": {
+      "n_branch_states": 23,
+      "n_seeds": 23,
+      "labels": {
+        "b_preferred": 1,
+        "a_preferred": 6,
+        "not_established": 16
+      },
+      "resolvable_mass": {
+        "mean": 0.30425,
+        "lcb95": 0.13043478260869565,
+        "ucb95": 0.5217391304347826
+      },
+      "tie_rate_point": 0.6956521739130435,
+      "degenerate_bootstrap": false
+    },
+    "A_r1_not_late": {
+      "n_branch_states": 28,
+      "n_seeds": 28,
+      "labels": {
+        "b_preferred": 3,
+        "a_preferred": 13,
+        "not_established": 12
+      },
+      "resolvable_mass": {
+        "mean": 0.5715964285714287,
+        "lcb95": 0.39285714285714285,
+        "ucb95": 0.75
+      },
+      "tie_rate_point": 0.42857142857142855,
+      "degenerate_bootstrap": false
+    },
+    "A_r1_late": {
+      "n_branch_states": 21,
+      "n_seeds": 21,
+      "labels": {
+        "b_preferred": 0,
+        "a_preferred": 4,
+        "not_established": 17
+      },
+      "resolvable_mass": {
+        "mean": 0.19102380952380948,
+        "lcb95": 0.047619047619047616,
+        "ucb95": 0.38095238095238093
+      },
+      "tie_rate_point": 0.8095238095238095,
+      "degenerate_bootstrap": false
+    },
+    "A_r2_not_late": {
+      "n_branch_states": 28,
+      "n_seeds": 28,
+      "labels": {
+        "b_preferred": 3,
+        "a_preferred": 13,
+        "not_established": 12
+      },
+      "resolvable_mass": {
+        "mean": 0.5725857142857144,
+        "lcb95": 0.39285714285714285,
+        "ucb95": 0.75
+      },
+      "tie_rate_point": 0.42857142857142855,
+      "degenerate_bootstrap": false
+    },
+    "A_r2_late": {
+      "n_branch_states": 13,
+      "n_seeds": 13,
+      "labels": {
+        "b_preferred": 3,
+        "a_preferred": 5,
+        "not_established": 5
+      },
+      "resolvable_mass": {
+        "mean": 0.6157884615384616,
+        "lcb95": 0.38461538461538464,
+        "ucb95": 0.8461538461538461
+      },
+      "tie_rate_point": 0.38461538461538464,
+      "degenerate_bootstrap": false
+    },
+    "A_r3_not_late": {
+      "n_branch_states": 30,
+      "n_seeds": 30,
+      "labels": {
+        "b_preferred": 2,
+        "a_preferred": 16,
+        "not_established": 12
+      },
+      "resolvable_mass": {
+        "mean": 0.5985633333333332,
+        "lcb95": 0.43333333333333335,
+        "ucb95": 0.7666666666666667
+      },
+      "tie_rate_point": 0.4,
+      "degenerate_bootstrap": false
+    },
+    "A_r3_late": {
+      "n_branch_states": 24,
+      "n_seeds": 24,
+      "labels": {
+        "b_preferred": 0,
+        "a_preferred": 3,
+        "not_established": 21
+      },
+      "resolvable_mass": {
+        "mean": 0.12467291666666665,
+        "lcb95": 0.0,
+        "ucb95": 0.25
+      },
+      "tie_rate_point": 0.875,
+      "degenerate_bootstrap": false
+    },
+    "B_r0_not_late": {
+      "n_branch_states": 20,
+      "n_seeds": 20,
+      "labels": {
+        "b_preferred": 7,
+        "a_preferred": 4,
+        "not_established": 9
+      },
+      "resolvable_mass": {
+        "mean": 0.5493875,
+        "lcb95": 0.35,
+        "ucb95": 0.75
+      },
+      "tie_rate_point": 0.45,
+      "degenerate_bootstrap": false
+    },
+    "B_r0_late": {
+      "n_branch_states": 32,
+      "n_seeds": 32,
+      "labels": {
+        "b_preferred": 7,
+        "a_preferred": 2,
+        "not_established": 23
+      },
+      "resolvable_mass": {
+        "mean": 0.2809328125,
+        "lcb95": 0.125,
+        "ucb95": 0.4375
+      },
+      "tie_rate_point": 0.71875,
+      "degenerate_bootstrap": false
+    },
+    "B_r1_not_late": {
+      "n_branch_states": 32,
+      "n_seeds": 32,
+      "labels": {
+        "b_preferred": 6,
+        "a_preferred": 5,
+        "not_established": 21
+      },
+      "resolvable_mass": {
+        "mean": 0.345096875,
+        "lcb95": 0.1875,
+        "ucb95": 0.5
+      },
+      "tie_rate_point": 0.65625,
+      "degenerate_bootstrap": false
+    },
+    "B_r1_late": {
+      "n_branch_states": 31,
+      "n_seeds": 31,
+      "labels": {
+        "b_preferred": 4,
+        "a_preferred": 1,
+        "not_established": 26
+      },
+      "resolvable_mass": {
+        "mean": 0.1602064516129032,
+        "lcb95": 0.03225806451612903,
+        "ucb95": 0.2903225806451613
+      },
+      "tie_rate_point": 0.8387096774193549,
+      "degenerate_bootstrap": false
+    },
+    "B_r2_not_late": {
+      "n_branch_states": 11,
+      "n_seeds": 11,
+      "labels": {
+        "b_preferred": 2,
+        "a_preferred": 2,
+        "not_established": 7
+      },
+      "resolvable_mass": {
+        "mean": 0.3631499999999999,
+        "lcb95": 0.09090909090909091,
+        "ucb95": 0.6363636363636364
+      },
+      "tie_rate_point": 0.6363636363636364,
+      "degenerate_bootstrap": false
+    },
+    "B_r2_late": {
+      "n_branch_states": 11,
+      "n_seeds": 11,
+      "labels": {
+        "b_preferred": 2,
+        "a_preferred": 2,
+        "not_established": 7
+      },
+      "resolvable_mass": {
+        "mean": 0.3641999999999999,
+        "lcb95": 0.09090909090909091,
+        "ucb95": 0.6363636363636364
+      },
+      "tie_rate_point": 0.6363636363636364,
+      "degenerate_bootstrap": false
+    },
+    "B_r3_not_late": {
+      "n_branch_states": 14,
+      "n_seeds": 14,
+      "labels": {
+        "b_preferred": 2,
+        "a_preferred": 1,
+        "not_established": 11
+      },
+      "resolvable_mass": {
+        "mean": 0.215025,
+        "lcb95": 0.0,
+        "ucb95": 0.42857142857142855
+      },
+      "tie_rate_point": 0.7857142857142857,
+      "degenerate_bootstrap": false
+    },
+    "B_r3_late": {
+      "n_branch_states": 15,
+      "n_seeds": 15,
+      "labels": {
+        "b_preferred": 0,
+        "a_preferred": 0,
+        "not_established": 15
+      },
+      "resolvable_mass": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      },
+      "tie_rate_point": 1.0,
+      "degenerate_bootstrap": true,
+      "degenerate_reason": "every CALIB seed in this cell gave the same resolvable fraction, so the seed-clustered bootstrap collapses to a point; the interval is an artifact of the estimator, not evidence of precision",
+      "rule_of_three_ucb95": 0.2,
+      "rule_of_three_note": "zero resolvable states across n seeds bounds the rate at roughly 3/n with 95% confidence; this is NOT insufficient support, it is a measurement that resolvable mass may be very low"
+    }
+  },
+  "cells_with_no_branch_states": [],
+  "cells_below_minimum": [],
+  "VERDICT": "EVIDENCE_COMPLETE",
+  "consequence": "All 16 cells meet the frozen minimum. The separate threshold-selection step may consume this evidence."
+}
