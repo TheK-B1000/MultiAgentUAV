@@ -1,0 +1,127 @@
+{
+  "record_id": "ORACLE_GATED_SELECTIVE_K2_REHEARSAL",
+  "status": "FROZEN -- SPEC_FROZEN_BEFORE_IMPLEMENTATION",
+  "experiment_class": "ORACLE_GATED_REHEARSAL",
+  "utc": "2026-08-29T12:32:20Z",
+  "authority": "PI ruling, 2026-08-29",
+  "frozen_before": "any implementation, any training step, any EVAL access",
+  "THE_QUESTION": "Can exact selective strategic supervision during training preserve complementary latent roles, even though the policy itself cannot predict online which states are resolvable?",
+  "why_this_replaces_the_online_route": "Online state-level resolvability is NOT CONFIRMED and both routes to it are closed: per-cell thresholds bottom out at o*_min = 0.3455 against a 0.10 ceiling even with oracle labels, and a zero-parameter cell lookup (global AUC 0.7194) beats both the frozen Q_psi head (0.7109) and a dedicated encoder (0.6780). But the 160-seed collection already contains EXACT deterministic labels for the FIT states, so the policy never needs to predict resolvability -- it only needs to be supervised where the payoff evidence establishes a preference.",
+  "SIGN_CONVENTION_CORRECTION": {
+    "issue": "The PI ruling as written stated 'Delta > 0 => A-preferred, Delta < 0 => B-preferred'. That is inverted relative to the convention frozen everywhere else.",
+    "the_frozen_convention": "Delta(s) = M(pi_B|s) - M(pi_A|s), so Delta > 0 means pi_B achieved the HIGHER margin => B-preferred.",
+    "it_is_arithmetic_not_choice": "Given the definition of Delta, the mapping is forced.",
+    "consistent_across": [
+      "ABSTAINING_SUPERVISION_PROTOCOL_DESIGN.json THREE_CLASS_SUPERVISION.label_rule",
+      "CALIBRATION_EVIDENCE.json label_semantics",
+      "fit_k2_preference_probe.py load_split (label 1 = B preferred when d > 0)",
+      "calibrate_abstention_evidence.py"
+    ],
+    "what_implementing_the_stated_signs_would_have_done": "Anchored z_0 toward pi_A precisely on states where pi_B is measurably better, and z_1 toward pi_B where pi_A is better. The experiment would have tested the exact inverse of the intended treatment while still producing some latent differentiation -- so it would not have failed visibly, it would have silently answered the opposite question.",
+    "resolution": "The PI's substantive intent (A-preferred anchors z_0 toward pi_A) is frozen with the correct sign mapping.",
+    "caught": "before implementation, during spec freeze"
+  },
+  "TREATMENT": {
+    "label_rule_frozen": {
+      "quantity": "Delta(s) = M(pi_B|s) - M(pi_A|s), deterministic terminal win margin",
+      "A_preferred": "Delta < 0  ->  anchor z_0 toward pi_A; leave z_1 UNTOUCHED",
+      "B_preferred": "Delta > 0  ->  anchor z_1 toward pi_B; leave z_0 UNTOUCHED",
+      "preference_not_established": "Delta == 0  ->  ZERO strategic pressure on either latent"
+    },
+    "why_leave_the_other_latent_untouched": "Explicitly pushing the non-preferred latent away would manufacture divergence. The experiment asks whether selective supervision PRESERVES complementary roles, not whether we can force them apart.",
+    "ties_never_say_become_A_or_become_B": "The core principle of the whole abstention arc survives intact: a tied state exerts no A/B pressure whatsoever.",
+    "base_architecture": "EXP2C-style shared K=2 with private heads -- the best-understood pieces already debugged",
+    "held_fixed": [
+      "persistent z",
+      "FIXED_OPPONENT (and randomize_scripted_opponent False)",
+      "SAPPO pi_A and pi_B teachers frozen, sha-pinned",
+      "normal PPO reward unchanged",
+      "the existing validated teacher-anchor machinery"
+    ],
+    "the_single_new_delta": "teacher rehearsal is selectively gated by the exact FIT branch labels"
+  },
+  "REHEARSAL_BANK": {
+    "source": "FIT split only, 10700001..10700096",
+    "eligible_states": 428,
+    "composition": {
+      "A_preferred": 225,
+      "B_preferred": 203,
+      "tied_excluded": 681
+    },
+    "balance": "52.6% / 47.4% of resolvable -- neither latent is starved",
+    "by_pole": {
+      "pole_A": "181 A-preferred, 86 B-preferred, 347 tied",
+      "pole_B": "44 A-preferred, 117 B-preferred, 334 tied"
+    },
+    "independent_confirmation_of_complementarity": "Each teacher is preferred on its own pole -- pi_A 181 to 86 on pole A, pi_B 117 to 44 on pole B. This reproduces EXP1's complementarity from data collected for an entirely different purpose, and it means the gate tracks real specialisation rather than an arbitrary partition.",
+    "NO_MARGIN_FILTER": {
+      "ruling": "All 428 resolvable states are used. No |Delta| >= 2 filter, no margin weighting.",
+      "why": "Under the frozen target, deterministic Delta != 0 MEANS a preference is established. A one-point margin is thin but not noisy under a deterministic branch procedure. Filtering would invent a scientific rule the label definition never had.",
+      "and_it_would_worsen_the_main_threat": "428 -> 101 states is a 4x smaller bank and therefore far heavier repeated exposure over a 1M-step run. That trades thin-but-legitimate signal for stronger-looking signal at dramatically higher memorisation risk.",
+      "disclosed_limitation": "327 of 428 resolvable states (76.4%) have |Delta| = 1. That is a limitation of the terminal-margin target, recorded rather than hidden by pruning.",
+      "permitted_later": "|Delta| >= 2 may serve as a SECONDARY sensitivity analysis if the primary experiment works. It may never replace the primary treatment."
+    }
+  },
+  "REHEARSAL_MECHANICS_FROZEN": {
+    "sampling": "uniform over the eligible 428-state bank",
+    "cadence_and_strength": "unchanged from the existing validated SAPPO-style rehearsal",
+    "logging_required": [
+      "exposure count per state",
+      "exposure count per latent"
+    ],
+    "PROHIBITED": [
+      "adaptive or curriculum sampling",
+      "hard-example mining",
+      "changing sampling in response to training performance",
+      "margin weighting",
+      "re-balancing A against B"
+    ],
+    "why_so_conservative": "to keep the experiment focused on the ONE new delta: exact payoff-gated supervision."
+  },
+  "PRIMARY_VALIDITY_THREAT": {
+    "threat": "428 fixed states replayed across a 1M-step run may be MEMORISED rather than generalised from.",
+    "it_displaces_the_earlier_concern": "Latent starvation is NOT the risk -- FIT is 52.6/47.4 balanced.",
+    "detection": "held-out EVAL is the only instrument that distinguishes memorisation from generalisation",
+    "required_reporting": "per-state and per-latent exposure counts, so replay intensity is a measured quantity rather than an assumption"
+  },
+  "GATES": {
+    "experiment_class": "ORACLE_GATED_REHEARSAL",
+    "tau": {
+      "value": 0.7,
+      "applies": true,
+      "meaning": "EVAL direction accuracy on resolvable states"
+    },
+    "rho": {
+      "applies": false,
+      "reason": "NOT APPLICABLE BY DESIGN -- no test-time abstention mechanism exists"
+    },
+    "o_max": {
+      "applies": false,
+      "reason": "NOT APPLICABLE BY DESIGN -- same"
+    },
+    "kappa": {
+      "applies": false,
+      "reason": "NOT APPLICABLE BY DESIGN -- oracle labels gate training, nothing thresholds at test time"
+    },
+    "the_real_gold_standard": "Strategic payoff and crossover -- whether the complementary roles actually survived -- judged with the frozen confidence machinery. No threshold in this spec decides that."
+  },
+  "SEQUENCE": [
+    "implement oracle-gated rehearsal",
+    "live treatment smoke must return PASS -- both latents exercised, z->pole persistent across resets, resolved states generate pressure, TIED states generate exactly zero, trainable parameters move, frozen parameters bit-identical",
+    "only then may a PPO launch be considered, as a separate PI decision",
+    "EVAL is scored once, last, after training completes"
+  ],
+  "SCOPE": {
+    "new_seeds": "NONE",
+    "EVAL": "NOT TOUCHED",
+    "PPO_launch": "NOT AUTHORIZED by this spec"
+  },
+  "PROHIBITED": [
+    "using CALIB or EVAL labels to gate training supervision -- FIT only",
+    "any margin filter or weighting in the primary treatment",
+    "adaptive sampling of the rehearsal bank",
+    "pushing the non-preferred latent away on a resolved state",
+    "any A/B pressure on a tied state",
+    "launching PPO before the live smoke returns PASS"
+  ]
+}
