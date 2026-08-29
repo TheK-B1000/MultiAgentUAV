@@ -2034,9 +2034,10 @@
     },
     "3_overlay_must_be_verified_by_PROVENANCE_not_by_effect": {
       "found": "OP7's BASE behaviour-tree profile already carries min_alive_for_defender=2 -- the exact value the Pole-A overlay sets.",
-      "why_it_is_severe": "An effect-based assertion would have reported 'Pole A overlay? yes. Pole B overlay? also yes.' and passed, while proving nothing about whether the overlay was installed anywhere. A confident false PASS.",
+      "why_it_is_severe": "The field the overlay SETS is already present in the other pole's base profile, so the observable effect carries no information about installation. Only genome_id and requested_overlay record what was installed.",
       "fix": "presence is read from genome_id and requested_overlay, which are provenance fields recording what was INSTALLED, not what the resolved profile happens to contain",
-      "regression_test": "a check that passes when genome_id is None but the resolved value coincidentally matches must be treated as broken"
+      "regression_test": "a check that passes when genome_id is None but the resolved value coincidentally matches must be treated as broken",
+      "CORRECTION": "An earlier draft of this record claimed an effect-based check would produce a confident false PASS. That overstated it and a mutation check disproved it. Measured from the real captured evidence: OP6-with-overlay and OP7-base BOTH read min_alive_for_defender = 2. So an effect-based check cannot separate the poles in EITHER direction. On the correct configuration it flags all 16 OP7 envs -- a false FAIL that would send someone debugging a non-existent problem. A one-sided variant asserting only 'OP6 has the value' would pass with no overlay installed anywhere -- a false PASS. Which error you get depends on how the check is written; that it is wrong does not."
     }
   },
   "BOTH_TREATMENT_HALVES_VERIFIED": {

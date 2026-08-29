@@ -57,6 +57,42 @@ MIN_RESETS_PER_ENV = 2
 EXPECTED_ENVS = 32
 
 
+REQUIRED_ROW_FIELDS = ("env_index", "live_opponent_key", "genome_id", "requested_overlay")
+
+
+def overlay_evidence_check(opp_rows) -> tuple[int | None, list[str]]:
+    """Count overlay mismatches from PROVENANCE fields. Fails closed.
+
+    Presence is read from ``genome_id`` / ``requested_overlay`` -- what was
+    INSTALLED -- never from the resolved profile's values. OP7's base profile
+    already carries ``min_alive_for_defender=2``, the exact value the Pole-A overlay
+    sets, so an effect-based check would report the overlay present on both poles
+    and pass while proving nothing.
+
+    Returns (mismatches, failures). ``mismatches`` is None when the rows cannot
+    support the check, in which case the caller must not treat it as zero.
+    """
+    failures: list[str] = []
+    if not opp_rows:
+        return None, ["no overlay evidence rows were captured at all"]
+    missing = sorted({f for r in opp_rows for f in REQUIRED_ROW_FIELDS if f not in r})
+    if missing:
+        return None, [
+            f"overlay evidence rows are missing {missing}; the check cannot verify its "
+            "own precondition and will not assume the safe case"]
+
+    def _has_overlay(r) -> bool:
+        return bool(r.get("genome_id")) and bool(r.get("requested_overlay"))
+
+    n = sum(1 for r in opp_rows
+            if (str(r["live_opponent_key"]) == "OP6") != _has_overlay(r))
+    if n:
+        failures.append(
+            f"{n} environments have the Pole-A overlay attached to the wrong opponent; "
+            "OP6 must carry it and OP7 must not")
+    return n, failures
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -212,30 +248,8 @@ def main() -> int:
     else:
         if cells != EXPECTED_CELLS:
             failures.append(f"live cells are not 16/0/0/16: {cells}")
-        # Overlay presence is read from PROVENANCE fields, not from the resolved
-        # profile's values. OP7's base profile already carries
-        # min_alive_for_defender=2, so checking the overlay by its EFFECT would
-        # falsely pass Pole B. genome_id / requested_overlay are what distinguish
-        # "overlay applied" from "base happens to match".
-        REQUIRED_ROW_FIELDS = ("env_index", "live_opponent_key", "genome_id",
-                               "requested_overlay")
-        missing_fields = sorted(
-            {f for r in opp_rows for f in REQUIRED_ROW_FIELDS if f not in r})
-        if missing_fields:
-            failures.append(
-                f"overlay evidence rows are missing {missing_fields}; the check cannot "
-                "verify its own precondition and will not assume the safe case")
-            overlay_mismatches = None
-        else:
-            def _has_overlay(r) -> bool:
-                return bool(r.get("genome_id")) and bool(r.get("requested_overlay"))
-            overlay_mismatches = sum(
-                1 for r in opp_rows
-                if (str(r["live_opponent_key"]) == "OP6") != _has_overlay(r))
-        if overlay_mismatches:
-            failures.append(
-                f"{overlay_mismatches} environments have the Pole-A overlay attached to "
-                "the wrong opponent; OP6 must carry it and OP7 must not")
+        overlay_mismatches, overlay_failures = overlay_evidence_check(opp_rows)
+        failures.extend(overlay_failures)
 
     verdict = "PASS" if not failures else "FAIL"
     RECORD.write_text(json.dumps({
