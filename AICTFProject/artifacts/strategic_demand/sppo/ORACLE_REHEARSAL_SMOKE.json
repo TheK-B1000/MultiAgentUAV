@@ -1,0 +1,71 @@
+{
+  "record": "Oracle-gated rehearsal live smoke",
+  "status": "SMOKE_RESULT",
+  "utc": "2026-08-29T12:47:27Z",
+  "implements": "ORACLE_GATED_REHEARSAL_SPEC.json",
+  "VERDICT": "PASS",
+  "meaning": "Proves the treatment path exists: exact FIT labels -> gated batch -> anchor loss -> optimizer -> parameter update. Says NOTHING about whether learning works.",
+  "model": {
+    "fresh_initialisation": true,
+    "checkpoint_weights_loaded": false,
+    "seed": 4242,
+    "params": 3534144,
+    "latent_k": 2,
+    "architecture_source": "EXP2C checkpoint cfg (architecture only, weights discarded)"
+  },
+  "config_guards": {
+    "opponent_mode": "FIXED_OPPONENT, no per-episode resampling",
+    "fresh_training": "no load_path; run starts at step 0",
+    "opponent_randomize": false,
+    "note": "the archived EXP2C run had opponent_randomize=True; corrected here"
+  },
+  "rehearsal": {
+    "batches": 6,
+    "batch_size": 48,
+    "z0_pressure": 163,
+    "z1_pressure": 125,
+    "tied_exposures": 0,
+    "replay_factor": 0.67,
+    "bank": {
+      "states": 1109,
+      "eligible": 428,
+      "A_preferred": 225,
+      "B_preferred": 203,
+      "tied_excluded_from_sampling": 681,
+      "abs_delta_1": 327,
+      "abs_delta_1_frac": 0.764
+    }
+  },
+  "parameters": {
+    "changed": 15,
+    "unchanged": 14,
+    "changed_groups": [
+      "actor_cnn",
+      "latent_actor"
+    ],
+    "unchanged_groups": [
+      "critic",
+      "phase_predictor",
+      "strategy_encoder"
+    ],
+    "unchanged_equals_no_gradient_set": true,
+    "why_those_are_unchanged": "the anchor loss touches only the actor path; critic, phase_predictor and strategy_encoder receive no gradient from it, and strategy_encoder is the router which static_env assignment bypasses entirely"
+  },
+  "teacher_freezing": {
+    "teacher_network_loaded": false,
+    "why": "the rehearsal anchors against pre-recorded teacher ACTIONS stored in the SHA-verified collection, so no teacher network exists in this process and teachers cannot drift -- stronger than freezing them",
+    "teacher_action_provenance": "branch_pi_A_action / branch_pi_B_action, produced by the SHA-pinned SAPPO checkpoints during collection"
+  },
+  "loss_first_last": [
+    1.5863614082336426,
+    1.3321858644485474
+  ],
+  "failures": [],
+  "COVERAGE_LIMITS": {
+    "not_covered_here": "z -> pole persistence across environment resets",
+    "why": "That property lives in the rollout loop, not the rehearsal path. The runtime auditors are already wired at the per-episode close in rl/custom_ppo/latent/credit/episode/manager.py and activate during actual training, where they hard-fail on drift.",
+    "open_question_for_the_PI": "Under FIXED_OPPONENT every env faces ONE scripted opponent, so 'z -> pole' may not even be well-defined in the rollout the way it was for EXP2B, which used a two-tag pool. The pole distinction currently lives in the REHEARSAL data (branch_pole), not in the rollout. Whether the production run should assign z0 and z1 to different opponents is a scientific choice the frozen spec does not pin down."
+  },
+  "EVAL_touched": false,
+  "authorizes": "nothing; PPO launch remains a separate PI decision"
+}
