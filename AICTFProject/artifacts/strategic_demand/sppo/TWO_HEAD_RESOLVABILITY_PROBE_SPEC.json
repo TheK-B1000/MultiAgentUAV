@@ -1,0 +1,66 @@
+{
+  "record_id": "TWO_HEAD_RESOLVABILITY_PROBE",
+  "status": "FROZEN -- PROBE_2_SPEC_FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-08-29T11:59:34Z",
+  "authority": "PI ruling, 2026-08-29",
+  "frozen_before": "any line of probe-2 code was written, any CALIB prediction, any EVAL access",
+  "THE_QUESTION_THIS_ASKS": "Probe 1 established that we can predict strategic DIRECTION but cannot tell when that direction is MEANINGFUL. Probe 2 asks exactly one new question: if resolvability is supervised EXPLICITLY rather than hoped for as a by-product of direction confidence, does a kappa exist that satisfies the already-frozen coverage and over-commitment constraints?",
+  "SMALLEST_POSSIBLE_DELTA": {
+    "unchanged": [
+      "the frozen Q_psi trunk, same checkpoint, same sha256",
+      "the direction head -- REUSED BIT-IDENTICALLY from probe 1, not re-fitted",
+      "rho = 0.50, o_max = 0.10, tau = 0.70",
+      "the kappa selection procedure frozen in AMENDMENT_3",
+      "FIT / CALIB / EVAL split boundaries",
+      "no oversampling, no cell weighting, no class weighting"
+    ],
+    "the_only_change": "a second small head that predicts resolvability",
+    "why_reuse_rather_than_refit_the_direction_head": "Reusing probe 1's fitted weights bit-identically makes probe 2 exactly probe 1 PLUS a resolvability head. Any difference in outcome is then attributable to the single addition, with no confound from re-initialisation or optimiser noise. A hash check enforces it."
+  },
+  "ARCHITECTURE": {
+    "trunk": "Q_psi.encode(o, p) -> h(256), FROZEN, sha256 930051a7...",
+    "head_1_direction": {
+      "role": "A-preferred vs B-preferred",
+      "source": "probe 1 weights, loaded and verified, NOT trained in probe 2",
+      "trained_on": "resolvable FIT states only (Delta != 0)",
+      "tie_states_contribute": "ZERO direction pressure -- unchanged from probe 1"
+    },
+    "head_2_resolvability": {
+      "role": "P(a preference is establishable | s)",
+      "architecture": "Linear(256,8) ReLU Linear(8,1), ~2k trainable parameters",
+      "trained_on": "ALL FIT branch states",
+      "label": "1 if Delta != 0, 0 if Delta == 0",
+      "what_tie_states_now_say": "Tied states finally have a legitimate job. They do NOT say 'become strategy A' or 'become strategy B'. They say only 'there is not evidence here to establish either preference'. That is fully consistent with the semantics protected throughout this arc.",
+      "data_available": "1109 FIT states -- 428 resolvable, 681 tied. Far healthier than learning cell-specific direction from 6-10 examples."
+    }
+  },
+  "KAPPA_NOW_THRESHOLDS_THE_RIGHT_QUANTITY": {
+    "probe_1": "kappa thresholded P(my A/B guess is right) -- the wrong quantity, measured AUC 0.415",
+    "probe_2": "kappa thresholds P(preference is resolvable | s) -- the quantity abstention actually needs",
+    "decision_rule": [
+      "P(R|s) >= kappa  ->  commit to the direction head's A/B prediction",
+      "P(R|s) <  kappa  ->  preference not established"
+    ],
+    "selection": "unchanged AMENDMENT_3 procedure, on CALIB only"
+  },
+  "WHY_TWO_HEADS_AND_NOT_ONE_THREE_CLASS_HEAD": "A single {A, B, unresolved} classifier mixes two scientifically different questions: does a strategic preference exist, and if so which strategy is preferred. The two-head split keeps them separate, which maps exactly onto the finding probe 1 produced -- direction works, resolvability was never learned. It also preserves the causal comparison: probe 1 used direction confidence AS resolvability; probe 2 supervises resolvability explicitly; everything else is held fixed.",
+  "PREREGISTERED_OUTCOMES": {
+    "if_a_kappa_qualifies": "Selective abstention has a working mechanism on CALIB. Freeze kappa, write ABSTENTION_THRESHOLDS.json, then the live smoke may run. EVAL remains untouched until a separate ruling.",
+    "if_no_kappa_qualifies": "A MUCH STRONGER negative result than probe 1, because this time the model was explicitly trained to recognise resolvability and still could not support abstention at the frozen constraints. That would be evidence that resolvability is not predictable from the state under this target -- not merely that we asked the wrong output for it.",
+    "either_way": "No repair, no constraint relaxation, no architecture change after seeing the result."
+  },
+  "SCOPE": {
+    "new_seeds": "NONE",
+    "EVAL": "NOT TOUCHED",
+    "PPO": "NOT AUTHORIZED",
+    "latent_treatment": "NOT AUTHORIZED -- only considered if probe 2 succeeds on CALIB"
+  },
+  "PROHIBITED": [
+    "re-fitting or unfreezing the direction head",
+    "training the resolvability head on anything but FIT",
+    "class weighting or oversampling to balance 428 against 681",
+    "relaxing rho, o_max or tau",
+    "selecting kappa on any split other than CALIB",
+    "touching EVAL"
+  ]
+}

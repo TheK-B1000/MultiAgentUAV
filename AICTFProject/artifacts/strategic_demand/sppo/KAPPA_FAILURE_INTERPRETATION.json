@@ -34,5 +34,17 @@
     "selecting kappa on any split other than CALIB",
     "treating the 0.7241 direction accuracy as a gate pass -- tau is scored on EVAL, untouched"
   ],
-  "STATUS": "HUMAN_DECISION_REQUIRED. No repair attempted."
+  "STATUS": "HUMAN_DECISION_REQUIRED. No repair attempted.",
+  "FORMAL_CLOSURE": {
+    "utc": "2026-08-29T11:59:34Z",
+    "authority": "PI ruling, 2026-08-29",
+    "label": "TWO_CLASS_CONFIDENCE_ABSTENTION_NOT_CONFIRMED",
+    "calibration": "CALIBRATION_FAILED",
+    "eval_touched": false,
+    "kappa_artifact_written": false,
+    "closed_without_repair": true,
+    "what_was_tested": "Whether the confidence of a two-class direction head, trained only on resolvable states, can serve as the abstention signal.",
+    "answer": "No. AUC 0.415 -- the signal points the wrong way. The head was asked to recognise states it was never trained to distinguish.",
+    "what_survives": "Direction prediction itself: CALIB accuracy 0.7241 on resolvable states, above the frozen tau of 0.70. The probe can tell WHICH strategy is preferred. It cannot tell WHETHER a preference exists."
+  }
 }
