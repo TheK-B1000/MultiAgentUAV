@@ -1,0 +1,114 @@
+{
+  "record": "Probe 2 -- resolvability head, FIT only",
+  "status": "FIT_COMPLETE",
+  "utc": "2026-08-29T12:00:30Z",
+  "implements": "TWO_HEAD_RESOLVABILITY_PROBE_SPEC.json",
+  "the_only_change_from_probe_1": "a small binary resolvability head; everything else held fixed",
+  "architecture": {
+    "trunk": "Q_psi.encode -> h(256), FROZEN",
+    "trunk_sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf",
+    "direction_head": "probe 1 weights, REUSED BIT-IDENTICALLY, not trained",
+    "direction_head_sha256": "5497d4a8b439ca153e658ff263696d856fa30cee231c03a2179d99521ea8ed63",
+    "resolvability_head": "Linear(256,8) ReLU Linear(8,1)",
+    "resolvability_head_params": 2065,
+    "params_per_example": 1.86
+  },
+  "data": {
+    "split": "FIT only",
+    "seed_range": [
+      10700001,
+      10700096
+    ],
+    "states": 1109,
+    "resolvable": 428,
+    "tied": 681,
+    "positive_rate": 0.3859,
+    "CALIB_loaded": false,
+    "EVAL_touched": false
+  },
+  "tie_states_role": "Tied states train the RESOLVABILITY head only. They still exert zero direction pressure -- the direction head is frozen and received no gradient at all in this probe.",
+  "guards_passed": [
+    "frozen spec verified before fitting",
+    "trunk sha256 matches; trunk bit-identical after fitting",
+    "probe-1 direction head bit-identical after fitting",
+    "optimizer holds only resolvability-head parameters",
+    "FIT only; CALIB not loaded; EVAL not touched",
+    "no class weighting despite 428 vs 681 imbalance"
+  ],
+  "per_cell_fit_support": {
+    "A_r0_late": {
+      "states": 77,
+      "resolvable": 34
+    },
+    "A_r0_not_late": {
+      "states": 95,
+      "resolvable": 61
+    },
+    "A_r1_late": {
+      "states": 73,
+      "resolvable": 20
+    },
+    "A_r1_not_late": {
+      "states": 83,
+      "resolvable": 48
+    },
+    "A_r2_late": {
+      "states": 47,
+      "resolvable": 12
+    },
+    "A_r2_not_late": {
+      "states": 77,
+      "resolvable": 45
+    },
+    "A_r3_late": {
+      "states": 68,
+      "resolvable": 8
+    },
+    "A_r3_not_late": {
+      "states": 94,
+      "resolvable": 39
+    },
+    "B_r0_late": {
+      "states": 95,
+      "resolvable": 23
+    },
+    "B_r0_not_late": {
+      "states": 46,
+      "resolvable": 26
+    },
+    "B_r1_late": {
+      "states": 88,
+      "resolvable": 19
+    },
+    "B_r1_not_late": {
+      "states": 95,
+      "resolvable": 54
+    },
+    "B_r2_late": {
+      "states": 36,
+      "resolvable": 8
+    },
+    "B_r2_not_late": {
+      "states": 40,
+      "resolvable": 15
+    },
+    "B_r3_late": {
+      "states": 57,
+      "resolvable": 6
+    },
+    "B_r3_not_late": {
+      "states": 38,
+      "resolvable": 10
+    }
+  },
+  "fit_auc_resolvability": 0.7705,
+  "fit_auc_caveat": "In-sample. Probe 1's direction confidence achieved AUC 0.415 on CALIB for this same task without being trained for it. CALIB gets the first real say.",
+  "optimisation": {
+    "epochs": 60,
+    "batch": 64,
+    "lr": 0.001,
+    "weight_decay": 0.01,
+    "rng_seed": 23
+  },
+  "resolvability_head_weights": "artifacts\\strategic_demand\\sppo\\k2_probe\\resolvability_head.pt"
+}
