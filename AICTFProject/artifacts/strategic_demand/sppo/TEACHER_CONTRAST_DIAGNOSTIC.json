@@ -1,0 +1,367 @@
+{
+  "record": "Teacher-contrast feasibility for the corrected final latent treatment",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-30T13:36:02Z",
+  "question": "How often do frozen pi_A and pi_B prescribe DIFFERENT actions on the same resolved state?",
+  "why_it_decides_the_fork": "The corrected treatment gives both latents the same state with different teacher targets. That only forces z to matter where the teachers disagree.",
+  "metric_note": "DECISION-MASKED throughout. An earlier ad-hoc pass reported 33.4% identical action vectors by averaging over inactive heads -- the same masking error that made the FIT/CALIB crossed comparison look contradictory. Only heads the anchor loss trains are counted.",
+  "threshold_frozen_before_reading": {
+    "substantial_contrast_at": 0.2,
+    "basis": "fraction of decision-masked heads on which the teachers disagree, FIT"
+  },
+  "splits": {
+    "FIT": {
+      "n_resolved_states": 428,
+      "n_heads_total": 1712,
+      "OVERALL": {
+        "head_disagreement_rate": 0.2225,
+        "states_with_any_disagreement": 0.6659,
+        "teacher_jsd_bits_mean": 0.3919
+      },
+      "by_preference": {
+        "A_preferred": {
+          "n": 225,
+          "head_disagreement_rate": 0.2111,
+          "states_with_any_disagreement": 0.6178,
+          "teacher_jsd_bits_mean": 0.3944
+        },
+        "B_preferred": {
+          "n": 203,
+          "head_disagreement_rate": 0.2352,
+          "states_with_any_disagreement": 0.7192,
+          "teacher_jsd_bits_mean": 0.3892
+        }
+      },
+      "by_pole": {
+        "A": {
+          "n": 267,
+          "head_disagreement_rate": 0.2097,
+          "states_with_any_disagreement": 0.6292,
+          "teacher_jsd_bits_mean": 0.3954
+        },
+        "B": {
+          "n": 161,
+          "head_disagreement_rate": 0.2438,
+          "states_with_any_disagreement": 0.7267,
+          "teacher_jsd_bits_mean": 0.3863
+        }
+      },
+      "by_regime": {
+        "r0": {
+          "n": 144,
+          "head_disagreement_rate": 0.2309,
+          "states_with_any_disagreement": 0.6528,
+          "teacher_jsd_bits_mean": 0.4002
+        },
+        "r1": {
+          "n": 141,
+          "head_disagreement_rate": 0.2287,
+          "states_with_any_disagreement": 0.695,
+          "teacher_jsd_bits_mean": 0.3845
+        },
+        "r2": {
+          "n": 80,
+          "head_disagreement_rate": 0.2062,
+          "states_with_any_disagreement": 0.625,
+          "teacher_jsd_bits_mean": 0.3903
+        },
+        "r3": {
+          "n": 63,
+          "head_disagreement_rate": 0.2103,
+          "states_with_any_disagreement": 0.6825,
+          "teacher_jsd_bits_mean": 0.3919
+        }
+      },
+      "by_horizon": {
+        "late": {
+          "n": 130,
+          "head_disagreement_rate": 0.2269,
+          "states_with_any_disagreement": 0.6692,
+          "teacher_jsd_bits_mean": 0.4168
+        },
+        "not_late": {
+          "n": 298,
+          "head_disagreement_rate": 0.2206,
+          "states_with_any_disagreement": 0.6644,
+          "teacher_jsd_bits_mean": 0.3811
+        }
+      },
+      "by_cell": {
+        "A_r0_late": {
+          "n": 34,
+          "head_disagreement_rate": 0.25,
+          "states_with_any_disagreement": 0.6765,
+          "teacher_jsd_bits_mean": 0.4182
+        },
+        "A_r0_not_late": {
+          "n": 61,
+          "head_disagreement_rate": 0.1926,
+          "states_with_any_disagreement": 0.5574,
+          "teacher_jsd_bits_mean": 0.3859
+        },
+        "A_r1_late": {
+          "n": 20,
+          "head_disagreement_rate": 0.225,
+          "states_with_any_disagreement": 0.75,
+          "teacher_jsd_bits_mean": 0.3667
+        },
+        "A_r1_not_late": {
+          "n": 48,
+          "head_disagreement_rate": 0.224,
+          "states_with_any_disagreement": 0.6458,
+          "teacher_jsd_bits_mean": 0.4041
+        },
+        "A_r2_late": {
+          "n": 12,
+          "head_disagreement_rate": 0.2083,
+          "states_with_any_disagreement": 0.6667,
+          "teacher_jsd_bits_mean": 0.4531
+        },
+        "A_r2_not_late": {
+          "n": 45,
+          "head_disagreement_rate": 0.1833,
+          "states_with_any_disagreement": 0.5333,
+          "teacher_jsd_bits_mean": 0.3737
+        },
+        "A_r3_late": {
+          "n": 8,
+          "head_disagreement_rate": 0.1562,
+          "states_with_any_disagreement": 0.5,
+          "teacher_jsd_bits_mean": 0.4719
+        },
+        "A_r3_not_late": {
+          "n": 39,
+          "head_disagreement_rate": 0.2179,
+          "states_with_any_disagreement": 0.7436,
+          "teacher_jsd_bits_mean": 0.3856
+        },
+        "B_r0_late": {
+          "n": 23,
+          "head_disagreement_rate": 0.2609,
+          "states_with_any_disagreement": 0.7826,
+          "teacher_jsd_bits_mean": 0.4313
+        },
+        "B_r0_not_late": {
+          "n": 26,
+          "head_disagreement_rate": 0.2692,
+          "states_with_any_disagreement": 0.7308,
+          "teacher_jsd_bits_mean": 0.3825
+        },
+        "B_r1_late": {
+          "n": 19,
+          "head_disagreement_rate": 0.1711,
+          "states_with_any_disagreement": 0.5263,
+          "teacher_jsd_bits_mean": 0.375
+        },
+        "B_r1_not_late": {
+          "n": 54,
+          "head_disagreement_rate": 0.2546,
+          "states_with_any_disagreement": 0.7778,
+          "teacher_jsd_bits_mean": 0.3769
+        },
+        "B_r2_late": {
+          "n": 8,
+          "head_disagreement_rate": 0.2188,
+          "states_with_any_disagreement": 0.625,
+          "teacher_jsd_bits_mean": 0.461
+        },
+        "B_r2_not_late": {
+          "n": 15,
+          "head_disagreement_rate": 0.2667,
+          "states_with_any_disagreement": 0.8667,
+          "teacher_jsd_bits_mean": 0.3522
+        },
+        "B_r3_late": {
+          "n": 6,
+          "head_disagreement_rate": 0.2917,
+          "states_with_any_disagreement": 0.6667,
+          "teacher_jsd_bits_mean": 0.4485
+        },
+        "B_r3_not_late": {
+          "n": 10,
+          "head_disagreement_rate": 0.175,
+          "states_with_any_disagreement": 0.6,
+          "teacher_jsd_bits_mean": 0.3182
+        }
+      }
+    },
+    "CALIB": {
+      "n_resolved_states": 145,
+      "n_heads_total": 580,
+      "OVERALL": {
+        "head_disagreement_rate": 0.2328,
+        "states_with_any_disagreement": 0.7034,
+        "teacher_jsd_bits_mean": 0.3832
+      },
+      "by_preference": {
+        "A_preferred": {
+          "n": 95,
+          "head_disagreement_rate": 0.2395,
+          "states_with_any_disagreement": 0.6947,
+          "teacher_jsd_bits_mean": 0.4024
+        },
+        "B_preferred": {
+          "n": 50,
+          "head_disagreement_rate": 0.22,
+          "states_with_any_disagreement": 0.72,
+          "teacher_jsd_bits_mean": 0.3467
+        }
+      },
+      "by_pole": {
+        "A": {
+          "n": 98,
+          "head_disagreement_rate": 0.2245,
+          "states_with_any_disagreement": 0.6939,
+          "teacher_jsd_bits_mean": 0.3798
+        },
+        "B": {
+          "n": 47,
+          "head_disagreement_rate": 0.25,
+          "states_with_any_disagreement": 0.7234,
+          "teacher_jsd_bits_mean": 0.3903
+        }
+      },
+      "by_regime": {
+        "r0": {
+          "n": 53,
+          "head_disagreement_rate": 0.2547,
+          "states_with_any_disagreement": 0.7358,
+          "teacher_jsd_bits_mean": 0.3848
+        },
+        "r1": {
+          "n": 36,
+          "head_disagreement_rate": 0.2153,
+          "states_with_any_disagreement": 0.6389,
+          "teacher_jsd_bits_mean": 0.3284
+        },
+        "r2": {
+          "n": 32,
+          "head_disagreement_rate": 0.1953,
+          "states_with_any_disagreement": 0.6562,
+          "teacher_jsd_bits_mean": 0.3792
+        },
+        "r3": {
+          "n": 24,
+          "head_disagreement_rate": 0.2604,
+          "states_with_any_disagreement": 0.7917,
+          "teacher_jsd_bits_mean": 0.4669
+        }
+      },
+      "by_horizon": {
+        "late": {
+          "n": 40,
+          "head_disagreement_rate": 0.25,
+          "states_with_any_disagreement": 0.725,
+          "teacher_jsd_bits_mean": 0.3858
+        },
+        "not_late": {
+          "n": 105,
+          "head_disagreement_rate": 0.2262,
+          "states_with_any_disagreement": 0.6952,
+          "teacher_jsd_bits_mean": 0.3822
+        }
+      },
+      "by_cell": {
+        "A_r0_late": {
+          "n": 7,
+          "head_disagreement_rate": 0.3214,
+          "states_with_any_disagreement": 0.8571,
+          "teacher_jsd_bits_mean": 0.3804
+        },
+        "A_r0_not_late": {
+          "n": 26,
+          "head_disagreement_rate": 0.25,
+          "states_with_any_disagreement": 0.7308,
+          "teacher_jsd_bits_mean": 0.3823
+        },
+        "A_r1_late": {
+          "n": 4,
+          "head_disagreement_rate": 0.125,
+          "states_with_any_disagreement": 0.25,
+          "teacher_jsd_bits_mean": 0.2665
+        },
+        "A_r1_not_late": {
+          "n": 16,
+          "head_disagreement_rate": 0.2031,
+          "states_with_any_disagreement": 0.6875,
+          "teacher_jsd_bits_mean": 0.3324
+        },
+        "A_r2_late": {
+          "n": 8,
+          "head_disagreement_rate": 0.1875,
+          "states_with_any_disagreement": 0.625,
+          "teacher_jsd_bits_mean": 0.3415
+        },
+        "A_r2_not_late": {
+          "n": 16,
+          "head_disagreement_rate": 0.1719,
+          "states_with_any_disagreement": 0.625,
+          "teacher_jsd_bits_mean": 0.3628
+        },
+        "A_r3_late": {
+          "n": 3,
+          "head_disagreement_rate": 0.25,
+          "states_with_any_disagreement": 0.6667,
+          "teacher_jsd_bits_mean": 0.4889
+        },
+        "A_r3_not_late": {
+          "n": 18,
+          "head_disagreement_rate": 0.25,
+          "states_with_any_disagreement": 0.7778,
+          "teacher_jsd_bits_mean": 0.457
+        },
+        "B_r0_late": {
+          "n": 9,
+          "head_disagreement_rate": 0.2222,
+          "states_with_any_disagreement": 0.7778,
+          "teacher_jsd_bits_mean": 0.409
+        },
+        "B_r0_not_late": {
+          "n": 11,
+          "head_disagreement_rate": 0.25,
+          "states_with_any_disagreement": 0.6364,
+          "teacher_jsd_bits_mean": 0.3739
+        },
+        "B_r1_late": {
+          "n": 5,
+          "head_disagreement_rate": 0.3,
+          "states_with_any_disagreement": 0.8,
+          "teacher_jsd_bits_mean": 0.3831
+        },
+        "B_r1_not_late": {
+          "n": 11,
+          "head_disagreement_rate": 0.2273,
+          "states_with_any_disagreement": 0.6364,
+          "teacher_jsd_bits_mean": 0.3203
+        },
+        "B_r2_late": {
+          "n": 4,
+          "head_disagreement_rate": 0.375,
+          "states_with_any_disagreement": 1.0,
+          "teacher_jsd_bits_mean": 0.4765
+        },
+        "B_r2_not_late": {
+          "n": 4,
+          "head_disagreement_rate": 0.125,
+          "states_with_any_disagreement": 0.5,
+          "teacher_jsd_bits_mean": 0.4227
+        },
+        "B_r3_not_late": {
+          "n": 3,
+          "head_disagreement_rate": 0.3333,
+          "states_with_any_disagreement": 1.0,
+          "teacher_jsd_bits_mean": 0.5044
+        }
+      }
+    }
+  },
+  "VERDICT": "SUBSTANTIAL_TEACHER_CONTRAST",
+  "reading": "The teachers prescribe different actions often enough that paired latent supervision -- (s,z0)->pi_A and (s,z1)->pi_B on the SAME state -- creates targets no z-independent policy can satisfy. The corrected final latent treatment is feasible.",
+  "consequence": {
+    "substantial": "freeze paired-latent rehearsal + expanded bank; fresh 1M final attempt",
+    "insufficient": "stop latent work; pivot to the SAPPO-centred ICRA paper"
+  },
+  "does_not_alter": "the frozen V1 NOT_CONFIRMED result",
+  "EVAL_touched": false
+}
