@@ -188,3 +188,93 @@ def episode_features(obs_vec: np.ndarray, actions: np.ndarray) -> np.ndarray:
     """The probe's frozen feature map, imported rather than reimplemented."""
     import experiments.probe_teacher_trajectory_separability as P
     return P.featurise({"vec": obs_vec, "act": actions})
+
+
+class EpisodeFeatureAccumulator:
+    """Streaming per-env episode statistics that reproduce the probe's feature map.
+
+    Episodes run ~240 steps while a rollout is far shorter, so an episode spans several
+    collect() calls. Rather than storing raw trajectories, this carries only the
+    sufficient statistics across rollout boundaries:
+
+        sum(obs_vec), sum(obs_vec^2), action counts, n
+
+    and on `done` reconstructs
+
+        mean = sum_x / n
+        std  = sqrt(sum_x2 / n - mean^2)          population std, matching np.std(ddof=0)
+        hist = action_counts / action_counts.sum()
+
+    Deliberately NOT a rollout-window featuriser. D was validated on FULL episodes at
+    0.9531 / 0.9688; a rollout fragment is a different object whose separability is
+    unknown, and substituting one would turn an engineering problem into an unvalidated
+    scientific assumption.
+
+    Accumulation is float64: the naive E[x^2] - mean^2 variance form loses precision in
+    float32 over hundreds of steps.
+    """
+
+    def __init__(self, n_envs: int, n_agents: int, vec_dim: int, n_action_bins: int = 48):
+        self.n_envs = int(n_envs)
+        self.shape = (int(n_agents), int(vec_dim))
+        self.n_action_bins = int(n_action_bins)
+        self._reset_all()
+        self.flushes = 0
+        self.flushes_by_env: dict[int, int] = {}
+
+    def _blank(self) -> dict:
+        return {"sum": np.zeros(self.shape, np.float64),
+                "sumsq": np.zeros(self.shape, np.float64),
+                "acts": np.zeros(self.n_action_bins, np.float64),
+                "n": 0}
+
+    def _reset_all(self) -> None:
+        self.state = {i: self._blank() for i in range(self.n_envs)}
+
+    def observe(self, env_index: int, obs_vec: np.ndarray, actions: np.ndarray) -> None:
+        """One timestep for one env. obs_vec is (n_agents, vec_dim); actions is (heads,)."""
+        st = self.state[int(env_index)]
+        v = np.asarray(obs_vec, dtype=np.float64)
+        if v.shape != self.shape:
+            raise TrajectoryIdentityError(
+                f"env {env_index}: obs_vec shape {v.shape} != expected {self.shape}")
+        st["sum"] += v
+        st["sumsq"] += v * v
+        a = np.asarray(actions).ravel().astype(np.int64)
+        if a.size and (a.min() < 0 or a.max() >= self.n_action_bins):
+            raise TrajectoryIdentityError(
+                f"env {env_index}: action outside [0, {self.n_action_bins})")
+        st["acts"] += np.bincount(a, minlength=self.n_action_bins)[: self.n_action_bins]
+        st["n"] += 1
+
+    def steps(self, env_index: int) -> int:
+        return int(self.state[int(env_index)]["n"])
+
+    def flush(self, env_index: int) -> dict | None:
+        """Close the episode on this env, returning its features, and reset it.
+
+        Returns None for an env that accumulated nothing, so a duplicate flush on a
+        terminal-plus-reset cannot manufacture a phantom episode.
+        """
+        i = int(env_index)
+        st = self.state[i]
+        n = int(st["n"])
+        if n == 0:
+            return None
+        mean = st["sum"] / n
+        var = np.maximum(st["sumsq"] / n - mean * mean, 0.0)   # clamp roundoff
+        std = np.sqrt(var)
+        total = st["acts"].sum()
+        hist = st["acts"] / total if total > 0 else st["acts"]
+        features = np.concatenate([mean.ravel(), std.ravel(), hist])
+
+        self.state[i] = self._blank()
+        self.flushes += 1
+        self.flushes_by_env[i] = self.flushes_by_env.get(i, 0) + 1
+        return {"env_index": i, "n_steps": n, "features": features}
+
+    def telemetry(self) -> dict:
+        return {"flushes": self.flushes,
+                "flushes_by_env": dict(sorted(self.flushes_by_env.items())),
+                "envs_with_open_episode": sum(1 for s in self.state.values() if s["n"] > 0),
+                "unit_of_credit": "full episode across rollout boundaries"}

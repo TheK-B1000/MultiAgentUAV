@@ -1,0 +1,153 @@
+{
+  "record": "H-OG-PSP smoke 3: streaming episode feature accumulator",
+  "status": "SMOKE_RESULT",
+  "utc": "2026-08-31T14:52:47Z",
+  "VERDICT": "PASS",
+  "question": "Does streaming accumulation across rollout boundaries reproduce the EXACT full-episode feature vector the probe validated and D was fitted on?",
+  "why_it_matters": "If it does not, 'trajectory identity' silently becomes a different quantity, and D's 0.9531 / 0.9688 validation stops applying to what training actually optimises.",
+  "tolerance": {
+    "primary_vs_float64_reference": 1e-12,
+    "secondary_vs_float32_original": 1e-05,
+    "why_two": "The stored obs_vec is float32, so the ORIGINAL offline featuriser rounds at float32 precision (eps 1.19e-7) and cannot represent agreement below that. Correctness is therefore decided against an exact float64 reference at machine tolerance, which is STRICTER, not looser. The float32 bound is derived a priori from eps*sqrt(n_steps), never from the observed differences."
+  },
+  "worst_diff_vs_float32_original": 1.3727209274838614e-06,
+  "feature_equivalence": [
+    {
+      "episode": 0,
+      "n_steps": 85,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 7.216449660063518e-16,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 3.733692999219329e-07,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.030775853793743535,
+      "D_score_streaming": -0.03077585379374342,
+      "scores_equal": true
+    },
+    {
+      "episode": 1,
+      "n_steps": 185,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 7.86176679312689e-15,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 4.3312322353661337e-07,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.028204621365510326,
+      "D_score_streaming": -0.028204621365511242,
+      "scores_equal": true
+    },
+    {
+      "episode": 2,
+      "n_steps": 189,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 7.376044219853384e-15,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 5.769858173465536e-07,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.001578595015073151,
+      "D_score_streaming": -0.001578595015073151,
+      "scores_equal": true
+    },
+    {
+      "episode": 3,
+      "n_steps": 190,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 8.93729534823251e-15,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 3.4170326398963446e-07,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.060793798328660775,
+      "D_score_streaming": -0.06079379832866184,
+      "scores_equal": true
+    },
+    {
+      "episode": 4,
+      "n_steps": 192,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 7.445433158892456e-15,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 7.614152394141982e-07,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.00012673182966004088,
+      "D_score_streaming": -0.0001267318296601519,
+      "scores_equal": true
+    },
+    {
+      "episode": 5,
+      "n_steps": 184,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 7.271960811294775e-15,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 1.2793914648812077e-06,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.045168487939333854,
+      "D_score_streaming": -0.045168487939334666,
+      "scores_equal": true
+    },
+    {
+      "episode": 6,
+      "n_steps": 189,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 4.399258735077183e-15,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 9.521386923339037e-07,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.00030416288927750273,
+      "D_score_streaming": -0.00030416288927750273,
+      "scores_equal": true
+    },
+    {
+      "episode": 7,
+      "n_steps": 203,
+      "steps_match": true,
+      "max_abs_diff_vs_float64_reference": 8.423817199343375e-15,
+      "exact_to_machine_precision": true,
+      "max_abs_diff_vs_float32_original": 1.3727209274838614e-06,
+      "within_float32_bound": true,
+      "D_score_float64_reference": -0.027882052566162042,
+      "D_score_streaming": -0.027882052566162725,
+      "scores_equal": true
+    }
+  ],
+  "worst_feature_diff": 8.93729534823251e-15,
+  "across_rollout_boundaries": {
+    "chunks": [
+      [
+        0,
+        28
+      ],
+      [
+        28,
+        56
+      ],
+      [
+        56,
+        85
+      ]
+    ],
+    "steps_open_at_each_boundary": [
+      28,
+      56
+    ],
+    "flushes_total": 1,
+    "exactly_one_flush": true,
+    "correct_env_index": true,
+    "episode_length": 85,
+    "length_correct": true,
+    "max_abs_diff_vs_offline": 7.216449660063518e-16,
+    "identical_to_single_pass": true
+  },
+  "hygiene": {
+    "steps_after_flush": 0,
+    "resets_to_zero": true,
+    "duplicate_flush_returns_none": true,
+    "next_episode_clean": true,
+    "next_episode_diff": 7.86176679312689e-15,
+    "two_envs_do_not_contaminate": true
+  },
+  "no_raw_trajectory_storage": "Only sum, sum-of-squares, action counts and n are carried; the accumulator is not an episode replay buffer.",
+  "rollout_window_shortcut_rejected": "Featurising a rollout fragment was available and was NOT taken. D was validated on full episodes; a fragment is a different object of unknown separability.",
+  "failures": [],
+  "authorizes": "nothing; the combined treatment smoke remains",
+  "EVAL_touched": false
+}

@@ -1,0 +1,156 @@
+{
+  "record": "H-OG-PSP smoke 3: streaming episode feature accumulator",
+  "status": "SMOKE_RESULT",
+  "utc": "2026-08-31T14:51:23Z",
+  "VERDICT": "FAIL",
+  "question": "Does streaming accumulation across rollout boundaries reproduce the EXACT full-episode feature vector the probe validated and D was fitted on?",
+  "why_it_matters": "If it does not, 'trajectory identity' silently becomes a different quantity, and D's 0.9531 / 0.9688 validation stops applying to what training actually optimises.",
+  "tolerance": 1e-09,
+  "feature_equivalence": [
+    {
+      "episode": 0,
+      "n_steps": 85,
+      "steps_match": true,
+      "max_abs_feature_diff": 3.733692999219329e-07,
+      "features_equal": false,
+      "D_score_offline": -0.030775836121687022,
+      "D_score_streaming": -0.03077585379374342,
+      "scores_equal": false
+    },
+    {
+      "episode": 1,
+      "n_steps": 185,
+      "steps_match": true,
+      "max_abs_feature_diff": 4.3312322353661337e-07,
+      "features_equal": false,
+      "D_score_offline": -0.028204623257247267,
+      "D_score_streaming": -0.028204621365511242,
+      "scores_equal": false
+    },
+    {
+      "episode": 2,
+      "n_steps": 189,
+      "steps_match": true,
+      "max_abs_feature_diff": 5.769858173465536e-07,
+      "features_equal": false,
+      "D_score_offline": -0.0015785943212940205,
+      "D_score_streaming": -0.001578595015073151,
+      "scores_equal": true
+    },
+    {
+      "episode": 3,
+      "n_steps": 190,
+      "steps_match": true,
+      "max_abs_feature_diff": 3.4170326398963446e-07,
+      "features_equal": false,
+      "D_score_offline": -0.060793888468442546,
+      "D_score_streaming": -0.06079379832866184,
+      "scores_equal": false
+    },
+    {
+      "episode": 4,
+      "n_steps": 192,
+      "steps_match": true,
+      "max_abs_feature_diff": 7.614152394141982e-07,
+      "features_equal": false,
+      "D_score_offline": -0.0001267320411249278,
+      "D_score_streaming": -0.0001267318296601519,
+      "scores_equal": true
+    },
+    {
+      "episode": 5,
+      "n_steps": 184,
+      "steps_match": true,
+      "max_abs_feature_diff": 1.2793914648812077e-06,
+      "features_equal": false,
+      "D_score_offline": -0.04516853580756476,
+      "D_score_streaming": -0.045168487939334666,
+      "scores_equal": false
+    },
+    {
+      "episode": 6,
+      "n_steps": 189,
+      "steps_match": true,
+      "max_abs_feature_diff": 9.521386923339037e-07,
+      "features_equal": false,
+      "D_score_offline": -0.0003041628849000054,
+      "D_score_streaming": -0.00030416288927750273,
+      "scores_equal": true
+    },
+    {
+      "episode": 7,
+      "n_steps": 203,
+      "steps_match": true,
+      "max_abs_feature_diff": 1.3727209274838614e-06,
+      "features_equal": false,
+      "D_score_offline": -0.027882078032350693,
+      "D_score_streaming": -0.027882052566162725,
+      "scores_equal": false
+    }
+  ],
+  "worst_feature_diff": 1.3727209274838614e-06,
+  "across_rollout_boundaries": {
+    "chunks": [
+      [
+        0,
+        28
+      ],
+      [
+        28,
+        56
+      ],
+      [
+        56,
+        85
+      ]
+    ],
+    "steps_open_at_each_boundary": [
+      28,
+      56
+    ],
+    "flushes_total": 1,
+    "exactly_one_flush": true,
+    "correct_env_index": true,
+    "episode_length": 85,
+    "length_correct": true,
+    "max_abs_diff_vs_offline": 3.733692999219329e-07,
+    "identical_to_single_pass": false
+  },
+  "hygiene": {
+    "steps_after_flush": 0,
+    "resets_to_zero": true,
+    "duplicate_flush_returns_none": true,
+    "next_episode_clean": false,
+    "next_episode_diff": 4.3312322353661337e-07,
+    "two_envs_do_not_contaminate": false
+  },
+  "no_raw_trajectory_storage": "Only sum, sum-of-squares, action counts and n are carried; the accumulator is not an episode replay buffer.",
+  "rollout_window_shortcut_rejected": "Featurising a rollout fragment was available and was NOT taken. D was validated on full episodes; a fragment is a different object of unknown separability.",
+  "failures": [
+    "episode 0: feature vectors differ by 3.734e-07",
+    "episode 0: D scores differ by 1.767e-08",
+    "episode 1: feature vectors differ by 4.331e-07",
+    "episode 1: D scores differ by 1.892e-09",
+    "episode 2: feature vectors differ by 5.770e-07",
+    "episode 3: feature vectors differ by 3.417e-07",
+    "episode 3: D scores differ by 9.014e-08",
+    "episode 4: feature vectors differ by 7.614e-07",
+    "episode 5: feature vectors differ by 1.279e-06",
+    "episode 5: D scores differ by 4.787e-08",
+    "episode 6: feature vectors differ by 9.521e-07",
+    "episode 7: feature vectors differ by 1.373e-06",
+    "episode 7: D scores differ by 2.547e-08",
+    "episode split across boundaries differs by 3.734e-07",
+    "next episode carried state; diff 4.331e-07",
+    "state leaked between environments"
+  ],
+  "authorizes": "nothing; the combined treatment smoke remains",
+  "EVAL_touched": false,
+  "INVALIDATED": {
+    "reason": "the TEST's tolerance was unsound, not the accumulator",
+    "detail": "The 1e-9 tolerance was applied against an offline reference computed in float32. float32 eps is 1.19e-7, so the reference itself cannot represent agreement at 1e-9 and the check could never pass. Diagnostic run afterwards: accumulator vs a float64 reference agrees to 7.216e-16 (machine precision), while offline-float32 vs offline-float64 differs by 3.734e-07 -- the SAME value as the reported 'discrepancy', to every digit. The accumulator was correct throughout; the discrepancy is float32 rounding in the reference.",
+    "resolution": "Primary correctness is now checked against a float64 reference at machine tolerance, the strictest available. The float32 comparison is retained as a secondary bound derived from eps*sqrt(n_steps), not from observed values.",
+    "not_tolerance_tuning": "The tolerance was not loosened until the test passed. The primary check was made STRICTER (1e-12 against an exact reference) and the secondary bound is derived from float32 precision a priori.",
+    "retained_not_deleted": "kept as the record of a failed attempt, per project practice"
+  }
+}
