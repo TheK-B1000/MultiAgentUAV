@@ -1,0 +1,32 @@
+{
+  "record": "OG-PSP bank composition -- DESCRIPTIVE ONLY, not a gate",
+  "status": "DESCRIPTIVE_RECORD",
+  "utc": "2026-08-31T06:16:35Z",
+  "not_a_gate": "The only frozen collection gate was total eligible >= 1500, met at 1804 (ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json, PASS). No composition threshold is introduced here, and none may be applied retroactively.",
+  "question_it_answers": "Did the new collection preserve the specialist contrast OG-PSP needs?",
+  "TOTAL": {
+    "n_eligible": 1804,
+    "A_preferred": 929,
+    "B_preferred": 875,
+    "masked_teacher_disagreement_frac": 0.6552,
+    "n_with_disagreement": 1182
+  },
+  "legacy_FIT_10700001_10700096": {
+    "n_eligible": 428,
+    "A_preferred": 225,
+    "B_preferred": 203,
+    "masked_teacher_disagreement_frac": 0.6659,
+    "n_with_disagreement": 285
+  },
+  "new_collection_11000001_11000320": {
+    "n_eligible": 1376,
+    "A_preferred": 704,
+    "B_preferred": 672,
+    "masked_teacher_disagreement_frac": 0.6519,
+    "n_with_disagreement": 897
+  },
+  "reference": {
+    "v1_bank_disagreement_frac": 0.6659,
+    "teacher_contrast_diagnostic": "TEACHER_CONTRAST_DIAGNOSTIC.json, commit bbe1685f"
+  }
+}
