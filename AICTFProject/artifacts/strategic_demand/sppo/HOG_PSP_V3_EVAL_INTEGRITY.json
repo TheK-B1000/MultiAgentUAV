@@ -1,0 +1,122 @@
+{
+  "record": "H-OG-PSP V3 EVAL integrity audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-31T21:15:49Z",
+  "question": "Is the reversed delta_B a real behavioural result, or an evaluator defect such as a transposed latent?",
+  "why_this_matters_here": "V3's mechanism diagnostic confirmed trajectory identity most strongly on Pole B (z1 pi_B-like on 91% of CALIB seeds, delta_tau_B +6.78). EVAL reports z0 out-winning z1 on that same pole. A latent transposition would produce exactly this signature, so it is excluded explicitly rather than by assumption.",
+  "VERDICT": "GENUINE_REVERSAL",
+  "checks": {
+    "1_not_byte_identical": {
+      "pole_B": {
+        "identical_seeds": 9,
+        "differing_seeds": 23
+      },
+      "pole_A": {
+        "identical_seeds": 8,
+        "differing_seeds": 24
+      },
+      "passed": true
+    },
+    "2_per_seed_outcomes": {
+      "pole_B": {
+        "z0_won_z1_lost": [
+          11300101,
+          11300105,
+          11300107,
+          11300109,
+          11300110,
+          11300111,
+          11300116,
+          11300120,
+          11300121,
+          11300127,
+          11300132
+        ],
+        "z1_won_z0_lost": [
+          11300102,
+          11300104,
+          11300113,
+          11300123,
+          11300124,
+          11300125
+        ]
+      },
+      "pole_A": {
+        "z0_won_z1_lost": [
+          11300104,
+          11300114,
+          11300124,
+          11300126,
+          11300131
+        ],
+        "z1_won_z0_lost": [
+          11300106,
+          11300108,
+          11300109,
+          11300116,
+          11300118,
+          11300130
+        ]
+      }
+    },
+    "3_deltas_recomputed_from_rows": {
+      "delta_A": {
+        "recomputed": {
+          "mean": -0.03125,
+          "lcb95": -0.21875,
+          "ucb95": 0.15625
+        },
+        "frozen": {
+          "mean": -0.03125,
+          "lcb95": -0.21875,
+          "ucb95": 0.15625,
+          "passes": false
+        },
+        "matches": true
+      },
+      "delta_B": {
+        "recomputed": {
+          "mean": -0.15625,
+          "lcb95": -0.40625,
+          "ucb95": 0.09375
+        },
+        "frozen": {
+          "mean": -0.15625,
+          "lcb95": -0.40625,
+          "ucb95": 0.09375,
+          "passes": false
+        },
+        "matches": true
+      }
+    },
+    "4_provenance": {
+      "duplicate_rows": 0,
+      "seed_block": [
+        11300101,
+        11300132
+      ],
+      "total_rows": 192,
+      "checkpoint_sha256": "9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69"
+    },
+    "5_latent_swap_test": {
+      "if_z0_z1_were_transposed": {
+        "delta_A": {
+          "mean": 0.03125,
+          "lcb95": -0.15625,
+          "ucb95": 0.21875
+        },
+        "delta_B": {
+          "mean": 0.15625,
+          "lcb95": -0.09375,
+          "ucb95": 0.40625
+        },
+        "would_pass_the_gate": false
+      },
+      "reading": "A transposition is the failure mode a reversed delta most resembles, so it is tested explicitly. This does NOT by itself prove a swap occurred -- the same numbers arise if the latents genuinely perform in the observed direction. It is reported so the possibility is on the record rather than assumed away.",
+      "independent_evidence_against_a_swap": "The mechanism diagnostic scored the SAME checkpoint through a different code path (experiments/diagnose_hog_psp_v3_mechanism.py, commit 7494081b) and found z0 unanimously pi_A-like (0% pi_B-like on both poles) and z1 majority pi_B-like (78% / 91%). If the EVAL scorer had z0 and z1 transposed relative to the diagnostic, the two would disagree about which latent is which; they agree."
+    }
+  },
+  "conclusion": "The reversed delta_B is a real behavioural result, not an evaluator defect.",
+  "changes_no_verdict": true,
+  "failures": []
+}
