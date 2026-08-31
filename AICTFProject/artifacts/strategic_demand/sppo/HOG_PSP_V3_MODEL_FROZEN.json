@@ -185,5 +185,37 @@
       "streaming_equivalence": "HOG_PSP_EPISODE_ACCUMULATOR_SMOKE.json (commit 06a0fe9d): the streaming accumulator reproduces the offline featuriser to 8.937e-15, machine precision, with identical D scores",
       "known_property": "N_ACTION_BINS=48 truncates head 1's alphabet (0..49). No shard ever contained 48 or 49, so D was FITTED with this truncation and still reached 0.9531/0.9688. The streaming path reproduces the truncation exactly and counts truncated actions rather than widening the histogram, which would change the feature space out from under D."
     }
+  },
+  "AMENDMENT_1_ARCHITECTURAL_LIMITATION_FOUND_AFTER_FREEZE": {
+    "utc": "2026-08-31T21:26:59Z",
+    "authority": "PI, 2026-08-31, after HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED was frozen and its reversal verified GENUINE",
+    "status": "Scope clarification. V3's result is NOT altered, re-scored, or reinterpreted. This records WHAT V3 tested, more precisely than the original record stated.",
+    "THE_FINDING": {
+      "what_V3_actually_tested": "private actor + SHARED critic",
+      "what_the_hypothesis_needed": "private actor + private latent-specific value heads",
+      "evidence_from_the_frozen_checkpoint": {
+        "actor": "private per-latent trunk and head, 423,022 params, isolation verified in smoke 9b66ca87",
+        "critic": "ONE shared nn.Sequential to a single scalar V, 38,785 params; z enters only as a 2-dim one-hot concatenated to the input",
+        "critic_param_tensors": [
+          "critic.net.0.weight",
+          "critic.net.0.bias",
+          "critic.net.2.weight",
+          "critic.net.2.bias",
+          "critic.net.4.weight",
+          "critic.net.4.bias"
+        ],
+        "private_z_heads": false,
+        "verified_against": "the loaded terminal checkpoint 9f705eae, not the config alone"
+      }
+    },
+    "HOW_IT_HAPPENED": {
+      "cause": "run_hog_psp_v3_production.build_config disables three flags in a loop copied verbatim from OG-PSP's runner: rasr_regime_qpsi, rasr_private_critic_heads, rasr_directed_identity. The loop was carried over without examining what each flag controlled.",
+      "why_it_was_harmless_in_OG_PSP": "OG-PSP had no private actor capacity, so actor/critic asymmetry could not arise.",
+      "why_the_smokes_could_not_catch_it": "The smokes verified the mechanisms that were wired. This was a mechanism deliberately switched off in a line that was never read, so no liveness check covered it.",
+      "recorded_plainly": "This was an implementation oversight by the executing agent, not a PI decision and not a property of the hypothesis."
+    },
+    "WHY_IT_IS_A_PLAUSIBLE_CHOKE_POINT": "PPO does not optimise the actor from strategy identity directly. It optimises through advantages: r_t -> V -> A_hat -> grad L_PPO. If two strategies induce different return landscapes, a single shared value estimator is the funnel through which both receive compromised task-learning signal. Multi-style RL work (MultiCriticAL, ICLR 2022) identifies exactly this: a style-conditioned actor can show clearly different behaviours while a shared critic compromises their performance.",
+    "WHAT_V3_STILL_ESTABLISHES": "V3 remains a VALID terminal result for private-actor / shared-critic H-OG-PSP. Its trajectory-identity confirmation and its payoff failure both stand. What changes is only the precision of the claim: V3 did not test private value estimation, so its negative payoff result does not speak to that axis.",
+    "successor": "HOG_PSP_V4_SPEC.json -- one axis changed, private critic heads only"
   }
 }
