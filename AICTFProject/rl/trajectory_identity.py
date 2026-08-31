@@ -221,6 +221,7 @@ class EpisodeFeatureAccumulator:
         self._reset_all()
         self.flushes = 0
         self.flushes_by_env: dict[int, int] = {}
+        self.actions_above_bins = 0
 
     def _blank(self) -> dict:
         return {"sum": np.zeros(self.shape, np.float64),
@@ -241,10 +242,22 @@ class EpisodeFeatureAccumulator:
         st["sum"] += v
         st["sumsq"] += v * v
         a = np.asarray(actions).ravel().astype(np.int64)
-        if a.size and (a.min() < 0 or a.max() >= self.n_action_bins):
+        if a.size and a.min() < 0:
             raise TrajectoryIdentityError(
-                f"env {env_index}: action outside [0, {self.n_action_bins})")
-        st["acts"] += np.bincount(a, minlength=self.n_action_bins)[: self.n_action_bins]
+                f"env {env_index}: negative action {a.min()}; no sentinel is expected here")
+        # The probe's feature map truncates at n_action_bins:
+        #     np.bincount(act, minlength=48)[:48]  then normalise by the KEPT counts.
+        # Head 1's true alphabet is 0..49, but no shard ever contained 48 or 49, so D was
+        # fitted with that truncation and still reached 0.9531 / 0.9688. Reproducing the
+        # truncation EXACTLY is required; widening the histogram would change the feature
+        # space out from under the frozen discriminators. The dropped count is recorded
+        # rather than silently discarded.
+        over = int((a >= self.n_action_bins).sum())
+        if over:
+            self.actions_above_bins += over
+            a = a[a < self.n_action_bins]
+        if a.size:
+            st["acts"] += np.bincount(a, minlength=self.n_action_bins)[: self.n_action_bins]
         st["n"] += 1
 
     def steps(self, env_index: int) -> int:
@@ -275,6 +288,62 @@ class EpisodeFeatureAccumulator:
 
     def telemetry(self) -> dict:
         return {"flushes": self.flushes,
+                "actions_truncated_above_bins": self.actions_above_bins,
+                "truncation_note": ("matches the probe's bincount[:n_bins]; head 1's alphabet "
+                                    "is 0..49 but no shard contained 48 or 49, so D was fitted "
+                                    "with this truncation"),
                 "flushes_by_env": dict(sorted(self.flushes_by_env.items())),
                 "envs_with_open_episode": sum(1 for s in self.state.values() if s["n"] > 0),
                 "unit_of_credit": "full episode across rollout boundaries"}
+
+
+class OpenEpisodeTransitions:
+    """Per-env transition retention for the policy-gradient term ONLY.
+
+    The feature path needs no storage: EpisodeFeatureAccumulator carries sufficient
+    statistics. But the PG term is -A_tau * sum_t log pi(a_t | s_t, z), and that sum
+    must be recomputed against CURRENT parameters at episode end, which requires the
+    actual transitions.
+
+    Episodes run ~240 steps while a rollout is ~128 steps per env, so an episode spans
+    roughly two rollouts. Retention is bounded by `max_steps`; an episode exceeding it
+    is dropped whole rather than silently truncated, because a truncated log-prob sum
+    would be a different estimator wearing the same name.
+
+    ~22 KB per step per env (obs_grid dominates), so 32 envs x 300 steps is ~215 MB,
+    held on CPU as float32 and moved to device only at loss time.
+    """
+
+    def __init__(self, n_envs: int, max_steps: int = 300):
+        self.n_envs = int(n_envs)
+        self.max_steps = int(max_steps)
+        self.buf: dict[int, list] = {i: [] for i in range(self.n_envs)}
+        self.dropped_too_long = 0
+
+    def observe(self, env_index: int, obs: dict, action) -> None:
+        b = self.buf[int(env_index)]
+        if len(b) >= self.max_steps:
+            b.clear()
+            b.append(None)                       # poison: this episode is unusable
+            return
+        if b and b[0] is None:
+            return
+        b.append(({k: np.asarray(v, dtype=np.float32) for k, v in obs.items()},
+                  np.asarray(action).ravel()))
+
+    def flush(self, env_index: int) -> dict | None:
+        i = int(env_index)
+        b, self.buf[i] = self.buf[i], []
+        if not b:
+            return None
+        if b[0] is None:
+            self.dropped_too_long += 1
+            return None
+        keys = b[0][0].keys()
+        return {"obs": {k: np.stack([s[0][k] for s in b]) for k in keys},
+                "actions": np.stack([s[1] for s in b]),
+                "n_steps": len(b)}
+
+    def open_steps(self, env_index: int) -> int:
+        b = self.buf[int(env_index)]
+        return 0 if (b and b[0] is None) else len(b)
