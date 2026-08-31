@@ -1,0 +1,61 @@
+{
+  "record_id": "OG_PSP_MECHANISM_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_TRAINING_COMPLETES",
+  "utc": "2026-08-31T06:41:01Z",
+  "authority": "PI-listed post-training signs, frozen prospectively",
+  "PURPOSE": "Answer whether the OG-PSP objective actually forced z to carry specialist identity, SEPARATELY from whether that identity clears the held-out crossover gate. V1 conflated these: it looked like specialisation had failed to transfer when in fact no specialisation ever existed.",
+  "STRICTLY_NOT_A_GATE": {
+    "does_not_gate_EVAL": true,
+    "does_not_alter_the_model": true,
+    "cannot_substitute_for_the_crossover_gate": "A strong mechanism result with a failed crossover is still CROSSOVER_NOT_CONFIRMED. This diagnostic explains, it never overrides.",
+    "runs_before_EVAL": "so the mechanism reading cannot be shaped by the EVAL outcome"
+  },
+  "SPLITS": {
+    "FIT": "10700001..10700096 plus 11000001..11000320 -- the TRAINING bank",
+    "CALIB": "10700097..10700128 -- NOT in the OG-PSP bank, a clean generalisation probe",
+    "why_CALIB_is_legitimate_here": "load_paired_bank draws legacy states only from 10700001..10700096, so the CALIB block was never trained on. It probes generalisation without spending EVAL.",
+    "EVAL": "11200001..11200032 -- NOT TOUCHED by this diagnostic"
+  },
+  "MEASUREMENTS": {
+    "1_latent_divergence": {
+      "quantity": "mean JSD(pi(.|s,z0), pi(.|s,z1)) in bits, decision-masked",
+      "v1_baseline": 0.0051,
+      "teacher_ceiling": 0.3919,
+      "reading": "V1 reproduced 1.3% of available teacher contrast; this measures how much OG-PSP reproduced"
+    },
+    "2_crossed_teacher_match": {
+      "quantity": "decision-masked per-head agreement, all four combinations",
+      "cells": [
+        "z0->pi_A on A-preferred",
+        "z1->pi_A on A-preferred",
+        "z1->pi_B on B-preferred",
+        "z0->pi_B on B-preferred"
+      ],
+      "v1_baseline_gaps": {
+        "A_preferred": "+1.67 pp",
+        "B_preferred": "+2.09 pp"
+      },
+      "why_crossed": "Comparing each latent only against its OWN teacher cannot distinguish 'latents specialised' from 'a shared state-conditional map'. The crossed comparison is what exposed V1's actual failure and was never computed by V1's original diagnostic."
+    },
+    "3_generalisation_of_the_differentiation": {
+      "quantity": "both measurements reported FIT vs CALIB separately",
+      "reading": "High divergence on FIT that collapses on CALIB means the pairing itself was memorised on bank states rather than learned as specialist identity. That is a distinct failure mode from V1's and must be distinguishable."
+    }
+  },
+  "METRIC_DISCIPLINE": {
+    "decision_masked": "All agreement and divergence figures are decision-masked. An unmasked pass once produced 38.1% where the masked figure was 94.7%, and briefly looked like it contradicted the original diagnostic.",
+    "reuse_v1_functions": "Uses diagnose_oracle_gated_k2_fit_calib._agreement and the same JSD path, so the OG-PSP numbers are directly comparable to V1's rather than merely similar-looking."
+  },
+  "PREREGISTERED_READINGS": {
+    "mechanism_worked": "JSD substantially above 0.0051 AND crossed gaps substantially above ~2 pp, with both surviving on CALIB. z carries specialist identity.",
+    "mechanism_failed": "JSD still near 0.005 and crossed gaps still ~2 pp. Paired supervision did not force differentiation, and no bank size or budget would have.",
+    "memorised_pairing": "Strong on FIT, collapses on CALIB. The network learned the bank's pairing rather than specialist identity.",
+    "note": "These are readings, not gates. The scientific verdict remains the frozen EVAL crossover."
+  },
+  "SEQUENCE": [
+    "training completes",
+    "freeze terminal checkpoint",
+    "THIS diagnostic (FIT vs CALIB only)",
+    "separate PI decision to open EVAL"
+  ]
+}
