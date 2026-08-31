@@ -140,5 +140,52 @@
     "method": "Checked every seed-named array in every npz shard, every CSV column whose name contains 'seed', and every numeric value in every JSON artifact, against the 32-seed block. A raw substring grep was rejected as the method because 8-digit numerics in metrics CSVs produce false positives.",
     "RESULT": "CLEAN -- the block appears in no seed field, seed column, or artifact value",
     "conclusion": "Block frozen as chosen. Not to be touched until the terminal V3 checkpoint is frozen."
+  },
+  "AMENDMENT_1_COMPONENT_2_MECHANISM": {
+    "utc": "2026-08-31T14:33:21Z",
+    "authority": "PI, 2026-08-31, before Component 2 was implemented and before any V3 result exists",
+    "status": "Resolves an implementability conflict in the original Component 2 text and tightens three design choices. The hypothesis, gate, budget, bank, poles, and Component 1 are unchanged.",
+    "THE_CONFLICT_FOUND_AT_IMPLEMENTATION": {
+      "original_text": "'A discriminator D(tau) -> {A,B} ... feature_map: IDENTICAL to the frozen probe'",
+      "problem": "The probe's feature map is NOT differentiable with respect to the policy: obs_vec comes from a non-differentiable environment and the action histogram comes from argmax/sampled actions. There is no gradient path from a D-classification loss into the private branches. As written, Component 2 cannot be implemented as a backprop loss.",
+      "resolution": "Policy gradient, not backprop through D. D stays exactly as validated."
+    },
+    "MECHANISM_AS_BUILT": {
+      "name": "trajectory-identity policy-gradient regulariser",
+      "explicitly_NOT": "an auxiliary environment reward. D's output is NEVER added to the CTF return, and does not touch reward, returns, GAE, or critic targets.",
+      "why_not_reward_injection": "Mixing D into r_t alters the return, critic targets, GAE, and what 'good policy' means. A reviewer could then say: 'of course z0 and z1 separated, you paid them to act like A and B.' That would muddy the exact question the experiment asks.",
+      "total_loss": "L = L_PPO_task + lambda_ogpsp * L_paired + lambda_tau * L_trajectory_PG",
+      "score": "S_z(tau) = clipped target-class log-probability under the pole's frozen D",
+      "target_class": "A for z0, B for z1 -- fixed by latent identity, never by local preference",
+      "advantage": "A_tau = S_z(tau) - baseline[z, pole]",
+      "loss": "L_tau = -A_tau * sum_t log pi(a_t | s_t, z)",
+      "gradient_path": "D(tau) -> trajectory advantage -> log pi_z(a|s) -> private branch",
+      "why_this_works": "D never needs to be differentiable."
+    },
+    "THREE_TIGHTENED_CHOICES": {
+      "1_full_episodes_not_segments": {
+        "rule": "Credit is assigned over FULL EPISODES. No segment horizon is introduced.",
+        "why": "The probe validated D on full episodes at 0.9531 / 0.9688. It did NOT validate D on 32-, 64-, or 128-step segments. With exactly one experiment available, none of its causal budget is spent inventing an unvalidated segment horizon. Since z is already static across the episode, full-episode credit is the natural unit."
+      },
+      "2_pole_specific_discriminators": {
+        "rule": "D_A scores Pole A trajectories; D_B scores Pole B trajectories. Never one shared D.",
+        "why": "A single classifier across both poles can rediscover OP6-vs-OP7. The probe measured exactly how easy that shortcut is: the confounded comparison scored 1.0000. The confound protection that made the diagnostic trustworthy is carried into training."
+      },
+      "3_score_stabilisation_chosen_prospectively": {
+        "rule": "Clipped target-class log-probability, centred by a per-(latent, pole) baseline.",
+        "why": "D is ~96% accurate, so raw probabilities sit near 0 or 1 and give badly scaled credit. The stabilisation is fixed NOW, before any training behaviour is observed, so it cannot be tuned into existence afterwards.",
+        "prohibited": "tuning any of this against EVAL, or redesigning it after seeing training curves"
+      }
+    },
+    "LIVENESS_SMOKE_MUST_ALSO_PROVE": [
+      "CTF rewards BIT-IDENTICAL with the regulariser active vs inactive",
+      "task returns and GAE BIT-IDENTICAL",
+      "task critic targets BIT-IDENTICAL",
+      "the correct pole-specific D is used for each trajectory",
+      "z0 episodes score against A-identity and z1 against B-identity",
+      "trajectory runner disabled -> HARD FAIL",
+      "wrong or missing D -> HARD FAIL"
+    ],
+    "why_the_bit_identical_block_matters": "It is the proof that V3 has not been silently converted into reward-shaped CTF. Without it, the separation result would be uninterpretable."
   }
 }
