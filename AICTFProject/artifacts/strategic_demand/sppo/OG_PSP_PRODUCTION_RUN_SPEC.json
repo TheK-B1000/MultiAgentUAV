@@ -1,0 +1,66 @@
+{
+  "record_id": "OG_PSP_PRODUCTION_RUN",
+  "status": "FROZEN_RUN_SPEC -- authorized, not yet launched",
+  "utc": "2026-08-31T06:27:29Z",
+  "authority": "PI scientific authorization, 2026-08-31",
+  "experiment_class": "ORACLE_GATED_REHEARSAL",
+  "implements": "ORACLE_GATED_PAIRED_SPECIALIST_PRESERVATION_SPEC.json",
+  "standing": "THE FINAL LATENT ATTEMPT under the stopping rule",
+  "AUTHORIZED_TREATMENT": {
+    "initialisation": "FRESH step 0. No checkpoint weights, no optimizer reuse.",
+    "architecture": "K=2 EXP2C-style, 3,534,144 params",
+    "training_seed": 11100001,
+    "total_timesteps": 1000000,
+    "terminal_step_rule": "normal rollout boundary; a small overshoot is expected and recorded",
+    "bank": "1804-state paired bank (428 legacy FIT + 1376 new collection)",
+    "paired_targets": {
+      "z0": "-> pi_A(s)",
+      "z1": "-> pi_B(s)",
+      "applies": "same state, every resolved state, regardless of local preference"
+    },
+    "ties": "ZERO rehearsal pressure",
+    "loss_aggregation": "MEAN over (state, latent) pairs -- never a sum",
+    "lambda": 0.1,
+    "cadence": 4,
+    "batch_states": 64,
+    "batch_pairs": 128,
+    "rollout": {
+      "z0": "Pole A -- OP6 + SDS2_A_payoff_INIT_3 overlay (16 envs)",
+      "z1": "Pole B -- OP7, no overlay (16 envs)",
+      "mode": "FIXED_OPPONENT",
+      "opponent_randomize": false,
+      "assignment": "persistent across every reset"
+    },
+    "auditors": "all active and FAIL-CLOSED",
+    "exp2_teacher_compression_enabled": false
+  },
+  "GATES_PASSED_BEFORE_LAUNCH": {
+    "bank_assembly": "PASS 1804 >= 1500 (ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json)",
+    "paired_rehearsal_smoke": "PASS (OG_PSP_PAIRED_REHEARSAL_SMOKE.json, commit e932a8d7)",
+    "rollout_assignment_smoke": "PASS under seed 11100001 (OG_PSP_ROLLOUT_ASSIGNMENT_SMOKE.json, commit a0dd7510)"
+  },
+  "TREATMENT_INVARIANTS_MONITORED_DURING_TRAINING": [
+    "tied exposures == 0",
+    "z0 exposures == z1 exposures (unequal means the pairing broke)",
+    "legacy V1 one-sided rehearsal path == 0 invocations",
+    "z -> pole assignment holds at every episode close",
+    "no unknown opponent ids"
+  ],
+  "on_invariant_break": "classify INVALID_TREATMENT and STOP. No mid-run repair.",
+  "MONITORING_DISCIPLINE": "Only operational and treatment-integrity signals are monitored: process health, auditor trips, exposure equality, tied exposures, legacy-path calls, assignment drift. Intermediate performance MUST NOT be used to alter the run.",
+  "EVAL_BOUNDARY": {
+    "block": "11200001..11200032",
+    "status": "SEALED",
+    "rule": "This authorizes TRAINING only. EVAL is a separate decision after the terminal checkpoint is frozen."
+  },
+  "INTERPRETIVE_CONTEXT_FROZEN_BEFORE_THE_RESULT": {
+    "two_axes": "paired supervision AND a 4.2x larger bank both change relative to V1, so a success cannot be attributed to either alone",
+    "retention": "may fall below V1's 0.9816 by design, since each latent is trained toward its specialist even where that specialist is locally worse; reported as context, never promoted to a gate",
+    "replay_factor": "expected ~4.2x lower than V1's 188.86 at the same budget",
+    "v1_reference": {
+      "z0_z1_jsd_bits": 0.0051,
+      "teacher_jsd_bits": 0.3919,
+      "v1_verdict": "ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED"
+    }
+  }
+}
