@@ -4,7 +4,6 @@
   "utc": "2026-08-31T10:45:00Z",
   "authority": "PI, 2026-08-31, after OG_PSP_CROSSOVER_NOT_CONFIRMED was frozen",
   "SCOPE": "Closes latent-strategy work for the ICRA submission under the stopping rule. Records what was established, what was ruled out, and what remains genuinely untested, so a future latent effort does not re-run experiments this program already answered.",
-
   "THE_THREE_LAYER_RESULT": {
     "chain": "teacher imitation -> latent differentiation -> strategic payoff",
     "layer_1_teacher_imitation": {
@@ -24,7 +23,6 @@
     },
     "CENTRAL_CLAIM": "A latent that changes actions is not the same as a latent that controls strategy. Single-state policy differentiation is not sufficient evidence of distinct long-horizon strategy in a multi-agent task."
   },
-
   "WHY_THIS_IS_A_FINDING_AND_NOT_A_NULL_RESULT": {
     "1_the_capacity_was_present": {
       "retention": "1.1452 [0.9412, 1.4048]",
@@ -42,7 +40,6 @@
       "why_it_matters": "If imitation-space separation were a good proxy for strategic specialisation, the ordering would have been preserved. It inverted. This is direct evidence that the two quantities are not merely weakly correlated but can be anti-ordered."
     }
   },
-
   "WHAT_THE_CONFIGURATION_RULES_OUT": {
     "purpose": "Three mechanisms are commonly proposed as the fix. The frozen run config settles which were actually absent, so a future effort does not 'fix' something that was already maximal.",
     "persistence_WAS_ALREADY_MAXIMAL": {
@@ -89,7 +86,6 @@
       "detail": "Supervision was state-level teacher imitation (paired rehearsal) plus PPO task reward. No objective at any point asked whether a trajectory segment was identifiably z0 or z1. The one quantity the program optimised for differentiation was state-level, and state-level is exactly what failed to transfer."
     }
   },
-
   "IMPORTANT_CAVEAT_FOR_ANY_FUTURE_EFFORT": {
     "the_levers_already_exist_in_config": "Adapters, FiLM, per-z action heads, deep branches, behavior contrast, outcome diversity, and arc-credit are all already plumbed in PPOConfig and were simply disabled for OG-PSP. A redesign is less greenfield than it appears.",
     "but_existing_flags_are_not_validated_mechanisms": "Some of these levers carry PRIOR NEGATIVE RESULTS in this repository and must not be treated as untried:",
@@ -100,7 +96,6 @@
     },
     "the_diversity_trap": "Any trajectory-level identifiability objective must be tied to strategic value, not to arbitrary difference. Maximising I(z; tau) alone admits degenerate solutions -- two latents that are trivially distinguishable and both strategically useless. The Pole A / Pole B strategic-demand structure is the available grounding."
   },
-
   "RANKED_HYPOTHESES_IF_LATENT_WORK_RESUMES": [
     "1. Latent-private actor capacity (private heads / FiLM / hypernetwork-generated layers) so competing gradients do not share every weight. Persistence is NOT part of this recommendation; it was already maximal.",
     "2. Trajectory-level identifiability, q_phi(z | tau) over trajectory segments, tied to task return so diversity cannot be satisfied degenerately.",
@@ -108,7 +103,6 @@
     "4. Initialise/distil z0 <- pi_A and z1 <- pi_B into private branches from the known-good SAPPO specialists, reframing the question as 'how much can two known-good strategies share without losing strategic identity' rather than 'can one shared network rediscover both'.",
     "5. Only afterward, response-oracle or population mechanisms."
   ],
-
   "RELATED_WORK_THE_PI_IDENTIFIED": {
     "MAVEN": "shared latent for temporally committed joint behaviour -- but note this program already had stronger-than-episode persistence and it was insufficient",
     "OPRE": "high level selects a strategic response, low level implements it via primitives",
@@ -116,13 +110,11 @@
     "DGPO": "information-theoretic diversity objective for multiple high-performing strategies",
     "SHPPO": "latent strategy representations generate heterogeneous actor parameters -- closest to the private-capacity hypothesis"
   },
-
   "DECISION": {
     "latent_work": "CLOSED for the ICRA submission under the stopping rule. No repair of the OG-PSP run, no further latent experiments.",
     "next": "SAPPO-centered ICRA paper.",
     "scientific_position": "The latent idea is not refuted. What is refuted is the sufficiency of a small shared-parameter conditioning signal, however persistent and however well it differentiates action distributions, to produce complementary long-horizon strategies."
   },
-
   "PROVENANCE": {
     "eval_result": "OG_PSP_EVAL_RESULT.json, commit 5183f296",
     "b_side_integrity": "OG_PSP_EVAL_B_SIDE_INTEGRITY.json, check committed a2162f77 before rows existed",
@@ -131,5 +123,14 @@
     "v1_result": "ORACLE_GATED_K2_EVAL_RESULT.json, commit ff4d36ef",
     "teacher_contrast": "commit bbe1685f",
     "run_config_audited": "artifacts/strategic_demand/sppo/og_psp_production/og_psp_production_run_config.json"
+  },
+  "AMENDMENT_1_STOPPING_RULE_REOPENED": {
+    "utc": "2026-08-31T14:00:50Z",
+    "authority": "PI, 2026-08-31",
+    "status": "The DECISION block above recorded latent work as CLOSED. It is prospectively reopened for ONE bounded experiment. The original text is retained unchanged; this amendment supersedes only the 'latent_work: CLOSED' line.",
+    "justification": "Latent work was closed after state-level differentiation failed to produce strategic crossover. It is prospectively reopened for one final experiment because a new confound-controlled diagnostic established strong held-out trajectory-level specialist separability on both strategic poles (0.9531 Pole A, 0.9688 Pole B), exposing an untested abstraction level not addressed by prior latent treatments.",
+    "why_this_is_not_outcome_chasing": "The reopening is licensed by NEW evidence obtained after the negative verdict was frozen, not by dissatisfaction with it. OG_PSP_CROSSOVER_NOT_CONFIRMED stands unmodified and is not re-scored, re-seeded, or reinterpreted. The new experiment gets a fresh model, a fresh training seed, and its own untouched EVAL block.",
+    "scope_limit": "Exactly ONE experiment (H-OG-PSP V3). No V4 under any outcome.",
+    "successor": "HOG_PSP_V3_SPEC.json"
   }
 }

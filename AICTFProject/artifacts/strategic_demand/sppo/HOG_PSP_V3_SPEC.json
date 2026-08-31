@@ -1,0 +1,141 @@
+{
+  "record_id": "HOG_PSP_V3_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-08-31T14:05:00Z",
+  "authority": "PI, 2026-08-31: reopen latent work for ONE bounded H-OG-PSP experiment, run in parallel with the SAPPO manuscript",
+  "name": "Heterogeneous Oracle-Gated Paired Specialist Preservation (H-OG-PSP)",
+
+  "THE_HYPOTHESIS": {
+    "statement": "Complementary latent strategies require BOTH latent-private actor capacity AND supervision at the trajectory level. OG-PSP supplied neither and produced action differentiation without strategic separation.",
+    "two_components": [
+      "z must control actor PARAMETERS, not merely enter actor INPUTS",
+      "specialist identity must be reinforced over TRAJECTORIES, not only individual states"
+    ],
+    "why_now": "Both components are licensed by evidence obtained after OG-PSP's verdict was frozen, not by dissatisfaction with it."
+  },
+
+  "WHAT_PRIOR_WORK_ALREADY_ELIMINATED": {
+    "strategic_demand_absent": "RULED OUT -- 0.3919 bits of measured teacher contrast, SUBSTANTIAL_TEACHER_CONTRAST (bbe1685f)",
+    "specialists_not_genuinely_different": "RULED OUT -- 0.9531 / 0.9688 held-out trajectory separability with opponent controlled",
+    "z_ignored": "RULED OUT -- OG-PSP raised matched-CALIB JSD 6.39x",
+    "small_rehearsal_bank": "RULED OUT -- 1,804 states, replay factor 49.42 vs V1's 188.86",
+    "memorisation": "RULED OUT -- CALIB JSD slightly EXCEEDED FIT",
+    "insufficient_persistence": "RULED OUT -- one fixed z per env for all 1M steps, stronger than MAVEN's episode-level commitment",
+    "reading": "Six candidate explanations are closed. The two this spec addresses are what remain."
+  },
+
+  "COMPONENT_1_LATENT_PRIVATE_ACTOR_CAPACITY": {
+    "mechanism": "V6I26 LRO deep branches: each latent owns a private 2-layer trunk (Linear(H,H)->ReLU->Linear(H,H)->ReLU) plus a private action head Linear(H, action_dim).",
+    "config": {
+      "enable_latent_z_residual": true,
+      "latent_population_birth_per_z_action_heads": true,
+      "latent_lro_deep_branches": true,
+      "latent_z_residual_alpha": "> 0 (fixed-alpha mode)"
+    },
+    "why_fixed_alpha_not_gated": "rl/latent_marl.py:339-343 -- fixed-alpha uses Kaiming init deliberately. Zero-init adapters cannot accumulate gradient signal and form a zero-gradient degenerate equilibrium. This was the V6I22E root cause and must not be reintroduced.",
+    "why_not_adapters": "V6I22 ran adapter-based repertoire birth and reached behavior_pair_dist 0.033 against a 0.06 bar. Adapters alone did not deliver behavioral separation. This spec deliberately picks a substantially stronger structural mechanism.",
+    "honest_status_of_this_code": "The mechanism is IMPLEMENTED AND EXERCISED, but in a different experimental context -- V6I26 targeted weakness-driven branch birth against niche opponents on map_b and OP8-12. It has NEVER been used as the private-capacity substrate for OG-PSP paired supervision on map_a Pole A/B. It is untested HERE, not untested code.",
+    "exactly_one_mechanism": "FiLM, z-adapters, and z-onehot remain DISABLED. Stacking mechanisms would make a result unattributable, which is the two-axes problem OG-PSP already carries."
+  },
+
+  "COMPONENT_2_TEACHER_GROUNDED_TRAJECTORY_IDENTITY": {
+    "mechanism": "A discriminator D(tau) -> {A, B} trained ONCE on frozen SAPPO specialist trajectories, then held FIXED. During training, z0 rollout segments are encouraged toward A-classification and z1 segments toward B.",
+    "feature_map": "IDENTICAL to the frozen probe: per-agent obs_vec mean and std plus action histogram, 128 dims. Reused unchanged so the training signal is the same quantity the probe validated at 0.95/0.97.",
+    "the_discriminator_is_frozen": {
+      "rule": "D is trained on teacher trajectories and never co-adapted with the policy.",
+      "why": "A co-adapted discriminator can be satisfied by arbitrary difference. We have a direct counterexample in our own data: OG-PSP's z1 achieved a +10.0 pp crossed gap and converted it to exactly zero payoff advantage. Freezing D to teacher-defined identity is what ties diversity to strategies of proven strategic value.",
+      "anchors": "ROMA's explicit identifiability and DGPO's performance-aware diversity"
+    },
+    "task_reward_stays_primary": "lambda_traj is bounded so the auxiliary cannot dominate PPO. A policy must not be able to win the auxiliary objective by behaving strangely.",
+    "prohibited": [
+      "naked JSD or mutual-information bonuses",
+      "any objective rewarding difference not grounded in teacher identity",
+      "training D on the policy's own rollouts"
+    ]
+  },
+
+  "PRESERVED_UNCHANGED_FROM_OG_PSP": {
+    "paired_state_level_rehearsal": "(s,z0)->pi_A(s) AND (s,z1)->pi_B(s) on every resolved state, mean aggregation, ties get zero pressure. This is validated and is NOT the thing being changed.",
+    "bank": "the existing 1,804-state bank; NO new collection campaign",
+    "budget": "1,000,000 steps, same as V1 and OG-PSP, so budget is not a confound",
+    "persistence": "static_env, 16x z0 + 16x z1, unchanged",
+    "poles": "Pole A = OP6 + SDS2_A_payoff_INIT_3 overlay; Pole B = OP7",
+    "auditors": "all fail-closed, unchanged",
+    "exp2_teacher_compression_enabled": false
+  },
+
+  "FRESH_AND_SEALED": {
+    "model": "fresh step-0, no checkpoint or optimizer reuse",
+    "training_seed": 11300001,
+    "EVAL_block": "11300101..11300132, n=32, NEVER touched by training, rehearsal, bank collection, the probe, or any diagnostic",
+    "prior_EVAL_blocks_stay_closed": "10700129..10700160 (V1) and 11200001..11200032 (OG-PSP) are spent and must not be reused or re-scored"
+  },
+
+  "THE_GATE_IS_UNCHANGED": {
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta lcb95 > 0",
+    "statistic": "paired percentile bootstrap, n_boot 20000, alpha 0.05, rng seed 7, seed-level unit",
+    "provenance": "carried forward unchanged from OG-PSP, V1, and EXP2C",
+    "one_passing_side_is_not_a_pass": true,
+    "verdict_labels": {"pass": "HOG_PSP_V3_CROSSOVER_CONFIRMED", "fail": "HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED"}
+  },
+
+  "THE_HARD_WALL": {
+    "rule": "V3 gets to improve the paper. It does not get to endanger the paper.",
+    "icra_deadline": "2027 submissions due 2026-09-15 23:59 PST, 8 pages including references, no planned extension",
+    "manuscript_starts_immediately": "SAPPO-centered ICRA manuscript work begins today, in parallel, independent of V3 status",
+    "engineering_timebox": {
+      "budget": "approximately 48 hours to reach a VERIFIED LAUNCHABLE TREATMENT",
+      "explicitly_not": "48 hours of debugging research code",
+      "if_exceeded": "PARK V3 until after ICRA and commit fully to SAPPO. This is a default, not a judgement call to be relitigated."
+    },
+    "scope_limit": "Exactly ONE experiment. There is no V4 under any outcome.",
+    "if_v3_fails": "HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED is recorded and the SAPPO paper proceeds with the compression-limit finding as the centerpiece. The fallback story is already complete and does not depend on V3."
+  },
+
+  "SEQUENCE": [
+    "freeze this spec (done at commit time)",
+    "implement private capacity + frozen trajectory discriminator",
+    "MECHANISM SMOKE -- must pass before any 1M run",
+    "fresh 1M run",
+    "mechanism diagnostic on CALIB",
+    "separate PI decision to open EVAL",
+    "one-shot EVAL"
+  ],
+
+  "MECHANISM_SMOKE_MUST_PROVE": [
+    "updating z0 moves z0's private trunk and head and does NOT move z1's private parameters",
+    "and the converse for z1",
+    "the frozen trajectory discriminator is actually invoked during training (a runner-accessor tripwire, since a silently dead runner already nearly cost a full 1M run twice)",
+    "D's parameters do NOT change during PPO",
+    "paired rehearsal still emits both latent targets per state",
+    "tied exposures remain 0",
+    "legacy one-sided rehearsal path remains at 0 invocations",
+    "rollout z->pole assignment remains 32/32 with 0 mismatches",
+    "loss aggregation remains MEAN"
+  ],
+
+  "KNOWN_RISKS_RECORDED_BEFORE_THE_RESULT": {
+    "two_components_change_at_once": "Private capacity and trajectory supervision are introduced together. A success cannot be attributed to either alone. This is accepted deliberately because the timebox does not permit an ablation, and it is recorded now so it cannot be quietly omitted later.",
+    "discriminator_transfer": "D is trained on TEACHER trajectories and applied to STUDENT rollouts. Its 0.95/0.97 accuracy is on teacher data; accuracy on student trajectories is unknown and may be much lower.",
+    "segment_length": "The probe validated D on full episodes. Applying it to shorter training segments may weaken the signal. Segment length is a design parameter, not a validated one.",
+    "prior_negative_on_related_capacity": "V6I22's adapter result and the K2V2 specialist failure both bear on whether private capacity delivers separation."
+  },
+
+  "PROHIBITED": [
+    "re-scoring, re-seeding, or reinterpreting OG-PSP's frozen verdict",
+    "reusing a spent EVAL block",
+    "adding a second private-capacity mechanism",
+    "adding an ungrounded diversity objective",
+    "collecting a new bank",
+    "extending the timebox by relitigating the hard wall",
+    "a V4"
+  ],
+
+  "PROVENANCE": {
+    "reopens": "LATENT_PROGRAM_POSTMORTEM.json#AMENDMENT_1_STOPPING_RULE_REOPENED",
+    "licensed_by": "TEACHER_TRAJECTORY_SEPARABILITY_PROBE.json, VERDICT TRAJECTORY_SIGNAL_PRESENT (bdd23fc4)",
+    "supersedes_nothing": "OG_PSP_EVAL_RESULT.json stands unmodified as a frozen negative result"
+  }
+}

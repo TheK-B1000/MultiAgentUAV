@@ -92,5 +92,13 @@
     ],
     "EVAL_touched": false
   },
-  "authorizes": "nothing; a V3 spec requires a separate PI decision"
+  "authorizes": "nothing; a V3 spec requires a separate PI decision",
+  "AMENDMENT_1_METRIC_SCALE": {
+    "utc": "2026-08-31T14:00:50Z",
+    "authority": "PI, 2026-08-31, immediately after the probe result",
+    "status": "wording correction only; no number, split, threshold, or verdict changes",
+    "the_error": "The result was initially summarised as '22% signal versus 96% signal', placing action-disagreement rate and balanced classification accuracy on a shared axis. They are different metrics on different scales and their ratio means nothing.",
+    "corrected_statement": "Single-state teacher actions provide relatively sparse disagreement, while aggregate trajectories contain highly discriminative specialist identity on held-out seeds with the opponent controlled.",
+    "why_it_still_motivates_trajectory_supervision": "The argument does not need the two numbers to be commensurable. It needs only that specialist identity is recoverable from held-out trajectories at 0.95-0.97 balanced accuracy with the opponent fixed, which establishes a measurable long-horizon target that state-level supervision never addressed."
+  }
 }
