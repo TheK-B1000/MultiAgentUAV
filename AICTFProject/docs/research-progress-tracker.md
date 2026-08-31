@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-27 — RASR DEV qualification `INVALID` (support floor). Stratified 16-cell collection Attempt 1 = STOPPED BEFORE FULL COLLECTION / FEASIBILITY DEFECT (source-only). AMENDMENT_2 Option B authorized; amended collector relaunched on `10700001..10700160`. PPO arms still blocked. FINAL sealed. SPPPO V1 CLOSED; EXP3/EXP4 locked.
+> **Last updated:** 2026-08-31 — H-OG-PSP V3 completed valid training and prospectively confirmed trajectory identity on both poles. The mechanism result is committed at `df144084`. Its terminal-only payoff EVAL is frozen on `11300101..11300132` and remains unopened pending the committed evaluator launch.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -27,6 +27,23 @@ It is **not** the source of truth for:
 | M1 2v2 Gate B (block `2300001`) | **SCIENTIFIC FAIL** — OP7 BREACH−GUARD +0.531 PASS; OP6 GUARD−BREACH +0.094 FAIL |
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
 | PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C FAIL / SPPPO V1 FAIL (CLOSED).** Automatic latent variants and the SPPPO V1 branch are closed. Phase 0 Gates 0A/0B passed; SPPPO V1 completed its frozen 1 M run and final 192-seed evaluation. |
+
+### H-OG-PSP V3 — `TRAJECTORY IDENTITY CONFIRMED / PAYOFF UNEVALUATED`
+
+The valid 1 M run terminated at 1,003,520 steps with terminal checkpoint SHA256
+`9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69`.
+All 12 terminal-integrity checks passed. The mechanism result was frozen before
+payoff data and committed at `df144084`: paired trajectory-identity LCB95s are
+`+5.6553` on Pole A and `+5.1032` on Pole B, so
+`TRAJECTORY_IDENTITY_CONFIRMED` is permanent regardless of the payoff result.
+
+The separate one-shot payoff protocol is
+[`HOG_PSP_V3_EVAL_SPEC.json`](../artifacts/strategic_demand/sppo/HOG_PSP_V3_EVAL_SPEC.json).
+It scores only the terminal checkpoint on untouched seeds
+`11300101..11300132`. The six-cell design and paired bootstrap are unchanged
+from OG-PSP. Strategic crossover requires both `LCB95(delta_A) > 0` and
+`LCB95(delta_B) > 0`; mechanism identity and retention are not payoff gates.
+At this prospective freeze point, payoff crossover is **UNEVALUATED**.
 
 ### SPPPO V1 — `CLOSED / NOT CONFIRMED`
 
