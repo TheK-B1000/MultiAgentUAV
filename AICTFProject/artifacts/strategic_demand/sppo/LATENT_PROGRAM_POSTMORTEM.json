@@ -1,0 +1,135 @@
+{
+  "record_id": "LATENT_PROGRAM_POSTMORTEM",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-31T10:45:00Z",
+  "authority": "PI, 2026-08-31, after OG_PSP_CROSSOVER_NOT_CONFIRMED was frozen",
+  "SCOPE": "Closes latent-strategy work for the ICRA submission under the stopping rule. Records what was established, what was ruled out, and what remains genuinely untested, so a future latent effort does not re-run experiments this program already answered.",
+
+  "THE_THREE_LAYER_RESULT": {
+    "chain": "teacher imitation -> latent differentiation -> strategic payoff",
+    "layer_1_teacher_imitation": {
+      "status": "ESTABLISHED",
+      "evidence": "Measured teacher contrast 0.3919 bits (22.25% masked disagreement on FIT, 23.28% on CALIB). Verdict SUBSTANTIAL_TEACHER_CONTRAST, commit bbe1685f. The strategic signal the latents were asked to encode demonstrably exists."
+    },
+    "layer_2_latent_differentiation": {
+      "status": "BROKEN IN V1, FIXED BY OG-PSP",
+      "v1": "z0-z1 JSD 0.0051 nats against 0.3919 bits of available contrast. The crossed comparison showed z1 matched pi_A almost as well as z0 did (93.0% vs 94.7%), so a latent-independent state->action map satisfied the whole objective.",
+      "og_psp": "On the matched CALIB split (identical for both runs, n=145) JSD rose 0.006589 -> 0.042102 nats, 6.39x, and did not collapse from FIT to CALIB. Both own-teacher matches improved (+4.21 pp, +14.50 pp). Nothing memorised.",
+      "reading": "Paired supervision on the same state under both latent IDs does force z to carry identity, and that identity generalises to unseen states."
+    },
+    "layer_3_strategic_payoff": {
+      "status": "BROKEN, AND NOT REPAIRED BY FIXING LAYER 2",
+      "evidence": "delta_A +0.0625 [-0.1250, +0.2500] FAIL; delta_B +0.0000 [-0.1875, +0.1875] FAIL. Neither side clears LCB95 > 0.",
+      "reading": "This is the central finding of the program."
+    },
+    "CENTRAL_CLAIM": "A latent that changes actions is not the same as a latent that controls strategy. Single-state policy differentiation is not sufficient evidence of distinct long-horizon strategy in a multi-agent task."
+  },
+
+  "WHY_THIS_IS_A_FINDING_AND_NOT_A_NULL_RESULT": {
+    "1_the_capacity_was_present": {
+      "retention": "1.1452 [0.9412, 1.4048]",
+      "detail": "z0 beats pi_A on pi_A's own pole (0.8750 vs 0.7500); z1 also exceeds it (0.8125). Both latents beat the B-teacher on Pole B (0.6875 vs 0.6250).",
+      "rules_out": "'The compressed student is a lossy copy of the specialists' cannot explain the missing separation. The policy is stronger than its teachers and still fails to separate."
+    },
+    "2_the_differentiation_was_real_not_inert": {
+      "detail": "The B-pole cells differ on 19 of 32 EVAL seeds. z0 won where z1 lost on 5 seeds; z1 won where z0 lost on 5 others; they cancel exactly.",
+      "rules_out": "'z1 does nothing on Pole B' is false. z1 behaves differently from z0 and is precisely equally good. Differently-behaving and equally-valuable.",
+      "verified_by": "OG_PSP_EVAL_B_SIDE_INTEGRITY.json, VERDICT GENUINE_TIE, check committed before the rows existed (a2162f77)"
+    },
+    "3_the_asymmetry_inverted": {
+      "predicted": "The mechanism diagnostic found z1 strongly B-specialised (CALIB crossed gap +10.0 pp) and z0 barely A-specialised (+1.32 pp), predicting the B side would separate and the A side would not.",
+      "observed": "The opposite ordering. A carries the only positive point estimate (+0.0625); B is flat zero.",
+      "why_it_matters": "If imitation-space separation were a good proxy for strategic specialisation, the ordering would have been preserved. It inverted. This is direct evidence that the two quantities are not merely weakly correlated but can be anti-ordered."
+    }
+  },
+
+  "WHAT_THE_CONFIGURATION_RULES_OUT": {
+    "purpose": "Three mechanisms are commonly proposed as the fix. The frozen run config settles which were actually absent, so a future effort does not 'fix' something that was already maximal.",
+    "persistence_WAS_ALREADY_MAXIMAL": {
+      "verdict": "NOT the missing ingredient. Ruled out by this run.",
+      "evidence": {
+        "latent_assignment_mode": "static_env",
+        "forced_latent_env_ids": "[0]x16 + [1]x16",
+        "latent_resample_every_n": 0,
+        "latent_event_refresh_enabled": false,
+        "latent_sparse_tactical_refresh_enabled": false,
+        "auditor": "32/32 envs z_stable, exactly one z per env across 129+ resets, 4228 episodes, 0 mismatches"
+      },
+      "detail": "Each environment ran one fixed latent for the entire 1,000,000 steps. This is stronger commitment than the episode-level persistence MAVEN prescribes. Persistence alone does not convert action differences into strategic differences."
+    },
+    "latent_private_capacity_WAS_EXACTLY_ZERO": {
+      "verdict": "GENUINELY UNTESTED. The strongest remaining hypothesis.",
+      "evidence": {
+        "latent_actor_conditioning": "concat",
+        "latent_z_embed_dim": 16,
+        "actor_input_dim": 164,
+        "share_of_actor_input": "9.8%",
+        "latent_actor_z_adapter_enabled": false,
+        "latent_actor_z_adapter_scale": 0.0,
+        "enable_actor_z_film": false,
+        "actor_z_film_init_scale": 0.0,
+        "enable_latent_z_residual": false,
+        "latent_z_residual_alpha": 0.0,
+        "latent_population_birth_per_z_action_heads": false,
+        "latent_lro_deep_branches": false
+      },
+      "detail": "Every parameter in the actor is shared between latents. z enters only as a 16-dim vector concatenated into a 164-dim input. There are zero latent-private weights, so a B-favouring gradient and an A-favouring gradient necessarily compete for the same parameters."
+    },
+    "trajectory_level_identifiability_WAS_EXACTLY_ZERO": {
+      "verdict": "GENUINELY UNTESTED.",
+      "evidence": {
+        "latent_behavior_contrast_coef": 0.0,
+        "latent_outcome_diversity_coef": 0.0,
+        "latent_actor_z_separation_coef": 0.0,
+        "latent_context_mi_coef": 0.0,
+        "latent_cf_separation_coef": 0.0,
+        "latent_arc_credit_enabled": false,
+        "latent_episode_strategy_ppo": false
+      },
+      "detail": "Supervision was state-level teacher imitation (paired rehearsal) plus PPO task reward. No objective at any point asked whether a trajectory segment was identifiably z0 or z1. The one quantity the program optimised for differentiation was state-level, and state-level is exactly what failed to transfer."
+    }
+  },
+
+  "IMPORTANT_CAVEAT_FOR_ANY_FUTURE_EFFORT": {
+    "the_levers_already_exist_in_config": "Adapters, FiLM, per-z action heads, deep branches, behavior contrast, outcome diversity, and arc-credit are all already plumbed in PPOConfig and were simply disabled for OG-PSP. A redesign is less greenfield than it appears.",
+    "but_existing_flags_are_not_validated_mechanisms": "Some of these levers carry PRIOR NEGATIVE RESULTS in this repository and must not be treated as untried:",
+    "prior_negatives": {
+      "V6I22": "Adapter-based repertoire birth reached oracle gap +0.80 with all 4 latents oracle-best, but behavior_pair_dist was 0.033 against a 0.06 bar -- latent-private adapters did NOT by themselves produce behavioral separation.",
+      "K2V2_specialist_proof": "FAILED at 1M: piR was a dominant generalist with delta_pool = 0, blocking latent birth and the router.",
+      "reading": "Latent-private capacity has been tried in a different form and did not deliver separation on its own. The honest statement is that private capacity PLUS a trajectory-level objective is untested, not that private capacity is a known fix."
+    },
+    "the_diversity_trap": "Any trajectory-level identifiability objective must be tied to strategic value, not to arbitrary difference. Maximising I(z; tau) alone admits degenerate solutions -- two latents that are trivially distinguishable and both strategically useless. The Pole A / Pole B strategic-demand structure is the available grounding."
+  },
+
+  "RANKED_HYPOTHESES_IF_LATENT_WORK_RESUMES": [
+    "1. Latent-private actor capacity (private heads / FiLM / hypernetwork-generated layers) so competing gradients do not share every weight. Persistence is NOT part of this recommendation; it was already maximal.",
+    "2. Trajectory-level identifiability, q_phi(z | tau) over trajectory segments, tied to task return so diversity cannot be satisfied degenerately.",
+    "3. Repertoire first, selector second, with continual rehearsal of both modes, so actor and selector cannot co-adapt into one generalist from the start.",
+    "4. Initialise/distil z0 <- pi_A and z1 <- pi_B into private branches from the known-good SAPPO specialists, reframing the question as 'how much can two known-good strategies share without losing strategic identity' rather than 'can one shared network rediscover both'.",
+    "5. Only afterward, response-oracle or population mechanisms."
+  ],
+
+  "RELATED_WORK_THE_PI_IDENTIFIED": {
+    "MAVEN": "shared latent for temporally committed joint behaviour -- but note this program already had stronger-than-episode persistence and it was insufficient",
+    "OPRE": "high level selects a strategic response, low level implements it via primitives",
+    "ROMA": "regularisation to make role representations identifiable and specialised, rather than hoping a conditioned latent becomes meaningful",
+    "DGPO": "information-theoretic diversity objective for multiple high-performing strategies",
+    "SHPPO": "latent strategy representations generate heterogeneous actor parameters -- closest to the private-capacity hypothesis"
+  },
+
+  "DECISION": {
+    "latent_work": "CLOSED for the ICRA submission under the stopping rule. No repair of the OG-PSP run, no further latent experiments.",
+    "next": "SAPPO-centered ICRA paper.",
+    "scientific_position": "The latent idea is not refuted. What is refuted is the sufficiency of a small shared-parameter conditioning signal, however persistent and however well it differentiates action distributions, to produce complementary long-horizon strategies."
+  },
+
+  "PROVENANCE": {
+    "eval_result": "OG_PSP_EVAL_RESULT.json, commit 5183f296",
+    "b_side_integrity": "OG_PSP_EVAL_B_SIDE_INTEGRITY.json, check committed a2162f77 before rows existed",
+    "mechanism_diagnostic": "OG_PSP_MECHANISM_DIAGNOSTIC.json, commit a59ee84a",
+    "model_freeze": "OG_PSP_MODEL_FROZEN.json, commit 75e1e696",
+    "v1_result": "ORACLE_GATED_K2_EVAL_RESULT.json, commit ff4d36ef",
+    "teacher_contrast": "commit bbe1685f",
+    "run_config_audited": "artifacts/strategic_demand/sppo/og_psp_production/og_psp_production_run_config.json"
+  }
+}
