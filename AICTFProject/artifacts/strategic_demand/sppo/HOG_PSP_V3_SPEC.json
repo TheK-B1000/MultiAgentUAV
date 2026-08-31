@@ -187,5 +187,36 @@
       "wrong or missing D -> HARD FAIL"
     ],
     "why_the_bit_identical_block_matters": "It is the proof that V3 has not been silently converted into reward-shaped CTF. Without it, the separation result would be uninterpretable."
+  },
+  "AMENDMENT_2_TERMINAL_RECORD_ACCEPTANCE_AND_INVALID_CHANNEL_VERDICT": {
+    "utc": "2026-08-31T15:50:52Z",
+    "authority": "PI, 2026-08-31, while the run was ~25% complete and only partially observable mid-run",
+    "status": "Frozen before the terminal record exists. Does not alter the treatment.",
+    "why_this_amendment_exists": "Mid-run monitoring discovered a real observability gap: paired-rehearsal and trajectory-PG counters (n_updates, episodes_flushed, D.assert_still_frozen results, dropped_too_long) only print in --verify-steps mode or get written into the final RECORD at completion, mirroring OG-PSP's runner too closely. During the run itself there is no periodic evidence beyond 'no crash' and 'episodes are completing per the trainer's own independent bookkeeping'. That is real but INDIRECT evidence of channel health, not direct confirmation, because a silent-drop failure mode exists (an episode whose opponent does not resolve to a known pole, or whose transitions exceed the retention cap, is quietly skipped -- no exception, no log line).",
+    "ruling": "Do not run the mechanism diagnostic or open EVAL until the final production record PROVES all three channels remained live for the full run. 'No crash occurred' is not sufficient; the terminal record must show positive counts.",
+    "TERMINAL_RECORD_MUST_CONFIRM": {
+      "task_ppo_updates_gt_0": null,
+      "paired_rehearsal_updates_gt_0": null,
+      "trajectory_pg_updates_gt_0": null,
+      "paired_z0_z1_exposures_equal": null,
+      "tied_exposures_eq_0": null,
+      "legacy_one_sided_calls_eq_0": null,
+      "episodes_flushed_gt_0": null,
+      "episodes_dropped_too_long_reported": null,
+      "unknown_pole_drops_reported_and_expected_0": null,
+      "discriminators_remained_frozen": null,
+      "env_assignment_32_of_32_intact": null,
+      "assignment_mismatches_eq_0": null,
+      "note": "Each field is filled in against HOG_PSP_V3_PRODUCTION_RESULT.json once written; None here means not yet evaluable."
+    },
+    "NEW_VERDICT_CATEGORY": {
+      "name": "INVALID_TRAJECTORY_CHANNEL_NOT_LIVE",
+      "when_it_applies": "If the terminal record shows trajectory PG updates at zero or essentially absent despite the run completing without a raised exception -- i.e. the channel was silently dead rather than the treatment having been genuinely tried and failed.",
+      "distinct_from_a_scientific_result": "This is NOT HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED and it is not evidence that trajectory-grounded identity does not work. It means the mechanism was never actually exercised at production scale, which is an engineering failure of THIS run's wiring, not a finding about the hypothesis.",
+      "consequence": "The sealed EVAL block (11300101..11300132) remains untouched. No EVAL is run against a checkpoint whose defining mechanism did not fire. If this occurs, diagnosing and possibly relaunching is a fresh PI decision, not an automatic retry.",
+      "same_bar_could_apply_to_paired_rehearsal": "Though considered less likely since it reuses OG-PSP's proven runner unchanged, the same invalidation applies symmetrically if paired_rehearsal_updates is zero or z0/z1 exposures are unequal."
+    },
+    "MONITORING_LESSON_FOR_FUTURE_RUNS": "Scientific outputs (JSD, discriminator scores, crossed teacher-match) should stay hidden during training -- that separation is deliberate and load-bearing. But treatment-integrity counters (update counts, drop counts, frozen-parameter checks, assignment violations) are not performance peeking and should be periodically visible during future production runs, the same way an engine's oil level is checked without inspecting how fast the car is going.",
+    "for_this_run": "Leave it running untouched. Do not restart or modify it to add telemetry -- that would mutate a one-shot treatment to fix an observability inconvenience, which is worse than the gap itself. Evaluate against this checklist only once it completes."
   }
 }
