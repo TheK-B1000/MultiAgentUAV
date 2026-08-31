@@ -1,0 +1,96 @@
+{
+  "record": "pi_A vs pi_B trajectory separability probe",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-31T13:50:00Z",
+  "purpose": "Prerequisite for any trajectory-grounded latent objective. Gates the CONTENT of a future V3 spec; authorizes nothing.",
+  "VERDICT": "TRAJECTORY_SIGNAL_PRESENT",
+  "meaning": "On both poles, held-out trajectories of the two proven specialists are separable with the opponent held fixed. A trajectory-grounded latent objective has a real target to aim at.",
+  "thresholds_frozen_before_reading": {
+    "trajectory_signal_bar": 0.7,
+    "shuffle_margin": 0.1,
+    "l2_C": 0.1,
+    "rationale": "0.70 is the project's existing tau convention. The shuffle margin exists because n~190 with d=128 makes overfitting a live risk, so a real signal must beat its own shuffle."
+  },
+  "confound_control": {
+    "why": "pi_A@PoleA vs pi_B@PoleB lets a classifier win by identifying the OPPONENT rather than the strategy. Both specialists are therefore compared on the SAME pole.",
+    "confounded_comparison_for_reference_only": {
+      "comparison": "CONFOUNDED: pi_A@PoleA vs pi_B@PoleB",
+      "n_train": 192,
+      "n_test": 64,
+      "train_class_balance": {
+        "pi_A": 96,
+        "pi_B": 96
+      },
+      "test_class_balance": {
+        "pi_A": 32,
+        "pi_B": 32
+      },
+      "held_out_balanced_accuracy": 1.0,
+      "shuffled_label_control": 0.5,
+      "beats_shuffle_by": 0.5,
+      "clears_bar": true
+    },
+    "is_not_the_result": true
+  },
+  "clean_per_pole_results": {
+    "Pole A": {
+      "comparison": "pi_A vs pi_B, both on Pole A",
+      "n_train": 192,
+      "n_test": 64,
+      "train_class_balance": {
+        "pi_A": 96,
+        "pi_B": 96
+      },
+      "test_class_balance": {
+        "pi_A": 32,
+        "pi_B": 32
+      },
+      "held_out_balanced_accuracy": 0.953125,
+      "shuffled_label_control": 0.375,
+      "beats_shuffle_by": 0.578125,
+      "clears_bar": true
+    },
+    "Pole B": {
+      "comparison": "pi_A vs pi_B, both on Pole B",
+      "n_train": 192,
+      "n_test": 64,
+      "train_class_balance": {
+        "pi_A": 96,
+        "pi_B": 96
+      },
+      "test_class_balance": {
+        "pi_A": 32,
+        "pi_B": 32
+      },
+      "held_out_balanced_accuracy": 0.96875,
+      "shuffled_label_control": 0.484375,
+      "beats_shuffle_by": 0.484375,
+      "clears_bar": true
+    }
+  },
+  "feature_map": {
+    "per_agent_obs_vec_mean": 40,
+    "per_agent_obs_vec_std": 40,
+    "action_histogram": 48,
+    "total_dim": 128,
+    "deliberately_excluded": [
+      "pole",
+      "seed",
+      "episode length",
+      "any identifier"
+    ]
+  },
+  "splits": {
+    "FIT": [
+      10700001,
+      10700096
+    ],
+    "CALIB": [
+      10700097,
+      10700128
+    ],
+    "EVAL_touched": false
+  },
+  "authorizes": "nothing; a V3 spec requires a separate PI decision"
+}
