@@ -1,0 +1,189 @@
+{
+  "record_id": "HOG_PSP_V3_MODEL_FROZEN",
+  "status": "FROZEN_MODEL -- frozen BEFORE the mechanism diagnostic or EVAL were opened",
+  "utc": "2026-08-31T17:15:00Z",
+  "authority": "Standard sequence carried from V1 and OG-PSP: train -> freeze terminal checkpoint -> mechanism diagnostic -> separate PI decision to open EVAL",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/hog_psp_v3_production/ckpts/final_hog_psp_v3_production.zip",
+    "sha256": "9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69",
+    "bytes": 47012505,
+    "global_step": 1003520,
+    "requested_total_timesteps": 1000000,
+    "overshoot": 3520,
+    "overshoot_note": "Rollout granularity: training stops at the first rollout boundary at or beyond the requested budget. Identical overshoot to V1 and OG-PSP (same rollout config). Expected and recorded, not a deviation.",
+    "updates_completed": 245
+  },
+  "CHECKPOINT_ELIGIBILITY_IS_CLOSED": {
+    "eligible_for_evaluation": "final_hog_psp_v3_production.zip ONLY",
+    "periodic_checkpoints_exist": 10,
+    "periodic_are_NOT_eligible": true,
+    "why_this_is_stated_explicitly": "Ten periodic checkpoints at 100k..1M were written during the run. The project rule is TERMINAL CHECKPOINT ONLY, and every periodic hash is recorded below so substituting one for the terminal checkpoint is detectable rather than invisible.",
+    "periodic_sha256": {
+      "ckpt_hog_psp_v3_production_100000.zip": "d82976ea169290c60590c476d4b470df1d3947fd958cc69620e4e62bdcd68979",
+      "ckpt_hog_psp_v3_production_200000.zip": "0e79afb9431315424381e3efd1fa7b38030f369128381fcf73d424ad23d454cd",
+      "ckpt_hog_psp_v3_production_300000.zip": "3fa1b3ea19054f7800fd99ccabc5c1043bb2091db5c59670c485eb2829076633",
+      "ckpt_hog_psp_v3_production_400000.zip": "e6d3de8e9c268fa666f879d50f0bb133ef9900ef5af9bf367a0124fa449b11fe",
+      "ckpt_hog_psp_v3_production_500000.zip": "ad5582ad95284d5ed4d6713457ad8d608ed43d24791533a4d1bc42fd8f074aaa",
+      "ckpt_hog_psp_v3_production_600000.zip": "9e163cd92e9135234f2d4abf990fe4848f60e2e6293301f395f594202e03fd82",
+      "ckpt_hog_psp_v3_production_700000.zip": "27e11d106a694a3dc798779b56dee46f0dfe43891bf859040ba33fc535f2a2e2",
+      "ckpt_hog_psp_v3_production_800000.zip": "619de57e4c805585abe6854fdd0c7ff7535e0941145720a0935882e54c95b5f9",
+      "ckpt_hog_psp_v3_production_900000.zip": "1a410565c2a1c229b52b418ac072c90172889a51b556bba1968c47bd2f214de1",
+      "ckpt_hog_psp_v3_production_1000000.zip": "be71e64e0c0c4f604e2048afc2e35702c2592d415e1e4d971d34dffd6fda01ed"
+    }
+  },
+  "TERMINAL_RECORD_VALIDITY": {
+    "rule": "AMENDMENT_2 of HOG_PSP_V3_SPEC.json (frozen 334d04e2, evaluated 1e7e1f15): mechanism diagnostic and EVAL may not proceed until the terminal record proves all three channels were live, not merely that no exception was raised.",
+    "verdict": "VALID -- all 12 checklist items PASS. Not INVALID_TRAJECTORY_CHANNEL_NOT_LIVE.",
+    "summary": {
+      "task_ppo_updates": 245,
+      "paired_rehearsal_updates": 1351,
+      "trajectory_pg_updates": 243,
+      "z0_z1_exposures": {
+        "z0": 86464,
+        "z1": 86464
+      },
+      "tied_exposures": 0,
+      "legacy_one_sided_calls": 0,
+      "episodes_flushed": 4236,
+      "unknown_pole_drops": 0,
+      "unknown_pole_drops_verification": "independently cross-checked: sum of auditor per-env episode closes (4236) equals trajectory episodes_flushed (4236) exactly",
+      "discriminators_remained_frozen": true,
+      "env_assignment": "32/32, all z_stable, all opponent_stable, 0 mismatches"
+    }
+  },
+  "CONFIG_AND_SEED": {
+    "seed": 11300001,
+    "latent_k": 2,
+    "mode": "FIXED_OPPONENT",
+    "opponent_randomize": false,
+    "latent_assignment_mode": "static_env",
+    "forced_latent_env_ids": "16x z0 + 16x z1",
+    "exp2_teacher_compression_enabled": false,
+    "fresh_step_0": true,
+    "checkpoint_weights_loaded": false,
+    "optimizer_state_reused": false,
+    "private_capacity": {
+      "enable_latent_z_residual": true,
+      "latent_population_birth_per_z_action_heads": true,
+      "latent_lro_deep_branches": true,
+      "latent_z_residual_alpha": 1.0,
+      "fixed_alpha_mode": true,
+      "why_fixed_alpha": "zero-init adapters under gating form the V6I26E-adjacent zero-gradient degenerate equilibrium; verified in smoke 9b66ca87"
+    }
+  },
+  "PROVENANCE_COMMITS": {
+    "V3_spec_frozen": "5ed129c5",
+    "manuscript_skeleton_and_EVAL_preflight": "ce5315f9",
+    "smoke_1_branch_isolation_PASS": "9b66ca87",
+    "component_2_amended_to_PG_regulariser": "496d213f",
+    "smoke_2_trajectory_liveness_PASS": "c647a46e",
+    "smoke_3_accumulator_equivalence_PASS": "06a0fe9d",
+    "composition_smoke_OK": "7adb7374",
+    "terminal_record_acceptance_checklist_frozen": "334d04e2",
+    "terminal_record_acceptance_evaluated_VALID": "1e7e1f15",
+    "head_at_freeze": "1e7e1f1574bcaacb7cc4a048967e6ce3d8c9446c",
+    "mechanism_diagnostic_prereg": "8b29fc5c"
+  },
+  "FULL_RUN_AUDITOR_SUMMARY": {
+    "episode_closes": 4236,
+    "envs_observed": 32,
+    "min_resets_per_env": 129,
+    "total_mismatches": 0,
+    "auditors_were_fail_closed": true,
+    "reading": "Every treatment invariant held for the entire run: 4,236 audited episode closes with zero pole-assignment drift, all 32 environments observed with a minimum of 129 resets each, zero mismatches."
+  },
+  "PAIRED_REHEARSAL": {
+    "updates": 1351,
+    "lambda": 0.1,
+    "cadence": 4,
+    "batch_states": 64,
+    "bank_eligible": 1804,
+    "tied_exposures": 0,
+    "latent_exposures": {
+      "z0": 86464,
+      "z1": 86464
+    },
+    "note": "unchanged from OG-PSP's validated mechanism; not the thing this experiment tests"
+  },
+  "TRAJECTORY_IDENTITY": {
+    "lambda": 0.05,
+    "updates": 243,
+    "episodes_flushed": 4236,
+    "episodes_scored": 4236,
+    "episodes_dropped_too_long": 0,
+    "by_cell": {
+      "z0|A": 2138,
+      "z1|B": 2098
+    },
+    "discriminator_sha256": "recorded in HOG_PSP_TRAJECTORY_DISCRIMINATORS.json",
+    "held_out_accuracy_at_fit_time": {
+      "D_A": 0.9531,
+      "D_B": 0.9688
+    },
+    "note": "training-time last_loss and D scores are TELEMETRY, not measurement; the frozen mechanism diagnostic (HOG_PSP_V3_MECHANISM_DIAGNOSTIC_SPEC.json) measures against this checkpoint on CALIB, never on training rollouts"
+  },
+  "BUDGET_NOTE": "1,000,000 requested / 1,003,520 terminal, identical nominal and terminal budget to V1 and OG-PSP. No budget confound across the three latent runs.",
+  "TWO_AXES_DISCLOSURE": "Relative to OG-PSP, V3 changes two mechanisms at once: latent-private actor capacity (LRO deep branches) and trajectory-identity policy-gradient supervision. A success cannot be attributed to either alone; this was accepted deliberately in HOG_PSP_V3_SPEC.json#KNOWN_RISKS_RECORDED_BEFORE_THE_RESULT because the engineering timebox did not permit an ablation.",
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "No model selection, no tuning, and no checkpoint choice will occur using EVAL. The terminal checkpoint above is the only artifact that will be scored, fixed before EVAL is read.",
+    "prohibited_after_seeing_EVAL": [
+      "choosing a different checkpoint",
+      "adjusting the treatment and re-running",
+      "changing the evaluation metric, statistic, or criterion",
+      "adding seeds to the EVAL block",
+      "re-scoring with a different estimator"
+    ],
+    "if_the_result_is_negative": "Recorded as a negative result. Under the stopping rule this is the FINAL latent attempt: closes latent-strategy work and pivots to the SAPPO-centered ICRA paper."
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11300101..11300132",
+    "touched": false,
+    "verified": "preflight scan CLEAN across 1224 npz shards, 413 seed-column CSVs, 3076 JSON artifacts (commit ce5315f9); no training, rehearsal, or diagnostic seed overlaps this block"
+  },
+  "NEXT": "HOG_PSP_V3_MECHANISM_DIAGNOSTIC_SPEC.json (frozen 8b29fc5c), on CALIB rollouts only, using this exact checkpoint. Not a gate. Then a separate PI decision to open EVAL.",
+  "UPSTREAM_ARTIFACT_HASHES": {
+    "why": "Every artifact the treatment depended on is hashed here, so the run can be reconstructed and so a later substitution anywhere upstream is detectable.",
+    "teachers": {
+      "pi_A": {
+        "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+        "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip"
+      },
+      "pi_B": {
+        "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+        "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip"
+      },
+      "note": "the frozen SAPPO specialists; both the rehearsal targets and the source of the trajectory discriminators' training data"
+    },
+    "trajectory_discriminators": {
+      "D_A": "9db10300bdc0a7ca6ba83e4d56b4b7985a7d43f32f2d21fc58ada53b28c11449",
+      "D_B": "cec52555cbfb89baed906a081c5234c3c3941ce9146a1826424d4b3c791f77dc",
+      "fit_record": "HOG_PSP_TRAJECTORY_DISCRIMINATORS.json (commit 496d213f)",
+      "held_out_accuracy": {
+        "D_A": 0.9531,
+        "D_B": 0.9688
+      },
+      "frozen_during_training": "verified 243/243 post-update assert_still_frozen() checks"
+    },
+    "run_config_snapshot": {
+      "path": "artifacts/strategic_demand/sppo/hog_psp_v3_production/hog_psp_v3_production_run_config.json",
+      "sha256": "264a005f884cc5a493d624509310b914f8072bee61f89812669941323806e11c"
+    },
+    "rehearsal_bank": {
+      "eligible_states": 1804,
+      "sources": {
+        "legacy_FIT": "10700001..10700096",
+        "V2_collection": "11000001..11000320"
+      },
+      "assembly_record": "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json",
+      "composition_record": "OG_PSP_BANK_COMPOSITION.json",
+      "unchanged_from_OG_PSP": true
+    },
+    "trajectory_feature_map": {
+      "source": "experiments/probe_teacher_trajectory_separability.featurise, imported not copied",
+      "dim": 128,
+      "components": "per-agent obs_vec mean (40) + std (40) + action histogram (48)",
+      "streaming_equivalence": "HOG_PSP_EPISODE_ACCUMULATOR_SMOKE.json (commit 06a0fe9d): the streaming accumulator reproduces the offline featuriser to 8.937e-15, machine precision, with identical D scores",
+      "known_property": "N_ACTION_BINS=48 truncates head 1's alphabet (0..49). No shard ever contained 48 or 49, so D was FITTED with this truncation and still reached 0.9531/0.9688. The streaming path reproduces the truncation exactly and counts truncated actions rather than widening the histogram, which would change the feature space out from under D."
+    }
+  }
+}
