@@ -1,0 +1,119 @@
+{
+  "record_id": "HOG_PSP_V4_MODEL_FROZEN",
+  "status": "FROZEN_MODEL -- frozen BEFORE the mechanism diagnostic or EVAL were opened",
+  "utc": "2026-08-31T23:30:00Z",
+  "authority": "Standard sequence carried from V1, OG-PSP, V3: train -> validity check -> freeze terminal checkpoint -> mechanism diagnostic -> separate PI decision to open EVAL",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/hog_psp_v4_production/ckpts/final_hog_psp_v4_production.zip",
+    "sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+    "bytes": 47016521,
+    "global_step": 1003520,
+    "requested_total_timesteps": 1000000,
+    "overshoot": 3520,
+    "overshoot_note": "Rollout granularity: identical overshoot to V1, OG-PSP, V3 (same rollout config).",
+    "updates_completed": 245
+  },
+  "CHECKPOINT_ELIGIBILITY_IS_CLOSED": {
+    "eligible_for_evaluation": "final_hog_psp_v4_production.zip ONLY",
+    "periodic_checkpoints_exist": 10,
+    "periodic_are_NOT_eligible": true,
+    "periodic_sha256": {
+      "ckpt_hog_psp_v4_production_100000.zip": "3cf86d9537bfa8efe02280b86773f597dfdbed1ec3c6d09237433a5e67e40c95",
+      "ckpt_hog_psp_v4_production_200000.zip": "0d4c18a7b8c29d80277f06aff8cde5228a53c77037fc7633fd691871bd73c8d0",
+      "ckpt_hog_psp_v4_production_300000.zip": "5f6e9f1f45cbb0af66c2cc14795b4caedb8163e3c7e356c1963082902fc823c4",
+      "ckpt_hog_psp_v4_production_400000.zip": "cbf37ec3aa82995df45df88a00b507215efb63f613f2052b8f537302d44feb67",
+      "ckpt_hog_psp_v4_production_500000.zip": "4137f30e94c5e6cef52b3698b2d3a41203da60a7e50cc00157cea2ba0bb8746b",
+      "ckpt_hog_psp_v4_production_600000.zip": "eb5f1f99f3bfa691e320fba003933a964aad0359a1f6f2d58d631e9f52e9b7e1",
+      "ckpt_hog_psp_v4_production_700000.zip": "2946b79c660cf8c05c750e255b080456024279f40bfd863b20a143d8e35f3adf",
+      "ckpt_hog_psp_v4_production_800000.zip": "964379e180a5e2f46f39902e1235d8dfb300c6c07009ffc9bf9952f84ae51249",
+      "ckpt_hog_psp_v4_production_900000.zip": "09820c94494554ac7c567818805b6100b34d1021e058359a3d7c1e5a9f43640c",
+      "ckpt_hog_psp_v4_production_1000000.zip": "f68dd524f0f700440f99d76ac5a8fc6c4a96a2a29583405793b7588ce8bdb6ec"
+    }
+  },
+  "TERMINAL_RECORD_VALIDITY": {
+    "rule": "HOG_PSP_V4_SPEC.json#TERMINAL_RECORD_MUST_CONFIRM: the V3 checklist plus non-zero updates on BOTH critic heads and zero cross-head contamination, or INVALID_CRITIC_HEAD_NOT_LIVE.",
+    "verdict": "VALID -- not INVALID_CRITIC_HEAD_NOT_LIVE.",
+    "summary": {
+      "task_ppo_updates": 245,
+      "paired_rehearsal_updates": 1282,
+      "trajectory_pg_updates": 244,
+      "z0_z1_exposures": {"z0": 82048, "z1": 82048},
+      "tied_exposures": 0,
+      "legacy_one_sided_calls": 0,
+      "episodes_flushed": 4230,
+      "episodes_dropped_too_long": 0,
+      "critic_head_V0_updated": true,
+      "critic_head_V1_updated": true,
+      "critic_calls": 67850,
+      "rows_served_by_head_V0": 2316470,
+      "rows_served_by_head_V1": 2317130,
+      "row_balance_ratio": 0.9997,
+      "value_queries_missing_z": 0,
+      "cross_head_contamination": "not directly counted; verified by the pre-launch smoke's negative control (deliberate misroute DETECTED, HOG_PSP_V4_CRITIC_HEAD_SMOKE.json) and by both per_param_moved sets (head_V0.{weight,bias}, head_V1.{weight,bias}) being independently True with no shared parameter between them",
+      "env_assignment": "32/32, 0 mismatches"
+    }
+  },
+  "THE_ONE_AXIS": {
+    "changed_from_V3": "rasr_private_critic_heads: False -> True",
+    "everything_else": "identical to V3: private actor LRO deep branches (fixed alpha 1.0), paired rehearsal (bank 1804, lambda 0.1, cadence 4), trajectory-identity PG (lambda 0.05, frozen D_A/D_B), static persistence, 1,000,000 step budget, poles, auditors"
+  },
+  "CONFIG_AND_SEED": {
+    "seed": 11400001,
+    "latent_k": 2,
+    "mode": "FIXED_OPPONENT",
+    "opponent_randomize": false,
+    "fresh_step_0": true,
+    "checkpoint_weights_loaded": false,
+    "optimizer_state_reused": false,
+    "rasr_private_critic_heads": true
+  },
+  "PROVENANCE_COMMITS": {
+    "V3_limitation_recorded": "fb46b00b",
+    "V4_spec_frozen": "4e94d1eb",
+    "smoke_wording_sharpened": "d70f9f6a",
+    "smokes_1_3_PASS": "5c340dfc",
+    "head_at_freeze": "5c340dfcecccc731647d660ff8111ac152eedc83"
+  },
+  "FULL_RUN_AUDITOR_SUMMARY": {
+    "envs_observed": 32,
+    "total_mismatches": 0,
+    "auditors_were_fail_closed": true,
+    "reading": "Every treatment invariant held for the entire run: 32/32 environments observed, zero pole-assignment drift, zero mismatches."
+  },
+  "PAIRED_REHEARSAL": {
+    "updates": 1282,
+    "tied_exposures": 0,
+    "latent_exposures": {"z0": 82048, "z1": 82048},
+    "note": "unchanged from V3's validated mechanism"
+  },
+  "TRAJECTORY_IDENTITY": {
+    "updates": 244,
+    "episodes_flushed": 4230,
+    "episodes_dropped_too_long": 0,
+    "note": "unchanged mechanism from V3; training-time scores are TELEMETRY, not measurement. The frozen mechanism diagnostic measures against this checkpoint on CALIB, never on training rollouts."
+  },
+  "CRITIC_HEADS": {
+    "rows_served_by_head_V0": 2316470,
+    "rows_served_by_head_V1": 2317130,
+    "value_queries_missing_z": 0,
+    "head_V0_moved": true,
+    "head_V1_moved": true,
+    "pre_launch_negative_control": "HOG_PSP_V4_CRITIC_HEAD_SMOKE.json: a deliberate misroute (z0 forced through head_V1) was DETECTED, proving the routing check can distinguish correct routing from a misroute rather than passing because things happened to be correct"
+  },
+  "BUDGET_NOTE": "1,000,000 requested / 1,003,520 terminal, identical to V1, OG-PSP, V3. No budget confound across the four latent runs.",
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "No model selection, no tuning, and no checkpoint choice will occur using EVAL. The terminal checkpoint above is the only artifact that will be scored, fixed before EVAL is read.",
+    "if_the_result_is_negative": "Recorded as a negative result. Under the stopping rule this is the FINAL latent attempt, no V5 under any outcome: closes latent-strategy work and pivots to the SAPPO-centered ICRA paper."
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11400101..11400132",
+    "touched": false,
+    "verified": "preflight scan CLEAN across 1224 npz shards, 415 seed-column CSVs, 3096 JSON artifacts (commit 4e94d1eb)"
+  },
+  "HARD_WALL_STATUS": {
+    "experimental_work_deadline": "2026-09-05 (T-10 days before ICRA submission)",
+    "current_state": "training complete, validity established, terminal checkpoint frozen -- well inside the deadline",
+    "paper_does_not_depend_on_this": "the submission remains viable on SAPPO + V3's trajectory-identity confirmation + V3's payoff failure regardless of V4's outcome"
+  },
+  "NEXT": "V4 mechanism preservation diagnostic (state-level ruler + trajectory identity, same structure as V3's) on CALIB rollouts only, using this exact checkpoint. Not a gate. Then a separate PI decision to open EVAL 11400101..11400132."
+}
