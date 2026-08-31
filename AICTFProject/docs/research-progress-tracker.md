@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-31 — H-OG-PSP V3 completed valid training and prospectively confirmed trajectory identity on both poles. The mechanism result is committed at `df144084`. Its terminal-only payoff EVAL is frozen on `11300101..11300132` and remains unopened pending the committed evaluator launch.
+> **Last updated:** 2026-08-31 — H-OG-PSP V3 completed valid training and prospectively confirmed trajectory identity on both poles. The mechanism result is committed at `df144084`; the payoff protocol/evaluator is committed at `d9aabac0`. Terminal-only payoff EVAL on `11300101..11300132` is running as PID `74744`, with checkpoint identity and frozen gate verified before episode 1.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -43,7 +43,9 @@ It scores only the terminal checkpoint on untouched seeds
 `11300101..11300132`. The six-cell design and paired bootstrap are unchanged
 from OG-PSP. Strategic crossover requires both `LCB95(delta_A) > 0` and
 `LCB95(delta_B) > 0`; mechanism identity and retention are not payoff gates.
-At this prospective freeze point, payoff crossover is **UNEVALUATED**.
+Payoff crossover remains **UNEVALUATED** while the one-shot 192-episode run is
+active. Runtime provenance is recorded in
+[`HOG_PSP_V3_EVAL_RUNNING_PROVENANCE.json`](../artifacts/strategic_demand/sppo/HOG_PSP_V3_EVAL_RUNNING_PROVENANCE.json).
 
 ### SPPPO V1 — `CLOSED / NOT CONFIRMED`
 
