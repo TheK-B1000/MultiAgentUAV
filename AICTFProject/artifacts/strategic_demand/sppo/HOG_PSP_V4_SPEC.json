@@ -1,0 +1,120 @@
+{
+  "record_id": "HOG_PSP_V4_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-08-31T22:05:00Z",
+  "authority": "PI, 2026-08-31: reopen the stopping rule ONE FINAL time for a tightly scoped V4 testing private latent-specific value heads",
+  "name": "H-OG-PSP V4 -- private critic heads",
+  "THE_HYPOTHESIS": {
+    "statement": "V3 produced strong latent trajectory identity but reversed payoff. It gave the ACTOR private capacity while both strategic modes still learned their task advantage through ONE shared scalar value function. Private latent-specific value heads remove that funnel.",
+    "one_axis_only": "cfg.rasr_private_critic_heads = True. Nothing else changes.",
+    "mechanism": "V_shared(s,z) -> V_0(s,z) if z=z0, V_1(s,z) if z=z1",
+    "why_plausible": "PPO does not optimise the actor from strategy identity. It optimises through advantages: r_t -> V -> A_hat -> grad L_PPO. If two strategies induce different return landscapes, a single value estimator is the funnel through which both receive compromised task-learning signal. MultiCriticAL (ICLR 2022) reports exactly this: a style-conditioned actor with clearly different behaviours whose performance a shared critic compromises."
+  },
+  "WHY_THE_STOPPING_RULE_REOPENS": {
+    "not_post_hoc_tuning": "This is not 'V3 failed, tweak something'. An audit after V3's result was frozen established a concrete architectural axis the treatment never tested: private actor, shared critic.",
+    "amendment_text": "V3 remains a valid terminal result for private-actor/shared-critic H-OG-PSP. After freezing the negative payoff result, an audit established that all latent modes shared a single scalar value function despite private actor branches. Because prior multi-style RL work identifies shared value estimation as a source of cross-style interference, and because the codebase already contains latent-private critic heads with exact initial-function equivalence, one final prospectively specified experiment is authorized to test this previously untested architectural axis.",
+    "recorded_in": "HOG_PSP_V3_MODEL_FROZEN.json#AMENDMENT_1_ARCHITECTURAL_LIMITATION_FOUND_AFTER_FREEZE (commit fb46b00b)",
+    "V3_is_not_altered": "V3's result is not re-scored, re-seeded, or reinterpreted. Its EVAL block 11300101..11300132 is spent and sealed forever.",
+    "scope_limit": "Exactly ONE experiment. There is no V5 under any outcome."
+  },
+  "PRE_IMPLEMENTATION_AUDIT_ALREADY_COMPLETE": {
+    "why_before_the_spec": "The PI required the flag be audited end-to-end BEFORE the spec was frozen, so V4 is not specified around a mechanism that turns out not to route.",
+    "findings": {
+      "single_critic_call_site": "policy.values(global_state, z_idx) -> critic(gs, extra=_critic_extra(z_idx)). There is exactly ONE critic call site in the PPO path; no bypass exists.",
+      "fail_closed": "_critic_extra raises if z_idx is None in latent mode, so a value query cannot silently lose its z.",
+      "routing": "CentralizedCritic.forward index-selects rows by z = extra.argmax(-1) into head_V0 / head_V1, so gradients reach only the serving head.",
+      "initial_equivalence": "copy_shared_head_into_private() runs at construction; head_V0.weight == head_V1.weight and bias verified equal, and for identical trunk output |V0(h) - V1(h)| = 0.000e+00.",
+      "isolation_verified": "a z0-only update moves head_V0 and NOT head_V1; the shared trunk moves, which is expected and correct.",
+      "checkpoint_migration": "legacy critic.net.4.{weight,bias} is cloned into both heads on load, so a shared-critic checkpoint upgrades with exact function equivalence."
+    },
+    "an_important_architectural_note": "z enters BOTH the critic trunk input (as a 2-dim one-hot) AND the head selection. Private heads therefore add head-level separation ON TOP OF existing input-level conditioning. V(s,z0) != V(s,z1) even at init; that was already true of the shared critic and is not evidence of anything."
+  },
+  "UNCHANGED_FROM_V3": {
+    "private_actor_branches": "LRO deep branches, fixed alpha 1.0",
+    "paired_rehearsal": "OG-PSP paired targets, 1804-state bank, lambda 0.1, cadence 4, mean aggregation, ties zero pressure",
+    "trajectory_identity": "frozen pole-specific D_A/D_B, full-episode credit, PG regulariser, lambda 0.05, RAW score clipped only for training credit",
+    "persistence": "static_env, 16x z0 + 16x z1",
+    "poles": "Pole A = OP6 + SDS2_A_payoff_INIT_3 overlay; Pole B = OP7",
+    "budget": "1,000,000 steps, identical to V1, OG-PSP and V3",
+    "auditors": "all fail-closed",
+    "exp2_teacher_compression_enabled": false,
+    "explicitly_NOT_added": [
+      "PCGrad",
+      "CAGrad",
+      "DGPO constraints",
+      "critical-event objectives",
+      "any new diversity loss",
+      "any actor architecture change"
+    ]
+  },
+  "FRESH_AND_SEALED": {
+    "model": "fresh step 0, no checkpoint or optimizer reuse, no V3 continuation",
+    "training_seed": 11400001,
+    "mechanism_diagnostic_seeds": "CALIB 10700097..10700128, as for V3",
+    "EVAL_block": "11400101..11400132, n=32, NEVER touched until the terminal checkpoint is frozen",
+    "spent_blocks_stay_closed": "10700129..10700160 (V1), 11200001..11200032 (OG-PSP), 11300101..11300132 (V3)"
+  },
+  "THE_GATE_IS_UNCHANGED": {
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta lcb95 > 0",
+    "statistic": "paired percentile bootstrap, n_boot 20000, alpha 0.05, rng seed 7, seed-level unit",
+    "provenance": "carried forward unchanged from V3, OG-PSP, V1 and EXP2C. V4 is NOT made easier to pass.",
+    "one_passing_side_is_not_a_pass": true,
+    "primary_endpoint": "PAYOFF CROSSOVER. Trajectory identity is now a preservation/mechanism check, not the endpoint.",
+    "verdict_labels": {
+      "pass": "HOG_PSP_V4_CROSSOVER_CONFIRMED",
+      "fail": "HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED"
+    }
+  },
+  "REQUIRED_SMOKES_BEFORE_PRODUCTION": {
+    "1_initial_function_equivalence": "head_V0 and head_V1 identical immediately after copy_shared_head_into_private; identical trunk output yields identical head output",
+    "2_routing_isolation": "a z0 value update moves head_V0 and not head_V1; a z1 update the inverse",
+    "3_REAL_PPO_WIRING": {
+      "requirement": "a LIVE mixed rollout must prove z0 samples compute value and GAE through V_0 and z1 samples through V_1",
+      "why_it_is_the_important_one": "showing two heads exist is insufficient. This is the check that distinguishes a wired mechanism from a decorative one, and it is the exact class of failure V3's own oversight belonged to."
+    },
+    "4_composition": [
+      "task PPO updates > 0",
+      "paired rehearsal updates > 0",
+      "trajectory PG updates > 0",
+      "critic V0 updates > 0",
+      "critic V1 updates > 0",
+      "cross-head contamination == 0",
+      "z0/z1 exposures equal",
+      "tied exposures == 0",
+      "legacy one-sided calls == 0",
+      "32/32 env assignment, 0 mismatches"
+    ]
+  },
+  "TERMINAL_RECORD_MUST_CONFIRM": "the same 12-item checklist as V3 (HOG_PSP_V3_SPEC.json#AMENDMENT_2), PLUS non-zero updates on both critic heads and zero cross-head contamination. INVALID_CRITIC_HEAD_NOT_LIVE is the analogue of INVALID_TRAJECTORY_CHANNEL_NOT_LIVE: if a head never fires, that is an engineering failure of this run, not evidence about the hypothesis, and EVAL stays sealed.",
+  "THE_HARD_WALL": {
+    "rule": "V4 may strengthen the submission. It may NOT endanger it.",
+    "icra_deadline": "2026-09-15 23:59 PST, 8 pages including references",
+    "experimental_work_ends": "2026-09-05 (T-10 days), leaving ~10 days for the manuscript",
+    "paper_does_not_depend_on_V4": "The submission is already viable on SAPPO's positive result plus V3's trajectory-identity confirmation and payoff failure. V4 is upside, not a dependency.",
+    "park_condition": "If V4 cannot be cleanly launched very quickly, or turns into a debugging expedition, it loses authorization for this submission. Park by default, not by fresh judgement.",
+    "if_V4_fails": "Stop ALL pre-submission experiments. The compression-limit story is the paper."
+  },
+  "PHASE_2_DEFERRED_DELIBERATELY": {
+    "what": "matched-state causal interventions distinguishing visitation / timing / decision / sequence gaps",
+    "why_deferred": "V4 tests a much cheaper and cleaner causal hypothesis that the architecture handed us. Running the broad diagnostic first would cost days and blur which axis explains the failure.",
+    "when": "only if V4 still fails, and then post-submission"
+  },
+  "PROVENANCE": {
+    "V3_result": "HOG_PSP_V3_EVAL_RESULT.json, CROSSOVER_NOT_CONFIRMED, reversal verified GENUINE (commit 9e1684a6)",
+    "V3_limitation": "commit fb46b00b",
+    "V3_mechanism": "HOG_PSP_V3_MECHANISM_DIAGNOSTIC.json, TRAJECTORY_IDENTITY_CONFIRMED (commit df144084)",
+    "literature": "MultiCriticAL ICLR 2022 (shared critic interference across styles); DGPO AAAI 2024 (diversity constrained by task quality) -- DGPO's constraint formulation is NOT adopted in V4, which changes one axis only"
+  },
+  "EVAL_BLOCK_PREFLIGHT": {
+    "block": "11400101..11400132",
+    "scanned": {
+      "npz_shards": 1224,
+      "csvs_with_a_seed_column": 415,
+      "json_artifacts": 3096
+    },
+    "method": "every seed-named array in every npz, every CSV column named *seed*, every numeric value in every JSON artifact",
+    "RESULT": "CLEAN -- appears in no seed field, seed column, or artifact value"
+  }
+}
