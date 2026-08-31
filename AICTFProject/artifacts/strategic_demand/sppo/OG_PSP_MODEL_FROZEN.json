@@ -1,0 +1,109 @@
+{
+  "record_id": "OG_PSP_MODEL_FROZEN",
+  "status": "FROZEN_MODEL -- frozen BEFORE EVAL was opened",
+  "utc": "2026-08-31T08:35:54Z",
+  "authority": "PI, 2026-08-29 launch authorization: 'If it completes cleanly, freeze the terminal checkpoint and training artifact first. Only then do we separately authorize the one-shot held-out EVAL.'",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/og_psp_production/ckpts/final_og_psp_production.zip",
+    "sha256": "792c2367ad2a4ebe9e051a326e0ff555f7dc2bb98358737a8f65d732d49d8bf0",
+    "bytes": 42029440,
+    "global_step": 1003520,
+    "requested_total_timesteps": 1000000,
+    "overshoot": 3520,
+    "overshoot_note": "Rollout granularity: training stops at the first rollout boundary at or beyond the requested budget, so the terminal step exceeds 1,000,000 by 3,520. Identical overshoot to V1 (same rollout config). Expected and recorded, not a deviation.",
+    "updates_completed": 245
+  },
+  "CHECKPOINT_ELIGIBILITY_IS_CLOSED": {
+    "eligible_for_evaluation": "final_og_psp_production.zip ONLY",
+    "periodic_checkpoints_exist": 10,
+    "periodic_are_NOT_eligible": true,
+    "why_this_is_stated_explicitly": "Ten periodic checkpoints at 100k..1M were written during the run. Their existence is a checkpoint-shopping surface. The project rule is TERMINAL CHECKPOINT ONLY, and every periodic hash is recorded below so that substituting one for the terminal checkpoint is detectable rather than invisible.",
+    "periodic_sha256": {
+      "ckpt_og_psp_production_100000.zip": "061d2665f9a3c1147c9e069732f3b1e12bf16ccaec2affa8b7b06006b7ec49ce",
+      "ckpt_og_psp_production_200000.zip": "040bde425200a5eb48bce948d9dd7a45f45e186cd4a86240f94a0efc260a3b75",
+      "ckpt_og_psp_production_300000.zip": "4a3d14320de967ae933455dca5b3278acac502ad07d50c6d307527e533305fd7",
+      "ckpt_og_psp_production_400000.zip": "64d6be47df8f8a1867b0cdc52393a08dc9108e5ea0c9b1a1fe3c322d4f64346e",
+      "ckpt_og_psp_production_500000.zip": "83a1dd25bb502f5599935943d085adf595fc0813e194211e647ba5de5775ecf9",
+      "ckpt_og_psp_production_600000.zip": "b0a8b3a8d31bd6a9faa22285262ae496461a7884c231c25331464a382f32bc4e",
+      "ckpt_og_psp_production_700000.zip": "84b8e1a6b503c708db87ab1773556ece79bdd23abce9862a269405c18684e4bd",
+      "ckpt_og_psp_production_800000.zip": "b0ffbe13faa6606e130885b66752466fbfe01b4b8632a8a3d62d3d66e515474b",
+      "ckpt_og_psp_production_900000.zip": "ec3f08c6eca53c4909a16278b4747bb31ca1f517ebc8404793e8726c7e0e5825",
+      "ckpt_og_psp_production_1000000.zip": "c79e24c1068c8639a7e025cbaf03013eb1214389943823be7f177ce3d920f2bc"
+    }
+  },
+  "CONFIG_AND_SEED": {
+    "seed": 11100001,
+    "latent_k": 2,
+    "mode": "FIXED_OPPONENT",
+    "opponent_randomize": false,
+    "latent_assignment_mode": "static_env",
+    "forced_latent_env_ids": "16x z0 + 16x z1",
+    "exp2_teacher_compression_enabled": false,
+    "why_that_last_field_matters": "EXP2C's ungated teacher compression is inherited by default and would apply strategic pressure to every state including the 3,145 tied ones, collapsing the A/B-vs-tied boundary the paired treatment depends on. Explicitly disabled; verified against the terminal checkpoint's stored cfg at wiring-smoke time, same as V1.",
+    "fresh_step_0": true,
+    "checkpoint_weights_loaded": false,
+    "optimizer_state_reused": false
+  },
+  "PROVENANCE_COMMITS": {
+    "treatment_spec_frozen": "2afcd540",
+    "paired_rehearsal_implementation": "141296d7",
+    "rehearsal_smoke_PASS": "e932a8d7",
+    "rollout_assignment_smoke_PASS": "a0dd7510",
+    "runner_and_wiring": "6cef40f5",
+    "mechanism_diagnostic_spec_frozen": "5191370e",
+    "mechanism_diagnostic_scope_amendment": "0c9c4ff4",
+    "head_at_freeze": "0c9c4ff48536390a64b5d0c2d1c3320af27a7cce"
+  },
+  "FULL_RUN_AUDITOR_SUMMARY": {
+    "episodes_observed": 4228,
+    "pole_violations": 0,
+    "unknown_opponents": {},
+    "envs_observed": 32,
+    "min_resets_per_env": 129,
+    "total_mismatches": 0,
+    "auditors_were_fail_closed": true,
+    "reading": "Every treatment invariant held for the entire run: 4,228 audited episode closes with zero pole-assignment drift, zero unknown opponents, all 32 environments observed with a minimum of 129 resets each, zero mismatches."
+  },
+  "REHEARSAL": {
+    "updates": 1393,
+    "lambda": 0.1,
+    "cadence": 4,
+    "batch_states": 64,
+    "batch_pairs": 128,
+    "loss_aggregation": "MEAN over (state, latent) pairs",
+    "bank_eligible": 1804,
+    "bank_A_preferred": 929,
+    "bank_B_preferred": 875,
+    "tied_excluded": 3145,
+    "teacher_disagreement_frac": 0.6552,
+    "tied_exposures": 0,
+    "latent_exposures": {
+      "z0": 89152,
+      "z1": 89152
+    },
+    "latent_exposures_equal": true,
+    "replay_factor": 49.42,
+    "REPLAY_FACTOR_VS_V1": "49.42x here vs V1's 188.86x at the same nominal 1M budget -- a 3.82x reduction, close to the 4.2x the bank-size ratio (1804/428) predicted. Same instrument as V1: held-out EVAL is what distinguishes generalisation from memorisation of this bank, not the replay factor itself.",
+    "zero_tied_pressure_held_for_the_entire_run": true,
+    "legacy_one_sided_path_calls": 0
+  },
+  "BUDGET_NOTE": "OG-PSP requested 1,000,000 steps and terminated at 1,003,520 -- the identical nominal and terminal budget as V1. Unlike the V1-vs-EXP2C comparison (~2x budget mismatch), no budget confound exists between V1 and OG-PSP specifically. The two axes that DO change relative to V1 are the treatment mechanism (paired vs one-sided) and the bank size (1,804 vs 428, 4.2x), both already disclosed in OG_PSP_PRODUCTION_RESULT.json's interpretive_context before this freeze.",
+  "TWO_AXES_AND_RETENTION_DISCLOSURE_SOURCE": "artifacts/strategic_demand/sppo/OG_PSP_PRODUCTION_RESULT.json#interpretive_context -- carried forward unchanged, not restated here to avoid drift between two copies.",
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "No model selection, no tuning, and no checkpoint choice will occur using EVAL. The terminal checkpoint above is the only artifact that will be scored, and it was fixed before EVAL was read.",
+    "prohibited_after_seeing_EVAL": [
+      "choosing a different checkpoint",
+      "adjusting the treatment and re-running",
+      "changing the evaluation metric, statistic, or criterion",
+      "adding seeds to the EVAL block",
+      "re-scoring with a different estimator"
+    ],
+    "if_the_result_is_negative": "It is recorded as a negative result. This is the final latent attempt under the stopping rule: a negative result here means immediate pivot to the SAPPO-centered ICRA paper, with no further latent-strategy experiments."
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11200001..11200032",
+    "touched": false,
+    "verified": "Bank load ranges (legacy 10700001-10700096, V2 11000001-11000320) and the training seed (11100001) are disjoint from the EVAL block by construction. Log contains exactly one occurrence of the EVAL block's numeric prefix, which is the runner's own startup banner declaring it sealed, not an access."
+  },
+  "MECHANISM_DIAGNOSTIC_NOT_YET_RUN": "OG_PSP_MECHANISM_DIAGNOSTIC_SPEC.json (frozen 5191370e, amended 0c9c4ff4) is the next step, using this terminal checkpoint. It measures latent divergence and crossed teacher-match on FIT and CALIB. It is explicitly not a gate and does not authorize EVAL by itself; EVAL requires a separate PI decision."
+}
