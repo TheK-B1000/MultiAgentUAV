@@ -1,0 +1,119 @@
+{
+  "record_id": "HOG_PSP_V3_MECHANISM_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_TRAINING_COMPLETES",
+  "utc": "2026-08-31T15:20:00Z",
+  "authority": "PI, 2026-08-31, drafted and frozen while the 1M run is in flight and the outcome is unknown",
+  "PURPOSE": "Answer what V3's mechanism actually learned, separately from whether it clears the held-out crossover gate. OG-PSP's postmortem showed those are different questions: a latent can differentiate measurably and generalisably and still produce zero payoff separation.",
+
+  "STRICTLY_NOT_A_GATE": {
+    "does_not_gate_EVAL": true,
+    "does_not_select_checkpoints": true,
+    "does_not_alter_the_treatment": true,
+    "cannot_substitute_for_the_crossover_gate": "A strong mechanism result with a failed crossover is still HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED. The terminal checkpoint goes to EVAL regardless of what this diagnostic says.",
+    "runs_before_EVAL": "so the mechanism reading cannot be shaped by the EVAL outcome"
+  },
+
+  "MEASUREMENT_BEGINS_ONLY_AFTER": {
+    "condition": "the terminal 1M checkpoint is frozen with its sha256 recorded",
+    "prohibited_source": "intermediate training episodes",
+    "why": "The discriminators are scrolling over training rollouts continuously. Those scores are TRAINING TELEMETRY, not scientific measurement, and using them would collapse a separation this project has held throughout: training telemetry != scientific measurement.",
+    "diagnostic_rollouts_are_fresh": "measurement uses the preregistered rollout set below, produced after the freeze"
+  },
+
+  "LAYER_1_STATE_LEVEL_UNCHANGED_RULER": {
+    "why_unchanged": "We want to know how V3 moved RELATIVE to OG-PSP under the exact previous ruler. Redefining these because V3 exists would destroy cross-run comparability.",
+    "split": "CALIB 10700097..10700128, identical to the OG-PSP diagnostic, n=145 resolvable states",
+    "measurements": {
+      "latent_divergence": "mean JSD(pi(.|s,z0), pi(.|s,z1)), decision-masked, in NATS",
+      "crossed_teacher_match": [
+        "z0 -> pi_A on A-preferred", "z1 -> pi_A on A-preferred",
+        "z1 -> pi_B on B-preferred", "z0 -> pi_B on B-preferred"
+      ]
+    },
+    "reference_values": {
+      "V1_CALIB_jsd_nats": 0.006589,
+      "OG_PSP_CALIB_jsd_nats": 0.042102,
+      "OG_PSP_CALIB_crossed_gap_A_pp": 1.32,
+      "OG_PSP_CALIB_crossed_gap_B_pp": 10.0
+    },
+    "units_rule_carried_forward": "Compare nats to nats. Do NOT revive a model-vs-teacher percentage unless the teacher contrast (0.3919 BITS) is first converted to nats."
+  },
+
+  "LAYER_2_TRAJECTORY_IDENTITY_PRIMARY": {
+    "status": "the new primary measure; the quantity V3 was built to move",
+    "rollout_set": {
+      "seeds": "CALIB 10700097..10700128, n=32",
+      "never_trained_on": "V3 trained on seed 11300001 with env range 11300001..11300321; the paired bank draws from 10700001..10700096 and 11000001..11000320. The CALIB block is disjoint from all of it.",
+      "cells": ["z0 | Pole A", "z1 | Pole A", "z0 | Pole B", "z1 | Pole B"],
+      "why_the_full_cross": "Evaluating only z0-on-A and z1-on-B would tangle pole and opponent back into latent identity. The probe measured how easy that shortcut is: the confounded comparison scored 1.0000. Both latents are therefore rolled on BOTH poles.",
+      "episodes": "one deterministic episode per (cell, seed) = 128 episodes"
+    },
+    "scoring": {
+      "representation": "the exact frozen 128-D feature map, reproduced by the streaming accumulator (verified equal to the offline featuriser to machine precision, smoke 06a0fe9d)",
+      "discriminator": "pole-specific and frozen: D_A on Pole A, D_B on Pole B",
+      "statistic": "RAW decision function / logit, NOT the clipped training score",
+      "why_raw": "The clipped score exists to stabilise credit during training. For measurement it would compress exactly the differences we are trying to observe.",
+      "sign_convention": "POSITIVE = pi_B-specialist identity. sklearn's binary decision_function returns the score for classes_[1], and classes_ is [PI_A, PI_B] = [0, 1]. This MUST be asserted against the loaded artifacts at measurement time, never assumed."
+    },
+    "preregistered_quantities": {
+      "delta_tau_A": "E[D_A(tau_z1)] - E[D_A(tau_z0)]  on Pole A",
+      "delta_tau_B": "E[D_B(tau_z1)] - E[D_B(tau_z0)]  on Pole B",
+      "desired_ordering": "BOTH > 0",
+      "why_both_positive": "z0 should look more A-like and z1 more B-like against EITHER opponent, not only against its own.",
+      "statistic": "paired percentile bootstrap over seed-level scores, n_boot 20000, alpha 0.05, rng seed 7 -- the project's unchanged convention",
+      "why_paired": "z0 and z1 are evaluated on the SAME seeds, so the resampling unit is the seed"
+    },
+    "descriptive_also_reported": [
+      "percent of z0 episodes classified pi_A-like",
+      "percent of z1 episodes classified pi_B-like",
+      "percent of seeds where z0 and z1 receive DIFFERENT identity labels",
+      "mean D score for every latent x pole cell"
+    ]
+  },
+
+  "LAYER_3_TEACHER_REFERENCE_CONTEXT_ONLY": {
+    "quantity": "the same discriminator-score gap computed for the frozen SAPPO teachers on CALIB, delta_tau_p_teacher",
+    "ratio": "R_tau_p = delta_tau_p_V3 / delta_tau_p_teacher",
+    "question_it_answers": "How much of the teachers' long-horizon identity did the compressed latents reproduce?",
+    "explicitly_not_a_gate": true,
+    "R_equals_1_is_NOT_required": "The discriminator scale and student behaviour make that far too brittle. This is an interpretability statistic, nothing more."
+  },
+
+  "PREREGISTERED_READINGS": {
+    "TRAJECTORY_IDENTITY_CONFIRMED": "Correct ordering on BOTH poles with paired-bootstrap LCB95 > 0 on both.",
+    "TRAJECTORY_IDENTITY_PARTIAL": "Correct, confident separation on only one pole; or correct point ordering on both without confidence on both.",
+    "TRAJECTORY_IDENTITY_NOT_CONFIRMED": "Trajectory gaps near zero, reversed, or otherwise failing to establish latent-specific teacher identity.",
+    "these_describe_mechanism_only": "They do not gate or modify the held-out strategic EVAL."
+  },
+
+  "THE_INFORMATIVE_COMBINATIONS": {
+    "identity_CONFIRMED_and_crossover_CONFIRMED": "Best case. V3 links long-horizon identity to strategic value, and the three-layer chain closes end to end.",
+    "identity_CONFIRMED_and_crossover_NOT_CONFIRMED": "Extremely informative. We would have successfully produced A-like and B-like TRAJECTORIES that still fail to produce complementary payoff. That sharpens OG-PSP's finding from 'action differentiation is insufficient' to 'long-horizon behavioural identity is ALSO insufficient', which is a substantially stronger claim about strategic value.",
+    "identity_NOT_CONFIRMED_and_crossover_NOT_CONFIRMED": "V3 failed to instantiate its intended LEARNED mechanism despite passing every liveness smoke. The machinery was proven live, so this would be a learning failure, not a wiring failure -- a distinction the smokes exist to make.",
+    "identity_NOT_CONFIRMED_and_crossover_CONFIRMED": "Would require explanation: payoff separation without the trajectory identity we trained for. Recorded as a possibility so it cannot be quietly rationalised if it occurs."
+  },
+
+  "SEQUENCE": [
+    "1M run completes",
+    "freeze terminal checkpoint with sha256 and all periodic hashes",
+    "THIS diagnostic, on CALIB rollouts only",
+    "separate PI decision to open EVAL",
+    "one-shot EVAL 11300101..11300132"
+  ],
+
+  "WHAT_THIS_DIAGNOSTIC_MAY_NOT_DO": [
+    "select or substitute a checkpoint",
+    "alter lambda, the discriminators, or any treatment parameter",
+    "touch EVAL 11300101..11300132",
+    "use intermediate training episodes or training-time discriminator scores",
+    "be re-run with different seeds or a different statistic after its numbers are seen",
+    "redefine the Layer 1 measurements, which exist to preserve comparability with V1 and OG-PSP"
+  ],
+
+  "PROVENANCE": {
+    "treatment_spec": "HOG_PSP_V3_SPEC.json",
+    "discriminators": "HOG_PSP_TRAJECTORY_DISCRIMINATORS.json (D_A 0.9531, D_B 0.9688)",
+    "feature_map_equivalence": "HOG_PSP_EPISODE_ACCUMULATOR_SMOKE.json, machine precision",
+    "predecessor_diagnostic": "OG_PSP_MECHANISM_DIAGNOSTIC.json, whose Layer 1 ruler is reused unchanged"
+  }
+}
