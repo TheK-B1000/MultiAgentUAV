@@ -139,7 +139,19 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--steps", type=int, default=24_576)
     ap.add_argument("--keep", action="store_true")
+    ap.add_argument("--og-psp", action="store_true",
+                    help="run under the OG-PSP production config (seed 11100001) and "
+                         "write a separate record; the V1 record is never touched")
     args = ap.parse_args()
+
+    global SMOKE_SEED, RECORD, OUT_DIR
+    if args.og_psp:
+        # OG-PSP holds the rollout treatment fixed from V1 but trains on its own seed,
+        # so the assignment must be re-proven under that seed rather than assumed to
+        # carry over from the V1 smoke.
+        SMOKE_SEED = 11_100_001
+        RECORD = SD / "sppo" / "OG_PSP_ROLLOUT_ASSIGNMENT_SMOKE.json"
+        OUT_DIR = SD / "sppo" / "og_psp_rollout_assignment_smoke"
 
     _require_spec()
     if RECORD.is_file():

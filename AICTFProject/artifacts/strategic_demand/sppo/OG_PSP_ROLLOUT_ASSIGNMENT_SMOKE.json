@@ -1,0 +1,2012 @@
+{
+  "record": "Oracle-gated rollout assignment live smoke",
+  "status": "FROZEN_RESULT",
+  "classification": "DIAGNOSTIC",
+  "utc": "2026-08-31T06:24:26Z",
+  "implements": "ORACLE_GATED_REHEARSAL_SPEC.json AMENDMENT_1",
+  "VERDICT": "PASS",
+  "requirement": "z0 -> OP6 + SDS2_A_payoff_INIT_3 overlay, z1 -> OP7, opponent_randomize False, persistent across every reset",
+  "verification_is_live_not_configurational": "counts come from completed-episode rows, and assert_live_opponent_batch inside the env setup reads the resolved opponent AND behaviour-tree profile per environment, so the Pole-A overlay is confirmed ACTIVE",
+  "seed": 11100001,
+  "steps": 49152,
+  "completed_episodes": 194,
+  "evidence_source": "runtime auditor at per-episode close (env_index), NOT the episode CSV",
+  "coverage": {
+    "envs_observed": 32,
+    "expected_envs": 32,
+    "min_resets_required": 2,
+    "min_resets_observed": 5,
+    "envs_with_reset": 32,
+    "total_mismatches": 0,
+    "per_env": {
+      "0": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "1": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "2": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "3": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "4": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "5": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "6": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "7": {
+        "closes": 7,
+        "resets": 6,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "8": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "9": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "10": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "11": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "12": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "13": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "14": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "15": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "16": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "17": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "18": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "19": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "20": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "21": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "22": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "23": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "24": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "25": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "26": {
+        "closes": 7,
+        "resets": 6,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "27": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "28": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "29": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "30": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "31": {
+        "closes": 6,
+        "resets": 5,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      }
+    },
+    "failures": [],
+    "passed": true
+  },
+  "by_latent": {
+    "z0": {
+      "n_episodes": 97,
+      "expected": "SCRIPTED:OP6",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP6": 97
+      }
+    },
+    "z1": {
+      "n_episodes": 97,
+      "expected": "SCRIPTED:OP7",
+      "pct_expected": 1.0,
+      "mismatches": 0,
+      "observed": {
+        "SCRIPTED:OP7": 97
+      }
+    }
+  },
+  "mapping_mismatches": 0,
+  "overlay_mismatches": 0,
+  "resolved_live_cells": {
+    "z0_A": 16,
+    "z0_B": 0,
+    "z1_A": 0,
+    "z1_B": 16
+  },
+  "resolved_opponent_rows": [
+    {
+      "env_index": 0,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 1,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 2,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 3,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 4,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 5,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 6,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 7,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 8,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 9,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 10,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 11,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 12,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 13,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 14,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 15,
+      "live_opponent_key": "OP6",
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "requested_overlay": {
+        "min_alive_for_defender": 2
+      },
+      "resolved_profile": {
+        "bt_level": 6,
+        "is_op12": false,
+        "enable_flag_retr": false,
+        "enable_escort": false,
+        "enable_intercept": false,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 5,
+        "lock_escort": 6,
+        "lock_intercept": 4,
+        "lock_counter": 4,
+        "lock_defender": 4,
+        "lock_2v1": 4,
+        "lock_attacker": 28,
+        "threat_radius": 0.0,
+        "lane_amplitude_frac": 0.3499999940395355,
+        "intercept_block_base": 0.4000000059604645,
+        "intercept_block_trailing_bonus": 0.20000000298023224,
+        "defender_zone_frac": 0.3499999940395355,
+        "defender_orbit_radius": 0.0,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": false,
+        "intercept_feasibility_ratio": 0.44999998807907104,
+        "min_alive_for_defender": 2,
+        "enable_mines": false,
+        "mine_defender_lane_frac": 0.4000000059604645,
+        "mine_cooldown_steps": 50,
+        "mine_approach_lead_steps": 15,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 16,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 17,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 18,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 19,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 20,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 21,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 22,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 23,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 24,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 25,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 26,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 27,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 28,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 29,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 30,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    },
+    {
+      "env_index": 31,
+      "live_opponent_key": "OP7",
+      "genome_id": null,
+      "requested_overlay": {},
+      "resolved_profile": {
+        "bt_level": 7,
+        "is_op12": false,
+        "enable_flag_retr": true,
+        "enable_escort": false,
+        "enable_intercept": true,
+        "enable_counter": false,
+        "counter_always": false,
+        "counter_when_trailing": false,
+        "enable_defender": true,
+        "enable_2v1": false,
+        "lock_flag_retr": 20,
+        "lock_escort": 6,
+        "lock_intercept": 18,
+        "lock_counter": 10,
+        "lock_defender": 28,
+        "lock_2v1": 4,
+        "lock_attacker": 10,
+        "threat_radius": 12.0,
+        "lane_amplitude_frac": 0.1599999964237213,
+        "intercept_block_base": 0.8399999737739563,
+        "intercept_block_trailing_bonus": 0.30000001192092896,
+        "defender_zone_frac": 0.05000000074505806,
+        "defender_orbit_radius": 1.399999976158142,
+        "escort_perpendicular_fallback": true,
+        "escort_interpose": false,
+        "late_game_evasion_unlock": true,
+        "intercept_feasibility_ratio": 0.7200000286102295,
+        "min_alive_for_defender": 2,
+        "enable_mines": true,
+        "mine_defender_lane_frac": 0.550000011920929,
+        "mine_cooldown_steps": 24,
+        "mine_approach_lead_steps": 28,
+        "mine_place_radius": 1.5,
+        "mine_min_spacing": 3.0,
+        "mine_lock_ticks": 20,
+        "adaptive_enabled": false
+      }
+    }
+  ],
+  "rasr_arms_enabled": false,
+  "failures": [],
+  "authorizes": "nothing; PPO launch remains a separate PI decision",
+  "EVAL_touched": false
+}
