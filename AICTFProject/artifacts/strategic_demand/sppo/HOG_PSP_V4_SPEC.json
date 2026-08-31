@@ -116,5 +116,47 @@
     },
     "method": "every seed-named array in every npz, every CSV column named *seed*, every numeric value in every JSON artifact",
     "RESULT": "CLEAN -- appears in no seed field, seed column, or artifact value"
+  },
+  "AMENDMENT_1_SMOKE_WORDING": {
+    "utc": "2026-08-31T21:32:14Z",
+    "authority": "PI, 2026-08-31, before implementation",
+    "status": "WORDING ONLY. The treatment, gate, seeds, budget and architecture are unchanged.",
+    "the_clarification": {
+      "correct": "for identical critic TRUNK FEATURES h:  V_0(h) == V_1(h)",
+      "incorrect": "V(s, z0) == V(s, z1)",
+      "why": "z already enters the critic trunk input as a 2-dim one-hot, so identical head weights still produce different values for the same raw state under different latents. That was equally true of the shared critic. Stating the test the wrong way would let a legitimate trunk-conditioned difference be mistaken for failed initialisation equivalence.",
+      "must_be_explicit_in_test_output": true
+    },
+    "FROZEN_ACCEPTANCE_LOGIC": {
+      "1_head_isolation": [
+        "z0 value update moves head_V0",
+        "head_V1 BIT-IDENTICAL",
+        "inverse for z1"
+      ],
+      "2_function_preserving_init": [
+        "shared legacy head copied into both private heads",
+        "identical output from both heads on the SAME trunk feature tensor",
+        "legacy checkpoint migration reproduces prior value output under the corresponding latent routing"
+      ],
+      "3_real_ppo_wiring_DECISIVE": [
+        "mixed live rollout contains both z0 and z1",
+        "log the actual value-head ID used per sample",
+        "verify z0 -> V_0 -> GAE_z0 and z1 -> V_1 -> GAE_z1",
+        "NEGATIVE CONTROL: deliberately swap routing and require the guard to FAIL"
+      ],
+      "4_full_composition": [
+        "task PPO updates > 0",
+        "paired rehearsal updates > 0",
+        "trajectory PG updates > 0",
+        "V0 and V1 both receive real updates",
+        "no cross-head parameter motion",
+        "equal latent exposure",
+        "ties == 0",
+        "legacy path == 0",
+        "32/32 assignment, mismatches == 0"
+      ]
+    },
+    "why_the_negative_control_matters": "V3 taught that 'the architecture exists' is not enough. The test must demonstrate it would actually catch z0 -> V1 or a dropped z_idx, not merely pass when things happen to be correct.",
+    "authorization": "If all four go green, the 1M production run is authorized immediately. No extra diagnostics, no PCGrad, no new losses, no threshold changes."
   }
 }
