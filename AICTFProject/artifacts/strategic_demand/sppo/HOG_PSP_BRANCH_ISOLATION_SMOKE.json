@@ -1,0 +1,68 @@
+{
+  "record": "H-OG-PSP smoke 1: latent-private branch isolation",
+  "status": "SMOKE_RESULT",
+  "utc": "2026-08-31T14:28:08Z",
+  "VERDICT": "PASS",
+  "implements": "HOG_PSP_V3_SPEC.json#MECHANISM_SMOKE_MUST_PROVE (architecture half)",
+  "proves": "Private capacity exists, is reachable by its own latent's gradient, and cannot be moved by the other latent's update. Says NOTHING about whether the treatment learns.",
+  "structure": {
+    "latent_k": 2,
+    "branch_trunks": 2,
+    "private_action_heads": 2,
+    "adapters": 2,
+    "fixed_alpha_mode": true,
+    "latent_z_alpha": 1.0,
+    "private_params": 423022,
+    "total_params": 3957166,
+    "private_frac": 0.1069
+  },
+  "isolation": {
+    "z0_update": {
+      "rows_used": 48,
+      "loss": 1.6057305335998535,
+      "own_private_tensors": 8,
+      "own_moved": 8,
+      "own_with_gradient": 8,
+      "foreign_private_tensors": 8,
+      "foreign_moved": 0,
+      "foreign_with_gradient": 0,
+      "shared_tensors": 29,
+      "shared_moved": 13,
+      "shared_may_move": true,
+      "isolated": true,
+      "reachable": true
+    },
+    "z1_update": {
+      "rows_used": 48,
+      "loss": 1.6286128759384155,
+      "own_private_tensors": 8,
+      "own_moved": 8,
+      "own_with_gradient": 8,
+      "foreign_private_tensors": 8,
+      "foreign_moved": 0,
+      "foreign_with_gradient": 0,
+      "shared_tensors": 29,
+      "shared_moved": 13,
+      "shared_may_move": true,
+      "isolated": true,
+      "reachable": true
+    }
+  },
+  "shared_backbone_note": "Shared parameters moving during a single-latent update is CORRECT and is not asserted against. The invariant is that the OTHER latent's private branch stays bit-identical.",
+  "negative_controls": {
+    "no_LRO_fixture": {
+      "private_tensors": 0,
+      "detected": true,
+      "why": "without LRO there are no private branches, so an isolation claim would be vacuously true"
+    },
+    "alpha_zero_fixture": {
+      "gates_present": true,
+      "adapters_zero_init": true,
+      "detected": true,
+      "why": "zero-init adapters under gating form the zero-gradient degenerate equilibrium that was the V6I22E root cause"
+    }
+  },
+  "failures": [],
+  "authorizes": "nothing; trajectory-objective liveness is a separate smoke",
+  "EVAL_touched": false
+}
