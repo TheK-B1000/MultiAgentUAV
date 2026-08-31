@@ -1,0 +1,42 @@
+{
+  "record": "Oracle-gated K=2 V2 bank assembly audit",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-31T06:14:39Z",
+  "implements": [
+    "artifacts\\strategic_demand\\sppo\\ORACLE_GATED_K2_V2_RUN_SPEC.json",
+    "artifacts\\strategic_demand\\sppo\\ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+  ],
+  "minimum_total_eligible": 1500,
+  "legacy_FIT": {
+    "seed_range": [
+      10700001,
+      10700096
+    ],
+    "seeds_present": 96,
+    "branch_states": 1109,
+    "eligible": 428,
+    "A_preferred": 225,
+    "B_preferred": 203,
+    "tied": 681
+  },
+  "new_V2_collection": {
+    "seed_range": [
+      11000001,
+      11000320
+    ],
+    "seeds_present": 320,
+    "branch_states": 3840,
+    "eligible": 1376,
+    "A_preferred": 704,
+    "B_preferred": 672,
+    "tied": 2464
+  },
+  "combined": {
+    "eligible": 1804,
+    "A_preferred": 929,
+    "B_preferred": 875
+  },
+  "VERDICT": "PASS",
+  "consequence": "V2 training authorized"
+}
