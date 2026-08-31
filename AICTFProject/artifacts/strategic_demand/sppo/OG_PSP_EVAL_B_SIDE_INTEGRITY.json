@@ -1,0 +1,63 @@
+{
+  "record": "OG-PSP EVAL B-side integrity check",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-31T10:34:39Z",
+  "written_before_the_rows_existed": true,
+  "question": "Is delta_B = 0 a real behavioral tie, or did latent forcing fail on Pole B?",
+  "VERDICT": "GENUINE_TIE",
+  "checks": {
+    "1_not_byte_identical_across_all_seeds": {
+      "seeds_with_identical_rows": 13,
+      "seeds_with_differing_rows": 19,
+      "passed": true
+    },
+    "2_per_seed_outcomes_differ": {
+      "seeds_where_win_flips": [
+        11200003,
+        11200007,
+        11200009,
+        11200010,
+        11200011,
+        11200015,
+        11200020,
+        11200025,
+        11200030,
+        11200031
+      ],
+      "z0_wins_z1_loses": [
+        11200009,
+        11200010,
+        11200025,
+        11200030,
+        11200031
+      ],
+      "z1_wins_z0_loses": [
+        11200003,
+        11200007,
+        11200011,
+        11200015,
+        11200020
+      ],
+      "passed": true
+    },
+    "3_aggregate_tie_is_genuine": {
+      "delta_B_recomputed_from_rows": 0.0,
+      "delta_B_in_frozen_result": 0.0,
+      "matches": true,
+      "reading": "5 seeds where z0 won and z1 lost, 5 where z1 won and z0 lost; they cancel."
+    },
+    "4_provenance_identical_except_latent": {
+      "duplicate_rows": 0,
+      "seed_sets_match_frozen_block": true,
+      "checkpoint_sha256": "792c2367ad2a4ebe9e051a326e0ff555f7dc2bb98358737a8f65d732d49d8bf0",
+      "single_checkpoint_for_all_cells": true
+    },
+    "A_pole_control": {
+      "seeds_where_z0A_differs_from_z1A": 29,
+      "reading": "forcing demonstrably takes effect on the A pole"
+    }
+  },
+  "conclusion": "delta_B = 0 is a real behavioral result, not an evaluator defect.",
+  "changes_no_verdict": true,
+  "failures": []
+}

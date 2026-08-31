@@ -1,0 +1,107 @@
+{
+  "record": "OG-PSP held-out EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-31T10:34:18Z",
+  "implements": "OG_PSP_EVAL_SPEC.json",
+  "VERDICT": "OG_PSP_CROSSOVER_NOT_CONFIRMED",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/og_psp_production/ckpts/final_og_psp_production.zip",
+    "sha256": "792c2367ad2a4ebe9e051a326e0ff555f7dc2bb98358737a8f65d732d49d8bf0",
+    "verified_at_eval_time": true,
+    "terminal_only": true
+  },
+  "seeds": {
+    "block": [
+      11200001,
+      11200032
+    ],
+    "n": 32
+  },
+  "payoff_matrix": {
+    "z0|A": {
+      "mean": 0.875,
+      "lcb95": 0.75,
+      "ucb95": 0.96875
+    },
+    "z1|A": {
+      "mean": 0.8125,
+      "lcb95": 0.65625,
+      "ucb95": 0.9375
+    },
+    "z0|B": {
+      "mean": 0.6875,
+      "lcb95": 0.53125,
+      "ucb95": 0.84375
+    },
+    "z1|B": {
+      "mean": 0.6875,
+      "lcb95": 0.53125,
+      "ucb95": 0.84375
+    },
+    "pi_A|A": {
+      "mean": 0.75,
+      "lcb95": 0.59375,
+      "ucb95": 0.90625
+    },
+    "pi_B|B": {
+      "mean": 0.625,
+      "lcb95": 0.46875,
+      "ucb95": 0.78125
+    }
+  },
+  "delta_A": {
+    "mean": 0.0625,
+    "lcb95": -0.125,
+    "ucb95": 0.25,
+    "passes": false
+  },
+  "delta_B": {
+    "mean": 0.0,
+    "lcb95": -0.1875,
+    "ucb95": 0.1875,
+    "passes": false
+  },
+  "gate": "BOTH delta lcb95 > 0",
+  "asymmetry_note": null,
+  "retention_context_only_not_a_gate": {
+    "mean": 1.1452243277645222,
+    "lcb95": 0.9411764705882353,
+    "ucb95": 1.4047779922779908
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "unchanged from V1, which took it unchanged from EXP2C"
+  },
+  "interpretive_context_frozen_before_the_result": {
+    "replay_factor": 49.42,
+    "budget": "1,003,520 terminal steps, identical to V1's. Unlike the V1-vs-EXP2C comparison there is no budget confound between V1 and OG-PSP.",
+    "two_axes": "Paired supervision AND a 4.2x larger bank both change relative to V1, so a success cannot be attributed to either alone.",
+    "mechanism_diagnostic_result": {
+      "reading": "PARTIAL_DIFFERENTIATION_HUMAN_DECISION_REQUIRED",
+      "matched_CALIB_jsd_nats": {
+        "V1": 0.006589,
+        "OG_PSP": 0.042102,
+        "ratio": 6.39
+      },
+      "CALIB_crossed_gap_pp": {
+        "A_preferred": 1.32,
+        "B_preferred": 10.0
+      },
+      "summary": "Latent divergence rose 6.39x on the matched held-out split and did not collapse, but the differentiation is one-sided: z1 is a B-specialist, z0 is not an A-specialist.",
+      "status": "context, not a gate; it does not predict or constrain this verdict"
+    },
+    "JSD_UNITS_CORRECTION_IS_PERMANENT": {
+      "rule": "PI, 2026-08-31: compare nats to nats across V1 and OG-PSP. Do not revive the model-vs-teacher percentage unless the teacher contrast is first converted into nats.",
+      "detail": "_jsd_from_logits uses natural log, so all model JSD figures including V1's 0.0051 are NATS. diagnose_teacher_contrast.py used log2, so the 0.3919 teacher contrast is BITS. The earlier '1.3% of teacher contrast' divided one by the other.",
+      "recorded_in": "OG_PSP_MECHANISM_DIAGNOSTIC.json#UNITS_CORRECTION"
+    }
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 192,
+  "stopping_rule": "Final latent attempt. A negative verdict closes latent-strategy work and pivots to the SAPPO-centered ICRA paper."
+}
