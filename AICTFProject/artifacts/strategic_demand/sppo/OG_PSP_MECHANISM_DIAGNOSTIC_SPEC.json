@@ -20,8 +20,9 @@
     "1_latent_divergence": {
       "quantity": "mean JSD(pi(.|s,z0), pi(.|s,z1)) in bits, decision-masked",
       "v1_baseline": 0.0051,
-      "teacher_ceiling": 0.3919,
-      "reading": "V1 reproduced 1.3% of available teacher contrast; this measures how much OG-PSP reproduced"
+      "reading": "V1 reproduced 1.3% of available teacher contrast; this measures how much OG-PSP reproduced",
+      "teacher_reference_contrast": 0.3919,
+      "teacher_reference_contrast_note": "The MEASURED contrast between pi_A and pi_B on these states, not a mathematical ceiling on how different two policies can become."
     },
     "2_crossed_teacher_match": {
       "quantity": "decision-masked per-head agreement, all four combinations",
@@ -48,7 +49,7 @@
   },
   "PREREGISTERED_READINGS": {
     "mechanism_worked": "JSD substantially above 0.0051 AND crossed gaps substantially above ~2 pp, with both surviving on CALIB. z carries specialist identity.",
-    "mechanism_failed": "JSD still near 0.005 and crossed gaps still ~2 pp. Paired supervision did not force differentiation, and no bank size or budget would have.",
+    "mechanism_failed": "JSD still near 0.0051 and crossed gaps still ~2 pp. Paired supervision did not produce meaningful differentiation UNDER THE FROZEN OG-PSP TREATMENT, BANK, ARCHITECTURE, AND 1M BUDGET. This says nothing about whether some larger bank or longer budget could.",
     "memorised_pairing": "Strong on FIT, collapses on CALIB. The network learned the bank's pairing rather than specialist identity.",
     "note": "These are readings, not gates. The scientific verdict remains the frozen EVAL crossover."
   },
@@ -57,5 +58,28 @@
     "freeze terminal checkpoint",
     "THIS diagnostic (FIT vs CALIB only)",
     "separate PI decision to open EVAL"
-  ]
+  ],
+  "AMENDMENT_1_SCOPE_AND_NAMING": {
+    "utc": "2026-08-31T06:44:12Z",
+    "authority": "PI, 2026-08-31, before the outcome existed",
+    "status": "semantic corrections only; the analysis, splits, metrics and readings are unchanged",
+    "correction_1_overclaim": {
+      "original_text": "JSD still near 0.005 and crossed gaps still ~2 pp. Paired supervision did not force differentiation, and no bank size or budget would have.",
+      "problem": "The second sentence -- 'and no bank size or budget would have' -- is not supported by a single negative result at one bank size and one budget. It is a universal claim licensed by a particular experiment.",
+      "why_it_mattered_to_fix_prospectively": "Left in place it would have been quoted later as an established finding, and correcting it after a negative result would look like softening the conclusion."
+    },
+    "correction_2_naming": {
+      "original_key": "teacher_ceiling",
+      "new_key": "teacher_reference_contrast",
+      "problem": "0.3919 bits is the measured teacher contrast on these states, not an upper bound on achievable policy divergence."
+    },
+    "unchanged": [
+      "splits",
+      "measurements",
+      "decision-masking",
+      "the four readings",
+      "not-a-gate status",
+      "sequence"
+    ]
+  }
 }
