@@ -205,11 +205,18 @@ def main() -> int:
             T = ep["T"]
             points = {0, max(1, round(0.10 * T)), round(0.50 * T),
                       round(0.90 * T), max(0, T - 1)}
-            # event states, when the env exposes them, become extra prefix points
+            # Event states become extra prefix points. The event is the step where a counter
+            # CHANGES, not every step where it is non-zero -- blue_score and red_score are
+            # cumulative, so testing truthiness would mark most of the episode as an event.
+            prev = None
             for step, inf in enumerate(ep["infos"]):
                 rec = inf[0] if isinstance(inf, (list, tuple)) and inf else inf
-                if isinstance(rec, dict) and any(bool(np.any(rec.get(k))) for k in event_keys):
+                if not isinstance(rec, dict):
+                    continue
+                cur = {k: np.asarray(rec.get(k)).copy() for k in event_keys}
+                if prev is not None and any(not np.array_equal(cur[k], prev[k]) for k in event_keys):
                     points.add(step + 1)
+                prev = cur
             points = sorted(p for p in points if 0 <= p <= T)
             for k in points:
                 if k > T:
