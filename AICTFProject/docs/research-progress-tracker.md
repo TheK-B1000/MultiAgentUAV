@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-31 — H-OG-PSP V3 completed valid training and prospectively confirmed trajectory identity on both poles. The mechanism result is committed at `df144084`; the payoff protocol/evaluator is committed at `d9aabac0`. Terminal-only payoff EVAL on `11300101..11300132` is running as PID `74744`, with checkpoint identity and frozen gate verified before episode 1.
+> **Last updated:** 2026-08-31 — H-OG-PSP V4 completed valid training. Its prospectively frozen mechanism diagnostic returned `TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_DEGRADED` and was committed at `af03130b`. The terminal-only payoff EVAL on untouched `11400101..11400132` is authorized under the unchanged V3 crossover gate; protocol and evaluator are frozen before execution.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -28,7 +28,27 @@ It is **not** the source of truth for:
 | Strategic Demand Searcher | **COMPLETED THROUGH V3.** Strategic demand validated; frozen poles are A = OP6 + `min_alive_for_defender=2`, B = canonical OP7. |
 | PPO / specialists / latent | **SAPPO PASS / EXP2 FAIL / EXP2B FAIL / EXP2C FAIL / SPPPO V1 FAIL (CLOSED).** Automatic latent variants and the SPPPO V1 branch are closed. Phase 0 Gates 0A/0B passed; SPPPO V1 completed its frozen 1 M run and final 192-seed evaluation. |
 
-### H-OG-PSP V3 — `TRAJECTORY IDENTITY CONFIRMED / PAYOFF UNEVALUATED`
+### H-OG-PSP V4 — `VALID / TRAJECTORY IDENTITY PARTIAL / PAYOFF EVAL AUTHORIZED`
+
+V4 changed one treatment axis from V3: the shared scalar critic output was
+replaced by two latent-private scalar heads. Training completed validly at
+1,003,520 steps. The frozen terminal checkpoint SHA256 is
+`e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0`.
+
+The one-shot mechanism diagnostic passed all integrity checks over 128 CALIB
+episodes. Pole A retained confident trajectory ordering (`delta_tau_A =
++0.9809`, LCB95 `+0.5302`), while Pole B did not (`delta_tau_B = +0.1117`,
+LCB95 `-0.3611`). The permanent reading is `TRAJECTORY_IDENTITY_PARTIAL /
+IDENTITY_DEGRADED`, committed at `af03130b`. It is non-gating.
+
+The payoff protocol is
+[`HOG_PSP_V4_EVAL_SPEC.json`](../artifacts/strategic_demand/sppo/HOG_PSP_V4_EVAL_SPEC.json).
+It scores only the frozen terminal checkpoint on untouched seeds
+`11400101..11400132`. The six cells, paired seed-level bootstrap (`n=20000`,
+alpha `0.05`, RNG `7`), and requirement that both crossover LCB95s exceed zero
+are unchanged from V3. Retention and mechanism identity remain context only.
+
+### H-OG-PSP V3 — `TRAJECTORY IDENTITY CONFIRMED / CROSSOVER NOT CONFIRMED`
 
 The valid 1 M run terminated at 1,003,520 steps with terminal checkpoint SHA256
 `9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69`.
@@ -37,15 +57,15 @@ payoff data and committed at `df144084`: paired trajectory-identity LCB95s are
 `+5.6553` on Pole A and `+5.1032` on Pole B, so
 `TRAJECTORY_IDENTITY_CONFIRMED` is permanent regardless of the payoff result.
 
-The separate one-shot payoff protocol is
+The completed one-shot payoff protocol is
 [`HOG_PSP_V3_EVAL_SPEC.json`](../artifacts/strategic_demand/sppo/HOG_PSP_V3_EVAL_SPEC.json).
 It scores only the terminal checkpoint on untouched seeds
 `11300101..11300132`. The six-cell design and paired bootstrap are unchanged
 from OG-PSP. Strategic crossover requires both `LCB95(delta_A) > 0` and
 `LCB95(delta_B) > 0`; mechanism identity and retention are not payoff gates.
-Payoff crossover remains **UNEVALUATED** while the one-shot 192-episode run is
-active. Runtime provenance is recorded in
-[`HOG_PSP_V3_EVAL_RUNNING_PROVENANCE.json`](../artifacts/strategic_demand/sppo/HOG_PSP_V3_EVAL_RUNNING_PROVENANCE.json).
+The final payoff result is `HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED`: `delta_A =
+-0.0312` with LCB95 `-0.2188`, and `delta_B = -0.1562` with LCB95 `-0.4062`.
+The reversal was verified genuine and frozen in commit `9e1684a6`.
 
 ### SPPPO V1 — `CLOSED / NOT CONFIRMED`
 
