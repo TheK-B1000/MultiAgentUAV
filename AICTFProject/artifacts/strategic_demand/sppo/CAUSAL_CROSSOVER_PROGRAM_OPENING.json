@@ -14,18 +14,8 @@
   "THE_CHANGE_IN_OBJECTIVE": {
     "old": "make the latents encode different strategies",
     "new": "make the latents encode differences that causally change winning",
-    "why": (
-      "PI, 2026-09-01: 'distinct policies != distinct strategic value.' The ladder achieved latent "
-      "differentiation, specialist-like trajectory identity, private actor capacity and private "
-      "critic heads, and still returned delta_A = delta_B = 0. Adding further separation attacks "
-      "the wrong problem. The model already knows how to be different; it does not know which "
-      "differences matter."
-    ),
-    "what_makes_this_tractable": (
-      "SAPPO already established that the environment SUPPORTS the crossover: pi_A wins "
-      "preferentially on Pole A and pi_B on Pole B. Two policies that work already exist. The "
-      "question is which of their decisions carry the payoff, and that is measurable."
-    )
+    "why": "PI, 2026-09-01: 'distinct policies != distinct strategic value.' The ladder achieved latent differentiation, specialist-like trajectory identity, private actor capacity and private critic heads, and still returned delta_A = delta_B = 0. Adding further separation attacks the wrong problem. The model already knows how to be different; it does not know which differences matter.",
+    "what_makes_this_tractable": "SAPPO already established that the environment SUPPORTS the crossover: pi_A wins preferentially on Pole A and pi_B on Pole B. Two policies that work already exist. The question is which of their decisions carry the payoff, and that is measurable."
   },
 
   "INHERITED_AS_SETTLED": {
@@ -41,14 +31,8 @@
   "PHASES": {
     "PHASE_0_REPLAY_EQUIVALENCE": {
       "claim": "(seed, action prefix) -> s_t is a function: replaying a prefix reproduces the state",
-      "why_first": (
-        "The whole program rests on matched causal branching, and there is NO state save/restore "
-        "anywhere in gpu_env -- no snapshot, no deepcopy hook, no restore. Prefix replay is the "
-        "only route to matched states that does not add env surface, and it is an untested "
-        "assumption. Everything downstream is worthless if it does not hold."
-      ),
-      "status": "HARD GATE. If replay equivalence fails, Phase 1 does not start and the program "
-                "returns to the PI for a decision about adding state restore to the environment.",
+      "why_first": "The whole program rests on matched causal branching, and there is NO state save/restore anywhere in gpu_env -- no snapshot, no deepcopy hook, no restore. Prefix replay is the only route to matched states that does not add env surface, and it is an untested assumption. Everything downstream is worthless if it does not hold.",
+      "status": "HARD GATE. If replay equivalence fails, Phase 1 does not start and the program returns to the PI for a decision about adding state restore to the environment.",
       "spec": "CCP_PHASE0_REPLAY_EQUIVALENCE_SPEC.json"
     },
     "PHASE_1_MATCHED_CAUSAL_BRANCHING": {
@@ -69,27 +53,19 @@
         "sequence": "the first action is right and the following subsequence collapses",
         "optimization": "the actor behaves correctly and PPO systematically erodes those decisions"
       },
-      "leading_suspect_from_the_ladder": (
-        "sequence. V3 produced strong trajectory identity with absent payoff identity, which fits a "
-        "policy reproducing the SHAPE of a strategy while missing a handful of decisive subsequences."
-      )
+      "leading_suspect_from_the_ladder": "sequence. V3 produced strong trajectory identity with absent payoff identity, which fits a policy reproducing the SHAPE of a strategy while missing a handful of decisive subsequences."
     },
     "PHASE_3_MECHANISM_CHOSEN_BY_PHASE_2": {
       "if_decision": "advantage-weighted specialist distillation: L = L_PPO + lambda * E[w(s) * L_teacher(s,z)], w(s) = f(delta_Q(s)), so a disagreement that does not change winning gets little or no pressure",
       "if_sequence": "distil critical options/segments (s_t, a_t..a_t+k) under a temporally extended objective rather than one-step imitation",
       "if_visitation": "occupancy or segment-level objectives matching d^z0 to d^piA, but ONLY over regions the branching analysis showed to matter for payoff",
       "if_timing_or_optimization": "to be specified when the classification exists; not pre-guessed here",
-      "escalation_if_none_of_it_works": (
-        "explicit hierarchical structure -- per-latent option policies, separate recurrent state, "
-        "separate trunks -- and at the extreme, compress the ENSEMBLE rather than the strategies. "
-        "PI: 'The engineering target is crossover, not ideological purity about how many tensors "
-        "must be shared.'"
-      )
+      "escalation_if_none_of_it_works": "explicit hierarchical structure -- per-latent option policies, separate recurrent state, separate trunks -- and at the extreme, compress the ENSEMBLE rather than the strategies. PI: 'The engineering target is crossover, not ideological purity about how many tensors must be shared.'"
     }
   },
 
   "STANDING_RULES": {
-    "note": "PI, 2026-09-01: \"'No matter what' should mean we keep searching, not that we contaminate the evidence.\"",
+    "note": "PI, 2026-09-01: 'No matter what' should mean we keep searching, not that we contaminate the evidence.",
     "rules": [
       "fresh training seeds for every attempt",
       "fresh EVAL block for every attempt",
@@ -101,11 +77,7 @@
     ],
     "spent_EVAL_blocks_that_may_never_be_reused": ["V1", "OG-PSP", "11300101..11300132", "11400101..11400132"],
     "namespace_for_this_program": "115xxxxx, disjoint from every block the ladder used",
-    "why_this_does_not_slow_us_down": (
-      "It prevents eventually getting a 'success' that cannot be trusted. A crossover result "
-      "obtained by tuning against a read EVAL block would be worth less than the four honest "
-      "failures already on record."
-    )
+    "why_this_does_not_slow_us_down": "It prevents eventually getting a 'success' that cannot be trusted. A crossover result obtained by tuning against a read EVAL block would be worth less than the four honest failures already on record."
   },
 
   "WHAT_THIS_PROGRAM_MAY_NOT_DO": [

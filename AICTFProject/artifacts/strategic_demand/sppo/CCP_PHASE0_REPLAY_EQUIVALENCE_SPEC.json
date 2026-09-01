@@ -7,18 +7,8 @@
 
   "THE_CLAIM_UNDER_TEST": {
     "statement": "(seed, action prefix) -> s_t is a FUNCTION. Replaying the same action prefix from the same seed in a FRESH environment reproduces the same state.",
-    "why_it_is_load_bearing": (
-      "There is no state save/restore anywhere in gpu_env -- no snapshot, no deepcopy hook, no "
-      "restore. Prefix replay is the only route to matched causal branching that adds no "
-      "environment surface. If this claim is false, every Q estimate in Phase 1 compares "
-      "continuations from states that were never actually the same state, and the entire program "
-      "is built on sand."
-    ),
-    "what_this_does_NOT_test": (
-      "Policy determinism. The replay feeds RECORDED actions rather than re-querying the policy, "
-      "which is exactly right: Phase 1 will supply actions from four different policies, so what "
-      "must be deterministic is the ENVIRONMENT given a seed and an action sequence."
-    )
+    "why_it_is_load_bearing": "There is no state save/restore anywhere in gpu_env -- no snapshot, no deepcopy hook, no restore. Prefix replay is the only route to matched causal branching that adds no environment surface. If this claim is false, every Q estimate in Phase 1 compares continuations from states that were never actually the same state, and the entire program is built on sand.",
+    "what_this_does_NOT_test": "Policy determinism. The replay feeds RECORDED actions rather than re-querying the policy, which is exactly right: Phase 1 will supply actions from four different policies, so what must be deterministic is the ENVIRONMENT given a seed and an action sequence."
   },
 
   "HARD_GATE": {
@@ -31,11 +21,7 @@
     "PRIMARY_CRITERION": "EXACT bitwise equality (numpy array_equal) at every compared prefix point.",
     "TOLERANCE_POLICY": {
       "rule": "NO numerical tolerance is adopted in this run. The primary criterion is exact equality.",
-      "why": (
-        "A tolerance chosen after seeing the deviations is threshold-shopping in the same family as "
-        "the moves this project has refused throughout. This run reports magnitudes; it does not "
-        "absorb them."
-      ),
+      "why": "A tolerance chosen after seeing the deviations is threshold-shopping in the same family as the moves this project has refused throughout. This run reports magnitudes; it does not absorb them.",
       "if_mismatches_occur": "the verdict is FAILED or PARTIAL, and the record reports the first divergent step, the field, and max |diff|. Adopting a frozen tolerance afterwards requires a separate PI decision with those magnitudes on the table."
     }
   },
@@ -49,6 +35,7 @@
       "mid": "50%",
       "late": "90%",
       "near_terminal": "T-1, the last state before the episode ends",
+      "reset": "k=0, an added precondition check: two fresh envs on the same seed must agree before any action is taken",
       "why_these": "PI: 'short/mid/late prefixes ... and near-terminal states.' Divergence that only appears late is the failure mode that would silently corrupt Phase 1's most interesting states."
     },
     "event_states": {
@@ -61,12 +48,10 @@
 
   "NEGATIVE_CONTROL": {
     "mandatory": true,
-    "design": "replay a DELIBERATELY PERTURBED action prefix (one action changed at a chosen step) and require the resulting state to DIFFER from the recorded state.",
+    "design": "replay a DELIBERATELY PERTURBED action prefix (one action replaced by a different but genuinely recorded action) and require the resulting state to DIFFER from the recorded state.",
+    "why_a_recorded_action": "substituting a different RECORDED action keeps the perturbation inside the valid action space, so the control cannot succeed merely by feeding the environment something out of range.",
     "must_fail": "If the perturbed replay also matches, the comparison is not measuring what it claims -- it would be comparing something to itself, or the compared fields would be insensitive to actions. In that case the whole Phase 0 result is void regardless of how the primary checks came out.",
-    "why_this_is_required": (
-      "A guard that cannot fail proves nothing. Every smoke in this project carries one, and the "
-      "V4 critic-routing smoke caught its own equivalent by deliberately misrouting."
-    )
+    "why_this_is_required": "A guard that cannot fail proves nothing. Every smoke in this project carries one, and the V4 critic-routing smoke caught its own equivalent by deliberately misrouting."
   },
 
   "PREREGISTERED_VERDICTS": {
