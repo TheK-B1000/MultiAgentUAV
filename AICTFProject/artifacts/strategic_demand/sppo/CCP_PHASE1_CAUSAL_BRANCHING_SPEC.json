@@ -205,5 +205,36 @@
       },
       "verified_at_collection_time": "both sha256 values are re-checked before the first rollout; a mismatch is fatal"
     }
+  },
+  "AMENDMENT_3_TWO_INTERVENTION_MODES": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:40:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 delta_Q exists",
+    "why_this_amendment_exists": "The frozen estimand do(pi_A at agent i) was ambiguous between two readings that measure different failures. Resolved explicitly rather than by an implementer's default.",
+    "MODE_1_SINGLE_MACRO": {
+      "definition": "the specialist supplies the macro and target at s_t ONLY. V4 resumes control of that agent as soon as the committed macro expires (its macro_commit_*_ticks).",
+      "measures": "is the missing strategic value locally recoverable at ONE decision",
+      "this_is_the_decision_problem_probe": true
+    },
+    "MODE_2_FULL_TAKEOVER": {
+      "definition": "the specialist drives the intervened agent for the remainder of the episode. V4 continues to drive the other agent. Each branch follows its own commitment schedule.",
+      "measures": "does handing the agent to the specialist from here recover value",
+      "conflates": "the boundary decision with every subsequent decision, deliberately"
+    },
+    "BOTH_COLLECTED_FOR_EVERY_STATE": true,
+    "NEVER_POOLED": "the two modes are reported as separate estimands, exactly as individual and joint are",
+    "PREREGISTERED_DISCRIMINATION": {
+      "note": "Recorded BEFORE any delta_Q exists so the reading cannot be chosen after seeing the numbers.",
+      "single_macro_nonzero_AND_takeover_nonzero": "decision-level leverage: the boundary choice itself carries payoff. Points at decision-level causal distillation.",
+      "single_macro_near_zero_AND_takeover_nonzero": "SEQUENCE leverage: one macro is not enough, the value lives in the option sequence the specialist would go on to play. Points at option/segment-level distillation, and matches the leading suspect from V3.",
+      "single_macro_nonzero_AND_takeover_near_zero": "would require explanation. Recorded as a possibility so it cannot be quietly rationalised: a single correct macro helping while sustained specialist control does not is not an expected shape.",
+      "both_near_zero": "no local leverage at these boundaries. Points earlier, at visitation, rather than at decision or sequence.",
+      "these_are_readings_not_gates": "The existential claim scope from AMENDMENT_2 is unchanged, and none of these labels is a payoff gate."
+    },
+    "BUDGET": {
+      "rollouts": "one-free state: 2 modes x 2 policies x 16 = 64. both-free state: 2 modes x 3 estimands x 2 policies x 16 = 192.",
+      "total": "20 states at the audit's 0.325 both-free mix = ~2112 scalar rollouts",
+      "estimate": "~3.2 h ideal with 8 workers; budget 4-5 h for contention"
+    }
   }
 }
