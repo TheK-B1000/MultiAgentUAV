@@ -132,7 +132,15 @@ def main() -> int:
     print(f"  legal macros for agent 0 there: {legal_macros}", flush=True)
 
     def branch(macro: int):
-        """Replay the prefix, intervene at the boundary, then record RNG state per tick."""
+        """Replay the prefix, intervene at the boundary, then record RNG state per tick.
+
+        ATTEMPT 1 compared every recorded tick and returned CRN_DIVERGES at the shorter
+        branch's FINAL tick, where that branch had done=True and the other did not. A
+        terminating env resets and draws per-episode randomness, so comparing there pits a
+        mid-episode env against one that has already started a new episode. The done flag is
+        recorded alongside so the comparison window can exclude that, and so a divergence can
+        be positively attributed to termination rather than assumed to be one.
+        """
         env, obs, core = setup()
         try:
             states, knobs = [], None
@@ -143,7 +151,7 @@ def main() -> int:
                 env.step_async(a)
                 obs, r, done, _ = env.step_wait()
                 if i >= boundary:
-                    states.append(rng_state(core))
+                    states.append((rng_state(core), bool(np.asarray(done).any())))
                 if knobs is None:
                     knobs = {
                         "rt_sensor_dropout_prob_max": float(core.rt_sensor_dropout_prob.max()),
@@ -159,19 +167,28 @@ def main() -> int:
     s1, knobs = branch(legal_macros[0])
     s2, _ = branch(legal_macros[1])
     n = min(len(s1), len(s2))
-    first_div = next((i for i in range(n) if not torch.equal(s1[i], s2[i])), None)
-    aligned = first_div is None and len(s1) == len(s2)
+
+    # the window that matters: ticks where BOTH branches are still inside their episode
+    running = [i for i in range(n) if not s1[i][1] and not s2[i][1]]
+    aligned_running = all(torch.equal(s1[i][0], s2[i][0]) for i in running)
+    first_div = next((i for i in range(n) if not torch.equal(s1[i][0], s2[i][0])), None)
+    # any divergence must be positively attributable to a termination, not assumed to be one
+    div_at_termination = (first_div is None) or bool(s1[first_div][1] != s2[first_div][1]
+                                                     or s1[first_div][1])
     all_knobs_zero = all(v == 0.0 for v in knobs.values())
 
-    if not aligned:
+    if not running:
+        verdict = "CRN_DIVERGES"          # no window in which to establish anything
+    elif not aligned_running or not div_at_termination:
         verdict = "CRN_DIVERGES"
     elif all_knobs_zero:
         verdict = "POST_RESET_DYNAMICS_DETERMINISTIC"
     else:
         verdict = "CRN_ALIGNED"
 
-    print(f"  ticks compared: {n}  (branch lengths {len(s1)} / {len(s2)})")
-    print(f"  first generator-state divergence: {first_div}")
+    print(f"  branch lengths {len(s1)} / {len(s2)}   ticks with both running: {len(running)}")
+    print(f"  generator byte-equal across the running window: {aligned_running}")
+    print(f"  first divergence anywhere: {first_div}  attributable to termination: {div_at_termination}")
     print(f"  stochastic knobs: {knobs}")
     print(f"\n  VERDICT: {verdict}")
 
@@ -185,9 +202,23 @@ def main() -> int:
         "boundary": {"rule": BOUNDARY_RULE, "step": boundary, "seed": SEED, "pole": POLE,
                      "episode_length": T, "legal_macros": legal_macros,
                      "interventions": [legal_macros[0], legal_macros[1]]},
-        "generator": {"ticks_compared": n, "branch_lengths": [len(s1), len(s2)],
-                      "first_divergence": first_div, "byte_equal_throughout": bool(aligned),
-                      "method": "torch.Generator.get_state() compared byte-for-byte after every tick"},
+        "generator": {
+            "branch_lengths": [len(s1), len(s2)],
+            "ticks_with_both_branches_running": len(running),
+            "byte_equal_across_running_window": bool(aligned_running),
+            "first_divergence_anywhere": first_div,
+            "divergence_attributable_to_termination": bool(div_at_termination),
+            "method": ("torch.Generator.get_state() compared byte-for-byte after every tick, "
+                       "scored over ticks where NEITHER branch has terminated"),
+            "why_the_window": ("a terminating env resets and draws per-episode randomness, so "
+                               "comparing past that pits a mid-episode env against one that has "
+                               "started a new episode. Attempt 1 did exactly that and returned "
+                               "CRN_DIVERGES at the shorter branch's final tick "
+                               "(CCP_PHASE1_CRN_SMOKE_ATTEMPT1_WINDOW_TOO_WIDE.json)."),
+            "stricter_not_looser": ("the running-window check is accompanied by a positive "
+                                    "attribution requirement: any divergence must coincide with "
+                                    "a termination, so drift cannot hide behind the narrower "
+                                    "window")},
         "stochastic_config": knobs,
         "all_knobs_zero": bool(all_knobs_zero),
         "note": ("_scripted_red.py:361 draws role_coin unconditionally each step, so the "
