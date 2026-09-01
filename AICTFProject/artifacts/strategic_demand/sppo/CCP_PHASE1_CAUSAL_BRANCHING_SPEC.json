@@ -279,7 +279,7 @@
     "NEW_READING_SUGGESTIVE_BUT_UNDERPOWERED": {
       "why_it_exists": "PI, 2026-09-01: 'If we instead see lots of candidate effects like 9:2, 8:3 that fail Holm, I would not call that no leverage. I would call it suggestive but underpowered, which is a very different conclusion and should matter when we decide what to train next.'",
       "mechanical_criterion": "the PRIMARY family has 0 Holm-significant contrasts AND at least 4 of its 32 contrasts have delta_Q_hat >= +0.25 (a net imbalance of at least 4 of 16 in the pole-matched direction)",
-      "threshold_provenance": "The specific numbers (4 contrasts, +0.25) are the executing agent's proposal, frozen here BEFORE any delta_Q exists and adjustable only before collection completes.",
+      "threshold_provenance": "The specific numbers (4 contrasts, +0.25) were proposed by the executing agent and are FROZEN as of AMENDMENT_6. They were fixed while collection was ongoing and before any Phase 1 outcome statistic had been inspected. They are not adjustable.",
       "what_it_licenses": "a decision to re-run at higher M on the SAME frozen states, which is a power increase and not a re-analysis. It does NOT license calling leverage confirmed.",
       "what_it_forbids": "reporting 'no leverage found' when the pattern is consistently directional but underpowered"
     },
@@ -293,6 +293,31 @@
     "ENTROPY_SMOKE_DOES_NOT_GENERALISE": {
       "caution": "The three smoke states showed terminal outcomes fully robust to continuation randomness under ONE policy. That does not guarantee low outcome variance across all 20 states or across both specialist branches.",
       "consequence": "Stage 2 must report the discordance distribution per contrast, and stage 3 must surface it rather than only the corrected tests, so a high-variance regime is visible rather than inferred."
+    }
+  },
+  "AMENDMENT_6_THRESHOLDS_CLOSED_AND_NO_SEQUENTIAL_CONFIRMATION": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:50:00Z",
+    "authority": "PI, 2026-09-01, during collection and before any outcome statistic was inspected",
+    "THRESHOLDS_CLOSED": {
+      "what": "the SUGGESTIVE_BUT_UNDERPOWERED trigger: 0 Holm-significant primary contrasts AND >= 4 of 32 with delta_Q_hat >= +0.25",
+      "status": "CLOSED. Not adjustable when collection completes, not adjustable at any later point.",
+      "why_now_rather_than_later": "PI: even with a promise not to look, freezing while nobody has inspected delta_Q makes the provenance materially cleaner. The record can state plainly that the criterion was fixed during collection and before any outcome statistic existed.",
+      "supersedes": "AMENDMENT_5's clause making these adjustable until collection completes"
+    },
+    "NO_SEQUENTIAL_CONFIRMATION": {
+      "the_trap": "If the pilot fails Holm, triggers SUGGESTIVE_BUT_UNDERPOWERED, and is then re-run with more continuation seeds on the same states, granting the second run a fresh alpha = 0.05 confirmation opportunity would be sequential testing conditioned on the first result. That inflates the familywise false-positive rate.",
+      "RULE_CHOSEN": "A higher-M re-run on the same frozen states is a POWER AND MEASUREMENT REFINEMENT ONLY.",
+      "what_it_may_do": "sharpen delta_Q estimates, inform the design of the next PPO treatment, and be reported descriptively",
+      "what_it_may_NOT_do": "produce CAUSAL_LEVERAGE_CONFIRMED or SEQUENCE_LEVERAGE_CONFIRMED. Formal confirmation is whatever the currently frozen M=16 families establish, and nothing else.",
+      "why_this_option": "PI: the alternative -- an explicit sequential alpha-spending rule frozen now -- adds complexity this program does not need for the paper. The simple rule is chosen deliberately, not by omission.",
+      "if_that_ever_changes": "a sequential alpha-spending rule must be frozen BEFORE any additional data is collected, never after seeing what a re-run produced"
+    },
+    "THE_THREE_OUTCOMES_ARE_NOW_A_DECISION_INSTRUMENT": {
+      "CAUSAL_LEVERAGE_CONFIRMED": "strong corrected evidence at M=16",
+      "SUGGESTIVE_BUT_UNDERPOWERED": "coherent positive effects this pilot cannot formally resolve",
+      "NO_LOCAL_LEVERAGE_FOUND": "neither pattern present",
+      "why_it_matters": "it replaces a false binary. 'Failed Holm' and 'no causal leverage' are not the same statement at M=16, and conflating them would send the successor program in the wrong direction."
     }
   }
 }
