@@ -265,5 +265,34 @@
     "DESCRIPTIVE_LABEL_UNCHANGED": "any non-zero delta_Q_hat remains a 'candidate leverage boundary', reported alongside the corrected test in both families",
     "supersedes": "AMENDMENT_2's 'Holm-corrected across the 20 states' clause",
     "job_table_unchanged": "the 2048-job decomposition is not modified by this amendment"
+  },
+  "AMENDMENT_5_POWER_AND_THE_UNDERPOWERED_READING": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:35:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 delta_Q exists",
+    "POWER_CHARACTERISATION": {
+      "statement": "Phase 1 has HIGH sensitivity to strong, consistent causal leverage and LOW sensitivity to modest leverage. That is acceptable because the pilot's question is existential.",
+      "worst_case_bar": "For the SMALLEST Holm-ranked test in a family the multiplier is 32, so p_raw must be <= 0.0016. Unanimous discordance of 11 of 11 gives p_raw 9.8e-4 and clears; 10 of 10 gives 2.0e-3 and does not.",
+      "CORRECTION_TO_AN_EARLIER_STATEMENT": "The executing agent described '11 of 16 discordant and unanimous' as a requirement. That is wrong as stated. It is a worst-case SUFFICIENT condition for the first-ranked test only. A 10/10 contrast reached later in the ordered family faces a smaller multiplier and can still be significant. '10/10 cannot be guaranteed significant' is correct; '10/10 can never be significant' is not.",
+      "the_cost_of_M16": "This is the direct price of lowering M for runtime, recorded as a limitation of the pilot rather than discovered when a 9-vs-2 split fails to confirm."
+    },
+    "NEW_READING_SUGGESTIVE_BUT_UNDERPOWERED": {
+      "why_it_exists": "PI, 2026-09-01: 'If we instead see lots of candidate effects like 9:2, 8:3 that fail Holm, I would not call that no leverage. I would call it suggestive but underpowered, which is a very different conclusion and should matter when we decide what to train next.'",
+      "mechanical_criterion": "the PRIMARY family has 0 Holm-significant contrasts AND at least 4 of its 32 contrasts have delta_Q_hat >= +0.25 (a net imbalance of at least 4 of 16 in the pole-matched direction)",
+      "threshold_provenance": "The specific numbers (4 contrasts, +0.25) are the executing agent's proposal, frozen here BEFORE any delta_Q exists and adjustable only before collection completes.",
+      "what_it_licenses": "a decision to re-run at higher M on the SAME frozen states, which is a power increase and not a re-analysis. It does NOT license calling leverage confirmed.",
+      "what_it_forbids": "reporting 'no leverage found' when the pattern is consistently directional but underpowered"
+    },
+    "READING_PRECEDENCE": [
+      "DECISION_LEVEL_LEVERAGE: primary family has >=1 Holm-significant contrast, and so does secondary",
+      "LOCAL_ONLY_REQUIRES_EXPLANATION: primary significant, secondary not",
+      "SEQUENCE_LEVERAGE: primary not significant, secondary significant",
+      "SUGGESTIVE_BUT_UNDERPOWERED: neither family significant, but the primary meets the criterion above",
+      "NO_LOCAL_LEVERAGE_FOUND: neither family significant and the primary does not meet the criterion"
+    ],
+    "ENTROPY_SMOKE_DOES_NOT_GENERALISE": {
+      "caution": "The three smoke states showed terminal outcomes fully robust to continuation randomness under ONE policy. That does not guarantee low outcome variance across all 20 states or across both specialist branches.",
+      "consequence": "Stage 2 must report the discordance distribution per contrast, and stage 3 must surface it rather than only the corrected tests, so a high-variance regime is visible rather than inferred."
+    }
   }
 }

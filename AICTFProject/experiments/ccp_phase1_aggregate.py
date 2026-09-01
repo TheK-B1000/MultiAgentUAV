@@ -188,15 +188,24 @@ def main() -> int:
                                        if v["mode"] == mode and v["candidate_leverage_boundary"]),
             "min_p_raw": min(keys.values()),
             "max_abs_delta_Q": max(abs(contrasts[k]["delta_Q_hat"]) for k in keys),
+            "n_directional_substantial": sum(
+                1 for k in keys if contrasts[k]["delta_Q_hat"] >= 0.25),
+            "discordance_distribution": {
+                str(dcount): sum(1 for k in keys if contrasts[k]["discordant"] == dcount)
+                for dcount in sorted({contrasts[k]["discordant"] for k in keys})},
+            "median_discordant": sorted(contrasts[k]["discordant"] for k in keys)[len(keys) // 2],
         }
 
+    # amendment 5 precedence, evaluated in the frozen order
     prim, sec = families["single_macro"], families["full_takeover"]
     if prim["n_significant"] and sec["n_significant"]:
         reading = "DECISION_LEVEL_LEVERAGE"
-    elif not prim["n_significant"] and sec["n_significant"]:
-        reading = "SEQUENCE_LEVERAGE"
     elif prim["n_significant"] and not sec["n_significant"]:
         reading = "LOCAL_ONLY_REQUIRES_EXPLANATION"
+    elif not prim["n_significant"] and sec["n_significant"]:
+        reading = "SEQUENCE_LEVERAGE"
+    elif prim["n_directional_substantial"] >= 4:
+        reading = "SUGGESTIVE_BUT_UNDERPOWERED"
     else:
         reading = "NO_LOCAL_LEVERAGE_FOUND"
 
@@ -240,7 +249,10 @@ def main() -> int:
         f_ = families[mode]
         print(f"  {mode:14s} significant {f_['n_significant']:2d}/32   "
               f"non-zero {f_['n_candidate_nonzero']:2d}/32   "
-              f"min p {f_['min_p_raw']:.4f}   max|dQ| {f_['max_abs_delta_Q']:.4f}")
+              f"dQ>=+0.25 {f_['n_directional_substantial']:2d}/32   "
+              f"min p {f_['min_p_raw']:.4f}   max|dQ| {f_['max_abs_delta_Q']:+.4f}")
+        print(f"  {'':14s} discordance per contrast: median {f_['median_discordant']}, "
+              f"dist {f_['discordance_distribution']}")
     print(f"\n  READING: {reading}")
     print(f"  -> {OUT}")
     return 0
