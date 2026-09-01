@@ -44,5 +44,20 @@
     "task-objective purity: toggling causal supervision leaves reward, returns, GAE and value targets bit-identical",
     "real gradient: on a real selected state with a synthetic non-zero weight, the intended latent parameters move",
     "composition: a short PPO smoke with task updates > 0, causal updates > 0, z0/z1 exposures > 0, committed-head causal exposures = 0, wrong latent routing = 0, missing decision predicate = 0"
-  ]
+  ],
+  "AMENDMENT_1_WINNER_DIRECTED_ROUTING": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T16:45:00Z",
+    "authority": "PI, 2026-09-01, while the Phase 1 bank was still collecting and no outcome statistic had been inspected",
+    "the_defect": "The first implementation stored the teacher independently and pinned it to the pole-matched specialist while weighting by |delta_Q|. |delta_Q| preserves magnitude but destroys direction, so a Pole-A boundary measuring delta_Q = -0.50 would carry weight 0.50 and still train z0 toward pi_A -- training HARDEST on a decision the measurement had just shown was worse. The magnitude made it worse rather than harmless.",
+    "RULE_FROZEN": {
+      "weight": "w = |delta_Q|, unchanged",
+      "teacher": "DERIVED from the sign under the pole-oriented convention. delta_Q > 0 -> pole-matched specialist; delta_Q < 0 -> the OTHER specialist; delta_Q = 0 -> no teacher and no weight.",
+      "latent": "NEVER flips. z0 carries Pole A and z1 carries Pole B, because that is the deployment condition the crossover gate scores. Only the target flips.",
+      "one_line": "teach the latent whichever specialist behaviour causally improved payoff at that state, rather than preserving specialist identity for its own sake"
+    },
+    "why_not_one_sided_weighting": "w = max(0, delta_Q) with a fixed pole-matched teacher is defensible but discards every boundary where the nominally wrong specialist was actually better. The goal is crossover PAYOFF, not stylistic purity.",
+    "made_structurally_unrepresentable": "CausalRecord now stores SIGNED delta_q and derives both weight and teacher, so a record cannot express the old inconsistency. assert_routing additionally rejects any externally declared teacher that disagrees with the sign.",
+    "lambda_note": "the loss is weight-normalised, so a uniform rescale of weights is a no-op. lambda_causal carries strength, weights carry relative importance, and lambda must not later be derived from observed |delta_Q| magnitudes -- the normalisation has already removed that scale."
+  }
 }

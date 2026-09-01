@@ -160,23 +160,46 @@ class CausalSupervisionTests(unittest.TestCase):
                                     decision_mask=torch.tensor([[True, False]]).repeat(b, 1),
                                     weights=torch.full((b, 2), -0.5, dtype=torch.float64))
 
-    # ---- 3. latent routing ----------------------------------------------
-    def test_pole_routing_is_correct(self):
+    # ---- 3. winner-directed routing -------------------------------------
+    def test_positive_delta_q_routes_to_the_pole_matched_specialist(self):
         from rl.causal_supervision import CausalRecord
-        a = CausalRecord("s|A|40", "A", 0, "pi_A", 0.5, "single_macro")
-        b = CausalRecord("s|B|40", "B", 1, "pi_B", 0.5, "single_macro")
-        self.assertEqual(a.latent, 0)
-        self.assertEqual(b.latent, 1)
-        a.assert_routing()
-        b.assert_routing()
+        a = CausalRecord("s|A|40", "A", 0, +0.5, "single_macro")
+        b = CausalRecord("s|B|40", "B", 1, +0.5, "single_macro")
+        self.assertEqual((a.latent, a.teacher, a.weight), (0, "pi_A", 0.5))
+        self.assertEqual((b.latent, b.teacher, b.weight), (1, "pi_B", 0.5))
+        a.assert_routing(); b.assert_routing()
 
-    def test_swapped_routing_MUST_fail(self):
-        """Negative control: a Pole-A record supervised by pi_B has to be rejected."""
+    def test_NEGATIVE_delta_q_routes_to_the_OTHER_specialist(self):
+        """The defect this replaced: |delta_Q| keeps magnitude but destroys direction.
+
+        A Pole-A boundary measuring -0.50 means pi_B was causally better THERE. Fixed
+        pole-matched routing would carry weight 0.50 and still train z0 toward pi_A --
+        training hardest on a decision the measurement showed was worse.
+        """
+        from rl.causal_supervision import CausalRecord
+        a = CausalRecord("s|A|40", "A", 0, -0.5, "single_macro")
+        b = CausalRecord("s|B|40", "B", 1, -0.5, "single_macro")
+        self.assertEqual(a.teacher, "pi_B", "negative delta_q on Pole A must supervise pi_B")
+        self.assertEqual(b.teacher, "pi_A", "negative delta_q on Pole B must supervise pi_A")
+        self.assertEqual((a.weight, b.weight), (0.5, 0.5), "magnitude is still |delta_Q|")
+        self.assertEqual((a.latent, b.latent), (0, 1), "the LATENT never flips, only the target")
+        a.assert_routing(); b.assert_routing()
+
+    def test_zero_delta_q_has_no_teacher_and_no_weight(self):
+        from rl.causal_supervision import CausalRecord
+        r = CausalRecord("s|A|40", "A", 0, 0.0, "single_macro")
+        self.assertIsNone(r.teacher)
+        self.assertEqual(r.weight, 0.0)
+        r.assert_routing()
+
+    def test_declaring_the_loser_as_teacher_MUST_fail(self):
+        """Negative control: a declared teacher inconsistent with the sign is rejected."""
         from rl.causal_supervision import CausalRecord, CausalRoutingError
-        for pole, wrong in (("A", "pi_B"), ("B", "pi_A")):
-            rec = CausalRecord(f"s|{pole}|40", pole, 0, wrong, 0.5, "single_macro")
+        for pole, dq, loser in (("A", +0.5, "pi_B"), ("A", -0.5, "pi_A"),
+                                ("B", +0.5, "pi_A"), ("B", -0.5, "pi_B")):
+            rec = CausalRecord(f"s|{pole}|40", pole, 0, dq, "single_macro")
             with self.assertRaises(CausalRoutingError):
-                rec.assert_routing()
+                rec.assert_routing(declared_teacher=loser)
 
     def test_missing_decision_predicate_is_fatal(self):
         """Absence is an error state: no commit_ticks_left means refuse, never default True."""

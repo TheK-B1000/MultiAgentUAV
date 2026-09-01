@@ -28,8 +28,8 @@ from dataclasses import dataclass
 
 import torch
 
-# Pole -> (latent id that must carry it, teacher whose actions supervise it)
-POLE_ROUTING = {"A": (0, "pi_A"), "B": (1, "pi_B")}
+# Pole -> (latent that must carry it, pole-matched specialist, the other specialist)
+POLE_ROUTING = {"A": (0, "pi_A", "pi_B"), "B": (1, "pi_B", "pi_A")}
 
 
 class CausalRoutingError(RuntimeError):
@@ -40,27 +40,59 @@ class CausalRoutingError(RuntimeError):
 class CausalRecord:
     """One Phase 1 measurement, as the trainer consumes it.
 
-    ``weight`` is |delta_Q| for this (state, agent). ``teacher`` names the specialist whose
-    action is the target; it must be the pole-matched one, and ``assert_routing`` enforces it.
+    WINNER-DIRECTED ROUTING. ``delta_q`` is stored SIGNED, under the pole-oriented convention
+    (Pole A: Q(pi_A) - Q(pi_B); Pole B: Q(pi_B) - Q(pi_A)), so positive means the pole-matched
+    specialist was causally better at this boundary. Both the weight and the teacher are
+    DERIVED from it:
+
+        weight  = |delta_q|
+        teacher = pole-matched specialist if delta_q > 0, the OTHER specialist if delta_q < 0
+
+    Deriving rather than storing the teacher is deliberate. An earlier version stored the
+    teacher independently and pinned it to the pole-matched specialist, which meant a boundary
+    measuring delta_q = -0.50 would carry weight 0.50 and still train the latent toward the
+    specialist the measurement had just shown was WORSE there -- training hardest on exactly
+    the decisions it should have avoided. That state is now unrepresentable.
+
+    The LATENT never flips: z0 carries Pole A and z1 carries Pole B, because that is the
+    deployment condition the crossover gate scores. Only the target flips, so the latent learns
+    whichever behaviour causally improved payoff rather than preserving specialist identity for
+    its own sake.
     """
     state_id: str
     pole: str
     agent_id: int | None          # None means a joint record covering every agent
-    teacher: str
-    weight: float
+    delta_q: float                # SIGNED, pole-oriented
     intervention_mode: str        # "single_macro" or "full_takeover"
 
     @property
     def latent(self) -> int:
         return POLE_ROUTING[self.pole][0]
 
-    def assert_routing(self) -> None:
-        want_z, want_teacher = POLE_ROUTING[self.pole]
-        if self.teacher != want_teacher:
+    @property
+    def weight(self) -> float:
+        return abs(self.delta_q)
+
+    @property
+    def teacher(self) -> str | None:
+        """None when delta_q is exactly zero: no measured effect, so no supervision."""
+        _, matched, other = POLE_ROUTING[self.pole]
+        if self.delta_q > 0:
+            return matched
+        if self.delta_q < 0:
+            return other
+        return None
+
+    def assert_routing(self, declared_teacher: str | None = None) -> None:
+        if self.pole not in POLE_ROUTING:
+            raise CausalRoutingError(f"{self.state_id}: unknown pole {self.pole!r}")
+        if declared_teacher is not None and declared_teacher != self.teacher:
             raise CausalRoutingError(
-                f"{self.state_id}: pole {self.pole} must be supervised by {want_teacher}, "
-                f"got {self.teacher}. Routing z{want_z} to the wrong specialist would train "
-                f"the latent to carry the opposite strategy.")
+                f"{self.state_id}: delta_q {self.delta_q:+.4f} on pole {self.pole} implies "
+                f"teacher {self.teacher}, but {declared_teacher} was declared. Supervising the "
+                f"loser of a measured contrast would train the latent away from payoff.")
+        if self.teacher is None and self.weight != 0.0:
+            raise CausalRoutingError(f"{self.state_id}: no teacher but non-zero weight")
 
 
 def decision_mask_from_core(core, n_agents: int, *, side: str = "blue") -> torch.Tensor:
