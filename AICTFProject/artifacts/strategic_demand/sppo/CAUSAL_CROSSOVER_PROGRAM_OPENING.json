@@ -1,0 +1,133 @@
+{
+  "record_id": "CAUSAL_CROSSOVER_PROGRAM_OPENING",
+  "status": "FROZEN_PROGRAM_OPENING",
+  "utc": "2026-09-01T12:00:00Z",
+  "authority": "PI, 2026-09-01, opening a new program immediately upon closing the latent compression ladder after V4",
+  "name_note": "Working name proposed by the executing agent. The PI's phrasing was 'a new causal-distillation program'; the name here is deliberately broader because Phase 2 CHOOSES the mechanism and distillation is only one of the candidates. Trivially renameable before any result exists.",
+
+  "TARGET": {
+    "gate": "V(z0,A) > V(z1,A)  AND  V(z1,B) > V(z0,B), with BOTH paired-bootstrap LCB95 > 0",
+    "unchanged_from_the_ladder": "deliberately. The bar is the same bar V1, OG-PSP, V3 and V4 were scored against, so a success here is comparable to those four failures rather than measured on a friendlier ruler.",
+    "estimator": "paired percentile bootstrap over seed-level episode outcomes, n_boot 20000, alpha 0.05, rng seed 7 -- the project's unchanged convention"
+  },
+
+  "THE_CHANGE_IN_OBJECTIVE": {
+    "old": "make the latents encode different strategies",
+    "new": "make the latents encode differences that causally change winning",
+    "why": (
+      "PI, 2026-09-01: 'distinct policies != distinct strategic value.' The ladder achieved latent "
+      "differentiation, specialist-like trajectory identity, private actor capacity and private "
+      "critic heads, and still returned delta_A = delta_B = 0. Adding further separation attacks "
+      "the wrong problem. The model already knows how to be different; it does not know which "
+      "differences matter."
+    ),
+    "what_makes_this_tractable": (
+      "SAPPO already established that the environment SUPPORTS the crossover: pi_A wins "
+      "preferentially on Pole A and pi_B on Pole B. Two policies that work already exist. The "
+      "question is which of their decisions carry the payoff, and that is measurable."
+    )
+  },
+
+  "INHERITED_AS_SETTLED": {
+    "rule": "These are results, not assumptions, and this program does not re-litigate them.",
+    "environment_supports_crossover": "SAPPO specialists, established",
+    "latent_differentiation": "achieved, OG-PSP, 6.39x on the matched CALIB ruler",
+    "trajectory_identity": "achieved, V3, both poles, R ~1.0 vs teachers",
+    "private_actor_capacity": "achieved, V3, isolation smoke-verified",
+    "private_critic_heads": "achieved, V4, both heads live, row balance 0.9997",
+    "none_of_them_produced_crossover": true
+  },
+
+  "PHASES": {
+    "PHASE_0_REPLAY_EQUIVALENCE": {
+      "claim": "(seed, action prefix) -> s_t is a function: replaying a prefix reproduces the state",
+      "why_first": (
+        "The whole program rests on matched causal branching, and there is NO state save/restore "
+        "anywhere in gpu_env -- no snapshot, no deepcopy hook, no restore. Prefix replay is the "
+        "only route to matched states that does not add env surface, and it is an untested "
+        "assumption. Everything downstream is worthless if it does not hold."
+      ),
+      "status": "HARD GATE. If replay equivalence fails, Phase 1 does not start and the program "
+                "returns to the PI for a decision about adding state restore to the environment.",
+      "spec": "CCP_PHASE0_REPLAY_EQUIVALENCE_SPEC.json"
+    },
+    "PHASE_1_MATCHED_CAUSAL_BRANCHING": {
+      "goal": "locate where the specialist distinction actually changes the outcome",
+      "method": "from each replayed state s_t, branch pi_A, pi_B, z0, z1 under matched continuation randomness; estimate Q on each pole",
+      "quantities": {
+        "delta_Q_A(s)": "Q_A^piA(s) - Q_A^piB(s)",
+        "delta_Q_B(s)": "Q_B^piB(s) - Q_B^piA(s)"
+      },
+      "this_is_the_information_the_ladder_never_had": true
+    },
+    "PHASE_2_CLASSIFY_THE_FAILURE": {
+      "rule": "This diagnostic DECIDES the next algorithm. No more guessing.",
+      "taxonomy": {
+        "visitation": "the policy rarely reaches the states where the specialists have an advantage",
+        "timing": "it reaches them at the wrong moment",
+        "decision": "it reaches the same state and selects the wrong action",
+        "sequence": "the first action is right and the following subsequence collapses",
+        "optimization": "the actor behaves correctly and PPO systematically erodes those decisions"
+      },
+      "leading_suspect_from_the_ladder": (
+        "sequence. V3 produced strong trajectory identity with absent payoff identity, which fits a "
+        "policy reproducing the SHAPE of a strategy while missing a handful of decisive subsequences."
+      )
+    },
+    "PHASE_3_MECHANISM_CHOSEN_BY_PHASE_2": {
+      "if_decision": "advantage-weighted specialist distillation: L = L_PPO + lambda * E[w(s) * L_teacher(s,z)], w(s) = f(delta_Q(s)), so a disagreement that does not change winning gets little or no pressure",
+      "if_sequence": "distil critical options/segments (s_t, a_t..a_t+k) under a temporally extended objective rather than one-step imitation",
+      "if_visitation": "occupancy or segment-level objectives matching d^z0 to d^piA, but ONLY over regions the branching analysis showed to matter for payoff",
+      "if_timing_or_optimization": "to be specified when the classification exists; not pre-guessed here",
+      "escalation_if_none_of_it_works": (
+        "explicit hierarchical structure -- per-latent option policies, separate recurrent state, "
+        "separate trunks -- and at the extreme, compress the ENSEMBLE rather than the strategies. "
+        "PI: 'The engineering target is crossover, not ideological purity about how many tensors "
+        "must be shared.'"
+      )
+    }
+  },
+
+  "STANDING_RULES": {
+    "note": "PI, 2026-09-01: \"'No matter what' should mean we keep searching, not that we contaminate the evidence.\"",
+    "rules": [
+      "fresh training seeds for every attempt",
+      "fresh EVAL block for every attempt",
+      "terminal checkpoint only; no checkpoint shopping, all periodic hashes recorded",
+      "no tuning against an EVAL block that has been read",
+      "no threshold chosen after seeing payoff",
+      "exact provenance on every artifact",
+      "failures recorded, never rewritten"
+    ],
+    "spent_EVAL_blocks_that_may_never_be_reused": ["V1", "OG-PSP", "11300101..11300132", "11400101..11400132"],
+    "namespace_for_this_program": "115xxxxx, disjoint from every block the ladder used",
+    "why_this_does_not_slow_us_down": (
+      "It prevents eventually getting a 'success' that cannot be trusted. A crossover result "
+      "obtained by tuning against a read EVAL block would be worth less than the four honest "
+      "failures already on record."
+    )
+  },
+
+  "WHAT_THIS_PROGRAM_MAY_NOT_DO": [
+    "reuse any spent EVAL block",
+    "rewrite, repair or reinterpret V1, OG-PSP, V3 or V4",
+    "choose the Phase 3 mechanism before Phase 2 classifies the failure",
+    "select a delta_Q threshold after seeing the delta_Q distribution",
+    "treat a Phase 0 or Phase 1 diagnostic as a payoff result",
+    "claim crossover on anything other than the frozen gate above"
+  ],
+
+  "RELATIONSHIP_TO_THE_ICRA_SUBMISSION": {
+    "the_paper_does_not_depend_on_this": true,
+    "the_paper": "SAPPO with V3 as the centerpiece (trajectory identity confirmed, payoff absent) and V4 as a second architecturally distinct route to the same absence",
+    "the_2026_09_05_wall": "governs what may enter THIS submission, not whether new work runs",
+    "this_program_runs_on_its_own_clock": true
+  },
+
+  "PROVENANCE": {
+    "closes": "LATENT_PROGRAM_POSTMORTEM.json#AMENDMENT_2_LADDER_CLOSED_AFTER_V4",
+    "predecessors": ["HOG_PSP_V3_EVAL_RESULT.json", "HOG_PSP_V4_EVAL_RESULT.json",
+                     "HOG_PSP_V4_MECHANISM_DIAGNOSTIC.json", "HOG_PSP_V4_EVAL_INTEGRITY.json"],
+    "environment_finding_that_shaped_Phase_0": "no state save/restore exists in gpu_env; prefix replay is the only matched-state route that adds no env surface"
+  }
+}

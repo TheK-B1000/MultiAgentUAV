@@ -1,0 +1,87 @@
+{
+  "record_id": "CCP_PHASE0_REPLAY_EQUIVALENCE_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-01T12:15:00Z",
+  "authority": "PI, 2026-09-01: 'Phase 0: prove prefix replay works. Before designing anything else.'",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+
+  "THE_CLAIM_UNDER_TEST": {
+    "statement": "(seed, action prefix) -> s_t is a FUNCTION. Replaying the same action prefix from the same seed in a FRESH environment reproduces the same state.",
+    "why_it_is_load_bearing": (
+      "There is no state save/restore anywhere in gpu_env -- no snapshot, no deepcopy hook, no "
+      "restore. Prefix replay is the only route to matched causal branching that adds no "
+      "environment surface. If this claim is false, every Q estimate in Phase 1 compares "
+      "continuations from states that were never actually the same state, and the entire program "
+      "is built on sand."
+    ),
+    "what_this_does_NOT_test": (
+      "Policy determinism. The replay feeds RECORDED actions rather than re-querying the policy, "
+      "which is exactly right: Phase 1 will supply actions from four different policies, so what "
+      "must be deterministic is the ENVIRONMENT given a seed and an action sequence."
+    )
+  },
+
+  "HARD_GATE": {
+    "if_it_fails": "Phase 1 does not start. The program returns to the PI for a decision about adding state save/restore to the environment. It is not worked around.",
+    "this_is_a_capability_test_not_an_experiment": "It consumes no EVAL block and produces no payoff claim."
+  },
+
+  "COMPARISON": {
+    "fields": "EVERY key present in the observation dict, plus the global state, plus reward and done. Not a chosen subset -- selecting convenient fields is how a determinism test passes without being true.",
+    "PRIMARY_CRITERION": "EXACT bitwise equality (numpy array_equal) at every compared prefix point.",
+    "TOLERANCE_POLICY": {
+      "rule": "NO numerical tolerance is adopted in this run. The primary criterion is exact equality.",
+      "why": (
+        "A tolerance chosen after seeing the deviations is threshold-shopping in the same family as "
+        "the moves this project has refused throughout. This run reports magnitudes; it does not "
+        "absorb them."
+      ),
+      "if_mismatches_occur": "the verdict is FAILED or PARTIAL, and the record reports the first divergent step, the field, and max |diff|. Adopting a frozen tolerance afterwards requires a separate PI decision with those magnitudes on the table."
+    }
+  },
+
+  "TEST_MATRIX": {
+    "seeds": "11500001..11500008, n=8, in this program's fresh 115xxxxx namespace, disjoint from every block the ladder used",
+    "poles": ["A", "B"],
+    "episodes_recorded": 16,
+    "prefix_points": {
+      "short": "10% of recorded episode length",
+      "mid": "50%",
+      "late": "90%",
+      "near_terminal": "T-1, the last state before the episode ends",
+      "why_these": "PI: 'short/mid/late prefixes ... and near-terminal states.' Divergence that only appears late is the failure mode that would silently corrupt Phase 1's most interesting states."
+    },
+    "event_states": {
+      "requested": "flag states, capture states, deaths",
+      "rule": "If the step info exposes such events, every step where one fires is added as an additional prefix point. If it does NOT expose them, that fact is RECORDED AS A STATED LIMITATION of this Phase 0 result -- it is never silently skipped, and the resulting verdict carries the limitation explicitly.",
+      "why": "absence is an error state, not a pass"
+    },
+    "replay_environment": "a FRESH env instance per replay, built from the same seed with the same pole setup. Continuing the original object would test nothing."
+  },
+
+  "NEGATIVE_CONTROL": {
+    "mandatory": true,
+    "design": "replay a DELIBERATELY PERTURBED action prefix (one action changed at a chosen step) and require the resulting state to DIFFER from the recorded state.",
+    "must_fail": "If the perturbed replay also matches, the comparison is not measuring what it claims -- it would be comparing something to itself, or the compared fields would be insensitive to actions. In that case the whole Phase 0 result is void regardless of how the primary checks came out.",
+    "why_this_is_required": (
+      "A guard that cannot fail proves nothing. Every smoke in this project carries one, and the "
+      "V4 critic-routing smoke caught its own equivalent by deliberately misrouting."
+    )
+  },
+
+  "PREREGISTERED_VERDICTS": {
+    "REPLAY_EQUIVALENCE_CONFIRMED": "exact bitwise equality at EVERY prefix point on every seed and both poles, AND the negative control detected the perturbation",
+    "REPLAY_EQUIVALENCE_PARTIAL": "exact equality holds at some prefix points and fails at others -- typically early-yes, late-no, which indicates accumulating divergence",
+    "REPLAY_EQUIVALENCE_FAILED": "mismatches broadly, or at any near-terminal point, or the negative control did not detect the perturbation (in which case the run is void, not merely failed)"
+  },
+
+  "WHAT_THIS_MAY_NOT_DO": [
+    "adopt a numerical tolerance to convert a mismatch into a pass",
+    "narrow the compared fields after seeing which one diverges",
+    "drop a seed, pole or prefix point after seeing its result",
+    "proceed to Phase 1 on a PARTIAL or FAILED verdict without a separate PI decision",
+    "touch any EVAL block"
+  ],
+
+  "OUTPUT": "CCP_PHASE0_REPLAY_EQUIVALENCE.json, one-shot"
+}
