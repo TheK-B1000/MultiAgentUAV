@@ -236,5 +236,34 @@
       "total": "20 states at the audit's 0.325 both-free mix = ~2112 scalar rollouts",
       "estimate": "~3.2 h ideal with 8 workers; budget 4-5 h for contention"
     }
+  },
+  "AMENDMENT_4_MULTIPLICITY_TWO_FAMILIES": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:20:00Z",
+    "authority": "PI, 2026-09-01, before rollout #1",
+    "what_was_wrong": "AMENDMENT_2 froze Holm across 20 states. After the individual/joint distinction and AMENDMENT_3's two intervention modes, stage 2 produces 32 state-estimand contrasts x 2 modes = 64 distinct A-vs-B causal contrasts. Holm across 20 would not match what is actually tested.",
+    "PRIMARY_FAMILY": {
+      "family": "single_macro",
+      "n_tests": 32,
+      "correction": "Holm across the 32 state-estimand contrasts, familywise alpha = 0.05",
+      "test": "exact paired binomial on the DISCORDANT terminal outcomes: n_plus successes out of n_plus + n_minus, p = 0.5",
+      "label_on_success": "CAUSAL_LEVERAGE_CONFIRMED",
+      "why_primary": "it is the decision-repair hypothesis: is the missing strategic value locally recoverable at ONE live decision"
+    },
+    "SECONDARY_FAMILY": {
+      "family": "full_takeover",
+      "n_tests": 32,
+      "correction": "Holm across its own 32 contrasts, SEPARATELY, familywise alpha = 0.05",
+      "label_on_success": "SEQUENCE_LEVERAGE_CONFIRMED",
+      "cannot_rescue_the_primary": "A significant takeover contrast with no significant local contrast is NOT evidence for decision repair. It gets its own label and cannot retroactively rescue the local-decision hypothesis."
+    },
+    "THE_INTERPRETATION_THIS_PRESERVES": {
+      "local_positive": "delta_Q_local > 0 => decision repair",
+      "local_null_takeover_positive": "delta_Q_local ~ 0 AND delta_Q_takeover > 0 => sequence-level strategy",
+      "unchanged_from": "AMENDMENT_3's preregistered discrimination, now with the multiplicity correction that matches it"
+    },
+    "DESCRIPTIVE_LABEL_UNCHANGED": "any non-zero delta_Q_hat remains a 'candidate leverage boundary', reported alongside the corrected test in both families",
+    "supersedes": "AMENDMENT_2's 'Holm-corrected across the 20 states' clause",
+    "job_table_unchanged": "the 2048-job decomposition is not modified by this amendment"
   }
 }
