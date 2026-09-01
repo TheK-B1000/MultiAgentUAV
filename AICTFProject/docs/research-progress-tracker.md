@@ -16,7 +16,7 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-31 — H-OG-PSP V4 completed valid training. Its prospectively frozen mechanism diagnostic returned `TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_DEGRADED` and was committed at `af03130b`. The terminal-only payoff EVAL on untouched `11400101..11400132` is authorized under the unchanged V3 crossover gate; protocol and evaluator are frozen before execution.
+> **Last updated:** 2026-08-31 — H-OG-PSP V4 completed valid training. Its frozen mechanism diagnostic returned `TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_DEGRADED` (`af03130b`). The terminal-only payoff EVAL on untouched `11400101..11400132` is running as PID `47992` under protocol/evaluator commit `cd2a0d40`; terminal SHA and frozen gate were verified before episode 1.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -47,6 +47,9 @@ It scores only the frozen terminal checkpoint on untouched seeds
 `11400101..11400132`. The six cells, paired seed-level bootstrap (`n=20000`,
 alpha `0.05`, RNG `7`), and requirement that both crossover LCB95s exceed zero
 are unchanged from V3. Retention and mechanism identity remain context only.
+The one-shot 192-episode evaluation is running as PID `47992`; launch provenance
+is recorded in
+[`HOG_PSP_V4_EVAL_RUNNING_PROVENANCE.json`](../artifacts/strategic_demand/sppo/HOG_PSP_V4_EVAL_RUNNING_PROVENANCE.json).
 
 ### H-OG-PSP V3 — `TRAJECTORY IDENTITY CONFIRMED / CROSSOVER NOT CONFIRMED`
 

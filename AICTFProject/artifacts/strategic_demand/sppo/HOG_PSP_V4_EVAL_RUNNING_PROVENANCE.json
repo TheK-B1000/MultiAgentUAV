@@ -1,0 +1,37 @@
+{
+  "record_id": "HOG_PSP_V4_EVAL_RUNNING_PROVENANCE",
+  "status": "RUNNING",
+  "launched_local": "2026-08-31T22:01:08-04:00",
+  "pid": 47992,
+  "command": "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe experiments/eval_hog_psp_v4.py --device cuda",
+  "working_directory": "K:\\MultiAgentUAV\\AICTFProject",
+  "protocol_commit": "cd2a0d40169f15de9000884e9d0141e311e10a1f",
+  "evaluator": {
+    "path": "experiments/eval_hog_psp_v4.py",
+    "sha256": "e0d5eba03479eda0c30a644412f65ec19b78d67075c61547a78fedb90de8ccf2"
+  },
+  "eval_spec": {
+    "path": "artifacts/strategic_demand/sppo/HOG_PSP_V4_EVAL_SPEC.json",
+    "sha256": "2363e44b1fef1dc472d8c6514a4715d5ab91bffe66422bf0c1a2678f92b2db55"
+  },
+  "mechanism_result": {
+    "reading": "TRAJECTORY_IDENTITY_PARTIAL",
+    "preservation": "IDENTITY_DEGRADED",
+    "sha256": "e6a1129835d91e8315d0c8bdbd66b5080d52a8940c2ec84c8afc7ecd14e9b966"
+  },
+  "terminal_checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/hog_psp_v4_production/ckpts/final_hog_psp_v4_production.zip",
+    "sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+    "verified_before_episode_1": true
+  },
+  "seeds": "11400101..11400132",
+  "design": "six cells, 32 seeds per cell, 192 deterministic episodes",
+  "gate": "BOTH paired-bootstrap delta LCB95 > 0; n_boot=20000, alpha=0.05, rng=7",
+  "outputs_absent_before_launch": [
+    "HOG_PSP_V4_EVAL_RESULT.json",
+    "hog_psp_v4_eval_rows.csv"
+  ],
+  "stdout": "artifacts/strategic_demand/sppo/hog_psp_v4_eval.stdout.log",
+  "stderr": "artifacts/strategic_demand/sppo/hog_psp_v4_eval.stderr.log",
+  "first_interval": "preflight complete, checkpoint verified, stderr empty; evaluation running before first cell summary"
+}
