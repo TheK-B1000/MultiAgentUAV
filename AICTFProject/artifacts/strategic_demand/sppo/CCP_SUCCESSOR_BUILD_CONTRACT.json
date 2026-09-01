@@ -1,0 +1,48 @@
+{
+  "record_id": "CCP_SUCCESSOR_BUILD_CONTRACT",
+  "status": "FROZEN_BEFORE_PHASE_1_RESULTS_EXIST",
+  "utc": "2026-09-01T16:20:00Z",
+  "authority": "PI, 2026-09-01: build the successor machinery while Stage 2 runs, without letting hidden Phase 1 results influence implementation choices.",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "THE_BLIND_BUILD_CLAIM": {
+    "claim": "every implementation choice recorded here was made while the Phase 1 bank was still being collected and no outcome statistic had been inspected",
+    "why_it_matters": "if the trainer were built after seeing which states showed leverage, its structure could encode those results and the successor would be fitted to its own diagnostic",
+    "auditable_by": "commit timestamps against the Stage 2 worker logs and the CCP_PHASE1_CAUSAL_BRANCHING.json utc"
+  },
+  "FROZEN_NOW_BLIND": {
+    "latent_interface": "pi(a | s, z) with z0 = A strategy, z1 = B strategy, unchanged",
+    "inherited_mechanically_validated_pieces": [
+      "task PPO",
+      "static persistent z",
+      "private latent actor capacity",
+      "decision masking"
+    ],
+    "causal_objective": "L_causal = sum_{t,i} d_ti * w_ti * L_teacher(s_t, i, z) / sum_{t,i} d_ti * w_ti",
+    "weight": "w_ti = |delta_Q(s_t, i)|, the rule frozen in the Phase 1 spec",
+    "decision_predicate": "d_ti = [commit_ticks_left_i <= 0], per agent",
+    "the_defect_this_fixes": "committed heads must contribute NEITHER gradient NOR denominator mass. OG-PSP/V3/V4 passed an all-ones agent_mask and diluted effective lambda to ~0.662 of nominal (CCP_FORCED_HEAD_DILUTION.json).",
+    "two_training_paths_both_built": {
+      "LOCAL": "supervision at individual commitment boundaries",
+      "SEQUENCE": "supervision spanning multiple commitment decisions",
+      "selection": "causal_supervision_mode is chosen BY the Phase 1 reading, not by the implementer"
+    }
+  },
+  "EXPLICITLY_NOT_FROZEN_PHASE_1_DECIDES": [
+    "lambda_causal, which must not be set from observed Phase 1 effect sizes",
+    "LOCAL versus SEQUENCE training path",
+    "whether only Holm-confirmed states are used -- the frozen w = |delta_Q| already argues for continuous weights over a significance-based inclusion rule",
+    "the segment duration/termination rule for SEQUENCE mode"
+  ],
+  "UNCHANGED_AND_NOT_NEGOTIABLE": {
+    "crossover_gate": "V(z0,A) > V(z1,A) AND V(z1,B) > V(z0,B), both LCB95 > 0, on a FRESH EVAL block",
+    "phase_1_is_not_that_claim": "CCP_PHASE1_CAUSAL_BRANCHING_SPEC.json#AMENDMENT_7"
+  },
+  "PRELAUNCH_SMOKES_REQUIRED_BEFORE_ANY_TRAINING": [
+    "decision mask: one free + one committed head gives exactly the free head's loss AND gradient",
+    "weight scaling: weights 0, 0.25, 0.5, 1 scale the strategic gradient exactly; weight 0 gives zero gradient",
+    "latent routing: Pole A routes z0->pi_A and Pole B routes z1->pi_B, with a deliberate swap that MUST fail",
+    "task-objective purity: toggling causal supervision leaves reward, returns, GAE and value targets bit-identical",
+    "real gradient: on a real selected state with a synthetic non-zero weight, the intended latent parameters move",
+    "composition: a short PPO smoke with task updates > 0, causal updates > 0, z0/z1 exposures > 0, committed-head causal exposures = 0, wrong latent routing = 0, missing decision predicate = 0"
+  ]
+}
