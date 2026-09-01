@@ -4,14 +4,11 @@
   "utc": "2026-09-01T13:20:00Z",
   "authority": "PI, 2026-09-01: 'Draft it. I would freeze Phase 1 now, with only the two remaining prereg items resolved before any causal delta_Q is inspected.'",
   "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
-
   "THE_QUESTION": "Which live specialist decisions causally change the probability of winning?",
-
   "PREREQUISITES_BOTH_RESOLVED": {
     "phase_0_replay_equivalence": "REPLAY_EQUIVALENCE_CONFIRMED, commit 5c67c093. 102/102 prefix points exact across 8 seeds and both poles, no tolerance adopted, negative control fired.",
     "crn": "CRN_ALIGNED, commit 5839ff3d. Two branches taking different legal macros from the same state consume randomness identically for every tick in which both are still inside their episode; the sole divergence is attributable to one branch terminating. red_deception_prob_max = 0.0882, so this is NOT post-reset deterministic and real continuation randomness exists."
   },
-
   "CENTRAL_ESTIMAND": {
     "individual": "delta_Q_A(s_t, i) = P(win | do(pi_A at agent i), s_t) - P(win | do(pi_B at agent i), s_t), defined only where d_t^i = 1",
     "individual_B": "delta_Q_B(s_t, i) = P(win | do(pi_B at agent i), s_t) - P(win | do(pi_A at agent i), s_t)",
@@ -21,7 +18,6 @@
     "primary_outcome": "terminal win/loss only",
     "range": "Q in [0,1], delta_Q in [-1,1]"
   },
-
   "BRANCHING_RULES": {
     "1_branch_only_at_live_boundaries": "fork only where d_t^i = 1, i.e. blue_commit_ticks_left[i] <= 0 at runtime, equivalently the agent's macro mask and target mask are not both one-hot",
     "2_preserve_the_free_set": "the exact set of free agents at s_t is recorded and preserved; interventions are defined relative to it",
@@ -36,7 +32,6 @@
     "11_no_delta_Q_dependent_filtering": "no state is dropped, reweighted, or resampled on the basis of its observed delta_Q",
     "12_fresh_artifact_before_any_training": "Phase 1 freezes its own result artifact before any successor training consumes it"
   },
-
   "M_AND_CONTINUATION_SAMPLING": {
     "M": 32,
     "authority": "PI, 2026-09-01: 'I would use a fixed rollout count per branch, not an adaptive one. My default would be M = 32 paired continuation seeds per intervention.'",
@@ -50,7 +45,6 @@
       "prospective_rule": "This smoke measures the ESTIMATOR, not delta_Q, and runs before any delta_Q is computed. If it shows the effective sample size is far below M, the M decision is revisited ONCE, at that point, before any delta_Q exists -- and the revised M is frozen then."
     }
   },
-
   "WEIGHTING_FOR_THE_SUCCESSOR": {
     "rule": "w(s) = |delta_Q(s)|, and for pole-signed specialist assignment w_A(s) = max(0, delta_Q_A(s)), w_B(s) = max(0, delta_Q_B(s))",
     "frozen_now": true,
@@ -58,7 +52,6 @@
     "why_bounded_works_here": "the primary outcome is binary, so Q is a probability in [0,1] and delta_Q is already on a natural [-1,1] scale",
     "a_decision_with_no_payoff_effect": "receives essentially zero strategic supervision, by construction rather than by filtering"
   },
-
   "WHAT_PHASE_1_MAY_NOT_DO": [
     "branch at a step where the intervened agent is committed",
     "override a committed agent's macro or target",
@@ -71,14 +64,55 @@
     "touch any EVAL block",
     "run M continuations without reseeding, which would silently produce M identical rollouts"
   ],
-
   "OUTPUT": "CCP_PHASE1_CAUSAL_BRANCHING.json, one-shot, frozen before any successor training",
-
   "PROVENANCE": {
     "phase_0": "CCP_PHASE0_REPLAY_EQUIVALENCE.json (5c67c093)",
     "crn": "CCP_PHASE1_CRN_SMOKE.json (5839ff3d)",
     "cadence_and_predicate": "_step.py new_commit = blue_commit_ticks_left <= 0; macro_commit_*_ticks 2-4",
     "boundary_audit": "CCP_BOUNDARY_AUDIT.json (a1fc6521)",
     "rehearsal_defect_to_avoid_repeating": "CCP_FORCED_HEAD_DILUTION.json (884abf25), guarded by tests/test_anchor_loss_decision_mask.py (d9c7f8fc)"
+  },
+  "AMENDMENT_1_ESTIMATOR_REPORTING_AND_SEEDING": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T13:30:00Z",
+    "authority": "PI, 2026-09-01, before any delta_Q exists",
+    "PAIRED_DISCORDANCE_IS_THE_REPORTING_FORM": {
+      "definition": "D_j = Y_A^(j) - Y_B^(j) in {-1, 0, +1} over paired continuation seed j",
+      "counts": {
+        "n_plus": "# seeds where pi_A wins and pi_B loses",
+        "n_minus": "# seeds where pi_B wins and pi_A loses",
+        "n_zero": "# seeds with the same terminal outcome"
+      },
+      "estimator": "delta_Q_hat = (n_plus - n_minus) / M",
+      "why_this_form": "It is directly interpretable and it makes the concordant seeds legible as evidence rather than as waste. If 30 of 32 paired continuations produce the same winner, those 30 are evidence that the intervention usually does NOT alter terminal success under matched randomness. The causal signal lives in the imbalance n_plus - n_minus.",
+      "required_output": "n_plus, n_minus and n_zero are recorded per state and per estimand, not only the summary delta_Q"
+    },
+    "CORRECTION_TO_THE_ENTROPY_SMOKE_INTERPRETATION": {
+      "what_it_is_NOT": "The number of unique trajectories is NOT the effective sample size, and effective M must not be defined that way.",
+      "why": "If the continuation seeds are independent, two seeds producing the same trajectory are still two legitimate samples from the environment's continuation distribution. Sparse randomness means that distribution simply places large mass on the same continuation. Precision is governed by Var(D_j), not by trajectory uniqueness -- and many identical outcomes can mean LESS variance, not more.",
+      "what_the_smoke_is_actually_for": [
+        "does reseeding actually generate distinct environmental continuations, i.e. is the machinery working",
+        "how often does stochasticity alter trajectories",
+        "how often does it alter terminal outcomes",
+        "is the continuation distribution effectively almost deterministic"
+      ],
+      "consequence_for_M": "M = 32 stands unless the smoke shows the reseeding machinery is INOPERATIVE. A concentrated continuation distribution is a property of the environment to be characterised, not a reason to change M."
+    },
+    "CONTINUATION_SEED_MAPPING": {
+      "rule": "r_j = H('CCP_PHASE1', state_id, j), a deterministic hash -- never drawn opportunistically",
+      "requirements": [
+        "both branches receive exactly the same r_j",
+        "r_j does not depend on which policy ran first",
+        "r_j does not depend on collection order, wall-clock, or process state",
+        "the mapping is reproducible from the artifact alone"
+      ],
+      "why": "Opportunistic seeds would make pairing an accident of execution order and would make the bank unreproducible."
+    },
+    "ONLY_THE_ENVIRONMENT_RNG_IS_RESEEDED": {
+      "rule": "reseeding applies to core._rng and to nothing else",
+      "policy_stochasticity": "OUT of the Q expectation. All Phase 1 rollouts use deterministic argmax actions (predict(deterministic=True)), which is the same convention every diagnostic and EVAL in this project has used.",
+      "consequence": "Q is an expectation over environment continuation randomness alone, so the issue of policy sampling entering the estimand does not arise.",
+      "if_that_ever_changes": "it becomes a separate prospective decision, recorded before collection, never after seeing delta_Q"
+    }
   }
 }
