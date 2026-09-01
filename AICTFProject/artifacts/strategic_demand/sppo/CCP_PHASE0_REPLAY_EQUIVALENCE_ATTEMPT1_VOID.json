@@ -1,0 +1,953 @@
+{
+  "record": "CCP Phase 0 replay equivalence",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-01T12:11:44Z",
+  "implements": "CCP_PHASE0_REPLAY_EQUIVALENCE_SPEC.json",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "VERDICT": "REPLAY_EQUIVALENCE_FAILED",
+  "note": "VOID: the negative control did not detect a deliberately perturbed prefix.",
+  "HARD_GATE": "A non-CONFIRMED verdict stops the program and returns to the PI for a decision about adding state save/restore to the environment.",
+  "claim_under_test": "(seed, action prefix) -> s_t is a function",
+  "criterion": "EXACT bitwise equality on every observation field, global state, reward and done",
+  "tolerance_adopted": null,
+  "summary": {
+    "prefix_points_compared": 102,
+    "exact_matches": 102,
+    "seeds": 8,
+    "poles": [
+      "A",
+      "B"
+    ],
+    "near_terminal_all_exact": true
+  },
+  "per_point": [
+    {
+      "seed": 11500001,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500001,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500001,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500001,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 197,
+      "exact_match": true,
+      "fraction_of_episode": 0.821
+    },
+    {
+      "seed": 11500001,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500001,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 233,
+      "exact_match": true,
+      "fraction_of_episode": 0.971
+    },
+    {
+      "seed": 11500001,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500001,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500001,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500001,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500001,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500001,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500002,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500002,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500002,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 45,
+      "exact_match": true,
+      "fraction_of_episode": 0.188
+    },
+    {
+      "seed": 11500002,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500002,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500002,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500002,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500002,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500002,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500002,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500002,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500003,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500003,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500003,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500003,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500003,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500003,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500003,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500003,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 75,
+      "exact_match": true,
+      "fraction_of_episode": 0.312
+    },
+    {
+      "seed": 11500003,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 105,
+      "exact_match": true,
+      "fraction_of_episode": 0.438
+    },
+    {
+      "seed": 11500003,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500003,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500003,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 23,
+      "exact_match": true,
+      "fraction_of_episode": 0.101
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 84,
+      "exact_match": true,
+      "fraction_of_episode": 0.37
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 114,
+      "exact_match": true,
+      "fraction_of_episode": 0.502
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 126,
+      "exact_match": true,
+      "fraction_of_episode": 0.555
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 204,
+      "exact_match": true,
+      "fraction_of_episode": 0.899
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 226,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500004,
+      "pole": "A",
+      "T": 227,
+      "prefix_k": 227,
+      "exact_match": true,
+      "fraction_of_episode": 1.0
+    },
+    {
+      "seed": 11500004,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500004,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500004,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500004,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500004,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500005,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500005,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500005,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 28,
+      "exact_match": true,
+      "fraction_of_episode": 0.117
+    },
+    {
+      "seed": 11500005,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 48,
+      "exact_match": true,
+      "fraction_of_episode": 0.2
+    },
+    {
+      "seed": 11500005,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500005,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500005,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500005,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500005,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500005,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500005,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 131,
+      "exact_match": true,
+      "fraction_of_episode": 0.546
+    },
+    {
+      "seed": 11500005,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 162,
+      "exact_match": true,
+      "fraction_of_episode": 0.675
+    },
+    {
+      "seed": 11500005,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500005,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500006,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500006,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500006,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 111,
+      "exact_match": true,
+      "fraction_of_episode": 0.463
+    },
+    {
+      "seed": 11500006,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500006,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500006,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 99,
+      "exact_match": true,
+      "fraction_of_episode": 0.412
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 210,
+      "exact_match": true,
+      "fraction_of_episode": 0.875
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500006,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 240,
+      "exact_match": true,
+      "fraction_of_episode": 1.0
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 12,
+      "exact_match": true,
+      "fraction_of_episode": 0.098
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 62,
+      "exact_match": true,
+      "fraction_of_episode": 0.504
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 65,
+      "exact_match": true,
+      "fraction_of_episode": 0.528
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 99,
+      "exact_match": true,
+      "fraction_of_episode": 0.805
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 111,
+      "exact_match": true,
+      "fraction_of_episode": 0.902
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 122,
+      "exact_match": true,
+      "fraction_of_episode": 0.992
+    },
+    {
+      "seed": 11500007,
+      "pole": "A",
+      "T": 123,
+      "prefix_k": 123,
+      "exact_match": true,
+      "fraction_of_episode": 1.0
+    },
+    {
+      "seed": 11500007,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500007,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500007,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 117,
+      "exact_match": true,
+      "fraction_of_episode": 0.487
+    },
+    {
+      "seed": 11500007,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500007,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 166,
+      "exact_match": true,
+      "fraction_of_episode": 0.692
+    },
+    {
+      "seed": 11500007,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500007,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500008,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500008,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500008,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500008,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500008,
+      "pole": "A",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    },
+    {
+      "seed": 11500008,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 0,
+      "exact_match": true,
+      "fraction_of_episode": 0.0
+    },
+    {
+      "seed": 11500008,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 24,
+      "exact_match": true,
+      "fraction_of_episode": 0.1
+    },
+    {
+      "seed": 11500008,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 120,
+      "exact_match": true,
+      "fraction_of_episode": 0.5
+    },
+    {
+      "seed": 11500008,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 215,
+      "exact_match": true,
+      "fraction_of_episode": 0.896
+    },
+    {
+      "seed": 11500008,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 216,
+      "exact_match": true,
+      "fraction_of_episode": 0.9
+    },
+    {
+      "seed": 11500008,
+      "pole": "B",
+      "T": 240,
+      "prefix_k": 239,
+      "exact_match": true,
+      "fraction_of_episode": 0.996
+    }
+  ],
+  "mismatches": [],
+  "negative_control": {
+    "design": "replay a prefix with one action deliberately changed; the state must DIFFER",
+    "seed": 11500001,
+    "pole": "A",
+    "prefix_k": 120,
+    "action_changed_at_step": 118,
+    "perturbation_detected": false,
+    "fields_that_differed": [],
+    "why": "A guard that cannot fail proves nothing. If the perturbed replay ALSO matched, the comparison would not be measuring what it claims and this whole result would be void rather than merely failed."
+  },
+  "event_state_coverage": {
+    "info_keys_observed": [
+      "action_mask",
+      "agent_alive",
+      "blocked_displacement_threshold",
+      "blue_alive",
+      "blue_attack_lower_crossings",
+      "blue_attack_upper_crossings",
+      "blue_blocked_movement_events",
+      "blue_intercept_lower_crossings",
+      "blue_intercept_upper_crossings",
+      "blue_lower_lane_steps",
+      "blue_movement_attempts",
+      "blue_neutral_lane_steps",
+      "blue_obstacle_collision_events",
+      "blue_repeated_blocked_movement_events",
+      "blue_return_lower_crossings",
+      "blue_return_upper_crossings",
+      "blue_route_lower_crossings",
+      "blue_route_switches",
+      "blue_route_upper_crossings",
+      "blue_score",
+      "blue_stuck_steps",
+      "blue_successful_movement_steps",
+      "blue_upper_lane_steps",
+      "collision_events_per_episode",
+      "collision_free_episode",
+      "decision_steps",
+      "dense_reward",
+      "global_state",
+      "league_mode",
+      "map_id",
+      "map_layout",
+      "map_route_metadata_version",
+      "map_set",
+      "map_vertical_mirror",
+      "mean_inter_robot_dist",
+      "navigation_telemetry_scope",
+      "navigation_telemetry_version",
+      "near_misses_per_episode",
+      "obstacle_collision_events_per_episode",
+      "opponent_key",
+      "opponent_kind",
+      "phase",
+      "red_alive",
+      "red_attack_lower_crossings",
+      "red_attack_upper_crossings",
+      "red_blocked_movement_events",
+      "red_intercept_lower_crossings",
+      "red_intercept_upper_crossings",
+      "red_lower_lane_steps",
+      "red_movement_attempts",
+      "red_neutral_lane_steps",
+      "red_obstacle_collision_events",
+      "red_repeated_blocked_movement_events",
+      "red_return_lower_crossings",
+      "red_return_upper_crossings",
+      "red_route_lower_crossings",
+      "red_route_switches",
+      "red_route_upper_crossings",
+      "red_score",
+      "red_stuck_steps",
+      "red_successful_movement_steps",
+      "red_upper_lane_steps",
+      "reward_failure",
+      "reward_offense",
+      "reward_pbrs",
+      "reward_sparse",
+      "reward_sparse_points",
+      "reward_team",
+      "reward_terminal",
+      "reward_total",
+      "route_classifier_version",
+      "route_telemetry_available",
+      "router_reward",
+      "rules_profile",
+      "sim_steps",
+      "sparse_points",
+      "stalemate_frac",
+      "stalemate_truncated",
+      "stuck_consecutive_step_window",
+      "stuck_epsilon",
+      "terminated",
+      "time_to_first_score",
+      "truncated",
+      "zone_coverage"
+    ],
+    "event_keys_used": [
+      "blue_score",
+      "red_score",
+      "time_to_first_score"
+    ],
+    "LIMITATION": null
+  },
+  "action_source": {
+    "checkpoint": "artifacts/strategic_demand/sppo/hog_psp_v4_production/ckpts/final_hog_psp_v4_production.zip",
+    "sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+    "why": "recorded actions from a real policy reach realistic states; the claim under test is environment determinism given those actions, not policy determinism"
+  },
+  "EVAL_touched": false
+}
