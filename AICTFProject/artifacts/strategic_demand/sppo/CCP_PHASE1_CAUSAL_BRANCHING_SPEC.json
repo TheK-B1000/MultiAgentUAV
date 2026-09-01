@@ -1,0 +1,84 @@
+{
+  "record_id": "CCP_PHASE1_CAUSAL_BRANCHING_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-01T13:20:00Z",
+  "authority": "PI, 2026-09-01: 'Draft it. I would freeze Phase 1 now, with only the two remaining prereg items resolved before any causal delta_Q is inspected.'",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+
+  "THE_QUESTION": "Which live specialist decisions causally change the probability of winning?",
+
+  "PREREQUISITES_BOTH_RESOLVED": {
+    "phase_0_replay_equivalence": "REPLAY_EQUIVALENCE_CONFIRMED, commit 5c67c093. 102/102 prefix points exact across 8 seeds and both poles, no tolerance adopted, negative control fired.",
+    "crn": "CRN_ALIGNED, commit 5839ff3d. Two branches taking different legal macros from the same state consume randomness identically for every tick in which both are still inside their episode; the sole divergence is attributable to one branch terminating. red_deception_prob_max = 0.0882, so this is NOT post-reset deterministic and real continuation randomness exists."
+  },
+
+  "CENTRAL_ESTIMAND": {
+    "individual": "delta_Q_A(s_t, i) = P(win | do(pi_A at agent i), s_t) - P(win | do(pi_B at agent i), s_t), defined only where d_t^i = 1",
+    "individual_B": "delta_Q_B(s_t, i) = P(win | do(pi_B at agent i), s_t) - P(win | do(pi_A at agent i), s_t)",
+    "joint": "delta_Q_A_joint(s_t) = P(win | do(pi_A at agents 0 and 1), s_t) - P(win | do(pi_B at agents 0 and 1), s_t), defined only where BOTH agents are free",
+    "joint_B": "the analogous B-pole contrast",
+    "kept_separate": "Individual and joint estimands are never pooled. That separation is what makes the MACA-style individual-versus-joint credit question empirical rather than philosophical.",
+    "primary_outcome": "terminal win/loss only",
+    "range": "Q in [0,1], delta_Q in [-1,1]"
+  },
+
+  "BRANCHING_RULES": {
+    "1_branch_only_at_live_boundaries": "fork only where d_t^i = 1, i.e. blue_commit_ticks_left[i] <= 0 at runtime, equivalently the agent's macro mask and target mask are not both one-hot",
+    "2_preserve_the_free_set": "the exact set of free agents at s_t is recorded and preserved; interventions are defined relative to it",
+    "3_individual_when_one_is_free": "if only agent i is free, only agent i is intervened on",
+    "4_both_estimands_when_both_free": "if both are free, the individual estimand for each agent AND the joint estimand are all collected, separately",
+    "5_never_modify_committed_agents": "a committed agent's macro and target are left exactly as the environment holds them. Overriding them would be intervening on a decision the environment is not accepting.",
+    "6_own_schedules_after_the_fork": "each branch follows its own macro-duration schedule. If pi_A takes a 4-tick GO_TO and pi_B a 2-tick PLACE_MINE, that timing difference is part of the treatment.",
+    "7_no_decision_index_alignment": "branches are never realigned by future decision index. This is an asynchronous semi-MDP and option duration may itself be strategically causal; forcing alignment would erase part of the effect being measured.",
+    "8_matched_continuation_randomness": "paired continuation seeds, validated by the CRN smoke",
+    "9_fixed_M": "M is fixed for every intervention; never adaptive, never state-dependent",
+    "10_secondary_covariates_only": "blue_commit_success and option timing are recorded as mechanism covariates and are never the objective",
+    "11_no_delta_Q_dependent_filtering": "no state is dropped, reweighted, or resampled on the basis of its observed delta_Q",
+    "12_fresh_artifact_before_any_training": "Phase 1 freezes its own result artifact before any successor training consumes it"
+  },
+
+  "M_AND_CONTINUATION_SAMPLING": {
+    "M": 32,
+    "authority": "PI, 2026-09-01: 'I would use a fixed rollout count per branch, not an adaptive one. My default would be M = 32 paired continuation seeds per intervention.'",
+    "MANDATORY_IMPLEMENTATION_DETAIL": "Prefix replay is exact, so (seed, prefix) determines the future completely. Running M continuations without changing anything would produce M IDENTICAL rollouts and an estimator with zero variance and zero validity. The M continuations must therefore be drawn by explicitly reseeding the environment generator after the prefix is replayed -- core._rng.manual_seed(base + j) for j in 0..M-1 -- and pairing is achieved by using the SAME j for every policy compared at that state.",
+    "why_this_is_not_a_free_choice": "Without the reseed the bank would be full of exact zeros and near-degenerate estimates that look like 'the specialists agree here'. This is the same silent-null failure mode the mid-hold branching problem would have produced.",
+    "REQUIRED_SMOKE_BEFORE_COLLECTION": {
+      "name": "continuation entropy",
+      "question": "how many of the M reseeded continuations are actually distinct?",
+      "why": "red_deception_prob is 0.0882 and its effect is gated on sim_step_count % 30, so continuation randomness is real but SPARSE. If most reseeded rollouts coincide, M=32 buys far less precision than its nominal value suggests.",
+      "what_it_must_report": "the number of distinct terminal outcomes and distinct trajectories across M reseeds at a prospectively fixed state, for at least 3 states",
+      "prospective_rule": "This smoke measures the ESTIMATOR, not delta_Q, and runs before any delta_Q is computed. If it shows the effective sample size is far below M, the M decision is revisited ONCE, at that point, before any delta_Q exists -- and the revised M is frozen then."
+    }
+  },
+
+  "WEIGHTING_FOR_THE_SUCCESSOR": {
+    "rule": "w(s) = |delta_Q(s)|, and for pole-signed specialist assignment w_A(s) = max(0, delta_Q_A(s)), w_B(s) = max(0, delta_Q_B(s))",
+    "frozen_now": true,
+    "no_threshold": "There is no tau. The weight is bounded, monotonic, and prospectively fixed, so there is nothing to shop.",
+    "why_bounded_works_here": "the primary outcome is binary, so Q is a probability in [0,1] and delta_Q is already on a natural [-1,1] scale",
+    "a_decision_with_no_payoff_effect": "receives essentially zero strategic supervision, by construction rather than by filtering"
+  },
+
+  "WHAT_PHASE_1_MAY_NOT_DO": [
+    "branch at a step where the intervened agent is committed",
+    "override a committed agent's macro or target",
+    "realign branches by future decision index",
+    "pool individual and joint estimands",
+    "vary M across states, or choose M after seeing any delta_Q",
+    "filter, reweight or resample states on observed delta_Q",
+    "introduce a delta_Q threshold",
+    "treat blue_commit_success or timing as the objective",
+    "touch any EVAL block",
+    "run M continuations without reseeding, which would silently produce M identical rollouts"
+  ],
+
+  "OUTPUT": "CCP_PHASE1_CAUSAL_BRANCHING.json, one-shot, frozen before any successor training",
+
+  "PROVENANCE": {
+    "phase_0": "CCP_PHASE0_REPLAY_EQUIVALENCE.json (5c67c093)",
+    "crn": "CCP_PHASE1_CRN_SMOKE.json (5839ff3d)",
+    "cadence_and_predicate": "_step.py new_commit = blue_commit_ticks_left <= 0; macro_commit_*_ticks 2-4",
+    "boundary_audit": "CCP_BOUNDARY_AUDIT.json (a1fc6521)",
+    "rehearsal_defect_to_avoid_repeating": "CCP_FORCED_HEAD_DILUTION.json (884abf25), guarded by tests/test_anchor_loss_decision_mask.py (d9c7f8fc)"
+  }
+}
