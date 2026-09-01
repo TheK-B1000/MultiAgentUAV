@@ -114,5 +114,96 @@
       "consequence": "Q is an expectation over environment continuation randomness alone, so the issue of policy sampling entering the estimand does not arise.",
       "if_that_ever_changes": "it becomes a separate prospective decision, recorded before collection, never after seeing delta_Q"
     }
+  },
+  "AMENDMENT_2_M16_PILOT_AND_CLAIM_SCOPE": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:05:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 delta_Q value exists",
+    "M_REVISED_32_TO_16": {
+      "M": 16,
+      "resolution": "delta_Q_hat granularity 1/16 = 0.0625",
+      "REASON": "RUNTIME FEASIBILITY. Measured scalar cost is ~43 s/rollout, and BOTH safe batching axes failed the frozen gate (CCP_PHASE1_BATCH_EQUIVALENCE.json, BATCHING_INVALID: a B-lane env initialises B different episodes, so lanes are not identical at reset). M = 32 became operationally infeasible.",
+      "EXPLICITLY_NOT_THE_REASON": "The continuation-entropy result is NOT cited as justification. That smoke returned RESEEDING_MACHINERY_VALIDATED with 32/32 distinct trajectories, and AMENDMENT_1 states M stands unless the machinery is inoperative. It is operative. Lowering M on the strength of the 32/32-win outcome degeneracy would be a budget decision dressed as a measurement finding.",
+      "timing_is_the_anti_shopping_property": "This amendment precedes the existence of any Phase 1 delta_Q value.",
+      "estimator_unchanged": true
+    },
+    "PILOT_STRATIFICATION_FROZEN": {
+      "size": 20,
+      "design": "10 Pole A + 10 Pole B; within each pole: agent0-only 3, agent1-only 4, both-free 3, one per phase except agent1-only which takes 2 in mid",
+      "cells_per_pole": {
+        "agent0_only": {
+          "early": 1,
+          "mid": 1,
+          "late": 1
+        },
+        "agent1_only": {
+          "early": 1,
+          "mid": 2,
+          "late": 1
+        },
+        "both_free": {
+          "early": 1,
+          "mid": 1,
+          "late": 1
+        }
+      },
+      "totals_across_poles": {
+        "agent0_only": 6,
+        "agent1_only": 8,
+        "both_free": 6
+      },
+      "pilot_proportions": [
+        0.3,
+        0.4,
+        0.3
+      ],
+      "observed_audit_proportions": [
+        0.295,
+        0.38,
+        0.325
+      ],
+      "coverage": "all 2 x 3 x 3 = 18 pole/free-set/phase cells are covered",
+      "phase_definition_prospective": {
+        "early": "0..79",
+        "mid": "80..159",
+        "late": "160..239"
+      },
+      "SELECTION_RULE": "within each stratum, select by a deterministic hash/order over IMMUTABLE state identifiers (seed, prefix length). Never by teacher disagreement, commit success, trajectory appearance, or anything downstream of the causal question.",
+      "EMPTY_STRATUM_RULE": "if a required stratum has no candidate, STOP and record it. Do not quietly substitute a state from another cell."
+    },
+    "CLAIM_SCOPE_IS_EXISTENTIAL": {
+      "the_pilot_asks": "Does at least one prospectively sampled live boundary show causal specialist leverage?",
+      "the_pilot_does_NOT_estimate": [
+        "P(boundary is strategically important)",
+        "any population rate of important decisions",
+        "that these 20 states represent the boundary distribution"
+      ],
+      "a_null_result_reads_as": "no leverage found at these 20 boundaries -- never as a measured rate"
+    },
+    "REPORTING_AND_THE_FORMAL_TEST": {
+      "every_state_reports": "delta_Q_hat = (n_plus - n_minus)/16, with n_plus, n_minus and n_zero given explicitly",
+      "candidate_leverage_boundary": "any state with a non-zero delta_Q_hat. This is the descriptive label.",
+      "CAUSAL_LEVERAGE_CONFIRMED": "reserved for states passing an exact paired test on the DISCORDANT terminal outcomes (binomial on n_plus vs n_plus + n_minus, p = 0.5), Holm-corrected across the 20 states at familywise alpha = 0.05",
+      "why": "PI: this prevents one lucky 9-vs-7 continuation split from turning into a causal claim",
+      "both_labels_are_reported": "the descriptive count and the corrected test result are both in the artifact; neither is suppressed in favour of the other"
+    },
+    "EXECUTION_PLAN": {
+      "workers": "8 independent B=1 processes, each with its own scalar core and keyed continuation jobs",
+      "why_this_and_not_batching": "preserves exactly the semantics validated by Phase 0, the CRN smoke and the entropy smoke; no environment change, no lane dependence, no estimator change",
+      "machine": "16 cores; 8 workers leaves headroom for the concurrent agent session sharing this machine",
+      "budget": "20 states x 52.8 rollouts/state = ~1056 scalar rollouts; ideal 8-worker time ~95 min, budgeted 1.5-2.5 h for contention and orchestration",
+      "incremental_state": "one JSONL row per COMPLETED rollout, so an interruption leaves a visible boundary rather than a silent truncation, and resumption verifies existing rows against the frozen seed mapping"
+    },
+    "TEACHER_POLICIES": {
+      "pi_A": {
+        "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+        "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d"
+      },
+      "pi_B": {
+        "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+        "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+      },
+      "verified_at_collection_time": "both sha256 values are re-checked before the first rollout; a mismatch is fatal"
+    }
   }
 }
