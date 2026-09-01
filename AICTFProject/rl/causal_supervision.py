@@ -37,7 +37,50 @@ class CausalRoutingError(RuntimeError):
 
 
 @dataclass(frozen=True)
-class CausalRecord:
+class _WinnerDirected:
+    """Shared derivation for every causal supervision unit.
+
+    Both the local record and the segment inherit this rather than reimplementing the rule.
+    That is deliberate: the defect this replaced came from a teacher field that could disagree
+    with the measurement, and giving the segment its own copy of the logic would recreate the
+    same failure one abstraction level higher. There is exactly one place where sign becomes
+    teacher.
+    """
+    pole: str
+    delta_q: float                # SIGNED, pole-oriented
+
+    @property
+    def latent(self) -> int:
+        return POLE_ROUTING[self.pole][0]
+
+    @property
+    def weight(self) -> float:
+        return abs(self.delta_q)
+
+    @property
+    def teacher(self) -> str | None:
+        """None when delta_q is exactly zero: no measured effect, so no supervision."""
+        _, matched, other = POLE_ROUTING[self.pole]
+        if self.delta_q > 0:
+            return matched
+        if self.delta_q < 0:
+            return other
+        return None
+
+    def _assert_routing(self, ident: str, declared_teacher: str | None) -> None:
+        if self.pole not in POLE_ROUTING:
+            raise CausalRoutingError(f"{ident}: unknown pole {self.pole!r}")
+        if declared_teacher is not None and declared_teacher != self.teacher:
+            raise CausalRoutingError(
+                f"{ident}: delta_q {self.delta_q:+.4f} on pole {self.pole} implies teacher "
+                f"{self.teacher}, but {declared_teacher} was declared. Supervising the loser of "
+                f"a measured contrast would train the latent away from payoff.")
+        if self.teacher is None and self.weight != 0.0:
+            raise CausalRoutingError(f"{ident}: no teacher but non-zero weight")
+
+
+@dataclass(frozen=True)
+class CausalRecord(_WinnerDirected):
     """One Phase 1 measurement, as the trainer consumes it.
 
     WINNER-DIRECTED ROUTING. ``delta_q`` is stored SIGNED, under the pole-oriented convention
@@ -59,40 +102,33 @@ class CausalRecord:
     whichever behaviour causally improved payoff rather than preserving specialist identity for
     its own sake.
     """
-    state_id: str
-    pole: str
-    agent_id: int | None          # None means a joint record covering every agent
-    delta_q: float                # SIGNED, pole-oriented
-    intervention_mode: str        # "single_macro" or "full_takeover"
-
-    @property
-    def latent(self) -> int:
-        return POLE_ROUTING[self.pole][0]
-
-    @property
-    def weight(self) -> float:
-        return abs(self.delta_q)
-
-    @property
-    def teacher(self) -> str | None:
-        """None when delta_q is exactly zero: no measured effect, so no supervision."""
-        _, matched, other = POLE_ROUTING[self.pole]
-        if self.delta_q > 0:
-            return matched
-        if self.delta_q < 0:
-            return other
-        return None
+    state_id: str = ""
+    agent_id: int | None = None   # None means a joint record covering every agent
+    intervention_mode: str = "single_macro"
 
     def assert_routing(self, declared_teacher: str | None = None) -> None:
-        if self.pole not in POLE_ROUTING:
-            raise CausalRoutingError(f"{self.state_id}: unknown pole {self.pole!r}")
-        if declared_teacher is not None and declared_teacher != self.teacher:
+        self._assert_routing(self.state_id, declared_teacher)
+
+
+@dataclass(frozen=True)
+class CausalSegment(_WinnerDirected):
+    """A SEQUENCE-mode supervision unit spanning several commitment decisions.
+
+    Carries signed delta_q and inherits the identical derivation, so it cannot express a
+    teacher that disagrees with its measurement. ``active_until`` records how far the segment
+    supervises; the RULE that sets it is deliberately NOT frozen here, because Phase 1 decides
+    whether sequence mode is used at all and what its termination should be.
+    """
+    segment_id: str = ""
+    start_state_id: str = ""
+    controlled_agents: tuple[int, ...] = ()
+    active_until: int | None = None      # rule not frozen; Phase 1 decides
+
+    def assert_routing(self, declared_teacher: str | None = None) -> None:
+        self._assert_routing(self.segment_id, declared_teacher)
+        if not self.controlled_agents and self.weight != 0.0:
             raise CausalRoutingError(
-                f"{self.state_id}: delta_q {self.delta_q:+.4f} on pole {self.pole} implies "
-                f"teacher {self.teacher}, but {declared_teacher} was declared. Supervising the "
-                f"loser of a measured contrast would train the latent away from payoff.")
-        if self.teacher is None and self.weight != 0.0:
-            raise CausalRoutingError(f"{self.state_id}: no teacher but non-zero weight")
+                f"{self.segment_id}: non-zero weight but no controlled agents")
 
 
 def decision_mask_from_core(core, n_agents: int, *, side: str = "blue") -> torch.Tensor:

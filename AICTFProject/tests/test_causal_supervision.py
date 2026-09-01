@@ -163,8 +163,8 @@ class CausalSupervisionTests(unittest.TestCase):
     # ---- 3. winner-directed routing -------------------------------------
     def test_positive_delta_q_routes_to_the_pole_matched_specialist(self):
         from rl.causal_supervision import CausalRecord
-        a = CausalRecord("s|A|40", "A", 0, +0.5, "single_macro")
-        b = CausalRecord("s|B|40", "B", 1, +0.5, "single_macro")
+        a = CausalRecord("A", +0.5, state_id="s|A|40", agent_id=0)
+        b = CausalRecord("B", +0.5, state_id="s|B|40", agent_id=1)
         self.assertEqual((a.latent, a.teacher, a.weight), (0, "pi_A", 0.5))
         self.assertEqual((b.latent, b.teacher, b.weight), (1, "pi_B", 0.5))
         a.assert_routing(); b.assert_routing()
@@ -177,8 +177,8 @@ class CausalSupervisionTests(unittest.TestCase):
         training hardest on a decision the measurement showed was worse.
         """
         from rl.causal_supervision import CausalRecord
-        a = CausalRecord("s|A|40", "A", 0, -0.5, "single_macro")
-        b = CausalRecord("s|B|40", "B", 1, -0.5, "single_macro")
+        a = CausalRecord("A", -0.5, state_id="s|A|40", agent_id=0)
+        b = CausalRecord("B", -0.5, state_id="s|B|40", agent_id=1)
         self.assertEqual(a.teacher, "pi_B", "negative delta_q on Pole A must supervise pi_B")
         self.assertEqual(b.teacher, "pi_A", "negative delta_q on Pole B must supervise pi_A")
         self.assertEqual((a.weight, b.weight), (0.5, 0.5), "magnitude is still |delta_Q|")
@@ -187,7 +187,7 @@ class CausalSupervisionTests(unittest.TestCase):
 
     def test_zero_delta_q_has_no_teacher_and_no_weight(self):
         from rl.causal_supervision import CausalRecord
-        r = CausalRecord("s|A|40", "A", 0, 0.0, "single_macro")
+        r = CausalRecord("A", 0.0, state_id="s|A|40", agent_id=0)
         self.assertIsNone(r.teacher)
         self.assertEqual(r.weight, 0.0)
         r.assert_routing()
@@ -197,9 +197,47 @@ class CausalSupervisionTests(unittest.TestCase):
         from rl.causal_supervision import CausalRecord, CausalRoutingError
         for pole, dq, loser in (("A", +0.5, "pi_B"), ("A", -0.5, "pi_A"),
                                 ("B", +0.5, "pi_A"), ("B", -0.5, "pi_B")):
-            rec = CausalRecord(f"s|{pole}|40", pole, 0, dq, "single_macro")
+            rec = CausalRecord(pole, dq, state_id=f"s|{pole}|40", agent_id=0)
             with self.assertRaises(CausalRoutingError):
                 rec.assert_routing(declared_teacher=loser)
+
+    # ---- 4. sequence interface, same derivation -------------------------
+    def test_segment_shares_the_record_derivation_code_object(self):
+        """Not merely the same convention -- the same function.
+
+        A segment with its own copy of sign->teacher logic is exactly how this defect
+        would come back one abstraction level higher.
+        """
+        from rl.causal_supervision import CausalRecord, CausalSegment
+        self.assertIs(CausalRecord.teacher, CausalSegment.teacher)
+        self.assertIs(CausalRecord.weight, CausalSegment.weight)
+        self.assertIs(CausalRecord.latent, CausalSegment.latent)
+
+    def test_segment_routing_matches_record_routing_for_both_signs(self):
+        from rl.causal_supervision import CausalRecord, CausalSegment
+        for pole in ("A", "B"):
+            for dq in (+0.75, -0.75, 0.0):
+                r = CausalRecord(pole, dq, state_id=f"s|{pole}|40", agent_id=0)
+                g = CausalSegment(pole, dq, segment_id=f"seg|{pole}",
+                                  start_state_id=f"s|{pole}|40", controlled_agents=(0,))
+                self.assertEqual((r.latent, r.teacher, r.weight),
+                                 (g.latent, g.teacher, g.weight),
+                                 f"segment and record disagree at pole {pole}, dq {dq}")
+
+    def test_segment_declaring_the_loser_MUST_fail(self):
+        from rl.causal_supervision import CausalSegment, CausalRoutingError
+        g = CausalSegment("A", -0.5, segment_id="seg1", start_state_id="s|A|40",
+                          controlled_agents=(0,))
+        self.assertEqual(g.teacher, "pi_B")
+        with self.assertRaises(CausalRoutingError):
+            g.assert_routing(declared_teacher="pi_A")
+
+    def test_segment_with_weight_but_no_controlled_agents_MUST_fail(self):
+        from rl.causal_supervision import CausalSegment, CausalRoutingError
+        g = CausalSegment("A", 0.5, segment_id="seg1", start_state_id="s|A|40",
+                          controlled_agents=())
+        with self.assertRaises(CausalRoutingError):
+            g.assert_routing()
 
     def test_missing_decision_predicate_is_fatal(self):
         """Absence is an error state: no commit_ticks_left means refuse, never default True."""
