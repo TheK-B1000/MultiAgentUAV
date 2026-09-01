@@ -319,5 +319,31 @@
       "NO_LOCAL_LEVERAGE_FOUND": "neither pattern present",
       "why_it_matters": "it replaces a false binary. 'Failed Holm' and 'no causal leverage' are not the same statement at M=16, and conflating them would send the successor program in the wrong direction."
     }
+  },
+  "AMENDMENT_7_PHASE_1_IS_NOT_THE_CROSSOVER_CLAIM": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T16:05:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 outcome statistic was inspected",
+    "why_this_exists": "A Phase 1 positive is the sentence most likely to be misread later, including by us, as the crossover result. It is not. Recorded now so the distinction survives contact with a good outcome.",
+    "THE_CROSSOVER_OBJECTIVE_IS_UNCHANGED": {
+      "gate": "V(z0,A) > V(z1,A) AND V(z1,B) > V(z0,B), both LCB95 > 0, in a fresh end-to-end evaluation",
+      "owner": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json#TARGET",
+      "phase_1_does_not_test_it": true
+    },
+    "WHAT_PHASE_1_ACTUALLY_MEASURES": "delta_Q(s) = Q(s, pole-matched specialist) - Q(s, other specialist), at specific live boundaries the deployed V4 policy actually reaches. It answers: at THIS decision boundary, does the correct specialist choice improve eventual winning?",
+    "THREE_REASONS_IT_IS_NOT_CROSSOVER": {
+      "1_wrong_policies": "The contrast is between the SAPPO specialists pi_A and pi_B, not between the latent policies z0 and z1. Phase 1 says nothing about whether a latent can carry the value.",
+      "2_conditioned_on_selected_states": "s_t ~ d^V4 at 20 chosen boundaries, not whole episodes from reset. It is a conditional statement about states, not a policy-level win rate.",
+      "3_learnability_is_untested": "Even a strong causal decision must then be LEARNED and PRESERVED by a new latent PPO often enough to move end-to-end win rates. Nothing in Phase 1 establishes that it can be."
+    },
+    "THE_CORRECT_FRAMING": {
+      "phase_1": "find the ingredients that crossover depends on",
+      "successor_training": "teach z0 and z1 those ingredients",
+      "fresh_EVAL": "did crossover actually happen",
+      "one_line": "Phase 1 measures the causal strategic value the crossover objective depends on. The crossover claim still requires a newly trained latent policy to reproduce that value end to end.",
+      "what_changed_vs_V1_to_V4": "not the finish line, but the map. The ladder searched for the finish line in fog; Phase 1 produces a chart of where strategic value actually sits."
+    },
+    "LANGUAGE_RULE": "No Phase 1 artifact, commit message, or writeup may describe a positive result as crossover, as evidence of crossover, or as partial crossover. The permitted phrasing is causal specialist leverage at the measured boundaries.",
+    "and_a_null_is_equally_bounded": "A null Phase 1 does not establish that crossover is impossible. It bounds where local specialist leverage was found at 20 boundaries under M=16."
   }
 }
