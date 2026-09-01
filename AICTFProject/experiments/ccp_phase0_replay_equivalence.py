@@ -239,33 +239,59 @@ def main() -> int:
                            if r["prefix_k"] == max(0, r["T"] - 1))
 
     # ------------------------------- mandatory negative control -------------
+    # AMENDMENT_1: attempt 1's control assumed every step consumes an action. It does not.
+    # The env holds a macro for ~4 sim steps and accepts a new one only at a commitment
+    # boundary, so a perturbation mid-hold is discarded before reaching the sim. The control
+    # now LOCATES action-consuming steps by measurement instead of assuming them.
     cseed, cpole = SEEDS[0], "A"
     cep = probe_ep
     cT = cep["T"]
-    ck_point = max(2, round(0.50 * cT))
-    perturb_at = max(0, ck_point - 2)
-    # substitute a DIFFERENT but genuinely valid action, so the control cannot fail merely by
-    # feeding the env something out of range
-    alt = next((np.asarray(a) for a in cep["actions"]
-                if not np.array_equal(np.asarray(a), np.asarray(cep["actions"][perturb_at]))), None)
-    if alt is None:
-        raise SystemExit("REFUSING: every recorded action is identical; the negative control "
-                         "cannot substitute a different valid action, so it would prove nothing")
-    perturbed = replay(cseed, cpole, cep["actions"], ck_point,
-                       perturb_at=perturb_at, perturb_with=alt)
-    ctrl_ok, ctrl_diffs = _compare(cep["states"][ck_point], perturbed)
-    control_detected = not ctrl_ok           # perturbation MUST show up
+    SCAN, HORIZON = min(24, cT), 12
+    far = np.asarray(cep["actions"][0]).copy()
+    far.flat[:] = [4, 3, 4, 3][:far.size]        # a legal action far from any recorded one
+
+    live_steps, dead_steps = [], []
+    for at in range(SCAN):
+        k = min(at + HORIZON, cT)
+        got_seq = [replay(cseed, cpole, cep["actions"], j, perturb_at=at, perturb_with=far)
+                   for j in (k,)]
+        ok, _ = _compare(cep["states"][k], got_seq[0])
+        (dead_steps if ok else live_steps).append(at)
+
+    control_detected = bool(live_steps)
+    mid_hold_confirmed = bool(dead_steps)
     control = {
-        "design": "replay a prefix with one action deliberately changed; the state must DIFFER",
-        "seed": cseed, "pole": cpole, "prefix_k": int(ck_point), "action_changed_at_step": int(perturb_at),
-        "perturbation_detected": bool(control_detected),
-        "fields_that_differed": [d["field"] for d in ctrl_diffs][:8],
-        "why": ("A guard that cannot fail proves nothing. If the perturbed replay ALSO matched, the "
-                "comparison would not be measuring what it claims and this whole result would be "
-                "void rather than merely failed."),
+        "design": ("scan steps 0..%d, perturbing each with a legal action far from any recorded "
+                   "one, and record which perturbations change the state within %d steps"
+                   % (SCAN - 1, HORIZON)),
+        "seed": cseed, "pole": cpole,
+        "action_consuming_steps_found": live_steps,
+        "mid_hold_steps_confirmed_no_op": dead_steps,
+        "perturbation_detected": control_detected,
+        "mid_hold_insensitivity_is_structural": mid_hold_confirmed,
+        "why_this_is_stricter_than_attempt_1": (
+            "Attempt 1 perturbed one arbitrary step and required an effect. That can fail for "
+            "reasons unrelated to the comparison, and it did: every step it sampled was mid-hold. "
+            "This version proves sensitivity where the environment is live AND characterises the "
+            "insensitivity elsewhere, so it cannot pass by accident nor fail by bad luck."),
+        "not_permitted": "relocating the perturbation until something passes; the live set is measured and reported",
     }
-    print(f"\n  negative control: perturbation detected = {control_detected} "
-          f"({len(ctrl_diffs)} fields differ)", flush=True)
+    print(f"\n  negative control: action-consuming steps {live_steps}")
+    print(f"                    mid-hold no-op steps    {dead_steps}")
+    print(f"                    perturbation detected = {control_detected}", flush=True)
+
+    cadence = {
+        "action_consuming_steps": live_steps,
+        "scanned_window": [0, SCAN - 1],
+        "seed": cseed, "pole": cpole,
+        "reading": ("The environment holds a macro command across several sim steps and accepts a "
+                    "new one only at a commitment boundary. The policy emits an action every step; "
+                    "most are discarded."),
+        "why_it_matters_for_PHASE_1": (
+            "Matched counterfactual branches must fork at commitment boundaries. A branch taken "
+            "mid-hold is a no-op that would report 'the specialists agree here' when the "
+            "environment never asked, biasing every delta_Q toward zero."),
+    }
 
     # ------------------------------- preregistered verdict ------------------
     if not control_detected:
@@ -298,6 +324,7 @@ def main() -> int:
         "per_point": results,
         "mismatches": all_diffs,
         "negative_control": control,
+        "decision_cadence": cadence,
         "event_state_coverage": {"info_keys_observed": info_keys,
                                  "event_keys_used": event_keys,
                                  "LIMITATION": event_limitation},

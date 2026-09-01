@@ -4,18 +4,15 @@
   "utc": "2026-09-01T12:15:00Z",
   "authority": "PI, 2026-09-01: 'Phase 0: prove prefix replay works. Before designing anything else.'",
   "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
-
   "THE_CLAIM_UNDER_TEST": {
     "statement": "(seed, action prefix) -> s_t is a FUNCTION. Replaying the same action prefix from the same seed in a FRESH environment reproduces the same state.",
     "why_it_is_load_bearing": "There is no state save/restore anywhere in gpu_env -- no snapshot, no deepcopy hook, no restore. Prefix replay is the only route to matched causal branching that adds no environment surface. If this claim is false, every Q estimate in Phase 1 compares continuations from states that were never actually the same state, and the entire program is built on sand.",
     "what_this_does_NOT_test": "Policy determinism. The replay feeds RECORDED actions rather than re-querying the policy, which is exactly right: Phase 1 will supply actions from four different policies, so what must be deterministic is the ENVIRONMENT given a seed and an action sequence."
   },
-
   "HARD_GATE": {
     "if_it_fails": "Phase 1 does not start. The program returns to the PI for a decision about adding state save/restore to the environment. It is not worked around.",
     "this_is_a_capability_test_not_an_experiment": "It consumes no EVAL block and produces no payoff claim."
   },
-
   "COMPARISON": {
     "fields": "EVERY key present in the observation dict, plus the global state, plus reward and done. Not a chosen subset -- selecting convenient fields is how a determinism test passes without being true.",
     "PRIMARY_CRITERION": "EXACT bitwise equality (numpy array_equal) at every compared prefix point.",
@@ -25,10 +22,12 @@
       "if_mismatches_occur": "the verdict is FAILED or PARTIAL, and the record reports the first divergent step, the field, and max |diff|. Adopting a frozen tolerance afterwards requires a separate PI decision with those magnitudes on the table."
     }
   },
-
   "TEST_MATRIX": {
     "seeds": "11500001..11500008, n=8, in this program's fresh 115xxxxx namespace, disjoint from every block the ladder used",
-    "poles": ["A", "B"],
+    "poles": [
+      "A",
+      "B"
+    ],
     "episodes_recorded": 16,
     "prefix_points": {
       "short": "10% of recorded episode length",
@@ -45,7 +44,6 @@
     },
     "replay_environment": "a FRESH env instance per replay, built from the same seed with the same pole setup. Continuing the original object would test nothing."
   },
-
   "NEGATIVE_CONTROL": {
     "mandatory": true,
     "design": "replay a DELIBERATELY PERTURBED action prefix (one action replaced by a different but genuinely recorded action) and require the resulting state to DIFFER from the recorded state.",
@@ -53,13 +51,11 @@
     "must_fail": "If the perturbed replay also matches, the comparison is not measuring what it claims -- it would be comparing something to itself, or the compared fields would be insensitive to actions. In that case the whole Phase 0 result is void regardless of how the primary checks came out.",
     "why_this_is_required": "A guard that cannot fail proves nothing. Every smoke in this project carries one, and the V4 critic-routing smoke caught its own equivalent by deliberately misrouting."
   },
-
   "PREREGISTERED_VERDICTS": {
     "REPLAY_EQUIVALENCE_CONFIRMED": "exact bitwise equality at EVERY prefix point on every seed and both poles, AND the negative control detected the perturbation",
     "REPLAY_EQUIVALENCE_PARTIAL": "exact equality holds at some prefix points and fails at others -- typically early-yes, late-no, which indicates accumulating divergence",
     "REPLAY_EQUIVALENCE_FAILED": "mismatches broadly, or at any near-terminal point, or the negative control did not detect the perturbation (in which case the run is void, not merely failed)"
   },
-
   "WHAT_THIS_MAY_NOT_DO": [
     "adopt a numerical tolerance to convert a mismatch into a pass",
     "narrow the compared fields after seeing which one diverges",
@@ -67,6 +63,30 @@
     "proceed to Phase 1 on a PARTIAL or FAILED verdict without a separate PI decision",
     "touch any EVAL block"
   ],
-
-  "OUTPUT": "CCP_PHASE0_REPLAY_EQUIVALENCE.json, one-shot"
+  "OUTPUT": "CCP_PHASE0_REPLAY_EQUIVALENCE.json, one-shot",
+  "AMENDMENT_1_CONTROL_PREMISE_WAS_WRONG": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T13:10:00Z",
+    "what_happened": "Attempt 1 matched 102/102 prefix points at exact bitwise equality and its negative control did NOT fire, so the run was recorded VOID per this spec and preserved as CCP_PHASE0_REPLAY_EQUIVALENCE_ATTEMPT1_VOID.json.",
+    "the_diagnosis": "The control's PREMISE was false, not its implementation. It assumed every step consumes an action. Measured on seed 11500001 pole A, perturbing each of steps 0..23 individually, the steps whose action changes anything are [0, 4, 8, 12, 14, 18, 22]. The environment holds a macro command for roughly 4 sim steps and accepts a new one only at a commitment boundary, with early resync. The policy emits a fresh action every step and the env discards most of them. Attempt 1's control perturbed step 118, and its diagnostic follow-up perturbed steps 5, 20, 60, 118, 150 and 200 -- every one of them mid-hold, so every substituted action was discarded before reaching the sim.",
+    "independent_evidence_that_replay_itself_is_sound": "A scratchpad probe drove the same seed with z0 and with z1 (actions differing on 188 of 240 steps, states diverging from step 4), then replayed z0's recorded actions -- reproducing the trajectory exactly across all 240 steps -- and then fed a fully random action sequence, which diverged at step 0. That is a matched pair with a control that fires, and it indicates the replay path is sound. It is NOT accepted as the Phase 0 result: the artifact must establish this with its own control.",
+    "what_changes": {
+      "negative_control": "The control must now LOCATE action-consuming steps empirically by scanning, perturb at a located live step, and additionally confirm that a mid-hold step shows no effect.",
+      "why_this_is_STRICTER_not_weaker": "Attempt 1's control was a single perturbation at a single arbitrary step, which could fail for reasons having nothing to do with the comparison. The replacement proves sensitivity where the environment is live AND characterises the insensitivity elsewhere as structural rather than a broken harness. It cannot pass by accident, and it cannot pass while silently discarding its own perturbation.",
+      "not_permitted": "Relocating the perturbation until something passes. The live steps are located by measurement and reported, and the located set is written into the result."
+    },
+    "UNCHANGED": [
+      "the primary criterion of exact bitwise equality",
+      "the compared fields",
+      "the seed and pole matrix",
+      "the prefix points",
+      "the tolerance policy, which remains: none",
+      "the preregistered verdicts"
+    ],
+    "NEW_REQUIRED_OUTPUT": {
+      "field": "decision_cadence",
+      "content": "the measured set of action-consuming steps in the scanned window",
+      "why_it_matters_beyond_this_smoke": "Phase 1 must fork its matched counterfactual branches at commitment boundaries. A branch taken mid-hold is a no-op that would report 'the specialists agree here' when the environment never asked, biasing every delta_Q toward zero. This is recorded now, before Phase 1 is designed, because it would otherwise have produced a silent null."
+    }
+  }
 }
