@@ -84,6 +84,60 @@ class ContinuationSeedMappingTests(unittest.TestCase):
             self.assertGreaterEqual(r, 0)
             self.assertLess(r, 2 ** 63 - 1, "must fit torch.Generator.manual_seed")
 
+    # ---- the pairing CONTRACT, not just the mapping -------------------------
+
+    def test_pairing_ledger_both_sides_receive_the_same_seed(self):
+        """Record (state_id, j, r_j, seed_A, seed_B) and require seed_A == seed_B == r_j.
+
+        Dispensed in BOTH branch orders. If seeds were drawn from a stream rather than
+        computed from (state_id, j), reversing which side asks first would hand the sides
+        different values and D_j would stop being a paired difference.
+        """
+        ledger = []
+        for state_id in ("11500021|A|40", "11500021|A|80", "11500033|B|17"):
+            for j in range(6):
+                r_j = SEED(state_id, j)
+                seed_A = SEED(state_id, j)                       # A asks first
+                seed_B = SEED(state_id, j)
+                ledger.append((state_id, j, r_j, seed_A, seed_B))
+                # and again with the order reversed
+                seed_B2 = SEED(state_id, j)                      # B asks first
+                seed_A2 = SEED(state_id, j)
+                ledger.append((state_id, j, r_j, seed_A2, seed_B2))
+        self.assertEqual(len(ledger), 36)
+        for state_id, j, r_j, seed_A, seed_B in ledger:
+            self.assertEqual(seed_A, r_j, f"side A diverged at ({state_id}, {j})")
+            self.assertEqual(seed_B, r_j, f"side B diverged at ({state_id}, {j})")
+
+    def test_a_stream_based_seed_source_would_FAIL_this_check(self):
+        """Negative control. A guard that cannot fail proves nothing.
+
+        Substitutes an order-dependent seed source -- the shape a naive implementation would
+        take -- and requires the pairing assertion to catch it.
+        """
+        counter = iter(range(10_000))
+        stream_seed = lambda state_id, j: next(counter)          # noqa: E731
+
+        caught = False
+        for state_id in ("s|A|1",):
+            for j in range(3):
+                r_j = stream_seed(state_id, j)
+                seed_A = stream_seed(state_id, j)
+                seed_B = stream_seed(state_id, j)
+                if not (seed_A == seed_B == r_j):
+                    caught = True
+        self.assertTrue(caught, "the pairing check failed to detect an order-dependent seed "
+                                "source, so it proves nothing about the real mapping")
+
+    def test_reproduces_on_a_fresh_module_load(self):
+        """Artifact-deterministic: a fresh run must reproduce the same tuples."""
+        fresh = _seed_fn()
+        self.assertIsNot(fresh, SEED)
+        for state_id in ("11500021|A|40", "11500021|A|120"):
+            for j in (0, 5, 31):
+                self.assertEqual(fresh(state_id, j), SEED(state_id, j),
+                                 "seed mapping is not reproducible across a fresh load")
+
 
 if __name__ == "__main__":
     unittest.main()
