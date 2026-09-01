@@ -1,0 +1,154 @@
+{
+  "record": "H-OG-PSP V4 EVAL integrity audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-01T11:04:43Z",
+  "question": "delta_A and delta_B are both exactly 0.0000. Is that a real payoff tie, or a dead latent forcing in the evaluator?",
+  "why_this_matters_here": "A tie on BOTH poles is the most defect-shaped result this evaluator can return. If z were never actually forced, z0 and z1 would run the same policy and tie by construction on every seed. That possibility is excluded by row-level evidence rather than by assumption.",
+  "VERDICT": "GENUINE_TIE",
+  "checks": {
+    "1_not_byte_identical": {
+      "pole_A": {
+        "seeds_differing_in_any_field": 22,
+        "identical_seeds": 10
+      },
+      "pole_B": {
+        "seeds_differing_in_any_field": 20,
+        "identical_seeds": 12
+      },
+      "passed": true
+    },
+    "2_per_seed_outcomes": {
+      "pole_A": {
+        "seeds_differing_in_win": [
+          11400102,
+          11400105,
+          11400106,
+          11400109,
+          11400110,
+          11400116,
+          11400117,
+          11400119,
+          11400123,
+          11400127,
+          11400129,
+          11400132
+        ],
+        "z0_won_z1_lost": [
+          11400105,
+          11400110,
+          11400116,
+          11400117,
+          11400119,
+          11400123
+        ],
+        "z1_won_z0_lost": [
+          11400102,
+          11400106,
+          11400109,
+          11400127,
+          11400129,
+          11400132
+        ]
+      },
+      "pole_B": {
+        "seeds_differing_in_win": [
+          11400103,
+          11400104,
+          11400105,
+          11400107,
+          11400109,
+          11400110,
+          11400112,
+          11400115,
+          11400120,
+          11400121,
+          11400122,
+          11400126
+        ],
+        "z0_won_z1_lost": [
+          11400103,
+          11400104,
+          11400105,
+          11400115,
+          11400120,
+          11400121
+        ],
+        "z1_won_z0_lost": [
+          11400107,
+          11400109,
+          11400110,
+          11400112,
+          11400122,
+          11400126
+        ]
+      },
+      "note": "A genuine tie means these cancel, not that they are empty. Empty lists on both poles would instead indicate dead forcing."
+    },
+    "2b_margin_level_divergence": {
+      "pole_A_seeds_with_different_margin": 22,
+      "pole_B_seeds_with_different_margin": 20,
+      "why": "Win vectors can tie while margins differ. Margin divergence is positive evidence that the two latents really played differently, independent of who won."
+    },
+    "3_deltas_recomputed_from_rows": {
+      "delta_A": {
+        "recomputed": {
+          "mean": 0.0,
+          "lcb95": -0.21875,
+          "ucb95": 0.21875
+        },
+        "frozen": {
+          "mean": 0.0,
+          "lcb95": -0.21875,
+          "ucb95": 0.21875,
+          "passes": false
+        },
+        "matches": true
+      },
+      "delta_B": {
+        "recomputed": {
+          "mean": 0.0,
+          "lcb95": -0.21875,
+          "ucb95": 0.21875
+        },
+        "frozen": {
+          "mean": 0.0,
+          "lcb95": -0.21875,
+          "ucb95": 0.21875,
+          "passes": false
+        },
+        "matches": true
+      }
+    },
+    "4_provenance": {
+      "duplicate_rows": 0,
+      "missing_cells": [],
+      "seed_block": [
+        11400101,
+        11400132
+      ],
+      "total_rows": 192,
+      "checkpoint_sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+      "same_checkpoint_as_mechanism_diagnostic": true
+    },
+    "5_cross_instrument_agreement": {
+      "mechanism_diagnostic": {
+        "reading": "TRAJECTORY_IDENTITY_PARTIAL",
+        "jsd_nats": 0.08192162030890326,
+        "delta_tau_A": 0.9808876528608086,
+        "episodes_with_live_latent_verified": 128,
+        "of": 128,
+        "code_path": "experiments/diagnose_hog_psp_v4_mechanism.py (commit f8301faa)"
+      },
+      "eval_evidence_of_liveness": {
+        "pole_A_seeds_differing_in_any_field": 22,
+        "pole_B_seeds_differing_in_any_field": 20
+      },
+      "agree": true,
+      "reading": "Two instruments, two code paths, one checkpoint. The diagnostic says the latents differ behaviourally; EVAL rows must therefore differ somewhere. If they did not, the tie would be an artefact of dead forcing rather than a result, and this audit would say so."
+    }
+  },
+  "conclusion": "The double tie is a real payoff result, not a dead latent forcing.",
+  "changes_no_verdict": true,
+  "what_this_does_not_establish": "That V4's latents are equivalent policies. They are measurably different behaviourally; this audit only establishes that their PAYOFFS tied and that the evaluator was working when it said so.",
+  "failures": []
+}

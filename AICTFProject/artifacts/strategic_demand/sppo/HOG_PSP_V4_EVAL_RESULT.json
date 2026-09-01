@@ -1,0 +1,91 @@
+{
+  "record": "H-OG-PSP V4 held-out payoff EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-01T03:38:15Z",
+  "implements": "HOG_PSP_V4_EVAL_SPEC.json",
+  "VERDICT": "HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED",
+  "trajectory_identity_frozen_before_eval": "TRAJECTORY_IDENTITY_PARTIAL",
+  "identity_preservation_frozen_before_eval": "IDENTITY_DEGRADED",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/hog_psp_v4_production/ckpts/final_hog_psp_v4_production.zip",
+    "sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+    "verified_at_eval_time": true,
+    "terminal_only": true
+  },
+  "seeds": {
+    "block": [
+      11400101,
+      11400132
+    ],
+    "n": 32
+  },
+  "payoff_matrix": {
+    "z0|A": {
+      "mean": 0.78125,
+      "lcb95": 0.625,
+      "ucb95": 0.90625
+    },
+    "z1|A": {
+      "mean": 0.78125,
+      "lcb95": 0.625,
+      "ucb95": 0.90625
+    },
+    "z0|B": {
+      "mean": 0.6875,
+      "lcb95": 0.53125,
+      "ucb95": 0.84375
+    },
+    "z1|B": {
+      "mean": 0.6875,
+      "lcb95": 0.53125,
+      "ucb95": 0.84375
+    },
+    "pi_A|A": {
+      "mean": 0.75,
+      "lcb95": 0.59375,
+      "ucb95": 0.90625
+    },
+    "pi_B|B": {
+      "mean": 0.46875,
+      "lcb95": 0.3125,
+      "ucb95": 0.625
+    }
+  },
+  "delta_A": {
+    "mean": 0.0,
+    "lcb95": -0.21875,
+    "ucb95": 0.21875,
+    "passes": false
+  },
+  "delta_B": {
+    "mean": 0.0,
+    "lcb95": -0.21875,
+    "ucb95": 0.21875,
+    "passes": false
+  },
+  "gate": "BOTH delta lcb95 > 0",
+  "retention_context_only_not_a_gate": {
+    "mean": 1.2191901694194367,
+    "lcb95": 0.9333333333333333,
+    "ucb95": 1.5666666666666667
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "unchanged from V3"
+  },
+  "interpretive_context_frozen_before_the_result": {
+    "mechanism": "TRAJECTORY_IDENTITY_PARTIAL: Pole A LCB95 +0.5302 passed; Pole B LCB95 -0.3611 failed",
+    "preservation": "IDENTITY_DEGRADED relative to V3's confirmed two-pole identity",
+    "validity": "V4 treatment VALID; all mechanism-integrity checks passed",
+    "interpretation_if_pass": "Private critic routing mattered for the learned solution, but it cannot be claimed to have fixed value interference while preserving the same strategies because behavioral organization also changed.",
+    "interpretation_if_fail": "Private critic heads were not sufficient in this treatment. Shared-critic interference is not disproven because V4 did not retain V3's strong B-side identity.",
+    "single_axis": "Relative to V3, V4 changes only shared critic output head to two latent-private scalar heads; training dynamics and the resulting actor are allowed treatment effects."
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 192
+}
