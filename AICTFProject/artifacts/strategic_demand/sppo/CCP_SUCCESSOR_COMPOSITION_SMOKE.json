@@ -1,0 +1,62 @@
+{
+  "record": "CCP successor composition smoke",
+  "status": "VERIFIED",
+  "repeatable": true,
+  "utc": "2026-09-01T18:28:01Z",
+  "note": "engineering verification, not a scientific measurement; safe to rerun, always overwrites this file",
+  "counters": {
+    "task_updates": 6,
+    "causal_updates": 4,
+    "z0_exposures": 2,
+    "z1_exposures": 2,
+    "positive_routes": 2,
+    "negative_routes": 2,
+    "wrong_route_count": 0,
+    "missing_predicate_fatal": 1
+  },
+  "both_private_branches_moved": {
+    "z0": true,
+    "z1": true
+  },
+  "negative_control_fired": true,
+  "steps": [
+    {
+      "pole": "A",
+      "delta_q": 0.6,
+      "free_agent": 1,
+      "kind": "route"
+    },
+    {
+      "pole": "A",
+      "delta_q": -0.6,
+      "free_agent": 1,
+      "kind": "route"
+    },
+    {
+      "pole": "B",
+      "delta_q": 0.6,
+      "free_agent": 1,
+      "kind": "route"
+    },
+    {
+      "pole": "B",
+      "delta_q": -0.6,
+      "free_agent": 1,
+      "kind": "route"
+    },
+    {
+      "pole": "A",
+      "delta_q": 0.0,
+      "free_agent": 1,
+      "kind": "zero"
+    },
+    {
+      "pole": "A",
+      "delta_q": 0.6,
+      "free_agent": null,
+      "kind": "committed"
+    }
+  ],
+  "lambda_used_in_this_smoke": 0.1,
+  "not_the_frozen_training_lambda": true
+}
