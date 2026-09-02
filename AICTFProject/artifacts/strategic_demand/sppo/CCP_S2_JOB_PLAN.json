@@ -1,0 +1,48 @@
+{
+  "record": "CCP-S2 job plan",
+  "status": "FROZEN_PLAN",
+  "utc": "2026-09-02T13:51:53Z",
+  "hierarchy": {
+    "states": 128,
+    "state_estimand": 212,
+    "arm_cells": 636,
+    "jobs": 10176
+  },
+  "expected": {
+    "states": 128,
+    "state_estimand": 212,
+    "arm_cells": 636,
+    "jobs": 10176
+  },
+  "matches": true,
+  "M": 16,
+  "arms": [
+    "R_0",
+    "pi_A",
+    "pi_B"
+  ],
+  "one_free_states": 86,
+  "both_free_states": 42,
+  "three_arm_seed_pairing_verified": true,
+  "seed_mapping": "r_j = sha256('CCP_S2_MEASURE|<state_id>|<estimand>|<j>')[:8], independent of arm",
+  "jobs_by_arm": {
+    "R_0": 3392,
+    "pi_A": 3392,
+    "pi_B": 3392
+  },
+  "jobs_by_estimand": {
+    "agent0": 3840,
+    "agent1": 4320,
+    "joint": 2016
+  },
+  "worker_shards": {
+    "0": 1272,
+    "1": 1272,
+    "2": 1272,
+    "3": 1272,
+    "4": 1272,
+    "5": 1272,
+    "6": 1272,
+    "7": 1272
+  }
+}
