@@ -73,5 +73,23 @@
     },
     "weighting": "continuous, w = |delta_Q_takeover|, over ALL 32 full_takeover state-estimand contrasts -- not filtered to the 10 Holm-significant ones. This is amendment 2 of the Phase 1 spec applied as originally frozen: the near-zero contrasts contribute near-zero weight by construction, so no significance-based inclusion rule is introduced now that real numbers exist.",
     "routing": "winner-directed, unchanged from rl/causal_supervision.py: the SIGN of delta_Q_takeover selects the teacher (pole-matched specialist if positive, the other if negative), and the LATENT never flips (z0 stays Pole A's latent, z1 stays Pole B's)."
+  },
+  "AMENDMENT_3_JOINT_PRECEDENCE_AND_LAMBDA": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-02T00:45:00Z",
+    "authority": "PI, 2026-09-02, after the joint-vs-individual conflict was found at 11500105|B|133",
+    "THE_CONFLICT": "at a both-free state, the individual-agent0/agent1 full_takeover segments and the joint full_takeover segment can imply DIFFERENT teachers for the same agent under the same latent. Measured once in the bank: 11500105|B|133, agent0 individual implies pi_A (delta_Q=-1.0), joint implies pi_B for both agents (delta_Q=+1.0). Zero such conflicts exist in single_macro, which is moot now that SEQUENCE was chosen.",
+    "RULE_FROZEN_JOINT_PRECEDENCE": {
+      "rule": "wherever a joint segment exists for a state (i.e. every both-free state), it ALONE supervises both agents there. The individual agent0 and agent1 segments for that same state are EXCLUDED from the training loader.",
+      "why": "the deployed policy is a single joint controller, and joint full-takeover is the intervention that matches what training is trying to reproduce -- coordinated behaviour, not two independently-acting specialists. A weighted blend of contradictory targets was rejected: it would let the loss be minimised by hedging between pi_A and pi_B rather than teaching either measurement.",
+      "kept_in_the_artifact": "the excluded individual segments remain in CCP_PHASE1_CAUSAL_BRANCHING.json and the paper's descriptive analysis. Exclusion is from the TRAINING loader only.",
+      "consequence": "every state reduces to exactly one training signal per agent; the described contradiction is now structurally unrepresentable in the loader's output, the same discipline used for the record-level routing invariant."
+    },
+    "LAMBDA_CAUSAL_FROZEN": {
+      "value": 0.05,
+      "matches": "lambda_tau, V3's trajectory-identity PG term",
+      "why_this_precedent": "the closest structural analog in this codebase: a signed, per-decision auxiliary POLICY loss, not a blanket paired-state loss like lambda_ogpsp (0.1, applied unconditionally to every resolved state). V3 trained without divergence at this strength and it was sufficient to reach TRAJECTORY_IDENTITY_CONFIRMED.",
+      "not_derived_from_phase_1_delta_Q_magnitudes": "per the standing rule in this contract; chosen from prior-run precedent instead"
+    }
   }
 }
