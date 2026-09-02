@@ -91,5 +91,22 @@
       "why_this_precedent": "the closest structural analog in this codebase: a signed, per-decision auxiliary POLICY loss, not a blanket paired-state loss like lambda_ogpsp (0.1, applied unconditionally to every resolved state). V3 trained without divergence at this strength and it was sufficient to reach TRAJECTORY_IDENTITY_CONFIRMED.",
       "not_derived_from_phase_1_delta_Q_magnitudes": "per the standing rule in this contract; chosen from prior-run precedent instead"
     }
+  },
+  "AMENDMENT_4_INIT_SOURCE_AND_CRITIC_ARCHITECTURE": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-02T01:10:00Z",
+    "authority": "PI, 2026-09-02, flagged as unresolved before launch: 'I would resolve that before launch rather than let the runner's default decide it silently'",
+    "gap_found": "neither the initialization source nor the private-critic-heads architecture was ever actually frozen in this contract, despite the original 4-layer plan naming the critic-heads question explicitly. Found while assembling the launch skeleton, before any runner config was written.",
+    "INIT_SOURCE_FRESH": {
+      "decision": "fresh_step_0 = True, checkpoint_weights_loaded = False, optimizer_state_reused = False",
+      "precedent": "unbroken across every run in the program: V1, OG-PSP, V3, V4 all used fresh_step_0=True. Warm-starting from V4 would be the first departure.",
+      "why_not_warm_start": "V4's own mechanism diagnostic found IDENTITY_DEGRADED (z0 lost its A-like identity against Pole B). Warm-starting risks that residual pathology persisting as an inductive bias, confounding attribution of a crossover result (or a continued failure) between the new causal-supervision mechanism and inherited V4 structure -- exactly the kind of confound this program has repeatedly refused to introduce.",
+      "cost_accepted": "the successor does not start from V4's task competence; it re-learns from scratch under task PPO + causal supervision together, as every prior run in the ladder did"
+    },
+    "CRITIC_ARCHITECTURE_PRIVATE_HEADS_KEPT": {
+      "decision": "rasr_private_critic_heads = True, unchanged from V4",
+      "why": "V4 established the mechanism itself works: both_critic_heads_live=True, row_balance_ratio=0.9997. V4's failure was IDENTITY_DEGRADED plus a dead-flat payoff tie -- not evidence the private-critic axis is broken. Dropping it now would silently reintroduce the shared-critic/private-actor asymmetry that motivated building V4 in the first place (the MultiCriticAL failure mode V3's postmortem identified).",
+      "note": "since init source is fresh (not warm-start), this is a free architectural choice made on its own merits, not one forced by a loaded checkpoint's shape"
+    }
   }
 }

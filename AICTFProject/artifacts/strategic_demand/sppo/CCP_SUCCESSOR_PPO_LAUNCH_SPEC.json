@@ -1,0 +1,73 @@
+{
+  "record_id": "CCP_SUCCESSOR_PPO_LAUNCH_SPEC",
+  "status": "FROZEN_BEFORE_LAUNCH",
+  "utc": "2026-09-02T01:15:00Z",
+  "authority": "PI, 2026-09-02, final skeleton before LAUNCH",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "name": "CCP SUCCESSOR PPO",
+
+  "SEEDS": {
+    "training_seed": 11600001,
+    "eval_seeds": "11600101..11600132",
+    "eval_status": "SEALED until terminal checkpoint frozen",
+    "namespace_note": "next clean block, mirroring the previous 32-seed crossover blocks, disjoint from 113xxxxx (V3), 114xxxxx (V4), 115xxxxx (Phase 0/1). No scientific meaning beyond being chosen prospectively."
+  },
+
+  "MODE": {
+    "training_mode": "SEQUENCE",
+    "segment_duration": "episode termination",
+    "causal_bank": "frozen 20-segment bank (rl/causal_segment_bank.py against CCP_PHASE1_CAUSAL_BRANCHING.json, commit 4532e103)",
+    "nonzero_segments": 7,
+    "joint_precedence": true
+  },
+
+  "CAUSAL_OBJECTIVE": {
+    "lambda_causal": 0.05,
+    "weight": "abs(delta_q)",
+    "teacher": "derived from sign(delta_q)",
+    "latent_assignment": "Pole A -> z0, Pole B -> z1, never flipped",
+    "decision_predicate": "commit_ticks_left <= 0",
+    "committed_heads": "excluded from numerator AND denominator (rl/causal_supervision.py, commit d4ffe75e)"
+  },
+
+  "ARCHITECTURE_AND_INIT": {
+    "init_source": "FRESH. fresh_step_0=True, checkpoint_weights_loaded=False, optimizer_state_reused=False -- unbroken precedent across V1/OG-PSP/V3/V4 (amendment 4)",
+    "inherited_mechanically_validated_pieces": ["task PPO", "static persistent z", "private latent actor capacity (LRO deep branches)", "decision masking", "private critic heads (rasr_private_critic_heads=True, amendment 4)"],
+    "seed_and_env": "seed 11600001, mode FIXED_OPPONENT, opponent_randomize=False, latent_k=2, static_env latent assignment -- matching the ladder's unchanged environment convention"
+  },
+
+  "TASK_PURITY": {
+    "task_reward": "UNCHANGED",
+    "returns_gae_targets": "UNCHANGED",
+    "model_selection": "NONE",
+    "verified_by": "tests/test_causal_task_purity.py (commit 0f01fe31), bitwise equality on rewards/values/next_values/terminated/truncated/advantages/returns with causal supervision on vs off"
+  },
+
+  "PRELAUNCH_GATES_ALL_GREEN": {
+    "decision_mask_and_weight_scaling_and_routing": "tests/test_causal_supervision.py (10 tests, 6cff3568)",
+    "task_objective_purity": "tests/test_causal_task_purity.py (3 tests, 0f01fe31)",
+    "live_state_gradient": "tests/test_causal_live_state_gradient.py (5 tests, 0f01fe31)",
+    "composition_smoke": "tests/test_causal_composition_smoke.py (1 test, 6 live steps, 9ccde023)",
+    "segment_bank_against_real_data": "tests/test_causal_segment_bank.py (8 tests, 4532e103)",
+    "total": "44 tests pass together, 0 failures, no cross-test interference"
+  },
+
+  "CROSSOVER_GATE_UNCHANGED": {
+    "delta_A": "V(z0,A) - V(z1,A)",
+    "delta_B": "V(z1,B) - V(z0,B)",
+    "gate": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0",
+    "scored_on": "the fresh EVAL block above, terminal checkpoint only, one-shot",
+    "this_is_the_only_crossover_claim_this_program_will_make": "per Phase 1 amendment 7's language rule -- causal specialist leverage at measured boundaries is not crossover and is not evidence of crossover"
+  },
+
+  "STANDING_RULES_CARRIED_FORWARD": [
+    "terminal checkpoint only; all periodic checkpoint hashes recorded",
+    "no model selection on EVAL",
+    "EVAL sealed until the terminal checkpoint is frozen and validated",
+    "one-shot EVAL, no re-run, no re-analysis",
+    "failure recorded, never rewritten",
+    "no V5-style further reopening on this axis if this fails: SEQUENCE was chosen once, deliberately, not to be revisited mid-run"
+  ],
+
+  "NEXT": "freeze the production runner (reusing run_hog_psp_v4_production.py's structure: build_config, composition verify, then launch), verify composition on a short step count, then launch the real 1M-step run"
+}
