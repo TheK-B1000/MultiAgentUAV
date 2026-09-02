@@ -1,0 +1,55 @@
+{
+  "record": "Figure 2 data provenance manifest",
+  "generator": "K:\\MultiAgentUAV\\AICTFProject\\paper\\data\\extract_fig2_data.py",
+  "note": "CCP-S2 (Causal Commitment Distillation) not yet included -- no eval result exists yet. extract_final_eval.py appends it once CCP-S2's own EVAL_RESULT.json is frozen.",
+  "methods": [
+    {
+      "public_name": "Specialists",
+      "internal_name": "SAPPO",
+      "source_path": "artifacts/strategic_demand/sappo_crossover/summary.json",
+      "source_commit": "17fd8f87f536da326bfaf70499ddc231286007a1",
+      "status": "SAPPO V1 crossover gate",
+      "verdict": "SAPPO_V1_CROSSOVER_CONFIRMED"
+    },
+    {
+      "public_name": "One-Sided Latent",
+      "internal_name": "V1 (Oracle-Gated K=2)",
+      "source_path": "artifacts/strategic_demand/sppo/ORACLE_GATED_K2_EVAL_RESULT.json",
+      "source_commit": "ff4d36efa61a156e619151ceecc5489d4e2d7e1f",
+      "status": "FROZEN_RESULT",
+      "verdict": "ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED"
+    },
+    {
+      "public_name": "Paired Latent",
+      "internal_name": "OG-PSP",
+      "source_path": "artifacts/strategic_demand/sppo/OG_PSP_EVAL_RESULT.json",
+      "source_commit": "5183f29625f5106b8b27302853fb40234e728fb8",
+      "status": "FROZEN_RESULT",
+      "verdict": "OG_PSP_CROSSOVER_NOT_CONFIRMED"
+    },
+    {
+      "public_name": "Trajectory-Guided",
+      "internal_name": "H-OG-PSP V3",
+      "source_path": "artifacts/strategic_demand/sppo/HOG_PSP_V3_EVAL_RESULT.json",
+      "source_commit": "9e1684a68df2d6354e047ed526d5bd740f62e3a8",
+      "status": "FROZEN_RESULT",
+      "verdict": "HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED"
+    },
+    {
+      "public_name": "Private-Critic",
+      "internal_name": "H-OG-PSP V4",
+      "source_path": "artifacts/strategic_demand/sppo/HOG_PSP_V4_EVAL_RESULT.json",
+      "source_commit": "ab9ddd7e5ef13b59eff895da9d2e34985f4390bb",
+      "status": "FROZEN_RESULT",
+      "verdict": "HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED"
+    },
+    {
+      "public_name": "Final Latent Baseline",
+      "internal_name": "CCP successor (CCP-S2's warm-start incumbent)",
+      "source_path": "artifacts/strategic_demand/sppo/CCP_SUCCESSOR_EVAL_RESULT.json",
+      "source_commit": "698d5ea68dc17cb2efa4bdd280bf3b61ded60aed",
+      "status": "FROZEN_RESULT",
+      "verdict": "CCP_SUCCESSOR_CROSSOVER_NOT_CONFIRMED"
+    }
+  ]
+}

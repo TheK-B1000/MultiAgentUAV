@@ -1,0 +1,13 @@
+method,pole,delta,ci_low,ci_high,passes,verdict,internal_name,source_path,source_commit
+Specialists,A,0.22395833333333334,0.125,0.3177083333333333,True,SAPPO_V1_CROSSOVER_CONFIRMED,SAPPO,artifacts/strategic_demand/sappo_crossover/summary.json,17fd8f87f536da326bfaf70499ddc231286007a1
+Specialists,B,0.21875,0.13020833333333334,0.3072916666666667,True,SAPPO_V1_CROSSOVER_CONFIRMED,SAPPO,artifacts/strategic_demand/sappo_crossover/summary.json,17fd8f87f536da326bfaf70499ddc231286007a1
+One-Sided Latent,A,-0.03125,-0.25,0.15625,False,ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED,V1 (Oracle-Gated K=2),artifacts/strategic_demand/sppo/ORACLE_GATED_K2_EVAL_RESULT.json,ff4d36efa61a156e619151ceecc5489d4e2d7e1f
+One-Sided Latent,B,0.125,-0.09375,0.34375,False,ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED,V1 (Oracle-Gated K=2),artifacts/strategic_demand/sppo/ORACLE_GATED_K2_EVAL_RESULT.json,ff4d36efa61a156e619151ceecc5489d4e2d7e1f
+Paired Latent,A,0.0625,-0.125,0.25,False,OG_PSP_CROSSOVER_NOT_CONFIRMED,OG-PSP,artifacts/strategic_demand/sppo/OG_PSP_EVAL_RESULT.json,5183f29625f5106b8b27302853fb40234e728fb8
+Paired Latent,B,0.0,-0.1875,0.1875,False,OG_PSP_CROSSOVER_NOT_CONFIRMED,OG-PSP,artifacts/strategic_demand/sppo/OG_PSP_EVAL_RESULT.json,5183f29625f5106b8b27302853fb40234e728fb8
+Trajectory-Guided,A,-0.03125,-0.21875,0.15625,False,HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED,H-OG-PSP V3,artifacts/strategic_demand/sppo/HOG_PSP_V3_EVAL_RESULT.json,9e1684a68df2d6354e047ed526d5bd740f62e3a8
+Trajectory-Guided,B,-0.15625,-0.40625,0.09375,False,HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED,H-OG-PSP V3,artifacts/strategic_demand/sppo/HOG_PSP_V3_EVAL_RESULT.json,9e1684a68df2d6354e047ed526d5bd740f62e3a8
+Private-Critic,A,0.0,-0.21875,0.21875,False,HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED,H-OG-PSP V4,artifacts/strategic_demand/sppo/HOG_PSP_V4_EVAL_RESULT.json,ab9ddd7e5ef13b59eff895da9d2e34985f4390bb
+Private-Critic,B,0.0,-0.21875,0.21875,False,HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED,H-OG-PSP V4,artifacts/strategic_demand/sppo/HOG_PSP_V4_EVAL_RESULT.json,ab9ddd7e5ef13b59eff895da9d2e34985f4390bb
+Final Latent Baseline,A,0.09375,-0.09375,0.28125,False,CCP_SUCCESSOR_CROSSOVER_NOT_CONFIRMED,CCP successor (CCP-S2's warm-start incumbent),artifacts/strategic_demand/sppo/CCP_SUCCESSOR_EVAL_RESULT.json,698d5ea68dc17cb2efa4bdd280bf3b61ded60aed
+Final Latent Baseline,B,-0.15625,-0.375,0.0625,False,CCP_SUCCESSOR_CROSSOVER_NOT_CONFIRMED,CCP successor (CCP-S2's warm-start incumbent),artifacts/strategic_demand/sppo/CCP_SUCCESSOR_EVAL_RESULT.json,698d5ea68dc17cb2efa4bdd280bf3b61ded60aed

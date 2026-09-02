@@ -93,6 +93,11 @@ def apply_style() -> None:
         "ps.fonttype": 42,
         "svg.fonttype": "none",
         "text.usetex": False,      # native mathtext, so pdf.fonttype=42 embedding still applies
+        # mathtext ($...$) does NOT follow font.family on its own -- left at the matplotlib
+        # default it silently renders in DejaVu Sans even while every other string correctly
+        # uses Times New Roman. 'stix' is a Times-metric-compatible serif math font, the
+        # standard pairing for Times-based scientific typesetting.
+        "mathtext.fontset": "stix",
     })
 
 
