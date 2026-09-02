@@ -1,0 +1,105 @@
+{
+  "record": "CCP successor held-out payoff EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-02T07:02:42Z",
+  "implements": "CCP_SUCCESSOR_EVAL_SPEC.json",
+  "VERDICT": "CCP_SUCCESSOR_CROSSOVER_NOT_CONFIRMED",
+  "trajectory_identity_frozen_before_eval": "TRAJECTORY_IDENTITY_CONFIRMED",
+  "training_validity_frozen_before_eval": "VALID",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/ccp_successor_production/ckpts/final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "verified_at_eval_time": true,
+    "terminal_only": true
+  },
+  "seeds": {
+    "block": [
+      11600101,
+      11600132
+    ],
+    "n": 32
+  },
+  "payoff_matrix": {
+    "z0|A": {
+      "mean": 0.84375,
+      "lcb95": 0.71875,
+      "ucb95": 0.96875
+    },
+    "z1|A": {
+      "mean": 0.75,
+      "lcb95": 0.59375,
+      "ucb95": 0.875
+    },
+    "z0|B": {
+      "mean": 0.71875,
+      "lcb95": 0.5625,
+      "ucb95": 0.875
+    },
+    "z1|B": {
+      "mean": 0.5625,
+      "lcb95": 0.40625,
+      "ucb95": 0.71875
+    },
+    "pi_A|A": {
+      "mean": 0.6875,
+      "lcb95": 0.53125,
+      "ucb95": 0.84375
+    },
+    "pi_B|B": {
+      "mean": 0.59375,
+      "lcb95": 0.40625,
+      "ucb95": 0.75
+    }
+  },
+  "delta_A": {
+    "mean": 0.09375,
+    "lcb95": -0.09375,
+    "ucb95": 0.28125,
+    "passes": false
+  },
+  "delta_B": {
+    "mean": -0.15625,
+    "lcb95": -0.375,
+    "ucb95": 0.0625,
+    "passes": false
+  },
+  "gate": "BOTH delta lcb95 > 0",
+  "retention_context_only_not_a_gate": {
+    "mean": 1.1027022076146857,
+    "lcb95": 0.8780487804878049,
+    "ucb95": 1.3421052631578947
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "unchanged from V4/V3/OG-PSP/V1"
+  },
+  "mechanism_context_frozen_before_the_result": {
+    "reading": "TRAJECTORY_IDENTITY_CONFIRMED",
+    "delta_tau_A": {
+      "mean": 9.941796987617,
+      "lcb95": 9.117474128039113,
+      "ucb95": 10.707978681987232,
+      "n": 32,
+      "passes": true
+    },
+    "delta_tau_B": {
+      "mean": 26.477054202459517,
+      "lcb95": 24.20224251906905,
+      "ucb95": 28.76744871054282,
+      "n": 32,
+      "passes": true
+    },
+    "R": {
+      "A": 1.7107250342575686,
+      "B": 3.916558640738674
+    },
+    "interpretation_if_fail": "with training validity and trajectory identity both independently confirmed and frozen beforehand, a failure isolates the open question to whether sparse causal support from 7 payoff-bearing segments transfers broadly enough to move deployment payoff."
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 192
+}

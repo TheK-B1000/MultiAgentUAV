@@ -1,0 +1,163 @@
+{
+  "record": "CCP successor EVAL integrity audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-02T07:02:54Z",
+  "question": "Is the Pole-B reversal (delta_B < 0, first observed as a raw point-estimate reversal while the EVAL run was still in flight) a real behavioural result, or an evaluator defect such as a transposed latent?",
+  "why_this_matters_here": "This successor's own mechanism diagnostic found Pole B the STRONGEST trajectory-identity cell in the entire program (32/32 seed-level separation, delta_tau_B +26.4771). A payoff reversal on the pole with the strongest confirmed identity separation is exactly the pattern a latent transposition would produce, so it is excluded explicitly rather than by assumption -- the same standard V3's genuine reversal was held to.",
+  "VERDICT": "GENUINE_REVERSAL",
+  "checks": {
+    "1_not_byte_identical": {
+      "pole_A": {
+        "differing_seeds": 27,
+        "identical_seeds": 5
+      },
+      "pole_B": {
+        "differing_seeds": 26,
+        "identical_seeds": 6
+      },
+      "passed": true
+    },
+    "2_per_seed_outcomes": {
+      "pole_B": {
+        "seeds_differing_in_win": [
+          11600106,
+          11600111,
+          11600112,
+          11600114,
+          11600116,
+          11600117,
+          11600121,
+          11600123,
+          11600126,
+          11600127,
+          11600128,
+          11600130,
+          11600131
+        ],
+        "z0_won_z1_lost": [
+          11600106,
+          11600111,
+          11600112,
+          11600114,
+          11600117,
+          11600121,
+          11600126,
+          11600128,
+          11600130
+        ],
+        "z1_won_z0_lost": [
+          11600116,
+          11600123,
+          11600127,
+          11600131
+        ]
+      },
+      "pole_A": {
+        "seeds_differing_in_win": [
+          11600103,
+          11600108,
+          11600109,
+          11600113,
+          11600114,
+          11600116,
+          11600118,
+          11600121,
+          11600122,
+          11600126,
+          11600127
+        ],
+        "z0_won_z1_lost": [
+          11600103,
+          11600108,
+          11600109,
+          11600114,
+          11600116,
+          11600118,
+          11600122
+        ],
+        "z1_won_z0_lost": [
+          11600113,
+          11600121,
+          11600126,
+          11600127
+        ]
+      }
+    },
+    "2b_margin_level_divergence": {
+      "pole_A_seeds_with_different_margin": 24,
+      "pole_B_seeds_with_different_margin": 25
+    },
+    "3_deltas_recomputed_from_rows": {
+      "delta_A": {
+        "recomputed": {
+          "mean": 0.09375,
+          "lcb95": -0.09375,
+          "ucb95": 0.28125
+        },
+        "frozen": {
+          "mean": 0.09375,
+          "lcb95": -0.09375,
+          "ucb95": 0.28125,
+          "passes": false
+        },
+        "matches": true
+      },
+      "delta_B": {
+        "recomputed": {
+          "mean": -0.15625,
+          "lcb95": -0.375,
+          "ucb95": 0.0625
+        },
+        "frozen": {
+          "mean": -0.15625,
+          "lcb95": -0.375,
+          "ucb95": 0.0625,
+          "passes": false
+        },
+        "matches": true
+      }
+    },
+    "4_provenance": {
+      "duplicate_rows": 0,
+      "missing_cells": [],
+      "seed_block": [
+        11600101,
+        11600132
+      ],
+      "total_rows": 192,
+      "checkpoint_sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "same_checkpoint_as_mechanism_diagnostic": true
+    },
+    "5_latent_swap_test": {
+      "pole_B_if_z0_z1_were_transposed": {
+        "delta_B": {
+          "mean": 0.15625,
+          "lcb95": -0.0625,
+          "ucb95": 0.375
+        },
+        "would_pass_the_gate": false
+      },
+      "reading": "A transposition is the failure mode a reversal most resembles, so it is tested explicitly. This does NOT by itself prove a swap occurred -- the same numbers arise if the latents genuinely perform in the observed direction. It is reported so the possibility is on the record."
+    },
+    "5b_cross_instrument_agreement": {
+      "mechanism_diagnostic": {
+        "reading": "TRAJECTORY_IDENTITY_CONFIRMED",
+        "pole_B_seed_level_separation_pct": 100.0,
+        "delta_tau_B": 26.477054202459517,
+        "episodes_with_live_latent_verified": null,
+        "of": null,
+        "code_path": "experiments/diagnose_ccp_successor_mechanism.py"
+      },
+      "eval_evidence_of_liveness_pole_B": {
+        "seeds_differing_in_any_field": 26,
+        "seeds_differing_in_win": 13,
+        "seeds_differing_in_margin": 25
+      },
+      "agree": true,
+      "reading": "The diagnostic independently confirmed the latents differ strongly on Pole B via a different rollout code path on the same checkpoint. If EVAL rows showed no latent effect on Pole B, the two instruments would contradict each other."
+    }
+  },
+  "conclusion": "The reversal is a real behavioural result, not an evaluator defect.",
+  "changes_no_verdict": true,
+  "failures": []
+}
