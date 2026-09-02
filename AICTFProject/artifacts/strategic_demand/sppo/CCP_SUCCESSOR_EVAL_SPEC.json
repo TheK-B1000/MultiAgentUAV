@@ -1,0 +1,93 @@
+{
+  "record_id": "CCP_SUCCESSOR_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_EVAL_IS_OPENED",
+  "utc": "2026-09-02T05:40:00Z",
+  "authority": "PI, 2026-09-02: 'OPEN EVAL. Use only the frozen terminal checkpoint, only 11600101..11600132, no periodic checkpoints, no reruns, no substitutions, no seed expansion. Let the crossed payoff test speak.'",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+
+  "THE_QUESTION": "Does causal-advantage SEQUENCE supervision -- winner-directed, built from measured terminal-payoff effect rather than teacher disagreement -- produce complementary strategic payoff?",
+
+  "CLAIMS_SEPARATED_BEFORE_EVAL": {
+    "training_validity": "VALID in CCP_SUCCESSOR_MODEL_FROZEN.json, commit d25ad264, established before this protocol existed",
+    "trajectory_identity": "TRAJECTORY_IDENTITY_CONFIRMED in CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json, commit 4a6e4239, frozen before this protocol existed. delta_tau_A +9.9418 [+9.1175,+10.7080], delta_tau_B +26.4771 [+24.2022,+28.7674], R_A 1.71 / R_B 3.92 -- the widest margin in the program.",
+    "strategic_payoff_crossover": "UNEVALUATED until this one-shot protocol completes",
+    "rule": "The non-gating mechanism result cannot substitute for or withhold the payoff gate, and payoff cannot retroactively change the frozen mechanism wording. A confirmed identity does NOT predict a confirmed crossover -- V3 had identity confirmed and payoff REVERSED."
+  },
+
+  "MODEL_UNDER_TEST": {
+    "checkpoint": "final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "frozen_in": "CCP_SUCCESSOR_MODEL_FROZEN.json, commit d25ad264",
+    "terminal_checkpoint_only": true,
+    "periodic_checkpoints_ineligible": true,
+    "attempt_note": "attempt 2. Attempt 1's checkpoints (ABORTED_FOR_OBSERVABILITY) are ineligible for everything and are not in this run's lineage."
+  },
+
+  "SEEDS": {
+    "block": "11600101..11600132",
+    "n": 32,
+    "preflight": "declared SEALED in CCP_SUCCESSOR_PPO_LAUNCH_SPEC.json before training began; recorded untouched at terminal freeze (EVAL_STATE_AT_FREEZE.touched=false) and by the mechanism diagnostic (CCP_EVAL_touched=false)",
+    "never_used_for": ["training", "causal segment measurement (Phase 1 used 115xxxxx)",
+                       "sequence bank construction", "calibration", "mechanism diagnostics",
+                       "any prior evaluation"],
+    "no_seed_expansion": "the block is exactly 32 seeds. It may not be widened, resampled, or supplemented under any outcome."
+  },
+
+  "CELLS": {
+    "primary": ["z0 on Pole A", "z1 on Pole A", "z0 on Pole B", "z1 on Pole B"],
+    "secondary_context_only": ["pi_A on Pole A", "pi_B on Pole B"],
+    "pole_A": "OP6 + SDS2_A_payoff_INIT_3 overlay",
+    "pole_B": "OP7, no overlay",
+    "design_unchanged": "identical six-cell design to V3's and V4's EVAL, itself carried from OG-PSP and V1"
+  },
+
+  "PRIMARY_GATE_CROSSOVER": {
+    "metric": "episode win indicator (blue_score > red_score), per evaluation seed",
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "statistic": "paired percentile bootstrap over seed-level episode outcomes",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "Carried forward UNCHANGED from HOG_PSP_V4_EVAL_SPEC.json, HOG_PSP_V3_EVAL_SPEC.json, OG_PSP_EVAL_SPEC.json, V1, and EXP2C. Point estimates alone do not pass.",
+    "verdict_labels": {
+      "pass": "CCP_SUCCESSOR_CROSSOVER_CONFIRMED",
+      "fail": "CCP_SUCCESSOR_CROSSOVER_NOT_CONFIRMED"
+    }
+  },
+
+  "SECONDARY_CONTEXT_ONLY_NOT_A_GATE": {
+    "retention": "mean(z0|A, z1|B) / mean(pi_A|A, pi_B|B), ratio CI. Reported for context; cannot pass or fail anything.",
+    "cross_evaluation_matrix": "all six cells with seed-level CIs, reported for the paper"
+  },
+
+  "ONE_SHOT": {
+    "rule": "this evaluator runs exactly once. If it produces output files, they are the result.",
+    "no_rerun": "no rerun under any outcome, for any reason, including a suspected environment or infrastructure issue -- such a suspicion must be investigated on the EXISTING rows, exactly as OG-PSP's GENUINE_TIE and V3's GENUINE_REVERSAL audits were",
+    "no_substitution": "no checkpoint substitution, no seed substitution, no estimator substitution",
+    "enforced_by": "the evaluator refuses to start if either output file already exists"
+  },
+
+  "PREREGISTERED_READINGS": {
+    "CCP_SUCCESSOR_CROSSOVER_CONFIRMED": "both LCB95 > 0. The full chain closes: measured causal leverage -> winner-directed sequence supervision -> confirmed latent trajectory differentiation -> complementary strategic payoff.",
+    "CCP_SUCCESSOR_CROSSOVER_NOT_CONFIRMED": "at least one LCB95 <= 0. Given training validity and trajectory identity are BOTH already confirmed and frozen, this outcome would isolate the remaining question sharply: whether sparse causal support learned from 7 payoff-bearing segments transfers broadly enough to move deployment payoff. It would NOT be attributable to latent collapse, weak behavioural differentiation, absent trajectory identity, critic-head interference, or treatment instantiation -- each of which is independently ruled out by a frozen prior record.",
+    "an_exact_tie_or_reversal": "if either delta is exactly 0.0 or reversed, a row-level integrity audit is REQUIRED before the result is treated as scientific, written before its rows are read -- the standing rule from OG-PSP's GENUINE_TIE and V3's GENUINE_REVERSAL."
+  },
+
+  "WHAT_THIS_EVAL_MAY_NOT_DO": [
+    "select or substitute a checkpoint",
+    "expand, resample, or supplement the seed block",
+    "alter the gate, the bootstrap settings, or the estimator",
+    "be re-run after its numbers are seen",
+    "retroactively modify the frozen mechanism or validity records"
+  ],
+
+  "PROVENANCE": {
+    "terminal_freeze": "CCP_SUCCESSOR_MODEL_FROZEN.json (d25ad264)",
+    "mechanism_diagnostic": "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json (4a6e4239)",
+    "launch_spec": "CCP_SUCCESSOR_PPO_LAUNCH_SPEC.json (960aed21)",
+    "predecessor_eval_spec_and_scorer": "HOG_PSP_V4_EVAL_SPEC.json / experiments/eval_hog_psp_v4.py"
+  }
+}
