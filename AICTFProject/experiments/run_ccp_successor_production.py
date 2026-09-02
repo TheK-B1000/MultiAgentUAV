@@ -143,6 +143,7 @@ def main() -> int:
     )
     from rl import launch_audit_hooks as hooks
     from rl.causal_segment_bank import build_segment_bank, segment_bank_hash
+    from rl.causal_sequence_diagnostics import install_diagnostics_reporter
     from rl.causal_sequence_runner import CausalSequenceRunner
     from rl.launch_gate import (
         LaunchGateError, check_fresh_training, check_opponent_mode, format_checks,
@@ -216,6 +217,9 @@ def main() -> int:
             trainer, SEQUENCE_NPZ, SEQUENCE_META, lam=LAMBDA_CAUSAL, cadence=CADENCE,
             batch_rows=BATCH_ROWS, expected_bank_hash=fresh_hash,
             device=str(getattr(trainer, "device", "cpu")))
+        # Observability only -- wraps the INSTANCE, changes nothing about what step() computes.
+        # Proven behaviour-neutral: tests/test_causal_sequence_diagnostics_neutral.py.
+        state["seq_note_original"] = install_diagnostics_reporter(state["seq"], every=1)
         trainer.oracle_rehearsal_runner = state["seq"]
         m = trainer.model
         state["private_before"] = {n: p.detach().cpu().numpy().copy()
@@ -243,6 +247,9 @@ def main() -> int:
         print(f"\n  RUN TERMINATED BY AN INVARIANT: {exc}")
     finally:
         _restore_legacy_tripwires(originals)
+        if "seq" in state and "seq_note_original" in state:
+            from rl.causal_sequence_diagnostics import restore as _restore_diag
+            _restore_diag(state["seq"], state["seq_note_original"])
 
     auditor = state.get("auditor")
     seq = state.get("seq")
