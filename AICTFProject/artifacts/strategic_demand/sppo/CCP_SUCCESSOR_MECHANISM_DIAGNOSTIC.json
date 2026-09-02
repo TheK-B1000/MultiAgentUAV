@@ -1,0 +1,401 @@
+{
+  "record": "CCP successor mechanism diagnostic",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-02T05:08:52Z",
+  "implements": "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC_SPEC.json",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/ccp_successor_production/ckpts/final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "hard_bound_in_script": true
+  },
+  "STRICTLY_NOT_A_GATE": "Does not select checkpoints, alter the treatment, or decide whether EVAL runs. A weak or surprising reading does NOT withhold the payoff EVAL, per the frozen spec's rule 3.",
+  "READING": "TRAJECTORY_IDENTITY_CONFIRMED",
+  "meaning": "Correct ordering on BOTH poles with paired-bootstrap LCB95 > 0 on both.",
+  "INTERPRETIVE_NOTE_DESCRIPTIVE_ONLY": {
+    "applies_regardless_of_the_categorical_reading_above": true,
+    "training_objective_was_localised_not_uniform": "unlike V1-V4, this successor was never trained to maximise a uniform A-identity for z0 or B-identity for z1 across the state space; it was trained on 7 specific measured causal segments, one of which (11500105|A|83) has a NEGATIVE delta_Q, meaning z0 was deliberately taught toward pi_B there.",
+    "nonzero_segments_by_pole": {
+      "A": [
+        {
+          "state_id": "11500103|A|55",
+          "estimand": "agent0",
+          "delta_Q_hat": 1.0
+        },
+        {
+          "state_id": "11500105|A|83",
+          "estimand": "agent1",
+          "delta_Q_hat": -1.0
+        },
+        {
+          "state_id": "11500105|A|127",
+          "estimand": "agent1",
+          "delta_Q_hat": 1.0
+        }
+      ],
+      "B": [
+        {
+          "state_id": "11500105|B|127",
+          "estimand": "agent1",
+          "delta_Q_hat": 1.0
+        },
+        {
+          "state_id": "11500105|B|104",
+          "estimand": "agent1",
+          "delta_Q_hat": 1.0
+        },
+        {
+          "state_id": "11500105|B|133",
+          "estimand": "agent0",
+          "delta_Q_hat": -1.0
+        },
+        {
+          "state_id": "11500105|B|133",
+          "estimand": "agent1",
+          "delta_Q_hat": 1.0
+        },
+        {
+          "state_id": "11500105|B|133",
+          "estimand": "joint",
+          "delta_Q_hat": 1.0
+        },
+        {
+          "state_id": "11500107|B|161",
+          "estimand": "agent0",
+          "delta_Q_hat": 1.0
+        },
+        {
+          "state_id": "11500107|B|161",
+          "estimand": "joint",
+          "delta_Q_hat": 1.0
+        }
+      ]
+    },
+    "reading_this_note_supports": "a CALIB-level result weaker than V3/V4's under the SAME unchanged ruler is consistent with either (a) the mechanism failing to preserve anything, or (b) the mechanism correctly localising behaviour to measured segments rather than generalising a global identity the objective never asked for. This diagnostic cannot distinguish (a) from (b) on CALIB alone; it is recorded as an open question for the paper, not resolved here."
+  },
+  "sign_convention_reasserted_at_runtime": "decision_function positive = pi_B-like; classes_ verified [0,1] for both D",
+  "architecture_verified": {
+    "private_z_heads": true
+  },
+  "LAYER_1_state_level": {
+    "n_resolvable": 145,
+    "z0_z1_jsd_nats": 0.14058087088482793,
+    "crossed_teacher_match": {
+      "A_preferred": {
+        "z0_own": 0.6605263157894737,
+        "z1_crossed": 0.6921052631578948,
+        "gap_pp": -3.157894736842104,
+        "n": 95
+      },
+      "B_preferred": {
+        "z1_own": 0.705,
+        "z0_crossed": 0.73,
+        "gap_pp": -2.500000000000002,
+        "n": 50
+      }
+    },
+    "reference": {
+      "V1_CALIB_jsd_nats": 0.006589,
+      "OG_PSP_CALIB_jsd_nats": 0.042102,
+      "V3_CALIB_jsd_nats": 0.10862136199379918,
+      "V4_CALIB_jsd_nats": 0.08192162030890326
+    }
+  },
+  "LAYER_2_trajectory_identity": {
+    "delta_tau_A": {
+      "mean": 9.941796987617,
+      "lcb95": 9.117474128039113,
+      "ucb95": 10.707978681987232,
+      "n": 32,
+      "passes": true
+    },
+    "delta_tau_B": {
+      "mean": 26.477054202459517,
+      "lcb95": 24.20224251906905,
+      "ucb95": 28.76744871054282,
+      "n": 32,
+      "passes": true
+    },
+    "descriptive": {
+      "z0|A": {
+        "mean_raw_score": -8.740955762218276,
+        "pct_classified_pi_B_like": 0.0,
+        "pct_classified_pi_A_like": 100.0
+      },
+      "z0|B": {
+        "mean_raw_score": -15.057006539427654,
+        "pct_classified_pi_B_like": 0.0,
+        "pct_classified_pi_A_like": 100.0
+      },
+      "z1|A": {
+        "mean_raw_score": 1.2008412253987242,
+        "pct_classified_pi_B_like": 87.5,
+        "pct_classified_pi_A_like": 12.5
+      },
+      "z1|B": {
+        "mean_raw_score": 11.420047663031863,
+        "pct_classified_pi_B_like": 100.0,
+        "pct_classified_pi_A_like": 0.0
+      },
+      "pct_seeds_different_label_pole_A": 87.5,
+      "pct_seeds_different_label_pole_B": 100.0
+    },
+    "per_seed_scores": {
+      "z0|A": {
+        "10700097": -10.000469877173948,
+        "10700098": -4.792158737018093,
+        "10700099": -7.918074596342066,
+        "10700100": -4.079387518013888,
+        "10700101": -5.545515426773398,
+        "10700102": -6.539703248663101,
+        "10700103": -9.095210512004943,
+        "10700104": -6.238327032954989,
+        "10700105": -9.47060939306392,
+        "10700106": -9.254864909072674,
+        "10700107": -9.55379736965042,
+        "10700108": -7.671249504429438,
+        "10700109": -10.265116206943155,
+        "10700110": -9.3077048486438,
+        "10700111": -12.404399921806187,
+        "10700112": -7.647803047392563,
+        "10700113": -8.350356672824846,
+        "10700114": -10.770181200156502,
+        "10700115": -9.759738748401961,
+        "10700116": -11.22273987933505,
+        "10700117": -6.749717423301696,
+        "10700118": -7.500768253836741,
+        "10700119": -9.813841110584104,
+        "10700120": -10.36437158464313,
+        "10700121": -8.76685573191635,
+        "10700122": -8.922218199034022,
+        "10700123": -9.668121765827536,
+        "10700124": -9.435485308663301,
+        "10700125": -8.47191799793295,
+        "10700126": -13.70677596507405,
+        "10700127": -6.844870704718805,
+        "10700128": -9.578231694787187
+      },
+      "z0|B": {
+        "10700097": -18.018148291803715,
+        "10700098": -18.715691064861623,
+        "10700099": -18.91868970443146,
+        "10700100": -14.217670489866949,
+        "10700101": -12.654292218944505,
+        "10700102": -17.219559124006537,
+        "10700103": -8.50804484320049,
+        "10700104": -9.104545254469908,
+        "10700105": -20.867790372882087,
+        "10700106": -16.877864339742924,
+        "10700107": -10.859606342181692,
+        "10700108": -10.794181133191172,
+        "10700109": -18.67253355334036,
+        "10700110": -13.76421162519147,
+        "10700111": -17.507727804847352,
+        "10700112": -17.811474503693912,
+        "10700113": -14.935342151874984,
+        "10700114": -24.88709076562787,
+        "10700115": -5.8892134609070625,
+        "10700116": -13.728046894913343,
+        "10700117": -26.214693778604886,
+        "10700118": -18.622202877658516,
+        "10700119": -9.968233345722632,
+        "10700120": -12.209509070897429,
+        "10700121": -20.328017956865935,
+        "10700122": -9.620283508724057,
+        "10700123": -22.395843774338577,
+        "10700124": -11.998256060220953,
+        "10700125": -11.764057021959866,
+        "10700126": -11.067715035990526,
+        "10700127": -16.27315600673432,
+        "10700128": -7.410516883987832
+      },
+      "z1|A": {
+        "10700097": 0.41809610107760875,
+        "10700098": 2.3648099122140853,
+        "10700099": 2.579053773423123,
+        "10700100": -1.2875086076514082,
+        "10700101": 2.007455223384987,
+        "10700102": 1.5272822959020402,
+        "10700103": 3.790720704555164,
+        "10700104": 1.544665519780306,
+        "10700105": 1.4215280491436841,
+        "10700106": 0.8620789003424264,
+        "10700107": 1.7839586240476901,
+        "10700108": -0.5673211060582809,
+        "10700109": 1.1214065064962155,
+        "10700110": 2.4309127000958264,
+        "10700111": 0.07907823881910814,
+        "10700112": 1.406763384141109,
+        "10700113": 1.0501924421421367,
+        "10700114": 1.7312014853666904,
+        "10700115": 1.1841186699768569,
+        "10700116": 0.51712070128835,
+        "10700117": 1.6387729310691395,
+        "10700118": -1.4140844124814236,
+        "10700119": 0.8347712127136214,
+        "10700120": 1.1176510963046122,
+        "10700121": 2.0073337763961563,
+        "10700122": 1.1751609439498223,
+        "10700123": 1.2668930453464995,
+        "10700124": 3.621373008827562,
+        "10700125": -0.5223456642650345,
+        "10700126": 0.08633526614787146,
+        "10700127": 2.363117109726822,
+        "10700128": 0.286327380535807
+      },
+      "z1|B": {
+        "10700097": 18.022577062679435,
+        "10700098": 8.208804241001987,
+        "10700099": 16.4295738693964,
+        "10700100": 10.69753960884467,
+        "10700101": 6.6483477162111555,
+        "10700102": 14.780718220232622,
+        "10700103": 19.761220559068505,
+        "10700104": 12.695942798026367,
+        "10700105": 11.459302522976111,
+        "10700106": 11.599943625215476,
+        "10700107": 16.44955235386899,
+        "10700108": 7.63707096949507,
+        "10700109": 6.984109168631642,
+        "10700110": 9.9578982209703,
+        "10700111": 8.914856828041998,
+        "10700112": 14.409505155310098,
+        "10700113": 11.216680150333021,
+        "10700114": 17.2405698503346,
+        "10700115": 7.307669738900597,
+        "10700116": 12.432742191038306,
+        "10700117": 6.635913238339138,
+        "10700118": 16.91179635435687,
+        "10700119": 7.244290731385176,
+        "10700120": 8.817539945105908,
+        "10700121": 10.870135549244162,
+        "10700122": 9.593775390605133,
+        "10700123": 11.247548985773054,
+        "10700124": 7.799469473544596,
+        "10700125": 14.840283082001315,
+        "10700126": 9.134820927344322,
+        "10700127": 8.527638967432638,
+        "10700128": 10.963687721309958
+      }
+    }
+  },
+  "LAYER_3_teacher_reference": {
+    "teacher": {
+      "A": {
+        "pi_A_mean": -2.7095671799006924,
+        "pi_B_mean": 3.101885150854265,
+        "delta_tau_teacher": 5.811452330754957,
+        "n_episodes": 32
+      },
+      "B": {
+        "pi_A_mean": -3.542545438435877,
+        "pi_B_mean": 3.2177399628994827,
+        "delta_tau_teacher": 6.760285401335359,
+        "n_episodes": 32
+      }
+    },
+    "ratio_R": {
+      "A": 1.7107250342575686,
+      "B": 3.916558640738674
+    },
+    "R_equals_1_is_NOT_required": true
+  },
+  "rollouts": {
+    "seeds": [
+      10700097,
+      10700128
+    ],
+    "n_seeds": 32,
+    "cells": [
+      "z0|A",
+      "z1|A",
+      "z0|B",
+      "z1|B"
+    ],
+    "episodes": 128
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seed-level scores",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "CALIB seed",
+    "code_object": "imported through diagnose_hog_psp_v4_mechanism -> diagnose_hog_psp_v3_mechanism, not copied"
+  },
+  "CCP_EVAL_touched": false,
+  "authorizes": "nothing; opening EVAL 11600101..11600132 requires a separate PI decision",
+  "AMENDMENT_1_INTERPRETIVE_NOTE_SEGMENT_TABLE_WAS_WRONG": {
+    "status": "FROZEN_CORRECTION",
+    "utc": "2026-09-02T05:15:00Z",
+    "what_is_NOT_affected": "the categorical READING (TRAJECTORY_IDENTITY_CONFIRMED), Layers 1-3, the bootstrap, the checkpoint, and every measured number in this file are completely unaffected. This corrects only the descriptive 'nonzero_segments_by_pole' table inside INTERPRETIVE_NOTE_DESCRIPTIVE_ONLY, which was itself explicitly non-gating.",
+    "the_bug": "the diagnostic script built that table by filtering CCP_PHASE1_CAUSAL_BRANCHING.json's raw 'contrasts' dict directly (mode=='full_takeover' and delta_Q_hat != 0), rather than calling rl.causal_segment_bank.build_segment_bank() and reading the actual post-joint-precedence training bank. Phase 1's raw contrasts include the INDIVIDUAL agent0/agent1 entries at both-free states that joint precedence (CCP_SUCCESSOR_BUILD_CONTRACT.json amendment 3) EXCLUDES from training whenever a joint entry exists for that same state.",
+    "consequence": "the printed table showed 3 entries for Pole A (correct -- no joint-precedence collisions on A) but 7 for Pole B (wrong -- should be 4). At 11500105|B|133 it listed the individual agent0 (delta_Q=-1.0, implying pi_A) and agent1 (delta_Q=+1.0) entries ALONGSIDE the joint entry that actually trained; at 11500107|B|161 it listed the individual agent0 entry alongside the joint entry that actually trained. Neither excluded individual entry ever reached the training bank.",
+    "CORRECT_TABLE_the_7_segments_that_actually_trained": {
+      "A": [
+        {
+          "segment_id": "11500103|A|55|agent0|full_takeover",
+          "controlled_agents": [
+            0
+          ],
+          "teacher": "pi_A",
+          "delta_q": 1.0
+        },
+        {
+          "segment_id": "11500105|A|127|agent1|full_takeover",
+          "controlled_agents": [
+            1
+          ],
+          "teacher": "pi_A",
+          "delta_q": 1.0
+        },
+        {
+          "segment_id": "11500105|A|83|agent1|full_takeover",
+          "controlled_agents": [
+            1
+          ],
+          "teacher": "pi_B",
+          "delta_q": -1.0
+        }
+      ],
+      "B": [
+        {
+          "segment_id": "11500105|B|104|agent1|full_takeover",
+          "controlled_agents": [
+            1
+          ],
+          "teacher": "pi_B",
+          "delta_q": 1.0
+        },
+        {
+          "segment_id": "11500105|B|127|agent1|full_takeover",
+          "controlled_agents": [
+            1
+          ],
+          "teacher": "pi_B",
+          "delta_q": 1.0
+        },
+        {
+          "segment_id": "11500105|B|133|joint|full_takeover",
+          "controlled_agents": [
+            0,
+            1
+          ],
+          "teacher": "pi_B",
+          "delta_q": 1.0
+        },
+        {
+          "segment_id": "11500107|B|161|joint|full_takeover",
+          "controlled_agents": [
+            0,
+            1
+          ],
+          "teacher": "pi_B",
+          "delta_q": 1.0
+        }
+      ]
+    },
+    "verified_against": "rl.causal_segment_bank.build_segment_bank(CCP_PHASE1_CAUSAL_BRANCHING.json), filtered to weight>0 -- the exact function experiments/ccp_build_sequence_bank.py and the production runner both call, so this is the actual bank the successor trained on, not a re-derivation.",
+    "caught_by": "manual review of the frozen diagnostic immediately after it completed, before this record was reported as final",
+    "why_recorded_as_an_amendment_not_a_rerun": "the diagnostic is one-shot per the frozen spec and its measurements are untouched by this bug; deleting and rerunning it to fix a descriptive table would be a worse violation of the one-shot discipline than appending a correction. Preserves the same _ATTEMPT1_INVALID-style discipline of never silently editing a frozen measurement -- the original (wrong) table is left in place above, uncorrected in situ, with this amendment as the authoritative correction."
+  }
+}
