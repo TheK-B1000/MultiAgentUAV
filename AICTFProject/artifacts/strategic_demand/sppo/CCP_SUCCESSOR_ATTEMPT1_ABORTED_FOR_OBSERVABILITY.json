@@ -1,0 +1,43 @@
+{
+  "record_id": "CCP_SUCCESSOR_ATTEMPT1_ABORTED_FOR_OBSERVABILITY",
+  "status": "ABORTED_FOR_OBSERVABILITY",
+  "utc": "2026-09-02T01:44:00Z",
+  "authority": "PI, 2026-09-02: 'restarting is completely reasonable if you want the causal counters visible during production ... fresh step 0 after the monitoring patch, no mixing the first steps into the new production run'",
+
+  "THIS_IS_NOT_A_SCIENTIFIC_RESULT": {
+    "rule": "This attempt produced no verdict, no payoff reading, no mechanism reading. It is not a data point in the CCP successor program and must never be cited as one -- not as a partial success, not as a partial failure, not as evidence about SEQUENCE mode, lambda=0.05, or anything else the spec fixed.",
+    "why_it_stopped": "an observability gap, not a treatment or training-validity problem: CausalSequenceRunner's live counters (n_updates, z0_exposures, z1_exposures, positive_routes, negative_routes) were never wired into the printed [PPO|diag] output or metrics.csv, so the causal mechanism's liveness could only be confirmed by reading the runner object directly at the end of a run -- fine for a terminal record, unusable for watching a 1M-step run in progress.",
+    "the_wiring_verification_this_attempt_reused_had_already_proven_the_mechanism_worked": "12,288-step composition check, commit range ending bf502ea7: causal_updates=24, both latents exposed, both routing directions, both private branches (actor + critic) moved. Attempt 1 was not stopped because anything was broken."
+  },
+
+  "WHAT_WAS_DISCARDED": {
+    "steps_completed": 217088,
+    "of_requested": 1000000,
+    "fraction": 0.217,
+    "wall_clock_elapsed": "~31 minutes (started 21:11:51, stopped 21:44 local)",
+    "checkpoints_written": ["ckpt_ccp_successor_production_100000.zip",
+                            "ckpt_ccp_successor_production_200000.zip"],
+    "note_on_the_decision": "the PI's original restart reasoning was anchored to an earlier status check showing 16,384/1,000,000 (1.6%); by the time the stop was actually executed the run had reached 217,088/1,000,000 (21.7%). This discrepancy was surfaced and the PI re-confirmed proceeding with the restart at the actual, higher cost before anything was touched."
+  },
+
+  "DISPOSITION_OF_ARTIFACTS": {
+    "rule": "preserved, not deleted, per this project's standing rule that a discarded attempt stays on the record",
+    "moved_to": "artifacts/strategic_demand/sppo/ccp_successor_production_ABORTED_ATTEMPT1/ (directory renamed intact, including its two checkpoints, metrics.csv, episode_rows.csv, and the production log)",
+    "these_checkpoints_are_not_eligible_for_anything": "not for warm-start (fresh-init was frozen separately and independently in amendment 4, unrelated to this abort), not for evaluation, not for any downstream use"
+  },
+
+  "PROCEDURE_BEING_FOLLOWED": [
+    "1. stop the run, record it as ABORTED_FOR_OBSERVABILITY -- THIS RECORD",
+    "2. wire state[\"seq\"].telemetry() counters into the production diagnostics; no change to the runner, loss, sampling, cadence, optimizer, bank, lambda, or any training behavior",
+    "3. a regression test proving the observability patch is behavior-neutral: same-seed short runs with diagnostics off/on produce identical model parameters after the same number of updates",
+    "4. rerun the composition/wiring verification",
+    "5. relaunch from fresh step 0, seed 11600001, identical frozen config otherwise",
+    "6. from then on, causal_updates/z0_exposures/z1_exposures/positive_routes/negative_routes/wrong_routes/legacy_calls are visible live during the real run"
+  ],
+
+  "UNCHANGED_BY_THIS_ABORT": {
+    "launch_spec": "CCP_SUCCESSOR_PPO_LAUNCH_SPEC.json, all values identical: seed 11600001, EVAL 11600101..11600132, SEQUENCE mode, lambda 0.05, fresh init, private critic heads, segment_bank_hash 64ba35e5...",
+    "segment_bank_and_sequence_bank": "unchanged; not touched by this abort",
+    "crossover_gate": "unchanged"
+  }
+}
