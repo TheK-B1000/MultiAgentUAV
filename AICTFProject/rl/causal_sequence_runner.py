@@ -20,6 +20,21 @@ from pathlib import Path
 import numpy as np
 
 
+class _NoTiedConcept:
+    """Compatibility shim, not a design choice.
+
+    rl/custom_ppo/update/updater.py's shared oracle_rehearsal_runner hook hard-codes
+    ``oracle_runner.bank.tied_exposures`` in its per-minibatch telemetry (the same seam
+    PairedRehearsalRunner uses, reused here deliberately rather than touching the shared
+    updater). 'Tied' means a state where the FIT/CALIB teachers agreed and received zero
+    paired-rehearsal pressure by design -- a concept that does not exist for SEQUENCE-mode
+    segments. It reports 0 truthfully rather than approximately: zero-weight segments are
+    never rolled out into the offline bank in the first place (ccp_build_sequence_bank.py),
+    so this runner's data literally contains zero rows of that kind, not zero by convention.
+    """
+    tied_exposures = 0
+
+
 class CausalSequenceRunner:
     """Interleaved SEQUENCE-mode causal supervision, one step every ``cadence`` minibatches."""
 
@@ -67,6 +82,7 @@ class CausalSequenceRunner:
         self.cadence = int(cadence)
         self.batch_rows = int(batch_rows)
         self.device = device
+        self.bank = _NoTiedConcept()          # see class docstring: a hook-compatibility shim
 
         self.n_ppo_minibatches = 0
         self.n_updates = 0
