@@ -59,5 +59,19 @@
     "why_not_one_sided_weighting": "w = max(0, delta_Q) with a fixed pole-matched teacher is defensible but discards every boundary where the nominally wrong specialist was actually better. The goal is crossover PAYOFF, not stylistic purity.",
     "made_structurally_unrepresentable": "CausalRecord now stores SIGNED delta_q and derives both weight and teacher, so a record cannot express the old inconsistency. assert_routing additionally rejects any externally declared teacher that disagrees with the sign.",
     "lambda_note": "the loss is weight-normalised, so a uniform rescale of weights is a no-op. lambda_causal carries strength, weights carry relative importance, and lambda must not later be derived from observed |delta_Q| magnitudes -- the normalisation has already removed that scale."
+  },
+  "AMENDMENT_2_SEQUENCE_MODE_CHOSEN": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-02T00:30:00Z",
+    "authority": "PI, 2026-09-02, after CCP_PHASE1_CAUSAL_BRANCHING.json (DECISION_LEVEL_LEVERAGE, f6928a37)",
+    "decision": "SUCCESSOR_MODE = SEQUENCE. LOCAL and SEQUENCE are NOT trained as two simultaneous objectives in this first run.",
+    "why": "Both families cleared Holm significance (single_macro 2/32, full_takeover 10/32), but the asymmetry under identical M, Holm family size, states and payoff ruler is real: causal leverage was detected far more often when the specialist kept controlling the agent. Training both losses at once would let LOCAL and SEQUENCE targets disagree at the same starting boundary and double-count or fight over the first action -- an avoidable ambiguity on a one-shot launch.",
+    "the_two_significant_LOCAL_results_are_kept": "as supporting evidence that decision-level causality also exists, recorded in the paper analysis. They are not a second training signal in this run.",
+    "segment_duration_rule_NOW_FROZEN": {
+      "rule": "active_until = episode termination, i.e. exactly what full_takeover measured: the specialist controls the intervened agent(s) from the boundary through the end of the episode. This is not invented -- it is a direct copy of the intervention that produced the causal claim.",
+      "why_not_something_shorter": "training on a shorter or differently-bounded segment would be training on a claim Phase 1 never tested. The only causal evidence collected is for full-episode handover from that boundary."
+    },
+    "weighting": "continuous, w = |delta_Q_takeover|, over ALL 32 full_takeover state-estimand contrasts -- not filtered to the 10 Holm-significant ones. This is amendment 2 of the Phase 1 spec applied as originally frozen: the near-zero contrasts contribute near-zero weight by construction, so no significance-based inclusion rule is introduced now that real numbers exist.",
+    "routing": "winner-directed, unchanged from rl/causal_supervision.py: the SIGN of delta_Q_takeover selects the teacher (pole-matched specialist if positive, the other if negative), and the LATENT never flips (z0 stays Pole A's latent, z1 stays Pole B's)."
   }
 }
