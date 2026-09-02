@@ -20,6 +20,7 @@ left open -- every rule it applies was frozen before this file existed.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -70,3 +71,16 @@ def build_segment_bank(phase1_result_path: str | Path) -> list[CausalSegment]:
         seg.assert_routing()
 
     return bank
+
+
+def segment_bank_hash(bank: list[CausalSegment]) -> str:
+    """Deterministic fingerprint over the bank's decision content.
+
+    Used to pin an offline sequence-bank artifact to the exact frozen Phase 1 result that
+    produced it, so a stale or mismatched artifact cannot be loaded silently at train time.
+    """
+    h = hashlib.sha256()
+    for seg in bank:
+        h.update(f"{seg.segment_id}|{seg.pole}|{seg.delta_q!r}|{seg.controlled_agents}"
+                 .encode("utf-8"))
+    return h.hexdigest()
