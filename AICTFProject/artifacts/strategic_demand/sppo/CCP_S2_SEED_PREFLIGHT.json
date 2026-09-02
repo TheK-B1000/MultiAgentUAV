@@ -1,0 +1,135 @@
+{
+  "record": "CCP-S2 seed preflight",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-02T07:51:19Z",
+  "implements": "CCP_S2_SEED_ASSIGNMENT.json#REQUIRED_MECHANICAL_PREFLIGHT",
+  "VERDICT": "PASS",
+  "collection_block": [
+    11700001,
+    11700320
+  ],
+  "eval_block": [
+    11701001,
+    11701064
+  ],
+  "gap": [
+    11700321,
+    11701000
+  ],
+  "checks": [
+    {
+      "name": "no_prior_allocation",
+      "passed": true,
+      "hits": [],
+      "n_hits": 0
+    },
+    {
+      "name": "collection_eval_disjoint",
+      "passed": true,
+      "overlap": []
+    },
+    {
+      "name": "collection_block_well_formed",
+      "passed": true,
+      "block": [
+        11700001,
+        11700320
+      ],
+      "n": 320,
+      "note": "the selector implementation (not yet built) must hard-bound its candidate range to exactly this block; re-verified when it exists"
+    },
+    {
+      "name": "eval_block_well_formed",
+      "passed": true,
+      "block": [
+        11701001,
+        11701064
+      ],
+      "n": 64,
+      "note": "the EVAL manifest (not yet built) must contain exactly these 64 seeds, no duplicates, none outside this range; re-verified when it exists"
+    },
+    {
+      "name": "no_collection_import_of_eval_manifest",
+      "passed": true,
+      "offenders": [],
+      "note": "no ccp_s2_*.py files exist yet at preflight time; this check is vacuously satisfied now and re-run once the selector/collector exist"
+    },
+    {
+      "name": "three_arm_seed_identity",
+      "passed": true,
+      "sample_cases": [
+        {
+          "state_id": "11700007|A|55",
+          "estimand": "agent0",
+          "j": 0,
+          "seed": 1123874393868591741,
+          "identical_across_orders_and_interleaving": true
+        },
+        {
+          "state_id": "11700007|A|55",
+          "estimand": "agent0",
+          "j": 15,
+          "seed": 7006771244016099682,
+          "identical_across_orders_and_interleaving": true
+        },
+        {
+          "state_id": "11700200|B|133",
+          "estimand": "joint",
+          "j": 7,
+          "seed": 3651066210115496251,
+          "identical_across_orders_and_interleaving": true
+        }
+      ],
+      "negative_control": {
+        "design": "an order-dependent stream seed source, dispensed three times simulating BASE/pi_A/pi_B each asking first",
+        "values": [
+          0,
+          1,
+          2
+        ],
+        "detected_as_non_identical": true,
+        "why_required": "a check that cannot fail proves nothing; this confirms the identity assertion above would actually catch a stream-based implementation, not merely agree with itself"
+      }
+    },
+    {
+      "name": "bank_namespace_distinct_from_measurement",
+      "passed": true,
+      "sample_cases": [
+        {
+          "state_id": "11700007|A|55",
+          "estimand": "agent0",
+          "j": 0,
+          "measure_seed": 1123874393868591741,
+          "bank_seed": 8407728967459012064,
+          "distinct": true
+        },
+        {
+          "state_id": "11700007|A|55",
+          "estimand": "agent0",
+          "j": 5,
+          "measure_seed": 7639110935995820651,
+          "bank_seed": 8407728967459012064,
+          "distinct": true
+        },
+        {
+          "state_id": "11700200|B|133",
+          "estimand": "joint",
+          "j": 0,
+          "measure_seed": 4851407659058183748,
+          "bank_seed": 6386962659153731488,
+          "distinct": true
+        },
+        {
+          "state_id": "11700200|B|133",
+          "estimand": "joint",
+          "j": 5,
+          "measure_seed": 6504797466670251224,
+          "bank_seed": 6386962659153731488,
+          "distinct": true
+        }
+      ]
+    }
+  ],
+  "authorizes_if_pass": "building the state selector, then the 3-arm collector -- not causal measurement itself, which requires both to exist first"
+}
