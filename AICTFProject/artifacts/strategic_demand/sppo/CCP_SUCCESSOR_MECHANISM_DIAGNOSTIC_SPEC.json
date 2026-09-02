@@ -1,0 +1,82 @@
+{
+  "record_id": "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_MEASUREMENT",
+  "utc": "2026-09-02T13:00:00Z",
+  "authority": "PI, 2026-09-02: 'Did the intended mechanism survive training? before asking Did it produce strategic crossover?' Four rules: terminal checkpoint only, run exactly the preregistered diagnostic, descriptive not a gate, freeze before opening EVAL.",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+
+  "PURPOSE": "Characterise what the terminal policy actually became, independent of and before any payoff reading. Reuses V3/V4's Layer 1-3 machinery as literally as possible for continuity with the whole ladder (V1 -> OG-PSP -> V3 -> V4 -> this), then adds ONE prospective interpretive note specific to this successor's genuinely different training objective -- not a new metric, not a new threshold, an interpretation rule frozen before the numbers exist.",
+
+  "RULE_1_TERMINAL_CHECKPOINT_ONLY": {
+    "path": "artifacts/strategic_demand/sppo/ccp_successor_production/ckpts/final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "hard_bound_in_script": true,
+    "rule": "no periodic checkpoint comparison. The sha is a literal constant in the diagnostic script and cross-checked against CCP_SUCCESSOR_MODEL_FROZEN.json; both must agree with the bytes on disk or the diagnostic refuses to run."
+  },
+
+  "RULE_2_LITERAL_MACHINERY_REUSE": {
+    "layer_1_source": "experiments/diagnose_hog_psp_v4_mechanism.py, imported as a live code object (V3D chain: V4 imported V3's bootstrap function and constants directly; this diagnostic imports V4's module the same way) -- the state-level ruler, CALIB block, bootstrap procedure, and reference values are NOT redefined.",
+    "layer_2_source": "same file: pole-specific frozen discriminators D_A/D_B, sign convention re-asserted at runtime, full-cross forced-latent rollouts, RAW decision_function score, paired percentile bootstrap n_boot=20000 alpha=0.05 rng=7.",
+    "no_new_metric": "nothing is measured here that OG-PSP's diagnostic did not already measure.",
+    "unchanged_ruler_reference_values": {
+      "V1_CALIB_jsd_nats": 0.006589,
+      "OG_PSP_CALIB_jsd_nats": 0.042102,
+      "V3_CALIB_jsd_nats": 0.10862136199379918,
+      "V4_CALIB_jsd_nats": 0.08192162030890326,
+      "V3_delta_tau_A": {"mean": 6.44647322888893, "lcb95": 5.655349209925033},
+      "V3_delta_tau_B": {"mean": 6.7794536738711795, "lcb95": 5.1031693590259986},
+      "V4_delta_tau_A": {"mean": 0.9808876528608086, "lcb95": 0.5302332647162973},
+      "V4_delta_tau_B": {"mean": 0.11169528703196238, "lcb95": -0.36112779265897865}
+    },
+    "CALIB_disjoint_from_training_either_way": "CALIB 10700097..10700128 was never trained on by V1/OG-PSP/V3/V4, and is equally disjoint from THIS successor's training: fresh_step_0 environment seeds and the 7 non-zero causal segments all come from the 115xxxxx/116xxxxx namespaces. CALIB remains a genuine held-out generalisation probe for this successor exactly as it was for the whole ladder."
+  },
+
+  "RULE_3_DESCRIPTIVE_NOT_A_GATE": {
+    "does_not_gate_EVAL": true,
+    "does_not_select_checkpoints": true,
+    "does_not_alter_the_treatment": true,
+    "a_weak_or_surprising_result_does_not_prevent_EVAL": "per the PI's rule 3, stated verbatim. EVAL 11600101..11600132 opening is a SEPARATE explicit decision regardless of what this diagnostic reads.",
+    "runs_before_EVAL": "so the mechanism reading cannot be shaped by the payoff outcome"
+  },
+
+  "RULE_4_FREEZE_BEFORE_EVAL": "this diagnostic must be run and frozen in full before any decision to open EVAL 11600101..11600132 is made or discussed with outcome numbers on the table.",
+
+  "NEW_PREREGISTERED_INTERPRETIVE_NOTE_NOT_A_NEW_METRIC": {
+    "why_this_note_is_necessary": "V1 through V4 all trained z0 toward a UNIFORM A-identity and z1 toward a UNIFORM B-identity, across the whole paired bank or the whole trajectory-identity objective. THIS successor's objective is qualitatively different: winner-directed SEQUENCE supervision taught each latent whichever specialist was CAUSALLY BETTER at each of 7 specific measured boundaries -- and at one of those boundaries (11500105|A|83), the measured effect was NEGATIVE, meaning z0 was deliberately taught toward pi_B there, not pi_A. Layer 2's D_A/D_B trajectory-identity score presumes a clean A-identity-for-z0 / B-identity-for-z1 hypothesis. A CALIB-level result that looks weaker or more mixed than V3/V4's under that same ruler is NOT automatically evidence the mechanism failed to preserve what it was actually taught -- it could equally mean the mechanism correctly localised behaviour to the 7 measured segments rather than generalising a global identity, which the training objective never asked it to do.",
+    "what_this_note_does_NOT_permit": "it does not relax, adjust, or reinterpret the frozen PREREGISTERED_READINGS below after seeing the numbers. The categorical reading (CONFIRMED / PARTIAL / NOT_CONFIRMED) is computed exactly as V3/V4's was, on the same rule, with no exception carved out for this successor. This note governs the PROSE INTERPRETATION accompanying the categorical result, not the category itself.",
+    "concretely": "if the reading comes back PARTIAL or NOT_CONFIRMED, the record must state BOTH readings side by side: (a) the categorical result under the unchanged V1-V4 ruler, unmodified, and (b) whether the observed pattern is consistent with 'localised causal correction' rather than 'failed to learn anything' -- for example, by checking (descriptively, not as a new gate) whether z0/z1 trajectory scores at CALIB move in a direction consistent with the SIGN of the nearest causal segment's teacher, where such a comparison is possible. This is descriptive commentary alongside the frozen categorical reading, never a substitute for it."
+  },
+
+  "PREREGISTERED_READINGS": {
+    "note": "identical categories and identical decision rule to V3/V4's, unmodified",
+    "TRAJECTORY_IDENTITY_CONFIRMED": "Correct ordering on BOTH poles with paired-bootstrap LCB95 > 0 on both.",
+    "TRAJECTORY_IDENTITY_PARTIAL": "Correct, confident separation on only one pole; or correct point ordering on both without confidence on both.",
+    "TRAJECTORY_IDENTITY_NOT_CONFIRMED": "Trajectory gaps near zero, reversed, or otherwise failing to establish latent-specific teacher identity."
+  },
+
+  "THE_INFORMATIVE_COMBINATIONS_WITH_A_FUTURE_EVAL": {
+    "note": "recorded now, before either the diagnostic or EVAL exist, per the PI's own framing",
+    "strong_mechanism_and_EVAL_crosses_over": "causal supervision -> preserved latent mechanism -> complementary payoff. The strongest possible result for the program.",
+    "strong_mechanism_and_EVAL_does_not_cross_over": "causal supervision worked mechanistically but still did not yield reliable crossover. A materially different finding from V3's (identity confirmed via UNIFORM pressure, payoff reversed) because this mechanism was built from measured causal effect, not teacher disagreement.",
+    "weak_mechanism": "the successor failed before the payoff layer could even be tested cleanly. Under RULE_3 this does not block EVAL, but it changes how any EVAL result -- pass or fail -- should be weighted in the paper."
+  },
+
+  "WHAT_THIS_DIAGNOSTIC_MAY_NOT_DO": [
+    "select or substitute a checkpoint",
+    "alter lambda, the discriminators, the feature map, or any treatment parameter",
+    "touch EVAL 11600101..11600132",
+    "use intermediate training episodes or training-time discriminator scores",
+    "be re-run with different seeds or a different statistic after its numbers are seen",
+    "redefine the Layer 1 or Layer 2 measurements, which exist to preserve comparability with V1, OG-PSP, V3 and V4",
+    "use the new interpretive note to change the categorical reading itself"
+  ],
+
+  "OUTPUT": "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json, one-shot",
+
+  "PROVENANCE": {
+    "terminal_checkpoint_freeze": "CCP_SUCCESSOR_MODEL_FROZEN.json (commit d25ad264)",
+    "predecessor_diagnostic_spec_and_script": "HOG_PSP_V4_MECHANISM_DIAGNOSTIC_SPEC.json / experiments/diagnose_hog_psp_v4_mechanism.py",
+    "discriminators": "HOG_PSP_TRAJECTORY_DISCRIMINATORS.json (D_A 0.9531, D_B 0.9688)",
+    "the_qualitative_objective_difference_this_note_addresses": "rl/causal_supervision.py (winner-directed routing, commit 6cff3568), CCP_PHASE1_CAUSAL_BRANCHING.json (the one negative-routed segment example, 11500105|A|83)"
+  }
+}
