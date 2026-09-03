@@ -1,0 +1,144 @@
+{
+  "record": "CCP-S2 causal bank, stage B canonical rollouts",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-03T02:11:05Z",
+  "implements": "CCP_S2_SPEC.json#BANK_CONSTRUCTION.ANTI_TRAJECTORY_SHOPPING_RULE",
+  "seed_mapping": "r_bank(x) = sha256('S2_BANK|<state_id>|<estimand>')[:8], independent of every CCP_S2_MEASURE seed",
+  "rolled_once_each": true,
+  "outcome_did_not_alter_routing": "t* and w are copied verbatim from CCP_S2_CAUSAL_BANK_ROUTING.json; the canonical rollout's terminal outcome is recorded for provenance only and was never consulted",
+  "N_causal_anchors": 5,
+  "N_usable_commitment_level_supervision_targets": 486,
+  "N_supervision_targets_with_teacher_disagreement": 228,
+  "zero_supervision_units": [],
+  "supervision_note": "supervision targets are highly correlated descendants of 5 causal anchors -- they are NOT independent causal observations and must not be reported as such",
+  "units": [
+    {
+      "unit": "11700004|A|26|agent1",
+      "state_id": "11700004|A|26",
+      "estimand": "agent1",
+      "pole": "A",
+      "free_set": "agent1_only",
+      "latent_supervised": 0,
+      "t_star": "pi_A",
+      "w": 1.0,
+      "intervened_agents": [
+        1
+      ],
+      "r_bank": 3399467303079097294,
+      "steps": 214,
+      "trajectory_file": "artifacts\\strategic_demand\\sppo\\ccp_s2_bank_traj\\11700004__A__26__agent1.npz",
+      "n_supervised_decisions": 80,
+      "n_supervised_decisions_with_disagreement": 59,
+      "n_free_ticks_any_agent": 154,
+      "canonical_rollout_outcome_provenance_only": {
+        "blue": 1,
+        "red": 0,
+        "win": 1,
+        "margin": 1
+      }
+    },
+    {
+      "unit": "11700171|A|117|agent1",
+      "state_id": "11700171|A|117",
+      "estimand": "agent1",
+      "pole": "A",
+      "free_set": "agent1_only",
+      "latent_supervised": 0,
+      "t_star": "pi_A",
+      "w": 1.0,
+      "intervened_agents": [
+        1
+      ],
+      "r_bank": 4833767021274185761,
+      "steps": 123,
+      "trajectory_file": "artifacts\\strategic_demand\\sppo\\ccp_s2_bank_traj\\11700171__A__117__agent1.npz",
+      "n_supervised_decisions": 62,
+      "n_supervised_decisions_with_disagreement": 28,
+      "n_free_ticks_any_agent": 85,
+      "canonical_rollout_outcome_provenance_only": {
+        "blue": 1,
+        "red": 0,
+        "win": 1,
+        "margin": 1
+      }
+    },
+    {
+      "unit": "11700175|A|124|joint",
+      "state_id": "11700175|A|124",
+      "estimand": "joint",
+      "pole": "A",
+      "free_set": "both_free",
+      "latent_supervised": 0,
+      "t_star": "pi_B",
+      "w": 1.0,
+      "intervened_agents": [
+        0,
+        1
+      ],
+      "r_bank": 3715257040683952227,
+      "steps": 116,
+      "trajectory_file": "artifacts\\strategic_demand\\sppo\\ccp_s2_bank_traj\\11700175__A__124__joint.npz",
+      "n_supervised_decisions": 118,
+      "n_supervised_decisions_with_disagreement": 90,
+      "n_free_ticks_any_agent": 90,
+      "canonical_rollout_outcome_provenance_only": {
+        "blue": 1,
+        "red": 0,
+        "win": 1,
+        "margin": 1
+      }
+    },
+    {
+      "unit": "11700011|B|11|agent0",
+      "state_id": "11700011|B|11",
+      "estimand": "agent0",
+      "pole": "B",
+      "free_set": "agent0_only",
+      "latent_supervised": 1,
+      "t_star": "pi_B",
+      "w": 1.0,
+      "intervened_agents": [
+        0
+      ],
+      "r_bank": 6192404695088795234,
+      "steps": 229,
+      "trajectory_file": "artifacts\\strategic_demand\\sppo\\ccp_s2_bank_traj\\11700011__B__11__agent0.npz",
+      "n_supervised_decisions": 132,
+      "n_supervised_decisions_with_disagreement": 27,
+      "n_free_ticks_any_agent": 173,
+      "canonical_rollout_outcome_provenance_only": {
+        "blue": 1,
+        "red": 0,
+        "win": 1,
+        "margin": 1
+      }
+    },
+    {
+      "unit": "11700228|B|150|joint",
+      "state_id": "11700228|B|150",
+      "estimand": "joint",
+      "pole": "B",
+      "free_set": "both_free",
+      "latent_supervised": 1,
+      "t_star": "pi_B",
+      "w": 1.0,
+      "intervened_agents": [
+        0,
+        1
+      ],
+      "r_bank": 6959628835055704959,
+      "steps": 90,
+      "trajectory_file": "artifacts\\strategic_demand\\sppo\\ccp_s2_bank_traj\\11700228__B__150__joint.npz",
+      "n_supervised_decisions": 94,
+      "n_supervised_decisions_with_disagreement": 24,
+      "n_free_ticks_any_agent": 68,
+      "canonical_rollout_outcome_provenance_only": {
+        "blue": 1,
+        "red": 0,
+        "win": 1,
+        "margin": 1
+      }
+    }
+  ]
+}
