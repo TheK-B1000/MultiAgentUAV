@@ -1,0 +1,104 @@
+{
+  "record_id": "RSCFT_MODELS_FROZEN",
+  "status": "FROZEN_MODELS -- frozen BEFORE the sealed EVAL is opened",
+  "utc": "2026-09-03T13:59:00Z",
+  "implements": "RSCFT_SPEC.json",
+  "shared": {
+    "training_seed": 11703001,
+    "warm_start_sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "warm_start_is_the_original_incumbent": true
+  },
+  "CONTROL": {
+    "arm": "CONTROL",
+    "seed": 11703001,
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\rscft_production\\control\\ckpts\\final_rscft_control.zip",
+      "sha256": "3ea653202f5493ce1b44453e7aeb0dcfea5848a6f842273e20cfc3aee5870b7e",
+      "bytes": 47015393
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "is_original_incumbent_not_an_S2_terminal": true,
+      "optimizer_state_reused": false
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "critic_V0_moved": true,
+        "critic_V1_moved": true,
+        "steps_advanced": 503808,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_path": {
+          "updates": 712,
+          "z0_exposures": 20123,
+          "z1_exposures": 14053,
+          "positive_routes": 28971,
+          "negative_routes": 5205,
+          "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac"
+        },
+        "retention_path": "ABSENT (retention_kl and EMATeacher.update were fatal for the run)"
+      }
+    }
+  },
+  "TREATMENT": {
+    "arm": "TREATMENT",
+    "seed": 11703001,
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\rscft_production\\treatment\\ckpts\\final_rscft_treatment.zip",
+      "sha256": "6aef0b5cedd9c362595d7bbcb7d23e10c356cb35d79e7543775afeb570b748bf",
+      "bytes": 47016027
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "is_original_incumbent_not_an_S2_terminal": true,
+      "optimizer_state_reused": false
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "critic_V0_moved": true,
+        "critic_V1_moved": true,
+        "steps_advanced": 503808,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_path": {
+          "updates": 584,
+          "z0_exposures": 16511,
+          "z1_exposures": 11521,
+          "positive_routes": 23795,
+          "negative_routes": 4237,
+          "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac"
+        },
+        "retention_path": {
+          "retention_updates": 2336,
+          "ema_updates": 2336,
+          "last_kl_mean": 0.039009783416986465,
+          "last_eligible_heads": 960,
+          "empty_batches": 0,
+          "lambda_ret": 0.01,
+          "ema_decay": 0.995
+        }
+      }
+    }
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11704001..11704064",
+    "touched": false,
+    "note": "sealed; opening requires a separate PI decision"
+  },
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "no model selection, no tuning, no checkpoint choice using EVAL. These two terminal checkpoints are the only artifacts that will be scored."
+  },
+  "NEXT": "a separate, explicit PI decision to open EVAL 11704001..11704064"
+}
