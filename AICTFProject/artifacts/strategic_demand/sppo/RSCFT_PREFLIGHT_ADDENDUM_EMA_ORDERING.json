@@ -1,0 +1,23 @@
+{
+  "record": "RSCFT preflight addendum -- EMA update ordering",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T12:12:44Z",
+  "amends": "RSCFT_PREFLIGHT.json (12/12), which was frozen before this 13th check was raised; that record is not edited in place",
+  "ordering_under_test": "theta_k -> actor optimizer step -> theta_{k+1} -> EMA update -> theta_bar_{k+1}",
+  "why_it_matters": "an EMA consuming PRE-update parameters would lag by exactly one step and still show a healthy 1:1 update count, while quietly regularising toward a stale target",
+  "runtime_ordering_in_the_full_loop": "the updater calls retention_runner.note_ppo_minibatch(batch) AFTER the PPO actor minibatch update has completed; the runner then performs its own retention optimizer step and only then updates the EMA, so the teacher always consumes the most recent actor parameters",
+  "VERDICT": "PASS",
+  "checks": [
+    {
+      "check": "13a_EMA_consumes_POST_update_parameters",
+      "PASS": true,
+      "detail": "theta_bar_1 == decay*theta_bar_0 + (1-decay)*theta_POST: True; equals the theta_PRE form instead: False; pre/post genuinely differ: True"
+    },
+    {
+      "check": "13b_runner_calls_optimizer_step_before_EMA_update",
+      "PASS": true,
+      "detail": "opt.step() at source offset 585, teacher.update() at 669 (step must come first)"
+    }
+  ],
+  "device": "cpu (deliberately, so this cannot contend with a training run for the GPU)"
+}
