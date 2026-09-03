@@ -1,0 +1,84 @@
+{
+  "record": "CCP-S2 causal bank training array",
+  "status": "FROZEN_ARTIFACT",
+  "utc": "2026-09-03T02:22:06Z",
+  "derived_from": {
+    "stage_a": "CCP_S2_CAUSAL_BANK_ROUTING.json",
+    "stage_b": "CCP_S2_CAUSAL_BANK_STAGE_B.json"
+  },
+  "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac",
+  "npz_sha256": "3f6b6bcb540a36f800da708e276483684cacd192ecf4d141709f1aedcf9db996",
+  "npz": "artifacts\\strategic_demand\\sppo\\ccp_s2_causal_bank.npz",
+  "n_rows": 772,
+  "nonzero_segments_rolled_out": 5,
+  "total_segments_in_causal_bank": 100,
+  "N_usable_commitment_level_supervision_targets": 486,
+  "N_supervision_targets_with_teacher_disagreement": 228,
+  "rows_by_latent": {
+    "z0": 453,
+    "z1": 319
+  },
+  "unfiltered": "every recorded timestep is present; committed ticks and zero-weight agents are inert by construction in causal_supervision_loss, not removed here",
+  "segments": [
+    {
+      "segment_idx": 0,
+      "unit": "11700004|A|26|agent1",
+      "pole": "A",
+      "estimand": "agent1",
+      "teacher": "pi_A",
+      "weight": 1.0,
+      "latent": 0,
+      "rows": 214,
+      "supervised_decisions": 80,
+      "supervised_with_disagreement": 59
+    },
+    {
+      "segment_idx": 1,
+      "unit": "11700171|A|117|agent1",
+      "pole": "A",
+      "estimand": "agent1",
+      "teacher": "pi_A",
+      "weight": 1.0,
+      "latent": 0,
+      "rows": 123,
+      "supervised_decisions": 62,
+      "supervised_with_disagreement": 28
+    },
+    {
+      "segment_idx": 2,
+      "unit": "11700175|A|124|joint",
+      "pole": "A",
+      "estimand": "joint",
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "latent": 0,
+      "rows": 116,
+      "supervised_decisions": 118,
+      "supervised_with_disagreement": 90
+    },
+    {
+      "segment_idx": 3,
+      "unit": "11700011|B|11|agent0",
+      "pole": "B",
+      "estimand": "agent0",
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "latent": 1,
+      "rows": 229,
+      "supervised_decisions": 132,
+      "supervised_with_disagreement": 27
+    },
+    {
+      "segment_idx": 4,
+      "unit": "11700228|B|150|joint",
+      "pole": "B",
+      "estimand": "joint",
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "latent": 1,
+      "rows": 90,
+      "supervised_decisions": 94,
+      "supervised_with_disagreement": 24
+    }
+  ]
+}
