@@ -1,0 +1,106 @@
+{
+  "record_id": "TRUNK_FREEZE_SPEC",
+  "name": "Shared-Trunk-Frozen Causal Fine-Tuning",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T02:15:00Z",
+  "authority": "PI, 2026-09-04, explicitly overriding RSCFT_SPEC.json's PROGRAM_TERMINATION_RULE ('no more architecture ladder after this') on the strength of new evidence discovered after RSCFT closed",
+
+  "OVERRIDE_JUSTIFICATION": {
+    "rule_being_overridden": "RSCFT_SPEC.json#PROGRAM_TERMINATION_RULE: \"No more architecture ladder after this... a negative result does not license a further reopening without a fresh PI decision on new evidence.\"",
+    "the_new_evidence": "LATENT_DOMINANCE_DRIFT_ANALYSIS.json (exploratory, post-hoc): CCP-S2 CONTROL -- warm start + task PPO, ZERO auxiliary loss of any kind -- shifted z1's advantage over z0 by +0.1875, statistically indistinguishable from every treatment arm (CCP-S2 TREATMENT +0.1797, RSCFT CONTROL +0.1953, RSCFT TREATMENT +0.2188). This rules out 'wrong auxiliary objective' as the failure mode and implicates continued PPO gradient flow through SHARED parameters as the mechanism -- a specific, falsifiable hypothesis neither CCP-S2 nor RSCFT tested, because neither froze anything.",
+    "this_is_new_not_a_repeat": "CCP-S2 tested 'add a causal loss'. RSCFT tested 'add a retention loss on top'. Both left every shared parameter fully trainable under ordinary PPO. This is the first attempt that acts on the actual identified mechanism (shared-parameter drift) rather than adding another loss term on top of an unrestricted update."
+  },
+
+  "SCIENTIFIC_HYPOTHESIS": {
+    "hypothesis": "Continued PPO updates to parameters SHARED between z0 and z1 (not to any auxiliary loss) are the erosion mechanism. Freezing those parameters during fine-tuning should prevent Pole-A's specialization from being overwritten by Pole-B-favoring gradient updates.",
+    "what_this_does_NOT_claim": "This is not a claim that freezing will produce crossover. It is a claim that freezing will preserve delta_A's SIGN and rough magnitude relative to the incumbent (+0.0938), which none of the four prior fine-tuned arms did. Recovering crossover on Pole B, which was already negative at the incumbent, is a separate, harder question this spec does not assume an answer to."
+  },
+
+  "PARAMETER_PARTITION": {
+    "method": "each candidate parameter was perturbed by torch.randn_like(p)*0.2 and the change in the model's OWN masked action logits was checked directly -- not assumed from the parameter's name. This project already caught one falsely-assumed 'on-path' parameter this way during RSCFT's own preflight (latent_actor.action_head turned out vestigial), so naming was not trusted here either.",
+    "total_parameters": 39,
+    "FROZEN": {
+      "count": 17,
+      "names": ["actor_cnn.conv.0.weight", "actor_cnn.conv.0.bias", "actor_cnn.conv.2.weight",
+                "actor_cnn.conv.2.bias", "actor_cnn.conv.4.weight", "actor_cnn.conv.4.bias",
+                "actor_cnn.proj.weight", "actor_cnn.proj.bias",
+                "latent_actor.strategy_embedding.weight",
+                "latent_actor.body.0.weight", "latent_actor.body.0.bias",
+                "latent_actor.body.2.weight", "latent_actor.body.2.bias",
+                "critic.net.0.weight", "critic.net.0.bias",
+                "critic.net.2.weight", "critic.net.2.bias"],
+      "verified": "actor_cnn.* and latent_actor.body.* CONFIRMED on-path for actor logits (perturbation changes masked logits). critic.net.* confirmed OFF the actor-logit path (expected -- separate branch) but included because it feeds the advantage estimates that drive the actor's PPO gradient direction, an indirect contamination path distinct from direct parameter sharing."
+    },
+    "VESTIGIAL_LEFT_FROZEN_HARMLESSLY": {
+      "count": 2, "names": ["latent_actor.action_head.weight", "latent_actor.action_head.bias"],
+      "verified": "perturbation does NOT change masked logits at all -- confirmed dead weight, not on the z-conditioned forward path. Freezing or not freezing is inert; frozen here for clarity only."
+    },
+    "TRAINABLE_PRIVATE": {
+      "count": 20,
+      "names": ["latent_actor.latent_adapters.0.weight", "latent_actor.latent_adapters.0.bias",
+                "latent_actor.latent_adapters.1.weight", "latent_actor.latent_adapters.1.bias",
+                "latent_actor.latent_action_heads.0.weight", "latent_actor.latent_action_heads.0.bias",
+                "latent_actor.latent_action_heads.1.weight", "latent_actor.latent_action_heads.1.bias",
+                "latent_actor.latent_branch_trunks.0.0.weight", "latent_actor.latent_branch_trunks.0.0.bias",
+                "latent_actor.latent_branch_trunks.0.2.weight", "latent_actor.latent_branch_trunks.0.2.bias",
+                "latent_actor.latent_branch_trunks.1.0.weight", "latent_actor.latent_branch_trunks.1.0.bias",
+                "latent_actor.latent_branch_trunks.1.2.weight", "latent_actor.latent_branch_trunks.1.2.bias",
+                "critic.head_V0.weight", "critic.head_V0.bias",
+                "critic.head_V1.weight", "critic.head_V1.bias"],
+      "verified": "latent_adapters.0, latent_action_heads.0, latent_branch_trunks.0.0 CONFIRMED on-path (perturbation changes logits). head_V0/V1 are the private critic heads tracked as critic_V0_moved/critic_V1_moved throughout this program's prior runs."
+    }
+  },
+
+  "ARMS": {
+    "TRUNK_FROZEN_CONTROL": {
+      "start_checkpoint": "the ORIGINAL 1,003,520-step incumbent (final_ccp_successor_production.zip) -- same as RSCFT, NOT any CCP-S2/RSCFT terminal checkpoint, because that is the checkpoint where delta_A = +0.0938 still existed",
+      "shared_trunk": "FROZEN (requires_grad=False on all 17 FROZEN params, verified empirically not just by flag)",
+      "ppo": true, "causal_loss": false, "retention_loss": false,
+      "purpose": "isolates whether freezing ALONE, with no corrective signal, preserves delta_A"
+    },
+    "TRUNK_FROZEN_TREATMENT": {
+      "start_checkpoint": "the SAME original incumbent",
+      "shared_trunk": "FROZEN, identically",
+      "ppo": true, "causal_loss": true, "lambda_causal": 0.05,
+      "causal_bank": "the exact existing frozen CCP-S2 Stage A/B bank, unchanged",
+      "retention_loss": false,
+      "purpose": "isolates whether freezing PLUS the already-built causal correction recovers crossover"
+    },
+    "horizon": "+500000 additional steps, matching CCP-S2/RSCFT exactly (additional_timesteps, not absolute -- the bug that would have silently produced a zero-step run)"
+  },
+
+  "SEEDS": {
+    "training_seed": 11705001,
+    "shared_by_both_arms": true,
+    "derived_environment_range": "11705001..11705321",
+    "sealed_eval_block": "11706001..11706064",
+    "must_not_reuse": "11701xxx (CCP-S2 EVAL, spent), 11704xxx (RSCFT EVAL, spent) -- both must not be reused",
+    "disjointness_required": "mechanically verified before launch, same discipline as every prior seed assignment"
+  },
+
+  "MECHANICAL_PREFLIGHT_REQUIRED": [
+    "every FROZEN parameter has requires_grad=False",
+    "every TRAINABLE_PRIVATE parameter has requires_grad=True",
+    "a controlled optimizer step leaves every FROZEN parameter bit-identical (not just requires_grad=False as a static claim -- verified by actually running an update and diffing weights)",
+    "the same optimizer step moves at least one TRAINABLE_PRIVATE parameter (positive control -- an inert optimizer would pass the frozen check vacuously)",
+    "CONTROL still shows z0/z1 actor motion confined to the TRAINABLE_PRIVATE set only",
+    "the causal loss still produces its known gradients restricted to the trainable parameters",
+    "CONTROL fails closed if the causal loss executes",
+    "config diff between arms contains only causal-loss-related fields and paths",
+    "fresh EVAL block (11706001..11706064) remains untouched"
+  ],
+
+  "EVAL_PROTOCOL": {
+    "seeds_per_cell": 64, "block": "11706001..11706064", "shared_seeds_across_arms": true,
+    "PRIMARY_GATE": {
+      "delta_A": "V(z0,A) - V(z1,A)", "delta_B": "V(z1,B) - V(z0,B)",
+      "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+      "rule": "same primary gate as every prior EVAL in this program. No mercy, no reinterpretation."
+    },
+    "SECONDARY_DIAGNOSTIC_NOT_A_GATE": "delta_A alone recovering a positive sign with LCB95 clearing zero, even if delta_B does not, would directly confirm the erosion-mechanism hypothesis and is worth reporting descriptively regardless of whether the full crossover gate passes",
+    "tie_or_reversal": "any tie or reversal triggers the same row-level integrity audit before interpretation, written before its rows are read -- and written promptly this time, not ~19 minutes after the rows exist (RSCFT_EVAL_RESULT.json's own recorded provenance caveat)",
+    "one_shot": "each arm's EVAL runs exactly once, no rerun under any outcome"
+  },
+
+  "PROGRAM_TERMINATION_RULE": "This is the ONE attempt the new evidence justifies. A negative result here is recorded as a negative result. It does not itself license a further architecture change without yet another fresh PI decision on yet more new evidence -- the same standard this override was held to."
+}
