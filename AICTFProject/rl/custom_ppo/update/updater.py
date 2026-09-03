@@ -119,6 +119,37 @@ class PPOUpdater:
         """
         return getattr(self.runtime, "oracle_rehearsal_runner", None)
 
+    def _retention_runner(self):
+        """Read the RSCFT retention runner at USE time, never cached.
+
+        Same reasoning as every other seam here: the runner is attached after this updater
+        is built, so caching would capture None and retention would never fire while every
+        other counter looked healthy. Absent runner means structurally absent -- no batch
+        fetch, no forward, no backward, no optimizer step, no RNG consumed -- which is what
+        makes the RSCFT CONTROL arm's "retention is not merely disabled but unreachable"
+        claim true rather than aspirational.
+        """
+        return getattr(self.runtime, "retention_runner", None)
+
+    def _assert_retention_cadence(self, runner) -> None:
+        """ABORT if the retention update is not actually happening.
+
+        Retention IS the defining treatment of the RSCFT treatment arm. A broken seam must
+        die in the first few minibatches rather than be discovered after 500k steps of a run
+        that was silently just CCP-S2 again -- the exact failure this program already ate
+        once when a rehearsal seam went quietly dead for a full 2x500k run.
+        """
+        n_ppo = int(runner.n_ppo_actor_minibatches)
+        n_ret = int(runner.n_retention_updates)
+        expected = n_ppo // int(runner.cadence)
+        if n_ret != expected:
+            raise RuntimeError(
+                f"RSCFT retention cadence violated: {n_ret} retention updates after "
+                f"{n_ppo} PPO actor minibatches, expected {expected} "
+                f"(cadence 1:{runner.cadence}). The retention treatment is not being "
+                "applied; aborting rather than producing a run whose defining treatment "
+                "is absent.")
+
     def _ranking_runner(self):
         """Read the SPPPO ranking runner at USE time, never cached.
 
@@ -390,6 +421,26 @@ class PPOUpdater:
                         "oracle_n_rehearsal_updates": float(oracle_runner.n_updates),
                         "oracle_rehearsal_loss": float(oracle_runner.last_loss),
                         "oracle_tied_exposures": float(oracle_runner.bank.tied_exposures),
+                    })
+
+                retention_runner = self._retention_runner()
+                if retention_runner is not None:
+                    # Separate operation, like every other auxiliary objective here: never
+                    # shares a backward pass with the PPO surrogate, and runs on the same
+                    # on-policy states the actor just trained on.
+                    retention_runner.note_ppo_minibatch(batch)
+                    self._assert_retention_cadence(retention_runner)
+                    # Visible from the FIRST reporting interval, so an inert retention seam
+                    # shows up as retention_updates=0 immediately rather than after 500k steps.
+                    rt = retention_runner.telemetry()
+                    accumulator.record_minibatch({
+                        "retention_n_ppo_actor_updates": float(rt["n_ppo_actor_minibatches"]),
+                        "retention_n_updates": float(rt["retention_updates"]),
+                        "retention_ema_updates": float(rt["ema_updates"]),
+                        "retention_loss": float(rt["last_loss"]),
+                        "retention_kl_mean": float(rt["last_kl_mean"]),
+                        "retention_eligible_heads": float(rt["last_eligible_heads"]),
+                        "retention_empty_batches": float(rt["empty_batches"]),
                     })
 
                 rank_runner = self._ranking_runner()
