@@ -1,0 +1,45 @@
+{
+  "record_id": "CCP_S2_TRAINING_SEED_ASSIGNMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-03T02:30:00Z",
+  "authority": "PI, 2026-09-03, assigning the S2_training_seed field CCP_S2_SPEC.json (bf41980a) deliberately left unfilled and CCP_S2_SEED_ASSIGNMENT.json did not supply",
+
+  "amends": "CCP_S2_SPEC.json#OPEN_ITEMS_DELIBERATELY_NOT_FROZEN_HERE (bf41980a)",
+  "rule": "this is an APPEND, not an edit. Neither CCP_S2_SPEC.json nor CCP_S2_SEED_ASSIGNMENT.json is modified in place; this record supplies the one field they left open and nothing else. Any conflict is resolved by re-freezing, never by silent edit of either file.",
+
+  "training_seed": 11702001,
+
+  "SHARED_BY_BOTH_ARMS": {
+    "control": 11702001,
+    "treatment": 11702001,
+    "why": "CCP_S2_SPEC.json#WARM_START_PROTOCOL.matched_exactly lists 'training seed' among the quantities that must be identical across arms. A differing seed would confound the CONTROL/TREATMENT contrast with initialisation and environment-assignment noise, which is precisely what the ATTRIBUTION_REFINEMENT Gamma statistic is meant to isolate."
+  },
+
+  "DERIVED_ENVIRONMENT_RANGE": {
+    "range": "11702001..11702321",
+    "n": 321,
+    "source": "run_ccp_s2_production.py passes training_seed_range=(seed, seed+320) to configure_exp2b_live_environment, mirroring the predecessor's convention",
+    "why_recorded": "the assigned seed is not the only namespace this run consumes. Recording the derived range explicitly makes an accidental overlap with a reserved block checkable rather than merely unlikely -- the seed itself being disjoint is NOT sufficient evidence that the run is disjoint."
+  },
+
+  "DISJOINTNESS": {
+    "collection_state_source": {"block": "11700001..11700320", "overlap": "none"},
+    "intentional_gap": {"block": "11700321..11701000", "overlap": "none"},
+    "sealed_eval": {"block": "11701001..11701064", "overlap": "none"},
+    "training_and_derived_range": {"block": "11702001..11702321", "purpose": "S2 warm-start fine-tuning, both arms"},
+    "visual_partition": "11700001..11700320 [collection] | 11700321..11701000 [gap, unused] | 11701001..11701064 [sealed EVAL] | 11701065..11702000 [unused] | 11702001..11702321 [S2 training, both arms]",
+    "namespace": "117xxxxx, the CCP-S2 program namespace, consistent with CCP_S2_SEED_ASSIGNMENT.json's existing blocks"
+  },
+
+  "REQUIRED_MECHANICAL_PREFLIGHT_BEFORE_LAUNCH": [
+    "seed disjoint from the collection block",
+    "seed disjoint from the sealed EVAL block",
+    "derived environment range disjoint from every reserved block",
+    "namespace consistency (117xxxxx)",
+    "matched-arm usage: CONTROL and TREATMENT configs differ ONLY in run_tag and output paths",
+    "deterministic initialisation: both arms load the same incumbent sha with load_weights_only=True",
+    "CONTROL wiring smoke passes before the full 500k run"
+  ],
+
+  "authorizes_if_preflight_passes": "experiments/run_ccp_s2_production.py --arm control, then --arm treatment"
+}

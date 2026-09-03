@@ -106,7 +106,15 @@ def build_config(arm: str, seed: int, ckpt: Path):
     """Identical for both arms except run_tag and output paths."""
     cfg = V4.build_config()
     cfg.seed = seed
-    cfg.total_timesteps = TOTAL_STEPS
+    # WARM START: trainer.learn() runs until global_step REACHES total_timesteps, and the
+    # incumbent checkpoint restores global_step ~1,003,520. Setting total_timesteps=500_000
+    # would make rem = 500_000 - 1_003_520 < 0 -- zero updates, run reported COMPLETE, both
+    # arms' terminal checkpoints byte-identical to the warm start, and a sealed EVAL that
+    # compares two untrained copies and returns a clean-looking null. additional_timesteps is
+    # the field that means "500k MORE steps"; maybe_extend_total_timesteps() converts it to
+    # base_step + 500_000 after the checkpoint load.
+    cfg.additional_timesteps = TOTAL_STEPS
+    cfg.total_timesteps = TOTAL_STEPS          # overwritten post-load; kept consistent for banners
     cfg.run_tag = f"ccp_s2_{arm}"
     out = OUT_ROOT / arm
     cfg.checkpoint_dir = str(out / "ckpts")
@@ -292,6 +300,7 @@ def main() -> int:
 
     cfg = build_config(arm, seed, ckpt)
     if verifying:
+        cfg.additional_timesteps = int(args.verify_steps)   # ADDITIONAL, same reason as above
         cfg.total_timesteps = int(args.verify_steps)
         cfg.run_tag = f"ccp_s2_{arm}_wiring_verification"
         cfg.checkpoint_dir = str(out_dir / "verify_ckpts")
@@ -345,10 +354,23 @@ def main() -> int:
                 device=str(getattr(trainer, "device", "cpu")))
             trainer.oracle_rehearsal_runner = state["seq"]
         m = trainer.model
+        # keep the trainer itself: CONTROL attaches no runner, so without this the
+        # post-run parameter-motion check has no model to read and reports "did not move"
+        # when it simply never measured -- a false negative, not a finding
+        state["trainer"] = trainer
         state["before"] = {n: p.detach().cpu().numpy().copy()
                            for n, p in m.named_parameters()
                            if any(k in n for k in ("latent_branch_trunks", "latent_action_heads",
                                                    "latent_adapters", "head_V"))}
+        # positive control: a snapshot of EVERY parameter. If nothing at all moved, the
+        # comparison methodology is broken and "private actors did not move" would be
+        # meaningless rather than informative.
+        state["before_all"] = {n: p.detach().cpu().numpy().copy()
+                               for n, p in m.named_parameters()}
+        state["model_id_at_attach"] = id(m)
+        state["n_params_at_attach"] = sum(1 for _ in m.named_parameters())
+        state["n_requires_grad"] = sum(1 for _, p in m.named_parameters() if p.requires_grad)
+        state["global_step_at_attach"] = int(getattr(trainer, "global_step", 0))
 
     try:
         orchestrate_training_run(
@@ -375,18 +397,59 @@ def main() -> int:
     auditor = state.get("auditor")
     coverage = auditor.coverage(expected_envs=32, min_resets=2) if auditor else None
 
+    # Structural anti-null guard: a warm-start run whose step budget is misconfigured trains
+    # for zero steps and still exits cleanly. That failure is indistinguishable from a real
+    # "the treatment did nothing" result at EVAL time, so it is caught here, not there.
+    trainer_obj_early = state.get("trainer")
+    steps_advanced = None
+    if trainer_obj_early is not None and "global_step_at_attach" in state:
+        steps_advanced = (int(getattr(trainer_obj_early, "global_step", 0))
+                          - state["global_step_at_attach"])
+        expected = int(getattr(cfg, "additional_timesteps", 0) or 0)
+        if verdict == "COMPLETE" and steps_advanced < expected * 0.9:
+            raise SystemExit(
+                f"REFUSING: run advanced only {steps_advanced:,} steps but {expected:,} were "
+                f"requested (global_step {state['global_step_at_attach']:,} -> "
+                f"{int(getattr(trainer_obj_early, 'global_step', 0)):,}). A zero- or short-"
+                "trained warm-start run exits cleanly and would reach EVAL as a fabricated "
+                "null result.")
+
     moved = {}
-    trainer_model = seq.trainer.model if seq else None
-    if trainer_model is None and "before" in state:
-        trainer_model = state.get("model")
-    if "before" in state and trainer_model is not None:
+    trainer_obj = state.get("trainer")
+    trainer_model = getattr(trainer_obj, "model", None) if trainer_obj is not None else None
+    if "before" in state and trainer_model is None:
+        raise SystemExit("REFUSING: parameter-motion baseline was captured but no model is "
+                         "reachable to compare it against; reporting 'did not move' here "
+                         "would be a false negative")
+    if "before" in state:
         for n, p in trainer_model.named_parameters():
             if n in state["before"]:
                 moved[n] = not np.array_equal(state["before"][n], p.detach().cpu().numpy())
+        if not moved:
+            raise SystemExit("REFUSING: parameter-motion check matched zero parameters; the "
+                             "name filter is stale relative to the model")
     z0_moved = any(v for k, v in moved.items()
                    if "latent_branch_trunks.0" in k or "latent_action_heads.0" in k)
     z1_moved = any(v for k, v in moved.items()
                    if "latent_branch_trunks.1" in k or "latent_action_heads.1" in k)
+
+    n_all_moved = None
+    if "before_all" in state and trainer_model is not None:
+        n_all_moved = sum(
+            1 for n, p in trainer_model.named_parameters()
+            if n in state["before_all"]
+            and not np.array_equal(state["before_all"][n], p.detach().cpu().numpy()))
+        if n_all_moved == 0:
+            raise SystemExit(
+                "REFUSING: not a single model parameter changed across the whole run.\n"
+                f"  model id at attach {state.get('model_id_at_attach')}, "
+                f"at readback {id(trainer_model)}  "
+                f"({'SAME object' if state.get('model_id_at_attach') == id(trainer_model) else 'DIFFERENT object -- the trained model is not the one being read'})\n"
+                f"  params at attach {state.get('n_params_at_attach')}, "
+                f"requires_grad {state.get('n_requires_grad')}, "
+                f"at readback {sum(1 for _ in trainer_model.named_parameters())}\n"
+                "  The parameter-motion comparison is reading a model that was never trained "
+                "(or was reloaded), so any 'did not move' conclusion would be an artefact.")
 
     if verifying:
         ok = verdict == "COMPLETE"
@@ -403,6 +466,9 @@ def main() -> int:
         if arm == "control":
             print(f"  causal_supervision_loss 0 calls (fatal if any fired)")
         print(f"  z0/z1 actor moved       {z0_moved} / {z1_moved}")
+        print(f"  tracked params moved    {sum(moved.values())}/{len(moved)}")
+        print(f"  ALL params moved        {n_all_moved}/{len(state.get('before_all', {}))}"
+              f"   <- positive control, must be > 0")
         if coverage:
             print(f"  envs / mismatches       {coverage['envs_observed']}/32, "
                   f"{coverage['total_mismatches']}")

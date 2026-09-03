@@ -1,0 +1,78 @@
+{
+  "record": "CCP-S2 training seed mechanical preflight",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T02:38:47Z",
+  "VERDICT": "PASS",
+  "training_seed": 11702001,
+  "derived_env_range": "11702001..11702321",
+  "checks": [
+    {
+      "check": "seed_disjoint_from_collection",
+      "PASS": true,
+      "detail": "11702001 vs 11700001..11700320"
+    },
+    {
+      "check": "seed_disjoint_from_gap",
+      "PASS": true,
+      "detail": "11702001 vs 11700321..11701000"
+    },
+    {
+      "check": "seed_disjoint_from_sealed_eval",
+      "PASS": true,
+      "detail": "11702001 vs 11701001..11701064"
+    },
+    {
+      "check": "derived_env_range_disjoint_from_all_reserved_blocks",
+      "PASS": true,
+      "detail": "11702001..11702321 overlaps nothing"
+    },
+    {
+      "check": "namespace_consistency_117xxxxx",
+      "PASS": true,
+      "detail": "seed 11702001, range end 11702321 share the 117xxxxx program namespace"
+    },
+    {
+      "check": "record_matches_runner_derived_range",
+      "PASS": true,
+      "detail": "record says 11702001..11702321, runner derives 11702001..11702321"
+    },
+    {
+      "check": "runner_reads_assigned_seed",
+      "PASS": true,
+      "detail": "training_seed() returned 11702001"
+    },
+    {
+      "check": "arms_differ_only_in_run_tag_and_output_paths",
+      "PASS": true,
+      "detail": "differing fields: ['checkpoint_dir', 'episode_csv_path', 'metrics_csv_path', 'run_tag']"
+    },
+    {
+      "check": "arms_share_training_seed",
+      "PASS": true,
+      "detail": "control 11702001, treatment 11702001"
+    },
+    {
+      "check": "arms_share_horizon",
+      "PASS": true,
+      "detail": "500000 == 500000 == 500000"
+    },
+    {
+      "check": "warm_start_horizon_is_additional_not_absolute",
+      "PASS": true,
+      "detail": "additional_timesteps control=500000, treatment=500000 (both must be 500000)"
+    },
+    {
+      "check": "deterministic_init_same_incumbent_weights",
+      "PASS": true,
+      "detail": "both load final_ccp_successor_production.zip, load_weights_only=True (fresh optimizer)"
+    },
+    {
+      "check": "arm_outputs_disjoint",
+      "PASS": true,
+      "detail": "control and treatment write to separate directories"
+    }
+  ],
+  "n_checks": 13,
+  "n_passed": 13,
+  "authorizes_if_pass": "experiments/run_ccp_s2_production.py --arm control --verify-steps (wiring smoke), then the full 500k run"
+}
