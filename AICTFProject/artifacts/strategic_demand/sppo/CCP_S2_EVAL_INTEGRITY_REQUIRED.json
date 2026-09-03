@@ -1,0 +1,20 @@
+{
+  "record": "CCP-S2 EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-03T09:35:51Z",
+  "implements": "CCP_S2_SPEC.json#EVAL_PROTOCOL.exact_tie_or_reversal_on_either_arm",
+  "triggered_by": [
+    "A_C",
+    "B_C",
+    "A_T",
+    "B_T"
+  ],
+  "point_estimates": {
+    "A_C": -0.1875,
+    "B_C": -0.0625,
+    "A_T": -0.140625,
+    "B_T": -0.03125
+  },
+  "rule": "requires a row-level integrity audit, written before its rows are read, the same standing rule as OG-PSP's GENUINE_TIE and the sealed predecessor's GENUINE_REVERSAL. Raw rows are written (ccp_s2_eval_rows.csv) but no verdict-bearing CCP_S2_EVAL_RESULT.json is written until that audit exists.",
+  "next": "write experiments/verify_ccp_s2_eval_integrity.py's CHECKS before reading ccp_s2_eval_rows.csv in detail, mirroring verify_ccp_successor_eval_integrity.py's five-check structure"
+}
