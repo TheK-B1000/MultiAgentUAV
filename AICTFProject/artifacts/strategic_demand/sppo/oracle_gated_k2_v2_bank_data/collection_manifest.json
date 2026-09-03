@@ -1,0 +1,15 @@
+{
+  "record": "V2 oracle-gated bank expansion collection",
+  "protocol": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+  "updated_utc": "2026-08-29T22:07:15Z",
+  "completed_seeds": [
+    11000001,
+    11000002,
+    11000003,
+    11000004,
+    11000005,
+    11000006
+  ],
+  "target_seeds": 320,
+  "branch_points_per_seed": 12
+}

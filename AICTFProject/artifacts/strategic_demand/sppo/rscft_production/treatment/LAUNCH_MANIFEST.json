@@ -1,0 +1,32 @@
+{
+  "record": "RSCFT treatment launch manifest",
+  "status": "FROZEN_BEFORE_LAUNCH",
+  "utc": "2026-09-03T13:02:18Z",
+  "arm": "TREATMENT",
+  "implements": "RSCFT_SPEC.json",
+  "training_seed": 11703001,
+  "additional_timesteps": 500000,
+  "warm_start": {
+    "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "is_original_incumbent_not_an_S2_terminal": true,
+    "optimizer_state_reused": false
+  },
+  "causal": {
+    "lambda_causal": 0.05,
+    "cadence": 4,
+    "batch_rows": 48,
+    "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac",
+    "present_in_both_arms": true
+  },
+  "retention": {
+    "lambda_ret": 0.01,
+    "ema_decay": 0.995,
+    "cadence": 1,
+    "hyperparameters_are": "preregistered conservative choices by this program, NOT copied from any published source"
+  },
+  "outputs": {
+    "checkpoint_dir": "artifacts\\strategic_demand\\sppo\\rscft_production\\treatment\\ckpts"
+  },
+  "sealed_eval_block": "11704001..11704064"
+}

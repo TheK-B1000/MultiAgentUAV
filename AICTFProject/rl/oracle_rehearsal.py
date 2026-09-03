@@ -33,8 +33,11 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = ROOT / "artifacts" / "strategic_demand" / "sppo" / "ORACLE_GATED_REHEARSAL_SPEC.json"
 DATA = ROOT / "artifacts" / "strategic_demand" / "stratified_regime_data" / "seed_shards"
+V2_DATA = ROOT / "artifacts" / "strategic_demand" / "sppo" / "oracle_gated_k2_v2_bank_data" / "seed_shards"
+V2_BANK_ASSEMBLY = ROOT / "artifacts" / "strategic_demand" / "sppo" / "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json"
 
 FIT_LO, FIT_HI = 10_700_001, 10_700_096
+V2_NEW_LO, V2_NEW_HI = 11_000_001, 11_000_320
 A_PREFERRED, B_PREFERRED, NOT_ESTABLISHED = -1, 1, 0
 
 # latent <- label, and the teacher that latent is anchored toward
@@ -187,6 +190,69 @@ def load_bank(data_dir: Path = DATA, lo: int = FIT_LO, hi: int = FIT_HI,
         raise RehearsalError("sign convention violated: Delta < 0 must map to A-preferred")
     if not np.all(label[delta > 0] == B_PREFERRED):
         raise RehearsalError("sign convention violated: Delta > 0 must map to B-preferred")
+    return bank
+
+
+def _load_shard_range(
+    data_dir: Path, lo: int, hi: int,
+    obs: dict[str, list], delta: list, action: list, cell: list, seed: list,
+) -> None:
+    for s in range(lo, hi + 1):
+        path = Path(data_dir) / f"seed_{s}.npz"
+        if not path.is_file():
+            continue
+        with np.load(path, allow_pickle=False) as z:
+            mb = z["branch_pi_B_blue"].astype(np.int64) - z["branch_pi_B_red"].astype(np.int64)
+            ma = z["branch_pi_A_blue"].astype(np.int64) - z["branch_pi_A_red"].astype(np.int64)
+            d = mb - ma
+            obs["grid"].append(z["branch_obs_grid"][:, 0])
+            obs["vec"].append(z["branch_obs_vec"][:, 0])
+            obs["agent_mask"].append(z["branch_obs_agent_mask"][:, 0])
+            obs["mask"].append(z["branch_obs_mask"][:, 0])
+            act = np.where((d < 0)[:, None], z["branch_pi_A_action"], z["branch_pi_B_action"])
+            action.append(act)
+            delta.append(d)
+            cell.extend(str(c) for c in z["branch_cell"])
+            seed.append(np.full(len(d), s, dtype=np.int64))
+
+
+def load_bank_v2(rng_seed: int = 31, verify_spec: bool = True) -> RehearsalBank:
+    """V2 bank: legacy FIT shards + new 11000001..11000320 collection shards."""
+    if not V2_BANK_ASSEMBLY.is_file():
+        raise RehearsalError(
+            f"REFUSING: {V2_BANK_ASSEMBLY.name} missing; run audit_oracle_gated_v2_bank.py first")
+    assembly = json.loads(V2_BANK_ASSEMBLY.read_text(encoding="utf-8"))
+    if assembly.get("VERDICT") != "PASS":
+        raise RehearsalError(
+            f"REFUSING: V2 bank assembly verdict is {assembly.get('VERDICT')!r}, not PASS")
+    if verify_spec:
+        if not SPEC.is_file():
+            raise RehearsalError("ORACLE_GATED_REHEARSAL_SPEC.json is not frozen")
+
+    keys = ("grid", "vec", "agent_mask", "mask")
+    obs: dict[str, list] = {k: [] for k in keys}
+    delta, action, cell, seed_list = [], [], [], []
+    _load_shard_range(DATA, FIT_LO, FIT_HI, obs, delta, action, cell, seed_list)
+    _load_shard_range(V2_DATA, V2_NEW_LO, V2_NEW_HI, obs, delta, action, cell, seed_list)
+    if not delta:
+        raise RehearsalError("V2 bank load produced zero branch states")
+
+    delta_arr = np.concatenate(delta)
+    label = np.sign(delta_arr).astype(np.int64)
+    bank = RehearsalBank(
+        obs={k: np.concatenate(v) for k, v in obs.items()},
+        label=label, delta=delta_arr,
+        teacher_action=np.concatenate(action),
+        cell=np.array(cell), seed=np.concatenate(seed_list), rng_seed=rng_seed)
+
+    if not np.all(label[delta_arr < 0] == A_PREFERRED):
+        raise RehearsalError("sign convention violated: Delta < 0 must map to A-preferred")
+    if not np.all(label[delta_arr > 0] == B_PREFERRED):
+        raise RehearsalError("sign convention violated: Delta > 0 must map to B-preferred")
+    min_eligible = int(assembly["minimum_total_eligible"])
+    if bank.n_eligible < min_eligible:
+        raise RehearsalError(
+            f"REFUSING: loaded {bank.n_eligible} eligible states < frozen minimum {min_eligible}")
     return bank
 
 

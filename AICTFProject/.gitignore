@@ -24,3 +24,9 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Model checkpoints — large binaries, referenced by path+sha256 in frozen JSON
+# records instead (e.g. CCP_S2_MODELS_FROZEN.json, RSCFT_MODELS_FROZEN.json).
+# Regenerable from a training run; not committed.
+**/ckpts/*.zip
+**/verify_ckpts/*.zip
