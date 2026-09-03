@@ -1,0 +1,17 @@
+{
+  "record": "RSCFT EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-03T18:42:57Z",
+  "implements": "RSCFT_SPEC.json#EVAL_PROTOCOL.tie_or_reversal",
+  "triggered_by": [
+    "A_C",
+    "A_T"
+  ],
+  "point_estimates": {
+    "A_C": -0.078125,
+    "B_C": 0.0625,
+    "A_T": -0.15625,
+    "B_T": 0.03125
+  },
+  "rule": "requires a row-level integrity audit, written before its rows are read. Raw rows are written (rscft_eval_rows.csv) but no verdict-bearing RSCFT_EVAL_RESULT.json is written until that audit exists."
+}

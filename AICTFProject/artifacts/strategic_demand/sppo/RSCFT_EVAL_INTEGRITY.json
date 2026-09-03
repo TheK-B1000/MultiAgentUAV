@@ -1,0 +1,408 @@
+{
+  "record": "RSCFT EVAL integrity audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T20:50:29Z",
+  "question": "Are the flagged Pole-A reversals (A_C, A_T) real behavioural results, or an evaluator defect such as a transposed latent?",
+  "triggered_by": [
+    "A_C",
+    "A_T"
+  ],
+  "VERDICT": "GENUINE_REVERSAL_POLE_A",
+  "checks": {
+    "1_liveness_z0_vs_z1_per_arm": {
+      "CONTROL_A": {
+        "differing_any": 51,
+        "differing_win": 23,
+        "differing_margin": 45,
+        "z0_won_z1_lost": [
+          11704001,
+          11704005,
+          11704011,
+          11704026,
+          11704037,
+          11704043,
+          11704049,
+          11704053,
+          11704061
+        ],
+        "z1_won_z0_lost": [
+          11704002,
+          11704007,
+          11704012,
+          11704013,
+          11704023,
+          11704024,
+          11704027,
+          11704028,
+          11704036,
+          11704038,
+          11704042,
+          11704047,
+          11704052,
+          11704057
+        ]
+      },
+      "CONTROL_B": {
+        "differing_any": 47,
+        "differing_win": 32,
+        "differing_margin": 47,
+        "z0_won_z1_lost": [
+          11704001,
+          11704004,
+          11704006,
+          11704009,
+          11704019,
+          11704022,
+          11704025,
+          11704029,
+          11704032,
+          11704034,
+          11704036,
+          11704037,
+          11704058,
+          11704061
+        ],
+        "z1_won_z0_lost": [
+          11704008,
+          11704010,
+          11704011,
+          11704017,
+          11704020,
+          11704023,
+          11704027,
+          11704028,
+          11704033,
+          11704038,
+          11704042,
+          11704044,
+          11704050,
+          11704051,
+          11704053,
+          11704054,
+          11704062,
+          11704064
+        ]
+      },
+      "TREATMENT_A": {
+        "differing_any": 55,
+        "differing_win": 30,
+        "differing_margin": 50,
+        "z0_won_z1_lost": [
+          11704003,
+          11704004,
+          11704005,
+          11704006,
+          11704008,
+          11704020,
+          11704033,
+          11704039,
+          11704048,
+          11704059
+        ],
+        "z1_won_z0_lost": [
+          11704001,
+          11704002,
+          11704007,
+          11704011,
+          11704013,
+          11704014,
+          11704016,
+          11704017,
+          11704025,
+          11704030,
+          11704031,
+          11704032,
+          11704038,
+          11704040,
+          11704043,
+          11704045,
+          11704050,
+          11704055,
+          11704060,
+          11704063
+        ]
+      },
+      "TREATMENT_B": {
+        "differing_any": 43,
+        "differing_win": 32,
+        "differing_margin": 42,
+        "z0_won_z1_lost": [
+          11704004,
+          11704006,
+          11704009,
+          11704011,
+          11704017,
+          11704018,
+          11704022,
+          11704023,
+          11704025,
+          11704034,
+          11704049,
+          11704050,
+          11704052,
+          11704056,
+          11704063
+        ],
+        "z1_won_z0_lost": [
+          11704005,
+          11704007,
+          11704012,
+          11704019,
+          11704029,
+          11704031,
+          11704032,
+          11704037,
+          11704040,
+          11704041,
+          11704042,
+          11704044,
+          11704047,
+          11704053,
+          11704057,
+          11704060,
+          11704064
+        ]
+      }
+    },
+    "1b_liveness_control_vs_treatment": {
+      "z0_A": {
+        "differing_any": 56,
+        "differing_win": 36,
+        "control_won_treatment_lost": [
+          11704001,
+          11704011,
+          11704014,
+          11704016,
+          11704017,
+          11704018,
+          11704021,
+          11704025,
+          11704030,
+          11704031,
+          11704032,
+          11704035,
+          11704037,
+          11704040,
+          11704043,
+          11704045,
+          11704053,
+          11704055,
+          11704060,
+          11704061,
+          11704063,
+          11704064
+        ],
+        "treatment_won_control_lost": [
+          11704009,
+          11704012,
+          11704020,
+          11704023,
+          11704024,
+          11704027,
+          11704028,
+          11704036,
+          11704039,
+          11704042,
+          11704046,
+          11704047,
+          11704052,
+          11704057
+        ]
+      },
+      "z0_B": {
+        "differing_any": 35,
+        "differing_win": 27,
+        "control_won_treatment_lost": [
+          11704012,
+          11704016,
+          11704019,
+          11704026,
+          11704029,
+          11704031,
+          11704032,
+          11704036,
+          11704037,
+          11704041,
+          11704045,
+          11704047,
+          11704057,
+          11704059
+        ],
+        "treatment_won_control_lost": [
+          11704008,
+          11704010,
+          11704011,
+          11704017,
+          11704020,
+          11704023,
+          11704027,
+          11704030,
+          11704033,
+          11704050,
+          11704051,
+          11704054,
+          11704062
+        ]
+      },
+      "z1_A": {
+        "differing_any": 48,
+        "differing_win": 19,
+        "control_won_treatment_lost": [
+          11704003,
+          11704004,
+          11704006,
+          11704008,
+          11704018,
+          11704021,
+          11704033,
+          11704035,
+          11704048,
+          11704059,
+          11704064
+        ],
+        "treatment_won_control_lost": [
+          11704001,
+          11704009,
+          11704011,
+          11704026,
+          11704043,
+          11704046,
+          11704049,
+          11704050
+        ]
+      },
+      "z1_B": {
+        "differing_any": 42,
+        "differing_win": 27,
+        "control_won_treatment_lost": [
+          11704011,
+          11704016,
+          11704017,
+          11704018,
+          11704023,
+          11704026,
+          11704028,
+          11704038,
+          11704045,
+          11704049,
+          11704050,
+          11704052,
+          11704056,
+          11704059,
+          11704063
+        ],
+        "treatment_won_control_lost": [
+          11704001,
+          11704005,
+          11704007,
+          11704019,
+          11704029,
+          11704030,
+          11704032,
+          11704037,
+          11704040,
+          11704058,
+          11704060,
+          11704061
+        ]
+      }
+    },
+    "3_deltas_and_gammas_recomputed": {
+      "delta_A_CONTROL": {
+        "mean": -0.078125,
+        "lcb95": -0.21875,
+        "ucb95": 0.0625
+      },
+      "delta_B_CONTROL": {
+        "mean": 0.0625,
+        "lcb95": -0.109375,
+        "ucb95": 0.234375
+      },
+      "delta_A_TREATMENT": {
+        "mean": -0.15625,
+        "lcb95": -0.3125,
+        "ucb95": 0.015625
+      },
+      "delta_B_TREATMENT": {
+        "mean": 0.03125,
+        "lcb95": -0.140625,
+        "ucb95": 0.203125
+      },
+      "Gamma_A": {
+        "mean": -0.078125,
+        "lcb95": -0.296875,
+        "ucb95": 0.140625
+      },
+      "Gamma_B": {
+        "mean": -0.03125,
+        "lcb95": -0.265625,
+        "ucb95": 0.203125
+      },
+      "matches_flag_point_estimates": true
+    },
+    "4_provenance": {
+      "duplicate_rows": 0,
+      "missing_cells": [],
+      "seed_block": [
+        11704001,
+        11704064
+      ],
+      "total_rows": 512
+    },
+    "5_latent_swap_test": {
+      "CONTROL": {
+        "A_if_z0_z1_transposed": {
+          "mean": 0.078125,
+          "lcb95": -0.0625,
+          "ucb95": 0.21875,
+          "would_pass": false
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": -0.0625,
+          "lcb95": -0.234375,
+          "ucb95": 0.109375,
+          "would_pass": false
+        }
+      },
+      "TREATMENT": {
+        "A_if_z0_z1_transposed": {
+          "mean": 0.15625,
+          "lcb95": -0.015625,
+          "ucb95": 0.3125,
+          "would_pass": false
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": -0.03125,
+          "lcb95": -0.203125,
+          "ucb95": 0.140625,
+          "would_pass": false
+        }
+      }
+    },
+    "5b_cross_instrument_vs_incumbent_own_sealed_eval": {
+      "same_warm_start_checkpoint": true,
+      "incumbent_delta_A": 0.09375,
+      "incumbent_delta_B": -0.15625,
+      "pole_A_was_positive_at_incumbent": true,
+      "pole_B_was_negative_at_incumbent": true
+    },
+    "6_control_treatment_agreement": {
+      "A": {
+        "control": -0.078125,
+        "treatment": -0.15625,
+        "same_direction": true,
+        "gap": -0.078125
+      },
+      "B": {
+        "control": 0.0625,
+        "treatment": 0.03125,
+        "same_direction": true,
+        "gap": -0.03125
+      }
+    }
+  },
+  "conclusion": "Pole-A reversals recompute from raw rows, latent forcing was live, CONTROL and TREATMENT differ, and the pattern is consistent with a real behavioural result rather than an evaluator defect.",
+  "changes_no_verdict": true,
+  "does_not_write_RSCFT_EVAL_RESULT": true,
+  "failures": []
+}
