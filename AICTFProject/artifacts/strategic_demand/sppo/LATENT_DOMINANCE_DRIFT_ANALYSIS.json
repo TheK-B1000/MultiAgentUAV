@@ -1,0 +1,287 @@
+{
+  "record": "Latent dominance drift -- exploratory analysis",
+  "status": "EXPLORATORY_NOT_PREREGISTERED",
+  "utc": "2026-09-03T22:02:37Z",
+  "designed_after_seeing_results": true,
+  "may_not_be_reported_as_confirmatory": true,
+  "hypothesis": "A fall in delta_A and a rise in delta_B both mean z1 gaining on z0. If continued fine-tuning shifts advantage toward z1 on BOTH poles, the phenomenon is latent dominance drift, not pole inversion.",
+  "limitation": "every method used its OWN disjoint sealed seed block (32 or 64 seeds), so cross-method comparison is UNPAIRED and confounds seed difficulty with method. Per-method specialist references on the same block are reported as a difficulty anchor.",
+  "methods": [
+    {
+      "method": "V1 (oracle-gated K=2)",
+      "n_seeds": 32,
+      "V": {
+        "z0@A": 0.5625,
+        "z1@A": 0.59375,
+        "z0@B": 0.5,
+        "z1@B": 0.625
+      },
+      "delta_A": {
+        "mean": -0.03125,
+        "lcb95": -0.25,
+        "ucb95": 0.15625
+      },
+      "delta_B": {
+        "mean": 0.125,
+        "lcb95": -0.09375,
+        "ucb95": 0.34375
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": 0.078125,
+        "lcb95": -0.046875,
+        "ucb95": 0.203125
+      },
+      "specialist_reference_same_block": {
+        "pi_A@A": 0.6875,
+        "pi_B@B": 0.53125
+      }
+    },
+    {
+      "method": "OG-PSP",
+      "n_seeds": 32,
+      "V": {
+        "z0@A": 0.875,
+        "z1@A": 0.8125,
+        "z0@B": 0.6875,
+        "z1@B": 0.6875
+      },
+      "delta_A": {
+        "mean": 0.0625,
+        "lcb95": -0.125,
+        "ucb95": 0.25
+      },
+      "delta_B": {
+        "mean": 0.0,
+        "lcb95": -0.1875,
+        "ucb95": 0.1875
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": -0.03125,
+        "lcb95": -0.1875,
+        "ucb95": 0.125
+      },
+      "specialist_reference_same_block": {
+        "pi_A@A": 0.75,
+        "pi_B@B": 0.625
+      }
+    },
+    {
+      "method": "H-OG-PSP V3",
+      "n_seeds": 32,
+      "V": {
+        "z0@A": 0.75,
+        "z1@A": 0.78125,
+        "z0@B": 0.71875,
+        "z1@B": 0.5625
+      },
+      "delta_A": {
+        "mean": -0.03125,
+        "lcb95": -0.21875,
+        "ucb95": 0.15625
+      },
+      "delta_B": {
+        "mean": -0.15625,
+        "lcb95": -0.40625,
+        "ucb95": 0.09375
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": -0.0625,
+        "lcb95": -0.1875,
+        "ucb95": 0.078125
+      },
+      "specialist_reference_same_block": {
+        "pi_A@A": 0.71875,
+        "pi_B@B": 0.46875
+      }
+    },
+    {
+      "method": "H-OG-PSP V4",
+      "n_seeds": 32,
+      "V": {
+        "z0@A": 0.78125,
+        "z1@A": 0.78125,
+        "z0@B": 0.6875,
+        "z1@B": 0.6875
+      },
+      "delta_A": {
+        "mean": 0.0,
+        "lcb95": -0.21875,
+        "ucb95": 0.21875
+      },
+      "delta_B": {
+        "mean": 0.0,
+        "lcb95": -0.21875,
+        "ucb95": 0.21875
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": 0.0,
+        "lcb95": -0.15625,
+        "ucb95": 0.15625
+      },
+      "specialist_reference_same_block": {
+        "pi_A@A": 0.75,
+        "pi_B@B": 0.46875
+      }
+    },
+    {
+      "method": "CCP successor (incumbent)",
+      "n_seeds": 32,
+      "V": {
+        "z0@A": 0.84375,
+        "z1@A": 0.75,
+        "z0@B": 0.71875,
+        "z1@B": 0.5625
+      },
+      "delta_A": {
+        "mean": 0.09375,
+        "lcb95": -0.09375,
+        "ucb95": 0.28125
+      },
+      "delta_B": {
+        "mean": -0.15625,
+        "lcb95": -0.375,
+        "ucb95": 0.0625
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": -0.125,
+        "lcb95": -0.265625,
+        "ucb95": 0.015625
+      },
+      "specialist_reference_same_block": {
+        "pi_A@A": 0.6875,
+        "pi_B@B": 0.59375
+      }
+    },
+    {
+      "method": "CCP-S2 CONTROL",
+      "n_seeds": 64,
+      "V": {
+        "z0@A": 0.640625,
+        "z1@A": 0.828125,
+        "z0@B": 0.609375,
+        "z1@B": 0.546875
+      },
+      "delta_A": {
+        "mean": -0.1875,
+        "lcb95": -0.328125,
+        "ucb95": -0.046875
+      },
+      "delta_B": {
+        "mean": -0.0625,
+        "lcb95": -0.25,
+        "ucb95": 0.125
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": 0.0625,
+        "lcb95": -0.046875,
+        "ucb95": 0.171875
+      },
+      "specialist_reference_same_block": {}
+    },
+    {
+      "method": "CCP-S2 TREATMENT",
+      "n_seeds": 64,
+      "V": {
+        "z0@A": 0.671875,
+        "z1@A": 0.8125,
+        "z0@B": 0.609375,
+        "z1@B": 0.578125
+      },
+      "delta_A": {
+        "mean": -0.140625,
+        "lcb95": -0.28125,
+        "ucb95": 0.0
+      },
+      "delta_B": {
+        "mean": -0.03125,
+        "lcb95": -0.203125,
+        "ucb95": 0.140625
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": 0.0546875,
+        "lcb95": -0.0546875,
+        "ucb95": 0.15625
+      },
+      "specialist_reference_same_block": {}
+    },
+    {
+      "method": "RSCFT CONTROL",
+      "n_seeds": 64,
+      "V": {
+        "z0@A": 0.671875,
+        "z1@A": 0.75,
+        "z0@B": 0.59375,
+        "z1@B": 0.65625
+      },
+      "delta_A": {
+        "mean": -0.078125,
+        "lcb95": -0.21875,
+        "ucb95": 0.0625
+      },
+      "delta_B": {
+        "mean": 0.0625,
+        "lcb95": -0.109375,
+        "ucb95": 0.234375
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": 0.0703125,
+        "lcb95": -0.0546875,
+        "ucb95": 0.1875
+      },
+      "specialist_reference_same_block": {}
+    },
+    {
+      "method": "RSCFT TREATMENT",
+      "n_seeds": 64,
+      "V": {
+        "z0@A": 0.546875,
+        "z1@A": 0.703125,
+        "z0@B": 0.578125,
+        "z1@B": 0.609375
+      },
+      "delta_A": {
+        "mean": -0.15625,
+        "lcb95": -0.3125,
+        "ucb95": 0.015625
+      },
+      "delta_B": {
+        "mean": 0.03125,
+        "lcb95": -0.140625,
+        "ucb95": 0.203125
+      },
+      "z1_minus_z0_both_poles": {
+        "mean": 0.09375,
+        "lcb95": -0.03125,
+        "ucb95": 0.2109375
+      },
+      "specialist_reference_same_block": {}
+    }
+  ],
+  "drift_vs_incumbent": {
+    "incumbent_z1_minus_z0": -0.125,
+    "arms": [
+      {
+        "method": "CCP-S2 CONTROL",
+        "z1_minus_z0": 0.0625,
+        "shift_vs_incumbent": 0.1875
+      },
+      {
+        "method": "CCP-S2 TREATMENT",
+        "z1_minus_z0": 0.0546875,
+        "shift_vs_incumbent": 0.1796875
+      },
+      {
+        "method": "RSCFT CONTROL",
+        "z1_minus_z0": 0.0703125,
+        "shift_vs_incumbent": 0.1953125
+      },
+      {
+        "method": "RSCFT TREATMENT",
+        "z1_minus_z0": 0.09375,
+        "shift_vs_incumbent": 0.21875
+      }
+    ],
+    "n_arms_shifted_toward_z1": 4,
+    "n_arms": 4
+  }
+}
