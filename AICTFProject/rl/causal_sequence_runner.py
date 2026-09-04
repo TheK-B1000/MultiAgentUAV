@@ -163,3 +163,126 @@ class CausalSequenceRunner:
             "nonzero_segments": self.meta["nonzero_segments_rolled_out"],
             "total_segments": self.meta["total_segments_in_causal_bank"],
         }
+
+
+class BalancedCausalSequenceRunner(CausalSequenceRunner):
+    """CausalSequenceRunner, but each minibatch draws an equal row count per latent.
+
+    Implements BALANCED_CAUSAL_SAMPLING_SPEC.json. The parent class draws ``batch_rows``
+    indices uniformly over ALL bank rows (``torch.randint(0, self.n_rows, ...)``) -- since the
+    frozen bank's own row composition is imbalanced (453 z0 rows from 3 segments vs 319 z1 rows
+    from 2 segments, CCP_S2_CAUSAL_BANK_ARRAY.json#rows_by_latent), that uniform draw reproduces
+    the imbalance in every training batch (measured previously at ~59/41 z0/z1 exposure across
+    four separate training runs that all used the unmodified parent class).
+
+    This class changes ONLY the sampling procedure: it pre-partitions row indices by z_idx at
+    construction, then draws ``batch_rows // n_latents`` indices (with replacement) from EACH
+    latent's own row pool per step, so every step's z-composition is exactly balanced regardless
+    of the underlying bank's row counts. It does not change the bank, the segments, the routing,
+    the loss function, lambda, or cadence -- every other code path is inherited unchanged from
+    CausalSequenceRunner.step().
+
+    What this does NOT fix: segment DIVERSITY. There are still only 3 distinct z0 segments and 2
+    distinct z1 segments in the bank; balancing exposure count means revisiting that same small
+    pool more evenly, not enlarging it. If the underlying problem is insufficient z1 supervision
+    diversity rather than under-sampling of the z1 rows that already exist, this class will not
+    address it -- that would require re-collecting Stage A/B data, out of scope here.
+    """
+
+    def __init__(self, trainer, npz_path, meta_path, *, lam: float, cadence: int,
+                 batch_rows: int, expected_bank_hash: str, device: str = "cpu"):
+        super().__init__(trainer, npz_path, meta_path, lam=lam, cadence=cadence,
+                         batch_rows=batch_rows, expected_bank_hash=expected_bank_hash,
+                         device=device)
+        import torch
+
+        z_cpu = self.z_all.detach().cpu()
+        self._latent_values = sorted(int(v) for v in torch.unique(z_cpu).tolist())
+        if len(self._latent_values) < 2:
+            raise RuntimeError(
+                f"BalancedCausalSequenceRunner requires >=2 distinct latents in the bank; "
+                f"found {self._latent_values} -- refusing to silently degrade to unbalanced "
+                "single-latent sampling")
+        self._pool_by_latent = {
+            z: (z_cpu == z).nonzero(as_tuple=True)[0] for z in self._latent_values
+        }
+        for z, pool in self._pool_by_latent.items():
+            if pool.numel() == 0:
+                raise RuntimeError(f"latent {z} has zero bank rows; cannot balance-sample it")
+
+    def step(self) -> None:
+        from rl.causal_supervision import causal_supervision_loss
+
+        import torch
+        rng = getattr(self, "_rng", None)
+        if rng is None:
+            rng = torch.Generator(device="cpu")
+            self._rng = rng
+
+        n_lat = len(self._latent_values)
+        base = self.batch_rows // n_lat
+        counts = [base] * n_lat
+        counts[-1] += self.batch_rows - base * n_lat  # remainder to the last stratum
+
+        idx_parts = []
+        for z, n in zip(self._latent_values, counts):
+            pool = self._pool_by_latent[z]
+            pick = torch.randint(0, pool.numel(), (n,), generator=rng)
+            idx_parts.append(pool[pick])
+        idx_cpu = torch.cat(idx_parts, dim=0)
+        idx = idx_cpu.to(self.device)
+
+        obs = {k: v[idx] for k, v in self.obs_all.items()}
+        actions = self.actions_all[idx]
+        z_idx = self.z_all[idx]
+        decision_mask = self.decision_mask_all[idx]
+        weights = self.weight_all[idx]
+        seg_ids = self.segment_idx_all[idx_cpu.numpy()]
+
+        loss = self.lam * causal_supervision_loss(
+            self.trainer.model, obs, actions, z_idx=z_idx,
+            decision_mask=decision_mask, weights=weights)
+
+        opt = self.trainer.optimizer
+        opt.zero_grad(set_to_none=True)
+        loss.backward()
+        opt.step()
+
+        self.n_updates += 1
+        self.n_rows_seen += int(idx.numel())
+        self.last_loss = float(loss.detach())
+        self.z0_exposures += int((z_idx == 0).sum())
+        self.z1_exposures += int((z_idx == 1).sum())
+        for s in seg_ids:
+            sign = self._segment_signs.get(int(s), 0)
+            if sign > 0:
+                self.positive_routes += 1
+            elif sign < 0:
+                self.negative_routes += 1
+
+    def self_test(self) -> dict:
+        """Run several steps against a throwaway optimizer state and confirm the per-step
+        z-composition is exactly the target split (not merely balanced on average)."""
+        per_step_counts = []
+        for z, pool in self._pool_by_latent.items():
+            per_step_counts.append((z, pool.numel()))
+        n_lat = len(self._latent_values)
+        base = self.batch_rows // n_lat
+        expected_counts = [base] * n_lat
+        expected_counts[-1] += self.batch_rows - base * n_lat
+        before_z0, before_z1 = self.z0_exposures, self.z1_exposures
+        for _ in range(8):
+            self.step()
+        gained_z0 = self.z0_exposures - before_z0
+        gained_z1 = self.z1_exposures - before_z1
+        expected_z0_gain = expected_counts[self._latent_values.index(0)] * 8
+        expected_z1_gain = expected_counts[self._latent_values.index(1)] * 8
+        ok = gained_z0 == expected_z0_gain and gained_z1 == expected_z1_gain
+        if not ok:
+            raise RuntimeError(
+                f"BalancedCausalSequenceRunner.self_test FAILED: after 8 steps, "
+                f"gained z0={gained_z0} (expected {expected_z0_gain}), "
+                f"gained z1={gained_z1} (expected {expected_z1_gain}) -- sampling is not "
+                "exactly balanced per step")
+        return {"pool_sizes": dict(per_step_counts), "target_split_per_step": expected_counts,
+               "gained_z0": gained_z0, "gained_z1": gained_z1, "exact_balance_confirmed": True}
