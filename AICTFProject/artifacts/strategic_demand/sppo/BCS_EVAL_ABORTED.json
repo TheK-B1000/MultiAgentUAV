@@ -1,0 +1,54 @@
+{
+  "record_id": "BCS_EVAL_ABORTED",
+  "status": "ABORTED_NO_VERDICT",
+  "utc": "2026-09-04T15:05:00Z",
+  "implements": "BALANCED_CAUSAL_SAMPLING_SPEC.json#EVAL_PROTOCOL -- terminated before completion",
+
+  "SCIENTIFIC_VERDICT": "NONE",
+  "ABORTED_IS_NOT_FAIL": "This run produced NO verdict, in either direction. BCS is neither a PASS nor a FAIL. It is an experiment whose evaluation was terminated for resource reasons before its gate could be computed, and it must never be cited, tabulated, or summarised as a negative result.",
+
+  "REASON": "PI_RESOURCE_REALLOCATION",
+  "REASON_STATEMENT": "BCS was terminated without verdict following discovery that the incumbent had never undergone direct specialist-to-latent compression; resources were reallocated to the more fundamental preregistered teacher-distillation experiment.",
+  "REASON_IS_NOT": "This was NOT stopped because an early number looked good or bad. The decision was made on provenance grounds -- see PROVENANCE_DISCOVERY below -- and the partial cell values below played no part in it.",
+
+  "PROVENANCE_DISCOVERY_THAT_CHANGED_THE_QUESTION": {
+    "found": "ccp_successor_production_run_config.json and CCP_SUCCESSOR_MODEL_FROZEN.json#CONFIG_AND_SEED show the incumbent is a FRESH random-init PPO run (fresh_step_0=true, checkpoint_weights_loaded=false, total_timesteps=1000000, seed 11600001) with no causal-supervision coefficient present at all.",
+    "implication": "pi_A and pi_B never entered that training run. The only specialist-derived signal ever applied to a latent network in this program is CCP-S2's sparse winner-directed causal bank (5 of 100 segments, 3.5x z0/z1 imbalance). No direct D_KL(pi_A||pi_theta(.|z0)) + D_KL(pi_B||pi_theta(.|z1)) compression has ever been run.",
+    "consequence": "BCS, like CCP-S2 / RSCFT / trunk-freeze / SAC-RFT / Z-separation, is a repair applied to a policy that was never compressed from the specialists in the first place. The prior question (how to repair the compressed policy) was superseded by a more fundamental one (whether the compression itself can preserve crossover), which TEACHER_DISTILLATION_SPEC.json tests directly."
+  },
+
+  "WHAT_WAS_COMPLETED": {
+    "training": "BOTH arms completed and remain VALID and frozen -- this abort does not touch them. BCS_CONTROL_RESULT.json and BCS_TREATMENT_RESULT.json (VERDICT=COMPLETE, 503,808 steps each) and BCS_MODELS_FROZEN.json (distinct terminal checkpoint hashes; TREATMENT balance_check z0/z1 exposures 16128/16128, abs_diff=0) stand as valid records of the training stage.",
+    "eval_cells_completed": 2,
+    "eval_cells_total": 8,
+    "eval_episodes_completed": 128,
+    "eval_episodes_total": 512,
+    "eval_wall_clock": "~79 minutes for 2 of 8 cells, against ~20-25 minutes for all 8 cells in the identically-structured trunk-freeze and SAC-RFT evals; the slowdown is attributed to CPU contention with a concurrently running CPU-bound collection job on the same machine"
+  },
+
+  "ARTIFACTS_WRITTEN_BY_THE_ABORTED_RUN": {
+    "count": 0,
+    "detail": "eval_bcs.py writes bcs_eval_rows.csv, BCS_EVAL_RESULT.json and BCS_EVAL_INTEGRITY_REQUIRED.json only after ALL cells complete. Verified on disk after termination: none of the three exist. There is no partial row file to be mistaken for a result later.",
+    "raw_stdout_preserved": "the terminated process's captured stdout is preserved verbatim in the OBSERVED_BUT_UNINTERPRETABLE block below; nothing was deleted or overwritten"
+  },
+
+  "OBSERVED_BUT_UNINTERPRETABLE": {
+    "WARNING": "These two cell win-rates were printed by the incomplete run. They are recorded here ONLY so the record is complete and nothing is hidden. They MUST NOT be interpreted, differenced, tested, or reported. Two of eight cells cannot produce delta_A or delta_B, carry no confidence interval, and were never subjected to the tie/reversal integrity audit the frozen protocol requires.",
+    "cells": {
+      "CONTROL_z0_on_Pole_A": 0.7500,
+      "CONTROL_z1_on_Pole_A": 0.8594
+    },
+    "explicitly_forbidden": "computing delta_A = 0.7500 - 0.8594 and calling it a reversal. The frozen gate requires all four cells per arm plus a paired bootstrap over the shared seed block; a two-cell arithmetic difference is not that quantity and has no inferential status."
+  },
+
+  "SEED_BLOCK_DISPOSITION": {
+    "block": "11902001..11902064",
+    "status": "PARTIALLY_EXPOSED_DO_NOT_REUSE",
+    "rule": "This sealed block was partially opened (2 of 8 cells scored against the frozen checkpoints). It is spent. BCS must NOT be resumed on this block as though nothing happened, and no future experiment may treat it as a fresh sealed block.",
+    "if_BCS_is_ever_revisited": "preregister a FRESH eval seed block, disjoint from every block listed in the program's prior specs, and rerun the sealed EVAL from scratch on the already-frozen BCS_MODELS_FROZEN.json checkpoints. The training stage does not need repeating; only the evaluation does."
+  },
+
+  "AUTHORITY": "PI, 2026-09-04, explicit: stop BCS now, keep all logs and raw rows, do not turn the partial run into a scientific result, do not resume on the same sealed block, and reallocate the machine to teacher distillation.",
+
+  "SUPERSEDED_BY": "TEACHER_DISTILLATION_SPEC.json"
+}

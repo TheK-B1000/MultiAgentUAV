@@ -1,0 +1,26 @@
+{
+  "record_id": "Z_SEPARATION_HELD_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T15:05:00Z",
+  "authority": "PI, 2026-09-04: cancel/hold Z-separation -- it solves the old problem (creating separation inside the scratch-trained latent incumbent); the more fundamental experiment is actual specialist compression",
+
+  "amends": "Z_SEPARATION_SPEC.json",
+  "rule": "this is an APPEND, not an edit. Z_SEPARATION_SPEC.json is not modified in place, and nothing in it is retracted. This record changes only its EXECUTION STATUS.",
+
+  "NEW_STATUS": "HELD_NOT_RUN",
+  "what_that_means": {
+    "never_launched": "no Z-separation training run, no GPU time, no seeds consumed. Its reserved blocks (training 11910001, eval 11911001..11911064) remain UNSPENT and stay reserved to it.",
+    "not_a_failure": "Z-separation produced no result of any kind and must never be listed as a negative outcome. It is an unrun, fully preregistered experiment.",
+    "spec_and_code_stand": "Z_SEPARATION_SPEC.json and experiments/run_z_separation_production.py remain committed, wiring-verified in design, and immediately runnable if the PI reauthorises."
+  },
+
+  "WHY_HELD": {
+    "reasoning": "Z-separation adds a JSD hinge that pushes z0 and z1 apart inside the incumbent -- a policy that, per ccp_successor_production_run_config.json (fresh_step_0=true, no causal coefficient), was never compressed from pi_A/pi_B at all. It therefore belongs to the same repair ladder as CCP-S2, RSCFT, trunk-freeze, SAC-RFT and BCS: all of them operate downstream of a compression step that never actually happened in the specialist-to-latent sense.",
+    "superseding_question": "TEACHER_DISTILLATION_SPEC.json asks whether one latent network can faithfully compress the two SAPPO specialists at all, and measures crossover IMMEDIATELY after pure distillation, before any RL touches the student. That localises where specialization dies instead of adding a seventh repair.",
+    "where_z_separation_may_return": "if Compression Crossover PASSES and a later PPO-adaptation phase then destroys it, a separation term becomes a well-motivated retention candidate against a real, isolated failure. That would be a fresh authorisation, on fresh seeds, not a resumption of this hold."
+  },
+
+  "DOES_NOT_CHANGE": "any scientific content of Z_SEPARATION_SPEC.json -- its mechanism confirmation, its one-changed-variable framing, its disclosed 250k-step horizon deviation, its honest cosmetic-separation caveat, and its gate all stand exactly as frozen.",
+
+  "SUPERSEDED_FOR_NOW_BY": "TEACHER_DISTILLATION_SPEC.json"
+}
