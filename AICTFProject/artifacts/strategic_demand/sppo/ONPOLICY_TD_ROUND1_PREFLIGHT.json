@@ -1,0 +1,27 @@
+{
+  "record": "On-policy TD round 1 mechanical preflight",
+  "utc": "2026-09-04T18:15:27Z",
+  "implements": "ONPOLICY_TEACHER_DISTILLATION_SPEC.json#MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_EACH_ROUND",
+  "checks": {
+    "1_datasets_load_both_poles_holdouts": true,
+    "2_starting_student_sha_and_arch": true,
+    "3_teacher_self_agreement_1_and_self_kl_0_on_student_states": true,
+    "4_initial_loss_finite_positive": true,
+    "5_grad_on_actor_not_critic": true,
+    "6_step_moves_actor_only": true,
+    "7_checkpoint_roundtrip_identical_logits": true
+  },
+  "passed": "7/7",
+  "initial_loss_on_student_states": 0.014964829199016094,
+  "initial_diag": {
+    "kl_A": 0.02004297263920307,
+    "kl_B": 0.009886685758829117,
+    "decision_heads": 182
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "train_rows": {
+    "teacher": 31714,
+    "student_r1": 21583
+  },
+  "VERDICT": "PASS"
+}
