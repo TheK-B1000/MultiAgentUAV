@@ -1,0 +1,26 @@
+{
+  "record": "BCS control launch manifest",
+  "status": "FROZEN_BEFORE_LAUNCH",
+  "utc": "2026-09-04T11:47:06Z",
+  "arm": "UNBALANCED_CONTROL",
+  "implements": "BALANCED_CAUSAL_SAMPLING_SPEC.json",
+  "training_seed": 11901001,
+  "additional_timesteps": 12288,
+  "warm_start": {
+    "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "optimizer_state_reused": false
+  },
+  "trunk_freeze": "ABSENT -- full network trainable in both arms, unlike TRUNK_FREEZE_SPEC.json",
+  "causal": {
+    "lambda_causal": 0.05,
+    "cadence": 4,
+    "batch_rows": 48,
+    "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac",
+    "sampler_class": "CausalSequenceRunner"
+  },
+  "outputs": {
+    "checkpoint_dir": "artifacts\\strategic_demand\\sppo\\balanced_causal_sampling_production\\control\\verify_ckpts"
+  },
+  "sealed_eval_block": "11902001..11902064"
+}
