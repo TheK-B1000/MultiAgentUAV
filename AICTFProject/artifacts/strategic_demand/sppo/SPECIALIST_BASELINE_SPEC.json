@@ -1,0 +1,57 @@
+{
+  "record_id": "SPECIALIST_BASELINE_SPEC",
+  "name": "Separate-specialists (no compression) baseline, formal preregistered version",
+  "status": "FROZEN_BEFORE_EVAL_IS_OPENED",
+  "utc": "2026-09-04T05:15:00Z",
+  "authority": "PI, 2026-09-04: closing the gap flagged when auditing 2v2 baseline coverage -- SPECIALIST_ANCHOR_RESULT.json exists but is EXPLORATORY_CALIBRATION (not_preregistered=true, no_gate_no_verdict=true, reused already-spent CCP-S2/RSCFT seed blocks for a different checkpoint). The paper's baseline table needs a specialists row scored under the identical gate/CI/preregistration discipline as pi_G and every latent arm.",
+
+  "QUESTION": "What is the ceiling the latent-compression program is actually being measured against? Two policies trained separately, one per pole, with no shared network and no compression constraint at all, should win decisively on their own pole and lose on the other -- this is the 'generalist < latent specialization <= separate specialists' hierarchy's top rung (PI_G_EVAL_SPEC.json#COMPARISON_RULE). This spec measures that rung directly, with the same statistics as everything below it.",
+
+  "MODELS_UNDER_TEST": {
+    "pi_A": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+      "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+      "trained_on": "Pole A opponent only, 1.5M steps, seed 7100001, no latent mechanism (single-strategy network)"
+    },
+    "pi_B": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+      "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+      "trained_on": "Pole B opponent only, 1.5M steps, seed 7200001, no latent mechanism (single-strategy network)"
+    },
+    "no_training_or_tuning_here": "both checkpoints used strictly as-is, inference only. No fine-tuning, no additional steps, no architecture change. Same two checkpoints SPECIALIST_ANCHOR_RESULT.json already sha-verified against CCP_PHASE1_PILOT_MANIFEST.json's TEACHER_POLICIES -- reused here as a FRESH, formally preregistered measurement, not a reinterpretation of that exploratory one.",
+    "source_manifest": "artifacts/strategic_demand/sppo/CCP_PHASE1_PILOT_MANIFEST.json#TEACHER_POLICIES"
+  },
+
+  "PROTOCOL": {
+    "seeds_per_cell": 64,
+    "block": "11805001..11805064",
+    "disjointness": "confirmed disjoint by grep against every prior spec/result in artifacts/strategic_demand/sppo/ before freezing -- no file references any seed in 1180[5-9]xxx or 1181xxxx. Distinct from the exploratory calibration's reused 11701xxx/11704xxx blocks: this is a fresh block, never before opened for any purpose.",
+    "cells": ["pi_A on Pole A (64 seeds)", "pi_A on Pole B (64 seeds)",
+              "pi_B on Pole A (64 seeds)", "pi_B on Pole B (64 seeds)"],
+    "total_episodes": 256,
+    "shared_seeds_across_both_policies": true,
+    "no_z_conditioning": "neither checkpoint has a latent mechanism; each is run with a plain policy.reset_strategy() call and no fixed_latent_strategy forcing, identical to eval_specialist_anchor.py's own inference pattern",
+    "metric": "win rate (binary), identical convention to every crossover measurement in this program",
+    "bootstrap": "paired percentile bootstrap, seed as the resampling unit, n_boot=20000, alpha=0.05, rng_seed=7 -- reuses eval_hog_psp_v3._mean_ci unchanged"
+  },
+
+  "PRIMARY_GATE": {
+    "delta_A": "V(pi_A, PoleA) - V(pi_B, PoleA)",
+    "delta_B": "V(pi_B, PoleB) - V(pi_A, PoleB)",
+    "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0 -- the exact same primary gate wording as CCP-S2/RSCFT/trunk-freeze/SAC-RFT (their z0/z1 role is played here by pi_A/pi_B). No mercy, no reinterpretation.",
+    "expected_direction": "this is the ceiling reference, not a novel hypothesis test -- point estimates are expected to pass decisively (each specialist should dominate its own trained pole). A failure or reversal here would be a serious finding about the opponent poles or evaluator, not about compression, and must be audited with the same rigor as any other reversal in this program rather than assumed away because it 'should' pass.",
+    "no_attribution_block": "unlike the CONTROL/TREATMENT arms elsewhere in this program, there is no shared-training-run pair here to attribute a Gamma between -- pi_A and pi_B are two independently trained policies. Only the PRIMARY_GATE applies."
+  },
+
+  "COMPARISON_TO_LATENT_SYSTEM": {
+    "not_computed_in_this_spec": "cross-comparison against pi_G or the latent system's champion (e.g. Delta = V(specialist) - V(latent,same pole)) is a SEPARATE script reading this result plus PI_G_EVAL_RESULT.json and whichever latent result is designated final, exactly as PI_G_EVAL_SPEC.json#COMPARISON_RULE already does for pi_G. Not fixed here because the champion is not yet known."
+  },
+
+  "TIE_OR_REVERSAL": "if delta_A <= 0 or delta_B <= 0 at the point-estimate level, the same row-level integrity audit rule this program has held every prior EVAL to applies: a row-level audit is required, written before its rows are read, before any interpretation. No exception for this being the 'expected to pass' baseline.",
+
+  "ORDER": "freeze this spec (done, this file) -> build eval_specialist_baseline.py (mirrors eval_specialist_anchor.py's checkpoint-loading/episode-running code, eval_trunk_freeze.py's two-policy/tie-audit structure) -> run once SAC-RFT's sealed EVAL and pi_G's EVAL have both released the GPU -> apply PRIMARY_GATE mechanically",
+
+  "one_shot": "this EVAL runs exactly once, no rerun under any outcome",
+  "no_post_hoc_thresholds": "PRIMARY_GATE above is exactly as frozen; not adjustable after the numbers are seen",
+  "DO_NOT_RUN_CONCURRENTLY_WITH": "any other GPU-bound sealed EVAL or production training run in this repo -- queued behind the currently-running SAC-RFT sealed EVAL and the not-yet-run pi_G EVAL, in that order, purely for GPU contention reasons, not a scientific dependency"
+}
