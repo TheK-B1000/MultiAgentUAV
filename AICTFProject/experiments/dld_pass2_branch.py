@@ -10,7 +10,9 @@ core._rng identically for both branches so subsequent randomness is matched, the
 
 so only the single decision differs.
 
-    mismatch states   -> counterfactual = the pole-matched TEACHER's action
+    mismatch states   -> counterfactual = the LATENT-matched TEACHER's action
+                         (z0 -> pi_A, z1 -> pi_B, either pole; see
+                          DLD_TEACHER_MATCHING_CLARIFICATION_AMENDMENT.json)
     agreement states  -> counterfactual = the student's own RUNNER-UP legal macro
                          (a decision-sensitivity reference, NOT a matched control --
                           see DLD_TERMINOLOGY_AND_LICENSED_READING_AMENDMENT.json)
@@ -38,7 +40,9 @@ from experiments.eval_hog_psp_v3 import _mean_ci
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 SPEC = SD / "DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json"
-PASS1 = SD / "DLD_PASS1_RECORD.json"
+PASS1 = SD / "DLD_PASS1_RECORD_V2.json"
+POWER_AMENDMENT = SD / "DLD_POWER_RESOLUTION_AMENDMENT.json"
+LATENT_TEACHER_ARRAY = {0: "teacher_A_actions", 1: "teacher_B_actions"}
 STUDENT_FROZEN = SD / "TEACHER_DISTILLATION_STUDENT_FROZEN.json"
 OUT = SD / "DLD_RESULT.json"
 ROWS = SD / "dld_branch_rows.csv"
@@ -80,6 +84,15 @@ def main() -> int:
     p1 = json.loads(PASS1.read_text(encoding="utf-8"))
     if p1["status"] != "FROZEN_DATASET":
         raise SystemExit("REFUSING: pass 1 not frozen")
+    if "latent_matched" not in (p1.get("definitions") or {}):
+        raise SystemExit("REFUSING: pass-1 record does not carry the latent-matched definition")
+    _probe = np.load(ROOT / p1["episodes"][0]["file"])
+    for _need in ("mismatch_latent", "teacher_A_actions", "teacher_B_actions"):
+        if _need not in _probe.files:
+            raise SystemExit(f"REFUSING: pass-1 shards lack {_need!r}; this is v1 data, which "
+                             "would silently reintroduce the pole-matched category error")
+    if not POWER_AMENDMENT.is_file():
+        raise SystemExit("REFUSING: power-resolution amendment absent; the take-all rule is not authorised")
 
     import torch
     from experiments.ccp_s2_collect import replay_prefix, setup_env
@@ -112,7 +125,7 @@ def main() -> int:
         pools = {"mismatch": [], "agreement": []}
         for e in eps:
             d = np.load(ROOT / e["file"])
-            dec, mm, n = d["decision_step"], d["mismatch"], int(d["steps"])
+            dec, mm, n = d["decision_step"], d["mismatch_latent"], int(d["steps"])
             for t in range(n):
                 if not dec[t] or t < MIN_STEP or (R2.MAX_STEPS - t) < MIN_REMAINING:
                     continue
@@ -123,7 +136,8 @@ def main() -> int:
                 shortfalls[f"{cell}/{kind}"] = {"available": len(pool), "requested": PER_CELL}
             for e, t in take:
                 selected.append({"cell": cell, "kind": kind, "seed": e["seed"], "step": t,
-                                 "z": e["z"], "pole": e["pole"], "teacher": e["teacher"],
+                                 "z": e["z"], "pole": e["pole"],
+                                 "teacher": e.get("latent_teacher") or e.get("teacher"),
                                  "file": e["file"]})
     print(f"DLD PASS 2 (branch)  {_now()}  device={device}")
     print(f"  selected {len(selected)} branch points "
@@ -208,8 +222,8 @@ def main() -> int:
         prefix = [list(map(int, a)) for a in d["student_actions"][:s["step"]]]
         s_act = [int(x) for x in d["student_actions"][s["step"]]]
         if s["kind"] == "mismatch":
-            cf = [int(x) for x in d["teacher_actions"][s["step"]]]
-            cf_kind = "teacher_action"
+            cf = [int(x) for x in d[LATENT_TEACHER_ARRAY[int(s["z"])]][s["step"]]]
+            cf_kind = f"latent_matched_teacher_action_{'pi_A' if int(s['z']) == 0 else 'pi_B'}"
         else:
             cf = runner_up_action(s["seed"], s["pole"], s["z"], prefix, s_act)
             cf_kind = "student_runner_up_macro"
@@ -264,7 +278,7 @@ def main() -> int:
                       "rule": "deterministic evenly-spaced stride over (episode, step)-sorted eligible pool",
                       "shortfalls": shortfalls, "n_selected": len(selected),
                       "n_completed": len(done), "n_skipped": len(rows) - len(done)},
-        "counterfactuals": {"mismatch": "pole-matched teacher action",
+        "counterfactuals": {"mismatch": "LATENT-matched teacher action (z0->pi_A, z1->pi_B)",
                             "agreement": "student's own runner-up legal macro -- a DECISION-SENSITIVITY REFERENCE, not a matched control"},
         "RESULTS": res,
         "bootstrap": {"samples": 20000, "alpha": 0.05, "rng_seed": 7, "unit": "branch point"},

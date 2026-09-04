@@ -1,0 +1,36 @@
+{
+  "record_id": "DLD_POWER_RESOLUTION_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T20:05:00Z",
+  "authority": "PI, 2026-09-04, resolving an ambiguity inside DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json after the power count was known. The resolution was made explicitly and is recorded here rather than applied silently.",
+
+  "amends": "DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json#PASS_2_BRANCH.sampling_frozen_in_advance and #PREREGISTERED_READINGS row 3",
+  "rule": "APPEND, not an edit. No sampling size, eligibility filter, horizon, seed or quantity changes. Only the conflict between two frozen clauses is resolved.",
+
+  "THE_CONFLICT": {
+    "clause_A_sampling_rule": "'If a cell has fewer than 10 eligible steps, take all of them and record the shortfall.' -- says PROCEED",
+    "clause_B_reading_row_3": "'very few eligible mismatch states are found at all -> the diagnostic is underpowered rather than negative, and no conclusion about leverage is drawn.' -- says STOP",
+    "why_it_mattered_here": "the shortfall is not uniform. z0 cells can supply the preregistered 10 (13 and 16 eligible); z1 cells cannot (4 and 2). Whether that constitutes 'very few' is a judgment that must not be made silently after seeing counts."
+  },
+
+  "RESOLUTION": {
+    "decision": "clause A governs. Branch all four cells, taking all eligible mismatch states where a cell falls short, and record the shortfall explicitly.",
+    "branch_points": {"z0@A": 10, "z0@B": 10, "z1@A": 4, "z1@B": 2, "mismatch_total": 26,
+                      "agreement_reference_per_cell": 10, "agreement_total": 40, "grand_total": 66},
+    "clause_B_still_binds_the_INTERPRETATION": "the z1 arms carry almost no statistical weight (4 and 2 points). No leverage conclusion may be drawn for z1 from this diagnostic in either direction. Reading row 3 applies to z1 specifically even though the branches are run.",
+    "what_z0_can_support": "z0@A and z0@B meet the preregistered sample size and may be read normally, under the licensed-reading constraint in DLD_TERMINOLOGY_AND_LICENSED_READING_AMENDMENT.json."
+  },
+
+  "EXPLICITLY_REJECTED_ALTERNATIVE": {
+    "option": "widening the >=40-steps-remaining eligibility filter to recover additional states",
+    "why_rejected": "changing a frozen filter after seeing the counts is precisely the move the seed-reuse rationale in DLD_TEACHER_MATCHING_CLARIFICATION_AMENDMENT.json forbade. The filter stays exactly as frozen. It cost z0@A 1 state, z0@B 4, z1@A 0 and z1@B 1 -- recovering them would not have changed z1's power situation anyway."
+  },
+
+  "THE_FINDING_THAT_MOTIVATES_CAUTION": {
+    "z1_has_essentially_no_macro_imitation_error": "7 mismatches across 3,067 decision steps (z1@A 0.0026, z1@B 0.0020)",
+    "why_that_matters": "z1 reproduces pi_B's macro commitments at ~99.8% fidelity in BOTH deployment conditions, yet z1 carries Pole B where the sealed eval measured V(z1,B)=0.4688 against specialist pi_B's own 0.625 on that pole (different seed blocks; descriptive comparison only). Whatever costs z1 its margin is not macro decision choice -- there are barely any macro decisions to blame. The branching pass cannot resolve this for z1, and is not expected to.",
+    "carried_forward": "this points toward the non-macro candidates already named in DLD_TEACHER_MATCHING_CLARIFICATION_AMENDMENT.json#ANTICIPATED_OUTCOME -- target-head selection, accumulated action-detail differences, representational effects -- each requiring its own preregistration."
+  },
+
+  "IMPLEMENTATION_CORRECTION_REQUIRED_BEFORE_RUNNING": "experiments/dld_pass2_branch.py was written against v1: it reads DLD_PASS1_RECORD.json and its pole-matched 'teacher_actions'/'mismatch' fields. Run unchanged against corrected data it would silently reintroduce the exact category error v2 was built to remove. It must be repointed at DLD_PASS1_RECORD_V2.json, at 'mismatch_latent', and at the LATENT-matched teacher array (teacher_A_actions for z0, teacher_B_actions for z1) BEFORE launch, not after."
+}
