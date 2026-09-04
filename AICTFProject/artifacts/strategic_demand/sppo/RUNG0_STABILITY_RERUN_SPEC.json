@@ -1,0 +1,39 @@
+{
+  "record_id": "RUNG0_STABILITY_RERUN_SPEC",
+  "name": "Rung 0 stability rerun -- a second independent n=64 block to separate seed-block instability from insufficient power",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T23:20:00Z",
+  "authority": "PI, 2026-09-04, choosing Option 1 (fresh independent n=64 block) over Option 2 (n=128) after RUNG0_CROSSOVER_EVAL_RESULT.json classified as POSITIVE_DELTAS_CI_FAILURE: delta_A +0.1250 [-0.0469, +0.2969] FAIL, delta_B +0.1875 [+0.0312, +0.3438] PASS.",
+
+  "WHAT_THIS_IS_AND_IS_NOT": {
+    "is": "a DIAGNOSTIC stability check. Same bit-exact Rung 0 wrapper (pi_A / pi_B dispatched by z, RUNG0_EQUIVALENCE_PREFLIGHT.json PASS), same four cells, same gate arithmetic, same bootstrap -- on a fresh, never-used, NON-sealed 64-seed block.",
+    "is_not": "a second attempt at the Rung 0 seal. Block 11960001..11960064 is spent and RUNG0_CROSSOVER_EVAL_RESULT.json stands unchanged as the sealed result. This rerun does not replace it, overwrite it, or get averaged into it after the fact except as the preregistered secondary quantity below.",
+    "why_a_second_block_beats_n_128_here": "two competing explanations remain: (1) seed-block instability -- delta_A passes on some blocks and fails on others; (2) insufficient power -- delta_A is a real positive effect that n=64 cannot reliably certify. A second INDEPENDENT n=64 block distinguishes them: consistent sign and magnitude across blocks points to (2); a collapse or sign change on the new block points to (1). A single n=128 run would blur the two."
+  },
+
+  "PROTOCOL": {
+    "wrapper": "rl.rung0_dispatch.Rung0DispatchPolicy, unchanged; both specialist sha256 re-verified at launch",
+    "cells": ["z0 (pi_A) on Pole A", "z1 (pi_B) on Pole A", "z0 (pi_A) on Pole B", "z1 (pi_B) on Pole B"],
+    "seeds": "11970001..11970064, 64 per cell, NON-sealed diagnostic block, confirmed disjoint (1197xxxx pattern grepped against every JSON under artifacts/strategic_demand/sppo/: zero hits)",
+    "device": "cuda, matching the sealed run",
+    "quantities": "delta_A = V(z0,A) - V(z1,A); delta_B = V(z1,B) - V(z0,B); paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
+    "gpu_hygiene": "runs alone; no sidecar concurrently"
+  },
+
+  "PREREGISTERED_READINGS_PRIMARY_PER_BLOCK": [
+    {"pattern": "delta_A positive with magnitude comparable to block 1 (+0.1250) and to the specialist baseline (+0.1719), regardless of whether its CI clears zero on this block",
+     "reading": "the mechanism is stable across blocks; block 1's CI miss was sampling noise at n=64, i.e. explanation (2). This LICENSES proceeding to Rung 1, with the justification recorded. A CI that also clears zero strengthens it; a CI that again narrowly misses does not overturn it."},
+    {"pattern": "delta_A collapses toward zero, or changes sign",
+     "reading": "explanation (1): genuine seed-block instability in the A-side effect. Rung 1 does NOT proceed. The instability itself becomes the object of investigation before any more compute is spent on the ladder."},
+    {"pattern": "delta_B changes materially from block 1",
+     "reading": "report as-is; B was the clean pass on block 1, so a large swing would itself be an instability signal worth recording."}
+  ],
+
+  "PREREGISTERED_SECONDARY_POOLED_ESTIMATE": {
+    "quantity": "delta_A and delta_B recomputed over the UNION of block 1 (11960001..064) and block 2 (11970001..064) rows, n=128 per cell, same bootstrap",
+    "status": "DESCRIPTIVE. Reported because it directly addresses the power explanation; it is NOT the gate and is not a substitute for a per-block reading. Frozen here, before block 2 is seen, so it cannot be introduced after the fact as a rescue."
+  },
+
+  "WHAT_THIS_DOES_NOT_AUTHORIZE": ["Rung 1 training (decided only after this reading)", "the sub-macro brancher", "OTD round 2 or its seal", "PPO", "Z-separation", "BCS"],
+  "SEQUENCE": "freeze this spec -> run on cuda, GPU otherwise clear -> per-block reading first, pooled estimate second -> PI decides Rung 1"
+}
