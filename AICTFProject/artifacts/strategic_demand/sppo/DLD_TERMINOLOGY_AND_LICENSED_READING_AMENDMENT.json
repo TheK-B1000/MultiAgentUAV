@@ -1,0 +1,29 @@
+{
+  "record_id": "DLD_TERMINOLOGY_AND_LICENSED_READING_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T18:55:00Z",
+  "authority": "PI, 2026-09-04, before any DLD result exists: keep the frozen spec as-is, but fix the NAME of the agreement arm and state precisely what a large mismatch-vs-agreement gap is and is not allowed to mean.",
+
+  "amends": "DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json#PASS_2_BRANCH.counterfactual_action and #PREREGISTERED_READINGS",
+  "rule": "APPEND, not an edit. No sampling rule, seed, horizon, quantity or procedure changes. Naming and permitted inference only.",
+
+  "NAMING": {
+    "the_agreement_arm_is_called": "decision-sensitivity reference (equivalently: local perturbation baseline)",
+    "it_is_NOT_called": "a control",
+    "why": "a control implies a matched counterfactual. The two arms perturb by different KINDS of alternative: at mismatch states the comparison is a_student vs a_teacher, both drawn from competent policies; at agreement states it is a_shared vs a_runner-up, where the alternative is merely a plausible legal action. Calling the second a control would invite reading the gap as a clean between-state comparison, which it is not.",
+    "for_the_writeup": "use decision-sensitivity reference / local perturbation baseline in any paper text, table header, or figure caption."
+  },
+
+  "WHAT_A_LARGE_GAP_MAY_MEAN": "mismatch decisions occur at states where swapping between two COMPETENT strategies has unusually large downstream consequences, relative to a baseline measuring ordinary local decision sensitivity.",
+
+  "WHAT_A_LARGE_GAP_MAY_NOT_MEAN": "'mismatch states are more important than agreement states'. The perturbations differ in quality, so part of any gap is attributable to teacher-quality substitution rather than to the states themselves being more pivotal. This limitation was identified before results and is not to be quietly dropped once numbers exist.",
+
+  "STILL_USEFUL_BECAUSE": "the licensed reading answers the mechanistic question the average-agreement statistic cannot touch: whether ~2-3% residual action mismatch can coexist with a large loss in payoff crossover because the mismatches land where competent-strategy choice actually swings outcomes.",
+
+  "IF_IT_FIRES_STRONGLY": {
+    "tightening_is_a_separate_experiment": "a better-matched comparison -- e.g. matching branch points on the student's action-confidence gap, or perturbing each policy to its OWN runner-up symmetrically -- would be a SEPARATE preregistered diagnostic with its own frozen spec and its own fresh seed block.",
+    "explicitly_not": "a midstream patch to DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json or a re-run of its block after seeing its result."
+  },
+
+  "SUPPORTING_OBSERVATION_FROM_OTD_ROUND_1": "the covariate-shift picture keeps weakening as round-1 training proceeds: at epoch 5, student-state holdout agreement 0.975/0.990 against teacher-state holdout 0.968/0.990. The student's own visited states are not a hidden region where imitation falls apart -- they are marginally easier. Scope caveat from ONPOLICY_TD_FALSIFICATION_SCOPE_AMENDMENT.json still applies: these are CPU-generated states, and DLD is run on CUDA precisely to close that gap."
+}
