@@ -1,0 +1,54 @@
+{
+  "record_id": "SUBMACRO_LEVERAGE_DIAGNOSTIC_SPEC",
+  "name": "Sub-macro (target-head) leverage diagnostic (SMLD) -- does target selection carry the payoff loss macro choice cannot explain?",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T20:45:00Z",
+  "authority": "PI, 2026-09-04: run the z1 sub-macro diagnostic in parallel as a CHEAP diagnostic, not as another prerequisite that traps the program in a diagnostic tunnel. The sharing ladder remains the designated main scientific successor and is not blocked on this.",
+
+  "THE_FINDING_THAT_MOTIVATES_THIS": {
+    "computed_from_existing_data_at_zero_gpu_cost": "DLD_PASS1_RECORD_V2.json already stored the FULL action vector (student, pi_A, pi_B) at every decision state. The frozen DLD mismatch definition examined only the MACRO head; the target head was recorded but never analysed.",
+    "action_space": "MultiDiscrete([5, 50, 5, 50]) -- per agent a 5-way MACRO and a 50-way TARGET. Indices 0,2 are macros; indices 1,3 are targets.",
+    "latent_matched_disagreement_rates": {
+      "z0": {"macro": "34/3052 = 0.0111", "target": "159/3052 = 0.0521", "any_head": "185/3052 = 0.0606", "target_to_macro_ratio": 4.7},
+      "z1": {"macro": "7/3067 = 0.0023", "target": "49/3067 = 0.0160", "any_head": "55/3067 = 0.0179", "target_to_macro_ratio": 7.0},
+      "per_cell": {"z0@A": {"macro": 0.0101, "target": 0.0563}, "z0@B": {"macro": 0.0120, "target": 0.0486},
+                    "z1@A": {"macro": 0.0026, "target": 0.0235}, "z1@B": {"macro": 0.0020, "target": 0.0085}}
+    },
+    "why_this_matters": "the student agrees with its teacher on WHAT to do far more reliably than on WHICH TARGET. DLD searched the macro head and found z1 had only 7 mismatches in 3,067 decision steps -- too few to branch on. At the target head z1 has 49, which is enough. The macro-level null result for z0 (DLD_RESULT_BY_LATENT_ADDENDUM.json) says nothing about the target head, which was never tested.",
+    "power_consequence": "z1 becomes testable. This diagnostic is the correctly-aimed version of DLD, not a rescue of it: DLD's z0 macro conclusion stands unchanged and is not revisited."
+  },
+
+  "DESIGN": {
+    "reuses_unchanged": "experiments/dld_pass2_branch.py's branching machinery: rebuild env at the same seed/pole, replay the student prefix via replay_prefix (asserts live agreement, refuses on divergence), seed core._rng identically across both branches, run BRANCH_S (student action) and BRANCH_T (counterfactual) to episode end under the student policy so only the single decision differs.",
+    "the_one_change": "selection and counterfactual operate on the TARGET head instead of the MACRO head.",
+    "mismatch_definition": "a decision-bearing step where the LATENT-matched teacher's argmax TARGET differs from the student's argmax target on at least one agent free to commit (z0 -> pi_A, z1 -> pi_B, either pole), REGARDLESS of whether the macro agrees",
+    "counterfactual_at_mismatch": "the latent-matched teacher's FULL action vector for that agent (macro and target together). Substituting the target alone while keeping a macro the teacher did not intend could create an incoherent pair the teacher would never emit; the teacher's own joint choice is the meaningful counterfactual.",
+    "counterfactual_at_agreement_reference": "the student's own runner-up legal TARGET for the agent with the largest runner-up mass, macro unchanged. Same decision-sensitivity-reference status as in DLD -- NOT a matched control, and DLD_TERMINOLOGY_AND_LICENSED_READING_AMENDMENT.json's naming and licensed-reading constraints carry over verbatim.",
+    "data_source": "DLD_PASS1_RECORD_V2.json shards -- no new rollouts for selection; only the branch rollouts cost GPU time",
+    "sampling": {"mismatch_per_cell": 10, "agreement_per_cell": 10, "rule": "the same deterministic evenly-spaced stride over the (episode, step)-sorted eligible pool; no RNG, no outcome inspection", "shortfall_rule": "take all available and record, per DLD_POWER_RESOLUTION_AMENDMENT.json"},
+    "eligibility": "unchanged from DLD: decision-bearing, step >= 5, >= 40 steps remaining before MAX_STEPS=240",
+    "device": "cuda, matching DLD and the sealed evals",
+    "expected_branch_points": "40 mismatch (all four cells now have >= 10 target mismatches: z0@A 78, z0@B 81, z1@A 36, z1@B 13) + 40 agreement = 80, x2 rollouts each"
+  },
+
+  "QUANTITIES": {
+    "L_win": "win_indicator(BRANCH_T) - win_indicator(BRANCH_S)",
+    "L_margin": "(blue-red)(BRANCH_T) - (blue-red)(BRANCH_S)",
+    "reported": "per latent SEPARATELY (z0, z1), each against zero and against its own agreement-arm |L_margin| decision-sensitivity reference",
+    "statistic": "paired percentile bootstrap over branch points, n_boot=20000, alpha=0.05, rng_seed=7",
+    "IS_NOT_A_GATE": "measurement only. Crossover remains the only scientific gate, and the frozen crossover result stays FAIL until a NEW checkpoint clears a FRESH sealed eval."
+  },
+
+  "PREREGISTERED_READINGS": [
+    {"pattern": "E[L | target mismatch] materially larger in magnitude than the agreement reference, for either latent",
+     "reading": "target selection carries downstream consequence that macro choice does not -- the payoff attenuation lives below the macro layer. Successor candidate: distillation weighted toward target-head fidelity, or a target-head-specific loss term. Would require its own preregistration."},
+    {"pattern": "E[L | target mismatch] near zero or no larger than the reference, for both latents",
+     "reading": "sub-macro action choice is also not the mechanism. Combined with DLD's macro null, action-level explanations are exhausted for z0 and z1 alike, and the parameter-sharing ladder becomes the only substantive remaining structural hypothesis."},
+    {"pattern": "z0 and z1 differ materially",
+     "reading": "report as-is without forcing a single story; the two latents may fail for different reasons, which is itself informative for the paper."}
+  ],
+
+  "SEEDS": "no new seeds. Selection reuses DLD_PASS1_RECORD_V2.json (block 11940001..11940032, non-sealed); branch rollouts are deterministic replays of those same episodes with one decision altered.",
+  "RELATION_TO_THE_LADDER": "this does NOT gate SHARING_LADDER_SPEC.json. The ladder proceeds on its own schedule; this runs in parallel and only redirects effort if it uncovers a specific, directly repairable mechanism.",
+  "SEQUENCE": "freeze this spec -> build the target-head selector/brancher on the DLD machinery -> run on cuda -> report per latent -> PI decides whether it redirects anything"
+}
