@@ -1,0 +1,62 @@
+{
+  "record": "Rung 0 sealed crossover EVAL -- sharing-ladder positive control",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-04T23:16:44Z",
+  "device": "cuda",
+  "implements": "SHARING_LADDER_SPEC.json#EVAL_PROTOCOL, read under RUNG0_INTERPRETATION_AMENDMENT.json",
+  "architecture": "zero shared parameters; z0 dispatches entire forward pass to pi_A, z1 to pi_B",
+  "equivalence_preflight": {
+    "verdict": "PASS",
+    "max_abs_logit_delta": 0.0,
+    "n_states_checked": 256
+  },
+  "seeds": {
+    "block": [
+      11960001,
+      11960064
+    ],
+    "n": 64
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.125,
+      "lcb95": -0.046875,
+      "ucb95": 0.296875,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.1875,
+      "lcb95": 0.03125,
+      "ucb95": 0.34375,
+      "passes": true
+    },
+    "passes": false
+  },
+  "OUTCOME": "POSITIVE_DELTAS_CI_FAILURE",
+  "READING": "a POWER / seed-stability outcome, not an instrument failure -- both deltas point the right way but the block did not resolve one at n=64. Investigate statistical stability and fresh-block sensitivity BEFORE attributing anything to architecture or instrumentation.",
+  "ACTION": "investigate power; do NOT proceed to Rung 1 until settled, since every later rung inherits the same n",
+  "specialist_ceiling_context_only_different_block": {
+    "delta_A": {
+      "mean": 0.171875,
+      "lcb95": 0.015625,
+      "ucb95": 0.328125,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.296875,
+      "lcb95": 0.125,
+      "ucb95": 0.46875,
+      "passes": true
+    },
+    "passes": true
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 256
+}
