@@ -1,0 +1,42 @@
+{
+  "record": "Specialist baseline sealed EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-04T11:46:36Z",
+  "implements": "SPECIALIST_BASELINE_SPEC.json#PRIMARY_GATE",
+  "seeds": {
+    "block": [
+      11805001,
+      11805064
+    ],
+    "n": 64,
+    "shared_across_policies": true
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.171875,
+      "lcb95": 0.015625,
+      "ucb95": 0.328125,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.296875,
+      "lcb95": 0.125,
+      "ucb95": 0.46875,
+      "passes": true
+    },
+    "passes": true
+  },
+  "checkpoints": {
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 256
+}
