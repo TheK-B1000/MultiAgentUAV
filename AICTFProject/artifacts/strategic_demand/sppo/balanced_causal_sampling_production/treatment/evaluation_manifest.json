@@ -1,13 +1,13 @@
 {
-  "utc_timestamp": "2026-09-04T11:50:04.690579Z",
-  "evaluation_run_id": "balanced_causal_sampling_treatment_wiring_verification",
-  "source_training_run_id": "balanced_causal_sampling_treatment_wiring_verification",
-  "source_checkpoint_fingerprint": "4080f4ff88a44dd7734a663f67c177f9e59139977c0ad0eff34008c3299da324",
+  "utc_timestamp": "2026-09-04T13:43:20.097165Z",
+  "evaluation_run_id": "balanced_causal_sampling_treatment",
+  "source_training_run_id": "balanced_causal_sampling_treatment",
+  "source_checkpoint_fingerprint": "1a359f71045a4c076eec665b11be46e13a636ce81ccb145b5b858bdbc5b4875a",
   "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
   "checkpoint_lineage_complete": true,
   "scope": "in_training",
   "artifact_identity": {
-    "run_id": "balanced_causal_sampling_treatment_wiring_verification",
+    "run_id": "balanced_causal_sampling_treatment",
     "canonical_map": "map_a",
     "resolved_map": "map_a_open",
     "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
