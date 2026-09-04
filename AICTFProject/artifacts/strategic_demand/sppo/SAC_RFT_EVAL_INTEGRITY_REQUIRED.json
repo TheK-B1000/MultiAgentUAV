@@ -1,0 +1,17 @@
+{
+  "record": "SAC-RFT EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-04T08:42:39Z",
+  "implements": "SAC_RFT_SPEC.json#EVAL_PROTOCOL.tie_or_reversal",
+  "triggered_by": [
+    "A_C",
+    "B_T"
+  ],
+  "point_estimates": {
+    "A_C": -0.015625,
+    "B_C": 0.0625,
+    "A_T": 0.03125,
+    "B_T": -0.046875
+  },
+  "rule": "requires a row-level integrity audit before any verdict-bearing SAC_RFT_EVAL_RESULT.json. Raw rows: sac_rft_eval_rows.csv."
+}

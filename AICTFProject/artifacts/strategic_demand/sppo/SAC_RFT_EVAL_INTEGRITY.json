@@ -1,0 +1,380 @@
+{
+  "record": "SAC-RFT EVAL integrity audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-04T08:44:07Z",
+  "question": "Are the flagged reversals (CONTROL Pole A, TREATMENT Pole B) real behavioural results, or an evaluator defect -- and specifically, can a shared defect explain this off-diagonal cross pattern while sparing both on-diagonal cells (TREATMENT Pole A, CONTROL Pole B)?",
+  "triggered_by": [
+    "A_C",
+    "B_T"
+  ],
+  "VERDICT": "GENUINE_CROSS_REVERSAL_OFF_DIAGONAL",
+  "checks": {
+    "1_liveness_z0_vs_z1_per_arm": {
+      "CONTROL_A": {
+        "differing_any": 49,
+        "differing_win": 23,
+        "differing_margin": 46,
+        "z0_won_z1_lost": [
+          11804006,
+          11804009,
+          11804012,
+          11804014,
+          11804016,
+          11804022,
+          11804044,
+          11804045,
+          11804050,
+          11804052,
+          11804056
+        ],
+        "z1_won_z0_lost": [
+          11804002,
+          11804003,
+          11804004,
+          11804011,
+          11804019,
+          11804028,
+          11804035,
+          11804049,
+          11804054,
+          11804057,
+          11804063,
+          11804064
+        ]
+      },
+      "CONTROL_B": {
+        "differing_any": 37,
+        "differing_win": 22,
+        "differing_margin": 36,
+        "z0_won_z1_lost": [
+          11804025,
+          11804030,
+          11804031,
+          11804033,
+          11804037,
+          11804039,
+          11804049,
+          11804059,
+          11804060
+        ],
+        "z1_won_z0_lost": [
+          11804008,
+          11804012,
+          11804017,
+          11804018,
+          11804019,
+          11804026,
+          11804032,
+          11804040,
+          11804043,
+          11804046,
+          11804053,
+          11804062,
+          11804064
+        ]
+      },
+      "TREATMENT_A": {
+        "differing_any": 49,
+        "differing_win": 22,
+        "differing_margin": 45,
+        "z0_won_z1_lost": [
+          11804001,
+          11804009,
+          11804014,
+          11804017,
+          11804020,
+          11804024,
+          11804026,
+          11804031,
+          11804035,
+          11804056,
+          11804058,
+          11804062
+        ],
+        "z1_won_z0_lost": [
+          11804002,
+          11804003,
+          11804011,
+          11804015,
+          11804021,
+          11804028,
+          11804038,
+          11804046,
+          11804048,
+          11804060
+        ]
+      },
+      "TREATMENT_B": {
+        "differing_any": 38,
+        "differing_win": 23,
+        "differing_margin": 34,
+        "z0_won_z1_lost": [
+          11804002,
+          11804003,
+          11804010,
+          11804017,
+          11804021,
+          11804043,
+          11804047,
+          11804049,
+          11804051,
+          11804052,
+          11804054,
+          11804060,
+          11804064
+        ],
+        "z1_won_z0_lost": [
+          11804020,
+          11804022,
+          11804028,
+          11804032,
+          11804034,
+          11804041,
+          11804042,
+          11804055,
+          11804057,
+          11804058
+        ]
+      }
+    },
+    "1b_liveness_control_vs_treatment": {
+      "z0_A": {
+        "differing_any": 50,
+        "differing_win": 20,
+        "control_won_treatment_lost": [
+          11804015,
+          11804021,
+          11804022,
+          11804027,
+          11804034,
+          11804038,
+          11804041,
+          11804046,
+          11804048,
+          11804060
+        ],
+        "treatment_won_control_lost": [
+          11804004,
+          11804019,
+          11804035,
+          11804049,
+          11804051,
+          11804053,
+          11804054,
+          11804057,
+          11804063,
+          11804064
+        ]
+      },
+      "z0_B": {
+        "differing_any": 46,
+        "differing_win": 28,
+        "control_won_treatment_lost": [
+          11804001,
+          11804004,
+          11804007,
+          11804011,
+          11804022,
+          11804025,
+          11804028,
+          11804033,
+          11804034,
+          11804035,
+          11804042,
+          11804055,
+          11804057,
+          11804058
+        ],
+        "treatment_won_control_lost": [
+          11804002,
+          11804003,
+          11804012,
+          11804017,
+          11804019,
+          11804024,
+          11804043,
+          11804046,
+          11804048,
+          11804052,
+          11804053,
+          11804062,
+          11804063,
+          11804064
+        ]
+      },
+      "z1_A": {
+        "differing_any": 49,
+        "differing_win": 21,
+        "control_won_treatment_lost": [
+          11804001,
+          11804017,
+          11804020,
+          11804024,
+          11804026,
+          11804027,
+          11804031,
+          11804034,
+          11804035,
+          11804041,
+          11804058,
+          11804062
+        ],
+        "treatment_won_control_lost": [
+          11804006,
+          11804012,
+          11804016,
+          11804044,
+          11804045,
+          11804050,
+          11804051,
+          11804052,
+          11804053
+        ]
+      },
+      "z1_B": {
+        "differing_any": 37,
+        "differing_win": 27,
+        "control_won_treatment_lost": [
+          11804001,
+          11804004,
+          11804007,
+          11804008,
+          11804010,
+          11804011,
+          11804017,
+          11804018,
+          11804021,
+          11804026,
+          11804035,
+          11804040,
+          11804043,
+          11804047,
+          11804051,
+          11804054,
+          11804064
+        ],
+        "treatment_won_control_lost": [
+          11804020,
+          11804024,
+          11804030,
+          11804031,
+          11804037,
+          11804039,
+          11804041,
+          11804048,
+          11804059,
+          11804063
+        ]
+      }
+    },
+    "2_off_diagonal_cross_pattern": {
+      "on_diagonal_both_positive": {
+        "A_T": true,
+        "B_C": true
+      },
+      "off_diagonal_both_reversed": {
+        "A_C": true,
+        "B_T": true
+      },
+      "pattern_is_exactly_cross_shaped": true,
+      "why_this_argues_against_a_shared_defect": "a defect tied to an ARM (e.g. TREATMENT's checkpoint loaded wrong) would hit both of that arm's poles, not just one; a defect tied to a POLE (e.g. Pole B's opponent key wrong) would hit both arms on that pole, not just one. This pattern requires the defect to be simultaneously arm-AND-pole-specific in exactly the two off-diagonal cells while sparing both on-diagonal cells -- a coincidence a code-path bug would not produce, since CONTROL and TREATMENT share the identical run_cell() code path and only the loaded checkpoint differs between them."
+    },
+    "3_deltas_and_gammas_recomputed": {
+      "delta_A_CONTROL": {
+        "mean": -0.015625,
+        "lcb95": -0.15625,
+        "ucb95": 0.140625
+      },
+      "delta_B_CONTROL": {
+        "mean": 0.0625,
+        "lcb95": -0.078125,
+        "ucb95": 0.203125
+      },
+      "delta_A_TREATMENT": {
+        "mean": 0.03125,
+        "lcb95": -0.109375,
+        "ucb95": 0.171875
+      },
+      "delta_B_TREATMENT": {
+        "mean": -0.046875,
+        "lcb95": -0.1875,
+        "ucb95": 0.09375
+      },
+      "Gamma_A": {
+        "mean": 0.046875,
+        "lcb95": -0.125,
+        "ucb95": 0.21875
+      },
+      "Gamma_B": {
+        "mean": -0.109375,
+        "lcb95": -0.3125,
+        "ucb95": 0.09375
+      },
+      "matches_flag_point_estimates": true
+    },
+    "4_provenance": {
+      "duplicate_rows": 0,
+      "missing_cells": [],
+      "seed_block": [
+        11804001,
+        11804064
+      ],
+      "total_rows": 512
+    },
+    "5_latent_swap_test": {
+      "CONTROL": {
+        "A_if_z0_z1_transposed": {
+          "mean": 0.015625,
+          "lcb95": -0.140625,
+          "ucb95": 0.15625,
+          "would_pass": false
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": -0.0625,
+          "lcb95": -0.203125,
+          "ucb95": 0.078125,
+          "would_pass": false
+        }
+      },
+      "TREATMENT": {
+        "A_if_z0_z1_transposed": {
+          "mean": -0.03125,
+          "lcb95": -0.171875,
+          "ucb95": 0.109375,
+          "would_pass": false
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": 0.046875,
+          "lcb95": -0.09375,
+          "ucb95": 0.1875,
+          "would_pass": false
+        }
+      }
+    },
+    "5b_cross_instrument_vs_incumbent_own_sealed_eval": {
+      "same_warm_start_checkpoint": true,
+      "incumbent_delta_A": 0.09375,
+      "incumbent_delta_B": -0.15625,
+      "pole_A_was_positive_at_incumbent": true,
+      "pole_B_was_negative_at_incumbent": true
+    },
+    "6_control_treatment_agreement": {
+      "A": {
+        "control": -0.015625,
+        "treatment": 0.03125,
+        "same_direction": false,
+        "gap": 0.046875
+      },
+      "B": {
+        "control": 0.0625,
+        "treatment": -0.046875,
+        "same_direction": false,
+        "gap": -0.109375
+      }
+    }
+  },
+  "conclusion": "Rows recompute exactly to the flagged point estimates, latent forcing is live in every cell, no duplicate or missing rows, warm-start checkpoints match. The reversal pattern is off-diagonal (CONTROL fails Pole A, TREATMENT fails Pole B) while both on-diagonal cells are positive -- see check 2 for why a shared evaluator defect could not selectively produce this shape. Treated as a genuine behavioural result: neither retention mechanism (EMA or frozen anchor) preserves both poles simultaneously in this run; each preserves a different single pole.",
+  "changes_no_verdict": true,
+  "does_not_write_SAC_RFT_EVAL_RESULT": true,
+  "failures": []
+}
