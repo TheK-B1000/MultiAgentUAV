@@ -1,0 +1,99 @@
+{
+  "record_id": "Z_SEPARATION_SPEC",
+  "name": "Direct z0/z1 policy-separation loss (ZSEP) -- 6th crossover-preservation attempt",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T14:15:00Z",
+  "authority": "PI, 2026-09-04, queuing a candidate 6th attempt while the BCS sealed EVAL runs, in direct response to the z0/z1 behavior-characterization finding: opponent identity drives behavior 5-15x more than latent z does on the incumbent checkpoint",
+
+  "QUESTION": "Does directly rewarding z0 and z1 for producing different action distributions on the same state -- rather than working around the symptom via retention, trunk-freezing, or supervision balance -- close the gap the behavior characterization found (z0-vs-z1 shifts of 0.02-0.08 vs opponent-driven shifts of 0.38-0.58)?",
+
+  "MECHANISM_ALREADY_EXISTS_CONFIRMED_BEFORE_FREEZING_THIS_SPEC": {
+    "source": "rl/custom_ppo/update/separation_objectives.py:policy_z_separation_loss, wired via rl/custom_ppo/update/separation_objectives.py:SeparationObjective.compute()",
+    "what_it_does": "per-agent, per-action-head pairwise Jensen-Shannon divergence between z0's and z1's action distributions on the SAME batch of states, hinged at a margin: loss = mean(relu(margin - JSD)). Zero cost once JSD clears the margin; nonzero gradient pressure pushing the two policies apart while it doesn't.",
+    "controlling_field": "PPOConfig.latent_actor_z_separation_coef, default 0.0",
+    "confirmed_zero_in_every_prior_run_this_program": "every preset in the v5_repertoire/v3i_consequence lineage (what V4.build_config() and therefore every one of CCP-S2/RSCFT/trunk-freeze/SAC-RFT/BCS descends from) explicitly sets this to 0.0. An EARLIER, unrelated preset family (v3i_specialization.py, a different architecture generation) used nonzero values (0.015-0.20) -- not evidence this program's architecture was ever tested with it on, only that the mechanism itself is implemented and was exercised somewhere in this codebase's history.",
+    "gating_confirmed_open_for_our_recipe": "SeparationObjective.compute() requires counterfactual_active=True and NOT hparams.fixed_latent_strategy. Traced rl/custom_ppo/update/phase_policy.py:resolve_training_phase() -> our production recipe (V4.build_config(), no v6i1_curriculum) resolves phase='__legacy__', whose PhaseTrainingPolicy has counterfactual_active=True by the fallback branch. fixed_latent_strategy is False during training (z sampled per episode, confirmed by every prior run's 'Summer-plan audit' banner). No additional wiring is needed beyond setting the coefficient -- confirmed by reading the gating code path, not assumed.",
+    "margin_and_gate_params_left_at_config_defaults": {
+      "latent_actor_z_separation_margin": 0.02,
+      "latent_actor_z_separation_min_abs_advantage": 0.0,
+      "latent_actor_z_separation_min_decision_frac": 0.0,
+      "latent_actor_z_separation_max_entropy_frac": 1.0,
+      "why_defaults_not_tuned": "changing these alongside the coefficient would be a second and third changed variable. Left at whatever this codebase already ships as its own baseline so ONLY the coefficient is new."
+    }
+  },
+
+  "HONEST_TRADEOFF_DISCLOSED_BEFORE_THE_RUN": {
+    "this_differs_in_kind_from_attempts_1_through_5": "CCP-S2/RSCFT/trunk-freeze/SAC-RFT/BCS all left the base PPO+latent training objective unchanged and added or modified an AUXILIARY mechanism (causal supervision, retention, parameter freezing, sampling balance) around it. This experiment changes the base objective itself -- it directly rewards divergence rather than removing an obstacle to naturally-emerging divergence.",
+    "risk": "a hinge JSD loss can be satisfied by ANY sufficiently different action distribution, not specifically one that makes z0 the better choice against Pole A and z1 the better choice against Pole B. It is possible for this loss to produce measurably separated but tactically arbitrary or even counterproductive divergence -- 'different for the sake of being different' rather than 'different because each is the right counter to its pole.' The PRIMARY_GATE below is what actually distinguishes those two outcomes; passing the gate, not merely moving JSD, is the bar.",
+    "not_omitted_or_downplayed": "this caveat is recorded here, before any training step, specifically so a PASS cannot be reported without this context and a FAIL cannot be read as surprising."
+  },
+
+  "THE_ONE_CHANGED_VARIABLE": {
+    "changed": "latent_actor_z_separation_coef: 0.0 (every prior arm) REPLACED BY 0.02 for TREATMENT (CONTROL stays at 0.0)",
+    "unchanged": [
+      "warm-start checkpoint (original incumbent, final_ccp_successor_production.zip)",
+      "full network trainable, no trunk freeze",
+      "no causal supervision loss in EITHER arm (this experiment isolates the separation loss alone, not stacked on top of CCP-S2's causal bank -- matches the CONTROL convention CCP-S2/trunk-freeze already established: a no-causal-loss arm as the clean baseline)",
+      "no retention mechanism of any kind",
+      "critic", "latent assignments", "rewards / returns / GAE", "primary EVAL gate shape",
+      "separation margin and gate parameters (left at PPOConfig defaults, see above)"
+    ]
+  },
+
+  "DISCLOSED_HORIZON_DEVIATION": {
+    "prior_standard": "every arm in CCP-S2/RSCFT/trunk-freeze/SAC-RFT/BCS used 500,000 additional steps (matched horizon for comparability against each other)",
+    "this_experiment": "250,000 additional steps for BOTH arms (still matched to each other within this experiment)",
+    "why": "this loss applies gradient pressure on every PPO minibatch, unlike the causal-bank-based mechanisms which fire only every cadence=4 minibatches against a 772-row (5-segment) bank -- a much denser training signal per step, so less wall-clock exposure is plausibly needed to see whether it moves the gate at all. Also a direct response to deadline pressure (Sept 15) with 4v4/6v6 still required regardless of this outcome.",
+    "consequence": "a FAIL at 250k steps is weaker evidence against this mechanism than a FAIL at 500k would be (the effect could still be building). This is disclosed as a limitation of this specific test, not elided. If the PI wants a matched-horizon confirmation later, that is a separate decision, not implied by this run."
+  },
+
+  "SEEDS": {
+    "training_seed": 11910001,
+    "shared_by_both_arms": true,
+    "derived_environment_range": "11910001..11910321",
+    "sealed_eval_block": "11911001..11911064",
+    "eval_n": 64,
+    "disjointness_confirmed": "grepped the exact literals 11910001, 11910321, 11911001, 11911064 against every JSON under artifacts/strategic_demand/sppo/ before freezing -- zero matches (a broader digit-pattern grep also returned zero real matches, only decimal-fraction false positives, individually verified)"
+  },
+
+  "MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_ANY_GPU_PRODUCTION_RUN": [
+    "policy_z_separation_loss produces a nonzero, finite loss and nonzero actor gradients on a real batch from the real incumbent checkpoint",
+    "CONTROL (coef=0.0) confirmed structurally inert: SeparationObjective.compute() returns the 'separation_disabled' inactive result when coef<=0, verified by reading the early-return branch, not assumed",
+    "--verify-steps wiring check under REAL training (same pattern as every prior stage) confirming actor parameters move and, for TREATMENT specifically, that pairwise JSD (the diagnostic already printed every update, sep_JSD/max_JSD) trends upward relative to CONTROL over the verification window"
+  ],
+
+  "EVAL_PROTOCOL": {
+    "seeds_per_cell": 64,
+    "block": "11911001..11911064",
+    "shared_seeds_across_arms": true,
+    "PRIMARY_GATE": {
+      "delta_A": "V(z0,A) - V(z1,A)",
+      "delta_B": "V(z1,B) - V(z0,B)",
+      "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+      "rule": "same primary gate as every prior stage. No mercy, no reinterpretation."
+    },
+    "ATTRIBUTION": {
+      "Gamma_A": "delta_A_TREATMENT - delta_A_CONTROL",
+      "Gamma_B": "delta_B_TREATMENT - delta_B_CONTROL",
+      "statistic": "preregistered PAIRED bootstrap over the shared 64 seeds, n_boot=20000, alpha=0.05, rng_seed=7"
+    },
+    "SECONDARY_DIAGNOSTIC_NOT_A_GATE": "mean pairwise JSD between z0 and z1 on the EVAL rollouts themselves (not just training-time diagnostics) -- reported regardless of PRIMARY_GATE outcome, to distinguish 'separation loss increased JSD but didn't help win rate' from 'separation loss did nothing measurable at all'",
+    "PREREGISTERED_INTERPRETATION": [
+      {"treatment": "PASS", "control": "FAIL",
+       "reading": "direct separation pressure recovered crossover where nothing else did -- the strongest positive result this whole program could produce"},
+      {"treatment": "PASS", "control": "PASS",
+       "reading": "crossover recovered under both; separation loss not necessary under this run"},
+      {"treatment": "FAIL", "control": "FAIL",
+       "reading": "direct separation pressure also insufficient at this horizon/coefficient -- either the mechanism needs more steps/a larger coefficient than tested here, or the erosion driver is not (only) collapsed z-conditioning"}
+    ],
+    "tie_or_reversal": "any tie or reversal triggers a row-level integrity audit before interpretation, written before its rows are read -- same standard as every prior stage",
+    "one_shot": true
+  },
+
+  "PROGRAM_TERMINATION_RULE": {
+    "status_relative_to_the_ladder": "this is a CANDIDATE attempt, queued behind BCS's sealed EVAL result and the calendar -- not yet authorized to consume GPU time. Building the spec and mechanism now (while BCS's EVAL runs) does not itself authorize the production runs; that is a separate, explicit go/no-go once BCS resolves.",
+    "if_this_also_fails": "six independent, principled mechanisms (retention x2, trunk-freeze, supervision balance, direct separation) failing the same gate is a strong, publishable negative result in its own right -- not a reason to keep inventing a seventh without a fresh, equally concrete piece of evidence the way this one had (the behavior characterization) and BCS had (the pre-logged 3.5x supervision imbalance)."
+  },
+
+  "SEQUENCE": "confirm mechanism + gating from real code (done, this file's MECHANISM section) -> freeze this spec (done, this file) -> mechanical preflight incl. --verify-steps under real training -> await BCS sealed EVAL result + explicit go decision -> CONTROL 250k -> TREATMENT 250k -> freeze models -> sealed EVAL 11911001..11911064"
+}
