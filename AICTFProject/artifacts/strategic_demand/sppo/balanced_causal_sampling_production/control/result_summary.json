@@ -1,11 +1,11 @@
 {
   "verdict": "TRAINING_COMPLETE",
-  "total_timesteps": 1015808,
-  "global_step": 1015808,
-  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\balanced_causal_sampling_production\\control\\verify_ckpts\\final_balanced_causal_sampling_control_wiring_verification.zip",
-  "n_episode_rows": 33,
+  "total_timesteps": 1503520,
+  "global_step": 1507328,
+  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\balanced_causal_sampling_production\\control\\ckpts\\final_balanced_causal_sampling_control.zip",
+  "n_episode_rows": 2137,
   "artifact_identity": {
-    "run_id": "balanced_causal_sampling_control_wiring_verification",
+    "run_id": "balanced_causal_sampling_control",
     "canonical_map": "map_a",
     "resolved_map": "map_a_open",
     "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
