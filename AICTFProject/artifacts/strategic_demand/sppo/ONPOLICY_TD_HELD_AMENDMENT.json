@@ -1,0 +1,35 @@
+{
+  "record_id": "ONPOLICY_TD_HELD_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T19:05:00Z",
+  "authority": "PI, 2026-09-04: finish and freeze round 1 for its post-training fidelity datapoint, then stop. Do not run round 2 just because it was planned -- the falsification condition already indicates that adding more ordinary on-policy states is not addressing the observed problem.",
+
+  "amends": "ONPOLICY_TEACHER_DISTILLATION_SPEC.json#DESIGN.round_structure and ONPOLICY_TD_ROUND1_STUDENT_FROZEN.json#NEXT",
+  "rule": "APPEND, not an edit. Round 1 stands exactly as run and frozen. This record changes only the EXECUTION STATUS of what follows it.",
+
+  "NEW_STATUS": "HELD_AFTER_ROUND1",
+  "explicitly": {
+    "not_a_FAIL": "no sealed eval was run and no verdict exists. OTD must never be listed as a negative crossover result. It is a two-round protocol stopped after round 1 on diagnostic grounds.",
+    "round_1_is_valid_and_complete": "ONPOLICY_TD_ROUND1_STUDENT_FROZEN.json, status FROZEN_STUDENT, sha 5d77721b0b93e4b7, fit check PASS (teacher-holdout 0.971/0.989 against a 0.50 floor), checkpoint round-trip exact",
+    "round_2_not_run": "seeds 11932001..11932128 UNSPENT and still reserved to it",
+    "sealed_eval_not_opened": "block 11933001..11933064 UNSPENT, never touched, still sealed",
+    "supersedes": "ONPOLICY_TD_ROUND1_STUDENT_FROZEN.json#NEXT, which reads 'round 2 collection from this student'. That instruction is superseded by this hold."
+  },
+
+  "WHY_HELD": {
+    "preregistered_falsification_met": "ONPOLICY_TEACHER_DISTILLATION_SPEC.json#HYPOTHESIS stated: 'If on-policy fidelity is NOT lower, this hypothesis is wrong.' Measured before any round-1 gradient step, on 24,693 student-generated states: agree z0~pi_A 0.971 / z1~pi_B 0.986, versus 0.965 / 0.984 on teacher-visited holdout. Not lower -- marginally higher.",
+    "training_did_not_reveal_a_hidden_deficit": "across all 10 round-1 epochs the student-state holdout stayed at or above the teacher-state holdout (final 0.975/0.991 vs 0.971/0.989). DAgger found no deployment-distribution region where imitation degrades, so a second round of the same medicine has no identified deficit to close.",
+    "scope_caveat_still_standing": "per ONPOLICY_TD_FALSIFICATION_SCOPE_AMENDMENT.json this refutes CPU on-policy covariate shift, not covariate shift on the CUDA sealed-eval distribution. The successor diagnostic runs on CUDA and closes that gap as a side effect."
+  },
+
+  "CONTEXT_NUMBER_WORTH_CARRYING_FORWARD": {
+    "teacher_vs_teacher_argmax_disagreement": {"on_student_states": 0.2658, "on_teacher_states": 0.2776},
+    "why_it_matters": "pi_A and pi_B themselves differ on roughly 27% of decision heads -- that is the size of the space where strategy actually varies. The student's residual ~2-3% mismatch with its own pole-matched teacher is a small slice of that space, which makes 'the few mismatches land at disproportionately pivotal decisions' a live mechanism rather than an implausible one. Descriptive context, not a result."
+  },
+
+  "SUCCESSOR": {
+    "next": "DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json -- measurement only, on CUDA, no training",
+    "not_authorised_here": ["OTD round 2", "any PPO", "Z-separation", "BCS", "the parameter-sharing ladder"],
+    "architecture_still_only_a_candidate": "ONPOLICY_TD_INTERPRETATION_CONSTRAINT_AMENDMENT.json continues to apply: nothing measured so far licenses concluding that parameter sharing is at fault."
+  }
+}
