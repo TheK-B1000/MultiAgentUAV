@@ -17,7 +17,16 @@
   "WHY_HELD": {
     "reasoning": "Z-separation adds a JSD hinge that pushes z0 and z1 apart inside the incumbent -- a policy that, per ccp_successor_production_run_config.json (fresh_step_0=true, no causal coefficient), was never compressed from pi_A/pi_B at all. It therefore belongs to the same repair ladder as CCP-S2, RSCFT, trunk-freeze, SAC-RFT and BCS: all of them operate downstream of a compression step that never actually happened in the specialist-to-latent sense.",
     "superseding_question": "TEACHER_DISTILLATION_SPEC.json asks whether one latent network can faithfully compress the two SAPPO specialists at all, and measures crossover IMMEDIATELY after pure distillation, before any RL touches the student. That localises where specialization dies instead of adding a seventh repair.",
-    "where_z_separation_may_return": "if Compression Crossover PASSES and a later PPO-adaptation phase then destroys it, a separation term becomes a well-motivated retention candidate against a real, isolated failure. That would be a fresh authorisation, on fresh seeds, not a resumption of this hold."
+    "where_z_separation_may_return": "if Compression Crossover PASSES and a later PPO-adaptation phase then destroys it, a separation term becomes a well-motivated SPECIALIZATION-PRESERVATION / ANTI-COLLAPSE candidate against a real, isolated failure. That would be a fresh authorisation, on fresh seeds, not a resumption of this hold."
+  },
+
+  "TERMINOLOGY_CORRECTION": {
+    "utc": "2026-09-04T15:20:00Z",
+    "authority": "PI, 2026-09-04, correcting this record's own wording before any result exists",
+    "corrected": "an earlier wording in this file called a separation term a 'retention candidate'. It is not one.",
+    "the_distinction": "RETENTION mechanisms (RSCFT's EMA teacher, SAC-RFT's frozen-anchor KL) anchor the policy toward a PAST reference -- they resist drift away from something previously held. A JSD separation hinge anchors nothing temporal: it pushes the two CURRENT branches apart from each other. Those are different mechanism classes and the paper must not conflate them.",
+    "correct_term": "specialization-preservation / anti-collapse mechanism",
+    "scope": "wording only. No scientific content, gate, seed, horizon, or status in this record or in Z_SEPARATION_SPEC.json changes."
   },
 
   "DOES_NOT_CHANGE": "any scientific content of Z_SEPARATION_SPEC.json -- its mechanism confirmation, its one-changed-variable framing, its disclosed 250k-step horizon deviation, its honest cosmetic-separation caveat, and its gate all stand exactly as frozen.",
