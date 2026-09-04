@@ -1,0 +1,92 @@
+{
+  "record_id": "TEACHER_DISTILLATION_SPEC",
+  "name": "Teacher-guided latent compression (TD) -- pure distillation of the SAPPO specialists into one fresh latent student, then Compression Crossover",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T15:40:00Z",
+  "authority": "PI, 2026-09-04: stop patching the compressed policy and test the compression step itself. Phase 1 must be distillation-ONLY (no PPO objective, no critic update, no task reward, no advantage), built as a standalone supervised runner -- NOT by disabling PPO inside the PPO trainer. Both teachers are queried on the SAME states so that z0-vs-z1 difference equals teacher-strategy difference, not state-distribution difference. Keep the real decision-boundary mask.",
+
+  "WHY_THIS_IS_A_DIFFERENT_KIND_OF_EXPERIMENT": {
+    "what_every_prior_attempt_did": "CCP-S2, RSCFT, trunk-freeze, SAC-RFT, BCS and the queued Z-separation all warm-start from the incumbent (final_ccp_successor_production.zip) and try to repair or preserve specialization AFTER compression.",
+    "what_the_incumbent_actually_is": "confirmed from ccp_successor_production_run_config.json and CCP_SUCCESSOR_MODEL_FROZEN.json#CONFIG_AND_SEED: a FRESH random-init run (fresh_step_0=true, checkpoint_weights_loaded=false, total_timesteps=1000000, seed 11600001) trained by plain PPO with a z-slot. pi_A/pi_B never entered that run. The only place the specialists ever touched a latent network is CCP-S2's sparse winner-directed causal bank (5 of 100 segments, 3.5x z0/z1 imbalance) -- an indirect signal, not distillation.",
+    "therefore": "no direct D_KL(pi_A || pi_theta(.|z0)) + D_KL(pi_B || pi_theta(.|z1)) compression has ever been run in this program. This spec runs it for the first time and measures crossover IMMEDIATELY after, before any RL objective touches the student."
+  },
+
+  "PHASES_AND_THE_THREE_FROZEN_COMPARISONS": {
+    "phase_0_teachers": "SAPPO specialists pi_A, pi_B -- already PASS the identical gate (SPECIALIST_BASELINE_EVAL_RESULT.json: delta_A=+0.1719 [+0.0156,+0.3281], delta_B=+0.2969 [+0.1250,+0.4688], block 11805001..11805064).",
+    "phase_1_pure_compression": "fresh latent student pi_theta(a|s,z), same architecture family as the incumbent (39 parameters, K=2), random init, trained ONLY by teacher KL. Then frozen and evaluated: COMPRESSION CROSSOVER (this spec's primary result).",
+    "phase_2_ppo_adaptation": "ONLY if phase 1 PASSES: normal PPO fine-tuning from the distilled student (a separate, later frozen spec -- not authorized by this file), then a second crossover eval on a fresh block.",
+    "reading_matrix": {
+      "phase1_FAIL": "the shared latent architecture could not preserve payoff-level specialization even under direct specialist supervision -- compression itself is the bottleneck; every retention mechanism was repairing damage done at compression",
+      "phase1_PASS_then_phase2_FAIL": "compression succeeded; PPO destroyed specialization that compression had preserved -- retention methods finally have a real, isolated problem",
+      "phase1_PASS_then_phase2_PASS": "direct distillation was the missing mechanism"
+    }
+  },
+
+  "DATASET": {
+    "states_from_both_deployments": "roll pi_A against Pole A and pi_B against Pole B (their natural deployments), EQUAL episode counts per pole. Deterministic teacher actions (the deployment convention every eval in this program uses). Every visited pre-action state is stored with the exact observation dict the policies consume (grid, vec, agent_mask, mask, global_state) plus the live decision mask d_ti = [blue_commit_ticks_left_i <= 0] read via rl.causal_supervision.decision_mask_from_core -- missing predicate is fatal, never defaulted.",
+    "both_teachers_on_the_same_state": "at training time BOTH frozen teachers are queried on every stored state (masked logits via rl.custom_ppo.strategy_anchor._masked_heads, the same legality masking PPO's own update applies). z0 is trained toward pi_A(.|s) and z1 toward pi_B(.|s) on the SAME s. Teacher targets are recomputed on the fly from the frozen checkpoints rather than cached, so a single code path produces teacher and student heads.",
+    "balance": "minibatches are stratified by state-origin pole (half from Pole-A deployment states, half from Pole-B deployment states); each row contributes to both KL terms. Difference between z0 and z1 = teacher strategy, not state distribution.",
+    "decision_boundary_mask_kept": "only agent-heads with d_ti = True enter numerator and denominator (same rule as rl/causal_supervision.py). Rows with no free agent are excluded from sampling.",
+    "holdout": "10% of episodes (by episode id, both poles) held out for KL / agreement diagnostics. Never used for training. NOT a model-selection set: training runs a fixed number of epochs and the terminal weights are the only artifact.",
+    "collection_seeds": "11921001..11921096 (pi_A vs Pole A) and 11921101..11921196 (pi_B vs Pole B): 96 episodes per pole, 192 total",
+    "collection_device": "cpu, deliberately, so collection does not contend with the in-flight BCS sealed EVAL on the GPU"
+  },
+
+  "LOSS": {
+    "formula": "L_distill = 0.5 * KL(pi_A(.|s) || pi_theta(.|s,z0)) + 0.5 * KL(pi_B(.|s) || pi_theta(.|s,z1))",
+    "per_head": "KL computed per action head (agent-major, matching action_space.nvec), over MASKED softmax distributions; masked-out actions carry zero teacher mass and contribute nothing",
+    "reduction": "sum over decision-boundary heads / count of decision-boundary heads, per teacher term; then the 0.5/0.5 average",
+    "optimized_parameters": "student ACTOR parameters only: every parameter not under 'critic.' (actor_cnn.*, latent_actor.*). Critic heads receive no gradient and must not move (verified, not assumed). The vestigial latent_actor.action_head.* is off the z-conditioned path and receives zero gradient; it is left in the actor set and its immobility is a positive-control check, not a concern.",
+    "what_is_absent_by_construction": ["PPO surrogate", "value/critic loss", "task reward", "GAE / advantages", "entropy bonus", "separation loss (latent_actor_z_separation_coef stays 0 -- one changed variable: distillation alone)", "causal bank", "retention"]
+  },
+
+  "TRAINING": {
+    "student_init": "SharedActorCentralizedCritic constructed with the incumbent checkpoint's own architecture kwargs (parsed from its payload cfg by the checkpoint loader, so the architecture is identical by construction: 39 parameters, same names and shapes -- refused otherwise) and torch.manual_seed(11920001); NO weights loaded. Fresh means fresh.",
+    "optimizer": "Adam, lr=3e-4, over actor parameters only; grad-norm clip 1.0",
+    "schedule": "20 epochs over the decision-bearing rows, minibatch 256, stratified by pole, shuffle seed 11920001. Fixed length; no early stopping; no checkpoint selection; terminal weights only.",
+    "fit_check_before_the_eval_is_opened": "holdout teacher-agreement (argmax match at decision heads) must be >= 0.50 for BOTH z0-vs-pi_A and z1-vs-pi_B. This is a compression-fidelity preflight, not the crossover gate: if the student does not imitate its teachers, the crossover eval would be testing something other than compression fidelity. A fit failure is recorded (FIT_FAILED) and the eval is NOT opened.",
+    "checkpoint_format": "the incumbent payload envelope (cfg, ruleset, artifact identity, format, dims) cloned with model_state_dict replaced by the student's weights, global_step=0, the incumbent's optimizer state removed, and a 'teacher_distillation' provenance block added. Loadable by load_custom_ppo_policy exactly like every checkpoint this program has evaluated; verified by a read-back behavioral-identity check before freezing."
+  },
+
+  "MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_TRAINING": [
+    "dataset loads; decision-bearing rows > 0; both poles present; holdout non-empty",
+    "fresh student has exactly the incumbent's parameter names and shapes, and differs from the incumbent's weights (it is not a silent warm start)",
+    "teacher self-KL is exactly zero through the same masked-head path (KL(pi_A||pi_A) = 0)",
+    "initial distillation loss is finite and > 0",
+    "after one backward: nonzero gradient on actor parameters, NO gradient on any critic parameter (positive control)",
+    "after one optimizer step: actor parameters moved, every critic parameter bit-identical",
+    "checkpoint round-trip: written student reloads via load_custom_ppo_policy with identical masked logits on a real batch"
+  ],
+
+  "EVAL_PROTOCOL_COMPRESSION_CROSSOVER": {
+    "seeds_per_cell": 64,
+    "block": "11922001..11922064",
+    "cells": ["z0 on Pole A", "z1 on Pole A", "z0 on Pole B", "z1 on Pole B"],
+    "PRIMARY_GATE": {
+      "delta_A": "V(z0,A) - V(z1,A)",
+      "delta_B": "V(z1,B) - V(z0,B)",
+      "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+      "rule": "same primary gate as every prior stage. No mercy, no reinterpretation."
+    },
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7 (experiments.eval_hog_psp_v3._mean_ci)",
+    "tie_or_reversal": "any tie or reversal triggers a row-level integrity audit before interpretation, written before its rows are read",
+    "one_shot": true,
+    "context_only_not_a_gate": "SPECIALIST_BASELINE_EVAL_RESULT.json's deltas are reported alongside as the ceiling reference (different seed block; descriptive only)"
+  },
+
+  "SEEDS": {
+    "student_init_and_shuffle": 11920001,
+    "collection": "11921001..11921096 (A), 11921101..11921196 (B)",
+    "compression_crossover_eval": "11922001..11922064",
+    "reserved_for_phase_2_if_authorized": "training 11923001, eval 11924001..11924064",
+    "disjointness_confirmed": "grepped every literal above and the whole 1192xxxx pattern against every JSON under artifacts/strategic_demand/sppo/ before freezing -- only decimal-fraction false positives (e.g. 0.550000011920929), zero seed uses"
+  },
+
+  "RELATION_TO_THE_QUEUE": {
+    "BCS": "its sealed EVAL is in flight; training compute already spent; result bankable; not interrupted",
+    "Z_separation": "preregistered and queued; unchanged by this spec",
+    "this_spec": "build and preflight now on CPU; Phase 1 training is CPU-feasible (supervised, small batches) and may run without touching the GPU queue; the Compression Crossover eval waits for GPU availability like every other eval"
+  },
+
+  "SEQUENCE": "freeze this spec (done) -> implement rl/teacher_distillation.py + collector + runner + eval -> collect states (cpu) -> mechanical preflight 7/7 -> Phase 1 training (fixed 20 epochs) -> fit check -> freeze student (sha) -> COMPRESSION CROSSOVER sealed EVAL 11922001..11922064 -> only on PASS: separate Phase 2 spec"
+}
