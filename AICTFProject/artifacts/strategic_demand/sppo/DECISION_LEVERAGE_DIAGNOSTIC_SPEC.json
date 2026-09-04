@@ -1,0 +1,74 @@
+{
+  "record_id": "DECISION_LEVERAGE_DIAGNOSTIC_SPEC",
+  "name": "Decision-leverage diagnostic (DLD) -- are the student's rare teacher-disagreements concentrated at pivotal decisions?",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T18:40:00Z",
+  "authority": "PI, 2026-09-04: do not launch another training run. Test WHERE the residual imitation error matters instead of counting how often it occurs, on CUDA states so the device ambiguity is removed as a side effect. Freeze sample counts and branching horizon before looking at any result.",
+
+  "THE_QUESTION": {
+    "the_odd_pairing_to_explain": "the offline-TD student imitates its teachers at ~97-98% argmax agreement (and marginally BETTER on its own states than on teacher states), yet its closed-loop crossover is roughly halved relative to the specialists (delta_A +0.0938 / delta_B +0.1406 vs +0.1719 / +0.2969).",
+    "hypothesis": "average agreement is unweighted. 97 correct decisions plus 3 wrong TRIVIAL decisions is harmless; 97 correct plus 3 wrong CAPTURE/DEFENSE COMMITMENTS is decisive. If the residual disagreements are concentrated at high-leverage decisions, both facts are true at once with no broad distributional drift required.",
+    "what_this_is_not": "not a training method, not an optimizer, not a gate. A measurement. Crossover remains the only scientific gate in this program."
+  },
+
+  "DEVICE": {
+    "device": "cuda",
+    "why": "the sealed crossover is scored on cuda and ONPOLICY_TD_DEVICE_AMENDMENT.json established that cpu and cuda produce different trajectories. Running this diagnostic on cuda removes the CPU/CUDA ambiguity left open by ONPOLICY_TD_FALSIFICATION_SCOPE_AMENDMENT.json as a side effect of answering the leverage question.",
+    "cost_accepted": "~29 s per full 240-step episode on cuda; branch rollouts start mid-episode and average less"
+  },
+
+  "MODEL_UNDER_TEST": "the FROZEN offline-TD student (TEACHER_DISTILLATION_STUDENT_FROZEN.json, sha 85dbaeef...) -- the exact checkpoint COMPRESSION_CROSSOVER_EVAL_RESULT.json scored. NOT the round-1 OTD student: the question is about the failure already measured.",
+
+  "PASS_1_RECORD": {
+    "seeds": "11940001..11940032 (8 per cell: z0@A 001-008, z1@A 009-016, z0@B 017-024, z1@B 025-032)",
+    "procedure": "roll the student with forced z, deterministic, exactly as the sealed eval does. At every decision-bearing step record: the student's action, BOTH frozen teachers' actions at that same state, the pole-matched teacher's action (z0 -> pi_A, z1 -> pi_B), the decision mask, and the full student action sequence for replay.",
+    "mismatch_definition": "a decision-bearing step where the pole-matched teacher's argmax macro differs from the student's argmax macro on at least one agent that is free to commit (decision_mask true). Recorded per step, per agent.",
+    "outputs": "per-episode npz with the action sequence and per-step mismatch flags, plus a manifest of mismatch and agreement step indices"
+  },
+
+  "PASS_2_BRANCH": {
+    "sampling_frozen_in_advance": {
+      "mismatch_states_per_cell": 10,
+      "agreement_states_per_cell": 10,
+      "total_branch_points": 80,
+      "selection_rule": "deterministic: within each cell, pool all eligible steps across that cell's 8 episodes, sort by (episode_index, step_index), and take an evenly-spaced stride sample of 10. No random draw, no cherry-picking, no outcome inspection. If a cell has fewer than 10 eligible steps, take all of them and record the shortfall.",
+      "eligibility": "the step must be decision-bearing, must have at least 40 steps remaining before MAX_STEPS (so a branch has room to express an effect), and must not be inside the first 5 steps (opening states are near-identical across branches)"
+    },
+    "branch_procedure_per_selected_state": [
+      "rebuild the env at the SAME seed and pole via the CCP-S2 setup_env seam",
+      "replay the student's recorded action prefix up to the branch step using replay_prefix, which asserts live agreement at every step and REFUSES on any divergence -- deterministic reconstruction is verified, never assumed",
+      "seed the env RNG at the branch point with a fixed per-state branch seed derived as sha256('DLD|seed|step')%2^63, IDENTICAL across both branches, so subsequent randomness is matched",
+      "BRANCH_S: execute the STUDENT's action at this step, then continue under the student policy (same forced z) to episode end",
+      "BRANCH_T: execute the counterfactual action at this step, then continue under the STUDENT policy (same forced z) to episode end -- only the single decision differs, isolating that decision's effect",
+      "record final (blue, red) for each branch"
+    ],
+    "counterfactual_action": {
+      "at_mismatch_states": "the pole-matched TEACHER's action (the quantity of direct interest: what the student gave up by disagreeing)",
+      "at_agreement_states": "the student's own SECOND-highest-probability legal macro at that state (deterministic, from the student's masked distribution). Teacher and student agree here, so a teacher branch would be degenerate and identically zero by construction; perturbing to the runner-up action instead measures how pivotal a TYPICAL decision is at all.",
+      "disclosed_asymmetry": "the two counterfactuals are not the same kind of alternative -- teacher actions are competent, runner-up actions are merely plausible. This is stated before any result: the agreement arm establishes a baseline for how much perturbing an ordinary decision moves the outcome, NOT a matched control for teacher-quality substitution. Conclusions must respect that."
+    },
+    "branching_horizon": "to episode end, capped at MAX_STEPS=240 total steps (the eval's own horizon). Frozen; not extended after seeing anything."
+  },
+
+  "QUANTITIES": {
+    "L_win": "win_indicator(BRANCH_T) - win_indicator(BRANCH_S)",
+    "L_margin": "(blue-red)(BRANCH_T) - (blue-red)(BRANCH_S)",
+    "primary_comparison": "E[L_margin | mismatch] and E[L_win | mismatch] against zero, and against E[|L_margin| | agreement] as the typical-decision leverage baseline",
+    "statistic": "paired percentile bootstrap over branch points, n_boot=20000, alpha=0.05, rng_seed=7, reusing experiments.eval_hog_psp_v3._mean_ci -- reported as CIs for description, NOT as a gate"
+  },
+
+  "PREREGISTERED_READINGS": [
+    {"pattern": "E[L | mismatch] clearly positive and larger in magnitude than the agreement-state baseline",
+     "reading": "the residual imitation error is concentrated at strategically high-leverage decisions -- this explains near-teacher fidelity together with halved crossover, with no broad distributional drift required. Successor: training that specifically weights critical decisions (e.g. leverage-weighted distillation), preregistered separately."},
+    {"pattern": "E[L | mismatch] near zero, or no larger than the agreement baseline",
+     "reading": "the student's disagreements are not disproportionately consequential. Both covariate shift (CPU-refuted, and now measured on CUDA states) and decision leverage would then be weak explanations, and the parameter-sharing architecture becomes the strongest remaining suspect. Successor: the sharing ladder."},
+    {"pattern": "very few eligible mismatch states are found at all",
+     "reading": "record the shortfall; the diagnostic is underpowered rather than negative, and no conclusion about leverage is drawn."}
+  ],
+
+  "WHAT_THIS_DOES_NOT_DO": ["train anything", "touch OTD round 2 (HELD, seeds unspent)", "open or re-open any sealed block", "license an architecture conclusion by itself -- ONPOLICY_TD_INTERPRETATION_CONSTRAINT_AMENDMENT.json still applies"],
+
+  "SEEDS": {"diagnostic_block": "11940001..11940032", "disjointness_confirmed": "the 1194xxxx pattern grepped against every JSON under artifacts/strategic_demand/sppo/ before freezing -- zero hits", "non_sealed": "this is a diagnostic block, not a sealed eval block; it carries no gate and spends no sealed seeds"},
+
+  "SEQUENCE": "freeze this spec -> pass 1 record on cuda (32 episodes) -> select branch points by the frozen deterministic rule -> pass 2 branch (80 points x 2 branches) -> report L against zero and against the agreement baseline -> PI decides the successor"
+}
