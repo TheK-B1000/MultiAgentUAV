@@ -1,0 +1,37 @@
+{
+  "record": "pi_G single-generalist baseline EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-04T09:46:39Z",
+  "implements": "PI_G_EVAL_SPEC.json",
+  "rscft_state_at_launch": "RESULT",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/r1_training/r1_pi_G_generalist_seed7000001/ckpts/final_r1_pi_G_generalist_seed7000001.zip",
+    "sha256": "7bfc35ba1e2729168ca5af1aa6c41e8ab20ecc5a0d52b2f9a2b3c4ad4232b242"
+  },
+  "seeds": {
+    "block": [
+      11704001,
+      11704064
+    ],
+    "n": 64,
+    "reused_from": "RSCFT sealed EVAL block"
+  },
+  "V_pi_G_A": {
+    "mean": 0.375,
+    "lcb95": 0.26523437500000036,
+    "ucb95": 0.5
+  },
+  "V_pi_G_B": {
+    "mean": 0.5,
+    "lcb95": 0.375,
+    "ucb95": 0.625
+  },
+  "bootstrap": {
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "comparison_against_latent_system": "NOT computed here -- PI_G_EVAL_SPEC.json's COMPARISON_RULE requires a designated champion result file, which does not exist at pi_G-eval time in general. Run experiments/compare_pi_g_vs_latent.py against the chosen champion once it is designated.",
+  "total_episodes": 128
+}
