@@ -1,0 +1,1966 @@
+{
+  "record": "Teacher-distillation state set",
+  "status": "FROZEN_DATASET",
+  "utc": "2026-09-04T15:01:59Z",
+  "implements": "TEACHER_DISTILLATION_SPEC.json#DATASET",
+  "teachers": {
+    "pi_A": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+      "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d"
+    },
+    "pi_B": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+      "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+    }
+  },
+  "seeds": {
+    "A": [
+      11921001,
+      11921096
+    ],
+    "B": [
+      11921101,
+      11921196
+    ]
+  },
+  "device": "cpu",
+  "decision_rows_only": true,
+  "totals": {
+    "A": {
+      "episodes": 96,
+      "steps": 21615,
+      "decision_rows": 16598,
+      "wins": 65,
+      "teacher_deployment_win_rate": 0.6770833333333334
+    },
+    "B": {
+      "episodes": 96,
+      "steps": 22910,
+      "decision_rows": 18407,
+      "wins": 56,
+      "teacher_deployment_win_rate": 0.5833333333333334
+    }
+  },
+  "shards": [
+    {
+      "pole": "A",
+      "episode": 0,
+      "seed": 11921001,
+      "steps": 235,
+      "decision_rows": 201,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921001.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 1,
+      "seed": 11921002,
+      "steps": 203,
+      "decision_rows": 141,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921002.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 2,
+      "seed": 11921003,
+      "steps": 240,
+      "decision_rows": 224,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921003.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 3,
+      "seed": 11921004,
+      "steps": 240,
+      "decision_rows": 209,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921004.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 4,
+      "seed": 11921005,
+      "steps": 203,
+      "decision_rows": 187,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921005.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 5,
+      "seed": 11921006,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921006.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 6,
+      "seed": 11921007,
+      "steps": 240,
+      "decision_rows": 198,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921007.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 7,
+      "seed": 11921008,
+      "steps": 240,
+      "decision_rows": 170,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921008.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 8,
+      "seed": 11921009,
+      "steps": 240,
+      "decision_rows": 172,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921009.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 9,
+      "seed": 11921010,
+      "steps": 240,
+      "decision_rows": 175,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921010.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 10,
+      "seed": 11921011,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921011.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 11,
+      "seed": 11921012,
+      "steps": 240,
+      "decision_rows": 174,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921012.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 12,
+      "seed": 11921013,
+      "steps": 240,
+      "decision_rows": 206,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921013.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 13,
+      "seed": 11921014,
+      "steps": 240,
+      "decision_rows": 178,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921014.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 14,
+      "seed": 11921015,
+      "steps": 184,
+      "decision_rows": 144,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921015.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 15,
+      "seed": 11921016,
+      "steps": 240,
+      "decision_rows": 181,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921016.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 16,
+      "seed": 11921017,
+      "steps": 240,
+      "decision_rows": 177,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921017.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 17,
+      "seed": 11921018,
+      "steps": 240,
+      "decision_rows": 172,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921018.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 18,
+      "seed": 11921019,
+      "steps": 236,
+      "decision_rows": 196,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921019.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 19,
+      "seed": 11921020,
+      "steps": 240,
+      "decision_rows": 173,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921020.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 20,
+      "seed": 11921021,
+      "steps": 240,
+      "decision_rows": 169,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921021.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 21,
+      "seed": 11921022,
+      "steps": 188,
+      "decision_rows": 145,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921022.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 22,
+      "seed": 11921023,
+      "steps": 188,
+      "decision_rows": 171,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921023.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 23,
+      "seed": 11921024,
+      "steps": 240,
+      "decision_rows": 178,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921024.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 24,
+      "seed": 11921025,
+      "steps": 240,
+      "decision_rows": 184,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921025.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 25,
+      "seed": 11921026,
+      "steps": 240,
+      "decision_rows": 212,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921026.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 26,
+      "seed": 11921027,
+      "steps": 240,
+      "decision_rows": 170,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921027.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 27,
+      "seed": 11921028,
+      "steps": 186,
+      "decision_rows": 173,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921028.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 28,
+      "seed": 11921029,
+      "steps": 192,
+      "decision_rows": 155,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921029.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 29,
+      "seed": 11921030,
+      "steps": 240,
+      "decision_rows": 166,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921030.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 30,
+      "seed": 11921031,
+      "steps": 240,
+      "decision_rows": 188,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921031.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 31,
+      "seed": 11921032,
+      "steps": 240,
+      "decision_rows": 211,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921032.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 32,
+      "seed": 11921033,
+      "steps": 240,
+      "decision_rows": 142,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921033.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 33,
+      "seed": 11921034,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921034.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 34,
+      "seed": 11921035,
+      "steps": 195,
+      "decision_rows": 153,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921035.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 35,
+      "seed": 11921036,
+      "steps": 240,
+      "decision_rows": 172,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921036.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 36,
+      "seed": 11921037,
+      "steps": 240,
+      "decision_rows": 179,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921037.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 37,
+      "seed": 11921038,
+      "steps": 240,
+      "decision_rows": 166,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921038.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 38,
+      "seed": 11921039,
+      "steps": 240,
+      "decision_rows": 168,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921039.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 39,
+      "seed": 11921040,
+      "steps": 187,
+      "decision_rows": 155,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921040.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 40,
+      "seed": 11921041,
+      "steps": 218,
+      "decision_rows": 144,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921041.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 41,
+      "seed": 11921042,
+      "steps": 240,
+      "decision_rows": 164,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921042.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 42,
+      "seed": 11921043,
+      "steps": 145,
+      "decision_rows": 101,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921043.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 43,
+      "seed": 11921044,
+      "steps": 240,
+      "decision_rows": 162,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921044.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 44,
+      "seed": 11921045,
+      "steps": 240,
+      "decision_rows": 175,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921045.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 45,
+      "seed": 11921046,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921046.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 46,
+      "seed": 11921047,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921047.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 47,
+      "seed": 11921048,
+      "steps": 240,
+      "decision_rows": 172,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921048.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 48,
+      "seed": 11921049,
+      "steps": 185,
+      "decision_rows": 123,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921049.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 49,
+      "seed": 11921050,
+      "steps": 240,
+      "decision_rows": 171,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921050.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 50,
+      "seed": 11921051,
+      "steps": 161,
+      "decision_rows": 117,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921051.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 51,
+      "seed": 11921052,
+      "steps": 240,
+      "decision_rows": 179,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921052.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 52,
+      "seed": 11921053,
+      "steps": 174,
+      "decision_rows": 141,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921053.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 53,
+      "seed": 11921054,
+      "steps": 240,
+      "decision_rows": 220,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921054.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 54,
+      "seed": 11921055,
+      "steps": 174,
+      "decision_rows": 167,
+      "blue": 1,
+      "red": 3,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921055.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 55,
+      "seed": 11921056,
+      "steps": 240,
+      "decision_rows": 184,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921056.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 56,
+      "seed": 11921057,
+      "steps": 240,
+      "decision_rows": 177,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921057.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 57,
+      "seed": 11921058,
+      "steps": 240,
+      "decision_rows": 167,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921058.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 58,
+      "seed": 11921059,
+      "steps": 240,
+      "decision_rows": 170,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921059.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 59,
+      "seed": 11921060,
+      "steps": 240,
+      "decision_rows": 166,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921060.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 60,
+      "seed": 11921061,
+      "steps": 240,
+      "decision_rows": 214,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921061.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 61,
+      "seed": 11921062,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921062.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 62,
+      "seed": 11921063,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921063.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 63,
+      "seed": 11921064,
+      "steps": 240,
+      "decision_rows": 163,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921064.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 64,
+      "seed": 11921065,
+      "steps": 240,
+      "decision_rows": 162,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921065.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 65,
+      "seed": 11921066,
+      "steps": 232,
+      "decision_rows": 178,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921066.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 66,
+      "seed": 11921067,
+      "steps": 240,
+      "decision_rows": 201,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921067.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 67,
+      "seed": 11921068,
+      "steps": 135,
+      "decision_rows": 98,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921068.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 68,
+      "seed": 11921069,
+      "steps": 222,
+      "decision_rows": 170,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921069.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 69,
+      "seed": 11921070,
+      "steps": 240,
+      "decision_rows": 193,
+      "blue": 0,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921070.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 70,
+      "seed": 11921071,
+      "steps": 240,
+      "decision_rows": 193,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921071.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 71,
+      "seed": 11921072,
+      "steps": 240,
+      "decision_rows": 178,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921072.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 72,
+      "seed": 11921073,
+      "steps": 240,
+      "decision_rows": 173,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921073.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 73,
+      "seed": 11921074,
+      "steps": 240,
+      "decision_rows": 155,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921074.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 74,
+      "seed": 11921075,
+      "steps": 236,
+      "decision_rows": 173,
+      "blue": 2,
+      "red": 3,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921075.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 75,
+      "seed": 11921076,
+      "steps": 240,
+      "decision_rows": 186,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921076.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 76,
+      "seed": 11921077,
+      "steps": 215,
+      "decision_rows": 168,
+      "blue": 3,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921077.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 77,
+      "seed": 11921078,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 1,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921078.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 78,
+      "seed": 11921079,
+      "steps": 202,
+      "decision_rows": 147,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921079.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 79,
+      "seed": 11921080,
+      "steps": 215,
+      "decision_rows": 166,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921080.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 80,
+      "seed": 11921081,
+      "steps": 207,
+      "decision_rows": 156,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921081.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 81,
+      "seed": 11921082,
+      "steps": 186,
+      "decision_rows": 143,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921082.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 82,
+      "seed": 11921083,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921083.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 83,
+      "seed": 11921084,
+      "steps": 240,
+      "decision_rows": 170,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921084.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 84,
+      "seed": 11921085,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921085.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 85,
+      "seed": 11921086,
+      "steps": 240,
+      "decision_rows": 171,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921086.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 86,
+      "seed": 11921087,
+      "steps": 240,
+      "decision_rows": 214,
+      "blue": 2,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921087.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 87,
+      "seed": 11921088,
+      "steps": 157,
+      "decision_rows": 119,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921088.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 88,
+      "seed": 11921089,
+      "steps": 211,
+      "decision_rows": 148,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921089.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 89,
+      "seed": 11921090,
+      "steps": 240,
+      "decision_rows": 168,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921090.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 90,
+      "seed": 11921091,
+      "steps": 240,
+      "decision_rows": 165,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921091.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 91,
+      "seed": 11921092,
+      "steps": 146,
+      "decision_rows": 107,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921092.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 92,
+      "seed": 11921093,
+      "steps": 240,
+      "decision_rows": 187,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921093.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 93,
+      "seed": 11921094,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921094.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 94,
+      "seed": 11921095,
+      "steps": 240,
+      "decision_rows": 184,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921095.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 95,
+      "seed": 11921096,
+      "steps": 157,
+      "decision_rows": 142,
+      "blue": 3,
+      "red": 2,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\A_11921096.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 0,
+      "seed": 11921101,
+      "steps": 240,
+      "decision_rows": 176,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921101.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 1,
+      "seed": 11921102,
+      "steps": 240,
+      "decision_rows": 199,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921102.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 2,
+      "seed": 11921103,
+      "steps": 240,
+      "decision_rows": 196,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921103.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 3,
+      "seed": 11921104,
+      "steps": 240,
+      "decision_rows": 213,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921104.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 4,
+      "seed": 11921105,
+      "steps": 240,
+      "decision_rows": 188,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921105.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 5,
+      "seed": 11921106,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921106.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 6,
+      "seed": 11921107,
+      "steps": 240,
+      "decision_rows": 198,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921107.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 7,
+      "seed": 11921108,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921108.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 8,
+      "seed": 11921109,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921109.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 9,
+      "seed": 11921110,
+      "steps": 240,
+      "decision_rows": 213,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921110.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 10,
+      "seed": 11921111,
+      "steps": 240,
+      "decision_rows": 187,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921111.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 11,
+      "seed": 11921112,
+      "steps": 240,
+      "decision_rows": 180,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921112.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 12,
+      "seed": 11921113,
+      "steps": 240,
+      "decision_rows": 192,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921113.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 13,
+      "seed": 11921114,
+      "steps": 240,
+      "decision_rows": 186,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921114.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 14,
+      "seed": 11921115,
+      "steps": 240,
+      "decision_rows": 199,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921115.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 15,
+      "seed": 11921116,
+      "steps": 240,
+      "decision_rows": 176,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921116.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 16,
+      "seed": 11921117,
+      "steps": 240,
+      "decision_rows": 205,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921117.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 17,
+      "seed": 11921118,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921118.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 18,
+      "seed": 11921119,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921119.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 19,
+      "seed": 11921120,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921120.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 20,
+      "seed": 11921121,
+      "steps": 240,
+      "decision_rows": 187,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921121.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 21,
+      "seed": 11921122,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921122.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 22,
+      "seed": 11921123,
+      "steps": 240,
+      "decision_rows": 193,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921123.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 23,
+      "seed": 11921124,
+      "steps": 239,
+      "decision_rows": 175,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921124.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 24,
+      "seed": 11921125,
+      "steps": 240,
+      "decision_rows": 187,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921125.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 25,
+      "seed": 11921126,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921126.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 26,
+      "seed": 11921127,
+      "steps": 240,
+      "decision_rows": 188,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921127.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 27,
+      "seed": 11921128,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921128.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 28,
+      "seed": 11921129,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921129.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 29,
+      "seed": 11921130,
+      "steps": 240,
+      "decision_rows": 176,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921130.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 30,
+      "seed": 11921131,
+      "steps": 240,
+      "decision_rows": 198,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921131.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 31,
+      "seed": 11921132,
+      "steps": 240,
+      "decision_rows": 210,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921132.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 32,
+      "seed": 11921133,
+      "steps": 240,
+      "decision_rows": 194,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921133.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 33,
+      "seed": 11921134,
+      "steps": 240,
+      "decision_rows": 200,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921134.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 34,
+      "seed": 11921135,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921135.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 35,
+      "seed": 11921136,
+      "steps": 240,
+      "decision_rows": 179,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921136.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 36,
+      "seed": 11921137,
+      "steps": 240,
+      "decision_rows": 188,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921137.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 37,
+      "seed": 11921138,
+      "steps": 240,
+      "decision_rows": 192,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921138.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 38,
+      "seed": 11921139,
+      "steps": 240,
+      "decision_rows": 212,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921139.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 39,
+      "seed": 11921140,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921140.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 40,
+      "seed": 11921141,
+      "steps": 240,
+      "decision_rows": 192,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921141.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 41,
+      "seed": 11921142,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921142.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 42,
+      "seed": 11921143,
+      "steps": 240,
+      "decision_rows": 176,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921143.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 43,
+      "seed": 11921144,
+      "steps": 240,
+      "decision_rows": 165,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921144.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 44,
+      "seed": 11921145,
+      "steps": 240,
+      "decision_rows": 217,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921145.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 45,
+      "seed": 11921146,
+      "steps": 240,
+      "decision_rows": 195,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921146.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 46,
+      "seed": 11921147,
+      "steps": 240,
+      "decision_rows": 199,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921147.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 47,
+      "seed": 11921148,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921148.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 48,
+      "seed": 11921149,
+      "steps": 240,
+      "decision_rows": 206,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921149.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 49,
+      "seed": 11921150,
+      "steps": 240,
+      "decision_rows": 198,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921150.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 50,
+      "seed": 11921151,
+      "steps": 240,
+      "decision_rows": 195,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921151.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 51,
+      "seed": 11921152,
+      "steps": 240,
+      "decision_rows": 172,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921152.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 52,
+      "seed": 11921153,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921153.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 53,
+      "seed": 11921154,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921154.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 54,
+      "seed": 11921155,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921155.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 55,
+      "seed": 11921156,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921156.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 56,
+      "seed": 11921157,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921157.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 57,
+      "seed": 11921158,
+      "steps": 240,
+      "decision_rows": 181,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921158.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 58,
+      "seed": 11921159,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921159.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 59,
+      "seed": 11921160,
+      "steps": 240,
+      "decision_rows": 184,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921160.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 60,
+      "seed": 11921161,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921161.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 61,
+      "seed": 11921162,
+      "steps": 240,
+      "decision_rows": 182,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921162.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 62,
+      "seed": 11921163,
+      "steps": 240,
+      "decision_rows": 205,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921163.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 63,
+      "seed": 11921164,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921164.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 64,
+      "seed": 11921165,
+      "steps": 240,
+      "decision_rows": 210,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921165.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 65,
+      "seed": 11921166,
+      "steps": 240,
+      "decision_rows": 176,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921166.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 66,
+      "seed": 11921167,
+      "steps": 240,
+      "decision_rows": 203,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921167.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 67,
+      "seed": 11921168,
+      "steps": 240,
+      "decision_rows": 176,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921168.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 68,
+      "seed": 11921169,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921169.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 69,
+      "seed": 11921170,
+      "steps": 240,
+      "decision_rows": 188,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921170.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 70,
+      "seed": 11921171,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921171.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 71,
+      "seed": 11921172,
+      "steps": 240,
+      "decision_rows": 181,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921172.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 72,
+      "seed": 11921173,
+      "steps": 240,
+      "decision_rows": 186,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921173.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 73,
+      "seed": 11921174,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921174.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 74,
+      "seed": 11921175,
+      "steps": 240,
+      "decision_rows": 182,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921175.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 75,
+      "seed": 11921176,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921176.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 76,
+      "seed": 11921177,
+      "steps": 240,
+      "decision_rows": 203,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921177.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 77,
+      "seed": 11921178,
+      "steps": 165,
+      "decision_rows": 126,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921178.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 78,
+      "seed": 11921179,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921179.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 79,
+      "seed": 11921180,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921180.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 80,
+      "seed": 11921181,
+      "steps": 240,
+      "decision_rows": 201,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921181.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 81,
+      "seed": 11921182,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921182.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 82,
+      "seed": 11921183,
+      "steps": 240,
+      "decision_rows": 186,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921183.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 83,
+      "seed": 11921184,
+      "steps": 240,
+      "decision_rows": 197,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921184.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 84,
+      "seed": 11921185,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921185.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 85,
+      "seed": 11921186,
+      "steps": 240,
+      "decision_rows": 180,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921186.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 86,
+      "seed": 11921187,
+      "steps": 240,
+      "decision_rows": 213,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921187.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 87,
+      "seed": 11921188,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921188.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 88,
+      "seed": 11921189,
+      "steps": 240,
+      "decision_rows": 177,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921189.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 89,
+      "seed": 11921190,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921190.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 90,
+      "seed": 11921191,
+      "steps": 240,
+      "decision_rows": 193,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921191.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 91,
+      "seed": 11921192,
+      "steps": 240,
+      "decision_rows": 206,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921192.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 92,
+      "seed": 11921193,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921193.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 93,
+      "seed": 11921194,
+      "steps": 240,
+      "decision_rows": 192,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921194.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 94,
+      "seed": 11921195,
+      "steps": 186,
+      "decision_rows": 129,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921195.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 95,
+      "seed": 11921196,
+      "steps": 240,
+      "decision_rows": 210,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\states\\B_11921196.npz"
+    }
+  ]
+}
