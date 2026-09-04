@@ -1,0 +1,75 @@
+{
+  "record": "SAC-RFT mechanical preflight",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T18:57:26Z",
+  "implements": "SAC_RFT_SPEC.json",
+  "ALL_PASS": true,
+  "checks": [
+    {
+      "check": "1_anchor_student_identical_at_init",
+      "PASS": true,
+      "detail": "max |theta_ref - theta| = 0.000e+00"
+    },
+    {
+      "check": "2_initial_anchor_KL_approx_zero_and_finite",
+      "PASS": true,
+      "detail": "KL = 0.000000e+00"
+    },
+    {
+      "check": "3_controlled_perturbation_makes_anchor_KL_gt_0",
+      "PASS": true,
+      "detail": "perturbed actor_cnn.conv.0.weight; KL = 2.044965e-02"
+    },
+    {
+      "check": "4_L_anchor_produces_nonzero_actor_gradients",
+      "PASS": true,
+      "detail": "grad_norm = 2.887508e-02"
+    },
+    {
+      "check": "5_frozen_anchor_update_raises",
+      "PASS": true,
+      "detail": "FrozenAnchorTeacher.update raises RetentionError"
+    },
+    {
+      "check": "6_frozen_anchor_params_unchanged",
+      "PASS": true,
+      "detail": "anchor_moved=False"
+    },
+    {
+      "check": "7_EMA_teacher_accepts_update_positive_control",
+      "PASS": true,
+      "detail": "ema.n_updates=1"
+    },
+    {
+      "check": "8_mid_hold_rows_contribute_zero",
+      "PASS": true,
+      "detail": "empty_batch=True KL=0.000000e+00"
+    },
+    {
+      "check": "9_CONTROL_fails_closed_if_anchor_fires",
+      "PASS": true,
+      "detail": "AnchorRetentionRunner.note_ppo_minibatch fatal under control: True"
+    },
+    {
+      "check": "10_TREATMENT_fails_closed_if_EMA_update_called",
+      "PASS": true,
+      "detail": "EMATeacher.update fatal under treatment tripwire: True"
+    },
+    {
+      "check": "11_activation_gate_state",
+      "PASS": true,
+      "detail": "already AUTHORIZED: EARLY_COMPUTE_OVERRIDE"
+    },
+    {
+      "check": "12_eval_block_disjoint_from_spent",
+      "PASS": true,
+      "detail": "block=11804001..11804064 overlap_spent=False"
+    }
+  ],
+  "hyperparameters_verified": {
+    "lambda_anchor": 0.01,
+    "lambda_ret": 0.01,
+    "ema_decay": 0.995
+  },
+  "authorizes_if_pass_and_activated": "experiments/run_sac_rft_production.py --arm control, then --arm treatment"
+}

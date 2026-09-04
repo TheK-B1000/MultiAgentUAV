@@ -1,0 +1,33 @@
+{
+  "record": "SAC-RFT treatment launch manifest",
+  "status": "FROZEN_BEFORE_LAUNCH",
+  "utc": "2026-09-03T19:54:50Z",
+  "arm": "TREATMENT",
+  "implements": "SAC_RFT_SPEC.json",
+  "training_seed": 11803001,
+  "additional_timesteps": 500000,
+  "warm_start": {
+    "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "is_original_incumbent_not_an_S2_terminal": true,
+    "optimizer_state_reused": false
+  },
+  "causal": {
+    "lambda_causal": 0.05,
+    "cadence": 4,
+    "batch_rows": 48,
+    "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac",
+    "present_in_both_arms": true
+  },
+  "retention": {
+    "kind": "frozen_anchor",
+    "lambda_anchor": 0.01,
+    "cadence": 1,
+    "ema_teacher_update": "FATAL if called",
+    "reference": "deepcopy of warm-start actor; never updated"
+  },
+  "outputs": {
+    "checkpoint_dir": "artifacts\\strategic_demand\\sppo\\sac_rft_production\\treatment\\ckpts"
+  },
+  "sealed_eval_block": "11804001..11804064"
+}

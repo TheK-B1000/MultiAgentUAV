@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-09-04T00:31:16.583661Z",
+  "evaluation_run_id": "trunk_freeze_treatment",
+  "source_training_run_id": "trunk_freeze_treatment",
+  "source_checkpoint_fingerprint": "4d2315169d96f18b9bd939c30871c0f69f2abeef063bba560da8ac793e8f7d9a",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "trunk_freeze_treatment",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

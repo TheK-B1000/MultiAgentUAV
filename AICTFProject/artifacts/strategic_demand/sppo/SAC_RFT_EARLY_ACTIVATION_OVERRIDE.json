@@ -1,0 +1,43 @@
+{
+  "record_id": "SAC_RFT_EARLY_ACTIVATION_OVERRIDE",
+  "status": "FROZEN",
+  "utc": "2026-09-03T18:55:00Z",
+  "authority": "PI: use idle GPU after sealed RSCFT EVAL completed 8/8 cells and wrote INTEGRITY_REQUIRED; do not treat this as scientific clearance of RSCFT",
+
+  "THE_DISTINCTION": {
+    "early_compute_activation_authorized": true,
+    "rscft_scientifically_cleared": false,
+    "boxed_rule": "Early compute activation authorized != RSCFT scientifically cleared"
+  },
+
+  "WHAT_THIS_AUTHORIZES": [
+    "SAC_RFT_ACTIVATION.json of kind EARLY_COMPUTE_OVERRIDE",
+    "mechanical preflight",
+    "CONTROL 500k then TREATMENT 500k production GPU hours"
+  ],
+
+  "WHAT_THIS_DOES_NOT_AUTHORIZE": [
+    "writing RSCFT_EVAL_RESULT.json",
+    "skipping the row-level RSCFT integrity audit",
+    "claiming EMA insufficiency as a sealed scientific result",
+    "claiming crossover PASS or FAIL as interpreted",
+    "lambda_ret / ema_decay fishing"
+  ],
+
+  "RSCFT_STATE_AT_OVERRIDE": {
+    "eval_complete_8_of_8": true,
+    "RSCFT_EVAL_RESULT.json": "ABSENT -- evaluator refused a verdict pending audit",
+    "RSCFT_EVAL_INTEGRITY_REQUIRED.json": "PRESENT",
+    "triggered_by": ["A_C", "A_T"],
+    "RSCFT_EVAL_INTEGRITY.json": "ABSENT -- audit not yet run",
+    "raw_rows": "rscft_eval_rows.csv written; MUST NOT be interpreted as a paper result until the audit exists"
+  },
+
+  "AUDIT_REMAINS_MANDATORY": {
+    "rule": "Run the row-level RSCFT integrity audit and preserve whatever it says.",
+    "if_GENUINE_reversal": "successor launch is fully consistent with the scientific FAIL branch",
+    "if_evaluator_defect": "document transparently; RSCFT interpretation changes accordingly; SAC-RFT compute already spent is on the record as an early-activation override, not as proof that RSCFT failed cleanly"
+  },
+
+  "WHY_NOW": "Sealed EVAL is finished (process gone). GPU is idle. Integrity audit is still required before RSCFT may be interpreted, but waiting to start SAC-RFT until that audit is written would idle the GPU without changing the SAC-RFT mechanism, seeds, or arms."
+}

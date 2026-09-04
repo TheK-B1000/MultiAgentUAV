@@ -1,0 +1,20 @@
+{
+  "record": "trunk-freeze control launch manifest",
+  "status": "FROZEN_BEFORE_LAUNCH",
+  "utc": "2026-09-03T22:22:39Z",
+  "arm": "CONTROL",
+  "implements": "TRUNK_FREEZE_SPEC.json",
+  "training_seed": 11705001,
+  "additional_timesteps": 500000,
+  "warm_start": {
+    "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "optimizer_state_reused": false
+  },
+  "trunk_freeze": "17 real + 2 vestigial shared params frozen, 20 private params trainable, per TRUNK_FREEZE_SPEC.json's empirically-verified partition",
+  "causal": "ABSENT -- causal_supervision_loss is fatal if called",
+  "outputs": {
+    "checkpoint_dir": "artifacts\\strategic_demand\\sppo\\trunk_freeze_production\\control\\ckpts"
+  },
+  "sealed_eval_block": "11706001..11706064"
+}

@@ -231,4 +231,96 @@ class RetentionRunner:
             "empty_batches": self.n_empty_batches,
             "lambda_ret": self.lam,
             "ema_decay": self.teacher.decay,
+            "teacher_kind": "ema",
+        }
+
+
+class FrozenAnchorTeacher:
+    """A never-updated deepcopy of the specialized warm-start actor.
+
+    Implements SAC_RFT_SPEC.json#FROZEN_ANCHOR: the reference asks "don't lose this
+    particular behavior," not "don't change too fast." Any call to update() is a hard
+    error -- the whole point of the arm is that the anchor cannot follow student drift.
+    """
+
+    def __init__(self, model: Any):
+        self.model = copy.deepcopy(model)
+        for p in self.model.parameters():
+            p.requires_grad_(False)
+        self.model.eval()
+        self.n_updates = 0  # must remain 0 for the whole run
+
+    def update(self, student: Any) -> None:  # noqa: ARG002
+        raise RetentionError(
+            "FrozenAnchorTeacher.update was called. The SAC-RFT treatment anchor must never "
+            "move; if this fires, the run is no longer testing a fixed strategic reference.")
+
+    @torch.no_grad()
+    def max_abs_param_delta(self, student: Any) -> float:
+        worst = 0.0
+        for p_bar, p in zip(self.model.parameters(), student.parameters()):
+            worst = max(worst, float((p_bar - p.detach()).abs().max()))
+        return worst
+
+
+class AnchorRetentionRunner:
+    """Applies lambda_anchor * L_anchor on the on-policy minibatch; never moves the reference.
+
+    Same separate-operation shape as RetentionRunner / CausalSequenceRunner. Telemetry keeps
+    the `ema_updates` key (always 0) so the existing updater CSV schema stays valid.
+    """
+
+    def __init__(self, trainer, *, lam: float, cadence: int = 1):
+        if lam <= 0.0:
+            raise RetentionError("lambda_anchor must be > 0; absent anchor means not attaching")
+        if cadence < 1:
+            raise RetentionError("cadence must be >= 1")
+        self.trainer = trainer
+        self.lam = float(lam)
+        self.cadence = int(cadence)
+        self.teacher = FrozenAnchorTeacher(trainer.model)
+        self.n_ppo_actor_minibatches = 0
+        self.n_retention_updates = 0
+        self.n_empty_batches = 0
+        self.last_loss = float("nan")
+        self.last_diag: dict = {}
+
+    def note_ppo_minibatch(self, batch: Mapping[str, torch.Tensor]) -> bool:
+        from rl.custom_ppo.exp2_teacher_compression import _obs_from_batch
+
+        self.n_ppo_actor_minibatches += 1
+        if self.n_ppo_actor_minibatches % self.cadence:
+            return False
+
+        obs = _obs_from_batch(batch)
+        z_idx = batch["z"].long()
+        loss, diag = retention_kl(self.trainer.model, self.teacher.model, obs, z_idx=z_idx)
+        scaled = self.lam * loss
+
+        opt = self.trainer.optimizer
+        opt.zero_grad(set_to_none=True)
+        scaled.backward()
+        opt.step()
+        # deliberately NO teacher.update -- the anchor is frozen
+
+        self.n_retention_updates += 1
+        self.n_empty_batches += int(bool(diag.get("empty_batch")))
+        self.last_loss = float(scaled.detach())
+        self.last_diag = diag
+        return True
+
+    def telemetry(self) -> dict:
+        return {
+            "retention_updates": self.n_retention_updates,
+            "n_ppo_actor_minibatches": self.n_ppo_actor_minibatches,
+            "ema_updates": 0,  # schema-compatible; anchor never moves
+            "anchor_updates": self.teacher.n_updates,
+            "last_loss": self.last_loss,
+            "last_kl_mean": self.last_diag.get("kl_mean", float("nan")),
+            "last_eligible_heads": self.last_diag.get("eligible_heads", 0),
+            "empty_batches": self.n_empty_batches,
+            "lambda_ret": self.lam,
+            "lambda_anchor": self.lam,
+            "ema_decay": None,
+            "teacher_kind": "frozen_anchor",
         }
