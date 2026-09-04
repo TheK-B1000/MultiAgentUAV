@@ -1,0 +1,371 @@
+{
+  "record": "Trunk-freeze EVAL integrity audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-04T04:43:21Z",
+  "question": "Is the CONTROL-only Pole-A reversal (A_C) real, and does the fact that TREATMENT's own Pole-A point estimate is positive rule out a shared evaluator defect (which would be expected to hit both arms the same way)?",
+  "triggered_by": [
+    "A_C"
+  ],
+  "VERDICT": "GENUINE_ASYMMETRIC_CONTROL_REVERSAL_POLE_A",
+  "checks": {
+    "1_liveness_z0_vs_z1_per_arm": {
+      "CONTROL_A": {
+        "differing_any": 51,
+        "differing_win": 20,
+        "differing_margin": 49,
+        "z0_won_z1_lost": [
+          11706003,
+          11706004,
+          11706007,
+          11706009,
+          11706040,
+          11706041,
+          11706045,
+          11706048,
+          11706061
+        ],
+        "z1_won_z0_lost": [
+          11706001,
+          11706006,
+          11706016,
+          11706025,
+          11706027,
+          11706034,
+          11706037,
+          11706046,
+          11706053,
+          11706055,
+          11706058
+        ]
+      },
+      "CONTROL_B": {
+        "differing_any": 41,
+        "differing_win": 27,
+        "differing_margin": 38,
+        "z0_won_z1_lost": [
+          11706002,
+          11706009,
+          11706016,
+          11706027,
+          11706035,
+          11706036,
+          11706037,
+          11706046,
+          11706049,
+          11706056,
+          11706058
+        ],
+        "z1_won_z0_lost": [
+          11706007,
+          11706008,
+          11706010,
+          11706011,
+          11706013,
+          11706018,
+          11706021,
+          11706022,
+          11706025,
+          11706030,
+          11706034,
+          11706040,
+          11706043,
+          11706055,
+          11706057,
+          11706064
+        ]
+      },
+      "TREATMENT_A": {
+        "differing_any": 49,
+        "differing_win": 17,
+        "differing_margin": 46,
+        "z0_won_z1_lost": [
+          11706004,
+          11706007,
+          11706025,
+          11706034,
+          11706038,
+          11706040,
+          11706048,
+          11706055,
+          11706056,
+          11706057
+        ],
+        "z1_won_z0_lost": [
+          11706002,
+          11706009,
+          11706014,
+          11706036,
+          11706039,
+          11706052,
+          11706054
+        ]
+      },
+      "TREATMENT_B": {
+        "differing_any": 43,
+        "differing_win": 30,
+        "differing_margin": 42,
+        "z0_won_z1_lost": [
+          11706003,
+          11706015,
+          11706023,
+          11706025,
+          11706027,
+          11706028,
+          11706032,
+          11706036,
+          11706044,
+          11706052,
+          11706057,
+          11706061,
+          11706064
+        ],
+        "z1_won_z0_lost": [
+          11706007,
+          11706010,
+          11706013,
+          11706016,
+          11706020,
+          11706022,
+          11706026,
+          11706033,
+          11706035,
+          11706038,
+          11706040,
+          11706041,
+          11706042,
+          11706047,
+          11706051,
+          11706053,
+          11706059
+        ]
+      }
+    },
+    "1b_liveness_control_vs_treatment": {
+      "z0_A": {
+        "differing_any": 51,
+        "differing_win": 22,
+        "control_won_treatment_lost": [
+          11706002,
+          11706003,
+          11706009,
+          11706014,
+          11706022,
+          11706036,
+          11706039,
+          11706041,
+          11706049,
+          11706052,
+          11706054
+        ],
+        "treatment_won_control_lost": [
+          11706001,
+          11706006,
+          11706016,
+          11706018,
+          11706021,
+          11706025,
+          11706027,
+          11706034,
+          11706053,
+          11706055,
+          11706058
+        ]
+      },
+      "z0_B": {
+        "differing_any": 39,
+        "differing_win": 25,
+        "control_won_treatment_lost": [
+          11706006,
+          11706016,
+          11706017,
+          11706020,
+          11706035,
+          11706037,
+          11706038,
+          11706042,
+          11706051,
+          11706053,
+          11706059
+        ],
+        "treatment_won_control_lost": [
+          11706008,
+          11706011,
+          11706012,
+          11706015,
+          11706021,
+          11706025,
+          11706028,
+          11706029,
+          11706031,
+          11706034,
+          11706044,
+          11706055,
+          11706057,
+          11706064
+        ]
+      },
+      "z1_A": {
+        "differing_any": 44,
+        "differing_win": 15,
+        "control_won_treatment_lost": [
+          11706022,
+          11706025,
+          11706034,
+          11706037,
+          11706038,
+          11706046,
+          11706049,
+          11706055,
+          11706056,
+          11706057
+        ],
+        "treatment_won_control_lost": [
+          11706009,
+          11706018,
+          11706021,
+          11706045,
+          11706061
+        ]
+      },
+      "z1_B": {
+        "differing_any": 41,
+        "differing_win": 28,
+        "control_won_treatment_lost": [
+          11706003,
+          11706006,
+          11706017,
+          11706018,
+          11706023,
+          11706025,
+          11706030,
+          11706032,
+          11706043,
+          11706052,
+          11706057,
+          11706061,
+          11706064
+        ],
+        "treatment_won_control_lost": [
+          11706002,
+          11706009,
+          11706012,
+          11706016,
+          11706026,
+          11706029,
+          11706031,
+          11706033,
+          11706035,
+          11706041,
+          11706046,
+          11706047,
+          11706049,
+          11706056,
+          11706058
+        ]
+      }
+    },
+    "2_asymmetric_pattern": {
+      "control_pole_a_reversed": true,
+      "treatment_pole_a_positive": true,
+      "pattern": true,
+      "why_this_argues_against_a_shared_defect": "a defect in the evaluator itself (transposed latent, wrong opponent key, stale checkpoint load) would act identically on CONTROL and TREATMENT since both run through the same run_cell() code path with only the checkpoint swapped -- it would not selectively reverse only one arm's Pole A while leaving the other arm's Pole A, and both arms' Pole B, all in the expected direction"
+    },
+    "3_deltas_and_gammas_recomputed": {
+      "delta_A_CONTROL": {
+        "mean": -0.03125,
+        "lcb95": -0.171875,
+        "ucb95": 0.109375
+      },
+      "delta_B_CONTROL": {
+        "mean": 0.078125,
+        "lcb95": -0.078125,
+        "ucb95": 0.234375
+      },
+      "delta_A_TREATMENT": {
+        "mean": 0.046875,
+        "lcb95": -0.078125,
+        "ucb95": 0.171875
+      },
+      "delta_B_TREATMENT": {
+        "mean": 0.0625,
+        "lcb95": -0.109375,
+        "ucb95": 0.234375
+      },
+      "Gamma_A": {
+        "mean": 0.078125,
+        "lcb95": -0.109375,
+        "ucb95": 0.265625
+      },
+      "Gamma_B": {
+        "mean": -0.015625,
+        "lcb95": -0.234375,
+        "ucb95": 0.203125
+      },
+      "matches_flag_point_estimates": true
+    },
+    "4_provenance": {
+      "duplicate_rows": 0,
+      "missing_cells": [],
+      "seed_block": [
+        11706001,
+        11706064
+      ],
+      "total_rows": 512
+    },
+    "5_latent_swap_test": {
+      "CONTROL": {
+        "A_if_z0_z1_transposed": {
+          "mean": 0.03125,
+          "lcb95": -0.109375,
+          "ucb95": 0.171875,
+          "would_pass": false
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": -0.078125,
+          "lcb95": -0.234375,
+          "ucb95": 0.078125,
+          "would_pass": false
+        }
+      },
+      "TREATMENT": {
+        "A_if_z0_z1_transposed": {
+          "mean": -0.046875,
+          "lcb95": -0.171875,
+          "ucb95": 0.078125,
+          "would_pass": false
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": -0.0625,
+          "lcb95": -0.234375,
+          "ucb95": 0.109375,
+          "would_pass": false
+        }
+      }
+    },
+    "5b_cross_instrument_vs_incumbent_own_sealed_eval": {
+      "same_warm_start_checkpoint": true,
+      "incumbent_delta_A": 0.09375,
+      "incumbent_delta_B": -0.15625,
+      "pole_A_was_positive_at_incumbent": true,
+      "pole_B_was_negative_at_incumbent": true
+    },
+    "6_control_treatment_agreement": {
+      "A": {
+        "control": -0.03125,
+        "treatment": 0.046875,
+        "same_direction": false,
+        "gap": 0.078125
+      },
+      "B": {
+        "control": 0.078125,
+        "treatment": 0.0625,
+        "same_direction": true,
+        "gap": -0.015625
+      }
+    }
+  },
+  "conclusion": "The reversal is confined to CONTROL's Pole A; TREATMENT's own Pole-A point estimate is positive on the same seeds, same evaluator code path, same episode loop -- differing only in which checkpoint was loaded. That asymmetry is itself evidence against a shared evaluator defect (see check 2). Rows recompute exactly to the flagged point estimates, latent forcing is live everywhere, no duplicate or missing cells. Treated as a genuine behavioural result: freezing the trunk did not by itself prevent Pole-A erosion (CONTROL still reverses), but the private-branch training plus the causal loss together (TREATMENT) does not show that erosion at the point-estimate level.",
+  "changes_no_verdict": true,
+  "does_not_write_TRUNK_FREEZE_EVAL_RESULT": true,
+  "failures": []
+}

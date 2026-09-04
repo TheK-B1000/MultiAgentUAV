@@ -1,0 +1,80 @@
+{
+  "record": "Trunk-freeze sealed EVAL terminal verdict",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-04T04:43:57Z",
+  "implements": "TRUNK_FREEZE_SPEC.json#EVAL_PROTOCOL",
+  "written_by": "experiments/finalize_trunk_freeze_eval.py -- eval_trunk_freeze.py deferred this step when it detected CONTROL's Pole-A reversal and routed to the mandatory audit",
+  "PRIMARY_GATE": {
+    "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+    "TREATMENT_trunk_frozen_plus_causal": {
+      "delta_A": {
+        "mean": 0.046875,
+        "lcb95": -0.078125,
+        "ucb95": 0.171875
+      },
+      "delta_B": {
+        "mean": 0.0625,
+        "lcb95": -0.109375,
+        "ucb95": 0.234375
+      },
+      "passes": false
+    },
+    "CONTROL_trunk_frozen_only": {
+      "delta_A": {
+        "mean": -0.03125,
+        "lcb95": -0.171875,
+        "ucb95": 0.109375
+      },
+      "delta_B": {
+        "mean": 0.078125,
+        "lcb95": -0.078125,
+        "ucb95": 0.234375
+      },
+      "passes": false
+    }
+  },
+  "ATTRIBUTION": {
+    "Gamma_A": {
+      "mean": 0.078125,
+      "lcb95": -0.109375,
+      "ucb95": 0.265625
+    },
+    "Gamma_B": {
+      "mean": -0.015625,
+      "lcb95": -0.234375,
+      "ucb95": 0.203125
+    },
+    "clears_zero_both_poles": false
+  },
+  "READING": "trunk freezing insufficient",
+  "QUALIFIER": null,
+  "unmatched_interpretation_combination": false,
+  "integrity_audit": {
+    "verdict": "GENUINE_ASYMMETRIC_CONTROL_REVERSAL_POLE_A",
+    "failures": [],
+    "triggered_by": [
+      "A_C"
+    ],
+    "asymmetric_pattern_check": {
+      "control_pole_a_reversed": true,
+      "treatment_pole_a_positive": true,
+      "pattern": true,
+      "why_this_argues_against_a_shared_defect": "a defect in the evaluator itself (transposed latent, wrong opponent key, stale checkpoint load) would act identically on CONTROL and TREATMENT since both run through the same run_cell() code path with only the checkpoint swapped -- it would not selectively reverse only one arm's Pole A while leaving the other arm's Pole A, and both arms' Pole B, all in the expected direction"
+    },
+    "PROVENANCE": "audit was written and run before any interpretive reading of trunk_freeze_eval_rows.csv; a fresh script authored specifically for this trigger pattern rather than reused as-is"
+  },
+  "checkpoints": {
+    "CONTROL": "51d56ae33d469a5e367df0449980eef33033d3cf76af08dbf1b59694decd23b7",
+    "TREATMENT": "4d2315169d96f18b9bd939c30871c0f69f2abeef063bba560da8ac793e8f7d9a"
+  },
+  "cross_instrument_context": {
+    "same_warm_start_checkpoint": true,
+    "incumbent_delta_A": 0.09375,
+    "incumbent_delta_B": -0.15625,
+    "pole_A_was_positive_at_incumbent": true,
+    "pole_B_was_negative_at_incumbent": true
+  },
+  "prior_caveats_still_apply": "CCP_S2_PRELAUNCH_INTERPRETATION_CAVEATS.json -- the z0/z1 supervision imbalance in the causal bank is unchanged, since TREATMENT reuses the identical frozen causal bank",
+  "no_model_selection_occurred": true
+}
