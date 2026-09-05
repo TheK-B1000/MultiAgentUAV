@@ -1,0 +1,85 @@
+{
+  "record_id": "RUNG3_CONSTRUCTION_AND_PREDICTION",
+  "name": "Rung 3 -- the first TRUE monotone sharing increment beyond Rung 2",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-05T16:05:00Z",
+  "authority": "PI, 2026-09-05, after a design issue was caught before any Rung 3 code was written: 'Freeze and run a NEW, genuinely monotone Rung 3 ... take Rung 2 and share one additional, clearly defined actor component while leaving everything else identical.' The PI explicitly withdrew the earlier looser framing that treated the incumbent architecture as Rung 3.",
+
+  "THE_DESIGN_ISSUE_THAT_PROMPTED_THIS": {
+    "what_was_found": "SHARING_LADDER_SPEC.json#PROGRESSION_OF_RUNGS.rung_3 defines Rung 3 as 'the current compressed architecture'. Inspection of the actual parameter partitions shows that is NOT a monotone sharing increment over Rung 2, and cannot be reached by tying one more module in the ladder's branch model.",
+    "evidence_1_nothing_left_to_tie": "the ladder branch model has 14 actor tensors per branch: actor_cnn (8, shared at Rung 1), latent_actor.body (4, shared at Rung 2), latent_actor.action_head (2, private). Because z selects a BRANCH rather than entering as an input feature, tying action_head whole would make z0 and z1 numerically identical and force delta == 0 BY CONSTRUCTION rather than as a finding.",
+    "evidence_2_incumbent_is_a_different_topology": "the incumbent (TRUNK_FREEZE_SPEC.json#PARAMETER_PARTITION) conditions on z via a shared body plus latent_actor.strategy_embedding, and holds PER-LATENT latent_adapters, latent_branch_trunks (2 layers), latent_action_heads and critic heads. That is MORE private per-latent actor capacity than ladder Rung 2, which keeps only an action head private. The incumbent is therefore not 'Rung 2 plus more sharing'.",
+    "disposition": "the incumbent-topology model is REMOVED from the ladder and reclassified as an out-of-ladder ARCHITECTURE SIDE CONTROL, to be matched-re-evaluated later on the 128 seeds as a separate record. It must not be reported as a rung, and no ladder trend line may include it.",
+    "why_this_was_caught_before_spending_compute": "the mandatory pre-implementation inspection of the real parameter objects, not the spec's prose. Consistent with the standing rule that a claim about a live object is validated against the object."
+  },
+
+  "CONSTRUCTION": {
+    "rung_3_shares": ["actor_cnn (8 tensors, as Rung 1 and 2)", "latent_actor.body (4 tensors, as Rung 2)", "the 5 MACRO rows of latent_actor.action_head (weight rows 0:5 and bias 0:5) -- NEW at this rung"],
+    "rung_3_keeps_private": ["the 50 TARGET rows of latent_actor.action_head (weight rows 5:55 and bias 5:55)", "critic (6 tensors per branch, excluded from training entirely as in every rung)"],
+    "monotonicity": "STRICT. Rung 3's shared set is a proper superset of Rung 2's. Nothing that was private at Rung 2 other than the macro rows becomes shared, and nothing shared at Rung 2 becomes private.",
+    "why_this_component": "the 55-dim head decomposes as [macro(5), target(50)]. SUBMACRO_LEVERAGE_DIAGNOSTIC_SPEC.json measured target disagreement at 4.7x-7.0x macro disagreement (z0 macro 1.11% vs target 5.21%; z1 macro 0.23% vs target 1.60%). Rung 3 therefore shares the component on which the two strategies ALREADY LARGELY AGREE and keeps private the component that actually differentiates them. This is the cheapest possible real increment, which is exactly what makes it a sharp test."
+  },
+
+  "ROW_LAYOUT_VERIFIED_BY_PERTURBATION_NOT_BY_NAME": {
+    "method": "each row slice of branch.z0.latent_actor.action_head.weight was perturbed by +10.0 and the four masked head logit tensors were recomputed on a real decision-boundary state from the frozen distillation dataset.",
+    "result": {
+      "rows_0_to_5": "moved head 0 (dim 5) and head 2 (dim 5) only; both dim-50 heads unchanged at exactly 0.0000",
+      "rows_5_to_55": "moved head 1 (dim 50) and head 3 (dim 50) only; both dim-5 heads unchanged at exactly 0.0000"
+    },
+    "conclusion": "the layout is [macro(5), target(50)] per agent and the two slices are cleanly separable. Sharing rows 0:5 shares exactly the macro decision and nothing else.",
+    "why_recorded": "the incumbent's 17 shared tensors were established by perturbation rather than by parameter names; this rung follows the same rule."
+  },
+
+  "IMPLEMENTATION_REQUIREMENT": {
+    "mechanism": "the existing tying mechanism is by MODULE OBJECT IDENTITY and cannot express a row-slice tie. Rung 3 therefore splits latent_actor.action_head into two Linear modules -- macro_head (5, 256) and target_head (50, 256) -- whose concatenated output reproduces the original 55-dim head in the same order, and ties macro_head by identity.",
+    "MANDATORY_EQUIVALENCE_PREFLIGHT": "before any Rung 3 training, a Rung 3 model with BOTH heads private and initialised from a specialist's action_head rows must reproduce that specialist's masked logits BIT-EXACTLY (max abs logit diff 0.0, argmax identical on all four heads, macro and target checked separately). This proves the head split is a pure re-parameterisation and not a functional change, so that any Rung 3 result differs from Rung 2 ONLY by the macro tie. If this preflight fails, Rung 3 is NOT trained and the failure is recorded.",
+    "rationale": "without this, a Rung 3 effect could be an artefact of restructuring the head rather than of sharing it."
+  },
+
+  "TRAINING_RECIPE_UNCHANGED": {
+    "PI_instruction": "'Do not modify anything based on Rung 2.'",
+    "recipe": "pure teacher distillation, identical to TEACHER_DISTILLATION_SPEC.json#LOSS: 0.5*KL(pi_A||pi_theta(.|z0)) + 0.5*KL(pi_B||pi_theta(.|z1)), both teachers on the SAME states, decision-boundary mask, actor parameters only, no PPO/reward/critic/retention/separation",
+    "data": "the frozen TEACHER_DISTILLATION_DATASET.json (35,005 decision rows), reused unchanged",
+    "schedule": "20 fixed epochs, batch 256, lr 3e-4, clip 1.0, no early stopping, no checkpoint selection, TERMINAL WEIGHTS ONLY",
+    "fit_check_floor": "teacher-state holdout agreement >= 0.50 for both z before the eval opens (unchanged)",
+    "seeds": [11965001, 11965002],
+    "seed_disjointness_verified": "grepped against every JSON under artifacts/strategic_demand/sppo/ immediately before this spec was committed. 11965001 appears ONLY as an unspent allocation in SHARING_LADDER_SPEC.json#SEEDS and in LADDER_MATCHED_EVALUATION_AMENDMENT.json, which records rung_3_eval 11966001..064 as RETIRED UNUSED. 11965002 has zero hits. Neither has been spent."
+  },
+
+  "EVAL_PROTOCOL": {
+    "seeds": "the SAME 128 matched seeds as Rungs 1 and 2 (11960001..11960064 and 11970001..11970064), per LADDER_MATCHED_EVALUATION_AMENDMENT.json",
+    "retired": "SHARING_LADDER_SPEC.json#SEEDS rung_3_eval (11966001..064) stays RETIRED UNUSED",
+    "device": "cuda, the same frozen instrument as every prior matched eval",
+    "primary": "within-seed D vs the frozen Rung-0 per-seed deltas; damaged iff UCB95(D) < 0",
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
+    "tie_or_reversal": "any tie or reversal in Rung 3's own deltas triggers the row-level integrity audit, written BEFORE its rows are read"
+  },
+
+  "FIDELITY_BAND_UNCHANGED": {
+    "band": "final teacher-holdout agreement >= 0.957 for z0 and >= 0.979 for z1 -- IDENTICAL to the band frozen in RUNG2_FIDELITY_CONFOUND_AMENDMENT.json, still anchored on Rung 1's 0.967/0.989.",
+    "deliberately_not_rebased": "the band is NOT re-anchored on Rung 2. Moving the anchor every rung would let the guardrail drift with the results it is supposed to guard.",
+    "anchor_now_stronger": "three fully converged distilled students now exist under this recipe -- offline TD 0.965/0.984, Rung 1 0.967/0.989, Rung 2 0.963/0.985. Observed spread is 0.004 on z0 and 0.005 on z1, so the +/-0.010 band remains roughly twice the observed spread. The original justification is strengthened, not changed.",
+    "conditional_rule_carried_forward": "if Rung 3 lands outside the band, any crossover degradation is reported as SHARING-ASSOCIATED but not uniquely attributable to leakage or interference, exactly as at Rung 2.",
+    "always_reported": "Rung 3's final agreement and KL are reported side by side with all three prior students regardless of which side of the band it lands on."
+  },
+
+  "PRIMARY_MECHANISTIC_PREDICTION_FROZEN_BEFORE_TRAINING": {
+    "the_two_hypotheses_genuinely_diverge_here": "this is why the rung is worth running: the two live accounts make OPPOSITE predictions.",
+    "H1_monotone_sharing_damage": {
+      "claim": "damage accumulates with each sharing increment regardless of what is shared.",
+      "predicts": "|on_pole_shift| exceeds Rung 2's -0.0898, INTERFERENCE_SIGNATURE again, and the own gate FAILS -- most likely on Pole A first, whose LCB95 at Rung 2 was only +0.0234."
+    },
+    "H2_differentiating_capacity_is_what_matters": {
+      "claim": "sharing costs specialization only in proportion to how much strategic differentiation the shared component carries.",
+      "predicts": "Rung 3 is close to Rung 2 on every quantity, because the macro rows carry little differentiation (macro disagreement 1.11%/0.23%) while the private target rows carry most of it. Crossover survives."
+    },
+    "how_the_result_discriminates": "H1 predicts a further step down the interference curve; H2 predicts a plateau. A plateau would be strong evidence that the ladder's axis is not raw parameter count but differentiating capacity, and would reframe the whole ladder.",
+    "no_threshold_is_being_invented": "the classification rule (leakage iff off_pole_shift>0 and |on_pole_shift| smaller; interference iff on_pole_shift<0 and |on_pole_shift|>=|off_pole_shift|) and the damage rule (UCB95(D)<0) are unchanged and were frozen long before this rung."
+  },
+
+  "READING_ORDER_UNCHANGED": ["1. on-pole / off-pole decomposition and mechanism_signature", "2. within-seed D_A / D_B against the frozen Rung-0 reference", "3. Rung 3's own n=128 gate, next to Rung 2, Rung 1 and Rung 0", "4. boundary conclusion, per RUNG2_MECHANISM_VS_BOUNDARY_AMENDMENT.json -- mechanism and tolerability stay orthogonal verdicts"],
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": ["PPO of any kind", "retention mechanisms", "Z-separation", "BCS", "OTD round 2 or its seal", "changing the distillation recipe, data, schedule or the fidelity band", "the sub-macro/target-head localisation sidecar (PI: second priority, after Rung 3 is frozen and launched)", "the incumbent-topology matched re-evaluation (PI: third priority, and it is a side control, not a rung)"],
+
+  "SEQUENCE": "freeze this spec -> implement the macro/target head split -> MANDATORY equivalence preflight (bit-exact vs specialist) -> build Rung 3 and verify sharing arithmetic -> train 20 epochs -> report fidelity against the band FIRST -> matched 128-seed cuda eval -> report in the frozen reading order"
+}
