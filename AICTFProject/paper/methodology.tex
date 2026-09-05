@@ -497,6 +497,18 @@ boundary. If a rung falls outside the band, any crossover degradation is reporte
 the distinction between ``sharing causes poorer fit'' and ``sharing destroys crossover despite
 equally good fit.''
 
+Rung~2 met the band. Its terminal holdout agreement is $0.963/0.985$, against Rung~1's
+$0.967/0.989$ and the offline distilled student's $0.965/0.984$---inside the band by $0.006$ on
+both latents, and reported here side by side as the amendment requires irrespective of outcome.
+Rung~2 therefore achieved teacher-fit parity with Rung~1 within the preregistered comparability
+band, which eliminates fidelity as a competing explanation and licenses a strong mechanism-level
+interpretation of any matched-seed crossover change it exhibits. We note descriptively that
+Rung~2's branch separation is the lowest of the three distilled students (Jensen--Shannon $0.172$,
+against $0.178$ for Rung~1, $0.183$ for the offline student, and $0.179$ for the teachers
+themselves); it is the first student whose branches are measurably less separated than the
+strategies it imitates, which is the direction additional sharing would predict. This quantity is
+not gated and is not used as evidence on its own.
+
 \paragraph{Rung~3 and training-route attribution.}
 The sharing ladder isolates parameter sharing only \emph{within the fixed pure-distillation
 recipe}. Rung~3 may match the module-sharing pattern of the historical compressed architecture,
