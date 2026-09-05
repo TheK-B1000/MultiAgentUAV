@@ -1,0 +1,36 @@
+{
+  "record_id": "GUARD_DISTRIBUTED_V2_SEMANTIC_CLARIFICATION",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-05T19:20:00Z",
+  "authority": "PI, 2026-09-05, on reviewing the V2 implementation: 'V1 effectively prioritizes the threat nearest your own flag, not the threat nearest a defender ... I would add a clarification amendment now, before any V2 certification rows exist.'",
+
+  "timing_disclosure": {
+    "when": "written after the V2 preflight returned 10/10 but BEFORE any V2 certification row of any kind exists at any team size.",
+    "visible_when_written": ["GUARD_DISTRIBUTED_V2_PREFLIGHT.json (10/10 PASS)", "the N=2 bit-identity result (1090 live states, worst diff 0.000e+00)", "the N=4/N=6 distinct-assignment results", "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json (7/7, re-verified)"],
+    "NOT_visible_when_written": ["any V2 certification measurement at 4v4 or 6v6, at any seed", "the in-flight 6v6 V1 certification's outcome (still running)"],
+    "why_this_is_not_post_hoc": "no certification row exists yet, so this cannot have been chosen to make one come out a particular way. It resolves an ambiguity in the ALREADY-FROZEN spec text using a constraint that was ALREADY in that spec (the mandatory N=2 bit-identity), not a new consideration introduced by any result."
+  },
+
+  "amends": "GUARD_DISTRIBUTED_V2_SPEC.json#THE_RULE.assignment, specifically the phrase 'assign defenders to distinct attackers greedily by nearest distance'",
+  "rule": "APPEND. The frozen spec's text stays as written. This record fixes ONE ambiguity in how that text was operationalised in gpu_env/_core/_scripted_blue_styles.py; the implementation is unchanged by this record and already conforms to the clarification below.",
+
+  "THE_AMBIGUITY": {
+    "two_readings": {
+      "reading_1_defender_relative_priority": "'nearest distance' orders THREATS by their distance to the nearest defender -- i.e. threat priority itself depends on defender position.",
+      "reading_2_defender_selection_only": "'nearest distance' governs which DEFENDER is picked for a threat, after threats are already ordered by V1's existing priority rule (distance to our own flag). Threat priority is unchanged from V1; only defender-to-threat matching is new."
+    },
+    "why_it_matters": "V1 selects the intruder nearest HOME, not the intruder nearest a defender. Reading 1 would change threat priority itself and could differ from V1 even with a single defender, since a lone defender is not always standing at the flag. Reading 2 cannot differ from V1 at N=2: a single defender assigned to the single highest-priority threat, under the unchanged home-distance priority rule, IS the V1 rule exactly."
+  },
+
+  "THE_CLARIFICATION": {
+    "verbatim": "\"Nearest-distance greedy assignment\" refers to DEFENDER assignment after threat priority has already been established. Threats retain the V1 priority rule: ordered by distance to the defended home/flag, with the existing deterministic tie-break. For each threat in that priority order, the nearest CURRENTLY UNASSIGNED defender is selected (ties broken to the lowest defender index). This is Reading 2.",
+    "why_this_reading_is_required": "it is the only reading consistent with GUARD_DISTRIBUTED_V2_SPEC.json's own MANDATORY_2V2_REGRESSION_GUARD, which requires V2 to be bit-identical to V1 at N=2. Reading 1 is not guaranteed to satisfy that constraint; Reading 2 is guaranteed to by construction (one defender, one threat slot, home-distance priority unchanged).",
+    "changes_no_behavior_at_N2": "confirmed empirically, not merely by argument: GUARD_DISTRIBUTED_V2_PREFLIGHT.json measured worst |V2-V1| = 0.000e+00 across 1090 live states."
+  },
+
+  "IMPLEMENTATION_STATUS": "gpu_env/_core/_scripted_blue_styles.py already implements Reading 2 -- threat order comes from d_home (distance to own_flag_home, stable argsort), and defender selection comes from a second nearest-unassigned-defender pass. No code change accompanies this record; it documents the choice that was already made and fixes it against future re-reading of the spec text.",
+
+  "NOT_CHANGED_BY_THIS_RECORD": ["the V2 implementation itself", "the mandatory N=2 bit-identity requirement", "defender count (ceil(N/2))", "OP6/OP7, defender_zone_frac, threat_radius, min_alive_for_defender", "the certification protocol, gate, or bootstrap", "the stopping rule (one repair, one fresh test, no third GUARD revision)", "the fresh v2 seed blocks (12800001+ / 13000001+, still unspent) or the v1 certification records (retained, not rewritten)"],
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["launching 4v4 or 6v6 V2 certification", "spending seeds 12800001+ or 13000001+", "any further GUARD revision"]
+}
