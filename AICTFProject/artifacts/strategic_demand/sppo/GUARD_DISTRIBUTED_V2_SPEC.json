@@ -1,0 +1,61 @@
+{
+  "record_id": "GUARD_DISTRIBUTED_V2_SPEC",
+  "name": "GUARD_DISTRIBUTED_V2 -- unique threat assignment for the multi-defender GUARD probe",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-05T19:05:00Z",
+  "authority": "PI, 2026-09-05, after the 4v4 Pole-A reversal: 'The clean fix is not to change Pole A until it passes. The likely problem is the scaled GUARD probe itself: multiple defenders are being added, but they are not coordinating coverage ... That does not change the strategic pole to force a pass.'",
+
+  "timing_disclosure": {
+    "when": "written after the 4v4 certification returned NOT_CERTIFIED and after the stacking diagnostic quantified the mechanism, but BEFORE any GUARD_DISTRIBUTED_V2 code exists and before any new certification row.",
+    "visible_when_written": ["STRATEGIC_DEMAND_4v4_CERTIFICATION.json (NOT_CERTIFIED, delta_A -0.0938, delta_B +0.6250)", "DEFENDER_STACKING_DIAGNOSTIC.json", "the 2v2 certified reference (delta_A +0.297, delta_B +0.453)", "6v6 certification IN FLIGHT, no result"],
+    "NOT_visible_when_written": ["any GUARD_DISTRIBUTED_V2 measurement at any team size", "the 6v6 v1 certification outcome"],
+    "why_this_is_not_tuning_to_pass": "the repair targets a mechanism MEASURED to be broken (stacked defenders leave k-1 threats unopposed, and multi-threat steps are 3.3x more frequent at 4v4 than 2v2), not the pole that produced the unwanted number. The poles are untouched."
+  },
+
+  "WHAT_IS_BEING_REPAIRED_AND_WHY_IT_IS_THE_PROBE_NOT_THE_POLE": {
+    "the_probe_defect": "GUARD_V1 commits ceil(N/2) defenders but assigns them ALL the identical target (_scripted_blue_styles.py: target_x[:, lo:] = def_x.unsqueeze(1)). Defensive capacity therefore does not scale with defender count: with k simultaneous threats, exactly one is contested and k-1 are unopposed no matter how many defenders GUARD commits.",
+    "measured_consequence": "DEFENDER_STACKING_DIAGNOSTIC.json -- multi-threat contested steps are 9.55% at 2v2 but 31.08% at 4v4, and 239 of 285 multi-threat steps at 4v4 have exactly 2 intruders, i.e. fully coverable by the 2 defenders GUARD already commits if they split.",
+    "why_2v2_was_unaffected": "ceil(2/2)=1 defender cannot stack. The V1 rule is degenerate-but-correct at 2v2 and only becomes wrong at N>2, which is why the certified 2v2 result is untouched by this repair.",
+    "poles_remain_frozen": "OP6/OP7 parameters, defender_zone_frac, threat_radius and min_alive_for_defender=N are ALL unchanged. This spec edits only the BLUE probe."
+  },
+
+  "THE_RULE": {
+    "name": "GUARD_DISTRIBUTED_V2",
+    "defender_count": "UNCHANGED: ceil(N/2) defenders, occupying the last ceil(N/2) agent indices",
+    "assignment": [
+      "1. collect the active defenders (the last ceil(N/2) indices)",
+      "2. collect the legal threats: enemy agents that are alive, untagged, and on our side -- the SAME predicate the behaviour tree already uses, read from the live core",
+      "3. compute the defender-to-threat distance matrix",
+      "4. assign defenders to DISTINCT threats greedily by smallest distance, deterministically, breaking ties by (threat index, defender index) so no RNG is drawn",
+      "5. only when defenders outnumber available threats may two defenders share a target; surplus defenders fall back to the existing hold-on-flag behaviour"
+    ],
+    "everything_else_unchanged": "each assigned defender then uses the EXISTING per-defender behaviour verbatim -- intercept the assigned threat, refuse to pursue past the midline, clamp into the defensive disc of radius gate2b_defender_hold_radius. No new defensive behaviour is invented; only WHICH threat each defender is given changes.",
+    "determinism": "no RNG anywhere; identical seeds must reproduce identical assignments."
+  },
+
+  "MANDATORY_2V2_REGRESSION_GUARD": {
+    "requirement": "GUARD_DISTRIBUTED_V2 must be BIT-IDENTICAL to GUARD_V1 at N=2 before any new certification row is collected.",
+    "why_it_must_hold": "at N=2 there is exactly one defender, so greedy unique assignment reduces to 'the single defender takes the nearest legal threat' -- precisely the V1 rule. Any 2v2 difference would mean the implementation changed more than the assignment and would invalidate the certified 2v2 strategic-demand result and everything downstream of it.",
+    "check": "on a fixed seed set, V1 and V2 must produce identical defender targets at N=2, elementwise.",
+    "if_it_fails": "STOP. Do not proceed to certification."
+  },
+
+  "CERTIFICATION_PROTOCOL_FOR_V2": {
+    "seeds": "FRESH blocks, disjoint from every prior block. The v1 certification blocks (4v4 12400001..064, 6v6 12600001..064) are SPENT and MUST NOT be reused for a v2 certification.",
+    "proposed_fresh_blocks": {"4v4": "12800001..12800064", "6v6": "13000001..13000064"},
+    "disjointness_required": "grepped against every JSON under artifacts/strategic_demand/ immediately before the run, and the check recorded",
+    "gate": "UNCHANGED: delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0. Same paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7, seed as the resampling unit.",
+    "v1_results_are_retained": "STRATEGIC_DEMAND_4v4_CERTIFICATION.json stays NOT_CERTIFIED and is not deleted, superseded or rewritten. The v2 run is a SEPARATE record.",
+    "6v6": "the same repair and a fresh v2 certification apply at 6v6 if the same coordination problem appears there; the in-flight 6v6 v1 certification is allowed to finish and is retained whatever it says."
+  },
+
+  "STOPPING_RULE_FROZEN_NOW": {
+    "verbatim": "If GUARD_DISTRIBUTED_V2 still fails certification, do NOT keep modifying GUARD until it passes. At that point reconsider whether the original 2v2 strategic contrast truly scales.",
+    "why_it_is_frozen_before_the_result": "this is the second probe design. A third, fourth and fifth would each have a plausible-sounding rationale, and the cumulative effect would be tuning the environment until the answer turns green. One measured defect, one principled repair, one fresh test.",
+    "what_a_second_failure_would_license": "the honest reading that the 2v2 strategic contrast may not scale to larger teams -- a legitimate negative external-validity result, and one the paper can state, since the nominal 2v2 claims never depended on it."
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": ["any change to OP6/OP7, defender_zone_frac, threat_radius or min_alive_for_defender", "any change to the BREACH probe (BLUE_BOTH_ATTACK_V2 already expands to all N and needs none)", "any change to the crossover gate or bootstrap", "reuse of the v1 certification seed blocks", "specialist training at any size (still gated on a CERTIFIED verdict)", "a third GUARD revision"],
+
+  "SEQUENCE": "freeze this spec -> implement GUARD_DISTRIBUTED_V2 -> prove bit-identical at N=2 -> fresh-seed 4v4 certification -> fresh-seed 6v6 certification if warranted -> report"
+}
