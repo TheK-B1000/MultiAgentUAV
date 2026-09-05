@@ -84,6 +84,15 @@ good in the direction that matters}: each latent must be the better choice speci
 pole it is meant to carry. Every gate in this work uses this identical criterion; no threshold is
 adjusted after an outcome is observed.
 
+The binary win indicator is retained as the primary outcome because it is the deployment quantity
+used by every crossover gate, but we do not treat a single $64$-seed estimate as a precise
+effect-size measurement. Historical one-shot stage gates use their originally frozen $64$-seed
+blocks and are reported as such. After the instrument-calibration experiment in
+Section~\ref{sec:matched}, all parameter-sharing claims use the frozen matched $128$-seed
+reference and within-seed paired differences. Thus the original gates are preserved without
+retroactively changing their rules, while the final architecture comparison uses the
+higher-powered estimator motivated by the observed sampling variance.
+
 \paragraph{Preregistration and integrity discipline.}
 Each stage is governed by a specification frozen and committed to version control \emph{before}
 its implementation, with amendments appended rather than edited in place. Sealed evaluation seed
@@ -93,6 +102,23 @@ read, which classifies the result as genuine or as an evaluator defect before an
 is permitted. Experiments terminated for resource reasons are recorded as \textsc{aborted} with
 no verdict, explicitly distinguished from \textsc{fail}, and their partially exposed seed blocks
 are retired from reuse.
+
+\paragraph{Scope of claims and external-validity boundary.}
+The causal claims in the mechanism study are intentionally restricted to the nominal $2$-vs-$2$,
+two-pole maritime CTF setting described above. We do not infer from these experiments alone that
+the same sharing boundary holds for larger teams, different opponent families, or perturbed
+sensing and control. Scaling to $4$-vs-$4$ and $6$-vs-$6$, and deployment perturbations such as
+localization noise, motion drift, and control delay, are treated as \emph{external-validity
+tests} rather than as evidence used to choose among mechanisms. Until those tests are completed,
+conclusions are stated at the level of this environment and these two strategic poles.
+
+\paragraph{Execution device as part of the measurement instrument.}
+A prospective CPU--CUDA A/B check on identical seeds showed that floating-point differences can
+change simulator trajectories and terminal scores. We therefore treat execution device as part
+of the experimental instrument rather than as a mere performance setting. Sealed crossover
+evaluations and all matched-seed ladder comparisons are run on the same frozen CUDA path.
+Diagnostics collected on CPU are explicitly scoped to the CPU-generated state distribution and
+are never used to claim device-invariant behavior.
 
 \subsection{Reference Points: Specialists and Generalist}
 
@@ -246,19 +272,6 @@ by construction rather than by post-hoc filtering. The term is added to the task
 $\mathcal{L}=\mathcal{L}_{\mathrm{PPO}}+\lambda_{\mathrm{causal}}\mathcal{L}_{\mathrm{causal}}$
 with $\lambda_{\mathrm{causal}}=0.05$, and never modifies reward, returns, GAE, or value targets.
 
-\subsubsection{Warm-Start Protocol and Attribution}
-From a common warm-start checkpoint we train matched \textbf{CONTROL} (task PPO only) and
-\textbf{TREATMENT} (task PPO plus $\lambda_{\mathrm{causal}}\mathcal{L}_{\mathrm{causal}}$) arms,
-identical in seed, optimizer configuration, rollout horizon, and environment assignment. Because
-the causal bank is measured once from the incumbent's deployment distribution and becomes
-increasingly off-policy as either arm changes, we fix a bounded fine-tuning horizon shorter than
-the original training horizon. Crossover is evaluated on a disjoint sealed block, identically for
-both arms, with attribution statistics
-$\Gamma_A=\Delta_A^{\mathrm{treat}}-\Delta_A^{\mathrm{ctrl}}$ and
-$\Gamma_B=\Delta_B^{\mathrm{treat}}-\Delta_B^{\mathrm{ctrl}}$ under a paired bootstrap over
-shared evaluation seeds. This isolates the causal objective's effect rather than crediting it for
-an improvement continued PPO would have produced regardless.
-
 \subsubsection{Outcome and Successor Repairs}
 Causal commitment supervision did not clear the crossover gate. Neither did a sequence of
 successor repairs applied to the same compressed incumbent, each preregistered and each varying
@@ -298,8 +311,9 @@ isolates compression from subsequent RL drift. The distinction is enforced struc
 training entry point in the codebase can load the distilled checkpoint.
 
 The student reproduces its teachers closely (holdout argmax agreement $0.965$ for $z_0\!\sim\!\pi_A$
-and $0.984$ for $z_1\!\sim\!\pi_B$; student $z_0/z_1$ Jensen--Shannon divergence $0.178$ against
-the teachers' own $0.179$) yet does not clear the gate:
+and $0.984$ for $z_1\!\sim\!\pi_B$; student $z_0/z_1$ Jensen--Shannon divergence $0.183$, marginally
+\emph{above} the teachers' own $0.179$, so the branches are if anything more separated than the
+strategies they imitate) yet does not clear the gate:
 \[
 \Delta_A=+0.094\;[-0.078,+0.266],
 \qquad
@@ -332,9 +346,14 @@ environment RNG identically across branches, and altering exactly one decision--
 $z_0$ arm shows $18$ of $20$ teacher substitutions producing an \emph{identical} final outcome,
 with mean $|L_{\mathrm{margin}}|=0.100$ against a decision-sensitivity reference of $0.450$. The
 $z_1$ arm was underpowered by construction ($6$ branch points) and no conclusion is drawn for it.
+This underpowered result is not converted into evidence against the hypothesis and is not repaired
+post hoc by changing the macro-level definition.
 
 \paragraph{Where disagreement actually lives.}
-Analyzing the recorded action vectors by head reveals that macro-level agreement understates
+A separate diagnostic, specified after the macro-level limitation was identified, analyzes the
+already-recorded action vectors by head. It does \emph{not} retroactively redefine the DLD
+macro-level hypothesis. Instead, it asks a new question: whether residual disagreement is
+concentrated below the macro choice. The analysis reveals that macro-level agreement understates
 disagreement substantially. Against the latent-matched teacher, macro disagreement is $1.11\%$
 for $z_0$ and $0.23\%$ for $z_1$, while \emph{target} disagreement is $5.21\%$ and $1.60\%$
 respectively---a factor of $4.7$ to $7.0$. The student agrees on \emph{what} to do far more
@@ -349,6 +368,16 @@ produced $\Delta_A=+0.125\;[-0.047,+0.297]$ on one and $\Delta_A=+0.453\;[+0.297
 other---a swing of $0.33$ attributable entirely to which episodes were drawn, since the policies
 cannot change. Pooled over both blocks ($n=128$) the reference is
 $\Delta_A=+0.289\;[+0.164,+0.406]$ and $\Delta_B=+0.258\;[+0.141,+0.375]$.
+
+\paragraph{Chronology of the calibration change.}
+The matched-seed protocol was introduced \emph{after} the two Rung~0 blocks revealed substantial
+block-to-block variation and therefore should be read as a post-calibration design correction,
+not as part of the original $64$-seed gate. The chronology is fixed: Rung~0 was evaluated on the
+two independent calibration blocks; once their variance was observed, the union of their $128$
+seeds and every per-seed Rung~0 outcome were frozen; Rung~0 was never rerun or reselected
+afterward. All later ladder rungs were specified prospectively to use that same frozen set. The
+calibration change is therefore used only for subsequent architecture comparisons and does not
+retroactively reclassify earlier sealed results.
 
 Consequently, comparing an architecture's $\Delta$ on its own fresh block against a reference
 $\Delta$ on a different block compares two noisy averages. We therefore fix a
@@ -384,8 +413,12 @@ strategies in the same step, which is precisely the phenomenon under test.
 
 \begin{table}[t]
 \centering
-\caption{Parameter-sharing ladder. All rungs evaluated on the identical frozen $128$-seed matched
-set; $D$ is the within-seed difference against the Rung~0 reference.}
+\caption{Parameter-sharing ladder. Sharing is cumulative down the rungs. All rungs are evaluated
+on the identical frozen $128$-seed matched set; $D$ is the within-seed difference against the
+Rung~0 reference. Rung~0's $\Delta$ is the pooled descriptive reference over its two $64$-seed
+blocks, reported separately in the text, and is not a sealed one-shot gate; every other row
+reports that rung's own matched $128$-seed gate. Both are computed on the same seeds under the
+same bootstrap and are directly comparable, but only the latter is a preregistered gate.}
 \label{tab:sharing-ladder}
 \resizebox{\textwidth}{!}{
 \begin{tabular}{lllll}
@@ -398,13 +431,19 @@ $+0.289\;[+0.164,+0.406]$ & $+0.258\;[+0.141,+0.375]$ & reference \\
 1: shared perception & CNN encoder &
 $+0.266\;[+0.148,+0.383]$ & $+0.164\;[+0.047,+0.281]$ &
 $D_A=-0.023$, $D_B=-0.094$; no detectable loss \\
-2: shared perception + body & CNN encoder, MLP body &
+2: shared perception + body & \;\;\;\;$+$ MLP body &
 \multicolumn{3}{c}{\emph{in progress}} \\
-3: current compressed architecture & CNN encoder, MLP body & \multicolumn{3}{c}{\emph{pending}} \\
+3: current compressed architecture & \;\;\;\;$+$ latent branch trunks &
+\multicolumn{3}{c}{\emph{pending}} \\
 \bottomrule
 \end{tabular}
 }
 \end{table}
+
+Rungs~2 and~3 differ in exactly one place, which the cumulative column makes explicit: Rung~2
+shares the perception encoder and the MLP body while keeping each latent's branch trunk private,
+whereas Rung~3 additionally ties those branch trunks, leaving only the $20$ private per-latent
+tensors of the incumbent architecture unshared.
 
 \paragraph{Rung 0 as a structural positive control.}
 Rung~0 installs $\pi_A$ and $\pi_B$ verbatim behind a $z$-dispatch wrapper with zero shared
@@ -412,7 +451,20 @@ parameters, verified bit-exact against both specialists on the evaluation device
 absolute logit difference $0$, argmax identical on all four heads, macro and target checked
 separately). It is not compression; its role is to establish that the dispatch-and-evaluate path
 can express crossover at all. Its failure would have indicted the instrument rather than any
-architecture, and it is sealed first for that reason. Crossover is confirmed.
+architecture, and it is sealed first for that reason.
+
+On its first sealed $64$-seed block the gate passed on Pole~B ($+0.188\;[+0.031,+0.344]$) but not
+on Pole~A ($+0.125\;[-0.047,+0.297]$). Because Rung~0 \emph{is} the frozen specialists, this
+cannot reflect any change in the policies, and an independent second block returned
+$+0.453\;[+0.297,+0.609]$ on the same pole. The crossover \emph{direction} was positive on both
+poles in both blocks; the magnitude was not stable. We therefore read Rung~0 as establishing that
+the dispatch path expresses crossover in the correct direction on both poles, and we treat the
+block-to-block magnitude discrepancy not as a property of any architecture but as the variance of
+the evaluation instrument---which is precisely what motivates the matched-seed protocol of
+Section~\ref{sec:matched}. The reading rule---direction decides, while magnitude noise is handled
+by the matched design rather than by demanding block-to-block agreement---was frozen while the
+second block was still running, before either of its Pole-B cells or any confidence interval
+existed.
 
 \paragraph{Rung 1.}
 Sharing only the perception encoder preserves crossover: both poles clear the gate independently,
@@ -433,14 +485,46 @@ primary reported quantity, so the mechanism test cannot become a post-hoc readin
 diagnostic pole: Rung~1's $\mathrm{UCB}_{95}(D_B)=+0.023$ leaves it far closer to registering a
 detectable loss than Pole~A's $+0.102$.
 
-\paragraph{Fidelity confound.}
+\paragraph{Fidelity confound and interpretation guardrail.}
 Because a more heavily shared student may simply fit its teachers less well, we further froze a
 comparability band---final holdout agreement within $0.010$ of Rung~1's $0.967/0.989$---anchored
 on the only two fully converged distilled students available beforehand, which differ by at most
-$0.005$. Its coarseness is recorded with it. If a rung falls outside the band, any crossover
-degradation is reported as \emph{sharing-associated} but not uniquely attributable to leakage or
-interference, preserving the distinction between ``sharing causes poorer fit'' and ``sharing
-destroys crossover despite equally good fit.'' Both fidelities are reported side by side
-regardless of outcome.
+$0.005$. The band is an \emph{interpretation guardrail}, not a theoretically privileged threshold
+and not a success gate. We therefore report the continuous agreement and KL values for every rung
+regardless of which side of the band it falls on, and we do not infer a discontinuity at the
+boundary. If a rung falls outside the band, any crossover degradation is reported as
+\emph{sharing-associated} but not uniquely attributable to leakage or interference, preserving
+the distinction between ``sharing causes poorer fit'' and ``sharing destroys crossover despite
+equally good fit.''
+
+\paragraph{Rung~3 and training-route attribution.}
+The sharing ladder isolates parameter sharing only \emph{within the fixed pure-distillation
+recipe}. Rung~3 may match the module-sharing pattern of the historical compressed architecture,
+but the two models differ in training route: Rung~3 is trained by direct specialist distillation,
+whereas the historical incumbent was trained from random initialization by task PPO and never
+received the specialists directly. Therefore a Rung~3 PASS would establish that the architecture
+\emph{can} preserve crossover under direct distillation; it would not show that sharing was
+irrelevant to the historical PPO failure. Conversely, a Rung~3 FAIL would be evidence about the
+distilled sharing ladder, not a clean replication of the PPO failure. Any training-route claim
+must be tested or discussed separately from the sharing ablation.
+
+\subsection{Claim Hierarchy and External-Validity Follow-Up}
+
+The evidence is interpreted in a fixed hierarchy. First, strategic demand and separate-specialist
+crossover establish that complementary policies exist. Second, direct compression asks whether
+those policies can coexist in one latent-conditioned policy. Third, mechanism diagnostics test
+specific explanations for any compression shortfall. Fourth, the calibrated sharing ladder varies
+representation sharing while holding training and evaluation fixed. Only after the nominal
+mechanism is localized do we ask whether the resulting conclusion transfers beyond the base
+setting.
+
+Accordingly, the strongest claim supported by the present methodology is intentionally narrow:
+\emph{within the nominal $2$-vs-$2$ two-pole maritime task, under the frozen distillation recipe
+and matched-seed CUDA evaluation, we can localize whether and how parameter sharing changes
+payoff-level crossover}. Broader claims about multi-agent reinforcement learning require a
+separate external-validity stage. The planned confirmatory extensions are larger team sizes
+($4$-vs-$4$ and $6$-vs-$6$) and deployment perturbations in localization, motion, and control
+delay. Those experiments are not used for method selection and, until completed, are not cited as
+evidence for generality.
 
 \end{document}
