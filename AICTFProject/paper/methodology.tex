@@ -1,0 +1,446 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+\title{Latent-Conditioned Policy Compression and the Limits of Behavioral Supervision:\\
+A Mechanistic Study of Strategic Crossover}
+\author{TheK-B1000}
+\date{September 2026}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+\section{Methodology}
+
+\subsection{Problem Definition and Preliminaries}
+
+\paragraph{Environment and agents.}
+We study a partially observable, adversarial multi-robot setting instantiated as a 2-vs-2 naval
+capture-the-flag task on a symmetric maritime arena. Two teams, Blue (learner) and Red
+(opponent), each control $|B|=2$ autonomous surface vessels. We model the interaction as a
+finite-horizon partially observable Markov game
+\[
+G =
+\left(
+\mathcal{N},\mathcal{S},\{\mathcal{A}_i\}_{i\in\mathcal{N}},P,
+\{r_i\}_{i\in\mathcal{N}},\{\Omega_i\}_{i\in\mathcal{N}},\{O_i\}_{i\in\mathcal{N}},\gamma
+\right),
+\]
+with $\mathcal{N}=B\cup R$.
+
+At each simulator tick $t$, agent $i$ receives $o_{i,t} \sim O_i(\cdot \mid s_t)$ and selects a
+macro-action $a_{i,t}\in\mathcal{A}_i$ from a fixed macro vocabulary
+$\{\texttt{GO\_TO},\texttt{GRAB\_MINE},\texttt{GET\_FLAG},\texttt{PLACE\_MINE},\texttt{GO\_HOME}\}$,
+paired with a target selection. The joint action space is
+$\mathrm{MultiDiscrete}([5,50,5,50])$: per agent, a $5$-way macro and a $50$-way target. The
+joint action induces $s_{t+1}\sim P(\cdot\mid s_t,a_t)$.
+
+Each team's flag is anchored at its home base; a carrier who returns the enemy flag alive scores
+a capture. Mines are stationary hazards placed by an armed agent at its current cell, creating
+area-denial and ambush dynamics symmetric across teams.
+
+\paragraph{Strategic poles and strategic demand.}
+Red is instantiated from one of two scripted archetypes we call \emph{poles}. Pole A
+(opponent \textbf{OP6} with a frozen genome overlay) presents a wide, passive zone defense
+($\texttt{defender\_zone\_frac}=0.35$, $\texttt{threat\_radius}=0$); Pole B (opponent
+\textbf{OP7}, canonical) presents a tight, reactive defense ($\texttt{defender\_zone\_frac}=0.05$,
+$\texttt{threat\_radius}=12$). These are qualitatively different defensive philosophies rather
+than two difficulty settings of one behavior, and the pole assignment is resolved through an
+asserted seam that verifies the live behavior-tree profile rather than trusting an override flag.
+
+We do not assume these conditions require different Blue behavior; we certify it. A held-out
+strategic-demand test measures the win-rate advantage of a GUARD-biased response over a
+BREACH-biased response on Pole A, and the reverse contrast on Pole B, gated at
+$\mathrm{LCB}_{95}>0$. Both directions pass. This is the precondition for everything that
+follows: if one policy were simply better everywhere, compression into a single behavior would
+be the correct answer rather than a compression \emph{problem}.
+
+\paragraph{Policies and the crossover criterion.}
+Let $\pi_\theta(a\mid o,z)$ denote a policy conditioned on a discrete latent strategy variable
+$z\in\{z_0,z_1\}$, and let $V(z,p)$ denote its win rate when deployed with latent $z$ against
+pole $p\in\{A,B\}$, estimated over a held-out seed block. We define the \textbf{strategic
+crossover criterion}
+\[
+\Delta_A = V(z_0,A)-V(z_1,A),
+\qquad
+\Delta_B = V(z_1,B)-V(z_0,B),
+\]
+with pass condition
+\[
+\mathrm{LCB}_{95}(\Delta_A)>0
+\quad\wedge\quad
+\mathrm{LCB}_{95}(\Delta_B)>0,
+\]
+evaluated by a paired percentile bootstrap over the held-out seeds with
+$n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$, and the seed as the resampling unit.
+
+Crossover is the claim that $z_0$ and $z_1$ are not merely \emph{different} but \emph{differently
+good in the direction that matters}: each latent must be the better choice specifically on the
+pole it is meant to carry. Every gate in this work uses this identical criterion; no threshold is
+adjusted after an outcome is observed.
+
+\paragraph{Preregistration and integrity discipline.}
+Each stage is governed by a specification frozen and committed to version control \emph{before}
+its implementation, with amendments appended rather than edited in place. Sealed evaluation seed
+blocks are one-shot: a block is spent once, never re-scored for the same arm. Any tie or reversal
+on a gated quantity triggers a mandatory row-level integrity audit, written before its rows are
+read, which classifies the result as genuine or as an evaluator defect before any interpretation
+is permitted. Experiments terminated for resource reasons are recorded as \textsc{aborted} with
+no verdict, explicitly distinguished from \textsc{fail}, and their partially exposed seed blocks
+are retired from reuse.
+
+\subsection{Reference Points: Specialists and Generalist}
+
+\paragraph{Complementary specialists (upper reference).}
+Before attempting compression we establish that complementary specialization is achievable at
+all. We train two independent policies $\pi_A,\pi_B$ under matched conditions, one per pole, with
+no shared parameters and no latent mechanism. Scored under a preregistered protocol on a fresh
+$64$-seed block, separate specialists confirm crossover:
+\[
+\Delta_A = +0.172\;[+0.016,+0.328],
+\qquad
+\Delta_B = +0.297\;[+0.125,+0.469],
+\]
+both clearing the gate. Note the narrowness of $\mathrm{LCB}_{95}(\Delta_A)=+0.016$; this margin
+becomes important in Section~\ref{sec:matched}.
+
+\paragraph{Single generalist (lower reference).}
+As the complementary lower reference we evaluate $\pi_G$, a single policy trained on the mixed
+opponent distribution with no latent mechanism ($\texttt{latent\_k}=0$, verified by loading the
+checkpoint rather than trusting its recorded configuration). It attains
+$V(\pi_G,A)=0.375\;[0.265,0.500]$ and $V(\pi_G,B)=0.500\;[0.375,0.625]$, well below the
+specialists on their own poles. The intended hierarchy is therefore
+\[
+\text{generalist} \;<\; \text{latent specialization} \;\le\; \text{separate specialists},
+\]
+with the two endpoints measured and the middle term the object of study.
+
+\subsection{Latent-Conditioned Policy Compression}
+
+\paragraph{Architecture.}
+The compressed policy $\pi_\theta$ shares a perception trunk (CNN encoder) and an MLP body
+across $z_0$ and $z_1$, branching into private per-latent actor capacity and private per-latent
+critic heads $V_{z_0},V_{z_1}$. Of its $39$ parameter tensors, $17$ are genuinely shared on the
+$z$-conditioned forward path (verified by perturbation testing rather than assumed from parameter
+names), $2$ are vestigial, and $20$ are private per latent.
+
+The intended deployment mapping is $z_0\mapsto\text{Pole A}$, $z_1\mapsto\text{Pole B}$. Once
+frozen, this assignment is never flipped by any method in this work; only the \emph{target
+behavior} supervised into each latent changes across methods.
+
+\paragraph{The behavioral-supervision ladder.}
+We evaluate increasingly capable behavioral-supervision treatments, each holding the crossover
+criterion as the gate: one-sided latent distillation; paired latent distillation on matched
+states; trajectory-guided distillation with private per-latent actor capacity; and
+private-critic trajectory distillation. None clears the gate.
+
+\paragraph{Central finding of the behavioral ladder.}
+Across the ladder, \emph{behavioral} identity (single-state action agreement with the matched
+specialist) and \emph{full-trajectory} identity (aggregate rollout separability from a held-out
+discriminator controlled for opponent identity) both become strongly and independently confirmed
+as compression sophistication increases. Yet strategic payoff, measured only by the crossover
+criterion, never follows:
+\[
+\underbrace{\text{teacher imitation}}_{\text{established}}
+\;\longrightarrow\;
+\underbrace{\text{latent/trajectory identity}}_{\text{confirmed}}
+\;\longrightarrow\;
+\underbrace{\text{strategic payoff}}_{\text{broken}}.
+\]
+Diversity certified at the level of single-state behavior or whole-trajectory identity is not
+sufficient evidence of the payoff-relevant strategic difference the deployment criterion actually
+measures. This motivates a change in \emph{what} is supervised rather than a further increase in
+\emph{how faithfully} behavior is imitated.
+
+\subsection{Semi-MDP Commitment Structure}
+
+A macro-action, once accepted, is held for a macro-specific number of ticks before the agent may
+commit to a new one:
+$\texttt{GO\_TO}=4$, $\texttt{GRAB\_MINE}=3$, $\texttt{GET\_FLAG}=4$, $\texttt{PLACE\_MINE}=2$,
+$\texttt{GO\_HOME}=4$. Each agent $i$ carries a countdown $c_{i,t}$, and a newly requested macro
+is accepted only when the per-agent predicate
+\[
+d_t^i=\mathbb{I}\!\left[c_{i,t}\le 0\right]
+\]
+holds. At all other ticks the legal-action mask collapses to the already-committed macro, so the
+policy's output is not an executable decision. Because hold lengths differ by macro and agents
+commit independently, decision boundaries fall \textbf{asynchronously} across agents.
+
+This reframes the task, for supervision purposes, as a semi-Markov decision process over
+commitment decisions rather than a flat per-tick MDP, and it directly motivates the causal
+treatment below: the behavioral ladder's supervision was applied without regard to $d_t^i$,
+meaning much of its supervised mass fell on ticks that were never executable decisions.
+
+\subsection{Incumbent-Relative Causal Commitment Supervision}
+\label{sec:causal-supervision}
+
+Rather than supervising resemblance to a specialist's \emph{behavior}, we supervise toward
+specialist interventions with a measured \textbf{causal, incumbent-relative effect on terminal
+payoff}, applied only at real commitment boundaries where $d_t^i=1$.
+
+\subsubsection{Causal Estimand}
+For a boundary state $s_t$, drawn from a prospectively selected, outcome-blind, stratified sample
+of the incumbent's own deployment distribution, and an estimand $e$ identifying which agent(s)
+may be intervened on, we define three matched-continuation arms sharing an identical continuation
+seed $r_j$:
+$R_0$ (incumbent continues unmodified), $R_A$ ($\pi_A$ takes over the intervened agent(s) for the
+remainder of the episode), and $R_B$ ($\pi_B$ takes over identically). For a unit $x=(s_t,e)$
+over $M$ matched continuations,
+\[
+\hat{A}_A(x)=\frac{1}{M}\sum_{j=1}^{M}\left(R_A^j-R_0^j\right),
+\qquad
+\hat{A}_B(x)=\frac{1}{M}\sum_{j=1}^{M}\left(R_B^j-R_0^j\right),
+\]
+where $R$ is the binary episode win indicator, matching the crossover convention. Because $r_j$
+is shared across arms, $\hat{A}_A$ and $\hat{A}_B$ isolate the effect of \emph{which policy acts
+from this state onward} rather than continuation randomness.
+
+\subsubsection{Routing Rule}
+Each unit is routed to whichever teacher shows a strictly positive advantage over both zero and
+the competing teacher:
+\[
+t^*(x)=
+\begin{cases}
+\pi_A, & \hat{A}_A(x)>\max\left(0,\hat{A}_B(x)\right),\\[3pt]
+\pi_B, & \hat{A}_B(x)>\max\left(0,\hat{A}_A(x)\right),\\[3pt]
+\mathrm{none}, & \max\left(\hat{A}_A(x),\hat{A}_B(x)\right)\le 0,\\[3pt]
+\mathrm{none}, & \hat{A}_A(x)=\hat{A}_B(x)>0,
+\end{cases}
+\qquad
+w(x)=
+\begin{cases}
+\hat{A}_{t^*}(x), & t^*(x)\neq\mathrm{none},\\[3pt]
+0, & \text{otherwise}.
+\end{cases}
+\]
+A unit with no measured causal benefit, or an exact tie, receives zero weight rather than an
+arbitrary assignment: a tie carries no evidence favoring either teacher. At states where both
+agents are free, a usable joint intervention supersedes its constituent per-agent units, so no
+state is double-counted.
+
+\subsubsection{Anti-Trajectory-Shopping}
+The $(o,a)$ trajectory used for supervision at a routed unit is obtained by rolling the
+already-selected teacher $t^*(x)$ \emph{exactly once}, under a canonical seed derived
+independently of every measurement seed $r_j$. Teacher selection and weight come exclusively from
+the $M$-arm measurement; the canonical rollout's own outcome is never consulted and cannot
+retroactively alter $t^*(x)$ or $w(x)$. This prevents implicitly selecting a favorable training
+trajectory from among continuations whose outcomes were already observed.
+
+\subsubsection{Causal Objective}
+The auxiliary policy loss is a weighted negative log-likelihood of the routed teacher's action,
+restricted to decision-eligible agents:
+\[
+\mathcal{L}_{\mathrm{causal}}
+=
+\frac{\sum_{t,i} d_t^i\,w_{t,i}\,\mathcal{L}_{\mathrm{teacher}}(s_t,i,z)}
+{\sum_{t,i} d_t^i\,w_{t,i}}.
+\]
+A committed agent ($d_t^i=0$) contributes to neither numerator nor denominator, so committed
+frames cannot dilute effective supervision strength; a zero-weight unit contributes no gradient
+by construction rather than by post-hoc filtering. The term is added to the task objective as
+$\mathcal{L}=\mathcal{L}_{\mathrm{PPO}}+\lambda_{\mathrm{causal}}\mathcal{L}_{\mathrm{causal}}$
+with $\lambda_{\mathrm{causal}}=0.05$, and never modifies reward, returns, GAE, or value targets.
+
+\subsubsection{Warm-Start Protocol and Attribution}
+From a common warm-start checkpoint we train matched \textbf{CONTROL} (task PPO only) and
+\textbf{TREATMENT} (task PPO plus $\lambda_{\mathrm{causal}}\mathcal{L}_{\mathrm{causal}}$) arms,
+identical in seed, optimizer configuration, rollout horizon, and environment assignment. Because
+the causal bank is measured once from the incumbent's deployment distribution and becomes
+increasingly off-policy as either arm changes, we fix a bounded fine-tuning horizon shorter than
+the original training horizon. Crossover is evaluated on a disjoint sealed block, identically for
+both arms, with attribution statistics
+$\Gamma_A=\Delta_A^{\mathrm{treat}}-\Delta_A^{\mathrm{ctrl}}$ and
+$\Gamma_B=\Delta_B^{\mathrm{treat}}-\Delta_B^{\mathrm{ctrl}}$ under a paired bootstrap over
+shared evaluation seeds. This isolates the causal objective's effect rather than crediting it for
+an improvement continued PPO would have produced regardless.
+
+\subsubsection{Outcome and Successor Repairs}
+Causal commitment supervision did not clear the crossover gate. Neither did a sequence of
+successor repairs applied to the same compressed incumbent, each preregistered and each varying
+one mechanism: retention against an exponential-moving-average teacher; retention against a
+frozen specialized reference; freezing the shared trunk so that only private per-latent
+parameters adapt; and balanced sampling of the causal bank, which corrects a documented $3.5\times$
+imbalance in behavior-changing supervision between latents. Two further candidates---a
+Jensen--Shannon separation hinge and a second balanced-sampling evaluation---were held or aborted
+without verdict rather than being reported as failures.
+
+The repairs share a common presupposition that a provenance audit later invalidated: the
+compressed incumbent was never produced by compressing $\pi_A$ and $\pi_B$ at all. It is a
+fresh random-initialization run trained by task PPO with a latent slot, in which neither
+specialist ever appeared. The repair sequence was therefore restoring specialization that had
+never been installed.
+
+\subsection{Teacher-Guided Compression}
+
+We therefore compress the specialists directly. A fresh latent student, randomly initialized
+with the incumbent's exact architecture, is trained by a purely supervised objective with no
+reinforcement learning of any kind:
+\[
+\mathcal{L}_{\mathrm{distill}}
+=
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_A(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_0)\right)
++
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_B(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_1)\right),
+\]
+evaluated per action head over masked distributions and averaged over decision-boundary heads
+only. Both teachers are queried on the \emph{same} states, so the difference between $z_0$ and
+$z_1$ is teacher strategy rather than state distribution. Only actor parameters are optimized;
+critics are excluded and verified immobile. Training runs a fixed number of epochs with no early
+stopping and no checkpoint selection, and the terminal weights are the only artifact.
+
+Crossover is then measured \emph{before any reinforcement learning touches the student}, which
+isolates compression from subsequent RL drift. The distinction is enforced structurally: no
+training entry point in the codebase can load the distilled checkpoint.
+
+The student reproduces its teachers closely (holdout argmax agreement $0.965$ for $z_0\!\sim\!\pi_A$
+and $0.984$ for $z_1\!\sim\!\pi_B$; student $z_0/z_1$ Jensen--Shannon divergence $0.178$ against
+the teachers' own $0.179$) yet does not clear the gate:
+\[
+\Delta_A=+0.094\;[-0.078,+0.266],
+\qquad
+\Delta_B=+0.141\;[-0.047,+0.313].
+\]
+Both point estimates are correctly signed; neither confidence interval clears zero. High-fidelity
+imitation of both specialists is not sufficient for payoff-level crossover once the student drives
+its own closed-loop state distribution.
+
+\subsection{Mechanism Diagnostics}
+
+Two candidate explanations were tested and, in the tested regime, rejected. Each was a
+measurement with a preregistered falsification condition, not a new training method.
+
+\paragraph{Covariate shift.}
+If compounding imitation error drove the loss, teacher agreement measured on states the
+\emph{student} visits should fall below agreement on teacher-visited states. It does not: on
+$24{,}693$ student-generated states the distilled student agrees with its teachers at $0.971$ and
+$0.986$, marginally \emph{above} its $0.965$/$0.984$ on teacher-visited holdout states. The
+preregistered falsification condition was met and the DAgger-style successor was held after one
+round rather than run to completion. The refutation is scoped to the CPU-generated deployment
+distribution, since the sealed evaluation runs on a different device and trajectories are
+device-dependent.
+
+\paragraph{Decision leverage.}
+If a small number of high-leverage mistakes drove the loss, substituting the teacher's action at
+disagreement states should change outcomes more than perturbing a typical decision. It does not.
+Using matched counterfactual branching---replaying a recorded prefix under assertion, seeding the
+environment RNG identically across branches, and altering exactly one decision---the well-powered
+$z_0$ arm shows $18$ of $20$ teacher substitutions producing an \emph{identical} final outcome,
+with mean $|L_{\mathrm{margin}}|=0.100$ against a decision-sensitivity reference of $0.450$. The
+$z_1$ arm was underpowered by construction ($6$ branch points) and no conclusion is drawn for it.
+
+\paragraph{Where disagreement actually lives.}
+Analyzing the recorded action vectors by head reveals that macro-level agreement understates
+disagreement substantially. Against the latent-matched teacher, macro disagreement is $1.11\%$
+for $z_0$ and $0.23\%$ for $z_1$, while \emph{target} disagreement is $5.21\%$ and $1.60\%$
+respectively---a factor of $4.7$ to $7.0$. The student agrees on \emph{what} to do far more
+reliably than on \emph{which target}, and imitation fidelity is essentially pole-independent.
+
+\subsection{Matched-Seed Evaluation and Instrument Calibration}
+\label{sec:matched}
+
+A control experiment revealed that the evaluation instrument itself carries substantial variance.
+Evaluating the \emph{identical, bit-exact} specialists on two independent $64$-seed blocks
+produced $\Delta_A=+0.125\;[-0.047,+0.297]$ on one and $\Delta_A=+0.453\;[+0.297,+0.609]$ on the
+other---a swing of $0.33$ attributable entirely to which episodes were drawn, since the policies
+cannot change. Pooled over both blocks ($n=128$) the reference is
+$\Delta_A=+0.289\;[+0.164,+0.406]$ and $\Delta_B=+0.258\;[+0.141,+0.375]$.
+
+Consequently, comparing an architecture's $\Delta$ on its own fresh block against a reference
+$\Delta$ on a different block compares two noisy averages. We therefore fix a
+\textbf{matched-seed protocol}: every architecture is evaluated on the same $128$-seed set for
+which the reference's per-seed outcomes are frozen, and the primary statistic is the
+\emph{within-seed} difference
+\[
+d(s)=\Delta_{R_k}(s)-\Delta_{R_0}(s),
+\qquad
+D=\mathbb{E}_s\!\left[d(s)\right],
+\]
+under a paired bootstrap, with ``sharing damaged specialization'' declared on a pole only if
+$\mathrm{UCB}_{95}(D)<0$. This cancels per-seed difficulty: both architectures face the identical
+episode and only the architecture differs. The reference is never re-run.
+
+\subsection{The Parameter-Sharing Ladder}
+
+Every mechanism examined above operates on \emph{training} while holding the architecture fixed.
+Representation sharing is the one axis never varied. We therefore reframe the question from
+``which regularizer restores crossover?'' to
+\[
+\boxed{\text{How much parameter sharing can a latent policy tolerate before complementary
+strategies stop surviving?}}
+\]
+a question with an informative answer in either direction.
+
+The ladder holds the distillation recipe, dataset, schedule, and evaluation seeds fixed and
+varies only which modules are tied between the two branches. Each rung uses two complete actors
+of the \emph{specialists'} own architecture, so a loss can never be attributed to reduced
+per-strategy capacity; tying is by module identity, verified both by object identity and by
+unique-parameter arithmetic. A mixed-$z$ minibatch gives each shared module gradient from both
+strategies in the same step, which is precisely the phenomenon under test.
+
+\begin{table}[t]
+\centering
+\caption{Parameter-sharing ladder. All rungs evaluated on the identical frozen $128$-seed matched
+set; $D$ is the within-seed difference against the Rung~0 reference.}
+\label{tab:sharing-ladder}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lllll}
+\toprule
+\textbf{Rung} & \textbf{Shared} & $\boldsymbol{\Delta_A}$ & $\boldsymbol{\Delta_B}$ &
+\textbf{Within-seed $D$} \\
+\midrule
+0: separate specialists, dispatched by $z$ & none &
+$+0.289\;[+0.164,+0.406]$ & $+0.258\;[+0.141,+0.375]$ & reference \\
+1: shared perception & CNN encoder &
+$+0.266\;[+0.148,+0.383]$ & $+0.164\;[+0.047,+0.281]$ &
+$D_A=-0.023$, $D_B=-0.094$; no detectable loss \\
+2: shared perception + body & CNN encoder, MLP body &
+\multicolumn{3}{c}{\emph{in progress}} \\
+3: current compressed architecture & CNN encoder, MLP body & \multicolumn{3}{c}{\emph{pending}} \\
+\bottomrule
+\end{tabular}
+}
+\end{table}
+
+\paragraph{Rung 0 as a structural positive control.}
+Rung~0 installs $\pi_A$ and $\pi_B$ verbatim behind a $z$-dispatch wrapper with zero shared
+parameters, verified bit-exact against both specialists on the evaluation device (maximum
+absolute logit difference $0$, argmax identical on all four heads, macro and target checked
+separately). It is not compression; its role is to establish that the dispatch-and-evaluate path
+can express crossover at all. Its failure would have indicted the instrument rather than any
+architecture, and it is sealed first for that reason. Crossover is confirmed.
+
+\paragraph{Rung 1.}
+Sharing only the perception encoder preserves crossover: both poles clear the gate independently,
+and neither within-seed difference against Rung~0 reaches significance. Decomposing the change by
+role is more informative than the aggregate. On-pole cells (each latent on its own pole) shift by
+$-0.012$ on average, while off-pole cells shift by $+0.047$, driven by $z_0$ on Pole~B rising
+$+0.086$. The specialists are not degraded; the \emph{inappropriate} strategy improves, narrowing
+$\Delta$ from below. We name this mechanism \textbf{competence leakage}---shared parameters
+transfer general task skill between strategies---and distinguish it from destructive interference,
+in which the on-pole specialist itself would decay.
+
+\paragraph{Preregistered prediction for Rung 2.}
+Before Rung~2 was trained we froze the prediction that, if competence leakage is the operative
+mechanism, additional sharing will reduce crossover \emph{primarily through increased off-pole
+performance while preserving on-pole performance}; a substantial on-pole decline would instead
+support destructive interference. The evaluator computes and classifies this decomposition as a
+primary reported quantity, so the mechanism test cannot become a post-hoc reading. Pole~B is the
+diagnostic pole: Rung~1's $\mathrm{UCB}_{95}(D_B)=+0.023$ leaves it far closer to registering a
+detectable loss than Pole~A's $+0.102$.
+
+\paragraph{Fidelity confound.}
+Because a more heavily shared student may simply fit its teachers less well, we further froze a
+comparability band---final holdout agreement within $0.010$ of Rung~1's $0.967/0.989$---anchored
+on the only two fully converged distilled students available beforehand, which differ by at most
+$0.005$. Its coarseness is recorded with it. If a rung falls outside the band, any crossover
+degradation is reported as \emph{sharing-associated} but not uniquely attributable to leakage or
+interference, preserving the distinction between ``sharing causes poorer fit'' and ``sharing
+destroys crossover despite equally good fit.'' Both fidelities are reported side by side
+regardless of outcome.
+
+\end{document}
