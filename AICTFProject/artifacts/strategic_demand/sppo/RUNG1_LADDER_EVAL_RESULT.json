@@ -1,0 +1,102 @@
+{
+  "record": "Rung 1 matched evaluation",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-05T06:45:00Z",
+  "device": "cuda",
+  "implements": "LADDER_MATCHED_EVALUATION_AMENDMENT.json",
+  "rung1_checkpoint": {
+    "path": "artifacts\\strategic_demand\\sppo\\sharing_ladder\\rung1\\ckpts\\final_rung1.pt",
+    "sha256": "815f818ac11f0546ecdaf77988f39cce2b9ea8b273acde58e6f752c8c0bdc7d1",
+    "bytes": 27822701,
+    "format": "sharing_ladder_rung1_v1"
+  },
+  "reference": {
+    "record": "RUNG0_LADDER_REFERENCE.json",
+    "sources": {
+      "block1_sealed": {
+        "path": "artifacts\\strategic_demand\\sppo\\rung0_crossover_eval_rows.csv",
+        "sha256": "7f402a8b8f51f83b76227e93b9d8e92523ae48762eb18ba87224735531eab0c5",
+        "seeds": [
+          11960001,
+          11960064
+        ],
+        "rows": 256
+      },
+      "block2_stability": {
+        "path": "artifacts\\strategic_demand\\sppo\\rung0_stability_rerun_rows.csv",
+        "sha256": "df279d7c413cf194ab34302ddc56b659a19f1b98ccb360d37aea7d87245275d7",
+        "seeds": [
+          11970001,
+          11970064
+        ],
+        "rows": 256
+      }
+    }
+  },
+  "matched_seeds": {
+    "n_per_cell": 128,
+    "first": 11960001,
+    "last": 11970064
+  },
+  "cell_win_rates": {
+    "z0_poleA": 0.703125,
+    "z1_poleA": 0.4375,
+    "z0_poleB": 0.4375,
+    "z1_poleB": 0.6015625
+  },
+  "PRIMARY_WITHIN_SEED": {
+    "D_A": {
+      "mean": -0.0234375,
+      "lcb95": -0.15625,
+      "ucb95": 0.1015625
+    },
+    "D_B": {
+      "mean": -0.09375,
+      "lcb95": -0.2109375,
+      "ucb95": 0.0234375
+    },
+    "classification": {
+      "A": "NO_DETECTABLE_WITHIN_SEED_LOSS",
+      "B": "NO_DETECTABLE_WITHIN_SEED_LOSS"
+    },
+    "rule": "damaged iff UCB95(D) < 0; helped iff LCB95(D) > 0; otherwise no detectable within-seed loss"
+  },
+  "OWN_GATE_N128": {
+    "delta_A": {
+      "mean": 0.265625,
+      "lcb95": 0.1484375,
+      "ucb95": 0.3828125,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.1640625,
+      "lcb95": 0.046875,
+      "ucb95": 0.28125,
+      "passes": true
+    },
+    "passes": true
+  },
+  "rung0_reference_n128": {
+    "delta_A": {
+      "mean": 0.2890625,
+      "lcb95": 0.1640625,
+      "ucb95": 0.40625,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.2578125,
+      "lcb95": 0.140625,
+      "ucb95": 0.375,
+      "passes": true
+    },
+    "note": "Rung 0's own gate at n=128, reported for context; the ladder is read through within-seed D, which does not require this to pass"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "total_episodes": 512
+}
