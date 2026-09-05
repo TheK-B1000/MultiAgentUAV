@@ -1,0 +1,77 @@
+{
+  "record_id": "RUNG2_MECHANISM_VS_BOUNDARY_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-05T11:23:26Z",
+  "authority": "PI, 2026-09-05, while the Rung 2 matched CUDA eval was running and before any cell closed: 'Mechanism and tolerability are orthogonal. I would freeze that interpretation now, before the CUDA eval finishes.'",
+
+  "timing_disclosure": {
+    "visible_when_written": [
+      "Rung 2 terminal fidelity 0.963 / 0.985 and its position inside the frozen comparability band (0.957 / 0.979)",
+      "Rung 2 holdout KL 0.0152 / 0.0054 and student z0/z1 JSD 0.1721 vs teacher 0.1790",
+      "the full 20-epoch training curve",
+      "checkpoint sha 373f64f6..., roundtrip logit diff 0.0, sharing arithmetic OK",
+      "the eval process header only: device, sha verification, the 128 matched seeds, the declared primary statistic"
+    ],
+    "NOT_visible_when_written": [
+      "all four crossover cells (z0@A, z1@A, z0@B, z1@B) -- zero had closed",
+      "the on-pole / off-pole decomposition and its mechanism_signature",
+      "D_A and D_B and their confidence intervals",
+      "the own-gate delta_A / delta_B",
+      "RUNG2_LADDER_EVAL_RESULT.json, which did not exist on disk"
+    ],
+    "verified_how": "the eval's stdout was read in full immediately before this record was written and contained only its four header lines; the result artifact was confirmed absent."
+  },
+
+  "amends": "RUNG2_CONSTRUCTION_AND_PREDICTION.json#PRIMARY_MECHANISTIC_PREDICTION_FROZEN_BEFORE_TRAINING",
+  "rule": "APPEND. The frozen prediction, the on/off-pole decomposition and its classification thresholds, the 0.50 fit-check floor, the 20-epoch recipe, the loss, the data, the seeds, and the matched-evaluation rule are all UNCHANGED. This record does not add, move, or soften any threshold. It fixes how two ALREADY-COMPUTED quantities are turned into two SEPARATE verdicts.",
+
+  "THE_PRINCIPLE": {
+    "verbatim": "Mechanism and tolerability are orthogonal. Competence leakage may be present before crossover is lost. The sharing boundary is located only when payoff-level specialization ceases to survive, not when leakage first becomes detectable.",
+    "why_it_was_needed": "leakage narrows delta FROM BELOW -- the off-pole cell rises while the on-pole cell holds. A rung can therefore show unambiguous leakage in the decomposition and still clear the crossover gate. Rung 1 was already exactly this case in miniature: on-pole -0.012 against off-pole +0.047, and both poles passed. Without this record, a Rung 2 result of that shape could be written up either as 'leakage confirmed' or as 'sharing still tolerable' after the fact, and both would be defensible readings of the same rows.",
+    "consequence_for_rung_3": "Rung 3's scientific meaning is CONDITIONAL on Rung 2 and cannot be fixed in advance of it. If Rung 2 shows leakage without gate failure, Rung 3 is NOT 'confirming a located boundary' -- it tests whether continued sharing pushes an already-visible leakage trend far enough to erase payoff-level specialization. Rung 3 remains unauthorized until Rung 2's interpretation is frozen."
+  },
+
+  "FIXED_READING_ORDER": {
+    "sequence": ["1. on-pole / off-pole decomposition (mechanism evidence)", "2. within-seed D_A / D_B against the frozen Rung-0 reference (matched loss)", "3. own crossover gate (payoff-level survival)", "4. boundary conclusion (only after 1-3)"],
+    "why": "reading the gate first would let the mechanism explanation be reverse-engineered to match it. The decomposition is computed and classified by the evaluator as a primary output precisely so it cannot become a post-hoc reading.",
+    "unchanged": "this order was already frozen in RUNG2_CONSTRUCTION_AND_PREDICTION.json; it is restated here only because step 4 is new."
+  },
+
+  "OUTCOME_TABLE_FROZEN_BEFORE_ANY_CELL_CLOSED": [
+    {
+      "pattern": "off-pole rises, on-pole stable, crossover PASSES",
+      "mechanism_verdict": "competence leakage SUPPORTED",
+      "boundary_verdict": "sharing still tolerable; the boundary is NOT at Rung 2",
+      "note": "the two verdicts point in different directions and both are reported. This is the case the amendment exists for."
+    },
+    {
+      "pattern": "off-pole rises, on-pole stable, crossover FAILS",
+      "mechanism_verdict": "competence leakage SUPPORTED",
+      "boundary_verdict": "the sharing boundary is reached by Rung 2"
+    },
+    {
+      "pattern": "on-pole falls materially",
+      "mechanism_verdict": "destructive interference SUPPORTED",
+      "boundary_verdict": "reported separately on the gate's own terms",
+      "note": "this mechanism verdict holds REGARDLESS of whether crossover happens to still pass."
+    },
+    {
+      "pattern": "neither pattern appears and crossover PASSES",
+      "mechanism_verdict": "no evidence that added sharing is yet harming specialization",
+      "boundary_verdict": "not at Rung 2; proceed to Rung 3 (on explicit PI authorization)"
+    },
+    {
+      "pattern": "mixed pattern",
+      "mechanism_verdict": "report both components; do NOT force a single mechanism label",
+      "boundary_verdict": "read from the gate alone",
+      "note": "an explicit licence to leave the mechanism question open rather than resolve it by narrative."
+    }
+  ],
+
+  "WHY_THE_FIDELITY_RESULT_STRENGTHENS_THIS": "RUNG2_FIDELITY_CONFOUND_AMENDMENT.json's band was met (0.963 / 0.985 against floors 0.957 / 0.979), so its if_within_band branch applies and the 'it just fit its teachers worse' escape hatch is closed. Every row of the table above is therefore a claim about SHARING, not about fit. Had the band been missed, every mechanism_verdict would have had to degrade to 'sharing-associated, not uniquely attributable'.",
+
+  "JSD_IS_NOT_A_CRITERION": "Rung 2's student z0/z1 JSD (0.1721, the lowest of the three distilled students) is recorded and reported descriptively. It is NOT gated, NOT part of any pass condition, and is not evidence on its own. It is stated explicitly so that no reader can take a secondary similarity metric to be smuggled into the success criterion.",
+
+  "NOT_CHANGED_BY_THIS_RECORD": ["the primary crossover gate and its LCB95 rule", "the within-seed D statistic and its UCB95(D) < 0 damage rule", "the on/off-pole classification thresholds", "the comparability band", "the 0.50 fit-check floor", "the recipe, data, schedule and seeds", "the matched 128-seed evaluation rule", "the tie/reversal row-level audit requirement"],
+  "STILL_UNAUTHORIZED": ["Rung 3 build or training", "the sub-macro brancher", "OTD round 2 or its seal", "PPO of any kind", "Z-separation", "BCS"]
+}
