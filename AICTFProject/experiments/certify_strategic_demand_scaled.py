@@ -61,10 +61,19 @@ def main() -> int:
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--probe", action="store_true",
                     help="timing probe only; writes no certification record")
+    ap.add_argument("--variant", default="v1",
+                    help="tag distinguishing this GUARD implementation in the output "
+                        "filename and record, e.g. 'v1' or 'guard_distributed_v2'. "
+                        "Prevents a v2 run from colliding with (or overwriting) a v1 record.")
+    ap.add_argument("--seed-base", type=int, default=None,
+                    help="override SEED_BASE[team_size]; REQUIRED to differ from the v1 "
+                        "block whenever --variant is not 'v1', so a fresh block is spent "
+                        "explicitly rather than by an unstated default")
     args = ap.parse_args()
 
     N = int(args.team_size)
     n_seeds = int(args.n_seeds)
+    variant = str(args.variant)
 
     import experiments.strategic_demand_searcher as S
     from experiments.opponent_spec import expected_profile, pole_A_genome, pole_B_genome
@@ -84,11 +93,22 @@ def main() -> int:
             raise SystemExit(f"FAIL-CLOSED: pole {tag} resolved min_alive_for_defender={got}, "
                              f"expected {N} under the size-normalized semantics")
 
+    v1_base = SEED_BASE.get(N)
+    base = int(args.seed_base) if args.seed_base is not None else v1_base
+    if base is None:
+        raise SystemExit(f"FAIL-CLOSED: no default seed base for team size {N}; "
+                         f"pass --seed-base explicitly")
+    if variant != "v1" and base == v1_base and not args.probe:
+        raise SystemExit(
+            f"FAIL-CLOSED: --variant={variant!r} but --seed-base resolved to the v1 block "
+            f"({v1_base}). A non-v1 variant must spend a FRESH block, passed explicitly via "
+            f"--seed-base, not the v1 default.")
+
     print("=" * 78)
-    print(f"STRATEGIC DEMAND CERTIFICATION  {N}v{N}   device={args.device}")
+    print(f"STRATEGIC DEMAND CERTIFICATION  {N}v{N}  variant={variant}  device={args.device}")
     print("=" * 78)
     print(f"  utc            {_now()}")
-    print(f"  seeds          {SEED_BASE[N] if N in SEED_BASE else 'PROBE'}"
+    print(f"  seeds          {base if not args.probe else 'PROBE'}"
           f"..+{n_seeds}   (paired: GUARD and BREACH share each seed)")
     print(f"  GUARD          {(N + 1) // 2} of {N} defend  (indices "
           f"{list(range(N - (N + 1) // 2, N))})")
@@ -101,7 +121,6 @@ def main() -> int:
     print(f"  gate           LCB95(delta_A) > 0 AND LCB95(delta_B) > 0")
     print("=" * 78, flush=True)
 
-    base = SEED_BASE.get(N, 99_990_001)
     rows = []
     t0 = time.time()
     for i in range(n_seeds):
@@ -143,13 +162,15 @@ def main() -> int:
         print("\n  --probe: no record written.")
         return 0
 
-    out = OUT_DIR / f"STRATEGIC_DEMAND_{N}v{N}_CERTIFICATION.json"
+    suffix = "" if variant == "v1" else f"_{variant.upper()}"
+    out = OUT_DIR / f"STRATEGIC_DEMAND_{N}v{N}{suffix}_CERTIFICATION.json"
     if out.exists():
         raise SystemExit(f"REFUSING: {out.name} exists; certification is one-shot")
     out.write_text(json.dumps({
-        "record": f"Strategic demand certification {N}v{N}",
+        "record": f"Strategic demand certification {N}v{N} ({variant})",
         "status": "FROZEN_RESULT", "one_shot": True, "utc": _now(),
         "implements": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json#CERTIFICATION_PROTOCOL",
+        "variant": variant, "supersedes": None if variant == "v1" else f"v1 ({v1_base})",
         "team_size": N, "device": args.device,
         "guard_defenders": (N + 1) // 2,
         "guard_defender_indices": list(range(N - (N + 1) // 2, N)),
