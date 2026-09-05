@@ -1,0 +1,62 @@
+{
+  "record_id": "RUNG3_STUDENT_FROZEN",
+  "status": "FROZEN_STUDENT",
+  "utc": "2026-09-05T17:12:45Z",
+  "rung": 3,
+  "implements": "RUNG3_CONSTRUCTION_AND_PREDICTION.json",
+  "architecture": "shared ['actor_cnn', 'latent_actor.body', 'latent_actor.action_head.macro_head']; everything else private per z",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts\\strategic_demand\\sppo\\sharing_ladder\\rung3\\ckpts\\final_rung3.pt",
+    "sha256": "fb747147dec74be1d04c8b5c0264da4eca2bbcf879c8488f907072ccc4c029c8",
+    "bytes": 27824253,
+    "format": "sharing_ladder_rung3_v1"
+  },
+  "sharing_arithmetic": {
+    "n_unique": 3507563,
+    "n_shared": 3439621,
+    "n_branch_total": 3473592,
+    "expected_unique": 3507563,
+    "ok": true,
+    "shared_modules": [
+      "actor_cnn",
+      "latent_actor.body",
+      "latent_actor.action_head.macro_head"
+    ]
+  },
+  "modules_shared_after_training": true,
+  "training": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "seeds": [
+      11965001,
+      11965002
+    ],
+    "updates_per_epoch": 117,
+    "optimized": "shared modules + both private stacks; critics excluded"
+  },
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.041853650194457456,
+    "train_kl_B": 0.04219799689375437,
+    "holdout_agree_z0_vs_piA": 0.9363626527119755,
+    "holdout_agree_z1_vs_piB": 0.9689457471411991,
+    "holdout_teacher_argmax_disagreement": 0.2775949252589935,
+    "holdout_kl_A": 0.04302143907970804,
+    "holdout_kl_B": 0.04262577126097512,
+    "holdout_student_z0_z1_jsd": 0.146450430136689,
+    "holdout_teacher_A_B_jsd": 0.17903920535855075
+  },
+  "fit_check": {
+    "min_agreement": 0.5,
+    "passed": true
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "EVAL": {
+    "rule": "LADDER_MATCHED_EVALUATION_AMENDMENT.json",
+    "seeds": "the 128 matched seeds in RUNG0_LADDER_REFERENCE.json",
+    "touched": false
+  },
+  "NEXT": "matched 128-seed eval on cuda"
+}
