@@ -38,3 +38,6 @@ paper/generated/_smoke_test*
 # NON-SCIENTIFIC train_scale smoke output (99_9xx_xxx seeds). Regenerable in
 # minutes and never eligible for evaluation; the launcher itself is tracked.
 artifacts/scale_*/smoke_scale_*/
+
+# NON-SCIENTIFIC train_specialist_scale smoke/dry-run output (99_9xx_xxx seeds).
+artifacts/scale_*_specialists/smoke_*/
