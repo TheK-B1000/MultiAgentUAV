@@ -31,16 +31,11 @@ if str(ROOT) not in sys.path:
 from experiments.run_teacher_distillation import Batches, load_dataset, to_torch
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
-AMEND = SD / "RUNG1_CONSTRUCTION_AMENDMENT.json"
+AMEND_BY_RUNG = {1: SD / "RUNG1_CONSTRUCTION_AMENDMENT.json",
+                 2: SD / "RUNG2_CONSTRUCTION_AND_PREDICTION.json"}
+SEEDS_BY_RUNG = {1: (11_961_001, 11_961_002), 2: (11_963_001, 11_963_002)}
 LADDER = SD / "SHARING_LADDER_SPEC.json"
 SPECIALISTS = SD / "SPECIALIST_BASELINE_SPEC.json"
-OUT_DIR = SD / "sharing_ladder" / "rung1"
-CKPT = OUT_DIR / "ckpts" / "final_rung1.pt"
-METRICS = OUT_DIR / "rung1_metrics.csv"
-PREFLIGHT_OUT = SD / "RUNG1_PREFLIGHT.json"
-FROZEN_OUT = SD / "RUNG1_STUDENT_FROZEN.json"
-
-SEEDS = (11_961_001, 11_961_002)
 EPOCHS, BATCH, LR, CLIP = 20, 256, 3e-4, 1.0
 FIT_MIN_AGREEMENT = 0.50
 
@@ -56,17 +51,26 @@ def _sha(p: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--rung", type=int, default=1, choices=(1, 2))
     ap.add_argument("--preflight", action="store_true")
     args = ap.parse_args()
     device = args.device
+    RUNG = int(args.rung)
+    SEEDS = SEEDS_BY_RUNG[RUNG]
+    AMEND = AMEND_BY_RUNG[RUNG]
+    OUT_DIR = SD / "sharing_ladder" / f"rung{RUNG}"
+    CKPT = OUT_DIR / "ckpts" / f"final_rung{RUNG}.pt"
+    METRICS = OUT_DIR / f"rung{RUNG}_metrics.csv"
+    PREFLIGHT_OUT = SD / f"RUNG{RUNG}_PREFLIGHT.json"
+    FROZEN_OUT = SD / f"RUNG{RUNG}_STUDENT_FROZEN.json"
 
     amend = json.loads(AMEND.read_text(encoding="utf-8"))
     if amend["status"] != "FROZEN_BEFORE_IMPLEMENTATION":
-        raise SystemExit(f"REFUSING: Rung 1 construction record not frozen: {amend['status']!r}")
+        raise SystemExit(f"REFUSING: Rung {RUNG} construction record not frozen: {amend['status']!r}")
     if json.loads(LADDER.read_text(encoding="utf-8"))["status"] != "FROZEN_BEFORE_IMPLEMENTATION":
         raise SystemExit("REFUSING: ladder spec not frozen")
     if not args.preflight and FROZEN_OUT.is_file():
-        raise SystemExit(f"REFUSING: {FROZEN_OUT.name} exists; Rung 1 training is one-shot")
+        raise SystemExit(f"REFUSING: {FROZEN_OUT.name} exists; Rung {RUNG} training is one-shot")
     if not args.preflight and not PREFLIGHT_OUT.is_file():
         raise SystemExit("REFUSING: run --preflight first")
 
@@ -96,23 +100,23 @@ def main() -> int:
             q.requires_grad_(False)
         teachers[n] = pol.model
 
-    model, branch_cfg, kwargs, pi_a_sd = L1.build_rung1(str(ROOT / tspec["pi_A"]["path"]), obs_space,
-                                                        act_space, seeds=SEEDS, device=device)
+    model, branch_cfg, kwargs, pi_a_sd = L1.build_rung(RUNG, str(ROOT / tspec["pi_A"]["path"]), obs_space,
+                                                       act_space, seeds=SEEDS, device=device)
     model.train()
     actor = L1.actor_parameters(model)
     critic = L1.critic_parameters(model)
-    shared = L1.shared_parameters(model)
-    priv0, priv1 = L1.private_actor_parameters(model, 0), L1.private_actor_parameters(model, 1)
+    shared = L1.shared_module_parameters(model)
+    priv0, priv1 = L1.private_actor_parameters_generic(model, 0), L1.private_actor_parameters_generic(model, 1)
     for _, p in actor:
         p.requires_grad_(True)
     for _, p in critic:
         p.requires_grad_(False)
     opt = torch.optim.Adam([p for _, p in actor], lr=LR)
-    share = L1.sharing_arithmetic(model)
+    share = L1.sharing_arithmetic_generic(model)
 
-    print(f"RUNG 1 {'PREFLIGHT' if args.preflight else 'DISTILLATION'}  {_now()}  device={device}")
+    print(f"RUNG {RUNG} {'PREFLIGHT' if args.preflight else 'DISTILLATION'}  {_now()}  device={device}")
     print(f"  rows train={train_idx.size} holdout={hold_idx.size}")
-    print(f"  params: shared cnn {len(shared)} tensors ({share['n_cnn']:,} values), private z0 {len(priv0)}, "
+    print(f"  params: shared {share['shared_modules']} {len(shared)} tensors ({share['n_shared']:,} values), private z0 {len(priv0)}, "
           f"private z1 {len(priv1)}, critic {len(critic)} (excluded); unique={share['n_unique']:,} "
           f"expected={share['expected_unique']:,} -> {'OK' if share['ok'] else 'MISMATCH'}")
 
@@ -136,7 +140,7 @@ def main() -> int:
         checks["1_dataset"] = bool(train_idx.size > 0 and hold_idx.size > 0
                                    and (arr["pole"][train_idx] == 0).any() and (arr["pole"][train_idx] == 1).any())
         checks["2_branches_match_specialist_arch_and_differ_from_piA"] = True   # build_rung1 raised otherwise
-        checks["3_encoder_shared_identity_and_arithmetic"] = bool(model.encoder_is_shared() and share["ok"])
+        checks["3_shared_modules_identity_and_arithmetic"] = bool(model.modules_are_shared() and share["ok"])
         # mixed-z batch: half the rows as z0, half as z1 -- both branches must receive gradient
         idx = train_idx[:64]
         obs, dm = to_torch(arr, idx, device)
@@ -160,8 +164,8 @@ def main() -> int:
             moved(shared) and moved(priv0) and moved(priv1) and still(critic))
         tmp = OUT_DIR / "ckpts" / "_preflight_roundtrip.pt"
         tmp.parent.mkdir(parents=True, exist_ok=True)
-        L1.save_rung1(model, branch_cfg, kwargs, str(tmp), {"preflight": True})
-        loaded, _, _ = L1.load_rung1(str(tmp), obs_space, act_space, device=device)
+        L1.save_rung(RUNG, model, branch_cfg, kwargs, str(tmp), {"preflight": True})
+        loaded, _, _ = L1.load_rung(RUNG, str(tmp), obs_space, act_space, device=device)
         worst = 0.0
         for z in (0, 1):
             for a, b in zip(L1.logits_for_z(model, obs, z, device), L1.logits_for_z(loaded, obs, z, device)):
@@ -173,8 +177,8 @@ def main() -> int:
             print(f"  [{'PASS' if v else 'FAIL'}] {k}")
         print(f"  initial loss {float(loss.detach()):.4f} (kl_A {diag['kl_A']:.4f}, kl_B {diag['kl_B']:.4f})  roundtrip max|dlogit|={worst:.2e}")
         PREFLIGHT_OUT.write_text(json.dumps({
-            "record": "Rung 1 mechanical preflight", "utc": _now(), "device": device,
-            "implements": "RUNG1_CONSTRUCTION_AMENDMENT.json#PREFLIGHT_REQUIRED_8_CHECKS",
+            "record": f"Rung {RUNG} mechanical preflight", "utc": _now(), "device": device, "rung": RUNG,
+            "implements": f"{AMEND.name}#PREFLIGHT",
             "checks": checks, "passed": f"{n_pass}/{len(checks)}", "sharing_arithmetic": share,
             "initial_loss": float(loss.detach()), "initial_diag": diag, "roundtrip_max_abs_logit_diff": worst,
             "VERDICT": "PASS" if n_pass == len(checks) else "FAIL",
@@ -216,31 +220,31 @@ def main() -> int:
     final = rows[-1]
     fit_ok = (final["holdout_agree_z0_vs_piA"] >= FIT_MIN_AGREEMENT
               and final["holdout_agree_z1_vs_piB"] >= FIT_MIN_AGREEMENT)
-    if not model.encoder_is_shared():
-        raise SystemExit("REFUSING: encoder sharing was lost during training")
-    provenance = {"spec": "RUNG1_CONSTRUCTION_AMENDMENT.json", "seeds": list(SEEDS), "epochs": EPOCHS,
+    if not model.modules_are_shared():
+        raise SystemExit("REFUSING: module sharing was lost during training")
+    provenance = {"spec": AMEND.name, "rung": RUNG, "seeds": list(SEEDS), "epochs": EPOCHS,
                   "batch": BATCH, "lr": LR, "clip": CLIP, "teachers": tdata, "final_holdout": final,
                   "sharing_arithmetic": share, "utc": _now()}
-    L1.save_rung1(model, branch_cfg, kwargs, str(CKPT), provenance)
-    loaded, _, _ = L1.load_rung1(str(CKPT), obs_space, act_space, device=device)
+    L1.save_rung(RUNG, model, branch_cfg, kwargs, str(CKPT), provenance)
+    loaded, _, _ = L1.load_rung(RUNG, str(CKPT), obs_space, act_space, device=device)
     obs, _ = to_torch(arr, hold_idx[:64], device)
     worst = 0.0
     for z in (0, 1):
         for a, b in zip(L1.logits_for_z(model, obs, z, device), L1.logits_for_z(loaded, obs, z, device)):
             worst = max(worst, float((a - b).abs().max()))
     if worst > 1e-6:
-        raise SystemExit(f"REFUSING: saved Rung 1 does not reproduce the trained model (max|dlogit|={worst})")
+        raise SystemExit(f"REFUSING: saved Rung {RUNG} does not reproduce the trained model (max|dlogit|={worst})")
 
     status = "FROZEN_STUDENT" if fit_ok else "FIT_FAILED"
     FROZEN_OUT.write_text(json.dumps({
-        "record_id": "RUNG1_STUDENT_FROZEN", "status": status, "utc": _now(), "rung": 1,
-        "implements": "RUNG1_CONSTRUCTION_AMENDMENT.json",
-        "architecture": "shared CNN encoder; private bodies, action heads (macro+target) and critics per z",
+        "record_id": f"RUNG{RUNG}_STUDENT_FROZEN", "status": status, "utc": _now(), "rung": RUNG,
+        "implements": AMEND.name,
+        "architecture": f"shared {list(share['shared_modules'])}; everything else private per z",
         "TERMINAL_CHECKPOINT": {"path": str(CKPT.relative_to(ROOT)), "sha256": _sha(CKPT), "bytes": CKPT.stat().st_size,
-                                "format": "sharing_ladder_rung1_v1"},
-        "sharing_arithmetic": share, "encoder_shared_after_training": True,
+                                "format": f"sharing_ladder_rung{RUNG}_v1"},
+        "sharing_arithmetic": share, "modules_shared_after_training": True,
         "training": {"epochs": EPOCHS, "batch": BATCH, "lr": LR, "clip": CLIP, "seeds": list(SEEDS),
-                     "updates_per_epoch": batches.n_per_epoch(), "optimized": "shared encoder + both private stacks; critics excluded"},
+                     "updates_per_epoch": batches.n_per_epoch(), "optimized": "shared modules + both private stacks; critics excluded"},
         "final_holdout": final, "fit_check": {"min_agreement": FIT_MIN_AGREEMENT, "passed": bool(fit_ok)},
         "roundtrip_max_abs_logit_diff": worst,
         "EVAL": {"rule": "LADDER_MATCHED_EVALUATION_AMENDMENT.json", "seeds": "the 128 matched seeds in RUNG0_LADDER_REFERENCE.json", "touched": False},

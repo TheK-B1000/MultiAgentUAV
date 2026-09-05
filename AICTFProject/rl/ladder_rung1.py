@@ -157,3 +157,110 @@ def logits_for_z(model: Rung1Model, obs: dict, z: int, device: str) -> list[torc
     b = int(next(iter(obs.values())).shape[0])
     zt = torch.full((b,), int(z), dtype=torch.long, device=device)
     return head_logits(model, obs, z_idx=zt)
+
+
+# ===================================================================== Rung 2 (generic tying)
+SHARED_BY_RUNG = {1: ("actor_cnn",), 2: ("actor_cnn", "latent_actor.body")}
+
+
+def _get_module(root, dotted: str):
+    obj = root
+    for part in dotted.split("."):
+        obj = getattr(obj, part)
+    return obj
+
+
+def _set_module(root, dotted: str, value):
+    parts = dotted.split(".")
+    obj = root
+    for part in parts[:-1]:
+        obj = getattr(obj, part)
+    setattr(obj, parts[-1], value)
+
+
+class LadderModel(Rung1Model):
+    """Rung 1 generalised: tie an arbitrary set of modules from branch z0 into branch z1."""
+
+    def __init__(self, branch_z0, branch_z1, shared_modules):
+        self._shared_names = tuple(shared_modules)
+        for name in self._shared_names:
+            _set_module(branch_z1, name, _get_module(branch_z0, name))
+        super().__init__(branch_z0, branch_z1)
+
+    def modules_are_shared(self) -> bool:
+        return all(_get_module(self.branch["z0"], n) is _get_module(self.branch["z1"], n)
+                   for n in self._shared_names)
+
+    def encoder_is_shared(self) -> bool:      # keep the Rung-1 check meaningful
+        return _get_module(self.branch["z0"], "actor_cnn") is _get_module(self.branch["z1"], "actor_cnn")
+
+
+def shared_module_parameters(m: LadderModel):
+    keys = tuple(f".{n}." for n in m._shared_names)
+    return [(n, p) for n, p in m.named_parameters() if any(k in n for k in keys)]
+
+
+def private_actor_parameters_generic(m: LadderModel, z: int):
+    tag = f"branch.z{z}."
+    keys = tuple(f".{n}." for n in m._shared_names)
+    return [(n, p) for n, p in m.named_parameters()
+            if n.startswith(tag) and ".critic." not in n and not any(k in n for k in keys)]
+
+
+def sharing_arithmetic_generic(m: LadderModel) -> dict:
+    n_unique = sum(p.numel() for _, p in m.named_parameters())
+    n_shared = sum(p.numel() for p in
+                   {id(q): q for name in m._shared_names
+                    for q in _get_module(m.branch["z0"], name).parameters()}.values())
+    n_branch = sum(p.numel() for p in m.branch["z0"].parameters())
+    expected = n_shared + 2 * (n_branch - n_shared)
+    return {"n_unique": n_unique, "n_shared": n_shared, "n_branch_total": n_branch,
+            "expected_unique": expected, "ok": n_unique == expected,
+            "shared_modules": list(m._shared_names)}
+
+
+def build_rung(rung: int, spec_ckpt_path: str, observation_space, action_space, *, seeds,
+               device: str = "cpu"):
+    from rl.custom_ppo.policy import SharedActorCentralizedCritic
+    payload, kwargs = _specialist_arch(spec_ckpt_path, observation_space, action_space)
+    torch.manual_seed(int(seeds[0]))
+    b0 = SharedActorCentralizedCritic(observation_space, action_space, **kwargs)
+    torch.manual_seed(int(seeds[1]))
+    b1 = SharedActorCentralizedCritic(observation_space, action_space, **kwargs)
+    ref = payload["model_state_dict"]
+    for tag, b in (("z0", b0), ("z1", b1)):
+        sd = b.state_dict()
+        if list(sd.keys()) != list(ref.keys()):
+            raise RuntimeError(f"Rung {rung} branch {tag} parameter names differ from the specialist architecture")
+        if [tuple(sd[k].shape) for k in sd] != [tuple(ref[k].shape) for k in ref]:
+            raise RuntimeError(f"Rung {rung} branch {tag} shapes differ from the specialist architecture")
+        if max(float((sd[k].float() - ref[k].float()).abs().max()) for k in sd if sd[k].numel()) == 0.0:
+            raise RuntimeError(f"Rung {rung} branch {tag} is bit-identical to pi_A -- silent warm start")
+    model = LadderModel(b0, b1, SHARED_BY_RUNG[int(rung)]).to(device)
+    return model, dict(payload.get("cfg") or {}), kwargs, ref
+
+
+def save_rung(rung: int, model: LadderModel, cfg: dict, kwargs: dict, out_path: str, provenance: dict) -> None:
+    payload = {"rung": int(rung), "format": f"sharing_ladder_rung{int(rung)}_v1",
+               "shared_modules": list(model._shared_names),
+               "state_dict": {k: v.detach().cpu().clone() for k, v in model.state_dict().items()},
+               "branch_cfg": cfg, "model_kwargs": kwargs, "provenance": dict(provenance)}
+    tmp = f"{out_path}.tmp"
+    torch.save(payload, tmp)
+    os.replace(tmp, out_path)
+
+
+def load_rung(rung: int, path: str, observation_space, action_space, *, device: str):
+    from rl.custom_ppo.policy import SharedActorCentralizedCritic
+    payload = torch.load(str(path), map_location="cpu", weights_only=False)
+    if payload.get("format") != f"sharing_ladder_rung{int(rung)}_v1":
+        raise RuntimeError(f"{path}: not a Rung {rung} checkpoint (format {payload.get('format')!r})")
+    kw = payload["model_kwargs"]
+    b0 = SharedActorCentralizedCritic(observation_space, action_space, **kw)
+    b1 = SharedActorCentralizedCritic(observation_space, action_space, **kw)
+    model = LadderModel(b0, b1, tuple(payload.get("shared_modules") or SHARED_BY_RUNG[int(rung)]))
+    model.load_state_dict(payload["state_dict"], strict=True)
+    model.to(device).eval()
+    if not model.modules_are_shared():
+        raise RuntimeError(f"loaded Rung {rung} model lost module sharing")
+    return model, dict(payload["branch_cfg"]), payload

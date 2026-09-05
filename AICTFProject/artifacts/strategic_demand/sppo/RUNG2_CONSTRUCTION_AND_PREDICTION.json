@@ -1,0 +1,65 @@
+{
+  "record_id": "RUNG2_CONSTRUCTION_AND_PREDICTION",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-05T04:10:00Z",
+  "authority": "PI, 2026-09-05: GO RUNG 2. Freeze the mechanistic prediction BEFORE training, then run against the same frozen 128 seeds and the Rung 0 matched reference.",
+  "timing_disclosure": "written before any Rung 2 weights exist. The only Rung-2 artefact at freeze time is this record.",
+
+  "amends": "SHARING_LADDER_SPEC.json#PROGRESSION_OF_RUNGS.rung_2 -- makes construction concrete and adds a preregistered mechanistic prediction",
+  "rule": "APPEND. Recipe, gate, device, matched-evaluation rule and training seed (11963001) unchanged.",
+
+  "THE_QUESTION": "What happens when the two strategies share the CNN encoder AND the MLP body, leaving only the per-latent branch trunks, action heads and critics private?",
+
+  "WHAT_RUNG_1_ESTABLISHED_THAT_MOTIVATES_THE_PREDICTION": {
+    "rung1_passed": {"delta_A": "+0.2656 [+0.1484, +0.3828] PASS", "delta_B": "+0.1641 [+0.0469, +0.2812] PASS"},
+    "rung1_within_seed_vs_rung0": {"D_A": "-0.0234 [-0.1562, +0.1016]", "D_B": "-0.0938 [-0.2109, +0.0234]",
+                                    "both": "NO_DETECTABLE_WITHIN_SEED_LOSS"},
+    "the_decomposition": {
+      "on_pole_cells_mean_shift": -0.0117,
+      "off_pole_cells_mean_shift": 0.0469,
+      "per_cell": {"z0@A (on) ": "0.7188 -> 0.7031 (-0.0156)", "z1@B (on) ": "0.6094 -> 0.6016 (-0.0078)",
+                    "z1@A (off)": "0.4297 -> 0.4375 (+0.0078)", "z0@B (off)": "0.3516 -> 0.4375 (+0.0859)"},
+      "reading": "sharing the encoder did NOT degrade the specialists on their own poles. It RAISED the off-pole latents, most sharply z0@B. Because crossover is a difference, lifting the inappropriate strategy narrows Delta from BELOW rather than eroding the appropriate one from ABOVE."
+    },
+    "named_mechanism": "COMPETENCE LEAKAGE -- shared parameters transfer general task skill between strategies, so the latent playing a pole it was not trained for gets better, and the measured differential shrinks. This is materially different from destructive interference, in which the on-pole specialist itself would decay."
+  },
+
+  "PRIMARY_MECHANISTIC_PREDICTION_FROZEN_BEFORE_TRAINING": {
+    "statement": "If parameter sharing causes competence leakage, Rung 2 will reduce crossover PRIMARILY through increased OFF-POLE performance while preserving ON-POLE performance. A substantial decline in ON-POLE performance instead supports destructive interference.",
+    "operationalisation": {
+      "on_pole_shift": "mean over {z0@A, z1@B} of [Rung2 win rate - Rung0 win rate] on the matched 128 seeds",
+      "off_pole_shift": "mean over {z1@A, z0@B} of [Rung2 win rate - Rung0 win rate]",
+      "leakage_signature": "off_pole_shift > 0 AND on_pole_shift approximately 0 or only slightly negative (magnitude clearly smaller than off_pole_shift)",
+      "interference_signature": "on_pole_shift substantially negative, comparable to or larger in magnitude than any off-pole change",
+      "reported_as": "a PRIMARY reported quantity of the Rung 2 evaluation, not a post-hoc decomposition"
+    },
+    "pole_B_is_the_diagnostic_one": "Rung 1's D_B upper bound was only +0.0234 -- 0.023 from crossing into SHARING_DAMAGED_SPECIALIZATION, versus 0.1016 of headroom on D_A. If additional sharing narrows things further, Pole B is predicted to cross first and would be the program's first statistically detectable sharing-induced specialization loss.",
+    "why_this_is_worth_freezing": "either outcome is informative. This is no longer trying architectures until one works; it is deliberately increasing sharing until crossover fractures while measuring HOW it fractures."
+  },
+
+  "CONSTRUCTION": {
+    "shared": ["actor_cnn (the CNN encoder)", "latent_actor.body (the MLP body)"],
+    "private_per_z": ["latent_actor.action_head (macro + target logits)", "critic.*"],
+    "mechanism": "two complete actors of the specialists' architecture, one per z, with the z1 branch's actor_cnn AND latent_actor.body modules replaced by the z0 branch's (parameter tying by object identity). Verified by module identity and by unique-parameter arithmetic: unique == n_cnn + n_body + 2*(n_branch - n_cnn - n_body).",
+    "why_the_specialist_architecture_per_branch": "unchanged from Rung 1 -- each branch retains the capacity of the teacher it imitates, so any loss cannot be attributed to a smaller per-strategy network. The only change from Rung 1 is that the body is now shared too.",
+    "initialisation": "fresh random init, torch.manual_seed(11963001) for branch z0 and 11963002 for branch z1; verified to differ from the specialists' weights",
+    "per_row_dispatch": "unchanged -- policy_logits(obs, z_idx) selects per row, so a mixed-z minibatch gives both shared modules gradient from BOTH strategies in the same step"
+  },
+
+  "TRAINING_RECIPE_UNCHANGED": "0.5*KL(pi_A||branch_z0) + 0.5*KL(pi_B||branch_z1), same TEACHER_DISTILLATION_DATASET.json rows, 20 fixed epochs, batch 256, Adam lr 3e-4, clip 1.0, no early stopping, no checkpoint selection, terminal weights only, fit check >= 0.50 on teacher-holdout agreement before the eval opens. Critics excluded from the optimizer and verified immobile.",
+
+  "PREFLIGHT_REQUIRED": "the same 8 checks as Rung 1, with check 3 extended: BOTH the encoder and the body must be shared by identity, and the unique-parameter arithmetic must match the two-module formula. Gradient must reach both shared modules and both private stacks, with none on any critic.",
+
+  "EVALUATION": {
+    "rule": "LADDER_MATCHED_EVALUATION_AMENDMENT.json -- the same frozen 128 matched seeds in RUNG0_LADDER_REFERENCE.json, four cells, cuda",
+    "PRIMARY": ["within-seed D_A, D_B vs the frozen Rung-0 per-seed deltas (damaged iff UCB95(D) < 0)",
+                 "the on-pole / off-pole shift decomposition defined above"],
+    "also_reported": "Rung 2's own n=128 gate, and the Rung 1 comparison for the ladder trend",
+    "rung0_never_rerun": true
+  },
+
+  "PLANNED_FOLLOW_UP": "the target-head localisation sidecar (SUBMACRO_LEVERAGE_DIAGNOSTIC_SPEC.json) becomes especially informative if leakage is confirmed: it can show WHERE the leaked competence expresses itself, given target-selection disagreement already runs 4.7-7.0x higher than macro disagreement. Not authorised by this record.",
+
+  "SEEDS": {"train_init": [11963001, 11963002], "eval": "the 128 matched seeds; no new eval seeds"},
+  "SEQUENCE": "freeze this record -> build -> preflight 8/8 -> train 20 epochs -> fit check -> freeze checkpoint (sha) -> matched 128-seed eval on cuda, GPU otherwise clear -> read D and the on/off-pole decomposition first, own gate second"
+}

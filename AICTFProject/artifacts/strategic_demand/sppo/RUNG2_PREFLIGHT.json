@@ -1,0 +1,37 @@
+{
+  "record": "Rung 2 mechanical preflight",
+  "utc": "2026-09-05T10:07:08Z",
+  "device": "cpu",
+  "rung": 2,
+  "implements": "RUNG2_CONSTRUCTION_AND_PREDICTION.json#PREFLIGHT",
+  "checks": {
+    "1_dataset": true,
+    "2_branches_match_specialist_arch_and_differ_from_piA": true,
+    "3_shared_modules_identity_and_arithmetic": true,
+    "4_teacher_self_kl_zero": true,
+    "5_initial_loss_finite_positive": true,
+    "6_grad_on_shared_and_both_private_none_on_critic": true,
+    "7_step_moves_shared_and_both_private_critic_still": true,
+    "8_save_load_roundtrip_identical_logits_both_z": true
+  },
+  "passed": "8/8",
+  "sharing_arithmetic": {
+    "n_unique": 3508848,
+    "n_shared": 3438336,
+    "n_branch_total": 3473592,
+    "expected_unique": 3508848,
+    "ok": true,
+    "shared_modules": [
+      "actor_cnn",
+      "latent_actor.body"
+    ]
+  },
+  "initial_loss": 1.8122568130493164,
+  "initial_diag": {
+    "kl_A": 1.840945839881897,
+    "kl_B": 1.7835679054260254,
+    "decision_heads": 196
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "VERDICT": "PASS"
+}
