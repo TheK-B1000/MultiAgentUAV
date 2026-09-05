@@ -160,7 +160,57 @@ def logits_for_z(model: Rung1Model, obs: dict, z: int, device: str) -> list[torc
 
 
 # ===================================================================== Rung 2 (generic tying)
-SHARED_BY_RUNG = {1: ("actor_cnn",), 2: ("actor_cnn", "latent_actor.body")}
+class SplitActionHead(nn.Module):
+    """``action_head`` re-parameterised as ``[macro | target]`` so the macro rows can be tied.
+
+    Implements RUNG3_CONSTRUCTION_AND_PREDICTION.json. The tying mechanism below works by module
+    object identity and cannot express a row-slice tie, so Rung 3 splits the single 55-wide Linear
+    into two Linears whose concatenated output reproduces the original logits IN THE SAME ORDER.
+    This is a pure re-parameterisation: the forward function is unchanged, which the mandatory
+    equivalence preflight verifies bit-exactly before Rung 3 is trained.
+
+    Row layout was established by perturbation, not by name: rows ``0:n_macro`` drive only the
+    5-way macro heads and rows ``n_macro:`` only the 50-way target heads.
+    """
+
+    def __init__(self, hidden_dim: int, n_macro: int, n_target: int):
+        super().__init__()
+        self.n_macro = int(n_macro)
+        self.macro_head = nn.Linear(int(hidden_dim), int(n_macro))
+        self.target_head = nn.Linear(int(hidden_dim), int(n_target))
+
+    @classmethod
+    def from_linear(cls, lin: nn.Linear, n_macro: int) -> "SplitActionHead":
+        n_macro = int(n_macro)
+        m = cls(lin.in_features, n_macro, lin.out_features - n_macro)
+        with torch.no_grad():
+            m.macro_head.weight.copy_(lin.weight[:n_macro])
+            m.macro_head.bias.copy_(lin.bias[:n_macro])
+            m.target_head.weight.copy_(lin.weight[n_macro:])
+            m.target_head.bias.copy_(lin.bias[n_macro:])
+        return m
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.cat([self.macro_head(x), self.target_head(x)], dim=-1)
+
+
+def install_split_head(branch: nn.Module, n_macro: int) -> None:
+    """Swap a branch's ``latent_actor.action_head`` for its split re-parameterisation."""
+    la = branch.latent_actor
+    if isinstance(la.action_head, SplitActionHead):
+        return
+    la.action_head = SplitActionHead.from_linear(la.action_head, n_macro)
+
+
+def _n_macro(action_space) -> int:
+    return int(action_space.nvec[0])
+
+
+SHARED_BY_RUNG = {
+    1: ("actor_cnn",),
+    2: ("actor_cnn", "latent_actor.body"),
+    3: ("actor_cnn", "latent_actor.body", "latent_actor.action_head.macro_head"),
+}
 
 
 def _get_module(root, dotted: str):
@@ -236,6 +286,10 @@ def build_rung(rung: int, spec_ckpt_path: str, observation_space, action_space, 
             raise RuntimeError(f"Rung {rung} branch {tag} shapes differ from the specialist architecture")
         if max(float((sd[k].float() - ref[k].float()).abs().max()) for k in sd if sd[k].numel()) == 0.0:
             raise RuntimeError(f"Rung {rung} branch {tag} is bit-identical to pi_A -- silent warm start")
+    if int(rung) == 3:
+        # after the specialist-arch check (which compares raw key names), before tying
+        for b in (b0, b1):
+            install_split_head(b, _n_macro(action_space))
     model = LadderModel(b0, b1, SHARED_BY_RUNG[int(rung)]).to(device)
     return model, dict(payload.get("cfg") or {}), kwargs, ref
 
@@ -258,6 +312,9 @@ def load_rung(rung: int, path: str, observation_space, action_space, *, device: 
     kw = payload["model_kwargs"]
     b0 = SharedActorCentralizedCritic(observation_space, action_space, **kw)
     b1 = SharedActorCentralizedCritic(observation_space, action_space, **kw)
+    if int(rung) == 3:
+        for b in (b0, b1):
+            install_split_head(b, _n_macro(action_space))
     model = LadderModel(b0, b1, tuple(payload.get("shared_modules") or SHARED_BY_RUNG[int(rung)]))
     model.load_state_dict(payload["state_dict"], strict=True)
     model.to(device).eval()

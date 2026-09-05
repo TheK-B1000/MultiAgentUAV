@@ -84,7 +84,7 @@ def _preflight(device: str, rung: int):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--device", default="cuda")
-    ap.add_argument("--rung", type=int, default=1, choices=(1, 2))
+    ap.add_argument("--rung", type=int, default=1, choices=(1, 2, 3))
     args = ap.parse_args()
     RUNG = int(args.rung)
     FROZEN, OUT, ROWS_CSV, PREAUDIT_FLAG = _paths(RUNG)

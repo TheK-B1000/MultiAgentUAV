@@ -1,0 +1,58 @@
+{
+  "record": "Rung 3 mechanical preflight",
+  "utc": "2026-09-05T15:46:53Z",
+  "device": "cpu",
+  "rung": 3,
+  "implements": "RUNG3_CONSTRUCTION_AND_PREDICTION.json#PREFLIGHT",
+  "checks": {
+    "1_dataset": true,
+    "2_branches_match_specialist_arch_and_differ_from_piA": true,
+    "3_shared_modules_identity_and_arithmetic": true,
+    "4_teacher_self_kl_zero": true,
+    "5_initial_loss_finite_positive": true,
+    "6_grad_on_shared_and_both_private_none_on_critic": true,
+    "7_step_moves_shared_and_both_private_critic_still": true,
+    "8_save_load_roundtrip_identical_logits_both_z": true,
+    "9_head_split_is_pure_reparameterisation": true,
+    "10_shared_set_is_proper_superset_of_rung2": true,
+    "11_macro_head_tied_target_head_private": true
+  },
+  "passed": "11/11",
+  "sharing_arithmetic": {
+    "n_unique": 3507563,
+    "n_shared": 3439621,
+    "n_branch_total": 3473592,
+    "expected_unique": 3507563,
+    "ok": true,
+    "shared_modules": [
+      "actor_cnn",
+      "latent_actor.body",
+      "latent_actor.action_head.macro_head"
+    ]
+  },
+  "initial_loss": 1.8083930015563965,
+  "initial_diag": {
+    "kl_A": 1.8505115509033203,
+    "kl_B": 1.7662745714187622,
+    "decision_heads": 196
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "rung3_head_split": {
+    "implements": "RUNG3_EQUIVALENCE_CRITERION_AMENDMENT.json",
+    "weights_bit_exact": true,
+    "macro_max_abs_logit_diff": 2.86102294921875e-06,
+    "target_max_abs_logit_diff": 3.814697265625e-06,
+    "logit_scale": 10000.0,
+    "macro_relative": 2.86102294921875e-10,
+    "target_relative": 3.814697265625e-10,
+    "float32_eps": 1.1920928955078125e-07,
+    "argmax_identical_all_heads": true,
+    "shared_modules": [
+      "actor_cnn",
+      "latent_actor.body",
+      "latent_actor.action_head.macro_head"
+    ],
+    "n_macro_rows_tied": 5
+  },
+  "VERDICT": "PASS"
+}

@@ -32,8 +32,10 @@ from experiments.run_teacher_distillation import Batches, load_dataset, to_torch
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 AMEND_BY_RUNG = {1: SD / "RUNG1_CONSTRUCTION_AMENDMENT.json",
-                 2: SD / "RUNG2_CONSTRUCTION_AND_PREDICTION.json"}
-SEEDS_BY_RUNG = {1: (11_961_001, 11_961_002), 2: (11_963_001, 11_963_002)}
+                 2: SD / "RUNG2_CONSTRUCTION_AND_PREDICTION.json",
+                 3: SD / "RUNG3_CONSTRUCTION_AND_PREDICTION.json"}
+SEEDS_BY_RUNG = {1: (11_961_001, 11_961_002), 2: (11_963_001, 11_963_002),
+                 3: (11_965_001, 11_965_002)}
 LADDER = SD / "SHARING_LADDER_SPEC.json"
 SPECIALISTS = SD / "SPECIALIST_BASELINE_SPEC.json"
 EPOCHS, BATCH, LR, CLIP = 20, 256, 3e-4, 1.0
@@ -51,7 +53,7 @@ def _sha(p: Path) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--device", default="cpu")
-    ap.add_argument("--rung", type=int, default=1, choices=(1, 2))
+    ap.add_argument("--rung", type=int, default=1, choices=(1, 2, 3))
     ap.add_argument("--preflight", action="store_true")
     args = ap.parse_args()
     device = args.device
@@ -172,6 +174,59 @@ def main() -> int:
                 worst = max(worst, float((a - b).abs().max()))
         tmp.unlink(missing_ok=True)
         checks["8_save_load_roundtrip_identical_logits_both_z"] = bool(worst <= 1e-6)
+        rung3_detail = None
+        if RUNG == 3:
+            # RUNG3_CONSTRUCTION_AND_PREDICTION.json#IMPLEMENTATION_REQUIREMENT:
+            # the head split must be a PURE re-parameterisation, so that any Rung 3 effect is
+            # attributable to the macro tie alone and not to restructuring the head.
+            import copy as _copy
+            ref_pi = teachers["pi_A"]
+            split_pi = _copy.deepcopy(ref_pi)
+            L1.install_split_head(split_pi, int(act_space.nvec[0]))
+            split_pi.eval()
+            with torch.no_grad():
+                la_ref = TD.head_logits(ref_pi, obs)
+                la_split = TD.head_logits(split_pi, obs)
+            # RUNG3_EQUIVALENCE_CRITERION_AMENDMENT.json: bit-exact WEIGHTS (the claim itself),
+            # argmax identity, and a relative logit bound at float32 precision. An absolute
+            # "== 0.0" on logits is unachievable across a GEMM split and never checked the weights.
+            _lin, _sh = ref_pi.latent_actor.action_head, split_pi.latent_actor.action_head
+            nm = int(act_space.nvec[0])
+            weights_exact = bool(
+                torch.equal(_sh.macro_head.weight, _lin.weight[:nm])
+                and torch.equal(_sh.macro_head.bias, _lin.bias[:nm])
+                and torch.equal(_sh.target_head.weight, _lin.weight[nm:])
+                and torch.equal(_sh.target_head.bias, _lin.bias[nm:]))
+            macro_worst = max(float((la_ref[i] - la_split[i]).abs().max()) for i in (0, 2))
+            target_worst = max(float((la_ref[i] - la_split[i]).abs().max()) for i in (1, 3))
+            scale = max(float(t.abs().max()) for t in la_ref)
+            macro_rel, target_rel = macro_worst / max(scale, 1e-12), target_worst / max(scale, 1e-12)
+            f32_eps = float(torch.finfo(torch.float32).eps)
+            argmax_same = all(bool((a.argmax(-1) == b.argmax(-1)).all())
+                              for a, b in zip(la_ref, la_split))
+            checks["9_head_split_is_pure_reparameterisation"] = bool(
+                weights_exact and argmax_same
+                and macro_rel <= f32_eps and target_rel <= f32_eps)
+            checks["10_shared_set_is_proper_superset_of_rung2"] = bool(
+                set(L1.SHARED_BY_RUNG[2]).issubset(set(L1.SHARED_BY_RUNG[3]))
+                and len(L1.SHARED_BY_RUNG[3]) > len(L1.SHARED_BY_RUNG[2]))
+            h0 = model.branch["z0"].latent_actor.action_head
+            h1 = model.branch["z1"].latent_actor.action_head
+            checks["11_macro_head_tied_target_head_private"] = bool(
+                h0.macro_head is h1.macro_head and h0.target_head is not h1.target_head)
+            rung3_detail = {"implements": "RUNG3_EQUIVALENCE_CRITERION_AMENDMENT.json",
+                            "weights_bit_exact": weights_exact,
+                            "macro_max_abs_logit_diff": macro_worst,
+                            "target_max_abs_logit_diff": target_worst,
+                            "logit_scale": scale,
+                            "macro_relative": macro_rel, "target_relative": target_rel,
+                            "float32_eps": f32_eps,
+                            "argmax_identical_all_heads": argmax_same,
+                            "shared_modules": list(L1.SHARED_BY_RUNG[3]),
+                            "n_macro_rows_tied": nm}
+            print(f"  rung3 split: weights_bit_exact={weights_exact} argmax_same={argmax_same}")
+            print(f"    macro rel={macro_rel:.3e}  target rel={target_rel:.3e}  "
+                  f"(f32 eps={f32_eps:.3e}, |logit|max={scale:.1f})")
         n_pass = sum(checks.values())
         for k, v in checks.items():
             print(f"  [{'PASS' if v else 'FAIL'}] {k}")
@@ -181,6 +236,7 @@ def main() -> int:
             "implements": f"{AMEND.name}#PREFLIGHT",
             "checks": checks, "passed": f"{n_pass}/{len(checks)}", "sharing_arithmetic": share,
             "initial_loss": float(loss.detach()), "initial_diag": diag, "roundtrip_max_abs_logit_diff": worst,
+            "rung3_head_split": rung3_detail,
             "VERDICT": "PASS" if n_pass == len(checks) else "FAIL",
         }, indent=2), encoding="utf-8")
         print(f"  -> {PREFLIGHT_OUT}  {n_pass}/{len(checks)}")
