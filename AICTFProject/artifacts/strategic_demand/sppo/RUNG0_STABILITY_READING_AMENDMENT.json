@@ -1,0 +1,21 @@
+{
+  "record_id": "RUNG0_STABILITY_READING_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-05T00:15:00Z",
+  "authority": "PI, 2026-09-05: 'If Block 2 again has the correct crossover direction, treat that as evidence that the sign is stable, even if the magnitude is noisy.' Recorded before block 2's Pole-B cells and confidence intervals exist.",
+  "timing_disclosure": "stated while block 2 was mid-run. Visible at the time: z0@A 0.8125 and z1@A 0.3594 (Pole-A point estimate +0.4531). NOT visible: both Pole-B cells, every CI, and the pooled estimate. The rule below concerns SIGN stability across blocks and was not chosen in light of any CI.",
+
+  "amends": "RUNG0_STABILITY_RERUN_SPEC.json#PREREGISTERED_READINGS_PRIMARY_PER_BLOCK, specifically the 'magnitude comparable' band (|delta_A(block2) - delta_A(block1)| <= 0.10) that the evaluator uses to emit STABLE_LICENSE_RUNG1 versus PARTIAL_STABILITY_PI_READ",
+  "rule": "APPEND, not an edit. The evaluator's verdict field is computed exactly as frozen and stays in the result record unchanged. This amendment fixes how the PI READS that field.",
+
+  "WHY_THE_MAGNITUDE_BAND_IS_THE_WRONG_STABILITY_TEST_FOR_RUNG_0": "Rung 0 is the exact specialists. A large magnitude swing between two 64-seed blocks (block 1 +0.1250 vs a block-2 Pole-A point estimate near +0.45) cannot reflect any change in the policies -- there is none. It reflects the VARIANCE OF THE EVALUATION. The magnitude band would therefore classify a noisy ruler as 'partial stability' of a mechanism that is by construction perfectly stable. The band stays in the evaluator (frozen), but it is not the quantity that decides the ladder.",
+
+  "READING_RULE_FOR_BLOCK_2": {
+    "sign_stable": "delta_A > 0 AND delta_B > 0 on block 2 (same direction as block 1 on both poles) => the crossover DIRECTION is stable across independent blocks. This is the evidence needed to trust Rung 0 as the ladder's fixed reference. Magnitude noise is then addressed by LADDER_MATCHED_EVALUATION_AMENDMENT.json (128 matched seeds, within-seed differences), not by demanding block-to-block magnitude agreement.",
+    "sign_unstable": "delta_A <= 0 OR delta_B <= 0 on block 2 => genuine instability in the direction itself; the ladder does not proceed and the evaluation is investigated first.",
+    "PARTIAL_STABILITY_PI_READ_if_emitted": "expected given the visible Pole-A magnitude. Under this amendment it is read as: sign stable (proceed to fixing the ruler and then Rung 1), magnitude noisy (handled by the matched-seed design). It is NOT read as a failed stability check."
+  },
+
+  "WHAT_STILL_STOPS_THE_LADDER": ["a sign flip on either pole on block 2", "a tie/reversal audit flag", "any wrapper/evaluator inconsistency -- the bit-exact preflight makes this the anomalous case"],
+  "NOT_AUTHORIZED_BY_THIS_AMENDMENT": "Rung 1 build/training. That requires an explicit PI go after block 2 lands and the 128-seed Rung-0 reference is fixed."
+}
