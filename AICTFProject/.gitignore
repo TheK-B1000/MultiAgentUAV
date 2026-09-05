@@ -30,3 +30,7 @@ Thumbs.db
 # Regenerable from a training run; not committed.
 **/ckpts/*.zip
 **/verify_ckpts/*.zip
+
+# Figure-style smoke-test output (the __main__ demo in paper/figures/dars_bar_style.py).
+# Not a paper figure; the real ones are paper/generated/figN_*.{pdf,png}.
+paper/generated/_smoke_test*
