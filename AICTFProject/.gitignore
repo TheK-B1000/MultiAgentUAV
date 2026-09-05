@@ -34,3 +34,7 @@ Thumbs.db
 # Figure-style smoke-test output (the __main__ demo in paper/figures/dars_bar_style.py).
 # Not a paper figure; the real ones are paper/generated/figN_*.{pdf,png}.
 paper/generated/_smoke_test*
+
+# NON-SCIENTIFIC train_scale smoke output (99_9xx_xxx seeds). Regenerable in
+# minutes and never eligible for evaluation; the launcher itself is tracked.
+artifacts/scale_*/smoke_scale_*/
