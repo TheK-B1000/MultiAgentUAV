@@ -147,7 +147,108 @@ class _ScriptedBlueStylesMixin:
         on_our_side = self._is_on_home_side("blue", enemy_x)
         intruder = enemy_alive & (~enemy_tagged) & on_our_side
 
-        # Nearest intruder to our home flag; deterministic tie-break by index.
+        # GUARD_DISTRIBUTED_V2 (GUARD_DISTRIBUTED_V2_SPEC.json).
+        #
+        # Defender COUNT is unchanged from the size-normalized rule: ceil(N/2) defenders on
+        # the LAST ceil(N/2) indices, so the defensive fraction stays 1/2 at every size.
+        # What changes is only WHICH threat each defender is given. V1 handed every defender
+        # the identical target, so defensive capacity did not scale with defender count: with
+        # k threats exactly one was contested and k-1 unopposed no matter how many defenders
+        # GUARD committed. DEFENDER_STACKING_DIAGNOSTIC.json measured the cost -- multi-threat
+        # contested steps are 9.55% at 2v2 but 31.08% at 4v4.
+        #
+        # THREAT PRIORITY is unchanged from V1: proximity to our own flag, i.e. most dangerous
+        # first. The spec's "defender-to-threat distance matrix" governs WHICH DEFENDER covers
+        # a given threat, not which threats are worth covering; ranking threats by defender
+        # proximity instead would break the mandatory N=2 bit-identity guard, because V1
+        # selects the intruder nearest to HOME rather than the one nearest to the defender.
+        # Resolved toward the mandatory guard and V1's existing criterion.
+        #
+        # At N=2 there is one defender and one threat slot, so the sole defender takes the
+        # threat nearest home -- exactly V1. The N=2 path is bit-identical, not merely similar.
+        n_def = (N + 1) // 2
+        lo = N - n_def
+
+        d_home = self._dist(enemy_x, enemy_y, home_x[:, None], home_y[:, None])
+        big = torch.finfo(d_home.dtype).max
+        d_masked = torch.where(intruder, d_home, torch.full_like(d_home, big))
+
+        # Threats in danger order (nearest home first). argsort is stable, so equal
+        # distances break by enemy index -- deterministic, no RNG.
+        order = torch.argsort(d_masked, dim=1, stable=True)
+
+        def_px = own_x[:, lo:]
+        def_py = own_y[:, lo:]
+        # Default: hold on the flag. Surplus defenders (more defenders than threats) keep it.
+        def_tx = home_x[:, None].expand(B, n_def).clone()
+        def_ty = home_y[:, None].expand(B, n_def).clone()
+        taken = torch.zeros((B, n_def), dtype=torch.bool, device=own_x.device)
+
+        n_slots = min(n_def, int(order.shape[1]))
+        for k in range(n_slots):
+            tidx = order[:, k]
+            valid = d_masked.gather(1, tidx[:, None]).squeeze(1) < big
+            tx = enemy_x.gather(1, tidx[:, None]).squeeze(1)
+            ty = enemy_y.gather(1, tidx[:, None]).squeeze(1)
+
+            # Nearest UNASSIGNED defender to this threat; argmin ties break to the lowest
+            # defender index, so the assignment is fully determined by geometry and indices.
+            dd = self._dist(def_px, def_py, tx[:, None], ty[:, None])
+            dd = torch.where(taken, torch.full_like(dd, big), dd)
+            pick = dd.argmin(dim=1)
+
+            free = (~taken).any(dim=1)
+            do = valid & free
+            sel = torch.zeros_like(taken)
+            sel.scatter_(1, pick[:, None], do[:, None])
+            def_tx = torch.where(sel, tx[:, None].expand_as(def_tx), def_tx)
+            def_ty = torch.where(sel, ty[:, None].expand_as(def_ty), def_ty)
+            taken = taken | sel
+
+        # Never pursue into RED territory: an intruder that has retreated past the midline is
+        # no longer a threat this defender may chase. Fall back to holding the flag.
+        in_our_half = self._is_on_home_side("blue", def_tx)
+        def_tx = torch.where(in_our_half, def_tx, home_x[:, None].expand_as(def_tx))
+        def_ty = torch.where(in_our_half, def_ty, home_y[:, None].expand_as(def_ty))
+
+        # Clamp each defender's target into the defensive disc around home.
+        radius = gate2b_defender_hold_radius(self.cfg)
+        dx = def_tx - home_x[:, None]
+        dy = def_ty - home_y[:, None]
+        dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
+        scale = torch.clamp(radius / dist, max=1.0)
+        target_x[:, lo:] = home_x[:, None] + dx * scale
+        target_y[:, lo:] = home_y[:, None] + dy * scale
+        return target_x, target_y
+
+    def _blue_one_defender_v1_reference_targets(
+        self,
+        own_x: torch.Tensor,
+        own_y: torch.Tensor,
+        own_flag_home: torch.Tensor,
+        enemy_x: torch.Tensor,
+        enemy_y: torch.Tensor,
+        enemy_alive: torch.Tensor,
+        enemy_tagged: torch.Tensor,
+        enemy_flag_pos: torch.Tensor,
+        B: int,
+        N: int,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """The pre-V2 GUARD rule, retained ONLY as a regression reference.
+
+        Every defender receives the identical target (the intruder nearest our own flag).
+        Not reachable from ``_assign_blue_style_targets``; it exists so the mandatory N=2
+        bit-identity guard in GUARD_DISTRIBUTED_V2_SPEC.json compares two LIVE
+        implementations rather than V2 against hardcoded numbers.
+        """
+        target_x = enemy_flag_pos[:, 0:1].expand(B, N).clone()
+        target_y = enemy_flag_pos[:, 1:2].expand(B, N).clone()
+        home_x = own_flag_home[:, 0]
+        home_y = own_flag_home[:, 1]
+
+        on_our_side = self._is_on_home_side("blue", enemy_x)
+        intruder = enemy_alive & (~enemy_tagged) & on_our_side
+
         d_home = self._dist(enemy_x, enemy_y, home_x[:, None], home_y[:, None])
         big = torch.finfo(d_home.dtype).max
         d_masked = torch.where(intruder, d_home, torch.full_like(d_home, big))
@@ -157,18 +258,13 @@ class _ScriptedBlueStylesMixin:
         ix = enemy_x[idx_env, nearest]
         iy = enemy_y[idx_env, nearest]
 
-        # Intercept when an intruder exists, else hold on the flag itself.
         def_x = torch.where(any_intruder, ix, home_x)
         def_y = torch.where(any_intruder, iy, home_y)
 
-        # Never pursue into RED territory: an intruder that has retreated past
-        # the midline is no longer a threat this defender may chase. Fall back to
-        # holding the flag. Uses the engine's own side predicate.
         target_in_our_half = self._is_on_home_side("blue", def_x.unsqueeze(1)).squeeze(1)
         def_x = torch.where(target_in_our_half, def_x, home_x)
         def_y = torch.where(target_in_our_half, def_y, home_y)
 
-        # Clamp the defender's target into the defensive disc around home.
         radius = gate2b_defender_hold_radius(self.cfg)
         dx = def_x - home_x
         dy = def_y - home_y
@@ -177,15 +273,6 @@ class _ScriptedBlueStylesMixin:
         def_x = home_x + dx * scale
         def_y = home_y + dy * scale
 
-        # Size-normalized GUARD (SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json): commit
-        # ceil(N/2) defenders, so the DEFENSIVE FRACTION of the team is invariant --
-        # 1/2 at 2v2, 2/4 at 4v4, 3/6 at 6v6. Holding a single defender would have
-        # silently weakened the intervention from 50% to 17% as team size grew.
-        #
-        # Defenders are the LAST ceil(N/2) indices. At N=2 that is exactly index 1,
-        # the historical defender, so 2v2 is bit-identical rather than merely
-        # equivalent in count. Each defender receives the same defensive target the
-        # single 2v2 defender receives; no new behaviour is invented here.
         n_def = (N + 1) // 2
         lo = N - n_def
         target_x[:, lo:] = def_x.unsqueeze(1)

@@ -1,0 +1,52 @@
+{
+  "record": "GUARD_DISTRIBUTED_V2 preflight",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-05T19:22:36Z",
+  "implements": "GUARD_DISTRIBUTED_V2_SPEC.json",
+  "device": "cpu",
+  "probe_seed_base": 99950001,
+  "probe_seeds_are_non_scientific": true,
+  "no_certification_block_touched": true,
+  "checks": {
+    "1_N2_bit_identical_V1_vs_V2": true,
+    "3_N4_defenders_get_distinct_threats_when_available": true,
+    "4_N4_deterministic": true,
+    "5_N4_no_rng_dependence": true,
+    "3_N6_defenders_get_distinct_threats_when_available": true,
+    "4_N6_deterministic": true,
+    "5_N6_no_rng_dependence": true,
+    "2_defender_count_is_ceil_half": true,
+    "4_N2_deterministic": true,
+    "5_N2_no_rng_dependence": true
+  },
+  "passed": "10/10",
+  "detail": {
+    "N2": {
+      "worst": 0.0,
+      "n": 1090,
+      "distinct_ok": 0,
+      "distinct_total": 0,
+      "det_ok": true,
+      "rng_ok": true
+    },
+    "N4": {
+      "worst": 0.0,
+      "n": 0,
+      "distinct_ok": 144,
+      "distinct_total": 144,
+      "det_ok": true,
+      "rng_ok": true,
+      "distinct_frac": 1.0
+    },
+    "N6": {
+      "worst": 0.0,
+      "n": 0,
+      "distinct_ok": 34,
+      "distinct_total": 34,
+      "det_ok": true,
+      "rng_ok": true,
+      "distinct_frac": 1.0
+    }
+  },
+  "VERDICT": "PASS"
+}
