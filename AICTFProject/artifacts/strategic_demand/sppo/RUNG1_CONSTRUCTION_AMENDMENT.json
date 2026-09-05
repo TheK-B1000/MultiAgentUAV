@@ -1,0 +1,50 @@
+{
+  "record_id": "RUNG1_CONSTRUCTION_AMENDMENT",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-05T02:00:00Z",
+  "authority": "PI, 2026-09-05: GO RUNG 1. Build the shared-CNN / separate-everything-else model, train it with the frozen 20-epoch distillation recipe on the same 35,005 rows, freeze the terminal checkpoint, evaluate it against the 128 matched Rung-0 seeds.",
+
+  "amends": "SHARING_LADDER_SPEC.json#PROGRESSION_OF_RUNGS.rung_1 -- makes the construction concrete",
+  "rule": "APPEND. Recipe, gate, device, training seed (11961001) and the matched-evaluation rule are unchanged.",
+
+  "THE_QUESTION": "What happens if the two strategies share ONLY the CNN encoder?",
+
+  "CONSTRUCTION": {
+    "branches": "two complete, independently initialised actors of the SPECIALISTS' own architecture (custom_ppo_cnn_v1, 20 parameters each: actor_cnn.*, latent_actor.body.*, latent_actor.action_head.* [macro+target logits, 55 per agent], critic.*). z0 -> branch z0, z1 -> branch z1.",
+    "why_the_specialist_architecture_per_branch": "each branch then has exactly the capacity of the teacher it imitates, so a Rung-1 loss cannot be attributed to a smaller per-strategy network. The ONLY thing changed relative to Rung 0 is that the two branches share one CNN encoder.",
+    "sharing": "the z1 branch's actor_cnn module is REPLACED by the z0 branch's actor_cnn module object (parameter tying by identity). Verified at preflight by (a) module identity and (b) unique-parameter arithmetic: total unique parameters == n_cnn + 2 * (n_branch - n_cnn).",
+    "kept_separate": ["strategy bodies (latent_actor.body)", "action heads incl. macro AND target logits (latent_actor.action_head)", "critic heads (critic.*)"],
+    "per_row_dispatch_in_training": "policy_logits(obs, z_idx) computes both branches' logits on the batch and selects per row by z_idx, so a mixed-z minibatch trains both branches and the shared encoder receives gradient from BOTH strategies in the same step -- that shared gradient is precisely the phenomenon the rung exists to test.",
+    "initialisation": "fresh random init, torch.manual_seed(11961001) for branch z0 and 11961002 for branch z1; verified to differ from the specialists' weights (not a silent warm start)"
+  },
+
+  "TRAINING_RECIPE_UNCHANGED": {
+    "loss": "0.5*KL(pi_A||branch_z0) + 0.5*KL(pi_B||branch_z1), both teachers on the SAME states, decision-boundary mask",
+    "data": "TEACHER_DISTILLATION_DATASET.json, 31,714 train / 3,291 holdout rows, stratified by state-origin pole",
+    "schedule": "20 fixed epochs, batch 256, Adam lr 3e-4, clip 1.0, no early stopping, no checkpoint selection, terminal weights only",
+    "optimised": "actor parameters = shared encoder + both private bodies/heads; critics excluded and verified immobile",
+    "fit_check": "teacher-holdout agreement >= 0.50 for both z before the matched eval opens"
+  },
+
+  "PREFLIGHT_REQUIRED_8_CHECKS": [
+    "teacher dataset loads; both poles; holdout non-empty",
+    "each branch's parameter names/shapes match the specialist architecture exactly, and fresh weights differ from pi_A",
+    "encoder is shared: branch_z0.actor_cnn IS branch_z1.actor_cnn, and unique-parameter count == n_cnn + 2*(n_branch - n_cnn)",
+    "teacher self-KL exactly 0 through the same masked-head path",
+    "initial loss finite and > 0",
+    "after one backward on a mixed-z batch: nonzero gradient on the SHARED encoder, nonzero on BOTH private stacks, NONE on any critic",
+    "one optimizer step moves shared encoder and both private stacks; every critic parameter bit-identical",
+    "save/load round-trip reproduces masked logits exactly for both z"
+  ],
+
+  "EVALUATION": {
+    "rule": "LADDER_MATCHED_EVALUATION_AMENDMENT.json -- the 128 matched seeds in RUNG0_LADDER_REFERENCE.json, four cells, cuda",
+    "inference_path": "each branch wrapped in CustomPPOInferencePolicy exactly as the specialists are, then dispatched by z through the Rung-0 wrapper class already verified bit-exact -- so the evaluator exercises the identical code path Rung 0 used; only what sits behind predict() differs",
+    "PRIMARY": "within-seed D_A, D_B vs the frozen Rung-0 per-seed deltas; 'sharing damaged specialization' iff UCB95(D) < 0 on a pole",
+    "also_reported": "Rung 1's own n=128 gate",
+    "planned_follow_up_on_loss": "target-head localisation via SUBMACRO_LEVERAGE_DIAGNOSTIC_SPEC.json"
+  },
+
+  "SEEDS": {"train_init": [11961001, 11961002], "eval": "the 128 matched seeds; no new eval seeds", "disjointness": "1196xxxx confirmed unused before the ladder spec was committed; the eval seeds are Rung 0's, by design"},
+  "SEQUENCE": "freeze this record -> build -> preflight 8/8 -> train 20 epochs -> fit check -> freeze checkpoint (sha) -> matched 128-seed eval on cuda, GPU otherwise clear -> read D first, own gate second"
+}
