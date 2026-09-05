@@ -1,0 +1,16 @@
+{
+  "record": "Row-level integrity audit (4v4, variant=guard_distributed_v2)",
+  "status": "FLAGGED_RETROACTIVE",
+  "utc": "2026-09-05T22:52:00Z",
+  "triggered_by": "delta_A exactly zero (tie): poleA_guard_wr == poleA_breach_wr == 0.5469",
+  "why_retroactive": "certify_strategic_demand_scaled.py did not have an automated tie/reversal check when this certification ran; the audit below was performed manually against the completed, already-frozen result. The script has since been fixed (same commit) to perform this check automatically and refuse to write a frozen result if it comes back SUSPECT. Replayed the fixed logic against these same rows and confirmed it reproduces this manual finding exactly.",
+  "n_rows": 64,
+  "n_unique_seeds": 64,
+  "seed_range": [12800001, 12800064],
+  "sums": {"sum_A_guard": 35, "sum_A_breach": 35},
+  "poleA_split": {"tied": 32, "guard_only": 16, "breach_only": 16},
+  "point_estimates": {"delta_A": 0.0, "delta_B": 0.625},
+  "note": "a tie is a legitimate possible outcome, not necessarily an evaluator defect. This audit checks for duplicate/missing seeds and a symmetric win/loss split before any interpretation is offered.",
+  "classification": "GENUINE -- seeds unique (64/64), range exactly 12800001..12800064 as launched, split symmetric (16/16, net zero)",
+  "interpretation_licensed_by_this_audit": "the tie is authentic: not a duplicate-seed artifact, not a corrupted row, not a coincidental average masking an asymmetric distribution. GUARD_DISTRIBUTED_V2 eliminated the V1 reversal (V1 delta_A -0.094; V2 delta_A 0.0000 exactly) but did not restore a detectable Pole-A advantage at 4v4. Something beyond defender-target stacking still limits GUARD's edge on Pole A at this team size."
+}

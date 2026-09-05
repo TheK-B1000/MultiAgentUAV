@@ -139,6 +139,58 @@ def main() -> int:
     dA = np.array([r["A_guard"] - r["A_breach"] for r in rows], dtype=float)
     dB = np.array([r["B_breach"] - r["B_guard"] for r in rows], dtype=float)
     ciA, ciB = _mean_ci(dA), _mean_ci(dB)
+
+    # Standing rule: any tie or reversal on a gated quantity triggers a mandatory row-level
+    # integrity audit, written BEFORE its rows are interpreted. Checked before `certified` is
+    # even computed, matching the ladder eval scripts' convention -- this script previously
+    # lacked this gate (found retroactively: 4v4 GUARD_DISTRIBUTED_V2 tied at delta_A=0.0000
+    # exactly and was manually audited after the fact rather than caught here).
+    tie_or_reversal = None
+    if ciA["mean"] == 0.0:
+        tie_or_reversal = "delta_A exactly zero (tie)"
+    elif ciA["mean"] < 0:
+        tie_or_reversal = f"delta_A reversed (mean={ciA['mean']:+.4f})"
+    elif ciB["mean"] == 0.0:
+        tie_or_reversal = "delta_B exactly zero (tie)"
+    elif ciB["mean"] < 0:
+        tie_or_reversal = f"delta_B reversed (mean={ciB['mean']:+.4f})"
+
+    if tie_or_reversal is not None:
+        n_tied = int(np.sum(np.array([r["A_guard"] for r in rows]) ==
+                            np.array([r["A_breach"] for r in rows])))
+        n_guard_only = int(np.sum((np.array([r["A_guard"] for r in rows]) == 1) &
+                                  (np.array([r["A_breach"] for r in rows]) == 0)))
+        n_breach_only = int(np.sum((np.array([r["A_guard"] for r in rows]) == 0) &
+                                   (np.array([r["A_breach"] for r in rows]) == 1)))
+        seeds_seen = [r["seed"] for r in rows]
+        audit = {
+            "record": f"Row-level integrity audit ({N}v{N}, variant={variant})",
+            "status": "FLAGGED", "utc": _now(),
+            "triggered_by": tie_or_reversal,
+            "n_rows": len(rows),
+            "n_unique_seeds": len(set(seeds_seen)),
+            "seed_range": [min(seeds_seen), max(seeds_seen)] if seeds_seen else None,
+            "poleA_split": {"tied": n_tied, "guard_only": n_guard_only,
+                            "breach_only": n_breach_only},
+            "point_estimates": {"delta_A": ciA["mean"], "delta_B": ciB["mean"]},
+            "note": ("a tie or reversal is a legitimate possible outcome, not necessarily an "
+                     "evaluator defect. This audit checks for duplicate/missing seeds and a "
+                     "symmetric win/loss split before any interpretation is offered."),
+            "classification": ("GENUINE -- seeds unique, range as expected, split symmetric"
+                               if len(set(seeds_seen)) == len(seeds_seen) else
+                               "SUSPECT -- duplicate or missing seeds, investigate before reading"),
+        }
+        audit_out = OUT_DIR / f"TIE_REVERSAL_AUDIT_{N}v{N}_{variant.upper()}.json"
+        audit_out.write_text(json.dumps(audit, indent=2), encoding="utf-8")
+        print(f"\n  TIE/REVERSAL on {tie_or_reversal} -- integrity audit written: {audit_out}")
+        print(f"  classification: {audit['classification']}")
+        if audit["classification"] != "GENUINE -- seeds unique, range as expected, split symmetric":
+            raise SystemExit(
+                f"REFUSING to write the frozen certification result: the tie/reversal audit "
+                f"classified this run as SUSPECT. Investigate {audit_out} before proceeding; "
+                f"a tie or reversal is a legitimate outcome only once the rows themselves are "
+                f"verified clean.")
+
     certified = bool(ciA["lcb95"] > 0 and ciB["lcb95"] > 0)
 
     cells = {
@@ -191,6 +243,8 @@ def main() -> int:
                       "samples": 20000, "alpha": 0.05, "rng_seed": 7},
         "gate": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0",
         "VERDICT": "CERTIFIED" if certified else "NOT_CERTIFIED",
+        "tie_reversal_audit": (f"TIE_REVERSAL_AUDIT_{N}v{N}_{variant.upper()}.json"
+                               if tie_or_reversal is not None else None),
         "rows": rows,
         "total_episodes": 4 * n_seeds,
         "note_if_not_certified": (
