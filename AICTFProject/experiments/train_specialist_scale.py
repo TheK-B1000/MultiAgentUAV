@@ -58,14 +58,33 @@ SD = PROJECT_ROOT / "artifacts" / "strategic_demand" / "sppo"
 BASE_KEY = {"A": "OP6", "B": "OP7"}
 
 
+#: Certification records in PRECEDENCE ORDER, most authoritative first.
+#: GUARD_DISTRIBUTED_V2 supersedes v1 because v1's GUARD probe carried a MEASURED defect
+#: (DEFENDER_STACKING_DIAGNOSTIC.json: every defender received the identical target, so
+#: defensive capacity did not scale with defender count). Both records are retained; only
+#: which one GATES production training changes. This is precedence, not deletion -- the v1
+#: verdict stays on disk and in the history exactly as recorded.
+_CERT_PRECEDENCE = (
+    "STRATEGIC_DEMAND_{n}v{n}_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+    "STRATEGIC_DEMAND_{n}v{n}_CERTIFICATION.json",
+)
+
+
 def _certification_verdict(n: int) -> tuple[str, Path]:
-    p = SD / f"STRATEGIC_DEMAND_{n}v{n}_CERTIFICATION.json"
-    if not p.is_file():
-        return "MISSING", p
-    try:
-        return str(json.loads(p.read_text(encoding="utf-8")).get("VERDICT", "UNKNOWN")), p
-    except Exception:  # noqa: BLE001
-        return "UNREADABLE", p
+    """Resolve the authoritative certification verdict for team size ``n``.
+
+    Returns the FIRST record found in precedence order, so a corrected-probe certification
+    governs over a superseded one. If none exists, reports MISSING against the v1 path.
+    """
+    for tmpl in _CERT_PRECEDENCE:
+        p = SD / tmpl.format(n=n)
+        if not p.is_file():
+            continue
+        try:
+            return str(json.loads(p.read_text(encoding="utf-8")).get("VERDICT", "UNKNOWN")), p
+        except Exception:  # noqa: BLE001
+            return "UNREADABLE", p
+    return "MISSING", SD / _CERT_PRECEDENCE[-1].format(n=n)
 
 
 def assert_live_pole_matches_team_size(env, policy: str, n: int) -> dict:
