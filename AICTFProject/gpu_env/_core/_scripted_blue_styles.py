@@ -177,8 +177,19 @@ class _ScriptedBlueStylesMixin:
         def_x = home_x + dx * scale
         def_y = home_y + dy * scale
 
-        target_x[:, 1] = def_x
-        target_y[:, 1] = def_y
+        # Size-normalized GUARD (SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json): commit
+        # ceil(N/2) defenders, so the DEFENSIVE FRACTION of the team is invariant --
+        # 1/2 at 2v2, 2/4 at 4v4, 3/6 at 6v6. Holding a single defender would have
+        # silently weakened the intervention from 50% to 17% as team size grew.
+        #
+        # Defenders are the LAST ceil(N/2) indices. At N=2 that is exactly index 1,
+        # the historical defender, so 2v2 is bit-identical rather than merely
+        # equivalent in count. Each defender receives the same defensive target the
+        # single 2v2 defender receives; no new behaviour is invented here.
+        n_def = (N + 1) // 2
+        lo = N - n_def
+        target_x[:, lo:] = def_x.unsqueeze(1)
+        target_y[:, lo:] = def_y.unsqueeze(1)
         return target_x, target_y
 
     @staticmethod

@@ -60,16 +60,48 @@ class OpponentSpecError(RuntimeError):
     """
 
 
-def pole_A_genome() -> SDSGenome:
-    """The frozen A pole, read from its freeze record rather than hardcoded."""
+def _with_full_team_defender_gate(g: SDSGenome, n_agents: int) -> SDSGenome:
+    """Apply SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json's defender-gate normalization.
+
+    ``min_alive_for_defender`` is compared against an absolute ``alive_count`` in
+    ``gpu_env/_core/_bt_red.py``. Pole A's frozen genome records its intent explicitly --
+    "the defender only deploys while at least 2 RED agents are alive" -- which at 2v2 IS
+    the whole red team. Carrying the literal 2 to 6v6 would leave the defender active
+    until four teammates had died, silently destroying the pole's conditional character.
+    So the invariant meaning is ``min_alive_for_defender = N``.
+
+    At ``n_agents == 2`` this is a NO-OP by construction (Pole A's overlay is already 2 and
+    canonical OP7 is natively 2), and the genome is returned untouched so the certified 2v2
+    path cannot drift.
+    """
+    n = int(n_agents)
+    if n == 2:
+        return g
+    overlay = dict(g.overlay or {})
+    overlay["min_alive_for_defender"] = n
+    return replace(g, overlay=overlay)
+
+
+def pole_A_genome(n_agents: int = 2) -> SDSGenome:
+    """The frozen A pole, read from its freeze record rather than hardcoded.
+
+    The default ``n_agents=2`` reproduces the freeze record exactly; larger sizes carry the
+    size-normalized defender gate.
+    """
     d = json.loads(CANDIDATE_A.read_text(encoding="utf-8"))["candidate_genome"]
-    return SDSGenome.from_dict(d)
+    return _with_full_team_defender_gate(SDSGenome.from_dict(d), n_agents)
 
 
-def pole_B_genome() -> SDSGenome:
-    """The frozen B pole: canonical OP7, no overlay."""
+def pole_B_genome(n_agents: int = 2) -> SDSGenome:
+    """The frozen B pole: canonical OP7.
+
+    At 2v2 this is the canonical parent with no overlay, exactly as before. At larger sizes
+    an overlay is required because canonical OP7 carries min_alive_for_defender=2 natively;
+    that structural change is recorded in SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json. The
+    canonical OP6-OP12 registry is never overwritten.
+    """
     from experiments.sds_genome import canonical_parent
-    return canonical_parent("OP7")
+    return _with_full_team_defender_gate(canonical_parent("OP7"), n_agents)
 
 
 def expected_profile(base_key: str, genome: Optional[SDSGenome]) -> BTProfile:
