@@ -30,6 +30,7 @@ from experiments.opponent_spec import (  # noqa: E402
     assert_live_opponent_batch,
     install_keyed_opponent_overlays,
     pole_A_genome,
+    pole_B_genome,
 )
 from experiments.run_g0_v5_long import build_config as build_g0_v5_config  # noqa: E402
 from rl.curriculum import phase_from_tag  # noqa: E402
@@ -181,7 +182,15 @@ def configure_r1_live_environment(
 
     core._bt_profile_override = None
     core._sds_opening_hold_steps = 0
-    genomes = {"OP6": pole_A_genome()} if policy in {"A", "G"} else {}
+    # SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json: the poles' defender gate is an absolute
+    # alive-count, so it must be resolved at the LIVE team size or a scaled run would train
+    # against the 2v2 pole while playing N agents. A NO-OP at 2v2 by construction:
+    # pole_A_genome(2) reproduces the frozen record and pole_B_genome(2) adds no overlay,
+    # so no OP7 key is installed and the certified 2v2 path is byte-for-byte unchanged.
+    _n_agents = int(getattr(cfg, "max_blue_agents", 2))
+    genomes = {"OP6": pole_A_genome(_n_agents)} if policy in {"A", "G"} else {}
+    if _n_agents != 2:
+        genomes["OP7"] = pole_B_genome(_n_agents)
     install_keyed_opponent_overlays(core, genomes)
 
     # The generalist batch is exactly balanced and STATIC: each env keeps its
