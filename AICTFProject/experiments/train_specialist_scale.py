@@ -256,6 +256,14 @@ def main() -> int:
     for k, v in live.items():
         print(f"    {k}: {v}")
 
+    if args.dry_run:
+        # A dry run starts nothing, so it must leave nothing behind. Writing the manifest
+        # here would create a production-named artifact claiming the full step budget with no
+        # training behind it -- later indistinguishable from an aborted production run.
+        print("  --dry-run: config resolved and checks passed. NOT training, NOT writing "
+              "a run manifest.")
+        return 0
+
     art.mkdir(parents=True, exist_ok=True)
     (art / "run_manifest.json").write_text(json.dumps({
         "record": "train_specialist_scale run manifest", "utc": _now(),
@@ -269,11 +277,6 @@ def main() -> int:
         "distillation_started_by_this_script": False,
         "evaluation_started_by_this_script": False,
     }, indent=2), encoding="utf-8")
-
-    if args.dry_run:
-        print("  --dry-run: config resolved. NOT training.")
-        print(f"  -> {art / 'run_manifest.json'}")
-        return 0
 
     # R.run_policy(policy) rebuilds its own config from build_r1_config and would discard the
     # overrides above (device, smoke budget, artifact paths). Replicate its body instead,
