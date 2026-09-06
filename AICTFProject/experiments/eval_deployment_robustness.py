@@ -99,8 +99,19 @@ def build_matrix(spec: dict, severities: tuple[str, ...] = SEVERITIES) -> list[d
     return cells
 
 
-def out_path(checkpoint_id: str, team_label: str, pole: str, cell: dict) -> Path:
-    return OUT_DIR / f"{checkpoint_id}__{team_label}__pole{pole}__{cell['family']}__{cell['severity']}.csv"
+def out_path(checkpoint_id: str, team_label: str, pole: str, z, cell: dict) -> Path:
+    """Collision-proof output name.
+
+    BUG FOUND IN PRODUCTION (2026-09-06): the original naming omitted ``z`` entirely, so
+    evaluating z=0 and z=1 against the SAME pole under the SAME checkpoint -- exactly what a
+    crossover study does for every pole -- produced identical filenames. The refusal-to-
+    overwrite check caught it before any data was lost (z=0's real files were intact), but the
+    z=1 run could not proceed until this was fixed. A latent-conditioned run must always
+    encode z; a non-latent run (z=None) omits the segment, which is the only case the original
+    naming was ever exercised with.
+    """
+    z_tag = f"__z{z}" if z is not None else ""
+    return OUT_DIR / f"{checkpoint_id}__{team_label}__pole{pole}{z_tag}__{cell['family']}__{cell['severity']}.csv"
 
 
 def main() -> int:
@@ -146,7 +157,7 @@ def main() -> int:
             print(f"    {c['family']:20s} {c['severity']:8s}  "
                   f"sensor_noise={c['sensor_noise']}  drift={c['drift']}  "
                   f"delay_ticks={c['delay_ticks']}")
-        print(f"\n  output naming: <checkpoint_id>__<team_label>__pole<X>__<family>__<severity>.csv")
+        print(f"\n  output naming: <checkpoint_id>__<team_label>__pole<X>[__z<N>]__<family>__<severity>.csv")
         print(f"  output dir: {OUT_DIR}")
         print(f"  collision policy: REFUSES if the target file already exists")
         return 0
@@ -163,7 +174,7 @@ def main() -> int:
 
     seeds = list(range(args.seeds_start, args.seeds_start + args.n_seeds))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    targets = [out_path(args.checkpoint_id, args.team_label, args.pole, c) for c in matrix]
+    targets = [out_path(args.checkpoint_id, args.team_label, args.pole, args.z, c) for c in matrix]
     existing = [p for p in targets if p.is_file()]
     if existing:
         raise SystemExit(f"REFUSING: {len(existing)} output file(s) already exist, would be "
