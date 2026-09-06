@@ -1,0 +1,27 @@
+{
+  "record_id": "EXPLORATORY_4V4_PI_A_FROZEN",
+  "status": "FROZEN_CHECKPOINT",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-06T21:40:00Z",
+  "implements": "EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json",
+
+  "policy": "pi_A_4v4 (exploratory)",
+  "trained_against": "Pole A (OP6 + size-normalized overlay, min_alive_for_defender=4)",
+  "seed": 7410001,
+  "recipe": "run_r1_repertoire_training.py::build_r1_config, unchanged",
+  "total_timesteps": 1000000,
+
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_A_specialist_4v4/ckpts/final_exploratory_pi_A_specialist_4v4.zip",
+    "sha256": "9afc32bd6b7d8168aa563fd1cdef23e4dd294f55cdf7a55109c440ca1478c228",
+    "bytes": 41749822
+  },
+
+  "run_history": {
+    "one_restart": "the run survived one process death; the run-lock mechanism (rl/training/run_artifacts.py::_acquire_run_lock) detected the dead PID, rotated the stale lock aside, and a fresh process resumed from the last periodic checkpoint. Checkpoints exist at 100k/200k/300k/400k before the restart; training continued through to the terminal checkpoint without further incident. This does not affect the checkpoint's validity -- it is the terminal weights of a 1,000,000-step run, exactly as specified.",
+    "live_pole_verified": "training_manifest.json's overlay_authority core._bt_resolved_profile_tensors() confirms live_opponent_key=OP6, min_alive_for_defender=4 throughout"
+  },
+
+  "NEXT": "pi_B_4v4 auto-launched on this checkpoint's appearance and is now training (seed 7420001). Once both terminal checkpoints exist, run the sealed 128-seed exploratory specialist-crossover evaluation on 14400001..14400128 per EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json."
+}
