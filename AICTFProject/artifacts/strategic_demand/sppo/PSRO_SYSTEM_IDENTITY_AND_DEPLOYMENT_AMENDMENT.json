@@ -1,0 +1,68 @@
+{
+  "record_id": "PSRO_SYSTEM_IDENTITY_AND_DEPLOYMENT_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-06T15:40:00Z",
+  "authority": "PI, 2026-09-06: 'define before evaluation whether you sample one policy from sigma once per episode or resample during an episode ... I strongly prefer sample once per episode and hold it' and 'that 98% belongs specifically to your Rung 2 architecture ... don't let that number escape its cage'.",
+
+  "timing_disclosure": {
+    "when": "written before any PSRO code, population, payoff matrix, or evaluation exists.",
+    "NOT_visible_when_written": ["any PSRO result of any kind"]
+  },
+
+  "amends": "PSRO_DOUBLE_ORACLE_BASELINE_SPEC.json -- corrects a factual error in its rationale and freezes two things that spec left underspecified.",
+
+  "CORRECTION_THE_98_PERCENT_FIGURE_WAS_MISATTRIBUTED": {
+    "what_the_spec_said": "PSRO_DOUBLE_ORACLE_BASELINE_SPEC.json's rationale claimed 'matching a population-based method while sharing ~98% of parameters', while separately naming the Rung 1 latent policy as System 2 at 2v2.",
+    "why_that_was_wrong": "98.0% is RUNG 2's sharing ratio (3,438,336 / 3,508,848, sharing actor_cnn + latent_actor.body). Rung 1 shares the CNN encoder only.",
+    "the_measured_truth": {
+      "rung_1": {"n_shared": 3334400, "n_unique": 3612784, "sharing_pct": 92.3, "shared_modules": ["actor_cnn"]},
+      "rung_2": {"n_shared": 3438336, "n_unique": 3508848, "sharing_pct": 98.0, "shared_modules": ["actor_cnn", "latent_actor.body"]},
+      "rung_3": {"n_shared": 3439621, "n_unique": 3507563, "sharing_pct": 98.1, "shared_modules": ["actor_cnn", "latent_actor.body", "latent_actor.action_head.macro_head"]}
+    },
+    "rule": "a sharing percentage may only be quoted alongside the SPECIFIC rung it was measured on. No sharing figure travels with the phrase 'our latent method' unqualified."
+  },
+
+  "SYSTEM_2_IDENTITY_FROZEN": {
+    "primary": "RUNG 1 (92.3% shared). It is the clean preservation result -- its own crossover gate PASSES on both poles AND its within-seed comparison against the zero-sharing reference shows NO_DETECTABLE_WITHIN_SEED_LOSS on either pole. It is also the checkpoint the 2v2 deployment-robustness study is already running on, so the two studies describe the same system.",
+    "why_not_rung_2": "Rung 2 has the more impressive compression number (98.0%) but carries SHARING_DAMAGED_SPECIALIZATION on Pole A. Choosing it as the headline system BECAUSE its sharing figure reads better, while it is the measurably more damaged policy, would be selecting on the number rather than the science.",
+    "rung_2_may_be_reported_as_a_SECONDARY_point": "permitted, and interesting, as a higher-sharing variant -- but ONLY with its detected Pole-A damage stated in the same breath. It is not the primary System 2 and must not be substituted for it in a headline claim.",
+    "if_a_scaled_counterpart_is_ever_compared": "its sharing ratio must be MEASURED on that architecture, not inherited from any 2v2 rung."
+  },
+
+  "PSRO_DEPLOYMENT_DEFINITION_FROZEN": {
+    "rule": "sample ONE policy from the meta-strategy sigma ONCE PER EPISODE, at the episode boundary, and HOLD it for the whole episode.",
+    "explicitly_forbidden": "resampling within an episode. That would grant PSRO a within-episode strategic-switching capability none of the other systems has, and would not correspond to selecting a strategic policy from a population.",
+    "why_this_is_the_fair_definition": "it matches how the population would actually be deployed -- pick a strategy, commit to it -- and mirrors the episode-boundary opponent sampling this codebase already uses (snapshot picks fire only on the done-triggered before-reset hook).",
+    "the_population_IS_the_system": "the PSRO result is the population plus its meta-strategy, not any individual member. Reporting the best single member against each pole would be selecting on the test set and is forbidden."
+  },
+
+  "MANDATORY_REPORTED_QUANTITIES": {
+    "for_every_system": ["per-pole win rate", "total parameters", "number of distinct policies", "training environment steps consumed", "GPU-hours consumed", "inference/storage footprint (checkpoint bytes)"],
+    "why": "PSRO trains k policies where the latent method trains one. Reporting win rate alone would hide the axis on which the latent method is actually interesting, and would equally hide any unfairness in the other direction.",
+    "measured_parameter_counts_at_2v2": {
+      "pi_G_generalist": {"params": 3473592, "n_policies": 1},
+      "latent_rung_1": {"params": 3612784, "n_policies": 1, "sharing_pct": 92.3},
+      "specialists_reference_ceiling": {"params": 6947184, "n_policies": 2},
+      "psro_population_per_k": {"k3": 10420776, "k4": 13894368, "k5": 17367960, "note": "k = initial member + one best response per frozen iteration"}
+    },
+    "derived_comparisons_available_before_any_result": {
+      "latent_rung1_vs_specialists": "48.0% fewer parameters for two strategies",
+      "latent_rung1_vs_psro_k5": "79.2% fewer parameters",
+      "caveat": "these are PARAMETER facts, known in advance and independent of outcome. They become a RESULT only when paired with measured performance."
+    }
+  },
+
+  "PRIORITY_ORDER_FROZEN": ["1. do not touch the running 2v2 robustness study", "2. weighted snapshot sampling, uniform-preserving, with the existing FP smoke proven behaviourally unchanged", "3. empirical payoff matrix with fail-closed snapshot loading and deterministic policy ordering", "4. Nash/LP solver with sanity checks: probabilities sum to 1, nonnegative mass, low constraint residual", "5. tiny NON-SCIENTIFIC PSRO smoke exercising the full loop", "6. only then the frozen 2v2 PSRO production run"],
+
+  "SCALED_PI_G_GAP": {
+    "finding": "train_specialist_scale.py supports --policy A|B only; pi_G is not wired for 4v4/6v6.",
+    "instruction": "wire --policy G into the scaling path, but do NOT block the already-ready 6v6 A/B specialist jobs on it -- the school machines can train A and B while G support is added.",
+    "why_it_matters": "without pi_G^6v6 there is no System 1 at 6v6, so 6v6 cannot reproduce the full three-system comparison no matter how good its latent policy is."
+  },
+
+  "4V4_STAYS_CONTINGENT": "no PSRO work at 4v4 until its exploratory specialists have run their sealed crossover gate. If they fail there is no reason to build a baseline table for that size.",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["running PSRO at any team size", "substituting Rung 2 for Rung 1 as the primary System 2", "quoting any sharing percentage without naming its rung", "within-episode meta-strategy resampling"]
+}
