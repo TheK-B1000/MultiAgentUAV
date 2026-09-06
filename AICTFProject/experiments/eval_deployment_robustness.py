@@ -73,9 +73,15 @@ def load_spec() -> dict:
     return spec
 
 
-def build_matrix(spec: dict) -> list[dict]:
-    """Every (family, severity) cell, including exactly one nominal baseline."""
+def build_matrix(spec: dict, severities: tuple[str, ...] = SEVERITIES) -> list[dict]:
+    """Every (family, severity) cell, including exactly one nominal baseline.
+
+    ``severities`` selects which ALREADY-FROZEN tiers to include. It cannot introduce a
+    severity value -- every number still comes from spec["TIERS"] -- so restricting to
+    ("medium",) selects the frozen mid tier rather than inventing one.
+    """
     tiers = spec["TIERS"]
+    SEVERITIES = severities  # noqa: N806 - shadow deliberately, see docstring
     cells = [{"family": "nominal", "severity": "nominal", "sensor_noise": 0.0,
              "drift": 0.0, "delay_ticks": 0}]
     for sev in SEVERITIES:
@@ -118,10 +124,20 @@ def main() -> int:
     ap.add_argument("--team-size", type=int, default=2, choices=(2, 4, 6),
                     help="team size used to resolve the POLE definitions. Defaults to 2, which "
                          "reproduces this script's original behaviour exactly.")
+    ap.add_argument("--severities", default=",".join(SEVERITIES),
+                    help="comma-separated subset of the ALREADY-FROZEN tiers to run, e.g. "
+                         "'medium' for the frozen 2v2 primary matrix. Cannot introduce a "
+                         "severity value: every number still comes from the spec's TIERS.")
     args = ap.parse_args()
 
+    sevs = tuple(s.strip() for s in args.severities.split(",") if s.strip())
+    unknown = [s for s in sevs if s not in SEVERITIES]
+    if unknown:
+        raise SystemExit(f"REFUSING: unknown severity tier(s) {unknown}; the frozen tiers are "
+                         f"{list(SEVERITIES)}. A new tier would have to be frozen in the spec.")
+
     spec = load_spec()
-    matrix = build_matrix(spec)
+    matrix = build_matrix(spec, sevs)
 
     if args.plan_only:
         print(f"DEPLOYMENT ROBUSTNESS SWEEP -- PLAN ONLY  {_now()}\n")
