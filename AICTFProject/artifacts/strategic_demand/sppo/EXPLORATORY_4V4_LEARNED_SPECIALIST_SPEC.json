@@ -1,0 +1,60 @@
+{
+  "record_id": "EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC",
+  "name": "Exploratory 4v4 learned-specialist feasibility arm",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-06T00:20:00Z",
+  "authority": "PI, 2026-09-06: 'do not throw 4v4 away. Just give it one properly separated exploratory learned-specialist attempt rather than violating the frozen no-V3 rule.'",
+
+  "WHAT_IS_CLOSED_AND_STAYS_CLOSED": {
+    "the_4v4_confirmatory_path": "CLOSED. The scripted GUARD/BREACH strategic-demand probe failed to certify at 4v4 under both V1 (delta_A -0.094, reversal) and the one frozen repair V2 (delta_A 0.000, exact tie, audited genuine). Per GUARD_DISTRIBUTED_V2_SPEC.json's stopping rule there is NO V3.",
+    "this_arm_does_not_reopen_it": "no scripted probe is designed, modified or re-run here. Pole A and Pole B are UNTOUCHED (OP6/OP7, defender_zone_frac, threat_radius, min_alive_for_defender=N). This arm asks a DIFFERENT question, not the same question with a new probe."
+  },
+
+  "THE_QUESTION": {
+    "verbatim": "Can learned specialists discover complementary responses at 4v4 even though the hand-designed strategic-demand probe was inconclusive?",
+    "why_it_is_legitimate": "the scripted probe is a PROXY for strategic demand. A proxy failing to certify does not establish that no complementary learned strategies exist; it establishes that this particular hand-designed pair did not exhibit the contrast. Learned specialists trained directly against each pole can test the underlying claim without the proxy.",
+    "why_it_is_exploratory": "it is a feasibility test run on spare compute, subordinate to the confirmatory 6v6 pipeline and the paper-critical 2v2 robustness study. Its outcome may be reported, but it does not carry the preregistered confirmatory status of the 2v2 or 6v6 results and must never be presented as if it did."
+  },
+
+  "TRAINING": {
+    "pi_A_4v4": "trained directly against Pole A (OP6 + size-normalized overlay, min_alive_for_defender=4), R1 recipe unchanged",
+    "pi_B_4v4": "trained directly against Pole B (OP7 + size-normalized overlay, min_alive_for_defender=4), R1 recipe unchanged",
+    "recipe": "identical to run_r1_repertoire_training.py::build_r1_config -- no hyperparameter is changed for this arm. The pre-existing max_agents>2 lr*=0.75 rule applies as it does to every larger-team run.",
+    "seeds": {"pi_A_4v4": 7410001, "pi_B_4v4": 7420001},
+    "seed_disjointness": "grepped against every JSON under artifacts/strategic_demand/ and artifacts/strategic_demand/sppo/: ZERO spec hits. The only textual hits are column values inside unrelated metrics.csv/episode_rows.csv data files (numeric coincidences, not allocations). Verified before this spec was committed.",
+    "steps": "1,000,000, the R1 specialist budget",
+    "compute_placement": "a SPARE school PC only. Must not delay 6v6 specialist/distillation training or the local 2v2 robustness study.",
+    "launcher": "experiments/train_specialist_scale.py --team-size 4 --policy A|B --exploratory-spec <this file>. The --exploratory-spec flag is the ONLY way to train at a NOT_CERTIFIED size; without it the confirmatory gate refuses exactly as before."
+  },
+
+  "EVALUATION": {
+    "question": "do the two learned specialists cross over against the two poles?",
+    "statistic": "delta_A_spec = V(pi_A,A) - V(pi_B,A);  delta_B_spec = V(pi_B,B) - V(pi_A,B)",
+    "gate": "delta_A_spec > 0 AND LCB95 > 0 AND delta_B_spec > 0 AND LCB95 > 0 -- the identical criterion the 2v2 specialist baseline used (SPECIALIST_BASELINE_SPEC.json)",
+    "seeds": "FRESH preregistered block 13200001..13200064, n=64, shared across both policies and both poles (paired). Verified ZERO hits under artifacts/strategic_demand/ before this spec was committed.",
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
+    "device": "cuda, the project's sealed-eval instrument",
+    "tie_or_reversal": "any delta with mean <= 0 writes a PREAUDIT flag and STOPS before any verdict-bearing record, matching eval_specialist_baseline.py's convention exactly",
+    "evaluator": "experiments/eval_specialist_crossover_scaled.py, which must resolve BOTH poles at the live team size (pole_A_genome(N) and pole_B_genome(N)); the 2v2 evaluator's no-arg pole_A_genome() and empty Pole-B overlay are both scaling gaps and must not be inherited.",
+    "one_shot": true
+  },
+
+  "PREREGISTERED_READINGS": [
+    {"pattern": "both LCB95 > 0", "reading": "learned specialists establish that complementary specialization exists at 4v4 despite the scripted probe's inconclusiveness. Licenses (on separate PI authorization) 4v4 latent distillation and a crossover eval. Reported as an EXPLORATORY finding, and as evidence that hand-designed strategic probes can underestimate learnable strategic complementarity at larger team sizes."},
+    {"pattern": "either LCB95 <= 0", "reading": "4v4 is CLOSED for this program. No further 4v4 attempt of any kind. The scaling story stands as: 2v2 and 6v6 achieve crossover; 4v4 is a non-monotonic exception that neither the scripted probe nor learned specialists could establish."},
+    {"pattern": "tie or reversal", "reading": "row-level integrity audit before any verdict; a genuine tie/reversal after audit falls under the 'either LCB95 <= 0' reading."}
+  ],
+
+  "STOPPING_RULE": "ONE attempt. If the learned specialists do not cross over, 4v4 is closed with no further training, no seed changes, no recipe changes and no re-evaluation. This mirrors the no-V3 rule on the probe side.",
+
+  "ARTIFACT_SEPARATION": {
+    "rule": "every artifact this arm produces is prefixed EXPLORATORY_ or lives under artifacts/exploratory_scale_4v4_specialists/, and every manifest carries arm=EXPLORATORY, confirmatory=false. Nothing from this arm may be placed on a confirmatory trend line or table without that label attached.",
+    "why": "the confirmatory records (2v2, 6v6) carry preregistered status this arm does not; mixing them would launder an exploratory result into a confirmatory one."
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": ["launching the 4v4 specialist training runs (PI go required, and spare-PC placement)", "4v4 latent distillation", "4v4 crossover eval of a latent policy", "any change to the poles, the R1 recipe, or the GUARD probe", "any second attempt if this one fails"],
+
+  "SEQUENCE": "freeze this spec -> add --exploratory-spec gate mode -> build the scaled specialist evaluator -> dry-run both -> (PI go, spare PC) train pi_A_4v4 and pi_B_4v4 -> bring checkpoints home -> frozen-block evaluation -> report under the preregistered readings"
+}

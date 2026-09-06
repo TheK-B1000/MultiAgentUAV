@@ -166,10 +166,40 @@ def main() -> int:
                     help="NON-SCIENTIFIC short run; requires a 999xxxxx seed")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--exploratory-spec", default=None,
+                    help="path to a FROZEN spec with arm=EXPLORATORY. The ONLY way to train "
+                         "at a size whose strategic demand is NOT_CERTIFIED. Artifacts are "
+                         "routed to an exploratory_ prefix and labelled so they can never be "
+                         "mistaken for confirmatory records.")
     args = ap.parse_args()
 
     n, policy, seed = int(args.team_size), args.policy, int(args.seed)
     is_smoke = bool(args.smoke)
+
+    # ---- exploratory arm: separately gated, separately labelled, never a bypass ----------
+    exploratory = None
+    if args.exploratory_spec:
+        sp = Path(args.exploratory_spec)
+        if not sp.is_file():
+            raise SystemExit(f"FAIL-CLOSED: --exploratory-spec not found: {sp}")
+        exploratory = json.loads(sp.read_text(encoding="utf-8"))
+        if not str(exploratory.get("status", "")).startswith("FROZEN"):
+            raise SystemExit(f"FAIL-CLOSED: exploratory spec is not frozen: "
+                             f"{exploratory.get('status')!r}")
+        if exploratory.get("arm") != "EXPLORATORY" or exploratory.get("confirmatory", True):
+            raise SystemExit("FAIL-CLOSED: --exploratory-spec must carry arm=EXPLORATORY and "
+                             "confirmatory=false; a confirmatory spec cannot be used to bypass "
+                             "the certification gate")
+        declared = (exploratory.get("TRAINING", {}).get("seeds") or {})
+        key = f"pi_{policy}_{n}v{n}"
+        if key not in declared:
+            raise SystemExit(f"FAIL-CLOSED: exploratory spec does not preregister {key}; it "
+                             f"declares {sorted(declared)}. This spec does not cover this "
+                             f"team size / policy.")
+        if not is_smoke and int(declared[key]) != seed:
+            raise SystemExit(f"FAIL-CLOSED: exploratory spec preregisters seed "
+                             f"{declared[key]} for {key}, but --seed={seed}. A production "
+                             f"exploratory run must use the preregistered seed exactly.")
 
     if is_smoke and not (SMOKE_SEED_MIN <= seed <= SMOKE_SEED_MAX):
         raise SystemExit(f"FAIL-CLOSED: --smoke requires a seed in "
@@ -178,12 +208,19 @@ def main() -> int:
         raise SystemExit(f"FAIL-CLOSED: seed {seed} is reserved for non-scientific smokes")
 
     verdict, cert_path = _certification_verdict(n)
-    if not is_smoke and verdict != "CERTIFIED":
+    if not is_smoke and verdict != "CERTIFIED" and exploratory is None:
         raise SystemExit(
             f"FAIL-CLOSED: {n}v{n} strategic demand is {verdict} ({cert_path.name}). "
             f"Production specialist training is gated on CERTIFIED: a pole pair that does not "
             f"demand different behaviour cannot support complementary specialists, and "
-            f"training them would spend GPU hours on an unanswerable question.")
+            f"training them would spend GPU hours on an unanswerable question. "
+            f"(An EXPLORATORY arm may proceed only via --exploratory-spec <frozen spec>.)")
+    if exploratory is not None:
+        print("!" * 78)
+        print(f"!!  EXPLORATORY ARM  --  {n}v{n} strategic demand is {verdict}; this run is NOT")
+        print(f"!!  confirmatory. Governed by {Path(args.exploratory_spec).name}.")
+        print(f"!!  Artifacts are prefixed exploratory_ and labelled arm=EXPLORATORY.")
+        print("!" * 78, flush=True)
 
     try:
         import torch
@@ -204,12 +241,15 @@ def main() -> int:
         spec["steps"] = SMOKE_TIMESTEPS
     if args.total_timesteps is not None:
         spec["steps"] = int(args.total_timesteps)
-    spec["label"] = (f"smoke_pi_{policy}_specialist_{n}v{n}" if is_smoke
-                     else f"pi_{policy}_specialist_{n}v{n}")
+    _prefix = "exploratory_" if exploratory is not None else ""
+    spec["label"] = (f"{_prefix}smoke_pi_{policy}_specialist_{n}v{n}" if is_smoke
+                     else f"{_prefix}pi_{policy}_specialist_{n}v{n}")
     R.POLICIES[policy] = spec
 
     cfg, contract = R.build_r1_config(policy)
-    art = (PROJECT_ROOT / "artifacts" / f"scale_{n}v{n}_specialists" / spec["label"])
+    _root = (f"exploratory_scale_{n}v{n}_specialists" if exploratory is not None
+             else f"scale_{n}v{n}_specialists")
+    art = PROJECT_ROOT / "artifacts" / _root / spec["label"]
     cfg.run_tag = spec["label"]
     cfg.device = str(args.device)
     cfg.checkpoint_dir = str(art / "ckpts")
@@ -232,7 +272,8 @@ def main() -> int:
     sha, dirty = _git_sha(), _git_dirty()
     print("=" * 78)
     print(f"SPECIALIST_SCALE  pi_{policy}  {n}v{n}   "
-          f"{'[SMOKE - NON-SCIENTIFIC]' if is_smoke else '[PRODUCTION]'}")
+          f"{'[SMOKE - NON-SCIENTIFIC]' if is_smoke else '[PRODUCTION]'}"
+          f"{'  [EXPLORATORY ARM - NOT CONFIRMATORY]' if exploratory is not None else ''}")
     print("=" * 78)
     print(f"  utc              {_now()}")
     print(f"  git sha          {sha}{'  (DIRTY)' if dirty else ''}")
@@ -274,6 +315,10 @@ def main() -> int:
         "certification_verdict": verdict,
         "checkpoint_dir": cfg.checkpoint_dir,
         "recipe_inherited_from": "experiments/run_r1_repertoire_training.py::build_r1_config",
+        "arm": "EXPLORATORY" if exploratory is not None else "CONFIRMATORY",
+        "confirmatory": exploratory is None,
+        "exploratory_spec": (Path(args.exploratory_spec).name if exploratory is not None
+                             else None),
         "distillation_started_by_this_script": False,
         "evaluation_started_by_this_script": False,
     }, indent=2), encoding="utf-8")
