@@ -110,6 +110,14 @@ def main() -> int:
     ap.add_argument("--n-seeds", type=int, default=32)
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--plan-only", action="store_true")
+    ap.add_argument("--rung", type=int, default=None, choices=(0, 1, 2, 3),
+                    help="load a sharing-ladder checkpoint (.pt, sharing_ladder_rungN_v1) via "
+                         "rl.ladder_rung1.load_rung instead of a custom_ppo .zip. Required for "
+                         "any ladder rung: load_custom_ppo_policy cannot read that format and "
+                         "raises CheckpointArchiveError.")
+    ap.add_argument("--team-size", type=int, default=2, choices=(2, 4, 6),
+                    help="team size used to resolve the POLE definitions. Defaults to 2, which "
+                         "reproduces this script's original behaviour exactly.")
     args = ap.parse_args()
 
     spec = load_spec()
@@ -147,7 +155,8 @@ def main() -> int:
 
     import torch
     from experiments.opponent_spec import (
-        assert_live_opponent_batch, install_keyed_opponent_overlays, pole_A_genome,
+        assert_live_opponent_batch, install_keyed_opponent_overlays,
+        pole_A_genome, pole_B_genome,
     )
     import experiments.phase0_collect_scorer_data as P0
     import experiments.r2_learned_crossover as R2
@@ -155,17 +164,47 @@ def main() -> int:
     from rl.curriculum import phase_from_tag
     from rl.custom_ppo import load_custom_ppo_policy
 
+    N = int(args.team_size)
+    R2.AGENTS = N
+
+    # Poles resolved at the LIVE team size. At N=2 pole_A_genome(2) reproduces the frozen
+    # record and pole_B_genome(2) adds no overlay, so this is a no-op for every 2v2 run this
+    # script has performed; at N>2 the Pole-B overlay is required and its absence would have
+    # silently deployed against the 2v2 gate.
+    genomes_by_pole = {
+        "A": {"OP6": pole_A_genome(N)},
+        "B": {"OP7": pole_B_genome(N)} if N != 2 else {},
+    }
+
     device = args.device if torch.cuda.is_available() or args.device == "cuda" else "cpu"
     print(f"DEPLOYMENT ROBUSTNESS SWEEP  {_now()}")
     print(f"  checkpoint {ck.name}  sha256 {ck_sha[:16]}...")
-    print(f"  team_label={args.team_label}  pole={args.pole}  z={args.z}")
+    print(f"  team_label={args.team_label}  team_size={N}  pole={args.pole}  z={args.z}"
+          f"{'  rung=' + str(args.rung) if args.rung is not None else ''}")
+    print(f"  pole overlay {genomes_by_pole[args.pole]}")
     print(f"  seeds {seeds[0]}..{seeds[-1]} (n={len(seeds)})")
     print(f"  {len(matrix)} cells, {len(matrix) * len(seeds)} episodes total\n", flush=True)
 
     probe = R2.build_env(device, seeds[0])
     obs_space, act_space = probe.observation_space, probe.action_space
+    grid_agents = int(obs_space.spaces["grid"].shape[0])
     probe.close()
-    policy = load_custom_ppo_policy(str(ck), obs_space, act_space, device=device)
+    if grid_agents != N:
+        raise SystemExit(f"FAIL-CLOSED: env grid agent dim {grid_agents} != team size {N}")
+
+    if args.rung is not None:
+        # Sharing-ladder checkpoints are a different format entirely; load_custom_ppo_policy
+        # raises CheckpointArchiveError on them.
+        from rl import ladder_rung1 as L1
+
+        model, branch_cfg, _ = L1.load_rung(args.rung, str(ck), obs_space, act_space,
+                                            device=device)
+        policy = L1.make_dispatch_policy(model, branch_cfg, device=device)
+        if args.z is None:
+            raise SystemExit("REFUSING: --rung is latent-dispatched; --z is required so the "
+                             "evaluated strategy is explicit rather than defaulted.")
+    else:
+        policy = load_custom_ppo_policy(str(ck), obs_space, act_space, device=device)
 
     def run_episode(seed: int, cell: dict) -> dict:
         env = R2.build_env(device, seed)
@@ -178,7 +217,7 @@ def main() -> int:
             policy.reset_strategy()
             core._bt_profile_override = None
             core._sds_opening_hold_steps = 0
-            genomes = {"OP6": pole_A_genome()} if args.pole == "A" else {}
+            genomes = genomes_by_pole[args.pole]
             install_keyed_opponent_overlays(core, genomes)
             key = P0.POLES[args.pole]
             env.env_method("set_phase", phase_from_tag(key))
