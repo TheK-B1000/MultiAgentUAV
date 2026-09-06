@@ -275,8 +275,22 @@ def main() -> int:
         print(f"  -> {art / 'run_manifest.json'}")
         return 0
 
+    # R.run_policy(policy) rebuilds its own config from build_r1_config and would discard the
+    # overrides above (device, smoke budget, artifact paths). Replicate its body instead,
+    # keeping the piece that actually matters: pre_rollout_env_setup installs the pole overlay
+    # and asserts the live opponent. Omitting that hook would train a "specialist" against a
+    # bare opponent with NO pole overlay -- the exact failure this wrapper exists to prevent.
+    from functools import partial
+
     print("  starting specialist PPO ...", flush=True)
-    R.run_policy(policy, cfg, contract) if hasattr(R, "run_policy") else R.orchestrate_training_run(cfg)
+    R.orchestrate_training_run(
+        cfg,
+        pre_rollout_env_setup=partial(
+            R.configure_r1_live_environment,
+            policy=policy,
+            config_contract=contract,
+        ),
+    )
     print("\n  training returned. This script does NOT start distillation or evaluation.")
     return 0
 
