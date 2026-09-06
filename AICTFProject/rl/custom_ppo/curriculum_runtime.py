@@ -22,6 +22,9 @@ class TrainingOpponentPool:
     cells: Optional[list[tuple[str, str, float]]] = None
     snapshots: list = field(default_factory=list)
     snapshot_rng: Any = None
+    #: Optional meta-strategy over ``snapshots`` (PSRO/Double-Oracle). None => UNIFORM,
+    #: which reproduces the pre-existing fictitious-play behaviour exactly.
+    snapshot_weights: Optional[list] = None
 
     @classmethod
     def from_hparams(cls, cfg: Any, hparams: Any) -> TrainingOpponentPool:
@@ -52,6 +55,8 @@ class TrainingOpponentPool:
                 raise ValueError("training_cell_distribution weights must sum to > 0")
             cells = [(o, m, max(0.0, w) / total) for o, m, w in parsed]
         snapshots = [str(x) for x in (getattr(cfg, "snapshot_opponent_pool", ()) or ())]
+        snapshot_weights = _validate_snapshot_weights(
+            getattr(cfg, "snapshot_opponent_weights", None), snapshots)
         return cls(
             enabled=bool(hparams.opponent_randomize_training) or bool(snapshots),
             tags=tags,
@@ -63,6 +68,7 @@ class TrainingOpponentPool:
             # would shift the scripted opponent sequence for a given seed, which is
             # exactly the compatibility break the additive design must avoid.
             snapshot_rng=np.random.default_rng(int(getattr(cfg, "seed", 0)) + 902),
+            snapshot_weights=snapshot_weights,
         )
 
     def attach_before_reset_hook(self, env: Any, trainer: Any) -> None:
@@ -83,6 +89,7 @@ def _resolve_training_opponent_pool(trainer: Any) -> Any:
         cells=None,
         snapshots=list(getattr(trainer, "_snapshot_opponent_pool", []) or []),
         snapshot_rng=getattr(trainer, "_rng_snapshot_opponent", None),
+        snapshot_weights=getattr(trainer, "_snapshot_opponent_weights", None),
     )
 
 
@@ -128,6 +135,38 @@ def _update_curriculum_after_episode(
     _set_curriculum_opponent(trainer, new_phase, env_index)
 
 
+def _validate_snapshot_weights(raw: Any, snapshots: list) -> Optional[list]:
+    """Validate a PSRO meta-strategy over the snapshot pool. FAILS CLOSED.
+
+    Returns None when no weights are supplied, which preserves UNIFORM sampling and so
+    reproduces the pre-existing fictitious-play behaviour exactly.
+
+    A malformed distribution must raise rather than be silently normalised or ignored: a
+    PSRO best response trained against the wrong mixture would look like a healthy run and
+    mean nothing, which is the same class of counterfeit success the snapshot-load guard
+    exists to prevent.
+    """
+    if raw is None:
+        return None
+    w = [float(x) for x in raw]
+    if not w:
+        return None
+    if not snapshots:
+        raise ValueError("snapshot_opponent_weights supplied without a snapshot pool")
+    if len(w) != len(snapshots):
+        raise ValueError(
+            f"snapshot_opponent_weights length {len(w)} does not match "
+            f"snapshot_opponent_pool length {len(snapshots)}")
+    if any(not np.isfinite(x) for x in w):
+        raise ValueError(f"snapshot_opponent_weights contains a non-finite value: {w!r}")
+    if any(x < 0.0 for x in w):
+        raise ValueError(f"snapshot_opponent_weights contains a negative mass: {w!r}")
+    total = sum(w)
+    if total <= 0.0:
+        raise ValueError(f"snapshot_opponent_weights must sum to > 0; got {total!r}")
+    return [x / total for x in w]
+
+
 def _sample_snapshot_opponents(trainer: Any, pool: Any, snapshots: list, done: np.ndarray) -> None:
     """Fictitious Play: pick a historical checkpoint per finished sub-env.
 
@@ -144,7 +183,22 @@ def _sample_snapshot_opponents(trainer: Any, pool: Any, snapshots: list, done: n
     for env_i, done_i in enumerate(done):
         if not bool(done_i):
             continue
-        pick = str(snapshots[int(rng.integers(0, len(snapshots)))])
+        weights = getattr(pool, "snapshot_weights", None)
+        if weights is None:
+            # UNIFORM -- byte-for-byte the pre-existing fictitious-play draw.
+            idx = int(rng.integers(0, len(snapshots)))
+        else:
+            # PSRO meta-strategy. Zero-mass members are unreachable by construction:
+            # searchsorted on the cumulative distribution can never land on an interval
+            # of zero width.
+            if len(weights) != len(snapshots):
+                raise RuntimeError(
+                    f"snapshot weights ({len(weights)}) and pool ({len(snapshots)}) "
+                    f"diverged at sample time; refusing to train against an unknown mixture")
+            cum = np.cumsum(weights)
+            idx = int(np.searchsorted(cum, float(rng.random()) * float(cum[-1]), side="right"))
+            idx = min(idx, len(snapshots) - 1)
+        pick = str(snapshots[idx])
         try:
             core = trainer.env.get_attr("core", indices=[env_i])[0]
             if core._load_snapshot_policy(pick) is None:

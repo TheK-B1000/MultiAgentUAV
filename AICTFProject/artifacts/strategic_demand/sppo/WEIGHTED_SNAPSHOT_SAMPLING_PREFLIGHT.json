@@ -1,0 +1,39 @@
+{
+  "record": "Weighted snapshot sampling preflight",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-06T14:40:09Z",
+  "implements": "PSRO_DOUBLE_ORACLE_BASELINE_SPEC.json#WHAT_MUST_BE_BUILT.1_weighted_snapshot_sampling",
+  "requirements_source": "PI, 2026-09-06 (four stated requirements)",
+  "checks": {
+    "1_no_weights_reproduces_uniform_draw_for_draw": true,
+    "1b_empty_weights_also_uniform": true,
+    "2_fixed_seed_and_weights_is_deterministic": true,
+    "3a_zero_probability_member_never_sampled": true,
+    "3b_nonuniform_mixture_respected": true,
+    "3c_degenerate_sigma_selects_only_member_0": true,
+    "3d_malformed_distributions_fail_closed": true,
+    "4_snapshot_load_guard_preserved": true
+  },
+  "passed": "8/8",
+  "detail": {
+    "uniform_counts": {
+      "pi_2.zip": 163,
+      "pi_0.zip": 167,
+      "pi_1.zip": 170
+    },
+    "weighted_counts_p25_p75_p0": {
+      "pi_1.zip": 219,
+      "pi_0.zip": 81
+    },
+    "observed_frac_pi_0": 0.27,
+    "malformed_fail_closed": {
+      "length_mismatch": true,
+      "negative_mass": true,
+      "all_zero": true,
+      "non_finite": true,
+      "weights_without_pool": true
+    },
+    "load_guard_source_present": true
+  },
+  "VERDICT": "PASS"
+}

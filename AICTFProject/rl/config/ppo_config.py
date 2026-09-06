@@ -157,6 +157,9 @@ class PPOConfig:
     # much harder for a D1/D3 config to wander into the snapshot branch.
     # Empty (the default) leaves the scripted path completely untouched.
     snapshot_opponent_pool: tuple = ()
+    #: Optional PSRO/Double-Oracle meta-strategy over ``snapshot_opponent_pool``.
+    #: Empty/None => UNIFORM sampling, reproducing fictitious-play behaviour exactly.
+    snapshot_opponent_weights: tuple = ()
     opponent_pool: tuple[str, ...] = field(default_factory=lambda: ("OP1", "OP2", "OP3"))
     # Per-tag sampling probabilities for opponent_randomize, aligned positionally with
     # opponent_pool. Empty tuple (default) = uniform 1/N over the pool. Non-empty must
