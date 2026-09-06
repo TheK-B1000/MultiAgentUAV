@@ -1,0 +1,74 @@
+{
+  "record_id": "ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT",
+  "name": "2v2 deployment robustness: frozen checkpoint, seed block, and mid-severity test matrix",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-06T01:40:00Z",
+  "authority": "PI, 2026-09-06: 'use the fresh block 13400001..13400128 with 128 seeds per cell ... Use Rung 1 as the frozen checkpoint ... freeze mid severity only as the primary robustness experiment.'",
+
+  "amends": "DEPLOYMENT_ROBUSTNESS_SPEC.json#TEST_MATRIX, which was deliberately left open: 'exact N/M/K to be fixed when the team-size training entrypoint and evaluation seed blocks are frozen'. This record fixes N/M/K for the 2v2 study and nothing else.",
+  "rule": "APPEND. The frozen TIERS (severity values) and DEPLOYMENT_ONLY_GUARANTEE are UNCHANGED. No severity value is invented or adjusted here; this record only SELECTS which already-frozen tier is primary.",
+
+  "timing_disclosure": {
+    "when": "written before any 2v2 robustness episode has been run and before any seed in the block below has been spent.",
+    "visible_when_written": ["the Rung 1 frozen record and its verified checkpoint sha", "the ladder results (Rungs 0-3)", "the 4v4/6v6 certification outcomes", "a 1-seed plumbing smoke on non-scientific seed 99960001, since deleted"],
+    "NOT_visible_when_written": ["any robustness measurement on the frozen block", "any perturbed win rate at any severity"]
+  },
+
+  "POLICY_UNDER_TEST": {
+    "checkpoint": "artifacts/strategic_demand/sppo/sharing_ladder/rung1/ckpts/final_rung1.pt",
+    "format": "sharing_ladder_rung1_v1",
+    "sha256": "815f818ac11f0546ecdaf77988f39cce2b9ea8b273acde58e6f752c8c0bdc7d1",
+    "sha_verified_against": "RUNG1_STUDENT_FROZEN.json -- match confirmed at freeze time",
+    "teacher_fidelity": {"agree_z0_vs_piA": 0.9673, "agree_z1_vs_piB": 0.9888},
+    "why_rung_1": "it is the clean preservation result: its own crossover gate PASSES on both poles AND its within-seed comparison against the zero-sharing reference shows NO_DETECTABLE_WITHIN_SEED_LOSS on either pole. Rung 2 passes its gate but carries a statistically detected Pole-A specialization loss, so a degradation under perturbation would be confounded with damage it already has. Rung 3 fails its own gate and missed its fidelity band.",
+    "frozen": "the checkpoint is NOT retrained, fine-tuned, adapted, or selected among during this study. Deployment only."
+  },
+
+  "SEED_BLOCK": {
+    "block": "13400001..13400128",
+    "n_per_cell": 128,
+    "robustness_only": "this block is reserved for the 2v2 deployment robustness study and must not be reused for training, ladder evaluation, certification, or any other purpose.",
+    "pairing": "THE SAME 128 seeds are used for nominal and for all three perturbations, so every perturbed condition is paired seed-by-seed against nominal. This is what makes R_A/R_B below a within-seed contrast rather than a difference of two independent averages -- the same reasoning that motivated the matched-seed ladder protocol.",
+    "disjointness_verified": "exact-literal grep of 13400001 / 13400064 / 13400128 and the pattern 134000[0-9]{2} against every JSON under artifacts/strategic_demand/ and artifacts/strategic_demand/sppo/: ZERO spec hits. Verified immediately before this record was committed."
+  },
+
+  "TEST_MATRIX_PRIMARY": {
+    "conditions": [
+      {"name": "nominal", "sensor_noise": 0.0, "drift": 0.0, "delay_ticks": 0},
+      {"name": "localization_noise_medium", "sensor_noise": 0.06, "drift": 0.0, "delay_ticks": 0},
+      {"name": "motion_error_medium", "sensor_noise": 0.0, "drift": 0.06, "delay_ticks": 0},
+      {"name": "control_delay_medium", "sensor_noise": 0.0, "drift": 0.0, "delay_ticks": 2}
+    ],
+    "severity_provenance": "every value above is the 'medium' tier ALREADY FROZEN in DEPLOYMENT_ROBUSTNESS_SPEC.json#TIERS. Nothing is invented here.",
+    "one_at_a_time": "exactly one disturbance family is active per condition. No combined perturbations in the primary study.",
+    "cells_per_condition": ["z0 on Pole A", "z1 on Pole A", "z0 on Pole B", "z1 on Pole B"],
+    "episodes": "4 conditions x 4 cells x 128 seeds = 2048 episodes",
+    "estimated_wall_clock": "~23 h at the measured ~40 s/episode",
+    "device": "cuda, the project's sealed-eval instrument"
+  },
+
+  "PRIMARY_QUANTITIES": {
+    "per_condition_crossover": {
+      "delta_A": "V(z0,A) - V(z1,A)",
+      "delta_B": "V(z1,B) - V(z0,B)",
+      "gate": "PASS iff delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0 -- the identical criterion used everywhere in this program. No threshold is adjusted for the presence of a disturbance.",
+      "question_answered": "does crossover still pass under this disturbance?"
+    },
+    "paired_degradation_vs_nominal": {
+      "R_A": "delta_A(q) - delta_A(nominal), computed WITHIN seed",
+      "R_B": "delta_B(q) - delta_B(nominal), computed WITHIN seed",
+      "question_answered": "how much did the disturbance degrade crossover relative to nominal?",
+      "note": "these two questions are distinct and are reported separately. A condition can retain a passing gate while showing a statistically detectable R, exactly as Rung 2 did against the sharing reference."
+    },
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7, seed as the resampling unit"
+  },
+
+  "DEPLOYMENT_ONLY": {
+    "restated": "perturbations are applied ONLY at deployment, by direct tensor assignment on the already-constructed core after reset. Training was nominal and is not revisited. No retraining, fine-tuning, adaptation, or checkpoint selection occurs anywhere in this study.",
+    "guarantee_record": "DEPLOYMENT_ONLY_GUARANTEE_CHECK.json (VERDICT PASS) covers the structural side: config defaults are zero and no training entrypoint imports the control-delay wrapper."
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["low or high severity tiers (a separately frozen additive dose-response extension, only if time remains after the primary result lands)", "combined perturbations", "robustness testing at 4v4 or 6v6 (neither has a frozen latent policy)", "any retraining or adaptation", "reuse of the 13400001..13400128 block for any other purpose", "substituting a different checkpoint for Rung 1"],
+
+  "SEQUENCE": "freeze this record -> run the 4 conditions x 4 cells on the frozen block -> report per-condition gate AND paired R_A/R_B against nominal -> only then consider the low/high dose-response extension"
+}
