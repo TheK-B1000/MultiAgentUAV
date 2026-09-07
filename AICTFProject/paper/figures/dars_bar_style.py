@@ -35,11 +35,12 @@ METHOD_COLORS = {
 METHOD_ORDER = ("ours", "baseline_1", "baseline_2")
 
 
-class Bar(TypedDict):
+class Bar(TypedDict, total=False):
     label: str          # bar x-axis label, e.g. "Ours", "Jacob et al.", "Self-play"
     value: float         # percentage, 0-100
     error: float          # +/- error bar magnitude, same units as value
-    color_key: str         # one of METHOD_COLORS' keys
+    color_key: str         # key into the `colors` mapping (METHOD_COLORS by default)
+    hatch: str            # optional matplotlib hatch pattern, e.g. "" or "///"
 
 
 class Panel(TypedDict):
@@ -48,17 +49,19 @@ class Panel(TypedDict):
     bars: Sequence[Bar]
 
 
-def _panel(ax, panel: Panel) -> None:
+def _panel(ax, panel: Panel, colors: dict[str, str], *, bar_width: float,
+          label_fontsize: float, value_fmt: str) -> None:
     xs = range(len(panel["bars"]))
     for x, bar in zip(xs, panel["bars"]):
-        color = METHOD_COLORS[bar["color_key"]]
-        ax.bar(x, bar["value"], yerr=bar["error"], width=0.6, color=color,
-              edgecolor="black", linewidth=0.6, capsize=3,
+        color = colors[bar["color_key"]]
+        ax.bar(x, bar["value"], yerr=bar["error"], width=bar_width, color=color,
+              edgecolor="black", linewidth=0.6, capsize=3, hatch=bar.get("hatch", ""),
               error_kw={"elinewidth": 0.8, "capthick": 0.8})
-        ax.text(x, bar["value"] + bar["error"] + 2.5, f"{bar['value']:.1f}% ± {bar['error']:.1f}",
-                ha="center", va="bottom", fontsize=7.5)
+        ax.text(x, bar["value"] + bar["error"] + 2.5,
+                value_fmt.format(value=bar["value"], error=bar["error"]),
+                ha="center", va="bottom", fontsize=label_fontsize)
     ax.set_xticks(list(xs))
-    ax.set_xticklabels([b["label"] for b in panel["bars"]])
+    ax.set_xticklabels([b["label"] for b in panel["bars"]], fontsize=label_fontsize)
     ax.set_ylim(0, 100)
     ax.set_ylabel(panel["ylabel"])
     ax.set_title(panel["title"], fontsize=9.5, fontweight="bold")
@@ -66,16 +69,32 @@ def _panel(ax, panel: Panel) -> None:
     ax.spines["right"].set_visible(False)
 
 
-def build_grouped_bar_figure(panels: Sequence[Panel], name: str, caption: str | None = None):
-    """One evenly-spaced row of panels, DARS-style. Width scales with panel count."""
+def build_grouped_bar_figure(panels: Sequence[Panel], name: str, caption: str | None = None,
+                             colors: dict[str, str] | None = None, bar_width: float = 0.6,
+                             label_fontsize: float = 7.5,
+                             value_fmt: str = "{value:.1f}% ± {error:.1f}"):
+    """One evenly-spaced row of panels, DARS-style. Width scales with panel count.
+
+    `colors` defaults to METHOD_COLORS (the method-comparison palette this module was built
+    for); pass a different mapping to reuse this same layout for a different comparison axis
+    (e.g. figure_style.COLORS' pole palette), as ROBUSTNESS_2V2_RUNG1_RESULT's figure does.
+
+    `bar_width`/`label_fontsize`/`value_fmt` default to the original DARS-reference values
+    (0.6, 7.5, one-decimal "X.X% ± Y.Y"), which were tuned for 3 bars/panel. A panel with MORE
+    bars (e.g. 4 crossover cells) needs a narrower bar_width and/or smaller label_fontsize and/
+    or a shorter value_fmt to keep adjacent labels from overlapping -- tune per use, don't
+    change the shared defaults, so the original 3-bar figures stay pixel-identical.
+    """
     apply_style()
+    palette = colors if colors is not None else METHOD_COLORS
     n = len(panels)
     width = TWO_COLUMN if n > 1 else ONE_COLUMN
     fig, axes = plt.subplots(1, n, figsize=(width, 2.6), sharey=True)
     if n == 1:
         axes = [axes]
     for ax, panel in zip(axes, panels):
-        _panel(ax, panel)
+        _panel(ax, panel, palette, bar_width=bar_width, label_fontsize=label_fontsize,
+              value_fmt=value_fmt)
     for ax in axes[1:]:
         ax.tick_params(labelleft=False)   # sharey=True gotcha from Figure 2 -- see its history
         ax.set_ylabel("")
