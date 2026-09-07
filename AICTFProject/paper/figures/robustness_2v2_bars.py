@@ -58,11 +58,20 @@ def _load(pole: str, z: int, family: str, severity: str) -> np.ndarray:
 
 
 def _mean_ci_pct(wins: np.ndarray, n_boot=20000, alpha=0.05, rng_seed=7):
+    """Mean and the TRUE (possibly asymmetric) percentile-bootstrap 95% CI, in percent.
+
+    Returns (mean, lower_err, upper_err) where lower_err/upper_err are the distances from
+    the mean down to the CI's low bound and up to its high bound -- i.e. exactly what
+    matplotlib's asymmetric yerr wants, and exactly what "error bars are the 95% CI" means.
+    A single symmetric half-width would silently misrepresent a skewed bootstrap
+    distribution as symmetric.
+    """
     rng = np.random.default_rng(rng_seed)
     idx = rng.integers(0, wins.size, size=(n_boot, wins.size))
     boots = wins[idx].mean(axis=1)
     lo, hi = np.percentile(boots, [100 * alpha / 2, 100 * (1 - alpha / 2)])
-    return wins.mean() * 100, ((hi - lo) / 2) * 100
+    mean = wins.mean()
+    return mean * 100, max(0.0, (mean - lo) * 100), max(0.0, (hi - mean) * 100)
 
 
 def main() -> dict:
@@ -78,12 +87,12 @@ def main() -> dict:
         for pole in ("A", "B"):
             for mode in ("A", "B"):
                 wins = _load(pole, 0 if mode == "A" else 1, family, severity)
-                value, err = _mean_ci_pct(wins)
+                value, err_lo, err_hi = _mean_ci_pct(wins)
                 x = group_x[pole] + mode_dx[mode]
-                ax.bar(x, value, yerr=err, width=bar_w, color=MODE_COLOR[mode],
-                      edgecolor="black", linewidth=0.6, capsize=3,
+                ax.bar(x, value, yerr=[[err_lo], [err_hi]], width=bar_w,
+                      color=MODE_COLOR[mode], edgecolor="black", linewidth=0.6, capsize=3,
                       error_kw={"elinewidth": 0.8, "capthick": 0.8})
-                ax.text(x, value + err + 2.5, f"{value:.0f}", ha="center", va="bottom",
+                ax.text(x, value + err_hi + 2.5, f"{value:.0f}", ha="center", va="bottom",
                         fontsize=7)
         ax.set_xticks([group_x["A"], group_x["B"]])
         ax.set_xticklabels(["Pole A", "Pole B"])
@@ -105,10 +114,11 @@ def main() -> dict:
     caption = (
         "Each panel is a different way the deployment environment can be imperfect\n"
         "(applied only after training, never during it). Under each condition, the SAME\n"
-        "frozen policy is tested against two opponent styles, Pole A and Pole B. Good\n"
-        "behavior is the blue bar (Mode A) winning more against Pole A and the orange bar\n"
-        "(Mode B) winning more against Pole B, in every panel. 128 matched test scenarios\n"
-        "per bar. Source: ROBUSTNESS_2V2_RUNG1_RESULT.json."
+        "frozen policy is tested against two opponent styles, Pole A and Pole B. Desired\n"
+        "specialization is indicated when Mode A outperforms Mode B against Pole A, while\n"
+        "Mode B outperforms Mode A against Pole B. Bars show the mean win rate over 128\n"
+        "matched test scenarios; error bars are 95% bootstrap confidence intervals (paired\n"
+        "percentile bootstrap, 20,000 resamples). Source: ROBUSTNESS_2V2_RUNG1_RESULT.json."
     )
     fig.text(0.5, -0.14, caption, ha="center", va="top", fontsize=8, style="italic")
     fig.subplots_adjust(wspace=0.12, bottom=0.22, top=0.86)
