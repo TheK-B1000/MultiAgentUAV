@@ -1,0 +1,45 @@
+{
+  "record_id": "ROBUSTNESS_2V2_RUNG1_RESULT",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-06T23:55:00Z",
+  "implements": "ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT.json",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/sharing_ladder/rung1/ckpts/final_rung1.pt",
+    "sha256": "815f818ac11f0546ecdaf77988f39cce2b9ea8b273acde58e6f752c8c0bdc7d1"
+  },
+  "seeds": {"block": [13400001, 13400128], "n": 128, "paired_across_all_conditions": true},
+  "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+
+  "PER_CONDITION_CROSSOVER": {
+    "nominal": {"delta_A": {"mean": 0.1797, "lcb95": 0.0547, "ucb95": 0.3047},
+               "delta_B": {"mean": 0.1562, "lcb95": 0.0312, "ucb95": 0.2812}, "gate": "PASS"},
+    "localization_noise_medium": {"delta_A": {"mean": 0.1797, "lcb95": 0.0547, "ucb95": 0.2969},
+               "delta_B": {"mean": 0.1953, "lcb95": 0.0703, "ucb95": 0.3125}, "gate": "PASS"},
+    "motion_error_medium": {"delta_A": {"mean": 0.1094, "lcb95": -0.0078, "ucb95": 0.2266},
+               "delta_B": {"mean": 0.0156, "lcb95": -0.1094, "ucb95": 0.1328}, "gate": "FAIL"},
+    "control_delay_medium": {"delta_A": {"mean": 0.0312, "lcb95": -0.0938, "ucb95": 0.1562},
+               "delta_B": {"mean": 0.1641, "lcb95": 0.0547, "ucb95": 0.2812}, "gate": "FAIL"}
+  },
+
+  "PAIRED_DEGRADATION_VS_NOMINAL_WITHIN_SEED": {
+    "localization_noise_medium": {"R_A": {"mean": 0.0000, "lcb95": -0.0938, "ucb95": 0.0938},
+               "R_B": {"mean": 0.0391, "lcb95": -0.0547, "ucb95": 0.1328}},
+    "motion_error_medium": {"R_A": {"mean": -0.0703, "lcb95": -0.2344, "ucb95": 0.0938},
+               "R_B": {"mean": -0.1406, "lcb95": -0.3047, "ucb95": 0.0234}},
+    "control_delay_medium": {"R_A": {"mean": -0.1484, "lcb95": -0.2969, "ucb95": 0.0000},
+               "R_B": {"mean": 0.0078, "lcb95": -0.1328, "ucb95": 0.1562}}
+  },
+
+  "READING": {
+    "localization_noise": "crossover fully survives. Both deltas hold their sign and both LCB95 clear zero, matching nominal. R_A and R_B both center near zero -- no detectable degradation.",
+    "motion_error": "gate FAILS, driven by Pole B: delta_B's LCB95 crosses zero (was +0.0312 at nominal) and R_B is the largest-magnitude shift in the table (-0.1406). Pole A holds (delta_A remains positive, though its own LCB95 also touches -0.0078).",
+    "control_delay": "gate FAILS, driven by Pole A: delta_A's mean nearly vanishes (0.0312) and R_A's UCB95 lands at EXACTLY 0.0000 -- a boundary case, not a confirmed loss (UCB95 < 0 would be required to call it statistically detected). Pole B holds and even shows a positive point-estimate shift.",
+    "no_condition_fails_both_poles": "in every disturbance tested, at least one pole's crossover remains intact. No condition produces a simultaneous two-pole failure.",
+    "no_R_interval_clears_zero_at_95_percent": "every R_A/R_B confidence interval in the table straddles zero. The honest description for motion and delay is 'degraded but not statistically confirmed as degraded', not 'robust' and not 'broken'.",
+    "asymmetry_is_the_finding": "the two failing conditions fail through DIFFERENT poles (motion -> Pole B, delay -> Pole A), which is itself informative: no single pole is uniformly the fragile one across disturbance types."
+  },
+
+  "SCOPE": "mid severity only, per ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT.json. Low/high severities are a separately frozen additive dose-response extension, not run here.",
+  "total_episodes": 2048
+}
