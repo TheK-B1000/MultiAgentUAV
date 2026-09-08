@@ -1,0 +1,30 @@
+{
+  "record_id": "4V4_POLE_B3_SELECTED",
+  "status": "FROZEN_SELECTION",
+  "utc": "2026-09-08T17:10:00Z",
+  "implements": "4V4_POLE_B3_SELECTION_RULE.json",
+  "evidence": "4V4_POLE_B3_DIFFICULTY_SCREEN.json",
+
+  "SELECTED_CANDIDATE": "B3-3_2v1",
+  "genome_path": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+  "genome": {
+    "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+    "derived_from": "OP7",
+    "base_opponent": "OP7",
+    "overlay": {"lock_defender": 10, "enable_2v1": true},
+    "opening_hold_steps": 0
+  },
+
+  "SELECTION_BASIS": "first candidate in fixed order B3-1 -> B3-2 -> B3-3 that passed BOTH frozen conditions: (1) scripted G_A and G_B LCB95>0; (2) pi_A2@200k win rate in [0.35, 0.75]. B3-1 and B3-2 failed contestability (both 0.9167). B3-3 contested at 0.5417.",
+
+  "POLE_A_UNCHANGED": "SDS2_A_payoff_INIT_3 via pole_A_genome(4); not reopened.",
+
+  "NEXT_AUTHORIZED_STEP": "properly-powered n=192 joint scripted certification (Pole A + B3-3) per 4V4_POLE_B3_N192_CERTIFICATION_AMENDMENT.json. Passing the disposable screen is not certification.",
+
+  "NOT_AUTHORIZED": [
+    "training fresh specialists against B3-3 before n=192 certification PASS",
+    "widening the contestability band",
+    "promoting B3-1 or B3-2 after seeing B3-3",
+    "reusing spent certification seed blocks"
+  ]
+}

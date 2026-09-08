@@ -4,8 +4,7 @@
 \usepackage{booktabs}
 \usepackage{hyperref}
 
-\title{Latent-Conditioned Policy Compression and the Limits of Behavioral Supervision:\\
-A Mechanistic Study of Strategic Crossover}
+\title{Preserving Strategy Specialization in Shared Multi-Robot Policies}
 \author{TheK-B1000}
 \date{September 2026}
 
@@ -13,17 +12,123 @@ A Mechanistic Study of Strategic Crossover}
 
 \maketitle
 
+%======================================================================
+\section*{Abstract}
+%======================================================================
+
+Multi-robot teams operating against heterogeneous adversaries may require
+qualitatively different coordination strategies under different opponent
+regimes. Deploying a separate network for every regime preserves specialization
+but scales poorly; a single shared policy conditioned on a discrete strategy
+code is more compact, yet strategically important behavior can be difficult not
+only to learn, but also to preserve under continued optimization and parameter
+sharing. We study strategy preservation in a partially observable maritime
+multi-robot Capture-the-Flag task with two scripted opponent regimes. We
+transfer complementary expert strategies into strategy-conditioned policies and
+systematically increase parameter sharing from perception to higher-level action
+components. We additionally introduce \emph{Strategy-Preserving PPO} (SP-PPO),
+combining \emph{Counterfactual Strategy Correction} (CSC) with
+\emph{Strategy-Preserving Fine-Tuning} (SPFT), as an intervention family for
+studying whether strategically consequential decisions can be identified and
+retained during continued optimization. Evaluation separates action imitation,
+policy separation, and payoff-level strategic specialization. In the
+progressive-sharing study, sharing only the perception encoder preserves the
+specialization criterion with no detectable paired loss relative to independent
+experts, while deeper sharing yields detectable or fit-confounded degradation.
+These results clarify which components of a multi-robot policy can be shared
+while attempting to retain opponent-conditioned coordination strategies under
+the stated training and evaluation protocol.
+
+%======================================================================
 \section{Introduction}
+%======================================================================
 
-\section{Methodology}
+Multi-robot systems that operate against heterogeneous environments or
+adversaries often cannot rely on a single coordination style. Different opponent
+behaviors can require qualitatively different team strategies---for example, a
+broad zone defense may favor one form of team organization, while a compact,
+reactive defense favors another. Learning policies that express the right
+strategy for the encountered regime is therefore a central robotics problem,
+not merely a representation-learning detail.
 
-\subsection{Problem Definition and Preliminaries}
+Storing a separate neural policy for every operating regime preserves
+specialization but does not scale well as the number of regimes grows. Memory,
+deployment complexity, and maintenance cost all increase with the number of
+independent networks. A natural alternative is one shared multi-robot policy
+conditioned on a small discrete \emph{strategy code}: the code selects which
+opponent-conditioned behavior the shared policy should express.
 
-\paragraph{Environment and agents.}
-We study a partially observable, adversarial multi-robot setting instantiated as a 2-vs-2 naval
-capture-the-flag task on a symmetric maritime arena. Two teams, Blue (learner) and Red
-(opponent), each control $|B|=2$ autonomous surface vessels. We model the interaction as a
-finite-horizon partially observable Markov game
+Parameter sharing, however, can erase strategically important differences even
+when average action imitation remains high. Closed-loop coordination depends on
+temporally extended decisions; agreement on individual actions does not
+automatically imply that each conditioned mode retains its intended task
+advantage. The scientific question of this paper is therefore:
+
+\begin{quote}
+\emph{Can a single strategy-conditioned multi-robot policy preserve multiple
+opponent-specific strategies, and how much neural-network parameter sharing can
+be introduced before those strategies interfere with one another?}
+\end{quote}
+
+Existing latent-policy and multi-agent reinforcement learning methods have shown
+that a shared policy can represent diverse behaviors, roles, or
+opponent-conditioned responses. However, substantially less attention has been
+paid to whether strategically distinct behaviors remain preserved as
+increasingly large portions of the policy are forced to share parameters. This
+distinction is important because high action-level imitation fidelity does not
+necessarily imply preservation of closed-loop strategic behavior.
+
+We therefore study strategy preservation under progressive policy sharing in a
+multi-robot adversarial task. We first establish independently trained expert
+policies with complementary opponent-conditioned behavior, then transfer these
+strategies into strategy-conditioned policies while systematically increasing
+parameter sharing from perception to higher-level action components. In
+addition, we introduce \emph{Strategy-Preserving PPO} (SP-PPO) as a
+methodological intervention family:
+\emph{Counterfactual Strategy Correction} (CSC) identifies which strategically
+important decisions should be corrected using matched counterfactual rollouts,
+and \emph{Strategy-Preserving Fine-Tuning} (SPFT) aims to prevent those
+corrections from being erased during continued PPO optimization. Our evaluation
+separates action imitation, policy separation, and payoff-level strategic
+specialization, allowing us to identify when a policy remains locally similar to
+its experts while losing behaviorally meaningful strategy specialization.
+
+The main contributions of this work are:
+\begin{enumerate}
+  \item We introduce a progressive sharing study that isolates the effect of
+  sharing perception, policy-backbone, and action-output parameters on
+  opponent-conditioned strategy specialization while holding expert
+  supervision, training data, optimization budget, and evaluation conditions
+  fixed.
+  \item We distinguish action-level imitation fidelity from closed-loop
+  strategic fidelity and evaluate specialization through matched-seed payoff
+  contrasts rather than latent separation or action agreement alone.
+  \item We develop \emph{Strategy-Preserving PPO} (SP-PPO), a multi-robot
+  policy-learning framework for studying whether counterfactual strategy
+  correction and retention-based fine-tuning can preserve opponent-conditioned
+  strategies during continued optimization.
+  \item Within SP-PPO, we develop \emph{Counterfactual Strategy Correction}
+  (CSC), which uses matched continuation rollouts to identify strategically
+  consequential action interventions and incorporates positively validated
+  interventions as strategy-conditioned corrective supervision.
+  \item Within SP-PPO, we develop \emph{Strategy-Preserving Fine-Tuning}
+  (SPFT), which augments CSC with temporal policy retention to reduce the
+  washout of sparse strategy-defining updates during continued PPO
+  optimization.
+\end{enumerate}
+
+%======================================================================
+\section{Problem Setup}
+\label{sec:setup}
+%======================================================================
+
+\subsection{Environment and agents}
+
+We study a partially observable, adversarial multi-robot setting instantiated
+as a nominal $2$-vs-$2$ naval Capture-the-Flag task on a symmetric maritime
+arena. Blue is the learned multi-robot team; Red is a scripted or frozen
+adversarial opponent. Each side controls $|B|=|R|=2$ autonomous surface vessels.
+We model the interaction as a finite-horizon partially observable Markov game
 \[
 G =
 \left(
@@ -33,209 +138,218 @@ G =
 \]
 with $\mathcal{N}=B\cup R$.
 
-At each simulator tick $t$, agent $i$ receives $o_{i,t} \sim O_i(\cdot \mid s_t)$ and selects a
-macro-action $a_{i,t}\in\mathcal{A}_i$ from a fixed macro vocabulary
-$\{\texttt{GO\_TO},\texttt{GRAB\_MINE},\texttt{GET\_FLAG},\texttt{PLACE\_MINE},\texttt{GO\_HOME}\}$,
-paired with a target selection. The joint action space is
-$\mathrm{MultiDiscrete}([5,50,5,50])$: per agent, a $5$-way macro and a $50$-way target. The
-joint action induces $s_{t+1}\sim P(\cdot\mid s_t,a_t)$.
+At each simulator tick $t$, agent $i$ receives a local observation
+$o_{i,t}\sim O_i(\cdot\mid s_t)$ and may request a temporally extended
+\emph{macro-action} together with a target. The macro vocabulary is
+$\{\texttt{GO\_TO},\texttt{GRAB\_MINE},\texttt{GET\_FLAG},\texttt{PLACE\_MINE},\texttt{GO\_HOME}\}$.
+For reproducibility, the joint action is represented as
+$\mathrm{MultiDiscrete}([5,50,5,50])$ (per agent: a $5$-way macro and a
+$50$-way target). The joint action induces $s_{t+1}\sim P(\cdot\mid s_t,a_t)$.
 
-Each team's flag is anchored at its home base; a carrier who returns the enemy flag alive scores
-a capture. Mines are stationary hazards placed by an armed agent at its current cell, creating
-area-denial and ambush dynamics symmetric across teams.
+Each team's flag is anchored at its home base; a carrier that returns the enemy
+flag alive scores a capture. Mines are stationary hazards that create
+area-denial and ambush dynamics.
 
-\paragraph{Strategic poles and strategic demand.}
-Red is instantiated from one of two scripted archetypes we call \emph{poles}. Pole A
-(opponent \textbf{OP6} with a frozen genome overlay) presents a wide, passive zone defense
-($\texttt{defender\_zone\_frac}=0.35$, $\texttt{threat\_radius}=0$); Pole B (opponent
-\textbf{OP7}, canonical) presents a tight, reactive defense ($\texttt{defender\_zone\_frac}=0.05$,
-$\texttt{threat\_radius}=12$). These are qualitatively different defensive philosophies rather
-than two difficulty settings of one behavior, and the pole assignment is resolved through an
-asserted seam that verifies the live behavior-tree profile rather than trusting an override flag.
+\subsection{Asynchronous macro-action decision points}
 
-We do not assume these conditions require different Blue behavior; we certify it. A held-out
-strategic-demand test measures the win-rate advantage of a GUARD-biased response over a
-BREACH-biased response on Pole A, and the reverse contrast on Pole B, gated at
-$\mathrm{LCB}_{95}>0$. Both directions pass. This is the precondition for everything that
-follows: if one policy were simply better everywhere, compression into a single behavior would
-be the correct answer rather than a compression \emph{problem}.
+An accepted macro-action is held for a macro-specific number of ticks before the
+agent may choose a new one
+($\texttt{GO\_TO}=4$, $\texttt{GRAB\_MINE}=3$, $\texttt{GET\_FLAG}=4$,
+$\texttt{PLACE\_MINE}=2$, $\texttt{GO\_HOME}=4$). Agent $i$ carries a countdown
+$c_{i,t}$; a newly requested macro is accepted only when
+\[
+d_t^i=\mathbb{I}\!\left[c_{i,t}\le 0\right].
+\]
+When $d_t^i=0$, the legal-action mask collapses to the already-committed macro,
+so the network output is not an executable decision. Because hold lengths differ
+by macro and agents commit independently, decision boundaries are asynchronous.
+For policy evaluation and supervision, the task is therefore better viewed as a
+semi-Markov decision process over commitment decisions than as a flat per-tick
+Markov decision process.
 
-\paragraph{Policies and the crossover criterion.}
-Let $\pi_\theta(a\mid o,z)$ denote a policy conditioned on a discrete latent strategy variable
-$z\in\{z_0,z_1\}$, and let $V(z,p)$ denote its win rate when deployed with latent $z$ against
-pole $p\in\{A,B\}$, estimated over a held-out seed block. We define the \textbf{strategic
-crossover criterion}
+\subsection{Opponent regimes}
+
+Red is drawn from one of two scripted defensive philosophies that we call
+\emph{opponent regimes}:
+\begin{itemize}
+  \item \textbf{Opponent Regime~A:} broad / passive zone defense.
+  \item \textbf{Opponent Regime~B:} compact / reactive defense.
+\end{itemize}
+The two regimes are designed to elicit contrasting strategic responses from
+Blue rather than represent two difficulty levels of the same opponent behavior.
+Implementation identifiers used for reproducibility (configuration overlay
+\textbf{OP6} for Regime~A; canonical \textbf{OP7} for Regime~B), together with
+frozen behavior-tree parameters such as
+$\texttt{defender\_zone\_frac}$ and $\texttt{threat\_radius}$, are recorded in
+the experiment configuration and are not repeated as conceptual labels in the
+main narrative.
+
+We do not assume a priori that the two regimes require different Blue
+strategies. An \emph{opponent-conditioned strategy-preference test} measures
+whether a GUARD-biased response is preferred over a BREACH-biased response under
+Regime~A, and the reverse contrast under Regime~B, with pass condition
+$\mathrm{LCB}_{95}>0$ on each contrast. This empirical test establishes whether
+the regimes induce complementary strategic demand. If one Blue policy were
+simply better against both regimes, a single shared behavior would be
+appropriate rather than a specialization problem.
+
+\subsection{Strategy-conditioned policies}
+
+Let $\pi_\theta(a\mid o,z)$ denote a shared multi-robot policy conditioned on a
+discrete \emph{strategy code} $z\in\{z_0,z_1\}$. The strategy code selects which
+opponent-conditioned behavior the shared policy should express. The intended
+deployment mapping is $z_0\mapsto\text{Regime~A}$ and $z_1\mapsto\text{Regime~B}$;
+once fixed, this assignment is never flipped. Let $V(z,p)$ denote the win rate
+when deploying with strategy code $z$ against opponent regime
+$p\in\{A,B\}$, estimated over a held-out seed block.
+
+Independently trained \emph{strategy-specific expert policies} $\pi_A$ and
+$\pi_B$ provide the zero-sharing reference: each is trained against one regime
+with no shared parameters and no strategy-code mechanism. A single
+\emph{generalist} policy $\pi_G$ trained on the mixed opponent distribution
+without a strategy code provides a single-policy baseline.
+
+\subsection{Strategy-specialization criterion}
+\label{sec:specialization}
+
+We require more than behavioral diversity. For two strategy codes to represent
+meaningful specialization, each code must provide higher task success than the
+alternative code in its intended opponent regime. A policy is considered
+strategy-specialized only if each strategy code significantly outperforms the
+alternative code in the opponent regime for which it is intended.
+
+Formally, define
 \[
 \Delta_A = V(z_0,A)-V(z_1,A),
 \qquad
-\Delta_B = V(z_1,B)-V(z_0,B),
+\Delta_B = V(z_1,B)-V(z_0,B).
 \]
-with pass condition
+The \emph{strategy-specialization criterion} (equivalently, the two-sided
+\emph{specialization crossover} pattern) requires
 \[
 \mathrm{LCB}_{95}(\Delta_A)>0
 \quad\wedge\quad
 \mathrm{LCB}_{95}(\Delta_B)>0,
 \]
 evaluated by a paired percentile bootstrap over the held-out seeds with
-$n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$, and the seed as the resampling unit.
+$n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$, and the seed as the resampling
+unit. The binary win indicator is the primary outcome because it is the
+deployment quantity used by every specialization evaluation.
 
-Crossover is the claim that $z_0$ and $z_1$ are not merely \emph{different} but \emph{differently
-good in the direction that matters}: each latent must be the better choice specifically on the
-pole it is meant to carry. Every gate in this work uses this identical criterion; no threshold is
-adjusted after an outcome is observed.
+Independent-expert specialization is reported on a held-out $64$-seed block.
+All parameter-sharing comparisons use the matched $128$-seed paired protocol of
+Section~\ref{sec:matched}.
 
-The binary win indicator is retained as the primary outcome because it is the deployment quantity
-used by every crossover gate, but we do not treat a single $64$-seed estimate as a precise
-effect-size measurement. Historical one-shot stage gates use their originally frozen $64$-seed
-blocks and are reported as such. After the instrument-calibration experiment in
-Section~\ref{sec:matched}, all parameter-sharing claims use the frozen matched $128$-seed
-reference and within-seed paired differences. Thus the original gates are preserved without
-retroactively changing their rules, while the final architecture comparison uses the
-higher-powered estimator motivated by the observed sampling variance.
+\subsection{Scope of claims}
 
-\paragraph{Preregistration and integrity discipline.}
-Each stage is governed by a specification frozen and committed to version control \emph{before}
-its implementation, with amendments appended rather than edited in place. Sealed evaluation seed
-blocks are one-shot: a block is spent once, never re-scored for the same arm. Any tie or reversal
-on a gated quantity triggers a mandatory row-level integrity audit, written before its rows are
-read, which classifies the result as genuine or as an evaluator defect before any interpretation
-is permitted. Experiments terminated for resource reasons are recorded as \textsc{aborted} with
-no verdict, explicitly distinguished from \textsc{fail}, and their partially exposed seed blocks
-are retired from reuse.
+Primary claims apply to the nominal $2$-vs-$2$ environment, the two opponent
+regimes above, the specific training recipe, and the fixed evaluation
+implementation. Scaling to $4$-vs-$4$ and $6$-vs-$6$, and robustness
+perturbations such as localization noise, motion uncertainty, and control delay,
+are external-validity experiments. Until completed, they are not used as evidence
+for the primary sharing conclusions and are not used to select the primary
+architecture.
 
-\paragraph{Scope of claims and external-validity boundary.}
-The causal claims in the mechanism study are intentionally restricted to the nominal $2$-vs-$2$,
-two-pole maritime CTF setting described above. We do not infer from these experiments alone that
-the same sharing boundary holds for larger teams, different opponent families, or perturbed
-sensing and control. Scaling to $4$-vs-$4$ and $6$-vs-$6$, and deployment perturbations such as
-localization noise, motion drift, and control delay, are treated as \emph{external-validity
-tests} rather than as evidence used to choose among mechanisms. Until those tests are completed,
-conclusions are stated at the level of this environment and these two strategic poles.
+%======================================================================
+\section{Methodology}
+\label{sec:method}
+%======================================================================
 
-\paragraph{Execution device as part of the measurement instrument.}
-A prospective CPU--CUDA A/B check on identical seeds showed that floating-point differences can
-change simulator trajectories and terminal scores. We therefore treat execution device as part
-of the experimental instrument rather than as a mere performance setting. Sealed crossover
-evaluations and all matched-seed ladder comparisons are run on the same frozen CUDA path.
-Diagnostics collected on CPU are explicitly scoped to the CPU-generated state distribution and
-are never used to claim device-invariant behavior.
+\subsection{Reference policies}
 
-\subsection{Reference Points: Specialists and Generalist}
+\textbf{Independent experts (zero-sharing reference).}
+We train strategy-specific experts $\pi_A$ and $\pi_B$ under matched conditions,
+one per opponent regime, with no shared parameters and no strategy-code
+mechanism. The independently trained experts provide the zero-sharing reference
+for strategy specialization.
 
-\paragraph{Complementary specialists (upper reference).}
-Before attempting compression we establish that complementary specialization is achievable at
-all. We train two independent policies $\pi_A,\pi_B$ under matched conditions, one per pole, with
-no shared parameters and no latent mechanism. Scored under a preregistered protocol on a fresh
-$64$-seed block, separate specialists confirm crossover:
+\textbf{Generalist baseline.}
+We also evaluate $\pi_G$, a single policy trained on the mixed opponent
+distribution with no strategy-code mechanism. The generalist provides a
+single-policy baseline trained on the mixed opponent distribution.
+
+\subsection{Strategy-conditioned policy distillation}
+\label{sec:distill}
+
+We transfer expert behaviors into a shared strategy-conditioned policy
+$\pi_\theta(a\mid o,z)$ by supervised distillation. Both experts are queried on
+the \emph{same} stored states, so differences between conditioned outputs are
+attributable to expert strategies rather than different state datasets.
+
+The distillation objective is
 \[
-\Delta_A = +0.172\;[+0.016,+0.328],
-\qquad
-\Delta_B = +0.297\;[+0.125,+0.469],
+\mathcal{L}_{\mathrm{distill}}
+=
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_A(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_0)\right)
++
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_B(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_1)\right),
 \]
-both clearing the gate. Note the narrowness of $\mathrm{LCB}_{95}(\Delta_A)=+0.016$; this margin
-becomes important in Section~\ref{sec:matched}.
+evaluated per action head over masked distributions and averaged over
+decision-eligible heads only ($d_t^i=1$). Only actor parameters are optimized;
+critic parameters remain unchanged and are verified immobile. Training runs a
+fixed number of epochs with no early stopping and no checkpoint selection; the
+terminal checkpoint is the sole artifact.
 
-\paragraph{Single generalist (lower reference).}
-As the complementary lower reference we evaluate $\pi_G$, a single policy trained on the mixed
-opponent distribution with no latent mechanism ($\texttt{latent\_k}=0$, verified by loading the
-checkpoint rather than trusting its recorded configuration). It attains
-$V(\pi_G,A)=0.375\;[0.265,0.500]$ and $V(\pi_G,B)=0.500\;[0.375,0.625]$, well below the
-specialists on their own poles. The intended hierarchy is therefore
-\[
-\text{generalist} \;<\; \text{latent specialization} \;\le\; \text{separate specialists},
-\]
-with the two endpoints measured and the middle term the object of study.
+We maintain three measurement levels and do not conflate them:
+\begin{itemize}
+  \item \textbf{Action-level imitation:} argmax agreement and KL divergence
+  relative to the matched expert.
+  \item \textbf{Strategy separation:} Jensen--Shannon divergence between the
+  two conditioned action distributions.
+  \item \textbf{Closed-loop strategy specialization:} $V(z,p)$, $\Delta_A$,
+  $\Delta_B$, and the paired-bootstrap criterion of
+  Section~\ref{sec:specialization}.
+\end{itemize}
+High action-level imitation does not logically imply task-level specialization.
+Different strategy-conditioned action distributions likewise do not logically
+imply payoff-relevant specialization. The payoff-based criterion is the primary
+task-level definition.
 
-\subsection{Latent-Conditioned Policy Compression}
+\subsection{Strategy-Preserving PPO}
+\label{sec:spppo}
 
-\paragraph{Architecture.}
-The compressed policy $\pi_\theta$ shares a perception trunk (CNN encoder) and an MLP body
-across $z_0$ and $z_1$, branching into private per-latent actor capacity and private per-latent
-critic heads $V_{z_0},V_{z_1}$. Of its $39$ parameter tensors, $17$ are genuinely shared on the
-$z$-conditioned forward path (verified by perturbation testing rather than assumed from parameter
-names), $2$ are vestigial, and $20$ are private per latent.
+We introduce \emph{Strategy-Preserving PPO} (SP-PPO) as a methodological
+intervention family for studying strategy installation and retention in a
+shared multi-robot policy. CSC identifies which strategically important
+decisions should be corrected using matched counterfactual rollouts. SPFT aims
+to prevent those corrections from being erased during continued PPO
+optimization.
 
-The intended deployment mapping is $z_0\mapsto\text{Pole A}$, $z_1\mapsto\text{Pole B}$. Once
-frozen, this assignment is never flipped by any method in this work; only the \emph{target
-behavior} supervised into each latent changes across methods.
+\subsection{Counterfactual Strategy Correction (CSC)}
+\label{sec:csc}
 
-\paragraph{The behavioral-supervision ladder.}
-We evaluate increasingly capable behavioral-supervision treatments, each holding the crossover
-criterion as the gate: one-sided latent distillation; paired latent distillation on matched
-states; trajectory-guided distillation with private per-latent actor capacity; and
-private-critic trajectory distillation. None clears the gate.
+CSC addresses \emph{which decisions should change}. Because macro-actions are
+temporally extended, we evaluate interventions only at decision-eligible ticks
+($d_t^i=1$). At such boundaries, matched continuation rollouts estimate whether
+substituting an expert decision improves terminal task success relative to a
+baseline continuation of the current strategy-conditioned policy.
 
-\paragraph{Central finding of the behavioral ladder.}
-Across the ladder, \emph{behavioral} identity (single-state action agreement with the matched
-specialist) and \emph{full-trajectory} identity (aggregate rollout separability from a held-out
-discriminator controlled for opponent identity) both become strongly and independently confirmed
-as compression sophistication increases. Yet strategic payoff, measured only by the crossover
-criterion, never follows:
-\[
-\underbrace{\text{teacher imitation}}_{\text{established}}
-\;\longrightarrow\;
-\underbrace{\text{latent/trajectory identity}}_{\text{confirmed}}
-\;\longrightarrow\;
-\underbrace{\text{strategic payoff}}_{\text{broken}}.
-\]
-Diversity certified at the level of single-state behavior or whole-trajectory identity is not
-sufficient evidence of the payoff-relevant strategic difference the deployment criterion actually
-measures. This motivates a change in \emph{what} is supervised rather than a further increase in
-\emph{how faithfully} behavior is imitated.
-
-\subsection{Semi-MDP Commitment Structure}
-
-A macro-action, once accepted, is held for a macro-specific number of ticks before the agent may
-commit to a new one:
-$\texttt{GO\_TO}=4$, $\texttt{GRAB\_MINE}=3$, $\texttt{GET\_FLAG}=4$, $\texttt{PLACE\_MINE}=2$,
-$\texttt{GO\_HOME}=4$. Each agent $i$ carries a countdown $c_{i,t}$, and a newly requested macro
-is accepted only when the per-agent predicate
-\[
-d_t^i=\mathbb{I}\!\left[c_{i,t}\le 0\right]
-\]
-holds. At all other ticks the legal-action mask collapses to the already-committed macro, so the
-policy's output is not an executable decision. Because hold lengths differ by macro and agents
-commit independently, decision boundaries fall \textbf{asynchronously} across agents.
-
-This reframes the task, for supervision purposes, as a semi-Markov decision process over
-commitment decisions rather than a flat per-tick MDP, and it directly motivates the causal
-treatment below: the behavioral ladder's supervision was applied without regard to $d_t^i$,
-meaning much of its supervised mass fell on ticks that were never executable decisions.
-
-\subsection{Incumbent-Relative Causal Commitment Supervision}
-\label{sec:causal-supervision}
-
-Rather than supervising resemblance to a specialist's \emph{behavior}, we supervise toward
-specialist interventions with a measured \textbf{causal, incumbent-relative effect on terminal
-payoff}, applied only at real commitment boundaries where $d_t^i=1$.
-
-\subsubsection{Causal Estimand}
-For a boundary state $s_t$, drawn from a prospectively selected, outcome-blind, stratified sample
-of the incumbent's own deployment distribution, and an estimand $e$ identifying which agent(s)
-may be intervened on, we define three matched-continuation arms sharing an identical continuation
-seed $r_j$:
-$R_0$ (incumbent continues unmodified), $R_A$ ($\pi_A$ takes over the intervened agent(s) for the
-remainder of the episode), and $R_B$ ($\pi_B$ takes over identically). For a unit $x=(s_t,e)$
-over $M$ matched continuations,
+\paragraph{Matched-continuation intervention estimate.}
+For a boundary state $s_t$ drawn from a prospectively selected, outcome-blind,
+stratified sample of the baseline policy's deployment distribution, and an
+estimand $e$ identifying which agent(s) may be intervened on, define three
+matched continuation arms that share an identical continuation seed $r_j$:
+$R_0$ (baseline continues unmodified), $R_A$ ($\pi_A$ takes over the intervened
+agent(s) for the remainder of the episode), and $R_B$ ($\pi_B$ takes over
+identically). With $M=16$ matched continuations,
 \[
 \hat{A}_A(x)=\frac{1}{M}\sum_{j=1}^{M}\left(R_A^j-R_0^j\right),
 \qquad
 \hat{A}_B(x)=\frac{1}{M}\sum_{j=1}^{M}\left(R_B^j-R_0^j\right),
 \]
-where $R$ is the binary episode win indicator, matching the crossover convention. Because $r_j$
-is shared across arms, $\hat{A}_A$ and $\hat{A}_B$ isolate the effect of \emph{which policy acts
-from this state onward} rather than continuation randomness.
+where $R$ is the binary episode win indicator. These are matched-continuation
+intervention estimates under the controlled simulator experiment, not general
+causal effects beyond that design.
 
-\subsubsection{Routing Rule}
-Each unit is routed to whichever teacher shows a strictly positive advantage over both zero and
-the competing teacher:
+\paragraph{Positive-advantage routing.}
+An expert is selected only when its estimated advantage is strictly positive
+over both zero and the alternative expert:
 \[
 t^*(x)=
 \begin{cases}
 \pi_A, & \hat{A}_A(x)>\max\left(0,\hat{A}_B(x)\right),\\[3pt]
 \pi_B, & \hat{A}_B(x)>\max\left(0,\hat{A}_A(x)\right),\\[3pt]
-\mathrm{none}, & \max\left(\hat{A}_A(x),\hat{A}_B(x)\right)\le 0,\\[3pt]
-\mathrm{none}, & \hat{A}_A(x)=\hat{A}_B(x)>0,
+\mathrm{none}, & \text{otherwise},
 \end{cases}
 \qquad
 w(x)=
@@ -244,299 +358,423 @@ w(x)=
 0, & \text{otherwise}.
 \end{cases}
 \]
-A unit with no measured causal benefit, or an exact tie, receives zero weight rather than an
-arbitrary assignment: a tie carries no evidence favoring either teacher. At states where both
-agents are free, a usable joint intervention supersedes its constituent per-agent units, so no
-state is double-counted.
+Exact positive ties receive zero weight. At both-free states, a usable joint
+intervention supersedes constituent per-agent units.
 
-\subsubsection{Anti-Trajectory-Shopping}
-The $(o,a)$ trajectory used for supervision at a routed unit is obtained by rolling the
-already-selected teacher $t^*(x)$ \emph{exactly once}, under a canonical seed derived
-independently of every measurement seed $r_j$. Teacher selection and weight come exclusively from
-the $M$-arm measurement; the canonical rollout's own outcome is never consulted and cannot
-retroactively alter $t^*(x)$ or $w(x)$. This prevents implicitly selecting a favorable training
-trajectory from among continuations whose outcomes were already observed.
-
-\subsubsection{Causal Objective}
-The auxiliary policy loss is a weighted negative log-likelihood of the routed teacher's action,
+\paragraph{Counterfactual correction loss.}
+The $(o,a)$ trajectory used for supervision is obtained by rolling $t^*(x)$
+exactly once under a canonical seed independent of the measurement seeds
+$\{r_j\}$, so trajectory construction cannot alter $t^*$ or $w$. The auxiliary
+loss is a weighted negative log-likelihood of the routed expert's action,
 restricted to decision-eligible agents:
 \[
-\mathcal{L}_{\mathrm{causal}}
+\mathcal{L}_{\mathrm{csc}}
 =
-\frac{\sum_{t,i} d_t^i\,w_{t,i}\,\mathcal{L}_{\mathrm{teacher}}(s_t,i,z)}
+\frac{\sum_{t,i} d_t^i\,w_{t,i}\,\mathcal{L}_{\mathrm{expert}}(s_t,i,z)}
 {\sum_{t,i} d_t^i\,w_{t,i}}.
 \]
-A committed agent ($d_t^i=0$) contributes to neither numerator nor denominator, so committed
-frames cannot dilute effective supervision strength; a zero-weight unit contributes no gradient
-by construction rather than by post-hoc filtering. The term is added to the task objective as
-$\mathcal{L}=\mathcal{L}_{\mathrm{PPO}}+\lambda_{\mathrm{causal}}\mathcal{L}_{\mathrm{causal}}$
-with $\lambda_{\mathrm{causal}}=0.05$, and never modifies reward, returns, GAE, or value targets.
-
-\subsubsection{Outcome and Successor Repairs}
-Causal commitment supervision did not clear the crossover gate. Neither did a sequence of
-successor repairs applied to the same compressed incumbent, each preregistered and each varying
-one mechanism: retention against an exponential-moving-average teacher; retention against a
-frozen specialized reference; freezing the shared trunk so that only private per-latent
-parameters adapt; and balanced sampling of the causal bank, which corrects a documented $3.5\times$
-imbalance in behavior-changing supervision between latents. Two further candidates---a
-Jensen--Shannon separation hinge and a second balanced-sampling evaluation---were held or aborted
-without verdict rather than being reported as failures.
-
-The repairs share a common presupposition that a provenance audit later invalidated: the
-compressed incumbent was never produced by compressing $\pi_A$ and $\pi_B$ at all. It is a
-fresh random-initialization run trained by task PPO with a latent slot, in which neither
-specialist ever appeared. The repair sequence was therefore restoring specialization that had
-never been installed.
-
-\subsection{Teacher-Guided Compression}
-
-We therefore compress the specialists directly. A fresh latent student, randomly initialized
-with the incumbent's exact architecture, is trained by a purely supervised objective with no
-reinforcement learning of any kind:
+Committed agents ($d_t^i=0$) contribute to neither numerator nor denominator.
+CSC fine-tuning combines this term with task PPO,
 \[
-\mathcal{L}_{\mathrm{distill}}
-=
-\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_A(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_0)\right)
-+
-\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_B(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_1)\right),
+\mathcal{L}=\mathcal{L}_{\mathrm{PPO}}+\lambda_c\mathcal{L}_{\mathrm{csc}},
 \]
-evaluated per action head over masked distributions and averaged over decision-boundary heads
-only. Both teachers are queried on the \emph{same} states, so the difference between $z_0$ and
-$z_1$ is teacher strategy rather than state distribution. Only actor parameters are optimized;
-critics are excluded and verified immobile. Training runs a fixed number of epochs with no early
-stopping and no checkpoint selection, and the terminal weights are the only artifact.
+with $\lambda_c=0.05$. Reward, returns, GAE, and value targets are unchanged.
+A matched control arm uses the same warm start, horizon, and PPO recipe without
+$\mathcal{L}_{\mathrm{csc}}$.
 
-Crossover is then measured \emph{before any reinforcement learning touches the student}, which
-isolates compression from subsequent RL drift. The distinction is enforced structurally: no
-training entry point in the codebase can load the distilled checkpoint.
+\subsection{Strategy-Preserving Fine-Tuning (SPFT)}
+\label{sec:spft}
 
-The student reproduces its teachers closely (holdout argmax agreement $0.965$ for $z_0\!\sim\!\pi_A$
-and $0.984$ for $z_1\!\sim\!\pi_B$; student $z_0/z_1$ Jensen--Shannon divergence $0.183$, marginally
-\emph{above} the teachers' own $0.179$, so the branches are if anything more separated than the
-strategies they imitate) yet does not clear the gate:
+SPFT addresses \emph{how sparse corrections are retained during continued
+optimization}. CSC interventions are sparse: only decision points with strictly
+positive matched-continuation advantage receive nonzero weight. Continued PPO
+updates can therefore overwrite strategically consequential corrections. SPFT
+keeps the CSC correction bank and $\lambda_c$ fixed and adds temporal retention
+against an exponential-moving-average (EMA) actor teacher.
+
+\paragraph{EMA teacher and retention loss.}
+Initialize $\bar\theta_0=\theta_0$ as an exact copy of the warm-start actor.
+After each actor optimizer update,
+\[
+\bar\theta\leftarrow 0.995\,\bar\theta + 0.005\,\theta.
+\]
+The retention loss is a KL between the EMA teacher and the current policy,
+\[
+\mathcal{L}_{\mathrm{ret}}
+=
+D_{\mathrm{KL}}\!\left(\pi_{\bar\theta}(\cdot\mid o,z)\,\|\,\pi_\theta(\cdot\mid o,z)\right),
+\]
+applied only at decision-eligible agents under the same legality masks used by
+PPO. Mid-hold (committed) frames contribute zero retention loss.
+
+\paragraph{Full SP-PPO objective.}
+When CSC and SPFT are combined, the actor objective is
+\[
+\mathcal{L}
+=
+\mathcal{L}_{\mathrm{PPO}}
++
+\lambda_c\mathcal{L}_{\mathrm{csc}}
++
+\lambda_r\mathcal{L}_{\mathrm{ret}},
+\]
+with $\lambda_c=0.05$ and $\lambda_r=0.01$. A matched control arm uses CSC
+without retention, isolating the SPFT term.
+
+\subsection{Progressive parameter-sharing study}
+\label{sec:sharing}
+
+Holding the distillation recipe, dataset, schedule, and evaluation seeds fixed,
+we vary only which modules are tied between the two strategy branches. Sharing
+is cumulative. The manipulated variable is the location and amount of parameter
+sharing.
+
+\begin{table}[t]
+\centering
+\caption{Progressive parameter-sharing conditions. Sharing is cumulative.
+Every condition uses the same experts, distillation data, optimization budget,
+evaluation seeds, and specialization criterion.}
+\label{tab:sharing}
+\begin{tabular}{lll}
+\toprule
+\textbf{Condition} & \textbf{Shared components} & \textbf{Strategy-specific components} \\
+\midrule
+Share-0: Independent Experts
+  & None
+  & Entire actor \\
+Share-Encoder: Shared Perception
+  & Perception encoder
+  & Backbone + outputs \\
+Share-Backbone: Shared Perception + Backbone
+  & Encoder + MLP backbone
+  & Strategy branches + outputs \\
+Share-Macro: Shared Backbone + Macro-Action Output
+  & Encoder + backbone + macro-action outputs
+  & Target-selection outputs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each condition uses complete actors of the experts' own architecture class,
+thereby reducing the likelihood that performance differences are explained solely
+by reduced per-strategy capacity. Module tying is verified by object identity
+and unique-parameter arithmetic. A mixed-$z$ minibatch gives each shared module
+gradient from both strategies in the same step.
+
+\paragraph{Share-0.}
+Share-0 installs $\pi_A$ and $\pi_B$ behind a strategy-code dispatch wrapper with
+zero shared parameters, verified bit-exact against both experts on the
+evaluation device. It establishes that the dispatch-and-evaluate path can
+express specialization when no parameters are shared.
+
+\subsection{Matched-seed paired evaluation}
+\label{sec:matched}
+
+All parameter-sharing conditions are evaluated on the same $128$ held-out
+episode seeds as the Share-0 reference. For each seed, we compute the change in
+specialization contrast relative to Share-0, yielding a paired estimate that
+controls for variation in episode difficulty. The Share-0 outcomes on this
+matched set are fixed before evaluating subsequent sharing conditions.
+
+The primary statistics are
+\[
+D_A=\mathbb{E}_s\!\left[\Delta_A^{\mathrm{(cond)}}(s)-\Delta_A^{\mathrm{(Share\textrm{-}0)}}(s)\right],
+\qquad
+D_B=\mathbb{E}_s\!\left[\Delta_B^{\mathrm{(cond)}}(s)-\Delta_B^{\mathrm{(Share\textrm{-}0)}}(s)\right],
+\]
+under a paired bootstrap. We declare a detectable sharing-associated reduction
+in specialization on a regime only if $\mathrm{UCB}_{95}(D_p)<0$: that is, the
+upper $95\%$ confidence bound on the paired change lies below zero.
+
+Because CPU and CUDA execution can produce different closed-loop trajectories
+despite identical nominal seeds, all primary paired comparisons use a fixed CUDA
+execution path. Diagnostics collected on CPU are scoped to the CPU-generated
+state distribution.
+
+\subsection{Imitation-fidelity control}
+\label{sec:fidelity}
+
+To interpret a reduction in specialization as associated with representation
+sharing, compared models must reproduce their expert policies with similar
+fidelity. We therefore define an imitation-fidelity comparability band:
+final holdout argmax agreement must lie within $0.010$ of the Share-Encoder
+reference agreements on the same holdout set. This band is an
+\emph{interpretation criterion}, not a success gate and not a theoretically
+privileged threshold. Continuous agreement and KL values are reported for every
+condition regardless of band membership. If a condition falls outside the band,
+any specialization degradation is reported as sharing-associated but is not
+uniquely attributed to strategy homogenization or specialization loss /
+negative transfer. Observed Share-Encoder reference agreements are reported in
+Results.
+
+\subsection{Mechanism decomposition}
+\label{sec:decomp}
+
+For fidelity-comparable conditions, we decompose specialization change into:
+\begin{itemize}
+  \item \textbf{On-regime} performance: strategy code evaluated against its
+  intended opponent regime.
+  \item \textbf{Cross-regime} performance: the same strategy code evaluated
+  against the other opponent regime.
+\end{itemize}
+For fidelity-comparable conditions, increased cross-regime performance with
+preserved on-regime performance is interpreted as evidence consistent with
+strategy homogenization, whereas decreased on-regime performance is interpreted
+as specialization loss / negative transfer. If imitation fidelity is not
+comparable, we report sharing-associated degradation without assigning a
+mechanism.
+
+\subsection{Mechanism diagnostics}
+\label{sec:diagnostics}
+
+To interpret cases in which a distilled strategy-conditioned policy does not
+satisfy the specialization criterion despite high imitation fidelity, we apply
+three diagnostic analyses:
+
+\paragraph{H1: Distribution shift.}
+Does expert--student agreement decrease on student-visited states relative to
+expert-visited states?
+
+\paragraph{H2: High-leverage mismatches.}
+Are expert--student disagreements disproportionately associated with final
+outcomes? Using matched counterfactual branching---replaying a recorded prefix,
+seeding the environment identically across branches, and altering exactly one
+decision---we compare expert substitution at disagreement states against a
+decision-sensitivity reference.
+
+\paragraph{H3: Action-component localization.}
+Are residual mismatches concentrated in macro-action selection or in target
+selection?
+
+Each diagnostic is a measurement with a fixed interpretation rule, not a
+training method. Device scope is stated with each result.
+
+\subsection{Reproducibility}
+\label{sec:repro}
+
+Training and evaluation specifications are fixed before execution. Final
+comparisons use held-out evaluation seeds and terminal checkpoints without
+post-hoc checkpoint selection. Architecture sharing is verified
+programmatically, and checkpoint hashes identify evaluated models. Because
+execution device can affect closed-loop trajectories, all primary paired
+evaluations use a fixed CUDA path.
+
+%======================================================================
+\section{Results}
+\label{sec:results}
+%======================================================================
+
+\subsection{Do the opponent regimes require different strategies?}
+
+The opponent-conditioned strategy-preference test establishes complementary
+strategic demand under Regimes~A and~B.
+% [draft] Insert quantitative table/figure (GUARD vs BREACH contrasts; LCB95).
+
+\subsection{Can independent expert policies specialize?}
+
+Independent experts $\pi_A$ and $\pi_B$, scored under a preregistered protocol
+on a held-out $64$-seed block, satisfy the strategy-specialization criterion:
+\[
+\Delta_A = +0.172\;[+0.016,+0.328],
+\qquad
+\Delta_B = +0.297\;[+0.125,+0.469].
+\]
+The generalist attains
+$V(\pi_G,A)=0.375\;[0.265,0.500]$ and
+$V(\pi_G,B)=0.500\;[0.375,0.625]$.
+
+On the matched $128$-seed Share-0 reference,
+\[
+\Delta_A = +0.289\;[+0.164,+0.406],
+\qquad
+\Delta_B = +0.258\;[+0.141,+0.375].
+\]
+
+\subsection{Can those strategies be represented in one conditioned policy?}
+
+\paragraph{Strategy-conditioned distillation.}
+The distilled shared policy reproduces its experts closely (holdout argmax
+agreement $0.965$ for $z_0\!\sim\!\pi_A$ and $0.984$ for $z_1\!\sim\!\pi_B$;
+conditioned-branch Jensen--Shannon divergence $0.183$, compared with the
+experts' $0.179$) yet does not satisfy the specialization criterion:
 \[
 \Delta_A=+0.094\;[-0.078,+0.266],
 \qquad
 \Delta_B=+0.141\;[-0.047,+0.313].
 \]
-Both point estimates are correctly signed; neither confidence interval clears zero. High-fidelity
-imitation of both specialists is not sufficient for payoff-level crossover once the student drives
-its own closed-loop state distribution.
+Both point estimates are correctly signed; neither confidence interval clears
+zero. High-fidelity imitation therefore does not automatically preserve
+closed-loop specialization on the student's own state distribution.
 
-\subsection{Mechanism Diagnostics}
+\paragraph{Mechanism diagnostics.}
+On $24{,}693$ student-generated states, expert agreement remains high
+($0.971$ / $0.986$), not below expert-visited holdout agreement
+($0.965$ / $0.984$), so H1 is not supported in the tested CPU regime.
+For H2, the powered $z_0$ arm shows $18$ of $20$ expert substitutions
+producing an identical final outcome (mean $|L_{\mathrm{margin}}|=0.100$ vs.\
+decision-sensitivity reference $0.450$); the $z_1$ arm ($6$ branch points) is
+underpowered and yields no conclusion. For H3, macro disagreement is
+$1.11\%$ ($z_0$) and $0.23\%$ ($z_1$), while target disagreement is $5.21\%$
+and $1.60\%$ (factors of approximately $4.7$--$7.0$).
 
-Two candidate explanations were tested and, in the tested regime, rejected. Each was a
-measurement with a preregistered falsification condition, not a new training method.
+\subsection{Strategy-Preserving PPO components}
 
-\paragraph{Covariate shift.}
-If compounding imitation error drove the loss, teacher agreement measured on states the
-\emph{student} visits should fall below agreement on teacher-visited states. It does not: on
-$24{,}693$ student-generated states the distilled student agrees with its teachers at $0.971$ and
-$0.986$, marginally \emph{above} its $0.965$/$0.984$ on teacher-visited holdout states. The
-preregistered falsification condition was met and the DAgger-style successor was held after one
-round rather than run to completion. The refutation is scoped to the CPU-generated deployment
-distribution, since the sealed evaluation runs on a different device and trajectories are
-device-dependent.
+CSC and SPFT are evaluated under the same strategy-specialization criterion on
+held-out seed blocks, with matched treatment/control designs.
 
-\paragraph{Decision leverage.}
-If a small number of high-leverage mistakes drove the loss, substituting the teacher's action at
-disagreement states should change outcomes more than perturbing a typical decision. It does not.
-Using matched counterfactual branching---replaying a recorded prefix under assertion, seeding the
-environment RNG identically across branches, and altering exactly one decision---the well-powered
-$z_0$ arm shows $18$ of $20$ teacher substitutions producing an \emph{identical} final outcome,
-with mean $|L_{\mathrm{margin}}|=0.100$ against a decision-sensitivity reference of $0.450$. The
-$z_1$ arm was underpowered by construction ($6$ branch points) and no conclusion is drawn for it.
-This underpowered result is not converted into evidence against the hypothesis and is not repaired
-post hoc by changing the macro-level definition.
+\paragraph{Counterfactual Strategy Correction (CSC).}
+Neither the CSC treatment arm nor the matched PPO-only control satisfies the
+specialization criterion. Point estimates are negative on both regimes for both
+arms (treatment:
+$\Delta_A=-0.141\;[-0.281,0.000]$,
+$\Delta_B=-0.031\;[-0.203,+0.141]$;
+control:
+$\Delta_A=-0.188\;[-0.328,-0.047]$,
+$\Delta_B=-0.063\;[-0.250,+0.125]$).
+Paired treatment-minus-control contrasts do not clear zero on either regime.
+Thus CSC does not recover payoff-level specialization under the frozen protocol.
 
-\paragraph{Where disagreement actually lives.}
-A separate diagnostic, specified after the macro-level limitation was identified, analyzes the
-already-recorded action vectors by head. It does \emph{not} retroactively redefine the DLD
-macro-level hypothesis. Instead, it asks a new question: whether residual disagreement is
-concentrated below the macro choice. The analysis reveals that macro-level agreement understates
-disagreement substantially. Against the latent-matched teacher, macro disagreement is $1.11\%$
-for $z_0$ and $0.23\%$ for $z_1$, while \emph{target} disagreement is $5.21\%$ and $1.60\%$
-respectively---a factor of $4.7$ to $7.0$. The student agrees on \emph{what} to do far more
-reliably than on \emph{which target}, and imitation fidelity is essentially pole-independent.
+\paragraph{Strategy-Preserving Fine-Tuning (SPFT).}
+Neither the SPFT treatment nor the CSC-only control satisfies the
+specialization criterion (treatment:
+$\Delta_A=-0.156\;[-0.313,+0.016]$,
+$\Delta_B=+0.031\;[-0.141,+0.203]$;
+control:
+$\Delta_A=-0.078\;[-0.219,+0.063]$,
+$\Delta_B=+0.063\;[-0.109,+0.234]$).
+Paired SPFT-minus-control contrasts likewise do not clear zero. Under the stated
+protocol, retention stabilization does not establish recovery of specialization
+relative to CSC alone.
 
-\subsection{Matched-Seed Evaluation and Instrument Calibration}
-\label{sec:matched}
-
-A control experiment revealed that the evaluation instrument itself carries substantial variance.
-Evaluating the \emph{identical, bit-exact} specialists on two independent $64$-seed blocks
-produced $\Delta_A=+0.125\;[-0.047,+0.297]$ on one and $\Delta_A=+0.453\;[+0.297,+0.609]$ on the
-other---a swing of $0.33$ attributable entirely to which episodes were drawn, since the policies
-cannot change. Pooled over both blocks ($n=128$) the reference is
-$\Delta_A=+0.289\;[+0.164,+0.406]$ and $\Delta_B=+0.258\;[+0.141,+0.375]$.
-
-\paragraph{Chronology of the calibration change.}
-The matched-seed protocol was introduced \emph{after} the two Rung~0 blocks revealed substantial
-block-to-block variation and therefore should be read as a post-calibration design correction,
-not as part of the original $64$-seed gate. The chronology is fixed: Rung~0 was evaluated on the
-two independent calibration blocks; once their variance was observed, the union of their $128$
-seeds and every per-seed Rung~0 outcome were frozen; Rung~0 was never rerun or reselected
-afterward. All later ladder rungs were specified prospectively to use that same frozen set. The
-calibration change is therefore used only for subsequent architecture comparisons and does not
-retroactively reclassify earlier sealed results.
-
-Consequently, comparing an architecture's $\Delta$ on its own fresh block against a reference
-$\Delta$ on a different block compares two noisy averages. We therefore fix a
-\textbf{matched-seed protocol}: every architecture is evaluated on the same $128$-seed set for
-which the reference's per-seed outcomes are frozen, and the primary statistic is the
-\emph{within-seed} difference
-\[
-d(s)=\Delta_{R_k}(s)-\Delta_{R_0}(s),
-\qquad
-D=\mathbb{E}_s\!\left[d(s)\right],
-\]
-under a paired bootstrap, with ``sharing damaged specialization'' declared on a pole only if
-$\mathrm{UCB}_{95}(D)<0$. This cancels per-seed difficulty: both architectures face the identical
-episode and only the architecture differs. The reference is never re-run.
-
-\subsection{The Parameter-Sharing Ladder}
-
-Every mechanism examined above operates on \emph{training} while holding the architecture fixed.
-Representation sharing is the one axis never varied. We therefore reframe the question from
-``which regularizer restores crossover?'' to
-\[
-\boxed{\text{How much parameter sharing can a latent policy tolerate before complementary
-strategies stop surviving?}}
-\]
-a question with an informative answer in either direction.
-
-The ladder holds the distillation recipe, dataset, schedule, and evaluation seeds fixed and
-varies only which modules are tied between the two branches. Each rung uses two complete actors
-of the \emph{specialists'} own architecture, so a loss can never be attributed to reduced
-per-strategy capacity; tying is by module identity, verified both by object identity and by
-unique-parameter arithmetic. A mixed-$z$ minibatch gives each shared module gradient from both
-strategies in the same step, which is precisely the phenomenon under test.
+\subsection{Where does parameter sharing begin to affect specialization?}
 
 \begin{table}[t]
 \centering
-\caption{Parameter-sharing ladder. Sharing is cumulative down the rungs. All rungs are evaluated
-on the identical frozen $128$-seed matched set; $D$ is the within-seed difference against the
-Rung~0 reference. Rung~0's $\Delta$ is the pooled descriptive reference over its two $64$-seed
-blocks, reported separately in the text, and is not a sealed one-shot gate; every other row
-reports that rung's own matched $128$-seed gate. Both are computed on the same seeds under the
-same bootstrap and are directly comparable, but only the latter is a preregistered gate.}
-\label{tab:sharing-ladder}
-\resizebox{\textwidth}{!}{
+\caption{Progressive parameter-sharing results on the matched $128$-seed set.
+$D_A$ and $D_B$ are within-seed differences against Share-0.}
+\label{tab:sharing-results}
 \begin{tabular}{lllll}
 \toprule
-\textbf{Rung} & \textbf{Shared} & $\boldsymbol{\Delta_A}$ & $\boldsymbol{\Delta_B}$ &
-\textbf{Within-seed $D$} \\
+\textbf{Condition} & \textbf{Shared} & $\boldsymbol{\Delta_A}$ & $\boldsymbol{\Delta_B}$ &
+\textbf{Paired $D$} \\
 \midrule
-0: separate specialists, dispatched by $z$ & none &
-$+0.289\;[+0.164,+0.406]$ & $+0.258\;[+0.141,+0.375]$ & reference \\
-1: shared perception & CNN encoder &
-$+0.266\;[+0.148,+0.383]$ & $+0.164\;[+0.047,+0.281]$ &
-$D_A=-0.023$, $D_B=-0.094$; no detectable loss \\
-2: shared perception + body & \;\;\;\;$+$ MLP body &
-\multicolumn{3}{c}{\emph{in progress}} \\
-3: current compressed architecture & \;\;\;\;$+$ latent branch trunks &
-\multicolumn{3}{c}{\emph{pending}} \\
+Share-0
+  & none
+  & $+0.289\;[+0.164,+0.406]$
+  & $+0.258\;[+0.141,+0.375]$
+  & reference \\
+Share-Encoder
+  & CNN encoder
+  & $+0.266\;[+0.148,+0.383]$
+  & $+0.164\;[+0.047,+0.281]$
+  & $D_A=-0.023$, $D_B=-0.094$; no detectable loss \\
+Share-Backbone
+  & $+$ MLP backbone
+  & $+0.148\;[+0.023,+0.266]$
+  & $+0.141\;[+0.016,+0.266]$
+  & $D_A=-0.141$ (detectable loss);
+    $D_B=-0.117$ (no detectable loss) \\
+Share-Macro
+  & $+$ macro-action outputs
+  & $+0.125\;[0.000,+0.250]$
+  & $+0.156\;[+0.031,+0.281]$
+  & $D_A=-0.164$ (detectable loss);
+    $D_B=-0.102$ (no detectable loss) \\
 \bottomrule
 \end{tabular}
-}
 \end{table}
 
-Rungs~2 and~3 differ in exactly one place, which the cumulative column makes explicit: Rung~2
-shares the perception encoder and the MLP body while keeping each latent's branch trunk private,
-whereas Rung~3 additionally ties those branch trunks, leaving only the $20$ private per-latent
-tensors of the incumbent architecture unshared.
+\paragraph{Share-Encoder.}
+Share-Encoder holdout argmax agreements are $0.967/0.989$; these values define
+the imitation-fidelity reference band used in Section~\ref{sec:fidelity}.
+Sharing only the perception encoder preserves the specialization criterion on
+both regimes, and neither within-seed difference against Share-0 reaches
+$\mathrm{UCB}_{95}(D_p)<0$. Decomposing by role: on-regime cells shift by
+$-0.012$ on average, while cross-regime cells shift by $+0.047$, driven by
+$z_0$ under Regime~B rising $+0.086$. This pattern is consistent with strategy
+homogenization rather than on-regime specialization loss.
 
-\paragraph{Rung 0 as a structural positive control.}
-Rung~0 installs $\pi_A$ and $\pi_B$ verbatim behind a $z$-dispatch wrapper with zero shared
-parameters, verified bit-exact against both specialists on the evaluation device (maximum
-absolute logit difference $0$, argmax identical on all four heads, macro and target checked
-separately). It is not compression; its role is to establish that the dispatch-and-evaluate path
-can express crossover at all. Its failure would have indicted the instrument rather than any
-architecture, and it is sealed first for that reason.
+\paragraph{Share-Backbone.}
+Share-Backbone terminal holdout agreement is $0.963/0.985$ (within $0.010$ of
+the Share-Encoder reference on both codes), so fidelity is comparable.
+Branch Jensen--Shannon divergence is $0.172$ (Share-Encoder $0.178$; experts
+$0.179$). The specialization criterion still holds on both regimes, but the
+paired contrast against Share-0 shows a detectable reduction on Regime~A
+($\mathrm{UCB}_{95}(D_A)<0$). On-regime performance declines on average while
+cross-regime performance rises, a pattern consistent with specialization loss /
+negative transfer under fidelity-comparable sharing of the backbone.
 
-On its first sealed $64$-seed block the gate passed on Pole~B ($+0.188\;[+0.031,+0.344]$) but not
-on Pole~A ($+0.125\;[-0.047,+0.297]$). Because Rung~0 \emph{is} the frozen specialists, this
-cannot reflect any change in the policies, and an independent second block returned
-$+0.453\;[+0.297,+0.609]$ on the same pole. The crossover \emph{direction} was positive on both
-poles in both blocks; the magnitude was not stable. We therefore read Rung~0 as establishing that
-the dispatch path expresses crossover in the correct direction on both poles, and we treat the
-block-to-block magnitude discrepancy not as a property of any architecture but as the variance of
-the evaluation instrument---which is precisely what motivates the matched-seed protocol of
-Section~\ref{sec:matched}. The reading rule---direction decides, while magnitude noise is handled
-by the matched design rather than by demanding block-to-block agreement---was frozen while the
-second block was still running, before either of its Pole-B cells or any confidence interval
-existed.
+\paragraph{Share-Macro.}
+Share-Macro terminal holdout agreement is $0.936/0.969$, outside the
+imitation-fidelity band anchored on Share-Encoder. The specialization criterion
+is not satisfied ($\mathrm{LCB}_{95}(\Delta_A)=0$). Paired evaluation likewise
+shows a detectable reduction on Regime~A. Because imitation fidelity is not
+comparable, we report this as sharing-associated and fit-confounded degradation
+and do not uniquely attribute it to strategy homogenization or specialization
+loss.
 
-\paragraph{Rung 1.}
-Sharing only the perception encoder preserves crossover: both poles clear the gate independently,
-and neither within-seed difference against Rung~0 reaches significance. Decomposing the change by
-role is more informative than the aggregate. On-pole cells (each latent on its own pole) shift by
-$-0.012$ on average, while off-pole cells shift by $+0.047$, driven by $z_0$ on Pole~B rising
-$+0.086$. The specialists are not degraded; the \emph{inappropriate} strategy improves, narrowing
-$\Delta$ from below. We name this mechanism \textbf{competence leakage}---shared parameters
-transfer general task skill between strategies---and distinguish it from destructive interference,
-in which the on-pole specialist itself would decay.
+\subsection{External validity}
+\label{sec:external}
 
-\paragraph{Preregistered prediction for Rung 2.}
-Before Rung~2 was trained we froze the prediction that, if competence leakage is the operative
-mechanism, additional sharing will reduce crossover \emph{primarily through increased off-pole
-performance while preserving on-pole performance}; a substantial on-pole decline would instead
-support destructive interference. The evaluator computes and classifies this decomposition as a
-primary reported quantity, so the mechanism test cannot become a post-hoc reading. Pole~B is the
-diagnostic pole: Rung~1's $\mathrm{UCB}_{95}(D_B)=+0.023$ leaves it far closer to registering a
-detectable loss than Pole~A's $+0.102$.
+$4$-vs-$4$ / $6$-vs-$6$ scalability and robustness perturbations (localization,
+motion, control delay) are reported only when completed, and only as
+external-validity experiments---not as evidence used to choose among sharing
+conditions.
 
-\paragraph{Fidelity confound and interpretation guardrail.}
-Because a more heavily shared student may simply fit its teachers less well, we further froze a
-comparability band---final holdout agreement within $0.010$ of Rung~1's $0.967/0.989$---anchored
-on the only two fully converged distilled students available beforehand, which differ by at most
-$0.005$. The band is an \emph{interpretation guardrail}, not a theoretically privileged threshold
-and not a success gate. We therefore report the continuous agreement and KL values for every rung
-regardless of which side of the band it falls on, and we do not infer a discontinuity at the
-boundary. If a rung falls outside the band, any crossover degradation is reported as
-\emph{sharing-associated} but not uniquely attributable to leakage or interference, preserving
-the distinction between ``sharing causes poorer fit'' and ``sharing destroys crossover despite
-equally good fit.''
+%======================================================================
+\section{Discussion}
+\label{sec:discussion}
+%======================================================================
 
-Rung~2 met the band. Its terminal holdout agreement is $0.963/0.985$, against Rung~1's
-$0.967/0.989$ and the offline distilled student's $0.965/0.984$---inside the band by $0.006$ on
-both latents, and reported here side by side as the amendment requires irrespective of outcome.
-Rung~2 therefore achieved teacher-fit parity with Rung~1 within the preregistered comparability
-band, which eliminates fidelity as a competing explanation and licenses a strong mechanism-level
-interpretation of any matched-seed crossover change it exhibits. We note descriptively that
-Rung~2's branch separation is the lowest of the three distilled students (Jensen--Shannon $0.172$,
-against $0.178$ for Rung~1, $0.183$ for the offline student, and $0.179$ for the teachers
-themselves); it is the first student whose branches are measurably less separated than the
-strategies it imitates, which is the direction additional sharing would predict. This quantity is
-not gated and is not used as evidence on its own.
+The primary scientific finding concerns progressive parameter sharing:
+perception-level sharing (Share-Encoder) preserves the specialization criterion
+under the matched-seed protocol, with a decomposition consistent with mild
+strategy homogenization rather than on-regime specialization loss. Deeper
+sharing of the MLP backbone (Share-Backbone) remains fidelity-comparable and
+still clears the absolute specialization criterion, yet produces a detectable
+paired reduction relative to Share-0 on Regime~A, consistent with specialization
+loss under additional representation sharing. Further sharing at macro-action
+outputs (Share-Macro) coincides with deteriorated imitation fidelity and failure
+of the specialization criterion; under the imitation-fidelity control, that
+degradation is reported as sharing-associated but not uniquely attributed to a
+single interference mechanism.
 
-\paragraph{Rung~3 and training-route attribution.}
-The sharing ladder isolates parameter sharing only \emph{within the fixed pure-distillation
-recipe}. Rung~3 may match the module-sharing pattern of the historical compressed architecture,
-but the two models differ in training route: Rung~3 is trained by direct specialist distillation,
-whereas the historical incumbent was trained from random initialization by task PPO and never
-received the specialists directly. Therefore a Rung~3 PASS would establish that the architecture
-\emph{can} preserve crossover under direct distillation; it would not show that sharing was
-irrelevant to the historical PPO failure. Conversely, a Rung~3 FAIL would be evidence about the
-distilled sharing ladder, not a clean replication of the PPO failure. Any training-route claim
-must be tested or discussed separately from the sharing ablation.
+SP-PPO is a methodological contribution and an informative intervention family
+for strategy installation and retention. CSC identifies high-leverage strategic
+decisions via matched counterfactual rollouts; SPFT aims to keep those
+corrections from drifting away under continued PPO. Under the frozen protocols
+studied here, neither CSC nor SPFT satisfies the payoff-based specialization
+criterion. Identifying positively advantageous interventions---and attempting to
+retain them---therefore does not automatically restore closed-loop complementary
+strategies. Local policy similarity remains insufficient evidence of preserved
+strategic identity.
 
-\subsection{Claim Hierarchy and External-Validity Follow-Up}
+For multi-robot policy design, the sharing study suggests that substantial
+perception sharing can be tolerable in this setting, while sharing deeper
+decision-related representations is where opponent-conditioned specialization
+becomes fragile. Claims remain scoped to the two-regime nominal $2$-vs-$2$ task
+and training recipes studied here. External validity for larger teams and
+sensing/control perturbations remains outside the primary claim until those
+experiments are finished.
 
-The evidence is interpreted in a fixed hierarchy. First, strategic demand and separate-specialist
-crossover establish that complementary policies exist. Second, direct compression asks whether
-those policies can coexist in one latent-conditioned policy. Third, mechanism diagnostics test
-specific explanations for any compression shortfall. Fourth, the calibrated sharing ladder varies
-representation sharing while holding training and evaluation fixed. Only after the nominal
-mechanism is localized do we ask whether the resulting conclusion transfers beyond the base
-setting.
+%======================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+%======================================================================
 
-Accordingly, the strongest claim supported by the present methodology is intentionally narrow:
-\emph{within the nominal $2$-vs-$2$ two-pole maritime task, under the frozen distillation recipe
-and matched-seed CUDA evaluation, we can localize whether and how parameter sharing changes
-payoff-level crossover}. Broader claims about multi-agent reinforcement learning require a
-separate external-validity stage. The planned confirmatory extensions are larger team sizes
-($4$-vs-$4$ and $6$-vs-$6$) and deployment perturbations in localization, motion, and control
-delay. Those experiments are not used for method selection and, until completed, are not cited as
-evidence for generality.
+We study whether a strategy-conditioned multi-robot policy can preserve
+opponent-conditioned coordination strategies under progressive parameter sharing
+and continued optimization. Independent experts provide a zero-sharing
+specialization reference. The progressive-sharing study is the primary empirical
+contribution: Share-Encoder preserves specialization, Share-Backbone introduces
+a detectable paired specialization loss on one regime despite comparable
+fidelity, and Share-Macro yields fit-confounded degradation together with
+failure of the specialization criterion. Strategy-Preserving PPO (SP-PPO)
+combines Counterfactual Strategy Correction (CSC) with Strategy-Preserving
+Fine-Tuning (SPFT) as a methodological intervention family for strategy
+installation and retention; under the frozen protocols reported here, neither
+component recovers the payoff-based specialization criterion. High imitation
+alone does not guarantee payoff-level specialization. Claims remain scoped to
+the nominal $2$-vs-$2$, two-regime setting and training recipes studied here.
 
 \end{document}
