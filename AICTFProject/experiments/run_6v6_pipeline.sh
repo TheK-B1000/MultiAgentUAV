@@ -286,6 +286,9 @@ run_stage() {
     5) stage5_robustness ;;
     *) echo "unknown stage: $1"; exit 1 ;;
   esac
+  # Refresh artifacts/6v6_results/ after EVERY stage, not just at the end, so it always
+  # reflects real progress if checked mid-run. Copy-only, so this can never affect resuming.
+  bash experiments/export_6v6_results.sh > /dev/null
 }
 
 if [ -n "$STAGE_ONLY" ]; then

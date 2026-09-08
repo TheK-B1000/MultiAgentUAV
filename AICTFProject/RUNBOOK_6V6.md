@@ -108,10 +108,11 @@ bash experiments/export_6v6_results.sh
 ```
 
 This COPIES (never moves -- nothing about resuming the pipeline is affected) everything
-produced so far into one folder: `artifacts/6V6_EXPORT/`, organized as
+produced so far into one folder: `artifacts/6v6_results/`, organized as
 `specialists/ distillation/ crossover_eval/ robustness/ specs/`. **That one folder is what to
-zip and send** -- it prints which stages are/aren't present yet if run before the pipeline
-finishes.
+zip and send.** `run_6v6_pipeline.sh` calls this automatically after EVERY stage (not just at
+the end), so `artifacts/6v6_results/` is always up to date -- check it any time mid-run for
+real progress, not just at completion.
 
 ## 5. What each stage does, where it writes, how long it takes
 

@@ -1,17 +1,21 @@
 #!/bin/bash
 # Collects everything from a completed (or partially completed) 6v6 pipeline run into ONE
-# folder, artifacts/6V6_EXPORT/, so it is obvious what to zip and send when the pipeline
+# folder, artifacts/6v6_results/, so it is obvious what to zip and send when the pipeline
 # finishes on a school PC. COPIES only -- never touches or moves the originals, so nothing
 # about resuming the pipeline (section 8 of RUNBOOK_6V6.md) is affected by running this.
 #
-# Run any time, including mid-pipeline -- it just copies whatever exists so far and skips
-# anything not produced yet, printing which stages are/aren't present.
+# Called automatically by run_6v6_pipeline.sh after EVERY stage (not just at the end), so
+# artifacts/6v6_results/ is always current -- checking it mid-run shows real progress, not
+# just whatever existed at the last full completion.
+#
+# Run standalone any time too: it just copies whatever exists so far and skips anything not
+# produced yet, printing which stages are/aren't present.
 #
 # Usage: bash experiments/export_6v6_results.sh
 set -e
 cd "$(dirname "$0")/.."
 SD="artifacts/strategic_demand/sppo"
-OUT="artifacts/6V6_EXPORT"
+OUT="artifacts/6v6_results"
 mkdir -p "$OUT/specialists" "$OUT/distillation" "$OUT/crossover_eval" "$OUT/robustness" "$OUT/specs"
 
 log() { echo "[export] $1"; }
