@@ -424,6 +424,14 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **PSRO weighted snapshot sampling snapshot resync:**
+  `PPOConfig.snapshot_opponent_weights` (default empty tuple = uniform over
+  `snapshot_opponent_pool`) was added for Nash-weighted / meta-strategy sampling
+  in the Double-Oracle / PSRO path. Empty weights preserve the prior fictitious-
+  play uniform sampler exactly. Regenerated `tests/preset_snapshots.json`; the
+  only change to every existing preset entry is the additive default
+  `snapshot_opponent_weights = []`. No pre-existing snapshot value changed and
+  no paper-faithful objective, actor path, or alias changed.
 - **RASR-PPO DEV qualification tooling and frozen scorer identity:** Added the
   rebuild-per-branch DEV collector, one-shot four-regime scorer qualification,
   and live assigned-pole persistence smoke. The scorer remains default-off, but
