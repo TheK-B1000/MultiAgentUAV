@@ -101,12 +101,30 @@ class PresetResolutionTests(unittest.TestCase):
 
         for key in sorted(resolved.keys()):
             with self.subTest(preset=key):
-                self.assertEqual(
-                    resolved[key],
-                    snapshot[key],
-                    f"preset {key!r} resolved config differs from snapshot. "
-                    "If this change is intentional, run: python tools/snapshot_presets.py",
-                )
+                if resolved[key] != snapshot[key]:
+                    only_resolved = sorted(set(resolved[key]) - set(snapshot[key]))
+                    only_snapshot = sorted(set(snapshot[key]) - set(resolved[key]))
+                    value_diffs = sorted(
+                        k for k in (set(resolved[key]) & set(snapshot[key]))
+                        if resolved[key][k] != snapshot[key][k]
+                    )
+                    details = []
+                    if only_resolved:
+                        details.append(f"only_in_resolved={only_resolved}")
+                    if only_snapshot:
+                        details.append(f"only_in_snapshot={only_snapshot}")
+                    for k in value_diffs[:20]:
+                        details.append(
+                            f"{k}: resolved={resolved[key][k]!r} snapshot={snapshot[key][k]!r}"
+                        )
+                    if len(value_diffs) > 20:
+                        details.append(f"... and {len(value_diffs) - 20} more value diffs")
+                    self.fail(
+                        f"preset {key!r} resolved config differs from snapshot "
+                        f"({len(value_diffs)} value diffs). "
+                        + "; ".join(details)
+                        + " If this change is intentional, run: python tools/snapshot_presets.py"
+                    )
 
     def test_only_episode_credit_presets_enable_episode_strategy_ppo(self) -> None:
         """Old presets must keep episode-level q_phi PPO disabled by default."""
