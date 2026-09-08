@@ -1,0 +1,7 @@
+{
+  "genome_id": "SDS2_B2_LOCKDEF6",
+  "derived_from": "OP7",
+  "base_opponent": "OP7",
+  "overlay": {"lock_defender": 6},
+  "opening_hold_steps": 0
+}

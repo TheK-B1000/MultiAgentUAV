@@ -1,0 +1,44 @@
+{
+  "record_id": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-07T19:40:00Z",
+  "implements": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json",
+
+  "checkpoints": {
+    "pi_A_4v4": "EXPLORATORY_4V4_PI_A_FROZEN.json -- seed 7410001, trained vs Pole A",
+    "pi_B_4v4": "EXPLORATORY_4V4_PI_B_FROZEN.json -- seed 7420001, trained vs Pole B"
+  },
+  "seeds": {"block": [14400001, 14400128], "n": 128, "shared_across_all_4_cells": true},
+  "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+
+  "RAW_WIN_RATES": {
+    "pi_A_on_A": 0.7344,
+    "pi_A_on_B": 0.9375,
+    "pi_B_on_A": 0.4844,
+    "pi_B_on_B": 0.6328
+  },
+
+  "GATE": {
+    "delta_A_spec": {"definition": "V(pi_A,A) - V(pi_B,A)", "mean": 0.25, "lcb95": 0.1406, "ucb95": 0.3594, "own_gate": "PASS"},
+    "delta_B_spec": {"definition": "V(pi_B,B) - V(pi_A,B)", "mean": -0.3047, "lcb95": -0.3984, "ucb95": -0.2188, "own_gate": "FAIL (confirmed reversal, not a boundary case)"},
+    "advancement_gate": "delta_A_spec > 0 AND LCB95_A > 0 AND delta_B_spec > 0 AND LCB95_B > 0",
+    "verdict": "FAIL"
+  },
+
+  "INTEGRITY_AUDIT": {
+    "triggered": "delta_B_spec sign reversal, per EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json#tie_or_reversal",
+    "record": "TIE_REVERSAL_AUDIT_EXPLORATORY_4V4_SPECIALIST_CROSSOVER.json",
+    "classification": "GENUINE -- seed integrity, split-half consistency, and win/margin consistency all confirmed. This is a real finding, not a data or evaluator defect."
+  },
+
+  "READING": "The exploratory 4v4 learned specialists do NOT cross over. pi_B_4v4 is decisively worse against its own trained pole (Pole B, win rate 0.6328) than pi_A_4v4 -- a policy never trained against Pole B specifically -- is against that same pole (0.9375). delta_A_spec passes its own gate cleanly, but delta_B_spec is a statistically confirmed reversal (entire 95% CI negative), not a near-miss. The pattern -- one policy strong against both poles, the other weak against both -- looks like pi_A_4v4 converged to a strong generalist (or pi_B_4v4 to an undertrained/weak policy) rather than the two developing complementary pole-specific strengths. This is the answer to the diagnostic question the exploratory arm was built to ask.",
+
+  "CONSEQUENCE_PER_4V4_EXPLORATORY_AS_DIAGNOSTIC_PROTOCOL": "this result matches the 'exploratory specialists DO NOT cross over' branch frozen in 4V4_EXPLORATORY_AS_DIAGNOSTIC_PROTOCOL.json before this evaluation ran. Frozen reading: 'changing the scripted probe again is probably not the fix. The current Pole A/B DEFINITIONS themselves may not produce complementary learned optima at 4v4 -- a deeper issue than defender assignment.' Frozen next step: 'any further 4v4 work requires redesigning the strategic poles or task geometry, which is a new hypothesis with its own preregistration and fresh seeds -- explicitly NOT a continuation of the closed V1/V2 sequence, and explicitly NOT authorized by this record.'",
+
+  "STATUS_OF_4V4_FOR_THIS_PAPER": "CLOSED on both paths tested: the scripted GUARD_DISTRIBUTED_V2 probe closed under the no-V3 stopping rule (exact tie, audited genuine), and now the learned-specialist diagnostic also closes (confirmed reversal, audited genuine). Both the scripted-probe question and the learned-specialist question have been asked and answered negatively. No further 4v4 specialist training, distillation, or crossover evaluation is authorized under any existing frozen record. A pole/geometry redesign would require an entirely new, independently preregistered hypothesis on fresh seeds -- not a continuation of anything closed here.",
+
+  "NOT_AUTHORIZED_BY_THIS_RESULT": ["4v4 latent distillation of any kind", "promoting pi_A_4v4 or pi_B_4v4 to confirmatory status under any circumstance", "a third or further exploratory specialist training attempt on the current pole definitions", "reuse of 14400001..14400128 for any other purpose"]
+}

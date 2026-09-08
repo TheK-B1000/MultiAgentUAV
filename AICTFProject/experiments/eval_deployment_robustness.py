@@ -50,6 +50,7 @@ GUARANTEE = SD / "DEPLOYMENT_ONLY_GUARANTEE_CHECK.json"
 OUT_DIR = SD / "robustness_eval_rows"
 
 FAMILIES = ("nominal", "localization_noise", "motion_error", "control_delay")
+PERTURBATION_FAMILIES = ("localization_noise", "motion_error", "control_delay")
 SEVERITIES = ("low", "medium", "high")  # not used for "nominal"
 
 
@@ -73,29 +74,47 @@ def load_spec() -> dict:
     return spec
 
 
-def build_matrix(spec: dict, severities: tuple[str, ...] = SEVERITIES) -> list[dict]:
+def build_matrix(spec: dict, severities: tuple[str, ...] = SEVERITIES,
+                  families: tuple[str, ...] = PERTURBATION_FAMILIES,
+                  skip_nominal: bool = False) -> list[dict]:
     """Every (family, severity) cell, including exactly one nominal baseline.
 
     ``severities`` selects which ALREADY-FROZEN tiers to include. It cannot introduce a
     severity value -- every number still comes from spec["TIERS"] -- so restricting to
     ("medium",) selects the frozen mid tier rather than inventing one.
+
+    ``families`` selects which perturbation families to include (default: all three, the
+    original behaviour). Lets a sweep target e.g. only localization_noise and motion_error at
+    a new severity without also spending seeds on a control_delay tier nobody asked for.
+
+    ``skip_nominal`` (default False, preserving original behaviour) omits the nominal cell.
+    Nominal is severity- and family-invariant -- "everything off" -- so a dose-response
+    extension on the SAME checkpoint and SAME seed block that already has a nominal CSV on
+    disk (from an earlier severity's sweep) would either waste 128 episodes reproducing
+    identical data or, since the collision guard checks every target before running anything,
+    refuse to run at all. Reusing the existing nominal file for R_A/R_B is correct here
+    because nominal is byte-identical in meaning regardless of which severities/families were
+    requested -- it is not a per-sweep quantity.
     """
     tiers = spec["TIERS"]
     SEVERITIES = severities  # noqa: N806 - shadow deliberately, see docstring
-    cells = [{"family": "nominal", "severity": "nominal", "sensor_noise": 0.0,
-             "drift": 0.0, "delay_ticks": 0}]
-    for sev in SEVERITIES:
-        cells.append({"family": "localization_noise", "severity": sev,
-                      "sensor_noise": tiers["localization_noise"][sev],
-                      "drift": 0.0, "delay_ticks": 0})
-    for sev in SEVERITIES:
-        cells.append({"family": "motion_error", "severity": sev,
-                      "sensor_noise": 0.0, "drift": tiers["motion_error"][sev],
-                      "delay_ticks": 0})
-    for sev in SEVERITIES:
-        cells.append({"family": "control_delay", "severity": sev,
-                      "sensor_noise": 0.0, "drift": 0.0,
-                      "delay_ticks": tiers["control_delay"][sev]["ticks"]})
+    cells = [] if skip_nominal else [{"family": "nominal", "severity": "nominal",
+                                       "sensor_noise": 0.0, "drift": 0.0, "delay_ticks": 0}]
+    if "localization_noise" in families:
+        for sev in SEVERITIES:
+            cells.append({"family": "localization_noise", "severity": sev,
+                          "sensor_noise": tiers["localization_noise"][sev],
+                          "drift": 0.0, "delay_ticks": 0})
+    if "motion_error" in families:
+        for sev in SEVERITIES:
+            cells.append({"family": "motion_error", "severity": sev,
+                          "sensor_noise": 0.0, "drift": tiers["motion_error"][sev],
+                          "delay_ticks": 0})
+    if "control_delay" in families:
+        for sev in SEVERITIES:
+            cells.append({"family": "control_delay", "severity": sev,
+                          "sensor_noise": 0.0, "drift": 0.0,
+                          "delay_ticks": tiers["control_delay"][sev]["ticks"]})
     return cells
 
 
@@ -139,6 +158,17 @@ def main() -> int:
                     help="comma-separated subset of the ALREADY-FROZEN tiers to run, e.g. "
                          "'medium' for the frozen 2v2 primary matrix. Cannot introduce a "
                          "severity value: every number still comes from the spec's TIERS.")
+    ap.add_argument("--families", default=",".join(PERTURBATION_FAMILIES),
+                    help="comma-separated subset of perturbation families to run, e.g. "
+                         "'localization_noise,motion_error' to extend those two to a new "
+                         "severity without also spending seeds on a control_delay tier nobody "
+                         "asked for. 'nominal' is always included regardless of this flag, "
+                         "unless --skip-nominal is also passed.")
+    ap.add_argument("--skip-nominal", action="store_true",
+                    help="omit the nominal cell -- for a dose-response extension on a "
+                         "checkpoint/seed block that already has a nominal CSV on disk from an "
+                         "earlier severity's sweep, so the run neither wastes episodes "
+                         "reproducing it nor collides with the existing file.")
     args = ap.parse_args()
 
     sevs = tuple(s.strip() for s in args.severities.split(",") if s.strip())
@@ -147,12 +177,19 @@ def main() -> int:
         raise SystemExit(f"REFUSING: unknown severity tier(s) {unknown}; the frozen tiers are "
                          f"{list(SEVERITIES)}. A new tier would have to be frozen in the spec.")
 
+    fams = tuple(f.strip() for f in args.families.split(",") if f.strip())
+    unknown_fams = [f for f in fams if f not in PERTURBATION_FAMILIES]
+    if unknown_fams:
+        raise SystemExit(f"REFUSING: unknown famil(y/ies) {unknown_fams}; the frozen families "
+                         f"are {list(PERTURBATION_FAMILIES)}.")
+
     spec = load_spec()
-    matrix = build_matrix(spec, sevs)
+    matrix = build_matrix(spec, sevs, fams, skip_nominal=args.skip_nominal)
 
     if args.plan_only:
+        nominal_note = "0 nominal (skipped)" if args.skip_nominal else "1 nominal"
         print(f"DEPLOYMENT ROBUSTNESS SWEEP -- PLAN ONLY  {_now()}\n")
-        print(f"  {len(matrix)} cells (1 nominal + 3 families x 3 severities):")
+        print(f"  {len(matrix)} cells ({nominal_note} + {len(fams)} families x {len(sevs)} severities):")
         for c in matrix:
             print(f"    {c['family']:20s} {c['severity']:8s}  "
                   f"sensor_noise={c['sensor_noise']}  drift={c['drift']}  "

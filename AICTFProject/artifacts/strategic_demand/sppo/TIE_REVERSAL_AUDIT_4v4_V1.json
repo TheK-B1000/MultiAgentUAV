@@ -1,0 +1,23 @@
+{
+  "record": "Row-level integrity audit (4v4, variant=v1)",
+  "status": "FLAGGED",
+  "utc": "2026-09-08T00:20:31Z",
+  "triggered_by": "delta_A exactly zero (tie)",
+  "n_rows": 1,
+  "n_unique_seeds": 1,
+  "seed_range": [
+    12400001,
+    12400001
+  ],
+  "poleA_split": {
+    "tied": 1,
+    "guard_only": 0,
+    "breach_only": 0
+  },
+  "point_estimates": {
+    "delta_A": 0.0,
+    "delta_B": 1.0
+  },
+  "note": "a tie or reversal is a legitimate possible outcome, not necessarily an evaluator defect. This audit checks for duplicate/missing seeds and a symmetric win/loss split before any interpretation is offered.",
+  "classification": "GENUINE -- seeds unique, range as expected, split symmetric"
+}

@@ -64,7 +64,13 @@ BASE_KEY = {"A": "OP6", "B": "OP7"}
 #: defensive capacity did not scale with defender count). Both records are retained; only
 #: which one GATES production training changes. This is precedence, not deletion -- the v1
 #: verdict stays on disk and in the history exactly as recorded.
+#: CONFIRMATORY_REDESIGN_N192 supersedes both at 4v4: after GUARD_DISTRIBUTED_V2 also failed
+#: (exploratory learned-specialist crossover confirmed a genuine Δ_B reversal, not a probe
+#: defect), 4v4 was rebuilt on a new Pole-B2 (4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json) and
+#: properly powered (n=192, matching this Pole-A genome's own 2v2 precedent) rather than the
+#: n=64 every prior 4v4 attempt used. Both older records are retained unmodified.
 _CERT_PRECEDENCE = (
+    "STRATEGIC_DEMAND_{n}v{n}_CONFIRMATORY_REDESIGN_N192_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_CERTIFICATION.json",
 )
@@ -171,6 +177,28 @@ def main() -> int:
                          "at a size whose strategic demand is NOT_CERTIFIED. Artifacts are "
                          "routed to an exploratory_ prefix and labelled so they can never be "
                          "mistaken for confirmatory records.")
+    ap.add_argument("--confirmatory-redesign-spec", default=None,
+                    help="path to a FROZEN spec with arm=CONFIRMATORY_REDESIGN and "
+                         "confirmatory=true. Lets ONE named policy in a new, not-yet-certified "
+                         "pole redesign start training before the OTHER pole's certification "
+                         "screen finishes, when the spec explicitly states that policy's own "
+                         "pole is unchanged from an already-frozen definition and so does not "
+                         "depend on the pending pole. Unlike --exploratory-spec this is NOT an "
+                         "exploratory bypass: artifacts land in the normal production directory "
+                         "and are labelled arm=CONFIRMATORY_REDESIGN (pending), because if the "
+                         "joint certification later passes, this IS the confirmatory checkpoint "
+                         "-- not a separate run to be repeated. If the joint certification never "
+                         "passes, this checkpoint simply never reaches confirmatory status; nothing "
+                         "here fabricates a certification that did not happen.")
+    ap.add_argument("--pole-b-genome-json", default=None,
+                    help="path to a JSON SDSGenome candidate for Pole B (e.g. a certified "
+                         "B2 from a confirmatory-redesign track), used instead of the "
+                         "canonical pole_B_genome(N). REQUIRED whenever --policy B and the "
+                         "GOVERNING certification record for this team size is itself a "
+                         "confirmatory-redesign record (name contains 'CONFIRMATORY_REDESIGN') "
+                         "-- otherwise the run would silently train against the OLD, "
+                         "uncertified canonical Pole B while the certification banner claims "
+                         "CERTIFIED.")
     args = ap.parse_args()
 
     n, policy, seed = int(args.team_size), args.policy, int(args.seed)
@@ -201,6 +229,41 @@ def main() -> int:
                              f"{declared[key]} for {key}, but --seed={seed}. A production "
                              f"exploratory run must use the preregistered seed exactly.")
 
+    # ---- confirmatory redesign: one named policy may start before the OTHER pole's own -----
+    # certification screen finishes, when its own pole is frozen and unchanged. Not a
+    # certification bypass in the exploratory sense -- confirmatory=true, normal artifact path.
+    redesign = None
+    if args.confirmatory_redesign_spec:
+        if args.exploratory_spec:
+            raise SystemExit("FAIL-CLOSED: --exploratory-spec and --confirmatory-redesign-spec "
+                             "are mutually exclusive arms")
+        sp = Path(args.confirmatory_redesign_spec)
+        if not sp.is_file():
+            raise SystemExit(f"FAIL-CLOSED: --confirmatory-redesign-spec not found: {sp}")
+        redesign = json.loads(sp.read_text(encoding="utf-8"))
+        if not str(redesign.get("status", "")).startswith("FROZEN"):
+            raise SystemExit(f"FAIL-CLOSED: confirmatory-redesign spec is not frozen: "
+                             f"{redesign.get('status')!r}")
+        if redesign.get("arm") != "CONFIRMATORY_REDESIGN" or not redesign.get("confirmatory", False):
+            raise SystemExit("FAIL-CLOSED: --confirmatory-redesign-spec must carry "
+                             "arm=CONFIRMATORY_REDESIGN and confirmatory=true")
+        declared_r = (redesign.get("TRAINING", {}).get("seeds") or {})
+        key = f"pi_{policy}_{n}v{n}"
+        if key not in declared_r:
+            raise SystemExit(f"FAIL-CLOSED: confirmatory-redesign spec does not preregister "
+                             f"{key}; it declares {sorted(declared_r)}.")
+        if not is_smoke and int(declared_r[key]) != seed:
+            raise SystemExit(f"FAIL-CLOSED: confirmatory-redesign spec preregisters seed "
+                             f"{declared_r[key]} for {key}, but --seed={seed}.")
+        unchanged = redesign.get("POLES_UNCHANGED_FROM_FROZEN", [])
+        if policy not in unchanged:
+            raise SystemExit(
+                f"FAIL-CLOSED: confirmatory-redesign spec does not list pole {policy} in "
+                f"POLES_UNCHANGED_FROM_FROZEN ({unchanged}). This bypass exists ONLY so a "
+                f"policy whose OWN pole is already frozen/unchanged can start before the "
+                f"other pole's screen finishes -- policy {policy}'s pole is not attested as "
+                f"unchanged, so this spec does not authorize starting it early.")
+
     if is_smoke and not (SMOKE_SEED_MIN <= seed <= SMOKE_SEED_MAX):
         raise SystemExit(f"FAIL-CLOSED: --smoke requires a seed in "
                          f"[{SMOKE_SEED_MIN}, {SMOKE_SEED_MAX}], got {seed}")
@@ -208,19 +271,54 @@ def main() -> int:
         raise SystemExit(f"FAIL-CLOSED: seed {seed} is reserved for non-scientific smokes")
 
     verdict, cert_path = _certification_verdict(n)
-    if not is_smoke and verdict != "CERTIFIED" and exploratory is None:
+    if not is_smoke and verdict != "CERTIFIED" and exploratory is None and redesign is None:
         raise SystemExit(
             f"FAIL-CLOSED: {n}v{n} strategic demand is {verdict} ({cert_path.name}). "
             f"Production specialist training is gated on CERTIFIED: a pole pair that does not "
             f"demand different behaviour cannot support complementary specialists, and "
             f"training them would spend GPU hours on an unanswerable question. "
-            f"(An EXPLORATORY arm may proceed only via --exploratory-spec <frozen spec>.)")
+            f"(An EXPLORATORY arm may proceed only via --exploratory-spec <frozen spec>; a "
+            f"named policy in a pending redesign may proceed only via "
+            f"--confirmatory-redesign-spec <frozen spec>.)")
     if exploratory is not None:
         print("!" * 78)
         print(f"!!  EXPLORATORY ARM  --  {n}v{n} strategic demand is {verdict}; this run is NOT")
         print(f"!!  confirmatory. Governed by {Path(args.exploratory_spec).name}.")
         print(f"!!  Artifacts are prefixed exploratory_ and labelled arm=EXPLORATORY.")
         print("!" * 78, flush=True)
+    if redesign is not None:
+        print("!" * 78)
+        print(f"!!  CONFIRMATORY REDESIGN (PENDING)  --  {n}v{n} joint strategic demand is "
+              f"{verdict}; pole {policy} is attested unchanged and starts ahead of the other "
+              f"pole's certification screen. Governed by "
+              f"{Path(args.confirmatory_redesign_spec).name}.")
+        print(f"!!  This checkpoint becomes confirmatory ONLY IF the joint certification "
+              f"later passes.")
+        print("!" * 78, flush=True)
+
+    # ---- Pole B genome source: fail closed if the GOVERNING certification is itself a -----
+    # confirmatory-redesign record. That record certified a SPECIFIC candidate genome, not
+    # canonical OP7; training "policy B" via the default pole_B_genome(N) would silently
+    # answer a different, uncertified question while the banner above still says CERTIFIED.
+    pole_b_override = None
+    if policy == "B":
+        if args.pole_b_genome_json:
+            pbp = Path(args.pole_b_genome_json)
+            if not pbp.is_file():
+                raise SystemExit(f"FAIL-CLOSED: --pole-b-genome-json not found: {pbp}")
+            from experiments.sds_genome import SDSGenome
+            from experiments.opponent_spec import _with_full_team_defender_gate
+            pole_b_override = _with_full_team_defender_gate(
+                SDSGenome.from_dict(json.loads(pbp.read_text(encoding="utf-8"))), n)
+            print(f"  Pole B SOURCE  candidate genome {pole_b_override.genome_id!r} from "
+                  f"{pbp.name} (NOT canonical pole_B_genome({n}))", flush=True)
+        elif not is_smoke and "CONFIRMATORY_REDESIGN" in cert_path.name:
+            raise SystemExit(
+                f"FAIL-CLOSED: the governing certification for {n}v{n} is a confirmatory-"
+                f"redesign record ({cert_path.name}), which certified a SPECIFIC Pole-B "
+                f"candidate genome, not canonical OP7. --policy B requires "
+                f"--pole-b-genome-json naming that candidate, or this run would silently "
+                f"train against the wrong, uncertified Pole B.")
 
     try:
         import torch
@@ -273,7 +371,8 @@ def main() -> int:
     print("=" * 78)
     print(f"SPECIALIST_SCALE  pi_{policy}  {n}v{n}   "
           f"{'[SMOKE - NON-SCIENTIFIC]' if is_smoke else '[PRODUCTION]'}"
-          f"{'  [EXPLORATORY ARM - NOT CONFIRMATORY]' if exploratory is not None else ''}")
+          f"{'  [EXPLORATORY ARM - NOT CONFIRMATORY]' if exploratory is not None else ''}"
+          f"{'  [CONFIRMATORY REDESIGN - PENDING JOINT CERT]' if redesign is not None else ''}")
     print("=" * 78)
     print(f"  utc              {_now()}")
     print(f"  git sha          {sha}{'  (DIRTY)' if dirty else ''}")
@@ -315,10 +414,17 @@ def main() -> int:
         "certification_verdict": verdict,
         "checkpoint_dir": cfg.checkpoint_dir,
         "recipe_inherited_from": "experiments/run_r1_repertoire_training.py::build_r1_config",
-        "arm": "EXPLORATORY" if exploratory is not None else "CONFIRMATORY",
+        "pole_b_source": (f"CANDIDATE_OVERRIDE:{pole_b_override.genome_id}"
+                         if pole_b_override is not None else "canonical_pole_B_genome"),
+        "arm": ("EXPLORATORY" if exploratory is not None
+               else "CONFIRMATORY_REDESIGN_PENDING" if redesign is not None
+               else "CONFIRMATORY"),
         "confirmatory": exploratory is None,
+        "confirmatory_pending_joint_certification": redesign is not None,
         "exploratory_spec": (Path(args.exploratory_spec).name if exploratory is not None
                              else None),
+        "confirmatory_redesign_spec": (Path(args.confirmatory_redesign_spec).name
+                                       if redesign is not None else None),
         "distillation_started_by_this_script": False,
         "evaluation_started_by_this_script": False,
     }, indent=2), encoding="utf-8")
@@ -337,6 +443,7 @@ def main() -> int:
             R.configure_r1_live_environment,
             policy=policy,
             config_contract=contract,
+            pole_b_genome_override=pole_b_override,
         ),
     )
     print("\n  training returned. This script does NOT start distillation or evaluation.")

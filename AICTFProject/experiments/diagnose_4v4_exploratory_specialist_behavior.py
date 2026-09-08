@@ -64,6 +64,7 @@ def diagnose_episode(env, core, policy) -> dict:
     spread_samples = []
     carrier_dists = []
     first_pressure_tick = None
+    terminal = None
 
     import experiments.r2_learned_crossover as R2
 
@@ -108,7 +109,7 @@ def diagnose_episode(env, core, policy) -> dict:
                 carrier_dists.append(d)
 
         if first_pressure_tick is None:
-            from gpu_env._core._bt_profiles import gate2b_defender_hold_radius
+            from gpu_env._core._scripted_blue_styles import gate2b_defender_hold_radius
             fx, fy = core.red_flag_pos[0, 0].item(), core.red_flag_pos[0, 1].item()
             bx, by = core.blue_x[0].cpu().numpy(), core.blue_y[0].cpu().numpy()
             radius = gate2b_defender_hold_radius(core.cfg)
@@ -121,8 +122,14 @@ def diagnose_episode(env, core, policy) -> dict:
         obs, _r, done, info = env.step_wait()
         obs["global_state"] = env.state()
         if bool(np.asarray(done).any()):
+            i0 = info[0] if isinstance(info, (list, tuple)) else info
+            res = (i0 or {}).get("episode_result") or {}
+            terminal = (int(res.get("blue_score", 0)), int(res.get("red_score", 0)))
             break
 
+    if terminal is None:
+        terminal = (int(core.blue_score[0]), int(core.red_score[0]))
+    blue, red = terminal
     return {
         "own_half_frac": (own_half_ticks / max(1, total_ticks)).tolist(),
         "time_past_midfield": (enemy_half_ticks / max(1, total_ticks)).tolist(),
@@ -134,6 +141,7 @@ def diagnose_episode(env, core, policy) -> dict:
         "carrier_support_dist_mean": float(np.mean(carrier_dists)) if carrier_dists else None,
         "first_flag_pressure_tick": first_pressure_tick,
         "episode_ticks": total_ticks,
+        "win": int(blue > red), "blue": blue, "red": red, "margin": blue - red,
     }
 
 
@@ -189,6 +197,8 @@ def main() -> int:
                     results[name][pole].append(diagnose_episode(env, core, policies[name]))
                 finally:
                     env.close()
+                if (i + 1) % 8 == 0 or (i + 1) == args.n_seeds:
+                    print(f"    {name}@{pole}: {i + 1}/{args.n_seeds} episodes", flush=True)
             print(f"  {name} on Pole {pole}: {len(results[name][pole])} episodes diagnosed", flush=True)
 
     def agg(key, path):

@@ -69,6 +69,14 @@ def main() -> int:
                     help="override SEED_BASE[team_size]; REQUIRED to differ from the v1 "
                         "block whenever --variant is not 'v1', so a fresh block is spent "
                         "explicitly rather than by an unstated default")
+    ap.add_argument("--pole-b-genome-json", default=None,
+                    help="path to a JSON SDSGenome (genome_id/derived_from/base_opponent/"
+                        "overlay/opening_hold_steps) to substitute for Pole B, e.g. a "
+                        "candidate from a confirmatory-redesign ladder. Defaults to None, "
+                        "which reproduces the exact pre-existing behaviour "
+                        "(pole_B_genome(N), canonical OP7 + the size-normalized defender "
+                        "gate) byte-for-byte -- every existing 2v2/4v4/6v6 certification "
+                        "call is unaffected by this flag's mere existence.")
     args = ap.parse_args()
 
     N = int(args.team_size)
@@ -76,14 +84,32 @@ def main() -> int:
     variant = str(args.variant)
 
     import experiments.strategic_demand_searcher as S
-    from experiments.opponent_spec import expected_profile, pole_A_genome, pole_B_genome
+    from experiments.opponent_spec import (
+        _with_full_team_defender_gate, expected_profile, pole_A_genome, pole_B_genome,
+    )
+    from experiments.sds_genome import SDSGenome
 
     # Team size must reach the scripted-episode env: it reads this module global.
     S.AGENTS = N
     if int(S.AGENTS) != N:
         raise SystemExit("FAIL-CLOSED: could not set team size on the episode runner")
 
-    gA, gB = pole_A_genome(N), pole_B_genome(N)
+    gA = pole_A_genome(N)
+    if args.pole_b_genome_json:
+        p = Path(args.pole_b_genome_json)
+        if not p.is_file():
+            raise SystemExit(f"FAIL-CLOSED: --pole-b-genome-json not found: {p}")
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        candidate = SDSGenome.from_dict(raw)
+        if candidate.base_opponent != "OP7":
+            raise SystemExit(f"FAIL-CLOSED: --pole-b-genome-json base_opponent="
+                             f"{candidate.base_opponent!r}, expected 'OP7' -- Pole B "
+                             f"candidates are OP7 overlays, not a different dispatch key")
+        gB = _with_full_team_defender_gate(candidate, N)
+        print(f"  Pole B SOURCE  candidate genome {candidate.genome_id!r} from "
+              f"{p.name} (NOT canonical pole_B_genome({N}))")
+    else:
+        gB = pole_B_genome(N)
     pA, pB = expected_profile("OP6", gA), expected_profile("OP7", gB)
 
     # Fail closed if the size normalization did not reach the resolved profiles.
@@ -117,7 +143,10 @@ def main() -> int:
           f"  threat_radius={getattr(pA, 'threat_radius', None)}")
     print(f"  pole B         OP7+overlay  min_alive={getattr(pB, 'min_alive_for_defender', None)}"
           f"  zone_frac={getattr(pB, 'defender_zone_frac', None)}"
-          f"  threat_radius={getattr(pB, 'threat_radius', None)}")
+          f"  threat_radius={getattr(pB, 'threat_radius', None)}"
+          f"  lock_defender={getattr(pB, 'lock_defender', None)}"
+          f"  lock_attacker={getattr(pB, 'lock_attacker', None)}"
+          f"{'  [CANDIDATE: ' + gB.genome_id + ']' if args.pole_b_genome_json else ''}")
     print(f"  gate           LCB95(delta_A) > 0 AND LCB95(delta_B) > 0")
     print("=" * 78, flush=True)
 
@@ -235,7 +264,12 @@ def main() -> int:
             "B": {"base": "OP7", "overlay": dict(gB.overlay or {}),
                   "min_alive_for_defender": getattr(pB, "min_alive_for_defender", None),
                   "defender_zone_frac": getattr(pB, "defender_zone_frac", None),
-                  "threat_radius": getattr(pB, "threat_radius", None)},
+                  "threat_radius": getattr(pB, "threat_radius", None),
+                  "lock_defender": getattr(pB, "lock_defender", None),
+                  "lock_attacker": getattr(pB, "lock_attacker", None),
+                  "candidate_genome_id": gB.genome_id if args.pole_b_genome_json else None,
+                  "candidate_source": (str(args.pole_b_genome_json)
+                                       if args.pole_b_genome_json else None)},
         },
         "cell_win_rates": cells,
         "PRIMARY": {"delta_A": ciA, "delta_B": ciB},

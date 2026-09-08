@@ -1,0 +1,25 @@
+{
+  "record_id": "4V4_CONFIRMATORY_REDESIGN_C2_N192_AMENDMENT",
+  "status": "FROZEN_BEFORE_ANY_N192_EPISODE",
+  "utc": "2026-09-08T02:40:00Z",
+  "amends": "4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json#POLE_B2_SELECTION_PROCEDURE",
+  "authority": "PI, 2026-09-08: 'Freeze a fresh, prospectively declared higher-n Pole-A confirmation, ideally using the same n=192 precedent... Keep B2-1 fixed... require both demand sides to pass cleanly.'",
+
+  "WHY_N64_WAS_INADEQUATE_FOR_POLE_A": {
+    "finding": "the prior prospective power analysis for THIS EXACT Pole A genome (SDS2_A_payoff_INIT_3, CANDIDATE_A2_SDS2_INIT_3_FROZEN.json) already established, before its own 2v2 confirmation ran, that n=64 gives only ~47% power at the development-stage effect estimate, versus ~86% at n=192 (CONFIRMATION_N_AMENDMENT_192.json). The 2v2 confirmation itself used n=192, not n=64, and confirmed delta_G(A)=0.29688 [0.20313,0.39063].",
+    "defensible_statement": "the prior prospective power analysis already established that n=64 was inadequately powered for this Pole-A contrast, so failure to clear the confidence bound at n=64 cannot by itself establish that the 4v4 mechanism collapsed. (Narrower than claiming the three n=64 outcomes are 'exactly what we'd expect' -- that stronger claim was not derived and is not asserted here.)",
+    "behavioral_diagnostic_before_this_freeze": "a disposable-seed check (32 episodes, 99993001+ at 4v4; 32 episodes, 99994001+ at 2v2, both discovery-only) confirmed GUARD and BREACH still produce meaningfully different win rates and defender-engagement against Pole A at 4v4 (0.500 vs 0.312 win rate; 0.312 vs 0.178 defender-active fraction), and that the underlying mechanism behaves comparably at 2v2 and 4v4: red takes zero casualties under either style at EITHER team size (0/32 at 4v4, 0/32 at 2v2), so the genome's 'conditional defender' gate is behaviorally vacuous (always-true) at both scales equally -- not a new 4v4 defect. The GUARD/BREACH separation comes from a different, still-functioning mechanism at both sizes."
+  },
+
+  "SCOPE": "this is a JOINT certification (Pole A + Pole B2/B2-1 together, on the SAME 192-seed block), mirroring V3_STRATEGIC_DEMAND_VALIDATED.json's own design choice ('both poles evaluated on the identical 192-seed set... by design, for experimental symmetry'). Pole A's definition is UNCHANGED (CANDIDATE_A2_SDS2_INIT_3_FROZEN.json via pole_A_genome(4)). Pole B2 is B2-1 (SDS2_B2_LOCKDEF10), frozen in 4V4_CONFIRMATORY_REDESIGN_B2_SELECTED.json -- not re-opened, not re-tuned.",
+
+  "SEED_BLOCK": {"variant": "confirmatory_redesign_n192", "seed_base": 12440001, "n": 192,
+                "disjointness_verified": "grep for 12440001/12440192 against every JSON under artifacts/strategic_demand/: zero hits"},
+
+  "GATE_UNCHANGED": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0, paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7 -- identical procedure and identical bootstrap to every certification in this program. No threshold moved.",
+
+  "PREDECLARED_BEFORE_RESULT": "n=192 chosen by direct precedent (the SAME n this exact Pole-A genome required for its own 2v2 confirmation), not tuned against any 4v4 outcome. This is the ONLY Pole-A/B2 joint run authorized at this seed block; the result is one-shot, matching every other certification record in this program.",
+
+  "IF_PASSES": "4v4 strategic demand under the C2 redesign is CERTIFIED. Licenses launching pi_B2 production training (seed 16200001, already reserved in 4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json) and, once both pi_A2/pi_B2 terminal checkpoints exist, the fresh sealed crossover eval on 16400001-128.",
+  "IF_FAILS": "per the same no-further-tuning discipline used throughout this program: this construction (Pole A unchanged + B2-1) does not certify. Does not authorize testing B2-2/B2-3 at n=192 without a new freeze; does not authorize adjusting Pole A. Requires PI review before any further step."
+}

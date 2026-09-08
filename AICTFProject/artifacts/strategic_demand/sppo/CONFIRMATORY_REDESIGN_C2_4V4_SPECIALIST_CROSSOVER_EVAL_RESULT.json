@@ -1,0 +1,44 @@
+{
+  "record_id": "CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "arm": "CONFIRMATORY_REDESIGN",
+  "confirmatory": true,
+  "utc": "2026-09-08T15:50:00Z",
+  "implements": "4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json#FRESH_CONFIRMATORY_CROSSOVER_EVAL",
+
+  "checkpoints": {
+    "pi_A2": "CONFIRMATORY_REDESIGN_C2_PI_A2_FROZEN.json -- seed 16100001, trained vs Pole A (unchanged)",
+    "pi_B2": "CONFIRMATORY_REDESIGN_C2_PI_B2_FROZEN.json -- seed 16200001, trained vs Pole B2 (B2-1, certified STRATEGIC_DEMAND_4v4_CONFIRMATORY_REDESIGN_N192_CERTIFICATION.json)"
+  },
+  "seeds": {"block": [16400001, 16400128], "n": 128, "shared_across_all_4_cells": true},
+  "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+
+  "RAW_WIN_RATES": {
+    "pi_A2_on_A": 0.6953,
+    "pi_A2_on_B": 0.9297,
+    "pi_B2_on_A": 0.7734,
+    "pi_B2_on_B": 0.9141
+  },
+
+  "GATE": {
+    "delta_A_spec": {"definition": "V(pi_A2,A) - V(pi_B2,A)", "mean": -0.0781, "lcb95": -0.1719, "ucb95": 0.0156, "own_gate": "FAIL"},
+    "delta_B_spec": {"definition": "V(pi_B2,B2) - V(pi_A2,B2)", "mean": -0.0156, "lcb95": -0.0781, "ucb95": 0.0469, "own_gate": "FAIL"},
+    "advancement_gate": "delta_A_spec > 0 AND LCB95_A > 0 AND delta_B_spec > 0 AND LCB95_B > 0",
+    "verdict": "FAIL"
+  },
+
+  "INTEGRITY_AUDIT": {
+    "triggered": "both delta_A_spec and delta_B_spec have negative means",
+    "record": "TIE_REVERSAL_AUDIT_CONFIRMATORY_REDESIGN_C2_4V4.json",
+    "classification": "GENUINE -- seed integrity, split-half consistency, and win/margin consistency all confirmed."
+  },
+
+  "READING": "The fresh confirmatory specialists (pi_A2 vs unchanged Pole A, pi_B2 vs the properly-powered, scripted-probe-certified Pole B2/B2-1) did not produce complementary learned specialization. Both deltas are negative in point estimate on BOTH poles, though neither confidence interval statistically confirms a reversal (both include zero) -- the honest description is a null result with a negative lean, not a decisively confirmed reversal like the earlier exploratory arm's. The raw pattern is nonetheless informative: both policies perform noticeably better against Pole B2 than against Pole A regardless of which one was trained for which (0.91-0.93 vs 0.70-0.77), and on each pole the OFF-pole specialist does as well or slightly better than the ON-pole one. This is the same qualitative pattern the exploratory arm's behavioral diagnostic found (general policy-quality differences dominating over situational specialization) -- but now observed under a COMPLETELY DIFFERENT, independently-certified pole construction (B2-1 rather than canonical OP7), which is evidence the difficulty is not specific to the original Pole-B defect this whole C2 track was built to fix.",
+
+  "WHAT_THIS_MEANS_FOR_THE_C2_TRACK": "the scripted-probe-level fix (B2-1's defender-lock repair, properly powered at n=192) worked exactly as intended -- G_A and G_B2 both passed cleanly. That was necessary but evidently not sufficient: the environment demonstrably admits complementary scripted strategies, but PPO training at 4v4 did not discover complementary policies from it, on this attempt. This is the SAME two-part diagnosis structure the exploratory arm faced (probe defect vs. training/generalization limits) resolving to the SECOND explanation once the first was fixed.",
+
+  "STATUS_OF_4V4_FOR_THIS_PAPER": "per the standing no-second-attempt discipline used everywhere in this program (exploratory arm's closed FAIL, the B2 ladder's first-to-pass rule, every other confirmatory gate): this was the one frozen, prospectively-designed confirmatory attempt for the C2 construction, and it did not pass. Under that discipline, 4v4 now has TWO independently-certified pole constructions (original GUARD_DISTRIBUTED_V2 and this C2/B2-1 redesign) that both failed to produce learned specialist crossover, despite the SECOND construction's scripted-probe demand being properly powered and cleanly confirmed. This is a substantive finding in its own right -- it shifts the open question from 'is the pole definition broken' (now answered: no, not this time) to 'does 4v4 team size structurally limit PPO's ability to discover complementary strategies here' -- and that determination is for PI review, not something this record resolves unilaterally.",
+
+  "NOT_AUTHORIZED_BY_THIS_RESULT": ["a third 4v4 pole construction without explicit new authorization and its own fresh preregistration", "any retraining of pi_A2 or pi_B2", "any claim that 4v4 achieved confirmatory crossover parity with 2v2 or 6v6", "reuse of 16400001-128 for any other purpose"]
+}

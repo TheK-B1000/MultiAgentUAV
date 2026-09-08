@@ -1,0 +1,41 @@
+{
+  "record_id": "4V4_POLE_B3_DIFFICULTY_SCREEN",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-08T17:10:00Z",
+  "implements": "4V4_POLE_B3_SELECTION_RULE.json",
+
+  "PART_1_STRATEGIC_DISTINCTION_scripted_disposable_n24": {
+    "G_A_unchanged_Pole_A": {"mean": 0.4167, "lcb95": 0.1250, "ucb95": 0.6667},
+    "B3-1_counter": {"guard_wr": 0.042, "breach_wr": 0.667, "G_B": {"mean": 0.625, "lcb95": 0.375, "ucb95": 0.8333}, "passes": true},
+    "B3-2_counter_fastlock": {"guard_wr": 0.042, "breach_wr": 0.667, "G_B": {"mean": 0.625, "lcb95": 0.375, "ucb95": 0.8333}, "passes": true},
+    "B3-3_2v1": {"guard_wr": 0.042, "breach_wr": 0.458, "G_B": {"mean": 0.4167, "lcb95": 0.1667, "ucb95": 0.625}, "passes": true}
+  },
+
+  "PART_2_LEARNED_CONTESTABILITY_pi_A2_step200000": {
+    "band": "0.35 <= mean <= 0.75, frozen in 4V4_POLE_B3_SELECTION_RULE.json before this part ran",
+    "B3-1_counter": {"win_rate": 0.9167, "ci": [0.7917, 1.0], "in_band": false},
+    "B3-2_counter_fastlock": {"win_rate": 0.9167, "ci": [0.7917, 1.0], "in_band": false},
+    "B3-3_2v1": {"win_rate": 0.5417, "ci": [0.3333, 0.75], "in_band": true}
+  },
+
+  "SELECTION_APPLIED_MECHANICALLY_per_4V4_POLE_B3_SELECTION_RULE": {
+    "order_checked": ["B3-1_counter", "B3-2_counter_fastlock", "B3-3_2v1"],
+    "B3-1": "passes condition 1, FAILS condition 2 (0.9167 outside [0.35,0.75]) -- not selected",
+    "B3-2": "passes condition 1, FAILS condition 2 (0.9167 outside [0.35,0.75]) -- not selected",
+    "B3-3": "passes condition 1 AND condition 2 -- SELECTED (first and only candidate to clear both)",
+    "SELECTED_CANDIDATE": "B3-3_2v1",
+    "genome": {"genome_id": "SDS2_B3_LOCKDEF10_2V1", "base_opponent": "OP7", "overlay": {"lock_defender": 10, "enable_2v1": true, "min_alive_for_defender": 4}}
+  },
+
+  "READING": "Counter-capture (B3-1, B3-2) is strategically distinct under the scripted probe -- BREACH beats it decisively -- but a partially-trained (20% of budget) generalist policy already wins 91.67% against it, the same failure signature B2-1 showed at its own certification. This is direct empirical evidence that scripted strategic demand does not imply learned contestability, replicated on a SECOND mechanism (counter-capture) independent of the first (B2-1's defender-lock fix). Coordinated 2v1 flanking (B3-3) is the one candidate where even a partially-trained policy is genuinely challenged (54%, inside the same band 2v2's own specialists held all training long), while still being scripted-distinct.",
+
+  "NEXT_STEP_per_selection_rule": "B3-3 requires its own properly-powered n=192 scripted certification (same tool, same bootstrap, same gate as B2-1's certification) BEFORE any fresh specialist is trained against it. Passing this disposable screen is not itself a certification.",
+
+  "TIME_COST_DISCLOSURE_for_PI_prioritization": {
+    "n192_certification": "~2.5-3h (same order as B2-1's own n=192 run)",
+    "fresh_specialist_pair_if_certified": "~10h sequential (two 1M-step runs, same as C2 track)",
+    "fresh_sealed_crossover_eval": "~7h (512 episodes, same as C2 track)",
+    "total_if_pursued_to_a_full_third_attempt": "~20h, competing for the same GPU as the 2v2 low-tier robustness extension and any further 2v2 finalization work",
+    "note": "this is a real resource tradeoff against the 2-day window and is reported for a PI prioritization decision, not decided here."
+  }
+}

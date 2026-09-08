@@ -1,0 +1,27 @@
+{
+  "record_id": "EXPLORATORY_4V4_PI_B_FROZEN",
+  "status": "FROZEN_CHECKPOINT",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-07T01:44:00Z",
+  "implements": "EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json",
+
+  "policy": "pi_B_4v4 (exploratory)",
+  "trained_against": "Pole B (OP7 + size-normalized overlay, min_alive_for_defender=4)",
+  "seed": 7420001,
+  "recipe": "run_r1_repertoire_training.py::build_r1_config, unchanged",
+  "total_timesteps": 1000000,
+
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_B_specialist_4v4/ckpts/final_exploratory_pi_B_specialist_4v4.zip",
+    "sha256": "64778dfab044033f3a04b362079851721f40a7b1212126f525d550f2f6b03ae6",
+    "bytes": 41749822
+  },
+
+  "run_history": {
+    "restarts": "none -- no stale-lock rotation artifacts under this run's ckpts/ directory, unlike pi_A_4v4's one restart. Single continuous process from launch (2026-09-06T20:30:32Z) to terminal checkpoint.",
+    "live_pole_verified": "training_manifest.json confirms live_opponent_key=OP7, genome_id=SDS_PARENT_OP7, min_alive_for_defender=4 throughout"
+  },
+
+  "NEXT": "both exploratory terminal checkpoints now exist (pi_A_4v4: EXPLORATORY_4V4_PI_A_FROZEN.json, pi_B_4v4: this record). Run the sealed 128-seed exploratory specialist-crossover evaluation on 14400001..14400128 per EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json. This is queued behind the 2v2 high-tier dose-response sweep (ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT.json), currently running on the same shared GPU."
+}

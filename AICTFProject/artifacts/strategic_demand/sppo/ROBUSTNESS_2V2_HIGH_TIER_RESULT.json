@@ -1,0 +1,93 @@
+{
+  "record_id": "ROBUSTNESS_2V2_HIGH_TIER_RESULT",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-07T12:30:00Z",
+  "implements": "ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT.json",
+
+  "VERIFICATION_BEFORE_FREEZE": {
+    "checkpoint_sha256": "recomputed directly from artifacts/strategic_demand/sppo/sharing_ladder/rung1/ckpts/final_rung1.pt at freeze time: 815f818ac11f0546ecdaf77988f39cce2b9ea8b273acde58e6f752c8c0bdc7d1 -- EXACT MATCH to the frozen value in ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT.json and ROBUSTNESS_2V2_RUNG1_RESULT.json. Same checkpoint as the medium-tier study, confirmed not substituted.",
+    "input_files": "all 12 CSVs feeding this result (8 new high-tier cells + 4 reused nominal cells) independently checked: exactly 128 rows each, seeds unique, seed set EXACTLY {13400001..13400128} (no partial/extra/missing seed), win values strictly binary. ALL 12 FILES OK.",
+    "seed_pairing": "confirmed the same 128 seed keys are present, in the same set, across every one of the 12 files -- the paired design is intact, not merely same-count.",
+    "bootstrap_recomputation": "delta_A/delta_B/R_A/R_B independently recomputed from the raw CSVs with fresh code (separate from the script that first produced this file) using the frozen protocol (paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7, seed as resampling unit). Recomputed values are BYTE-IDENTICAL to every number already in PER_CONDITION_CROSSOVER and PAIRED_DEGRADATION_VS_NOMINAL_WITHIN_SEED below.",
+    "verdict": "all four required checks (numbers, input file integrity, seed block, checkpoint sha) pass. Freezing."
+  },
+
+  "seeds": {
+    "block": [
+      13400001,
+      13400128
+    ],
+    "n": 128
+  },
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "PER_CONDITION_CROSSOVER": {
+    "localization_noise_high": {
+      "delta_A": {
+        "mean": 0.2031,
+        "lcb95": 0.0859,
+        "ucb95": 0.3203
+      },
+      "delta_B": {
+        "mean": 0.1797,
+        "lcb95": 0.0625,
+        "ucb95": 0.2969
+      },
+      "gate": "PASS"
+    },
+    "motion_error_high": {
+      "delta_A": {
+        "mean": 0.2031,
+        "lcb95": 0.0859,
+        "ucb95": 0.3203
+      },
+      "delta_B": {
+        "mean": 0.1172,
+        "lcb95": 0.0,
+        "ucb95": 0.2344
+      },
+      "gate": "FAIL"
+    }
+  },
+  "PAIRED_DEGRADATION_VS_NOMINAL_WITHIN_SEED": {
+    "localization_noise_high": {
+      "R_A": {
+        "mean": 0.0234,
+        "lcb95": -0.0859,
+        "ucb95": 0.1328
+      },
+      "R_B": {
+        "mean": 0.0234,
+        "lcb95": -0.0938,
+        "ucb95": 0.1328
+      }
+    },
+    "motion_error_high": {
+      "R_A": {
+        "mean": 0.0234,
+        "lcb95": -0.1328,
+        "ucb95": 0.1797
+      },
+      "R_B": {
+        "mean": -0.0391,
+        "lcb95": -0.2031,
+        "ucb95": 0.125
+      }
+    }
+  },
+
+  "GATE_VS_DEGRADATION_DISTINCTION": {
+    "localization_noise_high": "crossover PASS -- both poles statistically confirmed at high severity.",
+    "motion_error_high": "crossover gate FAIL at boundary (delta_B_high LCB95 = 0.0000 exactly), but degradation is NOT confirmed. R_A_high and R_B_high both straddle zero, so this FAIL must not be read as 'motion error broke the policy' -- the paired comparison against nominal shows no statistically distinguishable change."
+  },
+
+  "READING": "High-tier deployment robustness does not reveal a stronger degradation boundary for either tested disturbance family. Under localization noise, crossover remains statistically confirmed at high severity on both poles, and paired changes relative to nominal remain statistically indistinguishable from zero. Across medium and high localization severities, there is therefore no evidence of crossover degradation within the tested range. Under motion error, Pole A remains statistically confirmed while Pole B reaches the preregistered boundary condition with LCB95=0.000. However, the paired degradation estimates relative to nominal remain statistically indistinguishable from zero, and the severity response is non-monotonic: the high-severity result is not more degraded than the medium-severity result. Accordingly, motion error is not confirmed robust, but neither is it confirmed to degrade or break crossover within the tested severity range. No tested high-tier disturbance produces statistically confirmed degradation relative to nominal.",
+
+  "DOSE_RESPONSE_FINDING": "stronger perturbation (0.06 -> 0.12, a 2x increase) did not produce monotonic degradation for either family. Localization noise's R stayed flat and near zero at both severities. Motion error's R actually moved TOWARD zero at the higher severity for both poles (R_A: medium -0.0703 -> high +0.0234; R_B: medium -0.1406 -> high -0.0391). This directly tested and did not support the hypothesis that the medium-tier study's ambiguity was simply because the perturbations were too weak to detect a real effect.",
+
+  "SCOPE_CLOSED": "per PI direction 2026-09-07: 'I would consider the 2v2 robustness study complete, not provisional.' No further severity tiers, families, or checkpoints are planned for this study. control_delay remains at its medium-tier result (ROBUSTNESS_2V2_RUNG1_RESULT.json) as final; control_delay_high was never authorized (ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT.json#SCOPE_DECISION)."
+}

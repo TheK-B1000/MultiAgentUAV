@@ -155,6 +155,7 @@ def configure_r1_live_environment(
     policy: str,
     config_contract: dict[str, Any],
     expected_steps: int | None = None,
+    pole_b_genome_override=None,
 ) -> dict[str, Any]:
     """Authoritative R0 seam: clear, set, overlay, assert, manifest.
 
@@ -163,6 +164,13 @@ def configure_r1_live_environment(
     unchanged. A continuation passes its cumulative target explicitly rather
     than the guard being bypassed -- the check still fires on any budget the
     caller did not intend.
+
+    ``pole_b_genome_override`` (default None, preserving exact existing behaviour) lets a
+    confirmatory-redesign track train against a candidate Pole-B genome (e.g. a certified
+    B2 from a new confirmatory-redesign spec) instead of the canonical pole_B_genome(N).
+    Without this, a redesigned-Pole-B track would silently train against the OLD,
+    uncertified Pole B while looking healthy -- the same class of bug this module's own
+    docstring warns about for team size.
     """
     policy = str(policy).upper()
     spec = POLICIES[policy]
@@ -190,7 +198,8 @@ def configure_r1_live_environment(
     _n_agents = int(getattr(cfg, "max_blue_agents", 2))
     genomes = {"OP6": pole_A_genome(_n_agents)} if policy in {"A", "G"} else {}
     if _n_agents != 2:
-        genomes["OP7"] = pole_B_genome(_n_agents)
+        genomes["OP7"] = (pole_b_genome_override if pole_b_genome_override is not None
+                          else pole_B_genome(_n_agents))
     install_keyed_opponent_overlays(core, genomes)
 
     # The generalist batch is exactly balanced and STATIC: each env keeps its
@@ -251,6 +260,8 @@ def configure_r1_live_environment(
             "initial_live_batch_counts": counts,
             "resolved_opponent_rows": rows,
             "overlay_authority": "core._bt_resolved_profile_tensors()",
+            "pole_b_source": ("CANDIDATE_OVERRIDE:" + pole_b_genome_override.genome_id
+                             if pole_b_genome_override is not None else "canonical_pole_B_genome"),
             "ruleset_id": core.cfg.ruleset_id,
             "own_flag_home_required_to_score": True,
             "benchmark": str(LADDER.relative_to(PROJECT_ROOT)),

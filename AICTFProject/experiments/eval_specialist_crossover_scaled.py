@@ -70,6 +70,12 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true",
                     help="verify spec, checkpoints, seeds and the live pole resolution; run "
                          "no episodes and write nothing")
+    ap.add_argument("--pole-b-genome-json", default=None,
+                    help="path to a JSON SDSGenome candidate for Pole B (e.g. a certified "
+                         "B2 from a confirmatory-redesign track), used instead of the "
+                         "canonical pole_B_genome(N). Without this, an evaluation of "
+                         "specialists trained against a redesigned Pole B would silently "
+                         "score them against the OLD, different Pole B.")
     args = ap.parse_args()
 
     N = int(args.team_size)
@@ -99,9 +105,10 @@ def main() -> int:
 
     import torch
     from experiments.opponent_spec import (
-        assert_live_opponent_batch, install_keyed_opponent_overlays,
-        pole_A_genome, pole_B_genome,
+        _with_full_team_defender_gate, assert_live_opponent_batch,
+        install_keyed_opponent_overlays, pole_A_genome, pole_B_genome,
     )
+    from experiments.sds_genome import SDSGenome
     import experiments.r2_learned_crossover as R2
     from rl.curriculum import phase_from_tag
     from rl.custom_ppo import load_custom_ppo_policy
@@ -112,11 +119,22 @@ def main() -> int:
 
     device = args.device if torch.cuda.is_available() or args.device == "cpu" else "cpu"
 
+    if args.pole_b_genome_json:
+        pbp = Path(args.pole_b_genome_json)
+        if not pbp.is_file():
+            raise SystemExit(f"REFUSING: --pole-b-genome-json not found: {pbp}")
+        pole_b_resolved = _with_full_team_defender_gate(
+            SDSGenome.from_dict(json.loads(pbp.read_text(encoding="utf-8"))), N)
+        print(f"  Pole B SOURCE  candidate genome {pole_b_resolved.genome_id!r} from "
+              f"{pbp.name} (NOT canonical pole_B_genome({N}))")
+    else:
+        pole_b_resolved = pole_B_genome(N)
+
     # Both poles resolved at the LIVE team size. At N=2 pole_B_genome(2) carries no overlay,
     # reproducing the 2v2 evaluator exactly; at N>2 the Pole-B overlay is required.
     genomes_by_pole = {
         "A": {"OP6": pole_A_genome(N)},
-        "B": {"OP7": pole_B_genome(N)} if N != 2 else {},
+        "B": {"OP7": pole_b_resolved} if N != 2 else {},
     }
 
     print(f"SPECIALIST CROSSOVER EVAL  {label}  {N}v{N}  {_now()}")
@@ -125,7 +143,7 @@ def main() -> int:
     print(f"  pi_B       {paths['pi_B']}  sha {_sha(paths['pi_B'])[:12]}...")
     print(f"  seeds      {seeds[0]}..{seeds[-1]} (n={len(seeds)}), SHARED across policies and poles")
     print(f"  poles      A: OP6+{dict(pole_A_genome(N).overlay or {})}   "
-          f"B: OP7+{dict(pole_B_genome(N).overlay or {})}")
+          f"B: OP7+{dict(pole_b_resolved.overlay or {})}")
     print(f"  gate       delta_A_spec > 0 & LCB95 > 0; delta_B_spec symmetric")
     print(f"  bootstrap  n={N_BOOT}, alpha={ALPHA}, rng_seed={BOOTSTRAP_SEED}\n", flush=True)
 
@@ -263,7 +281,9 @@ def main() -> int:
         "team_size": N, "device": device,
         "seeds": {"block": [seeds[0], seeds[-1]], "n": len(seeds), "shared_across_policies": True},
         "poles": {p: {"base": BASE_KEY[p],
-                      "overlay": dict((pole_A_genome(N) if p == "A" else pole_B_genome(N)).overlay or {})}
+                      "overlay": dict((pole_A_genome(N) if p == "A" else pole_b_resolved).overlay or {}),
+                      "candidate_genome_id": (pole_b_resolved.genome_id
+                                              if p == "B" and args.pole_b_genome_json else None)}
                   for p in ("A", "B")},
         "PRIMARY_GATE": {"delta_A": delta_a, "delta_B": delta_b, "passes": gate_passes},
         "checkpoints": {n: _sha(paths[n]) for n in POLICIES},
