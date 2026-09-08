@@ -46,7 +46,12 @@ def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
     """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict."""
     cfg = PPOConfig()
     apply_preset(cfg, key)
-    return {k: _json_safe(v) for k, v in asdict(cfg).items()}
+    out = {k: _json_safe(v) for k, v in asdict(cfg).items()}
+    # PPOConfig.device defaults to "cuda" if torch.cuda.is_available() else "cpu".
+    # That host-dependent default must not enter the committed snapshot, or CI
+    # (CPU-only runners) will fail every preset against a CUDA-machine regen.
+    out["device"] = "cpu"
+    return out
 
 
 def resolve_all_presets() -> dict[str, dict[str, Any]]:

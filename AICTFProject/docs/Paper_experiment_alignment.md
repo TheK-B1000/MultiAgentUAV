@@ -431,7 +431,9 @@ episode-router usage-balance coefficient. The audit banner prints
   play uniform sampler exactly. Regenerated `tests/preset_snapshots.json`; the
   only change to every existing preset entry is the additive default
   `snapshot_opponent_weights = []`. No pre-existing snapshot value changed and
-  no paper-faithful objective, actor path, or alias changed.
+  no paper-faithful objective, actor path, or alias changed. Snapshot resolution
+  also canonicalizes `device` to `"cpu"` so host CUDA availability cannot poison
+  the committed golden file (CI runners are CPU-only).
 - **RASR-PPO DEV qualification tooling and frozen scorer identity:** Added the
   rebuild-per-branch DEV collector, one-shot four-regime scorer qualification,
   and live assigned-pole persistence smoke. The scorer remains default-off, but
