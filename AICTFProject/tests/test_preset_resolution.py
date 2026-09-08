@@ -23,6 +23,30 @@ from rl.train_ppo import PPOConfig
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 SNAPSHOT_PATH = os.path.join(_HERE, "preset_snapshots.json")
+_PROJECT_ROOT = os.path.dirname(_HERE)
+
+# Path-valued config fields that must be host-independent in the golden snapshot.
+# Absolute Windows paths (K:\...) or backslash separators poison CI (Linux runners).
+_PATH_FIELDS = frozenset({
+    "checkpoint_dir",
+    "load_path",
+    "metrics_csv_path",
+    "episode_csv_path",
+    "strategy_experience_csv_path",
+    "e3_step_telemetry_path",
+    "training_events_jsonl_path",
+    "telemetry_events_jsonl_path",
+    "performance_summary_path",
+    "performance_samples_path",
+    "exp2_teacher_checkpoints",
+    "exp2_protocol_path",
+    "sppo_qpsi_path",
+    "rasr_regime_qpsi_path",
+    "csia_payoff_csv_path",
+    "csia_strategy_evidence_csv_path",
+    "latent_v3i3_refresh_log_path",
+    "snapshot_opponent_pool",
+})
 
 
 def _json_safe(value: Any) -> Any:
@@ -42,6 +66,38 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
+def _host_independent_path(value: str) -> str:
+    """Map absolute project paths to repo-relative posix; normalize separators."""
+    if not value:
+        return value
+    normalized = value.replace("\\", "/")
+    # Absolute (POSIX or Windows drive) under the project root -> relative posix.
+    try:
+        abs_candidate = value
+        if not os.path.isabs(abs_candidate) and len(value) >= 2 and value[1] == ":":
+            abs_candidate = value  # already Windows abs-ish
+        abs_path = os.path.abspath(abs_candidate)
+        root = os.path.abspath(_PROJECT_ROOT)
+        if abs_path == root or abs_path.startswith(root + os.sep):
+            return os.path.relpath(abs_path, root).replace("\\", "/")
+    except (OSError, ValueError):
+        pass
+    return normalized
+
+
+def _canonicalize_path_fields(cfg: dict[str, Any]) -> dict[str, Any]:
+    out = dict(cfg)
+    for key in _PATH_FIELDS:
+        if key not in out or out[key] in (None, "", (), []):
+            continue
+        val = out[key]
+        if isinstance(val, list):
+            out[key] = [_host_independent_path(v) if isinstance(v, str) else v for v in val]
+        elif isinstance(val, str):
+            out[key] = _host_independent_path(val)
+    return out
+
+
 def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
     """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict."""
     cfg = PPOConfig()
@@ -51,7 +107,7 @@ def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
     # That host-dependent default must not enter the committed snapshot, or CI
     # (CPU-only runners) will fail every preset against a CUDA-machine regen.
     out["device"] = "cpu"
-    return out
+    return _canonicalize_path_fields(out)
 
 
 def resolve_all_presets() -> dict[str, dict[str, Any]]:

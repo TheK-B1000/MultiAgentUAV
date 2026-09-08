@@ -432,8 +432,10 @@ episode-router usage-balance coefficient. The audit banner prints
   only change to every existing preset entry is the additive default
   `snapshot_opponent_weights = []`. No pre-existing snapshot value changed and
   no paper-faithful objective, actor path, or alias changed. Snapshot resolution
-  also canonicalizes `device` to `"cpu"` so host CUDA availability cannot poison
-  the committed golden file (CI runners are CPU-only).
+  also canonicalizes host-dependent fields: `device` is forced to `"cpu"`, and
+  path-valued fields (`checkpoint_dir`, `metrics_csv_path`, teacher zips, etc.)
+  are stored as repo-relative posix paths so Windows absolute paths cannot poison
+  the golden file for Linux CI runners.
 - **RASR-PPO DEV qualification tooling and frozen scorer identity:** Added the
   rebuild-per-branch DEV collector, one-shot four-regime scorer qualification,
   and live assigned-pole persistence smoke. The scorer remains default-off, but
