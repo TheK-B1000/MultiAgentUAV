@@ -772,6 +772,9 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 "router_context_mode": str(getattr(cfg, "router_context_mode", "") or ""),
                 "router_context_dimension": router_current_plus_delta_dim(cfg),
                 "latent_k": hparams.latent_k,
+                "strategy_encoder_enabled": bool(
+                    getattr(cfg, "latent_strategy_encoder_enabled", True)
+                ),
                 "z_embed_dim": int(getattr(cfg, "latent_z_embed_dim", 16)),
                 "strategy_hidden_dim": int(getattr(cfg, "latent_strategy_hidden", 128)),
                 "critic_hidden_dim": int(getattr(cfg, "latent_vf_hidden", 128)),
@@ -853,6 +856,24 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
                 ),
                 "latent_z_gate_init": max(
                     0.0, float(getattr(cfg, "latent_z_gate_init", 0.01) or 0.01)
+                ),
+                "latent_z_residual_alpha": max(
+                    0.0, float(getattr(cfg, "latent_z_residual_alpha", 0.0) or 0.0)
+                ),
+                "latent_population_birth_active_z_only": bool(
+                    getattr(cfg, "latent_population_birth_active_z_only", False)
+                ),
+                "latent_population_birth_per_z_action_heads": bool(
+                    getattr(cfg, "latent_population_birth_per_z_action_heads", False)
+                ),
+                "exp2c_mode_specific_action_heads": bool(
+                    getattr(cfg, "exp2c_mode_specific_action_heads", False)
+                ),
+                "rasr_private_critic_heads": bool(
+                    getattr(cfg, "rasr_private_critic_heads", False)
+                ),
+                "latent_lro_deep_branches": bool(
+                    getattr(cfg, "latent_lro_deep_branches", False)
                 ),
             }
         )

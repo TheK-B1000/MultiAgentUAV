@@ -1,0 +1,25 @@
+{
+  "record_id": "TRUNK_FREEZE_HORIZON_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T03:05:00Z",
+  "authority": "PI, 2026-09-04, correcting a documentation gap raised by direct question while TRUNK_FROZEN_CONTROL was already ~15% through its run",
+
+  "amends": "TRUNK_FREEZE_SPEC.json#ARMS.horizon (500000 additional steps)",
+  "rule": "this is an APPEND, not an edit. TRUNK_FREEZE_SPEC.json is not modified in place. This record replaces the horizon's stated justification; the numeric value (500000) is unchanged.",
+
+  "THE_GAP": "TRUNK_FREEZE_SPEC.json set the horizon to 500000 additional steps by copying the number from CCP_S2_SPEC.json/RSCFT_SPEC.json without re-deriving whether that number's ORIGINAL justification still applied to this experiment. It does not.",
+
+  "WHY_THE_ORIGINAL_JUSTIFICATION_DOES_NOT_TRANSFER": {
+    "original_reasoning": "CCP_S2_SPEC.json#TRAINING_HORIZON: the causal bank is measured from the incumbent's deployment distribution and becomes increasingly off-policy as the network drifts; 500k limits that staleness while giving substantial exposure to the bank.",
+    "why_it_is_weaker_or_inapplicable_here": "TRUNK_FROZEN_CONTROL has NO causal loss at all -- bank staleness is not a consideration for an arm that never reads the bank. TRUNK_FROZEN_TREATMENT does use the bank, but only 20 of 39 parameters (the private per-latent branches) can move at all; the shared representation the causal-relevant states are measured against is frozen. Drift, and therefore bank staleness, should if anything be SLOWER under trunk-freezing than in CCP-S2/RSCFT's fully-trainable networks, not requiring the same limiting horizon."
+  },
+
+  "THE_ACTUAL_JUSTIFICATION": {
+    "reasoning": "matched-horizon comparability. CCP-S2 and RSCFT both measured the erosion effect at exactly 500k additional steps from the same warm start. Holding the horizon constant while varying only the trunk freeze is what makes this a CONTROLLED comparison: if delta_A survives at 500k with the trunk frozen, that is directly attributable to the freeze, not to a different training budget. A different horizon would confound the one experimental variable this spec exists to isolate.",
+    "consequence_either_direction": "if delta_A still erodes by 500k despite the frozen trunk, that is not a wasted run -- it directly rules out the shared-trunk-drift hypothesis under the same horizon the hypothesis was proposed against, which is exactly why 500k (not some other number) is the horizon that makes the result interpretable."
+  },
+
+  "DOES_NOT_CHANGE": "the numeric horizon (500000 additional steps), which is unchanged and NOT extended -- TRUNK_FROZEN_CONTROL was already ~15% through its run when this was written (steps=1,077,248 of 1,503,520 target) and per this program's own standing rule, no extension after observing telemetry is permitted regardless of what this amendment says. This record corrects the STATED REASON only.",
+
+  "TOTAL_BUDGET_CONTEXT": "the resulting ~1.5M total steps (1,003,520 warm start + 500,000 additional) is not unusual for this program: pi_G ran 2,000,000 fresh-init steps, and each compression-ladder stage (V1 through V4) ran 1,000,000-2,000,000 fresh-init steps."
+}

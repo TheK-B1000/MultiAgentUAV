@@ -1,0 +1,18 @@
+{
+  "assay": "M1_2V2_PAYOFF_ASSAY",
+  "M1_SEMANTIC_RECOVERY": "PASS",
+  "M1_PAYOFF_ASSAY": "SCIENTIFIC_FAIL",
+  "INVALID_IMPLEMENTATION": false,
+  "transition_tested": "BLUE carrier home + own flag away -> block; then own flag returns to stand (not still carried) while carrier still legally home -> capture_scored",
+  "naive_teleport_is_not_a_return": "Setting blue_flag_pos home while red_carrying remains True snaps the flag back onto the carrier before the M1 check. That is not 'own flag returned'.",
+  "gate_B": {
+    "result": "FAIL",
+    "OP6_GUARD_minus_BREACH": 0.094,
+    "OP6_LCB95": -0.094,
+    "OP7_BREACH_minus_GUARD": 0.531,
+    "OP7_LCB95": 0.375,
+    "thresholds_frozen": true
+  },
+  "ruleset": "RULESET_V3_M1 FROZEN",
+  "next": "opponent-only Strategic Demand Searcher; no PPO; no further rule change"
+}

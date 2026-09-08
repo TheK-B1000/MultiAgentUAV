@@ -1,0 +1,9 @@
+{
+  "status": "LOCKED_NEGATIVE",
+  "recipe": "separate_clip + 2x z_actor_lr",
+  "fixed_batch_kl": 7.6e-4,
+  "required_kl_floor": 1.0e-3,
+  "learning_pass": false,
+  "continue_to_10u": false,
+  "note": "Do not relaunch identical 2x. Post-eval docs only; cannot overturn learning gate. Next rung = fresh 3x from V6I23 init."
+}

@@ -1,0 +1,76 @@
+[
+  {
+    "policy_id": "g0_v5_long_seed3200001",
+    "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D7",
+    "team_size": 2,
+    "seed": 3200001,
+    "arm": "PRIMARY"
+  },
+  {
+    "policy_id": "g0_v5_long_seed3200002",
+    "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D7",
+    "team_size": 2,
+    "seed": 3200002,
+    "arm": "PRIMARY"
+  },
+  {
+    "policy_id": "g0_v5_long_seed3200003",
+    "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200003/ckpts/final_g0_v5_long_seed3200003.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D7",
+    "team_size": 2,
+    "seed": 3200003,
+    "arm": "PRIMARY"
+  },
+  {
+    "policy_id": "vgc_d1_seed3600001",
+    "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600001/ckpts/final_vgc_d1_seed3600001.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D1",
+    "team_size": 2,
+    "seed": 3600001,
+    "arm": "PRIMARY"
+  },
+  {
+    "policy_id": "vgc_d1_seed3600002",
+    "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600002/ckpts/final_vgc_d1_seed3600002.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D1",
+    "team_size": 2,
+    "seed": 3600002,
+    "arm": "PRIMARY"
+  },
+  {
+    "policy_id": "vgc_d1_seed3600003",
+    "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600003/ckpts/final_vgc_d1_seed3600003.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D1",
+    "team_size": 2,
+    "seed": 3600003,
+    "arm": "PRIMARY"
+  },
+  {
+    "policy_id": "vgc_d3_seed3700001",
+    "checkpoint": "artifacts/vgc_diversity/vgc_d3_seed3700001/ckpts/final_vgc_d3_seed3700001.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D3",
+    "team_size": 2,
+    "seed": 3700001,
+    "arm": "PRIMARY",
+    "evidence_label": "D3_COMPLETED_SEEDS_ONLY"
+  },
+  {
+    "policy_id": "vgc_d3_seed3700002",
+    "checkpoint": "artifacts/vgc_diversity/vgc_d3_seed3700002/ckpts/final_vgc_d3_seed3700002.zip",
+    "method": "Mixed-PPO",
+    "diversity_condition": "D3",
+    "team_size": 2,
+    "seed": 3700002,
+    "arm": "PRIMARY",
+    "evidence_label": "D3_COMPLETED_SEEDS_ONLY"
+  }
+]

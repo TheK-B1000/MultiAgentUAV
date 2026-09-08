@@ -1,0 +1,90 @@
+{
+  "record_id": "RASR_EXECUTION_STATE_RECONCILIATION",
+  "status": "FROZEN_GOVERNANCE_RECORD",
+  "utc": "2026-08-27T11:50:00Z",
+  "authority": "PI ruling",
+  "written_without_touching_the_running_process": true,
+  "CORRECTION_OF_THE_RECORD": {
+    "incorrect_prior_statement": "SPPPO_DIAGNOSTIC_ARC_CLOSEOUT.json (commit 810d368a) asserted 'no successor was designed' and 'successor: none designed, none authorized'. That was WRONG.",
+    "the_truth": "RASR-PPO was prospectively frozen at commit 3f2bf30a (2026-08-26 22:37), BEFORE the D1 and D2 work in this conversation. It was subsequently implemented, gated, had its four-regime scorer fit and frozen, and is currently MID-EXECUTION.",
+    "supersedes": "the successor-status claims in SPPPO_DIAGNOSTIC_ARC_CLOSEOUT.json only; that record's D0/D1/D2 findings stand unchanged",
+    "how_it_was_missed": "RASR was frozen by the concurrent Cursor agent and never surfaced in this conversation's context. The PI's reference to 'RASR-PPO R1/R2/R3' was flagged at the time as undefined-in-context and recorded as description-only rather than invented -- that caution was correct, but the conclusion 'none designed' was not."
+  },
+  "VERIFIED_EXECUTION_STATE": {
+    "protocol": {
+      "commit": "3f2bf30a",
+      "file": "RASR_PPO_CAUSAL_LADDER_PROTOCOL.json",
+      "ladder": [
+        "S0",
+        "R1",
+        "R2",
+        "R3"
+      ],
+      "declared_status_in_file": "FROZEN_DESIGN_ONLY_NO_IMPLEMENTATION_AUTHORIZED"
+    },
+    "note_on_declared_status": "the protocol file still carries its original design-only status string while the implementation gate has since PASSED and authorized DEV collection. The gate, not the stale status string, reflects reality.",
+    "seed_blocks": {
+      "TRAIN": "10400001..10400032, audited",
+      "DEV": "10500001..10500096, audited -- CURRENTLY BEING CONSUMED",
+      "FINAL": "10600001..10600192, audited, FINAL_SEALED with 0 offenders -- UNTOUCHED"
+    },
+    "regime_scorer": {
+      "file": "RASR_REGIME_QPSI_FROZEN.json",
+      "weights_sha256": "44c0680e037939de287ad4201fead6312bc92b6bcd1fd902f568868cb24b760a",
+      "status_at_fit": "FROZEN_BEFORE_ANY_RASR_DEV_ACCESS"
+    },
+    "implementation_gate": {
+      "verdict": "PASS",
+      "dev_collection_authorized": true,
+      "policy_launch_authorized": false,
+      "blocker": "RASR_SCORER_QUALIFICATION.json must exist with verdict PASS"
+    },
+    "live_collector_at_time_of_record": {
+      "pid": 45336,
+      "started": "2026-08-26 23:16:15 local",
+      "cpu_seconds_accumulated": 30552,
+      "progress": "60/96 seeds",
+      "manifest_updated_utc": "2026-08-27T11:41:08Z",
+      "command": "experiments/collect_rasr_dev_score..."
+    }
+  },
+  "DEV_BLOCK_IS_NOT_CONTAMINATED": "the 60/96 consumption of 10500001..10500096 is the frozen protocol's OWN authorized scorer-qualification step (dev_collection_authorized: True), not accidental spend. The earlier instruction to reserve a fresh DEV block is SUPERSEDED. Reserving a replacement would discard 60 seeds of legitimate in-protocol work and interrupt a running job.",
+  "SINGLE_EXECUTOR_RULE": {
+    "reason": "two agents independently advancing the same protocol is how a block gets double-spent or S0 gets launched twice",
+    "governance_authority": "this user-controlled session",
+    "cursor_role": "COLLECTOR EXECUTOR ONLY, until 96/96",
+    "cursor_MAY": [
+      "finish the already-running DEV collection",
+      "write and freeze its collection-completion artifact",
+      "report COLLECTION_COMPLETE"
+    ],
+    "cursor_MAY_NOT": [
+      "run scorer qualification",
+      "flip policy_launch_authorized",
+      "launch S0",
+      "launch R1/R2/R3",
+      "touch FINAL 10600001..10600192",
+      "modify the frozen RASR protocol"
+    ],
+    "handoff_barrier": "COLLECTION_COMPLETE at 96/96",
+    "running_collector_disposition": "PERMITTED TO COMPLETE. Do not kill PID 45336."
+  },
+  "SEQUENCE_AFTER_HANDOFF": [
+    "COLLECTION_COMPLETE (96/96)",
+    "freeze collection provenance",
+    "run frozen DEV qualification",
+    "if PASS -> policy_launch_authorized = True",
+    "S0 -> R1 -> R2 -> R3, single executor"
+  ],
+  "what_this_record_does_not_do": [
+    "does not interrupt, kill, or modify the running collector",
+    "does not modify the frozen RASR protocol or any Cursor artifact",
+    "does not authorize qualification, policy launch, or any FINAL access",
+    "does not alter D0/D1/D2 findings or the SPPPO_V1_NOT_CONFIRMED verdict"
+  ],
+  "artifact_hashes_at_reconciliation": {
+    "RASR_PPO_CAUSAL_LADDER_PROTOCOL.json": "07af71066a0d006a1b8c7a5afba94ebc43c9fc923b37a6b926df51a33d150178",
+    "RASR_PPO_IMPLEMENTATION_GATE.json": "d2b8d945bbafdc22e118c4ad3d5abc0c463ab49f12cce94ccc9aff1caf825530",
+    "RASR_REGIME_QPSI_FROZEN.json": "75b22c499b564276473607505ab935062a15406336b78ba4ac0292b1e7534dba"
+  }
+}

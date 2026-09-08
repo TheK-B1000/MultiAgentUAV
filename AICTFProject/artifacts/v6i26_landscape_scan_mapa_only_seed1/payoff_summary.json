@@ -1,0 +1,67 @@
+{
+  "n_policies": 5,
+  "n_contexts": 7,
+  "unique_best_count": 2,
+  "unique_best_indices": [
+    0,
+    1
+  ],
+  "unique_best_labels": [
+    "v6i24_balanced",
+    "v6i24_failure_cells"
+  ],
+  "cells_with_margin_ge": 0,
+  "margin_threshold": 0.1,
+  "best_by_context": {
+    "OP6_IMMEDIATE_DUAL_RUSH|map_a_open": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.1,
+      "margin_vs_second": 0.050000000000000044
+    },
+    "OP7_DEEP_FORTRESS|map_a_open": {
+      "best_policy": "v6i24_balanced",
+      "best_index": 0,
+      "payoff": 1.1125,
+      "margin_vs_second": 0.012499999999999956
+    },
+    "OP8_PROTECTED_CARRIER_ESCORT|map_a_open": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.075,
+      "margin_vs_second": 0.012499999999999956
+    },
+    "OP9_SPLIT_LANE_FEINT|map_a_open": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.1,
+      "margin_vs_second": 0.02499999999999991
+    },
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_a_open": {
+      "best_policy": "v6i24_balanced",
+      "best_index": 0,
+      "payoff": 1.1,
+      "margin_vs_second": 0.0
+    },
+    "OP11_ADAPTIVE_EXPLOITER|map_a_open": {
+      "best_policy": "v6i24_failure_cells",
+      "best_index": 1,
+      "payoff": 1.125,
+      "margin_vs_second": 0.0625
+    },
+    "OP12_LATE_CONVERTER|map_a_open": {
+      "best_policy": "v6i24_balanced",
+      "best_index": 0,
+      "payoff": 1.0875000000000001,
+      "margin_vs_second": 0.0
+    }
+  },
+  "best_fixed_index": 1,
+  "best_fixed_label": "v6i24_failure_cells",
+  "oracle_test_mean": 1.1125,
+  "best_fixed_test_mean": 1.1041666666666667,
+  "G_available_point": 0.008333333333333304,
+  "max_pairwise_row_distance": 1.2256011598113472,
+  "niche_signal": false,
+  "parallel_rows": false
+}

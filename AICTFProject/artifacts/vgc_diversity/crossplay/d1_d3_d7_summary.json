@@ -1,0 +1,448 @@
+{
+  "record": "unified cross-play evaluation vs the full OP6-OP12 board",
+  "git_commit": "2dacdc101abb11eab23fdb9e99ec35e6801b0e12",
+  "episodes_per_cell": 30,
+  "wall_seconds": 39491.0,
+  "summaries": [
+    {
+      "policy_id": "g0_v5_long_seed3200001",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D7",
+      "team_size": 2,
+      "train_seed": 3200001,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip",
+      "checkpoint_sha256": "94a28f25a1e81954b499428d29566d98b39482113666c637b289ebddd1966059",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.6667,
+          "n": 30,
+          "seen": true
+        },
+        "OP11": {
+          "win_rate": 0.8333,
+          "n": 30,
+          "seen": true
+        },
+        "OP12": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": true
+        },
+        "OP6": {
+          "win_rate": 0.8667,
+          "n": 30,
+          "seen": true
+        },
+        "OP7": {
+          "win_rate": 0.8667,
+          "n": 30,
+          "seen": true
+        },
+        "OP8": {
+          "win_rate": 0.7333,
+          "n": 30,
+          "seen": true
+        },
+        "OP9": {
+          "win_rate": 0.7667,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.8191,
+      "held_out_avg": null,
+      "overall_avg": 0.8191,
+      "generalization_gap": null,
+      "worst_opponent": "OP10",
+      "worst_opponent_wr": 0.6667,
+      "best_opponent_wr": 1.0,
+      "variance_across_opponents": 0.01011
+    },
+    {
+      "policy_id": "g0_v5_long_seed3200002",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D7",
+      "team_size": 2,
+      "train_seed": 3200002,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip",
+      "checkpoint_sha256": "066bd4c44f6f6e95dbd2e6f32922b3f7fb8e9763bd0d090f38c69ec379e11b81",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.6,
+          "n": 30,
+          "seen": true
+        },
+        "OP11": {
+          "win_rate": 0.9333,
+          "n": 30,
+          "seen": true
+        },
+        "OP12": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": true
+        },
+        "OP6": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": true
+        },
+        "OP7": {
+          "win_rate": 0.6,
+          "n": 30,
+          "seen": true
+        },
+        "OP8": {
+          "win_rate": 0.7667,
+          "n": 30,
+          "seen": true
+        },
+        "OP9": {
+          "win_rate": 0.7667,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.781,
+      "held_out_avg": null,
+      "overall_avg": 0.781,
+      "generalization_gap": null,
+      "worst_opponent": "OP10",
+      "worst_opponent_wr": 0.6,
+      "best_opponent_wr": 1.0,
+      "variance_across_opponents": 0.01964
+    },
+    {
+      "policy_id": "g0_v5_long_seed3200003",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D7",
+      "team_size": 2,
+      "train_seed": 3200003,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/g0_v5_long/g0_v5_long_seed3200003/ckpts/final_g0_v5_long_seed3200003.zip",
+      "checkpoint_sha256": "cdb9df7c3e12e3ceb1b0cf5ccadff3d154847546573c9551361119353bcd74ef",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": true
+        },
+        "OP11": {
+          "win_rate": 0.9333,
+          "n": 30,
+          "seen": true
+        },
+        "OP12": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": true
+        },
+        "OP6": {
+          "win_rate": 0.8667,
+          "n": 30,
+          "seen": true
+        },
+        "OP7": {
+          "win_rate": 0.6333,
+          "n": 30,
+          "seen": true
+        },
+        "OP8": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": true
+        },
+        "OP9": {
+          "win_rate": 0.5333,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.7952,
+      "held_out_avg": null,
+      "overall_avg": 0.7952,
+      "generalization_gap": null,
+      "worst_opponent": "OP9",
+      "worst_opponent_wr": 0.5333,
+      "best_opponent_wr": 1.0,
+      "variance_across_opponents": 0.023
+    },
+    {
+      "policy_id": "vgc_d1_seed3600001",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D1",
+      "team_size": 2,
+      "train_seed": 3600001,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600001/ckpts/final_vgc_d1_seed3600001.zip",
+      "checkpoint_sha256": "90eaceff6d98a01c358b1b6b1ab18d6386274964e0270d73599ca9ed073d8df1",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": false
+        },
+        "OP11": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": false
+        },
+        "OP12": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": false
+        },
+        "OP6": {
+          "win_rate": 0.8333,
+          "n": 30,
+          "seen": false
+        },
+        "OP7": {
+          "win_rate": 0.5333,
+          "n": 30,
+          "seen": false
+        },
+        "OP8": {
+          "win_rate": 0.9667,
+          "n": 30,
+          "seen": false
+        },
+        "OP9": {
+          "win_rate": 0.7,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.7,
+      "held_out_avg": 0.8556,
+      "overall_avg": 0.8333,
+      "generalization_gap": -0.1556,
+      "worst_opponent": "OP7",
+      "worst_opponent_wr": 0.5333,
+      "best_opponent_wr": 1.0,
+      "variance_across_opponents": 0.02604
+    },
+    {
+      "policy_id": "vgc_d1_seed3600002",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D1",
+      "team_size": 2,
+      "train_seed": 3600002,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600002/ckpts/final_vgc_d1_seed3600002.zip",
+      "checkpoint_sha256": "c5ea9b215422a3f660fe6340d897f28a14188b734dfb2d184d9a746c3b652d4d",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.6,
+          "n": 30,
+          "seen": false
+        },
+        "OP11": {
+          "win_rate": 0.9333,
+          "n": 30,
+          "seen": false
+        },
+        "OP12": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": false
+        },
+        "OP6": {
+          "win_rate": 0.8667,
+          "n": 30,
+          "seen": false
+        },
+        "OP7": {
+          "win_rate": 0.5333,
+          "n": 30,
+          "seen": false
+        },
+        "OP8": {
+          "win_rate": 0.8667,
+          "n": 30,
+          "seen": false
+        },
+        "OP9": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.8,
+      "held_out_avg": 0.8,
+      "overall_avg": 0.8,
+      "generalization_gap": 0.0,
+      "worst_opponent": "OP7",
+      "worst_opponent_wr": 0.5333,
+      "best_opponent_wr": 1.0,
+      "variance_across_opponents": 0.0254
+    },
+    {
+      "policy_id": "vgc_d1_seed3600003",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D1",
+      "team_size": 2,
+      "train_seed": 3600003,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/vgc_diversity/vgc_d1_seed3600003/ckpts/final_vgc_d1_seed3600003.zip",
+      "checkpoint_sha256": "1a08feed5da36904f6aa727c2538ac812f16c4ae466a42fedb2363ddc343ff7e",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.5667,
+          "n": 30,
+          "seen": false
+        },
+        "OP11": {
+          "win_rate": 0.9667,
+          "n": 30,
+          "seen": false
+        },
+        "OP12": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": false
+        },
+        "OP6": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": false
+        },
+        "OP7": {
+          "win_rate": 0.6,
+          "n": 30,
+          "seen": false
+        },
+        "OP8": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": false
+        },
+        "OP9": {
+          "win_rate": 0.7,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.7,
+      "held_out_avg": 0.7889,
+      "overall_avg": 0.7762,
+      "generalization_gap": -0.0889,
+      "worst_opponent": "OP10",
+      "worst_opponent_wr": 0.5667,
+      "best_opponent_wr": 1.0,
+      "variance_across_opponents": 0.02404
+    },
+    {
+      "policy_id": "vgc_d3_seed3700001",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D3",
+      "team_size": 2,
+      "train_seed": 3700001,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/vgc_diversity/vgc_d3_seed3700001/ckpts/final_vgc_d3_seed3700001.zip",
+      "checkpoint_sha256": "08c6d40d3f048986d710791172799000a402f4bb7b7b6c66eee2062aeafc6925",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.7333,
+          "n": 30,
+          "seen": false
+        },
+        "OP11": {
+          "win_rate": 0.9667,
+          "n": 30,
+          "seen": false
+        },
+        "OP12": {
+          "win_rate": 0.9667,
+          "n": 30,
+          "seen": true
+        },
+        "OP6": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": false
+        },
+        "OP7": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": true
+        },
+        "OP8": {
+          "win_rate": 0.8,
+          "n": 30,
+          "seen": false
+        },
+        "OP9": {
+          "win_rate": 0.7333,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.8333,
+      "held_out_avg": 0.825,
+      "overall_avg": 0.8286,
+      "generalization_gap": 0.0083,
+      "worst_opponent": "OP10",
+      "worst_opponent_wr": 0.7333,
+      "best_opponent_wr": 0.9667,
+      "variance_across_opponents": 0.00839
+    },
+    {
+      "policy_id": "vgc_d3_seed3700002",
+      "method": "Mixed-PPO",
+      "diversity_condition": "D3",
+      "team_size": 2,
+      "train_seed": 3700002,
+      "arm": "PRIMARY",
+      "checkpoint": "artifacts/vgc_diversity/vgc_d3_seed3700002/ckpts/final_vgc_d3_seed3700002.zip",
+      "checkpoint_sha256": "d555ee8bcbda09202790cad9a03415cbdff6619125b39a9ef91ddd356ee02717",
+      "per_opponent": {
+        "OP10": {
+          "win_rate": 0.6333,
+          "n": 30,
+          "seen": false
+        },
+        "OP11": {
+          "win_rate": 0.9667,
+          "n": 30,
+          "seen": false
+        },
+        "OP12": {
+          "win_rate": 1.0,
+          "n": 30,
+          "seen": true
+        },
+        "OP6": {
+          "win_rate": 0.9,
+          "n": 30,
+          "seen": false
+        },
+        "OP7": {
+          "win_rate": 0.5667,
+          "n": 30,
+          "seen": true
+        },
+        "OP8": {
+          "win_rate": 0.7667,
+          "n": 30,
+          "seen": false
+        },
+        "OP9": {
+          "win_rate": 0.7667,
+          "n": 30,
+          "seen": true
+        }
+      },
+      "seen_avg": 0.7778,
+      "held_out_avg": 0.8167,
+      "overall_avg": 0.8,
+      "generalization_gap": -0.0389,
+      "worst_opponent": "OP7",
+      "worst_opponent_wr": 0.5667,
+      "best_opponent_wr": 1.0,
+      "variance_across_opponents": 0.02317
+    }
+  ]
+}

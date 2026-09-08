@@ -1,0 +1,157 @@
+{
+  "record": "RASR-PPO frozen four-regime action-conditioned scorer Q_psi",
+  "status": "FROZEN_BEFORE_ANY_RASR_DEV_ACCESS",
+  "utc": "2026-08-27T03:04:44Z",
+  "protocol": "artifacts/strategic_demand/rasrppo/RASR_PPO_CAUSAL_LADDER_PROTOCOL.json",
+  "target": "terminal blue_score - red_score win margin (unchanged)",
+  "architecture": {
+    "shared": [
+      "conv",
+      "pole_emb",
+      "trunk",
+      "action_emb"
+    ],
+    "regime_specific": [
+      "b",
+      "u",
+      "v",
+      "P",
+      "Q"
+    ],
+    "n_regimes": 4,
+    "config": {
+      "action_dim": 32,
+      "rank": 8,
+      "hidden": 256,
+      "conv_width": 64,
+      "pole_embed": 8,
+      "n_poles": 2,
+      "n_regimes": 4
+    }
+  },
+  "training_config": {
+    "optimizer": "Adam",
+    "lr": 0.0003,
+    "weight_decay": 0.0,
+    "batch_size": 512,
+    "max_epochs": 60,
+    "early_stop_patience": 8,
+    "torch_seed": 7,
+    "loss": "weighted MSE on terminal win margin",
+    "plain_row_weight": "1 / (decision points in that episode)",
+    "branch_row_weight": "1.0",
+    "early_stop_criterion": "inner-val weighted MSE (NOT strategic ordering)"
+  },
+  "seed_sets": {
+    "inner_fit": [
+      6500001,
+      6500128,
+      128
+    ],
+    "inner_val": [
+      6500129,
+      6500160,
+      32
+    ],
+    "held_out_not_opened": [
+      6500161,
+      6500256,
+      96
+    ]
+  },
+  "held_out_seeds_opened": 0,
+  "best_inner_val_weighted_mse": 0.4243381117519877,
+  "train_side_ordering_diagnostic_not_dev_gate": {
+    "d_A": {
+      "mean": 0.088617,
+      "per_seed_mean": 0.088617,
+      "n_states": 96,
+      "n_seeds": 32
+    },
+    "d_B": {
+      "mean": -0.00547,
+      "per_seed_mean": -0.00547,
+      "n_states": 96,
+      "n_seeds": 32
+    },
+    "teacher_query_validity": {
+      "pi_A": {
+        "agent1_argmax_agreement": 1.0,
+        "agent2_argmax_agreement": 1.0,
+        "n_states": 192
+      },
+      "pi_B": {
+        "agent1_argmax_agreement": 1.0,
+        "agent2_argmax_agreement": 1.0,
+        "n_states": 192
+      }
+    }
+  },
+  "weights": {
+    "path": "artifacts\\strategic_demand\\rasrppo\\qpsi_regime_frozen.pt",
+    "sha256": "44c0680e037939de287ad4201fead6312bc92b6bcd1fd902f568868cb24b760a"
+  },
+  "epoch_history": [
+    {
+      "epoch": 0,
+      "train_wmse": 0.830269,
+      "val_wmse": 0.554372
+    },
+    {
+      "epoch": 1,
+      "train_wmse": 0.556938,
+      "val_wmse": 0.507828
+    },
+    {
+      "epoch": 2,
+      "train_wmse": 0.476833,
+      "val_wmse": 0.450059
+    },
+    {
+      "epoch": 3,
+      "train_wmse": 0.427372,
+      "val_wmse": 0.424338
+    },
+    {
+      "epoch": 4,
+      "train_wmse": 0.40673,
+      "val_wmse": 0.47196
+    },
+    {
+      "epoch": 5,
+      "train_wmse": 0.397726,
+      "val_wmse": 0.460821
+    },
+    {
+      "epoch": 6,
+      "train_wmse": 0.384319,
+      "val_wmse": 0.441137
+    },
+    {
+      "epoch": 7,
+      "train_wmse": 0.361553,
+      "val_wmse": 0.468245
+    },
+    {
+      "epoch": 8,
+      "train_wmse": 0.361702,
+      "val_wmse": 0.435347
+    },
+    {
+      "epoch": 9,
+      "train_wmse": 0.34604,
+      "val_wmse": 0.452808
+    },
+    {
+      "epoch": 10,
+      "train_wmse": 0.338364,
+      "val_wmse": 0.459299
+    },
+    {
+      "epoch": 11,
+      "train_wmse": 0.334295,
+      "val_wmse": 0.480843
+    }
+  ],
+  "elapsed_seconds": 59.109047200065106
+}

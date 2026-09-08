@@ -199,6 +199,26 @@ checkpoint metadata records the matching gate fingerprint and
 | `v6i22b_context_behavior_diversity` (aliases include `v6i22b`, `v6i22b_behavior_diversity_coef003`; sweep arms `coef001`, `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Label-free anti-collapse repertoire-birth fork. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and adds a small success-gated behavior-contrast reward keyed by opponent x map. The signal uses trajectory fingerprints only; it adds no handcrafted z roles, no opponent-ID actor shortcut, no oracle best-z targets, and no router training. Pinned by `tests/test_v6i22b_context_behavior_diversity.py`. |
 | `v6i22c_contextual_outcome_diversity` (aliases include `v6i22c`, `v6i22c_outcome_diversity_coef003`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Label-free outcome-diversity repertoire-birth fork. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and adds a stronger success-gated terminal outcome-diversity reward keyed by opponent x map. The signal uses generic score-margin outcomes only; it adds no handcrafted z roles, no behavior-metric reward targets, no opponent-ID actor shortcut, no oracle best-z targets, and no router training. Pinned by `tests/test_v6i22c_contextual_outcome_diversity.py`. |
 | `v6i22d_strong_behavior_diversity` (aliases include `v6i22d`, `v6i22d_behavior_diversity_coef010`; sweep arm `coef005`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Stronger label-free behavior-contrast repertoire-birth fork after V6I22B/C failed the birth gate. It keeps V6I22's router-off, balanced-episode, contract-disabled scaffold and applies higher behavior-contrast coefficients (`0.10` primary, `0.05` sweep control). Same trajectory-fingerprint signal as V6I22B; no outcome-diversity channel, no handcrafted z roles, no oracle targets, and no router training. Pinned by `tests/test_v6i22d_strong_behavior_diversity.py`. |
+| `v6i22e_fixed_alpha_adapters` (aliases include `v6i22e`) | `v6i22_adaptive_hardpool_repertoire_birth` | `SUMMER-COMPATIBLE EXTENSION` | Fixed-alpha (`α=0.1`) gate-free residual adapters with Kaiming init to escape the zero-init / stuck-gate magnitude trap. Same hardpool birth scaffold; no soft diversity rewards. Pinned by `tests/test_v6i22e_fixed_alpha.py`. |
+| `v6i23_population_birth` (aliases include `v6i23`) | `v6i22e_fixed_alpha_adapters` | `SUMMER-COMPATIBLE EXTENSION` | Population-style specialist birth: active-z-only residual forward plus independent per-z action heads that are Stage-2 trainable (shared `action_head` stays frozen). Router off; no opponent-ID; no soft diversity rewards. Success gate is CF action-JSD, not paper-faithful. Pinned by `tests/test_v6i23_population_birth.py`. |
+| `v6i24_full_policy_population` (aliases include `v6i24`) | `v6i21j_hardpool_balance_calibration` | `DIAGNOSTIC` | Full-policy population diagnostic (**Path C**; soft-contract 5u teachers exist; LRO Stage-0 landscape scan supersedes as primary next spend). K=4 independent teachers under fixed OP8–OP12×map pressures. **Primary gate:** different best policies across cells **and** cross-fitted context oracle > best fixed (CI excludes 0). JSD/classifier supporting only. Pinned by `tests/test_v6i24_full_policy_population.py`. |
+| `v6i25_counterfactual_router` (experiment; no training preset) | V6I23 donor checkpoint | `DIAGNOSTIC` | Counterfactual geometry→`q_phi` diagnostic. Cross-fitted context oracle (not per-episode hindsight); Stage A signal gate; soft `softmax(Q̂/τ)` CE loss; geometry asserts; no opponent-ID in router input. Runner: `experiments/run_v6i25_counterfactual_router_diagnostic.py`. Pinned by `tests/test_v6i25_counterfactual_router.py`. |
+| `v6i26_latent_response_oracle` (aliases include `v6i26`, `v6i26_lro`, `v6i26_phase_pod_population`) | `v6i23_population_birth` | `DIAGNOSTIC` | **LRO-Summer finite proof ladder** (Claim B). Primary claim: response-oracle birth of complementary latent strategies + sparse router that beats fixed-z and matched non-latent PPO. Not spontaneous emergence. Stage-1 at 4 eps/cell is screening only and may emit `PROMISING_DIRECTION`, never `ACCEPT`. Each response round selects its branch and target/anchor mixture from the current forced-z payoff matrix, excluding saturated cells instead of repeatedly assigning `z3`. Strategy acceptance requires `ΔG>0`, CI95 lower bound above zero, nonredundant payoff row, competence floor, forced-z behavior nonredundancy, ≥32 eps/cell, and ≥3 training seeds. One retry per failure mode; no coefficient carousel. Contract: `artifacts/v6i26_lro_round1_seed1/proof_ladder_contract.json`. Pinned by `tests/test_v6i26_latent_response_oracle.py`. |
+| `v6i26_lro_actor_step_ablation` (aliases `v6i26_actor_step`, `v6i26_actor_step_ablation`) | `v6i26_latent_response_oracle` | `DIAGNOSTIC` | Optimizer-control ablation: separate z-actor/critic clip + `latent_lro_z_actor_lr_mult` (CLI `--z-actor-lr-mult`). **2× FAIL** (KL under floor); **3× FAIL** (KL over ceiling) → **no further LR rungs**. Next control: `run_v6i26_actor_step_kl_ladder.py` (hold 3× LR; 1u checkpoints; first fixed-batch KL in `[1e-3,1e-2]`). Phase-2 `z3` remains LOCKED FAIL (no G, behavior redundant). |
+
+### 3.7 RASR-PPO supervised-compression causal ladder
+
+All four rows are `SUMMER-COMPATIBLE EXTENSION`, never paper-faithful or
+label-free discovery. Their only aliases are the two names shown per row.
+Output identity fields are `checkpoint_dir`, `metrics_csv_path`,
+`episode_csv_path`, and `run_tag`.
+
+| Preset aliases | Parent | Classification | Resolved-config delta keys only |
+|---|---|---|---|
+| `rasrppo_s0_same_block_control`, `rasrppo_s0` | SPPPO V1 production treatment (same-block control) | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, seed}` |
+| `rasrppo_r1_regime_scorer`, `rasrppo_r1` | S0 | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, rasr_regime_qpsi, rasr_regime_qpsi_path, rasr_regime_qpsi_sha256}`; the SHA field remains equal to its empty default until the prospectively frozen fit exists, so it does not appear in an `!=`-based diff before fitting |
+| `rasrppo_r2_private_critic`, `rasrppo_r2` | R1 | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, rasr_private_critic_heads}` |
+| `rasrppo_r3_directed_identity`, `rasrppo_r3` | R2 | `SUMMER-COMPATIBLE EXTENSION` | `{checkpoint_dir, episode_csv_path, metrics_csv_path, run_tag, rasr_directed_identity}` |
 
 ---
 
@@ -1470,6 +1490,197 @@ layouts. Continue only if Stage-C remains passing, unique best-z stays above
 one, WR/margin advantage does not collapse, and `behavior_pair_distance_mean`
 moves toward `> 0.06` with at least one above-threshold pair. Router training
 remains blocked until forced-z behaviors are visibly distinct.
+
+### 6.39 v6i22e_fixed_alpha_adapters (SUMMER-COMPATIBLE EXTENSION)
+
+v6i22E inherits `v6i22_adaptive_hardpool_repertoire_birth` and sets
+`latent_z_residual_alpha = 0.1` (Kaiming adapters, no learned gate).
+
+**Resolved-config diff vs v6i22:** exactly `{experiment_id,
+latent_z_residual_alpha, run_tag}`.
+
+Aliases: `v6i22e`, `v6i22e_fixed_alpha_adapters`,
+`latent_v6i22e_fixed_alpha_adapters`,
+`plan_faithful_latent_v6i22e_fixed_alpha_adapters`.
+
+### 6.40 v6i23_population_birth (SUMMER-COMPATIBLE EXTENSION)
+
+v6i23 inherits `v6i22e_fixed_alpha_adapters` and enables population birth:
+`latent_population_birth_active_z_only = True` and
+`latent_population_birth_per_z_action_heads = True`.
+
+**Resolved-config diff vs v6i22e:** exactly `{experiment_id,
+latent_population_birth_active_z_only,
+latent_population_birth_per_z_action_heads, run_tag}`.
+
+Scientific rationale: Stage-2 freezes the shared `action_head`, so residual
+adapters alone struggled to separate `π(a|s,z)` (CF action-JSD stayed near
+zero after V6I22E). Independent per-z heads are Stage-2 trainable specialists
+under forced `balanced_episode` assignment. Not paper-faithful (concat +
+shared MLP remains the paper actor); Summer-compatible extension only.
+
+Aliases: `v6i23`, `v6i23_population_birth`,
+`latent_v6i23_population_birth`,
+`plan_faithful_latent_v6i23_population_birth`.
+
+Promotion logic: CF action-JSD pair mean `> 0.05` on ≥2 oracle-hot cells
+(or head0 disagree `> 0.2` with non-tie). Router remains blocked until that
+gate clears.
+
+---
+
+### 6.41 v6i24_full_policy_population (DIAGNOSTIC)
+
+V6I24 is the **Path C fallback** after V6I22–V6I23 demonstrated that
+shared-trunk training cannot produce functional separation:
+
+* V6I22E: adapters moved in weight space (L2 ~9.2) but shared frozen
+  `action_head` kept CF action-JSD at ~0.0002.
+* V6I23: per-z heads pairwise L2 grew to ~0.063 but CF action-JSD
+  stayed pinned at ~0.0002. Shared representation and optimization
+  history pull every specialist into the same functional basin.
+
+**Scientific delta:** four ordinary independent actor-critic policies
+cloned from the same V6I21J-competent checkpoint (documented V6I9
+generalist under the v6i21J arena). No shared gradients across members,
+no adapters, no router training, no PFSP / Nash / snapshot league /
+pressure rotation / distillation in this arm. Latent concat scaffold is
+retained with frozen `z=0` only so the competent checkpoint can
+warm-start without reshaping the actor body.
+
+**Ancestry:** parent configuration and hardpool surface from `v6i21j`.
+Checkpoint source: same V6I21J-competent zip (not V6I22E/V6I23).
+Does NOT inherit latent/adapter/population-birth machinery.
+
+**Resolved-config diff vs v6i21j:** `{enable_latent_z_residual,
+fixed_latent_strategy, freeze_return_norm_after_load,
+latent_assignment_mode, latent_lam_h_end, latent_lam_h_start,
+latent_strategy_ppo_coef, opponent_randomize,
+population_pressure_rotation_interval,
+population_round_robin_updates_per_cycle, v6i9_training_stage,
+experiment_id, run_tag}`. Latent concat scaffold stays on with frozen
+`z=0` so the V6I9/V6I21J checkpoint can warm-start; adapters/router/
+strategy losses are off. `population_training_enabled` stays `False`.
+
+**Fixed cell pressures (from V6I21J calibration WR/variance; both maps):**
+
+| Member | Label | Pressure |
+|--------|-------|----------|
+| π0 | balanced | Uniform OP8–OP12 × both maps |
+| π1 | failure_cells | Weight lowest baseline WR cells |
+| π2 | high_variance | High Bernoulli-variance / red-score cells |
+| π3 | complementary | Complement of π1+π2 |
+
+Budget probes: 5u / 10u / 25u per policy (max initial 25u).
+
+Aliases: `v6i24`, `v6i24_full_policy_population`,
+`latent_v6i24_full_policy_population`,
+`plan_faithful_latent_v6i24_full_policy_population`.
+
+**Evaluation gates:**
+
+* *Primary (comparative advantage):* ≥2 cells with different best policies
+  and margin `≥0.10`; **cross-fitted** context oracle > best fixed on
+  held-out episodes with paired CI excluding zero (matched seeds across
+  members). Hindsight `max_π` gap is diagnostic only.
+* *Supporting:* CF action-JSD mean `> 0.05` on ≥2 cells, OR
+  leave-one-cell-out trajectory classifier `> 50%`; payoff-row distance
+  reported. Smoke 32 eps/cell; confirm promotions at 128.
+
+**Decision tree:**
+
+1. Primary PASS → build V6I24-D distillation → re-test distilled
+   context oracle > best fixed `z` → then geometry router.
+2. Trend → extend teachers to 100K.
+3. Fail → redesign external training pressures.
+
+**Status (2026-07-23):** `CLOSED_AS_PRIMARY` — soft 5u Path C retained as
+landscape probe only. Method path is V6I26 LRO (§6.43 / tracker §3.37).
+See `artifacts/v6i24_population_seed1/pathc_close_verdict.json`.
+
+---
+
+### 6.42 v6i25 counterfactual geometry→z router (DIAGNOSTIC)
+
+**Not a training preset.** Experiment runner + helpers that freeze a V6I23
+donor and train only `q_phi` against counterfactual matched-seed returns.
+
+**Scientific delta:** test whether
+`geometry → z → return` is predictable from permitted episode-start
+`global_state` (no opponent ID), then whether soft-Q training of `q_phi`
+recovers that gap. Separates a genuine latent-selection solution from a
+per-episode hindsight lookup table.
+
+**Corrected contracts:**
+
+* Oracle = **cross-fitted** `z*(c)=argmax_z E_train[R|c,z]`, evaluated on
+  held-out seeds — **not** `max_z R` per episode.
+* Stage A must pass (`context-oracle > best_fixed`, paired CI excludes 0)
+  before Stage B router training.
+* Primary loss = `−Σ softmax(Q̂/τ) log q_φ`; centered-advantage is ablation.
+* Loud failure if `global_state` missing / non-finite / all-zero / unique
+  contexts ≤ 1. Aggregate conflicting opponents under the same geometry.
+
+**Artifacts:** `rl/router/counterfactual_router.py`,
+`experiments/run_v6i25_counterfactual_router_diagnostic.py`,
+`tests/test_v6i25_counterfactual_router.py`.
+
+**Verdicts:** `PASS` / `PARTIAL` / `FAIL_SIGNAL` / `FAIL_ROUTER`
+(see research-progress-tracker §3.36).
+
+---
+
+### 6.43 v6i26_latent_response_oracle (DIAGNOSTIC) — LRO-Summer
+
+**Parent:** `v6i23_population_birth`.
+**Classification:** `DIAGNOSTIC` (Claim B method path; not PAPER-FAITHFUL).
+
+**Scientific delta (plain English):** Stop asking four symmetric latent
+branches to invent different strategies under the same PPO mixture. Treat
+each `z` as an internal response-oracle policy and train it specifically
+against uncovered weaknesses of the current latent population
+(PSRO / VGC-Bench / Conflux-PSRO lesson). No human strategy labels; task
+return and population regret drive which branch updates.
+
+**Resolved-config defining keys vs v6i23:**
+
+* `latent_lro_deep_branches=True` (last-two-layer trunks per z)
+* `latent_lro_active_branch_only=True`
+* `fixed_latent_strategy=True`, `latent_assignment_mode=fixed`
+* `latent_strategy_ppo_coef=0`, router OFF
+* `recurrent_selector_hidden_dim=0`
+* `freeze_return_norm_after_load=True`, `opponent_randomize=True`
+* `obstacle_obs_channel=True` — keep the 8-channel obstacle plane when
+  training/eval cells include `map_a_open` so V6I23+ checkpoints do not
+  shape-skip the CNN stem (wall plane is zeros on open arenas)
+* `experiment_id` / `run_tag` → v6i26 LRO
+
+Contract rewards remain OFF (already on v6i23). Deep trunks sit on top of
+inherited residual adapters + per-z action heads. Default LRO map surface is
+`LRO_DEFAULT_MAPS = (map_a_open, map_b_split_lane, map_b_split_lane_v2)`.
+
+**Stages:**
+
+0. Strategic landscape scan (`run_v6i26_strategic_landscape_scan.py`)
+1. LRO birth rounds (`run_v6i26_lro_oracle_round.py`) — one selected branch
+   BR/round; branch and target/anchor mixture come from the current forced-z
+   payoff matrix, saturated cells are excluded, and 4 eps/cell screens can only
+   nominate `PROMISING_DIRECTION`
+2. Confirmation — ≥32 eps/cell, CI95(`ΔG`) lower bound > 0, behavior
+   distance pass, competence pass, nonredundant payoff row, and ≥3 seeds
+3. Sparse router only if confirmed `G_available > 0` / niche PASS
+4. Headline vs K=1 / matched non-latent / end-to-end Summer
+
+**Artifacts:** `experiments/v6i26_lro_core.py`,
+`experiments/run_v6i26_strategic_landscape_scan.py`,
+`experiments/run_v6i26_lro_oracle_round.py`,
+`experiments/run_v6i26_distill_and_route.py`,
+`tests/test_v6i26_latent_response_oracle.py`.
+
+Aliases: `v6i26`, `v6i26_lro`, `v6i26_latent_response_oracle`,
+`latent_v6i26_latent_response_oracle`,
+`plan_faithful_latent_v6i26_latent_response_oracle`,
+`v6i26_phase_pod_population` (legacy phase-pod alias → same function).
 
 ---
 

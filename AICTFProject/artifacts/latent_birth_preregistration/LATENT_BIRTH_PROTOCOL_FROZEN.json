@@ -1,0 +1,206 @@
+{
+  "preregistration": "Latent birth verification — z0 = G0, z1 = O1",
+  "status": "FROZEN — declared before the O1 four-gate verdict existed",
+  "authored_utc": "2026-08-04",
+  "document": "docs/latent-birth-preregistration.md",
+  "scope": "verification only; the birth IMPLEMENTATION is not specified here (see not_frozen_here)",
+
+  "state_at_freeze": {
+    "o1_seed_3300001": "training complete, 1,001,472 steps, SYSTEM_HEALTH PASS",
+    "o1_seed_3300002": "training in progress",
+    "o1_seed_3300003": "not started",
+    "run_o1_gates": "never executed",
+    "why_this_matters": "Freezing after the O1 verdict would make the birth criteria a function of O1's numbers — the exact failure mode the C1 preregistration was built to prevent."
+  },
+
+  "what_is_being_tested": {
+    "question": "When two complementary policies are compressed into one latent-conditioned network, does the complementarity survive being forced through z?",
+    "not_established_by_o1_gates": "anything about latents",
+    "prior_failures_this_guards_against": {
+      "v6i26": "distinct z indices with indistinguishable behavior",
+      "v6i22": "behavior_pair_distance_mean = 0.033"
+    }
+  },
+
+  "eligibility": {
+    "requires": "O1 protocol returns RETAINED on all four gates",
+    "if_o1_fails": "this protocol stays dormant; it is not adapted, reused at a lower bar, or applied to a different candidate"
+  },
+
+  "source_pairing": {
+    "B1": {"z0_source": 3200001, "z1_source": 3300001},
+    "B2": {"z0_source": 3200002, "z1_source": 3300002},
+    "B3": {"z0_source": 3200003, "z1_source": 3300003},
+    "rule": "index-matched, identical to O1 gates 1-3; no cross-seed rematching, no selecting the best combination"
+  },
+
+  "latent_mapping": {
+    "z0": "G0 source family",
+    "z1": "O1 source family",
+    "fixed_before_birth": true,
+    "relabeling_after_evaluation": "PROHIBITED — swapped branches are a result, not a labelling error"
+  },
+
+  "latent_execution": {
+    "K": 2,
+    "z_forced_for_entire_episode": true,
+    "router": "OFF",
+    "q_phi": "OFF",
+    "mid_episode_latent_switching": "PROHIBITED",
+    "role_reward": "NONE",
+    "strategy_labels_to_ppo": "NONE",
+    "semantic_encoding": "no DEFEND / RECOVER / ROTATE_HOME anywhere",
+    "note": "K=4 exists in the architecture; nothing here obliges the science to fill it"
+  },
+
+  "evaluation_seeds": {
+    "c1_crossover": [9700000, 9700029],
+    "anchor_and_repertoire": [9710000, 9710029],
+    "matched_observation_distinction": [9720000, 9720029],
+    "disjoint_from": [
+      "9100000+ V6I9 discovery",
+      "9200000+ collapse diagnostic",
+      "9300000-9300002 TASK_HEALTH panel",
+      "9400000+ G0-V5 discovery",
+      "9500000+ C1 confirmation",
+      "9600000+ O1 gates",
+      "9900000+ O1 training panels",
+      "all training seeds"
+    ],
+    "collision_policy": "FAIL CLOSED — abort rather than proceed if any evaluation seed appears in a prior block",
+    "collision_verified_at_freeze": true
+  },
+
+  "populations_and_metrics": "identical to the corresponding frozen O1 gates; only the seeds are new",
+
+  "preservation_rule": {
+    "name": "75% preservation",
+    "requirement": "retention = post_birth_quantity / pre_birth_quantity >= 0.75",
+    "pre_birth_source": "the value measured by run_o1_gates.py for the SAME index-matched pair",
+    "defined_only_when": "the pre-birth quantity is positive; if it is zero or negative that pair did not pass the corresponding O1 gate and birth was not eligible",
+    "status": "SECONDARY — every gate also requires the post-birth measurement to independently satisfy the original O1 pass criterion",
+    "rationale": "Compression of two independently trained networks into one latent-conditioned network is expected to cost something. This says prospectively how much is tolerable, so a strong crossover cannot be accepted as a ghost of itself."
+  },
+
+  "gates": {
+    "birth_gate_1_c1_crossover_survives": {
+      "population": "natural C1 episodes, seeds 9700000-9700029",
+      "compare": "forced z1 vs forced z0",
+      "metric": "lead_preserved = NOT lost_after_leading (episode-level)",
+      "base_criterion": "delta >= 0.10 AND 95% CI excludes 0 (same as O1 gate 1)",
+      "retention": "pre = O1 gate 1 delta for this pair; post = P(preserve|z1) - P(preserve|z0); require >= 0.75",
+      "pass": ">= 2 of 3 pairs"
+    },
+    "birth_gate_2_anchor_crossover_survives": {
+      "population": "natural episodes where C1 never fires, seeds 9710000-9710029",
+      "compare": "forced z0 vs forced z1, full-episode",
+      "base_criterion": "WR(z1) <= WR(z0) + 0.05 (same as O1 gate 2)",
+      "margin_definition": "margin = ( WR(z0) + 0.05 ) - WR(z1)",
+      "retention": "pre = ( WR(G0) + 0.05 ) - WR(O1) from O1 gate 2; post = the same quantity under forced z; require >= 0.75",
+      "pass": ">= 2 of 3 pairs",
+      "prohibited": "post-birth reinterpretation of 'equivalent', 'better', or 'non-dominated'"
+    },
+    "birth_gate_3_repertoire_value_survives": {
+      "population": "seeds 9710000-9710029",
+      "compare": "oracle selector(z0,z1) vs best fixed forced-z branch",
+      "selector": "within-episode, one-way, switches to z1 at first C1 onset — identical construction to O1 gate 3",
+      "base_criterion": "gain >= 0.05 AND 95% CI excludes 0, gain positive (same as O1 gate 3)",
+      "retention": "pre = O1 gate 3 gain for this pair; require >= 0.75",
+      "pass": ">= 2 of 3 pairs"
+    },
+    "birth_gate_4_behavioral_distinction_no_collapse": {
+      "level": "family, not per-pair",
+      "families": {
+        "Z0": "forced-z0 outputs of B1, B2, B3",
+        "Z1": "forced-z1 outputs of B1, B2, B3"
+      },
+      "both_required": true,
+      "measurement_a": {
+        "statistic": "B_distinct = median(JSD_between) - Q_0.95(JSD_within)",
+        "implementation": "experiments/analyze_k2_behavior_gate.py",
+        "pass": "LCB95(B_distinct) > 0",
+        "observation_bank": "matched observations, seeds 9720000-9720029",
+        "measures": "divergence of action distributions at matched observations"
+      },
+      "measurement_b": {
+        "statistic": "behavior_pair_distance_mean",
+        "implementation": "rl/forced_z_behavior_vectors.py, 7-dim normalized behavior vector",
+        "vector_dims": [
+          "attack_lane_preference",
+          "return_lane_preference",
+          "interception_pressure",
+          "escort_allocation",
+          "team_spread",
+          "objective_entry_timing",
+          "role_allocation"
+        ],
+        "at_K2": "exactly one pair, so the mean is the single z0-z1 distance",
+        "threshold": 0.35,
+        "measures": "divergence of aggregate behavioral statistics"
+      },
+      "absolute_distinction_bands": {
+        "SEVERE_COLLAPSE": "distance < 0.060",
+        "INSUFFICIENT_DISTINCTION": "0.060 <= distance < 0.350",
+        "ABSOLUTE_DISTINCTION_PASS": "distance >= 0.350",
+        "birth_fails_in": ["SEVERE_COLLAPSE", "INSUFFICIENT_DISTINCTION"],
+        "why_three_bands": "'collapsed' and 'not distinct enough' are different findings. A result of e.g. 0.24 means the branches differ somewhat but did not reach the preregistered threshold — reporting that as collapse would overstate the failure."
+      },
+      "threshold_provenance": {
+        "primary_threshold": 0.35,
+        "primary_source": "rl.forced_z_behavior_vectors.DEFAULT_BEHAVIOR_PAIR_THRESHOLD — the repository's canonical bar for this exact metric",
+        "why_primary": "The claim this protocol supports is a strong one. Using a threshold softer than the project already ships for the same measurement would leave an unnecessary hole in it.",
+        "historical_diagnostic_floor": 0.060,
+        "historical_floor_source": "V6I22E's birth gate, which scored 0.033 and failed",
+        "historical_floor_role": "classification of severe collapse ONLY; NOT sufficient for LATENT_BIRTH_PASS",
+        "superseded_note": "An earlier draft of this protocol proposed 0.060 as the pass threshold. It was corrected to 0.35 before the O1 verdict existed and before any birth model was built.",
+        "may_not_move_because": "a latent network 'had to compress two policies' — that is the thing being measured"
+      }
+    }
+  },
+
+  "gate_4_failure_definition": {
+    "fails_if_either": [
+      "family-level B_distinct fails",
+      "behavior_pair_distance_mean < 0.35"
+    ],
+    "classified_by_band": {
+      "SEVERE_COLLAPSE": "< 0.060 — V6I22E-class; branches converged",
+      "INSUFFICIENT_DISTINCTION": "0.060 - 0.349 — measurable separation, below the bar",
+      "ABSOLUTE_DISTINCTION_PASS": ">= 0.350"
+    },
+    "note": "Distinct latent IDs alone do not count as distinct strategies."
+  },
+
+  "verdict": {
+    "LATENT_BIRTH_PASS": "gates 1, 2, 3 and 4 all pass",
+    "LATENT_BIRTH_FAIL": "otherwise",
+    "failure_interpretation": {
+      "gate_1": "the C1 specialist behavior was not preserved through z",
+      "gate_2": "the anchor / crossover structure was lost",
+      "gate_3": "the two branches no longer provide repertoire value",
+      "gate_4": "behavior collapsed, even though the z indices differ"
+    },
+    "only_pass_supports": "z0 and z1 represent two behaviorally distinct, complementary latent team strategies"
+  },
+
+  "not_frozen_here": {
+    "the_birth_implementation": "distillation objective, architecture, optimizer, step budget, how G0 and O1 weights enter the latent network",
+    "why": "it does not exist yet and pretending otherwise would be dishonest",
+    "requirement": "its own manifest, frozen immediately before any birth training begins, WITHOUT reference to birth-evaluation results",
+    "invariant": "the verification protocol above is fixed from today and does not move to accommodate whatever implementation is chosen"
+  },
+
+  "immutability": {
+    "after_o1_results_visible_none_of_these_may_change": [
+      "any threshold, including the 0.75 retention rule, the 0.35 distinction bar, and the 0.060 severe-collapse classification floor",
+      "any seed block",
+      "any metric or statistic",
+      "any population definition",
+      "the z0 = G0, z1 = O1 mapping",
+      "the >= 2/3 pair requirement, or the family-level scope of gate 4"
+    ],
+    "a_failed_birth": "may motivate a new birth METHOD, which requires its own preregistration and fresh evaluation seeds and inherits nothing from this one"
+  },
+
+  "freeze_record": "the commit introducing this file together with docs/latent-birth-preregistration.md; that commit contains no executable changes"
+}

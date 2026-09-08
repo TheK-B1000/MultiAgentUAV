@@ -1,0 +1,92 @@
+{
+  "record_id": "BCS_MODELS_FROZEN",
+  "status": "FROZEN_MODELS -- frozen BEFORE the sealed EVAL is opened",
+  "utc": "2026-09-04T13:45:03Z",
+  "implements": "BALANCED_CAUSAL_SAMPLING_SPEC.json",
+  "shared": {
+    "training_seed": 11901001,
+    "warm_start_is_the_original_incumbent": true
+  },
+  "CONTROL": {
+    "arm": "CONTROL",
+    "seed": 11901001,
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\balanced_causal_sampling_production\\control\\ckpts\\final_balanced_causal_sampling_control.zip",
+      "sha256": "25cc939e2fd6ae2b15e2817aa751701d45e7be5fc45dc43c28ef2db2257f680e",
+      "bytes": 47018632
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "optimizer_state_reused": false
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "steps_advanced": 503808,
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_telemetry_summary": {
+          "updates": 752,
+          "z0_exposures": 21267,
+          "z1_exposures": 14829,
+          "positive_routes": 30602,
+          "negative_routes": 5494
+        },
+        "balance_check": null
+      }
+    }
+  },
+  "TREATMENT": {
+    "arm": "TREATMENT",
+    "seed": 11901001,
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\balanced_causal_sampling_production\\treatment\\ckpts\\final_balanced_causal_sampling_treatment.zip",
+      "sha256": "1a359f71045a4c076eec665b11be46e13a636ce81ccb145b5b858bdbc5b4875a",
+      "bytes": 47019266
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "optimizer_state_reused": false
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "steps_advanced": 503808,
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_telemetry_summary": {
+          "updates": 672,
+          "z0_exposures": 16128,
+          "z1_exposures": 16128,
+          "positive_routes": 28147,
+          "negative_routes": 4109
+        },
+        "balance_check": {
+          "z0_exposures": 16128,
+          "z1_exposures": 16128,
+          "abs_diff": 0,
+          "within_one_row_per_step": true
+        }
+      }
+    }
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11902001..11902064",
+    "touched": false,
+    "note": "sealed; opening requires a separate PI decision"
+  },
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "no model selection, no tuning, no checkpoint choice using EVAL. These two terminal checkpoints are the only artifacts that will be scored."
+  },
+  "NEXT": "a separate, explicit PI decision to open EVAL 11902001..11902064"
+}

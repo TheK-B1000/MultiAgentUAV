@@ -86,8 +86,8 @@ from rl.training.env_factory import build_training_env
 # env's own validation can surface mismatches.
 _OPPONENT_ENV_TAG: dict[str, str] = {
     "OP5": "OP5_RUSHER",
-    "OP6": "OP6_TURTLE",
-    "OP7": "OP7_SWITCHER",
+    "OP6": "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7": "OP7_DEEP_FORTRESS",
 }
 
 

@@ -1,0 +1,99 @@
+{
+  "record": "16-cell stratified collection support validity",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-29T07:28:37Z",
+  "protocol": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json, frozen c318bcea",
+  "collection": {
+    "seeds": 160,
+    "branch_states": 1836,
+    "collection_complete_utc": "2026-08-29T07:28:04Z"
+  },
+  "minimum_distinct_seeds_per_cell": 32,
+  "scope": "FULL block. Never per split -- a 32-seed split cannot satisfy a 32-seed floor.",
+  "cells": {
+    "A_r0_not_late": {
+      "n_states": 159,
+      "n_distinct_seeds": 159,
+      "valid": true
+    },
+    "A_r0_late": {
+      "n_states": 122,
+      "n_distinct_seeds": 122,
+      "valid": true
+    },
+    "A_r1_not_late": {
+      "n_states": 140,
+      "n_distinct_seeds": 140,
+      "valid": true
+    },
+    "A_r1_late": {
+      "n_states": 117,
+      "n_distinct_seeds": 117,
+      "valid": true
+    },
+    "A_r2_not_late": {
+      "n_states": 132,
+      "n_distinct_seeds": 132,
+      "valid": true
+    },
+    "A_r2_late": {
+      "n_states": 76,
+      "n_distinct_seeds": 76,
+      "valid": true
+    },
+    "A_r3_not_late": {
+      "n_states": 154,
+      "n_distinct_seeds": 154,
+      "valid": true
+    },
+    "A_r3_late": {
+      "n_states": 116,
+      "n_distinct_seeds": 116,
+      "valid": true
+    },
+    "B_r0_not_late": {
+      "n_states": 84,
+      "n_distinct_seeds": 84,
+      "valid": true
+    },
+    "B_r0_late": {
+      "n_states": 159,
+      "n_distinct_seeds": 159,
+      "valid": true
+    },
+    "B_r1_not_late": {
+      "n_states": 158,
+      "n_distinct_seeds": 158,
+      "valid": true
+    },
+    "B_r1_late": {
+      "n_states": 148,
+      "n_distinct_seeds": 148,
+      "valid": true
+    },
+    "B_r2_not_late": {
+      "n_states": 66,
+      "n_distinct_seeds": 66,
+      "valid": true
+    },
+    "B_r2_late": {
+      "n_states": 59,
+      "n_distinct_seeds": 59,
+      "valid": true
+    },
+    "B_r3_not_late": {
+      "n_states": 60,
+      "n_distinct_seeds": 60,
+      "valid": true
+    },
+    "B_r3_late": {
+      "n_states": 86,
+      "n_distinct_seeds": 86,
+      "valid": true
+    }
+  },
+  "invalid_cells": [],
+  "VERDICT": "VALID",
+  "consequence": "Calibration of tau, rho and o_max on the CALIB split may proceed."
+}

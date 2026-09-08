@@ -15,6 +15,7 @@ _FROZEN_NAME_PARTS = (
   "latent_adapters",
   "latent_adapter_gates",
   "latent_action_biases",
+  "latent_action_heads",
   "strategy_embedding",
 )
 

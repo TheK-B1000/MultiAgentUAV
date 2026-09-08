@@ -23,36 +23,91 @@ from rl.train_ppo import PPOConfig
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 SNAPSHOT_PATH = os.path.join(_HERE, "preset_snapshots.json")
+_PROJECT_ROOT = os.path.dirname(_HERE)
+
+# Path-valued config fields that must be host-independent in the golden snapshot.
+# Absolute Windows paths (K:\...) or backslash separators poison CI (Linux runners).
+_PATH_FIELDS = frozenset({
+    "checkpoint_dir",
+    "load_path",
+    "metrics_csv_path",
+    "episode_csv_path",
+    "strategy_experience_csv_path",
+    "e3_step_telemetry_path",
+    "training_events_jsonl_path",
+    "telemetry_events_jsonl_path",
+    "performance_summary_path",
+    "performance_samples_path",
+    "exp2_teacher_checkpoints",
+    "exp2_protocol_path",
+    "sppo_qpsi_path",
+    "rasr_regime_qpsi_path",
+    "csia_payoff_csv_path",
+    "csia_strategy_evidence_csv_path",
+    "latent_v3i3_refresh_log_path",
+    "snapshot_opponent_pool",
+})
+
+
+def _json_safe(value: Any) -> Any:
+    """Recursively convert tuples to lists so JSON round-trips compare equal.
+
+    JSON has no tuple type, so a freshly resolved config (tuple) would never
+    equal a snapshot loaded from JSON (list). This walks the whole structure
+    rather than naming individual fields: an enumerated allowlist silently
+    goes stale the moment someone adds a tuple-typed field to PPOConfig, and
+    the resulting failure looks like a preset regression instead of a
+    serialisation bug.
+    """
+    if isinstance(value, (tuple, list)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    return value
+
+
+def _host_independent_path(value: str) -> str:
+    """Map absolute project paths to repo-relative posix; normalize separators."""
+    if not value:
+        return value
+    normalized = value.replace("\\", "/")
+    # Absolute (POSIX or Windows drive) under the project root -> relative posix.
+    try:
+        abs_candidate = value
+        if not os.path.isabs(abs_candidate) and len(value) >= 2 and value[1] == ":":
+            abs_candidate = value  # already Windows abs-ish
+        abs_path = os.path.abspath(abs_candidate)
+        root = os.path.abspath(_PROJECT_ROOT)
+        if abs_path == root or abs_path.startswith(root + os.sep):
+            return os.path.relpath(abs_path, root).replace("\\", "/")
+    except (OSError, ValueError):
+        pass
+    return normalized
+
+
+def _canonicalize_path_fields(cfg: dict[str, Any]) -> dict[str, Any]:
+    out = dict(cfg)
+    for key in _PATH_FIELDS:
+        if key not in out or out[key] in (None, "", (), []):
+            continue
+        val = out[key]
+        if isinstance(val, list):
+            out[key] = [_host_independent_path(v) if isinstance(v, str) else v for v in val]
+        elif isinstance(val, str):
+            out[key] = _host_independent_path(val)
+    return out
 
 
 def _resolve_preset_to_dict(key: str) -> dict[str, Any]:
-    """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict.
-
-    JSON has no tuple type, so any ``tuple`` field on PPOConfig has to be
-    normalised to a list before comparison: otherwise a freshly resolved
-    config (tuple) would never equal a snapshot loaded from JSON (list).
-    Add every tuple-typed PPOConfig field that ships in the registry here.
-    """
+    """Apply a preset to a fresh ``PPOConfig`` and return a JSON-safe dict."""
     cfg = PPOConfig()
     apply_preset(cfg, key)
-    cfg_dict = asdict(cfg)
-    for tuple_field in (
-        "opponent_pool",
-        "opponent_pool_weights",
-        "map_pool",
-        "latent_router_distill_opponents",
-        "router_allowed_latents",
-        "router_ablation_conditions",
-        "router_ablation_oracle_conditions",
-        "router_ablation_primary_metrics",
-        "router_ablation_diagnostic_metrics",
-        "router_ablation_opponents",
-        "v6i6_anchor_latents",
-        "v6i6_dormant_latents",
-    ):
-        if isinstance(cfg_dict.get(tuple_field), tuple):
-            cfg_dict[tuple_field] = list(cfg_dict[tuple_field])
-    return cfg_dict
+    out = {k: _json_safe(v) for k, v in asdict(cfg).items()}
+    # PPOConfig.device defaults to "cuda" if torch.cuda.is_available() else "cpu".
+    # That host-dependent default must not enter the committed snapshot, or CI
+    # (CPU-only runners) will fail every preset against a CUDA-machine regen.
+    out["device"] = "cpu"
+    return _canonicalize_path_fields(out)
 
 
 def resolve_all_presets() -> dict[str, dict[str, Any]]:
@@ -107,12 +162,30 @@ class PresetResolutionTests(unittest.TestCase):
 
         for key in sorted(resolved.keys()):
             with self.subTest(preset=key):
-                self.assertEqual(
-                    resolved[key],
-                    snapshot[key],
-                    f"preset {key!r} resolved config differs from snapshot. "
-                    "If this change is intentional, run: python tools/snapshot_presets.py",
-                )
+                if resolved[key] != snapshot[key]:
+                    only_resolved = sorted(set(resolved[key]) - set(snapshot[key]))
+                    only_snapshot = sorted(set(snapshot[key]) - set(resolved[key]))
+                    value_diffs = sorted(
+                        k for k in (set(resolved[key]) & set(snapshot[key]))
+                        if resolved[key][k] != snapshot[key][k]
+                    )
+                    details = []
+                    if only_resolved:
+                        details.append(f"only_in_resolved={only_resolved}")
+                    if only_snapshot:
+                        details.append(f"only_in_snapshot={only_snapshot}")
+                    for k in value_diffs[:20]:
+                        details.append(
+                            f"{k}: resolved={resolved[key][k]!r} snapshot={snapshot[key][k]!r}"
+                        )
+                    if len(value_diffs) > 20:
+                        details.append(f"... and {len(value_diffs) - 20} more value diffs")
+                    self.fail(
+                        f"preset {key!r} resolved config differs from snapshot "
+                        f"({len(value_diffs)} value diffs). "
+                        + "; ".join(details)
+                        + " If this change is intentional, run: python tools/snapshot_presets.py"
+                    )
 
     def test_only_episode_credit_presets_enable_episode_strategy_ppo(self) -> None:
         """Old presets must keep episode-level q_phi PPO disabled by default."""

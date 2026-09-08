@@ -1,0 +1,22 @@
+{
+  "genome": {
+    "genome_id": "SDS_PARENT_OP7",
+    "derived_from": "OP7",
+    "base_opponent": "OP7",
+    "overlay": {},
+    "opening_hold_steps": 0
+  },
+  "n": 8,
+  "seed_base": 2450001,
+  "guard_wr": 0.0,
+  "breach_wr": 0.625,
+  "delta_G": -0.625,
+  "frac_0_0": 0.6875,
+  "mean_total_score": 0.4375,
+  "degeneracy_penalty": 0.234375,
+  "mean_intent_minus_commit": 151.625,
+  "precommitment_uncertain": true,
+  "J_local": 0.390625,
+  "search_not_gate_B": true,
+  "delta_B": 0.625
+}

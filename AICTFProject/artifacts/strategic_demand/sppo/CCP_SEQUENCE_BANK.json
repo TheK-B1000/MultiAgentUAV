@@ -1,0 +1,162 @@
+{
+  "record": "CCP SEQUENCE-mode offline bank",
+  "status": "FROZEN_ARTIFACT",
+  "utc": "2026-09-02T01:07:37Z",
+  "segment_bank_hash": "64ba35e5af451d2750b239f43f55ac0e24f342fd061b67d80f46b5946ddb948f",
+  "npz_path": "artifacts/strategic_demand/sppo/ccp_sequence_bank.npz",
+  "npz_sha256": "5e788fb1aca170d7b51eadf912d84bfeb683f899f4540744bc7dc81697f62656",
+  "total_segments_in_causal_bank": 20,
+  "nonzero_segments_rolled_out": 7,
+  "zero_weight_segments_skipped": 13,
+  "why_skipped_is_not_a_filter": "a zero-weight segment contributes exactly zero to the loss regardless of paired data; skipping its rollout is a compute optimisation over the already-frozen continuous-weighting bank, not a new significance-based inclusion rule",
+  "total_rows": 883,
+  "total_live_decision_rows": 443,
+  "segments": [
+    {
+      "segment_id": "11500103|A|55|agent0|full_takeover",
+      "pole": "A",
+      "latent": 0,
+      "teacher": "pi_A",
+      "weight": 1.0,
+      "controlled_agents": [
+        0
+      ],
+      "start_state_id": "11500103|A|55",
+      "episode_rows": 185,
+      "live_decision_rows": 82
+    },
+    {
+      "segment_id": "11500105|A|127|agent1|full_takeover",
+      "pole": "A",
+      "latent": 0,
+      "teacher": "pi_A",
+      "weight": 1.0,
+      "controlled_agents": [
+        1
+      ],
+      "start_state_id": "11500105|A|127",
+      "episode_rows": 106,
+      "live_decision_rows": 42
+    },
+    {
+      "segment_id": "11500105|A|83|agent1|full_takeover",
+      "pole": "A",
+      "latent": 0,
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "controlled_agents": [
+        1
+      ],
+      "start_state_id": "11500105|A|83",
+      "episode_rows": 157,
+      "live_decision_rows": 68
+    },
+    {
+      "segment_id": "11500105|B|104|agent1|full_takeover",
+      "pole": "B",
+      "latent": 1,
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "controlled_agents": [
+        1
+      ],
+      "start_state_id": "11500105|B|104",
+      "episode_rows": 136,
+      "live_decision_rows": 64
+    },
+    {
+      "segment_id": "11500105|B|127|agent1|full_takeover",
+      "pole": "B",
+      "latent": 1,
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "controlled_agents": [
+        1
+      ],
+      "start_state_id": "11500105|B|127",
+      "episode_rows": 113,
+      "live_decision_rows": 49
+    },
+    {
+      "segment_id": "11500105|B|133|joint|full_takeover",
+      "pole": "B",
+      "latent": 1,
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "controlled_agents": [
+        0,
+        1
+      ],
+      "start_state_id": "11500105|B|133",
+      "episode_rows": 107,
+      "live_decision_rows": 79
+    },
+    {
+      "segment_id": "11500107|B|161|joint|full_takeover",
+      "pole": "B",
+      "latent": 1,
+      "teacher": "pi_B",
+      "weight": 1.0,
+      "controlled_agents": [
+        0,
+        1
+      ],
+      "start_state_id": "11500107|B|161",
+      "episode_rows": 79,
+      "live_decision_rows": 59
+    }
+  ],
+  "fields": {
+    "global_state": [
+      883,
+      34
+    ],
+    "grid": [
+      883,
+      2,
+      7,
+      20,
+      20
+    ],
+    "vec": [
+      883,
+      2,
+      20
+    ],
+    "agent_mask": [
+      883,
+      2
+    ],
+    "mask": [
+      883,
+      110
+    ],
+    "actions": [
+      883,
+      4
+    ],
+    "z_idx": [
+      883
+    ],
+    "decision_mask": [
+      883,
+      2
+    ],
+    "weight": [
+      883,
+      2
+    ],
+    "segment_idx": [
+      883
+    ]
+  },
+  "teacher_checkpoints": {
+    "pi_A": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip"
+    },
+    "pi_B": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip"
+    }
+  },
+  "v4_checkpoint_sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0"
+}

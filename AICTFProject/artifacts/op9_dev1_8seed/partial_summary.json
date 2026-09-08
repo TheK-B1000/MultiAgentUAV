@@ -1,0 +1,23 @@
+{
+  "status": "running",
+  "updated_at_utc": "2026-07-27T11:01:35.573122+00:00",
+  "completed_episode_rows": 32,
+  "expected_episode_rows": 32,
+  "last_row": {
+    "blue_style": "BLUE_ESCORT",
+    "red_style": "OP9_SPLIT_LANE_FEINT",
+    "map": "map_b_split_lane",
+    "episode_index": 7,
+    "episode_seed": 501008,
+    "success": 0,
+    "blue_score": 0,
+    "red_score": 0,
+    "win_margin": 0,
+    "steps": 240,
+    "return": -14.802946705574868,
+    "outcome": "draw",
+    "time_to_first_score": null,
+    "collision_free": 0,
+    "zone_coverage": 0.5999999642372131
+  }
+}

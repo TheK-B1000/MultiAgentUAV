@@ -1,0 +1,30 @@
+{
+  "oracle_wr": 0.984375,
+  "oracle_margin": 1.640625,
+  "best_fixed_z": 3,
+  "best_fixed_wr": 0.953125,
+  "best_fixed_margin": 1.390625,
+  "wr_advantage": 0.03125,
+  "margin_advantage": 0.25,
+  "best_z_per_cell": {
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane": 3,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2": 3
+  },
+  "unique_best_z_count": 1,
+  "unique_best_z_values": [
+    3
+  ],
+  "gate_oracle_beats_fixed_wr": true,
+  "gate_best_z_varies": false,
+  "passed": false,
+  "wr_matrix": {
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane|z0": 0.75,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane|z1": 0.90625,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane|z2": 0.90625,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane|z3": 0.9375,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2|z0": 0.84375,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2|z1": 0.90625,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2|z2": 0.90625,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2|z3": 0.96875
+  }
+}

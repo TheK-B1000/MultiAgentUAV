@@ -1,0 +1,78 @@
+{
+  "probe": "Reward V3 reliability probe — objective-dominant budget",
+  "frozen_utc": "2026-08-02",
+  "frozen_before_any_probe_result": true,
+  "status": "FROZEN — contract declared before launch; constants must NOT change after launch even if a seed looks bad at 150k",
+
+  "question": "With shaping cut to fit an objective-scale budget, does ordinary PPO reliably learn to play CTF instead of finding a new farmable side quest?",
+
+  "locked_reward_configuration": {
+    "CHANGED": {
+      "sparse_tag_no_flag_points": {"from": 100.0, "to": 0.0},
+      "sparse_tag_with_flag_points": {"from": 50.0, "to": 0.0},
+      "action_failed_punishment": {"from": -0.2, "to": -0.004, "derivation": "0.0181 rescale from 184 observed failed commits/episode against a 30% safety budget"}
+    },
+    "UNCHANGED": {
+      "sparse_flag_capture_points": 100.0,
+      "win_team_reward": 1.0,
+      "lose_team_punish": -1.0,
+      "draw_team_penalty": -0.5,
+      "sparse_oob_points": -100.0
+    },
+    "MEASUREMENT_ONLY": ["OOB event count", "OOB reward per episode", "OOB absolute mass share", "OOB trajectory over training"],
+    "everything_else": "baseline G0-v2"
+  },
+
+  "not_a_single_factor_ablation": "V3 changes two reward families at once. It is a budget redesign and cannot attribute credit between the tag removal and the failed-commit rescale.",
+
+  "design": {
+    "seeds": [2900001, 2900002, 2900003],
+    "seed_freshness": "disjoint from training (2500001-3), penalty ablation (2600001-3), tag ablation (2700001-3), aborted all-tag (2800001-3), discovery evaluation (9100000+), collapse diagnostic (9200000+), and TASK_HEALTH panel (9300000-9300002)",
+    "steps_per_seed": 300000,
+    "checkpoint_and_panel_interval": 50000
+  },
+
+  "HARD_PASS_CONDITIONS": {
+    "1_task_alive": {
+      "applies_to": "3/3 seeds",
+      "pickups": "> 0",
+      "offensive_commitment": "> 0",
+      "defensive_commitment": "< 1.0"
+    },
+    "2_competence": {
+      "applies_to": "at least 2/3 seeds",
+      "win_rate": ">= 0.30",
+      "net_captures": "> 0"
+    },
+    "3_objective_alignment": {
+      "applies_to": "every seed",
+      "requirement": "reward_up_while_task_down == false"
+    },
+    "4_no_new_farmable_attractor": {
+      "applies_to": "every seed",
+      "requirement": "no measured shaping family may increase in magnitude while task performance decreases"
+    }
+  },
+
+  "REPORT_ONLY_NOT_FAILURE": {
+    "tactical_shaping_ceiling": 0.15,
+    "safety_shaping_ceiling": 0.30,
+    "note": "provisional ceilings, not targets — lower is better. Exceeding one does NOT fail V3.",
+    "oob": "entirely measurement-only. No OOB threshold is preregistered because its baseline frequency has never been observed; inventing one would repeat the error V3 exists to correct."
+  },
+
+  "required_reward_mass_reporting": [
+    "terminal", "capture", "failed_commit", "OOB", "tag", "offense", "team", "pbrs", "other sparse sources"
+  ],
+
+  "CLASSIFICATION": {
+    "PASS": "3/3 alive AND >=2/3 competent AND no reward/task inversion in any seed AND no new farmable shaping attractor",
+    "MIXED": "competence passes BUT alignment or farming condition fails",
+    "FAIL": "alive gate or competence gate fails"
+  },
+
+  "known_caveat_recorded_before_results": "The V3 per-episode budget projection is a DESIGN ESTIMATE, not a prediction of the new policy distribution. With failed_commit 55x cheaper, PPO may attempt far more macros, raising the event rate and partly offsetting the rescale. The measured V3 values are what count, not the projection.",
+
+  "post_launch_rule": "Do not change any constant after launch, even if a seed looks bad at 150k.",
+  "locked_downstream": ["C1", "O1", "latent_birth", "router"]
+}

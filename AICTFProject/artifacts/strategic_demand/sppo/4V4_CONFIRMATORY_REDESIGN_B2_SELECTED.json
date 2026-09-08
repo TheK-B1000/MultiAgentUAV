@@ -1,0 +1,28 @@
+{
+  "record_id": "4V4_CONFIRMATORY_REDESIGN_B2_SELECTED",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-08T02:00:00Z",
+  "amends": "4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json#POLE_B2_SELECTION_PROCEDURE",
+  "authority": "PI, 2026-09-08: 'Freeze B2-1 as the candidate. Do not tune B2-2/B2-3 anymore.'",
+
+  "SELECTED_CANDIDATE": "B2-1_lockdef10",
+  "selection_basis": "per the frozen selection_rule ('the FIRST candidate in the order B2-1, B2-2, B2-3 whose G_B2 clears LCB95>0'): B2-1's own contribution passed on the certifying block (12420001-064, n=64): G_B2 = +0.6562 [+0.5312, +0.7656].",
+  "genome": {"genome_id": "SDS2_B2_LOCKDEF10", "base_opponent": "OP7",
+             "overlay": {"lock_defender": 10, "min_alive_for_defender": 4}},
+  "source_certification_record": "STRATEGIC_DEMAND_4v4_CONFIRMATORY_REDESIGN_B2_1_CERTIFICATION.json",
+
+  "LADDER_STATUS": "CLOSED. B2-2 and B2-3 will NOT be tested. This is a deliberate stop, not a ladder exhaustion -- B2-1's own half of the gate passed convincingly; there is no scientific reason to test alternatives once the first candidate in the frozen order clears its own criterion.",
+
+  "IMPORTANT_CAVEAT_NOT_A_FULL_CERTIFICATION": {
+    "joint_verdict_on_the_certifying_block": "NOT_CERTIFIED",
+    "why": "the joint gate requires BOTH LCB95(delta_A) > 0 AND LCB95(delta_B) > 0. delta_B (driven by B2-1) passed cleanly. delta_A -- Pole A, COMPLETELY UNCHANGED -- did not: +0.1094 [-0.0625, +0.2812] on this same block.",
+    "what_this_record_does_and_does_not_establish": "this record freezes WHICH Pole-B2 candidate is selected for all future work in this track. It does NOT declare the 4v4 strategic-demand joint certification passed. That remains open pending resolution of Pole A's own margin, per 4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json's unchanged joint gate. No claim of '4v4 verified' may cite this record alone.",
+    "next_step": "diagnose whether Pole A's scripted GUARD/BREACH probe is still behaviorally distinct at 4v4 (own_half occupancy, role mix, defender activation conditions) before deciding whether a properly-powered fresh Pole-A-only certification block is the right next step, per PI direction 2026-09-08."
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "spending the pi_B2 production seed (16200001) -- still pending full joint certification",
+    "any claim that 4v4 strategic demand is certified",
+    "any further Pole-B2 candidate work under this ladder"
+  ]
+}

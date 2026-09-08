@@ -1,0 +1,67 @@
+{
+  "record_id": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC",
+  "name": "Team-size-invariant definitions of the GUARD probe and the pole defender gate",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-05T18:05:00Z",
+  "authority": "PI, 2026-09-05: 'freeze the larger-team definitions by preserving what the original 2v2 setup meant PROPORTIONALLY, not literally by hard-coded agent count ... This is not changing the probe to force a PASS. It is defining a team-size-invariant meaning of GUARD before observing any 4v4/6v6 result.'",
+
+  "timing_disclosure": {
+    "when": "written before any implementation and before ANY 4v4 or 6v6 strategic-demand row exists.",
+    "visible_when_written": ["the 2v2 pole definitions and their frozen records", "the 2v2 certification result (both directions pass)", "the structural audit showing the GUARD probe is 2-agent by construction and min_alive_for_defender is an absolute count", "4v4/6v6 PPO smoke PASS"],
+    "NOT_visible_when_written": ["any 4v4 or 6v6 strategic-demand measurement of any kind"]
+  },
+
+  "THE_PROBLEM_THIS_FIXES": {
+    "finding_1_guard_probe_is_2_agent": "gpu_env/_core/_scripted_blue_styles.py states it outright: 'Deliberately 2-agent role scripts (Agent 0 / Agent 1), matching this project's standard n_blue=2 evaluation convention.' BLUE_BOTH_ATTACK_V2 expands the attack target to all N agents and so generalises, but BLUE_ONE_DEFENDER_V2 assigns exactly agent index 1 as the sole defender (`target_x[:, 1] = def_x`). Read literally at larger teams, GUARD commits 1/2 of the team at 2v2, 1/4 at 4v4 and 1/6 at 6v6.",
+    "finding_2_defender_gate_is_an_absolute_count": "gpu_env/_core/_bt_red.py tests `alive_count >= min_alive_for_defender`. Pole A's frozen genome sets this to 2 and its own mechanism_reading records the intent: 'the defender only deploys while at least 2 RED agents are alive.' At 2v2 that is the ENTIRE red team. Read literally at 6v6 it becomes 'at least 2 of 6', so the defender stays active until four teammates have died -- the gate goes inert and the pole's conditional character is lost.",
+    "why_the_literal_reading_is_the_change": "keeping the hard-coded numbers does NOT keep the experiment fixed. It silently weakens the GUARD intervention and silently disables the pole's conditional defender as team size grows. Preserving the PROPORTION is what holds the experiment constant."
+  },
+
+  "NORMALIZATION_1_GUARD_PROBE": {
+    "rule": "GUARD(N) commits ceil(N/2) defenders; the remaining floor(N/2) attack.",
+    "values": {"N=2": 1, "N=4": 2, "N=6": 3},
+    "preserves_2v2_exactly": "ceil(2/2) = 1, which is the current single defender. The 2v2 probe is unchanged.",
+    "defender_indices": "the LAST ceil(N/2) agent indices, i.e. [N - ceil(N/2), N). At N=2 this is exactly index 1 -- the current agent -- so 2v2 behaviour is bit-identical, not merely equivalent in count.",
+    "defender_behaviour": "every defender receives the SAME defensive target the single 2v2 defender receives (intercept the nearest legal intruder, else hold the flag, clamped into the defensive disc). No new behaviour is invented.",
+    "STATED_LIMITATION": "with more than one defender this means defenders CONVERGE on a single threat rather than covering distinct intruders. That is a faithful replication of the 2v2 rule, not an improvement of it. If certification fails at a larger size, this stacking is a candidate explanation and the failure must NOT be reported as 'the poles do not demand different behaviour' without acknowledging it.",
+    "BREACH_unchanged": "BLUE_BOTH_ATTACK_V2 already expands to all N agents and requires no change at any size."
+  },
+
+  "NORMALIZATION_2_DEFENDER_GATE": {
+    "rule": "min_alive_for_defender = N (the full team), for BOTH poles, at every team size.",
+    "values": {"N=2": 2, "N=4": 4, "N=6": 6},
+    "preserves_2v2_exactly": "N=2 gives 2, which is Pole A's frozen overlay value AND canonical OP7's profile value. Neither pole changes at 2v2.",
+    "pole_A": "its genome overlay already carries min_alive_for_defender; the overlay value becomes N.",
+    "pole_B": "canonical OP7 carries 2 natively. At N>2 an overlay is required to reach N. This is a structural change to Pole B's construction (it was previously 'canonical OP7, no overlay') and is recorded as such rather than glossed. Its 2v2 resolution is unchanged.",
+    "canonical_registry_untouched": "OP6-OP12 canonical profiles are NEVER overwritten. Both poles are expressed as overlays, exactly as Pole A already was."
+  },
+
+  "DELIBERATELY_NOT_CHANGED": {
+    "defender_zone_frac": "0.35 (Pole A) / 0.05 (Pole B) are FRACTIONS of the field and already scale with the arena rather than the team. Left untouched.",
+    "threat_radius": "0.0 (Pole A) / 12.0 (Pole B) are map-cell distances on a fixed 20x20 arena. The geometry does not change with team size. Left untouched.",
+    "learning_rate": "the pre-existing `if max_agents > 2: learning_rate *= 0.75` rule (rl/training/resolved_config.py:136) stays EXACTLY as it is: 5e-4 at 2v2, 3.75e-4 at both 4v4 and 6v6. PI: 'This is not the moment to introduce LR tuning.' It is recorded here as part of the larger-team PPO recipe rather than modified.",
+    "the_crossover_criterion": "unchanged at every size: LCB95(delta_A) > 0 AND LCB95(delta_B) > 0, paired percentile bootstrap, n_boot=20000, alpha=0.05, seed as the resampling unit."
+  },
+
+  "MANDATORY_REGRESSION_GUARD": {
+    "requirement": "before any 4v4/6v6 certification row is collected, the 2v2 path must be proven UNCHANGED by these edits.",
+    "checks": ["GUARD at N=2 assigns exactly one defender, at agent index 1", "the resolved Pole A and Pole B profiles at N=2 are field-for-field identical to their pre-change values, including min_alive_for_defender=2", "a 2v2 GUARD/BREACH rollout on a fixed seed produces identical targets to the pre-change implementation"],
+    "if_it_fails": "STOP. A change that perturbs 2v2 would invalidate the already-certified 2v2 result and every downstream conclusion built on it."
+  },
+
+  "CERTIFICATION_PROTOCOL": {
+    "question": "do the frozen poles still demand OPPOSITE strategic responses at 4v4 and at 6v6?",
+    "measurement": "win-rate advantage of GUARD over BREACH on Pole A, and of BREACH over GUARD on Pole B, using the size-normalized probe above",
+    "gate": "CERTIFIED iff both directions have LCB95 > 0, the same rule the 2v2 certification used. No threshold is adjusted for team size.",
+    "poles": "Pole A = OP6 + frozen genome overlay (min_alive_for_defender=N); Pole B = canonical OP7 + overlay (min_alive_for_defender=N)",
+    "seam_assertion": "the live resolved behaviour-tree profile must be asserted per episode, as at 2v2 -- a run that says 'A' but resolves plain OP6 must crash rather than produce a graph of the wrong experiment",
+    "device": "cuda, matching every prior certification",
+    "if_NOT_certified": "the larger-team specialist training is NOT greenlit at that size. A pole pair that does not demand different behaviour cannot support complementary specialists, and training them would be spending school-PC compute on an unanswerable question."
+  },
+
+  "WHY_THIS_IS_NOT_OUTCOME_INFORMED_DESIGN": "no 4v4 or 6v6 strategic-demand measurement exists, so this normalization cannot have been chosen to produce one. It is derived entirely from the 2v2 definitions' own recorded intent -- Pole A's genome states the defender gate means 'while the whole red team is alive', and the GUARD probe's module docstring states it is a deliberate 2-agent convention. Both normalizations reduce to the existing 2v2 values by construction.",
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": ["specialist training at any team size (greenlit only on CERTIFIED)", "latent distillation at any team size", "any change to defender_zone_frac, threat_radius or the learning-rate rule", "any change to the 2v2 poles, probes or results", "deployment-robustness testing at any size"],
+
+  "SEQUENCE": "freeze this spec -> implement both normalizations -> run the mandatory 2v2 regression guard -> certify 4v4 -> certify 6v6 -> report; specialist runs are greenlit only for sizes that CERTIFY"
+}

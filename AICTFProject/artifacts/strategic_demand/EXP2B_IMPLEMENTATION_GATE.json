@@ -1,0 +1,71 @@
+{
+  "artifact_id": "EXP2B_IMPLEMENTATION_GATE_V1",
+  "verdict": "PASS",
+  "production_launch_authorized": true,
+  "implementation_commit": "a6c28a563e2469214c07e3535581f912da9b124b",
+  "protocol_commit": "62c907a6148d4a5ff5acec5d955aec44a7d2ad28",
+  "protocol_path": "artifacts/strategic_demand/EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_PROTOCOL.json",
+  "protocol_sha256": "2419a0befc8fb96f751b3ffc47ab3f0cd913d0c6ce7a38a97fa612381c96e2b1",
+  "launcher_path": "experiments/run_exp2b_specialization_preserving_compression.py",
+  "launcher_sha256": "0eabab1617cb0785cf50a413d182864ab3d2651b323b9aed37811468f0d92026",
+  "scientific_delta": {
+    "EXP2": {"z0_A": 8, "z0_B": 8, "z1_A": 8, "z1_B": 8},
+    "EXP2B": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16},
+    "other_scientific_changes": []
+  },
+  "automated_validation": {
+    "focused_tests": "18 passed",
+    "broad_regression_command": "python -m unittest tests.test_exp2b_specialization_preserving_compression tests.test_exp2_k2_compression tests.test_exp2_k2_terminal_eval tests.test_train_ppo_smoke tests.test_v5i4_paper_faithful tests.test_preset_resolution tests.test_marginal_baseline tests.test_latent_losses tests.test_latent_strategy_alignment tests.test_audit_regressions",
+    "broad_regression_exit_code": 0,
+    "resolved_config_diff_fields_vs_EXP2": [
+      "checkpoint_dir",
+      "episode_csv_path",
+      "exp2_protocol_path",
+      "metrics_csv_path",
+      "run_tag",
+      "seed"
+    ],
+    "unintended_config_fields": []
+  },
+  "live_environment_proof": {
+    "seed": 8500001,
+    "environment_steps": 0,
+    "verdict": "EXP2B_LIVE_ASSIGNMENT_PASS",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "resolved_cells": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16}
+  },
+  "integrated_trainer_smoke": {
+    "seed": 8500001,
+    "environment_steps": 4096,
+    "ppo_actor_updates": 32,
+    "teacher_updates": 8,
+    "teacher_to_ppo_ratio": 0.25,
+    "teacher_loss": 0.1846020370721817,
+    "gradient_cosine": -0.000995073583908379,
+    "gradient_cosine_count": 1,
+    "cell_steps": {"z0_A": 2048, "z0_B": 0, "z1_A": 0, "z1_B": 2048},
+    "metrics_sha256": "0f2b549f6d9c7ffc657c2c781b99060b5e8b82cab0e2e674cb43a4f106b1e0b4",
+    "training_manifest_sha256": "d9716122d1bba7065fe7dc3f656497c463958616660b7540022e6a3654ad4089",
+    "terminal_checkpoint_sha256": "f8d6c011cc968477ebc4d494ece1c81a71b59819207bf75aca029700414ef185"
+  },
+  "treatment_contract": {
+    "K": 2,
+    "persistent_forced_z": true,
+    "shared_policy": true,
+    "teacher_lambda": 0.1,
+    "teacher_cadence": "1:4",
+    "teacher_mapping": "z0->pi_A,z1->pi_B",
+    "q_phi": "ABSENT",
+    "router": "ABSENT",
+    "opponent_identity_input": "ABSENT",
+    "gradient_cosine": "OBSERVATIONAL_ONLY_MUTATION_FREE"
+  },
+  "production": {
+    "seed": 8400001,
+    "total_environment_steps": 2000000,
+    "one_attempt": true,
+    "terminal_checkpoint_only": true,
+    "status": "AUTHORIZED_NOT_LAUNCHED"
+  },
+  "claim_boundary": "This gate verifies implementation and treatment plumbing only. It cannot declare EXP2B scientific success."
+}

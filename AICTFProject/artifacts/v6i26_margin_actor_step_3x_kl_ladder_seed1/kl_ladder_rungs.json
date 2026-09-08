@@ -1,0 +1,31 @@
+{
+  "rungs": [
+    {
+      "update": 1,
+      "checkpoint": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z0_u1_seed1.zip",
+      "alias": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\ckpt_ladder_u1.zip",
+      "fixed_batch_kl": 0.00022623117547482252,
+      "in_window": false,
+      "above_ceiling": false,
+      "below_floor": true
+    },
+    {
+      "update": 2,
+      "checkpoint": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z0_u2_seed1.zip",
+      "alias": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\ckpt_ladder_u2.zip",
+      "fixed_batch_kl": 0.0006927942158654332,
+      "in_window": false,
+      "above_ceiling": false,
+      "below_floor": true
+    },
+    {
+      "update": 3,
+      "checkpoint": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z0_u3_seed1.zip",
+      "alias": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\ckpt_ladder_u3.zip",
+      "fixed_batch_kl": 0.001513635041192174,
+      "in_window": true,
+      "above_ceiling": false,
+      "below_floor": false
+    }
+  ]
+}

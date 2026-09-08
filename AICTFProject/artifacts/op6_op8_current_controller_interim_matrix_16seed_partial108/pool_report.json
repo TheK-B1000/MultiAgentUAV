@@ -1,0 +1,82 @@
+{
+  "blues": [
+    "BLUE_ESCORT",
+    "BLUE_RUSH",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "reds": [
+    "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+    "OP7_DEEP_FORTRESS|map_b_split_lane"
+  ],
+  "n_episodes": {
+    "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 16,
+    "OP7_DEEP_FORTRESS|map_b_split_lane": 11
+  },
+  "mean_margin": {
+    "BLUE_ESCORT": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": -2.5,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": -0.6363636363636364
+    },
+    "BLUE_RUSH": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": -2.4375,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": -0.2727272727272727
+    },
+    "BLUE_SPLIT": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 1.125,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 1.4545454545454546
+    },
+    "BLUE_TURTLE": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": -1.0625,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": -0.18181818181818182
+    }
+  },
+  "win_rate": {
+    "BLUE_ESCORT": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 0.0,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 0.0
+    },
+    "BLUE_RUSH": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 0.0,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 0.0
+    },
+    "BLUE_SPLIT": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 0.875,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 0.7272727272727273
+    },
+    "BLUE_TURTLE": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 0.125,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 0.0
+    }
+  },
+  "v_selective_insample": 1.2897727272727273,
+  "v_best_fixed_insample": 1.2897727272727273,
+  "best_fixed_style": "BLUE_SPLIT",
+  "v_selective": 1.2906666666666666,
+  "v_best_fixed": 1.2906666666666666,
+  "delta_pool": 0.0,
+  "delta_pool_ci95": [
+    0.0,
+    0.0
+  ],
+  "delta_pool_lcb": 0.0,
+  "v_hindsight": 1.3977272727272727,
+  "best_response_by_red": {
+    "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": "BLUE_SPLIT",
+    "OP7_DEEP_FORTRESS|map_b_split_lane": "BLUE_SPLIT"
+  },
+  "br_diversity": 1,
+  "dominating_blue_style": "BLUE_SPLIT",
+  "degenerate_red_styles": [],
+  "best_blue_overall_wr": 0.8011363636363636,
+  "tie_rate": 0.2883522727272727,
+  "gates": {
+    "delta_pool_lcb_positive": false,
+    "no_dominating_blue_style": false,
+    "best_response_diversity": false,
+    "best_blue_wr_in_band": false,
+    "tie_rate_under_threshold": true,
+    "no_degenerate_red_styles": true
+  },
+  "admissible": false
+}

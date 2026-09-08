@@ -1,0 +1,41 @@
+=== K=2 specialist cross-evaluation @ step 200,000 [DIAGNOSTIC (trajectory; not a formal gate)] ===
+
+Family payoff matrix (mean win_margin, averaged over 3 training seeds)
+                 C_RUSH     C_SPLIT
+piR              2.2917      2.1458
+piS              2.1458      1.9479
+
+Per training-seed detail (mean win_margin)
+                       C_RUSH     C_SPLIT
+  piR/s901001          2.1875      2.1875
+  piR/s901002          2.3125      2.1562
+  piR/s901003          2.3750      2.0938
+  piS/s902001          2.0312      1.6562
+  piS/s902002          2.0312      2.0312
+  piS/s902003          2.3750      2.1562
+
+Crossover gates (paired on evaluation seed, family means)
+  C_RUSH  : piR - piS = +0.1458  CI95=[-0.0729, +0.3750]  n=32  [DIAGNOSTIC/FAIL]
+  C_SPLIT : piS - piR = -0.1979  CI95=[-0.4271, +0.0208]  n=32  [DIAGNOSTIC/FAIL]
+
+Every (piR seed x piS seed) pairing -- both directions must hold
+  piR s901001 x piS s902001: C_RUSH(R-S)=+0.1562  C_SPLIT(S-R)=-0.5312  [XX]
+  piR s901001 x piS s902002: C_RUSH(R-S)=+0.1562  C_SPLIT(S-R)=-0.1562  [XX]
+  piR s901001 x piS s902003: C_RUSH(R-S)=-0.1875  C_SPLIT(S-R)=-0.0312  [XX]
+  piR s901002 x piS s902001: C_RUSH(R-S)=+0.2812  C_SPLIT(S-R)=-0.5000  [XX]
+  piR s901002 x piS s902002: C_RUSH(R-S)=+0.2812  C_SPLIT(S-R)=-0.1250  [XX]
+  piR s901002 x piS s902003: C_RUSH(R-S)=-0.0625  C_SPLIT(S-R)=+0.0000  [XX]
+  piR s901003 x piS s902001: C_RUSH(R-S)=+0.3438  C_SPLIT(S-R)=-0.4375  [XX]
+  piR s901003 x piS s902002: C_RUSH(R-S)=+0.3438  C_SPLIT(S-R)=-0.0625  [XX]
+  piR s901003 x piS s902003: C_RUSH(R-S)=+0.0000  C_SPLIT(S-R)=+0.0625  [XX]
+  pairings with BOTH directions positive: 0/9
+
+Repertoire gain (hierarchical clustered bootstrap: training seeds + eval seeds)
+  delta_pool = +0.0000   CI95=[+0.0000, +0.0677]   LCB=+0.0000  [DIAGNOSTIC/FAIL]
+  NOTE: delta_pool at this step is DIAGNOSTIC only; formal gate is 1M.
+
+==================================================================
+gate1 piR>piS on C_RUSH : FAIL (diagnostic)
+gate2 piS>piR on C_SPLIT: FAIL (diagnostic)
+gate3 LCB(delta_pool)>0 : FAIL (diagnostic)
+TRAJECTORY DIAGNOSTIC @ 200,000: crossover=neither; delta_pool_LCB=+0.0000. Does NOT pass or fail the formal K=2 proof.

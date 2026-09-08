@@ -1,0 +1,47 @@
+{
+  "record_id": "4V4_EXPLORATORY_AS_DIAGNOSTIC_PROTOCOL",
+  "name": "Reframing the 4v4 exploratory specialist arm as a diagnostic for a future confirmatory redesign",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-06T14:10:00Z",
+  "authority": "PI, 2026-09-06: 'we cannot simply rename the current 4v4 exploratory arm ... treat the current exploratory 4v4 arm as discovery, then launch a new preregistered 4v4 confirmatory study.'",
+
+  "timing_disclosure": {
+    "when": "written before pi_A_4v4 or pi_B_4v4 has completed a single training step, and before the exploratory specialist-crossover evaluation has produced any cell.",
+    "visible_when_written": ["EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json (frozen)", "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json (frozen, seeds 14400001..14400128)", "both V1/V2 scripted-probe certifications (NOT_CERTIFIED)"],
+    "NOT_visible_when_written": ["any exploratory specialist checkpoint", "any behavioral measurement of any kind", "whether the exploratory specialists cross over"]
+  },
+
+  "WHY_THIS_CANNOT_JUST_BE_RENAMED_CONFIRMATORY": "the confirmatory 4v4 certification path (V1, then the one authorized repair V2) is CLOSED under the frozen no-V3 stopping rule. The exploratory specialist arm was authorized as a SEPARATE question (do learned specialists cross over even though the scripted probe could not certify?), not as a third attempt at the same certification. Its result -- whichever way it goes -- answers that separate question. It cannot retroactively become the confirmatory certification 4v4 never had; a new confirmatory study, if pursued, must be independently preregistered on untouched seeds.",
+
+  "THE_TWO_BRANCHES_FROZEN_BEFORE_THE_RESULT": [
+    {
+      "pattern": "exploratory specialists CROSS OVER (both LCB95 > 0 per EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json)",
+      "reading": "the 4v4 environment supports complementary learned strategies; the scripted GUARD/BREACH probe is not expressing the correct 4v4 strategic contrast. The problem is the PROBE, not the environment.",
+      "next_step": "diagnose what the two specialists are actually doing differently (see MEASUREMENT_CATEGORIES below), then design a NEW named strategic-demand specification informed by that diagnosis -- not a third scripted-defender-assignment tweak. The new spec gets its own hypothesis, its own Pole A/B definitions, its own probe behaviors, its own sample size, and a BRAND NEW seed block disjoint from every prior allocation (7410001/7420001, 13200001-064, 14400001-128, and both V1/V2 certification blocks)."
+    },
+    {
+      "pattern": "exploratory specialists DO NOT cross over",
+      "reading": "changing the scripted probe again is probably not the fix. The current Pole A/B DEFINITIONS themselves may not produce complementary learned optima at 4v4 -- a deeper issue than defender assignment.",
+      "next_step": "any further 4v4 work requires redesigning the strategic poles or task geometry, which is a new hypothesis with its own preregistration and fresh seeds -- explicitly NOT a continuation of the closed V1/V2 sequence, and explicitly NOT authorized by this record."
+    }
+  ],
+
+  "MEASUREMENT_CATEGORIES_FOR_THE_CROSS_OVER_BRANCH": {
+    "purpose": "DISCOVERY, not hypothesis testing. These measurements carry no statistical gate and prove nothing on their own; they exist to inform what a new confirmatory probe should measure. No measurement here may be used to justify why the closed V1/V2 probe passed or failed, and none may be read as evidence for or against the crossover verdict itself -- that verdict is decided solely by EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json's gate.",
+    "categories": ["fraction of agents postured defensively (own-half occupancy) vs offensively", "number of simultaneous red intruders encountered, and how many receive a distinct blue response", "spatial spread of defending agents (do they cover distinct zones or converge)", "intercept allocation: how many distinct threats are closed on by different agents", "target allocation: how many distinct agents commit toward the enemy flag", "carrier support: teammate proximity to the flag carrier while carrying", "time spent past midfield per agent", "flag-pressure timing: first tick at which a blue agent reaches attack range of the enemy flag", "response pattern when multiple intruders are present simultaneously"],
+    "data_source": "computed from the ALREADY-COLLECTED 512 episodes of the sealed specialist-crossover evaluation (14400001..14400128), replayed deterministically from the same checkpoints and seeds. NO NEW SEEDS ARE SPENT for this diagnostic -- the same reuse-for-mechanism convention already used by DEFENDER_STACKING_DIAGNOSTIC.json.",
+    "not_yet_instrumented": "eval_specialist_crossover_scaled.py currently records only terminal win/margin per episode. A SEPARATE diagnostic script is required to extract these behavioral measurements; it must not modify or gate the one-shot crossover evaluator itself, so a bug in exploratory diagnostic code can never corrupt or block that sealed record."
+  },
+
+  "MANDATORY_RULE_IF_A_NEW_CONFIRMATORY_CERTIFICATION_LATER_PASSES": {
+    "verbatim": "the exploratory specialists (seeds 7410001/7420001) may NEVER be promoted or reused as the final confirmatory specialists, even if a later confirmatory certification succeeds under a newly designed pole/probe specification.",
+    "why": "the exploratory specialists were trained against the OLD (now possibly superseded) pole definitions. A new confirmatory certification implies new or refined poles; specialists must be retrained against whatever the new certification actually certifies, on fresh production seeds, so the chain stays clean: certification -> fresh specialist training -> fresh distillation -> fresh crossover evaluation, exactly mirroring the 6v6 pattern.",
+    "consequence": "a future 4v4 confirmatory table entry, if earned, requires its own seed allocations for specialists, distillation dataset, and crossover eval -- none of which exist yet and none of which this record allocates."
+  },
+
+  "WHAT_THIS_RECORD_DOES_NOT_AUTHORIZE": ["a new 4v4 strategic-demand specification of any kind (must follow diagnosis, not precede it)", "any new seed allocation", "a third scripted-probe repair (GUARD V3 in any form)", "promoting the exploratory specialists to confirmatory status under any circumstance", "4v4 latent distillation, exploratory or otherwise -- still gated strictly on EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json's PASS"],
+
+  "SEQUENCE": "freeze this protocol -> (spare PC) train pi_A_4v4 / pi_B_4v4 on the already-verified commands -> run the sealed 128-seed exploratory crossover eval -> read the verdict -> if CROSS OVER: run the diagnostic script on the same episodes, then design and preregister a genuinely new 4v4 confirmatory strategic-demand spec on fresh seeds -> if NOT: 4v4 requires pole/geometry redesign, a separate future study, not authorized here"
+}

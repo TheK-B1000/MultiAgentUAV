@@ -1,0 +1,46 @@
+{
+  "record_id": "PI_G_EVAL_SPEC",
+  "name": "Single-generalist (no-latent) baseline evaluation",
+  "status": "FROZEN_BEFORE_EVAL_IS_OPENED",
+  "utc": "2026-09-03T15:10:00Z",
+  "authority": "PI, 2026-09-03, closing the flagged-but-unfilled gap recorded in artifacts/strategic_demand/sappo_crossover/summary.json: \"pi_G was NOT continued under SAPPO, so it has no counterpart here. R3 remains gated behind this test.\"",
+
+  "QUESTION": "Do we actually need latent specialization at all? If a single policy trained across the mixed opponent distribution, with no strategic-mode mechanism, matches the latent system's crossover, the latent mechanism needs a more careful justification. If it does not, that is direct evidence the latent mechanism is doing real work.",
+
+  "MODEL_UNDER_TEST": {
+    "checkpoint": "artifacts/strategic_demand/r1_training/r1_pi_G_generalist_seed7000001/ckpts/final_r1_pi_G_generalist_seed7000001.zip",
+    "sha256": "7bfc35ba1e2729168ca5af1aa6c41e8ab20ecc5a0d52b2f9a2b3c4ad4232b242",
+    "verified_architecture": "latent_k=0, uses_latent_strategy=False -- confirmed by LOADING the checkpoint and inspecting the real model object, not by trusting its run_config.json (whose resolved_ppo_config reports latent_k=4, an inherited-but-inert field from the shared G0-V5 base config this run's own docstring calls a 'non-latent DIAGNOSTIC gate'; the loaded model's actual attributes are the ground truth used here).",
+    "training_seed": 7000001,
+    "training_opponent_pool": "OP6 + OP7, weights (0.5, 0.5) -- the mixed distribution, per experiments/run_r1_repertoire_training.py:POLICIES['G']",
+    "training_steps": 2000000,
+    "no_training_or_tuning_here": "this checkpoint is used strictly as-is, inference only. No fine-tuning, no additional steps, no architecture change."
+  },
+
+  "PROTOCOL": {
+    "seeds_per_cell": 64,
+    "block": "11704001..11704064",
+    "reused_not_new": "this is the SAME sealed block RSCFT's EVAL used, reused deliberately for direct pairing against whichever latent-system result is designated the paper's final comparison target. Reusing an already-opened seed range for a DIFFERENT, never-before-evaluated checkpoint does not reopen or contaminate RSCFT's own one-shot result -- the one-shot rule protects against re-scoring RSCFT's OWN arms on these seeds, not against a distinct model being scored on them once.",
+    "cells": ["pi_G on Pole A (64 seeds)", "pi_G on Pole B (64 seeds)"],
+    "total_episodes": 128,
+    "no_z_conditioning": "pi_G is evaluated with no fixed_latent_strategy call at all -- the model does not condition on z, verified empirically before this spec was frozen",
+    "metric": "win rate (binary), identical convention to every crossover measurement in this program",
+    "bootstrap": "paired percentile bootstrap, seed as the resampling unit, n_boot=20000, alpha=0.05, rng_seed=7 -- reuses eval_hog_psp_v3._mean_ci unchanged"
+  },
+
+  "COMPARISON_RULE": {
+    "definition": "Delta_G_A = V(z0,A) - V(pi_G,A),   Delta_G_B = V(z1,B) - V(pi_G,B)",
+    "target_latent_result": "whichever result file is designated the paper's final champion (RSCFT_EVAL_RESULT.json's TREATMENT arm if it passes the primary gate; else a separate PI decision) -- NOT fixed in this spec, because the champion is not yet known. The comparison script reads it as an explicit argument, not a guess.",
+    "desired_outcome": "z0@A > pi_G@A AND z1@B > pi_G@B, with LCB95(Delta_G_A) > 0 and LCB95(Delta_G_B) > 0",
+    "if_pi_G_matches_or_beats_the_latent_system": "report it as such. The reviewer's question is then legitimate, and the latent mechanism needs a more careful justification in Discussion/Limitations -- this is NOT a result to omit or reframe.",
+    "resulting_hierarchy_if_the_desired_outcome_holds": "Generalist < latent specialization <= separate specialists"
+  },
+
+  "TIE_OR_REVERSAL": "if the comparison is a tie or reversal on either pole (Delta_G <= 0), the same row-level integrity audit rule this program has held every prior EVAL to applies: a row-level audit is required, written before its rows are read, before any interpretation.",
+
+  "ORDER": "finish sealed RSCFT EVAL -> freeze this spec (done, this file) -> build eval_pi_g.py (done, not yet run) -> run the 128-episode pi_G evaluation -> run the comparison against whichever latent result is designated final",
+
+  "one_shot": "pi_G's EVAL runs exactly once, no rerun under any outcome",
+  "no_post_hoc_thresholds": "the comparison rule above is exactly as frozen; it is not adjustable after pi_G's numbers are seen",
+  "DO_NOT_RUN_UNTIL": "the RSCFT sealed EVAL (11704001..11704064) has fully completed. Running pi_G's evaluation concurrently would contend for the same GPU and seed-block attention as the still-open RSCFT result."
+}

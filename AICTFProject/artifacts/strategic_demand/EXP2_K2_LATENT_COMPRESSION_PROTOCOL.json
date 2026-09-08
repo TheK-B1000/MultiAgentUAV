@@ -1,0 +1,237 @@
+{
+  "protocol_id": "EXP2_K2_LATENT_COMPRESSION_V1",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION_OR_TRAINING",
+  "frozen_at_utc": "2026-08-20T22:41:35Z",
+  "provenance_commit_before_freeze": "17fd8f87f536da326bfaf70499ddc231286007a1",
+  "question": "Can one shared K=2 latent-conditioned policy compress the confirmed SAPPO V1 repertoire without destroying its complementary payoff structure or behavioral identity?",
+  "claim_boundary": {
+    "classification": "DIAGNOSTIC_SUPERVISED_COMPRESSION",
+    "fidelity": "This is not PAPER-FAITHFUL latent discovery. The two latent meanings are assigned from frozen teachers and are therefore supervised.",
+    "allowed_claim": "A shared policy can or cannot preserve a previously confirmed two-policy repertoire under an explicit two-mode compression treatment.",
+    "forbidden_claims": [
+      "the latent meanings were discovered label-free",
+      "a router learned to infer the opponent",
+      "latent conditioning is necessary",
+      "the result generalizes beyond the frozen A/B poles",
+      "the result is deployment-valid under concealment"
+    ]
+  },
+  "authorization_and_precedence": {
+    "confirmed_input": "artifacts/strategic_demand/SAPPO_V1_CROSSOVER_CONFIRMED.json",
+    "teacher_protocol": "artifacts/strategic_demand/STRATEGY_ANCHORED_PPO_V1_FROZEN.json",
+    "older_ladder": "artifacts/strategic_demand/REPERTOIRE_LADDER_FROZEN.json",
+    "precedence_note": "The older ladder required a separate R3 oracle-value pass before latent work. R3 was not run for the SAPPO terminals. The later frozen SAPPO protocol explicitly replaced that branch with direct K=2 authorization after a SAPPO crossover pass. This protocol follows the later ruling and does not claim that the older R3 gate passed.",
+    "sappo_verdict_required": "SAPPO_V1_CROSSOVER_CONFIRMED"
+  },
+  "frozen_teachers": {
+    "z0": {
+      "meaning": "SAPPO pi_A / GUARD-like mode",
+      "checkpoint": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+      "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d"
+    },
+    "z1": {
+      "meaning": "SAPPO pi_B / BREACH-like mode",
+      "checkpoint": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+      "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+    },
+    "immutable": true
+  },
+  "student_architecture": {
+    "policies": 1,
+    "K": 2,
+    "actor": "one shared decentralized actor pi_theta(a_i | o_i, z) with a learned z embedding",
+    "critic": "one shared centralized scalar value critic conditioned on the same forced z",
+    "z_lifetime": "assigned once at episode reset and held fixed through termination and auto-reset",
+    "router": "ABSENT",
+    "q_phi": "ABSENT",
+    "opponent_identity_input": "FORBIDDEN in actor, critic, and latent assignment",
+    "teacher_identity_input": "FORBIDDEN; teacher selection is a fixed function of z only",
+    "initialization": "fresh initialization; no averaging, merging, or warm-starting from either teacher",
+    "task_observation_action_reward": "unchanged from the confirmed RULESET_V3_M1 SAPPO campaign"
+  },
+  "training_distribution": {
+    "total_environment_steps": 2000000,
+    "compute_parity": "2M shared-policy steps equals the explicit population's original 1M pi_A plus 1M pi_B budget",
+    "parallel_envs": 32,
+    "static_equal_cells": {
+      "z0_A": 8,
+      "z0_B": 8,
+      "z1_A": 8,
+      "z1_B": 8
+    },
+    "reason": "Each latent receives 1M total interactions and 0.5M on each pole. Opponent identity remains hidden from the policy, and every update sees balanced poles and balanced latent assignments.",
+    "opponent_specs": {
+      "A": "OP6 plus the frozen min_alive_for_defender=2 genome overlay",
+      "B": "canonical OP7"
+    },
+    "required_live_assertions": [
+      "resolved pole A profile has min_alive_for_defender=2",
+      "resolved pole B profile is canonical OP7 with no stale A overlay",
+      "each environment's z is unchanged for the full episode",
+      "the 32-environment split is exactly 8/8/8/8",
+      "no emitted training seed leaves 8100001..8100320"
+    ]
+  },
+  "single_training_intervention": {
+    "name": "online frozen-teacher action-distribution rehearsal",
+    "normal_ctf_reward": "UNCHANGED",
+    "teacher_queries": "At decision-eligible observations from the student's own rollouts, query pi_A when z=0 and pi_B when z=1 on the identical local observations and legal-action masks.",
+    "loss": "Mean masked categorical KL(pi_teacher || pi_student(. | o,z)) across agents and action heads.",
+    "lambda": 0.1,
+    "cadence": "one teacher-rehearsal actor update after every four PPO actor minibatch updates",
+    "batch_size": 64,
+    "schedule": "constant for the full run",
+    "decision_eligible_only": true,
+    "teacher_gradients": "disabled",
+    "additional_losses": "FORBIDDEN: no diversity, mutual-information, entropy-separation, contrastive, role, router, or opponent-classification objective",
+    "rationale": "This reuses the confirmed SAPPO coefficient and cadence while changing only the supervised target from projected scripted actions to the frozen SAPPO policy distributions. It introduces one compression mechanism and no coefficient search."
+  },
+  "ppo_and_checkpoint_contract": {
+    "base_config": "exact G0-V5/R1 PPO settings under RULESET_V3_M1, except for the K=2 architecture, the balanced forced-z cell assignment, the frozen-teacher rehearsal fields, artifact paths, run tag, seed, and 2M budget",
+    "config_diff_required_before_launch": true,
+    "unexpected_config_delta": "FAIL CLOSED",
+    "checkpoint_cadence": 100000,
+    "scored_checkpoint": "the terminal checkpoint from the first completed rollout at or beyond 2,000,000 steps",
+    "intermediate_checkpoints": "diagnostic only and never eligible for scoring or selection",
+    "required_runtime_telemetry": [
+      "PPO actor and critic updates",
+      "teacher-rehearsal updates",
+      "measured teacher-to-PPO update ratio",
+      "teacher KL overall and by z",
+      "teacher argmax agreement overall and by z",
+      "PPO KL, value loss, explained variance, and entropy",
+      "static cell counts and realized steps per z/pole cell",
+      "resolved opponent profile assertions",
+      "teacher checkpoint hashes",
+      "terminal student checkpoint hash"
+    ],
+    "diagnostics_are_not_success_gates": true
+  },
+  "seed_blocks": {
+    "training": {
+      "range": "8100001..8100320",
+      "master_seed": 8100001,
+      "purpose": "single canonical training run plus all allowed environment/member offsets"
+    },
+    "development": {
+      "range": "8200001..8200192",
+      "purpose": "preflight evaluator and telemetry validation plus non-gating health diagnostics",
+      "may_select_checkpoint_or_hyperparameters": false,
+      "may_declare_scientific_success": false
+    },
+    "evaluation": {
+      "range": "8300001..8300192",
+      "purpose": "single terminal forced-z payoff, retention, and behavioral-identity verdict",
+      "paired_seeds": 192,
+      "extension_forbidden": true
+    },
+    "audit": {
+      "tool": "scripts/audit_seed_block.py",
+      "tool_sha256": "e57a43283b8acac8fb303cf5b8aed523696e8bd3c8f9ef031a3fce3376b18b34",
+      "reservation_record_exclusion": "Future re-audits must exclude artifacts/strategic_demand/EXP2_K2_LATENT_COMPRESSION_PROTOCOL.json and docs/research-progress-tracker.md because both files reserve the blocks but do not use them.",
+      "checks": "declared seed contexts, broad integer scan, overlapping declared spans, and all-branch Git history with a positive control",
+      "positive_control": "2600001..2600032",
+      "positive_control_commits": 12,
+      "margin": 5000,
+      "training_verdict": "CLEAN",
+      "development_verdict": "CLEAN",
+      "evaluation_verdict": "CLEAN",
+      "audited_at_utc": "2026-08-20T22:41:35Z"
+    }
+  },
+  "terminal_evaluation": {
+    "deterministic": true,
+    "student_cells": [
+      "z0|A",
+      "z0|B",
+      "z1|A",
+      "z1|B"
+    ],
+    "teacher_reference_cells_on_same_seeds": [
+      "pi_A|A",
+      "pi_A|B",
+      "pi_B|A",
+      "pi_B|B"
+    ],
+    "teacher_reference_role": "paired compression baseline only; this is not a second SAPPO confirmation test",
+    "episodes_per_cell": 192,
+    "raw_rows_required": true,
+    "bootstrap": {
+      "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    }
+  },
+  "primary_payoff_gate": {
+    "delta_A_z": "WR(z0,A) - WR(z1,A)",
+    "delta_B_z": "WR(z1,B) - WR(z0,B)",
+    "pass": "LCB95(delta_A_z) > 0 AND LCB95(delta_B_z) > 0",
+    "no_additional_effect_floor": true
+  },
+  "compression_retention_gate": {
+    "student_matched_value": "V_z = (WR(z0,A) + WR(z1,B)) / 2",
+    "teacher_matched_value": "V_SAPPO = (WR(pi_A,A) + WR(pi_B,B)) / 2 on the same 8300001..8300192 seeds",
+    "retention": "rho = V_z / V_SAPPO",
+    "pass": "paired-bootstrap LCB95(rho) >= 0.90",
+    "threshold_provenance": "prospectively frozen as a 90% capacity-retention requirement before any K=2 implementation, training, development result, or evaluation result",
+    "interpretation": "Crossover without this non-inferiority-style retention result is mode separation, not successful compression of the explicit repertoire."
+  },
+  "behavioral_identity_gate": {
+    "matched_state_source": "Pool every decision-eligible local observation recorded in the terminal evaluation block. Query z0, z1, pi_A, and pi_B counterfactually on each byte-identical observation and legal-action mask.",
+    "action_metrics": [
+      "masked per-head Jensen-Shannon divergence in bits between z0 and z1",
+      "masked per-head argmax disagreement between z0 and z1",
+      "teacher-A alignment margin: KL(pi_A||z1) - KL(pi_A||z0)",
+      "teacher-B alignment margin: KL(pi_B||z0) - KL(pi_B||z1)"
+    ],
+    "pass": "LCB95(JSD(z0,z1)) > 0 AND LCB95(teacher-A alignment margin) > 0 AND LCB95(teacher-B alignment margin) > 0",
+    "bootstrap_unit": "evaluation seed; all observations from one seed remain grouped",
+    "trajectory_telemetry_required": {
+      "home_defense_fraction": "fraction of decision ticks with at least one live non-carrier blue agent within 8 grid cells of the blue flag home",
+      "simultaneous_attackers": "fraction of decision ticks with both live blue agents in the enemy half",
+      "enemy_half_occupancy": "mean fraction of live blue agents in the enemy half over decision ticks",
+      "commitment_timing": "first decision tick at which any live blue agent enters the enemy half; censored at episode length with a separate occurred flag",
+      "interception_behavior": "fraction of eligible decision ticks with a live non-carrier blue agent interposed within 3 grid cells of the nearest-red-to-blue-carrier segment",
+      "flag_role_behavior": "first enemy-flag contact, first pickup, pickup-to-capture duration, carrier fraction, capture count, and non-carrier screen fraction"
+    },
+    "trajectory_reporting": "Report per z, pole, and teacher with paired 95% intervals and signed z0-z1 effects. These features explain mode identity but cannot rescue a failed payoff, retention, or action-identity gate."
+  },
+  "overall_verdict": {
+    "pass_name": "EXP2_K2_LATENT_COMPRESSION_CONFIRMED",
+    "pass_requires": [
+      "both primary payoff LCBs are positive",
+      "retention-ratio LCB is at least 0.90",
+      "all three behavioral action-identity LCBs pass",
+      "all provenance and runtime invariants are valid"
+    ],
+    "if_passes": "Freeze the terminal result and unlock Experiment 3 held-out A/B family generalization.",
+    "if_fails": "Stop the chain. Report whether the failure was payoff crossover, capacity retention, or behavioral identity. Do not proceed to held-out generalization or deployment realism."
+  },
+  "one_attempt_rule": {
+    "scientific_attempts": 1,
+    "forbidden_after_any_development_or_evaluation_result": [
+      "changing K",
+      "changing lambda or cadence",
+      "adding or removing a loss",
+      "changing teacher mapping",
+      "changing architecture or initialization",
+      "extending the training budget",
+      "selecting an intermediate checkpoint",
+      "changing or extending the evaluation block",
+      "rerunning with a new seed because the result is unattractive"
+    ],
+    "invalid_run_exception": "A run invalidated by a fail-fast provenance, plumbing, or runtime invariant may be discarded and relaunched from scratch with the identical frozen scientific configuration after the engineering fault is fixed. It is not scored and does not consume the scientific attempt.",
+    "valid_fail": "A valid run that misses any gate is the Experiment 2 result."
+  },
+  "launch_lock": {
+    "training_started": false,
+    "implementation_started": false,
+    "required_before_step_1": [
+      "implement the frozen architecture and online teacher-KL path",
+      "add fail-fast tests for z persistence, 8/8/8/8 cells, teacher mapping, masks, opponent profiles, cadence, config diff, and seed bounds",
+      "produce a dry-run manifest with resolved configuration and all checkpoint/code hashes",
+      "verify the development and evaluation blocks remain untouched except for their reservation in this protocol"
+    ]
+  }
+}

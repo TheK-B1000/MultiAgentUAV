@@ -224,6 +224,8 @@ def _load_model_state_dict_compat(
         "latent_actor.latent_adapters.",
         "latent_actor.latent_adapter_gates",
         "latent_actor.latent_action_biases",
+        "latent_actor.latent_action_heads.",
+        "latent_actor.latent_branch_trunks.",
     )
     allowed_missing = [k for k in missing if k.startswith("episode_strategy_value_head.")]
     allowed_missing.extend(k for k in missing if k.startswith("latent_actor.z_adapter."))
@@ -264,6 +266,24 @@ def _load_model_state_dict_compat(
         print("[checkpoint compat] Newly initialized parameters (not in checkpoint):")
         for k in sorted(newly_initialized):
             print(f"  {k}")
+        # V6I23: if per-z action heads were not in the checkpoint, copy the loaded
+        # shared action_head so specialists start at trunk-equivalent logits.
+        if any(k.startswith("latent_actor.latent_action_heads.") for k in newly_initialized):
+            la = getattr(model, "latent_actor", None)
+            if la is not None and hasattr(la, "sync_per_z_action_heads_from_shared"):
+                la.sync_per_z_action_heads_from_shared()
+                print(
+                    "[checkpoint compat] Synced latent_action_heads from loaded "
+                    "shared action_head (population-birth start)."
+                )
+        if any(k.startswith("latent_actor.latent_branch_trunks.") for k in newly_initialized):
+            la = getattr(model, "latent_actor", None)
+            if la is not None and hasattr(la, "sync_latent_branch_trunks_to_identity"):
+                la.sync_latent_branch_trunks_to_identity()
+                print(
+                    "[checkpoint compat] Initialized latent_branch_trunks as "
+                    "identity transforms (LRO deep-branch start)."
+                )
     if router_reinit or shape_skipped:
         router_missing = [
             k
@@ -341,6 +361,7 @@ def _load_model_state_dict_compat(
         if allowed_latents is None:
             allowed_latents = list(range(latent_k))
             
+        _adapter_bypass_set = False
         try:
             from rl.custom_ppo.checkpoints.loader import _model_kwargs_from_cfg
 
@@ -355,7 +376,29 @@ def _load_model_state_dict_compat(
             # matching the target model — the probe will confirm outputs are identical.
             _src_strict = not bool(newly_initialized)
             source_model.load_state_dict(actor_remapped, strict=_src_strict)
-            
+
+            # V6I22E/V6I23: if adapters or per-z heads are newly initialized,
+            # temporarily bypass residual + per-z heads so the equivalence check
+            # confirms the shared trunk is intact.
+            _fixed_alpha_mode = (
+                bool(newly_initialized)
+                and (
+                    float(getattr(target_cfg, "latent_z_residual_alpha", 0.0) or 0.0) > 0
+                    or bool(
+                        getattr(
+                            target_cfg,
+                            "latent_population_birth_per_z_action_heads",
+                            False,
+                        )
+                    )
+                )
+            )
+            if _fixed_alpha_mode:
+                la = getattr(model, "latent_actor", None)
+                if la is not None:
+                    la._residual_bypass_for_compat = True
+                    _adapter_bypass_set = True
+
             # Compare target model vs source-compatible model
             mean_kl, max_kl, max_logit_diff, argmax_diff = run_behavioral_equivalence_probe(
                 source_model,
@@ -364,6 +407,11 @@ def _load_model_state_dict_compat(
                 allowed_latents,
                 device
             )
+
+            if _adapter_bypass_set:
+                la = getattr(model, "latent_actor", None)
+                if la is not None:
+                    la._residual_bypass_for_compat = False
             
             # Require tight tolerance for non-override cases
             if argmax_diff > 0 or max_kl >= 1e-6:
@@ -375,11 +423,17 @@ def _load_model_state_dict_compat(
                         "To override this and proceed anyway, use --allow-active-actor-module-migration or set ALLOW_ACTIVE_COMPAT_MIGRATION=1."
                     )
             else:
-                if outcome == "NOOP_MODULE_ELISION":
+                if _adapter_bypass_set:
+                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (trunk-only; residual/per-z specialists bypassed; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+                elif outcome == "NOOP_MODULE_ELISION":
                     print(f"[checkpoint compat] Behavioral-equivalence check: PASS (ignored actor extras were inactive/no-op; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
                 else:
                     print(f"[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
         except Exception as exc:
+            if _adapter_bypass_set:
+                la = getattr(model, "latent_actor", None)
+                if la is not None:
+                    la._residual_bypass_for_compat = False
             if isinstance(exc, RuntimeError) and "Behavioral equivalence check failed" in str(exc):
                 raise
             print(f"[checkpoint compat] Behavioral-equivalence check: NOT_RUN (could not reconstruct source model: {exc})")

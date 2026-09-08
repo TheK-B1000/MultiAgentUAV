@@ -1,0 +1,36 @@
+{
+  "record": "Stage 2 authoritative run provenance (sidecar)",
+  "written_utc": "2026-08-06T03:24:47Z",
+  "why_this_file_exists": "The live runner recorded runner_commit=\"unknown\" in its own artifacts because its git lookup passed a bare filename as the pathspec, which does not resolve from the repository root. This sidecar closes that auditability gap without touching the running process or any scientific code.",
+  "authoritative_runner_commit": "9fbb39f",
+  "runner_commit_full": "9fbb39f48be59bd2aad41a4fefe77462882b759e",
+  "stage1_freeze_commit": "3ee4fc7",
+  "git_head_at_write_time": "c3da87124bcb54097c70cd883428c598c6f88cff",
+  "runner": "experiments/run_c2_lag_audit.py",
+  "runner_sha256": "4c704f3d75da005351add88042d8d5660e75637ed21f2a1253b9a4ccaff6dd35",
+  "runner_worktree_clean": true,
+  "runner_worktree_status": "(clean)",
+  "live_pid": 30188,
+  "runner_commit_field_in_live_artifacts": "unknown",
+  "reason": "git pathspec lookup bug; runner launched from a clean tree at commit 9fbb39f",
+  "scientific_effect": "NONE",
+  "restart_required": false,
+  "fix_scheduled": "correct the pathspec in _runner_commit() AFTER this run completes, not during it",
+  "verification": "The executable state is independently verifiable: runner_sha256 above is the hash of the file as executed, and the worktree for that file is clean at the recorded commit, so the blob at that commit must match.",
+  "concurrent_session_note": {
+    "observed": "HEAD advanced from 9fbb39f to c3da871 (\"fix c1 weakness\") while this run was in flight, from another session.",
+    "content": "18,648 insertions, 0 deletions \u2014 result artifacts only (O1 gate outputs, O1 seeds 3300002/3300003 training records, and this run's provenance files).",
+    "verified_unchanged": [
+      "experiments/ (including the authoritative runner)",
+      "docs/",
+      "rl/",
+      "C2_QUALIFICATION_FROZEN.json",
+      "artifacts/o1_preregistration/",
+      "artifacts/latent_birth_preregistration/"
+    ],
+    "frozen_contract_sha256": "54828bd96fc97b57deb89f517b2cf742b3d4c7abd7516f566692c6530b43f308",
+    "frozen_contract_matches_3ee4fc7": true,
+    "deletions_anywhere": "none",
+    "effect_on_this_run": "NONE \u2014 the runner file and the frozen contract it loaded are byte-identical to their state at launch."
+  }
+}

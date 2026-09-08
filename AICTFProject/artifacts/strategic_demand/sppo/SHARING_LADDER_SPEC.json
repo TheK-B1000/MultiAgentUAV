@@ -1,0 +1,111 @@
+{
+  "record_id": "SHARING_LADDER_SPEC",
+  "name": "Parameter-sharing ladder -- how much sharing can a latent policy tolerate before complementary strategies stop surviving?",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T20:50:00Z",
+  "authority": "PI, 2026-09-04: the sharing ladder is the designated MAIN scientific successor. Do not stop the program. The z1 sub-macro diagnostic runs in parallel as a cheap check and does not gate this.",
+  "THE_QUESTION": {
+    "reframed_from": "'which regularizer fixes crossover?' -- six mechanisms answered that with no",
+    "to": "How much parameter sharing can a latent-conditioned policy tolerate before complementary strategies stop surviving?",
+    "why_this_is_stronger": "it is a structural question with a measurable answer regardless of outcome. Even if the most-shared rung never passes the gate, locating WHERE crossover dies along a sharing axis is a result in its own right, and it is the first question in this program whose negative answer is as publishable as its positive one.",
+    "what_makes_it_the_best_remaining_candidate": "not elimination alone. Every mechanism tested so far (PPO drift, EMA retention, frozen-anchor retention, trunk freezing, supervision balance, offline distillation, covariate shift, macro decision leverage) operated on TRAINING while holding the architecture fixed. Representation sharing is the one axis this program has never varied."
+  },
+  "PROGRESSION_OF_RUNGS": {
+    "rung_0": {
+      "name": "two complete specialist actors selected by z",
+      "construction": "a wrapper/checkpoint holding pi_A and pi_B verbatim, dispatching on z: z0 -> pi_A's full forward pass, z1 -> pi_B's full forward pass. No shared parameters whatsoever.",
+      "shared_parameters": "none",
+      "purpose": "STRUCTURAL POSITIVE CONTROL. It is not meaningful compression. Its job is to prove the evaluation harness, the z-forcing path, the checkpoint format and the gate can express crossover AT ALL when the strategies are trivially preserved.",
+      "expected": "should reproduce the specialist baseline almost mechanically: z0 == pi_A and z1 == pi_B by construction, so the gate should pass at approximately SPECIALIST_BASELINE_EVAL_RESULT.json's margins (delta_A +0.1719, delta_B +0.2969).",
+      "if_it_FAILS": "that is the single most important negative result the program could produce, and it invalidates far more than the ladder: it would mean the latent-dispatch/eval path itself cannot express crossover even when the two policies are literally the frozen specialists. Everything downstream would need re-examination before any further training. This rung must be run FIRST for exactly that reason."
+    },
+    "rung_1": {
+      "name": "shared encoder, separate strategy bodies and heads",
+      "shared": "the CNN observation encoder only",
+      "private": "MLP body, latent branch trunks, action heads, critic heads"
+    },
+    "rung_2": {
+      "name": "shared encoder and shared trunk, separate latent branches",
+      "shared": "CNN encoder + the shared MLP body",
+      "private": "latent branch trunks, action heads, critic heads"
+    },
+    "rung_3": {
+      "name": "the current compressed architecture",
+      "shared": "CNN encoder + MLP body (the 17 real-shared + 2 vestigial parameters identified in TRUNK_FREEZE_SPEC.json)",
+      "private": "the 20 private per-latent parameters",
+      "note": "this rung is ALREADY MEASURED: the offline-distilled student at this architecture is COMPRESSION_CROSSOVER_EVAL_RESULT.json (FAIL, delta_A +0.0938, delta_B +0.1406). It is re-run only if the ladder's training recipe differs from that student's, so that the rungs are comparable to each other rather than across recipes."
+    }
+  },
+  "TRAINING_RECIPE_HELD_CONSTANT_ACROSS_RUNGS": {
+    "why": "the ladder varies exactly ONE thing -- how much is shared. If the recipe changed between rungs, a rung-to-rung difference would be uninterpretable.",
+    "recipe": "pure teacher distillation, identical to TEACHER_DISTILLATION_SPEC.json#LOSS: 0.5*KL(pi_A||pi_theta(.|z0)) + 0.5*KL(pi_B||pi_theta(.|z1)), both teachers on the SAME states, decision-boundary mask, actor parameters only, no PPO/reward/critic/retention/separation",
+    "data": "the existing frozen TEACHER_DISTILLATION_DATASET.json (35,005 decision rows). Reused unchanged so no rung has a data advantage.",
+    "schedule": "20 fixed epochs, batch 256, lr 3e-4, clip 1.0, no early stopping, no checkpoint selection, terminal weights only -- identical to the offline TD run",
+    "fit_check_per_rung": "teacher-state holdout agreement >= 0.50 for both z before that rung's seal is opened; rungs that fail the fit check are recorded as FIT_FAILED and NOT sealed",
+    "rung_0_exception": "rung 0 is CONSTRUCTED, not trained -- it holds the frozen specialists verbatim. It has no fit check because its fidelity is exact by construction, and that exactness must be verified (masked logits identical to the corresponding specialist) rather than assumed."
+  },
+  "EVAL_PROTOCOL": {
+    "per_rung": "one sealed crossover eval per rung, on its OWN fresh seed block, one-shot",
+    "cells": [
+      "z0 on Pole A",
+      "z1 on Pole A",
+      "z0 on Pole B",
+      "z1 on Pole B"
+    ],
+    "seeds_per_cell": 64,
+    "PRIMARY_GATE": {
+      "delta_A": "V(z0,A) - V(z1,A)",
+      "delta_B": "V(z1,B) - V(z0,B)",
+      "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+      "rule": "the same primary gate every stage of this program has used. No mercy, no reinterpretation."
+    },
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
+    "device": "cuda, matching every prior sealed eval (ONPOLICY_TD_DEVICE_AMENDMENT.json established trajectories are device-dependent)",
+    "tie_or_reversal": "any tie or reversal triggers a row-level integrity audit before interpretation, written before its rows are read",
+    "ordering_rule": "rung 0 is sealed FIRST. If rung 0 fails, the ladder STOPS and the harness itself is investigated -- no further rung is trained, because a failing positive control makes every downstream number uninterpretable."
+  },
+  "SEEDS": {
+    "rung_0_eval": "11960001..11960064",
+    "rung_1_train": 11961001,
+    "rung_1_eval": "11962001..11962064",
+    "rung_2_train": 11963001,
+    "rung_2_eval": "11964001..11964064",
+    "rung_3_train": 11965001,
+    "rung_3_eval": "11966001..11966064",
+    "disjointness_required": "each block must be grepped against every JSON under artifacts/strategic_demand/sppo/ immediately before its rung runs, and the check recorded",
+    "COLLISION_CAUGHT_AND_CORRECTED_BEFORE_ANY_RUN": "the first draft of this spec used the 1195xxxx range. The mandatory disjointness grep found that Z0_Z1_BEHAVIOR_CHARACTERIZATION_final_ccp_successor_production.json had already spent base_seed 11950001 (covering 11950001-024, 11950501-524, 11951001-024, 11951501-524), colliding with both rung_0_eval and rung_1_train. Corrected to the 1196xxxx range, verified zero hits, BEFORE the spec was committed or any rung was run. Recorded rather than silently fixed."
+  },
+  "PREREGISTERED_INTERPRETATION": [
+    {
+      "pattern": "rung 0 FAILS",
+      "reading": "the latent-dispatch or evaluation path cannot express crossover even with the frozen specialists installed verbatim. This invalidates the instrument, not the science, and everything measured through it requires re-examination. STOP the ladder."
+    },
+    {
+      "pattern": "rung 0 passes, and crossover survives to some rung k then dies at k+1",
+      "reading": "the sharing introduced at rung k+1 is the mechanism. This localises the bottleneck to a specific architectural boundary and is the ladder's target result."
+    },
+    {
+      "pattern": "rung 0 passes and every subsequent rung fails",
+      "reading": "ANY parameter sharing at all destroys complementary strategies under this recipe -- compression and crossover are in direct tension in this task. A strong negative with a clear statement."
+    },
+    {
+      "pattern": "rung 0 passes and every rung including rung 3 passes",
+      "reading": "would contradict COMPRESSION_CROSSOVER_EVAL_RESULT.json's FAIL at the same architecture; the difference would have to be the training recipe or the seed block, and must be investigated before any claim is made."
+    }
+  ],
+  "COST_HONESTY": {
+    "rung_0": "construction plus one 256-episode sealed eval (~2 h on cuda at the measured rate); no training",
+    "rungs_1_to_3": "each is a ~20-epoch CPU distillation (cheap, the offline TD run took well under an hour) plus a ~2 h cuda seal",
+    "total_if_all_four_run": "roughly 8-10 h of mostly-unattended compute, dominated by the four sealed evals",
+    "deadline_reality": "ICRA deadline is 2026-09-15. Rung 0 alone is worth running regardless, because a positive control that fails would change the interpretation of every result in this program. If time forces a stop, rung 0 plus one sharing rung is a coherent partial result."
+  },
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "PPO of any kind",
+    "retention mechanisms",
+    "Z-separation",
+    "BCS",
+    "OTD round 2 or its seal",
+    "changing the distillation recipe between rungs"
+  ],
+  "SEQUENCE": "freeze this spec -> build and VERIFY rung 0 (masked logits identical to the specialists) -> seal rung 0 -> only on rung-0 PASS, train and seal rungs 1, 2, 3 in order"
+}

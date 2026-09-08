@@ -1,0 +1,43 @@
+{
+  "record": "CCP Phase 1 CRN prerequisite smoke",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-01T13:10:19Z",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "question": "Do two branches forked from the same state consume randomness identically, so paired continuation seeds stay paired?",
+  "VERDICT": "CRN_DIVERGES",
+  "boundary": {
+    "rule": "first step at or after 60 where agent 0 is free",
+    "step": 60,
+    "seed": 11500011,
+    "pole": "A",
+    "episode_length": 154,
+    "legal_macros": [
+      0,
+      2
+    ],
+    "interventions": [
+      0,
+      2
+    ]
+  },
+  "generator": {
+    "ticks_compared": 47,
+    "branch_lengths": [
+      94,
+      47
+    ],
+    "first_divergence": 46,
+    "byte_equal_throughout": false,
+    "method": "torch.Generator.get_state() compared byte-for-byte after every tick"
+  },
+  "stochastic_config": {
+    "rt_sensor_dropout_prob_max": 0.0,
+    "rt_sensor_noise_sigma_cells_max": 0.0,
+    "red_deception_prob_max": 0.08818939328193665
+  },
+  "all_knobs_zero": false,
+  "note": "_scripted_red.py:361 draws role_coin unconditionally each step, so the generator advances even when every knob is zero; generator-state comparison is meaningful regardless of the config.",
+  "consequence_for_M": "If POST_RESET_DYNAMICS_DETERMINISTIC, continuation rollouts from a fixed state under a deterministic policy are identical, so Q(s,pi) is exact in {0,1} and M collapses to 1 by mathematical necessity rather than by budget choice. This is recorded prospectively, before any delta_Q is computed.",
+  "EVAL_touched": false
+}

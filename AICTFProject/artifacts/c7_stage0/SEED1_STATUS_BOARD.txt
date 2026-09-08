@@ -1,0 +1,26 @@
+﻿==============================================================================
+Config verified — identical to G0-V5 except max_blue_agents 2→4.
+Launching seed 1 (3300001):
+
+C7 Stage 0: 4v4 baseline trainer, reusing the frozen G0-V5 pipeline
+
+Reuses run_g0_v5_long wholesale rather than reimplementing training — same
+reward, opponent pool, architecture, 1M-step budget, health probes, validation
+panels and TASK_HEALTH/SYSTEM_HEALTH gates — and rebinds exactly three module
+globals: AGENTS 2→4, the seed set, and the artifact paths. Everything else is
+inherited, so the control and treatment arms cannot drift apart through a
+transcription error.
+
+Verified the built config differs from G0-V5 in one field: max_blue_agents 4 vs
+2, with total_timesteps, opponent_pool, map_layout and reward identical. Red
+mirrors blue, since rl/training/env_factory derives max_agents from
+cfg.max_blue_agents.
+
+Run fail-fast, one seed at a time. Stage 0 requires 3/3 competence, so a single
+failure already makes the conjunction false and the remaining seeds are not
+worth ~7 GPU-hours each. This is short-circuit evaluation of a conjunctive gate:
+it adds no seeds, moves no threshold, and cannot change the gate's meaning.
+
+Artifacts: artifacts/c7_stage0/seed3300001.log
+Ctrl+C stops this follow only — not the trainer.
+==============================================================================

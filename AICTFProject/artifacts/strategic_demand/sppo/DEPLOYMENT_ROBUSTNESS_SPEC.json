@@ -1,0 +1,42 @@
+{
+  "record_id": "DEPLOYMENT_ROBUSTNESS_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-03T16:20:00Z",
+  "authority": "PI, 2026-09-03, signing off on the tier structure with one wording correction",
+
+  "PURPOSE": "Deployment-only (inference-time, no retraining) robustness testing across three disturbance families, at low/medium/high severity plus a nominal zero-disturbance condition, applied to trained latent-conditioned policies at each team size (2v2/4v4/6v6).",
+
+  "TIERS": {
+    "localization_noise": {
+      "mechanism": "gpu_env sensor_noise_sigma_cells (existing config field, currently unused -- defaults to 0.0 in every training run this program has performed)",
+      "low": 0.03, "medium": 0.06, "high": 0.12, "unit": "cells",
+      "precedent": "0.12 matches this codebase's own existing domain-randomization ceiling, dr_sensor_noise_sigma_max"
+    },
+    "motion_error": {
+      "mechanism": "gpu_env drift_sigma_cells (existing config field, currently unused -- defaults to 0.0). Confirmed by reading gpu_env/_core/_dynamics.py: adds Gaussian noise directly to the post-motion position after the commanded velocity integrates -- i.e., realized displacement differs from commanded displacement, exactly the definition of motion error.",
+      "low": 0.03, "medium": 0.06, "high": 0.12, "unit": "cells",
+      "why_same_numbers_as_localization_noise": "MATCHED-SCALE TEST LEVELS, not a claim of equivalent severity. Localization and motion error share units, so using the same numeric ladder makes the robustness suite easy to interpret as one matrix. This is a controlled matched-scale perturbation choice, not an assumption that motion error has a known physical ceiling of its own -- unlike localization noise, no domain-randomization precedent exists for drift_sigma_cells in this codebase, so equal numeric values were chosen deliberately for comparability, not derived independently.",
+      "PAPER_CAVEAT_REQUIRED": "0.12 cells localization noise != 0.12 cells motion error in behavioral severity. Localization corrupts what the agent believes is true; motion drift corrupts what physically happens after it acts. Frozen caption sentence: \"For localization and motion perturbations, we use a matched numeric severity schedule of 0.03, 0.06, and 0.12 cells to enable controlled comparison across perturbation families. These levels are not assumed to represent equivalent behavioral difficulty.\""
+    },
+    "control_delay": {
+      "mechanism": "NOT YET IMPLEMENTED. Requires a new action-buffer wrapper in the eval rollout loop only (no training-loop involvement) -- delays the policy's selected action by N ticks before the environment executes it.",
+      "simulator_resolution": "decision_interval_seconds = 0.5 -- each simulator tick IS 0.5 real seconds (gpu_env/_config.py). Literal sub-tick delay (e.g. a few milliseconds) is not representable at this discretization; tiers are chosen in whole ticks rather than inventing sub-tick precision.",
+      "low": {"ticks": 1, "seconds": 0.5},
+      "medium": {"ticks": 2, "seconds": 1.0},
+      "high": {"ticks": 4, "seconds": 2.0}
+    },
+    "nominal_baseline": {
+      "rule": "a zero-disturbance condition (all three mechanisms at their existing 0.0 default) is retained for every team size and every method, as the reference every low/medium/high tier is compared against."
+    }
+  },
+
+  "DEPLOYMENT_ONLY_GUARANTEE": {
+    "localization_noise": "structurally deployment-only -- sensor_noise_sigma_cells is read at rollout time by the observation model; setting it only for eval invocations cannot leak into training, since training runs never pass a nonzero value",
+    "motion_error": "structurally deployment-only, same reasoning -- drift_sigma_cells is read at rollout time in the dynamics step",
+    "control_delay": "will be implemented as an eval-only wrapper around action selection in the rollout loop, never touching the training loop -- to be verified by a preflight check once built, matching this program's standing discipline of proving rather than asserting deployment-only guarantees"
+  },
+
+  "TEST_MATRIX": "3 disturbance families x 3 severities (+ 1 nominal baseline) x N team sizes x M methods x K seeds per cell -- exact N/M/K to be fixed when the team-size training entrypoint and evaluation seed blocks are frozen",
+
+  "NEXT": "build the control-delay eval wrapper, freeze its own deployment-only preflight, then build the robustness-suite runner that sweeps all three families at all three tiers against whichever checkpoints exist per team size"
+}

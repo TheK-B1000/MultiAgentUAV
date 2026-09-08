@@ -1,0 +1,73 @@
+{
+  "record": "Rung 0 stability rerun (block 2, non-sealed diagnostic)",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-05T01:30:08Z",
+  "device": "cuda",
+  "implements": "RUNG0_STABILITY_RERUN_SPEC.json",
+  "is_not_a_reseal": "RUNG0_CROSSOVER_EVAL_RESULT.json stands unchanged as the sealed block-1 result",
+  "block2_seeds": [
+    11970001,
+    11970064
+  ],
+  "BLOCK2_PRIMARY": {
+    "delta_A": {
+      "mean": 0.453125,
+      "lcb95": 0.296875,
+      "ucb95": 0.609375,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.328125,
+      "lcb95": 0.15625,
+      "ucb95": 0.484375,
+      "passes": true
+    }
+  },
+  "BLOCK1_FOR_COMPARISON": {
+    "delta_A": {
+      "mean": 0.125,
+      "lcb95": -0.046875,
+      "ucb95": 0.296875,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.1875,
+      "lcb95": 0.03125,
+      "ucb95": 0.34375,
+      "passes": true
+    },
+    "seeds": [
+      11960001,
+      11960064
+    ]
+  },
+  "POOLED_N128_SECONDARY_DESCRIPTIVE_NOT_GATE": {
+    "delta_A": {
+      "mean": 0.2890625,
+      "lcb95": 0.1640625,
+      "ucb95": 0.40625,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.2578125,
+      "lcb95": 0.140625,
+      "ucb95": 0.375,
+      "passes": true
+    },
+    "n_per_cell": 128
+  },
+  "stability_checks": {
+    "delta_A_same_sign_as_block1": true,
+    "delta_A_magnitude_within_0.10_of_block1": false
+  },
+  "VERDICT": "PARTIAL_STABILITY_PI_READ",
+  "READING": "delta_A positive but with materially different magnitude from block 1 -> report as-is; partial stability, PI reading required before Rung 1.",
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "total_episodes": 256
+}

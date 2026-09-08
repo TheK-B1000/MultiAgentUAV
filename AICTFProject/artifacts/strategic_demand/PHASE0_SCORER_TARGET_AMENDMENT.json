@@ -1,0 +1,83 @@
+{
+  "record_id": "PHASE0_SCORER_TARGET_AMENDMENT",
+  "status": "FROZEN_BEFORE_ANY_SCORER_FITTING",
+  "frozen_utc": "2026-08-26T01:10:00Z",
+  "authority": "PI ruling",
+  "predecessor": "PHASE0_TARGET_UNDERSPECIFICATION.json",
+  "parent_protocol": "PHASE0_ACTION_CONDITIONED_SCORER_PROTOCOL.json",
+  "amends": "collection.per_decision_point_records -- designates the regression target that the frozen protocol omitted",
+
+  "state_at_amendment": {
+    "Q_psi": "DOES NOT EXIST -- no scorer has been fitted",
+    "held_out_seeds_6500161_6500256": "NEVER OPENED",
+    "gate_0A": "PASS, frozen before this amendment",
+    "gate_0B": "GENUINELY PROSPECTIVE",
+    "why_this_matters": "an amendment written after a gate result would be a rescue. This one is written before the estimator it governs exists."
+  },
+
+  "THE_AMENDMENT": {
+    "target": "Q_psi(o, a1, a2, p) regresses E[ terminal win margin | o, a, p ]",
+    "definition": "terminal_win_margin = blue_score - red_score at episode termination",
+    "orientation": "blue is ALWAYS the evaluated policy's team; red is ALWAYS the scripted opponent. Therefore positive margin ALWAYS means better for the evaluated policy. No per-pole sign flip is applied to the target itself.",
+    "observed_support_train": {"-2": 2, "-1": 103, "0": 789, "1": 634, "2": 283, "3": 109},
+    "support_note": "support is -2..+3 on train branch rows, not symmetric. The distribution is concentrated at 0 and +1. Recorded now so it cannot be described differently later.",
+    "continuation_semantics": "UNCHANGED -- teacher-consistent (branch A continues under pi_A, branch B under pi_B). The margin is the terminal margin of that continuation.",
+    "sole_target": "terminal win margin is the ONLY regression target. No auxiliary target is blended in."
+  },
+
+  "why_margin_rather_than_win_flag": {
+    "reason": "margin preserves information that a 0/1 collapse discards, while remaining tied to game outcome rather than reward shaping",
+    "win_flag_role": "PRESPECIFIED SECONDARY CALIBRATION DIAGNOSTIC, designated now, not an alternative target selectable later",
+    "explicit_prohibition": "if win margin fails Gate 0B, the win flag MUST NOT be substituted as the target and the gate MUST NOT be re-run against it. That would be exactly the prohibited 'changed estimator' move."
+  },
+
+  "monte_carlo_return": {
+    "status": "EXCLUDED FROM SCORER FITTING",
+    "reason": "training-only diagnostics show it is oriented AGAINST the strategic payoff ordering on both poles (LCB95 -1.2845 on A, -1.5394 on B). It is an optimisation signal containing reward shaping, not the payoff construct SPPPO exists to preserve.",
+    "retained_as": "telemetry and provenance only; it remains in the collected shards and is not deleted"
+  },
+
+  "EFFECTIVE_SAMPLE_SIZE_CAVEAT": {
+    "rule": "the scorer's statistical unit is the EPISODE/SEED, not the state",
+    "why": "for plain trajectories, hundreds of states within one episode share a single terminal margin. The ~120k plain state rows are NOT ~120k independent payoff examples.",
+    "what_the_state_count_does_buy": "representation learning -- many states help the encoder learn (o,a,p) structure",
+    "what_it_does_not_buy": "independent payoff labels",
+    "train_side_counts": {
+      "train_seeds": 160,
+      "train_plain_episodes": 640,
+      "train_branch_states": 960,
+      "train_branch_labelled_pairs": 1920,
+      "independent_payoff_units_order_of_magnitude": "hundreds, not hundreds of thousands"
+    },
+    "carries_into": "scorer validation and calibration reporting must be expressed in these units; no report may quote a state count as if it were an independent sample size",
+    "plain_row_join": "plain rows carry only plain_return in the shards. Terminal margin for a plain row is joined episode-level from seed_summaries by (seed, policy, pole), producing one shared label across that episode's states."
+  },
+
+  "GATE_0B_UNCHANGED": {
+    "statement": "nothing seen in the target diagnostic alters Gate 0B in any respect",
+    "requires": ["LCB95(E[d_A]) > 0", "LCB95(E[d_B]) > 0"],
+    "contrasts": {
+      "d_A(o)": "V_hat(o, pi_A, A) - V_hat(o, pi_B, A)",
+      "d_B(o)": "V_hat(o, pi_B, B) - V_hat(o, pi_A, B)"
+    },
+    "data": "the 96 held-out seeds, 6500161..6500256, untouched",
+    "bootstrap_unit": "SEED, resampling seeds and retaining ALL branch points of each selected seed",
+    "matched_states_per_pole": 288,
+    "calibration": "must hold PER policy/pole cell, not merely in aggregate",
+    "if_fails": "STOP. SPPPO is not built. No target substitution, no data growth, no re-run."
+  },
+
+  "unchanged_by_this_amendment": [
+    "scorer FORM Q_psi(o,a1,a2,p) = b + u^T e(a1) + v^T e(a2) + e(a1)^T M e(a2)",
+    "analytic expectation V_hat = b + u^T mu_1 + v^T mu_2 + mu_1^T M mu_2",
+    "policy identity remains PROHIBITED as a scorer input feature",
+    "decision-points-only training (blue_commit_ticks_left <= 0)",
+    "the 160/96 seed split and the frozen 6500001..6500256 block",
+    "teacher-consistent continuation semantics",
+    "Gate 0A, already frozen and passed",
+    "NO_EVALUATION_LEAKAGE: no scored evaluation block may be used to fit Q_psi",
+    "DATA_GROWTH_AFTER_FAILURE: PROHIBITED"
+  ],
+
+  "next_action_authorised": "fit Q_psi on the 160 TRAIN seeds only, regressing terminal win margin, then freeze the scorer (weights + SHA256) BEFORE any held-out access"
+}

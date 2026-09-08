@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-09-03T20:50:13.517892Z",
+  "evaluation_run_id": "sac_rft_treatment",
+  "source_training_run_id": "sac_rft_treatment",
+  "source_checkpoint_fingerprint": "48ed0ecb960aa27eff27e73b553004739672e66ced291beb40446a896f7c493e",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "sac_rft_treatment",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

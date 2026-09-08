@@ -1,0 +1,59 @@
+{
+  "episodes_per_style": 8,
+  "latch_counts": {
+    "RUSH": 0,
+    "SPLIT": 8,
+    "ESCORT": 0,
+    "TURTLE": 0
+  },
+  "gates": {
+    "split_latch_ge_6_of_8": true,
+    "rush_false_latch_le_2_of_8": true,
+    "escort_false_latch_le_2_of_8": true,
+    "turtle_false_latch_le_2_of_8": true
+  },
+  "tactical": {
+    "split_uncovered_after_latch_gt_0": true,
+    "split_same_corridor_gt_0": true,
+    "split_ttfs_improved_vs_130": true
+  },
+  "style_stats": {
+    "BLUE_ESCORT": {
+      "n": 8,
+      "latch_count": 0,
+      "mean_win_margin": 0.875,
+      "mean_ttfs": 111.0,
+      "mean_uncovered_after_latch": 0.0,
+      "mean_same_corridor_steps": 0.0,
+      "mean_response_steps": 0.0
+    },
+    "BLUE_RUSH": {
+      "n": 8,
+      "latch_count": 0,
+      "mean_win_margin": 2.25,
+      "mean_ttfs": 58.625,
+      "mean_uncovered_after_latch": 0.0,
+      "mean_same_corridor_steps": 0.0,
+      "mean_response_steps": 0.0
+    },
+    "BLUE_SPLIT": {
+      "n": 8,
+      "latch_count": 8,
+      "mean_win_margin": 1.75,
+      "mean_ttfs": 39.75,
+      "mean_uncovered_after_latch": 7.75,
+      "mean_same_corridor_steps": 8.25,
+      "mean_response_steps": 8.75
+    },
+    "BLUE_TURTLE": {
+      "n": 8,
+      "latch_count": 0,
+      "mean_win_margin": 0.375,
+      "mean_ttfs": 70.5,
+      "mean_uncovered_after_latch": 0.0,
+      "mean_same_corridor_steps": 0.0,
+      "mean_response_steps": 0.0
+    }
+  },
+  "microgates_pass": true
+}

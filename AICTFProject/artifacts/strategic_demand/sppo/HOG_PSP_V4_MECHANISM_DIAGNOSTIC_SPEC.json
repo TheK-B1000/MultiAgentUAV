@@ -1,0 +1,156 @@
+{
+  "record_id": "HOG_PSP_V4_MECHANISM_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_MEASUREMENT",
+  "utc": "2026-08-31T23:55:00Z",
+  "authority": "PI, 2026-08-31: 'reuse V3's machinery as literally as possible ... freeze the diagnostic spec before running it, then let it go.'",
+
+  "THE_QUESTION": "Did splitting the critic PRESERVE the strategy identities V3 already established?",
+  "THE_QUESTION_IT_IS_NOT": "Did the mechanism numbers get bigger? A smaller JSD than V3 is not automatically a problem if long-horizon identity remains clearly separated. No magnitude threshold against V3 exists anywhere in this spec.",
+
+  "LITERAL_REUSE_OF_V3": {
+    "rule": "Every measurement instrument is the V3 instrument. Nothing about the ruler is redefined because V4 exists.",
+    "same": [
+      "CALIB block 10700097..10700128, n=32 seeds",
+      "frozen D_A / D_B (HOG_PSP_TRAJECTORY_DISCRIMINATORS.json, 0.9531 / 0.9688)",
+      "the 128-D episode feature map, unaltered including the known N_ACTION_BINS=48 truncation",
+      "sign convention: decision_function positive = pi_B-like, re-asserted at runtime",
+      "forced-latent deterministic rollouts, full cross (both latents on BOTH poles)",
+      "paired percentile bootstrap, n_boot 20000, alpha 0.05, rng seed 7, unit = CALIB seed",
+      "Layer 1 state-level ruler carried unchanged from OG-PSP, preserving comparability with V1"
+    ],
+    "implementation_rule": "The V4 script IMPORTS diagnose_hog_psp_v3_mechanism and uses its bootstrap function and its constants as live code objects rather than copying them, so the two runs cannot silently drift apart. The V3 script itself is NOT modified: it produced a frozen result and must stay byte-identical to the commit that produced it (7494081b).",
+    "predecessor_spec": "HOG_PSP_V3_MECHANISM_DIAGNOSTIC_SPEC.json, frozen 8b29fc5c"
+  },
+
+  "STRICTLY_NOT_A_GATE": {
+    "does_not_gate_EVAL": true,
+    "does_not_select_checkpoints": true,
+    "does_not_alter_the_treatment": true,
+    "cannot_substitute_for_the_crossover_gate": "A strong mechanism result with a failed crossover is still HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED.",
+    "cannot_withhold_the_payoff_EVAL": "PI, 2026-08-31: 'because this was prospectively declared non-gating, the mechanism diagnostic cannot become a new excuse to withhold payoff EVAL merely because the numbers look weaker than hoped.' A weak, degraded, or even reversed mechanism reading does NOT block opening EVAL. Only an integrity defect from the closed list below does.",
+    "runs_before_EVAL": "so the mechanism reading cannot be shaped by the EVAL outcome"
+  },
+
+  "CHECKPOINT_HARD_BINDING": {
+    "path": "artifacts/strategic_demand/sppo/hog_psp_v4_production/ckpts/final_hog_psp_v4_production.zip",
+    "sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+    "rule": "This literal sha256 is written into the diagnostic script as a constant AND cross-checked against HOG_PSP_V4_MODEL_FROZEN.json. Both must agree with the bytes on disk or the diagnostic refuses to run. Hard-binding the hash in the script means the record cannot be edited to legitimise a different checkpoint.",
+    "measurement_begins_only_after": "this terminal checkpoint is frozen (done: HOG_PSP_V4_MODEL_FROZEN.json, commit cf6f21d3)",
+    "prohibited_source": "intermediate training episodes and training-time discriminator scores, which are TELEMETRY, not measurement"
+  },
+
+  "LAYER_1_STATE_LEVEL_UNCHANGED_RULER": {
+    "split": "CALIB 10700097..10700128, n=145 resolvable states",
+    "measurements": {
+      "latent_divergence": "mean JSD(pi(.|s,z0), pi(.|s,z1)), decision-masked, in NATS",
+      "crossed_teacher_match": ["z0 -> pi_A on A-preferred", "z1 -> pi_A on A-preferred", "z1 -> pi_B on B-preferred", "z0 -> pi_B on B-preferred"]
+    },
+    "reference_values": {
+      "V1_CALIB_jsd_nats": 0.006589,
+      "OG_PSP_CALIB_jsd_nats": 0.042102,
+      "V3_CALIB_jsd_nats": 0.10862136199379918,
+      "V3_CALIB_crossed_gap_A_pp": 2.894736842105272,
+      "V3_CALIB_crossed_gap_B_pp": 8.000000000000007
+    },
+    "units_rule_carried_forward": "Compare nats to nats. Do NOT revive a model-vs-teacher percentage unless the teacher contrast (0.3919 BITS) is first converted to nats."
+  },
+
+  "LAYER_2_TRAJECTORY_IDENTITY_PRIMARY": {
+    "status": "the primary measure, exactly as in V3",
+    "rollout_set": {
+      "seeds": "CALIB 10700097..10700128, n=32",
+      "never_trained_on": "V4 trained on seed 11400001 with env range 11400001..11400321; the paired bank draws from 10700001..10700096 and 11000001..11000320. CALIB is disjoint from all of it, and from EVAL 11400101..11400132.",
+      "cells": ["z0 | Pole A", "z1 | Pole A", "z0 | Pole B", "z1 | Pole B"],
+      "why_the_full_cross": "Evaluating only z0-on-A and z1-on-B would tangle pole and opponent back into latent identity. The separability probe measured that shortcut at exactly 1.0000.",
+      "episodes": "one deterministic episode per (cell, seed) = 128 episodes"
+    },
+    "scoring": {
+      "statistic": "RAW decision function / logit, NOT the clipped training score",
+      "discriminator": "pole-specific and frozen: D_A on Pole A, D_B on Pole B",
+      "sign_convention": "POSITIVE = pi_B-specialist identity. sklearn returns the score for classes_[1] and classes_ must be [PI_A, PI_B] = [0, 1]. Asserted against the loaded artifacts at measurement time, never assumed."
+    },
+    "preregistered_quantities": {
+      "delta_tau_A": "E[D_A(tau_z1)] - E[D_A(tau_z0)]  on Pole A",
+      "delta_tau_B": "E[D_B(tau_z1)] - E[D_B(tau_z0)]  on Pole B",
+      "desired_ordering": "BOTH > 0",
+      "statistic": "paired percentile bootstrap over seed-level scores, n_boot 20000, alpha 0.05, rng seed 7"
+    },
+    "V3_reference": {
+      "delta_tau_A": {"mean": 6.44647322888893, "lcb95": 5.655349209925033},
+      "delta_tau_B": {"mean": 6.7794536738711795, "lcb95": 5.1031693590259986},
+      "reading": "TRAJECTORY_IDENTITY_CONFIRMED",
+      "why_recorded_here": "so V4 is read against a value fixed before V4 was measured, not against a number chosen afterwards"
+    }
+  },
+
+  "LAYER_3_TEACHER_REFERENCE_CONTEXT_ONLY": {
+    "quantity": "the same discriminator-score gap for the frozen SAPPO teachers on CALIB, delta_tau_teacher",
+    "ratio": "R_tau = delta_tau_V4 / delta_tau_teacher",
+    "explicitly_not_a_gate": true,
+    "R_equals_1_is_NOT_required": true,
+    "V3_reference": {"R_A": 1.1092706025950452, "R_B": 1.0028354235654064}
+  },
+
+  "PREREGISTERED_READINGS": {
+    "note": "Identical categories and identical decision rule to V3's, so the two runs are directly comparable. No V4-specific category is introduced.",
+    "TRAJECTORY_IDENTITY_CONFIRMED": "Correct ordering on BOTH poles with paired-bootstrap LCB95 > 0 on both.",
+    "TRAJECTORY_IDENTITY_PARTIAL": "Correct, confident separation on only one pole; or correct point ordering on both without confidence on both.",
+    "TRAJECTORY_IDENTITY_NOT_CONFIRMED": "Trajectory gaps near zero, reversed, or otherwise failing to establish latent-specific teacher identity."
+  },
+
+  "PRESERVATION_LABEL": {
+    "purpose": "a single mechanical word for the paper, derived from the READING alone -- never from magnitudes",
+    "IDENTITY_PRESERVED": "V4 READING == TRAJECTORY_IDENTITY_CONFIRMED, the same reading V3 obtained",
+    "IDENTITY_DEGRADED": "V4 READING == TRAJECTORY_IDENTITY_PARTIAL",
+    "IDENTITY_LOST": "V4 READING == TRAJECTORY_IDENTITY_NOT_CONFIRMED",
+    "explicitly_not_a_gate": true,
+    "no_magnitude_comparison_is_a_criterion": "V4-vs-V3 point differences in JSD, crossed gaps, delta_tau, or R are reported as DESCRIPTIVE context only. None of them has a threshold, and none can change the READING or the PRESERVATION_LABEL."
+  },
+
+  "INTEGRITY_DEFECTS_THAT_WOULD_BLOCK_EVAL": {
+    "rule": "This list is CLOSED. Only a defect on it can delay opening EVAL 11400101..11400132. A weak, degraded, or reversed mechanism reading is a scientific result, not a defect, and does not delay EVAL.",
+    "each_is_a_hard_runtime_check": true,
+    "defects": {
+      "wrong_checkpoint": "sha256 of the loaded bytes != the hard-bound constant, or != HOG_PSP_V4_MODEL_FROZEN.json, or the frozen record is not VALID",
+      "wrong_architecture_loaded": "the loaded model's critic does not report private_z_heads=True -- i.e. we would be measuring V3's architecture while calling it V4. Missing attribute FAILS, it does not default.",
+      "wrong_latent_routing": "policy.strategy_info() after each rollout must report strategy == the requested z and strategy_fixed == True, for every episode. Empty strategy_info FAILS, it does not skip.",
+      "broken_discriminator_provenance": "FrozenDiscriminators sha256 verification fails, the record is not FROZEN_ARTIFACT, the post-measurement fingerprint moved, or classes_ != [0, 1]",
+      "corrupted_CALIB_execution": "fewer than 128 scored episodes, any zero-length episode, any opponent-overlay assertion failure, or any non-finite discriminator score"
+    },
+    "if_a_defect_is_found": "STOP, report it, and do not open EVAL. Diagnose the defect; do not adjust the measurement to make it disappear."
+  },
+
+  "SEQUENCE": [
+    "1M run completes -- DONE",
+    "terminal-record validity established: VALID, not INVALID_CRITIC_HEAD_NOT_LIVE -- DONE",
+    "terminal checkpoint frozen with sha256 and all 10 periodic hashes -- DONE, commit cf6f21d3",
+    "THIS diagnostic, on CALIB rollouts only",
+    "separate PI decision to open EVAL",
+    "one-shot EVAL 11400101..11400132"
+  ],
+
+  "WHAT_THIS_DIAGNOSTIC_MAY_NOT_DO": [
+    "select or substitute a checkpoint",
+    "alter lambda, the discriminators, the feature map, or any treatment parameter",
+    "touch EVAL 11400101..11400132",
+    "use intermediate training episodes or training-time discriminator scores",
+    "be re-run with different seeds or a different statistic after its numbers are seen",
+    "redefine the Layer 1 measurements, which exist to preserve comparability with V1, OG-PSP and V3",
+    "introduce any V4-vs-V3 magnitude threshold",
+    "delay EVAL for any reason other than a defect on the closed integrity list"
+  ],
+
+  "WHAT_THE_OUTCOME_MEANS": {
+    "preserved_and_crossover_CONFIRMED": "The shared critic becomes an extremely compelling explanation for V3's failure: identical actor mechanism, identity preserved, payoff appears once the value function is allowed to be strategy-specific.",
+    "preserved_and_crossover_NOT_CONFIRMED": "Another layer is ruled out. Representation, trajectory identity, and strategy-specific value heads would all be established, with payoff crossover still absent -- the strongest form of the compression-limit claim available to this submission.",
+    "lost_or_degraded": "Splitting the critic disturbed the identity V3 established. Reported as-is; it still does not gate the payoff EVAL."
+  },
+
+  "PROVENANCE": {
+    "treatment_spec": "HOG_PSP_V4_SPEC.json (frozen 4e94d1eb, amended d70f9f6a)",
+    "model_freeze": "HOG_PSP_V4_MODEL_FROZEN.json (commit cf6f21d3)",
+    "discriminators": "HOG_PSP_TRAJECTORY_DISCRIMINATORS.json (D_A 0.9531, D_B 0.9688)",
+    "predecessor_diagnostic_spec": "HOG_PSP_V3_MECHANISM_DIAGNOSTIC_SPEC.json (frozen 8b29fc5c)",
+    "predecessor_diagnostic_result": "HOG_PSP_V3_MECHANISM_DIAGNOSTIC.json (TRAJECTORY_IDENTITY_CONFIRMED)"
+  }
+}

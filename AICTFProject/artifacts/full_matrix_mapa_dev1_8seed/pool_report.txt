@@ -1,0 +1,44 @@
+Mean win margin  (rows = blue style, cols = red preset)
+             OP10_AGGRESSIVE_INTERCEPTOR|map_aOP11_ADAPTIVE_EXPLOITER|map_aOP12_LATE_CONVERTER|map_aOP6_IMMEDIATE_DUAL_RUSH|map_aOP7_DEEP_FORTRESS|map_aOP8_PROTECTED_CARRIER_ESCORT|map_aOP9_SPLIT_LANE_FEINT|map_a
+BLUE_ESCORT              1.2500            2.8750            1.2500            0.5000            1.2500            2.2500            2.0000
+BLUE_RUSH                1.1250            2.8750            1.5000            0.7500            2.0000            2.5000            1.3750
+BLUE_SPLIT               1.0000            2.0000            0.7500           -0.6250            0.8750            1.6250            0.8750
+BLUE_TURTLE              0.5000            1.3750            2.5000            0.5000            0.5000            0.8750           -0.6250
+
+Win rate
+             OP10_AGGRESSIVE_INTERCEPTOR|map_aOP11_ADAPTIVE_EXPLOITER|map_aOP12_LATE_CONVERTER|map_aOP6_IMMEDIATE_DUAL_RUSH|map_aOP7_DEEP_FORTRESS|map_aOP8_PROTECTED_CARRIER_ESCORT|map_aOP9_SPLIT_LANE_FEINT|map_a
+BLUE_ESCORT               0.875             1.000             1.000             0.625             0.750             1.000             1.000
+BLUE_RUSH                 0.750             1.000             1.000             0.875             1.000             1.000             0.875
+BLUE_SPLIT                0.750             1.000             0.750             0.125             0.750             0.750             0.500
+BLUE_TURTLE               0.500             0.875             1.000             0.625             0.375             0.750             0.125
+
+V_selective (cross-fit)  = 1.8775   (insample=1.9821)
+V_best_fixed (cross-fit) = 1.6671   (insample=1.7321, style=BLUE_RUSH)
+delta_pool              = 0.2104   CI95=[-0.0357, 0.4464]  LCB=-0.0357
+V_hindsight             = 2.1429   (per-episode upper bound, NOT a gate)
+
+Best response by red preset:
+  OP10_AGGRESSIVE_INTERCEPTOR|map_a -> BLUE_ESCORT
+  OP11_ADAPTIVE_EXPLOITER|map_a -> BLUE_ESCORT
+  OP12_LATE_CONVERTER|map_a -> BLUE_TURTLE
+  OP6_IMMEDIATE_DUAL_RUSH|map_a -> BLUE_RUSH
+  OP7_DEEP_FORTRESS|map_a -> BLUE_RUSH
+  OP8_PROTECTED_CARRIER_ESCORT|map_a -> BLUE_RUSH
+  OP9_SPLIT_LANE_FEINT|map_a -> BLUE_ESCORT
+  distinct best responses: 3/7
+  unprotected blues (never uniquely best): BLUE_SPLIT
+  degenerate red presets: ['OP10_AGGRESSIVE_INTERCEPTOR|map_a', 'OP11_ADAPTIVE_EXPLOITER|map_a', 'OP12_LATE_CONVERTER|map_a', 'OP7_DEEP_FORTRESS|map_a', 'OP8_PROTECTED_CARRIER_ESCORT|map_a']
+
+best blue overall WR = 0.929   tie rate = 0.143
+
+Gates:
+  [FAIL] delta_pool_lcb_positive
+  [PASS] no_dominating_blue_style
+  [PASS] best_response_diversity
+  [FAIL] all_blues_protected
+  [FAIL] best_blue_wr_in_band
+  [PASS] tie_rate_under_threshold
+  [FAIL] no_degenerate_red_styles
+
+POOL ADMISSIBLE: False
+  -> iterate the red presets until blue best-response diversity clears (all blues protected + LCB(delta_pool)>0). Do not train latents on this pool.

@@ -1,0 +1,48 @@
+{
+  "protocol_id": "EXP4_DEPLOYMENT_REALISM_AND_MODE_STABILITY",
+  "status": "PROTOCOL_FROZEN_NO_RESULTS_GENERATED",
+  "frozen_utc": "2026-08-20T15:30:00Z",
+  "gated_behind": ["EXPERIMENT 1", "EXPERIMENT 2", "EXPERIMENT 3"],
+
+  "two_distinct_claims": {
+    "performance_robustness": "how much does win rate degrade under deployment uncertainty?",
+    "STRATEGIC_IDENTITY_robustness": "does z=0 remain GUARD-like and z=1 remain BREACH-like as conditions degrade?",
+    "which_is_novel": "the second. Win-rate degradation under noise is standard robustness; mode fidelity under perturbation is specific to this contribution."
+  },
+
+  "one_systematic_benchmark_not_ten_small_tests": {
+    "levels": {
+      "nominal":  {"localization": "none",        "communication": "none",              "dynamics": "nominal"},
+      "mild":     {"localization": "small noise", "communication": "small delay",       "dynamics": "+/-5%"},
+      "moderate": {"localization": "medium noise","communication": "packet loss/delay", "dynamics": "+/-10%"},
+      "severe":   {"localization": "larger noise","communication": "larger delay/loss", "dynamics": "+/-20%"}
+    },
+    "perturbation_axes": ["robot localization", "heading estimate", "opponent observation delay",
+                          "teammate communication latency", "packet loss", "actuator delay",
+                          "speed variation", "turn-rate variation", "waypoint tracking error",
+                          "current/wind-like drift"]
+  },
+
+  "mode_fidelity_analysis_PREREGISTERED": {
+    "procedure": "force each z, run at each level, compare the behavioural signature against that mode's NOMINAL signature",
+    "features": ["home-defense fraction", "simultaneous-attack fraction", "enemy-half occupancy",
+                 "commitment timing", "flag-role behaviour", "matched-state action divergence"],
+    "reuses": "the existing R2 postmortem telemetry (experiments/r2_behavioral_postmortem.py) rather than reinventing it",
+    "reported_as": "one plot for performance robustness, a second for strategic-identity robustness"
+  },
+
+  "metrics": {
+    "performance": "delta_WR_robustness = WR_perturbed - WR_nominal",
+    "identity": "per-feature divergence of each forced-z signature from its own nominal signature",
+    "failure_mode_of_interest": "a policy whose win rate holds but whose modes collapse into each other has lost the property the paper claims"
+  },
+
+  "comparison": ["Generalist PPO", "SAPPO repertoire", "Latent SAPPO (K=2)"],
+
+  "prohibited": [
+    "running before Experiments 1-3 pass",
+    "tuning perturbation magnitudes after seeing results",
+    "reporting only the levels that flatter the method",
+    "substituting many small robustness tests for the systematic level structure"
+  ]
+}

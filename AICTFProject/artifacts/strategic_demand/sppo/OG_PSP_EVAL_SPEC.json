@@ -1,0 +1,109 @@
+{
+  "record_id": "OG_PSP_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_EVAL_IS_OPENED",
+  "utc": "2026-08-31T09:05:00Z",
+  "authority": "PI, 2026-08-31: EVAL AUTHORIZED",
+  "THE_QUESTION": "Did OG-PSP's paired specialist preservation produce complementary latent strategies that generalise to seeds never used for training, rehearsal, bank collection, or calibration?",
+  "WHY_EVAL_WAS_OPENED_DESPITE_A_PARTIAL_MECHANISM_READING": {
+    "ruling": "PI, 2026-08-31: 'We prospectively declared the mechanism diagnostic not a gate. If we now refuse to open EVAL because z0 differentiation looks weak, we would quietly turn that diagnostic into the very gate we said it was not.'",
+    "state_at_authorization": "Terminal checkpoint already frozen, no checkpoint selection occurred, CALIB did not modify the model, EVAL block untouched.",
+    "expectation_recorded_prospectively": "The PI stated reduced confidence that both sides pass, given the asymmetric mechanism result, while ruling that confidence about a result is not a reason to withhold a frozen test. Recorded here so the expectation cannot be reconstructed after the fact."
+  },
+  "MODEL_UNDER_TEST": {
+    "checkpoint": "final_og_psp_production.zip",
+    "sha256": "792c2367ad2a4ebe9e051a326e0ff555f7dc2bb98358737a8f65d732d49d8bf0",
+    "frozen_in": "OG_PSP_MODEL_FROZEN.json, commit 75e1e696",
+    "terminal_checkpoint_only": true,
+    "periodic_checkpoints_ineligible": "all 10, hashes recorded in the freeze record"
+  },
+  "SEEDS": {
+    "block": "11200001..11200032",
+    "n": 32,
+    "never_used_for": [
+      "training",
+      "rehearsal",
+      "V2 bank collection",
+      "calibration",
+      "the mechanism diagnostic",
+      "any prior audit"
+    ]
+  },
+  "CELLS": {
+    "primary": [
+      "z0 on Pole A",
+      "z1 on Pole A",
+      "z0 on Pole B",
+      "z1 on Pole B"
+    ],
+    "secondary_context_only": [
+      "pi_A on Pole A",
+      "pi_B on Pole B"
+    ],
+    "pole_A": "OP6 + SDS2_A_payoff_INIT_3 overlay",
+    "pole_B": "OP7, no overlay",
+    "why_the_overlay_matters_here_too": "Pole A is not plain OP6. Evaluating z0 against vanilla OP6 would score it against a different opponent than it trained on."
+  },
+  "PRIMARY_GATE_CROSSOVER": {
+    "metric": "episode win indicator (blue_score > red_score), per evaluation seed",
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "statistic": "paired percentile bootstrap over seed-level episode outcomes",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "Identical to ORACLE_GATED_K2_EVAL_SPEC.json, which itself adopted the convention unchanged from eval_exp2_k2_terminal.py. Carried forward without modification so the criterion cannot be accused of having been chosen for this result. Point estimates alone do not pass the gate.",
+    "verdict_labels": {
+      "pass": "OG_PSP_CROSSOVER_CONFIRMED",
+      "fail": "OG_PSP_CROSSOVER_NOT_CONFIRMED"
+    }
+  },
+  "SECONDARY_REPORTED_NOT_GATED": {
+    "retention": "0.5*(wins(z0,A)+wins(z1,B)) / 0.5*(wins(pi_A,A)+wins(pi_B,B))",
+    "status": "REPORTED FOR CONTEXT ONLY. No retention bar was authorized for this experiment, so it does not gate the verdict and must not be introduced as a gate after the numbers are seen.",
+    "per_cell_win_rates": "all six cells reported with seed-level CIs"
+  },
+  "EPISODES_PER_CELL": {
+    "value": 1,
+    "note": "one deterministic episode per (cell, seed); 32 seeds gives 32 paired observations per cell"
+  },
+  "ASYMMETRIC_OUTCOME_IS_PRE_CLASSIFIED": {
+    "rule": "PI, 2026-08-31, before the result existed: if delta_B passes but delta_A fails, the verdict is OG_PSP_CROSSOVER_NOT_CONFIRMED.",
+    "why_this_is_stated_now": "The mechanism diagnostic already showed the differentiation is one-sided, so a B-passes/A-fails outcome is the specifically foreseeable partial result. Pre-classifying it removes any room to argue after the fact that one passing side constitutes a confirmed crossover.",
+    "richer_explanation_if_it_happens": "OG-PSP successfully induced generalisable latent differentiation, but that differentiation emerged asymmetrically, primarily as a B-specialist rather than two complementary specialists.",
+    "one_passing_side_is_not_a_pass": true
+  },
+  "INTERPRETIVE_CONTEXT_FROZEN_BEFORE_THE_RESULT": {
+    "replay_factor": 49.42,
+    "budget": "1,003,520 terminal steps, identical to V1's. Unlike the V1-vs-EXP2C comparison there is no budget confound between V1 and OG-PSP.",
+    "two_axes": "Paired supervision AND a 4.2x larger bank both change relative to V1, so a success cannot be attributed to either alone.",
+    "mechanism_diagnostic_result": {
+      "reading": "PARTIAL_DIFFERENTIATION_HUMAN_DECISION_REQUIRED",
+      "matched_CALIB_jsd_nats": {"V1": 0.006589, "OG_PSP": 0.042102, "ratio": 6.39},
+      "CALIB_crossed_gap_pp": {"A_preferred": 1.32, "B_preferred": 10.0},
+      "summary": "Latent divergence rose 6.39x on the matched held-out split and did not collapse, but the differentiation is one-sided: z1 is a B-specialist, z0 is not an A-specialist.",
+      "status": "context, not a gate; it does not predict or constrain this verdict"
+    },
+    "JSD_UNITS_CORRECTION_IS_PERMANENT": {
+      "rule": "PI, 2026-08-31: compare nats to nats across V1 and OG-PSP. Do not revive the model-vs-teacher percentage unless the teacher contrast is first converted into nats.",
+      "detail": "_jsd_from_logits uses natural log, so all model JSD figures including V1's 0.0051 are NATS. diagnose_teacher_contrast.py used log2, so the 0.3919 teacher contrast is BITS. The earlier '1.3% of teacher contrast' divided one by the other.",
+      "recorded_in": "OG_PSP_MECHANISM_DIAGNOSTIC.json#UNITS_CORRECTION"
+    }
+  },
+  "PROHIBITED_AFTER_SEEING_EVAL": [
+    "choosing a different checkpoint",
+    "adjusting the treatment and re-running",
+    "changing the metric, statistic, alpha, or criterion",
+    "adding seeds to the EVAL block",
+    "promoting retention or any secondary quantity into a gate",
+    "reporting point estimates as if they passed the frozen criterion",
+    "treating a single passing side as a confirmed crossover"
+  ],
+  "IF_NEGATIVE": "Recorded as OG_PSP_CROSSOVER_NOT_CONFIRMED. Under the stopping rule this is the FINAL latent attempt: a negative result closes latent-strategy work entirely and pivots immediately to the SAPPO-centered ICRA paper built around the compression-limit finding. No further latent experiments, no repair attempt, no additional seeds.",
+  "ONE_SHOT": "EVAL is opened once. This spec is frozen and committed before it is read.",
+  "SUPERSEDES": {
+    "file": "ORACLE_GATED_K2_V2_EVAL_SPEC.json",
+    "why": "That spec belonged to the bank-only V2 plan that OG-PSP superseded. It claims the same seed block but carries MODEL_UNDER_TEST: null and was never committed or run. Annotated as superseded rather than deleted."
+  }
+}

@@ -1,0 +1,169 @@
+{
+  "by_style": {
+    "BLUE_SPLIT": {
+      "n": 8,
+      "mean_margin": 0.0,
+      "pickup_rate": 1.0,
+      "score_rate": 0.0,
+      "latch_rate": 0.875,
+      "mean_first_pickup": 19.25,
+      "mean_first_blue_score": 39.375,
+      "mean_teammate_dist": 11.089467407623335,
+      "mean_lateral_sep": 6.383557284439587,
+      "mean_frac_opposite_lanes": 0.1656069138649551,
+      "mean_frac_both_offensive": 0.5727415839395701,
+      "mean_frac_latch_both_same_target": 0.0,
+      "mean_frac_latch_second_uncovered": 0.07438122935703875,
+      "mean_frac_latch_target_churn": 0.015396780985555726,
+      "mean_frac_latch_protector_chase": 0.6839695842197279,
+      "mean_frac_latch_both_on_carrier": 0.0,
+      "mean_frac_post_support_near": 0.06432696084898325,
+      "mean_role_change_steps": 6.375,
+      "isolated_return_success_rate": 1.0,
+      "supported_return_success_rate": NaN,
+      "isolated_return_n": 8,
+      "supported_return_n": 0,
+      "failure_mode_episode_counts": {
+        "D": 8
+      },
+      "dominant_failure_modes": [
+        "D"
+      ]
+    },
+    "BLUE_ESCORT": {
+      "n": 8,
+      "mean_margin": 0.0,
+      "pickup_rate": 1.0,
+      "score_rate": 0.0,
+      "latch_rate": 0.0,
+      "mean_first_pickup": 14.5,
+      "mean_first_blue_score": 37.375,
+      "mean_teammate_dist": 2.137408924357411,
+      "mean_lateral_sep": 1.0312515671977731,
+      "mean_frac_opposite_lanes": 0.008112668743509865,
+      "mean_frac_both_offensive": 0.5314170097306196,
+      "mean_frac_latch_both_same_target": 0.0,
+      "mean_frac_latch_second_uncovered": 0.0,
+      "mean_frac_latch_target_churn": 0.0,
+      "mean_frac_latch_protector_chase": 0.0,
+      "mean_frac_latch_both_on_carrier": 0.0,
+      "mean_frac_post_support_near": 1.0,
+      "mean_role_change_steps": 18.75,
+      "isolated_return_success_rate": NaN,
+      "supported_return_success_rate": 0.6666666666666666,
+      "isolated_return_n": 0,
+      "supported_return_n": 12,
+      "failure_mode_episode_counts": {
+        "D": 2
+      },
+      "dominant_failure_modes": [
+        "D"
+      ]
+    },
+    "BLUE_RUSH": {
+      "n": 8,
+      "mean_margin": 0.0,
+      "pickup_rate": 1.0,
+      "score_rate": 0.0,
+      "latch_rate": 0.0,
+      "mean_first_pickup": 14.375,
+      "mean_first_blue_score": 29.75,
+      "mean_teammate_dist": 3.035234082010708,
+      "mean_lateral_sep": 1.4601230652610402,
+      "mean_frac_opposite_lanes": 0.007506057852491291,
+      "mean_frac_both_offensive": 0.5882245658246575,
+      "mean_frac_latch_both_same_target": 0.0,
+      "mean_frac_latch_second_uncovered": 0.0,
+      "mean_frac_latch_target_churn": 0.0,
+      "mean_frac_latch_protector_chase": 0.0,
+      "mean_frac_latch_both_on_carrier": 0.0,
+      "mean_frac_post_support_near": 0.9627649136577708,
+      "mean_role_change_steps": 14.75,
+      "isolated_return_success_rate": NaN,
+      "supported_return_success_rate": 0.8,
+      "isolated_return_n": 0,
+      "supported_return_n": 10,
+      "failure_mode_episode_counts": {
+        "D": 3
+      },
+      "dominant_failure_modes": [
+        "D"
+      ]
+    },
+    "BLUE_TURTLE": {
+      "n": 8,
+      "mean_margin": 0.0,
+      "pickup_rate": 1.0,
+      "score_rate": 0.0,
+      "latch_rate": 0.0,
+      "mean_first_pickup": 29.375,
+      "mean_first_blue_score": 89.625,
+      "mean_teammate_dist": 3.9972161767553547,
+      "mean_lateral_sep": 1.707708995893772,
+      "mean_frac_opposite_lanes": 0.00485656479017878,
+      "mean_frac_both_offensive": 0.4317256445428893,
+      "mean_frac_latch_both_same_target": 0.0,
+      "mean_frac_latch_second_uncovered": 0.0,
+      "mean_frac_latch_target_churn": 0.0,
+      "mean_frac_latch_protector_chase": 0.0,
+      "mean_frac_latch_both_on_carrier": 0.0,
+      "mean_frac_post_support_near": 0.8002805266759061,
+      "mean_role_change_steps": 30.875,
+      "isolated_return_success_rate": 0.5,
+      "supported_return_success_rate": 0.5555555555555556,
+      "isolated_return_n": 6,
+      "supported_return_n": 9,
+      "failure_mode_episode_counts": {
+        "D": 3
+      },
+      "dominant_failure_modes": [
+        "D"
+      ]
+    }
+  },
+  "escort_minus_split_mean_margin": 0.0,
+  "mean_matched_split_minus_escort_margin": 0.0,
+  "split_failure_modes_when_ahead_of_escort": {},
+  "dominant_failure_mode_hypothesis": "none",
+  "failure_mode_legend": {
+    "A": "both reds commit to one SPLIT attacker",
+    "B": "second SPLIT lane remains uncovered",
+    "C": "red roles/targets churn between threats",
+    "D": "OP11 pressures ESCORT protector too effectively",
+    "E": "supported and isolated carriers treated almost identically"
+  },
+  "selectivity_check": {
+    "SPLIT_latch_rate": 0.875,
+    "ESCORT_latch_rate": 0.0,
+    "RUSH_latch_rate": 0.0,
+    "TURTLE_latch_rate": 0.0,
+    "target": "SPLIT>=6/8; others<=2/8"
+  },
+  "manifest": {
+    "protocol": "op11_isolation_failure_phase1",
+    "blue_probe_protocol": "BLUE_PROBES_V3",
+    "red": "OP11_ADAPTIVE_EXPLOITER",
+    "maps_requested": [
+      "map_a"
+    ],
+    "maps_normalized": [
+      "map_a_open"
+    ],
+    "episodes": 8,
+    "base_seed": 571001,
+    "device": "cpu",
+    "max_decision_steps": 240,
+    "styles": [
+      "BLUE_SPLIT",
+      "BLUE_ESCORT",
+      "BLUE_RUSH",
+      "BLUE_TURTLE"
+    ],
+    "retired_seeds_guard": [
+      541001,
+      551001,
+      561001
+    ],
+    "note": "Phase-1 diagnosis only \u2014 no BT redesign until failure mode ranked."
+  }
+}

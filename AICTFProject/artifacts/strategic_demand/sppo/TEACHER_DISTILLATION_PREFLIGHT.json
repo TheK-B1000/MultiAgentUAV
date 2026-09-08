@@ -1,0 +1,27 @@
+{
+  "record": "Teacher-distillation mechanical preflight",
+  "utc": "2026-09-04T15:02:24Z",
+  "implements": "TEACHER_DISTILLATION_SPEC.json#MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_TRAINING",
+  "checks": {
+    "1_dataset": true,
+    "2_fresh_student_same_arch_different_weights": true,
+    "3_teacher_self_kl_is_zero": true,
+    "4_initial_loss_finite_positive": true,
+    "5_grad_on_actor_not_critic": true,
+    "6_step_moves_actor_only": true,
+    "7_checkpoint_roundtrip_identical_logits": true
+  },
+  "passed": "7/7",
+  "initial_loss": 1.8281140327453613,
+  "initial_diag": {
+    "kl_A": 1.8737823963165283,
+    "kl_B": 1.7824457883834839,
+    "decision_heads": 196
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "rows": {
+    "train": 31714,
+    "holdout": 3291
+  },
+  "VERDICT": "PASS"
+}

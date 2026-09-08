@@ -1,0 +1,81 @@
+{
+  "erratum": "SRCTF v1 — separate data spending from evidential validity; strengthen the naming guard; define the degenerate-correlation case",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-11T10:15:00Z",
+  "amends": [
+    "artifacts/srctf_v1/SRCTF_V1_DESIGN_AND_QUALIFICATION_FROZEN.json (73a1a00)",
+    "artifacts/srctf_v1/SRCTF_V1_ERRATUM_01.json (f8a1afb)"
+  ],
+
+  "admissibility": {
+    "no_srctf_map_exists": true,
+    "no_srctf_opponent_implemented": true,
+    "no_srctf_rollout_or_probe_datum_exists": true,
+    "qualification_block_unspent": true
+  },
+
+  "repair_1_spent_data_is_not_valid_evidence": {
+    "the_defect_in_erratum_01": "it said a bug discovered after the qualification block is consumed cannot retroactively invalidate the attempt. That correctly blocks shopping for a do-over, but it over-corrected: it would license reporting a KNOWN software defect's output as a scientific finding.",
+    "the_concrete_failure_it_would_have_produced": "the scanner consumes the block, returns NO_REVERSAL, and a deterministic unit test afterwards proves INTERCEPTOR never received its target coordinates. That result is not evidence that the environment lacks demand -- it is evidence about the bug.",
+    "the_separation": "data spending and evidential validity are independent. Consuming a block is irreversible; interpreting its output as evidence is conditional on the execution being sound.",
+    "the_three_states": {
+      "INVALID_ATTEMPT": {
+        "when": "a verified plumbing, identity, or reachability failure is detected BEFORE the qualification block is consumed",
+        "block": "UNSPENT",
+        "design": "may be repaired and attempted",
+        "one_shot": "not consumed"
+      },
+      "INVALID_EXECUTION": {
+        "when": "a verified, previously-undetectable implementation failure is proven AFTER the block is consumed",
+        "block": "REMAINS SPENT -- irreversible",
+        "design": "gets NO rerun on this benchmark version",
+        "may_report": "nothing scientific. The design closes as INCONCLUSIVE.",
+        "may_NOT_report": ["a PASS", "a scientific NO_REVERSAL", "any claim about strategic demand"],
+        "why_both_prohibitions": "a PASS would reward a bug; a NO_REVERSAL would let a defect masquerade as a property of the environment. Both are false, in opposite directions."
+      },
+      "VALID": {
+        "when": "reachability preconditions passed first and no implementation failure is subsequently proven",
+        "outcome": "the result stands as evidence, PASS or FAIL, and closes the design either way"
+      }
+    },
+    "anti_abuse_retained_and_tightened": {
+      "burden_of_proof": "INVALID_EXECUTION requires a DETERMINISTIC, reproducible demonstration -- a failing unit test or an equivalent artifact -- that the defect made the measured quantity not the intended quantity. Recorded in the artifact with the test.",
+      "never_sufficient": ["a disappointing result", "a surprising result", "a plausible-sounding suspicion", "a defect that does not change what was measured"],
+      "the_asymmetry_is_deliberate": "an INCONCLUSIVE close is strictly worse for the experimenter than a clean FAIL -- it costs the block AND yields no finding. Nobody gains by reaching for it."
+    }
+  },
+
+  "repair_2_naming_guard_strengthened": {
+    "the_defect": "canonicalize_opponent_key(name) == name is necessary but not sufficient. Depending on how the canonicalizer treats unknown strings, an identity result could also be returned for a name that resolves through nothing at all.",
+    "required_conjunction_all_must_hold": [
+      "name in SRCTF_CANONICAL_OPPONENTS (an explicit registry, membership asserted)",
+      "canonicalize(name) == name",
+      "resolve(name).profile_name == name",
+      "resolve(name).profile_hash == the frozen expected hash",
+      "dispatch(name) reaches the BT brain",
+      "trajectory_hash(name) == the frozen expected behaviour hash"
+    ],
+    "why_the_registry_must_be_explicit": "membership makes the intended set a first-class object rather than an emergent property of string handling. Without it, a typo can canonicalize to itself and look valid.",
+    "why_the_last_two_matter_most": "C6 proved that a profile can resolve perfectly, report correct knobs, pass every identity check, and still never reach the simulator. Name-level correctness and behavioural reachability are different properties.",
+    "no_synonym_layer": "reaffirmed. No SRCTF opponent may appear in OPPONENT_SYNONYMS or OPPONENT_ALIASES."
+  },
+
+  "repair_3_degenerate_correlation": {
+    "the_gap": "the capacity rule assumed Pearson r is defined. It is undefined when offensive_pressure or red_contest_fraction has zero variance across the population.",
+    "the_frozen_rule": "zero variance in EITHER probe variable -> AFFORDANCE_CAPACITY_FAIL",
+    "rationale": "an environment in which every opponent allocates identically has demonstrably not expanded allocation diversity. A degenerate statistic is a failure, never a pass by default and never a skipped criterion.",
+    "also_covers": "any case where r_bootstrap cannot be computed for the same reason; the bootstrap condition fails closed rather than being waived."
+  },
+
+  "unchanged": [
+    "AFFORDANCE_CAPACITY_PASS iff r_hat >= -0.70 AND q_0.025(r_bootstrap) > -0.898",
+    "the latent-free acceptance criterion",
+    "the four dilemmas and the reward rule",
+    "ONE_SHOT per design",
+    "the freeze point and the downstream gate sequence",
+    "SRCTF opponent names RAIDER, FORTRESS, ESCORT, SPLIT, INTERCEPTOR, ADAPTIVE",
+    "the decision not to relax the capacity bar if the CI proves demanding at this population size"
+  ],
+
+  "immutability": "After any SRCTF measurement exists, none of the above may change."
+}

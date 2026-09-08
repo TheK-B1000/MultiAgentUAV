@@ -1,0 +1,77 @@
+{
+  "record": "Decision-leverage diagnostic result",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-04T20:58:20Z",
+  "device": "cuda",
+  "implements": "DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json",
+  "student": "85dbaeef409d7e5422d4f4fa4b28c5b61fa9059d2c728c6c0b6c75406cd19d2d",
+  "selection": {
+    "per_cell": 10,
+    "min_remaining": 40,
+    "min_step": 5,
+    "rule": "deterministic evenly-spaced stride over (episode, step)-sorted eligible pool",
+    "shortfalls": {
+      "z1_poleA/mismatch": {
+        "available": 4,
+        "requested": 10
+      },
+      "z1_poleB/mismatch": {
+        "available": 2,
+        "requested": 10
+      }
+    },
+    "n_selected": 66,
+    "n_completed": 66,
+    "n_skipped": 0
+  },
+  "counterfactuals": {
+    "mismatch": "LATENT-matched teacher action (z0->pi_A, z1->pi_B)",
+    "agreement": "student's own runner-up legal macro -- a DECISION-SENSITIVITY REFERENCE, not a matched control"
+  },
+  "RESULTS": {
+    "mismatch": {
+      "n": 26,
+      "L_margin": {
+        "mean": -0.038461538461538464,
+        "lcb95": -0.15384615384615385,
+        "ucb95": 0.07692307692307693
+      },
+      "L_win": {
+        "mean": -0.038461538461538464,
+        "lcb95": -0.15384615384615385,
+        "ucb95": 0.07692307692307693
+      },
+      "abs_L_margin": {
+        "mean": 0.11538461538461539,
+        "lcb95": 0.0,
+        "ucb95": 0.23076923076923078
+      }
+    },
+    "agreement": {
+      "n": 40,
+      "L_margin": {
+        "mean": 0.125,
+        "lcb95": -0.1,
+        "ucb95": 0.4
+      },
+      "L_win": {
+        "mean": 0.1,
+        "lcb95": 0.0,
+        "ucb95": 0.225
+      },
+      "abs_L_margin": {
+        "mean": 0.325,
+        "lcb95": 0.125,
+        "ucb95": 0.575
+      }
+    }
+  },
+  "bootstrap": {
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "branch point"
+  },
+  "IS_NOT_A_GATE": "measurement only; crossover remains the only scientific gate",
+  "licensed_reading": "see DLD_TERMINOLOGY_AND_LICENSED_READING_AMENDMENT.json -- a large gap may mean mismatch decisions occur where swapping between two COMPETENT strategies has unusually large downstream consequences; it may NOT be read as 'mismatch states are more important than agreement states'"
+}

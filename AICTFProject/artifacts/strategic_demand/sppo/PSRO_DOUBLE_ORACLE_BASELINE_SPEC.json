@@ -1,0 +1,86 @@
+{
+  "record_id": "PSRO_DOUBLE_ORACLE_BASELINE_SPEC",
+  "name": "PSRO / Double-Oracle population baseline (System 3)",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-06T15:05:00Z",
+  "authority": "PI, 2026-09-06, citing VGC-Bench (Angliss et al.) and the NeurIPS 2023 StarCraft II league-training work: 'your three main systems should be Mixed PPO (no latent), Latent-conditioned policy (our method), PSRO / Double-Oracle policy population, and keep the separate specialists as an oracle/reference ceiling, not as the third baseline.'",
+
+  "timing_disclosure": {
+    "when": "written before any PSRO code exists and before any PSRO seed is spent.",
+    "visible_when_written": ["the complete 2v2 confirmatory chain (pi_G, pi_A/pi_B, Rung 1 latent policy)", "the existing FP infrastructure and its smoke record (FP_SMOKE_RESULT.json, FP_SMOKE_PASS 9/9)", "the ladder and robustness results to date"],
+    "NOT_visible_when_written": ["any PSRO population, payoff matrix, meta-strategy, or evaluation result"]
+  },
+
+  "WHY_THIS_REPLACES_THE_SPECIALISTS_AS_SYSTEM_3": {
+    "problem_shared_by_both_approaches": "what do we do when one strategic behavior is not sufficient across diverse opponents?",
+    "PSRO_answer": "keep MULTIPLE independent policies plus a meta-strategy over them: {pi_1..pi_k} + Nash distribution",
+    "our_answer": "encode multiple strategic modes INSIDE one policy: pi_theta(a|s,z)",
+    "why_the_comparison_is_sharp": "both solve the same problem with opposite capacity strategies. Beating an ordinary mixed-PPO generalist only shows conditioning helps; matching a population-based method while sharing ~98% of parameters is a performance-versus-compression result, which is a stronger claim.",
+    "specialists_are_reclassified": "pi_A / pi_B become an ORACLE / REFERENCE CEILING (how much specialization exists when parameter sharing is removed entirely), NOT a competing algorithm. Existing specialist records are unchanged; only their label in the comparison table changes."
+  },
+
+  "THE_FOUR_SYSTEMS": {
+    "1_mixed_ppo_generalist": "pi_G(a|s), trained 50/50 against Pole A and Pole B. The ablation: if latent beats this, conditioning matters.",
+    "2_latent_conditioned_OURS": "pi_theta(a|s,z), z0->A, z1->B. Judged by the same crossover gate used throughout: delta_A > 0 and delta_B > 0, both LCB95 > 0.",
+    "3_psro_double_oracle": "a population {pi_1..pi_k} with an empirical payoff matrix and a Nash meta-strategy over it. The literature-strength baseline.",
+    "reference_ceiling": "pi_A, pi_B separate specialists -- reported as an oracle bound, not a competing system."
+  },
+
+  "ALGORITHM_FROZEN_BEFORE_IMPLEMENTATION": {
+    "loop": ["1. initialise the population", "2. evaluate the empirical payoff matrix over all population pairs", "3. solve for a meta-strategy (Nash) over the population", "4. train a best response against the meta-strategy-weighted mixture", "5. add the response to the population", "6. repeat for a FROZEN number of iterations"],
+    "n_iterations": 4,
+    "why_4": "bounded before any result is seen, chosen for compute feasibility against the 2026-09-15 deadline rather than tuned. The stopping point is frozen here so the population cannot be grown until it happens to win.",
+    "meta_strategy_solver": "Nash equilibrium of the empirical zero-sum payoff matrix, computed by linear programming; if the LP is degenerate or unavailable, uniform is used and that substitution is RECORDED in the result, never silently applied.",
+    "best_response_training": "the same PPO recipe used everywhere else (run_g0_v5_long::build_config family), unchanged. 1,000,000 steps per best response, matching the specialist budget.",
+    "payoff_matrix": "win rate of row policy against column policy, evaluated on a frozen seed block, symmetric-zero-sum by construction (payoff[j][i] = 1 - payoff[i][j] is NOT assumed; both directions are measured)."
+  },
+
+  "WHAT_ALREADY_EXISTS_VERIFIED_NOT_ASSUMED": {
+    "snapshot_opponent_seam": "core.set_next_opponent('SNAPSHOT', <path>) -> _load_snapshot_policy -> _get_red_snapshot_actions. Verified.",
+    "snapshot_POOL_training": "cfg.snapshot_opponent_pool = (paths...) trains against a sampled population. SMOKE-VERIFIED 9/9 in FP_SMOKE_RESULT.json (FP_SMOKE_PASS): preload, subset, coverage, episode-hold, boundaries, determinism, no-silent-None, provenance, and learning+roundtrip, at 24k steps against a 2-checkpoint pool. This is the single most important reusable piece and it is already proven.",
+    "separate_rng_stream": "snapshot picks use pool.snapshot_rng (seed+902), deliberately NOT the scripted-opponent rng, so enabling a population cannot shift the scripted opponent sequence for a given seed.",
+    "fail_closed_loadability_guard": "gpu_env/state/snapshots.py swallows load errors and returns None, which would leave red UNPILOTED while training looked healthy -- a counterfeit success. Both _sample_snapshot_opponents and run_fictitious_play.py::assert_loadable raise instead. Any PSRO code MUST preserve this guard; a silently unpiloted opponent would corrupt every payoff-matrix entry."
+  },
+
+  "WHAT_MUST_BE_BUILT": {
+    "1_weighted_snapshot_sampling": "snapshot sampling is currently UNIFORM: rng.integers(0, len(snapshots)) in rl/custom_ppo/curriculum_runtime.py::_sample_snapshot_opponents. PSRO requires sampling proportional to the Nash meta-strategy. Adds an optional weights field; absent weights must reproduce today's uniform behaviour EXACTLY, so fictitious play and the passing FP smoke are unaffected.",
+    "2_empirical_payoff_matrix": "evaluate every ordered population pair on a frozen seed block. Does not exist.",
+    "3_nash_meta_strategy_solver": "LP over the empirical matrix. Does not exist.",
+    "4_psro_iteration_loop": "orchestrates 1-3 plus best-response training and population growth, with per-iteration provenance. Does not exist.",
+    "note_on_run_fictitious_play_py": "its trailing note says 'SNAPSHOT-pool training wiring is the remaining step'. That note is STALE with respect to run_fp_smoke.py, which drove pool training end-to-end via cfg.snapshot_opponent_pool and passed 9/9. The mechanism exists; run_fictitious_play.py simply never wired itself to it."
+  },
+
+  "SEEDS": {
+    "psro_2v2_best_response_base": 15000001,
+    "psro_2v2_payoff_eval_block": "15200001..15200064",
+    "psro_2v2_final_eval_block": "15400001..15400064",
+    "allocation_rule": "best response for iteration k uses base + k. Payoff and final evaluation blocks are disjoint from each other and from every prior allocation.",
+    "disjointness_verified": "exact-literal grep of 15000001 / 15200001 / 15400001 against every JSON under artifacts/strategic_demand/, artifacts/strategic_demand/sppo/ and artifacts/vgc_fp/: ZERO hits. Verified immediately before this record was committed.",
+    "larger_team_sizes": "NOT allocated here. 4v4 and 6v6 PSRO seeds are allocated only if and when those sizes are actually scheduled, to avoid reserving blocks that may never be spent."
+  },
+
+  "EVALUATION": {
+    "final_comparison": "all systems evaluated on the SAME frozen block (15400001..15400064) against both poles, so the three-way comparison is paired rather than three independent averages.",
+    "population_deployment_rule": "the PSRO population is deployed under its Nash meta-strategy -- the mixture IS the system. Reporting the population's best single member against each pole would be selecting on the test set and is explicitly forbidden.",
+    "reported_quantities": ["per-pole win rate for each system", "the parameter count of each system (the compression axis: one shared network vs k independent policies)", "the crossover statistic for the latent system, unchanged"],
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7 -- unchanged from every other evaluation in this program."
+  },
+
+  "HONESTY_CONSTRAINTS": {
+    "no_designing_psro_to_lose": "PSRO is configured to the faithful algorithm, not to a weakened variant. If a design choice materially advantages the latent method, it is recorded and justified in this spec BEFORE results exist, or it is not made.",
+    "outcome_neutrality": "all outcomes are publishable and pre-committed: latent beats both; latent beats the generalist but trails PSRO while using one compact network (a performance-versus-compression result); latent matches PSRO at ~98% parameter sharing (the cleanest story). None of these is treated as a failure.",
+    "compute_asymmetry_must_be_reported": "PSRO trains k policies; the latent method trains one. Wall-clock and parameter count are reported alongside win rates so the comparison is not silently unfair in either direction."
+  },
+
+  "SCOPE_AND_SEQUENCING": {
+    "first_target": "2v2 ONLY. It is the only team size where the other three systems already exist (pi_G, pi_A/pi_B, the Rung 1 latent policy), so one PSRO run completes the full four-system comparison there.",
+    "4v4_and_6v6": "CONDITIONAL on remaining time. Neither currently has pi_G or a latent policy, so PSRO alone would not complete their comparison tables.",
+    "known_open_gap": "train_specialist_scale.py supports --policy A|B only; pi_G (the generalist, System 1) is NOT wired for 4v4/6v6. Any scaled three-system comparison needs that gap closed first."
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": ["running PSRO at 4v4 or 6v6", "allocating 4v4/6v6 PSRO seeds", "changing the crossover gate, the bootstrap, or any existing frozen record", "modifying uniform snapshot sampling behaviour when weights are absent", "growing the population beyond the frozen 4 iterations"],
+
+  "SEQUENCE": "freeze this spec -> add weighted snapshot sampling (uniform-preserving) -> build payoff matrix + Nash solver -> smoke the loop on tiny budgets with non-scientific seeds -> run 2v2 PSRO -> evaluate all four systems on the shared frozen block -> report with parameter counts and compute cost alongside win rates"
+}

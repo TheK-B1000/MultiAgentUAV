@@ -1,0 +1,25 @@
+{
+  "probe": "G0-v2 all-tag-reward ablation",
+  "status": "ABORTED_PROCESS_EXIT_NO_RESULT",
+  "aborted_utc": "2026-08-02",
+  "seeds": [
+    2800001,
+    2800002,
+    2800003
+  ],
+  "progress_at_abort": {
+    "2800001": "8192/300000",
+    "2800002": "6144/300000",
+    "2800003": "4096/300000"
+  },
+  "cause": "parent Claude Code process exited; runs killed at 2-3% completion",
+  "results_produced": "NONE \u2014 first TASK_HEALTH panel is at 50k; no seed reached it",
+  "partial_artifacts": "DELETED \u2014 must not be resumed or cited as evidence",
+  "deleted_paths": [
+    "artifacts\\g0_v2_alltag_ablation\\g0_v2_alltag0_seed2800001",
+    "artifacts\\g0_v2_alltag_ablation\\g0_v2_alltag0_seed2800002",
+    "artifacts\\g0_v2_alltag_ablation\\g0_v2_alltag0_seed2800003"
+  ],
+  "decision": "not restarted; completed probes already establish the structural reward-budget problem",
+  "gate_status": "PROBE_GATE_FROZEN.json retained unused for provenance"
+}

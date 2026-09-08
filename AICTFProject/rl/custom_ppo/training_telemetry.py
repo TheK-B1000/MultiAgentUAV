@@ -501,6 +501,21 @@ class TrainingTelemetry:
             "reward_failure": float(er.get("reward_failure", info.get("reward_failure", 0.0)) or 0.0),
             "reward_total": float(er.get("reward_total", info.get("reward_total", 0.0)) or 0.0),
         }
+        identity = getattr(runtime, "run_identity", None)
+        if identity is None:
+            from rl.ruleset_identity import build_formal_run_identity
+
+            # Production always injects identity before the first rollout. Unit
+            # tests that construct trainers directly may omit it; resolve from
+            # the live env rather than inventing from cfg defaults.
+            identity = build_formal_run_identity(
+                runtime.env,
+                run_id=str(getattr(getattr(runtime, "cfg", None), "run_tag", "") or "episode"),
+            )
+            runtime.run_identity = identity
+        from rl.ruleset_identity import stamp_csv_row
+
+        row = stamp_csv_row(row, identity)
         _write_csv_row(hparams.episode_csv_path, _episode_fieldnames(), row)
 
     def rollout_episode_summary(self) -> dict[str, Any]:

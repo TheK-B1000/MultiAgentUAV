@@ -110,6 +110,12 @@ from rl.presets.plan_faithful import (
     apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
+    apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    apply_plan_faithful_latent_v6i23_population_birth,
+    apply_v6i24_full_policy_population,
+    apply_v6i26_latent_response_oracle,
+    apply_v6i26_lro_actor_step_ablation,
+    apply_v6i26_phase_pod_population,
     apply_plan_faithful_latent_v6i4_router_ablation_protocol,
     apply_plan_faithful_latent_v6i3_strategy_local_comm,
     apply_plan_faithful_latent_v6i1_repertoire_only_ablation,
@@ -147,8 +153,25 @@ from rl.presets.other import (
     apply_latent_op3_wrmax_1m,
     apply_latent_op3_wrmax_train_2m,
 )
+from rl.presets.rasrppo import (
+    apply_rasrppo_r1_regime_scorer,
+    apply_rasrppo_r2_private_critic,
+    apply_rasrppo_r3_directed_identity,
+    apply_rasrppo_s0_same_block_control,
+)
 
 PRESET_REGISTRY = {
+    # RASR-PPO supervised-compression ladder. SUMMER-COMPATIBLE EXTENSION;
+    # deliberately no paper-/Summer-/plan-faithful aliases.
+    "rasrppo_s0_same_block_control": apply_rasrppo_s0_same_block_control,
+    "rasrppo_s0": apply_rasrppo_s0_same_block_control,
+    "rasrppo_r1_regime_scorer": apply_rasrppo_r1_regime_scorer,
+    "rasrppo_r1": apply_rasrppo_r1_regime_scorer,
+    "rasrppo_r2_private_critic": apply_rasrppo_r2_private_critic,
+    "rasrppo_r2": apply_rasrppo_r2_private_critic,
+    "rasrppo_r3_directed_identity": apply_rasrppo_r3_directed_identity,
+    "rasrppo_r3": apply_rasrppo_r3_directed_identity,
+
     # Plan-faithful family
     "plan_faithful_latent": apply_plan_faithful_latent,
     "plan_faithful_latent_persist_entropy": apply_plan_faithful_latent,
@@ -636,6 +659,27 @@ PRESET_REGISTRY = {
     "v6i22d_coef005": apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
     "latent_v6i22d_strong_behavior_diversity_coef005": apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
     "plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005": apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
+    "v6i22e_fixed_alpha_adapters": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    "v6i22e": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    "latent_v6i22e_fixed_alpha_adapters": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    "plan_faithful_latent_v6i22e_fixed_alpha_adapters": apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    "v6i23_population_birth": apply_plan_faithful_latent_v6i23_population_birth,
+    "v6i23": apply_plan_faithful_latent_v6i23_population_birth,
+    "latent_v6i23_population_birth": apply_plan_faithful_latent_v6i23_population_birth,
+    "plan_faithful_latent_v6i23_population_birth": apply_plan_faithful_latent_v6i23_population_birth,
+    "v6i24_full_policy_population": apply_v6i24_full_policy_population,
+    "v6i24": apply_v6i24_full_policy_population,
+    "latent_v6i24_full_policy_population": apply_v6i24_full_policy_population,
+    "plan_faithful_latent_v6i24_full_policy_population": apply_v6i24_full_policy_population,
+    "v6i26_latent_response_oracle": apply_v6i26_latent_response_oracle,
+    "v6i26": apply_v6i26_latent_response_oracle,
+    "v6i26_lro": apply_v6i26_latent_response_oracle,
+    "latent_v6i26_latent_response_oracle": apply_v6i26_latent_response_oracle,
+    "plan_faithful_latent_v6i26_latent_response_oracle": apply_v6i26_latent_response_oracle,
+    "v6i26_phase_pod_population": apply_v6i26_phase_pod_population,
+    "v6i26_lro_actor_step_ablation": apply_v6i26_lro_actor_step_ablation,
+    "v6i26_actor_step": apply_v6i26_lro_actor_step_ablation,
+    "v6i26_actor_step_ablation": apply_v6i26_lro_actor_step_ablation,
     "v6i6_strategy_expansion": apply_plan_faithful_latent_v6i6_strategy_expansion,
     "v6i6": apply_plan_faithful_latent_v6i6_strategy_expansion,
     # v6i4 evaluation-only router-ablation protocol over a promoted v6i2 checkpoint.

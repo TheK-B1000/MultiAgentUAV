@@ -1,0 +1,48 @@
+{
+  "record_id": "NEXT_CONFIRMATION_BLOCK_RESERVED",
+  "status": "RESERVED_PRISTINE",
+  "reserved_utc": "2026-08-18T09:20:00Z",
+  "reserved_for": "the next SEARCH_OBJECTIVE_V2 / OBSERVABILITY_V2 confirmation",
+
+  "block": {
+    "seed_base": 6000001,
+    "n": 64,
+    "range": "6000001..6000064",
+    "why_64": "OBSERVABILITY_V2_CONFIRMATION_N=64, ratified 2026-08-18"
+  },
+
+  "why_reserved_before_a_candidate_exists": "reserving the block now, before the retargeted search has produced anything, removes the possibility of choosing a block after seeing which one flatters a result. It is the same discipline as freezing the candidate before confirmation.",
+
+  "audit": {
+    "tool": "scripts/audit_seed_block.py --base 6000001 --n 64",
+    "record": "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_6000001.json",
+    "verdict": "CLEAN",
+    "checks": [
+      "declared seeds: 0 in range",
+      "any-integer scan: 0 in range",
+      "declared block spans overlapping: 0",
+      "git history across all branches: 0 commits",
+      "positive control (known-dirty 2600001) returned hits, so the empty result is a true negative"
+    ]
+  },
+
+  "search_block_separate": {
+    "range": "2420001+ (V2_SEED_BASE in strategic_demand_searcher_v2.py)",
+    "declared_seeds_in_range": 0,
+    "note": "the 5 integers found in 2420001..2422000 are CSV payload values in metrics and pressure-anchor files, not seeds. Search seeds are never confirmation seeds."
+  },
+
+  "block_ledger": {
+    "2500001": "PERMANENTLY DISQUALIFIED -- collides with training run g0_v2_seed2500001",
+    "2600001": "PERMANENTLY DISQUALIFIED -- collides with g0_v2 penalty-ablation training seeds",
+    "5000001..5000032": "SPENT -- SDS_G1_4 confirmation, NOT_VALIDATED",
+    "6000001..6000064": "RESERVED, PRISTINE -- next confirmation"
+  },
+
+  "rules": [
+    "confirmation is 64 from the start; no peeking at 32 and extending",
+    "if the next confirmation fails at 64, it fails -- no rescue extension",
+    "re-audit this block immediately before spending it, since new artifacts land continuously",
+    "once spent, this block is retired like 5000001"
+  ]
+}

@@ -1,0 +1,128 @@
+{
+  "record_id": "CANDIDATE_A_SDS_G1_4",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-18T06:05:00Z",
+  "frozen_before": "any episode of confirmation block 2500001 is run",
+  "decided_by": "PI decision: STOP V1, freeze SDS_G1_4, prepare 2500001 confirmation",
+  "what_this_is": "The first evolved opponent to satisfy every frozen development-eligibility criterion. This is a DISCOVERY milestone, NOT scientific confirmation. Search numbers are not Gate B evidence.",
+  "candidate_genome": {
+    "genome_id": "SDS_G1_4",
+    "derived_from": "SDS_INIT_0",
+    "lineage": "OP6 -> SDS_PARENT_OP6 -> SDS_INIT_0 -> SDS_G1_4",
+    "base_opponent": "OP6",
+    "overlay": {
+      "defender_zone_frac": 0.38651033731859585,
+      "threat_radius": 1.039531459222271
+    },
+    "opening_hold_steps": 0,
+    "canonical_registry_untouched": "OP6-OP12 are never overwritten; this is an overlay on the OP6 dispatch key"
+  },
+  "development_result_not_gate_B": {
+    "stage": 2,
+    "n_paired": 16,
+    "seed_base": 2410121,
+    "guard_wr": 0.625,
+    "breach_wr": 0.1875,
+    "delta_G": 0.4375,
+    "J": 0.3125,
+    "mean_intent_minus_commit": 16.625,
+    "precommitment_uncertain": true,
+    "frac_0_0": 0.5,
+    "mean_total_score": 1.375,
+    "degeneracy_penalty": 0.125,
+    "stage1_delta_G": 0.375,
+    "delta_B_anchor": 0.625,
+    "development_eligible": true,
+    "confirmation_2500001": false
+  },
+  "eligibility_check_all_three_frozen_criteria": {
+    "delta_G_gt_promote": "0.4375 > 0.05  PASS",
+    "precommitment_uncertain": "gap +16.625 > 0  PASS",
+    "J_gt_zero": "0.3125 > 0  PASS",
+    "source": "development_eligible() in experiments/sds_genome.py, imported unchanged"
+  },
+  "stop_discipline": {
+    "why_v1_was_stopped_manually": "The frozen protocol says a development-eligible candidate triggers STOP and human review. V1's implementation only writes summary.json after all 6 generations, so it kept searching past eligibility. That is an ORCHESTRATION BUG, not permission to continue. Generations 3-6 must not influence which candidate is selected.",
+    "stopped_utc": "2026-08-18T06:05:00Z",
+    "stop_order": "chain supervisor -> watchdog -> worker. Chain first so a deliberate stop could not be mislabelled as an infrastructure failure; watchdog second so it could not relaunch the worker.",
+    "archive_rows_at_stop": 23,
+    "SDS_G1_4_index": 18,
+    "rows_evaluated_after_eligibility": [
+      {
+        "genome_id": "SDS_G1_5",
+        "tag": "gen2",
+        "delta_G": -0.375,
+        "J": -0.375,
+        "eligible": false
+      },
+      {
+        "genome_id": "SDS_G2_0",
+        "tag": "gen3",
+        "delta_G": -0.75,
+        "J": -0.75,
+        "eligible": false
+      },
+      {
+        "genome_id": "SDS_G2_1",
+        "tag": "gen3",
+        "delta_G": -0.375,
+        "J": -0.375,
+        "eligible": false
+      },
+      {
+        "genome_id": "SDS_G2_2",
+        "tag": "gen3",
+        "delta_G": 0.0,
+        "J": -0.359,
+        "eligible": false
+      }
+    ],
+    "post_eligibility_rows_status": "RETAINED FOR PROVENANCE, EXCLUDED FROM CANDIDATE SELECTION",
+    "selection_cannot_have_been_cherry_picked": "SDS_G1_4 is the ONLY development-eligible row among all 23. Every post-eligibility row is strictly worse on delta_G (-0.750 to +0.000). There was no better candidate to prefer, so 'searched until the nicest one appeared' is not an available objection."
+  },
+  "confirmation_package_frozen": {
+    "ruleset": "RULESET_V3_M1 (own_flag_home_required_to_score=True; everything else RULESET_V2_AQUATICUS_10S)",
+    "A_pole": "SDS_G1_4 (this genome)",
+    "B_pole": "OP7 canonical (BREACH anchor)",
+    "GUARD_response": "BLUE_ONE_DEFENDER_V2",
+    "BREACH_response": "BLUE_BOTH_ATTACK_V2",
+    "map": "map_a",
+    "team_size": "2v2",
+    "horizon": 240,
+    "intent_definition": ">=2 live untagged RED agents all on BLUE's home side, persisting INTENT_PERSIST=4 consecutive steps; engine _is_on_home_side predicate; opponent identity never an input",
+    "commitment_definition": ">=2 live untagged BLUE agents all on RED's home side",
+    "confirmation_seed_block": 5000001,
+    "confirmation_block_status_at_freeze": "VERIFIED UNUSED across declared seeds, all-integer scan, declared block spans, and full git history on all branches. See CONFIRMATION_BLOCK_AUDIT_5000001.json.",
+    "confirmation_seed_range": "5000001..5000032 (32 paired seeds)",
+    "seed_block_amendment": {
+      "amended_from": 2500001,
+      "record": "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
+      "reason": "pre-confirmation audit found 2500001 was already used to train g0_v2_seed2500001. The replacement candidate 2600001 was also rejected (g0_v2 penalty-ablation training seeds 2600001-2600003).",
+      "prospective": "no confirmation episode had been run and no SDS_G1_4 confirmation result existed; the candidate was already frozen first, so this change cannot have been influenced by any outcome",
+      "scope": "the ONLY field changed. Genome, ruleset, poles, responses, definitions, thresholds, degeneracy rules, bootstrap, and episode count are untouched."
+    }
+  },
+  "gate_B_criteria_unchanged": {
+    "A_pole": "WR(GUARD, SDS_G1_4) - WR(BREACH, SDS_G1_4) >= 0.15 AND LCB95 > 0",
+    "B_pole": "WR(BREACH, OP7) - WR(GUARD, OP7) >= 0.15 AND LCB95 > 0",
+    "observability": "t_intent > t_commit under the frozen legal-observation definition",
+    "all_required": "V3_STRATEGIC_DEMAND = VALIDATED only if every criterion passes on untouched 2500001",
+    "thresholds_not_moved": "0.15 floor and LCB95>0 are unchanged from the original Gate B freeze"
+  },
+  "prohibited_from_here": [
+    "mutating SDS_G1_4 or searching for a higher delta_G",
+    "re-running V1 to 'improve' the candidate",
+    "moving the 0.15 floor or the LCB95 requirement",
+    "using any post-eligibility row for selection",
+    "training PPO, specialists, a selector, or a latent policy",
+    "treating the development numbers above as Gate B evidence"
+  ],
+  "known_open_item": {
+    "state_machine_bug": "consider() should terminate the search on development_eligible rather than continue to the next generation. Fix AFTER this run, before any future search. Do not alter the current archive or re-run V1 to test the fix.",
+    "v1_silent_crashes": "two unexplained deaths earlier in the run; watchdog captured no third crash. Cause still unknown but restarts were proven deterministic (SDS_INIT_0 reproduced byte-for-byte), so the evidence chain is intact.",
+    "disqualified_blocks": {
+      "2500001": "permanently disqualified for strategic-demand confirmation",
+      "2600001": "permanently disqualified for strategic-demand confirmation"
+    }
+  }
+}

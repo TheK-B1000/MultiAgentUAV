@@ -1,0 +1,113 @@
+{
+  "protocol": "v6i26_strict_lro_screen_classification",
+  "date": "2026-07-25",
+  "run_dir": "AICTFProject/artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1",
+  "candidate_branch": 1,
+  "locked_target_json": "artifacts/v6i26_z1_op8_op12_v2_locked_recipe_seed1/locked_response_target.json",
+  "selected_checkpoint": "artifacts\\v6i26_z1_op8_op12_v2_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z1_u4_seed1.zip",
+  "selected_update": 4,
+  "selected_fixed_batch_kl": 0.0011741563212126493,
+  "sample_class": "SCREENING_ONLY_4_EPISODES_PER_CELL",
+  "strict_label": "PROMISING_DIRECTION_NOT_ACCEPT",
+  "acceptance_verdict": "REJECT_FOR_NOW",
+  "router_training_authorized": false,
+  "gates": {
+    "movement_kl_in_window": true,
+    "small_screen_oracle_margin_gap_positive": true,
+    "small_screen_oracle_wr_advantage_positive": false,
+    "small_screen_stage_c_passed": false,
+    "behavior_distance_mean_ge_0_35": false,
+    "any_behavior_pair_ge_0_35": false,
+    "confirmation_32_eps_completed": false,
+    "confidence_interval_above_zero": false,
+    "multi_seed_repetition": false,
+    "z1_policy_divergence_above_duplicate_noise_floor": true,
+    "z1_policy_divergence_strong_distinct_band": false
+  },
+  "metrics": {
+    "best_fixed_z": 1,
+    "best_fixed_wr": 1.0,
+    "oracle_wr": 1.0,
+    "wr_advantage": 0.0,
+    "best_fixed_margin": 1.375,
+    "oracle_margin": 1.625,
+    "margin_advantage": 0.25,
+    "oracle_gap_margin": 0.25,
+    "matched_episode_count": 32,
+    "forced_z_behavior_pair_distance_mean": 0.1298930317424019,
+    "forced_z_behavior_pair_distance_max": 0.21823672777931483,
+    "forced_z_behavior_pair_distance_min": 0.04729861064146784,
+    "unique_best_z_count": 2,
+    "unique_best_z_values": [
+      0,
+      1
+    ]
+  },
+  "interpretation": "The z1 branch selected a checkpoint inside the fixed-batch KL window and showed a small positive margin oracle gap, but the screening run does not beat best fixed on win rate, behavior distance remains far below 0.35, and the run has only 4 episodes per cell. This nominates a possible direction only; it does not prove strategy birth or authorize router training.",
+  "next_step": "Closed for one-seed focus. Preserve as negative/weak directional screen; do not launch router, strict confirmation, per-z value-head retry, or seed replication from this result alone.",
+  "policy_level_divergence_diagnostic": {
+    "artifact": "AICTFProject/artifacts/v6i26_z1_op8_op12_v2_kl_ladder_seed1/policy_divergence_z1_u4.txt",
+    "observation_batch_samples": 1024,
+    "candidate_branch": 1,
+    "candidate_pairs": {
+      "z0_vs_z1": {
+        "logit_l2_mean": 0.52914,
+        "per_head_argmax_disagreement": [
+          0.499,
+          0.5,
+          0.4805,
+          0.7285
+        ],
+        "per_head_jsd": [
+          0.000175,
+          0.000316,
+          0.000222,
+          0.000318
+        ]
+      },
+      "z1_vs_z2": {
+        "logit_l2_mean": 0.5474,
+        "per_head_argmax_disagreement": [
+          0.54,
+          0.999,
+          0.7773,
+          1.0
+        ],
+        "per_head_jsd": [
+          0.000228,
+          0.000343,
+          0.000233,
+          0.000333
+        ]
+      },
+      "z1_vs_z3": {
+        "logit_l2_mean": 0.62896,
+        "per_head_argmax_disagreement": [
+          0.459,
+          1.0,
+          0.3789,
+          1.0
+        ],
+        "per_head_jsd": [
+          0.000144,
+          0.000446,
+          0.000138,
+          0.000452
+        ]
+      }
+    },
+    "calibrated_duplicate_policy_noise_floor": {
+      "same_checkpoint_clone_band_logit_l2": "about 0.3-0.4 from prior same-checkpoint diagnostic text",
+      "strong_prior_cross_checkpoint_distinct_band_logit_l2": "about 2.9 from z0u3-vs-z3 diagnostic text",
+      "interpretation": "z1-u4 is above the clone-like local band but far below the prior strong-distinct band; JSD is tiny. Treat as weak-to-moderate policy-level divergence, not strategy proof."
+    },
+    "strict_gate_effect": "Policy-level divergence partially softens the behavior-distance failure, but does not override failed win-rate complementarity, small sample count, missing CI, missing seed replication, or coarse behavior threshold failure."
+  },
+  "closeout_status": "STOPPED_ONE_SEED_WEAK_DIRECTIONAL_SCREEN",
+  "closed_followons": {
+    "router_training": true,
+    "strict_32_episode_confirmation": true,
+    "per_z_value_head_retry": true,
+    "seed2_seed3_replication_for_current_focus": true
+  }
+}

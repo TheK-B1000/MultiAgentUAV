@@ -1,0 +1,56 @@
+{
+  "record_id": "ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT",
+  "name": "2v2 deployment robustness: dose-response extension to the HIGH tier, two families only",
+  "status": "FROZEN_BEFORE_RUN",
+  "utc": "2026-09-07T00:52:00Z",
+  "authority": "PI, 2026-09-06/07: 'Maybe the noise is too low. A higher noise can show real degradation.' then 'we could test stronger noise levels ... reveal where robustness actually starts to break down. Yes. For the first 2. The last level is fine.' -- read as: extend localization_noise and motion_error to the HIGH tier; leave control_delay at its already-run MEDIUM tier, no control_delay_high cell.",
+
+  "amends": "ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT.json#NOT_AUTHORIZED_BY_THIS_RECORD, which explicitly reserved 'low or high severity tiers' as 'a separately frozen additive dose-response extension, only if time remains after the primary result lands'. The primary result has landed and is sealed: ROBUSTNESS_2V2_RUNG1_RESULT.json (status FROZEN_RESULT). This record is that separate freeze, scoped narrowly to what the PI actually asked for.",
+
+  "timing_disclosure": {
+    "when": "written after ROBUSTNESS_2V2_RUNG1_RESULT.json was sealed and after the medium-tier figure (paper/generated/robustness_2v2_rung1_bars.*) was reviewed.",
+    "what_was_already_visible": "the medium-tier finding that no R_A/R_B interval at 95% clears zero for motion_error or control_delay -- i.e. medium may simply be too weak to statistically resolve real degradation.",
+    "why_this_is_not_post_hoc_tuning": "the HIGH tier's numeric values (sensor_noise=0.12, drift=0.12, delay_ticks=4) were frozen in DEPLOYMENT_ROBUSTNESS_SPEC.json#TIERS before ANY 2v2 robustness episode of any severity was ever run (see that spec's own provenance note: 0.12 matches the codebase's pre-existing domain-randomization ceiling dr_sensor_noise_sigma_max). This record selects an already-fully-specified tier; it does not invent, adjust, or fit a new severity value to the medium-tier outcome."
+  },
+
+  "SCOPE_DECISION": {
+    "localization_noise_high": "AUTHORIZED -- sensor_noise=0.12 cells (z0@A, z1@A, z0@B, z1@B)",
+    "motion_error_high": "AUTHORIZED -- drift=0.12 cells (z0@A, z1@A, z0@B, z1@B)",
+    "control_delay_high": "NOT AUTHORIZED by this record. PI: 'the last level is fine' -- read as leaving control_delay at its already-run medium tier (2 ticks / 1.0s) rather than extending to high (4 ticks / 2.0s). control_delay_medium's own result stands as final for this study.",
+    "cells_added": 8,
+    "episodes_added": "2 families x 1 severity x 4 cells x 128 seeds = 1024 episodes",
+    "nominal": "NOT re-run. Nominal is severity- and family-invariant ('everything off'), so the nominal CSVs already collected under ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT.json (same checkpoint, same seed block) are reused unchanged as the baseline for R_A(high)/R_B(high). Re-running it would waste 512 episodes reproducing identical data and would in fact be refused outright by the script's own collision guard, which checks every target file before running anything."
+  },
+
+  "SEED_BLOCK": {
+    "block": "13400001..13400128 -- the SAME block already reserved for this study, not a new spend.",
+    "reasoning": "ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT.json already established 'the SAME 128 seeds are used for nominal and for all three perturbations, so every perturbed condition is paired seed-by-seed against nominal.' The high-tier cells are additional conditions within that same paired design, not a different study -- reusing the seeds is what makes R_A(high)/R_B(high) a within-seed contrast against the SAME nominal trajectories already on disk, exactly as medium was. This is not the reuse the block's 'robustness_only' restriction forbids (training / ladder eval / certification / a different purpose); it is the paired design working as designed."
+  },
+
+  "POLICY_UNDER_TEST": {
+    "checkpoint": "artifacts/strategic_demand/sppo/sharing_ladder/rung1/ckpts/final_rung1.pt",
+    "sha256": "815f818ac11f0546ecdaf77988f39cce2b9ea8b273acde58e6f752c8c0bdc7d1",
+    "frozen": "identical checkpoint to the medium-tier study. Not retrained, fine-tuned, or reselected."
+  },
+
+  "CODE_CHANGE_DISCLOSURE": {
+    "file": "experiments/eval_deployment_robustness.py",
+    "change": "added --families (subset of localization_noise/motion_error/control_delay; default all three, unchanged) and --skip-nominal (default False, unchanged) to build_matrix() and the CLI. Both default to the exact pre-existing behavior -- verified by --plan-only producing the identical 10-cell matrix as before the change.",
+    "why_needed": "build_matrix() previously always emitted all 3 families and always included nominal; there was no way to request 'high severity for exactly 2 named families, reusing an existing nominal' without either wastefully running control_delay_high (not authorized above) or colliding on the already-existing nominal file (which would refuse the entire run before any episode executes)."
+  },
+
+  "PRIMARY_QUANTITIES": {
+    "per_condition_crossover": "identical definition to the medium-tier study: delta_A = V(z0,A) - V(z1,A), delta_B = V(z1,B) - V(z0,B), gate PASS iff both means > 0 AND both LCB95 > 0.",
+    "paired_degradation_vs_nominal": "R_A(high) = delta_A(high) - delta_A(nominal), R_B(high) = delta_B(high) - delta_B(nominal), computed within seed against the SAME already-collected nominal cells.",
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7, seed as the resampling unit -- identical to every other gate in this program."
+  },
+
+  "QUEUING": {
+    "gpu_state_at_freeze_time": "single shared GPU currently running exploratory_pi_B_specialist_4v4 training (step ~700000/1000000 as of this record's utc, exploratory arm, unrelated to this study). Per this program's single-executor discipline, this sweep is queued to launch automatically once that job's terminal checkpoint (1000000) is written, not run concurrently against it.",
+    "estimated_wait": "~85 minutes at the measured ~59 steps/sec observed between the 600000 and 700000 checkpoints."
+  },
+
+  "STOPPING_RULE": "exactly one severity extension (high), for exactly these two families, on this one checkpoint. No further tiers, families, or checkpoints are authorized by this record. Any further dose-response work requires its own freeze.",
+
+  "SEQUENCE": "freeze this record (done) -> wait for exploratory_pi_B_specialist_4v4 to reach its terminal checkpoint -> run 2 families x 1 severity x 4 cells on the frozen block, reusing existing nominal -> report per-condition gate AND paired R_A(high)/R_B(high) against nominal, in the same frozen order used for medium -> update the figure/caption only after the result is sealed."
+}

@@ -1,0 +1,105 @@
+{
+  "G_before": 0.022321428571428603,
+  "G_after": 0.0,
+  "delta_G": -0.022321428571428603,
+  "bootstrap_n": 2000,
+  "bootstrap_mean_delta_G": -0.013750000000000004,
+  "CI95_low": -0.1830357142857142,
+  "CI95_high": 0.1696428571428572,
+  "CI95_delta_G_gt_0": false,
+  "n_cells_bootstrapped": 56,
+  "episodes_hint": {
+    "before_rows": 1792,
+    "after_rows": 1792
+  },
+  "protocol": {
+    "episodes_per_cell": 32,
+    "opponents": [
+      "OP6_IMMEDIATE_DUAL_RUSH",
+      "OP7_DEEP_FORTRESS",
+      "OP8_PROTECTED_CARRIER_ESCORT",
+      "OP9_SPLIT_LANE_FEINT",
+      "OP10_AGGRESSIVE_INTERCEPTOR",
+      "OP11_ADAPTIVE_EXPLOITER",
+      "OP12_LATE_CONVERTER"
+    ],
+    "maps": [
+      "map_b_split_lane",
+      "map_b_split_lane_v2"
+    ],
+    "base_seed": 1,
+    "init_checkpoint": "artifacts/v6i23_population_birth_5u_seed1/final_v6i23_population_birth_5u_seed1_2v2.zip",
+    "final_checkpoint": "artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip",
+    "promotion_rule": "CI95_low(delta_G) > 0"
+  },
+  "candidate_branch": 3,
+  "strategy_distinctness": {
+    "behavior_measurement_valid": true,
+    "behavior_distance_threshold": 0.35,
+    "behavior_vector_names": [
+      "attack_lane_preference",
+      "return_lane_preference",
+      "interception_pressure",
+      "escort_allocation",
+      "team_spread",
+      "objective_entry_timing",
+      "role_allocation"
+    ],
+    "valid_z_indices": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "branch_idx": 3,
+    "branch_nearest_behavior_distance": 0.08237053186416786,
+    "branch_nearest_behavior_neighbor": 2,
+    "branch_behavior_nonredundant": false,
+    "behavior_pair_count": 6,
+    "behavior_pair_distance_min": 0.0067971915291650436,
+    "behavior_pair_distance_mean": 0.12078491711907048,
+    "behavior_pair_distance_max": 0.2267390976612866,
+    "behavior_pairs_above_threshold": 0,
+    "behavior_pairs": [
+      {
+        "z_i": 0,
+        "z_j": 1,
+        "distance": 0.1587396267265822,
+        "above_threshold": false
+      },
+      {
+        "z_i": 0,
+        "z_j": 2,
+        "distance": 0.16140981404959218,
+        "above_threshold": false
+      },
+      {
+        "z_i": 0,
+        "z_j": 3,
+        "distance": 0.2267390976612866,
+        "above_threshold": false
+      },
+      {
+        "z_i": 1,
+        "z_j": 2,
+        "distance": 0.0067971915291650436,
+        "above_threshold": false
+      },
+      {
+        "z_i": 1,
+        "z_j": 3,
+        "distance": 0.088653240883629,
+        "above_threshold": false
+      },
+      {
+        "z_i": 2,
+        "z_j": 3,
+        "distance": 0.08237053186416786,
+        "above_threshold": false
+      }
+    ],
+    "verdict": "BEHAVIOR_DISTINCT_FAIL"
+  },
+  "verdict": "PHASE2_HOLD_OR_FAIL",
+  "phase2_strategy_verdict": "PHASE2_STRATEGY_HOLD_OR_FAIL"
+}

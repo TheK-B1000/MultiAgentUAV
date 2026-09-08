@@ -1,0 +1,112 @@
+{
+  "protocol_id": "STRATEGY_ANCHORED_PPO_V1",
+  "status": "FROZEN_BEFORE_ANY_TRAINING_STEP",
+  "frozen_utc": "2026-08-19T21:15:00Z",
+  "decided_by": "PI ruling after R2 NOT CONFIRMED and the representability probe PASS",
+  "predecessors": {
+    "R2": "artifacts/strategic_demand/R2_RESULT_NOT_CONFIRMED.json (670bc828)",
+    "R2b": "CANCELLED_BY_PI_BEFORE_TRAINING",
+    "representability": "artifacts/strategic_demand/sappo_representability/summary.json"
+  },
+
+  "question": "Does persistent rehearsal of the validated strategic behaviour fix PPO's tendency to converge away from it?",
+
+  "why_this_is_justified": {
+    "representability_probe": {
+      "pole_A_projected_gap": 0.40625,
+      "pole_B_projected_gap": 0.5625,
+      "learned_R2_gaps": {"A": 0.0833, "B": 0.0625},
+      "reading": "the 50-waypoint action abstraction expresses the GUARD/BREACH separation at 5-8x the magnitude vanilla PPO learned. The representation is not what erased the strategies; PPO failed to settle into the basins.",
+      "limit": "this is a ROUTING test, not a strategic validation. The projected controllers are not validated substitutes for the V3 teachers."
+    },
+    "postmortem": {
+      "matched_state_action_disagreement": 0.6281,
+      "reading": "pi_A and pi_B are strongly distinct in action space but occupy similar strategic territory. The missing ingredient is strategic separation, not behavioural variety."
+    }
+  },
+
+  "deliberately_boring_V1": [
+    "no coefficient search", "no decay schedule", "no latent variable",
+    "no diversity loss", "no reward shaping", "no architecture change"
+  ],
+
+  "frozen_hyperparameters": {
+    "lambda_anchor": 0.10,
+    "cadence": "1 anchor minibatch after every 4 PPO actor minibatches",
+    "fixed_for_entire_continuation": true,
+    "why_not_decayed": "a decay schedule would introduce a second explanation for any result. V1 asks one question only.",
+    "loss": "L_actor = L_PPO + 0.10 * L_anchor, where L_anchor = -log pi_theta(a_projected_teacher | o)"
+  },
+
+  "demonstration_datasets": {
+    "labels_collected_only_when": "blue_commit_ticks_left <= 0 (a macro decision is actually available)",
+    "why": "supervision must exist only where the policy had a choice. Locked steps would swamp the dataset with redundant labels and distort the anchor objective.",
+    "pi_A_anchor": "pole A + projected GUARD teacher -> (obs, PPO-waypoint action)",
+    "pi_B_anchor": "pole B + projected BREACH teacher -> (obs, PPO-waypoint action)",
+    "no_opposite_examples": "the opposite projected controllers were needed for the representability probe only. SAPPO's job is pi_A <- GUARD and pi_B <- BREACH.",
+    "seeds": "training-only, disjoint from 7800001..7800192 and from every evaluation block",
+    "split": {"train": 0.90, "diagnostic": 0.10,
+              "fixed_before_training": true,
+              "purpose": "the 10% split measures teacher-action agreement ONLY. It is not another strategic gate."}
+  },
+
+  "continuation": {
+    "resume_not_restart": true,
+    "pi_A": "final_r1_pi_A_specialist_seed7100001.zip -> +500,000 steps -> 1.5M cumulative",
+    "pi_B": "final_r1_pi_B_specialist_seed7200001.zip -> +500,000 steps -> 1.5M cumulative",
+    "held_identical": [
+      "RULESET_V3_M1", "pole A genome and pole B", "training seeds (7100001 / 7200001)",
+      "custom PPO configuration", "reward V5", "observation space",
+      "macro action interface", "starting checkpoints"
+    ],
+    "only_change": "the anchor rehearsal term"
+  },
+
+  "required_logging": [
+    "ordinary PPO actor/critic diagnostics",
+    "anchor cross-entropy",
+    "teacher-action agreement (train)",
+    "teacher-action agreement (held-out 10% diagnostic split)",
+    "requested and resolved opponent",
+    "genome/profile assertion result",
+    "number of PPO updates",
+    "number of anchor updates",
+    "ACTUAL ratio of anchor updates to PPO updates -- measured, not assumed from the intended cadence",
+    "starting checkpoint hash",
+    "terminal checkpoint hash"
+  ],
+
+  "checkpoint_discipline": {
+    "scored": "the 1.5M TERMINAL checkpoint only",
+    "prohibited": "no checkpoint selection across the continuation"
+  },
+
+  "evaluation": {
+    "block": "7800001..7800192 (audited CLEAN, untouched)",
+    "procedure": "identical to R2: same paired design, same frozen bootstrap (rng 7, n_boot 20000, alpha 0.05)",
+    "delta_A": "WR(pi_A^SAPPO, A) - WR(pi_B^SAPPO, A)",
+    "delta_B": "WR(pi_B^SAPPO, B) - WR(pi_A^SAPPO, B)",
+    "gate": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0",
+    "nothing_from_the_probe_can_rescue_this": "the representability result licenses the experiment, not its outcome"
+  },
+
+  "if_it_passes": {
+    "claim": "PPO CAN preserve and optimize explicit strategic modes when strategically anchored",
+    "next": "go DIRECTLY to K=2 latent compression using the two SAPPO policies as teachers; z=0 -> GUARD, z=1 -> BREACH, z sampled once per episode and held fixed",
+    "do_not": "train more standalone specialists"
+  },
+
+  "if_it_fails": {
+    "rule": "STOP V1. No coefficient tweaking after seeing 7800001, no further +500k, no second anchor cadence.",
+    "conclusion": "action-level projection can express the strategies, but simple behavioural anchoring is insufficient to make PPO preserve a reliable repertoire",
+    "next": "move supervision upward to strategy-level allocation/commitment rather than motor cloning"
+  },
+
+  "prohibited": [
+    "changing V3, M1, rewards, observation space, PPO hyperparameters, or opponent definitions",
+    "using any evaluation block for demonstrations",
+    "tuning lambda_anchor or the cadence after seeing any result",
+    "scoring a non-terminal checkpoint",
+    "training a latent policy before the gate passes"
+  ]
+}

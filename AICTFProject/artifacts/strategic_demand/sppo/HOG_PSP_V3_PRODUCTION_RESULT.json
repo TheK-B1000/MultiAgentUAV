@@ -1,0 +1,607 @@
+{
+  "record": "H-OG-PSP V3 production run",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-31T17:09:27Z",
+  "implements": "HOG_PSP_V3_SPEC.json",
+  "VERDICT": "COMPLETE",
+  "termination_reason": null,
+  "seed": 11300001,
+  "total_timesteps": 1000000,
+  "fresh_step_0": true,
+  "private_capacity": {
+    "enable_latent_z_residual": true,
+    "latent_population_birth_per_z_action_heads": true,
+    "latent_lro_deep_branches": true,
+    "latent_z_residual_alpha": 1.0
+  },
+  "paired_rehearsal": {
+    "bank": {
+      "states": 4949,
+      "eligible": 1804,
+      "A_preferred": 929,
+      "B_preferred": 875,
+      "tied_excluded_from_sampling": 3145,
+      "eligible_with_teacher_disagreement": 1182,
+      "teacher_disagreement_frac": 0.6552,
+      "targets_per_batch_state": 2
+    },
+    "lambda": 0.1,
+    "cadence": 4,
+    "batch_states": 64,
+    "updates": 1351,
+    "telemetry": {
+      "state_exposures_total": 86464,
+      "replay_factor": 47.93,
+      "mean_exposures_per_state": 47.93,
+      "min_exposures": 28,
+      "max_exposures": 73,
+      "never_sampled": 0,
+      "latent_exposures": {
+        "z0": 86464,
+        "z1": 86464
+      },
+      "latent_exposure_balance": "exactly equal by construction: every sampled state trains both latents",
+      "tied_exposures": 0
+    }
+  },
+  "trajectory_identity": {
+    "lambda": 0.05,
+    "discriminator_sha256": {
+      "A": "9db10300bdc0a7ca6ba83e4d56b4b7985a7d43f32f2d21fc58ada53b28c11449",
+      "B": "cec52555cbfb89baed906a081c5234c3c3941ce9146a1826424d4b3c791f77dc"
+    },
+    "held_out_accuracy": {
+      "A": 0.953125,
+      "B": 0.96875
+    },
+    "updates": 243,
+    "episodes_flushed": 4236,
+    "rollouts_seen": 245,
+    "by_cell": {
+      "z0|A": 2138,
+      "z1|B": 2098
+    },
+    "last_loss": -0.005578578449785709,
+    "episodes_dropped_too_long": 0,
+    "calls": 243,
+    "episodes_scored": 4236,
+    "baselines": {
+      "z0|A": -0.0063,
+      "z1|B": -4.1104
+    },
+    "log_prob_clip": -5.0,
+    "baseline_ema": 0.1,
+    "unit_of_credit": "full episode"
+  },
+  "treatment_invariants": {
+    "tied_exposures": 0,
+    "latent_exposures_equal": true,
+    "legacy_one_sided_path_calls": 0
+  },
+  "coverage": {
+    "envs_observed": 32,
+    "expected_envs": 32,
+    "min_resets_required": 2,
+    "min_resets_observed": 129,
+    "envs_with_reset": 32,
+    "total_mismatches": 0,
+    "per_env": {
+      "0": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "1": {
+        "closes": 135,
+        "resets": 134,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "2": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "3": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "4": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "5": {
+        "closes": 132,
+        "resets": 131,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "6": {
+        "closes": 135,
+        "resets": 134,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "7": {
+        "closes": 134,
+        "resets": 133,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "8": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "9": {
+        "closes": 134,
+        "resets": 133,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "10": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "11": {
+        "closes": 134,
+        "resets": 133,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "12": {
+        "closes": 134,
+        "resets": 133,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "13": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "14": {
+        "closes": 134,
+        "resets": 133,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "15": {
+        "closes": 135,
+        "resets": 134,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "16": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "17": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "18": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "19": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "20": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "21": {
+        "closes": 132,
+        "resets": 131,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "22": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "23": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "24": {
+        "closes": 130,
+        "resets": 129,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "25": {
+        "closes": 132,
+        "resets": 131,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "26": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "27": {
+        "closes": 130,
+        "resets": 129,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "28": {
+        "closes": 132,
+        "resets": 131,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "29": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "30": {
+        "closes": 132,
+        "resets": 131,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "31": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      }
+    },
+    "failures": [],
+    "passed": true
+  },
+  "EVAL_touched": false,
+  "authorizes": "nothing further; EVAL is a separate frozen decision"
+}

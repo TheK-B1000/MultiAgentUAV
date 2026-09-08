@@ -1,0 +1,82 @@
+{
+  "protocol": "op12_confirmed_escort_response_trace",
+  "blue_probe_protocol": "BLUE_PROBES_V2",
+  "blue_style": "BLUE_ESCORT",
+  "red": "OP12_LATE_CONVERTER",
+  "map": "map_b_split_lane",
+  "base_seed": 556001,
+  "episode_indices": [
+    0,
+    7
+  ],
+  "response": "OFF vs ON paired within identical episode seeds",
+  "paired": [
+    {
+      "episode_index": 0,
+      "episode_seed": 556001,
+      "off_margin": -3,
+      "on_margin": -3,
+      "delta_margin": 0,
+      "off_confirmation_step": 21,
+      "on_confirmation_step": 21,
+      "off_steps": 192,
+      "on_steps": 221
+    },
+    {
+      "episode_index": 7,
+      "episode_seed": 556008,
+      "off_margin": -2,
+      "on_margin": -2,
+      "delta_margin": 0,
+      "off_confirmation_step": 22,
+      "on_confirmation_step": 22,
+      "off_steps": 240,
+      "on_steps": 240
+    }
+  ],
+  "summaries": [
+    {
+      "episode_index": 0,
+      "episode_seed": 556001,
+      "response_enabled": 0,
+      "blue_score": 0,
+      "red_score": 3,
+      "win_margin": -3,
+      "steps": 192,
+      "confirmation_step": 21
+    },
+    {
+      "episode_index": 0,
+      "episode_seed": 556001,
+      "response_enabled": 1,
+      "blue_score": 0,
+      "red_score": 3,
+      "win_margin": -3,
+      "steps": 221,
+      "confirmation_step": 21
+    },
+    {
+      "episode_index": 7,
+      "episode_seed": 556008,
+      "response_enabled": 0,
+      "blue_score": 0,
+      "red_score": 2,
+      "win_margin": -2,
+      "steps": 240,
+      "confirmation_step": 22
+    },
+    {
+      "episode_index": 7,
+      "episode_seed": 556008,
+      "response_enabled": 1,
+      "blue_score": 0,
+      "red_score": 2,
+      "win_margin": -2,
+      "steps": 240,
+      "confirmation_step": 22
+    }
+  ],
+  "artifacts": [
+    "trace_rows.csv"
+  ]
+}

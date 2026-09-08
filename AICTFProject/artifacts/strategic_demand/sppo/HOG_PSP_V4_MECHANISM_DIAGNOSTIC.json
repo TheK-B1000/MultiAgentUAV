@@ -1,0 +1,336 @@
+{
+  "record": "H-OG-PSP V4 mechanism diagnostic",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-01T01:07:37Z",
+  "implements": "HOG_PSP_V4_MECHANISM_DIAGNOSTIC_SPEC.json",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/hog_psp_v4_production/ckpts/final_hog_psp_v4_production.zip",
+    "sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+    "hard_bound_in_script": true
+  },
+  "STRICTLY_NOT_A_GATE": "Does not select checkpoints, alter the treatment, or decide whether EVAL runs. A weak, degraded or reversed reading does NOT withhold the payoff EVAL.",
+  "READING": "TRAJECTORY_IDENTITY_PARTIAL",
+  "meaning": "Correct, confident separation on only one pole; or correct point ordering on both without confidence on both.",
+  "PRESERVATION_LABEL": "IDENTITY_DEGRADED",
+  "THE_QUESTION": "Did splitting the critic preserve the strategy identities V3 established?",
+  "INTEGRITY_CHECKS_ALL_PASSED": {
+    "wrong_checkpoint": "sha256 matches the constant hard-bound in the script, the frozen record, and the bytes on disk",
+    "wrong_architecture_loaded": {
+      "critic_private_z_heads": true,
+      "private_head_parameters": [
+        "head_V0.bias",
+        "head_V0.weight",
+        "head_V1.bias",
+        "head_V1.weight"
+      ]
+    },
+    "wrong_latent_routing": {
+      "episodes_with_live_latent_verified": 128,
+      "of": 128,
+      "how": "policy.strategy_info() after every episode: strategy == requested z, strategy_fixed True, strategy_batch uniform"
+    },
+    "broken_discriminator_provenance": {
+      "sha256": {
+        "A": "9db10300bdc0a7ca6ba83e4d56b4b7985a7d43f32f2d21fc58ada53b28c11449",
+        "B": "cec52555cbfb89baed906a081c5234c3c3941ce9146a1826424d4b3c791f77dc"
+      },
+      "classes_verified": "[0, 1] for both D",
+      "unchanged_after_measurement": true
+    },
+    "corrupted_CALIB_execution": {
+      "episodes_scored": 128,
+      "zero_length_episodes": 0,
+      "non_finite_scores": 0
+    }
+  },
+  "sign_convention_reasserted_at_runtime": "decision_function positive = pi_B-like; classes_ verified [0,1] for both D",
+  "LAYER_1_state_level": {
+    "n_resolvable": 145,
+    "z0_z1_jsd_nats": 0.08192162030890326,
+    "crossed_teacher_match": {
+      "A_preferred": {
+        "z0_own": 0.7736842105263158,
+        "z1_crossed": 0.7605263157894737,
+        "gap_pp": 1.3157894736842035,
+        "n": 95
+      },
+      "B_preferred": {
+        "z1_own": 0.92,
+        "z0_crossed": 0.86,
+        "gap_pp": 6.000000000000005,
+        "n": 50
+      }
+    },
+    "reference": {
+      "V1_CALIB_jsd_nats": 0.006589,
+      "OG_PSP_CALIB_jsd_nats": 0.042102,
+      "V3_CALIB_jsd_nats": 0.10862136199379918
+    }
+  },
+  "LAYER_2_trajectory_identity": {
+    "delta_tau_A": {
+      "mean": 0.9808876528608086,
+      "lcb95": 0.5302332647162973,
+      "ucb95": 1.4553566247810172,
+      "n": 32,
+      "passes": true
+    },
+    "delta_tau_B": {
+      "mean": 0.11169528703196238,
+      "lcb95": -0.36112779265897865,
+      "ucb95": 0.5964668928729623,
+      "n": 32,
+      "passes": false
+    },
+    "descriptive": {
+      "z0|A": {
+        "mean_raw_score": -0.731779989197378,
+        "pct_classified_pi_B_like": 37.5,
+        "pct_classified_pi_A_like": 62.5
+      },
+      "z0|B": {
+        "mean_raw_score": 0.9823558534846841,
+        "pct_classified_pi_B_like": 90.625,
+        "pct_classified_pi_A_like": 9.375
+      },
+      "z1|A": {
+        "mean_raw_score": 0.24910766366343048,
+        "pct_classified_pi_B_like": 56.25,
+        "pct_classified_pi_A_like": 43.75
+      },
+      "z1|B": {
+        "mean_raw_score": 1.0940511405166466,
+        "pct_classified_pi_B_like": 96.875,
+        "pct_classified_pi_A_like": 3.125
+      },
+      "pct_seeds_different_label_pole_A": 31.25,
+      "pct_seeds_different_label_pole_B": 12.5
+    },
+    "per_seed_scores": {
+      "z0|A": {
+        "10700097": -1.0062733679817184,
+        "10700098": -2.161603605530854,
+        "10700099": 1.1694502128385094,
+        "10700100": -1.6092176861120828,
+        "10700101": -2.6406428551858347,
+        "10700102": 0.5982652441572825,
+        "10700103": -0.42737056690018194,
+        "10700104": -1.2322004179038122,
+        "10700105": -1.4682036986818972,
+        "10700106": -0.4286134527425963,
+        "10700107": -0.7263837424052612,
+        "10700108": -1.3004261331662184,
+        "10700109": -2.1153880257142386,
+        "10700110": 0.13944358003973,
+        "10700111": -3.8250625231726048,
+        "10700112": -3.005275924090666,
+        "10700113": -2.3682554779543676,
+        "10700114": -1.0388451634961684,
+        "10700115": 0.4887811784394831,
+        "10700116": 0.7511923453100354,
+        "10700117": -1.417591052746645,
+        "10700118": -0.9955400336507307,
+        "10700119": 0.6571249178555741,
+        "10700120": 0.6657315768021915,
+        "10700121": 1.1154520502125962,
+        "10700122": 0.9172056146565745,
+        "10700123": 0.2688040471142529,
+        "10700124": 1.0596696107683234,
+        "10700125": -0.6052715063230186,
+        "10700126": -1.9058058688349364,
+        "10700127": -1.1445764236187097,
+        "10700128": 0.17446749370189618
+      },
+      "z0|B": {
+        "10700097": 2.8340482680167467,
+        "10700098": 0.765842341222437,
+        "10700099": 0.527443389719217,
+        "10700100": 0.9332786945622604,
+        "10700101": 0.6177813877216651,
+        "10700102": 1.614446538210084,
+        "10700103": 2.5527782922625035,
+        "10700104": -0.24070118762288614,
+        "10700105": 0.682036271030974,
+        "10700106": 0.28553750047892135,
+        "10700107": 3.2191864927768545,
+        "10700108": 1.299401094142468,
+        "10700109": 0.11402399623180351,
+        "10700110": -3.5339650314495157,
+        "10700111": 3.199917429237381,
+        "10700112": 1.1778978039774304,
+        "10700113": 1.0883691032618905,
+        "10700114": 2.221393565937872,
+        "10700115": 1.1096837793630197,
+        "10700116": 0.40504080360166284,
+        "10700117": 0.8190476376426181,
+        "10700118": 1.0116865540605697,
+        "10700119": 0.21955085822599588,
+        "10700120": 0.8069431810314682,
+        "10700121": 0.45964894565883174,
+        "10700122": 1.3661941705370044,
+        "10700123": 0.6800959830130942,
+        "10700124": -0.10184781393081385,
+        "10700125": 2.538076013979624,
+        "10700126": 1.0891598160300178,
+        "10700127": 0.7849372035301115,
+        "10700128": 0.8884542290485806
+      },
+      "z1|A": {
+        "10700097": 0.1530181517375424,
+        "10700098": 0.7014860822858165,
+        "10700099": -0.5230389756290982,
+        "10700100": -0.2604734621062975,
+        "10700101": -0.4273980791460228,
+        "10700102": 0.15601630994643323,
+        "10700103": 0.07536698355062366,
+        "10700104": -0.6407914136051228,
+        "10700105": -0.9111186613988704,
+        "10700106": 0.44037435512329215,
+        "10700107": -0.0454171624456704,
+        "10700108": -0.37260581269311077,
+        "10700109": -0.8463535057885774,
+        "10700110": -1.0596489904547397,
+        "10700111": -0.18646121911996327,
+        "10700112": 1.8557076576054907,
+        "10700113": -0.2961175638185533,
+        "10700114": 0.3968607688601372,
+        "10700115": 2.410990607273169,
+        "10700116": 0.28343200417907277,
+        "10700117": 0.4023881246354962,
+        "10700118": -0.22382595022642243,
+        "10700119": 0.7291866429002672,
+        "10700120": 0.9775203778414926,
+        "10700121": 0.8172364060590757,
+        "10700122": 0.6133899311283392,
+        "10700123": 2.0397072606030706,
+        "10700124": 1.4248821547536865,
+        "10700125": -0.5577551316780974,
+        "10700126": 0.4451598523566823,
+        "10700127": -0.07261064704034603,
+        "10700128": 0.4723381415409792
+      },
+      "z1|B": {
+        "10700097": 0.9585846606592479,
+        "10700098": 2.3394442479749302,
+        "10700099": 1.1019395695785361,
+        "10700100": 0.287024537273023,
+        "10700101": 1.6785378535269662,
+        "10700102": 2.433478736539636,
+        "10700103": 2.580164648446258,
+        "10700104": 1.3492760798030508,
+        "10700105": 0.4978329282847018,
+        "10700106": 1.1803031400020771,
+        "10700107": 0.1997304325085714,
+        "10700108": 0.8716984889889869,
+        "10700109": 1.2303821381993096,
+        "10700110": 0.6355330184164594,
+        "10700111": 1.035831018028656,
+        "10700112": 1.434967319244894,
+        "10700113": 0.9830493240876996,
+        "10700114": 1.065834075394163,
+        "10700115": 1.1705453114781745,
+        "10700116": 1.5900188094117504,
+        "10700117": -0.6889591250619651,
+        "10700118": 0.3494242803339078,
+        "10700119": 2.023411986252682,
+        "10700120": 1.6122869842170549,
+        "10700121": 0.482423478035502,
+        "10700122": 0.7580340410098434,
+        "10700123": 1.0898915642851568,
+        "10700124": 1.5902677833703,
+        "10700125": 0.6797099082055671,
+        "10700126": 2.021797385295914,
+        "10700127": 0.2025074760290513,
+        "10700128": 0.2646643967125818
+      }
+    }
+  },
+  "LAYER_3_teacher_reference": {
+    "teacher": {
+      "A": {
+        "pi_A_mean": -2.7095671799006924,
+        "pi_B_mean": 3.101885150854265,
+        "delta_tau_teacher": 5.811452330754957,
+        "n_episodes": 32
+      },
+      "B": {
+        "pi_A_mean": -3.542545438435877,
+        "pi_B_mean": 3.2177399628994827,
+        "delta_tau_teacher": 6.760285401335359,
+        "n_episodes": 32
+      }
+    },
+    "ratio_R": {
+      "A": 0.16878528757257877,
+      "B": 0.016522273898362222
+    },
+    "R_equals_1_is_NOT_required": true
+  },
+  "V4_vs_V3_DESCRIPTIVE": {
+    "DESCRIPTIVE_ONLY": "Point differences against V3. No magnitude threshold exists; none of these can change the READING or the PRESERVATION_LABEL. A smaller JSD than V3 is not automatically a problem if long-horizon identity remains clearly separated.",
+    "V3_reading": "TRAJECTORY_IDENTITY_CONFIRMED",
+    "V4_reading": "TRAJECTORY_IDENTITY_PARTIAL",
+    "jsd_nats": {
+      "V3": 0.10862136199379918,
+      "V4": 0.08192162030890326,
+      "V4_minus_V3": -0.026699741684895917
+    },
+    "crossed_gap_A_pp": {
+      "V3": 2.894736842105272,
+      "V4": 1.3157894736842035
+    },
+    "crossed_gap_B_pp": {
+      "V3": 8.000000000000007,
+      "V4": 6.000000000000005
+    },
+    "delta_tau_A": {
+      "V3": 6.44647322888893,
+      "V4": 0.9808876528608086,
+      "V3_lcb95": 5.655349209925033,
+      "V4_lcb95": 0.5302332647162973
+    },
+    "delta_tau_B": {
+      "V3": 6.7794536738711795,
+      "V4": 0.11169528703196238,
+      "V3_lcb95": 5.1031693590259986,
+      "V4_lcb95": -0.36112779265897865
+    },
+    "ratio_R": {
+      "V3": {
+        "A": 1.1092706025950452,
+        "B": 1.0028354235654064
+      },
+      "V4": {
+        "A": 0.16878528757257877,
+        "B": 0.016522273898362222
+      }
+    }
+  },
+  "rollouts": {
+    "seeds": [
+      10700097,
+      10700128
+    ],
+    "n_seeds": 32,
+    "cells": [
+      "z0|A",
+      "z1|A",
+      "z0|B",
+      "z1|B"
+    ],
+    "episodes": 128,
+    "why_full_cross": "scoring only z0-on-A and z1-on-B would tangle opponent back into identity; the probe measured that shortcut at exactly 1.0000"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seed-level scores",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "CALIB seed",
+    "code_object": "imported from diagnose_hog_psp_v3_mechanism, not copied"
+  },
+  "feature_space_note": "N_ACTION_BINS=48 truncates head 1's alphabet (0..49). D was FITTED under this truncation and reached 0.9531/0.9688. The diagnostic reproduces the frozen feature space exactly.",
+  "V4_EVAL_touched": false,
+  "authorizes": "nothing; opening EVAL 11400101..11400132 requires a separate PI decision"
+}

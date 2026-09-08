@@ -1,0 +1,23 @@
+{
+  "record_id": "HOG_PSP_V3_EVAL_RUNNING_PROVENANCE",
+  "status": "RUNNING",
+  "utc": "2026-08-31T18:47:42Z",
+  "pid": 74744,
+  "working_directory": "K:\\MultiAgentUAV\\AICTFProject",
+  "command": "C:\\Users\\K-B\\AppData\\Local\\Programs\\Python\\Python312\\python.exe experiments/eval_hog_psp_v3.py --device cuda",
+  "evaluator_freeze_commit": "d9aabac0",
+  "mechanism_freeze_commit": "df144084",
+  "checkpoint_sha256": "9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69",
+  "seed_block": "11300101..11300132",
+  "episodes": 192,
+  "stdout": "artifacts/strategic_demand/sppo/hog_psp_v3_eval.stdout.log",
+  "stderr": "artifacts/strategic_demand/sppo/hog_psp_v3_eval.stderr.log",
+  "timeout": null,
+  "first_runtime_evidence": {
+    "checkpoint_sha_verified": true,
+    "seed_block_verified": true,
+    "gate": "BOTH delta lcb95 > 0",
+    "stderr_bytes": 0
+  },
+  "scientific_interpretation": "LOCKED until all six cells and both paired-bootstrap contrasts are complete"
+}

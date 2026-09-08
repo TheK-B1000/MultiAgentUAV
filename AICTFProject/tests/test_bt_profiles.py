@@ -14,6 +14,7 @@ if str(_REPO) not in sys.path:
 from gpu_env._core._bt_profiles import (
     BT_OPPONENT_KEYS,
     BT_PROFILES,
+    LRO_AUDITED_OPPONENT_POOL,
     build_profile_tensors,
     is_bt_opponent,
     normalize_bt_level,
@@ -41,21 +42,26 @@ class TestBTProfileRegistry(unittest.TestCase):
         self.assertEqual(tuple(prof["bt_level"].shape), (4,))
         self.assertEqual(int(prof["bt_level"][0].item()), 5)
         self.assertEqual(int(prof["bt_level"][1].item()), 12)
-        self.assertTrue(prof["enable_escort"][2].item())   # OP7
-        self.assertFalse(prof["enable_counter"][3].item())  # OP9
+        self.assertFalse(prof["enable_escort"][2].item())  # OP7 fortress
+        self.assertFalse(prof["enable_mines"][3].item())  # OP9 feint
 
-    def test_curriculum_escort_progression(self) -> None:
-        self.assertFalse(profile_for_level(5).enable_escort)
-        self.assertTrue(profile_for_level(7).enable_escort)
-        self.assertTrue(profile_for_level(10).enable_escort)
+    def test_audited_pool_escort_pattern(self) -> None:
+        # Fortress (7) and interceptor (10) have no escort; escort niches do.
+        self.assertFalse(profile_for_level(7).enable_escort)
+        self.assertTrue(profile_for_level(8).enable_escort)
+        self.assertFalse(profile_for_level(10).enable_escort)
+        self.assertTrue(profile_for_level(12).enable_escort)
 
-    def test_op12_counter_always(self) -> None:
+    def test_op12_counter_always_op8_does_not(self) -> None:
         self.assertTrue(profile_for_level(12).counter_always)
-        self.assertFalse(profile_for_level(11).counter_always)
+        self.assertFalse(profile_for_level(8).counter_always)
 
     def test_all_bt_keys_in_registry(self) -> None:
         for key in BT_OPPONENT_KEYS:
-            self.assertIsNotNone(normalize_bt_level(key))
+            self.assertIsNotNone(normalize_bt_level(key), key)
+
+    def test_audited_pool_length(self) -> None:
+        self.assertEqual(len(LRO_AUDITED_OPPONENT_POOL), 7)
 
 
 if __name__ == "__main__":

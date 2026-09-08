@@ -1,0 +1,37 @@
+{
+  "record_id": "RUNG1_CONSTRUCTION_6V6_AMENDMENT",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-08T10:00:00Z",
+  "authority": "PI, 2026-09-08: 'We already know which latent-training method works... Implement the successful latent-training recipe directly for 6v6... The purpose of 6v6 is scaling and robustness validation, not rediscovery of the latent mechanism.'",
+
+  "WHY_RUNG_1_SPECIFICALLY": "Rung 1 (shared CNN encoder, 92.3% shared) is the frozen 2v2 result that passed its own crossover gate AND showed NO_DETECTABLE_WITHIN_SEED_LOSS relative to zero-sharing Rung 0 -- the clean preservation result named 'primary System 2' for the paper and the checkpoint used for the entire 2v2 deployment-robustness study. This amendment carries that SAME architecture to 6v6, not a rediscovery sweep across sharing levels. Rung 2/3 (which showed damage or its own gate failure at 2v2) are explicitly NOT ported.",
+
+  "WHAT_IS_UNCHANGED_FROM_TEACHER_DISTILLATION_6V6_SPEC": [
+    "dataset collection mechanics (states, decision mask, seeds 13600001-096 / 13600101-196)",
+    "loss: 0.5*KL(pi_A_6v6 || pi_theta(.|z0)) + 0.5*KL(pi_B_6v6 || pi_theta(.|z1))",
+    "schedule: 20 fixed epochs, batch 256, lr 3e-4, clip 1.0, terminal weights only",
+    "fit-check floor: holdout agreement >= 0.50 for both z",
+    "actor-only optimization; critics excluded and verified immobile"
+  ],
+  "WHAT_THIS_AMENDMENT_ADDS": {
+    "student_architecture": "Rung 1: shared CNN encoder (rl/ladder_rung1.py), everything else private per z -- NOT the plain unshared K=2 architecture TEACHER_DISTILLATION_6V6_SPEC.json's generic 'student' field left unspecified",
+    "preflight": "the SAME 8 mechanical checks run_ladder_rung1_distillation.py already performs at 2v2 (encoder-sharing identity + arithmetic, gradient reaches shared encoder AND both private stacks with none on critic, save/load round-trip) -- architecture-generic, reused unchanged at N=6",
+    "fidelity_band": "NONE inherited from 2v2 (0.957/0.979 has no standing here, per TEACHER_DISTILLATION_6V6_SPEC.json's own fidelity_band note). 6v6 fidelity is reported descriptively; a 6v6 band may only be frozen once at least two converged 6v6 students exist to anchor it."
+  },
+
+  "SEEDS": {
+    "training": [13621001, 13621002],
+    "disjointness_verified": "grep for 13621001/13621002 against every JSON under artifacts/strategic_demand/: zero real hits (one incidental digit match in an unrelated metrics.csv, not a seed-block reference)"
+  },
+
+  "OUTPUT_PATHS": {
+    "checkpoint_dir": "artifacts/strategic_demand/sppo/sharing_ladder_6v6/rung1/ckpts/",
+    "frozen_record": "RUNG1_6V6_STUDENT_FROZEN.json",
+    "preflight_record": "RUNG1_6V6_PREFLIGHT.json",
+    "separation_from_2v2": "no 6v6 artifact may overwrite or be written into the 2v2 sharing_ladder/rung1/ path"
+  },
+
+  "NO_LADDER_RELATIVE_COMPARISON": "unlike the 2v2 ladder's eval_ladder_rung1_matched.py, 6v6 evaluation does NOT compute D_A/D_B relative to a Rung-0 reference (no 6v6 Rung-0 exists, and building one would be exactly the rediscovery work this track is explicitly skipping). 6v6 evaluation is a standalone absolute gate: delta_A = WR(z0,A)-WR(z1,A), delta_B = WR(z1,B)-WR(z0,B), PASS iff both means > 0 AND both LCB95 > 0 -- identical criterion to every specialist crossover eval in this program.",
+
+  "SEQUENCE": "collect the 6v6 dataset (TEACHER_DISTILLATION_6V6_SPEC.json, once pi_A_6v6/pi_B_6v6 exist) -> preflight this Rung-1-at-6v6 construction -> 20-epoch distillation -> freeze -> sealed crossover eval on a fresh block -> freeze -> deployment robustness"
+}

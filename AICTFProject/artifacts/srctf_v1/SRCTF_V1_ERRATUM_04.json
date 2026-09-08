@@ -1,0 +1,57 @@
+{
+  "erratum": "SRCTF v1 — bind the response-supervision prohibition to the trained-conditional gate",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-11T15:10:00Z",
+  "amends": "artifacts/srctf_v1/SRCTF_V1_ERRATUM_03.json (5d4ffd1), repair_2 only",
+
+  "admissibility": {
+    "no_srctf_measurement_exists": true,
+    "no_conditional_policy_implemented": true,
+    "qualification_block_unspent": true
+  },
+
+  "the_gap": {
+    "what_erratum_03_specified": "a matched input slot -- conditional gets [o, regime_slot], pooled baseline gets [o, masked/constant slot] -- so capacity is controlled",
+    "what_it_did_not_specify": "what the regime slot is permitted to CONTAIN, or that the conditional policy must learn from ordinary task reward only",
+    "the_failure_it_would_allow": "if the regime slot carried the scanner's winning response, a counterfactual utility, or any derivative of those labels, the gate would stop testing whether sustained conditional behaviour has value and would instead be measuring response supervision. It would then pass almost by construction, and the pass would mean nothing."
+  },
+
+  "the_binding_constraint": {
+    "inherits_verbatim": "artifacts/o3_preregistration/O3_RESPONSE_SUPERVISION_PROHIBITION.json (46c9e17)",
+    "why_inherited_rather_than_restated": "that document already names this exact class -- it prohibits winning-response labels as 'imitation targets, auxiliary objectives, reward-shaping terms, curriculum labels, POLICY-CONDITIONING SIGNALS, or sampling priorities'. A conditioning slot is a policy-conditioning signal. Re-deriving it risks drift; inheriting it does not.",
+    "srctf_extension": {
+      "the_regime_slot_may_contain": "ONLY the frozen regime identifier -- the preregistered label of which opponent regime the episode is in",
+      "the_regime_slot_may_NEVER_contain": [
+        "the scanner's selected response or any winning-response label",
+        "counterfactual branch utilities or any derivative of them",
+        "the confirmed candidate's response pair",
+        "any quantity computed from the reversal scan"
+      ],
+      "learning_signal": "ordinary task reward ONLY. No imitation, auxiliary, or shaping term derived from any counterfactual label.",
+      "scanner_outputs_are_evaluation_only": "the reversal candidate defines WHICH regimes exist and are labelled. It may not enter the policy, the reward, or the sampling distribution."
+    }
+  },
+
+  "why_this_matters_more_here_than_it_did_for_O3": {
+    "O3": "the prohibition prevented an oracle from being handed the answer at its decision point",
+    "SRCTF_gate_3": "the gate's entire purpose is to measure whether KNOWING THE REGIME is worth anything. If the regime channel also carries what to DO, the gate measures the wrong thing and cannot fail, which would make every downstream gate rest on a vacuous pass.",
+    "consequence": "this is the one place where a leak converts a diagnostic into a foregone conclusion"
+  },
+
+  "required_implementation_assertion": {
+    "before_any_conditional_training_run": "assert the regime slot's admissible value set equals the preregistered regime label set, and that no scanner artifact is reachable from the training graph",
+    "recorded_in": "the gate's result artifact, alongside the matched-capacity check",
+    "fails_closed": true
+  },
+
+  "unchanged": [
+    "TRAINED_CONDITIONAL_TASK_VALUE_PASS iff LCB95[final_task_value(conditional) - final_task_value(matched pooled)] > 0",
+    "final task outcome as the metric, never a screen proxy",
+    "the matched-capacity control (same input slot, masked or constant)",
+    "the gate's position: after fresh confirmation, before observability",
+    "that it is NOT an alternate qualification path",
+    "every other SRCTF criterion"
+  ],
+
+  "immutability": "After any SRCTF measurement exists, none of the above may change."
+}

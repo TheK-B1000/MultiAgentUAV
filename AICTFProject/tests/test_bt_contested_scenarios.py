@@ -26,6 +26,9 @@ from gpu_env._core._bt_red import (
 )
 
 
+_PAST_OPENING_STEP = 25
+
+
 def _core(opponent: str = "OP11", *, n_red: int = 2, n_blue: int = 2, seed: int = 0):
     from game_field_gpu import GPUCTFVecEnv, GPUFieldConfig  # type: ignore[import]
 
@@ -51,6 +54,10 @@ def _core(opponent: str = "OP11", *, n_red: int = 2, n_blue: int = 2, seed: int 
     c.red_alive[0] = True
     c.blue_alive[0] = True
     c.bt_role_lock_ticks[0] = 0
+    # OP8's formation opening and OP12's stage-1 opening force every agent to
+    # ATTACKER for the first sim steps, which would mask the role under test.
+    c.step_count[0] = _PAST_OPENING_STEP
+    c.sim_step_count[0] = _PAST_OPENING_STEP
     return c, env
 
 
@@ -121,7 +128,9 @@ class TestScenario02InterceptInfeasibleCounter(unittest.TestCase):
 
 class TestScenario03CarrierPursuedEscort(unittest.TestCase):
     def test_escort_interposes_between_carrier_and_threat(self) -> None:
-        c, _ = _core("OP10")
+        # OP12 is an escort niche; OP10 is the pure interceptor and has no
+        # escort gate (see the profile table in ``_bt_profiles.py``).
+        c, _ = _core("OP12")
         c.red_carrying[0, 0] = True
         c.red_x[0, 0] = 14.0
         c.red_y[0, 0] = 10.0
@@ -205,7 +214,9 @@ class TestScenario07DefendVsCounter(unittest.TestCase):
 
 class TestScenario08DefenderChokePoint(unittest.TestCase):
     def test_defender_targets_zone_not_flag_home(self) -> None:
-        c, _ = _core("OP6")
+        # OP6 is the dual-rush niche: its ``min_alive_for_defender=3`` means no
+        # defender is ever assigned at 2v2, so use a profile that peels one.
+        c, _ = _core("OP10")
         midline = float(c.cols) * 0.5
         c.blue_x[0, 0] = midline + 2.0
         c.blue_y[0, 0] = 10.0

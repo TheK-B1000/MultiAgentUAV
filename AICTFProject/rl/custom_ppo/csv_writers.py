@@ -131,7 +131,9 @@ def _opponent_legend(cfg: Any, info: dict[str, Any]) -> str:
 
 
 def _episode_fieldnames() -> list[str]:
-    return [
+    from rl.ruleset_identity import CSV_IDENTITY_FIELDS
+
+    base = [
         "episode_id",
         "run_id",
         "run_pid",
@@ -184,10 +186,76 @@ def _episode_fieldnames() -> list[str]:
         "reward_failure",
         "reward_total",
     ]
+    # Formal passport scalars must appear on every row. ``run_id`` is already
+    # present; remaining CSV_IDENTITY_FIELDS are appended without duplicating.
+    for name in CSV_IDENTITY_FIELDS:
+        if name not in base:
+            base.append(name)
+    return base
 
 
 def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
     fields = [
+        # EXP2 online teacher-compression treatment. Unconditional columns make
+        # a configured-but-silent runner visible from the first CSV interval.
+        "exp2_n_ppo_actor_updates",
+        "exp2_n_teacher_updates",
+        "exp2_teacher_to_ppo_ratio",
+        "exp2_teacher_loss",
+        "exp2_teacher_kl",
+        "exp2_teacher_kl_z0",
+        "exp2_teacher_kl_z1",
+        "exp2_teacher_agreement_z0",
+        "exp2_teacher_agreement_z1",
+        "exp2_teacher_rows_z0",
+        "exp2_teacher_rows_z1",
+        "exp2_teacher_active_heads",
+        "exp2_teacher_active_heads_z0",
+        "exp2_teacher_active_heads_z1",
+        "exp2_cell_count_z0_A",
+        "exp2_cell_count_z0_B",
+        "exp2_cell_count_z1_A",
+        "exp2_cell_count_z1_B",
+        "exp2_cell_steps_z0_A",
+        "exp2_cell_steps_z0_B",
+        "exp2_cell_steps_z1_A",
+        "exp2_cell_steps_z1_B",
+        "exp2b_gradient_cosine_last",
+        "exp2b_gradient_cosine_mean",
+        "exp2b_gradient_cosine_p10",
+        "exp2b_gradient_cosine_p50",
+        "exp2b_gradient_cosine_p90",
+        "exp2b_gradient_cosine_count",
+        "exp2c_private_heads_active",
+        "exp2c_private_head_count",
+        "exp2c_head0_max_abs_delta",
+        "exp2c_head1_max_abs_delta",
+        "exp2c_head0_teacher_grad_norm",
+        "exp2c_head1_teacher_grad_norm",
+        # SAPPO V1 rehearsal counters. Present unconditionally so a run with
+        # anchoring silently disabled shows n_anchor_updates=0 in the FIRST
+        # reporting interval instead of completing undetected, which is exactly
+        # how a 2x500k no-op run reached its terminal checkpoints.
+        "sappo_n_ppo_actor_updates",
+        "sappo_n_anchor_updates",
+        "sappo_anchor_to_ppo_ratio",
+        "sappo_anchor_loss",
+        # SPPPO V1 strategic-ranking counters. Same reasoning, same failure mode:
+        # present unconditionally so an inert ranking seam reads
+        # sppo_n_rank_updates=0 in the FIRST interval. delta_A / delta_B are the
+        # quantities the whole method exists to move, so they are logged every
+        # interval rather than reconstructed afterwards. For the lambda_R = 0
+        # control no runner exists, so these stay BLANK -- structural absence,
+        # not zeros emitted by a live runner.
+        "sppo_n_ppo_actor_updates",
+        "sppo_n_rank_updates",
+        "sppo_rank_to_ppo_ratio",
+        "sppo_rank_loss",
+        "sppo_rank_activation_rate",
+        "sppo_delta_A",
+        "sppo_delta_B",
+        "sppo_lambda_rank",
+        "sppo_margin",
         "update",
         "run_id",
         "run_pid",
@@ -730,6 +798,10 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
             "shared_actor_grad_norm",
             "z_specific_max_abs_delta",
             "z_specific_grad_norm",
+            "z_adapter_grad_norm",
+            "z_branch_trunk_grad_norm",
+            "z_action_head_grad_norm",
+            "z_embedding_grad_norm",
             "router_grad_norm",
             "strategy_encoder_grad_norm",
             "critic_grad_norm",
@@ -746,6 +818,8 @@ def _update_fieldnames(use_latent_strategy: bool, latent_k: int) -> list[str]:
         for z_idx in range(latent_k):
             fields.append(f"latent_adapter_gate_z{z_idx}")
             fields.append(f"latent_adapter_weight_delta_z{z_idx}")
+            fields.append(f"latent_branch_trunk_delta_z{z_idx}")
+            fields.append(f"latent_action_head_delta_z{z_idx}")
             fields.append(f"latent_action_bias_norm_z{z_idx}")
             fields.append(f"latent_action_bias_delta_z{z_idx}")
             fields.append(f"z_embedding_delta_z{z_idx}")

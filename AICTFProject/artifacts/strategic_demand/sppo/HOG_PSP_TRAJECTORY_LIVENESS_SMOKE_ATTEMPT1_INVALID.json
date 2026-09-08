@@ -1,0 +1,167 @@
+{
+  "record": "H-OG-PSP smoke 2: trajectory-identity regulariser liveness and purity",
+  "status": "SMOKE_RESULT",
+  "utc": "2026-08-31T14:36:37Z",
+  "VERDICT": "FAIL",
+  "implements": "HOG_PSP_V3_SPEC.json#AMENDMENT_1_COMPONENT_2_MECHANISM",
+  "proves": "Trajectory identity credit is computed from the correct pole-specific frozen discriminator and reaches the acting latent's PRIVATE parameters by policy gradient, without touching any task quantity. Says NOTHING about whether the treatment learns.",
+  "discriminators": {
+    "sha256": {
+      "A": "9db10300bdc0a7ca6ba83e4d56b4b7985a7d43f32f2d21fc58ada53b28c11449",
+      "B": "cec52555cbfb89baed906a081c5234c3c3941ce9146a1826424d4b3c791f77dc"
+    },
+    "held_out_accuracy": {
+      "A": 0.953125,
+      "B": 0.96875
+    },
+    "frozen_after_optimizer_step": true
+  },
+  "unit_of_credit": "full episode; no segment horizon introduced",
+  "pole_routing": [
+    {
+      "z": 0,
+      "pole": "A",
+      "score_correct_D": -0.01131062434557318,
+      "score_wrong_D": -8.349390438984608e-08,
+      "differs": true
+    },
+    {
+      "z": 1,
+      "pole": "B",
+      "score_correct_D": -5.0,
+      "score_wrong_D": -1.4827628150855217,
+      "differs": true
+    },
+    {
+      "z": 0,
+      "pole": "A",
+      "score_correct_D": -1.1783091123960827,
+      "score_wrong_D": -0.0002984523887909943,
+      "differs": true
+    },
+    {
+      "z": 1,
+      "pole": "B",
+      "score_correct_D": -5.0,
+      "score_wrong_D": -1.7490969073189704,
+      "differs": true
+    },
+    {
+      "z": 0,
+      "pole": "A",
+      "score_correct_D": -0.005191950948292506,
+      "score_wrong_D": -1.8981959031410324e-06,
+      "differs": true
+    },
+    {
+      "z": 1,
+      "pole": "B",
+      "score_correct_D": -5.0,
+      "score_wrong_D": -1.297320834375664,
+      "differs": true
+    },
+    {
+      "z": 0,
+      "pole": "A",
+      "score_correct_D": -0.020913935002479338,
+      "score_wrong_D": -2.7293841070691833e-05,
+      "differs": true
+    },
+    {
+      "z": 1,
+      "pole": "B",
+      "score_correct_D": -5.0,
+      "score_wrong_D": -5.0,
+      "differs": false
+    }
+  ],
+  "liveness_by_latent": {
+    "z0": {
+      "episodes": 4,
+      "loss": -0.020577769726514816,
+      "target_identity": "pi_A",
+      "own_private_grad_sum": 0.3486927878111601,
+      "foreign_private_grad_sum": 0.0,
+      "scores": [
+        -0.0113,
+        -1.1783,
+        -0.0052,
+        -0.0209
+      ],
+      "advantages": [
+        0.0,
+        -1.166998,
+        0.122819,
+        0.094815
+      ]
+    },
+    "z1": {
+      "episodes": 4,
+      "loss": 0.0,
+      "target_identity": "pi_B",
+      "own_private_grad_sum": 0.0,
+      "foreign_private_grad_sum": 0.0,
+      "scores": [
+        -5.0,
+        -5.0,
+        -5.0,
+        -5.0
+      ],
+      "advantages": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "purity": {
+    "checks": {
+      "rewards": true,
+      "returns": true,
+      "advantages": true,
+      "value_targets": true,
+      "loss_signature_accepts_no_task_quantity": true
+    },
+    "why_it_matters": "Proof that V3 is not reward-shaped CTF. D's output never enters reward, returns, GAE, or critic targets, so a separation result cannot be dismissed as having paid the latents to imitate the teachers."
+  },
+  "tripwires": {
+    "runner_with_no_episodes": "HARD FAILED as required",
+    "missing_discriminator": "HARD FAILED as required",
+    "mutated_discriminator": "HARD FAILED as required"
+  },
+  "score_stabilisation": {
+    "log_prob_clip": -5.0,
+    "baseline": "per-(latent, pole), EMA",
+    "chosen_prospectively": true
+  },
+  "runner_telemetry": {
+    "calls": 2,
+    "episodes_scored": 8,
+    "by_cell": {
+      "z0|A": 4,
+      "z1|B": 4
+    },
+    "baselines": {
+      "z0|A": -0.1062,
+      "z1|B": -5.0
+    },
+    "last_loss": 0.0,
+    "lambda": 0.05,
+    "log_prob_clip": -5.0,
+    "baseline_ema": 0.1,
+    "unit_of_credit": "full episode"
+  },
+  "failures": [
+    "D_A and D_B return identical scores; pole routing is not distinguishable and the confound protection is inert",
+    "z1: trajectory credit produced NO gradient on z1's private parameters; the regulariser does not reach them"
+  ],
+  "authorizes": "nothing; a combined treatment smoke remains before any 1M run",
+  "EVAL_touched": false,
+  "INVALIDATED": {
+    "reason": "defect in the SMOKE's episode selection, not in the mechanism under test",
+    "detail": "take_episodes filtered by pole only, not by (policy, pole). For Pole B it took the first 64 pole-B steps, which by the shard's cell ordering are pi_A's steps, labelled them z1, and asked D_B whether they were pi_B. D_B correctly answered no, so every score floored at the -5.0 clip, every advantage was identically zero, and the gradient vanished. The identical-score failure shares the root cause: saturated scores collide.",
+    "what_this_run_does_and_does_not_show": "It does NOT show the regulariser is dead. It DOES validly show three things, which held under mislabelled input and are carried forward: all three tripwires hard-failed as required, D stayed frozen across an optimizer step, and every purity check passed.",
+    "retained_not_deleted": "kept as the record of a failed attempt, per project practice"
+  }
+}

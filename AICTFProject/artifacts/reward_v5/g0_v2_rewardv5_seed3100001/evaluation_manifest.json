@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-08-02T21:37:31.531632Z",
+  "evaluation_run_id": "g0_v2_rewardv5_seed3100001",
+  "source_training_run_id": "g0_v2_rewardv5_seed3100001",
+  "source_checkpoint_fingerprint": "efab1a47e7b0530e0670fda72b5b7b5b43bd2687135e31903b5eed52d1a32285",
+  "source_checkpoint_ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "g0_v2_rewardv5_seed3100001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

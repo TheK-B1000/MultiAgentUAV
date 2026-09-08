@@ -41,6 +41,12 @@ def _gpu_env_reward_kwargs(cfg: PPOConfig) -> dict[str, Any]:
         ("draw_team_penalty", getattr(cfg, "env_draw_team_penalty", None)),
         ("lose_team_punish", getattr(cfg, "env_lose_team_punish", None)),
         ("action_failed_punishment", getattr(cfg, "env_action_failed_punishment", None)),
+        ("sparse_tag_no_flag_points", getattr(cfg, "env_sparse_tag_no_flag_points", None)),
+        ("sparse_tag_with_flag_points", getattr(cfg, "env_sparse_tag_with_flag_points", None)),
+        ("sparse_own_oob_points", getattr(cfg, "env_sparse_own_oob_points", None)),
+        ("sparse_opponent_oob_points", getattr(cfg, "env_sparse_opponent_oob_points", None)),
+        ("enemy_mav_kill_reward", getattr(cfg, "env_enemy_mav_kill_reward", None)),
+        ("sparse_mine_tag_points", getattr(cfg, "env_sparse_mine_tag_points", None)),
         ("dense_weight", getattr(cfg, "env_dense_weight", None)),
         ("sparse_weight", getattr(cfg, "env_sparse_weight", None)),
         ("reward_scale", getattr(cfg, "env_reward_scale", None)),
@@ -128,7 +134,13 @@ def build_training_env(
         parts = [f"{k}={v}" for k, v in sorted(reward_kw.items())]
         print("[PPO] GPU env reward overrides: " + ", ".join(parts))
     map_pool = tuple(getattr(cfg, "map_pool", ()) or ())
-    if map_pool:
+    cells = tuple(getattr(cfg, "training_cell_distribution", ()) or ())
+    if cells:
+        print(
+            "[PPO] map_pool: overridden by training_cell_distribution "
+            "(joint opponent×map sampling via pre-reset hook)."
+        )
+    elif map_pool:
         print("[PPO] map_pool (per-episode uniform sample): " + ", ".join(map_pool))
     rrc: RouterRewardConfig | None = None
     if bool(getattr(cfg, "router_reward_enabled", False)):
@@ -145,6 +157,15 @@ def build_training_env(
             f"flag_w={rrc.flag_cap_weight}, sparse_w={rrc.sparse_weight}, "
             f"scale={rrc.scale}, normalize={rrc.normalize}"
         )
+    obstacle_raw = getattr(cfg, "obstacle_obs_channel", None)
+    obstacle_kw: dict[str, Any] = {}
+    if obstacle_raw is not None:
+        obstacle_kw["obstacle_obs_channel"] = bool(obstacle_raw)
+        print(
+            "[PPO] obstacle_obs_channel override: "
+            f"{bool(obstacle_raw)} "
+            f"(map_layout={str(getattr(cfg, 'map_layout', 'map_a_open')).lower()})"
+        )
     gpu_cfg = GPUFieldConfig(
         n_envs=max(1, int(cfg.n_envs)),
         n_agents_per_team=max_agents,
@@ -157,10 +178,14 @@ def build_training_env(
         device=str(cfg.device),
         seed=int(cfg.seed),
         train_domain_randomization=bool(getattr(cfg, "train_domain_randomization", False)),
+        tag_telemetry_enabled=bool(getattr(cfg, "tag_telemetry_enabled", False)),
         dr_sensor_noise_sigma_max=float(getattr(cfg, "dr_sensor_noise_sigma_max", 0.12)),
         dr_sensor_dropout_max=float(getattr(cfg, "dr_sensor_dropout_max", 0.08)),
         dr_blue_speed_jitter=float(getattr(cfg, "dr_blue_speed_jitter", 0.12)),
+        own_flag_home_required_to_score=bool(
+            getattr(cfg, "own_flag_home_required_to_score", False)),
         router_reward_config=rrc,
+        **obstacle_kw,
         **reward_kw,
     )
     print(
@@ -171,6 +196,20 @@ def build_training_env(
         f"stalemate_penalty={float(gpu_cfg.stalemate_penalty):.3f}."
     )
     env = GPUCTFVecEnv(gpu_cfg)
+    # The setting is only worth recording in run_config / training_manifest if
+    # it actually reached the environment that runs. Verify against the live
+    # object rather than trusting that the constructor honoured the argument.
+    requested_telemetry = bool(getattr(cfg, "tag_telemetry_enabled", False))
+    live_telemetry = bool(getattr(getattr(env, "core", None), "cfg", gpu_cfg).tag_telemetry_enabled)
+    if live_telemetry != requested_telemetry:
+        try:
+            env.close()
+        except Exception:
+            pass
+        raise ValueError(
+            "tag_telemetry_enabled did not reach the live environment: "
+            f"requested={requested_telemetry}, live={live_telemetry}."
+        )
     try:
         env.env_method("set_stress_schedule", STRESS_BY_PHASE)
         env.env_method("set_dynamics_config", {"rules_profile": "OURS"})

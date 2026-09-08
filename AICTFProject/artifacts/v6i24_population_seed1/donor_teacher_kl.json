@@ -1,0 +1,94 @@
+{
+  "donor": "artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "teachers_dir": "artifacts\\v6i24_population_seed1\\probe_05u",
+  "per_cell": [
+    {
+      "context": "OP11|map_b_split_lane",
+      "teacher": "balanced",
+      "mean_kl": 0.018889393657445908
+    },
+    {
+      "context": "OP11|map_b_split_lane",
+      "teacher": "failure_cells",
+      "mean_kl": 0.02275032363831997
+    },
+    {
+      "context": "OP11|map_b_split_lane",
+      "teacher": "high_variance",
+      "mean_kl": 0.004457872826606035
+    },
+    {
+      "context": "OP11|map_b_split_lane",
+      "teacher": "complementary",
+      "mean_kl": 0.0029966665897518396
+    },
+    {
+      "context": "OP11|map_b_split_lane_v2",
+      "teacher": "balanced",
+      "mean_kl": 0.010300228372216225
+    },
+    {
+      "context": "OP11|map_b_split_lane_v2",
+      "teacher": "failure_cells",
+      "mean_kl": 0.021670345216989517
+    },
+    {
+      "context": "OP11|map_b_split_lane_v2",
+      "teacher": "high_variance",
+      "mean_kl": 0.004210955463349819
+    },
+    {
+      "context": "OP11|map_b_split_lane_v2",
+      "teacher": "complementary",
+      "mean_kl": 0.005503187421709299
+    },
+    {
+      "context": "OP12|map_b_split_lane",
+      "teacher": "balanced",
+      "mean_kl": 0.014890909194946289
+    },
+    {
+      "context": "OP12|map_b_split_lane",
+      "teacher": "failure_cells",
+      "mean_kl": 0.02610272355377674
+    },
+    {
+      "context": "OP12|map_b_split_lane",
+      "teacher": "high_variance",
+      "mean_kl": 0.0030847094021737576
+    },
+    {
+      "context": "OP12|map_b_split_lane",
+      "teacher": "complementary",
+      "mean_kl": 0.0030650324188172817
+    },
+    {
+      "context": "OP12|map_b_split_lane_v2",
+      "teacher": "balanced",
+      "mean_kl": 0.015114794485270977
+    },
+    {
+      "context": "OP12|map_b_split_lane_v2",
+      "teacher": "failure_cells",
+      "mean_kl": 0.020596973598003387
+    },
+    {
+      "context": "OP12|map_b_split_lane_v2",
+      "teacher": "high_variance",
+      "mean_kl": 0.0026937704533338547
+    },
+    {
+      "context": "OP12|map_b_split_lane_v2",
+      "teacher": "complementary",
+      "mean_kl": 0.002830417361110449
+    }
+  ],
+  "per_teacher_mean_kl": {
+    "balanced": 0.01479883142746985,
+    "failure_cells": 0.022780091501772404,
+    "high_variance": 0.0036118270363658667,
+    "complementary": 0.0035988259478472173
+  },
+  "global_mean_kl": 0.011197393978363834,
+  "interpretation": "moved_check_niches"
+}

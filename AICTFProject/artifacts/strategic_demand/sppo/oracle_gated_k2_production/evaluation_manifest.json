@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-08-29T16:55:51.743019Z",
+  "evaluation_run_id": "oracle_gated_k2_production",
+  "source_training_run_id": "oracle_gated_k2_production",
+  "source_checkpoint_fingerprint": "b2d5d8868b60b8a5b2cdc49d64213bb646f58838b70b41c6049622d7c0764cb0",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "oracle_gated_k2_production",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

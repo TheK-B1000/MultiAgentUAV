@@ -1,0 +1,23 @@
+{
+  "record_id": "D2_SPEC_AMENDMENT_3_UNITS_CLARIFICATION",
+  "status": "FROZEN_BEFORE_ANY_FIT_COMPLETED -- rung 1 aborted on its own assertion, zero fits produced",
+  "utc": "2026-08-27T09:20:00Z",
+  "authority": "self-caught by a guard assertion, before any scorer was fit",
+  "amends": "D2_SPEC_AMENDMENT_1.json's mixture-mass-control wording",
+  "the_ambiguity": "AMENDMENT_1 wrote the rule as 'the baseline's own mass (50 rows x 1.0 = 50.0)'. That said ROWS but meant STATES. load_split emits TWO rows per branch state (one per teacher, pi_A and pi_B), so the baseline's 50 stolen pole-B STATES are 100 stolen pole-B ROWS. The fit script's guard assertion caught the mismatch on rung 1 and refused to proceed.",
+  "verified_counts": {
+    "baseline_stolen_poleB_states": 50,
+    "baseline_stolen_poleB_rows": 100,
+    "supplement_states": 150,
+    "supplement_rows": 300
+  },
+  "corrected_statement_of_the_SAME_rule": "hold the stolen pole-B branch category's total weight-mass constant at the baseline's own mass, measured in ROWS: 100 rows x 1.0 = 100.0. Each stolen pole-B branch ROW at rung k is weighted 100.0 / n_rows_k.",
+  "ratios_are_UNCHANGED": {
+    "rung_1": "100 rows -> 1.0 per row (identical to baseline, as intended)",
+    "rung_2": "200 rows -> 0.5 per row",
+    "rung_3": "400 rows -> 0.25 per row",
+    "note": "exactly the 1.0 / 0.5 / 0.25 AMENDMENT_1 specified. Because the constant is normalised per rung, the absolute value (100.0 vs the mis-stated 50.0) cancels entirely -- no scientific content changes."
+  },
+  "ladder_unchanged": "50 / 100 / 200 STOLEN STATES (= 100 / 200 / 400 rows), nested, as frozen",
+  "what_changed": "nothing scientific -- only the unit in which the constant is expressed, and the code now measures both sides of its guard in the same unit"
+}

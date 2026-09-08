@@ -233,7 +233,7 @@ class MinibatchUpdater:
         strategy_policy_grad_norm = 0.0
         router_entropy_grad_norm = 0.0
 
-        if hparams.use_latent_strategy:
+        if hparams.use_latent_strategy and getattr(model, "strategy_encoder", None) is not None:
             decision_mask = router_decision_mask(batch)
             resample = decision_mask
             strategy_entropy = aux["strategy_entropy"]

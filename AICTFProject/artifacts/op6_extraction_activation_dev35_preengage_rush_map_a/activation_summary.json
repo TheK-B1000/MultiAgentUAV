@@ -1,0 +1,40 @@
+{
+  "n_episodes": 8,
+  "n_pickups": 24,
+  "n_scores": 16,
+  "n_failed_returns": 8,
+  "mean_pickups": 3.0,
+  "mean_failed_returns": 1.0,
+  "armed_any_frac": 1.0,
+  "armed_at_pickup_frac": 0.0,
+  "never_armed_frac": 0.0,
+  "mean_pickup_to_arm_delay_when_armed": 1.4583333333333333,
+  "mean_fail_carry_duration": 16.5,
+  "both_blues_between_at_pickup_frac": 0.9583333333333334,
+  "dual_threat_pickups": 23,
+  "distinct_assignment_frac_dual": 1.0,
+  "wrong_threat_fail_n": 0,
+  "wrong_threat_reduction_vs_dev33": 1.0,
+  "block_reason_at_pickup": {
+    "bt_before_pickup_lag": 21,
+    "blue_home_anchor_present": 3
+  },
+  "fail_class_counts": {
+    "C3": 7,
+    "D": 1
+  },
+  "fail_class_frac_of_failures": {
+    "C3": 0.875,
+    "D": 0.125
+  },
+  "flag_area_overlap_proxy_n": 3,
+  "flag_area_overlap_proxy_frac": 0.125,
+  "immediate_tag_threshold": 4,
+  "late_arm_threshold": 8,
+  "micro_gates": {
+    "distinct_assignment_ge_90pct": true,
+    "wrong_threat_reduced_ge_75pct": true,
+    "true_failed_returns_le_0_5": false
+  },
+  "decision_tree_recommendation": "Correct target, but screener arrived too late"
+}

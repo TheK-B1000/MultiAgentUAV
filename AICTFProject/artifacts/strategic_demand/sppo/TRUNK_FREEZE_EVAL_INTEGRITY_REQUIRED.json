@@ -1,0 +1,16 @@
+{
+  "record": "Trunk-freeze EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-04T04:41:47Z",
+  "implements": "TRUNK_FREEZE_SPEC.json#EVAL_PROTOCOL.tie_or_reversal",
+  "triggered_by": [
+    "A_C"
+  ],
+  "point_estimates": {
+    "A_C": -0.03125,
+    "B_C": 0.078125,
+    "A_T": 0.046875,
+    "B_T": 0.0625
+  },
+  "rule": "requires a row-level integrity audit, written before its rows are read. Raw rows are written (trunk_freeze_eval_rows.csv) but no verdict-bearing TRUNK_FREEZE_EVAL_RESULT.json is written until that audit exists."
+}

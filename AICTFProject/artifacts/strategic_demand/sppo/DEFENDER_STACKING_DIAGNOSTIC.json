@@ -1,0 +1,49 @@
+{
+  "record": "Defender stacking mechanism diagnostic",
+  "status": "DIAGNOSTIC_NOT_A_GATE",
+  "utc": "2026-09-05T19:11:36Z",
+  "device": "cpu",
+  "explains": "STRATEGIC_DEMAND_4v4_CERTIFICATION.json (Pole A reversal)",
+  "collision_rate_note": "P(2+ defenders on the same threat) is 1.0 by construction -- _scripted_blue_styles.py assigns every defender the identical target. The measured quantity is instead how often >=2 distinct legal threats exist, i.e. how often that guaranteed stacking actually costs coverage.",
+  "predicate": "alive & ~tagged & on_our_side, read from the live core",
+  "seeds_reused_deliberately": "the already-spent certification blocks; this is a mechanism diagnostic and licenses no verdict",
+  "results": [
+    {
+      "team_size": 2,
+      "defenders_committed": 1,
+      "episodes": 12,
+      "decision_steps": 2827,
+      "intruder_count_histogram": {
+        "0": 1968,
+        "1": 777,
+        "2": 82
+      },
+      "steps_with_any_intruder": 859,
+      "steps_with_multiple_intruders": 82,
+      "frac_of_contested_steps_that_are_multi_threat": 0.09545983701979045,
+      "mean_intruders_when_contested": 1.0954598370197905,
+      "wasted_defenders_when_multi": 0,
+      "unopposed_intruders_when_multi": 1.0
+    },
+    {
+      "team_size": 4,
+      "defenders_committed": 2,
+      "episodes": 12,
+      "decision_steps": 2673,
+      "intruder_count_histogram": {
+        "0": 1756,
+        "1": 632,
+        "2": 239,
+        "3": 41,
+        "4": 5
+      },
+      "steps_with_any_intruder": 917,
+      "steps_with_multiple_intruders": 285,
+      "frac_of_contested_steps_that_are_multi_threat": 0.3107960741548528,
+      "mean_intruders_when_contested": 1.366412213740458,
+      "wasted_defenders_when_multi": 1,
+      "unopposed_intruders_when_multi": 1.1789473684210525
+    }
+  ],
+  "changes_no_threshold": true
+}

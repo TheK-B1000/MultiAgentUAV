@@ -1,0 +1,87 @@
+{
+  "episodes": [
+    {
+      "seed": 10700026,
+      "split": "FIT",
+      "policy": "pi_A",
+      "pole": "A",
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1,
+      "steps": 240,
+      "decision_records": 218
+    },
+    {
+      "seed": 10700026,
+      "split": "FIT",
+      "policy": "pi_A",
+      "pole": "B",
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0,
+      "steps": 240,
+      "decision_records": 230
+    },
+    {
+      "seed": 10700026,
+      "split": "FIT",
+      "policy": "pi_B",
+      "pole": "A",
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0,
+      "steps": 240,
+      "decision_records": 218
+    },
+    {
+      "seed": 10700026,
+      "split": "FIT",
+      "policy": "pi_B",
+      "pole": "B",
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0,
+      "steps": 240,
+      "decision_records": 181
+    }
+  ],
+  "branch_cells": [
+    "A_r0_not_late",
+    "A_r1_not_late",
+    "A_r2_not_late",
+    "A_r3_not_late",
+    "A_r3_late",
+    "B_r1_not_late",
+    "B_r0_not_late",
+    "B_r1_late",
+    "B_r0_late"
+  ],
+  "branch_source_policies": [
+    "pi_B",
+    "pi_B",
+    "pi_A",
+    "pi_A",
+    "pi_A",
+    "pi_A",
+    "pi_A",
+    "pi_A",
+    "pi_B"
+  ],
+  "visited_cell_counts": {
+    "A_r0_not_late": 94,
+    "A_r1_not_late": 15,
+    "A_r2_not_late": 1,
+    "A_r3_late": 224,
+    "A_r3_not_late": 102,
+    "B_r0_late": 189,
+    "B_r0_not_late": 209,
+    "B_r1_late": 8,
+    "B_r1_not_late": 5
+  },
+  "split": "FIT",
+  "amendment_2": true
+}

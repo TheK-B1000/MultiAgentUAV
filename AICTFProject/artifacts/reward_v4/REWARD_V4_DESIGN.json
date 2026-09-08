@@ -1,0 +1,75 @@
+{
+  "design": "Reward V4 — objective-dominant budget, tag economy closed, OOB farm removed",
+  "authored_utc": "2026-08-02",
+  "type": "budget redesign, NOT a causal ablation",
+  "derived_from": "measured V3 telemetry (artifacts/reward_v3/V3_RESULT_FROZEN.json)",
+
+  "KEPT_FROM_V3": {
+    "sparse_tag_no_flag_points": 0.0,
+    "sparse_tag_with_flag_points": 0.0,
+    "action_failed_punishment": -0.004
+  },
+
+  "CHANGED": {
+    "enemy_mav_kill_reward": {
+      "from": 0.5,
+      "to": 0.0,
+      "rationale": "The last tag payment, hidden in the offense channel: blue_kill_count = blue_tag_noflag + blue_tag_withflag + blue_mine_tags, each paid +/-0.5. Measured at 3.8x-4.2x the terminal signal in every precursor seed. The FAILED seed 2700003 ran offense +2.267 while terminal was -0.544 — out-tagging its opponents and losing. Tags remain valuable through game consequences: tagging the carrier drops the flag, tagging an attacker interrupts pressure, forcing a cooldown opens a window."
+    },
+    "sparse_opponent_oob_points": {
+      "from": 100.0,
+      "to": 0.0,
+      "rationale": "Forcing the opponent out of bounds paid +100 — the demonstrated attractor in V3. Seed 2900002 drove red OOB 2.391x/episode for +1.903 reward/episode, 3.1x its terminal signal, while netting -17 captures and losing 89% of games. Competent seeds sat at 0.012-0.109/episode. A 195x spread is why this could never be inferred from an aggregate residual."
+    },
+    "sparse_own_oob_points": {
+      "from": -100.0,
+      "to": -70.0,
+      "derivation": {
+        "own_oob_rate_competent_seeds_per_episode": [0.1332, 0.0517],
+        "lambda_used": 0.1332,
+        "lambda_choice": "max over NORMAL (competent) seeds; the farming seed is excluded as abnormal",
+        "p95_events_per_episode": 1,
+        "p95_method": "Poisson(lambda) 95th percentile",
+        "objective_reward_per_episode_competent_mean": 2.393,
+        "budget_share": 0.30,
+        "budget_reward_units": 0.718,
+        "derived_points": -71.8,
+        "chosen_points": -70.0,
+        "check": "at the p95 normal episode (1 own-OOB event) the penalty costs 0.70 reward units = 29.3% of objective reward, inside the 30% safety ceiling"
+      }
+    }
+  },
+
+  "UNRESOLVED_LEFT_UNCHANGED": {
+    "sparse_mine_tag_points": {
+      "value": 100.0,
+      "status": "UNRESOLVED",
+      "reason": "Mine-tag instrumentation was added AFTER V3 ran, so no V3 rate exists. A scripted probe observed 1 mine_tag event in 8 envs x 240 steps, suggestive of rarity but not a measured training rate. Per the standing rule, a term whose frequency has not been established is left unchanged and marked UNRESOLVED rather than guessed at.",
+      "note": "Mine tags are paid TWICE (100 sparse + enemy_mav_kill_reward). V4 sets enemy_mav_kill_reward to 0, so their double payment is already halved as a side effect.",
+      "action": "V4 measures the rate; budget it in V5 if the evidence supports it."
+    }
+  },
+
+  "LEFT_UNCHANGED_DELIBERATELY": {
+    "sparse_flag_capture_points": 100.0,
+    "win_team_reward": 1.0,
+    "lose_team_punish": -1.0,
+    "draw_team_penalty": -0.5,
+    "pbrs": "unchanged — tests/test_pbrs_terminal.py (5 tests) demonstrated NO defect: gamma matches PPO (0.995), potentials bounded in [0,1], no terminal-step magnitude spike, no post-reset state leaking into F(s,s')",
+    "v2_game_mechanics": "unchanged",
+    "map": "map_a",
+    "opponent_mixture": "OP6-OP12",
+    "ppo_architecture": "unchanged",
+    "gamma": 0.995,
+    "horizon": 240
+  },
+
+  "INTENT": [
+    "winning and capturing remain valuable",
+    "tags matter through game consequences, not through a points faucet",
+    "forcing an opponent out of bounds is not a points farm",
+    "going out of bounds yourself remains mildly undesirable"
+  ],
+
+  "attribution_caveat": "V4 changes three reward terms at once and cannot attribute credit between them. That is deliberate: four consecutive single-term probes each improved matters and then watched the failure relocate, which is evidence of a structural budget problem rather than a single bad constant."
+}

@@ -1,0 +1,12 @@
+{
+  "sappo_pi_A_specialist_1p5M_seed7100001": {
+    "path": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_A_specialist_1p5M_seed7100001\\ckpts\\final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+    "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "bytes": 41750367
+  },
+  "sappo_pi_B_specialist_1p5M_seed7200001": {
+    "path": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_B_specialist_1p5M_seed7200001\\ckpts\\final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+    "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+    "bytes": 41750367
+  }
+}

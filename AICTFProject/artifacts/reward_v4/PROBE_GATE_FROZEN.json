@@ -1,0 +1,91 @@
+{
+  "probe": "Reward V4 reliability probe",
+  "frozen_utc": "2026-08-02",
+  "frozen_before_any_probe_result": true,
+  "status": "FROZEN — contract declared before launch; constants must NOT change after launch",
+
+  "locked_reward_configuration": {
+    "sparse_tag_no_flag_points": 0.0,
+    "sparse_tag_with_flag_points": 0.0,
+    "action_failed_punishment": -0.004,
+    "enemy_mav_kill_reward": 0.0,
+    "sparse_opponent_oob_points": 0.0,
+    "sparse_own_oob_points": -70.0,
+    "sparse_mine_tag_points": 100.0,
+    "sparse_flag_capture_points": 100.0,
+    "win_team_reward": 1.0,
+    "lose_team_punish": -1.0,
+    "draw_team_penalty": -0.5,
+    "gamma": 0.995,
+    "horizon": 240
+  },
+
+  "design": {
+    "seeds": [3000001, 3000002, 3000003],
+    "seed_freshness": "disjoint from training (2500001-3), penalty ablation (2600001-3), tag ablation (2700001-3), aborted all-tag (2800001-3), V3 (2900001-3), discovery evaluation (9100000+), collapse diagnostic (9200000+), TASK_HEALTH panel (9300000-2)",
+    "steps_per_seed": 300000,
+    "checkpoint_and_panel_interval": 50000,
+    "initialization": "fresh",
+    "map": "map_a", "ruleset": "RULESET_V2_AQUATICUS_10S", "opponents": "OP6-OP12"
+  },
+
+  "HARD_PASS": {
+    "A_TASK_ALIVE": {
+      "applies_to": "3/3 seeds",
+      "pickups": "> 0",
+      "offensive_commitment": "> 0",
+      "defensive_commitment": "< 1.0"
+    },
+    "B_COMPETENCE": {
+      "applies_to": ">= 2/3 seeds",
+      "win_rate": ">= 0.30",
+      "net_captures": "> 0"
+    },
+    "C_ALIGNMENT": {
+      "applies_to": "every seed",
+      "requirement": "reward_up_while_task_down == false"
+    },
+    "D_NO_NEW_ATTRACTOR": {
+      "applies_to": "every seed",
+      "requirement": "no farmable reward family may increase while ANY of: success decreases, pickups decrease, offensive commitment decreases, net captures deteriorate"
+    },
+    "E_REWARD_BUDGET": {
+      "tactical_shaping_max_share": 0.15,
+      "safety_shaping_max_share": 0.30,
+      "note": "For V4 these are ACTUAL budget checks, because the relevant channels are now fully measured (tag, enemy_mav_kill, OOB own/opponent, mine-tag, failed_commit all instrumented).",
+      "tactical_channels": ["tag", "enemy_mav_kill", "mine_tag"],
+      "safety_channels": ["failed_commit", "own_oob"]
+    }
+  },
+
+  "per_50k_panel_reporting": [
+    "terminal", "capture", "failed_commit", "OOB (own and opponent)", "tag",
+    "enemy_mav_kill", "mine-tag", "offense", "team", "PBRS",
+    "total absolute reward mass", "share of each channel"
+  ],
+
+  "CLASSIFICATION": {
+    "PASS": "3/3 alive AND >=2/3 competent AND alignment passes all seeds AND no new farmable attractor AND reward budget passes",
+    "MIXED": "competence passes BUT alignment/budget/attractor condition fails",
+    "FAIL": "alive requirement or competence requirement fails"
+  },
+
+  "STOP_CONDITIONS": [
+    "NaN or Inf",
+    "identity violation",
+    "real legality violation (unknown_event_type is now registered and no longer counts)",
+    "corrupted checkpoint or artifact",
+    "actual PBRS defect affecting the run",
+    "config mismatch"
+  ],
+  "DO_NOT_STOP_FOR": "one seed looking weak at 100k or 150k",
+
+  "pre_launch_verification": {
+    "event_type_registry_fixed": "out_of_bounds and mine_tag registered; V3's 357 phantom unknown_event_type violations reproduce as ZERO on a driven OOB rollout, SYSTEM_HEALTH returns PASS",
+    "mine_tag_instrumented": true,
+    "pbrs_terminal_test": "5/5 pass, no defect demonstrated, PBRS therefore unchanged",
+    "all_new_knobs_behaviour_neutral_at_defaults": true
+  },
+
+  "locked_downstream": ["C1", "O1", "latent_birth", "router"]
+}

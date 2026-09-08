@@ -1,0 +1,17 @@
+{
+  "updated_utc": "2026-08-08T21:29:02Z",
+  "pid": 5676,
+  "session": "C3_STAGE4_SCREEN",
+  "phase": "STAGE3",
+  "detail": "policy=3200003 anchor=70/70 fork_found=False elapsed=14757.2s",
+  "done": 70,
+  "total": 70,
+  "frac": 1.0,
+  "elapsed_seconds": 36552.3,
+  "eta_seconds": 0.0,
+  "progress_log": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\c3_stage4\\C3_STAGE4_SCREEN_PROGRESS.log",
+  "policy": 3200003,
+  "anchor_index": 70,
+  "anchors_total": 70,
+  "fork_found": false
+}

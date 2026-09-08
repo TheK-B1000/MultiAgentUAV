@@ -1,0 +1,59 @@
+{
+  "record": "C6 Stage 1 — final verdict under the construct-valid metric",
+  "verdict": "C6_STAGE1_MECHANICAL_INFEASIBLE",
+  "run_status": "the single permitted re-run under C6_STAGE1_METRIC_ERRATUM.json has been spent",
+  "stage_2_status": "9880000 NEVER TOUCHED. Nothing is known about preference reversals.",
+
+  "explicitly_not": {
+    "claim": "this is NOT C6_NO_REVERSAL",
+    "why": "Stage 2 never ran. No response was enumerated, no utility computed, no reversal tested.",
+    "the_actual_finding": "The preregistered opposing allocation regimes could not both be mechanically instantiated under the 2v2 setup."
+  },
+
+  "results": {
+    "C6A": {"passed": true, "offensive_pressure": 0.447, "home_retention": 0.752, "red_contest_fraction": 0.0,
+            "checks": {"sustains_offence": true, "abandons_home": true, "declines_to_contest": true},
+            "note": "Family A IS instantiable. contest is exactly 0.000 -- it never assigns a contesting role, precisely as configured."},
+    "C6B": {"passed": false, "offensive_pressure": 0.260, "home_retention": 0.892, "red_contest_fraction": 0.339,
+            "checks": {"sustains_offence": false, "retains_home": true, "denies_advance": false},
+            "note": "fails BOTH offence and contest despite intercept_block_base=0.92; it spends its second agent on escort rather than interception"},
+    "mixture_mean": {"offensive_pressure": 0.284, "home_retention": 0.847, "red_contest_fraction": 0.468}
+  },
+
+  "why_C6B_is_infeasible_rather_than_mistuned": {
+    "the_budget": "AGENTS per team is 2. Every agent-step is spent either pressuring blue's half or holding a contesting role. The two measures draw on the same two bodies.",
+    "empirical_evidence": {
+      "pearson_r_offence_vs_contest": -0.898,
+      "n_opponents": 9,
+      "observed_sums": {"OP12": 0.731, "OP6": 0.472, "C6A": 0.447, "C6B": 0.599, "OP9": 0.754,
+                        "OP11": 0.855, "OP10": 0.849, "OP7": 0.885, "OP8": 0.720},
+      "reading": "offence and contest are strongly anti-correlated across every opponent in the roster, legacy and new alike. This is the signature of a fixed allocation budget, not of a coincidence in profile design."
+    },
+    "the_arithmetic": "C6B was required to exceed BOTH mixture means, i.e. offence+contest >= 0.752. Only three of nine opponents reach that sum at all (OP7 0.885, OP11 0.855, OP10 0.849), and every one does so by collapsing offence to <= 0.212. No profile in the roster achieves above-average offence AND above-average contest simultaneously.",
+    "conclusion": "C6B's two requirements are in direct competition for one agent. It is not a tuning miss."
+  },
+
+  "frozen_action_taken": {
+    "closed": "this family pair is closed",
+    "not_done": ["no tuning of C6B toward the threshold",
+                 "no Family C invented",
+                 "no relaxation of retain_home",
+                 "no second re-run"],
+    "why": "the erratum pre-committed this outcome before the run, precisely so the result could not be converted into a passing grade afterwards"
+  },
+
+  "what_this_motivates": {
+    "hypothesis": "the two-agent allocation budget constrains strategic diversity. With 2 agents the only team allocations are 2/0, 1/1 and 0/2, so escort, home defence, interception, pressure and carrier support cannibalise one another rather than coexisting.",
+    "why_it_is_now_more_than_a_guess": "r = -0.898 across nine independently-designed opponents is a direct measurement of the budget, not an inference from C6B's failure alone",
+    "why_it_would_also_explain_C4_and_C5": "a preference reversal between two team responses requires two responses that are each better in some regime. If the allocation space has essentially one degree of freedom, there is little room for two responses to trade off -- which is what C4_NO_REVERSAL and C5_NO_REVERSAL both reported.",
+    "status": "UNPROVEN. This is evidence that the budget may be binding. It is not proof that enlarging it produces reversals.",
+    "the_next_experiment": "a fresh preregistration holding map and rules fixed while varying team size, asking whether increased allocation capacity creates the preference reversals absent at 2v2. The reversal must still be DISCOVERED by the scanner, never assumed.",
+    "explicitly_not_authorized_by_this_result": "training any oracle, birthing any latent, or claiming anything about routability"
+  },
+
+  "what_survives_from_C6": {
+    "C6A": "a validated, mechanically distinct opponent that abandons its half entirely and never contests. It remains an experimental fixture, not on the permanent board.",
+    "infrastructure": "the additive-profile pattern, both identity gates, the behavioural trajectory-hash guard, and the generic BT dispatch predicate all remain and are reusable by any successor experiment.",
+    "unspent_blocks": ["9880000 C6 Stage 2", "9890000 C6 Stage 3", "9850000 C5 confirmation", "9860000 observability"]
+  }
+}

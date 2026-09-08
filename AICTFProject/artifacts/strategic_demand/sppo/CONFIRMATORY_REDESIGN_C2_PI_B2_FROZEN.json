@@ -1,0 +1,28 @@
+{
+  "record_id": "CONFIRMATORY_REDESIGN_C2_PI_B2_FROZEN",
+  "status": "FROZEN_CHECKPOINT",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-08T09:30:00Z",
+  "implements": "4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json",
+
+  "policy": "pi_B2 (4v4, confirmatory redesign C2)",
+  "trained_against": "Pole B2 (B2-1: OP7 + {lock_defender: 10, min_alive_for_defender: 4}), frozen in 4V4_CONFIRMATORY_REDESIGN_B2_SELECTED.json",
+  "seed": 16200001,
+  "recipe": "run_r1_repertoire_training.py::build_r1_config, unchanged",
+  "total_timesteps": 1000000,
+
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4/ckpts/final_pi_B_specialist_4v4.zip",
+    "sha256": "cfd467728bec253bfe681f9c245841f8cbc9507ffb116def2541a2ab481a3082",
+    "bytes": 41748714
+  },
+
+  "run_history": {
+    "restarts": "none -- single continuous process from launch to terminal checkpoint",
+    "provenance_verified": "run_manifest.json and training_manifest.json both confirm pole_b_source='CANDIDATE_OVERRIDE:SDS2_B2_LOCKDEF10' -- trained against the certified B2-1 candidate genome, NOT canonical pole_B_genome(4). This is the exact check the --pole-b-genome-json mechanism (added this session) was built to guarantee.",
+    "governing_certification": "resolved as CERTIFIED via STRATEGIC_DEMAND_4v4_CONFIRMATORY_REDESIGN_N192_CERTIFICATION.json (per the updated _CERT_PRECEDENCE in train_specialist_scale.py), so this run went through the NORMAL certified production path -- arm=CONFIRMATORY, not CONFIRMATORY_REDESIGN_PENDING."
+  },
+
+  "NEXT": "both pi_A2 (CONFIRMATORY_REDESIGN_C2_PI_A2_FROZEN.json) and pi_B2 terminal checkpoints now exist. Run the sealed 128-seed confirmatory crossover evaluation on 16400001-16400128 per 4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json#FRESH_CONFIRMATORY_CROSSOVER_EVAL. Gate: delta_A = V(pi_A2,A) - V(pi_B2,A); delta_B = V(pi_B2,B2) - V(pi_A2,B2); PASS iff both means > 0 AND both LCB95 > 0."
+}

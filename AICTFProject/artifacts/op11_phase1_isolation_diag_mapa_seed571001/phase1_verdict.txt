@@ -1,0 +1,11 @@
+OP11 Phase-1 isolation failure diagnosis
+base_seed=571001 maps=['map_a'] episodes=8
+dominant_hypothesis=none
+ESCORT-SPLIT mean margin=+0.000
+matched SPLIT-ESCORT margin=+0.000
+selectivity: SPLIT_latch_rate=0.875, ESCORT_latch_rate=0.000, RUSH_latch_rate=0.000, TURTLE_latch_rate=0.000
+SPLIT failure modes when ahead of ESCORT: {}
+BLUE_SPLIT: margin=+0.000 latch=0.875 pickup=1.000 score=0.000 modes={'D': 8}
+BLUE_ESCORT: margin=+0.000 latch=0.000 pickup=1.000 score=0.000 modes={'D': 2}
+BLUE_RUSH: margin=+0.000 latch=0.000 pickup=1.000 score=0.000 modes={'D': 3}
+BLUE_TURTLE: margin=+0.000 latch=0.000 pickup=1.000 score=0.000 modes={'D': 3}

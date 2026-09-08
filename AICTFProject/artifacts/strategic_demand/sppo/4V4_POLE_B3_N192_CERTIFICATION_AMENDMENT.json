@@ -1,0 +1,35 @@
+{
+  "record_id": "4V4_POLE_B3_N192_CERTIFICATION_AMENDMENT",
+  "status": "FROZEN_BEFORE_ANY_N192_EPISODE",
+  "utc": "2026-09-08T17:15:00Z",
+  "amends": "4V4_POLE_B3_SELECTION_RULE.json#IF_ONE_PASSES",
+  "authority": "PI, 2026-09-08: pursue B3-3 n=192 certification as the next legitimate step after screen selection; run in parallel with 2v2 low-tier robustness only if that sweep stays on track; do not skip ahead to specialist training.",
+
+  "SCOPE": "JOINT certification of unchanged Pole A + selected B3-3 on ONE fresh n=192 seed block. Same tool, same bootstrap, same gate as B2-1's confirmatory_redesign_n192 certification.",
+
+  "POLES": {
+    "A": "unchanged pole_A_genome(4) / SDS2_A_payoff_INIT_3",
+    "B": "B3-3_2v1 from 4V4_POLE_B3_SELECTED.json (SDS2_B3_LOCKDEF10_2V1; lock_defender=10, enable_2v1=true)"
+  },
+
+  "SEED_BLOCK": {
+    "variant": "pole_b3_3_n192",
+    "seed_base": 12460001,
+    "n": 192,
+    "range": "12460001..12460192",
+    "disjointness_verified": "rg for 12460001/12460192 against artifacts/: zero hits at freeze time; distinct from 12400001 (v1), 12420001 (B2-1 n64), 12440001 (B2-1 n192), and disposable B3 screen blocks 99995001/99996001"
+  },
+
+  "GATE_UNCHANGED": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0, paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7",
+
+  "RUN_COMMAND": "python experiments/certify_strategic_demand_scaled.py --team-size 4 --variant pole_b3_3_n192 --seed-base 12460001 --n-seeds 192 --device cpu --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+
+  "DEVICE_CHOICE": "cpu -- same as prior 4v4 n=192 certifications, deliberately chosen so this run does not contend for the CUDA device currently finishing the 2v2 low-tier robustness sweep.",
+
+  "PARALLELISM_RULE": "authorized to run concurrent with ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_AMENDMENT only while 2v2 remains on track for the two-day finalize window. If 2v2 pace collapses under CPU contention, kill this certification and resume it after the low sweep seals. Specialist training is NOT authorized until this certification VERDICT is CERTIFIED.",
+
+  "IF_PASSES": "4v4 strategic demand under B3-3 is CERTIFIED. Then (and only then) authorize a fresh specialist pair + sealed crossover under a separate freeze.",
+  "IF_FAILS": "stop. Do not train specialists against B3-3. Do not reopen B3-1/B3-2. Requires a new freeze for any further Pole-B work.",
+
+  "PREDECLARED_BEFORE_RESULT": "seed block, n=192, genome, gate, and device locked before any episode in 12460001..12460192 is spent."
+}

@@ -1,0 +1,43 @@
+{
+  "record": "CCP-S2 amended job plan",
+  "status": "FROZEN_PLAN",
+  "utc": "2026-09-02T15:04:43Z",
+  "implements": "CCP_S2_COMPUTE_BUDGET_AMENDMENT.json#REDUCTION",
+  "hierarchy": {
+    "states": 64,
+    "state_estimand": 104,
+    "arm_cells": 312,
+    "jobs": 2496
+  },
+  "expected": {
+    "states": 64,
+    "state_estimand": 104,
+    "arm_cells": 312,
+    "jobs": 2496
+  },
+  "matches": true,
+  "M": 8,
+  "arms": [
+    "R_0",
+    "pi_A",
+    "pi_B"
+  ],
+  "three_arm_seed_pairing_verified": true,
+  "seed_mapping": "r_j = sha256('CCP_S2_MEASURE|<state_id>|<estimand>|<j>')[:8], unchanged formula, j restricted to 0..7",
+  "jobs_by_arm": {
+    "R_0": 832,
+    "pi_A": 832,
+    "pi_B": 832
+  },
+  "jobs_by_estimand": {
+    "agent0": 960,
+    "agent1": 1056,
+    "joint": 480
+  },
+  "worker_shards": {
+    "0": 624,
+    "1": 624,
+    "2": 624,
+    "3": 624
+  }
+}

@@ -1,0 +1,105 @@
+{
+  "spec": "G0-V5 long run — first baseline trained under a verified-aligned reward",
+  "frozen_utc": "2026-08-02",
+  "frozen_before_launch": true,
+  "status": "FROZEN — constants must NOT change after launch",
+
+  "provenance": {
+    "ruleset": "RULESET_V2 — PASS, strategic affordance confirmed by Gate 2D",
+    "formal_smoke": "PASS — completed and validated",
+    "reward_v5": "PASS — 3/3 alive, 3/3 competent, alignment PASS, no new attractor PASS, budget PASS",
+    "verification_before_launch": "V5 values confirmed three ways: frozen artifact (V5_RESULT_FROZEN.json), live code (run_reward_v5_probe.build_config), and the reward-override line the completed V5 run actually printed at env construction"
+  },
+
+  "locked_reward_v5": {
+    "sparse_tag_no_flag_points": 0.0,
+    "sparse_tag_with_flag_points": 0.0,
+    "enemy_mav_kill_reward": 0.0,
+    "sparse_mine_tag_points": 0.0,
+    "action_failed_punishment": -0.004,
+    "sparse_opponent_oob_points": 0.0,
+    "sparse_own_oob_points": -70.0,
+    "sparse_flag_capture_points": 100.0,
+    "flag_pickup_reward": 0.1,
+    "flag_carry_home_reward": 0.5,
+    "win_team_reward": 1.0,
+    "lose_team_punish": -1.0,
+    "draw_team_penalty": -0.5,
+    "pbrs": "unchanged",
+    "gamma": 0.995
+  },
+
+  "training": {
+    "seeds": [3200001, 3200002, 3200003],
+    "seed_freshness": "disjoint from every prior family: 2500001-3, 2600001-3, 2700001-3, 2800001-3, 2900001-3, 3000001-3, 3100001-3, 9100000+, 9200000+, 9300000-2",
+    "steps_per_seed": 1000000,
+    "initialization": "fresh",
+    "warm_start": "FORBIDDEN",
+    "map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset": "RULESET_V2_AQUATICUS_10S",
+    "opponents": "admitted OP6-OP12 mixture",
+    "episode_horizon": 240,
+    "domain_randomization": false,
+    "device": "CUDA",
+    "tag_telemetry": "enabled through production PPOConfig",
+    "checkpoint_cadence": 100000,
+    "formal_override": "FORBIDDEN"
+  },
+
+  "task_health_panel": {
+    "episodes": 21,
+    "opponents": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+    "seeds": [9300000, 9300001, 9300002],
+    "cadence": 100000,
+    "upgraded_from": "9 episodes (3 opponents x 3 seeds)",
+    "reason": "the 9-episode panel SATURATED — V5 seed 3100001 won 9/9 from 51k onward and produced byte-identical panels for the remainder of the run, leaving the attractor check blind on its strongest seed. Covering the full admitted mixture restores headroom.",
+    "upgraded_prospectively": "before launch, not after seeing a result"
+  },
+
+  "PRIMARY_EVIDENCE_RULE": {
+    "preregistered_primary_checkpoint": 1000000,
+    "rule": "ONLY the final 1,000,000-step checkpoint of each seed is primary evidence. Intermediate checkpoints exist for learning curves and health monitoring and must never be promoted after the fact, however attractive one looks.",
+    "enforced_in_code": "the evaluation harness refuses any checkpoint below 1,000,000 steps"
+  },
+
+  "COMPETENCE_DEFINITION": {
+    "win_rate": ">= 0.30",
+    "net_captures": "> 0",
+    "measured_on": "held-out evaluation, seeds disjoint from training and from the TASK_HEALTH panel",
+    "minimum_competent_seeds_for_weakness_discovery": 2,
+    "note": "threshold deliberately unchanged from the V4/V5 contracts; not raised after observing V5 produce 3/3"
+  },
+
+  "PER_CHECKPOINT_MONITORING": [
+    "SYSTEM_HEALTH: finite losses/gradients, optimizer updating, identities valid, checkpoint reloadable, legality clean",
+    "TASK_HEALTH: validation pickups, offensive/defensive commitment, net captures, win rate, capture conversion",
+    "reward mass by channel: terminal, capture, failed_commit, own OOB, opponent OOB, tag, enemy_mav_kill, mine_tag, grab, carry_home, offense, team, PBRS",
+    "OOB frequency, mine-tag frequency, tags per capture"
+  ],
+
+  "STOP_CONDITIONS": [
+    "NaN or Inf",
+    "identity violation",
+    "real legality violation",
+    "corrupted checkpoint or artifact",
+    "config mismatch"
+  ],
+  "DO_NOT_STOP_FOR": "one seed looking weak at an intermediate checkpoint",
+
+  "AFTER_TRAINING": [
+    "loader 7->8 channel cleanup (REQUIRED before final held-out evaluation; not a blocker for training)",
+    "evaluate the three final 1M checkpoints on held-out seeds",
+    "recurring-weakness discovery across COMPETENT seeds only",
+    "STOP before O1"
+  ],
+
+  "EXPLICITLY_FORBIDDEN": [
+    "rerun the 50k smoke",
+    "redo reward V5 tuning",
+    "reopen Gate 2D",
+    "start O1",
+    "birth latents",
+    "train router"
+  ]
+}

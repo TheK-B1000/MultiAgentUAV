@@ -1,0 +1,85 @@
+{
+  "record_id": "PHASE0_DATA_BUDGET",
+  "status": "FROZEN_BEFORE_ANY_COLLECTION",
+  "frozen_utc": "2026-08-24T16:00:00Z",
+  "authority": "PI directive",
+  "parent_protocol": "artifacts/strategic_demand/PHASE0_ACTION_CONDITIONED_SCORER_PROTOCOL.json (75cbea1a, amended 7e358601)",
+  "scorer_data_state_at_freeze": "PRISTINE -- no Phase 0 episode has been collected",
+
+  "block": {
+    "range": "6500001..6500256",
+    "audit": "artifacts/strategic_demand/PHASE0_SCORER_BLOCK_AUDIT_6500001.json",
+    "verdict": "CLEAN under the corrected four checks: declared 0, broad 0, spans 0, history 0, positive control valid (17 commits)",
+    "margins": "nearest declared seed 499809 below, 499745 above",
+    "rejected_predecessors": {
+      "9500001..9500256": "seed 9500029 is a DECLARED evaluation seed in C1_CONFIRMATION.json::evaluation_seeds (history 132b6680). Using a spent evaluation seed as scorer TRAINING data is evaluation leakage.",
+      "9700001..9700256": "overlaps 'c1_crossover': [9700000, 9700029]. Exposed an audit blind spot: endpoint-expressed ranges were not expanded, so 30 used seeds appeared as 2 literals. Tool fixed before this block was accepted."
+    }
+  },
+
+  "GATE_0A_allocation": {
+    "seeds": 256,
+    "cells": ["pi_A|A", "pi_A|B", "pi_B|A", "pi_B|B"],
+    "plain_episodes": 1024,
+    "pairing": "paired by seed across all four cells, so the crossover comparison is paired rather than independent",
+    "requires": ["WR(pi_A,A) > WR(pi_B,A)", "WR(pi_B,B) > WR(pi_A,B)"],
+    "if_fails": "STOP. Do not fit a critic on a dataset where the target structure is absent."
+  },
+
+  "scorer_split": {
+    "train_seeds": 160,
+    "held_out_seeds": 96,
+    "split_by": "SEED ONLY",
+    "why_not_by_state": "states within an episode are correlated; a state-level split would leak the episode outcome into both sides",
+    "why_96_not_64": "Gate 0B is a go/no-go prerequisite for an entire new 2M-step method. A thin held-out set cannot carry an LCB. 96 seeds x 3 branches = 288 matched states per pole."
+  },
+
+  "counterfactual_source_rule": {
+    "rule": "ONE source trajectory per pole per seed",
+    "source_trajectories": "256 seeds x 2 poles = 512",
+    "source_policy_balance": "128 seeds use pi_A's trajectory as the source state distribution, 128 use pi_B's, PER POLE",
+    "assignment": "fixed BEFORE collection, deterministic from seed parity or a frozen balanced assignment",
+    "at_each_selected_state": "BOTH teachers are queried and branched from the identical state",
+    "note": "this is why the counterfactual set costs 512 sources rather than all 1024 cell trajectories"
+  },
+
+  "branches": {
+    "per_source_trajectory": 3,
+    "selection": "one decision point from each of the early / middle / late tertiles of the episode horizon",
+    "why_stratified_not_uniform": "uniform sampling concentrates on cheap early states (expected prefix ~ half the episode) and could under-cover late strategic commitments, teaching the scorer early-game navigation instead of decisive moments",
+    "fallback_if_a_tertile_has_no_decision_point": "choose the nearest eligible decision point outside that tertile, without duplicating an already selected point",
+    "fallback_if_fewer_than_three_unique_eligible_points": "use all available points and RECORD the shortfall",
+    "total_branch_points": 1536,
+    "continuation": "TEACHER-CONSISTENT -- branch A continues under pi_A, branch B under pi_B (from the parent protocol)"
+  },
+
+  "GATE_0B_inferential_not_descriptive": {
+    "per_pole_contrasts": {
+      "d_A(o)": "V_hat(o, pi_A, A) - V_hat(o, pi_B, A)",
+      "d_B(o)": "V_hat(o, pi_B, B) - V_hat(o, pi_A, B)"
+    },
+    "requires": ["LCB95(E[d_A]) > 0", "LCB95(E[d_B]) > 0"],
+    "bootstrap_unit": "SEED, not branch state",
+    "why": "the three branch states within an episode are correlated. For each bootstrap draw, resample the 96 held-out seeds and retain ALL branch points belonging to each selected seed.",
+    "held_out_matched_states_per_pole": 288,
+    "calibration": "must hold per policy/pole cell, not merely in aggregate",
+    "if_fails": "STOP. SPPPO is not built."
+  },
+
+  "cost": {
+    "plain_episodes": 1024,
+    "branch_points": 1536,
+    "measured_branch_cost": "~1.5 episode-equivalents each (prefix replay + two continuations)",
+    "total_episode_equivalents": 3328,
+    "measured_basis": "episode length mean 235.5, median 240 (horizon cap), ~193 decision points per episode, from the 768 EXP1 evaluation rows",
+    "comparison": "~30% above the rejected 2-branch plan; accepted deliberately because Phase 0 decides whether another 2M-step run is justified at all"
+  },
+
+  "DATA_GROWTH_AFTER_FAILURE": {
+    "status": "PROHIBITED",
+    "rule": "if either gate fails on this frozen allocation, SPPPO stops. The scorer dataset is not enlarged until it passes.",
+    "reason": "a feasibility gate that can be grown after failure is not a gate"
+  },
+
+  "audit_tool_lesson_for_provenance_notes": "a positive control proves the scanner detects a KNOWN hit; it does not prove that every syntactic form of expressing a seed range is expanded. Interval expression is a distinct class of coverage failure. The control fired correctly through all four defects found in this tool (.jsonl/.log omission, decimal false positives, under-matching history query, endpoint-range non-expansion) and caught none of them; redundant checks found each."
+}

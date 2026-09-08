@@ -1,0 +1,46 @@
+{
+  "gate": "D3_POOL_PREFLIGHT",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-13T00:30:00Z",
+  "frozen_before": "any D3 training run exists",
+
+  "why_a_separate_gate": "the D1 smoke verified that a single-opponent pool RESTRICTS selection (only OP9 across 64 episodes). That check is structurally incapable of detecting a sampler that fails to ROTATE, because with |pool| = 1 a broken rotator and a working one are indistinguishable. D3 needs its own gate.",
+
+  "criteria": {
+    "1_configured_pool": "cfg.opponent_pool == exactly ('OP7', 'OP9', 'OP12')",
+    "2_subset": "every observed opponent is in the configured pool",
+    "3_coverage": "all three opponents are observed at least once in the smoke",
+    "4_no_mixing": "no episode contains more than one opponent identity",
+    "5_boundaries": "opponent identity is constant within an episode; selection occurs only at episode boundaries",
+    "6_determinism": "seed S reproduces the EXACT opponent sequence; a different seed T yields a valid sequence whose entries are all in the pool",
+    "7_no_pathology": "counts are consistent with uniform sampling; see the explicit non-requirement below"
+  },
+
+  "explicitly_NOT_required": {
+    "tight_statistical_uniformity": "a short smoke must NOT be failed because one opponent appears 18 times and another 25. Uniform sampling is lumpy in small samples, and failing on that would reject a correct sampler.",
+    "what_replaces_it": "criterion 6 -- exact sequence reproducibility under a repeated seed -- is the strong check. Realized per-opponent episode counts are then REPORTED (not gated) from the full 1M D3 runs, where balance is meaningful."
+  },
+
+  "the_determinism_check": {
+    "procedure": "run a short D3 smoke at seed S, record the opponent sequence from episode_rows.csv; repeat at seed S; require the sequences to be identical element-wise. Then run at seed T != S and require every entry to lie in the pool.",
+    "why_this_is_the_strongest_available": "it proves the sampler is a deterministic function of the seed AND rotates, without making a statistical claim a small sample cannot support."
+  },
+
+  "outcome": {
+    "PASS": "launch D3 x 3 seeds",
+    "FAIL": "do not launch D3. Repair the sampler seam and re-run the preflight; no D3 training data exists yet, so repair is engineering rather than post-data discretion."
+  },
+
+  "reporting_from_the_full_runs": {
+    "required": "per-opponent episode counts and share for each completed D3 run",
+    "status": "REPORTED, never a gate",
+    "purpose": "documents realized exposure so the D1/D3/D7 curve can be read with the actual opponent budget in view"
+  },
+
+  "invariants_this_protects": {
+    "team_size": "fixed at 2v2 across all rungs",
+    "training_budget": "fixed at 1,000,000 steps across all rungs",
+    "ppo_stack": "unchanged",
+    "manipulated": "opponent diversity ONLY"
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "record_id": "CONFIRMATION_SEED_BLOCK_AMENDMENT",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-18T00:00:00Z",
+  "amends": "artifacts/strategic_demand/CANDIDATE_A_SDS_G1_4_FROZEN.json",
+  "also_updates": "experiments/STRATEGIC_DEMAND_SEARCHER_FROZEN.json :: confirmation_reserved.seed_base",
+  "decided_by": "PI decision: shift the confirmation block to a verifiably unused seed range before running anything",
+  "prospective_not_retrospective": {
+    "no_confirmation_episode_was_ever_run": "block 2500001 was never spent; the m1_payoff/searcher/screen paths all used other blocks",
+    "no_SDS_G1_4_confirmation_result_existed": "when this amendment was made there was no outcome to react to",
+    "candidate_already_frozen_first": "SDS_G1_4 was frozen in CANDIDATE_A_SDS_G1_4_FROZEN.json BEFORE this seed question was raised",
+    "why_this_is_not_moving_goalposts": "the change restores compliance with a seed-hygiene rule that predates the candidate, is independently auditable, and cannot have been influenced by any result because no result exists"
+  },
+  "what_was_discovered": {
+    "originally_reserved": 2500001,
+    "collision": "seed 2500001 was previously used to TRAIN artifacts/g0_v2_seed2500001 (G0-V2, 1,000,000 timesteps, run_tag g0_v2_seed2500001)",
+    "second_candidate_also_rejected": {
+      "candidate": 2600001,
+      "collision": "seeds 2600001, 2600002, 2600003 trained the G0-V2 penalty-ablation arms (artifacts/g0_v2_penalty_ablation/g0_v2_nopen_seed260000{1,2,3}/, checkpoints present)",
+      "note": "rejected as a whole block. Individual clean seeds inside it were NOT cherry-picked, per the frozen instruction."
+    },
+    "direct_leakage_assessment": "NONE for this confirmation. GUARD/BREACH are scripted styles and the opponents are scripted; no learned policy participates, so no policy can have memorized these environment realizations.",
+    "why_amend_anyway": "the campaign's pre-existing hygiene rule requires evaluation seeds disjoint from all training seeds. There is no benefit to weakening a stronger rule when compliance is free.",
+    "map_set_makes_the_rule_bite": "the confirmation path runs map_set='train' (MAP_SET_SEED_OFFSETS['train']=0), so an evaluation seed equal to a training seed drives the map/env RNG to the identical state. Integer-level disjointness is therefore the correct check, not a merely cosmetic one."
+  },
+  "amended_block": {
+    "seed_base": 5000001,
+    "n": 32,
+    "range": "5000001 .. 5000032",
+    "contiguous": true,
+    "why_32": "matches the frozen Gate B precedent in experiments/M1_PAYOFF_ASSAY_FROZEN.json (seed_block.n = 32), which produced 128 episode rows = 32 seeds x 2 opponents x 2 blue styles with the same seed paired across styles. Episode count is inherited, NOT newly chosen."
+  },
+  "audit_evidence": {
+    "tool": "scripts/audit_seed_block.py (committed with this amendment; re-runnable)",
+    "check_1_declared_seeds": {
+      "definition": "integers in a genuine seed context: JSON keys containing 'seed', CSV columns containing 'seed', filenames/dirnames tagged seed<N>, python assignments to names containing SEED",
+      "inventory_size": 917,
+      "hits_inside_5000001_5000032": 0,
+      "nearest_declared_seed_below": "gap 820556",
+      "nearest_declared_seed_above": "gap 3786206"
+    },
+    "check_2_any_integer": {
+      "definition": "deliberately over-inclusive: ANY 6-12 digit integer in any tracked text file, including global_step, timesteps and CSV payload",
+      "inventory_size": 29128,
+      "hits_inside_5000001_5000032": 0
+    },
+    "check_3_declared_block_spans": {
+      "definition": "any declared (base, n) pair whose span base..base+n-1 overlaps the window, catching a block that reaches into the range from outside it",
+      "overlapping_blocks": 0
+    },
+    "check_4_git_history": {
+      "why": "a working-tree scan cannot see seeds used by deleted artifacts. Phase 11 deleted 205 files. Block 11000000 (VGC-4) is exactly such a case: it appears in 5 historical commits but NOWHERE in the working tree.",
+      "query": "git log --all --perl-regexp -G '\b(50000)(0[1-9]|[12][0-9]|3[0-2])\b'",
+      "result": "0 commits across all branches and all history",
+      "positive_control": "the identical query shape against the known-dirty window 2600001..2600032 returned 3 commits (27c6a816, afc48a84, 0872c16f), proving the query detects hits and that the empty result for 5000001 is a true negative rather than a broken query"
+    },
+    "population_offset_margin": {
+      "risk": "rl/population/population_trainer.py assigns per-member seed_offset up to 300, so a declared training seed T can legitimately occupy T..T+300",
+      "handling": "the audit required a clear margin of >5000 on both sides, far exceeding 300. The selected block clears the nearest declared seed by 820556 below and 3786206 above."
+    },
+    "reproduce": {
+      "clean_block": "python scripts/audit_seed_block.py --base 5000001 --n 32",
+      "records": {
+        "5000001": "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_5000001.json  (verdict CLEAN)",
+        "2500001": "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_2500001.json  (verdict COLLISION)",
+        "2600001": "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_2600001.json  (verdict COLLISION)"
+      },
+      "self_reference_exclusion": "the audit tool and the reservation records themselves are excluded from every check, because a record that RESERVES a block would otherwise make that block look permanently used. The exclusion list is echoed inside each audit record. The positive control (2600001, 3 commits) still fires with the exclusion active, proving it narrows self-reference without disabling detection."
+    }
+  },
+  "permanently_disqualified": {
+    "2500001": "DISQUALIFIED for strategic-demand confirmation, permanently. Collides with training run g0_v2_seed2500001. Do not resurrect this block for confirmation under any later protocol.",
+    "2600001": "DISQUALIFIED for strategic-demand confirmation, permanently. Collides with the g0_v2 penalty-ablation training seeds 2600001-2600003.",
+    "rule_going_forward": "any future evaluation block must pass scripts/audit_seed_block.py over its FULL intended range, including the git-history check, before being frozen."
+  },
+  "unchanged_by_this_amendment": [
+    "SDS_G1_4 genome and its overlay values",
+    "RULESET_V3_M1 (own_flag_home_required_to_score=True)",
+    "OP7 as the B-pole BREACH anchor",
+    "GUARD response BLUE_ONE_DEFENDER_V2 and BREACH response BLUE_BOTH_ATTACK_V2",
+    "map_a, 2v2, horizon 240",
+    "the intent definition and the commitment definition",
+    "Gate B thresholds: 0.15 floor and LCB95 > 0, in both directions",
+    "degeneracy rules and the paired-bootstrap procedure",
+    "episode count (32 paired seeds)",
+    "every prohibition listed in CANDIDATE_A_SDS_G1_4_FROZEN.json"
+  ],
+  "the_only_field_changed": "confirmation_seed_block: 2500001 -> 5000001",
+  "deliberately_not_edited": {
+    "experiments/strategic_demand_searcher.py": "V1's help text and console lines still say 'never touches 2500001'. Those statements remain TRUE -- the search genuinely never used that block -- and V1 has already produced the evidence that selected SDS_G1_4. Retro-editing a frozen artifact that generated results is worse than a string that reads as stale, so they are left exactly as they ran."
+  }
+}

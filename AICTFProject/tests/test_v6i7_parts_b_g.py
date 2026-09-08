@@ -51,66 +51,70 @@ def _call_router_reward_total(env, rterm, blue_cap, red_cap, blue_tag_wf, red_ta
     return _RewardsMixin._router_reward_total(env, rterm, blue_cap, red_cap, blue_tag_wf, red_tag)
 
 
-def _make_balanced_episode_state(n_envs: int = 4, K: int = 4, episode_start: bool = True):
-    """Minimal RouterSamplingState host for balanced_episode tests."""
+def _make_router_state(
+    assignment_mode: str,
+    n_envs: int,
+    K: int,
+    arc_steps: int,
+    episode_start: bool,
+    global_state_dim: int = 35,
+):
+    """RouterSamplingState over a host carrying the real latent tensor fields.
+
+    ``allocate_latent_state_fields`` is the same allocator the production
+    ``LatentStrategyState`` uses, so these stubs never drift behind new
+    per-env buffers added to the z-machine.
+    """
     from rl.custom_ppo.latent.router_sampling import RouterSamplingState
-    device = "cpu"
-    host = types.SimpleNamespace(
-        trainer=types.SimpleNamespace(
-            use_latent_strategy=True,
-            fixed_latent_strategy=False,
-            device=device,
-            latent_k=K,
-            cfg=types.SimpleNamespace(
-                latent_assignment_mode="balanced_episode",
-                forced_latent_arc_steps=32,
-                train_router_when_forced=False,
-            ),
-            latent_resample_every_n=0,
-            latent_sparse_tactical_refresh_enabled=False,
+    from rl.custom_ppo.latent.tensor_state import allocate_latent_state_fields
+
+    device = torch.device("cpu")
+    trainer = types.SimpleNamespace(
+        use_latent_strategy=True,
+        fixed_latent_strategy=False,
+        fixed_latent_strategy_id=0,
+        device=device,
+        latent_k=K,
+        cfg=types.SimpleNamespace(
+            latent_assignment_mode=assignment_mode,
+            forced_latent_arc_steps=arc_steps,
+            train_router_when_forced=False,
         ),
-        current_z=torch.zeros(n_envs, dtype=torch.long),
-        needs_strategy_sample=torch.full((n_envs,), episode_start, dtype=torch.bool),
-        balanced_episode_counter=torch.zeros(n_envs, dtype=torch.long),
-        arc_step_counter=torch.zeros(n_envs, dtype=torch.long),
-        episode_arc_start_z=torch.zeros(n_envs, dtype=torch.long),
-        prev_global_state=None,
-        record_tactical_context_step=lambda gs: None,
+        latent_resample_every_n=0,
+        latent_sparse_tactical_refresh_enabled=False,
+        env=types.SimpleNamespace(num_envs=n_envs),
+        model=types.SimpleNamespace(
+            global_state_dim=global_state_dim,
+            recurrent_selector_hidden_dim=0,
+            selector_gru=None,
+        ),
     )
+    host = types.SimpleNamespace(trainer=trainer)
+    allocate_latent_state_fields(host, trainer)
+    host.current_z = torch.zeros(n_envs, dtype=torch.long, device=device)
+    host.needs_strategy_sample = torch.full(
+        (n_envs,), episode_start, dtype=torch.bool, device=device
+    )
+    host.record_tactical_context_step = lambda gs: None
+    host.reset_completed_envs = lambda done_mask: None
+
     rss = RouterSamplingState.__new__(RouterSamplingState)
     rss.host = host
     return rss
+
+
+def _make_balanced_episode_state(n_envs: int = 4, K: int = 4, episode_start: bool = True):
+    """Minimal RouterSamplingState host for balanced_episode tests."""
+    return _make_router_state(
+        "balanced_episode", n_envs=n_envs, K=K, arc_steps=32, episode_start=episode_start
+    )
 
 
 def _make_balanced_arc_state(n_envs: int = 1, K: int = 4, arc_steps: int = 4, episode_start: bool = False):
     """Minimal RouterSamplingState host for balanced_arc tests."""
-    from rl.custom_ppo.latent.router_sampling import RouterSamplingState
-    device = "cpu"
-    host = types.SimpleNamespace(
-        trainer=types.SimpleNamespace(
-            use_latent_strategy=True,
-            fixed_latent_strategy=False,
-            device=device,
-            latent_k=K,
-            cfg=types.SimpleNamespace(
-                latent_assignment_mode="balanced_arc",
-                forced_latent_arc_steps=arc_steps,
-                train_router_when_forced=False,
-            ),
-            latent_resample_every_n=0,
-            latent_sparse_tactical_refresh_enabled=False,
-        ),
-        current_z=torch.zeros(n_envs, dtype=torch.long),
-        needs_strategy_sample=torch.full((n_envs,), episode_start, dtype=torch.bool),
-        balanced_episode_counter=torch.zeros(n_envs, dtype=torch.long),
-        arc_step_counter=torch.zeros(n_envs, dtype=torch.long),
-        episode_arc_start_z=torch.zeros(n_envs, dtype=torch.long),
-        prev_global_state=None,
-        record_tactical_context_step=lambda gs: None,
+    return _make_router_state(
+        "balanced_arc", n_envs=n_envs, K=K, arc_steps=arc_steps, episode_start=episode_start
     )
-    rss = RouterSamplingState.__new__(RouterSamplingState)
-    rss.host = host
-    return rss
 
 
 # ---------------------------------------------------------------------------

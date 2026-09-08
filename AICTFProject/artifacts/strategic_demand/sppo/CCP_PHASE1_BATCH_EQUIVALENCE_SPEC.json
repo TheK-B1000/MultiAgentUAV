@@ -1,0 +1,95 @@
+{
+  "record_id": "CCP_PHASE1_BATCH_EQUIVALENCE_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-01T14:35:00Z",
+  "authority": "PI, 2026-09-01: 'the final engineering gate is SEQ/BATCH equivalence AND A/B CRN identity AND lane/composition invariance. All three pass, batching is authorized. Any one fails, batching as currently implemented is invalid, not merely slower.'",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "gates": "Phase 1 collection. No delta_Q is collected under batching until this passes.",
+
+  "WHY_THIS_GATE_EXISTS": {
+    "measured_cost": "~43 s per rollout sequentially, measured from the continuation-entropy smoke (two boundaries of 34 rollouts in ~49 minutes).",
+    "sizing": "At the boundary audit's observed both-free fraction of 0.325, a mixed bank costs 0.675*64 + 0.325*192 = 105.6 rollouts per state, about 76 minutes per state, about 10.5 days for 200 states sequentially. Batching is a prerequisite, not an optimisation.",
+    "the_hazard": "core._rng is a SINGLE generator and the draws are torch.rand((B,), generator=self._rng), so one call consumes B values and hands lane i the i-th of them. Unless proven otherwise, the continuation assigned to (state, j) depends on which lane carried it and on what else shared the batch. That would make batch packing part of the treatment.",
+    "what_it_would_look_like": "A beautifully formatted delta_Q bank whose values subtly depend on where rows landed in a tensor, reproducible only so long as nobody changes batching order."
+  },
+
+  "THE_THREE_INVARIANTS": {
+    "note": "All three must pass TOGETHER. Any one failing invalidates batching as implemented.",
+
+    "1_SEQ_BATCH_EQUIVALENCE": {
+      "requirement": "G_batch(s, j, lane) == F_sequential(s, j) for prospectively fixed states and continuation indices",
+      "compared": "the full trajectory/state hash and the terminal outcome",
+      "standard": "EXACT where Phase 0 semantics allow exactness. Not 'statistically similar'.",
+      "reference": "the sequential implementation already validated by CCP_PHASE1_CONTINUATION_ENTROPY.json"
+    },
+
+    "2_AB_PAIRED_STREAM_IDENTITY": {
+      "requirement": "r_j^A == r_j^B for the same state and j, under batching",
+      "detail": "The interventions may alter trajectories and termination times. While both branches remain active they must consume the same underlying continuation stream, exactly as the scalar CRN smoke established.",
+      "why": "otherwise the estimator stops being Y_A^(j) - Y_B^(j) under matched randomness, and D_j is contaminated by continuation noise",
+      "scalar_precedent": "CCP_PHASE1_CRN_SMOKE.json, CRN_ALIGNED (5839ff3d)"
+    },
+
+    "3_LANE_AND_COMPOSITION_INVARIANCE": {
+      "requirement": "G(s, j, lane_1, composition_1) == G(s, j, lane_2, composition_2) for arbitrary tested lanes and batch compositions",
+      "plain_english": "The continuation assigned to (state, j) must belong to (state, j), not to whichever GPU lane happened to carry it.",
+      "test_both_ways": [
+        "move the same (state, j) between lanes 0, 7, 17 and 31 with the rest of the batch held fixed",
+        "keep its lane fixed while replacing and reordering every other batch member"
+      ],
+      "this_is_the_new_load_bearing_one": "It also constrains the fallback batching axis. Batching different STATES one j at a time still assigns randomness by lane index, so it is not automatically safe either.",
+      "protects": "the artifact-determinism established by tests/test_ccp_continuation_seed_mapping.py (ba84a943)"
+    }
+  },
+
+  "EXPLICITLY_REJECTED": {
+    "argument": "'lane assignment is frozen, therefore lane dependence is acceptable'",
+    "why_rejected": "PI, 2026-09-01: that could make a run reproducible, but it changes the MEANING of the continuation index j. j is defined as environmental continuation randomness, not as environmental randomness plus a GPU packing accident.",
+    "and_also": "the estimator is never altered to accommodate the hardware"
+  },
+
+  "IF_THE_GATE_FAILS": {
+    "rule": "batching as implemented is INVALID, not merely slower, and Phase 1 does not collect under it",
+    "option_1_per_lane_keyed_rng": {
+      "idea": "derive each continuation stream from r_{s,j} = H(namespace, s, j) independently of lane",
+      "cost": "an environment/runtime implementation change, which the program opened by preferring to avoid",
+      "requires": "its own amendment AND an equivalence test demonstrating it changes RNG OWNERSHIP, not the game distribution"
+    },
+    "option_2_parallel_B1_cores": {
+      "idea": "independent B=1 cores, each with its own continuation seed",
+      "benefit": "preserves the already-validated scalar semantics with no environment change",
+      "cost": "weaker speedup"
+    },
+    "option_3_smaller_frozen_bank": {
+      "idea": "accept the sequential cost with a smaller bank",
+      "requirement": "bank size AND sampling/stratification chosen and frozen BEFORE any delta_Q is viewed"
+    }
+  },
+
+  "PROSPECTIVE_PREDICTION": {
+    "recorded_before_running_so_it_can_be_wrong": true,
+    "by": "the executing agent, from reading the code",
+    "prediction": "Invariant 1 FAILS. At Pole A red_deception_prob is 0.0882 and active. During a 32-lane prefix replay each lane draws a different deception value from the shared (B,) draw, and on a pulse step (sim_step_count % 30 == 0) roughly 3 of 32 lanes should feint where the sequential reference did not. Expect most lanes to reproduce s_t and a few to diverge -- the 'mostly works' shape.",
+    "if_the_prediction_is_wrong": "record that plainly. A passing invariant 1 would mean the shared draw does not reach the prefix in a lane-distinguishing way, and the reasoning above is incomplete.",
+    "the_prediction_does_not_relax_any_invariant": true
+  },
+
+  "WHAT_THIS_GATE_MAY_NOT_DO": [
+    "alter the estimator, M, the seed mapping, or the branching rules to accommodate batching",
+    "accept 'statistically similar' where exactness is available",
+    "accept frozen lane assignment as a substitute for lane invariance",
+    "authorize partial batching on the strength of two invariants out of three",
+    "touch any EVAL block"
+  ],
+
+  "OUTPUT": "CCP_PHASE1_BATCH_EQUIVALENCE.json, one-shot",
+
+  "PROVENANCE": {
+    "phase_1_spec": "CCP_PHASE1_CAUSAL_BRANCHING_SPEC.json (376ea1f1, amended 877925e6)",
+    "scalar_crn": "CCP_PHASE1_CRN_SMOKE.json (5839ff3d)",
+    "seed_mapping_tests": "tests/test_ccp_continuation_seed_mapping.py (ba84a943)",
+    "sequential_reference": "CCP_PHASE1_CONTINUATION_ENTROPY.json",
+    "rng_sites": ["gpu_env/_core/_scripted_red.py:361", "gpu_env/_core/_scripted_red.py:636",
+                  "gpu_env/_core/_observations.py:95", "gpu_env/_core/_observations.py:106"]
+  }
+}

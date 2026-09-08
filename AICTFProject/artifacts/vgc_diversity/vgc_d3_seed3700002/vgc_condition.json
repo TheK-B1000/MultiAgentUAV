@@ -1,0 +1,23 @@
+{
+  "experiment": "VGC opponent-diversity scaling",
+  "diversity_condition": "D3",
+  "opponent_pool": [
+    "OP7",
+    "OP9",
+    "OP12"
+  ],
+  "n_opponents": 3,
+  "held_out_opponents": [
+    "OP6",
+    "OP8",
+    "OP10",
+    "OP11"
+  ],
+  "training_method": "Mixed-PPO (mode=OPPONENT_POOL, uniform per completed episode)",
+  "seed": 3700002,
+  "team_size": "2v2",
+  "total_timesteps": 1000000,
+  "smoke": false,
+  "frozen_sets_artifact": "artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json",
+  "git_commit": "e778f6ba430e6bc771545ffca9d4c0cf9acda666"
+}

@@ -1,0 +1,151 @@
+{
+  "record_id": "SAC_RFT_SPEC",
+  "name": "Strategy-Anchored Causal Retention Fine-Tuning",
+  "status": "ACTIVATED",
+  "utc": "2026-09-03T17:41:00Z",
+  "authority": "PI: prepare successor so it is launch-ready on sealed RSCFT FAIL; do not alter the in-flight RSCFT EVAL; no EMA hyperparameter fishing",
+  "parent_hypothesis": "RSCFT_FAIL_SUCCESSOR_HYPOTHESIS_PREREGISTERED.json#1_PRIMARY_frozen_strategic_anchor",
+  "scaling_tree": "SCALING_DECISION_TREE_PREREGISTERED.json",
+  "ACTIVATION": {
+    "rule": "Production GPU hours are forbidden until authorization passes.",
+    "authorizer": "experiments/launch_sac_rft_after_rscft_fail.py",
+    "accepts": [
+      "RSCFT_EVAL_RESULT.json with TREATMENT primary gate FAIL (or reading 'retention stabilization insufficient')",
+      "RSCFT_EVAL_INTEGRITY_REQUIRED.json PLUS RSCFT_EVAL_INTEGRITY.json with VERDICT starting GENUINE_* (rows confirmed; still no PASS claim)",
+      "SAC_RFT_EARLY_ACTIVATION_OVERRIDE.json when INTEGRITY_REQUIRED is present and the audit is not yet written -- COMPUTE ONLY, not scientific clearance"
+    ],
+    "refuses": [
+      "RSCFT EVAL still running / no result and no integrity flag",
+      "RSCFT TREATMENT primary gate PASS (take scaling PASS branch instead)",
+      "integrity required but audit not yet written AND no FROZEN early-activation override",
+      "lambda_ret / ema_decay retunes of RSCFT"
+    ],
+    "early_compute_override_rule": "Early compute activation authorized != RSCFT scientifically cleared. Integrity audit remains mandatory.",
+    "mechanical_preflight": "MAY run before activation (no production weights written to the SAC-RFT production dirs)"
+  },
+  "SCIENTIFIC_HYPOTHESIS": {
+    "if_RSCFT_failed_write_first": "EMA temporal consistency reduced unrestricted actor drift, but was insufficient to preserve strategy-specific crossover",
+    "hypothesis": "A moving EMA teacher preserves temporal smoothness, but preserving specialization requires a strategy-specific fixed anchor.",
+    "what_this_successor_tests": "Does KL retention against a FROZEN copy of the specialized incumbent preserve Pole-A/B crossover better than the identical recipe with a moving EMA teacher?",
+    "why_the_control_is_EMA": "CONTROL is the RSCFT TREATMENT mechanism (PPO + causal + EMA). That isolates the one new variable: moving teacher vs frozen reference. Making plain PPO or causal-only the control would re-answer questions already answered by CCP-S2 / RSCFT."
+  },
+  "THE_ONE_CHANGED_VARIABLE": {
+    "changed": "retention teacher: moving EMA (decay 0.995) REPLACED BY frozen specialized reference (never updated)",
+    "unchanged": [
+      "warm-start checkpoint (original incumbent where delta_A = +0.0938)",
+      "critic",
+      "Stage A/B causal bank",
+      "lambda_causal = 0.05",
+      "lambda retention strength = 0.01 (matched to RSCFT lambda_ret, NOT tuned after seeing RSCFT)",
+      "decision-boundary masking",
+      "numerically stable KL",
+      "500k additional steps",
+      "latent assignments",
+      "rewards / returns / GAE",
+      "primary EVAL gate shape"
+    ]
+  },
+  "ARMS": {
+    "EMA_CONTROL": {
+      "role": "CONTROL",
+      "start_checkpoint": "original incumbent (final_ccp_successor_production.zip)",
+      "ppo": true,
+      "ccp_s2_causal_loss": true,
+      "lambda_causal": 0.05,
+      "retention": "EMA RetentionRunner identical to RSCFT TREATMENT (decay=0.995, lambda=0.01)",
+      "frozen_anchor": "ABSENT -- and fatal if AnchorRetentionRunner fires",
+      "horizon": "+500000 additional steps"
+    },
+    "ANCHOR_TREATMENT": {
+      "role": "TREATMENT",
+      "start_checkpoint": "the SAME original incumbent",
+      "ppo": true,
+      "ccp_s2_causal_loss": true,
+      "lambda_causal": 0.05,
+      "retention": "AnchorRetentionRunner: L_anchor = KL(pi_frozen_ref || pi_theta) at decision boundaries, lambda_anchor=0.01",
+      "frozen_anchor": "PRESENT -- exact deepcopy of warm-start actor at attach; NEVER updated",
+      "ema_teacher_update": "FATAL if called",
+      "horizon": "+500000 additional steps"
+    }
+  },
+  "FROZEN_ANCHOR": {
+    "init": "theta_ref_0 = deepcopy(theta_0) after warm start load -- identical to incumbent weights",
+    "update_rule": "NONE. Any call that would move reference parameters is fatal.",
+    "loss": "L_anchor = D_KL( pi_ref || pi_theta ) via retention_kl()",
+    "lambda_anchor": 0.01,
+    "DECISION_BOUNDARY_MASKING": "identical to RSCFT_SPEC.json#EMA_RETENTION.DECISION_BOUNDARY_MASKING",
+    "NUMERICAL_REQUIREMENT": "identical to RSCFT_SPEC.json#EMA_RETENTION.NUMERICAL_REQUIREMENT",
+    "HYPERPARAMETER_PROVENANCE": {
+      "lambda_anchor": 0.01,
+      "status": "PREREGISTERED TO MATCH RSCFT lambda_ret BEFORE seeing sealed RSCFT outcome as a decision input",
+      "explicitly_not": "not tuned after RSCFT FAIL; not a search over {0.02,0.05,0.1}"
+    }
+  },
+  "SEEDS": {
+    "training_seed": 11803001,
+    "shared_by_both_arms": true,
+    "derived_environment_range": "11803001..11803321",
+    "sealed_eval_block": "11804001..11804064",
+    "eval_n": 64,
+    "must_not_reuse": [
+      "11701001..11701064 (CCP-S2 sealed EVAL, SPENT)",
+      "11704001..11704064 (RSCFT sealed EVAL, SPENT once written)"
+    ],
+    "disjointness_required": true
+  },
+  "MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_ANY_GPU_RUN": [
+    "student and frozen anchor are behaviorally identical at initialization",
+    "initial anchor KL is approximately zero and finite",
+    "a controlled actor perturbation makes anchor KL > 0",
+    "L_anchor produces nonzero actor gradients",
+    "frozen anchor parameters do NOT move after an actor update",
+    "EMA teacher WOULD move under the same update (positive control on the contrast)",
+    "mid-hold rows contribute exactly zero anchor retention loss",
+    "CONTROL fails closed if AnchorRetentionRunner fires",
+    "TREATMENT fails closed if EMATeacher.update is called",
+    "the config diff between arms contains only retention-teacher fields",
+    "activation gate still refuses production while RSCFT EVAL is incomplete or PASS"
+  ],
+  "EVAL_PROTOCOL": {
+    "seeds_per_cell": 64,
+    "block": "11804001..11804064",
+    "shared_seeds_across_arms": true,
+    "PRIMARY_GATE": {
+      "delta_A": "V(z0,A) - V(z1,A)",
+      "delta_B": "V(z1,B) - V(z0,B)",
+      "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+      "rule": "same primary gate. No mercy, no reinterpretation."
+    },
+    "ATTRIBUTION": {
+      "Gamma_A": "delta_A_anchor - delta_A_ema_control",
+      "Gamma_B": "delta_B_anchor - delta_B_ema_control",
+      "statistic": "preregistered PAIRED bootstrap over the shared 64 seeds, n_boot=20000, alpha=0.05, rng_seed=7"
+    },
+    "PREREGISTERED_INTERPRETATION": [
+      {
+        "anchor": "PASS",
+        "ema_control": "FAIL",
+        "reading": "frozen strategic anchor recovered crossover where EMA retention did not"
+      },
+      {
+        "anchor": "PASS",
+        "ema_control": "PASS",
+        "reading": "crossover recovered under both teachers; frozen anchor not necessary under this run"
+      },
+      {
+        "anchor": "FAIL",
+        "ema_control": "FAIL",
+        "reading": "frozen strategic anchor also insufficient"
+      },
+      {
+        "anchor": "PASS",
+        "gamma": "CIs do not clear zero",
+        "reading": "claim recovery under the complete treatment, not statistically established anchor attribution"
+      }
+    ],
+    "tie_or_reversal": "any tie or reversal triggers row-level integrity audit before interpretation",
+    "one_shot": true
+  },
+  "SEQUENCE": "freeze this SPEC -> implement FrozenAnchor path -> mechanical preflight (allowed now) -> WAIT for RSCFT sealed FAIL authorization -> CONTROL 500k -> TREATMENT 500k -> freeze models -> sealed EVAL 11804001..11804064",
+  "activated_utc": "2026-09-03T18:56:41Z"
+}

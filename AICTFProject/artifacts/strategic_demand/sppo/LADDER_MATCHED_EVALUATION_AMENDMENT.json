@@ -1,0 +1,47 @@
+{
+  "record_id": "LADDER_MATCHED_EVALUATION_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-05T00:15:00Z",
+  "authority": "PI, 2026-09-05: fix the ruler before measuring the next architecture. Rung 0 is the exact specialists, so a block-to-block swing in its measured advantage is evaluation variance, not model change. Every rung must be compared to Rung 0 seed-for-seed, with enough power that a good architecture is not judged by one weird seed sample.",
+  "timing_disclosure": "written while the Rung 0 stability rerun (block 2) was mid-run: its Pole-A cells were visible (z0@A 0.8125, z1@A 0.3594), its Pole-B cells and all confidence intervals were NOT. This rule governs Rungs 1-3, none of which exist yet; nothing in it depends on block 2's outcome.",
+
+  "amends": "SHARING_LADDER_SPEC.json#EVAL_PROTOCOL (per-rung fresh blocks) and #SEEDS (rung_1_eval, rung_2_eval, rung_3_eval)",
+  "rule": "APPEND, not an edit. The per-rung PRIMARY_GATE, bootstrap, device, ordering rule and training recipe are unchanged. Only HOW rungs are compared to Rung 0, and WHICH seeds they are evaluated on, changes.",
+
+  "THE_PROBLEM_BEING_FIXED": {
+    "observation": "Rung 0 block 1 (11960001..064): delta_A +0.1250 [-0.0469, +0.2969]. Rung 0 block 2 (11970001..064), Pole-A point estimate so far: +0.4531. Same bit-exact policies; the difference is entirely which 64 episodes were drawn.",
+    "consequence_if_uncorrected": "comparing a Rung-1 delta on its own fresh block against a Rung-0 delta on a different block would compare two unrelated noisy averages. A real architectural loss could hide inside that noise, or noise could be read as a loss.",
+    "reframed_question": "not 'is Rung k's raw delta smaller than some noisy Rung-0 number?' but 'does introducing sharing cause a CONSISTENT WITHIN-SEED loss relative to Rung 0?'"
+  },
+
+  "MATCHED_EVALUATION_RULE": {
+    "ladder_seed_set": "the UNION of Rung 0's two blocks: 11960001..11960064 and 11970001..11970064 -- 128 seeds per cell. Rung 0's outcome on every one of these seeds is already recorded (rung0_crossover_eval_rows.csv, rung0_stability_rerun_rows.csv), so it is the fixed reference and is never re-run.",
+    "every_rung_evaluated_on_exactly_this_set": "Rungs 1, 2 and 3 are each evaluated on all 128 seeds per cell, the same four cells, the same device (cuda). No rung gets its own fresh block.",
+    "why_reuse_is_legitimate": "Rung-k weights are produced by fixed-epoch distillation on TEACHER_DISTILLATION_DATASET.json (collection seeds 11921xxx) with no checkpoint selection, so these evaluation seeds are unseen by every rung's training and no model selection ever touches them. Reuse across rungs is the matched-pairs design, not seed leakage. The seeds are 'exposed' only for Rung 0, which is not a trained model.",
+    "supersedes": "SHARING_LADDER_SPEC.json#SEEDS rung_1_eval (11962001..064), rung_2_eval (11964001..064), rung_3_eval (11966001..064) are RETIRED unused. Training seeds rung_1_train 11961001, rung_2_train 11963001, rung_3_train 11965001 remain as frozen."
+  },
+
+  "STATISTICS_PER_RUNG": {
+    "own_gate_still_reported": "delta_A = V(z0,A) - V(z1,A) and delta_B = V(z1,B) - V(z0,B) over the 128-seed set with the paired percentile bootstrap (n_boot=20000, alpha=0.05, rng_seed=7); the frozen PRIMARY_GATE criterion is applied and reported. At n=128 this is the higher-power version of the same gate.",
+    "PRIMARY_LADDER_STATISTIC_within_seed_difference": {
+      "per_seed": "for each seed s: d_A(s) = [win(z0,A,s) - win(z1,A,s)]_Rk - [win(z0,A,s) - win(z1,A,s)]_R0, and d_B(s) analogously with z1/z0 on Pole B",
+      "aggregate": "D_A = mean_s d_A(s), D_B = mean_s d_B(s), each with a paired percentile bootstrap over seeds (n_boot=20000, alpha=0.05, rng_seed=7)",
+      "reading_rule_frozen": {
+        "sharing_damaged_specialization_on_a_pole": "UCB95(D) < 0 on that pole -- the within-seed loss is consistent, not attributable to which episodes were drawn",
+        "no_detectable_within_seed_loss": "the D CI contains 0",
+        "sharing_helped": "LCB95(D) > 0 (reported if it occurs; not expected)"
+      },
+      "why_stronger": "d(s) cancels the per-seed difficulty that drives the block-to-block swing in raw deltas. Rung 0 and Rung k face the identical episode; only the architecture differs."
+    }
+  },
+
+  "POWER": {
+    "n_per_cell": 128,
+    "how": "two preregistered 64-seed blocks combined (the Rung-0 blocks). No further blocks are added unless a separate amendment freezes them BEFORE any rung is evaluated on them.",
+    "note": "if the pooled Rung-0 n=128 reference itself does not clear the gate on delta_A, that is itself a finding about the evaluation's resolution -- the ladder can still be run and read through D, which does not require Rung 0 to clear the gate, only to be the fixed reference."
+  },
+
+  "PLANNED_FOLLOW_UP_IF_RUNG_1_LOSES_CROSSOVER": "inspect whether the within-seed loss localises to TARGET-head decisions, where SUBMACRO_LEVERAGE_DIAGNOSTIC_SPEC.json already found 4.7-7.0x more disagreement than at the macro head. That diagnostic stays a sidecar and is not run on the GPU concurrently with any rung eval.",
+
+  "SEQUENCE": "finish Rung 0 block 2 untouched -> fix the Rung-0 128-seed reference from the two row files -> Rung 1 (only on explicit PI go) trained by the frozen recipe, evaluated on the matched 128-seed set, read through D_A/D_B first and its own gate second -> locate exactly what sharing breaks"
+}

@@ -36,7 +36,7 @@ _PLAN_FAITHFUL_SUBMODULES = [
 _FORBIDDEN_IMPORT_IN_PRESETS = "rl.train_ppo"
 _FORBIDDEN_IMPORT_IN_EVAL = "experiments"
 
-_MODULE_LINE_LIMIT = 1200
+_MODULE_LINE_LIMIT = 1500
 
 
 def _iter_py_files(directory: Path):

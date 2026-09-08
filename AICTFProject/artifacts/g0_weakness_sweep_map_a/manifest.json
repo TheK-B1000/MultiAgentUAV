@@ -1,0 +1,74 @@
+{
+  "experiment": "g0_weakness_sweep",
+  "created_utc": "2026-07-30T13:14:57.777646+00:00",
+  "purpose": "Find a context where the LEARNED incumbent G0 genuinely fails. Replaces scripted-probe-based context selection.",
+  "incumbent": {
+    "name": "G0",
+    "description": "frozen 1M piR family, used as incumbent generalist (NOT 'the RUSH specialist')",
+    "seeds": [
+      901001,
+      901002,
+      901003
+    ],
+    "checkpoint_step": 1000000,
+    "all_seeds_used": true,
+    "best_seed_selection": "prohibited"
+  },
+  "map": {
+    "requested_label": "map_a",
+    "canonical_layout": "map_a_open",
+    "pooling_with_map_b": "PROHIBITED"
+  },
+  "opponents": [
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7_DEEP_FORTRESS",
+    "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_SPLIT_LANE_FEINT",
+    "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11_ADAPTIVE_EXPLOITER",
+    "OP12_LATE_CONVERTER"
+  ],
+  "eval_seed_blocks": {
+    "OP6_IMMEDIATE_DUAL_RUSH": [
+      1200001,
+      1200032
+    ],
+    "OP7_DEEP_FORTRESS": [
+      1210001,
+      1210032
+    ],
+    "OP8_PROTECTED_CARRIER_ESCORT": [
+      1220001,
+      1220032
+    ],
+    "OP9_SPLIT_LANE_FEINT": [
+      1230001,
+      1230032
+    ],
+    "OP10_AGGRESSIVE_INTERCEPTOR": [
+      1240001,
+      1240032
+    ],
+    "OP11_ADAPTIVE_EXPLOITER": [
+      1250001,
+      1250032
+    ],
+    "OP12_LATE_CONVERTER": [
+      1260001,
+      1260032
+    ]
+  },
+  "episodes_per_cell": 32,
+  "n_cells": 21,
+  "total_episodes": 672,
+  "invariants": {
+    "max_decision_steps": 240,
+    "agents": 2,
+    "deterministic": true,
+    "domain_randomization": false,
+    "n_envs": 1
+  },
+  "pairing": "All three G0 seeds see the identical evaluation seed block within an opponent, so seed-paired CIs are valid.",
+  "ranking_rule": "W(c) = max over G0 seeds of payoff(G0_s, c); LOWER is a better weakness. Using the max prevents selecting a context that only defeats one weak member of the incumbent family.",
+  "weakness_gate": "All three G0 seeds have negative mean margin AND the family-level upper CI95 is below zero. If nothing qualifies, select nothing."
+}

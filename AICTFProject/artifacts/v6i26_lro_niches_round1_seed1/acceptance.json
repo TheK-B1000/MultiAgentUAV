@@ -1,0 +1,19 @@
+{
+  "G_before": 0.10714285714285698,
+  "G_after": 0.2857142857142856,
+  "delta_G_available": 0.1785714285714286,
+  "branch_idx": 3,
+  "branch_mean_payoff": 1.3035714285714286,
+  "competence_floor": 0.9308035714285714,
+  "best_on_context_indices": [
+    2,
+    3,
+    9,
+    10
+  ],
+  "nonredundant_payoff_row": true,
+  "competence_above_floor": true,
+  "delta_G_gt_0": true,
+  "accepted": true,
+  "verdict": "ACCEPT"
+}

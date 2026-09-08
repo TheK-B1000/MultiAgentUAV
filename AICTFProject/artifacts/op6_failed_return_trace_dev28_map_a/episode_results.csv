@@ -1,0 +1,33 @@
+blue_style,episode_index,episode_seed,pickups,scores,failed_returns,blue_score,red_score,loss_classes,dominant_loss,steps
+BLUE_RUSH,0,701001,3,0,2,3,2,"{""tagged_from_behind"": 1, ""red_agents_crossing_blocking"": 1}",tagged_from_behind,86
+BLUE_ESCORT,0,701001,3,0,2,3,2,"{""tagged_from_behind"": 1, ""red_agents_crossing_blocking"": 1}",tagged_from_behind,92
+BLUE_SPLIT,0,701001,3,0,2,2,3,"{""tagged_from_behind"": 1, ""other_or_ambiguous"": 1}",tagged_from_behind,95
+BLUE_TURTLE,0,701001,6,0,5,3,2,"{""carrier_route_detour"": 1, ""red_agents_crossing_blocking"": 2, ""tagged_from_behind"": 1, ""head_on_interception"": 1}",red_agents_crossing_blocking,171
+BLUE_RUSH,1,701002,3,0,2,3,2,"{""tagged_from_behind"": 1, ""carrier_route_detour"": 1}",tagged_from_behind,88
+BLUE_ESCORT,1,701002,3,0,2,3,2,"{""tagged_from_behind"": 1, ""red_agents_crossing_blocking"": 1}",tagged_from_behind,97
+BLUE_SPLIT,1,701002,3,0,2,2,3,"{""carrier_route_detour"": 2}",carrier_route_detour,95
+BLUE_TURTLE,1,701002,7,0,6,3,2,"{""carrier_route_detour"": 3, ""support_chasing_wrong_target"": 1, ""red_agents_crossing_blocking"": 1, ""tagged_from_behind"": 1}",carrier_route_detour,203
+BLUE_RUSH,2,701003,3,0,2,3,2,"{""red_agents_crossing_blocking"": 2}",red_agents_crossing_blocking,89
+BLUE_ESCORT,2,701003,3,0,2,2,3,"{""tagged_from_behind"": 2}",tagged_from_behind,91
+BLUE_SPLIT,2,701003,4,0,3,2,3,"{""red_agents_crossing_blocking"": 1, ""carrier_route_detour"": 1, ""head_on_interception"": 1}",red_agents_crossing_blocking,99
+BLUE_TURTLE,2,701003,7,0,6,2,3,"{""other_or_ambiguous"": 2, ""carrier_route_detour"": 2, ""head_on_interception"": 2}",other_or_ambiguous,219
+BLUE_RUSH,3,701004,3,0,2,3,2,"{""tagged_from_behind"": 1, ""red_agents_crossing_blocking"": 1}",tagged_from_behind,90
+BLUE_ESCORT,3,701004,3,0,2,3,2,"{""red_agents_crossing_blocking"": 2}",red_agents_crossing_blocking,96
+BLUE_SPLIT,3,701004,3,0,2,3,2,"{""red_agents_crossing_blocking"": 1, ""carrier_route_detour"": 1}",red_agents_crossing_blocking,98
+BLUE_TURTLE,3,701004,4,0,3,2,3,"{""other_or_ambiguous"": 1, ""red_agents_crossing_blocking"": 1, ""carrier_route_detour"": 1}",other_or_ambiguous,157
+BLUE_RUSH,4,701005,3,0,2,3,2,"{""red_agents_crossing_blocking"": 1, ""other_or_ambiguous"": 1}",red_agents_crossing_blocking,88
+BLUE_ESCORT,4,701005,3,0,2,3,2,"{""red_agents_crossing_blocking"": 2}",red_agents_crossing_blocking,94
+BLUE_SPLIT,4,701005,3,0,2,3,2,"{""carrier_route_detour"": 2}",carrier_route_detour,93
+BLUE_TURTLE,4,701005,7,0,6,2,3,"{""tagged_from_behind"": 1, ""support_chasing_wrong_target"": 2, ""red_agents_crossing_blocking"": 1, ""carrier_route_detour"": 2}",support_chasing_wrong_target,200
+BLUE_RUSH,5,701006,3,0,2,2,3,"{""red_agents_crossing_blocking"": 2}",red_agents_crossing_blocking,94
+BLUE_ESCORT,5,701006,3,0,2,2,3,"{""red_agents_crossing_blocking"": 2}",red_agents_crossing_blocking,94
+BLUE_SPLIT,5,701006,4,0,3,3,2,"{""red_agents_crossing_blocking"": 1, ""head_on_interception"": 1, ""carrier_route_detour"": 1}",red_agents_crossing_blocking,108
+BLUE_TURTLE,5,701006,7,0,6,2,3,"{""carrier_route_detour"": 4, ""tagged_from_behind"": 1, ""other_or_ambiguous"": 1}",carrier_route_detour,230
+BLUE_RUSH,6,701007,3,0,2,3,2,"{""red_agents_crossing_blocking"": 2}",red_agents_crossing_blocking,88
+BLUE_ESCORT,6,701007,3,0,2,3,2,"{""red_agents_crossing_blocking"": 2}",red_agents_crossing_blocking,97
+BLUE_SPLIT,6,701007,3,0,2,3,2,"{""tagged_from_behind"": 1, ""carrier_route_detour"": 1}",tagged_from_behind,97
+BLUE_TURTLE,6,701007,7,0,6,3,2,"{""carrier_route_detour"": 3, ""head_on_interception"": 1, ""red_agents_crossing_blocking"": 1, ""other_or_ambiguous"": 1}",carrier_route_detour,227
+BLUE_RUSH,7,701008,4,0,3,2,3,"{""red_agents_crossing_blocking"": 1, ""carrier_route_detour"": 1, ""head_on_interception"": 1}",red_agents_crossing_blocking,109
+BLUE_ESCORT,7,701008,3,0,2,2,3,"{""tagged_from_behind"": 1, ""red_agents_crossing_blocking"": 1}",tagged_from_behind,97
+BLUE_SPLIT,7,701008,3,0,2,2,3,"{""red_agents_crossing_blocking"": 1, ""carrier_route_detour"": 1}",red_agents_crossing_blocking,93
+BLUE_TURTLE,7,701008,7,0,6,3,2,"{""other_or_ambiguous"": 2, ""carrier_route_detour"": 4}",carrier_route_detour,191

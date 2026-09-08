@@ -1,0 +1,17 @@
+﻿{
+    "collector_script":  "experiments/collect_stratified_regime_data.py",
+    "collector_alive":  true,
+    "commit_short":  "16d8a8cd",
+    "record":  "STRATIFIED_AMENDMENT_2_RUNNING_COLLECTOR_PROVENANCE",
+    "commit_message":  "Freeze Amendment 2 stratified collector eligibility",
+    "scientific_support_gate":  "SEALED until COLLECTION_COMPLETE",
+    "utc":  "2026-08-27T20:48:31Z",
+    "collector_pid":  31948,
+    "ppo_launch":  "BLOCKED",
+    "protocol":  "artifacts/strategic_demand/rasrppo/STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json",
+    "target_seeds":  160,
+    "note":  "Commit pins the treatment the live process is executing; committing does not restart or alter the running interpreter.",
+    "commit":  "16d8a8cd60e26d233dfe4eba312778185d9fb353",
+    "completed_seeds_at_provenance_write":  4,
+    "collector_start_time":  "2026-08-27T15:14:52.5027815-04:00"
+}

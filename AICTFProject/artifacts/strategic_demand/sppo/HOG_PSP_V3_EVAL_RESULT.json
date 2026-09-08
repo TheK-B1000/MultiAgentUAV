@@ -1,0 +1,93 @@
+{
+  "record": "H-OG-PSP V3 held-out payoff EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-31T20:24:43Z",
+  "implements": "HOG_PSP_V3_EVAL_SPEC.json",
+  "VERDICT": "HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED",
+  "trajectory_identity_frozen_before_eval": "TRAJECTORY_IDENTITY_CONFIRMED",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/hog_psp_v3_production/ckpts/final_hog_psp_v3_production.zip",
+    "sha256": "9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69",
+    "verified_at_eval_time": true,
+    "terminal_only": true
+  },
+  "seeds": {
+    "block": [
+      11300101,
+      11300132
+    ],
+    "n": 32
+  },
+  "payoff_matrix": {
+    "z0|A": {
+      "mean": 0.75,
+      "lcb95": 0.59375,
+      "ucb95": 0.90625
+    },
+    "z1|A": {
+      "mean": 0.78125,
+      "lcb95": 0.625,
+      "ucb95": 0.90625
+    },
+    "z0|B": {
+      "mean": 0.71875,
+      "lcb95": 0.5625,
+      "ucb95": 0.875
+    },
+    "z1|B": {
+      "mean": 0.5625,
+      "lcb95": 0.375,
+      "ucb95": 0.71875
+    },
+    "pi_A|A": {
+      "mean": 0.71875,
+      "lcb95": 0.5625,
+      "ucb95": 0.875
+    },
+    "pi_B|B": {
+      "mean": 0.46875,
+      "lcb95": 0.3125,
+      "ucb95": 0.65625
+    }
+  },
+  "delta_A": {
+    "mean": -0.03125,
+    "lcb95": -0.21875,
+    "ucb95": 0.15625,
+    "passes": false
+  },
+  "delta_B": {
+    "mean": -0.15625,
+    "lcb95": -0.40625,
+    "ucb95": 0.09375,
+    "passes": false
+  },
+  "gate": "BOTH delta lcb95 > 0",
+  "retention_context_only_not_a_gate": {
+    "mean": 1.1164790401627562,
+    "lcb95": 0.8444444444444444,
+    "ucb95": 1.4333333333333333
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "unchanged from OG-PSP, V1, and EXP2C"
+  },
+  "interpretive_context_frozen_before_the_result": {
+    "mechanism": "TRAJECTORY_IDENTITY_CONFIRMED on both poles before EVAL: delta_tau_A LCB95 +5.6553, delta_tau_B LCB95 +5.1032",
+    "state_level_jsd_nats": 0.10862136199379918,
+    "teacher_relative_trajectory_ratio": {
+      "A": 1.1092706025950452,
+      "B": 1.0028354235654064,
+      "warning": "Identity separation under a discriminator ruler, not strategic payoff retention."
+    },
+    "two_axes_disclosure": "Relative to OG-PSP, V3 changes latent-private actor capacity and trajectory-identity policy-gradient supervision together; success cannot be attributed to either alone.",
+    "budget": "1,003,520 terminal steps, identical to V1 and OG-PSP"
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 192
+}

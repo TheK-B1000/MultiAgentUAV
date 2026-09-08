@@ -214,6 +214,7 @@ class SharedActorCentralizedCritic(nn.Module):
         actor_cnn_feature_dim: int = 128,
         critic_hidden_dim: int = 128,
         latent_k: int = 0,
+        strategy_encoder_enabled: bool = True,
         z_embed_dim: int = 16,
         strategy_hidden_dim: int = 128,
         use_strategy_aux_return_head: bool = False,
@@ -234,6 +235,12 @@ class SharedActorCentralizedCritic(nn.Module):
         latent_actor_conditioning: str = "concat",
         enable_latent_z_residual: bool = False,
         latent_z_gate_init: float = 0.01,
+        latent_z_residual_alpha: float = 0.0,
+        latent_population_birth_active_z_only: bool = False,
+        latent_population_birth_per_z_action_heads: bool = False,
+        exp2c_mode_specific_action_heads: bool = False,
+        rasr_private_critic_heads: bool = False,
+        latent_lro_deep_branches: bool = False,
         communication_enabled: bool = False,
         comm_num_symbols: int = 4,
         experiment_id: str = "",
@@ -270,6 +277,7 @@ class SharedActorCentralizedCritic(nn.Module):
         self.joint_action_onehot_dim = int(sum(self.action_dims))
         self.latent_k = max(0, int(latent_k))
         self.uses_latent_strategy = self.latent_k > 0
+        self.strategy_encoder_enabled = bool(strategy_encoder_enabled) and self.uses_latent_strategy
         self.z_embed_dim = int(z_embed_dim) if self.uses_latent_strategy else 0
         self.z_onehot_dim = (
             int(self.latent_k)
@@ -280,7 +288,7 @@ class SharedActorCentralizedCritic(nn.Module):
         self.use_episode_strategy_value_head = bool(use_episode_strategy_value_head) and self.uses_latent_strategy
         self.use_recurrent_selector = (
             bool(use_recurrent_selector)
-            and self.uses_latent_strategy
+            and self.strategy_encoder_enabled
             and int(recurrent_selector_hidden_dim) > 0
         )
         self.recurrent_selector_hidden_dim = (
@@ -308,9 +316,9 @@ class SharedActorCentralizedCritic(nn.Module):
         )
         if self.use_recurrent_selector and not self.router_current_plus_delta_enabled:
             q_phi_input_dim += int(self.recurrent_selector_hidden_dim)
-        self.q_phi_input_dim = q_phi_input_dim
+        self.q_phi_input_dim = q_phi_input_dim if self.strategy_encoder_enabled else 0
 
-        if self.uses_latent_strategy:
+        if self.strategy_encoder_enabled:
             if self.use_recurrent_selector:
                 # GRU always takes raw 34-dim global state — not the augmented
                 # 35-dim V6I7 state, since the scheduler phase is for the critic
@@ -379,13 +387,25 @@ class SharedActorCentralizedCritic(nn.Module):
             latent_actor_conditioning=latent_actor_conditioning,
             enable_latent_z_residual=bool(enable_latent_z_residual),
             latent_z_gate_init=float(latent_z_gate_init),
+            latent_z_residual_alpha=float(latent_z_residual_alpha),
+            latent_population_birth_active_z_only=bool(
+                latent_population_birth_active_z_only
+            ),
+            latent_population_birth_per_z_action_heads=bool(
+                latent_population_birth_per_z_action_heads
+            ),
+            exp2c_mode_specific_action_heads=bool(exp2c_mode_specific_action_heads),
+            latent_lro_deep_branches=bool(latent_lro_deep_branches),
         )
         critic_extra_dim = self.latent_k if self.uses_latent_strategy else 0
         self.critic = CentralizedCritic(
             global_state_dim=self.global_state_dim,
             hidden_dim=int(critic_hidden_dim),
             extra_dim=critic_extra_dim,
+            private_z_heads=bool(rasr_private_critic_heads),
         )
+        if self.critic.private_z_heads:
+            self.critic.copy_shared_head_into_private()
         if self.use_episode_strategy_value_head:
             episode_value_in = int(self.q_phi_input_dim + self.latent_k)
             self.episode_strategy_value_head = nn.Sequential(
@@ -478,6 +498,16 @@ class SharedActorCentralizedCritic(nn.Module):
             joint_action_dim=int(self.joint_action_onehot_dim),
             latent_k=int(self.latent_k),
         )
+        if self.critic.private_z_heads:
+            legacy_weight = prefix + "critic.net.4.weight"
+            legacy_bias = prefix + "critic.net.4.bias"
+            if legacy_weight in migrated and legacy_bias in migrated:
+                migrated[prefix + "critic.head_V0.weight"] = migrated[legacy_weight].clone()
+                migrated[prefix + "critic.head_V0.bias"] = migrated[legacy_bias].clone()
+                migrated[prefix + "critic.head_V1.weight"] = migrated[legacy_weight].clone()
+                migrated[prefix + "critic.head_V1.bias"] = migrated[legacy_bias].clone()
+                del migrated[legacy_weight]
+                del migrated[legacy_bias]
         state_dict.clear()
         state_dict.update(migrated)
         return super()._load_from_state_dict(
@@ -492,6 +522,8 @@ class SharedActorCentralizedCritic(nn.Module):
 
     def _strategy_context_dim(self) -> int:
         if not self.uses_latent_strategy:
+            return 0
+        if not self.strategy_encoder_enabled:
             return 0
         # ``strategy_encoder`` (q_phi(z|s)) is always present when latent is on
         # since Step 5; the aux-return head, when enabled, is a separate module
@@ -524,17 +556,20 @@ class SharedActorCentralizedCritic(nn.Module):
                     f"(router_context_mode={self.router_context_mode!r}), "
                     f"got {self.global_state_dim}"
                 )
-            expected_q_phi_dim = (
-                int(self.router_context_dimension)
-                if self.router_current_plus_delta_enabled
-                else int(expected_global_dim)
-            )
-            if self.use_recurrent_selector and not self.router_current_plus_delta_enabled:
-                expected_q_phi_dim += int(self.recurrent_selector_hidden_dim)
-            if int(self.q_phi_input_dim) != expected_q_phi_dim:
-                raise ValueError(
-                    f"q_phi_input_dim must be {expected_q_phi_dim}, got {self.q_phi_input_dim}"
+            if self.strategy_encoder_enabled:
+                expected_q_phi_dim = (
+                    int(self.router_context_dimension)
+                    if self.router_current_plus_delta_enabled
+                    else int(expected_global_dim)
                 )
+                if self.use_recurrent_selector and not self.router_current_plus_delta_enabled:
+                    expected_q_phi_dim += int(self.recurrent_selector_hidden_dim)
+                if int(self.q_phi_input_dim) != expected_q_phi_dim:
+                    raise ValueError(
+                        f"q_phi_input_dim must be {expected_q_phi_dim}, got {self.q_phi_input_dim}"
+                    )
+            elif self.strategy_encoder is not None:
+                raise ValueError("strategy_encoder must be absent when disabled")
             if int(self.critic.global_state_dim) != expected_global_dim:
                 raise ValueError(
                     f"critic global_state_dim must be {expected_global_dim}, got {self.critic.global_state_dim}"
@@ -1289,7 +1324,7 @@ class SharedActorCentralizedCritic(nn.Module):
             )
             aux["message_log_probs"] = msg_log_prob
             aux["message_entropy"] = msg_entropy
-        if self.uses_latent_strategy:
+        if self.uses_latent_strategy and self.strategy_encoder is not None:
             if z_idx is None:
                 raise ValueError("z_idx is required when latent strategy is enabled.")
             q_context = router_context if router_context is not None else global_state

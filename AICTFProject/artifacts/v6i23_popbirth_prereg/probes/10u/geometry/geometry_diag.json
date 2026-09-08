@@ -1,0 +1,34 @@
+{
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_popbirth_prereg\\ckpt_10u\\final_v6i23_popbirth_prereg_10u_seed1_2v2.zip",
+  "head_weight_l2": [
+    4.251570701599121,
+    4.252077579498291,
+    4.251335620880127,
+    4.251578330993652
+  ],
+  "head_pair_l2_vs_z0": [
+    {
+      "pair": "0-1",
+      "weight_l2": 0.06855741143226624
+    },
+    {
+      "pair": "0-2",
+      "weight_l2": 0.061134375631809235
+    },
+    {
+      "pair": "0-3",
+      "weight_l2": 0.060523007065057755
+    }
+  ],
+  "head_pair_l2_mean": 0.06340493137637775,
+  "adapter_weight_l2": [
+    9.270617485046387,
+    9.204535484313965,
+    9.244318008422852,
+    9.25230884552002
+  ],
+  "adapter_weight_l2_mean": 9.242944955825806,
+  "adapter_alpha_norm_ratio_mean": 0.0647234246134758,
+  "active_z_only": true,
+  "per_z_heads": true
+}

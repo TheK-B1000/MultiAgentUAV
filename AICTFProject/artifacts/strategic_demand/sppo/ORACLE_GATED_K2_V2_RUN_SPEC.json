@@ -1,0 +1,74 @@
+{
+  "record_id": "ORACLE_GATED_K2_V2_PRODUCTION_RUN",
+  "status": "FROZEN_RUN_SPEC -- PI authorized memorization V2, 2026-08-29",
+  "utc": "2026-08-29T20:30:00Z",
+  "authority": "PI scientific authorization, 2026-08-29",
+  "experiment_class": "ORACLE_GATED_REHEARSAL_V2",
+  "parent_result": "ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED (V1)",
+  "diagnostic_fork": "MEMORIZATION_GENERALIZATION",
+  "diagnostic_artifact": "artifacts/strategic_demand/sppo/ORACLE_GATED_K2_FIT_CALIB_DIAGNOSTIC.json",
+  "THE_QUESTION": "Was V1's failure primarily caused by repeatedly rehearsing a small 428-state bank, and does increasing strategic-state diversity improve held-out latent crossover without changing architecture or compute?",
+  "SINGLE_AXIS_DELTA": {
+    "changed": "rehearsal bank size and diversity only",
+    "unchanged": [
+      "1M PPO total_timesteps",
+      "K=2 EXP2C-style architecture",
+      "z0 rollout Pole A OP6+SDS2_A_payoff_INIT_3",
+      "z1 rollout Pole B OP7 no overlay",
+      "FIXED_OPPONENT opponent_randomize=false",
+      "persistent latent-to-pole assignment",
+      "oracle-gated rehearsal rule (exact Delta labels, ties zero pressure)",
+      "rehearsal_lambda 0.1 cadence 4 batch 64",
+      "fresh step-0 model (no V1 checkpoint continuation)",
+      "no latent-isolation / architecture change"
+    ]
+  },
+  "REHEARSAL_BANK": {
+    "legacy_FIT": "10700001..10700096 stratified shards (428 eligible at V1 freeze)",
+    "new_collection": "11000001..11000320 training-only (320 seeds, fixed block)",
+    "CALIB_excluded": "10700097..10700128 never enters the bank",
+    "V1_EVAL_spent": "10700129..10700160 never reused for V2 claims",
+    "minimum_total_eligible": 1500,
+    "minimum_rule": "If legacy+new eligible < 1500 after the frozen 320-seed block completes, V2 training remains BLOCKED; no adaptive seed extension.",
+    "NO_MARGIN_FILTER": "All resolvable states (Delta != 0) from both sources; no |Delta|>=2 filter.",
+    "sampling": "uniform over the full eligible bank; cadence/strength unchanged from V1"
+  },
+  "PARAMETERS_RESOLVED": {
+    "total_timesteps": 1000000,
+    "training_seed": 11100001,
+    "collection_block": [
+      11000001,
+      11000320,
+      320
+    ],
+    "rehearsal_lambda": 0.1,
+    "rehearsal_cadence": 4,
+    "rehearsal_batch_size": 64,
+    "rehearsal_param_provenance": "unchanged from V1 / SAPPO-style rehearsal defaults"
+  },
+  "EVAL_BOUNDARY": {
+    "block": "11200001..11200032",
+    "n": 32,
+    "status": "SEALED during training and collection",
+    "gate": "BOTH delta_A.lcb95 > 0 AND delta_B.lcb95 > 0 (unchanged from V1 eval spec)"
+  },
+  "PREREQUISITES_BEFORE_TRAINING": [
+    "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json exists with verdict PASS (eligible >= 1500)",
+    "oracle rehearsal smoke PASS on V2 bank",
+    "rollout assignment smoke PASS",
+    "ORACLE_GATED_K2_V2_PRODUCTION_RESULT.json must NOT exist (one-shot)"
+  ],
+  "STOP_CONDITION": {
+    "rule": "If ANY runtime auditor fires, classify INVALID_TREATMENT and STOP.",
+    "prohibited": "repairing the treatment mid-run and continuing"
+  },
+  "SUPERSEDED_BY_OG_PSP": {
+    "utc": "2026-08-30T13:40:16Z",
+    "authority": "PI ruling, 2026-08-30",
+    "superseded_by": "ORACLE_GATED_PAIRED_SPECIALIST_PRESERVATION_SPEC.json",
+    "note": "the bank-only run spec is SUPERSEDED and must not be launched",
+    "why": "The crossed FIT/CALIB measurement showed the 'wrong' latent matches each teacher within ~2 percentage points of the 'right' one (94.7 vs 93.0 on FIT A-preferred; 96.2 vs 94.1 on B-preferred) with z0-z1 JSD of 0.0051 bits. V1 did not produce specialised latents that failed to transfer -- it produced a single state-conditional imitator with essentially no latent content. A larger bank improves that map's generalisation but has no mechanism to create latent differentiation, so bank size alone was the wrong lever.",
+    "what_survives": "The 320-seed collection itself. It is useful supervision for the corrected treatment and was allowed to finish rather than discarded.",
+    "preserved_not_rewritten": "This record is annotated rather than edited so the project's original reasoning, and the fact that it was later corrected, both remain visible."
+  }
+}

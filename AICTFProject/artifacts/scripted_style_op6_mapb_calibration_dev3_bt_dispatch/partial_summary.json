@@ -1,0 +1,23 @@
+{
+  "status": "running",
+  "updated_at_utc": "2026-07-26T19:17:20.617313+00:00",
+  "completed_episode_rows": 64,
+  "expected_episode_rows": 64,
+  "last_row": {
+    "blue_style": "BLUE_ESCORT",
+    "red_style": "OP6_IMMEDIATE_DUAL_RUSH",
+    "map": "map_b_split_lane",
+    "episode_index": 15,
+    "episode_seed": 260741,
+    "success": 0,
+    "blue_score": 0,
+    "red_score": 3,
+    "win_margin": -3,
+    "steps": 180,
+    "return": -9.357502684753854,
+    "outcome": "loss",
+    "time_to_first_score": 34.0,
+    "collision_free": 0,
+    "zone_coverage": 0.6399999856948853
+  }
+}

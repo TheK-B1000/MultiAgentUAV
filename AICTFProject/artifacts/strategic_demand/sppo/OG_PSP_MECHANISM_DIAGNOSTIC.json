@@ -1,0 +1,191 @@
+{
+  "record": "OG-PSP mechanism diagnostic (FIT vs CALIB)",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-31T08:51:14Z",
+  "implements": "OG_PSP_MECHANISM_DIAGNOSTIC_SPEC.json",
+  "checkpoint": {
+    "path": "artifacts\\strategic_demand\\sppo\\og_psp_production\\ckpts\\final_og_psp_production.zip",
+    "sha256": "792c2367ad2a4ebe9e051a326e0ff555f7dc2bb98358737a8f65d732d49d8bf0"
+  },
+  "STRICTLY_NOT_A_GATE": "Does not authorise EVAL, does not alter the model, cannot substitute for the frozen crossover gate. A strong mechanism result with a failed crossover is still CROSSOVER_NOT_CONFIRMED.",
+  "UNITS_CORRECTION": {
+    "problem": "The spec places v1_baseline 0.0051 and teacher_reference_contrast 0.3919 side by side and derives '1.3% of available teacher contrast' from their ratio, but they are in different units.",
+    "detail": "_jsd_from_logits (V1's path, reused here) uses natural log, so all model JSD figures including V1's 0.0051 are NATS. diagnose_teacher_contrast.py used log2, so 0.3919 is BITS.",
+    "consequence": "V1-to-OG-PSP JSD comparison is unaffected: both come from the same function and are both nats. Only the ratio against teacher contrast was wrong. Correctly converted, V1 reproduced 0.0188 of teacher contrast, not 0.013.",
+    "handling": "Both nats and bits are reported for every JSD figure below."
+  },
+  "THRESHOLD_DISCLOSURE": "Thresholds operationalising the spec's qualitative readings were frozen in code before this ran, anchored to V1's baseline and the measured teacher contrast. While monitoring the run for operational health I had seen the training log's [Actor Z] sep_JSD field (~0.021 in the tail), a different quantity measured on live rollout states rather than these branch states. Disclosed because thresholds set after any related observation are not fully blind.",
+  "splits": {
+    "FIT": {
+      "ranges": [
+        [
+          10700001,
+          10700096
+        ],
+        [
+          11000001,
+          11000320
+        ]
+      ],
+      "n_resolvable": 1804,
+      "is_the_training_bank": true
+    },
+    "CALIB": {
+      "ranges": [
+        [
+          10700097,
+          10700128
+        ]
+      ],
+      "n_resolvable": 145,
+      "never_trained_on": true
+    },
+    "EVAL": {
+      "ranges": [
+        [
+          11200001,
+          11200032
+        ]
+      ],
+      "touched": false
+    }
+  },
+  "FIT": {
+    "n_resolvable": 1804,
+    "n_A_preferred": 929,
+    "n_B_preferred": 875,
+    "crossed_teacher_match": {
+      "A_preferred_states": {
+        "z0_match_pi_A_own": {
+          "n": 929,
+          "mean": 0.8035522066738429
+        },
+        "z1_match_pi_A_crossed": {
+          "n": 929,
+          "mean": 0.8013993541442411
+        },
+        "gap_pp": 0.21528525296017342
+      },
+      "B_preferred_states": {
+        "z1_match_pi_B_own": {
+          "n": 875,
+          "mean": 0.9411428571428572
+        },
+        "z0_match_pi_B_crossed": {
+          "n": 875,
+          "mean": 0.8354285714285714
+        },
+        "gap_pp": 10.571428571428577
+      }
+    },
+    "latent_divergence": {
+      "z0_z1_jsd_nats": 0.041044903204162556,
+      "z0_z1_jsd_bits": 0.05921527830641284,
+      "frac_of_teacher_contrast": 0.15109792882473294,
+      "n": 1804
+    }
+  },
+  "CALIB": {
+    "n_resolvable": 145,
+    "n_A_preferred": 95,
+    "n_B_preferred": 50,
+    "crossed_teacher_match": {
+      "A_preferred_states": {
+        "z0_match_pi_A_own": {
+          "n": 95,
+          "mean": 0.7684210526315789
+        },
+        "z1_match_pi_A_crossed": {
+          "n": 95,
+          "mean": 0.7552631578947369
+        },
+        "gap_pp": 1.3157894736842035
+      },
+      "B_preferred_states": {
+        "z1_match_pi_B_own": {
+          "n": 50,
+          "mean": 0.925
+        },
+        "z0_match_pi_B_crossed": {
+          "n": 50,
+          "mean": 0.825
+        },
+        "gap_pp": 10.000000000000009
+      }
+    },
+    "latent_divergence": {
+      "z0_z1_jsd_nats": 0.04210196654021274,
+      "z0_z1_jsd_bits": 0.06074029833923799,
+      "frac_of_teacher_contrast": 0.1549892787426333,
+      "n": 145
+    }
+  },
+  "verdict": {
+    "READING": "PARTIAL_DIFFERENTIATION_HUMAN_DECISION_REQUIRED",
+    "meaning": "Differentiation is materially above V1 but below the frozen 'substantial' bar, or the two measures disagree. The spec froze qualitative readings; this outcome sits between them and is NOT binned autonomously.",
+    "fit_strong": false,
+    "fit_near_v1": false,
+    "calib_survives": true,
+    "measured": {
+      "jsd_nats": {
+        "FIT": 0.041044903204162556,
+        "CALIB": 0.04210196654021274,
+        "V1": 0.0051
+      },
+      "crossed_gap_pp": {
+        "FIT_A": 0.21528525296017342,
+        "FIT_B": 10.571428571428577,
+        "CALIB_A": 1.3157894736842035,
+        "CALIB_B": 10.000000000000009,
+        "V1_A": 1.67,
+        "V1_B": 2.09
+      }
+    },
+    "thresholds_frozen_before_running": {
+      "jsd_worked_at_nats": 0.06791109501536065,
+      "jsd_failed_at_nats": 0.015300000000000001,
+      "gap_worked_at_pp": 10.0,
+      "gap_failed_at_pp": 4.0,
+      "calib_survival_frac": 0.5
+    }
+  },
+  "v1_reference": {
+    "z0_z1_jsd_nats": 0.0051,
+    "crossed_gap_A_pp": 1.67,
+    "crossed_gap_B_pp": 2.09,
+    "v1_eval_verdict": "ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED"
+  },
+  "authorizes": "nothing; opening EVAL requires a separate PI decision",
+  "ADDENDUM_1_MATCHED_CALIB_COMPARISON": {
+    "utc": "2026-08-31T08:52:36Z",
+    "status": "context added AFTER the primary reading; the READING above is unchanged",
+    "why_this_was_added": "The headline FIT figures are NOT comparable between V1 and OG-PSP: V1's FIT was 428 legacy states, OG-PSP's FIT is the 1,804-state expanded bank. Reading own-teacher match as having 'dropped' from V1's 0.9467 to OG-PSP's 0.8036 would be comparing different state sets. CALIB is identical for both runs (10700097..10700128, n=145, never trained on by either), so it is the only strictly matched comparison available, and both sides were frozen before use.",
+    "matched_split": {
+      "seeds": [
+        10700097,
+        10700128
+      ],
+      "n": 145,
+      "n_A_preferred": 95,
+      "n_B_preferred": 50
+    },
+    "z0_z1_jsd_nats": {
+      "V1": 0.0065893054023271015,
+      "OG_PSP": 0.04210196654021274,
+      "ratio": 6.389439245803339
+    },
+    "z0_match_pi_A_on_A_preferred": {
+      "V1": 0.7263157894736842,
+      "OG_PSP": 0.7684210526315789,
+      "delta_pp": 4.210526315789465
+    },
+    "z1_match_pi_B_on_B_preferred": {
+      "V1": 0.78,
+      "OG_PSP": 0.925,
+      "delta_pp": 14.500000000000002
+    },
+    "reading_of_the_matched_comparison": "On the identical held-out split OG-PSP is better than V1 on every measure: 6.39x the latent divergence, and both own-teacher matches improved rather than degraded (+4.21 pp and +14.50 pp). The 'retention may fall by design' disclosure frozen before training did not materialise on this split.",
+    "what_it_does_NOT_establish": "Crossed gaps are not compared here because V1's diagnostic never computed crossed cells on CALIB; V1's +1.67/+2.09 pp reference is FIT-only. And none of this is the crossover gate, which remains the frozen EVAL."
+  }
+}

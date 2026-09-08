@@ -1,0 +1,44 @@
+{
+  "record_id": "CCP_S2_PRELAUNCH_INTERPRETATION_CAVEATS",
+  "status": "FROZEN_BEFORE_RESULT",
+  "utc": "2026-09-03T03:05:00Z",
+  "authority": "PI, 2026-09-02/03, formalizing two treatment-risk asymmetries discovered while auditing CONTROL's live training logs",
+
+  "proof_this_predates_any_result": {
+    "control_global_step_at_freeze_time": 1105920,
+    "control_additional_steps_target": 500000,
+    "control_fraction_complete": "approximately 25%",
+    "CCP_S2_CONTROL_RESULT.json": "does not exist at freeze time",
+    "CCP_S2_TREATMENT_RESULT.json": "does not exist at freeze time; TREATMENT has not launched",
+    "why_recorded": "so neither asymmetry below can later be characterized as a post-hoc explanation invented after seeing which pole crossed and which did not"
+  },
+
+  "ASYMMETRY_1_SUPERVISION_IMBALANCE": {
+    "N_causal_anchors": 5,
+    "N_usable_supervision_targets": 486,
+    "N_behavior_changing_targets": 228,
+    "behavior_changing_by_latent": {"z0": 177, "z1": 51},
+    "ratio": "approximately 3.5x more corrective signal on z0 (Pole A) than z1 (Pole B)",
+    "source": "CCP_S2_CAUSAL_BANK_STAGE_B.json, frozen before this note",
+    "not_corrected": "no reweighting, no added anchors -- Stage A and Stage B are untouched"
+  },
+
+  "ASYMMETRY_2_WARM_START_ENTROPY_COLLAPSE": {
+    "observation": "entropy=0.0000 (4 decimal places) across all logged samples of CONTROL's live training so far; sensitivity_KL=inf in the same telemetry",
+    "precise_phrasing": "the warm-start policy is effectively deterministic at logged precision, with numerical zero-probability support producing infinite sensitivity KL -- NOT a mathematically proven point mass. entropy=0.0000 means extremely concentrated, not literally zero.",
+    "likely_origin": "inherited from the warm-start checkpoint (a converged ~1M-step incumbent), not introduced by CCP-S2's own config -- ent_coef=0.01 is actively present and pushing entropy up; it has not yet moved it off the floor within the observed window",
+    "mechanistic_distinction": {
+      "control": "on-policy PPO gradient from actions the policy already tends to take. PPO updates (policy_loss, value_loss both finite and stable) but has very little ability to discover alternative actions through exploration when the acting distribution is this concentrated -- CONTROL does NOT have 'no usable gradient', it has a gradient with little exploratory reach.",
+      "treatment": "the same PPO gradient PLUS a direct supervised NLL toward teacher actions (causal_supervision_loss), which functions even when the teacher's action is extremely unlikely under the current incumbent distribution -- an off-incumbent gradient CONTROL structurally lacks."
+    }
+  },
+
+  "INTERPRETATION_CONSTRAINT": {
+    "what_a_positive_gamma_would_establish": "Gamma = delta_T - delta_C > 0 cleanly establishes: the frozen causal-supervision treatment improved crossover relative to matched continued PPO from the same converged warm start. This remains internally valid regardless of the entropy finding -- CONTROL and TREATMENT are still matched exactly as CCP_S2_SPEC.json#WARM_START_PROTOCOL requires.",
+    "what_it_would_NOT_uniquely_establish": "that the improvement arose specifically because the supervision TARGETS were causally selected, as opposed to TREATMENT simply being the only arm with any supervised off-policy gradient at all under near-zero exploration entropy.",
+    "why_unresolved": "isolating causal target selection from having a supervised off-policy gradient at all would require an additional control (e.g. an equally-sized noncausal or random teacher-supervision bank). This program deliberately does not have that arm -- this is a limit on MECHANISM ATTRIBUTION, not a confound in the CONTROL/TREATMENT comparison itself.",
+    "frozen_sentence_for_the_paper": "Interpretation constraint: a positive treatment-control effect demonstrates benefit of the complete causal-supervision intervention relative to continued PPO. It does not independently identify whether benefit arises from causal target selection, the supervised optimization channel under low entropy, or their interaction."
+  },
+
+  "DOES_NOT_AUTHORIZE": "no change to CONTROL or TREATMENT. Both continue exactly as launched -- this note documents what the comparison means, it does not alter what is being compared. Discovered mid-run; recorded, not acted on."
+}

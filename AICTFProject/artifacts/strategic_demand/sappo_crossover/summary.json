@@ -1,0 +1,65 @@
+{
+  "record": "SAPPO V1 crossover gate",
+  "utc": "2026-08-20T21:07:33Z",
+  "protocol": "artifacts/strategic_demand/STRATEGY_ANCHORED_PPO_V1_FROZEN.json",
+  "terminals": "artifacts/strategic_demand/SAPPO_V1_TERMINALS_LOCKED.json",
+  "r2_reference": {
+    "delta_A": 0.0833,
+    "delta_A_lcb": -0.0156,
+    "delta_B": 0.0625,
+    "delta_B_lcb": -0.026,
+    "verdict": "R2_LEARNED_CROSSOVER_NOT_CONFIRMED"
+  },
+  "block": "7800001..7800192",
+  "n_paired": 192,
+  "total_episodes": 768,
+  "checkpoints": {
+    "pi_A": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_A_specialist_1p5M_seed7100001\\ckpts\\final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+    "pi_B": "artifacts\\strategic_demand\\sappo_continuation\\sappo_pi_B_specialist_1p5M_seed7200001\\ckpts\\final_sappo_pi_B_specialist_1p5M_seed7200001.zip"
+  },
+  "payoff_matrix": {
+    "pi_A|A": {
+      "win_rate": 0.7083333333333334,
+      "frac_0_0": 0.13541666666666666,
+      "mean_total_score": 2.03125
+    },
+    "pi_A|B": {
+      "win_rate": 0.28125,
+      "frac_0_0": 0.546875,
+      "mean_total_score": 0.5833333333333334
+    },
+    "pi_B|A": {
+      "win_rate": 0.484375,
+      "frac_0_0": 0.421875,
+      "mean_total_score": 1.0677083333333333
+    },
+    "pi_B|B": {
+      "win_rate": 0.5,
+      "frac_0_0": 0.4635416666666667,
+      "mean_total_score": 0.7447916666666666
+    }
+  },
+  "delta_A": {
+    "contrast": "WR(pi_A,A) - WR(pi_B,A)",
+    "mean": 0.22395833333333334,
+    "lcb95": 0.125,
+    "ucb95": 0.3177083333333333,
+    "passes": true
+  },
+  "delta_B": {
+    "contrast": "WR(pi_B,B) - WR(pi_A,B)",
+    "mean": 0.21875,
+    "lcb95": 0.13020833333333334,
+    "ucb95": 0.3072916666666667,
+    "passes": true
+  },
+  "gate": "LCB95 > 0 in BOTH directions; no magnitude floor by design",
+  "generalist_not_evaluated": "pi_G was NOT continued under SAPPO, so it has no counterpart here. R3 remains gated behind this test.",
+  "verdict": "SAPPO_V1_CROSSOVER_CONFIRMED",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "procedure": "paired percentile bootstrap over seed-level differences"
+  }
+}

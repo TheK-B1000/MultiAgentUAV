@@ -1,0 +1,38 @@
+{
+  "protocol_id": "STRATEGIC_DEMAND_SEARCHER_V1",
+  "finished_utc": "2026-08-17T17:29:42Z",
+  "mode": "screen_only",
+  "search_results_are_gate_B": false,
+  "ruleset": "RULESET_V3_M1",
+  "anchor_B_cheap_delta_B": 0.625,
+  "best": {
+    "genome": {
+      "genome_id": "SDS_PARENT_OP6",
+      "derived_from": "OP6",
+      "base_opponent": "OP6",
+      "overlay": {},
+      "opening_hold_steps": 0
+    },
+    "n": 16,
+    "seed_base": 2400009,
+    "guard_wr": 0.3125,
+    "breach_wr": 0.125,
+    "delta_G": 0.1875,
+    "frac_0_0": 0.71875,
+    "mean_total_score": 0.84375,
+    "degeneracy_penalty": 0.234375,
+    "mean_intent_minus_commit": -7.3125,
+    "precommitment_uncertain": false,
+    "J_local": -0.046875,
+    "search_not_gate_B": true,
+    "stage": 2,
+    "tag": "screen",
+    "stage1_delta_G": 0.125,
+    "J": -0.046875,
+    "delta_B_anchor": 0.625,
+    "not_gate_B": true
+  },
+  "n_archive": 6,
+  "confirmation": "NOT RUN. Freeze genomes, then fresh block 2500001.",
+  "ppo": "NOT STARTED"
+}

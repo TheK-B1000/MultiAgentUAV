@@ -1,0 +1,153 @@
+{
+  "record_id": "CCP_SUCCESSOR_MODEL_FROZEN",
+  "status": "FROZEN_MODEL -- frozen BEFORE any mechanism diagnostic or EVAL were opened",
+  "utc": "2026-09-02T02:20:00Z",
+  "authority": "Standard sequence carried from V1, OG-PSP, V3, V4: train -> validity check -> freeze terminal checkpoint -> optional mechanism diagnostic -> separate PI decision to open EVAL",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "attempt_note": "This is attempt 2. Attempt 1 (217,088/1,000,000 steps) was ABORTED_FOR_OBSERVABILITY -- CCP_SUCCESSOR_ATTEMPT1_ABORTED_FOR_OBSERVABILITY.json -- not a scientific result, fresh-init discarded, no checkpoint reuse into this run.",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/ccp_successor_production/ckpts/final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "bytes": 47016992,
+    "global_step": 1003520,
+    "requested_total_timesteps": 1000000,
+    "overshoot": 3520,
+    "overshoot_note": "Rollout granularity: identical overshoot pattern to V1, OG-PSP, V3, V4 (same rollout config)."
+  },
+  "CHECKPOINT_ELIGIBILITY_IS_CLOSED": {
+    "eligible_for_evaluation": "final_ccp_successor_production.zip ONLY",
+    "periodic_checkpoints_exist": 10,
+    "periodic_are_NOT_eligible": true,
+    "periodic_sha256": {
+      "ckpt_ccp_successor_production_100000.zip": "89b13b8693aac4823b286be46e280df8061a38a48a379ac969c02d4c30de2ee1",
+      "ckpt_ccp_successor_production_1000000.zip": "6bb412339bcd15f5551b75576636d03a5ab05d04a889183dbfc6c1ad73b160cb",
+      "ckpt_ccp_successor_production_200000.zip": "e0947a3345e0ab51f21d1f05f1d24a73da63a790c94a7d38b946a0b6ff02deef",
+      "ckpt_ccp_successor_production_300000.zip": "27d4f62139567420b409e3927a4ae286add4db450f91674778d33f64c8a0af2d",
+      "ckpt_ccp_successor_production_400000.zip": "b3a4c350ff4b3f2bb772ff2567a0da2f7e5685bcf28a24d2d8a5e406a2d20c96",
+      "ckpt_ccp_successor_production_500000.zip": "9796cecca5f7bf338be7d59d31b938b9cf70601f4574b47103b084313bc61e62",
+      "ckpt_ccp_successor_production_600000.zip": "b217f1af50ca84a0e13469d2fd483c0fd843484e61c3793d3618a06f95b57462",
+      "ckpt_ccp_successor_production_700000.zip": "ded5e30a8383ff7903a62ebf494e58dd30b3af758077c12fdffb8bd976926675",
+      "ckpt_ccp_successor_production_800000.zip": "6e3ed090b33ebd4e54ae3a4d36e2eb38b74fd5cd811ddac8e2d9d14fb85c0421",
+      "ckpt_ccp_successor_production_900000.zip": "f33b2c06550e7da4c601ef52a6fe457df0cd163c1a357069d61b640cd9bab8ea"
+    }
+  },
+  "TERMINAL_RECORD_VALIDITY": {
+    "rule": "the causal mechanism must show non-zero updates, both latents exposed, both routing directions exercised, both private actor branches AND both private critic heads moved, zero legacy-path calls (fatal-guarded throughout, not merely counted), 32/32 env coverage with zero mismatches -- or the run is INVALID, not scored.",
+    "verdict": "VALID",
+    "summary": {
+      "training_verdict": "COMPLETE",
+      "termination_reason": null,
+      "fresh_step_0": true,
+      "checkpoint_weights_loaded": false,
+      "causal_sequence_updates": 1211,
+      "causal_minibatches_seen": 4844,
+      "z0_exposures": 29550,
+      "z1_exposures": 28578,
+      "z0_z1_balance": 1.034,
+      "positive_routes": 47826,
+      "negative_routes": 10302,
+      "both_routing_directions_exercised": true,
+      "z0_actor_moved": true,
+      "z1_actor_moved": true,
+      "critic_V0_moved": true,
+      "critic_V1_moved": true,
+      "legacy_paths_disabled": true,
+      "legacy_paths_were_fatal_not_counted": "monkeypatched to raise for the run's duration (experiments/run_ccp_successor_production.py:_install_legacy_tripwires); COMPLETE verdict means none ever fired",
+      "envs_observed": 32,
+      "expected_envs": 32,
+      "total_mismatches": 0,
+      "coverage_passed": true,
+      "coverage_failures": [],
+      "per_env_assignment_stable": "all 32 envs z_stable=True, opponent_stable=True for the entire run; envs 0-15 z=0/OP6/PoleA, envs 16-31 z=1/OP7/PoleB, exactly the frozen static_env assignment"
+    }
+  },
+  "THE_MECHANISM": {
+    "training_mode": "SEQUENCE",
+    "segment_duration": "episode termination (exactly what full_takeover measured)",
+    "lambda_causal": 0.05,
+    "cadence": 4,
+    "batch_rows": 48,
+    "segment_bank_hash": "64ba35e5af451d2750b239f43f55ac0e24f342fd061b67d80f46b5946ddb948f",
+    "nonzero_segments": 7,
+    "total_segments_in_bank": 20,
+    "sequence_bank_provenance": {
+      "npz_sha256": "5e788fb1aca170d7b51eadf912d84bfeb683f899f4540744bc7dc81697f62656",
+      "total_rows": 883,
+      "total_live_decision_rows": 443
+    },
+    "winner_directed_routing": "teacher derived from sign(delta_q); latent never flips (z0=Pole A, z1=Pole B)",
+    "joint_precedence": true,
+    "decision_predicate": "commit_ticks_left <= 0, per agent",
+    "committed_heads_excluded_from": "both numerator and denominator (rl/causal_supervision.py)"
+  },
+  "ARCHITECTURE_AND_INIT": {
+    "init_source": "FRESH -- fresh_step_0=True, checkpoint_weights_loaded=False, optimizer_state_reused=False",
+    "rasr_private_critic_heads": true,
+    "private_capacity": {
+      "enable_latent_z_residual": true,
+      "latent_population_birth_per_z_action_heads": true,
+      "latent_lro_deep_branches": true,
+      "latent_z_residual_alpha": 1.0
+    }
+  },
+  "CONFIG_AND_SEED": {
+    "seed": 11600001,
+    "latent_k": 2,
+    "mode": "FIXED_OPPONENT",
+    "opponent_randomize": false,
+    "latent_assignment_mode": "static_env",
+    "fresh_step_0": true,
+    "checkpoint_weights_loaded": false,
+    "optimizer_state_reused": false
+  },
+  "PROVENANCE_COMMITS": {
+    "phase1_result": "f6928a37",
+    "sequence_mode_chosen": "b9ecdc91",
+    "joint_precedence_and_lambda": "a263c365",
+    "segment_bank_loader": "4532e103",
+    "launch_spec_frozen": "960aed21",
+    "sequence_bank_and_runner_built": "311cdb9d",
+    "tied_exposures_fix": "bf502ea7",
+    "attempt1_aborted_for_observability": "7f54da19",
+    "diagnostics_wired_and_proven_neutral": "75a76d22",
+    "head_at_freeze": "75a76d22b5425a742a13b297c5463283fc10fe11"
+  },
+  "FULL_RUN_AUDITOR_SUMMARY": {
+    "envs_observed": 32,
+    "total_mismatches": 0,
+    "auditors_were_fail_closed": true,
+    "reading": "Every treatment invariant held for the entire run: 32/32 environments observed, zero pole/latent/opponent-assignment drift, zero mismatches."
+  },
+  "CAUSAL_SEQUENCE_TELEMETRY": {
+    "updates": 1211,
+    "n_ppo_minibatches": 4844,
+    "rows_seen": 58128,
+    "last_loss": 0.011611048132181168,
+    "z0_exposures": 29550,
+    "z1_exposures": 28578,
+    "positive_routes": 47826,
+    "negative_routes": 10302,
+    "segment_bank_hash": "64ba35e5af451d2750b239f43f55ac0e24f342fd061b67d80f46b5946ddb948f",
+    "nonzero_segments": 7,
+    "total_segments": 20
+  },
+  "PRIVATE_PARAMETER_MOTION": {
+    "z0_actor_moved": true,
+    "z1_actor_moved": true,
+    "critic_V0_moved": true,
+    "critic_V1_moved": true,
+    "note": "per_param_moved detail omitted here for brevity; retained in CCP_SUCCESSOR_PRODUCTION_RESULT.json"
+  },
+  "BUDGET_NOTE": "1,000,000 requested / 1,003,520 terminal, identical overshoot pattern to V1, OG-PSP, V3, V4. No budget confound.",
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "No model selection, no tuning, and no checkpoint choice will occur using EVAL. The terminal checkpoint above is the only artifact that will be scored, fixed before EVAL is read.",
+    "if_the_result_is_negative": "recorded as a negative result. This is the first and only attempt of this successor program's SEQUENCE-mode PPO; per the program's standing rules, a negative result does not license a further reopening without a fresh PI decision on new evidence, exactly the discipline the latent ladder was held to."
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11600101..11600132",
+    "touched": false,
+    "note": "sealed; opening requires a separate, explicit PI decision"
+  },
+  "LANGUAGE_RULE_CARRIED_FORWARD": "per Phase 1 amendment 7: nothing about this freeze may be described as crossover or evidence of crossover. This record establishes TRAINING VALIDITY only. The crossover question is answered exclusively by V(z0,A) vs V(z1,A) and V(z1,B) vs V(z0,B) on the sealed EVAL block, LCB95 > 0 both sides.",
+  "NEXT": "optional preregistered mechanism preservation diagnostic (state-level + trajectory identity, same structure as V3/V4's), not a gate. Then a separate PI decision to open EVAL 11600101..11600132."
+}

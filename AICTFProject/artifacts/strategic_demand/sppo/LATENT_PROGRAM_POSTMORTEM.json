@@ -1,0 +1,277 @@
+{
+  "record_id": "LATENT_PROGRAM_POSTMORTEM",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-31T10:45:00Z",
+  "authority": "PI, 2026-08-31, after OG_PSP_CROSSOVER_NOT_CONFIRMED was frozen",
+  "SCOPE": "Closes latent-strategy work for the ICRA submission under the stopping rule. Records what was established, what was ruled out, and what remains genuinely untested, so a future latent effort does not re-run experiments this program already answered.",
+  "THE_THREE_LAYER_RESULT": {
+    "chain": "teacher imitation -> latent differentiation -> strategic payoff",
+    "layer_1_teacher_imitation": {
+      "status": "ESTABLISHED",
+      "evidence": "Measured teacher contrast 0.3919 bits (22.25% masked disagreement on FIT, 23.28% on CALIB). Verdict SUBSTANTIAL_TEACHER_CONTRAST, commit bbe1685f. The strategic signal the latents were asked to encode demonstrably exists."
+    },
+    "layer_2_latent_differentiation": {
+      "status": "BROKEN IN V1, FIXED BY OG-PSP",
+      "v1": "z0-z1 JSD 0.0051 nats against 0.3919 bits of available contrast. The crossed comparison showed z1 matched pi_A almost as well as z0 did (93.0% vs 94.7%), so a latent-independent state->action map satisfied the whole objective.",
+      "og_psp": "On the matched CALIB split (identical for both runs, n=145) JSD rose 0.006589 -> 0.042102 nats, 6.39x, and did not collapse from FIT to CALIB. Both own-teacher matches improved (+4.21 pp, +14.50 pp). Nothing memorised.",
+      "reading": "Paired supervision on the same state under both latent IDs does force z to carry identity, and that identity generalises to unseen states."
+    },
+    "layer_3_strategic_payoff": {
+      "status": "BROKEN, AND NOT REPAIRED BY FIXING LAYER 2",
+      "evidence": "delta_A +0.0625 [-0.1250, +0.2500] FAIL; delta_B +0.0000 [-0.1875, +0.1875] FAIL. Neither side clears LCB95 > 0.",
+      "reading": "This is the central finding of the program."
+    },
+    "CENTRAL_CLAIM": "A latent that changes actions is not the same as a latent that controls strategy. Single-state policy differentiation is not sufficient evidence of distinct long-horizon strategy in a multi-agent task."
+  },
+  "WHY_THIS_IS_A_FINDING_AND_NOT_A_NULL_RESULT": {
+    "1_the_capacity_was_present": {
+      "retention": "1.1452 [0.9412, 1.4048]",
+      "detail": "z0 beats pi_A on pi_A's own pole (0.8750 vs 0.7500); z1 also exceeds it (0.8125). Both latents beat the B-teacher on Pole B (0.6875 vs 0.6250).",
+      "rules_out": "'The compressed student is a lossy copy of the specialists' cannot explain the missing separation. The policy is stronger than its teachers and still fails to separate."
+    },
+    "2_the_differentiation_was_real_not_inert": {
+      "detail": "The B-pole cells differ on 19 of 32 EVAL seeds. z0 won where z1 lost on 5 seeds; z1 won where z0 lost on 5 others; they cancel exactly.",
+      "rules_out": "'z1 does nothing on Pole B' is false. z1 behaves differently from z0 and is precisely equally good. Differently-behaving and equally-valuable.",
+      "verified_by": "OG_PSP_EVAL_B_SIDE_INTEGRITY.json, VERDICT GENUINE_TIE, check committed before the rows existed (a2162f77)"
+    },
+    "3_the_asymmetry_inverted": {
+      "predicted": "The mechanism diagnostic found z1 strongly B-specialised (CALIB crossed gap +10.0 pp) and z0 barely A-specialised (+1.32 pp), predicting the B side would separate and the A side would not.",
+      "observed": "The opposite ordering. A carries the only positive point estimate (+0.0625); B is flat zero.",
+      "why_it_matters": "If imitation-space separation were a good proxy for strategic specialisation, the ordering would have been preserved. It inverted. This is direct evidence that the two quantities are not merely weakly correlated but can be anti-ordered."
+    }
+  },
+  "WHAT_THE_CONFIGURATION_RULES_OUT": {
+    "purpose": "Three mechanisms are commonly proposed as the fix. The frozen run config settles which were actually absent, so a future effort does not 'fix' something that was already maximal.",
+    "persistence_WAS_ALREADY_MAXIMAL": {
+      "verdict": "NOT the missing ingredient. Ruled out by this run.",
+      "evidence": {
+        "latent_assignment_mode": "static_env",
+        "forced_latent_env_ids": "[0]x16 + [1]x16",
+        "latent_resample_every_n": 0,
+        "latent_event_refresh_enabled": false,
+        "latent_sparse_tactical_refresh_enabled": false,
+        "auditor": "32/32 envs z_stable, exactly one z per env across 129+ resets, 4228 episodes, 0 mismatches"
+      },
+      "detail": "Each environment ran one fixed latent for the entire 1,000,000 steps. This is stronger commitment than the episode-level persistence MAVEN prescribes. Persistence alone does not convert action differences into strategic differences."
+    },
+    "latent_private_capacity_WAS_EXACTLY_ZERO": {
+      "verdict": "GENUINELY UNTESTED. The strongest remaining hypothesis.",
+      "evidence": {
+        "latent_actor_conditioning": "concat",
+        "latent_z_embed_dim": 16,
+        "actor_input_dim": 164,
+        "share_of_actor_input": "9.8%",
+        "latent_actor_z_adapter_enabled": false,
+        "latent_actor_z_adapter_scale": 0.0,
+        "enable_actor_z_film": false,
+        "actor_z_film_init_scale": 0.0,
+        "enable_latent_z_residual": false,
+        "latent_z_residual_alpha": 0.0,
+        "latent_population_birth_per_z_action_heads": false,
+        "latent_lro_deep_branches": false
+      },
+      "detail": "Every parameter in the actor is shared between latents. z enters only as a 16-dim vector concatenated into a 164-dim input. There are zero latent-private weights, so a B-favouring gradient and an A-favouring gradient necessarily compete for the same parameters."
+    },
+    "trajectory_level_identifiability_WAS_EXACTLY_ZERO": {
+      "verdict": "GENUINELY UNTESTED.",
+      "evidence": {
+        "latent_behavior_contrast_coef": 0.0,
+        "latent_outcome_diversity_coef": 0.0,
+        "latent_actor_z_separation_coef": 0.0,
+        "latent_context_mi_coef": 0.0,
+        "latent_cf_separation_coef": 0.0,
+        "latent_arc_credit_enabled": false,
+        "latent_episode_strategy_ppo": false
+      },
+      "detail": "Supervision was state-level teacher imitation (paired rehearsal) plus PPO task reward. No objective at any point asked whether a trajectory segment was identifiably z0 or z1. The one quantity the program optimised for differentiation was state-level, and state-level is exactly what failed to transfer."
+    }
+  },
+  "IMPORTANT_CAVEAT_FOR_ANY_FUTURE_EFFORT": {
+    "the_levers_already_exist_in_config": "Adapters, FiLM, per-z action heads, deep branches, behavior contrast, outcome diversity, and arc-credit are all already plumbed in PPOConfig and were simply disabled for OG-PSP. A redesign is less greenfield than it appears.",
+    "but_existing_flags_are_not_validated_mechanisms": "Some of these levers carry PRIOR NEGATIVE RESULTS in this repository and must not be treated as untried:",
+    "prior_negatives": {
+      "V6I22": "Adapter-based repertoire birth reached oracle gap +0.80 with all 4 latents oracle-best, but behavior_pair_dist was 0.033 against a 0.06 bar -- latent-private adapters did NOT by themselves produce behavioral separation.",
+      "K2V2_specialist_proof": "FAILED at 1M: piR was a dominant generalist with delta_pool = 0, blocking latent birth and the router.",
+      "reading": "Latent-private capacity has been tried in a different form and did not deliver separation on its own. The honest statement is that private capacity PLUS a trajectory-level objective is untested, not that private capacity is a known fix."
+    },
+    "the_diversity_trap": "Any trajectory-level identifiability objective must be tied to strategic value, not to arbitrary difference. Maximising I(z; tau) alone admits degenerate solutions -- two latents that are trivially distinguishable and both strategically useless. The Pole A / Pole B strategic-demand structure is the available grounding."
+  },
+  "RANKED_HYPOTHESES_IF_LATENT_WORK_RESUMES": [
+    "1. Latent-private actor capacity (private heads / FiLM / hypernetwork-generated layers) so competing gradients do not share every weight. Persistence is NOT part of this recommendation; it was already maximal.",
+    "2. Trajectory-level identifiability, q_phi(z | tau) over trajectory segments, tied to task return so diversity cannot be satisfied degenerately.",
+    "3. Repertoire first, selector second, with continual rehearsal of both modes, so actor and selector cannot co-adapt into one generalist from the start.",
+    "4. Initialise/distil z0 <- pi_A and z1 <- pi_B into private branches from the known-good SAPPO specialists, reframing the question as 'how much can two known-good strategies share without losing strategic identity' rather than 'can one shared network rediscover both'.",
+    "5. Only afterward, response-oracle or population mechanisms."
+  ],
+  "RELATED_WORK_THE_PI_IDENTIFIED": {
+    "MAVEN": "shared latent for temporally committed joint behaviour -- but note this program already had stronger-than-episode persistence and it was insufficient",
+    "OPRE": "high level selects a strategic response, low level implements it via primitives",
+    "ROMA": "regularisation to make role representations identifiable and specialised, rather than hoping a conditioned latent becomes meaningful",
+    "DGPO": "information-theoretic diversity objective for multiple high-performing strategies",
+    "SHPPO": "latent strategy representations generate heterogeneous actor parameters -- closest to the private-capacity hypothesis"
+  },
+  "DECISION": {
+    "latent_work": "CLOSED for the ICRA submission under the stopping rule. No repair of the OG-PSP run, no further latent experiments.",
+    "next": "SAPPO-centered ICRA paper.",
+    "scientific_position": "The latent idea is not refuted. What is refuted is the sufficiency of a small shared-parameter conditioning signal, however persistent and however well it differentiates action distributions, to produce complementary long-horizon strategies."
+  },
+  "PROVENANCE": {
+    "eval_result": "OG_PSP_EVAL_RESULT.json, commit 5183f296",
+    "b_side_integrity": "OG_PSP_EVAL_B_SIDE_INTEGRITY.json, check committed a2162f77 before rows existed",
+    "mechanism_diagnostic": "OG_PSP_MECHANISM_DIAGNOSTIC.json, commit a59ee84a",
+    "model_freeze": "OG_PSP_MODEL_FROZEN.json, commit 75e1e696",
+    "v1_result": "ORACLE_GATED_K2_EVAL_RESULT.json, commit ff4d36ef",
+    "teacher_contrast": "commit bbe1685f",
+    "run_config_audited": "artifacts/strategic_demand/sppo/og_psp_production/og_psp_production_run_config.json"
+  },
+  "AMENDMENT_1_STOPPING_RULE_REOPENED": {
+    "utc": "2026-08-31T14:00:50Z",
+    "authority": "PI, 2026-08-31",
+    "status": "The DECISION block above recorded latent work as CLOSED. It is prospectively reopened for ONE bounded experiment. The original text is retained unchanged; this amendment supersedes only the 'latent_work: CLOSED' line.",
+    "justification": "Latent work was closed after state-level differentiation failed to produce strategic crossover. It is prospectively reopened for one final experiment because a new confound-controlled diagnostic established strong held-out trajectory-level specialist separability on both strategic poles (0.9531 Pole A, 0.9688 Pole B), exposing an untested abstraction level not addressed by prior latent treatments.",
+    "why_this_is_not_outcome_chasing": "The reopening is licensed by NEW evidence obtained after the negative verdict was frozen, not by dissatisfaction with it. OG_PSP_CROSSOVER_NOT_CONFIRMED stands unmodified and is not re-scored, re-seeded, or reinterpreted. The new experiment gets a fresh model, a fresh training seed, and its own untouched EVAL block.",
+    "scope_limit": "Exactly ONE experiment (H-OG-PSP V3). No V4 under any outcome.",
+    "successor": "HOG_PSP_V3_SPEC.json"
+  },
+  "AMENDMENT_2_LADDER_CLOSED_AFTER_V4": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T11:30:00Z",
+    "authority": "PI, 2026-09-01, after HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED was frozen and its tie audited",
+    "WHAT_THIS_AMENDMENT_DOES": "Closes the latent COMPRESSION LADDER (V1, OG-PSP, V3, V4) as four completed experiments. AMENDMENT_1 reopened the stopping rule once for V3; a second reopening was granted for V4 on new mechanistic evidence. Both are spent and both failed the crossover gate, so no V5 and no further knob on this architecture. This does NOT defer or suspend the research objective. A successor program opens immediately and is recorded separately; see GOVERNANCE.successor.",
+    "THE_LADDER": {
+      "ruler": "one unchanged CALIB ruler (10700097..10700128) across all four runs, never redefined",
+      "runs": [
+        {
+          "run": "V1",
+          "jsd_nats": 0.006589,
+          "mechanism": "latent differentiation broken",
+          "payoff": "CROSSOVER_NOT_CONFIRMED"
+        },
+        {
+          "run": "OG-PSP",
+          "jsd_nats": 0.042102,
+          "mechanism": "differentiation fixed, generalises",
+          "payoff": "delta_A +0.0625 FAIL, delta_B +0.0000 FAIL (audited GENUINE_TIE)"
+        },
+        {
+          "run": "H-OG-PSP V3",
+          "jsd_nats": 0.10862136199379918,
+          "mechanism": "TRAJECTORY_IDENTITY_CONFIRMED, both poles, R ~1.0 vs teachers",
+          "payoff": "delta_A -0.03125, delta_B -0.15625, BOTH REVERSED (audited GENUINE_REVERSAL)"
+        },
+        {
+          "run": "H-OG-PSP V4",
+          "jsd_nats": 0.081922,
+          "mechanism": "TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_DEGRADED",
+          "payoff": "delta_A 0.0000, delta_B 0.0000, BOTH EXACTLY TIED (audited GENUINE_TIE)"
+        }
+      ],
+      "reading": "Mechanism strength rose to a confirmed two-pole trajectory identity and payoff separation never appeared. The failure changed SHAPE rather than softening: V3 held identity and reversed on payoff, V4 lost half its identity and tied dead flat."
+    },
+    "V4_WHAT_WAS_TESTED": {
+      "the_one_axis": "rasr_private_critic_heads False -> True; everything else identical to V3",
+      "why_it_was_licensed": "V3 shipped with a private actor and a SHARED critic -- an implementation oversight by the executing agent, not a property of the hypothesis. MultiCriticAL (ICLR 2022) identifies that exact asymmetry as a value-interference failure mode, which made it new mechanistic evidence rather than a retry.",
+      "treatment_was_live_not_decorative": {
+        "critic_calls": 67850,
+        "rows_served_by_head_V0": 2316470,
+        "rows_served_by_head_V1": 2317130,
+        "row_balance_ratio": 0.9997,
+        "value_queries_missing_z": 0,
+        "both_heads_moved": true,
+        "pre_launch_negative_control": "a deliberate misroute was DETECTED, so the routing check could distinguish correct routing from a misroute",
+        "verdict": "VALID, not INVALID_CRITIC_HEAD_NOT_LIVE"
+      }
+    },
+    "V4_MECHANISM_RESULT": {
+      "reading": "TRAJECTORY_IDENTITY_PARTIAL",
+      "preservation_label": "IDENTITY_DEGRADED",
+      "delta_tau_A": {
+        "mean": 0.9809,
+        "lcb95": 0.5302,
+        "ucb95": 1.4554,
+        "passes": true
+      },
+      "delta_tau_B": {
+        "mean": 0.1117,
+        "lcb95": -0.3611,
+        "ucb95": 0.5965,
+        "passes": false
+      },
+      "R_vs_teachers": {
+        "A": 0.169,
+        "B": 0.017,
+        "V3_was": {
+          "A": 1.109,
+          "B": 1.003
+        }
+      },
+      "where_it_broke": "One cell. z0 lost its A-like identity against the Pole B opponent: in V3 z0|B scored -4.97 and read pi_A-like on 100% of CALIB seeds; in V4 it scores +0.98 and reads pi_B-like on 90.6%. Both latents then look pi_B-like on that pole, which is exactly why delta_tau_B has no separation left.",
+      "integrity": "all closed-list checks passed, including the loaded critic reporting private_z_heads=True and live-latent routing re-asserted on 128/128 episodes, so the degradation is a property of V4's architecture, not of measuring the wrong model"
+    },
+    "V4_PAYOFF_RESULT": {
+      "verdict": "HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED",
+      "delta_A": {
+        "mean": 0.0,
+        "lcb95": -0.21875,
+        "ucb95": 0.21875,
+        "passes": false
+      },
+      "delta_B": {
+        "mean": 0.0,
+        "lcb95": -0.21875,
+        "ucb95": 0.21875,
+        "passes": false
+      },
+      "integrity_audit": {
+        "verdict": "GENUINE_TIE",
+        "written_before_its_rows_were_read": true,
+        "pole_A": "22/32 seeds differ in some field (12 in win, 22 in margin); z0 won where z1 lost on 6 seeds, z1 won where z0 lost on 6",
+        "pole_B": "20/32 seeds differ in some field (12 in win, 20 in margin); 6-6 again",
+        "reading": "The latents demonstrably played different games -- margins differ wherever anything differs -- and their wins split evenly. The zeros are a real null, not a dead latent forcing.",
+        "cross_instrument": "the mechanism diagnostic reached the same checkpoint by a different code path and also found the latents distinct; bit-identical EVAL rows would have put the two instruments in contradiction"
+      },
+      "no_model_selection": "terminal checkpoint only; the mechanism result was frozen BEFORE the EVAL launched and its sha256 recorded in the running-provenance file, so the reading could not have been shaped by the payoff outcome"
+    },
+    "WHAT_THE_LADDER_NOW_RULES_OUT": {
+      "note": "Each of these was ACHIEVED and did not produce crossover. They are spent, not open.",
+      "latent_differentiation": "achieved (OG-PSP, 6.39x on the matched ruler)",
+      "specialist_like_trajectory_identity": "achieved (V3, both poles, R ~1.0 vs teachers)",
+      "private_actor_capacity": "achieved (V3, LRO deep branches, isolation smoke-verified)",
+      "private_critic_heads": "achieved (V4, both heads live, near-perfect row balance)",
+      "and_still": "delta_A = delta_B = 0",
+      "central_claim_sharpened": "The program's original claim was 'a latent that changes actions is not a latent that controls strategy.' V3 and V4 sharpen it: a latent that produces specialist-LIKE long-horizon TRAJECTORIES is also not a latent that controls strategy. Distinct policies are not distinct strategic value. Adding further separation attacks the wrong problem -- the model already knows how to be different; it does not know which differences matter."
+    },
+    "WHY_THIS_IS_STILL_A_FINDING": "SAPPO already established that the environment SUPPORTS the crossover: pi_A wins preferentially on Pole A, pi_B on Pole B. The target is real and reachable by two separate policies. Four compressions of those same two policies -- each verified live, each measured on an unchanged ruler, each scored on a sealed held-out block -- failed to reproduce the payoff structure. That is a compression-limit result, not an absence of evidence.",
+    "GOVERNANCE": {
+      "ladder_status": "CLOSED after V4. No V5, under any outcome, as pre-committed.",
+      "the_objective_did_not_close_with_it": "PI, 2026-09-01: 'We are no longer asking whether this particular latent ladder should stop. We are asking what mechanism is required to actually produce crossover, and we keep iterating until we find it.' The ladder is closed as an ARCHITECTURE, not as a question.",
+      "successor": {
+        "opens": "immediately, not deferred",
+        "record": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+        "target": "V(z0,A) > V(z1,A) AND V(z1,B) > V(z0,B), both LCB95 > 0",
+        "the_change_in_objective": "Stop optimising for different strategies. Start optimising for differences that causally change winning.",
+        "not_V5": "PI: 'since we explicitly froze no V5, I would not quietly call this V5.' The successor carries its own name, its own preregistration, fresh training seeds and a fresh EVAL block. It inherits none of this ladder's numbering."
+      },
+      "V1_to_V4_are_preserved_exactly": "Preserved as completed experiments. No result, threshold, estimator or verdict in them is rewritten, repaired or reinterpreted by anything the successor finds. A later success does not retroactively make these runs into anything other than what they were.",
+      "spent_EVAL_blocks_never_to_be_reused": {
+        "V1": "sealed and spent",
+        "OG-PSP": "sealed and spent",
+        "V3": "11300101..11300132 spent",
+        "V4": "11400101..11400132 spent"
+      },
+      "ICRA_2027_submission": "The submission is written on SAPPO with V3 as the centerpiece -- trajectory identity CONFIRMED, payoff ABSENT -- and V4 as a second, architecturally distinct route to the same absence. It does not depend on the successor. The 2026-09-05 wall governs what may enter THIS submission; it does not govern whether new work runs. The successor program runs on its own clock and is under no obligation to produce anything before 2026-09-15."
+    },
+    "PROVENANCE_V4": {
+      "spec_frozen": "4e94d1eb",
+      "smoke_wording_amendment": "d70f9f6a",
+      "smokes_1_3_PASS": "5c340dfc",
+      "terminal_checkpoint_frozen": "cf6f21d3",
+      "mechanism_diagnostic_spec_frozen_before_running": "f8301faa",
+      "mechanism_diagnostic_result": "af03130b",
+      "eval_spec_and_scorer_frozen": "cd2a0d40",
+      "eval_launch_recorded": "8e69f060",
+      "eval_result_and_integrity_audit": "ab9ddd7e",
+      "terminal_checkpoint_sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0"
+    }
+  }
+}

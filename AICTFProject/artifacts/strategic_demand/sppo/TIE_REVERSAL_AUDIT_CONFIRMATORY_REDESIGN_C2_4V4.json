@@ -1,0 +1,33 @@
+{
+  "record": "Row-level integrity audit (4v4 confirmatory redesign C2 specialist crossover, 16400001-16400128)",
+  "status": "FLAGGED_BY_AUTOMATED_CHECK",
+  "utc": "2026-09-08T15:45:00Z",
+  "implements": "4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json#FRESH_CONFIRMATORY_CROSSOVER_EVAL",
+  "triggered_by": "both delta_A_spec and delta_B_spec have negative means (not exactly zero, not a boundary tie)",
+
+  "raw_cells": {
+    "pi_A2_on_A": 0.6953, "pi_A2_on_B": 0.9297,
+    "pi_B2_on_A": 0.7734, "pi_B2_on_B": 0.9141
+  },
+
+  "bootstrap_recomputation": {
+    "method": "independently recomputed from the raw per-episode rows CSV with fresh code, same frozen protocol (paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7)",
+    "delta_A_spec": {"mean": -0.0781, "lcb95": -0.1719, "ucb95": 0.0156},
+    "delta_B_spec": {"mean": -0.0156, "lcb95": -0.0781, "ucb95": 0.0469},
+    "note": "NEITHER interval clears zero in either direction. This is meaningfully different from the exploratory arm's earlier reversal (delta_B_spec=-0.3047, entire CI negative, decisively confirmed). Here the honest description is a statistical null on both poles, with negative point estimates -- not a confirmed reversal in the strict LCB/UCB sense."
+  },
+
+  "n_rows": 512,
+  "per_cell_integrity": "all 4 cells independently checked: exactly 128 rows each, seeds unique, seed set EXACTLY {16400001..16400128}, win values strictly binary. Win-flag vs (blue_score>red_score) checked against all 512 rows: 0 disagreements.",
+  "seed_pairing": "confirmed identical 128 seed keys present across all 4 cells -- paired design intact.",
+
+  "split_half_check": {
+    "first_64_seeds": {"delta_A": -0.0625, "delta_B": -0.0156},
+    "last_64_seeds": {"delta_A": -0.0938, "delta_B": -0.0156},
+    "reading": "delta_A holds the same (negative) sign in both halves, ruling out a batch artifact. delta_B is small and essentially flat in both halves, consistent with a genuine near-zero effect rather than noise concentrated in one half."
+  },
+
+  "classification": "GENUINE -- seeds unique (512/512), ranges exact, win/margin internally consistent, effect direction consistent across both halves of the seed block for delta_A. Not a duplicate-seed artifact, not a corrupted row.",
+
+  "interpretation_licensed_by_this_audit": "the FRESH confirmatory specialists (pi_A2, pi_B2), trained against the properly-powered, scripted-probe-certified C2 pole pair (Pole A unchanged, Pole B2 = B2-1), still did NOT produce complementary learned specialization. Both policies are broadly strong and, if anything, slightly BETTER against the pole they were not specifically trained for than the one they were. Both do noticeably better against Pole B2 than Pole A regardless of which specialist is used (0.91-0.93 vs 0.70-0.77), suggesting Pole B2 remains comparatively easy for blue overall even after the scripted-probe-level fix. This closely parallels the exploratory arm's own finding (process-metric diagnostic: general policy-quality differences, not situational specialization) despite a completely different, independently-certified pole construction -- evidence the difficulty is not specific to the original Pole-B defect."
+}

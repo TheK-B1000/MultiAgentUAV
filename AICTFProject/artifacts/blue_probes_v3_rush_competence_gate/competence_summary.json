@@ -1,0 +1,28 @@
+{
+  "protocol": "BLUE_PROBES_V3",
+  "soft_host": "OP5_RUSHER",
+  "n_seeds": 8,
+  "rush_earlier_than_split_count": 8,
+  "rush_score_count": 8,
+  "mean_rush_path_len": 16.08031427115202,
+  "mean_split_path_len": 22.42699821293354,
+  "mean_rush_target_changes": 0.0,
+  "mean_rush_lat_target_sep": 1.4097120098039215,
+  "mean_split_lat_target_sep": 11.092929164181541,
+  "mean_rush_post_noncarrier_target_dist": 5.396189995480019,
+  "mean_escort_post_noncarrier_target_dist": 2.441278613888067,
+  "mean_margins": {
+    "BLUE_RUSH": 1.375,
+    "BLUE_SPLIT": 1.125,
+    "BLUE_ESCORT": -2.625
+  },
+  "gates": {
+    "pickup_earlier_than_split_most_seeds": true,
+    "near_shortest_vs_split": true,
+    "stable_roles_low_churn": true,
+    "return_success_ge_6_of_8": true,
+    "distinct_from_escort_screener": true,
+    "concentrated_not_split_lanes": true
+  },
+  "pass": true
+}

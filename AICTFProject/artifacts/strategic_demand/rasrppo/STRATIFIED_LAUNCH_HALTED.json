@@ -1,0 +1,76 @@
+{
+  "record": "STRATIFIED COLLECTION -- LAUNCH HALTED AFTER ONE SEED",
+  "status": "HALTED PENDING PI DECISION. Not a failure of the collection. Not INVALID.",
+  "utc": "2026-08-27T19:09:21Z",
+  "cost_of_the_catch": "1 seed, roughly 14 minutes. The alternative was ~35 hours ending in INVALID.",
+  "WHAT_HAPPENED": "The first collected seed produced 7 branch points, not the 12 the frozen protocol budgets. That discrepancy exposed an error in the feasibility analysis that set the budget.",
+  "THE_ERROR_WAS_MINE": {
+    "what_I_measured": "Cell eligibility over ALL plain rows -- all four (policy, pole) trajectories collected per seed.",
+    "what_actually_constrains_branching": "Branch points may only be drawn from the DESIGNATED SOURCE trajectory for each pole, which is one policy per pole -- two of the four paths. This is inherited unchanged from the RASR collector via source_policy_for().",
+    "consequence": "Eligibility for the scarce cells was overstated by roughly a factor of two. B_r2 measured 33/96 seeds across all rows but only 17-18/96 from source trajectories alone.",
+    "why_the_smoke_seed_caught_it": "Median per-seed cell occupancy is 12 across all rows but 10 from source trajectories only, with a minimum of 6. Seed 10700001 hit 7. A single seed was enough to expose it because the symptom is visible in the very first allocation."
+  },
+  "MEASURED_SHORTFALL_AT_THE_FROZEN_BUDGET": {
+    "floor": 32,
+    "seeds": 160,
+    "binding_cell": "B_r2_late",
+    "source_only_rate": 0.177,
+    "expected_distinct_seeds_at_160": 28.3,
+    "probability_of_reaching_the_floor": 0.26,
+    "second_failing_cell": {
+      "cell": "B_r2_not_late",
+      "rate": 0.188,
+      "expected": 30.0
+    },
+    "plain_reading": "Run as frozen, this collection would spend ~35 hours and return INVALID on at least one cell with roughly 3-to-1 odds."
+  },
+  "OPTIONS_FOR_THE_PI": {
+    "A_keep_source_only_rule_and_raise_the_seed_budget": {
+      "seeds_at_point_estimate": 181,
+      "seeds_at_conservative_Wilson_lower_bound": 282,
+      "estimated_hours_at_282": 62,
+      "assessment": "Honest but expensive. Nearly doubles an already-large spend to buy the same information."
+    },
+    "B_branch_from_all_four_paths": {
+      "change": "Draw branch points from every (policy, pole) trajectory rather than only the designated source per pole. The state still has both teachers run from it; branch_source_policy already exists in the schema to record which trajectory produced it.",
+      "seeds": 160,
+      "extra_rollout_cost": "NONE -- all four episodes are already collected per seed; they are simply eligible for selection now",
+      "projected_distinct_seeds_for_the_binding_cell": {
+        "expected": 55.0,
+        "conservative_Wilson": 41.0
+      },
+      "all_16_cells_pass_under_the_conservative_bound": true,
+      "estimated_hours": 35.3,
+      "what_it_changes_scientifically": "Branch states become a mixture of pi_A-visited and pi_B-visited states rather than one designated policy per pole. Cells are defined by (pole, regime, horizon) and do not reference the source policy, so the cell semantics are unchanged. The realised source balance per cell should be reported rather than assumed.",
+      "why_the_restriction_existed": "Inherited from RASR, where alternating source_policy_for() kept the branch source balanced across seeds. That balance is a property worth reporting, but nothing in the frozen 16-cell protocol depends on it.",
+      "assessment": "Same cost, passes the floor under the conservative bound, and the restriction it relaxes was inherited rather than motivated."
+    },
+    "C_coarsen_the_geometry": {
+      "change": "Return to 8 pole x regime cells, abandoning the horizon gate.",
+      "assessment": "Cheapest, but it discards the reason the 16-cell geometry was chosen: gating the late-game abstention risk. Recorded for completeness; not recommended."
+    }
+  },
+  "WHAT_I_DID_NOT_DO": [
+    "Did not raise the seed budget on my own authority.",
+    "Did not relax the 32-seed floor.",
+    "Did not proceed and hope the cells filled.",
+    "Did not treat the 7-point seed as evidence about anything scientific."
+  ],
+  "QUARANTINE": {
+    "seed": 10700001,
+    "moved_to": "artifacts/strategic_demand/stratified_quarantine_preamendment/",
+    "contents": [
+      "seed_10700001.npz",
+      "seed_10700001.json",
+      "collection_manifest.json"
+    ],
+    "why_moved_not_deleted": "It is valid data collected under the frozen rule, and it is the evidence that exposed the budget error. But if the allocation rule is amended it must be re-collected for consistency with the rest of the block, and leaving it in place would cause a resumed run to skip it.",
+    "block_state": "artifacts/strategic_demand/stratified_regime_data/ now holds no seeds; the block is effectively unspent."
+  },
+  "AUTHORIZATION_STATE": {
+    "collection": "HALTED. The PI authorized a launch, but not this outcome; a budget or rule amendment is required before relaunching.",
+    "abstaining_implementation": "STILL BLOCKED.",
+    "PPO_training": "STILL BLOCKED.",
+    "RASR": "Unchanged: INVALID and closed to repair."
+  }
+}

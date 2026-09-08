@@ -1,0 +1,46 @@
+{
+  "erratum": "C6 freeze — the roster characterization in why_this_follows_from_two_negatives was wrong",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-10T21:05:00Z",
+  "corrects": "artifacts/c6_preregistration/C6_CONSTRUCTED_DEMAND_FROZEN.json (86a853f)",
+
+  "admissibility": {
+    "no_c6_number_exists": true,
+    "no_c6_profile_implemented": true,
+    "no_c6_rollout_run": true,
+    "why_correcting_is_mandatory": "the erroneous sentence was the stated MOTIVATION for the family design. Leaving a false factual claim inside a frozen artifact is worse than amending it, and it would have been cited later as the reason C6 was designed this way."
+  },
+
+  "what_i_claimed": "the admitted mixture is OP6_TURTLE, OP7_DEEP_FORTRESS, OP8_INTERCEPTOR, OP9_SPLIT_LANE_FEINT, OP10_ESCORT, OP11_BT_BALANCED, OP12_COUNTER, and contains no sustained attacker because OP5_RUSHER is excluded",
+
+  "why_it_was_wrong": {
+    "root_cause": "I read the left-hand side of OPPONENT_SYNONYMS as canonical names. It is the DEPRECATED side. OPPONENT_SYNONYMS maps historical tags to canonical ones, e.g. OP6_TURTLE -> OP6_IMMEDIATE_DUAL_RUSH and OP10_ESCORT -> OP10_AGGRESSIVE_INTERCEPTOR.",
+    "consequence": "I characterized OP6 as a turtle when its canonical identity is an immediate dual rush, and OP10 as an escort when it is an aggressive interceptor. 'No sustained attacker in the mixture' was therefore unsupported."
+  },
+
+  "the_verified_roster": {
+    "source": "gpu_env._core._bt_profiles.profile_for_opponent_key, read directly",
+    "OP6_IMMEDIATE_DUAL_RUSH": {"counter_always": false, "enable_defender": true, "enable_intercept": false, "intercept_block_base": 0.40, "defender_zone_frac": 0.35, "min_alive_for_defender": 3},
+    "OP7_DEEP_FORTRESS": {"counter_always": false, "enable_defender": true, "enable_intercept": true, "intercept_block_base": 0.84, "defender_zone_frac": 0.05, "min_alive_for_defender": 2},
+    "OP8_PROTECTED_CARRIER_ESCORT": {"counter_always": false, "enable_defender": true, "enable_intercept": true, "intercept_block_base": 0.55, "enable_2v1": true, "enable_escort": true, "min_alive_for_defender": 2},
+    "OP9_SPLIT_LANE_FEINT": {"counter_always": false, "enable_defender": true, "enable_intercept": true, "intercept_block_base": 0.48, "min_alive_for_defender": 2},
+    "OP10_AGGRESSIVE_INTERCEPTOR": {"counter_always": false, "enable_defender": true, "enable_intercept": true, "intercept_block_base": 0.88, "min_alive_for_defender": 2},
+    "OP11_ADAPTIVE_EXPLOITER": {"counter_always": true, "enable_defender": true, "enable_intercept": true, "intercept_block_base": 0.62, "enable_2v1": true, "enable_escort": true, "min_alive_for_defender": 2},
+    "OP12_LATE_CONVERTER": {"counter_always": true, "enable_defender": true, "enable_intercept": true, "intercept_block_base": 0.70, "enable_escort": true, "min_alive_for_defender": 2}
+  },
+
+  "the_corrected_motivation": {
+    "statement": "Every member of the admitted mixture sets enable_defender=True with min_alive_for_defender of 2 or 3. Not one of them ever abandons its own half. The mixture varies mainly along how hard it contests blue's advance (intercept_block_base 0.40 to 0.88) and whether it counters at all (2 of 7 set counter_always).",
+    "the_actual_gap": "the roster does not span the axis C6 needs. No member trades its own defence away to punish blue's exposure, and no member commits everything to sustained pressure. Every opponent hedges.",
+    "why_this_is_a_stronger_motivation_than_the_wrong_one": "it is a verified property of all seven profiles rather than an inference from a misread name, and it names a concrete axis -- defensive allocation -- along which the two C6 families are separated.",
+    "important_caveat": "this remains a plausible MECHANICAL explanation for C5_NO_REVERSAL, not a demonstrated one. C5's negative is not evidence that the missing axis is the cause, and C6 must still DISCOVER any reversal rather than assume the axis produces one."
+  },
+
+  "what_does_not_change": {
+    "the_family_designs": "Family A still trades defence away to punish exposure; Family B still applies sustained pressure and denies progress. Both were specified as BTProfile knob settings, not derived from the erroneous names.",
+    "every_frozen_parameter": "delta, utility, horizon, enumeration, statistics, support minima, replication, ranking, seed blocks, staging rules, outcome conditions and the prohibition list are all untouched.",
+    "the_prohibition_on_naming_a_winner": "still in force"
+  },
+
+  "process_note": "This is the second time a name-versus-canonical-identity confusion has cost this project real accuracy. Opponent identity must be read from profile_for_opponent_key, never from a tag string."
+}

@@ -1,0 +1,126 @@
+{
+  "postmortem": "O1 four-gate evaluation — formal outcome vs scientific interpretability",
+  "authored_utc": "2026-08-05",
+  "status": "FROZEN interpretation",
+  "relationship_to_the_formal_verdict": {
+    "formal_artifact": "artifacts/o1_gates/O1_GATES.json",
+    "formal_verdict": "NOT_RETAINED",
+    "this_document_does_NOT_rewrite_it": true,
+    "purpose": "The formal verdict records what the frozen protocol returned. This records which of those returns carry information. They are different questions and must not be conflated."
+  },
+
+  "outcome": {
+    "O1_RESULT": "NOT_RETAINED",
+    "z1_born": false,
+    "latent_birth_protocol": "remains dormant (artifacts/latent_birth_preregistration/LATENT_BIRTH_PROTOCOL_FROZEN.json)",
+    "decision_rests_on": "gate 4 alone"
+  },
+
+  "per_gate_validity": {
+    "gate_1_o1_owns_c1": {
+      "formal": "FAIL 0/3",
+      "validity": "INVALID / NON-INFORMATIVE",
+      "defect": "population and endpoint specification error",
+      "evidence": {
+        "c1_episodes_arm_A": 431,
+        "lead_preserved_by_G0": 427,
+        "base_rate": 0.9907,
+        "total_headroom": 0.0093,
+        "required_delta": 0.10,
+        "max_achievable_delta": 0.0093
+      },
+      "consequence": "The gate was arithmetically unpassable. A perfect O1 could have scored at most +0.009 against a +0.10 bar. It returns no information about O1.",
+      "cause": "lost_after_leading was resolved to the EPISODE-level definition (lead held at some point AND final blue < final red). C1 was confirmed on WINDOW-level events (each red capture following a lead), whose prevalence was ~30%. The episode-level version has 0.9% prevalence and almost no variance. The ambiguity was identified and declared before data (experiments/o1_rollout.py docstring); the resolution chosen was wrong."
+    },
+    "gate_2_g0_retains_an_anchor": {
+      "formal": "FAIL 0/3",
+      "validity": "INVALID / NON-INFORMATIVE",
+      "defect": "anchor population contamination",
+      "evidence": {
+        "anchor_episodes_arm_A": 199,
+        "blue_never_led": 118,
+        "contamination_fraction": 0.593,
+        "win_rate_when_never_led": 0.042,
+        "win_rate_when_led_home_secure": 1.0
+      },
+      "consequence": "The 'anchor' was dominated by episodes blue was losing throughout, so the gate compared who is better at games they never led — where O1 is indeed better (0.70 vs 0.45). That is not the anchor the protocol intended, which C1_PROPOSAL defined as 'ordinary attacking play with home secure'."
+    },
+    "gate_3_selector_beats_best_fixed": {
+      "formal": "FAIL 0/3",
+      "validity": "INVALID / NON-INFORMATIVE",
+      "defect": "inherits the gate 1 / gate 2 population error",
+      "consequence": "Scored over populations built from the same faulty split; carries no independent information."
+    },
+    "gate_4_behaviour_is_distinct": {
+      "formal": "FAIL (family-level)",
+      "validity": "VALID",
+      "measurements": {
+        "median_JSD_between_families": 0.222552,
+        "Q95_JSD_within_families": 0.251458,
+        "B_distinct": -0.028906,
+        "LCB95": -0.060375,
+        "pass_requires": "LCB95 > 0"
+      },
+      "why_valid": "Measured on matched observations at natural C1 onsets. No population split or outcome endpoint enters the statistic, so the defects above do not touch it.",
+      "reading": "The cross-family difference is SMALLER than the 95th percentile of within-family seed-to-seed difference. This is not a near miss on a threshold; the family-level comparison went the wrong way. The O1 family sits inside the behavioral variability of ordinary training seeds."
+    }
+  },
+
+  "root_cause": {
+    "single_error": "C1 was confirmed as a contrast WITHIN leading windows, using opportunity matching specifically to remove the 'blue was winning' confound. The gates operationalized it as a BETWEEN-EPISODE split on whether C1 ever fired, which is close to splitting on whether blue ever led — reintroducing exactly that confound.",
+    "visible_inversion": {
+      "G0_win_rate_in_C1_episodes": 0.968,
+      "G0_win_rate_in_non_C1_episodes": 0.432,
+      "note": "Under the gate populations, 'C1' became the region where G0 SUCCEEDS — the opposite of the premise."
+    },
+    "harness_was_not_at_fault": {
+      "handoff_occurred": "431 of 630 arm-B episodes",
+      "median_onset_step": 78,
+      "median_steps_under_O1_after_handoff": 83,
+      "outcomes_differing_from_arm_A": 0.271,
+      "conclusion": "The paired-prefix mechanics worked as designed. The defect is in the population specification, not the implementation."
+    }
+  },
+
+  "what_is_concluded": {
+    "supported": "This C1 response-oracle training procedure, under the frozen recipe used for O1, did not produce a reproducibly distinct behavioral family.",
+    "NOT_supported": "That a C1 curriculum cannot produce a distinct strategy. One failed O1 family does not establish that.",
+    "NOT_supported_2": "Anything about O1's C1 advantage or anchor trade-off. Gates 1-3 returned no information in either direction.",
+    "why_this_negative_is_stronger_than_prior_ones": "V6I22 and V6I26 failed with adapters or shared trunks, where collapse could be blamed on architecture. Here G0 and O1 are fully independent networks, freshly initialised, with O1 trained 100% from confirmed C1 starts — and the specialization signal still failed to exceed ordinary seed variation. A different training distribution alone was insufficient to make PPO settle into a distinct strategy family.",
+    "C1_confirmation_status": "UNAFFECTED. It was a window-level within-leading contrast on its own fresh seeds and remains valid."
+  },
+
+  "prohibited": [
+    "rescuing O1 by re-running gates 1-3 with the window-level metric and treating the result as retention evidence",
+    "adjusting any threshold in the O1 protocol",
+    "selecting the best O1 seed",
+    "birthing z1 on the strength of a corrected gate 1",
+    "citing gates 1-3 as evidence that O1 lacks a C1 advantage"
+  ],
+
+  "permitted_exploratory_followup": {
+    "question": "Did O1 become a better policy in C1 without becoming a distinct strategy?",
+    "status_if_run": "EXPLORATORY_POSTMORTEM — NOT A GATE — NOT RETENTION EVIDENCE",
+    "constraints": [
+      "read-only against existing checkpoints",
+      "no new threshold",
+      "no attempt to resurrect O1",
+      "cannot change the NOT_RETAINED verdict, because gate 4 fails independently"
+    ],
+    "why_it_cannot_change_the_decision": "Even a clear window-level C1 advantage leaves gate 4 failing, and therefore no complementary strategy and no z1 birth."
+  },
+
+  "engineering_lesson": {
+    "rule": "Keep contexts and outcomes at the same temporal level. A within-episode weakness must not be tested as 'episode ever had C > episode never had C'.",
+    "required_before_the_next_gate_run": [
+      "factor the gate machinery into explicit OpportunityWindow / ContextOnset / OutcomeWindow / MatchedControl objects, so gates consume them directly instead of reconstructing context from episode-level booleans",
+      "add a preflight guard asserting that the gate population prevalence approximately matches the confirmation population prevalence; a shift from ~30% to 0.9% must abort before hours of evaluation, not be discovered afterwards"
+    ]
+  },
+
+  "next_milestone": {
+    "action": "return to the ranked fallback weakness carrier_mostly_unescorted",
+    "requires": "a brand-new preregistered window-level confirmation on fresh held-out seeds; it inherits nothing from C1's confirmation",
+    "do_not": "train the next response oracle before that confirmation passes"
+  }
+}

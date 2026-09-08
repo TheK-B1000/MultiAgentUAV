@@ -1,0 +1,33 @@
+{
+  "record_id": "DLD_RESULT_BY_LATENT_ADDENDUM",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T20:20:00Z",
+  "authority": "the pooled DLD_RESULT.json combines z0 (well-powered, n=20 both arms) and z1 (underpowered, n=6 mismatch) into single aggregate statistics. DLD_POWER_RESOLUTION_AMENDMENT.json requires z0 and z1 be read separately. This computes and freezes that split from dld_branch_rows.csv.",
+  "amends": "DLD_RESULT.json -- adds the by-latent split its own aggregate did not report; no number in DLD_RESULT.json is changed",
+
+  "Z0_WELL_POWERED_n20_BOTH_ARMS": {
+    "mismatch_teacher_substitution": {"n": 20, "mean_L_margin": -0.100, "mean_L_win": -0.100,
+                                      "mean_abs_L_margin": 0.100, "n_exactly_zero_effect": 18,
+                                      "raw_L_margin": [0,0,0,0,-1,0,0,0,0,0,0,-1,0,0,0,0,0,0,0,0]},
+    "agreement_decision_sensitivity_reference": {"n": 20, "mean_L_margin": 0.150, "mean_L_win": 0.150,
+                                                 "mean_abs_L_margin": 0.450, "n_exactly_zero_effect": 13,
+                                                 "raw_L_margin": [3,0,0,0,-1,0,-1,0,1,0,0,0,0,0,-1,0,1,1,0,0]},
+    "reading": "the mismatch arm is LESS volatile than the decision-sensitivity reference (0.100 vs 0.450), the reverse of what the leverage hypothesis predicted. 18 of 20 teacher-substitution branches produced the IDENTICAL final outcome to the student's own action. This is not a subtle statistical call: a null result (zero difference) is not confounded by the teacher-vs-runner-up quality asymmetry the way a positive leverage finding would have been, since zero is zero regardless of the counterfactual's quality.",
+    "licensed_conclusion_for_z0": "per DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json#PREREGISTERED_READINGS row 2 (leverage near zero / no larger than the reference): decision leverage is NOT the explanation for z0's crossover shortfall. Combined with covariate shift already refuted (ONPOLICY_TD_FALSIFICATION_SCOPE_AMENDMENT.json, DLD_TEACHER_MATCHING_CLARIFICATION_AMENDMENT.json) and macro imitation error already shown to be tiny (1.0-1.2%), the parameter-sharing architecture becomes the strongest remaining candidate FOR Z0 SPECIFICALLY."
+  },
+
+  "Z1_UNDERPOWERED_n6_mismatch": {
+    "mismatch_teacher_substitution": {"n": 6, "mean_L_margin": 0.167, "mean_L_win": 0.167,
+                                      "mean_abs_L_margin": 0.167, "raw_L_margin": [0,0,0,0,1,0]},
+    "agreement_decision_sensitivity_reference": {"n": 20, "mean_L_margin": 0.100, "mean_L_win": 0.050,
+                                                 "mean_abs_L_margin": 0.200},
+    "reading": "NO CONCLUSION drawn, per DLD_POWER_RESOLUTION_AMENDMENT.json. 6 points cannot support a leverage claim in either direction. This is unresolvable by DLD as designed: z1 has only 7 macro mismatches in its ENTIRE recorded dataset (DLD_PASS1_RECORD_V2.json), so no re-sampling or re-running of this diagnostic on this checkpoint can increase z1's power -- there is nothing more to sample.",
+    "the_open_anomaly": "z1 reproduces pi_B's macro commitments at ~99.8% fidelity in both deployment conditions (DLD_PASS1_RECORD_V2.json), yet the sealed Compression Crossover measured V(z1,B)=0.4688 against specialist pi_B's own 0.625 on that pole (different blocks; descriptive). Whatever costs z1 its margin is, by construction, NOT a macro decision -- there are almost no macro decisions to blame, and DLD (a macro-level diagnostic) cannot see below that level."
+  },
+
+  "NEXT_STEP_IMPLICATIONS": {
+    "for_z0": "the sharing-ladder architecture question is now the best-supported successor: covariate shift refuted, imitation error tiny, decision leverage refuted (reverse direction, cleanly). Two complete actors selected by z, progressively sharing more, would locate where z0's crossover margin is actually lost.",
+    "for_z1": "a DIFFERENT diagnostic is needed, not more DLD branching on this checkpoint: something that operates below the macro level (target-head selection, continuous/positional action detail, or a representational probe), since the mechanism cannot be a macro decision. This would be a fresh preregistered diagnostic, not a rescue of DLD.",
+    "not_yet_authorized": ["the sharing ladder", "a sub-macro diagnostic for z1", "OTD round 2", "the OTD seal", "PPO", "Z-separation", "BCS"]
+  }
+}

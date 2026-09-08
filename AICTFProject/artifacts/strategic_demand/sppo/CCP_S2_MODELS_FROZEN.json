@@ -1,0 +1,90 @@
+{
+  "record_id": "CCP_S2_MODELS_FROZEN",
+  "status": "FROZEN_MODELS -- frozen BEFORE the sealed EVAL is opened",
+  "utc": "2026-09-03T05:22:02Z",
+  "authority": "standard sequence: train -> validity check -> freeze terminal checkpoints -> separate PI decision to open EVAL",
+  "shared": {
+    "training_seed": 11702001,
+    "warm_start_checkpoint_sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0"
+  },
+  "CONTROL": {
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\ccp_s2_production\\control\\ckpts\\final_ccp_s2_control.zip",
+      "sha256": "aee406f90e1478b1e68c4a8de51705680193f69cf7a1038f06378ed4fe9ae008",
+      "bytes": 47015422,
+      "global_step": 1503520,
+      "requested_total_timesteps": 1503520
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "checkpoint_sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "checkpoint_weights_loaded": true,
+      "optimizer_state_reused": false,
+      "same_weights_both_arms": true
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "critic_V0_moved": true,
+        "critic_V1_moved": true,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_path": "ABSENT (structurally fatal-guarded)"
+      }
+    },
+    "seed": 11702001,
+    "arm": "CONTROL"
+  },
+  "TREATMENT": {
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\ccp_s2_production\\treatment\\ckpts\\final_ccp_s2_treatment.zip",
+      "sha256": "a8a7bc4b25bff74f4f57eaa8f7b10507854d7a0cbb55d8f3e57fd3a4934f76a9",
+      "bytes": 47015928,
+      "global_step": 1503520,
+      "requested_total_timesteps": 1503520
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "checkpoint_sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "checkpoint_weights_loaded": true,
+      "optimizer_state_reused": false,
+      "same_weights_both_arms": true
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "critic_V0_moved": true,
+        "critic_V1_moved": true,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_path": {
+          "updates": 721,
+          "z0_exposures": 20386,
+          "z1_exposures": 14222,
+          "positive_routes": 29347,
+          "negative_routes": 5261,
+          "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac"
+        }
+      }
+    },
+    "seed": 11702001,
+    "arm": "TREATMENT"
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11701001..11701064",
+    "touched": false,
+    "note": "sealed; opening requires a separate, explicit PI decision"
+  },
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "no model selection, no tuning, no checkpoint choice will occur using EVAL. These two terminal checkpoints are the only artifacts that will be scored, fixed before EVAL is read."
+  },
+  "NEXT": "a separate, explicit PI decision to open EVAL 11701001..11701064"
+}

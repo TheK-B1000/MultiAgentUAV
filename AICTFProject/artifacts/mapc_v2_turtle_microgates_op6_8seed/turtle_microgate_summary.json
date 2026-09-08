@@ -1,0 +1,62 @@
+{
+  "map": "map_c_home_corridor",
+  "map_version": "map_c_v2_frozen",
+  "styles": {
+    "BLUE_RUSH": {
+      "n": 8,
+      "red_first_score_seeds": 3,
+      "stop_at_gap_seeds": 3,
+      "anchor_at_gap_stop_seeds": 3,
+      "counter_after_stop_seeds": 0,
+      "top_gap_use_seeds": 8,
+      "bottom_bypass_events": 0,
+      "router_stall_steps_sum": 0,
+      "mean_win_margin": 0.25
+    },
+    "BLUE_SPLIT": {
+      "n": 8,
+      "red_first_score_seeds": 8,
+      "stop_at_gap_seeds": 2,
+      "anchor_at_gap_stop_seeds": 1,
+      "counter_after_stop_seeds": 0,
+      "top_gap_use_seeds": 8,
+      "bottom_bypass_events": 0,
+      "router_stall_steps_sum": 0,
+      "mean_win_margin": 0.0
+    },
+    "BLUE_ESCORT": {
+      "n": 8,
+      "red_first_score_seeds": 8,
+      "stop_at_gap_seeds": 3,
+      "anchor_at_gap_stop_seeds": 3,
+      "counter_after_stop_seeds": 0,
+      "top_gap_use_seeds": 8,
+      "bottom_bypass_events": 0,
+      "router_stall_steps_sum": 0,
+      "mean_win_margin": -2.375
+    },
+    "BLUE_TURTLE": {
+      "n": 8,
+      "red_first_score_seeds": 7,
+      "stop_at_gap_seeds": 7,
+      "anchor_at_gap_stop_seeds": 7,
+      "counter_after_stop_seeds": 5,
+      "top_gap_use_seeds": 8,
+      "bottom_bypass_events": 0,
+      "router_stall_steps_sum": 0,
+      "mean_win_margin": -1.375
+    }
+  },
+  "gates": {
+    "rush_red_first_ge_5_8": false,
+    "split_red_first_ge_5_8": true,
+    "escort_red_first_ge_5_8": true,
+    "turtle_red_first_le_2_8": false,
+    "turtle_stop_at_gap_ge_5_8": true,
+    "turtle_counter_ge_5_8": true,
+    "zero_bottom_bypasses": true
+  },
+  "gates_pass": false,
+  "base_seed": 801001,
+  "red": "OP6_IMMEDIATE_DUAL_RUSH"
+}

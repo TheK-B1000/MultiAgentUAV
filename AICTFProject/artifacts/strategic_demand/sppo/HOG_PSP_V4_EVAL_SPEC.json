@@ -1,0 +1,81 @@
+{
+  "record_id": "HOG_PSP_V4_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_EVAL_IS_OPENED",
+  "utc": "2026-09-01T01:45:00Z",
+  "authority": "PI, 2026-08-31: freeze V4_TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_PRESERVATION_DEGRADED, then run the untouched payoff EVAL with zero changes to the gate, seeds, bootstrap, or evaluator design",
+  "THE_QUESTION": "Does adding private critic heads to the V3 system produce complementary strategic payoff, despite changing the learned identity structure?",
+  "CLAIMS_SEPARATED_BEFORE_EVAL": {
+    "trajectory_identity": "TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_DEGRADED in HOG_PSP_V4_MECHANISM_DIAGNOSTIC.json, committed at af03130b before this protocol existed",
+    "strategic_payoff_crossover": "UNEVALUATED until this one-shot protocol completes",
+    "rule": "The non-gating mechanism result cannot substitute for or withhold the payoff gate, and payoff cannot retroactively change the frozen mechanism wording."
+  },
+  "MODEL_UNDER_TEST": {
+    "checkpoint": "final_hog_psp_v4_production.zip",
+    "sha256": "e65d701bee2d10cae98220630b62d9a3bfe539bc1630eaadaedadc009574c2f0",
+    "frozen_in": "HOG_PSP_V4_MODEL_FROZEN.json, commit cf6f21d3",
+    "terminal_checkpoint_only": true,
+    "periodic_checkpoints_ineligible": true
+  },
+  "SEEDS": {
+    "block": "11400101..11400132",
+    "n": 32,
+    "preflight": "CLEAN in HOG_PSP_V4_SPEC.json; untouched at terminal freeze and by the mechanism diagnostic",
+    "never_used_for": [
+      "training",
+      "paired rehearsal",
+      "bank collection",
+      "calibration",
+      "mechanism diagnostics",
+      "any prior evaluation"
+    ]
+  },
+  "CELLS": {
+    "primary": ["z0 on Pole A", "z1 on Pole A", "z0 on Pole B", "z1 on Pole B"],
+    "secondary_context_only": ["pi_A on Pole A", "pi_B on Pole B"],
+    "pole_A": "OP6 + SDS2_A_payoff_INIT_3 overlay",
+    "pole_B": "OP7, no overlay"
+  },
+  "PRIMARY_GATE_CROSSOVER": {
+    "metric": "episode win indicator (blue_score > red_score), per evaluation seed",
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "statistic": "paired percentile bootstrap over seed-level episode outcomes",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "Carried forward unchanged from HOG_PSP_V3_EVAL_SPEC.json, OG_PSP_EVAL_SPEC.json, V1, and EXP2C. Point estimates alone do not pass.",
+    "verdict_labels": {
+      "pass": "HOG_PSP_V4_CROSSOVER_CONFIRMED",
+      "fail": "HOG_PSP_V4_CROSSOVER_NOT_CONFIRMED"
+    }
+  },
+  "SECONDARY_REPORTED_NOT_GATED": {
+    "retention": "0.5*(wins(z0,A)+wins(z1,B)) / 0.5*(wins(pi_A,A)+wins(pi_B,B))",
+    "status": "Context only. No retention threshold gates this experiment.",
+    "per_cell_win_rates": "all six cells reported with seed-level CIs"
+  },
+  "EPISODES_PER_CELL": {
+    "value": 1,
+    "total": 192,
+    "note": "one deterministic episode per (cell, seed); 32 seeds gives 32 paired observations per cell"
+  },
+  "INTERPRETIVE_CONTEXT_FROZEN_BEFORE_THE_RESULT": {
+    "mechanism": "TRAJECTORY_IDENTITY_PARTIAL: Pole A LCB95 +0.5302 passed; Pole B LCB95 -0.3611 failed",
+    "preservation": "IDENTITY_DEGRADED relative to V3's confirmed two-pole identity",
+    "validity": "V4 treatment VALID; all mechanism-integrity checks passed",
+    "interpretation_if_pass": "Private critic routing mattered for the learned solution, but it cannot be claimed to have fixed value interference while preserving the same strategies because behavioral organization also changed.",
+    "interpretation_if_fail": "Private critic heads were not sufficient in this treatment. Shared-critic interference is not disproven because V4 did not retain V3's strong B-side identity.",
+    "single_axis": "Relative to V3, V4 changes only shared critic output head to two latent-private scalar heads; training dynamics and the resulting actor are allowed treatment effects."
+  },
+  "PROHIBITED_AFTER_SEEING_EVAL": [
+    "choosing a different checkpoint",
+    "adjusting the treatment and re-running",
+    "changing the metric, statistic, alpha, criterion, or evaluator design",
+    "adding, substituting, or reusing seeds",
+    "promoting retention or mechanism diagnostics into the payoff gate",
+    "reporting point estimates or one passing side as confirmed crossover"
+  ],
+  "ONE_SHOT": "EVAL is opened once. This spec, evaluator, and contract tests are committed before execution."
+}

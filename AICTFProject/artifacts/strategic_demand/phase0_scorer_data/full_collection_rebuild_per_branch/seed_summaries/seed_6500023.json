@@ -1,0 +1,50 @@
+[
+  {
+    "seed": 6500023,
+    "split": "train",
+    "policy": "pi_A",
+    "pole": "A",
+    "blue": 2,
+    "red": 2,
+    "win": 0,
+    "margin": 0,
+    "steps": 240,
+    "decision_records": 181
+  },
+  {
+    "seed": 6500023,
+    "split": "train",
+    "policy": "pi_A",
+    "pole": "B",
+    "blue": 1,
+    "red": 2,
+    "win": 0,
+    "margin": -1,
+    "steps": 240,
+    "decision_records": 187
+  },
+  {
+    "seed": 6500023,
+    "split": "train",
+    "policy": "pi_B",
+    "pole": "A",
+    "blue": 0,
+    "red": 0,
+    "win": 0,
+    "margin": 0,
+    "steps": 240,
+    "decision_records": 217
+  },
+  {
+    "seed": 6500023,
+    "split": "train",
+    "policy": "pi_B",
+    "pole": "B",
+    "blue": 1,
+    "red": 1,
+    "win": 0,
+    "margin": 0,
+    "steps": 240,
+    "decision_records": 186
+  }
+]

@@ -1,0 +1,71 @@
+{
+  "artifact_id": "EXP2_K2_PRODUCTION_LAUNCH_VALIDATED",
+  "protocol_id": "EXP2_K2_LATENT_COMPRESSION_V1",
+  "validated_at_utc": "2026-08-20T23:54:20Z",
+  "launch_provenance_commit": "0d131a18",
+  "implementation_commit": "89436366e5cc61d73a66b269a9c0f8f49e5c305f",
+  "run_tag": "exp2_k2_supervised_compression_seed8100001_2m",
+  "worker": {
+    "pid": 41456,
+    "alive_at_validation": true,
+    "single_launch_argv": [
+      "experiments/run_exp2_k2_latent_compression.py",
+      "--launch"
+    ]
+  },
+  "runtime_artifact_sha256": {
+    "run_config": "8cb1a5586af6e12ace8c1728fd73f35cabd64c85bbac4cc774325eeb55eea8a9",
+    "training_manifest": "d898b2bfaa3bb2cea97107fd2bd57ad25605396e257c883d122ada2ca2ccaedb",
+    "run_lock": "ca30aae831f8a91d9e875f93201919498c8ba9eb313fb4f4aea927a6dff46bdc"
+  },
+  "resolved_contract": {
+    "use_latent_strategy": true,
+    "K": 2,
+    "q_phi": "ABSENT",
+    "latent_assignment_mode": "static_env",
+    "forced_latent_env_ids": "16 x z0 followed by 16 x z1",
+    "live_cells": {
+      "z0_A": 8,
+      "z0_B": 8,
+      "z1_A": 8,
+      "z1_B": 8
+    },
+    "pole_A_profile_min_alive_for_defender": 2,
+    "pole_B_profile": "canonical OP7 with no A overlay",
+    "teacher_mapping": {
+      "z0": "frozen SAPPO pi_A",
+      "z1": "frozen SAPPO pi_B"
+    },
+    "teacher_lambda": 0.1,
+    "teacher_cadence": 4,
+    "teacher_batch_size": 64,
+    "opponent_identity_actor_input": "ABSENT",
+    "opponent_identity_critic_input": "ABSENT",
+    "opponent_identity_latent_assignment": "ABSENT"
+  },
+  "first_production_interval": {
+    "timesteps": 8192,
+    "ppo_actor_updates": 64,
+    "teacher_updates": 16,
+    "teacher_to_ppo_ratio": 0.25,
+    "teacher_loss_scaled": 0.1551358550786972,
+    "teacher_kl": 1.5513584613800049,
+    "teacher_kl_z0": 1.6349668502807617,
+    "teacher_kl_z1": 1.4572988748550415,
+    "teacher_agreement_z0": 0.5333333611488342,
+    "teacher_agreement_z1": 0.612500011920929,
+    "cell_counts": {
+      "z0_A": 8,
+      "z0_B": 8,
+      "z1_A": 8,
+      "z1_B": 8
+    },
+    "realized_steps_per_cell": 2048,
+    "ppo_approx_kl": 0.010725190586526878,
+    "value_loss": 0.018783677514875308,
+    "explained_variance": 0.0012221932411193848
+  },
+  "invariant_violations": [],
+  "verdict": "VALID_FROZEN_TREATMENT_RUNNING",
+  "interpretation": "Runtime evidence proves that the frozen EXP2 treatment is active. These diagnostics do not determine scientific success; only the frozen 2M terminal evaluation may do so."
+}

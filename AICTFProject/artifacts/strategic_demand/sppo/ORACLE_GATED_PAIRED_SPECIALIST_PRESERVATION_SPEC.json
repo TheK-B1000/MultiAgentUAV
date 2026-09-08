@@ -1,0 +1,117 @@
+{
+  "record_id": "ORACLE_GATED_PAIRED_SPECIALIST_PRESERVATION",
+  "short_name": "OG-PSP",
+  "status": "FROZEN -- SPEC_FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-08-30T13:40:16Z",
+  "authority": "PI ruling, 2026-08-30",
+  "supersedes": [
+    "ORACLE_GATED_K2_V2_AUTHORIZATION.json",
+    "ORACLE_GATED_K2_V2_RUN_SPEC.json"
+  ],
+  "standing": "THE FINAL LATENT ATTEMPT. A stopping rule governs what follows either outcome.",
+  "HYPOTHESIS": "When payoff-resolved states contain substantial specialist action contrast, presenting BOTH specialist targets at the SAME state under different latent IDs forces a shared K=2 policy to encode specialist identity, rather than solving rehearsal with a latent-independent state-conditioned mapping.",
+  "WHY_V1_FAILED_MECHANISTICALLY": {
+    "measured": {
+      "z0_match_piA_on_A_pref_FIT": 0.947,
+      "z1_match_piA_on_A_pref_FIT": 0.93,
+      "z1_match_piB_on_B_pref_FIT": 0.962,
+      "z0_match_piB_on_B_pref_FIT": 0.941,
+      "z0_z1_jsd_bits": 0.0051,
+      "teacher_teacher_jsd_bits": 0.3919
+    },
+    "reading": "The wrong latent matched each teacher within ~2 points of the right one. V1 reproduced 1.3% of the contrast present in its own supervision targets. The latents never specialised -- on FIT or CALIB.",
+    "cause": "V1 trained only ONE latent per resolved state: A-preferred anchored (s,z0)->pi_A while z1 was unconstrained on that same state. The shared actor could satisfy the entire objective with s -> teacher-like action and ignore z.",
+    "note": "This is a correction to the earlier MEMORIZATION_GENERALIZATION fork, which compared each latent only against its OWN teacher and therefore could not distinguish 'specialised then failed to transfer' from 'never specialised'."
+  },
+  "FEASIBILITY_ESTABLISHED_BEFORE_THIS_SPEC": {
+    "artifact": "TEACHER_CONTRAST_DIAGNOSTIC.json (commit bbe1685f)",
+    "verdict": "SUBSTANTIAL_TEACHER_CONTRAST",
+    "fit_head_disagreement": 0.2225,
+    "fit_states_with_any_disagreement": 0.6659,
+    "threshold_frozen_before_reading": 0.2,
+    "margin_note": "Clears the bar by 2.25 points. Real but not comfortable; stated as such.",
+    "why_it_matters": "Paired supervision only forces z to matter where the teachers actually disagree. Two-thirds of resolved states carry at least one contradictory head, so a z-independent policy provably cannot satisfy both targets there."
+  },
+  "THE_TREATMENT": {
+    "resolved_state_delta_nonzero": {
+      "z0": "-> pi_A(s)",
+      "z1": "-> pi_B(s)",
+      "applies": "on EVERY resolved state, REGARDLESS of which teacher is locally preferred"
+    },
+    "tied_state_delta_zero": "NO paired specialist rehearsal. Unchanged from V1.",
+    "no_explicit_JSD_loss": "Deliberately absent. The teachers already supply legitimate divergence; we do not manufacture additional disagreement. The latents should differ exactly where and how the proven specialists differ."
+  },
+  "THE_ORACLE_GATE_IS_REINTERPRETED": {
+    "V1_reading": "Delta<0 means pi_A is better here, so only reinforce z0. (winner-only gate)",
+    "OG_PSP_reading": "Delta!=0 means specialist identity MATTERS here, so supervise both. (strategic-relevance gate)",
+    "what_is_preserved": "Ties still receive zero rehearsal -- the payoff evidence did not establish that strategic choice mattered there.",
+    "what_is_fixed": "The identifiability hole. Both latents are now constrained on the same state."
+  },
+  "THE_DELIBERATE_DEPARTURE_STATED_PLAINLY": {
+    "what": "On an A-preferred state, z1 is trained toward pi_B -- the demonstrably WORSE action at that state by the payoff evidence.",
+    "why_this_is_not_an_error": "The objective is no longer 'make every latent good on every resolved state'. It is 'make z0 faithfully represent specialist A and z1 faithfully represent specialist B, on states where payoff evidence says the distinction matters'. Some locally suboptimal behaviour is constitutive of being a specialist.",
+    "and_it_is_required_by_the_target": "The frozen EVAL gate wants V(z0,A)>V(z1,A) AND V(z1,B)>V(z0,B). For that crossover to exist, z1 must retain B-like behaviour even in some A-favouring situations. If both latents always converge to whichever teacher is locally optimal, they collapse into the same adaptive generalist -- which is precisely what V1 produced.",
+    "cost_acknowledged": "This trades away part of V1's 'only reinforce where the evidence supports it' principle. Recorded as a chosen trade, not a side effect."
+  },
+  "TWO_AXES_CHANGE_STATED_PROSPECTIVELY": {
+    "axis_1": "paired specialist supervision instead of one-sided supervision",
+    "axis_2": "much larger and more diverse rehearsal bank",
+    "consequence": "If OG-PSP succeeds we CANNOT attribute the improvement to either axis alone. This is deliberately not a single-axis ablation.",
+    "why_accepted": "This is the final latent attempt under a stopping rule. Maximising the chance of testing the CORRECT mechanism is worth more than a clean ablation of a lever the evidence has already shown is not the binding constraint.",
+    "recorded_before": "any OG-PSP training run exists"
+  },
+  "HELD_FIXED_FROM_V1": [
+    "fresh step-0 initialisation, no checkpoint or optimizer reuse",
+    "EXP2C-style K=2 architecture",
+    "z0 rollout -> Pole A (OP6 + SDS2_A_payoff_INIT_3 overlay); z1 -> Pole B (OP7)",
+    "FIXED_OPPONENT, opponent_randomize False, persistent latent-to-pole assignment",
+    "exp2_teacher_compression_enabled False",
+    "1,000,000 step budget",
+    "rehearsal lambda 0.1, cadence 4",
+    "all runtime auditors active and FAIL-CLOSED"
+  ],
+  "LOSS_SCALE_MUST_NOT_SILENTLY_DOUBLE": {
+    "issue": "Paired supervision produces TWO targets per sampled state instead of one. With an unchanged batch size of 64 states that is 128 (state, latent) pairs, so a summed loss would roughly double the rehearsal gradient relative to V1 and confound the mechanism change with a strength change.",
+    "rule": "The rehearsal loss is the MEAN over all (state, latent) pairs in the batch. Per-example gradient scale therefore matches V1 and lambda keeps its meaning.",
+    "batch": "64 STATES -> 128 pairs, averaged. State diversity per step is preserved."
+  },
+  "BANK": {
+    "composition": "legacy FIT 10700001..10700096 + new collection 11000001..11000320",
+    "new_collection_status": "in progress at spec-freeze time; allowed to finish",
+    "minimum_total_eligible": 1500,
+    "eligibility": "Delta != 0 only; ties loaded but never sampled so zero-pressure stays MEASURED",
+    "sampling": "uniform without replacement over eligible states; no weighting, no adaptive or curriculum sampling, no hard-example mining",
+    "expected_replay_reduction": "V1 replayed 428 states 188.86x; a >=1500-state bank at the same budget cuts replay roughly 3.5x"
+  },
+  "SEEDS": {
+    "training": 11100001,
+    "EVAL": "11200001..11200032",
+    "eval_status": "RESERVED AND UNTOUCHED",
+    "v1_eval_spent": "10700129..10700160 -- must never be reused"
+  },
+  "GATES": {
+    "experiment_class": "ORACLE_GATED_REHEARSAL",
+    "primary": "crossover: delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "statistic": "paired percentile bootstrap over seed-level outcomes, 20000 samples, alpha 0.05",
+    "provenance": "unchanged from the V1 EVAL spec, itself adopted unchanged from eval_exp2_k2_terminal.py",
+    "tau": 0.7,
+    "rho_o_max_kappa": "NOT APPLICABLE BY DESIGN -- no test-time abstention mechanism",
+    "retention": {
+      "status": "REPORTED FOR CONTEXT ONLY, never a gate",
+      "watch": "Paired supervision trains each latent toward its specialist even where that specialist is locally worse, so retention may fall below V1's 0.9816. A large drop would be scientifically interesting and must be reported, but it does not gate and must not be promoted into one after the fact."
+    }
+  },
+  "STOPPING_RULE": {
+    "pass": "latent-success paper",
+    "fail": "Freeze as a valid negative result. No post-hoc gate changes, no extra seeds, no checkpoint shopping, no further latent tweak. Pivot to the SAPPO-centred ICRA paper with the compression-limit finding."
+  },
+  "PROHIBITED": [
+    "adding an explicit JSD-maximisation term",
+    "training paired targets on tied states",
+    "weighting or filtering the bank by |Delta|",
+    "adaptive sampling or hard-example mining",
+    "summing rather than averaging the paired loss",
+    "touching 11200001..11200032 before the one-shot evaluation",
+    "reusing the spent V1 EVAL block"
+  ]
+}

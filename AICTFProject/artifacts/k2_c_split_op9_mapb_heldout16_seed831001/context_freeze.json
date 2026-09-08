@@ -1,0 +1,43 @@
+{
+  "context_id": "C_SPLIT",
+  "status": "FROZEN",
+  "frozen_at_utc": "2026-07-29T02:50:00+00:00",
+  "verdict": "CONFIRM_PASS",
+  "intended_response": "BLUE_SPLIT",
+  "red": "OP9_SPLIT_LANE_FEINT",
+  "map": "map_b_split_lane",
+  "map_layout_normalized": "map_b_split_lane",
+  "blue_probe_protocol": "BLUE_PROBES_V3",
+  "confirmation": {
+    "artifact": "artifacts/k2_c_split_op9_mapb_heldout16_seed831001",
+    "episodes_per_style": 16,
+    "base_seed": 831001,
+    "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
+    "analysis_script": "experiments/run_scripted_style_payoff_matrix.py",
+    "device": "cpu",
+    "max_decision_steps": 240,
+    "mean_margins": {
+      "BLUE_SPLIT": 2.875,
+      "BLUE_RUSH": 1.625,
+      "BLUE_TURTLE": -0.1875,
+      "BLUE_ESCORT": -0.4375
+    },
+    "split_wr": 1.0,
+    "runner_up": "BLUE_RUSH",
+    "gap_vs_runner_up": 1.25,
+    "note": "Strong SPLIT anchor; clear gap vs RUSH."
+  },
+  "environment_commit": "458a57a0989ace3e7b17d820a01a719334cc47b9",
+  "environment_commit_note": "Working tree may contain unrelated Map C edits; C_SPLIT uses map_b_split_lane + OP9 + BLUE_PROBES_V3 only — do not retune those.",
+  "learned_policy_gates_required_later": [
+    "pi_R better than pi_S on C_RUSH",
+    "pi_S better than pi_R on C_SPLIT",
+    "LCB95(delta_pool) > 0"
+  ],
+  "do_not": [
+    "retune OP9 for a prettier scripted gap",
+    "change map_b_split_lane wall geometry",
+    "change BLUE_PROBES_V3",
+    "train router before K=2 specialist crossover"
+  ]
+}

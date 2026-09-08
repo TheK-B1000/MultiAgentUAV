@@ -1,0 +1,39 @@
+{
+  "styles": {
+    "BLUE_RUSH": {
+      "n": 8,
+      "episodes_with_mutual_carry": 8,
+      "episodes_with_viable_window": 8,
+      "viable_episode_frac": 1.0,
+      "mutual_episode_frac": 1.0,
+      "red_first_score_seeds": 0,
+      "mean_mutual_steps": 28.25,
+      "n_mutual_events": 226,
+      "mean_eta_slack_max_all": 3.397320855453706,
+      "mean_eta_slack_max_first_mutual": 5.103359156800449,
+      "frac_mutual_events_viable": 0.9823008849557522
+    },
+    "BLUE_TURTLE": {
+      "n": 8,
+      "episodes_with_mutual_carry": 0,
+      "episodes_with_viable_window": 0,
+      "viable_episode_frac": 0.0,
+      "mutual_episode_frac": 0.0,
+      "red_first_score_seeds": 1,
+      "mean_mutual_steps": 0.0,
+      "n_mutual_events": 0,
+      "mean_eta_slack_max_all": NaN,
+      "mean_eta_slack_max_first_mutual": NaN,
+      "frac_mutual_events_viable": 0.0
+    }
+  },
+  "viability": {
+    "rush_viable_episode_frac_ge_0_5": true,
+    "rush_first_mutual_mean_slack_positive": true,
+    "turtle_mutual_rare": true
+  },
+  "viable_to_implement": true,
+  "base_seed": 611001,
+  "map": "map_a",
+  "note": "viable_max = eta_interceptor_max < eta_blue_score_max at abandoned simultaneous-carry steps; implement denial only if viable_to_implement"
+}

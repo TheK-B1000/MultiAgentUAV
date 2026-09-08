@@ -1,0 +1,55 @@
+{
+ "block": {
+  "base": 9500001,
+  "n": 256,
+  "range": "9500001..9500256"
+ },
+ "margin_required": 5000,
+ "population_seed_offset_max": 300,
+ "declared_inventory_size": 2119,
+ "broad_inventory_size": 23747,
+ "excluded_as_reservation_records": [
+  "scripts/audit_seed_block.py",
+  "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
+  "artifacts/strategic_demand/CONFIRMATION_BLOCK_AUDIT_",
+  "artifacts/strategic_demand/CONFIRMATION_N_AMENDMENT_192.json",
+  "artifacts/strategic_demand/NEXT_CONFIRMATION_BLOCK_RESERVED.json",
+  "artifacts/strategic_demand/REPERTOIRE_LADDER_FROZEN.json",
+  "artifacts/strategic_demand/R_LADDER_BLOCK_AUDITS.json",
+  "artifacts/strategic_demand/V3_BENCHMARK_FROZEN.json",
+  "artifacts/strategic_demand/SEARCH_RUN_SDS2_SCREENING_FROZEN.json",
+  "artifacts/strategic_demand/CANDIDATE_A2_SDS2_INIT_3_FROZEN.json"
+ ],
+ "exclusion_caveat": "these paths RESERVE a block rather than USE it and are skipped in every check; any other file naming a seed in the window counts as a collision",
+ "check_1_declared_hits": [
+  {
+   "seed": 9500029,
+   "sources": [
+    "artifacts\\c1_confirmation\\C1_CONFIRMATION.json::evaluation_seeds"
+   ]
+  }
+ ],
+ "check_2_broad_hits": [
+  {
+   "int": 9500029,
+   "sources": [
+    "artifacts\\c1_confirmation\\C1_CONFIRMATION.json"
+   ]
+  }
+ ],
+ "check_3_overlapping_blocks": [],
+ "gap_below": 1,
+ "gap_above": 99744,
+ "check_4_history": {
+  "commits": [
+   "132b6680 c1 is real"
+  ],
+  "query_ok": true,
+  "positive_control_block": "2600001..2600032",
+  "positive_control_commits": 16,
+  "positive_control_valid": true,
+  "note": "control returned hits, so an empty result for the candidate is a true negative"
+ },
+ "margin_ok": false,
+ "verdict": "COLLISION"
+}

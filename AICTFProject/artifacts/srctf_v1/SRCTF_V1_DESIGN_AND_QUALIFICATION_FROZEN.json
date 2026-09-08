@@ -1,0 +1,154 @@
+{
+  "preregistration": "Strategy-Rich CTF v1 — design rationale and benchmark qualification protocol",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-11T09:00:00Z",
+  "frozen_before": "any SRCTF map, opponent, or rollout exists",
+  "phase": "successor benchmark. C7 is unaffected and continues on the historical environment.",
+
+  "the_governing_principle": {
+    "permitted": "design the game so that meaningful tradeoffs EXIST",
+    "prohibited": "design the answer -- which strategy should win, or which response Blue ought to use",
+    "why_this_is_not_self_enforcing": "'tune until the benchmark is strategy-rich' can conceal 'tune until the latent method passes'. The principle needs a mechanical guarantee, which is the latent-free acceptance criterion below."
+  },
+
+  "latent_free_acceptance_criterion": {
+    "statement": "A candidate environment qualifies iff the frozen reversal scanner finds a replicated preference reversal between two legal team responses, confirmed on an unspent block, using REWARD-ONLY baselines.",
+    "why_it_is_a_firewall": "no latent variable, router, or z appears anywhere in the criterion. It is measured on frozen generalist policies with the same instrument that returned C4_NO_REVERSAL, C5_NO_REVERSAL and C6_STAGE1_MECHANICAL_INFEASIBLE.",
+    "instrument_credibility": "that instrument has repeatedly returned negatives, including against the experimenter's preference. An instrument that has said no is what should decide whether an environment qualifies."
+  },
+
+  "the_multiplicity_hazard_at_the_design_level": {
+    "the_risk": "iterating environment designs until the scanner passes is the same multiplicity policed throughout C4-C6, moved up one level -- from 'try another opponent' to 'try another environment'. Twelve variants against a 0.05 bar produce a strategy-rich benchmark by construction.",
+    "the_rule": "ONE_SHOT. Each environment design gets exactly one qualification attempt. Its mechanics must be justified a priori from the design lever it implements. A failure closes that design and requires a NEW preregistration with a new rationale -- never a tweak-and-retry.",
+    "applies_equally_to": "the mechanical affordance gate. It may not be re-run against a tuned map until it passes."
+  },
+
+  "the_historical_environment_is_retained_as_a_negative_control": {
+    "what_it_is": "map_a + RULESET_V2, untouched. C1-C7 evidence preserved.",
+    "why_it_is_valuable": "C4, C5 and C6 established with a validated instrument that this environment LACKS routable strategic demand. That is a paid-for true negative.",
+    "the_contrast_it_enables": "the method finds nothing where the scanner says there is nothing, and structure where the scanner says there is structure. A method that only ever reports success is far weaker evidence.",
+    "prohibited": "modifying map_a, RULESET_V2, OP5-OP12 profiles, or any G0-V5 checkpoint for SRCTF purposes"
+  },
+
+  "design_targets": {
+    "team_size": "4v4 minimum. At 2v2 the entire allocation space is 2/0, 1/1, 0/2 and roles cannibalise one another (measured: offence vs contest r = -0.898 across nine opponents).",
+    "allocations_that_must_be_MECHANICALLY_POSSIBLE": [
+      "3 attack + 1 defend", "2 attack + 2 defend",
+      "1 carrier + 1 escort + 2 defend", "2 split attackers + 1 interceptor + 1 defender"
+    ],
+    "status_of_that_list": "POSSIBILITIES, not strategy labels supplied to PPO and not hypotheses about which wins",
+    "the_four_dilemmas": {
+      "home_exposure_vs_offensive_pressure": "more agents forward must raise scoring pressure AND make own flag meaningfully easier to attack",
+      "carrier_support_vs_throughput": "an escort must genuinely improve carrier survival or capture probability, at the cost of one agent's independent pressure",
+      "concentrated_vs_split": "at least two viable approaches; concentrating gives local numerical superiority, splitting creates simultaneous threats with weaker local strength",
+      "interception_vs_static_defense": "an interceptor must stop carriers earlier while leaving less protection near home"
+    },
+    "each_requires_an_OPPORTUNITY_COST": "a lever that only adds benefit creates no choice and does not count"
+  },
+
+  "map": {
+    "approach": "a NEW map, not a patch of map_a",
+    "required_properties": ["two viable outer lanes", "a faster but exposed central route",
+                            "enough width that splitting matters",
+                            "home areas not perfectly defensible from midfield",
+                            "interception points requiring positional commitment"],
+    "no_dominant_lane": "no lane may simply be best. This is a QUALIFICATION CRITERION, tested below, not an aspiration."
+  },
+
+  "reward": {
+    "rule": "ordinary CTF task reward only",
+    "must_NOT_reward": ["escorting", "defending", "rushing", "intercepting",
+                        "choosing any named strategy", "behavioural diversity", "latent usage"],
+    "why": "if escorts or defensive formations appear, they must have emerged because they helped the TASK. This preserves the reward-only claim, which is the scientific core of the result."
+  },
+
+  "opponent_population": {
+    "described_as_MECHANICS_not_as_counters": true,
+    "families": {
+      "SR1_HEAVY_RAIDER": "commits strongly forward, exposes home",
+      "SR2_FORTRESS": "strong home allocation, weak offensive throughput",
+      "SR3_CARRIER_ESCORT": "protects possession, advances deliberately",
+      "SR4_SPLIT_PRESSURE": "attacks multiple lanes",
+      "SR5_INTERCEPTOR": "hunts carriers away from home",
+      "SR6_ADAPTIVE_PRESSURE": "changes allocation according to score and game state"
+    },
+    "held_out_from_the_start": {
+      "rule": "a subset is RESERVED before any training and never used for training, oracle fitting, or model selection",
+      "why_now_and_not_later": "reserving at design time yields a real generalization experiment. Carving one out at paper-writing time is selection after the fact.",
+      "which": "to be fixed in the qualification artifact, before any SRCTF training run exists"
+    },
+    "prohibited": "opponent identity as a policy input, router feature, or training signal -- inherited from the C5 freeze"
+  },
+
+  "mechanical_affordance_gate": {
+    "purpose": "prove the environment CONTAINS strategic affordances before any PPO run. This is the step whose absence cost C4-C6.",
+    "method": "scripted legal team allocations as probes. No learned policy is involved.",
+    "probes": [
+      {"contrast": "4 forward / 0 home vs 2 forward / 2 home",
+       "must_move_in_OPPOSING_directions": ["offensive pressure", "home vulnerability"]},
+      {"contrast": "escort vs no escort",
+       "must_move_in_OPPOSING_directions": ["carrier survival", "independent offensive pressure"]},
+      {"contrast": "split vs concentrated",
+       "must_move_in_OPPOSING_directions": ["lane coverage", "local numerical strength"]},
+      {"contrast": "interceptor vs static defender",
+       "must_move_in_OPPOSING_directions": ["early carrier contact", "home density"]}
+    ],
+    "what_a_pass_establishes": "changing team allocation changes meaningful consequences in OPPOSING directions",
+    "what_a_pass_does_NOT_establish": "that any allocation is optimal, that a reversal exists, or that any strategy is worth learning",
+    "additional_criterion_no_dominant_lane": "no single lane may be best on the task metric across the opponent population, tested with the same clustered-bootstrap machinery",
+    "additional_diagnostic": "the offence-vs-contest correlation must be materially WEAKER than the historical r = -0.898. A cramped budget is the signature this benchmark exists to remove.",
+    "statistics": "inherited from C4/C5: episode-clustered bootstrap, 2000 resamples, seed 12345, LCB95 = q_0.025, support minima 30",
+    "one_shot": true
+  },
+
+  "freeze_point": {
+    "when": "immediately after the mechanical affordance gate passes",
+    "what_freezes": ["map hash", "rules hash", "opponent profile hashes", "team size", "reward",
+                     "episode duration", "training budget", "evaluation contexts",
+                     "held-out opponent set", "statistical tests", "all gate criteria"],
+    "the_hard_line": "after this point NO environment tuning may occur on the basis of any PPO, oracle, latent or router result. This is what separates benchmark engineering from iterating until the method wins."
+  },
+
+  "downstream_gate_sequence": {
+    "1_generalist": "G0-SR, reward-only PPO at 4v4 on the mixed population, competence-gated as in C7 Stage 0",
+    "2_response_oracles": "reward-only, trained on weaknesses DISCOVERED from payoff, never on named strategies",
+    "3_crossover": {
+      "requirement": "A(C1) > B(C1) AND B(C2) > A(C2)",
+      "note": "both directions, with CIs excluding zero, replicated across seeds"
+    },
+    "4_repertoire_gain": {
+      "requirement": "E[max_pi M(c, pi)] > max_pi E[M(c, pi)], with statistical support",
+      "plain_english": "having both policies available must beat always using the best single policy",
+      "why_crossover_alone_is_insufficient": "a crossover can exist while the best single policy still captures nearly all available value, in which case a second policy earns nothing",
+      "measured_on": "final task outcome, not a screen proxy"
+    },
+    "5_behavioural_distinctness": "matched-observation policy distance, so the two policies are not the same policy relabelled",
+    "6_observability": "the already-frozen single-timestep test, unchanged, before any router",
+    "7_latents": "only now. The question becomes 'can a compact latent representation PRESERVE a repertoire already demonstrated to exist?' rather than 'can we force z values to look different?'",
+    "8_router_and_held_out": "router performance and generalization to the reserved opponents"
+  },
+
+  "honest_scope": {
+    "this_is_a_large_engineering_phase": "a new map, six opponent families, a new generalist arm, and a qualification harness. Weeks, not hours.",
+    "known_risk": "opponent construction is error-prone -- C6 hit two separate plumbing failures where profiles resolved correctly but never reached the simulator, and both produced results that looked like findings",
+    "mitigation_already_built": ["additive-profile pattern", "profile identity gate (mutation-tested)",
+                                 "resolution identity gate (mutation-tested)",
+                                 "behavioural trajectory-hash guard", "generic BT dispatch predicate"],
+    "reusable_assets": ["the parallel reversal scanner (4.4x, hash-verified)",
+                        "run_c5_confirmation.py", "run_observability_test.py",
+                        "C6A_PUNISH_EXPOSURE, a validated opponent that genuinely abandons its half"]
+  },
+
+  "prohibited": [
+    "rewarding any strategy, role, or behavioural diversity",
+    "preregistering which response should win against which opponent",
+    "tuning the map, rules, or opponents after any PPO/latent/router result",
+    "re-running the affordance gate against a tuned design",
+    "using held-out opponents for training, oracle fitting, or model selection",
+    "opponent identity as a policy or router input",
+    "modifying the historical environment or its artifacts",
+    "claiming a task-outcome result from a screen proxy"
+  ],
+
+  "immutability": "The qualification protocol above may not change after any SRCTF measurement exists."
+}

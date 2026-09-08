@@ -1,0 +1,73 @@
+{
+  "record": "C5 discovery diagnostics \u2014 did the test have power to fire?",
+  "purpose": "distinguish a genuine negative from a test that never ran. DESCRIPTIVE ONLY; no bar, criterion or verdict is affected by anything in this file.",
+  "verdict_being_diagnosed": "C5_NO_REVERSAL",
+  "test_did_run": true,
+  "combos_with_support_ge_30_both_sides": 189,
+  "opponent_pairs_with_fewer_than_2_common_responses": 0,
+  "binding_constraint": "the confidence-interval requirement, NOT replication",
+  "evidence": "zero (opponent pair, response pair) combos passed delta>=0.10 with LCB95>0 in BOTH directions in even a SINGLE policy, so the >=2/3 replication rule was never reached and never binding",
+  "point_estimate_distribution": {
+    "max_weaker_leg": 0.1522,
+    "p95_weaker_leg": 0.0526,
+    "median_weaker_leg": -0.0541,
+    "combos_with_any_directional_reversal": 36,
+    "combos_tested": 189
+  },
+  "strongest_cells_point_estimates_only": [
+    {
+      "weaker_leg": 0.1522,
+      "delta_a": 0.1522,
+      "delta_b": 0.1591,
+      "policy": "3200001",
+      "opp_a": "OP8",
+      "opp_b": "OP9",
+      "n_a": 46,
+      "n_b": 44
+    },
+    {
+      "weaker_leg": 0.0851,
+      "delta_a": 0.0851,
+      "delta_b": 0.1837,
+      "policy": "3200002",
+      "opp_a": "OP7",
+      "opp_b": "OP8",
+      "n_a": 47,
+      "n_b": 49
+    },
+    {
+      "weaker_leg": 0.0667,
+      "delta_a": 0.0667,
+      "delta_b": 0.0667,
+      "policy": "3200002",
+      "opp_a": "OP7",
+      "opp_b": "OP9",
+      "n_a": 45,
+      "n_b": 45
+    },
+    {
+      "weaker_leg": 0.0652,
+      "delta_a": 0.0652,
+      "delta_b": 0.0667,
+      "policy": "3200002",
+      "opp_a": "OP6",
+      "opp_b": "OP9",
+      "n_a": 46,
+      "n_b": 45
+    },
+    {
+      "weaker_leg": 0.0638,
+      "delta_a": 0.12,
+      "delta_b": 0.0638,
+      "policy": "3200003",
+      "opp_a": "OP11",
+      "opp_b": "OP9",
+      "n_a": 50,
+      "n_b": 47
+    }
+  ],
+  "honest_limitation": "The strongest cell (OP8 vs OP9, policy 3200001) exceeded delta=0.10 on POINT estimates in both directions (+0.1522 / +0.1591) but its episode-clustered CI included zero at 30 episodes per cell. This test therefore had limited power, and the negative should be read as 'no reversal DEMONSTRATED at this power', not 'no reversal exists'.",
+  "why_this_is_not_a_reason_to_rerun": "Adding episodes to tighten the CI after seeing which cell came closest is a re-roll of a hypothesis that has already failed, and it would select the cell to re-test using the very data that failed to support it. The frozen C5_NO_REVERSAL action stands. Note also that the strongest cell appeared in ONE policy only -- the other two policies' strongest cells were different pairs at roughly a third the magnitude, which is itself evidence against a stable opponent metagame.",
+  "confirmation_block_spent": false,
+  "confirmation_block_status": "9850000-9850029 remains UNSPENT and available"
+}

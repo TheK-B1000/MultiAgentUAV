@@ -17,6 +17,10 @@ SUPPORTED_OPPONENTS: frozenset[str] = frozenset({
     "OP10", "OP10_ESCORT",
     "OP11", "OP11_BT_BALANCED",
     "OP12", "OP12_COUNTER",
+    # C6 experimental fixtures (artifacts/c6_preregistration). Not on the
+    # permanent board and not in run_g0_v2_seed.OPPONENTS.
+    "C6A", "C6A_PUNISH_EXPOSURE",
+    "C6B", "C6B_PUNISH_PASSIVITY",
 })
 
 

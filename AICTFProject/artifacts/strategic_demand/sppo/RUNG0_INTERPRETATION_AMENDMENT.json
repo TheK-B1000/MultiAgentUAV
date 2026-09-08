@@ -1,0 +1,46 @@
+{
+  "record_id": "RUNG0_INTERPRETATION_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T21:10:00Z",
+  "authority": "PI, 2026-09-04, before Rung 0 is built or run: the parent spec's Rung-0 failure reading is too strong and must be split three ways.",
+
+  "amends": "SHARING_LADDER_SPEC.json#PROGRESSION_OF_RUNGS.rung_0.if_it_FAILS and #PREREGISTERED_INTERPRETATION row 1",
+  "rule": "APPEND, not an edit. No seed, gate, recipe or ordering changes. Only the permitted inference from a Rung-0 non-pass is corrected.",
+
+  "THE_OVERSTATEMENT": {
+    "parent_spec_said": "a Rung-0 FAIL means 'the latent-dispatch/eval path cannot express crossover even with the frozen specialists installed verbatim... everything downstream would need re-examination'",
+    "why_that_is_too_strong": "the gate requires delta > 0 AND LCB95 > 0 on BOTH poles at n=64 seeds per cell. A dispatch wrapper that is mechanically exact can still produce positive point estimates with one confidence interval crossing zero on a fresh block -- that is a POWER and seed-stability outcome, not evidence that the instrument cannot express crossover. Conflating the two would let ordinary sampling noise be read as an instrumentation catastrophe.",
+    "note_on_the_ceiling": "even the specialist baseline itself passed with delta_A LCB95 at +0.0156 (SPECIALIST_BASELINE_EVAL_RESULT.json) -- a narrow margin. A fresh 64-seed block reproducing the same policies could plausibly land just under it."
+  },
+
+  "CORRECTED_THREE_WAY_READING": [
+    {"outcome": "PASS (both deltas > 0 and both LCB95 > 0)",
+     "reading": "positive control succeeds; the dispatch path and gate can express crossover. Proceed to Rung 1.",
+     "action": "proceed"},
+    {"outcome": "both deltas > 0 but one or both CIs cross zero",
+     "reading": "a POWER / seed-stability outcome, not an instrument failure. The direction is right and the magnitude is consistent with the specialists; the block simply did not resolve it at n=64. Investigate statistical stability and fresh-block sensitivity BEFORE attributing anything to architecture or instrumentation.",
+     "action": "investigate power; do NOT declare the instrument broken; do NOT proceed to Rung 1 until the stability question is settled, since every later rung inherits the same n"},
+    {"outcome": "tie or reversal on either pole, OR any behavioural mismatch from the frozen specialists",
+     "reading": "the wrapper or evaluator is at fault. A mechanically exact dispatch of pi_A and pi_B cannot reverse the specialists' own direction. STOP the ladder and audit immediately.",
+     "action": "stop and audit the wrapper/evaluator"}
+  ],
+
+  "MANDATORY_EQUIVALENCE_PREFLIGHT_BEFORE_THE_SEAL_OPENS": {
+    "requirement": "wrapper(z0) must be EXACTLY pi_A and wrapper(z1) must be EXACTLY pi_B, verified rather than assumed",
+    "checks": [
+      "masked logits identical (max |delta| == 0) for both z, on fixed non-sealed states",
+      "argmax actions identical on every checked state and every head",
+      "MACRO heads (indices 0, 2) identical",
+      "TARGET heads (indices 1, 3) identical -- checked explicitly, since the sub-macro finding showed the target head carries 4.7-7.0x more disagreement and a wrapper bug there would be invisible at the macro layer",
+      "checkpoint sha256 of both specialists verified against SPECIALIST_BASELINE_SPEC.json's frozen hashes",
+      "the wrapper's forced-z path exercised through the SAME interface the sealed eval uses (fixed_latent_strategy / fixed_latent_strategy_id / predict), not a bespoke call path"
+    ],
+    "device": "cuda -- the same device the sealed ladder runs on. ONPOLICY_TD_DEVICE_AMENDMENT.json established trajectories and logits are device-dependent, so verifying equivalence on cpu would not certify the cuda instrument.",
+    "states": "non-sealed states drawn from TEACHER_DISTILLATION_DATASET.json's already-collected decision rows; no new rollouts and no sealed seeds",
+    "on_any_failure": "the seal does NOT open. A wrapper that is not bit-exact is not a positive control."
+  },
+
+  "WHAT_RUNG_0_ASKS_ONCE_THE_PREFLIGHT_PASSES": "Can the exact two successful policies survive simply being dispatched through z? Nothing about compression is being tested at this rung -- only whether the dispatch-and-evaluate path preserves what the specialists already demonstrated.",
+
+  "ORDERING_UNCHANGED": "Rung 0 is still sealed first, and the sub-macro leverage diagnostic (SUBMACRO_LEVERAGE_DIAGNOSTIC_SPEC.json) proceeds in parallel as a mechanistic sidecar without gating the ladder."
+}

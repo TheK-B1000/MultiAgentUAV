@@ -1,0 +1,117 @@
+{
+  "record": "O3 demand gate — evaluation populations and competence floor",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-09T20:00:00Z",
+  "supplements": "artifacts/o3_preregistration/O3_PROTOCOL_FROZEN.json (de6fb58)",
+  "supersedes": "the c_anchor block of de6fb58",
+  "frozen_before": "any G0-vs-O3 demand-gate evaluation outcome exists",
+
+  "why_this_addendum_exists": {
+    "defect": "de6fb58 defined C_anchor as 'blue carrying AND n_legal_team_responses >= 2, but the C_fork precursor is NOT active'. That was written against the ORIGINAL four-condition predicate. ce7949f removed the pressure-radius and closing-trend clauses, leaving exactly 'carrying AND >= 2 legal'. Under the recall-first predicate that anchor set is EMPTY by construction: the precursor fires at the first decision satisfying precisely those conditions.",
+    "confirmed_empirically": "the fallback reading -- episodes where C_fork never fires -- is also empty in practice: 5,113 of 5,114 training episodes fired",
+    "status": "a superseded definition whose replacement was never written, not a threshold to tune"
+  },
+
+  "contamination_disclosure": {
+    "known_at_authoring": [
+      "O3 trained cleanly for 1,001,472 steps (c034d44)",
+      "handoff_rate 0.9998; O3 controlled 86.7% of environment steps",
+      "credited_fraction 0.8671; 462,412 prefix rows rejected"
+    ],
+    "not_known_at_authoring": [
+      "any G0-vs-O3 comparison on any population",
+      "delta_fork, delta_anchor, G_available, or any behavioral distance"
+    ],
+    "why_this_is_acceptable": "The anchor is chosen from the STRUCTURE of the experiment -- the phase in which O3 provably received zero gradient -- not from any observed comparison. No outcome that the gate will decide has been seen.",
+    "recorded_so_it_cannot_be_discovered_later": true
+  },
+
+  "pre_result_prediction": {
+    "prediction": "BETTER_GENERALIST is more plausible than it would have been under a narrow niche trigger",
+    "reasoning": "handoff_rate 0.9998 means O3 controlled 86.7% of all environment steps. A policy trained on most of the game has little structural reason to give anything up elsewhere; the recall-first predicate bought coverage at the cost of niche specificity.",
+    "recorded_before": "any crossover result exists, so it cannot be constructed afterwards to fit the outcome",
+    "does_not_change_any_threshold": true
+  },
+
+  "c_fork_population": {
+    "definition": "decisions at or after the first C_fork firing in an episode, on fresh evaluation seeds",
+    "construction": "paired-prefix. For each (opponent, eval_seed): arm A is G0 for the whole episode; arm B is G0 until the first C_fork firing, then O3 to terminal. Identical seeds give an identical prefix, so all divergence is attributable to the handoff.",
+    "metric": "final score differential, blue_score - red_score (inherited from de6fb58)",
+    "requirement": "delta_fork = E[U | C_fork, O3] - E[U | C_fork, G0] > 0 with LCB95 > 0"
+  },
+
+  "c_anchor_population": {
+    "definition": "natural decisions occurring BEFORE the first C_fork firing on fresh evaluation episodes",
+    "interpretation": "the pre-handoff approach / setup / positioning phase",
+    "exclusion": "no state at or after the first C_fork firing belongs to C_anchor",
+    "why_this_phase": "O3 received ZERO PPO credit before the first handoff -- 462,412 prefix rows were offered and rejected across training, and the five pre-handoff counts were zero throughout. G0 owns that phase by construction, so it is the most defensible place to ask whether O3's post-handoff adaptation cost it anything earlier.",
+    "metric": "score differential accumulated at the moment of the first C_fork firing, i.e. blue_score - red_score evaluated at the handoff step; for an episode that never fires, at terminal",
+    "why_a_phase_attributable_metric": "Final-episode score cannot isolate prefix behaviour, since everything after the handoff would contaminate it. Scoring at the handoff boundary makes the quantity attributable to the phase being compared.",
+    "construction": "each policy controls the episode from step 0 on the same fresh seeds; the prefix quantity is read at each arm's own first firing",
+    "requirement": "delta_anchor = E[U | C_anchor, G0] - E[U | C_anchor, O3] > 0 with LCB95 > 0 -- a genuine preference REVERSAL, not non-inferiority"
+  },
+
+  "whole_game_comparison": {
+    "status": "REPORTED, and explicitly NOT C_anchor",
+    "definition": "each policy controls the entire episode from step 0; metric is final score differential",
+    "purpose": "competence and global-dominance check only",
+    "why_not_the_anchor": "If G0 beats O3 over a whole episode we could not tell whether the advantage came from the intended pre-handoff phase or from unrelated later behaviour. Using it as the anchor would muddy the crossover claim into 'O3 is not uniformly better'.",
+    "three_way_diagnosis": {
+      "C_fork": "does O3 gain where it was trained?",
+      "C_anchor": "does G0 retain an advantage before handoff?",
+      "whole_game": "is either policy simply globally better or broken?"
+    }
+  },
+
+  "competence_floor": {
+    "metric": "win rate over the whole-game comparison",
+    "reference": "frozen G0-V5 seed 3200001 on the same fresh evaluation seeds",
+    "threshold": "O3 whole-game win rate >= 0.50 x G0 whole-game win rate",
+    "scope": "pooled across opponents, and additionally reported per opponent",
+    "purpose": "a policy that wins the niche by collapsing elsewhere is not a strategy candidate; this rejects degenerate specialists without demanding parity",
+    "failure_label": "COMPETENCE_FLOOR_FAIL"
+  },
+
+  "inherited_unchanged_from_de6fb58": {
+    "primary_metric": "final score differential; carrier_survival explicitly prohibited as primary",
+    "held_out_seed_block": [9830000, 9830029],
+    "episodes": "7 opponents x 30 seeds = 210 episodes per arm",
+    "g_available": "V_selector({G0,O3}) - V_best_fixed({G0,O3}), selector switches to O3 at first C_fork onset, requires LCB95 > 0",
+    "statistics": "paired episode-clustered bootstrap, 2000 resamples, seed 12345, LCB95 = q_0.025",
+    "behavioral_nonredundancy": "behavior_pair_distance_mean >= 0.35 with the three-band classification; single-seed caveat applies",
+    "response_supervision_prohibition": "46c9e17"
+  },
+
+  "outcomes_and_permitted_claims": {
+    "NEGATIVE_DEVELOPMENT": {
+      "condition": "delta_fork <= 0 or its LCB95 <= 0",
+      "permitted_claim": "O3 did not improve the carry-phase fork context in the canonical development seed.",
+      "prohibited_claim": "the task does not support multiple strategies; K=1 is established",
+      "note": "strategic demand and seed variance are unresolved at n_seeds=1, and the negative is further bounded to the 0.7006 covered carry-phase forks"
+    },
+    "BETTER_GENERALIST": {
+      "condition": "delta_fork > 0 with LCB95 > 0, and delta_anchor <= 0",
+      "permitted_claim": "O3 improved on G0 in the fork context without a measurable opportunity cost in the pre-handoff phase; a better generalist, not a demonstrated second strategy.",
+      "prohibited_claim": "a complementary strategy pair exists",
+      "next_experiment": "C4-style opportunity-cost screen: find contexts where improving response A necessarily harms utility elsewhere"
+    },
+    "CROSSOVER_NO_REPERTOIRE_VALUE": {
+      "condition": "delta_fork > 0 and delta_anchor > 0, both LCB95 > 0, but LCB95(G_available) <= 0",
+      "permitted_claim": "G0 and O3 show a preference reversal, but selecting between them did not add measurable value.",
+      "prohibited_claim": "latent demand is established"
+    },
+    "COMPLEMENTARY_PAIR": {
+      "condition": "delta_fork > 0, delta_anchor > 0, LCB95(G_available) > 0, competence floor passed",
+      "permitted_claim": "A complementary G0/O3 policy pair emerged in the canonical development seed.",
+      "prohibited_claim": "reproducible strategy family; robust latent strategy; anything implying cross-seed replication",
+      "next_gate": "behavioral nonredundancy, then latent birth under LATENT_BIRTH_PROTOCOL_FROZEN.json"
+    },
+    "COMPETENCE_FLOOR_FAIL": {
+      "condition": "O3 whole-game win rate < 0.50 x G0's",
+      "permitted_claim": "O3 is not a viable strategy candidate regardless of any niche gain.",
+      "overrides": "all other outcome labels"
+    }
+  },
+
+  "immutability": "After any demand-gate outcome is observed, none of the above may change: population definitions, metrics, the competence floor, the outcome conditions, or the permitted and prohibited claims."
+}

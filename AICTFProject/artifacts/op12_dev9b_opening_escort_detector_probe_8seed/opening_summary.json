@@ -1,0 +1,56 @@
+{
+  "red_preset": "OP12_LATE_CONVERTER",
+  "map": "map_b_split_lane",
+  "styles": {
+    "BLUE_RUSH": {
+      "n": 8,
+      "mean_time_cross_midfield_any": 7.625,
+      "mean_time_cross_midfield_both": 9.875,
+      "mean_time_first_flag_touch": 14.875,
+      "mean_time_first_pickup": 15.25,
+      "mean_time_first_blue_score": 56.25,
+      "mean_split_detector_first_trigger_step": null,
+      "split_detector_trigger_episodes": 0,
+      "mean_escort_detector_first_trigger_step": null,
+      "escort_detector_trigger_episodes": 0,
+      "mean_opening_teammate_dist": 4.974700933610775,
+      "mean_opening_lane_sep": 4.217420158162713,
+      "mean_opening_forward_velocity": 0.6382395699620247,
+      "mean_opening_clustered_frac": 0.74375,
+      "mean_opening_trailing_frac": 0.7875,
+      "mean_opening_stable_leader_frac": 0.8338192294461644,
+      "mean_pre_pickup_teammate_dist": 5.137148664833955,
+      "mean_pre_pickup_lane_sep": 4.2860637497375995,
+      "mean_pre_pickup_clustered_frac": 0.6859243697478992,
+      "pickup_episodes": 8,
+      "blue_score_episodes": 8
+    },
+    "BLUE_ESCORT": {
+      "n": 8,
+      "mean_time_cross_midfield_any": 8.5,
+      "mean_time_cross_midfield_both": 15.25,
+      "mean_time_first_flag_touch": 14.625,
+      "mean_time_first_pickup": 15.375,
+      "mean_time_first_blue_score": 62.375,
+      "mean_split_detector_first_trigger_step": null,
+      "split_detector_trigger_episodes": 0,
+      "mean_escort_detector_first_trigger_step": null,
+      "escort_detector_trigger_episodes": 0,
+      "mean_opening_teammate_dist": 3.441766976469402,
+      "mean_opening_lane_sep": 1.9856420826166867,
+      "mean_opening_forward_velocity": 0.5255940897684348,
+      "mean_opening_clustered_frac": 0.8625,
+      "mean_opening_trailing_frac": 0.8875,
+      "mean_opening_stable_leader_frac": 0.9029239766081871,
+      "mean_pre_pickup_teammate_dist": 3.614999826320161,
+      "mean_pre_pickup_lane_sep": 2.29708707163773,
+      "mean_pre_pickup_clustered_frac": 0.8611111111111112,
+      "pickup_episodes": 8,
+      "blue_score_episodes": 8
+    }
+  },
+  "interpretation": {
+    "purpose": "opening behavior audit only; not a payoff confirmation",
+    "opening_steps": "metrics with opening_ prefix use the configured early OP12 window"
+  }
+}

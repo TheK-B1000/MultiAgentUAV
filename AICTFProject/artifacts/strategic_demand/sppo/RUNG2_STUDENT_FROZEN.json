@@ -1,0 +1,61 @@
+{
+  "record_id": "RUNG2_STUDENT_FROZEN",
+  "status": "FROZEN_STUDENT",
+  "utc": "2026-09-05T11:08:00Z",
+  "rung": 2,
+  "implements": "RUNG2_CONSTRUCTION_AND_PREDICTION.json",
+  "architecture": "shared ['actor_cnn', 'latent_actor.body']; everything else private per z",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts\\strategic_demand\\sppo\\sharing_ladder\\rung2\\ckpts\\final_rung2.pt",
+    "sha256": "373f64f627c5f66c9072bc105e7f4b21e15272866dee3ace7ac5af93d77f4264",
+    "bytes": 27822829,
+    "format": "sharing_ladder_rung2_v1"
+  },
+  "sharing_arithmetic": {
+    "n_unique": 3508848,
+    "n_shared": 3438336,
+    "n_branch_total": 3473592,
+    "expected_unique": 3508848,
+    "ok": true,
+    "shared_modules": [
+      "actor_cnn",
+      "latent_actor.body"
+    ]
+  },
+  "modules_shared_after_training": true,
+  "training": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "seeds": [
+      11963001,
+      11963002
+    ],
+    "updates_per_epoch": 117,
+    "optimized": "shared modules + both private stacks; critics excluded"
+  },
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.010546655545377323,
+    "train_kl_B": 0.004841255465856729,
+    "holdout_agree_z0_vs_piA": 0.9632477764118337,
+    "holdout_agree_z1_vs_piB": 0.9847968657557923,
+    "holdout_teacher_argmax_disagreement": 0.2775949252589935,
+    "holdout_kl_A": 0.015230766354076082,
+    "holdout_kl_B": 0.005417303255054816,
+    "holdout_student_z0_z1_jsd": 0.17208451713174716,
+    "holdout_teacher_A_B_jsd": 0.17903920535855075
+  },
+  "fit_check": {
+    "min_agreement": 0.5,
+    "passed": true
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "EVAL": {
+    "rule": "LADDER_MATCHED_EVALUATION_AMENDMENT.json",
+    "seeds": "the 128 matched seeds in RUNG0_LADDER_REFERENCE.json",
+    "touched": false
+  },
+  "NEXT": "matched 128-seed eval on cuda"
+}

@@ -1,0 +1,52 @@
+{
+  "amendment": "Observability test — scope of the information set, and the status of a history-based successor",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-10T16:20:00Z",
+  "amends": "artifacts/c5_preregistration/OBSERVABILITY_TEST_FROZEN.json (d2b1297)",
+
+  "admissibility": {
+    "no_observability_number_exists": true,
+    "no_c5_discovery_number_exists": true,
+    "evidence": "the 21-cell C5 discovery scan was still in its first wave when this was written; artifacts/c5_discovery/C5_RESULT.json did not exist",
+    "what_this_changes": "records the scope of the frozen information set and pre-authorizes ONE narrowly-bounded successor test",
+    "what_this_does_not_change": "the selector class, the 28 legal_context fields, the baseline, the 0.50 recovery bar, the evaluation block, the statistics, or any outcome condition"
+  },
+
+  "the_scope_being_recorded": {
+    "what_the_frozen_selector_sees": "legal_context at a SINGLE TIMESTEP -- 28 scalar fields describing the field at the moment of decision",
+    "what_it_does_not_see": "any history, prefix, or temporal aggregate of the episode so far",
+    "why_this_matters": "opponent regime is plausibly far easier to infer from a PREFIX of observed behaviour than from one frame. A router deployed with recurrent or stacked-frame input would have strictly more information than this selector.",
+    "consequence_for_a_negative": "an UNROUTABLE verdict means 'not recoverable from a single legal frame at the 0.50 bar'. It does NOT mean 'not routable'. The frozen reporting language must say single-timestep explicitly."
+  },
+
+  "history_based_successor": {
+    "status": "PRE-AUTHORIZED IN FORM, NOT IN CONTENT",
+    "why_declared_now": "declaring it after an UNROUTABLE result would be indistinguishable from scrambling for a second attempt at a gate that just failed. Declared before any number exists, it is a scoped follow-up rather than a re-roll.",
+    "permitted_only_under_all_of": [
+      "its own preregistration, frozen before any of its data exists",
+      "its own fresh unspent seed block, never 9860000",
+      "a history representation fixed in advance, not searched",
+      "the SAME 0.50 recovery bar and the same baseline definition",
+      "opponent identity still excluded from the selector"
+    ],
+    "explicitly_does_not": [
+      "rehabilitate an UNROUTABLE single-timestep verdict",
+      "authorize retrying the single-timestep test",
+      "authorize a search over history lengths or encodings until one clears the bar",
+      "license adding fields to legal_context"
+    ],
+    "reporting_rule": "if both tests run, BOTH verdicts are reported. A history-based pass alongside a single-timestep failure is a finding about the observation space -- routable only with memory -- not a retroactive pass of the frozen test."
+  },
+
+  "frozen_reporting_language": {
+    "UNROUTABLE": "The confirmed opponent-conditional tradeoff was not recoverable from a single-timestep legal_context observation at the 0.50 recovery bar.",
+    "ROUTABLE": "A legal single-timestep observer recovered at least half the oracle-selector gain on an unspent block.",
+    "what_neither_claim_extends_to": [
+      "task-outcome value, since the utility is a carrier_survival screen proxy",
+      "any statement about what a recurrent or history-conditioned router could achieve",
+      "opponents outside the admitted OP6-OP12 mixture"
+    ]
+  },
+
+  "immutability": "After any observability number exists, none of the above may change."
+}

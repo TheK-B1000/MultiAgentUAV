@@ -1,0 +1,53 @@
+{
+  "artifact_id": "EXP2C_REAL_TEACHER_SMOKE",
+  "classification": "IMPLEMENTATION_SMOKE_NOT_A_SCIENTIFIC_RESULT",
+  "environment_steps": 0,
+  "seed_block_consumed": false,
+  "smoke_seed": 20260823,
+  "protocol_id": "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_V1",
+  "teacher_sha256": [
+    "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  ],
+  "architecture": "shared CNN/body + exactly two private final linear heads",
+  "private_adapters": "ABSENT",
+  "private_deep_trunks": "ABSENT",
+  "routing": {
+    "z0_own_head_grad_norm": 0.8021138906478882,
+    "z0_other_head_grad_norm": 0.0,
+    "z1_own_head_grad_norm": 1.1905704736709595,
+    "z1_other_head_grad_norm": 0.0
+  },
+  "head_max_abs_deltas": [
+    0.0005000010132789612,
+    0.0005000010132789612
+  ],
+  "before": {
+    "kl_z0": 2.6126582622528076,
+    "agreement_z0": 0.0,
+    "rows_z0": 32.0,
+    "active_heads_z0": 128.0,
+    "kl_z1": 2.7738118171691895,
+    "agreement_z1": 0.0,
+    "rows_z1": 32.0,
+    "active_heads_z1": 128.0,
+    "kl": 2.693234920501709,
+    "active_heads": 256.0
+  },
+  "after": {
+    "kl_z0": 2.302035331726074,
+    "agreement_z0": 0.375,
+    "rows_z0": 32.0,
+    "active_heads_z0": 128.0,
+    "kl_z1": 2.0695037841796875,
+    "agreement_z1": 1.0,
+    "rows_z1": 32.0,
+    "active_heads_z1": 128.0,
+    "kl": 2.185769557952881,
+    "active_heads": 256.0
+  },
+  "n_ppo_actor_updates": 4,
+  "n_teacher_updates": 1,
+  "verdict": "PASS",
+  "utc": "2026-08-23T12:09:08Z"
+}

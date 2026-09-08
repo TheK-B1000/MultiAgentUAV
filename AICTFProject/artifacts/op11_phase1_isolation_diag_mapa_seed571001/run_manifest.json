@@ -1,0 +1,27 @@
+{
+  "protocol": "op11_isolation_failure_phase1",
+  "blue_probe_protocol": "BLUE_PROBES_V3",
+  "red": "OP11_ADAPTIVE_EXPLOITER",
+  "maps_requested": [
+    "map_a"
+  ],
+  "maps_normalized": [
+    "map_a_open"
+  ],
+  "episodes": 8,
+  "base_seed": 571001,
+  "device": "cpu",
+  "max_decision_steps": 240,
+  "styles": [
+    "BLUE_SPLIT",
+    "BLUE_ESCORT",
+    "BLUE_RUSH",
+    "BLUE_TURTLE"
+  ],
+  "retired_seeds_guard": [
+    541001,
+    551001,
+    561001
+  ],
+  "note": "Phase-1 diagnosis only \u2014 no BT redesign until failure mode ranked."
+}

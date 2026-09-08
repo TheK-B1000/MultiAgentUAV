@@ -1,0 +1,30 @@
+{
+  "record": "SAC_RFT_ACTIVATION",
+  "status": "AUTHORIZED",
+  "utc": "2026-09-03T18:56:41Z",
+  "implements": "SAC_RFT_SPEC.json",
+  "authorized_by": {
+    "authorized": true,
+    "kind": "EARLY_COMPUTE_OVERRIDE",
+    "scientific_clearance": false,
+    "rscft_audit_still_mandatory": true,
+    "reason": "PI early-compute override: sealed EVAL finished and wrote INTEGRITY_REQUIRED; GPU may start SAC-RFT. This is NOT RSCFT scientific clearance. Integrity audit remains mandatory.",
+    "path": "EARLY_COMPUTE_OVERRIDE",
+    "triggered_by": [
+      "A_C",
+      "A_T"
+    ],
+    "claim_to_write": null,
+    "override_file": "SAC_RFT_EARLY_ACTIVATION_OVERRIDE.json"
+  },
+  "kind": "EARLY_COMPUTE_OVERRIDE",
+  "scientific_clearance": false,
+  "rscft_audit_still_mandatory": true,
+  "rscft_fail_claim": null,
+  "next": [
+    "python experiments/sac_rft_preflight.py --device cuda",
+    "python experiments/run_sac_rft_production.py --arm control",
+    "python experiments/run_sac_rft_production.py --arm treatment"
+  ],
+  "spec_status_at_authorization": "FROZEN_PENDING_RSCFT_FAIL_ACTIVATION"
+}

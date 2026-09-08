@@ -1,0 +1,44 @@
+{
+  "record_id": "SPPPO_TRAINING_BUDGET",
+  "status": "FROZEN_BEFORE_THE_SPPPO_PROTOCOL_EXISTS",
+  "frozen_utc": "2026-08-24T18:00:00Z",
+  "authority": "PI decision",
+  "budget": 1000000,
+  "supersedes": "the 2M figure carried forward from the EXP2 compression budget, which was inherited rather than scientifically required for SPPPO",
+
+  "rule": "ONE 1M-step production run, terminal checkpoint only, NO extension",
+  "the_1M_terminal_owns_the_verdict": "if the result is disliked, the run is NOT quietly continued to 2M. Freezing 1M prospectively makes 1M scientifically legitimate; extending it after seeing the outcome would not be.",
+
+  "why_1M_is_the_better_first_budget": [
+    "SPPPO starts from strong frozen SAPPO teachers, so it is not learning strategy from scratch",
+    "the payoff-ranking signal is meant to provide MORE TARGETED supervision, not to require twice the brute-force PPO",
+    "a 1M run gives a cleaner test of whether the METHOD helps, rather than whether more compute helps",
+    "the scorer/branching phase is already expensive; this keeps the total tractable",
+    "frozen prospectively, so there is no scientific objection to the smaller budget"
+  ],
+
+  "does_not_change_phase_0": "Phase 0 remains exactly as frozen: it determines only whether the strategic scorer is good enough to justify SPPPO at all. Its block, allocation, split, branch count and gates are untouched.",
+
+  "sequence": [
+    "Phase 0 scorer feasibility",
+    "Gate 0A PASS?",
+    "Gate 0B PASS?",
+    "if YES: freeze SPPPO protocol with TOTAL BUDGET = 1M",
+    "one terminal checkpoint",
+    "fresh untouched evaluation",
+    "crossover + retention + identity, gates unchanged"
+  ],
+
+  "unchanged_from_the_earlier_sketch": [
+    "EXP2C architecture",
+    "K=2 persistent z",
+    "assigned-pole 16/0/0/16",
+    "same SAPPO teachers",
+    "same PPO settings",
+    "same teacher cadence",
+    "terminal-only evaluation",
+    "crossover, retention and identity gates",
+    "fresh audited seeds",
+    "the strategic ranking objective as the only substantive new ingredient"
+  ]
+}

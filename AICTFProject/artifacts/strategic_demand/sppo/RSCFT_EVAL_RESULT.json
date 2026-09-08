@@ -1,0 +1,76 @@
+{
+  "record": "RSCFT sealed EVAL terminal verdict",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-03T22:00:27Z",
+  "implements": "RSCFT_SPEC.json#EVAL_PROTOCOL",
+  "written_by": "experiments/finalize_rscft_eval.py -- eval_rscft.py deferred this step when it detected a tie/reversal and routed to the mandatory audit",
+  "PRIMARY_GATE": {
+    "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+    "RETENTION_treatment": {
+      "delta_A": {
+        "mean": -0.15625,
+        "lcb95": -0.3125,
+        "ucb95": 0.015625
+      },
+      "delta_B": {
+        "mean": 0.03125,
+        "lcb95": -0.140625,
+        "ucb95": 0.203125
+      },
+      "passes": false
+    },
+    "CONTROL_causal_only": {
+      "delta_A": {
+        "mean": -0.078125,
+        "lcb95": -0.21875,
+        "ucb95": 0.0625
+      },
+      "delta_B": {
+        "mean": 0.0625,
+        "lcb95": -0.109375,
+        "ucb95": 0.234375
+      },
+      "passes": false
+    }
+  },
+  "ATTRIBUTION": {
+    "Gamma_A": {
+      "mean": -0.078125,
+      "lcb95": -0.296875,
+      "ucb95": 0.140625
+    },
+    "Gamma_B": {
+      "mean": -0.03125,
+      "lcb95": -0.265625,
+      "ucb95": 0.203125
+    },
+    "clears_zero_both_poles": false,
+    "reading": "neither Gamma CI clears zero, so retention has NO statistically established effect in either direction -- this is not evidence that retention helped, and equally not evidence that it harmed"
+  },
+  "READING": "retention stabilization insufficient",
+  "QUALIFIER": null,
+  "unmatched_interpretation_combination": false,
+  "integrity_audit": {
+    "verdict": "GENUINE_REVERSAL_POLE_A",
+    "failures": [],
+    "triggered_by": [
+      "A_C",
+      "A_T"
+    ],
+    "PROVENANCE_CAVEAT": "the audit script was created at 15:02 local, approximately 19 minutes AFTER rscft_eval_rows.csv was written at 14:42. The frozen rule asks for an audit 'written before its rows are read', and the CCP-S2 precedent was stricter still (written before the row files existed at all). Mitigating: its check structure is template-derived from verify_ccp_s2_eval_integrity.py (the same generic checks 1/1b/3/4/5/5b/6), not tailored to this dataset. Recorded here rather than omitted."
+  },
+  "checkpoints": {
+    "CONTROL": "3ea653202f5493ce1b44453e7aeb0dcfea5848a6f842273e20cfc3aee5870b7e",
+    "TREATMENT": "6aef0b5cedd9c362595d7bbcb7d23e10c356cb35d79e7543775afeb570b748bf"
+  },
+  "cross_instrument_context": {
+    "same_warm_start_checkpoint": true,
+    "incumbent_delta_A": 0.09375,
+    "incumbent_delta_B": -0.15625,
+    "pole_A_was_positive_at_incumbent": true,
+    "pole_B_was_negative_at_incumbent": true
+  },
+  "prior_caveats_still_apply": "CCP_S2_PRELAUNCH_INTERPRETATION_CAVEATS.json -- the z0/z1 supervision imbalance (177 vs 51 behaviour-changing targets) is unchanged, since RSCFT reuses the identical frozen causal bank",
+  "no_model_selection_occurred": true
+}

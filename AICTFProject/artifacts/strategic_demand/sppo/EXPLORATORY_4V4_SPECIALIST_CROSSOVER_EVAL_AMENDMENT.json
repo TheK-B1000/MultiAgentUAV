@@ -1,0 +1,62 @@
+{
+  "record_id": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-06T13:35:00Z",
+  "authority": "PI, 2026-09-06: 'freeze the exploratory specialist-crossover evaluation before those 4v4 specialists finish ... use 128 matched seeds, just as with the main crossover work ... pick a fresh disjoint block and collision-check it before freezing.'",
+
+  "timing_disclosure": {
+    "when": "written before pi_A_4v4 or pi_B_4v4 has completed a single training step. No exploratory 4v4 specialist checkpoint of any kind exists.",
+    "visible_when_written": ["the frozen EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json", "the 5k-step smoke that de-risked the training dispatch path (non-scientific seed 99900141, deleted after verification)", "the 6v6 production-seed freeze pattern this mirrors"],
+    "NOT_visible_when_written": ["any 4v4 exploratory specialist training result, checkpoint, or fidelity", "any specialist-crossover cell of any kind"]
+  },
+
+  "amends": "EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json#EVALUATION",
+  "rule": "APPEND. The original spec's question, statistic, gate, bootstrap, evaluator, and one-shot rule are UNCHANGED. This amendment replaces only the seed block and episode count, for the reason recorded below, and RETIRES the original block explicitly rather than leaving it ambiguous.",
+
+  "WHY_THE_SEED_BLOCK_CHANGES": {
+    "original": "13200001..13200064, n=64 -- frozen in EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json#EVALUATION at the time the exploratory arm was first specified",
+    "zero_rows_collected_under_it": "the ONLY use of this block was a --dry-run CLI-wiring smoke test of eval_specialist_crossover_scaled.py (using the 4v4 PPO smoke checkpoint as a stand-in for both pi_A and pi_B), which ran ZERO episodes and wrote NOTHING -- confirmed at the time: '--dry-run: spec frozen, checkpoints present, env at N, both poles resolve at N. NO episodes run, NOTHING written.' Changing an unused allocation before any row exists is not a post-hoc adjustment.",
+    "why_the_change": "the PI wants the exploratory specialist crossover held to the SAME statistical power as the main confirmatory crossover work (128 seeds, matching the 2v2 specialist baseline and the ladder's matched-seed protocol), rather than the smaller n=64 originally specified.",
+    "disposition_of_the_old_block": "13200001..13200064 is RETIRED, UNUSED. It must not be spent for this or any other evaluation. Recorded here so a future collision-audit finds this record rather than rediscovering an ambiguous half-used allocation."
+  },
+
+  "FRESH_SEED_BLOCK": {
+    "block": "14400001..14400128",
+    "n": 128,
+    "pairing": "the SAME 128 seeds are shared across all four cells (pi_A@A, pi_B@A, pi_A@B, pi_B@B), matching the pairing convention used everywhere else in this program",
+    "disjointness_verified": "exact-literal grep of 14400001 / 14400064 / 14400128, and the patterns 144000[0-9]{2} / 144001[0-9]{2}, against every JSON under artifacts/strategic_demand/ and artifacts/strategic_demand/sppo/: ZERO hits. Verified immediately before this record was committed.",
+    "episodes": "4 cells x 128 seeds = 512 episodes"
+  },
+
+  "GATE_RESTATED_FOR_CLARITY_UNCHANGED_FROM_THE_ORIGINAL_SPEC": {
+    "delta_A_spec": "V(pi_A_4v4, A) - V(pi_B_4v4, A)",
+    "delta_B_spec": "V(pi_B_4v4, B) - V(pi_A_4v4, B)",
+    "advancement_gate": "delta_A_spec > 0 AND LCB95(delta_A_spec) > 0 AND delta_B_spec > 0 AND LCB95(delta_B_spec) > 0",
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
+    "if_PASS": "4v4 exploratory specialists establish learned crossover; licenses (on separate PI authorization) the exploratory distillation stage. Reported as EXPLORATORY, never merged with confirmatory 2v2/6v6 results.",
+    "if_FAIL": "4v4 CLOSES for this paper. No second specialist attempt, no V3, no changing poles, no new probe. This is the SAME stopping discipline already frozen for the scripted-probe path (GUARD_DISTRIBUTED_V2_SPEC.json) applied to the learned-specialist path.",
+    "tie_or_reversal": "writes a PREAUDIT flag and stops before any verdict-bearing record, exactly as eval_specialist_crossover_scaled.py already implements"
+  },
+
+  "EXACT_POST_TRAINING_COMMANDS": {
+    "precondition": "pi_A_4v4 and pi_B_4v4 terminal checkpoints must exist (from the already-verified production commands: --team-size 4 --policy A --seed 7410001 / --policy B --seed 7420001, both under --exploratory-spec EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json)",
+    "dry_run_first": "python experiments/eval_specialist_crossover_scaled.py --team-size 4 --spec artifacts/strategic_demand/sppo/EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json --pi-a-path <pi_A_4v4 final checkpoint> --pi-b-path <pi_B_4v4 final checkpoint> --seed-base 14400001 --n-seeds 128 --label EXPLORATORY_4V4 --device cuda --dry-run",
+    "real_run": "python experiments/eval_specialist_crossover_scaled.py --team-size 4 --spec artifacts/strategic_demand/sppo/EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json --pi-a-path <pi_A_4v4 final checkpoint> --pi-b-path <pi_B_4v4 final checkpoint> --seed-base 14400001 --n-seeds 128 --label EXPLORATORY_4V4 --device cuda",
+    "why_the_spec_argument_points_here": "eval_specialist_crossover_scaled.py reads --spec only to confirm it is FROZEN and to record arm/confirmatory into its output; pointing it at THIS amendment (rather than the original spec) means the output record's provenance matches the seed block actually used",
+    "output": "artifacts/strategic_demand/sppo/EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json (one-shot; the script refuses if it already exists)",
+    "not_yet_runnable": "both checkpoints must exist first; this amendment freezes the commands and the block, it does not run them"
+  },
+
+  "FOUR_ARTIFACTS_NOW_FROZEN_MAKING_4V4_READY_THROUGH_ITS_DECISION_GATE": [
+    "EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json -- the arm, poles, recipe, stopping rule",
+    "SCALE_6V6_PRODUCTION_SPECIALIST_SEEDS.json's sibling for 4v4: production seeds 7410001/7420001, both launch commands dry-run verified with the real preregistered seeds",
+    "THIS RECORD -- the exploratory specialist-crossover eval seed block, gate, and exact commands",
+    "eval_specialist_crossover_scaled.py -- built, dry-run verified at 4v4 with a stand-in checkpoint (both poles resolve min_alive_for_defender=4 from live BT tensors)"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["launching pi_A_4v4 / pi_B_4v4 training (a separate PI go, already verified but not yet launched)", "running the specialist-crossover evaluation before both checkpoints exist", "4v4 latent distillation of any kind -- gated strictly on this evaluation's PASS", "reuse of 13200001..13200064 or 14400001..14400128 for any other purpose"],
+
+  "SEQUENCE": "freeze this amendment -> (spare PC) train pi_A_4v4 and pi_B_4v4 to terminal checkpoints -> freeze both with sha256 -> dry-run the evaluator -> run the sealed 128-seed specialist-crossover evaluation -> PASS: exploratory distillation may be proposed separately; FAIL: 4v4 closes for this paper"
+}

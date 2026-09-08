@@ -1,0 +1,7 @@
+﻿==============================================================================
+VGC diversity — D1 LIVE (Mixed-PPO, pool = OP9 only)
+
+Seeds: 3600001 / 3600002 / 3600003  (1M steps each, fail-fast ladder: D1 then D3)
+Logs:  artifacts/vgc_diversity/d1_seed360000{1,2,3}.log
+Ctrl+C stops this follow only — not the trainers.
+==============================================================================

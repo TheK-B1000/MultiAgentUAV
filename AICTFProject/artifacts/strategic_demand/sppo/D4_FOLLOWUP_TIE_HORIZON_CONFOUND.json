@@ -1,0 +1,33 @@
+{
+  "record_id": "D4_FOLLOWUP_OBSERVATION_TIE_HORIZON_CONFOUND",
+  "status": "FLAGGED_OBSERVATION -- computed BEYOND the frozen D4 spec, not a frozen result",
+  "utc": "2026-08-27T15:30:00Z",
+  "provenance_honesty": "D4_SPEC_FROZEN scoped the audit to per-regime tie rates. This branch-step analysis was NOT in that spec. It is recorded as a flagged observation, not as a D4 finding, and it does not alter D4_RESULT.json.",
+  "observation": {
+    "tied_states": {
+      "n": 472,
+      "median_branch_step": 124
+    },
+    "informative_states": {
+      "n": 296,
+      "median_branch_step": 45
+    },
+    "tie_rate_by_branch_step_tertile": {
+      "early_le48": 0.367,
+      "mid_le126": 0.596,
+      "late_gt126": 0.879
+    }
+  },
+  "why_it_matters": "tie rate rises monotonically with how late the branch occurs. A branch near the 240-step horizon has little remaining time for any strategic difference to change a coarse integer terminal margin. So 'tie' substantially encodes 'too late to matter' rather than 'strategically indifferent'.",
+  "threat_to_the_proposed_selective_supervision_design": "under the rule M_A == M_B -> apply no strategic pressure, ~88% of late-episode states would receive NO supervision -- potentially not because the strategies are equivalent there, but because the horizon is too short for the difference to surface. That could systematically silence supervision late in episodes, which is where committed strategic positions may matter most.",
+  "threat_to_the_D4_regime_finding": "mutual-theft standoffs plausibly develop LATE in episodes. If stolen_carrying states are concentrated late, part of their 92.8% tie rate may be horizon rather than regime. D4's regime comparison did NOT control for branch step, so 'stolen is uniquely degenerate' and 'stolen states happen late' are not yet separated.",
+  "what_would_settle_it": "a stratified comparison: tie rate by regime WITHIN branch-step tertiles. If stolen-flag remains markedly more tied than home at MATCHED branch steps, the regime effect is real and independent of horizon. If the gap collapses once step is controlled, D4's regime finding is substantially a horizon artifact.",
+  "NOT_COMPUTED": "the stratified regime x step interaction has NOT been computed; it requires its own frozen spec",
+  "does_not_change": [
+    "D4_RESULT.json",
+    "D3_RESULT.json",
+    "D2 and its refinement",
+    "SPPPO_V1_NOT_CONFIRMED",
+    "the running RASR collection"
+  ]
+}

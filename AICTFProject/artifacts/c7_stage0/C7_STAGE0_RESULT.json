@@ -1,0 +1,41 @@
+{
+  "record": "C7 Stage 0 — 4v4 baseline competence gate",
+  "verdict": "STAGE0_PASS",
+  "requirement": "3/3 seeds at TASK_HEALTH PASS and SYSTEM_HEALTH PASS, on the G0-V5 standard",
+  "result": "3/3, zero non-PASS panels across all seeds",
+
+  "seeds": {
+    "3300001": {"panels": 11, "non_pass": 0, "steps": 1001472, "final_checkpoint": true},
+    "3300002": {"panels": 11, "non_pass": 0, "steps": 1001472, "final_checkpoint": true},
+    "3300003": {"panels": 10, "non_pass": 0, "steps": 1001472, "final_checkpoint": true}
+  },
+
+  "what_this_establishes": "the 4v4 arm is competent. It is playing CTF, not degenerating, so a later NO_REVERSAL could not be dismissed as an artefact of an incapable baseline.",
+  "what_this_does_NOT_establish": [
+    "that allocation capacity expanded -- that is Stage 1",
+    "that any preference reversal exists -- that is Stage 2",
+    "anything about latents, routing, or strategic demand"
+  ],
+
+  "comparison_to_the_2v2_control": {
+    "note": "descriptive only. These are BLUE training-telemetry commitments under different metric definitions from the Stage-1 red-side measures, and no criterion depends on them.",
+    "win_rate": "4v4 0.95-1.00 across panels; G0-V5 control 0.76-0.95",
+    "pickups": "4v4 114-158; control ~97-121",
+    "net_captures": "4v4 44-54; control 25-37",
+    "offensive_commitment": "4v4 ~0.44-0.50; control ~0.18-0.23",
+    "defensive_commitment": "4v4 ~0.25-0.33; control ~0.34-0.42",
+    "the_thing_being_firewalled": "the 4v4 arm shows roughly 2.5x the offensive commitment while holding defensive commitment broadly comparable. That superficially resembles the simultaneous-commitment capacity C7 exists to test, and it is NOT evidence for the hypothesis. Stage 1 measures RED opponents' offence and contest on a frozen protocol against the 0.885 ceiling."
+  },
+
+  "fail_fast_note": "seeds were run one at a time. Stage 0 is a conjunction, so a single failure would have closed it without spending the remaining ~7 GPU-hours per seed. All three were needed and all three passed.",
+
+  "execution_history": {
+    "first_launch_of_3300001": "ABORTED at ~100k. TASK_HEALTH=ERROR with all metrics None, caused by the validation panel building a 2v2 env for a 4-agent policy. ERROR is an unmeasurable gate, not a failing policy, so fail-fast was deliberately NOT applied to it.",
+    "fix": "run_c7_stage0_4v4 rebinds run_g0_v2_evaluation.AGENTS as well as the training module's",
+    "what_the_aborted_run_paid_for": "the policy-head comparison in C7_SHAPE_PROVENANCE.json -- the 4v4 action head is [55, 256], identical to the 2v2 trained head, so per-agent policy sharing is unchanged and team size did not alter the policy parameterisation"
+  },
+
+  "authorizes": "C7 Stage 1 on seed block 9910000",
+  "stage_1_question": "did the manipulation actually expand allocation capacity? Some opponent must achieve an offence+contest sum exceeding the maximum observed at 2v2 (0.885, OP7). If not, the treatment is inert, C7 stops, and Stage 2's block 9920000 remains unspent.",
+  "blocks_unspent": [9910000, 9920000, 9930000]
+}

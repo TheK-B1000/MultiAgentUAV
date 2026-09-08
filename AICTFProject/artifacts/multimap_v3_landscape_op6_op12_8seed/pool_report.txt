@@ -1,0 +1,57 @@
+Mean win margin  (rows = blue style, cols = red preset)
+             OP10_AGGRESSIVE_INTERCEPTOR|map_aOP10_AGGRESSIVE_INTERCEPTOR|map_b_split_laneOP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2OP11_ADAPTIVE_EXPLOITER|map_aOP11_ADAPTIVE_EXPLOITER|map_b_split_laneOP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2OP12_LATE_CONVERTER|map_aOP12_LATE_CONVERTER|map_b_split_laneOP12_LATE_CONVERTER|map_b_split_lane_v2OP6_IMMEDIATE_DUAL_RUSH|map_aOP6_IMMEDIATE_DUAL_RUSH|map_b_split_laneOP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2OP7_DEEP_FORTRESS|map_aOP7_DEEP_FORTRESS|map_b_split_laneOP7_DEEP_FORTRESS|map_b_split_lane_v2OP8_PROTECTED_CARRIER_ESCORT|map_aOP8_PROTECTED_CARRIER_ESCORT|map_b_split_laneOP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2OP9_SPLIT_LANE_FEINT|map_aOP9_SPLIT_LANE_FEINT|map_b_split_laneOP9_SPLIT_LANE_FEINT|map_b_split_lane_v2
+BLUE_ESCORT              0.8750           -0.1250           -0.6250            2.6250            1.0000            1.6250            1.3750            0.2500            1.2500           -0.7500           -0.6250           -0.8750            0.7500           -0.7500           -0.3750            2.6250            0.0000            0.6250            1.1250           -0.5000           -1.3750
+BLUE_RUSH                2.0000            1.8750            2.1250            2.8750            2.5000            2.3750            1.5000            1.3750            1.5000            0.7500            1.0000            0.5000            2.3750            1.5000            2.2500            2.3750            2.0000            2.5000            0.7500            1.5000            1.5000
+BLUE_SPLIT               1.2500            1.0000            0.7500            2.5000            1.6250            2.2500            0.6250            0.6250            0.2500           -0.1250            0.8750            0.7500            1.7500            1.7500            1.6250            1.5000            2.0000            1.6250            1.1250            2.6250            2.6250
+BLUE_TURTLE              0.3750           -0.6250           -0.6250            0.8750           -0.2500            0.6250            1.6250            1.5000            1.3750            0.0000           -1.3750            0.0000            0.3750           -1.0000           -0.3750            1.0000           -0.1250           -0.1250           -0.1250           -0.1250           -0.3750
+
+Win rate
+             OP10_AGGRESSIVE_INTERCEPTOR|map_aOP10_AGGRESSIVE_INTERCEPTOR|map_b_split_laneOP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2OP11_ADAPTIVE_EXPLOITER|map_aOP11_ADAPTIVE_EXPLOITER|map_b_split_laneOP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2OP12_LATE_CONVERTER|map_aOP12_LATE_CONVERTER|map_b_split_laneOP12_LATE_CONVERTER|map_b_split_lane_v2OP6_IMMEDIATE_DUAL_RUSH|map_aOP6_IMMEDIATE_DUAL_RUSH|map_b_split_laneOP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2OP7_DEEP_FORTRESS|map_aOP7_DEEP_FORTRESS|map_b_split_laneOP7_DEEP_FORTRESS|map_b_split_lane_v2OP8_PROTECTED_CARRIER_ESCORT|map_aOP8_PROTECTED_CARRIER_ESCORT|map_b_split_laneOP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2OP9_SPLIT_LANE_FEINT|map_aOP9_SPLIT_LANE_FEINT|map_b_split_laneOP9_SPLIT_LANE_FEINT|map_b_split_lane_v2
+BLUE_ESCORT               0.625             0.000             0.000             1.000             0.625             0.750             1.000             0.625             0.875             0.125             0.375             0.125             0.750             0.250             0.125             1.000             0.250             0.375             0.750             0.000             0.000
+BLUE_RUSH                 1.000             1.000             1.000             1.000             1.000             1.000             1.000             1.000             1.000             0.875             1.000             0.750             1.000             1.000             1.000             1.000             1.000             1.000             0.750             1.000             1.000
+BLUE_SPLIT                0.875             0.375             0.500             1.000             0.750             1.000             0.750             0.750             0.625             0.375             0.875             0.875             1.000             1.000             1.000             0.750             0.875             0.750             0.500             1.000             1.000
+BLUE_TURTLE               0.375             0.000             0.000             0.625             0.125             0.625             0.750             1.000             0.875             0.375             0.000             0.500             0.250             0.000             0.000             0.625             0.000             0.000             0.250             0.000             0.000
+
+V_selective (cross-fit)  = 1.7855   (insample=1.9405)
+V_best_fixed (cross-fit) = 1.7679   (insample=1.7679, style=BLUE_RUSH)
+delta_pool              = 0.0176   CI95=[-0.0418, 0.2381]  LCB=-0.0418
+V_hindsight             = 2.2500   (per-episode upper bound, NOT a gate)
+
+Best response by red preset:
+  OP10_AGGRESSIVE_INTERCEPTOR|map_a -> BLUE_RUSH
+  OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane -> BLUE_RUSH
+  OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2 -> BLUE_RUSH
+  OP11_ADAPTIVE_EXPLOITER|map_a -> BLUE_RUSH
+  OP11_ADAPTIVE_EXPLOITER|map_b_split_lane -> BLUE_RUSH
+  OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2 -> BLUE_RUSH
+  OP12_LATE_CONVERTER|map_a -> BLUE_TURTLE
+  OP12_LATE_CONVERTER|map_b_split_lane -> BLUE_TURTLE
+  OP12_LATE_CONVERTER|map_b_split_lane_v2 -> BLUE_RUSH
+  OP6_IMMEDIATE_DUAL_RUSH|map_a -> BLUE_RUSH
+  OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane -> BLUE_RUSH
+  OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2 -> BLUE_SPLIT
+  OP7_DEEP_FORTRESS|map_a -> BLUE_RUSH
+  OP7_DEEP_FORTRESS|map_b_split_lane -> BLUE_SPLIT
+  OP7_DEEP_FORTRESS|map_b_split_lane_v2 -> BLUE_RUSH
+  OP8_PROTECTED_CARRIER_ESCORT|map_a -> BLUE_ESCORT
+  OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane -> BLUE_RUSH
+  OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2 -> BLUE_RUSH
+  OP9_SPLIT_LANE_FEINT|map_a -> BLUE_ESCORT
+  OP9_SPLIT_LANE_FEINT|map_b_split_lane -> BLUE_SPLIT
+  OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2 -> BLUE_SPLIT
+  distinct best responses: 4/21
+  degenerate red presets: ['OP10_AGGRESSIVE_INTERCEPTOR|map_a', 'OP11_ADAPTIVE_EXPLOITER|map_a', 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2', 'OP12_LATE_CONVERTER|map_a', 'OP12_LATE_CONVERTER|map_b_split_lane', 'OP12_LATE_CONVERTER|map_b_split_lane_v2', 'OP7_DEEP_FORTRESS|map_a', 'OP8_PROTECTED_CARRIER_ESCORT|map_a']
+
+best blue overall WR = 0.970   tie rate = 0.192
+
+Gates:
+  [FAIL] delta_pool_lcb_positive
+  [PASS] no_dominating_blue_style
+  [PASS] best_response_diversity
+  [PASS] all_blues_protected
+  [FAIL] best_blue_wr_in_band
+  [PASS] tie_rate_under_threshold
+  [FAIL] no_degenerate_red_styles
+
+POOL ADMISSIBLE: False
+  -> iterate the red presets until blue best-response diversity clears (all blues protected + LCB(delta_pool)>0). Do not train latents on this pool.

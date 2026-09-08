@@ -1,0 +1,40 @@
+{
+  "record_id": "RUNG3_EQUIVALENCE_CRITERION_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-05T15:52:00Z",
+  "authority": "Claude, implementing RUNG3_CONSTRUCTION_AND_PREDICTION.json, on discovering that the equivalence criterion AS I WROTE IT is unachievable for a documented numerical reason. Raised to the PI in the same turn rather than silently relaxed.",
+
+  "timing_disclosure": {
+    "when": "written when the Rung 3 preflight returned 10/11, BEFORE any Rung 3 training step was taken.",
+    "visible_when_written": ["the preflight's 11 mechanical checks", "the split-head logit gaps (macro 2.861e-06, target 3.815e-06) and argmax identity", "the sharing arithmetic (14 shared tensors, 3,439,621 values, unique==expected)"],
+    "NOT_visible_when_written": ["any Rung 3 training epoch", "any Rung 3 fidelity number", "any Rung 3 crossover cell, decomposition, D statistic or gate"],
+    "why_this_matters": "no Rung 3 outcome exists, so this criterion cannot have been chosen to produce one."
+  },
+
+  "amends": "RUNG3_CONSTRUCTION_AND_PREDICTION.json#IMPLEMENTATION_REQUIREMENT.MANDATORY_EQUIVALENCE_PREFLIGHT",
+  "rule": "APPEND, not an edit. The frozen spec's text stays as written. This record replaces ONE operationalisation -- how 'pure re-parameterisation' is tested -- with a STRICTER set of tests. Nothing else changes: not the construction, the shared set, the recipe, the data, the schedule, the seeds, the fidelity band, the eval protocol, the prediction, or the reading order.",
+
+  "WHAT_I_GOT_WRONG": {
+    "as_written": "'must reproduce that specialist's masked logits BIT-EXACTLY (max abs logit diff 0.0 ...)'",
+    "why_it_is_unachievable": "splitting one nn.Linear(256->55) into Linear(256->5) and Linear(256->50) changes GEMM blocking and float32 accumulation ORDER in the full forward path. Floating-point addition is not associative, so identical weights can yield last-bit-different sums. Requiring exactly 0.0 demands bit-identical accumulation order, which is a property of the kernel, not of the parameterisation.",
+    "the_honest_reading": "the requirement's INTENT -- that the split changes nothing functional, so a Rung 3 effect is attributable to the macro tie alone -- is correct and testable. Only my chosen instrument was wrong."
+  },
+
+  "DIAGNOSIS_BEFORE_ANY_THRESHOLD_WAS_CONSIDERED": {
+    "rule_followed": "diagnose the reference before touching the threshold; a failing check is more often a wrong assertion than a broken system.",
+    "1_weights_are_bit_exact": "torch.equal on all four tensors -- macro weight, macro bias, target weight, target bias -- against the corresponding row slices of the specialist's action_head: ALL TRUE. The re-parameterisation claim holds EXACTLY at the parameter level, which is where the claim actually lives.",
+    "2_relative_scale": "masked logits carry +/-10000 sentinel values, so an ABSOLUTE tolerance on them is meaningless. Observed gaps: macro 2.861e-06 and target 3.815e-06 against |logit|max 10000 -- relative 2.9e-10 and 3.8e-10, roughly 300x BELOW float32 eps (1.192e-07).",
+    "3_the_split_adds_no_error_in_the_op_itself": "comparing the isolated linear op in float32 against float64, the unsplit form and the split form have IDENTICAL round-off: 8.297e-07 both (relative 3.134e-07). The split contributes no additional numerical error; the residual arises in the surrounding forward path's accumulation order.",
+    "4_behaviour_is_unchanged": "argmax identical on all four heads across the probe batch."
+  },
+
+  "REPLACEMENT_CRITERION_STRICTLY_STRONGER": {
+    "A_bit_exact_weights_NEW": "torch.equal(macro_head.weight, action_head.weight[:5]) and the same for macro bias, target weight and target bias. Exact, no tolerance. This test did not exist in the original criterion, which checked only logits.",
+    "B_argmax_identity": "argmax identical on all four masked heads, macro and target checked separately. Unchanged.",
+    "C_relative_logit_bound": "max|logit gap| / max|logit| <= float32 eps (1.192e-07), reported separately for macro and target heads. This is a PRINCIPLED bound -- the precision of the arithmetic type -- not a number chosen to clear the observed value. The observed 3.8e-10 passes it with roughly 300x margin.",
+    "why_this_is_stricter_overall": "the original criterion could be satisfied by a lucky kernel while the weights were subtly wrong; it never inspected them. The replacement pins the exact claim exactly (A), keeps the behavioural claim (B), and bounds the numerical claim by the arithmetic's own precision rather than by an unreachable absolute (C).",
+    "failure_still_stops_the_rung": "if A, B or C fails, Rung 3 is NOT trained and the failure is recorded, exactly as the frozen spec requires."
+  },
+
+  "NOT_CHANGED_BY_THIS_RECORD": ["the Rung 3 shared set and its strict monotonicity over Rung 2", "the macro/target row layout established by perturbation", "the distillation recipe, loss, dataset and 20-epoch schedule", "seeds 11965001/11965002", "the fidelity band 0.957/0.979", "the 128 matched eval seeds and the cuda instrument", "the two-sided H1/H2 prediction", "the reading order", "the tie/reversal audit requirement"]
+}

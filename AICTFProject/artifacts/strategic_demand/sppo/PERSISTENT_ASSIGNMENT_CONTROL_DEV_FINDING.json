@@ -1,0 +1,48 @@
+{
+  "record_id": "PERSISTENT_ASSIGNMENT_CONTROL_DEV_FINDING",
+  "status": "FROZEN_DEVELOPMENT_FINDING",
+  "utc": "2026-08-26T06:00:00Z",
+  "authority": "PI ruling",
+  "scope_warning": "DEVELOPMENT experiment. These are the 32 development seeds used for lambda selection. This is NOT a paper-level generalisation claim; the untouched 10300001..10300192 block gets the final word.",
+  "why_this_control_matters": "after discovering that EXP2B and EXP2C never maintained their stated assigned-pole treatment (occupancy at chance), this lambda_R = 0 run is the FIRST clean test of z0 <-> A and z1 <-> B with persistent assignment and NO payoff-ranking loss.",
+  "result": {
+    "lambda_R": 0.0,
+    "training_steps": 98304,
+    "train_block": "10100001..10100032",
+    "evaluated_on": "10200001..10200032",
+    "delta_A": 0.106325,
+    "delta_B": -0.024905,
+    "ep_rew_mean": 0.04489,
+    "ranking_updates": 0
+  },
+  "finding": "Under corrected persistent assigned-pole training with lambda_R = 0, the latent policy recovered the intended strategic ordering on pole A (delta_A = +0.1063) but NOT on pole B (delta_B = -0.0249) on the frozen development block. Persistent assignment alone was therefore insufficient to recover both strategic contrasts in this development experiment.",
+  "asymmetry": "z0 dominates on pole A, but z1 does NOT beat z0 on pole B. Roughly half the intended ordering appears from persistence alone.",
+  "what_the_ranking_objective_adds": {
+    "observed": "delta_B is flipped into the desired direction at EVERY nonzero lambda",
+    "sweep": {
+      "0.0": [
+        0.106325,
+        -0.024905
+      ],
+      "0.03": [
+        0.019348,
+        0.016547
+      ],
+      "0.1": [
+        0.045736,
+        0.018321
+      ],
+      "0.3": [
+        0.064162,
+        0.050061
+      ],
+      "1.0": [
+        0.116936,
+        0.071126
+      ]
+    },
+    "pattern": "ranking pressure immediately repairs B, while stronger pressure gradually restores the A contrast that weaker pressure initially damages. At lambda = 1.0 both exceed the control for the first time in the grid.",
+    "not_purchased_with_return": "every treatment EXCEEDED the control's development return (0.078-0.105 vs 0.045), so the 5% degradation constraint never bound."
+  },
+  "hypothesis_for_production": "Persistent assignment establishes part of the strategic structure; sufficiently strong payoff-ranking pressure may repair the missing response ordering without sacrificing task performance. The untouched 192-seed block now gets to falsify this."
+}

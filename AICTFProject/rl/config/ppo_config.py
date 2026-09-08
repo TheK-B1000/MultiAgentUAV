@@ -79,16 +79,87 @@ class PPOConfig:
     # After this many *completed* episodes, print W/L/D and win rate (0 = disabled).
     episode_log_every: int = 1000
 
+    # Observational tag-event telemetry on the LIVE environment: tag successes,
+    # cooldown denials, capture events and episode-reset markers, each carrying
+    # the authoritative integer event identity. Behaviour-neutral by contract
+    # (tests/test_tag_telemetry.py) -- identical states, rewards and outcomes
+    # under the same seed with it on or off. Off by default so ordinary runs pay
+    # nothing; ``formal_run`` requires it explicitly so a formal result can never
+    # be reported without the evidence needed to audit its tagging.
+    tag_telemetry_enabled: bool = False
+    # Marks a run whose artifacts are intended as a formal result. Turns the
+    # audit preconditions into start-time gates rather than after-the-fact hopes.
+    formal_run: bool = False
+
     max_decision_steps: int = 400
+    # SAPPO V1 strategy anchoring. Empty path = anchoring OFF, and OFF means
+    # structurally absent: no runner is constructed, so no anchor batch, forward,
+    # backward, optimizer step or scheduler step occurs.
+    sappo_anchor_dataset: str = ""
+    sappo_anchor_lambda: float = 0.10
+    sappo_anchor_cadence: int = 4
+    sappo_anchor_batch_size: int = 64
+
+    # EXP2 K=2 supervised repertoire compression. Default OFF means the two
+    # frozen teacher checkpoints are never opened and no teacher runner exists.
+    # These fields are separate from SAPPO's offline hard-action dataset path:
+    # EXP2 queries frozen policy distributions online on student-visited states.
+    exp2_teacher_compression_enabled: bool = False
+    exp2_teacher_checkpoints: tuple[str, ...] = field(default_factory=tuple)
+    exp2_teacher_sha256: tuple[str, ...] = field(default_factory=tuple)
+    exp2_teacher_lambda: float = 0.10
+    exp2_teacher_cadence: int = 4
+    # SPPPO V1 strategic ranking (SPPPO_V1_PROTOCOL.json). lambda == 0.0 is the
+    # frozen development CONTROL and means NO runner is constructed at all --
+    # structural absence, never a runner scaled by zero.
+    sppo_lambda_rank: float = 0.0
+    sppo_ranking_margin: float = 0.04
+    sppo_ranking_cadence: int = 1
+    sppo_qpsi_path: str = "artifacts/strategic_demand/phase0_scorer_data/qpsi_frozen.pt"
+    sppo_qpsi_sha256: str = "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf"
+    # RASR-PPO successor ladder. All selectors are default-OFF so existing
+    # paper-faithful, EXP2, and SPPPO configurations retain structural absence.
+    rasr_regime_qpsi: bool = False
+    rasr_regime_qpsi_path: str = (
+        "artifacts/strategic_demand/rasrppo/qpsi_regime_frozen.pt"
+    )
+    rasr_regime_qpsi_sha256: str = (
+        "44c0680e037939de287ad4201fead6312bc92b6bcd1fd902f568868cb24b760a"
+    )
+    rasr_private_critic_heads: bool = False
+    rasr_directed_identity: bool = False
+    exp2_teacher_batch_size: int = 64
+    exp2_protocol_path: str = ""
+
+    # RULESET_V3_M1: own flag must be home to score. Default False keeps every
+    # pre-V3 run bit-identical; the frozen V3 benchmark requires True. The other
+    # five V3 rules (taggers_required=1, tag_min_interval_seconds=10.0,
+    # tag_nearest_only=True, tag_channel_seconds=0.0,
+    # suppression_attackers_required=2) are already GPUFieldConfig defaults.
+    own_flag_home_required_to_score: bool = False
     map_set: str = "train"
     map_layout: str = "map_a_open"
     map_pool: tuple[str, ...] = field(default_factory=tuple)
+    # None = derive from map_layout / map_pool (GPUFieldConfig). Set True to keep
+    # the 8-channel obstacle plane on map_a_open when continuing map_b-lineage
+    # checkpoints (LRO / V6I23+). The plane is zeros on open arenas.
+    obstacle_obs_channel: Optional[bool] = None
     mode: str = TrainMode.FIXED_OPPONENT.value
     fixed_opponent_tag: str = "OP3"
     # Uniform random scripted opponent per episode: either mode=OPPONENT_POOL or FIXED_OPPONENT + True.
     # Uses GPUCTFVecEnv pre-reset hook so the next episode matches sampled opponents from opponent_pool.
     # Default excludes OP4 (reserved for zero-shot eval). Use ``--allow-op4-in-training-pool`` to train vs OP4.
     opponent_randomize: bool = False
+
+    # Fictitious Play: historical LEARNED opponents, as checkpoint paths.
+    # Deliberately SEPARATE from opponent_pool rather than teaching that field to
+    # mean both scripted tags and filesystem paths -- an explicit field makes it
+    # much harder for a D1/D3 config to wander into the snapshot branch.
+    # Empty (the default) leaves the scripted path completely untouched.
+    snapshot_opponent_pool: tuple = ()
+    #: Optional PSRO/Double-Oracle meta-strategy over ``snapshot_opponent_pool``.
+    #: Empty/None => UNIFORM sampling, reproducing fictitious-play behaviour exactly.
+    snapshot_opponent_weights: tuple = ()
     opponent_pool: tuple[str, ...] = field(default_factory=lambda: ("OP1", "OP2", "OP3"))
     # Per-tag sampling probabilities for opponent_randomize, aligned positionally with
     # opponent_pool. Empty tuple (default) = uniform 1/N over the pool. Non-empty must
@@ -96,6 +167,14 @@ class PPOConfig:
     # ``normalize_and_validate_training_config``. Plan-faithful — only changes how often
     # each opponent is sampled, not the opponent definitions.
     opponent_pool_weights: tuple[float, ...] = field(default_factory=tuple)
+    # Optional joint (opponent, map) episode distribution for diagnostics (e.g. V6I24).
+    # Each entry is (opponent_tag, map_layout, weight). When non-empty, the pre-reset
+    # hook samples a cell jointly and overrides both opponent and next map layout.
+    # Weights are normalized to sum 1.0. Empty = legacy independent opponent/map sampling.
+    training_cell_distribution: tuple[tuple[str, str, float], ...] = field(default_factory=tuple)
+    # After loading a checkpoint, freeze return-normalization stats (no further updates).
+    # Used by V6I24 so member policies share identical frozen normalization.
+    freeze_return_norm_after_load: bool = False
     allow_op4_in_training_pool: bool = False
     max_blue_agents: int = 2
     use_deterministic: bool = False
@@ -128,6 +207,10 @@ class PPOConfig:
     # Summer/ICRA latent team strategy is the default proposed algorithm.
     use_latent_strategy: bool = True
     latent_k: int = 4
+    # Default True preserves every existing latent checkpoint and preset. EXP2
+    # sets False because z is externally assigned and no q_phi/router is part
+    # of the frozen supervised-compression architecture.
+    latent_strategy_encoder_enabled: bool = True
     latent_z_embed_dim: int = 16
     latent_actor_conditioning: Literal["concat", "film_v6"] = "concat"
     latent_actor_z_onehot_enabled: bool = False
@@ -249,6 +332,35 @@ class PPOConfig:
     # V6I7: per-latent residual actor adapters h_z = h + g_z*A_z(h) and logit biases B_z.
     enable_latent_z_residual: bool = False
     latent_z_gate_init: float = 0.01
+    # V6I22E: fixed-alpha gate-free adapters.  When > 0, Kaiming init replaces
+    # zero-init and the learned gate is removed: h_z = h + alpha * A_z(h).
+    latent_z_residual_alpha: float = 0.0
+    # V6I23 population birth (Summer-compatible extension, not paper-faithful):
+    # independent per-z specialists under forced balanced_episode assignment.
+    # Active-z-only residual forward avoids evaluating unused adapters; per-z
+    # action heads are Stage-2 trainable (shared action_head stays frozen).
+    latent_population_birth_active_z_only: bool = False
+    latent_population_birth_per_z_action_heads: bool = False
+    # EXP2C diagnostic: exactly K final linear actor heads selected by z.
+    # Unlike the population-birth path, this does not enable residual adapters.
+    exp2c_mode_specific_action_heads: bool = False
+    # V6I26 Latent Response-Oracle (DIAGNOSTIC / Claim B):
+    # Deep per-z trunks (last two MLP layers) + active-branch-only BR rounds.
+    latent_lro_deep_branches: bool = False
+    latent_lro_active_branch_only: bool = False
+    # V6I26 actor-step ablation (DIAGNOSTIC): repertoire shared Adam with
+    # separate z-actor vs critic grad clipping, and optional z-actor LR mult.
+    # Defaults preserve the joint-clip / single-LR behavior of the weak 5u pilot.
+    latent_lro_separate_actor_critic_clip: bool = False
+    latent_lro_z_actor_lr_mult: float = 1.0
+    # V6I24 full-policy population diagnostic (DIAGNOSTIC, not PAPER-FAITHFUL):
+    # Trains K completely independent policies from the same cloned checkpoint.
+    # Each policy has its own actor, critic, optimizer, buffer, and obs-norm.
+    # No shared gradients, no router, no latent conditioning.
+    population_training_enabled: bool = False
+    population_k: int = 4
+    population_pressure_rotation_interval: int = 10
+    population_round_robin_updates_per_cycle: int = 1
     # V6I1 Phase B/C macro-router and rehearsal controls.
     v6i1_recurrent_selector_hidden: int = 32
     v6i1_macro_strategy_ppo_coef: float = 1.0
@@ -623,6 +735,16 @@ class PPOConfig:
     env_draw_team_penalty: Optional[float] = None
     env_lose_team_punish: Optional[float] = None
     env_action_failed_punishment: Optional[float] = None
+    # Points for tagging a non-carrying opponent (symmetric: earned on tag,
+    # paid when tagged). Default +100 equals a flag capture; see GPUFieldConfig.
+    env_sparse_tag_no_flag_points: Optional[float] = None
+    # Points for tagging the enemy flag carrier (default +50).
+    env_sparse_tag_with_flag_points: Optional[float] = None
+    # OOB halves: own-agent penalty vs reward for the opponent going OOB.
+    env_sparse_own_oob_points: Optional[float] = None
+    env_sparse_opponent_oob_points: Optional[float] = None
+    env_enemy_mav_kill_reward: Optional[float] = None
+    env_sparse_mine_tag_points: Optional[float] = None
     env_dense_weight: Optional[float] = None
     env_sparse_weight: Optional[float] = None
     env_reward_scale: Optional[float] = None
@@ -739,6 +861,10 @@ class PPOConfig:
     # "balanced_arc"     -- Within each episode switch z every forced_latent_arc_steps,
     #                       cycling through K in order.
     latent_assignment_mode: str = "router"
+    # Per-environment persistent z IDs for latent_assignment_mode="static_env".
+    # Empty outside EXP2. The tuple length must equal n_envs and every ID must
+    # lie in [0, latent_k).
+    forced_latent_env_ids: tuple[int, ...] = field(default_factory=tuple)
     # Latent ID used when latent_assignment_mode == "fixed".
     forced_latent_id: int = 0
     # Steps between z switches when latent_assignment_mode == "balanced_arc".
@@ -755,6 +881,12 @@ class PPOConfig:
     latent_contract_specialist_coef: float = 0.0
     latent_contract_specialist_clip: float = 1.0
     latent_contract_specialist_variant: str = "base"
+
+    # --- V6I26: Phase-pod exclusive birth (DIAGNOSTIC / Claim B) ---
+    # When set to one of open_pressure|intercept|escort|defend_lead, the trainer
+    # injects that strategic scenario after every env reset. Empty = disabled.
+    # Not a paper-faithful channel; no z-role reward labels.
+    phase_pod_id: str = ""
 
     # --- V6I9: Multi-Stage Training ---
     # Controls which parameter groups are frozen at optimizer build time.

@@ -1,0 +1,7 @@
+{
+  "genome_id": "SDS2_B3_LOCKDEF10_COUNTER",
+  "derived_from": "OP7",
+  "base_opponent": "OP7",
+  "overlay": {"lock_defender": 10, "enable_counter": true, "counter_always": true},
+  "opening_hold_steps": 0
+}

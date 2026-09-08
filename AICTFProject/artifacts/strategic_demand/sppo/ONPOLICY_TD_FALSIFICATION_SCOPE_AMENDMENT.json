@@ -1,0 +1,29 @@
+{
+  "record_id": "ONPOLICY_TD_FALSIFICATION_SCOPE_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T18:35:00Z",
+  "authority": "PI, 2026-09-04: narrow the stated scope of the round-1 falsification. The diagnostic measured CPU-generated self-visited states; the sealed crossover is scored on CUDA, and the device A/B showed all 8 trajectories differed in outcome.",
+
+  "amends": "the falsification claim recorded in commit 87ea500e and in ONPOLICY_TD_ROUND1_PREFLIGHT.json's surrounding narrative",
+  "rule": "APPEND, not an edit. No measurement is retracted; the NUMBERS stand exactly as recorded. Only the SCOPE of the conclusion drawn from them is narrowed.",
+
+  "THE_MEASUREMENT_UNCHANGED": {
+    "offline_TD_student_on_its_own_round1_states_n_24693": {"agree_z0_piA": 0.971, "agree_z1_piB": 0.986, "kl_A": 0.0143, "kl_B": 0.0056},
+    "same_student_on_teacher_visited_holdout_n_3291": {"agree_z0_piA": 0.965, "agree_z1_piB": 0.984, "kl_A": 0.0162, "kl_B": 0.0051},
+    "finding": "on-policy fidelity is not lower; it is marginally higher"
+  },
+
+  "SCOPE_CORRECTION": {
+    "what_is_refuted": "CPU on-policy covariate shift. On the CPU-generated self-visited distribution, the student does not lose fidelity to its teachers.",
+    "what_is_NOT_refuted": "covariate shift on the CUDA sealed-eval distribution. Round-1 states were collected on cpu; COMPRESSION_CROSSOVER_EVAL_RESULT.json and any future seal are scored on cuda. Per ONPOLICY_TD_DEVICE_AMENDMENT.json the two devices produce different trajectories (8/8 episodes differed in final score; blue mean 1.750 cpu vs 0.875 cuda), so the CUDA deployment distribution is genuinely a different distribution and was not measured by this diagnostic.",
+    "practical_consequence": "the covariate-shift hypothesis is weakened, not eliminated. The successor diagnostic is therefore run on CUDA, which removes this ambiguity as a side effect of testing something else."
+  },
+
+  "SECOND_UNRESOLVED_CAVEAT_CARRIED_FORWARD": {
+    "issue": "agreement is an UNWEIGHTED count over decision-boundary heads. 97-98% agreement is compatible with the residual 2-3% of disagreements being concentrated at strategically pivotal decisions (a single mis-committed capture or defense) while the many agreements are trivial.",
+    "why_this_matters_here": "it would explain the otherwise odd pairing this program has measured: near-teacher imitation fidelity together with roughly halved payoff crossover (delta_A +0.0938 / delta_B +0.1406 against specialist +0.1719 / +0.2969).",
+    "successor": "DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json"
+  },
+
+  "STATUS_OF_OTD": "round 1 finishes and freezes for its post-training fidelity datapoint. Round 2 and the sealed eval are HELD, not run. Seeds 11932001..11932128 and 11933001..11933064 remain UNSPENT. Per ONPOLICY_TD_INTERPRETATION_CONSTRAINT_AMENDMENT.json none of this licenses concluding the parameter-sharing architecture is at fault; that remains a candidate behind the cheaper mechanistic question."
+}

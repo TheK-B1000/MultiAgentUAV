@@ -1,0 +1,235 @@
+{
+  "record": "4v4 exploratory specialist behavior: matched policy x pole interaction analysis",
+  "status": "DIAGNOSTIC_NOT_A_GATE",
+  "implements": "4V4_EXPLORATORY_AS_DIAGNOSTIC_PROTOCOL.json#MEASUREMENT_CATEGORIES",
+  "source": "4V4_EXPLORATORY_SPECIALIST_BEHAVIOR_DIAGNOSTIC.json",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "min_n_paired_for_classification": 16,
+  "classification_scheme_frozen_before_results": {
+    "A": "n_paired>=MIN_N_PAIRED and D_interaction's 95% CI excludes zero",
+    "B": "n_paired>=MIN_N_PAIRED and D_interaction's CI includes zero, but d_A or d_B's CI excludes zero",
+    "C": "n_paired>=MIN_N_PAIRED and D_interaction, d_A, d_B CIs all include zero",
+    "D": "n_paired < MIN_N_PAIRED"
+  },
+  "per_cell_episode_counts": {
+    "pi_A@A": 128,
+    "pi_A@B": 128,
+    "pi_B@A": 128,
+    "pi_B@B": 128
+  },
+  "results": {
+    "own_half_frac_team_mean": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": 0.08089829020938086,
+        "lcb95": 0.06028682467459627,
+        "ucb95": 0.10080107183995242
+      },
+      "d_B": {
+        "mean": -0.03073766864286105,
+        "lcb95": -0.05115677449131329,
+        "ucb95": -0.009227990219296158
+      },
+      "D_interaction": {
+        "mean": 0.1116359588522419,
+        "lcb95": 0.08536567725880524,
+        "ucb95": 0.13736705296637333
+      },
+      "classification": "A"
+    },
+    "time_past_midfield_team_mean": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": -0.08089829020938086,
+        "lcb95": -0.10080107183995243,
+        "ucb95": -0.060286824674596305
+      },
+      "d_B": {
+        "mean": 0.030737668642861055,
+        "lcb95": 0.009227990219296149,
+        "ucb95": 0.05115677449131327
+      },
+      "D_interaction": {
+        "mean": -0.11163595885224192,
+        "lcb95": -0.13736705296637333,
+        "ucb95": -0.08536567725880526
+      },
+      "classification": "A"
+    },
+    "mean_n_intruders": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": -0.09051577840623268,
+        "lcb95": -0.13238305155009697,
+        "ucb95": -0.047806980516395245
+      },
+      "d_B": {
+        "mean": 0.08651945614337994,
+        "lcb95": 0.049887384909894604,
+        "ucb95": 0.12355803705669918
+      },
+      "D_interaction": {
+        "mean": -0.17703523454961262,
+        "lcb95": -0.23713843017165068,
+        "ucb95": -0.11673097451296427
+      },
+      "classification": "A"
+    },
+    "max_n_intruders": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": -0.109375,
+        "lcb95": -0.28125,
+        "ucb95": 0.0625
+      },
+      "d_B": {
+        "mean": -0.03125,
+        "lcb95": -0.1875,
+        "ucb95": 0.125
+      },
+      "D_interaction": {
+        "mean": -0.078125,
+        "lcb95": -0.3125,
+        "ucb95": 0.15625
+      },
+      "classification": "C"
+    },
+    "distinct_response_frac": {
+      "n_paired": 123,
+      "d_A": {
+        "mean": -0.007112486937265587,
+        "lcb95": -0.0611449050952027,
+        "ucb95": 0.04689679150191541
+      },
+      "d_B": {
+        "mean": 0.05038742167618409,
+        "lcb95": 0.010183039006077399,
+        "ucb95": 0.09084900565360537
+      },
+      "D_interaction": {
+        "mean": -0.057499908613449675,
+        "lcb95": -0.12332848562531493,
+        "ucb95": 0.009187970596206636
+      },
+      "classification": "B"
+    },
+    "defensive_spread_mean": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": -0.3985325274821425,
+        "lcb95": -0.4388444460985432,
+        "ucb95": -0.35814202171039883
+      },
+      "d_B": {
+        "mean": -0.3728069207795819,
+        "lcb95": -0.40961148301867545,
+        "ucb95": -0.33472529135945134
+      },
+      "D_interaction": {
+        "mean": -0.02572560670256055,
+        "lcb95": -0.0753827712262196,
+        "ucb95": 0.023470430474544543
+      },
+      "classification": "B"
+    },
+    "carrier_support_dist_mean": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": -0.6231825459543421,
+        "lcb95": -0.6961789116577648,
+        "ucb95": -0.5516149173521911
+      },
+      "d_B": {
+        "mean": -0.6637862816402975,
+        "lcb95": -0.9544152374606713,
+        "ucb95": -0.38347778727343007
+      },
+      "D_interaction": {
+        "mean": 0.04060373568595542,
+        "lcb95": -0.2508240262220881,
+        "ucb95": 0.34060616893817697
+      },
+      "classification": "B"
+    },
+    "first_flag_pressure_tick": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": -1.984375,
+        "lcb95": -2.796875,
+        "ucb95": -1.2109375
+      },
+      "d_B": {
+        "mean": -6.0,
+        "lcb95": -8.4609375,
+        "ucb95": -3.796875
+      },
+      "D_interaction": {
+        "mean": 4.015625,
+        "lcb95": 1.765625,
+        "ucb95": 6.484375
+      },
+      "classification": "A"
+    },
+    "reached_flag_pressure": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      },
+      "d_B": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      },
+      "D_interaction": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      },
+      "classification": "C"
+    },
+    "episode_ticks": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": 3.1953125,
+        "lcb95": -6.2970703125,
+        "ucb95": 12.375195312499983
+      },
+      "d_B": {
+        "mean": -35.4140625,
+        "lcb95": -45.3984375,
+        "ucb95": -25.78125
+      },
+      "D_interaction": {
+        "mean": 38.609375,
+        "lcb95": 26.4140625,
+        "ucb95": 50.546875
+      },
+      "classification": "A"
+    },
+    "win": {
+      "n_paired": 128,
+      "d_A": {
+        "mean": 0.25,
+        "lcb95": 0.140625,
+        "ucb95": 0.359375
+      },
+      "d_B": {
+        "mean": 0.3046875,
+        "lcb95": 0.21875,
+        "ucb95": 0.3984375
+      },
+      "D_interaction": {
+        "mean": -0.0546875,
+        "lcb95": -0.1875,
+        "ucb95": 0.078125
+      },
+      "classification": "B"
+    }
+  }
+}

@@ -1,0 +1,416 @@
+========================================================================
+V6I26 target-KL ladder (3� LR held fixed)
+========================================================================
+init=artifacts\v6i23_population_birth_5u_seed1\final_v6i23_population_birth_5u_seed1_2v2.zip  max_u=5  z_actor_lr_mult=3  window=[0.001, 0.01]
+[ladder] train update=1/5 from=final_v6i23_population_birth_5u_seed1_2v2.zip (+1024 steps)
+[PPO] Agents: 2 per team (2v2) | mode=OPPONENT_POOL | run_tag='v6i26_lro_kl_ladder_z0_u1_seed1'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 1,000,000
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=67 critic_context_dim=35 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Return normalization: enabled for critic targets/predictions; GAE uses denormalized values.
+[PPO] Opponent-map sampling: source=training_cell_distribution (n_cells=5; overrides uniform opponent_pool / map_pool); top cells: OP9_SPLIT_LANE_FEINT|map_b_split_lane=0.263, OP12_LATE_CONVERTER|map_b_split_lane=0.252, OP11_ADAPTIVE_EXPLOITER|map_b_split_lane=0.235
+[PPO] Opponent randomization: enabled (OPPONENT_POOL mode; weighted joint (opponent, map) via pre-reset hook � opponent/map logged for each episode are those played during that episode).
+[PPO] Latent team strategy: enabled (K=4, sample=fixed, on_flag=False, lambda_p=0.0200, lambda_H=0.0000 (H:none), lambda_KL=0.0000, strategy_ppo_coef=0.000, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=0.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True, fixed_z=0)
+[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.
+[PPO] Recurrent selector hidden dim: 0
+[PPO] Checkpoint dir: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1
+[PPO] Update metrics CSV: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u1_seed1_metrics.csv
+[PPO] Episode metrics CSV: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u1_seed1_episodes.csv
+[PPO] Run lock acquired: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u1_seed1.run.lock
+[PPO] Rotated existing metrics CSV aside: 'artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u1_seed1_metrics.csv.bak.1784982833' (--fresh-metrics-csv).
+[PPO] Rotated existing episode CSV aside: 'artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u1_seed1_episodes.csv.bak.1784982833' (--fresh-metrics-csv).
+[PPO] Run config written: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u1_seed1_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=OPPONENT_POOL, scripted opponent tag=randomized pool ['OP11_ADAPTIVE_EXPLOITER', 'OP12_LATE_CONVERTER', 'OP7_DEEP_FORTRESS', 'OP9_SPLIT_LANE_FEINT']).
+[PPO] GPU env reward overrides: stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15
+[PPO] map_pool: overridden by training_cell_distribution (joint opponent�map sampling via pre-reset hook).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[V6I9 repertoire] Froze 22 shared-trunk params; z-specific modules remain trainable.
+[V6I26 LRO] Froze 24 inactive-branch params; active_z=0.
+[V6I26 actor-step] repertoire Adam groups: z_actor_lr=1.500e-03 critic_lr=5.000e-04 n_z=10 n_critic=6 separate_clip=True
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=35 critic_context_dim=35 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16 + z_FiLM x1); global_state_dim=35 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=35 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons ENABLED ['fixed_latent_strategy'] (not plan-faithful first-run; treat as intentional ablation).
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) + z_FiLM(x1) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP11_ADAPTIVE_EXPLOITER', 'OP12_LATE_CONVERTER', 'OP7_DEEP_FORTRESS', 'OP9_SPLIT_LANE_FEINT'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Resuming checkpoint: artifacts\v6i23_population_birth_5u_seed1\final_v6i23_population_birth_5u_seed1_2v2.zip
+[checkpoint compat] Skipped shape-mismatched parameters (1 keys); target modules keep initialization.
+  strategy_encoder.net.0.weight: checkpoint(128, 99) -> model(128, 35)
+[checkpoint compat] Newly initialized parameters (not in checkpoint):
+  latent_actor.latent_branch_trunks.0.0.bias
+  latent_actor.latent_branch_trunks.0.0.weight
+  latent_actor.latent_branch_trunks.0.2.bias
+  latent_actor.latent_branch_trunks.0.2.weight
+  latent_actor.latent_branch_trunks.1.0.bias
+  latent_actor.latent_branch_trunks.1.0.weight
+  latent_actor.latent_branch_trunks.1.2.bias
+  latent_actor.latent_branch_trunks.1.2.weight
+  latent_actor.latent_branch_trunks.2.0.bias
+  latent_actor.latent_branch_trunks.2.0.weight
+  latent_actor.latent_branch_trunks.2.2.bias
+  latent_actor.latent_branch_trunks.2.2.weight
+  latent_actor.latent_branch_trunks.3.0.bias
+  latent_actor.latent_branch_trunks.3.0.weight
+  latent_actor.latent_branch_trunks.3.2.bias
+  latent_actor.latent_branch_trunks.3.2.weight
+[checkpoint compat] Initialized latent_branch_trunks as identity transforms (LRO deep-branch start).
+[checkpoint compat] Router modules left at target initialization (1 keys).
+[checkpoint compat] Behavioral-equivalence check: PASS (trunk-only; residual/per-z specialists bypassed; mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.
+[PPO] freeze_return_norm_after_load: return_norm stats frozen (mean=-2.657038, std=1.280806, count=10240)
+[PPO] --additional-steps: base_step=10,240 + 1,024 = total_timesteps=11,264
+[PPO] Checkpoint schedule: disabled
+[PPO|diag] steps=11264 ev=0.009 v_loss=1.064 shape/out=-0.007/-0.002 qphi_grad=0.00000000 lamH=0.000000 zH=0.000(0.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[1.000,0.000,0.000,0.000] z_wr=[0.571,-,-,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | 
+      [Switch Near] cap=0.000(0/0|ev=49) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=33) [N/A: no mid-ep switches] | div_role=1.314 div_spread=1.071 div_pressure=0.320 div_adr=0.909
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[nearest_blue_to_enemy_carrier=rel4.000/abs1.097 nearest_blue_to_carrier=rel4.000/abs1.058 num_go_to=rel4.000/abs0.970]
+      [Actor Z] sensitivity_KL=6.34616915e-04 sep_JSD=3.96592332e-05 max_JSD=5.84158581e-04 argmax_disagree=0.064046 logit_l2=6.76262677e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[2.42229635e-05,5.50955119e-05] entropy_by_z=[6.86360061e-01,6.86360598e-01,6.86269164e-01,6.86388135e-01]
+[PPO|return_norm] update=11 mean=-2.6570 std=1.2808 count=10240
+ 100% ---------------------------- 1,024/1,024  [ 0:01:02 < 0:00:00 , 16 it/s ]
+[PPO] Training complete. Final checkpoint saved to: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\final_v6i26_lro_kl_ladder_z0_u1_seed1.zip
+[PPO] Run lock released: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u1_seed1.run.lock
+[ladder] probe fixed-batch KL for u=1 ...
+K:\MultiAgentUAV\AICTFProject\experiments\run_v6i24_population_eval_gates.py:501: UserWarning: _global_state_tensor: 'global_state' missing from obs dict — router will receive all-zero context. Inject env.state() before calling predict(). See run_eval_episodes() line: single['global_state'] = env.state()[0]
+  actions, _ = collector_policy.predict(obs, deterministic=True)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+========================================================================
+Logit control-authority probe
+========================================================================
+branch=z0 obs=128 opponent=OP9_SPLIT_LANE_FEINT|map_b_split_lane
+init_ckpt→trained KL=2.221e-04 logit_l2=2.214e-01 argmax_disagree=0.344
+birth_graph→trained KL=2.262e-04 (birth≈init_ckpt KL=2.433e-06)
+  z_embedding: dθ=3.301e-03 replay_KL=-6.469e-09 authority=8.873e-02
+  z_branch_trunk: dθ=1.711e-01 replay_KL=8.578e-05 authority=8.044e-01
+  z_action_head: dθ=7.815e-02 replay_KL=3.568e-05 authority=1.143e+00
+  z_adapter_residual: dθ=5.330e-02 replay_KL=7.052e-08 authority=7.494e-02
+  combined_z_pathway: dθ=1.956e-01 replay_KL=2.262e-04 authority=1.143e+00
+scaled sweep KL: [5.7e-05, 0.000226, 0.000923, 0.006778, 0.040321]
+alpha sweep vs_birth KL: [0.000209, 0.000226, 0.000265, 0.000359, 0.000673]
+reading=VALID_DIRECTION_OPTIMIZER_STEP_TOO_SMALL
+wrote artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\probe_u1.json
+  u=1 fixed_batch_kl=2.262e-04 in_window=False above_ceiling=False
+[ladder] train update=2/5 from=final_v6i26_lro_kl_ladder_z0_u1_seed1.zip (+1024 steps)
+[PPO] Agents: 2 per team (2v2) | mode=OPPONENT_POOL | run_tag='v6i26_lro_kl_ladder_z0_u2_seed1'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 1,000,000
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=67 critic_context_dim=35 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Return normalization: enabled for critic targets/predictions; GAE uses denormalized values.
+[PPO] Opponent-map sampling: source=training_cell_distribution (n_cells=5; overrides uniform opponent_pool / map_pool); top cells: OP9_SPLIT_LANE_FEINT|map_b_split_lane=0.263, OP12_LATE_CONVERTER|map_b_split_lane=0.252, OP11_ADAPTIVE_EXPLOITER|map_b_split_lane=0.235
+[PPO] Opponent randomization: enabled (OPPONENT_POOL mode; weighted joint (opponent, map) via pre-reset hook � opponent/map logged for each episode are those played during that episode).
+[PPO] Latent team strategy: enabled (K=4, sample=fixed, on_flag=False, lambda_p=0.0200, lambda_H=0.0000 (H:none), lambda_KL=0.0000, strategy_ppo_coef=0.000, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=0.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True, fixed_z=0)
+[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.
+[PPO] Recurrent selector hidden dim: 0
+[PPO] Checkpoint dir: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1
+[PPO] Update metrics CSV: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u2_seed1_metrics.csv
+[PPO] Episode metrics CSV: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u2_seed1_episodes.csv
+[PPO] Run lock acquired: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u2_seed1.run.lock
+[PPO] Rotated existing metrics CSV aside: 'artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u2_seed1_metrics.csv.bak.1784982926' (--fresh-metrics-csv).
+[PPO] Rotated existing episode CSV aside: 'artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u2_seed1_episodes.csv.bak.1784982926' (--fresh-metrics-csv).
+[PPO] Run config written: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u2_seed1_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=OPPONENT_POOL, scripted opponent tag=randomized pool ['OP11_ADAPTIVE_EXPLOITER', 'OP12_LATE_CONVERTER', 'OP7_DEEP_FORTRESS', 'OP9_SPLIT_LANE_FEINT']).
+[PPO] GPU env reward overrides: stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15
+[PPO] map_pool: overridden by training_cell_distribution (joint opponent�map sampling via pre-reset hook).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[V6I9 repertoire] Froze 22 shared-trunk params; z-specific modules remain trainable.
+[V6I26 LRO] Froze 24 inactive-branch params; active_z=0.
+[V6I26 actor-step] repertoire Adam groups: z_actor_lr=1.500e-03 critic_lr=5.000e-04 n_z=10 n_critic=6 separate_clip=True
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=35 critic_context_dim=35 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16 + z_FiLM x1); global_state_dim=35 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=35 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons ENABLED ['fixed_latent_strategy'] (not plan-faithful first-run; treat as intentional ablation).
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) + z_FiLM(x1) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP11_ADAPTIVE_EXPLOITER', 'OP12_LATE_CONVERTER', 'OP7_DEEP_FORTRESS', 'OP9_SPLIT_LANE_FEINT'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Resuming checkpoint: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\final_v6i26_lro_kl_ladder_z0_u1_seed1.zip
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.
+[PPO] freeze_return_norm_after_load: return_norm stats frozen (mean=-2.657038, std=1.280806, count=10240)
+[PPO] --additional-steps: base_step=11,264 + 1,024 = total_timesteps=12,288
+[PPO] Checkpoint schedule: disabled
+[PPO|diag] steps=12288 ev=0.009 v_loss=0.972 shape/out=-0.008/-0.004 qphi_grad=0.00000000 lamH=0.000000 zH=0.000(0.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[1.000,0.000,0.000,0.000] z_wr=[0.500,-,-,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | 
+      [Switch Near] cap=0.000(0/0|ev=50) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=34) [N/A: no mid-ep switches] | div_role=1.260 div_spread=1.039 div_pressure=0.311 div_adr=0.910
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[nearest_blue_to_enemy_carrier=rel4.000/abs1.070 nearest_blue_to_carrier=rel4.000/abs0.989 num_go_to=rel4.000/abs0.933]
+      [Actor Z] sensitivity_KL=8.99393926e-04 sep_JSD=5.62033092e-05 max_JSD=9.06061381e-04 argmax_disagree=0.038696 logit_l2=8.12812299e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[4.03290360e-05,7.20775861e-05] entropy_by_z=[7.10835159e-01,7.11178780e-01,7.11089432e-01,7.11211801e-01]
+[PPO|return_norm] update=12 mean=-2.6570 std=1.2808 count=10240
+ 100% ---------------------------- 1,024/1,024  [ 0:00:59 < 0:00:00 , 17 it/s ]
+[PPO] Training complete. Final checkpoint saved to: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\final_v6i26_lro_kl_ladder_z0_u2_seed1.zip
+[PPO] Run lock released: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u2_seed1.run.lock
+[ladder] probe fixed-batch KL for u=2 ...
+K:\MultiAgentUAV\AICTFProject\experiments\run_v6i24_population_eval_gates.py:501: UserWarning: _global_state_tensor: 'global_state' missing from obs dict — router will receive all-zero context. Inject env.state() before calling predict(). See run_eval_episodes() line: single['global_state'] = env.state()[0]
+  actions, _ = collector_policy.predict(obs, deterministic=True)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+========================================================================
+Logit control-authority probe
+========================================================================
+branch=z0 obs=128 opponent=OP9_SPLIT_LANE_FEINT|map_b_split_lane
+init_ckpt→trained KL=6.904e-04 logit_l2=3.902e-01 argmax_disagree=0.250
+birth_graph→trained KL=6.928e-04 (birth≈init_ckpt KL=2.417e-06)
+  z_embedding: dθ=5.222e-03 replay_KL=2.723e-09 authority=9.360e-02
+  z_branch_trunk: dθ=2.845e-01 replay_KL=2.782e-04 authority=8.709e-01
+  z_action_head: dθ=1.248e-01 replay_KL=9.068e-05 authority=1.132e+00
+  z_adapter_residual: dθ=9.142e-02 replay_KL=2.152e-07 authority=7.521e-02
+  combined_z_pathway: dθ=3.239e-01 replay_KL=6.928e-04 authority=1.207e+00
+scaled sweep KL: [0.000168, 0.000693, 0.003035, 0.02885, 0.253006]
+alpha sweep vs_birth KL: [0.000639, 0.000693, 0.000783, 0.000965, 0.001478]
+reading=VALID_DIRECTION_OPTIMIZER_STEP_TOO_SMALL
+wrote artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\probe_u2.json
+  u=2 fixed_batch_kl=6.928e-04 in_window=False above_ceiling=False
+[ladder] train update=3/5 from=final_v6i26_lro_kl_ladder_z0_u2_seed1.zip (+1024 steps)
+[PPO] Agents: 2 per team (2v2) | mode=OPPONENT_POOL | run_tag='v6i26_lro_kl_ladder_z0_u3_seed1'
+[PPO] Algorithm backend: custom local PPO
+[PPO] Total timesteps: 1,000,000
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=67 critic_context_dim=35 actor_input_dim=164
+[PPO] Actor CNN feature dim: 128
+[PPO] Map set: train
+[PPO] Training profile: default latent (Summer implementation)
+[PPO] Return normalization: enabled for critic targets/predictions; GAE uses denormalized values.
+[PPO] Opponent-map sampling: source=training_cell_distribution (n_cells=5; overrides uniform opponent_pool / map_pool); top cells: OP9_SPLIT_LANE_FEINT|map_b_split_lane=0.263, OP12_LATE_CONVERTER|map_b_split_lane=0.252, OP11_ADAPTIVE_EXPLOITER|map_b_split_lane=0.235
+[PPO] Opponent randomization: enabled (OPPONENT_POOL mode; weighted joint (opponent, map) via pre-reset hook � opponent/map logged for each episode are those played during that episode).
+[PPO] Latent team strategy: enabled (K=4, sample=fixed, on_flag=False, lambda_p=0.0200, lambda_H=0.0000 (H:none), lambda_KL=0.0000, strategy_ppo_coef=0.000, episode_credit=False, episode_coef=0.000, aux_return_head=False, aux_return_coef=0.000, tau=1.000, GAE_reset_on_z_change=True, bootstrap_z_deterministic=True, fixed_z=0)
+[PPO] Fixed-latent baseline: q_phi sampling/losses are bypassed; actor/critic receive one z ID.
+[PPO] Recurrent selector hidden dim: 0
+[PPO] Checkpoint dir: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1
+[PPO] Update metrics CSV: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u3_seed1_metrics.csv
+[PPO] Episode metrics CSV: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u3_seed1_episodes.csv
+[PPO] Run lock acquired: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u3_seed1.run.lock
+[PPO] Rotated existing metrics CSV aside: 'artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u3_seed1_metrics.csv.bak.1784983014' (--fresh-metrics-csv).
+[PPO] Rotated existing episode CSV aside: 'artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u3_seed1_episodes.csv.bak.1784983014' (--fresh-metrics-csv).
+[PPO] Run config written: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u3_seed1_run_config.json
+[PPO] Episode stats: every 1000 completed episode(s) print W/L/D and WR (mode=OPPONENT_POOL, scripted opponent tag=randomized pool ['OP11_ADAPTIVE_EXPLOITER', 'OP12_LATE_CONVERTER', 'OP7_DEEP_FORTRESS', 'OP9_SPLIT_LANE_FEINT']).
+[PPO] GPU env reward overrides: stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15
+[PPO] map_pool: overridden by training_cell_distribution (joint opponent�map sampling via pre-reset hook).
+[PPO] Trainer reward target mirrors GPU RewardConfig: dense_weight=0.250, reward_scale=4.000, reward_clip=1.000, stalemate_penalty=-0.080.
+[V6I9 repertoire] Froze 22 shared-trunk params; z-specific modules remain trainable.
+[V6I26 LRO] Froze 24 inactive-branch params; active_z=0.
+[V6I26 actor-step] repertoire Adam groups: z_actor_lr=1.500e-03 critic_lr=5.000e-04 n_z=10 n_critic=6 separate_clip=True
+[PPO] Input dims: base_global_state_dim=34 temporal_context_dim=170 q_phi_input_dim=35 critic_context_dim=35 actor_input_dim=164
+[PPO] Decentralized actor contract: per-agent MLP input dim = 164 (cnn 128 + scalars 20 + z_emb 16 + z_FiLM x1); global_state_dim=35 is for q_phi/critic only.
+[PPO] Critic z contract: context_dim=35 joint_action_onehot_dim=0 z_onehot_dim=4 critic_extra_dim=4 z_present=True
+[PPO] Summer-plan audit (latent on): no supervised router labels, no opponent-ID heads, no Gumbel-Softmax, no VAE losses, no handcrafted strategy labels.
+[PPO] Summer-plan audit: optional add-ons ENABLED ['fixed_latent_strategy'] (not plan-faithful first-run; treat as intentional ablation).
+[PPO] Audit actor_input: cnn(128) + per_agent_vec(20) + z_emb(16) + z_FiLM(x1) = 164 dim. (no phase_id, no opponent_id, no global_state in actor pathway)
+[PPO] Audit aux_phase_head: OFF (latent_strategy_aux_predict_phase_coef=0).
+[PPO] Audit opponent_pool (training): ['OP11_ADAPTIVE_EXPLOITER', 'OP12_LATE_CONVERTER', 'OP7_DEEP_FORTRESS', 'OP9_SPLIT_LANE_FEINT'] ; OP4 status: EXCLUDED (eval-only)
+[PPO] Resuming checkpoint: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\final_v6i26_lro_kl_ladder_z0_u2_seed1.zip
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.
+[PPO] freeze_return_norm_after_load: return_norm stats frozen (mean=-2.657038, std=1.280806, count=10240)
+[PPO] --additional-steps: base_step=12,288 + 1,024 = total_timesteps=13,312
+[PPO] Checkpoint schedule: disabled
+[PPO|diag] steps=13312 ev=0.009 v_loss=1.016 shape/out=-0.009/-0.003 qphi_grad=0.00000000 lamH=0.000000 zH=0.000(0.00) z_wr_spread=0.000 z_aux_ret=0.000 z_pi=0.000 z_ratio=0.000 z_occ=[1.000,0.000,0.000,0.000] z_wr=[0.500,-,-,-] MI_z_o=0.0000 MI_z_phase=0.0000 MI_z_flag=0.0000 MI_z_outcome=0.0000 | 
+      [Switch Near] cap=0.000(0/0|ev=48) kill=0.000(0/0|ev=0) ret=0.000(0/0|ev=35) [N/A: no mid-ep switches] | div_role=1.350 div_spread=1.068 div_pressure=0.302 div_adr=0.939
+      [Z Slices] opp_wr_spread_max=0.000 mean=0.000 per_opp=[-] | behavior_rel_spread_max=4.000 top3=[nearest_blue_to_enemy_carrier=rel4.000/abs1.014 nearest_blue_to_carrier=rel4.000/abs1.004 num_go_to=rel4.000/abs0.880]
+      [Actor Z] sensitivity_KL=1.51505110e-03 sep_JSD=9.46600048e-05 max_JSD=2.96257809e-03 argmax_disagree=0.019735 logit_l2=9.81931314e-02 actor_input_dim=164 z_embed_dim=16
+      [Actor Z detail] jsd_per_head=[9.91153065e-05,9.02047032e-05] entropy_by_z=[6.95768476e-01,6.96577907e-01,6.96491420e-01,6.96609735e-01]
+[PPO|return_norm] update=13 mean=-2.6570 std=1.2808 count=10240
+ 100% ---------------------------- 1,024/1,024  [ 0:00:57 < 0:00:00 , 17 it/s ]
+[PPO] Training complete. Final checkpoint saved to: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\final_v6i26_lro_kl_ladder_z0_u3_seed1.zip
+[PPO] Run lock released: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\v6i26_lro_kl_ladder_z0_u3_seed1.run.lock
+[ladder] probe fixed-batch KL for u=3 ...
+K:\MultiAgentUAV\AICTFProject\experiments\run_v6i24_population_eval_gates.py:501: UserWarning: _global_state_tensor: 'global_state' missing from obs dict — router will receive all-zero context. Inject env.state() before calling predict(). See run_eval_episodes() line: single['global_state'] = env.state()[0]
+  actions, _ = collector_policy.predict(obs, deterministic=True)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+========================================================================
+Logit control-authority probe
+========================================================================
+branch=z0 obs=128 opponent=OP9_SPLIT_LANE_FEINT|map_b_split_lane
+init_ckpt→trained KL=1.512e-03 logit_l2=5.764e-01 argmax_disagree=0.180
+birth_graph→trained KL=1.514e-03 (birth≈init_ckpt KL=2.415e-06)
+  z_embedding: dθ=7.715e-03 replay_KL=-3.362e-10 authority=9.592e-02
+  z_branch_trunk: dθ=4.030e-01 replay_KL=6.081e-04 authority=9.053e-01
+  z_action_head: dθ=1.714e-01 replay_KL=1.673e-04 authority=1.121e+00
+  z_adapter_residual: dθ=1.337e-01 replay_KL=4.414e-07 authority=7.272e-02
+  combined_z_pathway: dθ=4.580e-01 replay_KL=1.514e-03 authority=1.259e+00
+scaled sweep KL: [0.000349, 0.001514, 0.007297, 0.093435, 1.114265]
+alpha sweep vs_birth KL: [0.001401, 0.001514, 0.001697, 0.002035, 0.002924]
+reading=RESIDUAL_ALPHA_LIKELY_THROTTLING
+wrote artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\probe_u3.json
+  u=3 fixed_batch_kl=1.514e-03 in_window=True above_ceiling=False
+[ladder] SELECTED u=3 KL=1.514e-03 � early stop
+[ladder] status=SELECTED selected_update=3 stop_reason=selected_in_window
+[ladder] strategic post-eval ONLY on selected u=3 (final_v6i26_lro_kl_ladder_z0_u3_seed1.zip)
+Forced-z protocol: base_seed=1, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u3_seed1_run_config.json', sampling=argmax unless --stochastic.
+Forced-z protocol: base_seed=1, deterministic_actions=True, cell_seed=base+1000*opp_idx+100*map_idx, episode_seed=cell_seed+ep_idx, max_decision_steps=240, env_reward_overrides={stalemate_max_steps=80, surface_blue_capture_tempo_bonus=0.45, surface_blue_near_cap_bonus=0.035, surface_red_carrier_progress_penalty=0.075, surface_red_flag_touch_penalty=0.5, surface_score_margin_coef=0.15}, training_run_config='artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\v6i26_lro_kl_ladder_z0_u3_seed1_run_config.json', sampling=argmax unless --stochastic.
+Checkpoint : artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\final_v6i26_lro_kl_ladder_z0_u3_seed1.zip
+Episodes   : 4 per (opponent, z, map)
+Device     : cuda
+Latent order: [0, 1, 2, 3]
+
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=0 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=1 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=2 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=3 map_b_split_lane: WR=75.0% (4 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=0 map_b_split_lane_v2: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=1 map_b_split_lane_v2: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=2 map_b_split_lane_v2: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP11_ADAPTIVE_EXPLOITER z=3 map_b_split_lane_v2: WR=100.0% (4 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=0 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=1 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=2 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=3 map_b_split_lane: WR=75.0% (4 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=0 map_b_split_lane_v2: WR=75.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=1 map_b_split_lane_v2: WR=75.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=2 map_b_split_lane_v2: WR=75.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP12_LATE_CONVERTER z=3 map_b_split_lane_v2: WR=100.0% (4 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=0 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=1 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=2 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=3 map_b_split_lane: WR=100.0% (4 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=0 map_b_split_lane_v2: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=1 map_b_split_lane_v2: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=2 map_b_split_lane_v2: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP7_DEEP_FORTRESS z=3 map_b_split_lane_v2: WR=100.0% (4 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=0 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=1 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=2 map_b_split_lane: WR=100.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=3 map_b_split_lane: WR=100.0% (4 eps)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=0 map_b_split_lane_v2: WR=75.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=1 map_b_split_lane_v2: WR=75.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=2 map_b_split_lane_v2: WR=75.0% (4 eps)
+  checkpoint loaded; 4 episodes
+  episode 1/4
+  episode 4/4
+  [reuse] OP9_SPLIT_LANE_FEINT z=3 map_b_split_lane_v2: WR=75.0% (4 eps)
+
+--- Stage C Gate ---
+  Oracle-z   WR=96.9%  margin=+1.53
+  Best-fixed WR=93.8%  margin=+1.38  (z=0)
+  WR advantage   : +3.1%
+  Margin advantage: +0.16
+  Best z per cell : {'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane': 0, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2': 0, 'OP12_LATE_CONVERTER|map_b_split_lane': 0, 'OP12_LATE_CONVERTER|map_b_split_lane_v2': 3, 'OP7_DEEP_FORTRESS|map_b_split_lane': 0, 'OP7_DEEP_FORTRESS|map_b_split_lane_v2': 0, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane': 0, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2': 0}
+  Unique best-z   : [0, 3] (2 cells)
+
+  Gate 1 (oracle > best-fixed WR): PASS
+  Gate 2 (best z varies across map�opp cells): PASS
+
+=== Matched-seed forced-z summary ===
+Best fixed z (global): z1  win_margin=1.4062
+Hindsight oracle     : win_margin=1.5312
+Oracle gap           : +0.1250
+Best z per map�opp   : {'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane': 0, 'OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2': 0, 'OP12_LATE_CONVERTER|map_b_split_lane': 0, 'OP12_LATE_CONVERTER|map_b_split_lane_v2': 3, 'OP7_DEEP_FORTRESS|map_b_split_lane': 0, 'OP7_DEEP_FORTRESS|map_b_split_lane_v2': 0, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane': 0, 'OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2': 0}
+Unique best-z cells  : 2 / 8
+Best z by start-phase: 8 contexts, 3 unique winners
+Behavior pair mean   : 0.0641
+
+LADDER VERDICT: ORACLE_GAP_PLUS_CONTEXT � proceed to router training
+
+Artifacts in: artifacts\v6i26_margin_actor_step_3x_kl_ladder_seed1\forced_z_selected
+  episode_results.csv
+  stage_c_report.json
+  complementarity_report.json
+  oracle_report.json
+  behavior_report.json

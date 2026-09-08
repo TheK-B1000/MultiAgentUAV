@@ -1,0 +1,140 @@
+{
+  "record_id": "SPPPO_V1_PROTOCOL",
+  "status": "DRAFT_AWAITING_PI_RATIFICATION -- NOT FROZEN, NOT IMPLEMENTED",
+  "drafted_utc": "2026-08-26T01:45:00Z",
+  "authority": "PI directive following PHASE0 COMPLETE (Gate 0A PASS, Gate 0B PASS)",
+  "why_a_draft_and_not_a_freeze": "several entries the PI listed for freezing are NEW scientific choices. The standing rule is to stop rather than decide those autonomously. Entries below are tagged INHERITED (already fixed upstream, not open) or PROPOSED (my recommendation plus rationale, requiring ratification before it becomes frozen).",
+
+  "licensing_evidence": {
+    "gate_0A": "PASS -- delta_A +0.1211, delta_B +0.1875",
+    "gate_0B": "PASS -- LCB95(E[d_A]) +0.038284, LCB95(E[d_B]) +0.070432, 96 held-out seeds",
+    "scorer": "PHASE0_SCORER_FROZEN.json, sha256 930051a725e55e4f...",
+    "claim_earned": "payoff-relevant strategic preference is learnable at the state-action level from fresh training-only counterfactual data",
+    "claim_NOT_earned": "that a ranking gradient built from it will preserve payoff structure during compression. That is what SPPPO tests."
+  },
+
+  "INHERITED_not_open": {
+    "architecture": "EXP2C -- shared CNN/body, two mode-specific final actor heads, shared critic as already specified",
+    "K": 2,
+    "persistent_z": "forced, persistent across the episode",
+    "assigned_pole_training": "16 x z0|A and 16 x z1|B (16/0/0/16)",
+    "teachers": "the frozen SAPPO terminals, sha 5bd5f54f... (pi_A) and 8e4fb58b... (pi_B)",
+    "teacher_supervision": "unchanged SAPPO anchor loss, lambda_anchor = 0.10",
+    "teacher_cadence": "1:4, unchanged",
+    "ppo_configuration": "unchanged",
+    "ruleset_reward_action_space": "unchanged",
+    "budget": "1M total steps, ONE run, terminal checkpoint only, NO extension",
+    "final_gates": "strategic crossover AND retention AND behavioral identity, UNCHANGED from EXP2B/EXP2C",
+    "evaluation": "fresh untouched terminal block; Q_psi is NOT used at evaluation time -- the gates are scored on actual payoff",
+    "sole_new_ingredient": "the strategic ranking signal derived from frozen Q_psi"
+  },
+
+  "RULED_BY_PI_already": {
+    "Q_psi_immutable_during_SPPPO": {
+      "rule": "Q_psi is FROZEN for the entire run. No joint training of scorer and actor in V1.",
+      "reason": "otherwise the ruler moves while the policy learns to satisfy it, muddying the causal claim Phase 0 just earned",
+      "enforcement_required": "load with requires_grad=False on every parameter, assert no optimizer group contains Q_psi parameters, and assert the scorer SHA at launch and at terminal"
+    }
+  },
+
+  "PROPOSED_requires_ratification": {
+
+    "1_L_rank_form": {
+      "definition": [
+        "for a state o with pole p, let z*(p) be the appropriate mode (z0 for A, z1 for B) and z-(p) the other",
+        "Delta(o) = V_hat(o, z*(p), p) - V_hat(o, z-(p), p)",
+        "V_hat(o, z, p) = b + u^T mu_1 + v^T mu_2 + mu_1^T M mu_2   with mu_i = sum_a pi_theta(a | o, z) e(a)",
+        "L_rank = E_o [ max(0, m - Delta(o)) ]"
+      ],
+      "proposal": "HINGE with margin m, not a margin-free logistic/BPR loss",
+      "rationale": "the scientific claim is PRESERVING payoff structure, not maximising it. A hinge contributes exactly zero gradient once the ordering holds by m, so the term cannot dominate late training or distort the policy after it has done its job. A logistic loss has one fewer knob but never saturates and keeps pushing the gap indefinitely.",
+      "alternative_if_PI_prefers": "L_rank = E_o[ -log sigmoid(Delta(o)) ], margin-free, one fewer frozen parameter"
+    },
+
+    "2_margin_m": {
+      "proposal": 0.05,
+      "units": "terminal win margin, the same units Q_psi regresses",
+      "rationale": "sets the target separation at roughly the teacher-level effect Gate 0B measured on held-out states (d_A +0.066, d_B +0.099). Asking the compressed policy to reach about what the explicit teachers achieve is a defensible target; asking for more would be inventing a goal the evidence does not support.",
+      "hazard_to_note": "m is derived from a measured Gate 0B quantity. It is a scale calibration, not a threshold move, and no gate changes -- but the PI should see that dependence explicitly rather than find it later."
+    },
+
+    "3_lambda_R": {
+      "problem": "L_anchor is a negative log-probability (order 1-5); L_rank is in margin units (order 0.05). A blind constant borrowed from lambda_anchor = 0.10 would not be commensurate, and could make the ranking term either negligible or dominant.",
+      "proposal": "freeze the SELECTION RULE now, freeze the VALUE before production",
+      "rule": [
+        "grid: lambda_R in {0.03, 0.1, 0.3, 1.0} -- fixed now, not extended later",
+        "selected on the DEVELOPMENT block only, never on training or evaluation seeds",
+        "criterion: the SMALLEST lambda_R that (a) moves both ordering contrasts upward in the Phase 2 verification, and (b) does not degrade PPO episodic return by more than 5% relative to a lambda_R = 0 control",
+        "if no grid value satisfies both, STOP and request a PI decision. Do not extend the grid."
+      ],
+      "rationale": "smallest-sufficient rather than best-performing, so the ranking term is the minimum intervention that demonstrably works. Choosing by best ordering would tune toward the gate quantity.",
+      "alternative_if_PI_prefers": "fix lambda_R = 0.1 blind and accept whatever it does"
+    },
+
+    "4_ranking_cadence": {
+      "proposal": "every PPO update (not the 1:4 teacher cadence)",
+      "rationale": "the ranking term needs no extra environment interaction and no teacher query -- V_hat is analytic from states already in the PPO batch, costing two extra actor forward passes. There is no sampling cost to amortise, so a reduced cadence would only add an unmotivated free parameter.",
+      "cost": "2 forward passes per update over the batch's decision-point states"
+    },
+
+    "5_which_states_feed_ranking": {
+      "proposal": "DECISION-POINT states (blue_commit_ticks_left <= 0) from the current on-policy PPO rollout batch",
+      "why_decision_points": "matches the distribution Q_psi was fit on. Q_psi never saw locked physics steps, and the ranking objective concerns moments where commitment can change -- the same SAPPO lesson inherited by the collector.",
+      "why_on_policy_batch": "no extra rollouts, and it is the distribution the policy actually visits",
+      "KNOWN_RISK_must_be_recorded": "Q_psi was fit on TEACHER-visited states. As theta moves, the student's decision-point distribution drifts away from that support, so the ranking signal is increasingly an extrapolation. This is a genuine validity threat to SPPPO, it cannot be removed by freezing Q_psi, and it should be monitored as telemetry (e.g. scorer input drift) rather than assumed away.",
+      "both_modes_evaluated_at_the_same_state": "the state is visited under its assigned mode, but V_hat is computed for BOTH z at that identical state -- the same counterfactual structure Phase 0 validated"
+    },
+
+    "6_analytic_expectation": {
+      "rule": "V_hat uses the ANALYTIC closed form, never a sampled estimate",
+      "mu_i": "mu_i = sum_{a_i} pi_theta(a_i | o, z) e(a_i), over the 250-way per-agent categorical",
+      "masking": "pi_theta must be the MASKED distribution, matching evaluate_actions(). Unit-tested equivalence to brute-force enumeration already exists in tests/test_qpsi_scorer.py.",
+      "why_this_is_called_out": "the unmasked-fallback defect in Phase 0 produced a sign-inverted diagnostic. The same failure inside a training loss would silently push the policy the wrong way with no diagnostic to catch it."
+    },
+
+    "7_gradient_flow_boundaries": {
+      "into_Q_psi": "NONE. All Q_psi parameters requires_grad=False; asserted at launch.",
+      "into_theta": "through mu_1 and mu_2 only, i.e. through pi_theta. b, u, v, P, Q depend on (o, p) alone and are constants w.r.t. theta.",
+      "proposal": "the ranking gradient flows into the FULL actor (shared trunk and both mode heads), matching how L_PPO and L_anchor already flow",
+      "alternative_if_PI_prefers": "restrict to the mode-specific heads only, leaving the shared trunk driven solely by PPO and the anchor"
+    },
+
+    "8_seed_blocks": {
+      "status": "audit RUNNING at draft time; candidates below are not yet cleared",
+      "training": "10100001, n=32",
+      "development": "10200001, n=32",
+      "evaluation": "10300001, n=192  (matches the EXP2C evaluation width, 8 cells x 192 = 1536 rows)",
+      "requirement": "all three must pass the full four-check audit INCLUDING the git-history check before ratification. --suggest is working-tree only and is not sufficient."
+    }
+  },
+
+  "PHASE_2_verification_before_production": {
+    "requirement": "prove a ranking update moves the intended quantities before spending the 1M run",
+    "must_show": [
+      "V_hat(o, z0, A) - V_hat(o, z1, A) increases",
+      "V_hat(o, z1, B) - V_hat(o, z0, B) increases",
+      "Q_psi is bit-identical before and after (SHA re-checked)",
+      "no optimizer group contains Q_psi parameters",
+      "the masked distribution is the one being differentiated",
+      "a lambda_R = 0 control does not move the contrasts"
+    ],
+    "scope": "development block only"
+  },
+
+  "one_attempt_rule": {
+    "runs": 1,
+    "budget": "1M steps",
+    "extension": "PROHIBITED",
+    "checkpoint": "terminal only, no checkpoint shopping",
+    "if_it_fails": "freeze the negative, do NOT create SPPPO V2, request a PI decision"
+  },
+
+  "unchanged_prohibitions": [
+    "fitting or updating Q_psi during SPPPO",
+    "using any scored evaluation block in any fitting",
+    "policy identity as a scorer input",
+    "target substitution (win flag is a calibration diagnostic, never a target)",
+    "data growth after failure",
+    "reopening the latent-architecture ladder"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "status": "FROZEN_REFERENCE",
+  "class": "GUARD_PAYOFF_CANDIDATE",
+  "not": [
+    "V3_STRATEGIC_DEMAND_VALIDATED",
+    "confirmation_eligible",
+    "canonical OP6 rewritten"
+  ],
+  "why_not_2500001": "development data already miss t_intent>t_commit (gap=-7.3) and are 72% 0-0. Burning untouched confirmation would likely reconfirm an incomplete package.",
+  "genome": {
+    "genome_id": "SDS_PARENT_OP6",
+    "derived_from": "OP6",
+    "base_opponent": "OP6",
+    "overlay": {},
+    "opening_hold_steps": 0
+  },
+  "development_screen": {
+    "n": 16,
+    "seed_base": 2400009,
+    "delta_G": 0.1875,
+    "guard_wr": 0.3125,
+    "breach_wr": 0.125,
+    "mean_intent_minus_commit": -7.3125,
+    "precommitment_uncertain": false,
+    "frac_0_0": 0.71875,
+    "J": -0.046875
+  },
+  "immutable": true,
+  "may_be_used_as": "mutation parent / reference only; descendants get new genome_id"
+}

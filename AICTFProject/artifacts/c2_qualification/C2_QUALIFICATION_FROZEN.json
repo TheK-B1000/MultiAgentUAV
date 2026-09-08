@@ -1,0 +1,142 @@
+{
+  "preregistration": "C2 candidate qualification — frozen before any scan",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-05",
+  "document": "docs/c2-qualification-preregistration.md",
+  "motivated_by": "artifacts/o1_gates/O1_POSTMORTEM.json",
+
+  "scope": {
+    "this_freezes": "the criteria a C2 candidate must satisfy, and the ranking used to pick one",
+    "this_does_not_freeze": "which candidate wins — that is decided by the Stage 2 audit under these rules",
+    "ordering_guarantee": "committed before the lag-structured audit is run; no scan result informed any criterion below"
+  },
+
+  "provenance_note": {
+    "discarded_pre_freeze_scan": "A pickup-anchored discovery run on seed block 9800000 was launched before this contract existed and was stopped and its output deleted without being read. It did not inform any criterion here and is not used for selection."
+  },
+
+  "stage_2_data_source": {
+    "rule": "existing G0 discovery trajectories only; no fresh confirmation seed block consumed",
+    "implementation": "deterministic replay of the ORIGINAL G0-V5 discovery block, seeds 9400000+, with the same three frozen policies, re-instrumented for per-step capture",
+    "why_replay_is_needed": "precursor_windows.csv stores only aggregated features over a single fixed 30-decision window ending at the failure. Lag-band analysis requires per-step context, which was never persisted. Replaying the same seeds with the same deterministic policies reproduces the same trajectories at finer resolution — it does not create new data."
+  },
+
+  "lag_bands": {
+    "bands": [[-30, -20], [-20, -10], [-10, -1]],
+    "outcome_step_excluded": true,
+    "post_outcome_state_excluded": true,
+    "note": "bands are decisions relative to the outcome step t; all are strictly before t"
+  },
+
+  "qualification_criteria": {
+    "1_temporal_precedence": {
+      "requirement": "every feature value is read strictly before the outcome step",
+      "enforced": "outcome step t and all subsequent state excluded from every band"
+    },
+    "2_window_level_unit": {
+      "requirement": "the candidate must exist at the exact temporal unit a future handoff can consume",
+      "prohibited": "'episode ever had X' as the primary C2 definition"
+    },
+    "3_replication": {
+      "requirement": "same effect direction across all 3 established G0-V5 policies",
+      "policies": [3200001, 3200002, 3200003]
+    },
+    "4_effect_size": {
+      "requirement": "abs(delta) >= 0.15 in >= 2 of 3 policies",
+      "threshold": 0.15
+    },
+    "5_uncertainty": {
+      "requirement": "episode-clustered bootstrap CI excludes zero in >= 2 of 3 policies",
+      "resamples": 2000,
+      "seed": 12345,
+      "cluster_unit": "episode"
+    },
+    "6_support": {
+      "min_failure_windows": 30,
+      "min_matched_control_windows": 30,
+      "applies": "per policy, per reported cell"
+    },
+    "7_headroom": {
+      "definition": "headroom = 1 - baseline_success, where baseline_success is natural frozen-G0 success in the exact candidate window",
+      "requirement": "headroom >= 0.20",
+      "also_requires": "headroom >= 2 x planned_gate1_min_effect",
+      "planned_gate1_min_effect": 0.10,
+      "why": "The O1 niche had baseline success 0.991 and headroom 0.009 against a 0.10 bar, making gate 1 arithmetically unpassable. This criterion exists solely to make that failure impossible to repeat."
+    },
+    "8_actionability": {
+      "requirement": "at onset BLUE must have >= 2 legal continuations that could affect the outcome",
+      "operational_proxy": "the free teammate can contest at least as quickly as the nearest red that is able to tag now, i.e. intervention_margin = nearest_ready_defender_distance - mate_distance >= 0",
+      "threshold": "mate_could_intervene_frac >= 0.30 among failure onsets",
+      "threshold_status": "a judgment call, frozen before scanning rather than tuned after"
+    },
+    "9_non_mechanical_non_circular": {
+      "rejects_features_that_primarily_encode": [
+        "the outcome itself",
+        "a consequence of the failure",
+        "cooldown already consumed by the failure",
+        "score state alone",
+        "unavoidable mechanics"
+      ],
+      "lag_decay_test": {
+        "rule": "the effect must be present with the correct direction in the EARLIEST band (t-30..t-20), not only in the latest",
+        "failure_classification": "OUTCOME_CONTAMINATION",
+        "explicitly_applies_to": "defender_tag_available_frac, whose negative sign in the G0-V5 discovery is consistent with the tag having already been spent causing the failure"
+      },
+      "score_confound_test": {
+        "rule": "the effect must survive WITHIN at least one score stratum that meets the support minimum, not only pooled",
+        "why": "leading_frac was the only CI-backed separator for both carrier failures in the G0-V5 discovery (about -0.18); any feature correlated with score state inherits that"
+      }
+    },
+    "10_natural_support": {
+      "min_onset_prevalence_of_episodes": 0.02,
+      "min_onsets_per_policy": 30
+    }
+  },
+
+  "features_audited": {
+    "rule": "audit all recorded actionable Layer-3 features; do not preselect escort",
+    "must_include": [
+      "carrier_unescorted_frac",
+      "mean_escort_distance",
+      "defender_tag_available_frac",
+      "mean_nearest_ready_defender",
+      "mean_carrier_pressure",
+      "carrier_pressure_increasing",
+      "carrier_pressure_trend",
+      "both_forward_frac",
+      "none_forward_frac",
+      "mean_team_separation",
+      "own_cooldown_bound_frac",
+      "intervention_margin",
+      "mate_can_intervene"
+    ],
+    "carrier_mostly_unescorted_status": "REJECTED unless this window-level audit independently qualifies it. Its prior appeal was a layer-2 EPISODE descriptor (0.256 win-rate drop) with no episode-clustered CI, and window-level escort deltas in the G0-V5 discovery were -0.030/+0.053/+0.015 and +0.034/+0.110/+0.064 against a 0.15 bar. Runner-up status confers nothing."
+  },
+
+  "selection": {
+    "eligible": "only candidates passing EVERY criterion above",
+    "ranking_order": [
+      "3/3 replication preferred over 2/3",
+      "larger absolute preregistered effect",
+      "stronger CI separation",
+      "greater natural support",
+      "greater headroom",
+      "clearer actionable fork"
+    ],
+    "select": "exactly ONE top candidate",
+    "prohibited": "manually substituting another candidate after seeing results"
+  },
+
+  "stop_conditions": {
+    "zero_candidates_qualify": {
+      "artifact": "C2_NO_QUALIFIED_CANDIDATE.json",
+      "action": "freeze and STOP; do not invent a niche"
+    },
+    "headroom_fail": {
+      "artifact": "C2_HEADROOM_FAIL.json",
+      "action": "STOP"
+    }
+  },
+
+  "immutability": "No criterion, threshold, lag band, or ranking rule above may change after the Stage 2 audit produces numbers."
+}

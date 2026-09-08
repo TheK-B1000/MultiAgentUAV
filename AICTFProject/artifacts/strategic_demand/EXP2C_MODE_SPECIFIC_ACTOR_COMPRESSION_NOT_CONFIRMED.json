@@ -1,0 +1,99 @@
+{
+  "record_id": "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_NOT_CONFIRMED",
+  "status": "FROZEN_NEGATIVE_RESULT",
+  "utc": "2026-08-24T12:00:00Z",
+  "branch_executed": "BRANCH B of EXP2B_BRANCH_PLAN_FROZEN.json (3b095e86)",
+  "verdict": "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_NOT_CONFIRMED",
+  "raw": "artifacts/strategic_demand/exp2c_k2_terminal_evaluation/{summary.json,episode_rows.csv,action_identity_by_seed.csv,terminal_freeze.json}",
+  "episode_rows_sha256_16": "ba01acaadd4cba5a",
+  "evaluation_attempt_1": "VOIDED as INVALID_BEFORE_SCORING with evaluation_rows_consumed=0; the block was not spent",
+  "eight_cell_matrix": {
+    "z0|A": 0.6875,
+    "z0|B": 0.578125,
+    "z1|A": 0.6770833333333334,
+    "z1|B": 0.6302083333333334,
+    "pi_A|A": 0.7291666666666666,
+    "pi_A|B": 0.3854166666666667,
+    "pi_B|A": 0.4739583333333333,
+    "pi_B|B": 0.46875
+  },
+  "gates": {
+    "delta_A_z": {
+      "point": 0.010416666666666666,
+      "lcb95": -0.08333333333333333,
+      "passes": false
+    },
+    "delta_B_z": {
+      "point": 0.052083333333333336,
+      "lcb95": -0.046875,
+      "passes": false
+    },
+    "retention": {
+      "lcb95": 1.0,
+      "passes": true
+    },
+    "behavioral_action_identity": {
+      "jsd_bits_lcb95": 0.2544272974651857,
+      "margin_A_bits_lcb95": 1.0767843905181311,
+      "margin_B_bits_lcb95": 1.1074131382393901,
+      "argmax_disagree_lcb95": 0.4156531270538633,
+      "passes": true
+    },
+    "conjunctive_result": "FAIL (crossover), PASS (retention), PASS (identity)"
+  },
+  "why_this_negative_is_decisive": {
+    "signature_repeated_three_times": {
+      "EXP2_balanced": {
+        "jsd_lcb": 0.128,
+        "argmax_disagree": 0.276,
+        "crossover": "FAIL"
+      },
+      "EXP2B_assigned": {
+        "jsd_lcb": 0.128,
+        "argmax_disagree": 0.285,
+        "crossover": "FAIL"
+      },
+      "EXP2C_private_heads": {
+        "jsd_lcb": 0.254,
+        "argmax_disagree": 0.416,
+        "crossover": "FAIL"
+      }
+    },
+    "what_EXP2C_specifically_refutes": "the ATTENUATION hypothesis. EXP2C doubled distributional separation and reached argmax disagreement 0.416 against the SAPPO teachers' own 0.419, with both teacher-affinity margins above 1.0 bits versus EXP2B's lopsided 0.305/1.165. Teacher-level behavioural separation was RESTORED and crossover still did not appear.",
+    "visible_in_the_matrix": "z0 and z1 are both strong on pole A (0.688 / 0.677) and neither is pole-specialised, while on the SAME block the teacher is sharply specialised (pi_A|A 0.729 vs pi_A|B 0.385). The modes are distinct and competent but not payoff-differentiated.",
+    "conclusion": "behavioural separation alone is INSUFFICIENT for strategic complementarity"
+  },
+  "hypotheses_eliminated": [
+    "cross-pole gradient mixing (EXP2 balanced 8/8/8/8)",
+    "assigned-pole optimisation insufficiency (EXP2B 16/0/0/16)",
+    "shared-actor capacity / final-layer interference (EXP2C private heads)",
+    "separation MAGNITUDE attenuation (EXP2C reached teacher-level separation)"
+  ],
+  "supporting_descriptive_analysis": {
+    "matched_state_separation_EXP2B_student": {
+      "D_T_teachers_mean": 1.0648,
+      "D_S_student_mean": 0.321,
+      "ratio": 0.3015,
+      "per_state_R_median": 0.2617,
+      "R_p10": 0.0464,
+      "R_p90": 0.8904,
+      "frac_states_R_below_0.5": 0.757,
+      "frac_D_S_gt_D_T": 0.084,
+      "method": "identical JSD formula and eligibility rule, all four policies on the same 1200 frozen anchor observations, zero episodes and zero seed spend",
+      "corrects": "an earlier 12.6% figure that compared D_T and D_S on DIFFERENT state distributions; that number is withdrawn",
+      "status": "DESCRIPTIVE, not a gate"
+    }
+  },
+  "ladder_closed": {
+    "rule": "EXP2C_FAIL -> STOP latent architecture experimentation. No EXP2D.",
+    "EXP3": "remains LOCKED",
+    "EXP4": "remains LOCKED",
+    "next": "PI decision"
+  },
+  "what_the_paper_can_already_claim": [
+    "strategic demand exists and is validated (V3, four prospective gates)",
+    "vanilla PPO does not reliably preserve complementary strategies (R2)",
+    "strategy anchoring produces a CONFIRMED explicit repertoire (EXP1)",
+    "naive latent compression, assigned-pole compression, and private-head compression all preserve performance and behavioural identity while failing to preserve payoff complementarity (EXP2/2B/2C)"
+  ]
+}

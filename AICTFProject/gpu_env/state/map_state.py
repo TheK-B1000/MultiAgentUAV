@@ -13,6 +13,8 @@ import torch
 from .._maps import (
     MAP_B_SPLIT_LANE,
     MAP_B_SPLIT_LANE_V2,
+    MAP_C_HOME_CORRIDOR,
+    home_corridor_rect_norm,
     is_split_lane_layout,
     norm_rect_to_cells,
     split_lane_rect_norm,
@@ -56,6 +58,9 @@ class _MapStateMixin:
             if layout == MAP_B_SPLIT_LANE_V2:
                 base_norm = split_lane_v2_rect_norm(mirror_y=False)
                 mirror_norm = split_lane_v2_rect_norm(mirror_y=True)
+            elif layout == MAP_C_HOME_CORRIDOR:
+                base_norm = home_corridor_rect_norm(mirror_y=False)
+                mirror_norm = home_corridor_rect_norm(mirror_y=True)
             else:
                 base_norm = split_lane_rect_norm(
                     x_min=float(self.cfg.map_b_wall_x_min_norm),

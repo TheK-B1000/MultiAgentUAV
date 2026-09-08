@@ -1,0 +1,1924 @@
+{
+  "source_csv": "artifacts\\v6i26_lro_niches_round1_seed1\\phase2_confirm\\forced_z_before_32\\episode_results.csv",
+  "episodes_per_cell": 32,
+  "winrate_saturation_cutoff": 0.9,
+  "metrics_audited": [
+    "winrate",
+    "win_margin",
+    "score_margin",
+    "time_to_first_score",
+    "nearest_blue_to_enemy_carrier",
+    "intercepts_near_enemy_carrier",
+    "carrier_escort_count",
+    "intercept_pressure"
+  ],
+  "n_contexts": 14,
+  "summary": {
+    "n_winrate_saturated": 14,
+    "frac_winrate_saturated": 1.0,
+    "mean_best_wr": 0.9709821428571429,
+    "n_margin_informative": 14,
+    "n_score_informative": 14,
+    "n_ttc_spread_useful": 0,
+    "n_saturated_with_informative_margin": 14,
+    "median_best_win_margin": 1.3125,
+    "median_win_margin_gap_best_second": 0.078125,
+    "median_win_margin_pairwise": 0.65625,
+    "median_ttc_pairwise": 2.03125,
+    "median_intercept_pressure_pairwise": 0.014522408811985354
+  },
+  "case": "A_WINRATE_SATURATED_SENSITIVE_OUTCOMES_DIFFER",
+  "next_step": "Select targets using win_margin/score_margin with winrate competence gate; dry-run must show real sensitive headroom before any 5u pilot.",
+  "do_not_launch_5u_pilot": true,
+  "do_not_lower_wr_cutoff_to_force_run": true,
+  "forbidden_now": [
+    "per_z_critic",
+    "longer_training_alone",
+    "router",
+    "diversity_reward"
+  ],
+  "sensitive_selection_candidates_lowest_best_margin": [
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+      "best_wr": 0.96875,
+      "best_wr_z": 3,
+      "best_margin": 1.1875,
+      "best_margin_z": 3,
+      "margin_gap_best_second": 0.125,
+      "margin_pairwise": 0.875,
+      "score_gap_best_second": 0.125,
+      "ttc_pairwise": 2.03125
+    },
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2",
+      "best_wr": 0.9375,
+      "best_wr_z": 3,
+      "best_margin": 1.21875,
+      "best_margin_z": 1,
+      "margin_gap_best_second": 0.0,
+      "margin_pairwise": 0.65625,
+      "score_gap_best_second": 0.0,
+      "ttc_pairwise": 1.65625
+    },
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2",
+      "best_wr": 0.96875,
+      "best_wr_z": 1,
+      "best_margin": 1.25,
+      "best_margin_z": 3,
+      "margin_gap_best_second": 0.03125,
+      "margin_pairwise": 0.71875,
+      "score_gap_best_second": 0.03125,
+      "ttc_pairwise": 0.46875
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+      "best_wr": 0.9375,
+      "best_wr_z": 0,
+      "best_margin": 1.25,
+      "best_margin_z": 0,
+      "margin_gap_best_second": 0.09375,
+      "margin_pairwise": 0.3125,
+      "score_gap_best_second": 0.09375,
+      "ttc_pairwise": 2.03125
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane",
+      "best_wr": 0.96875,
+      "best_wr_z": 3,
+      "best_margin": 1.28125,
+      "best_margin_z": 3,
+      "margin_gap_best_second": 0.25,
+      "margin_pairwise": 1.375,
+      "score_gap_best_second": 0.25,
+      "ttc_pairwise": 4.09375
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane",
+      "best_wr": 1.0,
+      "best_wr_z": 1,
+      "best_margin": 1.28125,
+      "best_margin_z": 3,
+      "margin_gap_best_second": 0.03125,
+      "margin_pairwise": 1.125,
+      "score_gap_best_second": 0.03125,
+      "ttc_pairwise": 3.53125
+    }
+  ],
+  "cells": [
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "map": "map_b_split_lane",
+      "winrate": {
+        "by_z": {
+          "z0": 0.59375,
+          "z1": 0.90625,
+          "z2": 0.9375,
+          "z3": 0.96875
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.96875,
+        "runner_up": 0.9375,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 0.375,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.3125,
+          "z1": 0.96875,
+          "z2": 1.0625,
+          "z3": 1.1875
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.1875,
+        "runner_up": 1.0625,
+        "gap_best_vs_second": 0.125,
+        "pairwise_max_abs_gap": 0.875,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.3125,
+          "z1": 0.96875,
+          "z2": 1.0625,
+          "z3": 1.1875
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.1875,
+        "runner_up": 1.0625,
+        "gap_best_vs_second": 0.125,
+        "pairwise_max_abs_gap": 0.875,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 36.71875,
+          "z1": 34.75,
+          "z2": 34.75,
+          "z3": 34.6875
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 34.6875,
+        "runner_up": 34.75,
+        "gap_best_vs_second": 0.0625,
+        "pairwise_max_abs_gap": 2.03125,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 0.9796095177326662,
+          "z1": 0.9665681678926286,
+          "z2": 0.9844304193954803,
+          "z3": 0.9950192254772039
+        },
+        "best_z": 1,
+        "runner_up_z": 0,
+        "best": 0.9665681678926286,
+        "runner_up": 0.9796095177326662,
+        "gap_best_vs_second": 0.013041349840037686,
+        "pairwise_max_abs_gap": 0.028451057584575334,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.3291037273224786,
+          "z1": 0.44265959325600146,
+          "z2": 0.422739639031105,
+          "z3": 0.41019545334633606
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.44265959325600146,
+        "runner_up": 0.422739639031105,
+        "gap_best_vs_second": 0.019919954224896452,
+        "pairwise_max_abs_gap": 0.11355586593352285,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.1278486226920959,
+          "z1": 0.4424971866218328,
+          "z2": 0.4588081233606587,
+          "z3": 0.4285380819168466
+        },
+        "best_z": 2,
+        "runner_up_z": 1,
+        "best": 0.4588081233606587,
+        "runner_up": 0.4424971866218328,
+        "gap_best_vs_second": 0.016310936738825887,
+        "pairwise_max_abs_gap": 0.3309595006685628,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8403472733810284,
+          "z1": 0.8493012540179942,
+          "z2": 0.8523316740830467,
+          "z3": 0.8550595470698545
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.8550595470698545,
+        "runner_up": 0.8523316740830467,
+        "gap_best_vs_second": 0.0027278729868078777,
+        "pairwise_max_abs_gap": 0.014712273688826105,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2",
+      "opponent": "OP6_IMMEDIATE_DUAL_RUSH",
+      "map": "map_b_split_lane_v2",
+      "winrate": {
+        "by_z": {
+          "z0": 0.71875,
+          "z1": 0.96875,
+          "z2": 0.96875,
+          "z3": 0.96875
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.96875,
+        "runner_up": 0.96875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.25,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.53125,
+          "z1": 1.21875,
+          "z2": 1.21875,
+          "z3": 1.25
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.25,
+        "runner_up": 1.21875,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 0.71875,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.53125,
+          "z1": 1.21875,
+          "z2": 1.21875,
+          "z3": 1.25
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.25,
+        "runner_up": 1.21875,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 0.71875,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 31.875,
+          "z1": 31.59375,
+          "z2": 31.625,
+          "z3": 31.40625
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 31.40625,
+        "runner_up": 31.59375,
+        "gap_best_vs_second": 0.1875,
+        "pairwise_max_abs_gap": 0.46875,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 0.9763130057973018,
+          "z1": 0.999120586790845,
+          "z2": 0.9888815389197522,
+          "z3": 0.9879539430703588
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.9763130057973018,
+        "runner_up": 0.9879539430703588,
+        "gap_best_vs_second": 0.011640937273056928,
+        "pairwise_max_abs_gap": 0.022807580993543186,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.49736903248065367,
+          "z1": 0.4583795510904971,
+          "z2": 0.46815570391423045,
+          "z3": 0.4657200887921391
+        },
+        "best_z": 0,
+        "runner_up_z": 2,
+        "best": 0.49736903248065367,
+        "runner_up": 0.46815570391423045,
+        "gap_best_vs_second": 0.029213328566423225,
+        "pairwise_max_abs_gap": 0.038989481390156566,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.28728521550719704,
+          "z1": 0.45225474929897747,
+          "z2": 0.44943267459867814,
+          "z3": 0.49576537839077484
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.49576537839077484,
+        "runner_up": 0.45225474929897747,
+        "gap_best_vs_second": 0.04351062909179737,
+        "pairwise_max_abs_gap": 0.2084801628835778,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8510196620493808,
+          "z1": 0.8559463748968585,
+          "z2": 0.8556414416559275,
+          "z3": 0.8596633515352192
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.8596633515352192,
+        "runner_up": 0.8559463748968585,
+        "gap_best_vs_second": 0.0037169766383606806,
+        "pairwise_max_abs_gap": 0.00864368948583838,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane",
+      "opponent": "OP7_DEEP_FORTRESS",
+      "map": "map_b_split_lane",
+      "winrate": {
+        "by_z": {
+          "z0": 0.84375,
+          "z1": 0.96875,
+          "z2": 0.96875,
+          "z3": 0.96875
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.96875,
+        "runner_up": 0.96875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.125,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 1.21875,
+          "z1": 1.875,
+          "z2": 1.875,
+          "z3": 1.71875
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.875,
+        "runner_up": 1.875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.65625,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 1.21875,
+          "z1": 1.875,
+          "z2": 1.875,
+          "z3": 1.71875
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.875,
+        "runner_up": 1.875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.65625,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 38.71875,
+          "z1": 33.1875,
+          "z2": 33.1875,
+          "z3": 33.03125
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 33.03125,
+        "runner_up": 33.1875,
+        "gap_best_vs_second": 0.15625,
+        "pairwise_max_abs_gap": 5.6875,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 1.047393619864764,
+          "z1": 1.171838683225481,
+          "z2": 1.1710549769342475,
+          "z3": 1.1454950678719555
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 1.047393619864764,
+        "runner_up": 1.1454950678719555,
+        "gap_best_vs_second": 0.09810144800719156,
+        "pairwise_max_abs_gap": 0.12444506336071703,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.2955469140818914,
+          "z1": 0.30456017156348636,
+          "z2": 0.3065361193580368,
+          "z3": 0.3253421219954561
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.3253421219954561,
+        "runner_up": 0.3065361193580368,
+        "gap_best_vs_second": 0.018806002637419272,
+        "pairwise_max_abs_gap": 0.029795207913564714,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.10264165993365723,
+          "z1": 0.43335870891764416,
+          "z2": 0.43988081525250533,
+          "z3": 0.47674611897403374
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.47674611897403374,
+        "runner_up": 0.43988081525250533,
+        "gap_best_vs_second": 0.03686530372152841,
+        "pairwise_max_abs_gap": 0.3741044590403765,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8520755838322556,
+          "z1": 0.8465112122091544,
+          "z2": 0.8477830515361315,
+          "z3": 0.8558286226155617
+        },
+        "best_z": 3,
+        "runner_up_z": 0,
+        "best": 0.8558286226155617,
+        "runner_up": 0.8520755838322556,
+        "gap_best_vs_second": 0.0037530387833061285,
+        "pairwise_max_abs_gap": 0.009317410406407323,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane_v2",
+      "opponent": "OP7_DEEP_FORTRESS",
+      "map": "map_b_split_lane_v2",
+      "winrate": {
+        "by_z": {
+          "z0": 1.0,
+          "z1": 1.0,
+          "z2": 1.0,
+          "z3": 1.0
+        },
+        "best_z": 0,
+        "runner_up_z": 1,
+        "best": 1.0,
+        "runner_up": 1.0,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.0,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 1.71875,
+          "z1": 1.96875,
+          "z2": 1.96875,
+          "z3": 1.90625
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.96875,
+        "runner_up": 1.96875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.25,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 1.71875,
+          "z1": 1.96875,
+          "z2": 1.96875,
+          "z3": 1.90625
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.96875,
+        "runner_up": 1.96875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.25,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 33.53125,
+          "z1": 33.1875,
+          "z2": 33.1875,
+          "z3": 32.8125
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 32.8125,
+        "runner_up": 33.1875,
+        "gap_best_vs_second": 0.375,
+        "pairwise_max_abs_gap": 0.71875,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 1.0855395268174854,
+          "z1": 1.1681530594559415,
+          "z2": 1.1680944635158408,
+          "z3": 1.1383035876852456
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 1.0855395268174854,
+        "runner_up": 1.1383035876852456,
+        "gap_best_vs_second": 0.0527640608677602,
+        "pairwise_max_abs_gap": 0.08261353263845606,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.4189711203282267,
+          "z1": 0.3429878381015329,
+          "z2": 0.3417995253006546,
+          "z3": 0.3795468754377004
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.4189711203282267,
+        "runner_up": 0.3795468754377004,
+        "gap_best_vs_second": 0.03942424489052632,
+        "pairwise_max_abs_gap": 0.07717159502757209,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.3653426601606291,
+          "z1": 0.4633020014026192,
+          "z2": 0.4639610432167522,
+          "z3": 0.49523769600363027
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.49523769600363027,
+        "runner_up": 0.4639610432167522,
+        "gap_best_vs_second": 0.03127665278687808,
+        "pairwise_max_abs_gap": 0.12989503584300116,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8738254929019508,
+          "z1": 0.8577489492032147,
+          "z2": 0.8578678423414576,
+          "z3": 0.8590369389217599
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.8738254929019508,
+        "runner_up": 0.8590369389217599,
+        "gap_best_vs_second": 0.014788553980190855,
+        "pairwise_max_abs_gap": 0.016076543698736123,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane",
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "map": "map_b_split_lane",
+      "winrate": {
+        "by_z": {
+          "z0": 0.53125,
+          "z1": 1.0,
+          "z2": 1.0,
+          "z3": 1.0
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.0,
+        "runner_up": 1.0,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.46875,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.15625,
+          "z1": 1.25,
+          "z2": 1.25,
+          "z3": 1.28125
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.28125,
+        "runner_up": 1.25,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 1.125,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.15625,
+          "z1": 1.25,
+          "z2": 1.25,
+          "z3": 1.28125
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.28125,
+        "runner_up": 1.25,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 1.125,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 37.59375,
+          "z1": 34.0625,
+          "z2": 34.0625,
+          "z3": 34.09375
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 34.0625,
+        "runner_up": 34.0625,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 3.53125,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 0.9472572735985333,
+          "z1": 0.9693077468098353,
+          "z2": 0.9693077468098353,
+          "z3": 0.9864835774257625
+        },
+        "best_z": 0,
+        "runner_up_z": 1,
+        "best": 0.9472572735985333,
+        "runner_up": 0.9693077468098353,
+        "gap_best_vs_second": 0.022050473211302046,
+        "pairwise_max_abs_gap": 0.03922630382722925,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.35132442135748937,
+          "z1": 0.47545051220072976,
+          "z2": 0.47545051220072976,
+          "z3": 0.47153950879780604
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.47545051220072976,
+        "runner_up": 0.47545051220072976,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.12412609084324039,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.11506537440515298,
+          "z1": 0.45143447241656093,
+          "z2": 0.45143447241656093,
+          "z3": 0.4270911112734561
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.45143447241656093,
+        "runner_up": 0.45143447241656093,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.33636909801140796,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8404331555663465,
+          "z1": 0.8515486038051345,
+          "z2": 0.8515486038051345,
+          "z3": 0.8560438858162616
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.8560438858162616,
+        "runner_up": 0.8515486038051345,
+        "gap_best_vs_second": 0.004495282011127033,
+        "pairwise_max_abs_gap": 0.015610730249915106,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "map": "map_b_split_lane_v2",
+      "winrate": {
+        "by_z": {
+          "z0": 0.84375,
+          "z1": 0.875,
+          "z2": 0.90625,
+          "z3": 1.0
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.0,
+        "runner_up": 0.90625,
+        "gap_best_vs_second": 0.09375,
+        "pairwise_max_abs_gap": 0.15625,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.84375,
+          "z1": 1.03125,
+          "z2": 1.125,
+          "z3": 1.375
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.375,
+        "runner_up": 1.125,
+        "gap_best_vs_second": 0.25,
+        "pairwise_max_abs_gap": 0.53125,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.84375,
+          "z1": 1.03125,
+          "z2": 1.125,
+          "z3": 1.375
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.375,
+        "runner_up": 1.125,
+        "gap_best_vs_second": 0.25,
+        "pairwise_max_abs_gap": 0.53125,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 30.59375,
+          "z1": 30.375,
+          "z2": 30.375,
+          "z3": 30.53125
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 30.375,
+        "runner_up": 30.375,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.21875,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 0.9854669385609534,
+          "z1": 0.982290316564157,
+          "z2": 0.9880879624362504,
+          "z3": 0.9928634509553911
+        },
+        "best_z": 1,
+        "runner_up_z": 0,
+        "best": 0.982290316564157,
+        "runner_up": 0.9854669385609534,
+        "gap_best_vs_second": 0.0031766219967963583,
+        "pairwise_max_abs_gap": 0.010573134391234085,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.4724289459006031,
+          "z1": 0.506211219336108,
+          "z2": 0.5023084569231452,
+          "z3": 0.49118808282500925
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.506211219336108,
+        "runner_up": 0.5023084569231452,
+        "gap_best_vs_second": 0.0039027624129628347,
+        "pairwise_max_abs_gap": 0.03378227343550494,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.31667024466198834,
+          "z1": 0.4405214554109789,
+          "z2": 0.4417415211362343,
+          "z3": 0.4913129961467096
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.4913129961467096,
+        "runner_up": 0.4417415211362343,
+        "gap_best_vs_second": 0.04957147501047526,
+        "pairwise_max_abs_gap": 0.17464275148472125,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8566057713693831,
+          "z1": 0.852218020343108,
+          "z2": 0.8532058523960968,
+          "z3": 0.8602309447957317
+        },
+        "best_z": 3,
+        "runner_up_z": 0,
+        "best": 0.8602309447957317,
+        "runner_up": 0.8566057713693831,
+        "gap_best_vs_second": 0.0036251734263486046,
+        "pairwise_max_abs_gap": 0.008012924452623693,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "map": "map_b_split_lane",
+      "winrate": {
+        "by_z": {
+          "z0": 0.4375,
+          "z1": 0.90625,
+          "z2": 0.9375,
+          "z3": 0.96875
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.96875,
+        "runner_up": 0.9375,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 0.53125,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": -0.0625,
+          "z1": 1.09375,
+          "z2": 1.15625,
+          "z3": 1.375
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.375,
+        "runner_up": 1.15625,
+        "gap_best_vs_second": 0.21875,
+        "pairwise_max_abs_gap": 1.4375,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": -0.0625,
+          "z1": 1.09375,
+          "z2": 1.15625,
+          "z3": 1.375
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.375,
+        "runner_up": 1.15625,
+        "gap_best_vs_second": 0.21875,
+        "pairwise_max_abs_gap": 1.4375,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 40.8125,
+          "z1": 36.25,
+          "z2": 36.25,
+          "z3": 34.46875
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 34.46875,
+        "runner_up": 36.25,
+        "gap_best_vs_second": 1.78125,
+        "pairwise_max_abs_gap": 6.34375,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 0.9750993167526403,
+          "z1": 1.036303926295372,
+          "z2": 1.0369911815403603,
+          "z3": 1.0429111337400938
+        },
+        "best_z": 0,
+        "runner_up_z": 1,
+        "best": 0.9750993167526403,
+        "runner_up": 1.036303926295372,
+        "gap_best_vs_second": 0.06120460954273166,
+        "pairwise_max_abs_gap": 0.06781181698745353,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.30312707130897104,
+          "z1": 0.3983681138598014,
+          "z2": 0.40100995858860544,
+          "z3": 0.38889063700463056
+        },
+        "best_z": 2,
+        "runner_up_z": 1,
+        "best": 0.40100995858860544,
+        "runner_up": 0.3983681138598014,
+        "gap_best_vs_second": 0.0026418447288040214,
+        "pairwise_max_abs_gap": 0.0978828872796344,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.08987467372677338,
+          "z1": 0.4076807103018203,
+          "z2": 0.4097990562843322,
+          "z3": 0.41500208221345847
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.41500208221345847,
+        "runner_up": 0.4097990562843322,
+        "gap_best_vs_second": 0.005203025929126248,
+        "pairwise_max_abs_gap": 0.3251274084866851,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8250067924586361,
+          "z1": 0.8426130192293858,
+          "z2": 0.8445333645196291,
+          "z3": 0.8540447974286409
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.8540447974286409,
+        "runner_up": 0.8445333645196291,
+        "gap_best_vs_second": 0.009511432909011797,
+        "pairwise_max_abs_gap": 0.02903800497000486,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2",
+      "opponent": "OP9_SPLIT_LANE_FEINT",
+      "map": "map_b_split_lane_v2",
+      "winrate": {
+        "by_z": {
+          "z0": 0.6875,
+          "z1": 0.90625,
+          "z2": 0.90625,
+          "z3": 0.9375
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.9375,
+        "runner_up": 0.90625,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 0.25,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.5625,
+          "z1": 1.21875,
+          "z2": 1.21875,
+          "z3": 1.21875
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.21875,
+        "runner_up": 1.21875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.65625,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.5625,
+          "z1": 1.21875,
+          "z2": 1.21875,
+          "z3": 1.21875
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.21875,
+        "runner_up": 1.21875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.65625,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 36.5625,
+          "z1": 38.1875,
+          "z2": 38.21875,
+          "z3": 37.0
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 36.5625,
+        "runner_up": 37.0,
+        "gap_best_vs_second": 0.4375,
+        "pairwise_max_abs_gap": 1.65625,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 1.0147134861970293,
+          "z1": 1.076552184486891,
+          "z2": 1.085797935082209,
+          "z3": 1.0665400873430237
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 1.0147134861970293,
+        "runner_up": 1.0665400873430237,
+        "gap_best_vs_second": 0.051826601145994466,
+        "pairwise_max_abs_gap": 0.07108444888517962,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.4482907862127962,
+          "z1": 0.40170357380314126,
+          "z2": 0.3886664134060671,
+          "z3": 0.41448494835173055
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.4482907862127962,
+        "runner_up": 0.41448494835173055,
+        "gap_best_vs_second": 0.03380583786106567,
+        "pairwise_max_abs_gap": 0.05962437280672911,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.28967716719986464,
+          "z1": 0.41595572120899815,
+          "z2": 0.4165026778443169,
+          "z3": 0.43714677981416483
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.43714677981416483,
+        "runner_up": 0.4165026778443169,
+        "gap_best_vs_second": 0.02064410196984795,
+        "pairwise_max_abs_gap": 0.1474696126143002,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.847690211610233,
+          "z1": 0.8384960984521368,
+          "z2": 0.8388411181493525,
+          "z3": 0.8528286423872814
+        },
+        "best_z": 3,
+        "runner_up_z": 0,
+        "best": 0.8528286423872814,
+        "runner_up": 0.847690211610233,
+        "gap_best_vs_second": 0.005138430777048453,
+        "pairwise_max_abs_gap": 0.014332543935144604,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane",
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "map": "map_b_split_lane",
+      "winrate": {
+        "by_z": {
+          "z0": 0.78125,
+          "z1": 0.90625,
+          "z2": 0.90625,
+          "z3": 0.9375
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.9375,
+        "runner_up": 0.90625,
+        "gap_best_vs_second": 0.03125,
+        "pairwise_max_abs_gap": 0.15625,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.84375,
+          "z1": 1.125,
+          "z2": 1.125,
+          "z3": 1.28125
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.28125,
+        "runner_up": 1.125,
+        "gap_best_vs_second": 0.15625,
+        "pairwise_max_abs_gap": 0.4375,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.84375,
+          "z1": 1.125,
+          "z2": 1.125,
+          "z3": 1.28125
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.28125,
+        "runner_up": 1.125,
+        "gap_best_vs_second": 0.15625,
+        "pairwise_max_abs_gap": 0.4375,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 40.4375,
+          "z1": 33.09375,
+          "z2": 33.09375,
+          "z3": 32.78125
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 32.78125,
+        "runner_up": 33.09375,
+        "gap_best_vs_second": 0.3125,
+        "pairwise_max_abs_gap": 7.65625,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 1.0249022027006596,
+          "z1": 1.0306501968256017,
+          "z2": 1.0307527750205154,
+          "z3": 1.0321683051036372
+        },
+        "best_z": 0,
+        "runner_up_z": 1,
+        "best": 1.0249022027006596,
+        "runner_up": 1.0306501968256017,
+        "gap_best_vs_second": 0.005747994124942091,
+        "pairwise_max_abs_gap": 0.007266102402977648,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.28726118529090255,
+          "z1": 0.4136008099015973,
+          "z2": 0.4131823490498408,
+          "z3": 0.41339562816530834
+        },
+        "best_z": 1,
+        "runner_up_z": 3,
+        "best": 0.4136008099015973,
+        "runner_up": 0.41339562816530834,
+        "gap_best_vs_second": 0.00020518173628897296,
+        "pairwise_max_abs_gap": 0.12633962461069476,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.09442045514685027,
+          "z1": 0.4419048475498064,
+          "z2": 0.44073151614194006,
+          "z3": 0.4196543620418521
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.4419048475498064,
+        "runner_up": 0.44073151614194006,
+        "gap_best_vs_second": 0.0011733314078663515,
+        "pairwise_max_abs_gap": 0.34748439240295614,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8460995069436592,
+          "z1": 0.8449477853689655,
+          "z2": 0.8451844182855343,
+          "z3": 0.8618528073800005
+        },
+        "best_z": 3,
+        "runner_up_z": 0,
+        "best": 0.8618528073800005,
+        "runner_up": 0.8460995069436592,
+        "gap_best_vs_second": 0.015753300436341267,
+        "pairwise_max_abs_gap": 0.016905022011034943,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2",
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "map": "map_b_split_lane_v2",
+      "winrate": {
+        "by_z": {
+          "z0": 0.84375,
+          "z1": 0.90625,
+          "z2": 0.90625,
+          "z3": 0.96875
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.96875,
+        "runner_up": 0.90625,
+        "gap_best_vs_second": 0.0625,
+        "pairwise_max_abs_gap": 0.125,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.9375,
+          "z1": 1.3125,
+          "z2": 1.3125,
+          "z3": 1.46875
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.46875,
+        "runner_up": 1.3125,
+        "gap_best_vs_second": 0.15625,
+        "pairwise_max_abs_gap": 0.53125,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.9375,
+          "z1": 1.3125,
+          "z2": 1.3125,
+          "z3": 1.46875
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 1.46875,
+        "runner_up": 1.3125,
+        "gap_best_vs_second": 0.15625,
+        "pairwise_max_abs_gap": 0.53125,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 31.0625,
+          "z1": 31.9375,
+          "z2": 33.09375,
+          "z3": 31.5625
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 31.0625,
+        "runner_up": 31.5625,
+        "gap_best_vs_second": 0.5,
+        "pairwise_max_abs_gap": 2.03125,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 1.0440414954141612,
+          "z1": 1.0764153736057858,
+          "z2": 1.0767478057524849,
+          "z3": 1.074441525459749
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 1.0440414954141612,
+        "runner_up": 1.074441525459749,
+        "gap_best_vs_second": 0.030400030045587778,
+        "pairwise_max_abs_gap": 0.03270631033832361,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.4035388535413137,
+          "z1": 0.41016811099212047,
+          "z2": 0.40818649816235275,
+          "z3": 0.41966466692813603
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.41966466692813603,
+        "runner_up": 0.41016811099212047,
+        "gap_best_vs_second": 0.00949655593601556,
+        "pairwise_max_abs_gap": 0.01612581338682234,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.285876019004479,
+          "z1": 0.4162774252489143,
+          "z2": 0.4129777574826159,
+          "z3": 0.45560891774785833
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.45560891774785833,
+        "runner_up": 0.4162774252489143,
+        "gap_best_vs_second": 0.03933149249894402,
+        "pairwise_max_abs_gap": 0.16973289874337932,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8545211953468993,
+          "z1": 0.8475621618013726,
+          "z2": 0.8465220399902282,
+          "z3": 0.8527918004192477
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.8545211953468993,
+        "runner_up": 0.8527918004192477,
+        "gap_best_vs_second": 0.0017293949276515619,
+        "pairwise_max_abs_gap": 0.007999155356671062,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "map": "map_b_split_lane",
+      "winrate": {
+        "by_z": {
+          "z0": 0.5,
+          "z1": 0.96875,
+          "z2": 0.96875,
+          "z3": 0.875
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.96875,
+        "runner_up": 0.96875,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.46875,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.0625,
+          "z1": 1.34375,
+          "z2": 1.28125,
+          "z3": 1.03125
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.34375,
+        "runner_up": 1.28125,
+        "gap_best_vs_second": 0.0625,
+        "pairwise_max_abs_gap": 1.28125,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.0625,
+          "z1": 1.34375,
+          "z2": 1.28125,
+          "z3": 1.03125
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.34375,
+        "runner_up": 1.28125,
+        "gap_best_vs_second": 0.0625,
+        "pairwise_max_abs_gap": 1.28125,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 38.67741935483871,
+          "z1": 37.28125,
+          "z2": 37.28125,
+          "z3": 35.90625
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 35.90625,
+        "runner_up": 37.28125,
+        "gap_best_vs_second": 1.375,
+        "pairwise_max_abs_gap": 2.7711693548387117,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 0.9608684993301294,
+          "z1": 1.0449690242064544,
+          "z2": 1.0440437601388748,
+          "z3": 1.0127406017692566
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.9608684993301294,
+        "runner_up": 1.0127406017692566,
+        "gap_best_vs_second": 0.05187210243912721,
+        "pairwise_max_abs_gap": 0.08410052487632502,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.34769198772518584,
+          "z1": 0.3975857604510931,
+          "z2": 0.3957870241213746,
+          "z3": 0.41499998389916914
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.41499998389916914,
+        "runner_up": 0.3975857604510931,
+        "gap_best_vs_second": 0.017414223448076027,
+        "pairwise_max_abs_gap": 0.06730799617398331,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.09513812444908182,
+          "z1": 0.3786103413360414,
+          "z2": 0.37867500602557136,
+          "z3": 0.3574674363784332
+        },
+        "best_z": 2,
+        "runner_up_z": 1,
+        "best": 0.37867500602557136,
+        "runner_up": 0.3786103413360414,
+        "gap_best_vs_second": 6.466468952998072e-05,
+        "pairwise_max_abs_gap": 0.28353688157648954,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8153259693119648,
+          "z1": 0.8407798468419267,
+          "z2": 0.8411704840513575,
+          "z3": 0.8460896836414165
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.8460896836414165,
+        "runner_up": 0.8411704840513575,
+        "gap_best_vs_second": 0.004919199590058931,
+        "pairwise_max_abs_gap": 0.030763714329451686,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2",
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "map": "map_b_split_lane_v2",
+      "winrate": {
+        "by_z": {
+          "z0": 0.75,
+          "z1": 1.0,
+          "z2": 1.0,
+          "z3": 1.0
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.0,
+        "runner_up": 1.0,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.25,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 0.875,
+          "z1": 1.375,
+          "z2": 1.375,
+          "z3": 1.375
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.375,
+        "runner_up": 1.375,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.5,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 0.875,
+          "z1": 1.375,
+          "z2": 1.375,
+          "z3": 1.375
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 1.375,
+        "runner_up": 1.375,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 0.5,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 33.875,
+          "z1": 33.375,
+          "z2": 33.4375,
+          "z3": 32.375
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 32.375,
+        "runner_up": 33.375,
+        "gap_best_vs_second": 1.0,
+        "pairwise_max_abs_gap": 1.5,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 1.0186593216718367,
+          "z1": 1.0285276562562973,
+          "z2": 1.039657678004598,
+          "z3": 1.0187704157268425
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 1.0186593216718367,
+        "runner_up": 1.0187704157268425,
+        "gap_best_vs_second": 0.00011109405500575598,
+        "pairwise_max_abs_gap": 0.02099835633276137,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.45141358857654734,
+          "z1": 0.46948948364252135,
+          "z2": 0.45629668119615563,
+          "z3": 0.4770866052292294
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.4770866052292294,
+        "runner_up": 0.46948948364252135,
+        "gap_best_vs_second": 0.0075971215867080555,
+        "pairwise_max_abs_gap": 0.025673016652682068,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.2857516187362257,
+          "z1": 0.48757522853756013,
+          "z2": 0.4820118638813923,
+          "z3": 0.49112093592165523
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.49112093592165523,
+        "runner_up": 0.48757522853756013,
+        "gap_best_vs_second": 0.003545707384095098,
+        "pairwise_max_abs_gap": 0.20536931718542956,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8584186595867571,
+          "z1": 0.8621961348904188,
+          "z2": 0.8610601876715531,
+          "z3": 0.8618316561497604
+        },
+        "best_z": 1,
+        "runner_up_z": 3,
+        "best": 0.8621961348904188,
+        "runner_up": 0.8618316561497604,
+        "gap_best_vs_second": 0.0003644787406583694,
+        "pairwise_max_abs_gap": 0.0037774753036616815,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane",
+      "opponent": "OP12_LATE_CONVERTER",
+      "map": "map_b_split_lane",
+      "winrate": {
+        "by_z": {
+          "z0": 0.40625,
+          "z1": 0.90625,
+          "z2": 0.90625,
+          "z3": 0.96875
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.96875,
+        "runner_up": 0.90625,
+        "gap_best_vs_second": 0.0625,
+        "pairwise_max_abs_gap": 0.5625,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": -0.09375,
+          "z1": 1.0,
+          "z2": 1.03125,
+          "z3": 1.28125
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.28125,
+        "runner_up": 1.03125,
+        "gap_best_vs_second": 0.25,
+        "pairwise_max_abs_gap": 1.375,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": -0.09375,
+          "z1": 1.0,
+          "z2": 1.03125,
+          "z3": 1.28125
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 1.28125,
+        "runner_up": 1.03125,
+        "gap_best_vs_second": 0.25,
+        "pairwise_max_abs_gap": 1.375,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 37.84375,
+          "z1": 33.75,
+          "z2": 33.75,
+          "z3": 34.625
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 33.75,
+        "runner_up": 33.75,
+        "gap_best_vs_second": 0.0,
+        "pairwise_max_abs_gap": 4.09375,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 0.9576615839294348,
+          "z1": 0.9967814485115364,
+          "z2": 0.9964008864287449,
+          "z3": 0.9835178120302646
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.9576615839294348,
+        "runner_up": 0.9835178120302646,
+        "gap_best_vs_second": 0.02585622810082977,
+        "pairwise_max_abs_gap": 0.03911986458210159,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.3251906733286614,
+          "z1": 0.43512983517898285,
+          "z2": 0.43519005194082994,
+          "z3": 0.45083594670905214
+        },
+        "best_z": 3,
+        "runner_up_z": 2,
+        "best": 0.45083594670905214,
+        "runner_up": 0.43519005194082994,
+        "gap_best_vs_second": 0.0156458947682222,
+        "pairwise_max_abs_gap": 0.12564527338039072,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.09402738604011136,
+          "z1": 0.44234400428294474,
+          "z2": 0.4442195432329263,
+          "z3": 0.4230220464865554
+        },
+        "best_z": 2,
+        "runner_up_z": 1,
+        "best": 0.4442195432329263,
+        "runner_up": 0.44234400428294474,
+        "gap_best_vs_second": 0.0018755389499815478,
+        "pairwise_max_abs_gap": 0.35019215719281493,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8320471653988346,
+          "z1": 0.8477504684618021,
+          "z2": 0.847110360597418,
+          "z3": 0.8633433602697316
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.8633433602697316,
+        "runner_up": 0.8477504684618021,
+        "gap_best_vs_second": 0.015592891807929443,
+        "pairwise_max_abs_gap": 0.031296194870896965,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+      "opponent": "OP12_LATE_CONVERTER",
+      "map": "map_b_split_lane_v2",
+      "winrate": {
+        "by_z": {
+          "z0": 0.9375,
+          "z1": 0.84375,
+          "z2": 0.875,
+          "z3": 0.875
+        },
+        "best_z": 0,
+        "runner_up_z": 2,
+        "best": 0.9375,
+        "runner_up": 0.875,
+        "gap_best_vs_second": 0.0625,
+        "pairwise_max_abs_gap": 0.09375,
+        "direction": "higher"
+      },
+      "win_margin": {
+        "by_z": {
+          "z0": 1.25,
+          "z1": 0.9375,
+          "z2": 1.0,
+          "z3": 1.15625
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 1.25,
+        "runner_up": 1.15625,
+        "gap_best_vs_second": 0.09375,
+        "pairwise_max_abs_gap": 0.3125,
+        "direction": "higher"
+      },
+      "score_margin": {
+        "by_z": {
+          "z0": 1.25,
+          "z1": 0.9375,
+          "z2": 1.0,
+          "z3": 1.15625
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 1.25,
+        "runner_up": 1.15625,
+        "gap_best_vs_second": 0.09375,
+        "pairwise_max_abs_gap": 0.3125,
+        "direction": "higher"
+      },
+      "time_to_first_score": {
+        "by_z": {
+          "z0": 32.53125,
+          "z1": 34.3125,
+          "z2": 34.25,
+          "z3": 34.5625
+        },
+        "best_z": 0,
+        "runner_up_z": 2,
+        "best": 32.53125,
+        "runner_up": 34.25,
+        "gap_best_vs_second": 1.71875,
+        "pairwise_max_abs_gap": 2.03125,
+        "direction": "lower"
+      },
+      "nearest_blue_to_enemy_carrier": {
+        "by_z": {
+          "z0": 1.0356447500126553,
+          "z1": 0.9855080248913366,
+          "z2": 0.991804946346869,
+          "z3": 1.0030287429836167
+        },
+        "best_z": 1,
+        "runner_up_z": 2,
+        "best": 0.9855080248913366,
+        "runner_up": 0.991804946346869,
+        "gap_best_vs_second": 0.0062969214555324005,
+        "pairwise_max_abs_gap": 0.050136725121318726,
+        "direction": "lower"
+      },
+      "intercepts_near_enemy_carrier": {
+        "by_z": {
+          "z0": 0.42648366682250893,
+          "z1": 0.48306104894518337,
+          "z2": 0.4739127784164994,
+          "z3": 0.4764854201948624
+        },
+        "best_z": 1,
+        "runner_up_z": 3,
+        "best": 0.48306104894518337,
+        "runner_up": 0.4764854201948624,
+        "gap_best_vs_second": 0.006575628750320972,
+        "pairwise_max_abs_gap": 0.056577382122674436,
+        "direction": "higher"
+      },
+      "carrier_escort_count": {
+        "by_z": {
+          "z0": 0.3072120714902588,
+          "z1": 0.39799724499031,
+          "z2": 0.3928650740116823,
+          "z3": 0.44918365946123784
+        },
+        "best_z": 3,
+        "runner_up_z": 1,
+        "best": 0.44918365946123784,
+        "runner_up": 0.39799724499031,
+        "gap_best_vs_second": 0.051186414470927866,
+        "pairwise_max_abs_gap": 0.14197158797097903,
+        "direction": "higher"
+      },
+      "intercept_pressure": {
+        "by_z": {
+          "z0": 0.8620072695876961,
+          "z1": 0.8500283350646983,
+          "z2": 0.8483610132429567,
+          "z3": 0.8537486723701717
+        },
+        "best_z": 0,
+        "runner_up_z": 3,
+        "best": 0.8620072695876961,
+        "runner_up": 0.8537486723701717,
+        "gap_best_vs_second": 0.008258597217524422,
+        "pairwise_max_abs_gap": 0.013646256344739482,
+        "direction": "higher"
+      },
+      "winrate_saturated": true,
+      "margin_informative": true,
+      "score_informative": true,
+      "ttc_spread_useful": false
+    }
+  ],
+  "ladder": [
+    "audit sensitive outcomes (DONE)",
+    "if useful headroom: select by sensitive outcome + WR safety gate",
+    "else harder matched strategic contexts",
+    "lock surface -> fresh forced-z baseline",
+    "require unsaturated target + branch headroom",
+    "5u diagnostic pilot only"
+  ]
+}

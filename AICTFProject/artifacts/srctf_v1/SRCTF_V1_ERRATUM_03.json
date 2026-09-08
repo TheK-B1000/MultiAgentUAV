@@ -1,0 +1,84 @@
+{
+  "erratum": "SRCTF v1 — add the trained-conditional task-value gate and fix the observability ordering contradiction",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-11T14:30:00Z",
+  "amends": [
+    "artifacts/srctf_v1/SRCTF_V1_DESIGN_AND_QUALIFICATION_FROZEN.json (73a1a00) -- downstream_gate_sequence only"
+  ],
+
+  "admissibility": {
+    "no_srctf_map_exists": true,
+    "no_srctf_opponent_implemented": true,
+    "no_srctf_rollout_or_probe_datum_exists": true,
+    "qualification_block_unspent": true,
+    "scope": "the downstream gate sequence only. The admission test, capacity bar, attempt-validity model, naming rules and prohibition list are untouched."
+  },
+
+  "repair_1_observability_ordering_was_self_contradictory": {
+    "the_contradiction": "SRCTF_V1 listed observability at step 6, AFTER response oracles at step 2. OBSERVABILITY_TEST_FROZEN.json prohibits 'training O4 on an UNROUTABLE or NO_DEMAND_IN_BLOCK result' and states the test runs BEFORE oracle training because it is a property of the world and the observation space, not of any trained policy.",
+    "why_it_matters": "under the SRCTF ordering we could spend several PPO runs demonstrating strategies that the deployed information structure can never select, and only discover that afterwards. That is precisely the waste the observability gate exists to prevent.",
+    "the_resolution": "observability moves BEFORE specialist/oracle training. The observability freeze's ordering wins; the SRCTF sequence was the error.",
+    "no_criterion_changes": "the test itself -- selector class, 28 fields, baseline, 0.50 bar, evaluation block, statistics, outcomes -- is untouched."
+  },
+
+  "repair_2_new_gate_trained_conditional_task_value": {
+    "the_gap_it_closes": "the reversal scanner measures RESPONSE SELECTION at isolated decision points on frozen generalist policies over a 30-step screen horizon. It cannot see value that requires SUSTAINED differently-committed play across many decisions -- which, given C6's allocation findings, is plausibly where strategic value actually lives.",
+    "the_question": "if the learner knows which regime it is in AND can maintain different behaviour over time, can it beat the pooled generalist on FINAL CTF outcome?",
+    "criterion": {
+      "TRAINED_CONDITIONAL_TASK_VALUE_PASS": "LCB95[ final_task_value(privileged_conditional_policy) - final_task_value(matched_pooled_generalist) ] > 0",
+      "measured_on": "final task outcome (score differential / win rate), NEVER a screen proxy",
+      "statistics": "episode-clustered bootstrap, 2000 resamples, seed 12345, LCB95 = q_0.025"
+    },
+    "matched_comparison_requirements": {
+      "identical": ["reward", "training budget", "policy seed", "opponent distribution",
+                    "evaluation protocol", "architecture capacity"],
+      "the_only_meaningful_difference": "access to the frozen regime condition",
+      "capacity_control": "the pooled baseline must receive the SAME input slot, masked or held constant, so this is not secretly an extra-capacity comparison. A conditional policy with a wider input than its baseline would confound conditioning with capacity."
+    },
+    "interpretation_is_deliberately_narrow": {
+      "FAIL": "privileged sustained conditioning adds no demonstrated task value. BETTER_GENERALIST / K=1 remains favoured. STOP before any specialist birth.",
+      "PASS": "sustained regime conditioning has task value. This is NOT deployability -- observability must still recover it from legal information."
+    },
+    "explicitly_NOT_an_alternate_qualification_path": {
+      "statement": "this gate can never qualify an SRCTF environment. The frozen latent-free reversal scanner remains the sole admission test.",
+      "why": "allowing a second route to 'strategy-rich' would reopen the environment-level multiplicity that ONE_SHOT exists to close -- an environment failing the scanner could then be re-admitted through a different door.",
+      "consequence": "this gate runs only AFTER the scanner has already passed discovery and fresh confirmation."
+    }
+  },
+
+  "the_frozen_ladder": [
+    "1. latent-free response reversal (scanner, discovery)",
+    "2. fresh confirmation",
+    "3. TRAINED CONDITIONAL TASK-VALUE GATE  <-- new",
+    "4. observability (single-timestep legal context)  <-- moved before oracles",
+    "5. reward-only specialist / oracle training",
+    "6. policy crossover",
+    "7. repertoire gain over the best fixed policy",
+    "8. behavioural distinction",
+    "9. latent representation",
+    "10. router and held-out generalization"
+  ],
+
+  "recorded_cost_tradeoff_of_this_ordering": {
+    "the_honest_accounting": "gate 3 costs a PPO run and sits BEFORE the cheap gate 4. Strict cheapest-first would run observability first and save that run whenever the answer is UNROUTABLE.",
+    "why_the_stronger_instrument_goes_first_anyway": "observability's oracle-selector is a response-selection screen on frozen policies, and shares the scanner's blind spot for sustained commitment. Running the weaker instrument first risks stopping on a screen-limited NO_DEMAND_IN_BLOCK when sustained value exists.",
+    "the_accepted_price": "one PPO run in the branch where demand is real but unroutable",
+    "recorded_so_it_is_a_choice_and_not_an_oversight": true
+  },
+
+  "the_scanner_false_negative_is_acknowledged_and_left_in_place": {
+    "the_limitation": "if sustained strategic value exists but no isolated 30-step response reversal does, the scanner stops us before gate 3 ever runs",
+    "why_it_is_not_patched_here": "the scanner IS the definition of strategy-rich for SRCTF v1. Loosening it after designing the benchmark would change what qualification means, which is the environment-level multiplicity ONE_SHOT closes.",
+    "the_legitimate_route": "the hypothesis 'persistent strategies can have task value even when local response-reversal screens miss them' deserves its OWN prospectively frozen experiment, with its own fresh blocks and its own admission criterion -- never a loophole in SRCTF v1."
+  },
+
+  "unchanged": [
+    "the latent-free acceptance criterion and the scanner as sole admission test",
+    "AFFORDANCE_CAPACITY_PASS and the degenerate-variance rule",
+    "ONE_SHOT, and the VALID / INVALID_ATTEMPT / INVALID_EXECUTION model",
+    "canonical-only opponent naming and the six-condition admission guard",
+    "the reward rule, the four dilemmas, the freeze point, the prohibition list"
+  ],
+
+  "immutability": "After any SRCTF measurement exists, none of the above may change."
+}

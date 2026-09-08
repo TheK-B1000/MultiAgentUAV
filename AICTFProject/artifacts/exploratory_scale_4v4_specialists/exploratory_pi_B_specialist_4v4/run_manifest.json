@@ -1,0 +1,21 @@
+{
+  "record": "train_specialist_scale run manifest",
+  "utc": "2026-09-06T20:30:33Z",
+  "smoke_non_scientific": false,
+  "team_size": 4,
+  "policy": "B",
+  "pole_base": "OP7",
+  "seed": 7420001,
+  "device": "cuda",
+  "git_sha": "12431e441f8be1f4e7348dcf76812df2ff3fb79a",
+  "git_dirty": true,
+  "total_timesteps": 1000000,
+  "certification_verdict": "NOT_CERTIFIED",
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_4v4_specialists\\exploratory_pi_B_specialist_4v4\\ckpts",
+  "recipe_inherited_from": "experiments/run_r1_repertoire_training.py::build_r1_config",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "exploratory_spec": "EXPLORATORY_4V4_LEARNED_SPECIALIST_SPEC.json",
+  "distillation_started_by_this_script": false,
+  "evaluation_started_by_this_script": false
+}

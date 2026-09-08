@@ -1,0 +1,29 @@
+{
+  "record_id": "CONFIRMATORY_REDESIGN_C2_PI_A2_FROZEN",
+  "status": "FROZEN_CHECKPOINT",
+  "arm": "CONFIRMATORY_REDESIGN",
+  "confirmatory": true,
+  "utc": "2026-09-08T05:10:00Z",
+  "implements": "4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json",
+
+  "policy": "pi_A2 (4v4, confirmatory redesign C2)",
+  "trained_against": "Pole A (OP6 + CANDIDATE_A2_SDS2_INIT_3_FROZEN.json genome, unchanged, size-normalized min_alive_for_defender=4)",
+  "seed": 16100001,
+  "recipe": "run_r1_repertoire_training.py::build_r1_config, unchanged",
+  "total_timesteps": 1000000,
+
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4/ckpts/final_pi_A_specialist_4v4.zip",
+    "sha256": "f6f04828adc14fb6dc46aae859f639dc12aa87ab0cd9de34ce3fe9edf9171328",
+    "bytes": 41748714
+  },
+
+  "run_history": {
+    "restarts": "none -- single continuous process from launch to terminal checkpoint",
+    "provenance_verified": "run_manifest.json confirms policy=A, pole_base=OP6, seed=16100001, arm=CONFIRMATORY_REDESIGN_PENDING, confirmatory=true"
+  },
+
+  "certification_status_at_freeze_time": "the joint 4v4 strategic-demand certification PASSED before this checkpoint's final step completed (STRATEGIC_DEMAND_4v4_CONFIRMATORY_REDESIGN_N192_CERTIFICATION.json, CERTIFIED). This checkpoint is therefore a genuine CONFIRMATORY specialist, not pending -- the schedule risk disclosed in 4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json did not materialize.",
+
+  "NEXT": "pi_B2 auto-launched on this checkpoint's appearance (seed 16200001, against certified B2-1) and is now training. Once both terminal checkpoints exist, run the sealed 128-seed confirmatory crossover evaluation on 16400001-16400128 per 4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json#FRESH_CONFIRMATORY_CROSSOVER_EVAL."
+}

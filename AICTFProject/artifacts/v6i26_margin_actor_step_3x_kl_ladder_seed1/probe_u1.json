@@ -1,0 +1,282 @@
+{
+  "protocol": "v6i26_logit_control_authority_probe",
+  "init_checkpoint": "artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "trained_checkpoint": "artifacts\\v6i26_margin_actor_step_3x_kl_ladder_seed1\\final_v6i26_lro_kl_ladder_z0_u1_seed1.zip",
+  "branch": 0,
+  "opponent": "OP9_SPLIT_LANE_FEINT",
+  "map": "map_b_split_lane",
+  "n_obs": 128,
+  "default_residual_alpha": 0.1,
+  "checkpoint_compare_init_vs_trained": {
+    "mean_kl": 0.00022209016606211662,
+    "mean_logit_l2": 0.2214304357767105,
+    "mean_logit_linf": 0.04242103546857834,
+    "argmax_disagree": 0.34375
+  },
+  "birth_graph_vs_trained": {
+    "mean_kl": 0.00022623117547482252,
+    "mean_logit_l2": 0.22350859642028809,
+    "mean_logit_linf": 0.04355254024267197,
+    "argmax_disagree": 0.3828125
+  },
+  "birth_graph_vs_init_ckpt": {
+    "mean_kl": 2.433077952446183e-06,
+    "mean_logit_l2": 0.022976499050855637,
+    "mean_logit_linf": 0.005708895158022642,
+    "argmax_disagree": 0.0859375
+  },
+  "module_reports": {
+    "z_embedding": {
+      "n_tensors": 1,
+      "param_delta_l2": 0.0033006605226546526,
+      "actual_update_replay": {
+        "mean_kl": -6.469119462337858e-09,
+        "mean_logit_l2": 0.00029286497738212347,
+        "mean_logit_linf": 8.260911999968812e-05,
+        "argmax_disagree": 0.0
+      },
+      "logit_authority_ratio": 0.0887292029495291,
+      "directional_sensitivity_J_dtheta": 0.0887292029495291,
+      "restore_kl_after_probe": 0.0,
+      "param_names": [
+        "strategy_embedding.weight[0]"
+      ],
+      "baseline": "init_checkpoint"
+    },
+    "z_branch_trunk": {
+      "n_tensors": 4,
+      "param_delta_l2": 0.17114697396755219,
+      "actual_update_replay": {
+        "mean_kl": 8.578307460993528e-05,
+        "mean_logit_l2": 0.13767093420028687,
+        "mean_logit_linf": 0.032366152852773666,
+        "argmax_disagree": 0.2890625
+      },
+      "logit_authority_ratio": 0.8044018016140206,
+      "directional_sensitivity_J_dtheta": 0.8044018016140206,
+      "restore_kl_after_probe": 0.0,
+      "param_names": [
+        "latent_branch_trunks.0.0.bias",
+        "latent_branch_trunks.0.0.weight",
+        "latent_branch_trunks.0.2.bias",
+        "latent_branch_trunks.0.2.weight"
+      ],
+      "baseline": "identity_trunk"
+    },
+    "z_action_head": {
+      "n_tensors": 2,
+      "param_delta_l2": 0.0781455934047699,
+      "actual_update_replay": {
+        "mean_kl": 3.5681077861227095e-05,
+        "mean_logit_l2": 0.0893077701330185,
+        "mean_logit_linf": 0.01013176329433918,
+        "argmax_disagree": 0.0078125
+      },
+      "logit_authority_ratio": 1.142838210600462,
+      "directional_sensitivity_J_dtheta": 1.142838210600462,
+      "restore_kl_after_probe": 0.0,
+      "param_names": [
+        "latent_action_heads.0.bias",
+        "latent_action_heads.0.weight"
+      ],
+      "baseline": "init_checkpoint"
+    },
+    "z_adapter_residual": {
+      "n_tensors": 2,
+      "param_delta_l2": 0.053298234939575195,
+      "actual_update_replay": {
+        "mean_kl": 7.052163653042953e-08,
+        "mean_logit_l2": 0.003994155675172806,
+        "mean_logit_linf": 0.000853721983730793,
+        "argmax_disagree": 0.0
+      },
+      "logit_authority_ratio": 0.07493973636652367,
+      "directional_sensitivity_J_dtheta": 0.07493973636652367,
+      "restore_kl_after_probe": 0.0,
+      "param_names": [
+        "latent_adapters.0.bias",
+        "latent_adapters.0.weight"
+      ],
+      "baseline": "init_checkpoint"
+    },
+    "combined_z_pathway": {
+      "n_tensors": 9,
+      "param_delta_l2": 0.19557489454746246,
+      "actual_update_replay": {
+        "mean_kl": 0.00022623117547482252,
+        "mean_logit_l2": 0.22350859642028809,
+        "mean_logit_linf": 0.04355254024267197,
+        "argmax_disagree": 0.3828125
+      },
+      "logit_authority_ratio": 1.1428286689733922,
+      "directional_sensitivity_J_dtheta": 1.1428286689733922,
+      "restore_kl_after_probe": 0.0,
+      "param_names": [
+        "latent_action_heads.0.bias",
+        "latent_action_heads.0.weight",
+        "latent_adapters.0.bias",
+        "latent_adapters.0.weight",
+        "latent_branch_trunks.0.0.bias",
+        "latent_branch_trunks.0.0.weight",
+        "latent_branch_trunks.0.2.bias",
+        "latent_branch_trunks.0.2.weight",
+        "strategy_embedding.weight[0]"
+      ],
+      "baseline": "init_checkpoint"
+    }
+  },
+  "scaled_delta_sweep_combined_z_pathway": [
+    {
+      "mean_kl": 5.7435681810602546e-05,
+      "mean_logit_l2": 0.11260125786066055,
+      "mean_logit_linf": 0.021832216531038284,
+      "argmax_disagree": 0.0859375,
+      "scale": 0.5
+    },
+    {
+      "mean_kl": 0.00022623117547482252,
+      "mean_logit_l2": 0.22350859642028809,
+      "mean_logit_linf": 0.04355254024267197,
+      "argmax_disagree": 0.3828125,
+      "scale": 1.0
+    },
+    {
+      "mean_kl": 0.0009227903792634606,
+      "mean_logit_l2": 0.45205819606781006,
+      "mean_logit_linf": 0.08817452937364578,
+      "argmax_disagree": 0.9765625,
+      "scale": 2.0
+    },
+    {
+      "mean_kl": 0.006778192240744829,
+      "mean_logit_l2": 1.2325150966644287,
+      "mean_logit_linf": 0.23224881291389465,
+      "argmax_disagree": 1.0,
+      "scale": 5.0
+    },
+    {
+      "mean_kl": 0.040320996195077896,
+      "mean_logit_l2": 3.0539238452911377,
+      "mean_logit_linf": 0.5316241383552551,
+      "argmax_disagree": 1.0,
+      "scale": 10.0
+    }
+  ],
+  "residual_alpha_forward_sweep": [
+    {
+      "alpha": 0.0,
+      "vs_trained_default_alpha": {
+        "mean_kl": 3.805479764196207e-06,
+        "mean_logit_l2": 0.029216891154646873,
+        "mean_logit_linf": 0.00741693377494812,
+        "argmax_disagree": 0.0546875
+      },
+      "vs_init_ckpt_logits": {
+        "mean_kl": 0.00020545546431094408,
+        "mean_logit_l2": 0.21269485354423523,
+        "mean_logit_linf": 0.04343777522444725,
+        "argmax_disagree": 0.328125
+      },
+      "vs_birth_graph_logits": {
+        "mean_kl": 0.00020912403124384582,
+        "mean_logit_l2": 0.214603453874588,
+        "mean_logit_linf": 0.043313898146152496,
+        "argmax_disagree": 0.3671875
+      }
+    },
+    {
+      "alpha": 0.1,
+      "vs_trained_default_alpha": {
+        "mean_kl": 0.0,
+        "mean_logit_l2": 0.0,
+        "mean_logit_linf": 0.0,
+        "argmax_disagree": 0.0
+      },
+      "vs_init_ckpt_logits": {
+        "mean_kl": 0.00022209016606211662,
+        "mean_logit_l2": 0.2214304357767105,
+        "mean_logit_linf": 0.04242103546857834,
+        "argmax_disagree": 0.34375
+      },
+      "vs_birth_graph_logits": {
+        "mean_kl": 0.00022623117547482252,
+        "mean_logit_l2": 0.22350859642028809,
+        "mean_logit_linf": 0.04355254024267197,
+        "argmax_disagree": 0.3828125
+      }
+    },
+    {
+      "alpha": 0.25,
+      "vs_trained_default_alpha": {
+        "mean_kl": 8.907005394576117e-06,
+        "mean_logit_l2": 0.04454769939184189,
+        "mean_logit_linf": 0.011236174032092094,
+        "argmax_disagree": 0.5703125
+      },
+      "vs_init_ckpt_logits": {
+        "mean_kl": 0.00026040023658424616,
+        "mean_logit_l2": 0.24027688801288605,
+        "mean_logit_linf": 0.05016826465725899,
+        "argmax_disagree": 0.7578125
+      },
+      "vs_birth_graph_logits": {
+        "mean_kl": 0.0002646655775606632,
+        "mean_logit_l2": 0.24225758016109467,
+        "mean_logit_linf": 0.05290909856557846,
+        "argmax_disagree": 0.78125
+      }
+    },
+    {
+      "alpha": 0.5,
+      "vs_trained_default_alpha": {
+        "mean_kl": 6.135915464255959e-05,
+        "mean_logit_l2": 0.11676493287086487,
+        "mean_logit_linf": 0.02982334792613983,
+        "argmax_disagree": 0.9296875
+      },
+      "vs_init_ckpt_logits": {
+        "mean_kl": 0.00035505101550370455,
+        "mean_logit_l2": 0.2810829281806946,
+        "mean_logit_linf": 0.06728322058916092,
+        "argmax_disagree": 0.9765625
+      },
+      "vs_birth_graph_logits": {
+        "mean_kl": 0.00035939630470238626,
+        "mean_logit_l2": 0.28281012177467346,
+        "mean_logit_linf": 0.0699700266122818,
+        "argmax_disagree": 1.0
+      }
+    },
+    {
+      "alpha": 1.0,
+      "vs_trained_default_alpha": {
+        "mean_kl": 0.0002911337069235742,
+        "mean_logit_l2": 0.2541782855987549,
+        "mean_logit_linf": 0.06627276539802551,
+        "argmax_disagree": 0.984375
+      },
+      "vs_init_ckpt_logits": {
+        "mean_kl": 0.000668271619360894,
+        "mean_logit_l2": 0.38593029975891113,
+        "mean_logit_linf": 0.09822191298007965,
+        "argmax_disagree": 1.0
+      },
+      "vs_birth_graph_logits": {
+        "mean_kl": 0.0006725470302626491,
+        "mean_logit_l2": 0.38716527819633484,
+        "mean_logit_linf": 0.10095001012086868,
+        "argmax_disagree": 1.0
+      }
+    }
+  ],
+  "reading": "VALID_DIRECTION_OPTIMIZER_STEP_TOO_SMALL",
+  "do_not_continue_to_10u": true,
+  "notes": [
+    "LRO deep trunks absent from init ckpt; trunk baseline = identity (post-load sync)",
+    "All replays mutate the trained graph so trunks stay in the forward path",
+    "Isolation: all z0 modules at birth baseline; apply one module's measured delta",
+    "logit_authority_ratio = mean_logit_l2 / param_delta_l2 for 1x isolated replay",
+    "scaled sweep: birth + scale*(trained-birth) on combined z0 pathway",
+    "alpha sweep is forward-only on the trained weights"
+  ]
+}

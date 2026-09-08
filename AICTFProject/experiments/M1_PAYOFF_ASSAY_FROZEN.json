@@ -1,0 +1,48 @@
+{
+  "protocol_id": "M1_2V2_PAYOFF_ASSAY",
+  "status": "FROZEN",
+  "frozen_before": "any M1 payoff cell is scored. Implementation commit is separate (b0c2b45c). This protocol does not change M1.",
+  "m1": {
+    "flag": "own_flag_home_required_to_score",
+    "value": true,
+    "default_off_in_engine": true,
+    "do_not_tweak_after_numbers": true
+  },
+  "scope": {
+    "map": "map_a",
+    "team_size": "2v2",
+    "horizon": 240,
+    "tagging_ruleset": "RULESET_V2_AQUATICUS_10S",
+    "not_started": ["searcher", "PPO", "specialists", "latent"]
+  },
+  "cells": {
+    "GUARD_RAID": "BLUE_ONE_DEFENDER_V2",
+    "DOUBLE_BREACH": "BLUE_BOTH_ATTACK_V2",
+    "opponents": ["OP6", "OP7"],
+    "pairing": "same episode_seed for both blue styles on a given opponent"
+  },
+  "seed_block": {
+    "base": 2300001,
+    "n": 32,
+    "why": "fresh; 1900001/1960001 are Gate 2B, 1970001 Phase 7B/C, 1980001 7D, 2020001 7E, 2200001 Gate 2D"
+  },
+  "gate_B": {
+    "metric": "paired win-rate difference. win = 1 iff blue_score > red_score from episode_result / capture ledger, never from post-terminal core.*_score",
+    "floor": 0.15,
+    "lcb": "paired bootstrap LCB95 > 0",
+    "OP6": "GUARD_RAID minus DOUBLE_BREACH  (defence-demanding: holding boat #2 should pay)",
+    "OP7": "DOUBLE_BREACH minus GUARD_RAID  (offence-demanding: sending boat #2 should pay)",
+    "PASS": "both directions clear floor AND LCB95 > 0",
+    "FAIL": "either direction misses",
+    "do_not": "retune floor, switch to score-margin, drop a cell, or edit M1 after seeing numbers"
+  },
+  "m1_binding_telemetry": {
+    "not_a_gate": true,
+    "records": [
+      "blue stole red flag",
+      "red stole blue flag",
+      "blue carrier at home with own flag away -> M1 block",
+      "later own-flag recovery then capture_scored"
+    ]
+  }
+}

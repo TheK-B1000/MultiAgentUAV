@@ -1,0 +1,123 @@
+{
+  "gate": "gate2b_affordance",
+  "created_utc": "2026-08-16T17:36:10.766558+00:00",
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "opponent": "OP6",
+  "treatments": {
+    "both_attack": "BLUE_BOTH_ATTACK_V2",
+    "one_defender": "BLUE_ONE_DEFENDER_V2"
+  },
+  "paired_seeds": 32,
+  "seed_block": [
+    1900001,
+    1900032
+  ],
+  "integrity": {
+    "ok": true,
+    "problems": [],
+    "rows": 64
+  },
+  "manipulation": {
+    "min_separation": 0.25,
+    "home_defense": {
+      "mean": 0.27533000616527326,
+      "ci95": [
+        0.242829405682781,
+        0.30527918624254713
+      ],
+      "passed": true
+    },
+    "forward_commit_agents": {
+      "mean": 0.42525094447970535,
+      "ci95": [
+        0.3916698158777698,
+        0.4549804422834048
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "passed": true
+  },
+  "defense_benefit": {
+    "mean": 0.09375284053385258,
+    "ci95": [
+      -0.00820317491889,
+      0.21792797986417878
+    ],
+    "passed": false
+  },
+  "offense_cost": {
+    "mean": 0.027317073196172714,
+    "ci95": [
+      0.0,
+      0.08195121958851814
+    ],
+    "passed": false
+  },
+  "supporting": {
+    "blue_tag_successes": {
+      "both_attack": 7.375,
+      "one_defender": 4.71875
+    },
+    "red_tag_successes": {
+      "both_attack": 7.03125,
+      "one_defender": 2.625
+    },
+    "cooldown_denials": {
+      "both_attack": 9.96875,
+      "one_defender": 15.78125
+    },
+    "blue_flag_pickups": {
+      "both_attack": 5.6875,
+      "one_defender": 3.78125
+    },
+    "red_flag_pickups": {
+      "both_attack": 3.53125,
+      "one_defender": 2.09375
+    },
+    "blue_flag_drops": {
+      "both_attack": 4.8125,
+      "one_defender": 2.90625
+    },
+    "red_flag_drops": {
+      "both_attack": 2.90625,
+      "one_defender": 1.8125
+    },
+    "time_to_first_tag": {
+      "both_attack": 14.40625,
+      "one_defender": 10.09375
+    },
+    "mean_num_attackers": {
+      "both_attack": 0.9026605915979147,
+      "one_defender": 0.47740964711820927
+    },
+    "blue_raw_carrier_return_fraction": {
+      "both_attack": 0.9619636293500662,
+      "one_defender": 0.9346708860248327
+    },
+    "red_raw_carrier_return_fraction": {
+      "both_attack": 0.9557667635381222,
+      "one_defender": 0.8889988530427217
+    },
+    "mean_num_defenders": {
+      "both_attack": 1.0826109091047347,
+      "one_defender": 1.5075428754550346
+    },
+    "episode_steps": {
+      "both_attack": 152.84375,
+      "one_defender": 147.75
+    }
+  },
+  "verdict": "FAIL",
+  "detail": "neither contrast clears zero",
+  "passed": false
+}

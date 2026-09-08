@@ -1,0 +1,16 @@
+{
+  "record_id": "D0_SCOPE_CORRECTION",
+  "status": "CORRECTION -- D0 does NOT decompose the frozen gate value",
+  "utc": "2026-08-27T02:10:00Z",
+  "classification": "self-caught before reporting; D0's replay itself is verified CORRECT, the earlier framing of what it measures was wrong",
+  "what_was_claimed": "D0's docstring and my report claimed it 'decomposes the frozen metric' margin_B_bits = -0.0309, by replaying z1's pole-B trajectory.",
+  "what_is_actually_true": "The frozen evaluator's action_identity aggregation (eval_exp2_k2_terminal.py main(), the action_seed accumulator) is keyed ONLY by seed, inside a loop over ALL 8 policy x pole cells (z0|A, z0|B, z1|A, z1|B, pi_A|A, pi_A|B, pi_B|A, pi_B|B). So the frozen per-seed margin_B_bits POOLS decision points from all 8 rollout trajectories for that seed, not from z1|B alone.",
+  "how_this_was_caught": "reconstructing the frozen per-seed value from D0's z1|B-only rows gave a mean |difference| of 0.135 against the actual frozen action_identity_by_seed.csv, with eligible_heads differing by up to 3874 -- structurally impossible under a single 240-step, <=4-heads/step episode (max 960). Frozen eligible_heads/seed averages 3965; 3965/8 = 496, matching D0's own z1|B-only average of 520 closely. That ratio confirms 8-way pooling rather than a computational bug.",
+  "why_D0_is_not_invalidated": "D0's replay was independently verified: same checkpoints (SHA-checked), same fixed_latent_strategy forcing, same build_env/seed, same action_identity() call. The numbers it produces are CORRECT for the quantity it actually computes -- margin_B-style identity evaluated specifically on the trajectory z1 produces when actually deployed on pole B. That is a real, well-defined, arguably MORE decision-relevant quantity than the frozen gate's cross-cell pooled average, because it isolates exactly the states the assigned mode visits in its own role, rather than blending in states visited under z0|A, pi_A|A, pi_B|A, etc.",
+  "corrected_label_for_D0s_quantity": "margin_B-style identity ON Z1's OWN POLE-B TRAJECTORY -- a targeted diagnostic, distinct from and not a decomposition of the frozen -0.0309 pooled gate value.",
+  "does_not_change": [
+    "the frozen SPPPO_V1_NOT_CONFIRMED verdict",
+    "the frozen margin_B_bits = -0.0309 gate result",
+    "D0's collected rows or the seed-level bootstrap procedure"
+  ]
+}

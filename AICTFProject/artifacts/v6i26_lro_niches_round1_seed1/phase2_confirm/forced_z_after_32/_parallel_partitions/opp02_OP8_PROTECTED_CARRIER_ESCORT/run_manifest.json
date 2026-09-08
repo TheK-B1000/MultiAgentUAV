@@ -1,0 +1,88 @@
+{
+  "checkpoint": "artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip",
+  "opponents": [
+    "OP8_PROTECTED_CARRIER_ESCORT"
+  ],
+  "maps": [
+    "map_b_split_lane",
+    "map_b_split_lane_v2"
+  ],
+  "latents": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "episodes_per_cell": 32,
+  "base_seed": 2001,
+  "deterministic_actions": true,
+  "max_decision_steps": 240,
+  "env_reward_kwargs": {
+    "stalemate_max_steps": 80,
+    "surface_score_margin_coef": 0.15,
+    "surface_blue_capture_tempo_bonus": 0.45,
+    "surface_red_flag_touch_penalty": 0.5,
+    "surface_red_carrier_progress_penalty": 0.075,
+    "surface_blue_near_cap_bonus": 0.035
+  },
+  "training_run_config": "artifacts\\v6i26_lro_niches_round1_seed1\\v6i26_lro_z3_r1_25u_seed1_run_config.json",
+  "device": "cuda",
+  "collect_behavior_mean": true,
+  "progress_every": 8,
+  "status": "completed",
+  "started_at_utc": "2026-07-24T22:01:54.376187+00:00",
+  "updated_at_utc": "2026-07-25T00:01:57.308901+00:00",
+  "pid": 46628,
+  "completed_conditions": [
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 0,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 1,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 2,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 3,
+      "map": "map_b_split_lane",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 2,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    },
+    {
+      "opponent": "OP8_PROTECTED_CARRIER_ESCORT",
+      "latent_z": 3,
+      "map": "map_b_split_lane_v2",
+      "episodes": 32
+    }
+  ],
+  "completed_condition_count": 8,
+  "episode_count": 256
+}

@@ -144,6 +144,16 @@ from .v6_router_adapters import (
     apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity,
     apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005,
+    apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters,
+    apply_plan_faithful_latent_v6i23_population_birth,
+)
+from rl.presets.families.plan_faithful.v6i24_population import (
+    apply_v6i24_full_policy_population,
+)
+from rl.presets.families.plan_faithful.v6i26_phase_pods import (
+    apply_v6i26_latent_response_oracle,
+    apply_v6i26_lro_actor_step_ablation,
+    apply_v6i26_phase_pod_population,
 )
 
 __all__ = [
@@ -273,4 +283,10 @@ __all__ = [
     "apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity",
     "apply_plan_faithful_latent_v6i22d_strong_behavior_diversity",
     "apply_plan_faithful_latent_v6i22d_strong_behavior_diversity_coef005",
+    "apply_plan_faithful_latent_v6i22e_fixed_alpha_adapters",
+    "apply_plan_faithful_latent_v6i23_population_birth",
+    "apply_v6i24_full_policy_population",
+    "apply_v6i26_latent_response_oracle",
+    "apply_v6i26_lro_actor_step_ablation",
+    "apply_v6i26_phase_pod_population",
 ]

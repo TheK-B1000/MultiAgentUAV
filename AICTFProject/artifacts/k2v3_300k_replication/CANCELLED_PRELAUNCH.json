@@ -1,0 +1,71 @@
+{
+  "status": "CANCELLED_PRELAUNCH",
+  "cancelled_utc": "2026-07-30T13:11:53.028986+00:00",
+  "reason": "Completed pre-launch trajectory analysis showed that the 300k C_SPLIT crossover was\nisolated, non-monotonic, and not significant under the preregistered hierarchical\nbootstrap. No replication training or evaluation data were generated.",
+  "evidence": {
+    "piR_minus_piS_on_C_SPLIT_by_checkpoint": {
+      "200000": {
+        "point": 0.1979,
+        "ci95": [
+          -0.031,
+          0.427
+        ],
+        "leader": "piR",
+        "significant": false
+      },
+      "300000": {
+        "point": -0.25,
+        "ci95": [
+          -0.49,
+          -0.01
+        ],
+        "leader": "piS",
+        "significant": false,
+        "note": "CI shown is evaluation-seed-only; under the preregistered hierarchical bootstrap gate2 CI95=[-0.0833,+0.5938], not significant"
+      },
+      "500000": {
+        "point": 0.1667,
+        "ci95": [
+          -0.021,
+          0.354
+        ],
+        "leader": "piR",
+        "significant": false
+      },
+      "1000000": {
+        "point": 1.1562,
+        "ci95": [
+          1.0,
+          1.312
+        ],
+        "leader": "piR",
+        "significant": true
+      }
+    },
+    "interpretation": "Sign alternates +,-,+,+ across checkpoints. The 300k dip is bracketed on both sides by checkpoints favoring piR. Under the hierarchical standard no checkpoint shows a significant piS advantage on C_SPLIT. Insufficient evidence that reliable specialization ever emerged; the earlier 'emerged then erased' claim was too strong.",
+    "retained_but_not_decisive": "8/9 seed pairings at 300k passed both directions."
+  },
+  "data_generated": {
+    "training_runs": 0,
+    "evaluation_episodes": 0
+  },
+  "preregistration": {
+    "path": "docs/k2v2-300k-replication-preregistration.md",
+    "revision": 4,
+    "sha256": "83ee4e8d45225711f11b38ba543607bfbb30a8ffaf63ac7893ae282b5628e800",
+    "note": "Preserved in full. Revisions 1-4 remain valid evidence that the confirmatory design existed before cancellation."
+  },
+  "script_sha256": {
+    "experiments/launch_k2v3_300k_replication.py": "4983348139b1514744f447c7fcf9ac1018255620134f8b4f99b010d9291f183f",
+    "experiments/analyze_k2_assigned_gain.py": "a67e84deec823ba0d7562e6942d3d1a6dc8b5b97057bf98cbb03f3c69f63bf10",
+    "experiments/analyze_k2_behavior_gate.py": "c5cb7e2838d71ef8658df80628b9350283f81c2c0666ffb32e6d9ce9410f0305",
+    "experiments/analyze_k2_specialist_behavior.py": "c76a2fd638b7e7f53b04a9417d0e69564465a9f6444320350e77d400da5bbdbf",
+    "experiments/analyze_k2_specialist_trajectory.py": "8a47b25102070e4cc495738b9ad418683a0296791ba6b92fcb544059e258ea62"
+  },
+  "git": {
+    "commit": "d55f9da188d69fd7c91756e0a87567f3b47a2b3b",
+    "branch": "lro"
+  },
+  "enforcement": "launch_k2v3_300k_replication.py aborts (rc=3) while this marker exists, including under --force-launch.",
+  "successor": "Learned-incumbent (G0) weakness sweep; see docs/k2v2-g0-weakness-sweep.md"
+}

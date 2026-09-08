@@ -1,0 +1,31 @@
+{
+  "oracle_wr": 1.0,
+  "oracle_margin": 2.171875,
+  "best_fixed_z": 3,
+  "best_fixed_wr": 1.0,
+  "best_fixed_margin": 1.9375,
+  "wr_advantage": 0.0,
+  "margin_advantage": 0.234375,
+  "best_z_per_cell": {
+    "OP7_DEEP_FORTRESS|map_b_split_lane": 3,
+    "OP7_DEEP_FORTRESS|map_b_split_lane_v2": 0
+  },
+  "unique_best_z_count": 2,
+  "unique_best_z_values": [
+    0,
+    3
+  ],
+  "gate_oracle_beats_fixed_wr": false,
+  "gate_best_z_varies": true,
+  "passed": false,
+  "wr_matrix": {
+    "OP7_DEEP_FORTRESS|map_b_split_lane|z0": 0.84375,
+    "OP7_DEEP_FORTRESS|map_b_split_lane|z1": 0.96875,
+    "OP7_DEEP_FORTRESS|map_b_split_lane|z2": 0.96875,
+    "OP7_DEEP_FORTRESS|map_b_split_lane|z3": 1.0,
+    "OP7_DEEP_FORTRESS|map_b_split_lane_v2|z0": 1.0,
+    "OP7_DEEP_FORTRESS|map_b_split_lane_v2|z1": 1.0,
+    "OP7_DEEP_FORTRESS|map_b_split_lane_v2|z2": 1.0,
+    "OP7_DEEP_FORTRESS|map_b_split_lane_v2|z3": 1.0
+  }
+}

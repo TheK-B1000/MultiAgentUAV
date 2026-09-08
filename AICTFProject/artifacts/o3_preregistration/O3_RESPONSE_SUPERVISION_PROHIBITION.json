@@ -1,0 +1,67 @@
+{
+  "constraint": "O3 response-supervision prohibition",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-08T12:00:00Z",
+  "binding_on": "the O3 preregistration, which must incorporate this document verbatim before any O3 implementation or training",
+  "scope_note": "This freezes ONE constraint, not the whole O3 protocol. Other O3 cells depend on the Stage-4 verdict and on the Environment-Demand Gate's own must-freeze checklist and remain unfrozen.",
+
+  "frozen_before": {
+    "o3_implementation": "does not exist",
+    "o3_training": "not started",
+    "stage4_verdict": "PENDING_LEG2 at freeze time",
+    "why_now": "artifacts/c3_discovery/C3_STAGE3_ANCHOR_RESULTS.jsonl now contains 165 recorded best_team_response labels. Freezing the prohibition while those labels exist and are unused is the only ordering that makes it meaningful; freezing it after an O3 design would be a claim about intent rather than a constraint."
+  },
+
+  "prohibition": "O3 must not use best_team_response, counterfactual witness actions, winning-response labels, or any derivative of those labels as imitation targets, auxiliary objectives, reward-shaping terms, curriculum labels, policy-conditioning signals, or sampling priorities. O3 receives the natural G0 prefix to the frozen onset state, then learns exclusively from post-onset task reward. Counterfactual response labels are evaluation-only and must not influence O3 optimization.",
+
+  "why": {
+    "the_failure_mode": "Supervising O3 toward the counterfactual winners would produce response diversity by construction. A later behavioral-nonredundancy result would then measure our labels rather than the environment's demands -- the check would cash itself.",
+    "why_it_is_tempting_here": "Unlike O1, we now hold 165 labelled winning responses in an artifact. That is a ready-made supervision target sitting one import away from the training code.",
+    "precedent": "The O1 protocol prohibited role bonuses and DEFEND/RECOVER/ROTATE_HOME semantics; the frozen C3 contract carries 'no z-role reward labels'. This extends the same principle to response supervision specifically."
+  },
+
+  "off_limits_artifacts_and_fields": {
+    "artifacts": [
+      "artifacts/c3_discovery/C3_STAGE3_ANCHOR_RESULTS.jsonl",
+      "artifacts/c3_stage4/C3_STAGE3_ANCHOR_RESULTS.jsonl",
+      "artifacts/c3_discovery/C3_QUALIFIED_COMMITMENT_FORKS.json",
+      "any derived table of winning responses"
+    ],
+    "fields": [
+      "best_team_response",
+      "witness_team_response",
+      "branches[].branch_action",
+      "branches[].team_response",
+      "best_expected_utility",
+      "max_expected_utility_improvement"
+    ],
+    "permitted_use": "evaluation and reporting only, after O3 training has completed"
+  },
+
+  "indirect_leakage_also_prohibited": [
+    "a bonus, penalty or advantage term keyed to whether O3's action matches the witness",
+    "oversampling, reweighting or prioritising onset states according to which witness won, or according to fork utility improvement",
+    "initialising, warm-starting or biasing O3 toward an observed winning macro",
+    "curriculum ordering derived from fork outcomes",
+    "conditioning O3's observation, latent or context vector on any counterfactual label",
+    "early stopping, checkpoint selection or hyperparameter choice informed by agreement with witness responses",
+    "filtering the training onset set by which response won, or by the size of the utility improvement",
+    "any statistic of the counterfactual labels entering the O3 loss, sampler, or model input"
+  ],
+
+  "what_o3_may_use": {
+    "onset_states": "the frozen commitment-fork onset states, reached by natural G0 play",
+    "prefix": "the natural G0 prefix up to the onset",
+    "learning_signal": "post-onset task reward only",
+    "note": "Which states are onsets is a legal, preregistered context definition. WHICH RESPONSE WON at those states is the answer we are trying to make PPO rediscover independently, and is therefore withheld."
+  },
+
+  "verification_required_before_o3_training": {
+    "1_static_check": "the O3 training entry point and its transitive imports must not read any artifact listed in off_limits_artifacts_and_fields; a launcher preflight must assert this and fail closed",
+    "2_config_check": "no O3 config field may carry a counterfactual label, witness action, or fork-utility statistic",
+    "3_declaration": "the O3 training report must record response_supervision_used = false alongside the sha256 of this document",
+    "enforcement_principle": "consistent with the rest of this pipeline, the constraint is enforced in code rather than left to operator discipline"
+  },
+
+  "immutability": "This prohibition may not be relaxed after any O3 training or demand-gate outcome is observed. A future protocol that deliberately uses response supervision is a different experiment, requires its own preregistration, and may not be compared against a repertoire trained under this one."
+}

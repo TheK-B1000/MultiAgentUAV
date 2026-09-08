@@ -1,0 +1,45 @@
+{
+  "record_id": "DLD_TEACHER_MATCHING_CLARIFICATION_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T19:35:00Z",
+  "authority": "PI, 2026-09-04, on discovering that pass 1 measured a different quantity than intended in two of four cells. Rerun pass 1 correctly BEFORE any branching; reuse the same non-sealed seeds; freeze this rationale before rerunning.",
+
+  "amends": "DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json#PASS_1_RECORD.mismatch_definition and #PASS_1_RECORD.procedure",
+  "rule": "APPEND, not an edit. DLD_PASS1_RECORD.json (v1) is retained in full, nothing deleted or overwritten. The rerun writes a separate v2 record.",
+
+  "THE_AMBIGUITY": {
+    "spec_text": "PASS_1_RECORD said 'the pole-matched teacher's action' and then glossed it '(z0 -> pi_A, z1 -> pi_B)'. Those are two different rules. They coincide only on the diagonal cells (z0@A, z1@B) because the program's convention binds z0<->Pole A and z1<->Pole B.",
+    "what_the_implementation_did": "pole-matching: POLE_TEACHER = {A: pi_A, B: pi_B}, so on Pole A BOTH latents were compared against pi_A, and on Pole B both against pi_B.",
+    "consequence": "in the two off-diagonal cells the recorded quantity is not student imitation error at all -- it is the INTENDED strategic difference between the latents. z1 differing from pi_A on 13.6% of Pole-A decisions is the design working, not the student failing. Reading those cells as imitation failure would have been a category error, and branching on them would have spent hundreds of counterfactual rollouts under a mislabelled definition."
+  },
+
+  "V1_RESULTS_RETAINED_WITH_CORRECT_LABELS": {
+    "valid_true_imitation_error": {"z0@A_vs_piA": 0.010, "z1@B_vs_piB": 0.002},
+    "not_imitation_error_strategic_difference_between_latents": {"z1@A_vs_piA": 0.136, "z0@B_vs_piB": 0.068},
+    "decision_steps_total": 6119,
+    "finding_that_stands": "macro-level imitation error is far smaller than the head-averaged 2-3% argmax disagreement implied (1.0% and 0.2% against a binomial prediction of 5.7% and 2.8%). Target-head disagreements evidently carry most of the head-averaged rate while macro commitments almost never differ.",
+    "underpowered": "only 14 + 3 = 17 raw mismatch states across the two valid cells, before the eligibility filter. DECISION_LEVERAGE_DIAGNOSTIC_SPEC.json#PREREGISTERED_READINGS row 3 applies: insufficient diagnostic support, NOT evidence that mismatches lack leverage."
+  },
+
+  "CORRECTED_DEFINITION_FOR_V2": {
+    "latent_matched_teacher": "z0 -> pi_A and z1 -> pi_B, REGARDLESS of deployment pole",
+    "true_imitation_mismatch": "a decision-bearing step where the student's argmax MACRO differs from the LATENT-MATCHED teacher's argmax macro on at least one agent free to commit",
+    "record_both_teachers": "both pi_A and pi_B argmax actions are stored at every recorded state, so pole-matched and latent-matched rates are both derivable afterwards and this ambiguity can never recur on this data",
+    "four_quantities_wanted": ["z0@A vs pi_A", "z0@B vs pi_A", "z1@A vs pi_B", "z1@B vs pi_B"]
+  },
+
+  "SEED_REUSE_RATIONALE_FROZEN_BEFORE_THE_RERUN": {
+    "seeds": "11940001..11940032 -- the SAME non-sealed diagnostic block v1 used",
+    "why_this_is_not_result_shopping": "no model is being tuned, no threshold moved, no arm selected, and no sealed block touched. The rerun regenerates the identical deterministic trajectories (same frozen student, same seeds, same device, same forced z, deterministic actions) in order to RECORD A LABEL that should have been recorded the first time. The measured object is unchanged; only the annotation attached to it is corrected.",
+    "what_would_have_been_illegitimate": "drawing a fresh seed block after seeing v1's rates, or re-running with a changed mismatch threshold to obtain more branch points. Neither is done: the block, the eligibility rules, the per-cell sample sizes and the branching horizon all stay exactly as frozen.",
+    "v1_not_discarded": "DLD_PASS1_RECORD.json remains committed and its numbers stand under their corrected labels."
+  },
+
+  "ANTICIPATED_OUTCOME_STATED_BEFORE_THE_RERUN": {
+    "expectation": "the corrected off-diagonal rates (z0@B vs pi_A, z1@A vs pi_B) may also be very low.",
+    "if_all_four_are_near_0_to_1_percent": "the puzzle sharpens rather than resolves: macro imitation would be essentially perfect across deployment conditions while payoff crossover is still attenuated. Branching would then be underpowered by construction -- there would not be enough macro mistakes to test leverage on -- and the lost margin would have to be sought in non-macro heads (target selection), accumulated action-detail differences, or representational effects that never surface as macro argmax disagreement. That would be a NEW hypothesis requiring its own preregistration, not a rescue of this one.",
+    "recorded_now": "so that this reading cannot be presented later as though it had been predicted after the fact"
+  },
+
+  "SEQUENCE": "freeze this amendment -> rerun pass 1 as v2 on the same seeds recording both teachers -> report all four latent-matched rates -> decide whether pass-2 branching is adequately powered -> only then branch, or declare underpowered and preregister the successor"
+}

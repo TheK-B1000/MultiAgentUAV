@@ -60,6 +60,11 @@ def build_train_parser() -> argparse.ArgumentParser:
             "Takes precedence over --total-steps when both are given."
         ),
     )
+    parser.add_argument("--sappo-anchor-dataset", type=str, default=None,
+                        help="SAPPO V1 teacher demonstration .npz. Omitted = anchoring OFF "
+                             "(structurally absent: no runner is constructed).")
+    parser.add_argument("--sappo-anchor-lambda", type=float, default=None)
+    parser.add_argument("--sappo-anchor-cadence", type=int, default=None)
     parser.add_argument("--checkpoint-dir", type=str, default=None)
     parser.add_argument("--metrics-csv", type=str, default=None, help="Path for per-update training metrics CSV.")
     parser.add_argument("--episode-csv", type=str, default=None, help="Path for per-episode training outcome CSV.")
@@ -519,6 +524,18 @@ def build_train_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Save checkpoint every N env steps during training (0 disables).",
+    )
+    parser.add_argument(
+        "--max-decision-steps",
+        type=int,
+        default=None,
+        help=(
+            "Episode length cap in decision steps. Config passthrough only (no PPO "
+            "logic change). Needed so training episode length can be matched to the "
+            "episode length a context was confirmed at -- e.g. the K=2 LRO frozen "
+            "contexts were confirmed at 240 while the plan_faithful presets default "
+            "to 400, and the cap binds in >50% of those episodes."
+        ),
     )
     # --- v5i9 CSIA extension: detached causal strategic-impact reward.
     parser.add_argument(

@@ -1,0 +1,16 @@
+{
+  "verdict": "TRAINING_COMPLETE",
+  "total_timesteps": 300000,
+  "global_step": 301056,
+  "checkpoint_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000001\\ckpts\\final_g0_v2_rewardv4_seed3000001.zip",
+  "n_episode_rows": 1525,
+  "artifact_identity": {
+    "run_id": "g0_v2_rewardv4_seed3000001",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset_fingerprint": "bc58bdf71f98e358bdf4ebcb7519102bc6377caaf18f167c7f45755ecb0c8208",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

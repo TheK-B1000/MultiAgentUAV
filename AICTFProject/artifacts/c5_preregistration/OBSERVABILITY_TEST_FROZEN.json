@@ -1,0 +1,98 @@
+{
+  "preregistration": "Observability test — is opponent-conditional demand reachable from legal context?",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-10T13:40:00Z",
+  "frozen_before": "any C5 discovery number exists",
+  "ordering_evidence": "the C5 discovery scan was still running when this file was written; see artifacts/c5_discovery/C5_RESULT.json mtime vs this commit",
+  "mandated_by": "artifacts/c5_preregistration/C5_OPPONENT_DEMAND_FROZEN.json -> outcomes.C5_PASS.mandatory_next_step",
+  "applies_if": "C5_PASS (discovery AND confirmation). On C5_NO_REVERSAL this test is not run and this file stands only as ordering evidence.",
+
+  "why_this_gate_exists": {
+    "what_c5_can_establish": "that a response tradeoff EXISTS across opponents",
+    "what_c5_cannot_establish": "that anything a deployed agent can legally observe predicts which side of the tradeoff it is on",
+    "the_failure_this_prevents": "training O4 and a router on demand that is real but invisible. The router sees legal_context only -- never opponent identity -- so unroutable demand yields a router that cannot beat picking one policy, and K=2 collapses to K=1 at deployment.",
+    "why_it_runs_BEFORE_oracle_training": "this is a property of the world and the observation space, not of any trained policy. It is answerable with frozen G0 policies for a fraction of one PPO run, and a negative answer makes the PPO run pointless. O3 cost a full training run to learn something a cheaper test could have shown."
+  },
+
+  "two_selectors": {
+    "oracle_selector": {
+      "sees": "opponent identity",
+      "behaviour": "in every state, plays whichever member of the C5-confirmed response pair is better AGAINST THAT OPPONENT, using the direction confirmed by C5",
+      "role": "upper bound on what the tradeoff is worth to anyone",
+      "note": "not deployable -- opponent identity remains prohibited as a policy or router input"
+    },
+    "legal_selector": {
+      "sees": "the legal_context feature vector ONLY, exactly the fields run_g0_v2_evaluation.legal_context exposes",
+      "behaviour": "predicts the reversal direction from legal_context, then plays the response that prediction favours",
+      "model_class": "L2 logistic regression, C=1.0, no hyperparameter search",
+      "why_frozen_and_simple": "an open model search would rediscover the multiplicity problem, and a tuned selector's gain would not be an honest estimate of what a router could learn",
+      "fit_on": "states from the C5 discovery block 9840000-9840029",
+      "evaluated_on": "the fresh block below, out of sample, never on its fitting data"
+    }
+  },
+
+  "baseline": {
+    "definition": "the single fixed response from the confirmed pair with the higher pooled mean utility across all opponents",
+    "why_this_baseline": "it is what K=1 already does. A selector must beat the best single response, not the worse one -- beating the worse one measures nothing."
+  },
+
+  "gain_definitions": {
+    "oracle_gain": "mean_utility(oracle_selector) - mean_utility(baseline)",
+    "legal_gain": "mean_utility(legal_selector) - mean_utility(baseline)",
+    "recovery_ratio": "legal_gain / oracle_gain"
+  },
+
+  "seeds": {
+    "evaluation_block": [9860000, 9860029],
+    "status": "UNSPENT",
+    "disjoint_from": ["9840000+ C5 discovery", "9850000+ C5 confirmation", "9830000+ O3 demand gate", "9810000+ C3 Stage 4", "9820000+ O3 training"],
+    "rule": "run ONCE, evaluation only, no refitting after seeing the result"
+  },
+
+  "statistics": {
+    "method": "episode-clustered bootstrap",
+    "resamples": 2000,
+    "seed": 12345,
+    "LCB95": "q_0.025, per C3_STAGE3_LCB_DEFINITION_AMENDMENT.json",
+    "inherited_from": "the C4/C5 contract, not newly chosen"
+  },
+
+  "outcomes": {
+    "ROUTABLE": {
+      "condition": "oracle_gain LCB95 > 0 AND legal_gain LCB95 > 0 AND recovery_ratio >= 0.50",
+      "establishes": "the tradeoff exists AND a legal observer recovers at least half of it",
+      "authorizes": "freezing an O4 precursor derived from the legal_selector's decision boundary, then O4 training",
+      "does_not_authorize": "skipping the O4 precursor firing-rate requirement inherited from C4 -- O3 fired in 99.98% of episodes and must not recur"
+    },
+    "UNROUTABLE": {
+      "condition": "oracle_gain LCB95 > 0 but legal_gain LCB95 <= 0 or recovery_ratio < 0.50",
+      "meaning": "the demand is REAL but INVISIBLE from legal context on this map",
+      "action": "STOP. Do not train O4 and do not add features to legal_context to make it visible -- that would be choosing the observation space to fit a hoped-for result. The legitimate route is a preregistered change to the OBSERVATION SPACE justified independently of this tradeoff, or new strategic demand designed to be observable from the start.",
+      "recorded_as": "a genuine finding about map_a, not a failed experiment"
+    },
+    "NO_DEMAND_IN_BLOCK": {
+      "condition": "oracle_gain LCB95 <= 0",
+      "meaning": "the C5-confirmed tradeoff did not reproduce on this third block",
+      "action": "treat the C5 pass as unreplicated and STOP. Do not reselect a different response pair."
+    }
+  },
+
+  "the_0_50_bar": {
+    "value": 0.50,
+    "chosen_before_any_number_exists": true,
+    "rationale": "a router that recovers under half the available gain is unlikely to repay a second policy's cost, given that every prior gate in this project was cleared or failed by margins far larger than measurement noise",
+    "explicitly_not": "a bar chosen to be clearable by whatever number appears"
+  },
+
+  "prohibited": [
+    "using opponent identity in the legal_selector",
+    "searching model classes or hyperparameters after seeing the recovery ratio",
+    "adding fields to legal_context to raise the recovery ratio",
+    "refitting the legal_selector on the evaluation block",
+    "training O4 on an UNROUTABLE or NO_DEMAND_IN_BLOCK result",
+    "lowering the 0.50 bar",
+    "claiming a task-outcome result from a carrier_survival screen proxy"
+  ],
+
+  "immutability": "After any number from the evaluation block exists, none of the above may change."
+}

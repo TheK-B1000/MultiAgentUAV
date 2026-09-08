@@ -424,6 +424,99 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **PSRO weighted snapshot sampling snapshot resync:**
+  `PPOConfig.snapshot_opponent_weights` (default empty tuple = uniform over
+  `snapshot_opponent_pool`) was added for Nash-weighted / meta-strategy sampling
+  in the Double-Oracle / PSRO path. Empty weights preserve the prior fictitious-
+  play uniform sampler exactly. Regenerated `tests/preset_snapshots.json`; the
+  only change to every existing preset entry is the additive default
+  `snapshot_opponent_weights = []`. No pre-existing snapshot value changed and
+  no paper-faithful objective, actor path, or alias changed. Snapshot resolution
+  also canonicalizes host-dependent fields: `device` is forced to `"cpu"`, and
+  path-valued fields (`checkpoint_dir`, `metrics_csv_path`, teacher zips, etc.)
+  are stored as repo-relative posix paths so Windows absolute paths cannot poison
+  the golden file for Linux CI runners.
+- **RASR-PPO DEV qualification tooling and frozen scorer identity:** Added the
+  rebuild-per-branch DEV collector, one-shot four-regime scorer qualification,
+  and live assigned-pole persistence smoke. The scorer remains default-off, but
+  `PPOConfig.rasr_regime_qpsi_sha256` now defaults to the prospectively frozen
+  hash `44c0680e...b760a`; this is the only changed value in every pre-existing
+  resolved preset snapshot. No paper-faithful objective, actor path, alias, or
+  other scalar field changed.
+- **RASR-PPO ladder preset registration and launch gates:** Registered the
+  eight exclusive aliases for S0/R1/R2/R3 as a
+  `SUMMER-COMPATIBLE EXTENSION`; no paper-/Summer-/plan-faithful alias was
+  added. Added implementation-gate and scorer-qualification launch boundaries.
+  Regenerated `tests/preset_snapshots.json`; relative to HEAD this adds exactly
+  eight aliases and the five already-documented default-off RASR fields to all
+  541 pre-existing entries (`rasr_regime_qpsi`, its path/SHA fields,
+  `rasr_private_critic_heads`, `rasr_directed_identity`). No pre-existing field
+  value changed and no alias was removed.
+- **RASR-PPO core, supervised-compression extension:** Added default-off
+  configuration selectors for a four-regime frozen payoff scorer, two
+  z-specific final centralized-value heads, and directed teacher identity.
+  This is a `SUMMER-COMPATIBLE EXTENSION`, not a paper-faithful or label-free
+  row. Regenerated `tests/preset_snapshots.json`; the only changes to every
+  existing preset are the additive defaults `rasr_regime_qpsi = false`,
+  `rasr_regime_qpsi_path =
+  "artifacts/strategic_demand/rasrppo/qpsi_regime_frozen.pt"`,
+  `rasr_regime_qpsi_sha256 = ""`, `rasr_private_critic_heads = false`, and
+  `rasr_directed_identity = false`. No pre-existing snapshot value changed.
+- **EXP2C mode-specific final actor heads, diagnostic supervised compression:**
+  Added the default-off `exp2c_mode_specific_action_heads` configuration field.
+  EXP2C keeps the shared observation body, critic, teachers, assigned-pole
+  schedule, and optimization contract from EXP2B, while selecting one of two
+  private final linear actor heads by persistent forced latent. The heads are
+  initialized as exact copies of the prior shared action head. This is a
+  `DIAGNOSTIC` supervised-compression ablation, not a paper-faithful preset.
+  Regenerated `tests/preset_snapshots.json`; the only change to every existing
+  preset is the additive default value
+  `exp2c_mode_specific_action_heads = false`, with no existing value changed.
+- **EXP2 K=2 supervised compression implementation, not a paper-faithful
+  preset:** Added a default-off online frozen-teacher path for the prospectively
+  frozen `EXP2_K2_LATENT_COMPRESSION_V1` protocol. One shared concat-conditioned
+  actor receives persistent externally assigned `z in {0,1}` while `q_phi` and
+  the router are structurally absent. The only extra update is
+  `0.1 * KL(pi_SAPPO teacher || pi_student(.|o,z))` at one update per four PPO
+  actor minibatches, using the policy's own legal-mask function and the fixed
+  mapping `z0 -> pi_A`, `z1 -> pi_B`. This is
+  `DIAGNOSTIC_SUPERVISED_COMPRESSION`, not Summer-/paper-faithful or label-free
+  discovery. Added late-attachment, fail-fast cadence, checkpoint-resume,
+  immutable full teacher-hash, static 8/8/8/8 cell, and unconditional telemetry
+  guards plus `tests/test_exp2_k2_compression.py`. The no-environment smoke
+  loads both frozen SAPPO checkpoints and verifies both mapped KLs decrease.
+  Regenerated `tests/preset_snapshots.json`; the additive resync introduces 23
+  previously unsnapshotted default-valued config keys across all entries,
+  including seven `exp2_*` keys, `latent_strategy_encoder_enabled`,
+  `forced_latent_env_ids`, the four existing `sappo_anchor_*` keys, and existing
+  G0/R1 ruleset/reward/provenance fields. No existing snapshot value changed.
+- **Preset registry de-duplication + snapshot resync (no semantic change):**
+  `rl/presets/_registry_source.py::_get_preset_dict` was a hand-maintained
+  copy of `PRESET_REGISTRY`, kept only to break the `rl.presets` ↔
+  `rl.presets.registry` import cycle. It had silently fallen dozens of
+  presets behind the real mapping, so `PresetRegistry` could not resolve
+  the v6i13–v6i22 families (caught by
+  `tests/test_preset_system.py::test_registry_covers_all_legacy_presets`
+  on `v6i13_opening_window_advantage_router`). The mirror is deleted; the
+  module now defers `from rl.presets import PRESET_REGISTRY` into the
+  function body, which runs on first `get_registry()` call, after
+  `rl.presets` has finished importing. Also regenerated
+  `tests/preset_snapshots.json`, which had gone stale by the same drift.
+  The regeneration is **purely additive** and was audited before writing:
+  0 existing field values changed, 0 fields dropped. It adds 17 already-
+  registered preset keys (v6i23 / v6i24 / v6i26 aliases) and 14 new
+  default-valued `PPOConfig` fields (`population_*`, `latent_lro_*`,
+  `latent_population_birth_*`, `training_cell_distribution`,
+  `phase_pod_id`, `freeze_return_norm_after_load`,
+  `obstacle_obs_channel`) to every entry. No paper-faithful preset's
+  resolved configuration changes. One of those new fields,
+  `training_cell_distribution`, is tuple-typed, which exposed a second
+  hand-maintained allowlist:
+  `tests/test_preset_resolution.py::_resolve_preset_to_dict` normalised
+  tuples to lists only for enumerated field names, so an unlisted tuple
+  field made all 541 entries mismatch on JSON round-trip (tuple vs list)
+  and read as a mass preset regression. Normalisation is now a recursive
+  walk over the resolved dict, so it cannot go stale.
 - **v6i22C / context-conditioned outcome diversity:** Added
   `apply_plan_faithful_latent_v6i22c_contextual_outcome_diversity`
   (aliases `v6i22c`, `v6i22c_contextual_outcome_diversity`,

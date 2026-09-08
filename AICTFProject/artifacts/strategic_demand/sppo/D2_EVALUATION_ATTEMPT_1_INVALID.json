@@ -1,0 +1,67 @@
+{
+  "record_id": "D2_EVALUATION_ATTEMPT_1_INVALID",
+  "status": "INVALID_WRONG_EVALUATION_SET -- superseded, not a result",
+  "utc": "2026-08-27T09:25:00Z",
+  "classification": "implementation deviation from the frozen spec, caught on inspection of the output",
+  "the_deviation": "D2_SPEC_FROZEN.json specified the evaluation set as INNER_VAL's own_flag_stolen subset, sized at ~1,147 decision points across 17 seeds -- a PLAIN-row count. d2_evaluate_recovery.py instead restricted to BRANCH rows, yielding only 16 states.",
+  "why_the_metric_does_not_require_branch_rows": "d_B(o) = V_hat(o, pi_B, B) - V_hat(o, pi_A, B) queries BOTH frozen teachers at the same observation o. It needs an observation and a pole, not a stored counterfactual pair. Restricting to branch rows was an unnecessary constraint that shrank the evaluation set roughly 70-fold.",
+  "corrected_availability": {
+    "branch_states": 16,
+    "plain_states": 1958,
+    "seeds": 27
+  },
+  "why_attempt_1_is_unusable": {
+    "1_wrong_set": "16 states is not the frozen evaluation set",
+    "2_verdict_logic_misfired_on_tiny_n": "the recorded verdict was REPRESENTATION_CAPACITY_LIMITED, reached via the 'rung3 ucb95 < 0.5' branch. With n=16 the bootstrap CIs were [0.000, 0.357], [0.000, 0.429], [0.000, 0.471] -- all three rungs overlapping almost entirely and all including zero. That branch fired because the sample was too small to exclude 0.5, NOT because there was evidence of a capacity limit. On this data the honest reading is INCONCLUSIVE."
+  },
+  "superseded_numbers_preserved": {
+    "record": "D2 recovery evaluation result",
+    "status": "DIAGNOSTIC_ONLY",
+    "utc": "2026-08-27T09:18:34Z",
+    "metric": "d_B(o) = V_hat(o,pi_B,B) - V_hat(o,pi_A,B), teacher-vs-teacher, Gate 0B convention",
+    "eval_set": "INNER_VAL own_flag_stolen pole-B subset -- reused development-side diagnostic resource, NOT held-out confirmation, NOT a gate",
+    "bootstrap": {
+      "unit": "seed",
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    },
+    "rungs": {
+      "1": {
+        "n_states": 16,
+        "n_seeds": 10,
+        "d_B_mean": -0.03843509405851364,
+        "qpsi_correct_rate": {
+          "mean": 0.13108423197287747,
+          "lcb95": 0.0,
+          "ucb95": 0.35714285714285715
+        }
+      },
+      "2": {
+        "n_states": 16,
+        "n_seeds": 10,
+        "d_B_mean": -0.016398297622799873,
+        "qpsi_correct_rate": {
+          "mean": 0.19290730574980572,
+          "lcb95": 0.0,
+          "ucb95": 0.42857142857142855
+        }
+      },
+      "3": {
+        "n_states": 16,
+        "n_seeds": 10,
+        "d_B_mean": -0.04101106524467468,
+        "qpsi_correct_rate": {
+          "mean": 0.18910170923804434,
+          "lcb95": 0.0,
+          "ucb95": 0.47058823529411764
+        }
+      }
+    },
+    "monotonic_50_100_200": false,
+    "rung3_LCB95_clears_rung1_point_estimate": false,
+    "VERDICT": "REPRESENTATION_CAPACITY_LIMITED"
+  },
+  "correction": "re-run on the frozen spec's plain-state evaluation set; verdict thresholds NOT changed",
+  "verdict_thresholds_unchanged": "the monotonicity and margin rules from D2_SPEC_AMENDMENT_1 are left exactly as frozen. Only the evaluation SET is corrected to match the spec. Changing the thresholds after seeing a result would be the prohibited move."
+}

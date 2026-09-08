@@ -4,6 +4,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import os
+import time
+import warnings
+
 import torch
 
 from rl.custom_ppo.policy import SharedActorCentralizedCritic
@@ -39,6 +43,9 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
         kwargs.update(
             {
                 "latent_k": int(cfg.get("latent_k", 4)),
+                "strategy_encoder_enabled": bool(
+                    cfg.get("latent_strategy_encoder_enabled", True)
+                ),
                 "z_embed_dim": int(cfg.get("latent_z_embed_dim", 16)),
                 "router_context_mode": router_context_mode,
                 "router_context_dimension": int(cfg.get("router_context_dimension", 0) or 0),
@@ -122,6 +129,27 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
                 "latent_z_gate_init": float(
                     cfg.get("latent_z_gate_init", 0.01) or 0.01
                 ),
+                # V6I22E: fixed-alpha gate-free adapters.
+                "latent_z_residual_alpha": float(
+                    cfg.get("latent_z_residual_alpha", 0.0) or 0.0
+                ),
+                # V6I23: population-birth specialist heads / active-z residual.
+                "latent_population_birth_active_z_only": bool(
+                    cfg.get("latent_population_birth_active_z_only", False)
+                ),
+                "latent_population_birth_per_z_action_heads": bool(
+                    cfg.get("latent_population_birth_per_z_action_heads", False)
+                ),
+                "exp2c_mode_specific_action_heads": bool(
+                    cfg.get("exp2c_mode_specific_action_heads", False)
+                ),
+                "rasr_private_critic_heads": bool(
+                    cfg.get("rasr_private_critic_heads", False)
+                ),
+                # V6I26 LRO: deep per-z trunks (last two MLP layers).
+                "latent_lro_deep_branches": bool(
+                    cfg.get("latent_lro_deep_branches", False)
+                ),
             }
         )
     return kwargs
@@ -151,6 +179,92 @@ def _architecture_from_metadata(metadata, observation_space, action_space) -> Po
         latent_count=metadata.latent_count,
         model_kwargs=_model_kwargs_from_cfg(metadata.cfg),
     )
+
+
+def _resolve_live_env_cfg(trainer) -> Any:
+    from rl.ruleset_identity import RunIdentityError
+
+    for attr in ("env", "vec_env", "_env"):
+        env = getattr(trainer, attr, None)
+        if env is None:
+            continue
+        core = getattr(env, "core", None) or getattr(getattr(env, "vec", None), "core", None)
+        cfg = getattr(core, "cfg", None) if core is not None else None
+        if cfg is not None:
+            return cfg
+        cfg = getattr(env, "cfg", None)
+        if cfg is not None:
+            return cfg
+    raise RunIdentityError(
+        "Cannot resolve live environment config for checkpoint identity check."
+    )
+
+
+def _env_ruleset_fingerprint(trainer) -> dict:
+    """Tagging-ruleset fingerprint of the trainer's environment.
+
+    FAILS CLOSED. Returning ``{}`` here would be safe at load time (the
+    checkpoint classifies LEGACY_UNKNOWN and is rejected), but it would waste
+    an entire training run producing checkpoints that later reject themselves.
+    A formal run therefore refuses to write an unstamped checkpoint.
+
+    Set ``trainer.allow_unstamped_checkpoint = True`` for explicitly labelled
+    diagnostic runs; those checkpoints save as LEGACY_UNKNOWN and are not
+    eligible as formal results.
+    """
+    from rl.ruleset_identity import (RULESET_FIELDS, RulesetFingerprintError,
+                                     fingerprint)
+
+    err: Exception | None = None
+    for attr in ("env", "vec_env", "_env"):
+        env = getattr(trainer, attr, None)
+        if env is None:
+            continue
+        try:
+            core = getattr(env, "core", None) or getattr(getattr(env, "vec", None), "core", None)
+            cfg = getattr(core, "cfg", None) if core is not None else None
+            if cfg is None:
+                continue
+            fp = dict(fingerprint(cfg))
+            if all(k in fp for k in RULESET_FIELDS):
+                return fp
+        except Exception as exc:  # keep probing the remaining attributes
+            err = exc
+
+    if bool(getattr(trainer, "allow_unstamped_checkpoint", False)):
+        warnings.warn(
+            "Writing an UNSTAMPED checkpoint (ruleset LEGACY_UNKNOWN). This "
+            "checkpoint is not eligible as a formal result.",
+            RuntimeWarning, stacklevel=2,
+        )
+        return {}
+
+    raise RulesetFingerprintError(
+        "Cannot determine the environment's tagging ruleset, so this checkpoint "
+        "would be written unstamped and would reject itself on load. Refusing to "
+        "save. Expose the env as trainer.env / .vec_env / ._env, or set "
+        "trainer.allow_unstamped_checkpoint = True for a labelled diagnostic run."
+        + (f" Last probe error: {err!r}" if err is not None else "")
+    )
+
+
+def read_checkpoint_ruleset(path: str) -> dict:
+    """Return the stored ruleset fingerprint, or {} for legacy checkpoints."""
+    payload = read_checkpoint_payload(path, map_location="cpu")
+    rs = payload.get("ruleset")
+    return dict(rs) if isinstance(rs, dict) else {}
+
+
+def verify_checkpoint_ruleset(path: str, env_cfg, *, allow_mismatch: bool = False) -> dict:
+    """Enforce that a checkpoint's ruleset matches the environment's.
+
+    Raises ``RulesetMismatchError`` unless ``allow_mismatch``; on override the
+    returned dict carries ``formal_result_eligible=False``.
+    """
+    from rl.ruleset_identity import enforce, fingerprint
+
+    return enforce(read_checkpoint_ruleset(path) or None, fingerprint(env_cfg),
+                   allow_mismatch=allow_mismatch, context=str(path))
 
 
 def load_custom_ppo_checkpoint(path: str, observation_space, action_space, *, device: str | torch.device = "cpu") -> LoadedCheckpoint:
@@ -200,12 +314,59 @@ def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
     from .state_dict import _load_model_state_dict_compat
     from .models import CheckpointTimingReport
     from rl.custom_ppo.inference import CUSTOM_PPO_FORMAT, CUSTOM_PPO_LATENT_FORMAT
+    from rl.ruleset_identity import (
+        ARTIFACT_IDENTITY_KEY,
+        RunIdentity,
+        RunIdentityError,
+        assert_ruleset_matches_identity,
+        build_formal_run_identity,
+        fingerprint,
+    )
     
     total_start = time.perf_counter()
     
     read_start = time.perf_counter()
     payload = _torch_load_checkpoint(path, map_location=trainer.device)
     archive_read_seconds = time.perf_counter() - read_start
+
+    # Identity gate BEFORE model execution. Legacy / V1 / missing / mismatched
+    # checkpoints fail closed here rather than silently entering the run.
+    live_identity = getattr(trainer, "run_identity", None)
+    if live_identity is None or not isinstance(live_identity, RunIdentity):
+        live_identity = build_formal_run_identity(
+            trainer.env, run_id=str(getattr(getattr(trainer, "cfg", None), "run_tag", "resume"))
+        )
+        trainer.run_identity = live_identity
+
+    ckpt_ruleset = payload.get("ruleset") if isinstance(payload, dict) else None
+    if not isinstance(ckpt_ruleset, dict) or not ckpt_ruleset:
+        raise RunIdentityError(
+            f"Checkpoint {path!r} has no ruleset identity (legacy/missing); "
+            "refusing to load before model execution."
+        )
+    assert_ruleset_matches_identity(ckpt_ruleset, live_identity, context=path)
+
+    ai = payload.get(ARTIFACT_IDENTITY_KEY) if isinstance(payload, dict) else None
+    if isinstance(ai, dict):
+        for key in ("canonical_map", "resolved_map", "ruleset_id", "ruleset_fingerprint"):
+            if ai.get(key) is not None and str(ai.get(key)) != str(getattr(live_identity, key)):
+                raise RunIdentityError(
+                    f"Checkpoint {path!r} artifact_identity.{key} mismatch vs live "
+                    f"run identity: {ai.get(key)!r} != {getattr(live_identity, key)!r}"
+                )
+    else:
+        # Older stamped checkpoints may only carry ``ruleset``; that still must
+        # match (checked above). Require the passport block for formal resumes.
+        if bool(getattr(trainer, "require_checkpoint_artifact_identity", True)):
+            raise RunIdentityError(
+                f"Checkpoint {path!r} is missing artifact_identity; refusing formal load."
+            )
+
+    # Also reject when the stored ruleset disagrees with the live env fingerprint
+    # even if the trainer's RunIdentity somehow drifted.
+    env_fp = fingerprint(_resolve_live_env_cfg(trainer))
+    from rl.ruleset_identity import enforce
+    enforce(ckpt_ruleset, env_fp, context=path)
     
     model_start = time.perf_counter()
     assert_compatible_global_state_dim(payload, path)
@@ -309,8 +470,28 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
     import torch
     from .models import CheckpointSaveTimingReport
     from rl.custom_ppo.inference import CUSTOM_PPO_FORMAT, CUSTOM_PPO_LATENT_FORMAT, CUSTOM_PPO_ACTOR_ARCH, CUSTOM_PPO_VEC_SCHEMA_VERSION
-    
+    from rl.ruleset_identity import (
+        ARTIFACT_IDENTITY_KEY,
+        RunIdentity,
+        assert_ruleset_matches_identity,
+        build_formal_run_identity,
+    )
+
     total_start = time.perf_counter()
+
+    run_identity = getattr(trainer, "run_identity", None)
+    if run_identity is None or not isinstance(run_identity, RunIdentity):
+        # Unit-test / legacy call sites may construct the trainer without the
+        # production wiring. Resolve once from the LIVE env so the checkpoint
+        # still enters the same identity universe — never invent from cfg defaults.
+        run_identity = build_formal_run_identity(
+            trainer.env,
+            run_id=str(getattr(getattr(trainer, "cfg", None), "run_tag", "") or "checkpoint"),
+        )
+        trainer.run_identity = run_identity
+
+    ruleset_fp = _env_ruleset_fingerprint(trainer)
+    assert_ruleset_matches_identity(ruleset_fp, run_identity, context=str(path))
     
     rn = trainer.return_norm.state_dict()
     srn = trainer.strategy_return_norm.state_dict()
@@ -331,6 +512,15 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
         "actor_cnn_feature_dim": int(trainer.model.actor_cnn_feature_dim),
         "global_state_dim": int(trainer.model.global_state_dim),
         "vec_schema_version": CUSTOM_PPO_VEC_SCHEMA_VERSION,
+        # Tagging-ruleset fingerprint of the ENVIRONMENT this policy trained in.
+        # Kept separate from "cfg" (the trainer config) because the rules live on
+        # GPUFieldConfig. A RULESET_V1 policy learned a different game -- a lone
+        # defender could not tag -- so loading one into a V2 run silently
+        # corrupts the result. Absent => LEGACY_UNKNOWN, rejected for formal runs.
+        "ruleset": ruleset_fp,
+        # Same passport as run_config / episode CSV / manifests — two
+        # representations of one identity, verified against ``ruleset`` above.
+        ARTIFACT_IDENTITY_KEY: run_identity.artifact_identity(),
     }
     trainer.optimizers.write_checkpoint(payload)
     if trainer.v6i1_curriculum is not None:
@@ -344,8 +534,31 @@ def save_trainer_checkpoint(trainer: Any, path: str) -> CheckpointSaveTimingRepo
         payload["comm_runtime_state"] = trainer.comm_runtime.state_dict()
     payload["ppo_updater_state"] = trainer.updater.state_dict()
     
+    # Single shared boundary: checkpoint["ruleset"], checkpoint's
+    # artifact_identity, and the live RunIdentity must be three representations
+    # of one fact. A matching ruleset_id alone is never sufficient.
+    from rl.ruleset_identity import verify_checkpoint_run_identity
+
+    verify_checkpoint_run_identity(
+        payload, run_identity, operation="save", context=str(path))
+
+    # Atomic write: a failed identity check or a torn write must never leave an
+    # apparently valid checkpoint behind for a later run to pick up.
     write_start = time.perf_counter()
-    torch.save(payload, path)
+    tmp_path = f"{path}.tmp"
+    try:
+        torch.save(payload, tmp_path)
+        verify_checkpoint_run_identity(
+            _torch_load_checkpoint(tmp_path, map_location="cpu"),
+            run_identity, operation="save", context=f"{path} (readback)")
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
     write_seconds = time.perf_counter() - write_start
     
     hash_start = time.perf_counter()

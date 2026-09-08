@@ -1,0 +1,178 @@
+{
+  "protocol_id": "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_V1",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION_OR_TRAINING",
+  "frozen_at_utc": "2026-08-23T03:34:26Z",
+  "provenance_commit_before_freeze": "b375d9391dcfad53f537ff164780e7c6eb559904",
+  "classification": "DIAGNOSTIC_SUPERVISED_COMPRESSION_CAUSAL_ABLATION",
+  "question": "Does giving each persistent latent a private final actor projection preserve the confirmed SAPPO repertoire's complementary payoff structure while retaining a shared observation encoder and actor trunk?",
+  "authorization": {
+    "branch_plan": "artifacts/strategic_demand/EXP2B_BRANCH_PLAN_FROZEN.json",
+    "branch_plan_commit": "3b095e86",
+    "required_case": "B4.1: crossover FAIL, retention PASS, identity PASS",
+    "observed_case": "B4.1",
+    "parent_result": "artifacts/strategic_demand/EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_NOT_CONFIRMED.json",
+    "parent_result_commit": "b375d939",
+    "EXP2C": "UNLOCKED / UNSTARTED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED"
+  },
+  "hypothesis_and_causal_boundary": {
+    "hypothesis": "With assigned-pole optimization already fixed, destructive interference in the fully shared final actor representation may prevent z0 and z1 from preserving complementary payoff specialization.",
+    "boundary": "EXP2B makes shared-actor interference a leading hypothesis but does not prove it. EXP2C is the prospective controlled ablation designed to test it.",
+    "if_pass": "A minimal private final actor projection restored complementary payoff specialization under otherwise unchanged shared-policy compression.",
+    "if_fail": "Mode-specific final projections were insufficient. Stop latent architecture experimentation, forbid EXP2D, request PI direction, and preserve the negative result for paper framing."
+  },
+  "proposed_preset_review": {
+    "scientific_delta_plain_english": "Replace EXP2B's one shared final actor projection with one final linear projection per latent mode. Keep the observation encoder and actor body shared and trainable.",
+    "canonical_parent": "EXP2B build_exp2b_config and SharedActorCentralizedCritic/LatentConditionedActor",
+    "classification": "DIAGNOSTIC",
+    "paper_faithful": false,
+    "reason_new_experiment_is_required": "EXP2B validly failed after removing cross-pole assignment pressure. Existing EXP2/EXP2B cannot test whether the final shared actor projection is the remaining interference point.",
+    "preset_policy": "No paper-faithful preset may be changed or relabeled. Prefer an experiment-scoped default-off config field. If a registry preset is added during implementation, complete the repository Proposed Preset Review and registry update before launch.",
+    "snapshot_policy": "No existing preset snapshot may change. Regenerate snapshots only if an intentional new preset entry requires it and document the additive diff."
+  },
+  "single_scientific_delta": {
+    "field": "actor final projection",
+    "EXP2B": "one shared Linear(hidden_dim, action_dim) action_head for z0 and z1",
+    "EXP2C": "ModuleList of exactly K=2 Linear(hidden_dim, action_dim) action heads selected by persistent z",
+    "initialization": "both private heads are copied exactly from the ordinary shared action head before the first optimizer step",
+    "shared_path": "actor CNN/local encoder and complete actor body remain shared and trainable",
+    "critic": "unchanged shared centralized scalar critic conditioned on z",
+    "forbidden_private_capacity": [
+      "private CNN or observation encoder",
+      "private actor body or deep branch trunk",
+      "latent residual adapter",
+      "FiLM layer",
+      "mode-specific critic",
+      "two independent PPO models or optimizers"
+    ],
+    "required_resolved_diff": "Against EXP2B, the only scientific config change is a default-off EXP2C mode-specific-final-head flag false -> true. Run identity, artifact paths, fresh seed, and protocol path may also differ."
+  },
+  "frozen_shared_contract": {
+    "model": "one shared policy object and one checkpoint",
+    "K": 2,
+    "z_lifetime": "static per environment and persistent for the full episode",
+    "z_mapping": {"z0": "GUARD / SAPPO pi_A / pole A", "z1": "BREACH / SAPPO pi_B / pole B"},
+    "router": "ABSENT",
+    "q_phi": "ABSENT",
+    "opponent_identity_input": "FORBIDDEN in actor, critic, latent assignment, and teacher routing",
+    "teacher_pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "teacher_pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+    "teacher_mapping": {"z0": "pi_A", "z1": "pi_B"},
+    "teacher_objective": "lambda * KL(teacher || student) on the student's mapped z head with identical legal-action masking",
+    "teacher_lambda": 0.1,
+    "teacher_cadence": "one teacher update per four completed PPO actor minibatch updates; floor rule, no trailing update",
+    "teacher_batch_size": 64,
+    "PPO": "exact EXP2B PPO architecture outside the final projection, optimizer, rollout, discounting, GAE, entropy/value coefficients, normalization, observation pipeline, reward and M1 ruleset",
+    "budget": 2000000,
+    "n_envs": 32,
+    "checkpoint_policy": "terminal checkpoint only; no intermediate selection",
+    "claim_boundary": "supervised latent repertoire compression, not unsupervised or label-free latent discovery"
+  },
+  "live_training_assignment": {
+    "cells": {"z0_A": 16, "z0_B": 0, "z1_A": 0, "z1_B": 16},
+    "crossed_cells": "evaluation only",
+    "balance": "50% z0|A and 50% z1|B environment interaction",
+    "required_invariants": [
+      "exactly two private final heads exist and share no parameter storage",
+      "both heads receive PPO and mapped teacher gradients only from their selected z rows",
+      "shared CNN/body receives gradients from both modes",
+      "no private adapter or deep branch exists",
+      "z stays fixed for each episode",
+      "no training seed leaves 8700001..8700320",
+      "teacher-to-PPO cadence invariant holds at every update"
+    ]
+  },
+  "observational_gradient_telemetry": {
+    "preserve_EXP2B_metric": "cosine(g_z0_A, g_z1_B) over shared actor parameters only",
+    "private_path_metrics": [
+      "per-head PPO gradient norm",
+      "per-head teacher gradient norm",
+      "shared-trunk gradient cosine"
+    ],
+    "execution": "observational only; no optimizer step, parameter mutation, .grad accumulation, optimizer-state mutation, or RNG perturbation",
+    "gate": "NONE"
+  },
+  "seed_blocks": {
+    "training": {"range": "8700001..8700320", "master_seed": 8700001, "audit": "artifacts/strategic_demand/EXP2C_TRAINING_BLOCK_PRELAUNCH_AUDIT.json", "audit_sha256": "ea07bf4ab552b9f5a847ac28ea58d01512d02ae7ee56b8126f80782d8db10fc0", "verdict": "CLEAN"},
+    "development": {"range": "8800001..8800192", "audit": "artifacts/strategic_demand/EXP2C_DEVELOPMENT_BLOCK_PRELAUNCH_AUDIT.json", "audit_sha256": "6b5369adb673c42bdb3d6cb6977451bb5d8b0aed6e69da76ec69366351d262bd", "verdict": "CLEAN", "may_declare_success": false},
+    "evaluation": {"range": "8900001..8900192", "paired_seeds": 192, "audit": "artifacts/strategic_demand/EXP2C_EVALUATION_BLOCK_PRELAUNCH_AUDIT.json", "audit_sha256": "4893cecc546e99e4412bcddf7c849ded86ebab84f783ced53b10a6308441d440", "verdict": "CLEAN", "extension_forbidden": true},
+    "audit_tool": {"path": "scripts/audit_seed_block.py", "sha256": "e57a43283b8acac8fb303cf5b8aed523696e8bd3c8f9ef031a3fce3376b18b34", "history_positive_control": "2600001..2600032", "positive_control_commits": 15, "margin": 5000},
+    "future_reaudit_exclusions": [
+      "artifacts/strategic_demand/EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_PROTOCOL.json",
+      "artifacts/strategic_demand/EXP2C_TRAINING_BLOCK_PRELAUNCH_AUDIT.json",
+      "artifacts/strategic_demand/EXP2C_DEVELOPMENT_BLOCK_PRELAUNCH_AUDIT.json",
+      "artifacts/strategic_demand/EXP2C_EVALUATION_BLOCK_PRELAUNCH_AUDIT.json",
+      "docs/research-progress-tracker.md",
+      "experiments/run_exp2c_mode_specific_actor_compression.py",
+      "experiments/eval_exp2c_k2_terminal.py",
+      "tests/test_exp2c_mode_specific_actor_compression.py"
+    ]
+  },
+  "terminal_evaluation": {
+    "deterministic": true,
+    "student_cells": ["z0|A", "z0|B", "z1|A", "z1|B"],
+    "teacher_reference_cells": ["pi_A|A", "pi_A|B", "pi_B|A", "pi_B|B"],
+    "episodes_per_cell": 192,
+    "total_episodes": 1536,
+    "raw_rows_required": true,
+    "bootstrap": {"procedure": "paired percentile bootstrap over seed-level episode outcomes", "samples": 20000, "alpha": 0.05, "rng_seed": 7},
+    "same_gates_as_EXP2_and_EXP2B": true
+  },
+  "gates": {
+    "strategic_crossover": {
+      "delta_A_z": "WR(z0,A) - WR(z1,A)",
+      "delta_B_z": "WR(z1,B) - WR(z0,B)",
+      "pass": "LCB95(delta_A_z) > 0 AND LCB95(delta_B_z) > 0",
+      "effect_floor": "NONE"
+    },
+    "retention": {
+      "student_matched_value": "(WR(z0,A) + WR(z1,B)) / 2",
+      "teacher_matched_value": "(WR(pi_A,A) + WR(pi_B,B)) / 2 on the same 8900001..8900192 seeds",
+      "rho": "student_matched_value / teacher_matched_value",
+      "pass": "paired-bootstrap LCB95(rho) >= 0.90"
+    },
+    "behavioral_action_identity": {
+      "matched_state_source": "all decision-eligible local observations from all eight terminal evaluation cells",
+      "pass": "LCB95(JSD(z0,z1)) > 0 AND LCB95(KL(pi_A||z1)-KL(pi_A||z0)) > 0 AND LCB95(KL(pi_B||z0)-KL(pi_B||z1)) > 0",
+      "bootstrap_unit": "evaluation seed"
+    },
+    "trajectory_reporting": "same preregistered EXP2/EXP2B telemetry, descriptive only and unable to rescue a failed primary gate",
+    "overall_pass": "all crossover, retention, behavioral-identity, provenance, and runtime gates pass"
+  },
+  "implementation_gate": {
+    "required_before_step_1": [
+      "resolved config diff against EXP2B proves the mode-specific-final-head flag is the only scientific delta",
+      "existing paper-faithful preset snapshots and concat-only contracts remain unchanged",
+      "unit tests prove exactly two private final heads and a shared CNN/body",
+      "identity initialization proves both private heads equal the ordinary shared head before training",
+      "gradient routing proves z0 rows cannot update z1 head and z1 rows cannot update z0 head",
+      "integrated teacher smoke proves z0 KL to pi_A and z1 KL to pi_B decrease",
+      "live smoke proves 16/0/0/16, persistent z, M1 overlays, correct teacher hashes, lambda=.1 and 1:4 cadence",
+      "resume/checkpoint tests preserve both private heads and treatment counters",
+      "telemetry makes a silent shared-head fallback impossible",
+      "fresh seed blocks re-audit CLEAN with reservation records excluded",
+      "production run directory does not exist"
+    ]
+  },
+  "one_attempt_rule": {
+    "scientific_attempts": 1,
+    "forbidden_after_any_development_or_evaluation_result": [
+      "changing private-head depth, width, count, initialization, or placement",
+      "adding adapters, private trunks, private critics, diversity losses, or new objectives",
+      "changing K, lambda, cadence, teacher mapping, assignment, budget, checkpoint, gates, bootstrap, or seed block",
+      "rerunning because the result is unattractive"
+    ],
+    "invalid_run_exception": "Only a fail-fast provenance, plumbing, or runtime invariant can invalidate a run before scoring. The identical frozen scientific configuration may relaunch only after a typed invalid-run record and engineering fix.",
+    "valid_pass": "Freeze and commit; EXP3 unlocks.",
+    "valid_fail": "Freeze and commit; stop latent architecture experimentation, forbid EXP2D, keep EXP3/EXP4 locked, and request PI direction."
+  },
+  "current_state": {
+    "implementation_started": false,
+    "training_started": false,
+    "evaluation_started": false,
+    "EXP2C": "PROTOCOL FROZEN / UNSTARTED",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED"
+  }
+}

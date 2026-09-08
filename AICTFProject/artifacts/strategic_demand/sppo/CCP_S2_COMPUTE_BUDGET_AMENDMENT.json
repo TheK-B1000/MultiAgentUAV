@@ -1,0 +1,67 @@
+{
+  "record_id": "CCP_S2_COMPUTE_BUDGET_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-02T15:10:00Z",
+  "authority": "PI, 2026-09-02, in response to observed collection throughput after launch",
+
+  "amends": "CCP_S2_SPEC.json#COLLECTION_DISTRIBUTION (bf41980a)",
+  "rule": "this is an APPEND, not an edit. CCP_S2_SPEC.json, CCP_S2_SEED_ASSIGNMENT.json, and CCP_S2_STATE_MANIFEST.json (c366f317) are not modified in place. This record narrows the compute budget only; every other frozen design element listed below is unchanged.",
+
+  "OUTCOME_BLINDNESS_STATEMENT": {
+    "claim": "this amendment was decided and frozen WITHOUT inspecting any BASE/pi_A/pi_B outcome, win/loss, margin, advantage estimate, teacher-selection count, or tie rate from the 136 rows already collected under the original 10176-job plan.",
+    "basis_for_the_decision": "observed wall-clock throughput only -- approximately 65s/job across 4 concurrent CUDA workers on the single available GPU (RTX 5070, 12GB), versus the frozen spec's idealized 43s/job (itself Phase 1's empirically measured rate). At the observed rate the original 10176-job plan projects to roughly 46 wall-clock hours; no additional compatible GPU/machine is available to this program, so Option A (distribute the frozen plan across more hardware) was ruled out on infrastructure grounds, not scientific grounds.",
+    "why_this_matters": "CCP-S2's own routing rule already treats exact ties as zero-weight and its EVAL protocol was frozen before any measurement; this amendment preserves that discipline by being decided on throughput alone, prospectively, before the causal question is touched at all."
+  },
+
+  "REDUCTION": {
+    "boundary_count": {"was": "64 per pole (128 total)", "now": "32 per pole (64 total)"},
+    "M": {"was": 16, "now": 8},
+    "derivation": "a deterministic RANK-ORDER TRUNCATION of the already-frozen 128-state manifest (CCP_S2_STATE_MANIFEST.json, c366f317) -- not a new selection, not a new rollout, not a new hash domain. Every retained state was already selected under the original outcome-blind procedure; this amendment only shortens each stratum's already hash-ordered candidate list to a smaller prefix.",
+    "new_stratification_quota_per_pole": {
+      "agent0_only": {"early": 3, "mid": 3, "late": 4, "total": 10},
+      "agent1_only": {"early": 4, "mid": 4, "late": 4, "total": 12},
+      "both_free":   {"early": 3, "mid": 3, "late": 4, "total": 10},
+      "total": 32
+    },
+    "halving_convention": "each free_set's ORIGINAL per-pole total (agent0_only 19, agent1_only 24, both_free 21, summing to 64) is scaled by 32/64 and rounded to the nearest integer triple summing to 32 -- agent0_only 19*0.5=9.5, agent1_only 24*0.5=12 exactly, both_free 21*0.5=10.5 -- giving (10, 12, 10). Within a free_set whose new total is not evenly divisible by 3 phases, the remainder is assigned to the LATE phase, matching the original quota's own asymmetry (agent0_only was already 6/6/7, biased toward late). This convention is stated here, fixed, and applied identically to both poles -- it is not tuned per-pole or per-stratum.",
+    "seed_formula_unchanged": "r_j = H('CCP_S2_MEASURE', state_id, estimand, j) is not altered. This amendment only stops using j in {8,...,15}; j in {0,...,7} keep the exact values the frozen mapping always produced for them.",
+    "job_count": {
+      "states": 64, "state_estimand_pairs": 104, "arm_cells": 312, "jobs": 2496,
+      "formula": "64 states -> 104 state-estimand pairs (22 one-free x1 + 10 both-free x3, per pole, x2 poles) -> x3 arms x M=8 = 2496",
+      "fraction_of_original": "2496 / 10176 = 24.5%"
+    },
+    "wall_clock_estimate": {
+      "basis": "observed post-launch rate, ~65s/job across 4 workers",
+      "formula": "2496 x 65s / 4 workers", "seconds": 40560, "hours_idealized": 11.3,
+      "note": "consistent with the PI's own ~11-12h estimate for this reduced design at 4 workers"
+    }
+  },
+
+  "ALREADY_COMPLETED_ROWS_RULE": {
+    "rule": "a row already written under the original 10176-job plan is RETAINED iff its (state_id, estimand, arm, j) job_id is a member of the amended 2496-job set. Every other already-written row is ARCHIVED_UNUSED: preserved on disk exactly where it was written (ccp_s2_rows/worker_*.jsonl), never deleted, never edited, and never used in bank construction, the advantage estimator, routing, or any descriptive statistic of this program.",
+    "mechanism": "the resumed collector (experiments/ccp_s2_collect_amended.py) builds its job list exclusively from the amended 64-state/M=8 plan. Its own resume logic (done_ids read from each worker's existing jsonl) then naturally recognises retained rows as already-done and skips them; archived-unused rows sharing the same file simply match no job_id in the amended plan and are inert.",
+    "reconciliation_record_required": "CCP_S2_AMENDMENT_RECONCILIATION.json, frozen BEFORE collection resumes, listing the exact retained and archived-unused counts and job_id sets -- computed once, not re-derived ad hoc later."
+  },
+
+  "UNCHANGED": [
+    "three-arm design: R_0 (incumbent baseline) / pi_A / pi_B",
+    "incumbent-relative advantage estimator: A_hat(x) = mean_j(R_arm^j - R_0^j)",
+    "all three topology types: agent0_only, agent1_only, both_free",
+    "early/mid/late stratification axis itself (only the per-cell quota shrinks)",
+    "SEQUENCE takeover (full-episode, not single-macro)",
+    "CRN reseeding via core._rng.manual_seed",
+    "joint precedence at both-free states",
+    "exact-positive-tie -> zero weight routing rule",
+    "warm-start treatment vs matched PPO-only control design",
+    "fresh 64-seed sealed EVAL block (11701001..11701064), untouched by any of this",
+    "the collector implementation itself (setup_env/replay_prefix/run/continuation_seed in experiments/ccp_s2_collect.py) -- reused verbatim, not reimplemented, so its COLLECTOR_VERIFIED gate (CCP_S2_COLLECTOR_SMOKE.json) remains valid evidence about the actual measurement code"
+  ],
+
+  "ACKNOWLEDGED_COST": {
+    "coarser_causal_estimates": "1/8 = 0.125 granularity per arm's mean advantage, versus the original 1/16 = 0.0625",
+    "higher_expected_exact_tie_rate": "M=8 gives fewer distinct achievable (n+ - n-)/M values, so exact positive ties between A_hat_A and A_hat_B are more likely under the routing rule's existing zero-weight-on-tie clause. Per CCP_S2_SPEC.json's already-frozen ROUTING_RULE, this must be reported descriptively once the amended bank exists, not assumed away.",
+    "PI_framing": "a prospectively amended, interpretable ~11h experiment over a pristine but impractical ~46h one -- decided on throughput alone, before any causal result was opened."
+  },
+
+  "sequence": "this amendment -> derive CCP_S2_STATE_MANIFEST_AMENDMENT.json (rank-truncation, no new rollout) -> derive+freeze the amended job plan -> freeze the retained/archived reconciliation -> resume the 4 workers under the amended plan only."
+}

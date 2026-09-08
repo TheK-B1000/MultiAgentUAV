@@ -1,0 +1,50 @@
+{
+  "record_id": "TEACHER_DISTILLATION_STUDENT_FROZEN",
+  "status": "FROZEN_STUDENT",
+  "utc": "2026-09-04T15:33:11Z",
+  "implements": "TEACHER_DISTILLATION_SPEC.json#TRAINING",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts\\strategic_demand\\sppo\\teacher_distillation\\ckpts\\final_teacher_distillation_student.zip",
+    "sha256": "85dbaeef409d7e5422d4f4fa4b28c5b61fa9059d2c728c6c0b6c75406cd19d2d",
+    "bytes": 15711073
+  },
+  "architecture_source": {
+    "incumbent": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+    "incumbent_sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "weights_loaded_from_incumbent": false,
+    "fresh_init_seed": 11920001
+  },
+  "training": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "updates_per_epoch": 117,
+    "optimized": "actor parameters only",
+    "n_actor_params": 31,
+    "n_critic_params_excluded": 8
+  },
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.009938989949022602,
+    "train_kl_B": 0.004046539441706278,
+    "holdout_agree_z0_vs_piA": 0.965184303501463,
+    "holdout_agree_z1_vs_piB": 0.9843267031948967,
+    "holdout_teacher_argmax_disagreement": 0.2775949252589935,
+    "holdout_kl_A": 0.016156827893976346,
+    "holdout_kl_B": 0.0050556519959066475,
+    "holdout_student_z0_z1_jsd": 0.1826444065605243,
+    "holdout_teacher_A_B_jsd": 0.17903920535855075
+  },
+  "fit_check": {
+    "min_agreement": 0.5,
+    "passed": true
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11922001..11922064",
+    "touched": false
+  },
+  "NO_MODEL_SELECTION": "fixed epochs; terminal weights only; holdout used for diagnostics and the fit check, never for selection",
+  "NEXT": "open the Compression Crossover sealed EVAL"
+}

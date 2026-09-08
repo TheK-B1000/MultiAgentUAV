@@ -1,0 +1,38 @@
+{
+  "record_id": "ORACLE_GATED_K2_V2_EVAL_SPEC",
+  "status": "SUPERSEDED_NEVER_EXECUTED",
+  "utc": "2026-08-29T20:30:00Z",
+  "authority": "PI, 2026-08-29: V2 EVAL block frozen before collection/training",
+  "THE_QUESTION": "Did the larger oracle-gated rehearsal bank improve held-out latent crossover at the same 1M budget and architecture?",
+  "parent": "ORACLE_GATED_K2_V2_RUN_SPEC.json",
+  "SEEDS": {
+    "block": "11200001..11200032",
+    "n": 32,
+    "never_used_for": [
+      "V1 or V2 training",
+      "rehearsal",
+      "bank collection",
+      "calibration"
+    ]
+  },
+  "PRIMARY_GATE_CROSSOVER": {
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "statistic": "paired percentile bootstrap over seed-level episode outcomes",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "provenance": "adopted unchanged from ORACLE_GATED_K2_EVAL_SPEC.json / eval_exp2_k2_terminal.py"
+  },
+  "verdict_labels": {
+    "pass": "ORACLE_GATED_K2_V2_CROSSOVER_CONFIRMED",
+    "fail": "ORACLE_GATED_K2_V2_CROSSOVER_NOT_CONFIRMED"
+  },
+  "ONE_SHOT": true,
+  "SUPERSEDED_BY_OG_PSP": {
+    "utc": "2026-08-31T09:05:00Z",
+    "superseded_by": "OG_PSP_EVAL_SPEC.json",
+    "why": "This spec belonged to the bank-only V2 plan, which OG-PSP superseded before any V2 training ran. It names the same EVAL block but carries MODEL_UNDER_TEST: null, so it identifies no artifact to score.",
+    "status": "NEVER EXECUTED. Retained as a record of the abandoned plan, not deleted."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "status": "running",
+  "updated_at_utc": "2026-07-24T06:42:46.160082+00:00",
+  "checkpoint": "artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "completed_condition_count": 3,
+  "expected_condition_count": 56,
+  "episode_count": 12,
+  "completed_conditions": [
+    {
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "latent_z": 0,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "latent_z": 1,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP10_AGGRESSIVE_INTERCEPTOR",
+      "latent_z": 2,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    }
+  ]
+}

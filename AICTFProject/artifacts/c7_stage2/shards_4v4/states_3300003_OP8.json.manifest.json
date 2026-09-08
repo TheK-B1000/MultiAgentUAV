@@ -1,0 +1,58 @@
+{
+  "policies": [
+    "3300003"
+  ],
+  "policy_checkpoint_sha256": {
+    "3300003": "9ef32d19b6f8aa2c4c2ed3da76df053fe52a707f3e2a5f2b2b1b5e3be5d42157"
+  },
+  "opponents": [
+    "OP8"
+  ],
+  "episodes": 30,
+  "seed_block_base": 9920000,
+  "resolved_seeds": [
+    9920000,
+    9920001,
+    9920002,
+    9920003,
+    9920004,
+    9920005,
+    9920006,
+    9920007,
+    9920008,
+    9920009,
+    9920010,
+    9920011,
+    9920012,
+    9920013,
+    9920014,
+    9920015,
+    9920016,
+    9920017,
+    9920018,
+    9920019,
+    9920020,
+    9920021,
+    9920022,
+    9920023,
+    9920024,
+    9920025,
+    9920026,
+    9920027,
+    9920028,
+    9920029
+  ],
+  "device": "cuda",
+  "max_states_per_episode": 2,
+  "partition_mode": "opponent",
+  "map": "map_a",
+  "ruleset": "OURS/V2_RULES",
+  "frozen_contract_sha256": "5f3a5f3c490188d4bc7ea857907ecf63a1c12c93694f08ecb3fd8725eb692b42",
+  "runtime_contract_utility": "carrier_survival",
+  "runtime_contract_h_response": 30,
+  "runner_commit": "7153a6f80b84fc5653d1e5e965841a33af6d59ac",
+  "n_states": {
+    "3300003": 60
+  },
+  "states_file_sha256": "061491c7b43d2c8eec07c488dea36b21fa36e884a6ee6796b98458678a8b5706"
+}

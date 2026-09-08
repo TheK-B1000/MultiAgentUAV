@@ -28,6 +28,7 @@ from game_field_gpu import (
 )
 from gpu_env import MAP_A_OPEN, MAP_LAYOUTS
 from gpu_env._maps import normalize_map_layout
+from gpu_env._core._bt_profiles import LRO_AUDITED_OPPONENT_POOL, canonicalize_opponent_key
 from rl.stress_schedule import STRESS_BY_PHASE
 from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 
@@ -46,7 +47,77 @@ MAP_LAYOUT_CHOICES = MAP_LAYOUTS + (
     "split_lane_task_pressure",
     "map_b",
     "map_b_v2",
+    "map_c",
+    "home_corridor",
 )
+_BT_ROLE_SHORT = {
+    0: "ATK",
+    1: "DEF",
+    2: "ESC",
+    3: "INT",
+    4: "RET",
+    5: "CTR",
+    6: "2v1",
+}
+_C6_POOL = ("C6A_PUNISH_EXPOSURE", "C6B_PUNISH_PASSIVITY")
+
+
+def _register_vgc4_or_warn() -> bool:
+    try:
+        from gpu_env._core._vgc4_profiles import register_vgc4_profiles
+
+        register_vgc4_profiles()
+        return True
+    except ImportError:
+        return False
+    except Exception as exc:
+        print(f"[Viewer] VGC-4 profiles not registered: {exc}")
+        return False
+
+
+_VGC4_READY = _register_vgc4_or_warn()
+
+
+def _vgc4_names() -> List[str]:
+    if not _VGC4_READY:
+        return []
+    from gpu_env._core._vgc4_profiles import VGC4_LEVELS
+
+    return [name for _, (name, _) in sorted(VGC4_LEVELS.items())]
+
+
+def _vgc4_source_key(opponent_key: str) -> Optional[str]:
+    if not _VGC4_READY:
+        return None
+    from gpu_env._core._vgc4_profiles import VGC4_LEVELS
+
+    canon = canonicalize_opponent_key(opponent_key)
+    for _, (name, src) in VGC4_LEVELS.items():
+        if name == canon:
+            return src
+    return None
+
+
+def _vgc4_slot(opponent_key: str) -> Optional[str]:
+    if not _VGC4_READY:
+        return None
+    from gpu_env._core._vgc4_profiles import VGC4_SLOT_OF
+
+    return VGC4_SLOT_OF.get(canonicalize_opponent_key(opponent_key))
+
+
+def _viewer_opponent_pool() -> List[str]:
+    pool = list(LRO_AUDITED_OPPONENT_POOL)
+    for name in _C6_POOL:
+        if name not in pool:
+            pool.append(name)
+    for name in _vgc4_names():
+        if name not in pool:
+            pool.append(name)
+    return pool
+
+
+DEFAULT_VIEWER_OPPONENT = _vgc4_names()[0] if _vgc4_names() else "OP6_IMMEDIATE_DUAL_RUSH"
 
 
 def _normalize_viewer_map_layout(value: str) -> str:
@@ -120,11 +191,21 @@ def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[st
     return ordered
 
 
-def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: int = N_TARGETS):
+def _make_obs_action_spaces(
+    n_blue: int,
+    n_macros: int = N_MACROS,
+    n_targets: int = N_TARGETS,
+    num_cnn_channels: int = NUM_CNN_CHANNELS,
+):
     """Build observation and action spaces for GPU CTF custom PPO inference."""
     obs_space = spaces.Dict(
         {
-            "grid": spaces.Box(low=0.0, high=1.0, shape=(n_blue, NUM_CNN_CHANNELS, CNN_ROWS, CNN_COLS), dtype=np.float32),
+            "grid": spaces.Box(
+                low=0.0,
+                high=1.0,
+                shape=(n_blue, int(num_cnn_channels), CNN_ROWS, CNN_COLS),
+                dtype=np.float32,
+            ),
             "vec": spaces.Box(low=-1.0, high=1.0, shape=(n_blue, VEC_OBS_DIM), dtype=np.float32),
             "agent_mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue,), dtype=np.float32),
             "mask": spaces.Box(low=0.0, high=1.0, shape=(n_blue * (n_macros + n_targets),), dtype=np.float32),
@@ -132,6 +213,22 @@ def _make_obs_action_spaces(n_blue: int, n_macros: int = N_MACROS, n_targets: in
     )
     action_space = spaces.MultiDiscrete([n_macros, n_targets] * n_blue)
     return obs_space, action_space
+
+
+def _infer_obstacle_channel(model_path: str, model_meta: Dict[str, Any], map_layout: str) -> bool:
+    try:
+        from rl.training.obs_schema import obstacle_obs_channel_for_checkpoint
+
+        inferred = obstacle_obs_channel_for_checkpoint(model_path)
+        if inferred is not None:
+            return bool(inferred)
+    except Exception:
+        pass
+    try:
+        train_map = _normalize_viewer_map_layout(model_meta.get("map_layout", MAP_A_OPEN))
+        return train_map != MAP_A_OPEN
+    except Exception:
+        return map_layout != MAP_A_OPEN
 
 
 def _read_model_metadata(model_path: str) -> Dict[str, Any]:
@@ -163,6 +260,7 @@ class PPOController:
         n_blue: int,
         n_macros: int = N_MACROS,
         n_targets: int = N_TARGETS,
+        num_cnn_channels: int = NUM_CNN_CHANNELS,
         deterministic: bool = True,
         device: str = "cpu",
         print_traceback: bool = False,
@@ -182,7 +280,12 @@ class PPOController:
             print(f"[PPO] Model not found: {model_path}")
             return
         try:
-            obs_space, action_space = _make_obs_action_spaces(self.n_blue, self.n_macros, self.n_targets)
+            obs_space, action_space = _make_obs_action_spaces(
+                self.n_blue,
+                self.n_macros,
+                self.n_targets,
+                num_cnn_channels=int(num_cnn_channels),
+            )
             self.model = load_custom_ppo_policy(
                 self.model_path,
                 obs_space,
@@ -420,19 +523,30 @@ class CTFViewer:
     def __init__(self, ppo_model_path: str = DEFAULT_PPO_MODEL_PATH,
                  device: str = "cpu",
                  deterministic: bool = True,
-                 map_layout: str = "map_b"):
+                 map_layout: str = MAP_A_OPEN,
+                 opponent: str = DEFAULT_VIEWER_OPPONENT,
+                 own_flag_home_required_to_score: bool = False):
         self.device = str(device)
         self.ppo_model_path = str(ppo_model_path)
         self.deterministic = bool(deterministic)
         self.map_layout = _normalize_viewer_map_layout(map_layout)
+        self.own_flag_home_required_to_score = bool(own_flag_home_required_to_score)
+        self._opponent_pool = _viewer_opponent_pool()
+        self._map_pool = list(MAP_LAYOUTS)
+        requested = canonicalize_opponent_key(opponent) or DEFAULT_VIEWER_OPPONENT
+        if requested not in self._opponent_pool:
+            self._opponent_pool = [requested] + self._opponent_pool
+        self._current_opponent = requested
+        self._opponent_idx = (
+            self._opponent_pool.index(requested) if requested in self._opponent_pool else 0
+        )
+        self._map_idx = (
+            self._map_pool.index(self.map_layout) if self.map_layout in self._map_pool else 0
+        )
         model_meta = _read_model_metadata(ppo_model_path)
         initial_agents = max(1, int(model_meta.get("n_blue", 4)))
         paper_steps = 400
-        # Derive obstacle_obs_channel from the map the model was *trained* on so
-        # the CNN channel count matches even when the viewer uses a different map.
-        from gpu_env._maps import MAP_A_OPEN as _MAP_A_OPEN
-        _train_map = _normalize_viewer_map_layout(model_meta.get("map_layout", "map_a_open"))
-        _train_obstacle_ch = (_train_map != _MAP_A_OPEN)
+        _train_obstacle_ch = _infer_obstacle_channel(ppo_model_path, model_meta, self.map_layout)
         cfg = GPUFieldConfig(
             n_envs=1,
             max_blue_agents=initial_agents,
@@ -444,6 +558,7 @@ class CTFViewer:
             score_limit=3,
             map_layout=self.map_layout,
             obstacle_obs_channel=_train_obstacle_ch,
+            own_flag_home_required_to_score=self.own_flag_home_required_to_score,
         )
         self.cfg = cfg
         self.core = BatchedCTFCore(self.cfg)
@@ -451,24 +566,21 @@ class CTFViewer:
         self.cfg.stalemate_max_steps = paper_steps
         self.core.max_steps = paper_steps
         self.core.rules_profile = "OURS"
-        print(f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | rules: OURS | map: {self.map_layout}")
+        print(
+            f"[Viewer] Match length: {self.core.max_steps} steps (~200 s) | "
+            f"rules: {getattr(self.cfg, 'ruleset_id', 'OURS')} | map: {self.map_layout}"
+        )
+        if _VGC4_READY:
+            print(f"[Viewer] VGC-4 candidates registered: {', '.join(_vgc4_names())}")
         try:
-            self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
             self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
-            # Use the core's official opponent-selection path so every reset re-applies OP3.
-            self.core.set_next_opponent("SCRIPTED", "OP3")
         except Exception:
-            # Fall back silently if curriculum/opponent modules are unavailable; core defaults will be used.
             pass
+        self._apply_opponent(self._current_opponent, reset=False)
         self.core.reset_all()
 
         self.renderer = CoreRenderer(self.core)
-
-        # Opponent cycling (O key)
-        self._opponent_pool = ["OP3", "OP8", "OP9", "OP10"]
-        self._opponent_idx = 0
-        self._current_opponent = self._opponent_pool[0]
 
         # PPO (load model on the same device as the core)
         self.ppo = PPOController(
@@ -476,6 +588,7 @@ class CTFViewer:
             n_blue=cfg.max_blue_agents,
             n_macros=cfg.n_macros,
             n_targets=cfg.n_targets,
+            num_cnn_channels=int(getattr(cfg, "num_cnn_channels", NUM_CNN_CHANNELS)),
             device=self.device,
             deterministic=self.deterministic,
         )
@@ -518,6 +631,7 @@ class CTFViewer:
                 n_blue=agents,
                 n_macros=self.cfg.n_macros,
                 n_targets=self.cfg.n_targets,
+                num_cnn_channels=int(getattr(self.cfg, "num_cnn_channels", NUM_CNN_CHANNELS)),
                 device=self.device,
                 deterministic=self.deterministic,
                 print_traceback=False,
@@ -758,17 +872,53 @@ class CTFViewer:
 
     # ---- input ----
 
-    def _set_opponent(self, key: str, reset: bool = True) -> None:
-        self._current_opponent = key
+    def _apply_opponent(self, key: str, reset: bool = True) -> None:
+        """Apply a scripted/BT opponent through the official core seam.
+
+        VGC-4 keys are not in the scripted-dynamics tag set, so we first apply
+        the source canonical opponent (physics unchanged by construction) then
+        switch the identity key so BT dispatch uses the VGC-4 profile.
+        """
+        resolved = canonicalize_opponent_key(key) or str(key).upper()
+        source = _vgc4_source_key(resolved)
         try:
-            self.core.set_next_opponent("SCRIPTED", key)
+            if source:
+                self.core.set_next_opponent("SCRIPTED", source)
+            self.core.set_phase(resolved)
+            self.core.set_next_opponent("SCRIPTED", resolved)
         except Exception as exc:
             print(f"[Viewer] set_next_opponent failed: {exc}")
             return
+        self._current_opponent = resolved
+        if resolved in self._opponent_pool:
+            self._opponent_idx = self._opponent_pool.index(resolved)
         if reset:
             self.core.reset_all()
-            self.ppo.reset_strategy()
-        print(f"[Viewer] Opponent -> {key}")
+            if getattr(self, "ppo", None) is not None:
+                self.ppo.reset_strategy()
+        slot = _vgc4_slot(resolved)
+        extra = f" | VGC-4 {slot} (candidate)" if slot else ""
+        if source:
+            extra = f" | derived from {source}{extra}"
+        print(f"[Viewer] Opponent -> {resolved}{extra}")
+
+    def _set_opponent(self, key: str, reset: bool = True) -> None:
+        self._apply_opponent(key, reset=reset)
+
+    def _cycle_map(self, delta: int = 1) -> None:
+        if not self._map_pool:
+            return
+        self._map_idx = (self._map_idx + int(delta)) % len(self._map_pool)
+        self.map_layout = self._map_pool[self._map_idx]
+        self._rebuild_core(int(self.cfg.max_blue_agents))
+
+    def _toggle_m1(self) -> None:
+        self.own_flag_home_required_to_score = not self.own_flag_home_required_to_score
+        self._rebuild_core(int(self.cfg.max_blue_agents))
+        print(
+            f"[Viewer] own_flag_home_required_to_score -> "
+            f"{self.own_flag_home_required_to_score} | {getattr(self.cfg, 'ruleset_id', '?')}"
+        )
 
     def _rebuild_core(self, agents_per_team: int) -> None:
         """Recreate the core with a new number of agents per team."""
@@ -778,19 +928,21 @@ class CTFViewer:
         self.cfg.max_red_agents = agents
         self.cfg.max_decision_steps = 400
         self.cfg.stalemate_max_steps = 400
+        if hasattr(self.cfg, "own_flag_home_required_to_score"):
+            self.cfg.own_flag_home_required_to_score = self.own_flag_home_required_to_score
         self.core = BatchedCTFCore(self.cfg)
         self.core.max_steps = 400
         self.core.rules_profile = "OURS"
         self.core.blue_scripted = (self.blue_mode == "DEMO")
         try:
-            self.core.set_phase("OP3")
             self.core.set_stress_schedule(STRESS_BY_PHASE)
             self.core.set_dynamics_config({"rules_profile": "OURS", "aquaticus_profile": True})
-            self.core.set_next_opponent("SCRIPTED", "OP3")
         except Exception:
-            # If curriculum/opponent code is unavailable, fall back to defaults
             pass
+        self._apply_opponent(self._current_opponent, reset=False)
         self.core.reset_all()
+        if getattr(self, "ppo", None) is not None:
+            self.ppo.reset_strategy()
         self.renderer = CoreRenderer(self.core)
         if not self._ppo_team_size_compatible(agents):
             if self._try_reload_ppo_for_agents(agents):
@@ -803,7 +955,11 @@ class CTFViewer:
                 self._ppo_mismatch_warned = False
         else:
             self._ppo_mismatch_warned = False
-        print(f"[Viewer] Agents per team -> {agents} v {agents} | map: {self.map_layout}")
+        print(
+            f"[Viewer] Agents per team -> {agents} v {agents} | "
+            f"map: {self.map_layout} | opp: {self._current_opponent} | "
+            f"rules: {getattr(self.cfg, 'ruleset_id', 'OURS')}"
+        )
 
     def _handle_key(self, event: Any) -> None:
         k = event.key
@@ -851,19 +1007,29 @@ class CTFViewer:
             mode = "deterministic" if self.deterministic else "stochastic"
             print(f"[Viewer] PPO inference -> {mode}")
         elif k == pg.K_o:
-            # Cycle through opponent pool
             self._opponent_idx = (self._opponent_idx + 1) % len(self._opponent_pool)
             self._set_opponent(self._opponent_pool[self._opponent_idx])
         elif k == pg.K_p:
-            # Cycle backwards through opponent pool
             self._opponent_idx = (self._opponent_idx - 1) % len(self._opponent_pool)
             self._set_opponent(self._opponent_pool[self._opponent_idx])
+        elif k == pg.K_m:
+            self._cycle_map(1)
+        elif k == pg.K_n:
+            self._cycle_map(-1)
+        elif k == pg.K_h:
+            self._toggle_m1()
+        elif k == pg.K_v:
+            names = _vgc4_names()
+            if not names:
+                print("[Viewer] No VGC-4 candidates on this tree.")
+            else:
+                self._set_opponent(names[0])
 
     # ---- drawing ----
 
     def _draw(self) -> None:
         self.screen.fill((12, 12, 18))
-        hud_h = 80
+        hud_h = 104
         field_rect = pg.Rect(20, hud_h + 10,
                              self.size[0] - 40, self.size[1] - hud_h - 30)
         self.renderer.draw(self.screen, field_rect)
@@ -875,32 +1041,32 @@ class CTFViewer:
             "PPO": (120, 255, 120),
             "DEMO": (120, 200, 255),
         }.get(self.blue_mode, (230, 230, 240))
-        txt("F1: Reset | F2: 2v2/3v3/4v4/8v8 | 2/3/4/8: team | F3: PPO/Demo | F4: det/stoch | O/P: opp cycle | ESC: Quit",
-            30, 10, (200, 200, 220))
+        txt("F1 reset | F2/2/3/4/8 team | F3 PPO/Demo | F4 det | O/P opp | M/N map | H M1 | ESC",
+            30, 8, (200, 200, 220))
         txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)} | Map: {self.map_layout}",
-            30, 36, mode_clr)
+            30, 32, mode_clr)
 
         if self.blue_mode == "PPO" and self.ppo.model_loaded:
             infer_mode = "det" if self.deterministic else "stoch"
             txt(f"Model: {os.path.basename(self.ppo.model_path or '')} | {infer_mode}",
-                350, 36, (140, 240, 140))
+                430, 32, (140, 240, 140))
 
         bs = int(self.core.blue_score[0].item())
         rs = int(self.core.red_score[0].item())
         step = int(self.core.step_count[0].item())
-        txt(f"BLUE: {bs}", 30, 60, (100, 180, 255))
-        txt(f"RED: {rs}", 180, 60, (255, 100, 100))
-        txt(f"Step: {step}/{self.core.max_steps}", 330, 60, (200, 200, 230))
-        # 3 min game: 0.1 s per step -> time remaining
+        txt(f"BLUE: {bs}", 30, 56, (100, 180, 255))
+        txt(f"RED: {rs}", 140, 56, (255, 100, 100))
+        txt(f"Step: {step}/{self.core.max_steps}", 250, 56, (200, 200, 230))
         sec_left = max(0, (self.core.max_steps - step)) * 0.1
-        txt(f"Time: {int(sec_left // 60)}:{int(sec_left % 60):02d}", 500, 60, (200, 200, 230))
+        txt(f"Time: {int(sec_left // 60)}:{int(sec_left % 60):02d}", 430, 56, (200, 200, 230))
+        txt(str(getattr(self.cfg, "ruleset_id", "")), 560, 32, (180, 180, 210))
 
-        # ---- tactical overlay (score/time context + opponent name) ----
         try:
             from gpu_env._core._tactical_context import extract_tactical_context
             tc = extract_tactical_context(self.core, env_idx=0)
             _raw_key = getattr(self.core, "_opponent_key", None)
             opp_key = str(_raw_key[0]) if _raw_key is not None else self._current_opponent
+            opp_key = canonicalize_opponent_key(opp_key) or opp_key
             late_tag = " [LATE]" if tc.late_game else ""
             if tc.red_leading:
                 score_tag = " +LEAD"
@@ -908,7 +1074,20 @@ class CTFViewer:
                 score_tag = " -TRAIL"
             else:
                 score_tag = ""
-            txt(f"Red: {opp_key}{late_tag}{score_tag}", 650, 60, (255, 160, 80))
+            slot = _vgc4_slot(opp_key)
+            slot_tag = f" [{slot}]" if slot else ""
+            txt(f"Red: {opp_key}{slot_tag}{late_tag}{score_tag}", 560, 56, (255, 160, 80))
+            if tc.bt is not None:
+                n_red = int(self.cfg.max_red_agents)
+                roles = ",".join(
+                    _BT_ROLE_SHORT.get(int(r), str(int(r)))
+                    for r in list(tc.bt.red_roles)[:n_red]
+                )
+                txt(
+                    f"BT roles: {roles} | escort {tc.bt.escort_attempts} "
+                    f"int {tc.bt.intercept_attempts} ctr {tc.bt.counter_captures}",
+                    30, 80, (220, 190, 140),
+                )
         except Exception:
             pass
 
@@ -925,8 +1104,12 @@ if __name__ == "__main__":
                         help="Headless evaluation (no display)")
     parser.add_argument("--device", type=str, default="cpu",
                         help="Torch device (cpu / cuda)")
-    parser.add_argument("--map-layout", type=str, default="map_b",
+    parser.add_argument("--map-layout", type=str, default=MAP_A_OPEN,
                         help=f"Environment geometry layout (canonical: {', '.join(MAP_LAYOUTS)})")
+    parser.add_argument("--opponent", type=str, default=DEFAULT_VIEWER_OPPONENT,
+                        help="Scripted/BT opponent key (OP6-OP12, C6A, C6B, ...)")
+    parser.add_argument("--m1", action="store_true",
+                        help="Enable RULESET_V3_M1 (own flag must be home to score)")
     parser.add_argument("--stochastic", action="store_true",
                         help="Use stochastic PPO actions instead of deterministic inference")
     args = parser.parse_args()
@@ -936,6 +1119,8 @@ if __name__ == "__main__":
         device=args.device,
         deterministic=not args.stochastic,
         map_layout=args.map_layout,
+        opponent=args.opponent,
+        own_flag_home_required_to_score=bool(args.m1),
     )
 
     if args.eval is not None:

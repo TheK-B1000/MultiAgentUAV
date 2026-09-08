@@ -1,0 +1,66 @@
+{
+  "record_id": "RUNG3_FIT_CONFOUNDED_READING_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-05T17:14:49Z",
+  "authority": "PI, 2026-09-05, on being told Rung 3 missed the comparability band: 'Run the matched eval anyway. I would not redesign Rung 3 now. The fidelity guardrail was frozen specifically to tell us how to interpret this situation, not to decide whether an inconvenient rung gets evaluated.'",
+
+  "timing_disclosure": {
+    "when": "written after the Rung 3 matched eval was launched and its header printed, with ZERO of the four crossover cells closed.",
+    "visible_when_written": ["Rung 3 terminal fidelity 0.936 / 0.969 and its position OUTSIDE the band (0.957 / 0.979)", "the full 20-epoch Rung 3 training curve", "checkpoint sha fb747147..., roundtrip logit diff 0.0, sharing arithmetic OK", "the eval header only: device, sha verification, the 128 matched seeds, the declared primary statistic"],
+    "NOT_visible_when_written": ["any of the four crossover cells", "the on/off-pole decomposition or its mechanism_signature", "D_A, D_B or their confidence intervals", "Rung 3's own gate", "RUNG3_LADDER_EVAL_RESULT.json, which did not exist on disk"],
+    "verified_how": "the eval's stdout was read in full and contained only its four header lines; a grep for closed cells returned 0; the result artifact was confirmed absent."
+  },
+
+  "amends": "RUNG2_FIDELITY_CONFOUND_AMENDMENT.json#CONDITIONAL_INTERPRETATION_RULE, as carried forward to Rung 3 by RUNG3_CONSTRUCTION_AND_PREDICTION.json#FIDELITY_BAND_UNCHANGED",
+  "rule": "APPEND. No threshold, gate, band, recipe, seed or statistic changes. This record fixes HOW Rung 3's already-determined fit miss constrains the reading of a payoff result that does not yet exist.",
+
+  "THE_FACT_THAT_TRIGGERS_IT": {
+    "rung_3_terminal_fidelity": {"agree_z0_vs_piA": 0.936, "agree_z1_vs_piB": 0.969},
+    "band": {"z0_floor": 0.957, "z1_floor": 0.979},
+    "verdict": "OUTSIDE BAND on BOTH latents -- z0 short by 0.021, z1 short by 0.010",
+    "peer_students_for_context": {"rung_2": [0.963, 0.985], "rung_1": [0.967, 0.989], "offline_TD": [0.965, 0.984]},
+    "curve_shape": "Rung 3's z0 agreement oscillated 0.919-0.936 across epochs 14-20 rather than climbing, unlike every prior rung's steady approach to its ceiling. Recorded descriptively; it is not a gated quantity and no early-stopping or extra-epoch remedy is licensed, since the 20-epoch terminal-weights-only schedule is frozen."
+  },
+
+  "WHY_THE_EVAL_STILL_RUNS": {
+    "PI_reasoning_verbatim": "'Stopping before payoff evaluation because the fidelity result landed outside the band risks a subtler methodological problem: it can look like we only fully evaluate architectures whose intermediate diagnostics are favorable.'",
+    "the_selection_effect_being_avoided": "if a rung is fully measured only when its intermediate diagnostics look good, the ladder's reported results become a biased sample of the architectures actually built. That bias is invisible in a writeup and would undermine every rung, not just this one.",
+    "the_chain_preserved": "prospectively frozen Rung 3 design -> terminal fit miss -> payoff still measured -> interpretation constrained in advance. Each link was fixed before the next was observed.",
+    "already_a_result": "Rung 3's fit miss is itself a finding independent of any crossover number: the next sharing increment made specialist distillation materially harder."
+  },
+
+  "MANDATORY_REPORTING_CONSTRAINT": {
+    "order": ["1. terminal fidelity, stated as OUTSIDE BAND, with all four students side by side", "2. matched within-seed D_A and D_B with CIs and classification", "3. Rung 3's own n=128 crossover gate, next to Rungs 2, 1 and 0", "4. NO clean leakage/interference attribution is permitted", "5. any payoff degradation is described as SHARING-ASSOCIATED AND FIT-CONFOUNDED"],
+    "forbidden_claims": ["'sharing destroys crossover despite equally good fit' -- the fit was not equally good", "any use of Rung 3's mechanism_signature as evidence for interference or leakage", "placing Rung 3 on a mechanism trend line with Rungs 1 and 2 without the fit-confound label attached"],
+    "still_permitted": ["reporting the mechanism_signature as a computed diagnostic, explicitly labelled non-attributable", "the practical architecture-boundary claim, which does not require clean attribution", "all descriptive comparisons, provided the band miss is stated alongside"]
+  },
+
+  "PREREGISTERED_READINGS": [
+    {
+      "pattern": "crossover FAILS",
+      "licensed_claim": "Rung 3 is the first sharing increment at which teacher fidelity materially deteriorates AND payoff-level crossover is no longer confirmed. Because the frozen fidelity guardrail was not met, the crossover loss cannot be uniquely attributed to interference independent of the degradation in distillation fit.",
+      "value": "weaker than Rung 2's mechanism claim, but a genuine PRACTICAL ARCHITECTURE BOUNDARY."
+    },
+    {
+      "pattern": "crossover PASSES despite 0.936/0.969",
+      "licensed_claim": "static imitation fidelity deteriorates BEFORE strategic crossover does, so the comparability band is conservative with respect to payoff preservation.",
+      "explicitly_not_licensed": "moving, widening or re-anchoring the band. The band stays exactly as frozen; the observation is recorded as informative about the band, not as a reason to change it."
+    },
+    {
+      "pattern": "matched D shows little additional payoff loss beyond Rung 2",
+      "licensed_claim": "the simple monotonic-damage hypothesis (H1) weakens despite the fit decline, which is evidence toward H2 -- that what matters is the differentiating capacity of what is shared, not the raw amount."
+    }
+  ],
+
+  "FOLLOW_UP_EXPLICITLY_DEFERRED": {
+    "what": "a smaller, boundary-refinement increment that might stay inside the band -- provisionally 'Rung 2.5'",
+    "why_it_cannot_replace_rung_3": "Rung 3's fidelity is already observed. Designing a smaller increment specifically to land inside the band AFTER seeing this outcome would be outcome-informed design and could not occupy Rung 3's preregistered slot.",
+    "how_it_may_proceed": "only as an explicitly NEW experiment with its own architecture and predictions frozen before training, and only after Rung 3 is fully read.",
+    "question_it_would_answer": "is there an intermediate amount or type of sharing that preserves Rung-2-level fit while producing additional payoff interference?",
+    "authorization": "NOT authorized by this record."
+  },
+
+  "STILL_UNAUTHORIZED": ["the sub-macro/target-head localisation sidecar (PI: second priority, after Rung 3 is read)", "the incumbent-topology matched re-evaluation (PI: third priority, an out-of-ladder architecture side control, never a rung)", "Rung 2.5 or any boundary-refinement rung", "PPO of any kind", "Z-separation", "BCS", "OTD round 2 or its seal"],
+
+  "NOT_CHANGED_BY_THIS_RECORD": ["the comparability band 0.957/0.979", "the 0.50 fit-check floor", "the primary crossover gate and its LCB95 rule", "the within-seed D statistic and its UCB95(D)<0 damage rule", "the on/off-pole classification thresholds", "the recipe, data, 20-epoch schedule and seeds", "the 128 matched eval seeds and the cuda instrument", "the tie/reversal row-level audit requirement"]
+}

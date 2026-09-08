@@ -10,6 +10,23 @@ from macro_actions import MacroAction
 
 from .._maps import MAP_B_SPLIT_LANE_V2
 from .._paths import _resolve_snapshot_path
+from ._bt_profiles import canonicalize_opponent_key, normalize_bt_level
+
+
+BT_DISPATCH_MIN_LEVEL = 6
+# 13/14 are the C6 experimental families. Without this bound they resolve to a
+# profile but never reach the BT brain, fall through to the legacy scripted red,
+# and behave IDENTICALLY to each other -- which is exactly how C6 Stage 1 first
+# failed. OP5 (level 5) still returns None, as before.
+BT_DISPATCH_MAX_LEVEL = 14
+
+
+def bt_dispatch_level_for_opponent_key(opponent_key: str) -> int | None:
+    """Return BT dispatch level for BT-brain keys (OP6-OP12, C6A/C6B), else None."""
+    level = normalize_bt_level(opponent_key)
+    if level is None or level < BT_DISPATCH_MIN_LEVEL or level > BT_DISPATCH_MAX_LEVEL:
+        return None
+    return int(level)
 
 
 def macro_commit_ticks(
@@ -117,6 +134,8 @@ class _ScriptedRedMixin:
     # Unified NPC brain for both sides
     # ------------------------------------------------------------------
     def _get_scripted_targets(self, side: str) -> Tuple[torch.Tensor, torch.Tensor]:
+        if side == "blue" and self._blue_style_active():
+            return self._assign_blue_style_targets()
         return self._assign_scripted_targets_by_role(side)
 
     def _assign_scripted_targets_by_role(self, side: str) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -139,22 +158,23 @@ class _ScriptedRedMixin:
         max_x = float(max(0, self.cols - 1))
         max_y = float(max(0, self.rows - 1))
         split_lane_v2_mask = self._map_layout_mask((MAP_B_SPLIT_LANE_V2,))
+        bt_dispatch_levels = [bt_dispatch_level_for_opponent_key(k) for k in self._opponent_key]
         if not is_blue:
             op5_mask = torch.as_tensor(
-                [str(k).upper() in ("OP5", "OP5_RUSHER") for k in self._opponent_key],
+                [canonicalize_opponent_key(k) == "OP5_RUSHER" for k in self._opponent_key],
                 device=device,
                 dtype=torch.bool,
             ) & split_lane_v2_mask
             op6_mask = torch.as_tensor(
-                [str(k).upper() in ("OP6", "OP6_TURTLE") for k in self._opponent_key],
+                [level == 6 for level in bt_dispatch_levels],
                 device=device,
                 dtype=torch.bool,
-            ) & split_lane_v2_mask
+            )
             op7_mask = torch.as_tensor(
-                [str(k).upper() in ("OP7", "OP7_SWITCHER") for k in self._opponent_key],
+                [level == 7 for level in bt_dispatch_levels],
                 device=device,
                 dtype=torch.bool,
-            ) & split_lane_v2_mask
+            )
         else:
             op5_mask = torch.zeros((B,), device=device, dtype=torch.bool)
             op6_mask = torch.zeros((B,), device=device, dtype=torch.bool)
@@ -163,27 +183,27 @@ class _ScriptedRedMixin:
         # OP8/9/10 behavioral overrides — active on all map layouts, red side only.
         if not is_blue:
             op8_mask = torch.as_tensor(
-                [str(k).upper() in ("OP8", "OP8_INTERCEPTOR") for k in self._opponent_key],
+                [level == 8 for level in bt_dispatch_levels],
                 device=device,
                 dtype=torch.bool,
             )
             op9_mask = torch.as_tensor(
-                [str(k).upper() in ("OP9", "OP9_FORTRESS") for k in self._opponent_key],
+                [level == 9 for level in bt_dispatch_levels],
                 device=device,
                 dtype=torch.bool,
             )
             op10_mask = torch.as_tensor(
-                [str(k).upper() in ("OP10", "OP10_ESCORT") for k in self._opponent_key],
+                [level == 10 for level in bt_dispatch_levels],
                 device=device,
                 dtype=torch.bool,
             )
             op11_mask = torch.as_tensor(
-                [str(k).upper() in ("OP11", "OP11_BT_BALANCED") for k in self._opponent_key],
+                [level == 11 for level in bt_dispatch_levels],
                 device=device,
                 dtype=torch.bool,
             )
             op12_mask = torch.as_tensor(
-                [str(k).upper() in ("OP12", "OP12_COUNTER") for k in self._opponent_key],
+                [level == 12 for level in bt_dispatch_levels],
                 device=device,
                 dtype=torch.bool,
             )
@@ -194,10 +214,30 @@ class _ScriptedRedMixin:
             op11_mask = torch.zeros((B,), device=device, dtype=torch.bool)
             op12_mask = torch.zeros((B,), device=device, dtype=torch.bool)
 
-        # OP8-OP12: behavior-tree brain — runs before scripted fallback and
+        # "Does this opponent use the BT brain?" is a GENERIC question and must not
+        # enumerate levels. The previous explicit op6|...|op12 OR meant any new
+        # level resolved to a profile, passed every identity check, and still
+        # never reached the BT brain -- it fell through to legacy scripted red and
+        # behaved identically to every other such opponent. That is how C6 Stage 1
+        # failed twice, and an enumeration would hand C7 the same rake.
+        #
+        # The predicate is dispatch itself: a level that dispatches uses the brain.
+        # NOT _bt_opponent_mask() -- BT_OPPONENT_KEYS includes OP5_RUSHER, which is
+        # deliberately excluded from BT dispatch and stays on the legacy
+        # split-lane path. Using membership here would silently pull OP5 in.
+        if not is_blue:
+            bt_dispatch_mask = torch.as_tensor(
+                [level is not None for level in bt_dispatch_levels],
+                device=device,
+                dtype=torch.bool,
+            )
+        else:
+            bt_dispatch_mask = torch.zeros((B,), device=device, dtype=torch.bool)
+
+        # OP6-OP12: behavior-tree brain — runs before scripted fallback and
         # overwrites targets for masked environment rows only.
-        # OP5/6/7 use the scripted brain (coordinated_attack override must take effect).
-        bt_active = (op8_mask | op9_mask | op10_mask | op11_mask | op12_mask) if not is_blue else torch.zeros((B,), device=device, dtype=torch.bool)
+        # OP5 remains legacy scripted for the split-lane-v2 compatibility path.
+        bt_active = bt_dispatch_mask if not is_blue else torch.zeros((B,), device=device, dtype=torch.bool)
         # Pre-allocate BT targets using self.Nr (always red-agent count).
         _bt_N = self.Nr
         bt_tx = torch.zeros((B, _bt_N), dtype=torch.float32, device=device)
@@ -635,7 +675,7 @@ class _ScriptedRedMixin:
             self.red_coordinated_attack = _bt_legacy_restore["coordinated_attack"]
 
         if not is_blue:
-            # BT opponents (OP8..OP12) override scripted targets for their envs.
+            # BT opponents (OP6..OP12) override scripted targets for their envs.
             # bt_tx/bt_ty are [B, Nr]; target is [B, N, 2] where N == Nr for red side.
             # We overwrite only the Nr columns, leaving any extra columns (if N > Nr) alone.
             if bt_active.any():

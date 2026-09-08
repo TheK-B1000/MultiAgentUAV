@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 from types import SimpleNamespace
 from typing import Any, Optional
@@ -18,6 +18,13 @@ class TrainingOpponentPool:
     tags: list[str]
     weights: Optional[list[float]]
     rng: np.random.Generator
+    # Optional joint (opponent, map, weight) cells. When set, overrides tag-only sampling.
+    cells: Optional[list[tuple[str, str, float]]] = None
+    snapshots: list = field(default_factory=list)
+    snapshot_rng: Any = None
+    #: Optional meta-strategy over ``snapshots`` (PSRO/Double-Oracle). None => UNIFORM,
+    #: which reproduces the pre-existing fictitious-play behaviour exactly.
+    snapshot_weights: Optional[list] = None
 
     @classmethod
     def from_hparams(cls, cfg: Any, hparams: Any) -> TrainingOpponentPool:
@@ -33,11 +40,35 @@ class TrainingOpponentPool:
                 "Opponent pool training (mode=OPPONENT_POOL or opponent_randomize) requires a non-empty "
                 "opponent_pool (e.g. OP1–OP3, OP5–OP7; OP4 optional with --allow-op4-in-training-pool)."
             )
+        raw_cells = tuple(getattr(cfg, "training_cell_distribution", ()) or ())
+        cells: Optional[list[tuple[str, str, float]]] = None
+        if raw_cells:
+            parsed: list[tuple[str, str, float]] = []
+            for entry in raw_cells:
+                if len(entry) != 3:
+                    raise ValueError(
+                        f"training_cell_distribution entries must be (opp, map, weight); got {entry!r}"
+                    )
+                parsed.append((str(entry[0]).upper(), str(entry[1]), float(entry[2])))
+            total = sum(max(0.0, w) for _, _, w in parsed)
+            if total <= 0:
+                raise ValueError("training_cell_distribution weights must sum to > 0")
+            cells = [(o, m, max(0.0, w) / total) for o, m, w in parsed]
+        snapshots = [str(x) for x in (getattr(cfg, "snapshot_opponent_pool", ()) or ())]
+        snapshot_weights = _validate_snapshot_weights(
+            getattr(cfg, "snapshot_opponent_weights", None), snapshots)
         return cls(
-            enabled=bool(hparams.opponent_randomize_training),
+            enabled=bool(hparams.opponent_randomize_training) or bool(snapshots),
             tags=tags,
             weights=weights,
             rng=np.random.default_rng(int(getattr(cfg, "seed", 0)) + 901),
+            cells=cells,
+            snapshots=snapshots,
+            # SEPARATE stream (+902). Drawing snapshot picks from the scripted rng
+            # would shift the scripted opponent sequence for a given seed, which is
+            # exactly the compatibility break the additive design must avoid.
+            snapshot_rng=np.random.default_rng(int(getattr(cfg, "seed", 0)) + 902),
+            snapshot_weights=snapshot_weights,
         )
 
     def attach_before_reset_hook(self, env: Any, trainer: Any) -> None:
@@ -55,6 +86,10 @@ def _resolve_training_opponent_pool(trainer: Any) -> Any:
         tags=list(getattr(trainer, "_opponent_pool_tags", []) or []),
         weights=getattr(trainer, "_opponent_pool_weights", None),
         rng=getattr(trainer, "_rng_opponent", None),
+        cells=None,
+        snapshots=list(getattr(trainer, "_snapshot_opponent_pool", []) or []),
+        snapshot_rng=getattr(trainer, "_rng_snapshot_opponent", None),
+        snapshot_weights=getattr(trainer, "_snapshot_opponent_weights", None),
     )
 
 
@@ -100,6 +135,90 @@ def _update_curriculum_after_episode(
     _set_curriculum_opponent(trainer, new_phase, env_index)
 
 
+def _validate_snapshot_weights(raw: Any, snapshots: list) -> Optional[list]:
+    """Validate a PSRO meta-strategy over the snapshot pool. FAILS CLOSED.
+
+    Returns None when no weights are supplied, which preserves UNIFORM sampling and so
+    reproduces the pre-existing fictitious-play behaviour exactly.
+
+    A malformed distribution must raise rather than be silently normalised or ignored: a
+    PSRO best response trained against the wrong mixture would look like a healthy run and
+    mean nothing, which is the same class of counterfeit success the snapshot-load guard
+    exists to prevent.
+    """
+    if raw is None:
+        return None
+    w = [float(x) for x in raw]
+    if not w:
+        return None
+    if not snapshots:
+        raise ValueError("snapshot_opponent_weights supplied without a snapshot pool")
+    if len(w) != len(snapshots):
+        raise ValueError(
+            f"snapshot_opponent_weights length {len(w)} does not match "
+            f"snapshot_opponent_pool length {len(snapshots)}")
+    if any(not np.isfinite(x) for x in w):
+        raise ValueError(f"snapshot_opponent_weights contains a non-finite value: {w!r}")
+    if any(x < 0.0 for x in w):
+        raise ValueError(f"snapshot_opponent_weights contains a negative mass: {w!r}")
+    total = sum(w)
+    if total <= 0.0:
+        raise ValueError(f"snapshot_opponent_weights must sum to > 0; got {total!r}")
+    return [x / total for x in w]
+
+
+def _sample_snapshot_opponents(trainer: Any, pool: Any, snapshots: list, done: np.ndarray) -> None:
+    """Fictitious Play: pick a historical checkpoint per finished sub-env.
+
+    Uses pool.snapshot_rng, NOT pool.rng, so enabling FP cannot shift the
+    scripted opponent sequence for any given seed.
+
+    Fails CLOSED on load. gpu_env/state/snapshots.py swallows load errors and
+    returns None, which would leave red unpiloted while training looked healthy
+    -- a counterfeit success. A checkpoint that will not load raises here instead.
+    """
+    rng = getattr(pool, "snapshot_rng", None)
+    if rng is None:
+        raise RuntimeError("snapshot opponent pool configured without an RNG")
+    for env_i, done_i in enumerate(done):
+        if not bool(done_i):
+            continue
+        weights = getattr(pool, "snapshot_weights", None)
+        if weights is None:
+            # UNIFORM -- byte-for-byte the pre-existing fictitious-play draw.
+            idx = int(rng.integers(0, len(snapshots)))
+        else:
+            # PSRO meta-strategy. Zero-mass members are unreachable by construction:
+            # searchsorted on the cumulative distribution can never land on an interval
+            # of zero width.
+            if len(weights) != len(snapshots):
+                raise RuntimeError(
+                    f"snapshot weights ({len(weights)}) and pool ({len(snapshots)}) "
+                    f"diverged at sample time; refusing to train against an unknown mixture")
+            cum = np.cumsum(weights)
+            idx = int(np.searchsorted(cum, float(rng.random()) * float(cum[-1]), side="right"))
+            idx = min(idx, len(snapshots) - 1)
+        pick = str(snapshots[idx])
+        try:
+            core = trainer.env.get_attr("core", indices=[env_i])[0]
+            if core._load_snapshot_policy(pick) is None:
+                raise RuntimeError(
+                    f"snapshot opponent {pick!r} loaded as None; refusing to train "
+                    f"against an unpiloted red team")
+        except RuntimeError:
+            raise
+        except Exception:
+            pass  # env without a reachable core attr; the loadability guard ran pre-training
+        try:
+            trainer.env.env_method("set_next_opponent", "SNAPSHOT", pick, indices=[env_i])
+        except Exception:
+            trainer.env.env_method("set_next_opponent", "SNAPSHOT", pick)
+        sel = getattr(trainer, "_fp_selected_snapshots", None)
+        if sel is None:
+            sel = trainer._fp_selected_snapshots = []
+        sel.append({"env": int(env_i), "checkpoint": pick})
+
+
 def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, infos: list) -> None:
     """Sample the *next* episode's scripted opponent per finished sub-env (GPUCTFVecEnv hook)."""
     if trainer.curriculum is not None:
@@ -107,11 +226,22 @@ def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, 
     pool = _resolve_training_opponent_pool(trainer)
     if not pool.enabled:
         return
+    snapshots = list(getattr(pool, "snapshots", []) or [])
+    if snapshots:
+        _sample_snapshot_opponents(trainer, pool, snapshots, done)
+        return
+    cells = getattr(pool, "cells", None)
     weights = pool.weights
     for env_i, done_i in enumerate(done):
         if not bool(done_i):
             continue
-        if weights is not None:
+        map_layout = None
+        if cells:
+            probs = [c[2] for c in cells]
+            pick = int(pool.rng.choice(len(cells), p=probs))
+            tag = str(cells[pick][0]).upper()
+            map_layout = str(cells[pick][1])
+        elif weights is not None:
             tag = str(pool.rng.choice(pool.tags, p=weights)).upper()
         else:
             tag = str(pool.rng.choice(pool.tags)).upper()
@@ -119,6 +249,13 @@ def _hook_sample_training_opponent_before_reset(trainer: Any, done: np.ndarray, 
         try:
             trainer.env.env_method("set_next_opponent", "SCRIPTED", tag, indices=[env_i])
             trainer.env.env_method("set_phase", phase_s, indices=[env_i])
+            if map_layout is not None:
+                trainer.env.env_method("set_next_map_layout", map_layout, indices=[env_i])
         except Exception:
             trainer.env.env_method("set_next_opponent", "SCRIPTED", tag)
             trainer.env.env_method("set_phase", phase_s)
+            if map_layout is not None:
+                try:
+                    trainer.env.env_method("set_next_map_layout", map_layout)
+                except Exception:
+                    pass

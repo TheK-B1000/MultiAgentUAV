@@ -1,0 +1,64 @@
+{
+  "verdict": "RECONFIRM_FAIL",
+  "protocol": "BLUE_PROBES_V3",
+  "base_seed": 591001,
+  "n_episodes": 16,
+  "intended_best": "BLUE_ESCORT",
+  "means": {
+    "BLUE_ESCORT": 1.75,
+    "BLUE_RUSH": 1.25,
+    "BLUE_SPLIT": 1.125,
+    "BLUE_TURTLE": 0.25
+  },
+  "win_rates": {
+    "BLUE_ESCORT": 0.875,
+    "BLUE_RUSH": 0.9375,
+    "BLUE_SPLIT": 0.625,
+    "BLUE_TURTLE": 0.375
+  },
+  "uniquely_best": "BLUE_ESCORT",
+  "paired_advantages": {
+    "BLUE_RUSH": {
+      "mean": 0.5,
+      "ci95": [
+        -0.1875,
+        1.125
+      ],
+      "clear": false,
+      "pos": 10,
+      "neg": 3,
+      "zero": 3
+    },
+    "BLUE_SPLIT": {
+      "mean": 0.625,
+      "ci95": [
+        -0.25156249999999947,
+        1.4375
+      ],
+      "clear": false,
+      "pos": 9,
+      "neg": 4,
+      "zero": 3
+    },
+    "BLUE_TURTLE": {
+      "mean": 1.5,
+      "ci95": [
+        0.6875,
+        2.375
+      ],
+      "clear": true,
+      "pos": 11,
+      "neg": 2,
+      "zero": 3
+    }
+  },
+  "pooled_vs_best_other": {
+    "mean": -0.0625,
+    "ci95": [
+      -0.8125,
+      0.625
+    ],
+    "clear": false
+  },
+  "episode_csv": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\op9_escort_heldout16_mapa_seed591001\\episode_results.csv"
+}

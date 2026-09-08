@@ -1,0 +1,134 @@
+{
+  "frozen_utc": "2026-07-31T21:07:54.222640+00:00",
+  "status": "FROZEN_PRE_LAUNCH -- controllers and metric must not be adjusted from results",
+  "predecessor": {
+    "gate": "Gate 2C",
+    "verdict": "INVALID_TREATMENT_SEPARATION",
+    "cause": "binary home-presence checkbox compressed the contrast (+0.2257 vs 0.25 floor); ruler, not treatment. Controllers were NOT changed."
+  },
+  "only_change_vs_2c": "manipulation metric -> mean_num_home_defenders (agent units)",
+  "controllers": {
+    "both_attack": "BLUE_BOTH_ATTACK_V2",
+    "one_defender": "BLUE_ONE_DEFENDER_V2",
+    "defender_hold_radius_cells": 3.0,
+    "unchanged_from_gate2c": true
+  },
+  "scenario": {
+    "map": "map_a",
+    "resolved_map": "map_a_open",
+    "opponent": "OP6",
+    "horizon": 240,
+    "agents": 2,
+    "domain_randomization": false,
+    "device": "cuda"
+  },
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "seeds": {
+    "base": 2200001,
+    "count": 32,
+    "list": [
+      2200001,
+      2200002,
+      2200003,
+      2200004,
+      2200005,
+      2200006,
+      2200007,
+      2200008,
+      2200009,
+      2200010,
+      2200011,
+      2200012,
+      2200013,
+      2200014,
+      2200015,
+      2200016,
+      2200017,
+      2200018,
+      2200019,
+      2200020,
+      2200021,
+      2200022,
+      2200023,
+      2200024,
+      2200025,
+      2200026,
+      2200027,
+      2200028,
+      2200029,
+      2200030,
+      2200031,
+      2200032
+    ],
+    "retired_blocks": {
+      "gate2c": [
+        2000001,
+        2000032
+      ],
+      "gate2d_dev_smoke": [
+        2100001,
+        2100004
+      ]
+    }
+  },
+  "manipulation": {
+    "formal_metric": "mean_num_home_defenders",
+    "definition": "mean over steps of BLUE agents that are alive, NOT carrying the enemy flag, in authoritative BLUE territory (engine predicate), and within 8.0 cells of blue_flag_home",
+    "descriptive_only": "blue_home_defense_fraction",
+    "floors_agents": {
+      "defensive_separation": 0.25,
+      "offensive_separation": 0.25
+    },
+    "requires": "both means >= floor AND paired LCB95 > 0"
+  },
+  "outcomes": {
+    "source": "capture_scored event ledger ONLY",
+    "T_capture": "decision step of first capture",
+    "no_capture_censor": 241,
+    "early_window": 60,
+    "defense_benefit": "RED T_capture(ONE) - RED T_capture(BOTH)",
+    "offense_cost": "BLUE T_capture(ONE) - BLUE T_capture(BOTH)",
+    "pass": "LCB95(defense_benefit) > 0 AND LCB95(offense_cost) > 0"
+  },
+  "bootstrap": {
+    "method": "paired percentile",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 0
+  },
+  "home_defense_radius_cells": 8.0,
+  "row_key": [
+    "episode_seed",
+    "blue_style",
+    "map",
+    "opponent",
+    "ruleset_id"
+  ],
+  "not_tuned_from_results": [
+    "defender hold radius",
+    "home-defense radius",
+    "controllers",
+    "opponent",
+    "horizon",
+    "ruleset"
+  ],
+  "git": {
+    "commit": "218577b35a789d4f0b596cdd048da80f85da4ee2",
+    "branch": "new-rules"
+  },
+  "critical_file_sha256": {
+    "experiments/gate2d_first_capture_latency_v2.py": "7a61d75b0c8b8e5e1d24fb7633b4e04b8b94312b940dec9155549b738fb804b7",
+    "gpu_env/_core/_scripted_blue_styles.py": "d5f7aa9c95a36bdef04df6e162f4073ad8a9091f136223e9331a6766c1e0ee7e",
+    "gpu_env/_core/_rules.py": "fbde25309318123b62746f61ec889a7487d981cc32e164ae9eb13876ccf7ff57",
+    "gpu_env/_config.py": "612ce05025911f0c15293fc807a80739d1c96da9808856bf92b8e9f11a017d6a",
+    "gpu_env/state/scratch.py": "da9cdad1107b55afbbf90ff73dbf751c88e05dd087d3516459f557d606cecaea",
+    "gpu_env/state/episode_state.py": "024340feffd2f402b437c6e7040f1d91481756158d100727e3375d6622190abd"
+  }
+}

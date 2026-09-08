@@ -1,0 +1,47 @@
+{
+  "record_id": "4V4_SPECIALIZATION_PRESSURE_DIAGNOSTIC",
+  "status": "DIAGNOSTIC_NOT_A_GATE",
+  "utc": "2026-09-08T16:15:00Z",
+  "authority": "PI, 2026-09-08: 'see if you can get the 4v4 working w/o changing the methodology.'",
+
+  "QUESTION": "after two independent 4v4 confirmatory attempts failed to produce learned specialist crossover (exploratory arm on canonical Pole B; C2 track on the properly-certified Pole B2/B2-1), can 4v4 be made to work WITHOUT changing the methodology?",
+
+  "ANSWER": "Not with the current Pole B2/B2-1 construction, and the training curves show a specific, concrete reason why -- but this is one failed construction, not a proof that 4v4 categorically cannot work. The failure is not bad luck or a bad seed; B2-1 satisfies strategic distinction (G_B2 decisively positive under the certification gate) but PPO solved it almost immediately, leaving no training-time pressure toward a specialized response.",
+
+  "EVIDENCE_zero_new_compute": {
+    "source": "training metrics.csv already on disk for every specialist; no new episodes, no new seeds, no new runs",
+    "2v2_the_case_that_worked": {
+      "pi_A_seed7100001_vs_PoleA": {"step_251904": 0.42, "step_501760": 0.535, "step_751616": 0.595, "final": 0.545},
+      "pi_B_seed7200001_vs_PoleB": {"step_251904": 0.53, "step_501760": 0.585, "step_751616": 0.545, "final": 0.57},
+      "reading": "BOTH 2v2 poles hold their own specialist near 0.55 for the entire budget -- a genuinely contested matchup where strategy determines outcome."
+    },
+    "4v4_the_case_that_failed": {
+      "pi_A2_seed16100001_vs_PoleA": {"step_143360": 0.68, "step_571392": 0.81, "final": 0.725},
+      "pi_B2_seed16200001_vs_PoleB2": {"step_143360": 0.89, "step_571392": 0.935, "final": 0.89},
+      "reading": "pi_B2 reached ~0.89 against its own pole within the first 14% of the training budget and plateaued there for the remaining ~857k steps. Pole A is easier than either 2v2 pole (~0.72 vs ~0.55) and Pole B2 is nearly solved."
+    }
+  },
+
+  "MECHANISM_SAFER_WORDING": "The results suggest that scripted strategic-demand separation is necessary but may be insufficient when the learned matchup becomes nearly solved early in training; sustained matchup difficulty appears important for learned specialization to emerge. This is the mechanism the 2v2/4v4 contrast points to, not a proven general theorem -- one failed 4v4 construction does not establish universality, and the claim is stated at that strength deliberately.",
+
+  "WHY_THE_EXISTING_CERTIFICATION_CANNOT_CATCH_THIS": "the scripted GUARD/BREACH strategic-demand test measures whether TWO SCRIPTED PROBES differ in outcome against a pole. B2-1 passed that decisively (delta_B = +0.6302 [+0.5573,+0.7031] at n=192: BREACH beats it, GUARD fails against it). But a trained PPO policy is not restricted to those two scripted styles -- it can find a third strategy that beats the pole easily regardless of how GUARD and BREACH fare. Scripted strategic demand is therefore NECESSARY BUT NOT SUFFICIENT for learned specialization, and this record documents a concrete pole pair that satisfies the former and fails the latter.",
+
+  "WHAT_WOULD_BE_REQUIRED_and_why_it_is_a_methodology_change": "a pole that holds a TRAINED specialist near the contested band (roughly 0.5-0.7, as 2v2's poles do) rather than ~0.9. Testing that property requires training a policy against a candidate pole BEFORE certifying it -- which is a different, more expensive certification criterion than the current scripted-probe test. Adding it is a methodology change and is explicitly NOT proposed or authorized here.",
+
+  "WHAT_THIS_RULES_OUT_within_the_existing_methodology": [
+    "a third seed pair -- two independent pairs (7410001/7420001, 16100001/16200001) already failed; a third would be seed-shopping, and the point estimates were negative, not merely underpowered",
+    "more evaluation seeds -- n=128 was not the limitation; both delta point estimates are on the WRONG side of zero, and power does not move a negative estimate positive",
+    "a longer training budget or different architecture -- both are changes to the frozen recipe"
+  ],
+
+  "TRANSFERABLE_PREDICTION_for_6v6": "this yields a cheap early-warning check for the 6v6 pipeline, using data stage 1 produces anyway: if either 6v6 specialist's rolling win rate against its own pole plateaus near ~0.9 (as pi_B2 did at 4v4) rather than in the contested band (as both 2v2 specialists did), the same failure should be expected downstream, and that is visible from the training curve long before the sealed crossover eval is spent. This is an observation to record, not a gate -- it does not alter the frozen 6v6 protocol in any way.",
+
+  "STATUS": "DIAGNOSTIC. Explains the two sealed 4v4 FAIL results (EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json, CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json). Changes neither, reopens neither.",
+
+  "AUTHORIZATION_UPDATE_2026_09_08": {
+    "authority": "PI, 2026-09-08: 'For 4v4 we can change strategies if we need to: you can change the strategies though.'",
+    "what_changed": "pole/strategy REDESIGN (a new candidate Pole B3+) is now authorized. The CERTIFICATION METHODOLOGY (scripted GUARD/BREACH gate, bootstrap, n=192 power) is NOT changed -- a new candidate must still pass that same gate.",
+    "the_cheap_path_this_enables": "training a fresh specialist just to discover a pole is too easy costs ~5h and answers only that. Instead, use the ALREADY-TRAINED pi_A2 (a real, non-degenerate, generically capable 4v4 policy) as a difficulty probe against candidate harder Pole-B profiles on disposable seeds, BEFORE committing to any new training run. A candidate whose win rate against pi_A2 lands in the contested ~0.5-0.7 band (matching the 2v2 poles' own held-difficulty against real specialists) is worth certifying and training against; one near 0.9+ is not. This is discovery, not training-based certification -- the certification gate itself is unchanged.",
+    "see": "4V4_POLE_B3_DIFFICULTY_SCREEN.json for the candidates and result"
+  }
+}

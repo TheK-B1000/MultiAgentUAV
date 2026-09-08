@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-08-31T17:09:27.419951Z",
+  "evaluation_run_id": "hog_psp_v3_production",
+  "source_training_run_id": "hog_psp_v3_production",
+  "source_checkpoint_fingerprint": "9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "hog_psp_v3_production",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

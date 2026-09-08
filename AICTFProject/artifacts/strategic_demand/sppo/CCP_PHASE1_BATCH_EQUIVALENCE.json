@@ -1,0 +1,59 @@
+{
+  "record": "CCP Phase 1 batch equivalence gate",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-01T14:38:57Z",
+  "implements": "CCP_PHASE1_BATCH_EQUIVALENCE_SPEC.json",
+  "VERDICT": "BATCHING_INVALID",
+  "meaning": "Invariant 1 fails. Per the frozen spec, batching as implemented is INVALID, not merely slower, and Phase 1 does not collect under it.",
+  "INVARIANT_1_SEQ_BATCH_EQUIVALENCE": {
+    "result": "FAIL",
+    "mechanism": "A GPUCTFVecEnv built with n_envs=B initialises B DIFFERENT episodes. Lanes are not identical at reset, before any step is taken: 1 of 8 lanes matched lane 0, max|diff| = 1.0 on the global state.",
+    "why_this_is_more_basic_than_predicted": "The prospective prediction attributed the expected failure to the shared torch.rand((B,), generator=rng) draw splitting across lanes during prefix replay. That mechanism may also hold, but it was never reached: the lanes do not share a starting episode, so batched prefix replay cannot reconstruct a common s_t at all.",
+    "after_40_identical_steps": "1 of 8 lanes still matched lane 0, consistent with the reset-time divergence rather than with drift"
+  },
+  "INVARIANT_2_AB_PAIRED_STREAM_IDENTITY": {
+    "result": "NOT_REACHED",
+    "why": "invariant 1 failed; the gate requires all three together"
+  },
+  "INVARIANT_3_LANE_AND_COMPOSITION_INVARIANCE": {
+    "result": "NOT_REACHED",
+    "why": "same"
+  },
+  "PROSPECTIVE_PREDICTION_SCORED": {
+    "predicted": "invariant 1 FAILS, via per-lane deception draws causing ~3 of 32 lanes to diverge during prefix replay",
+    "outcome": "the verdict was right, the mechanism was wrong and understated. Divergence is at reset and affects 7 of 8 lanes, not a few lanes mid-replay.",
+    "recorded_because": "the spec required the prediction be scored plainly whether or not it held"
+  },
+  "MEASURED_BATCHING_PAYOFF_IF_IT_WERE_VALID": {
+    "ms_per_lane_step": {
+      "B=1": 100.43,
+      "B=8": 16.2,
+      "B=32": 4.41
+    },
+    "speedup_vs_B1": {
+      "B=8": 6.2,
+      "B=32": 22.8
+    },
+    "note": "Recorded so the cost of NOT batching is on the record. It does not license batching."
+  },
+  "WHERE_THE_TIME_ACTUALLY_GOES": {
+    "env_build_reset_ms": 124.9,
+    "env_step_only_ms_per_step": 151.0,
+    "full_loop_ms_per_step": 157.3,
+    "policy_predict_ms_per_step": 14.0,
+    "policy_share_of_loop": "9%",
+    "critic_forward_ms": {
+      "B=1": 1.31,
+      "B=32": 1.29
+    },
+    "reading": "The environment step dominates and the GPU is idle -- 32 critic rows cost the same wall time as 1. The executing agent had predicted policy inference at ~100 ms/step and was wrong; it is 14 ms. Batching the POLICY buys nothing."
+  },
+  "CONSEQUENCE": {
+    "chosen_option": "option_2_parallel_B1_cores from the frozen spec",
+    "why": "Independent B=1 cores preserve exactly the semantics already validated by Phase 0, the CRN smoke and the continuation-entropy smoke, with no environment change and none of the three invariants at risk. The env step is CPU-bound with an idle GPU, so concurrent processes should scale until CPU saturation.",
+    "option_1_is_larger_than_the_spec_assumed": "A per-lane keyed RNG would not be sufficient. Lanes differ at RESET, so identical-start batching would require changing episode initialisation as well -- a change to the game distribution, not just to RNG ownership.",
+    "estimator_unchanged": true
+  },
+  "EVAL_touched": false
+}

@@ -1,0 +1,535 @@
+{
+  "source_csv": "artifacts\\v6i26_lro_niches_round1_seed1\\phase2_confirm\\forced_z_before_32\\episode_results.csv",
+  "episodes_per_cell": 32,
+  "opponents": [
+    "OP6_IMMEDIATE_DUAL_RUSH",
+    "OP7_DEEP_FORTRESS",
+    "OP8_PROTECTED_CARRIER_ESCORT",
+    "OP9_SPLIT_LANE_FEINT",
+    "OP10_AGGRESSIVE_INTERCEPTOR",
+    "OP11_ADAPTIVE_EXPLOITER",
+    "OP12_LATE_CONVERTER"
+  ],
+  "maps": [
+    "map_b_split_lane",
+    "map_b_split_lane_v2"
+  ],
+  "contexts": [
+    "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+    "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2",
+    "OP7_DEEP_FORTRESS|map_b_split_lane",
+    "OP7_DEEP_FORTRESS|map_b_split_lane_v2",
+    "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane",
+    "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+    "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+    "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2",
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane",
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2",
+    "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+    "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2",
+    "OP12_LATE_CONVERTER|map_b_split_lane",
+    "OP12_LATE_CONVERTER|map_b_split_lane_v2"
+  ],
+  "winrate_matrix": [
+    [
+      0.59375,
+      0.71875,
+      0.84375,
+      1.0,
+      0.53125,
+      0.84375,
+      0.4375,
+      0.6875,
+      0.78125,
+      0.84375,
+      0.5,
+      0.75,
+      0.40625,
+      0.9375
+    ],
+    [
+      0.90625,
+      0.96875,
+      0.96875,
+      1.0,
+      1.0,
+      0.875,
+      0.90625,
+      0.90625,
+      0.90625,
+      0.90625,
+      0.96875,
+      1.0,
+      0.90625,
+      0.84375
+    ],
+    [
+      0.9375,
+      0.96875,
+      0.96875,
+      1.0,
+      1.0,
+      0.90625,
+      0.9375,
+      0.90625,
+      0.90625,
+      0.90625,
+      0.96875,
+      1.0,
+      0.90625,
+      0.875
+    ],
+    [
+      0.96875,
+      0.96875,
+      0.96875,
+      1.0,
+      1.0,
+      1.0,
+      0.96875,
+      0.9375,
+      0.9375,
+      0.96875,
+      0.875,
+      1.0,
+      0.96875,
+      0.875
+    ]
+  ],
+  "win_margin_matrix": [
+    [
+      0.3125,
+      0.53125,
+      1.21875,
+      1.71875,
+      0.15625,
+      0.84375,
+      -0.0625,
+      0.5625,
+      0.84375,
+      0.9375,
+      0.0625,
+      0.875,
+      -0.09375,
+      1.25
+    ],
+    [
+      0.96875,
+      1.21875,
+      1.875,
+      1.96875,
+      1.25,
+      1.03125,
+      1.09375,
+      1.21875,
+      1.125,
+      1.3125,
+      1.34375,
+      1.375,
+      1.0,
+      0.9375
+    ],
+    [
+      1.0625,
+      1.21875,
+      1.875,
+      1.96875,
+      1.25,
+      1.125,
+      1.15625,
+      1.21875,
+      1.125,
+      1.3125,
+      1.28125,
+      1.375,
+      1.03125,
+      1.0
+    ],
+    [
+      1.1875,
+      1.25,
+      1.71875,
+      1.90625,
+      1.28125,
+      1.375,
+      1.375,
+      1.21875,
+      1.28125,
+      1.46875,
+      1.03125,
+      1.375,
+      1.28125,
+      1.15625
+    ]
+  ],
+  "coverage_by_context": {
+    "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 0.96875,
+    "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2": 0.96875,
+    "OP7_DEEP_FORTRESS|map_b_split_lane": 0.96875,
+    "OP7_DEEP_FORTRESS|map_b_split_lane_v2": 1.0,
+    "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane": 1.0,
+    "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2": 1.0,
+    "OP9_SPLIT_LANE_FEINT|map_b_split_lane": 0.96875,
+    "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2": 0.9375,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane": 0.9375,
+    "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2": 0.96875,
+    "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane": 0.96875,
+    "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2": 1.0,
+    "OP12_LATE_CONVERTER|map_b_split_lane": 0.96875,
+    "OP12_LATE_CONVERTER|map_b_split_lane_v2": 0.9375
+  },
+  "excluded_saturated_contexts": [
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+      "coverage": 0.96875,
+      "best_z": 3
+    },
+    {
+      "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2",
+      "coverage": 0.96875,
+      "best_z": 1
+    },
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane",
+      "coverage": 0.96875,
+      "best_z": 1
+    },
+    {
+      "context": "OP7_DEEP_FORTRESS|map_b_split_lane_v2",
+      "coverage": 1.0,
+      "best_z": 0
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane",
+      "coverage": 1.0,
+      "best_z": 1
+    },
+    {
+      "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+      "coverage": 1.0,
+      "best_z": 3
+    },
+    {
+      "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+      "coverage": 0.96875,
+      "best_z": 3
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane",
+      "coverage": 0.9375,
+      "best_z": 3
+    },
+    {
+      "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2",
+      "coverage": 0.96875,
+      "best_z": 3
+    },
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+      "coverage": 0.96875,
+      "best_z": 1
+    },
+    {
+      "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2",
+      "coverage": 1.0,
+      "best_z": 1
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane",
+      "coverage": 0.96875,
+      "best_z": 3
+    },
+    {
+      "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+      "coverage": 0.9375,
+      "best_z": 0
+    }
+  ],
+  "current_response_target": {
+    "selection_basis": "current_forced_z_payoff",
+    "saturation_cutoff": 0.9,
+    "target_fraction": 0.75,
+    "competence_floor": 0.9375,
+    "coverage_by_context": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 0.96875,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2": 0.96875,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 0.96875,
+      "OP7_DEEP_FORTRESS|map_b_split_lane_v2": 1.0,
+      "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane": 1.0,
+      "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2": 1.0,
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane": 0.96875,
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2": 0.9375,
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane": 0.9375,
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2": 0.96875,
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane": 0.96875,
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2": 1.0,
+      "OP12_LATE_CONVERTER|map_b_split_lane": 0.96875,
+      "OP12_LATE_CONVERTER|map_b_split_lane_v2": 0.9375
+    },
+    "best_z_by_context": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": 3,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2": 1,
+      "OP7_DEEP_FORTRESS|map_b_split_lane": 1,
+      "OP7_DEEP_FORTRESS|map_b_split_lane_v2": 0,
+      "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane": 1,
+      "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2": 3,
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane": 3,
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2": 3,
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane": 3,
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2": 3,
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane": 1,
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2": 1,
+      "OP12_LATE_CONVERTER|map_b_split_lane": 3,
+      "OP12_LATE_CONVERTER|map_b_split_lane_v2": 0
+    },
+    "row_mean_payoff": {
+      "z0": 0.7053571428571429,
+      "z1": 0.9330357142857143,
+      "z2": 0.9419642857142857,
+      "z3": 0.9598214285714286
+    },
+    "dominant_context_count_by_branch": {
+      "z0": 2,
+      "z1": 5,
+      "z2": 0,
+      "z3": 7
+    },
+    "stable_branch_indices": [
+      2,
+      3
+    ],
+    "excluded_saturated_contexts": [
+      {
+        "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane",
+        "coverage": 0.96875,
+        "best_z": 3
+      },
+      {
+        "context": "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2",
+        "coverage": 0.96875,
+        "best_z": 1
+      },
+      {
+        "context": "OP7_DEEP_FORTRESS|map_b_split_lane",
+        "coverage": 0.96875,
+        "best_z": 1
+      },
+      {
+        "context": "OP7_DEEP_FORTRESS|map_b_split_lane_v2",
+        "coverage": 1.0,
+        "best_z": 0
+      },
+      {
+        "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane",
+        "coverage": 1.0,
+        "best_z": 1
+      },
+      {
+        "context": "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2",
+        "coverage": 1.0,
+        "best_z": 3
+      },
+      {
+        "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+        "coverage": 0.96875,
+        "best_z": 3
+      },
+      {
+        "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane",
+        "coverage": 0.9375,
+        "best_z": 3
+      },
+      {
+        "context": "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2",
+        "coverage": 0.96875,
+        "best_z": 3
+      },
+      {
+        "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane",
+        "coverage": 0.96875,
+        "best_z": 1
+      },
+      {
+        "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2",
+        "coverage": 1.0,
+        "best_z": 1
+      },
+      {
+        "context": "OP12_LATE_CONVERTER|map_b_split_lane",
+        "coverage": 0.96875,
+        "best_z": 3
+      },
+      {
+        "context": "OP12_LATE_CONVERTER|map_b_split_lane_v2",
+        "coverage": 0.9375,
+        "best_z": 0
+      }
+    ],
+    "target_context_indices": [
+      7
+    ],
+    "target_contexts": [
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2"
+    ],
+    "anchor_context_indices": [
+      3,
+      11
+    ],
+    "anchor_contexts": [
+      "OP7_DEEP_FORTRESS|map_b_split_lane_v2",
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2"
+    ],
+    "mixture_weights": {
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2": 0.75,
+      "OP7_DEEP_FORTRESS|map_b_split_lane_v2": 0.125,
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2": 0.125
+    },
+    "mixture_top": [
+      {
+        "context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2",
+        "weight": 0.75,
+        "coverage": 0.9375
+      },
+      {
+        "context": "OP7_DEEP_FORTRESS|map_b_split_lane_v2",
+        "weight": 0.125,
+        "coverage": 1.0
+      },
+      {
+        "context": "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2",
+        "weight": 0.125,
+        "coverage": 1.0
+      }
+    ],
+    "target_context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2",
+    "target_context_index": 7,
+    "target_coverage": 0.9375,
+    "target_headroom": 0.0,
+    "current_best_z_on_target": 3,
+    "branch_to_train_index": 2,
+    "branch_to_train_label": "z2",
+    "branch_payoff_on_target": 0.90625,
+    "branch_row_mean_payoff": 0.9419642857142857,
+    "acceptance_requires": [
+      "delta_G_available_gt_0",
+      "ci95_low_delta_G_gt_0",
+      "nonredundant_payoff_row",
+      "competence_above_floor",
+      "forced_z_behavior_nonredundant",
+      "multi_seed_repetition"
+    ],
+    "selection_metric": "winrate_success"
+  },
+  "G_available_point_win_margin": 0.022321428571428603,
+  "payoff_summary_win_margin": {
+    "n_policies": 4,
+    "n_contexts": 14,
+    "unique_best_count": 3,
+    "unique_best_indices": [
+      0,
+      1,
+      3
+    ],
+    "unique_best_labels": [
+      "z0",
+      "z1",
+      "z3"
+    ],
+    "cells_with_margin_ge": 6,
+    "margin_threshold": 0.1,
+    "best_by_context": {
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.1875,
+        "margin_vs_second": 0.125
+      },
+      "OP6_IMMEDIATE_DUAL_RUSH|map_b_split_lane_v2": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.25,
+        "margin_vs_second": 0.03125
+      },
+      "OP7_DEEP_FORTRESS|map_b_split_lane": {
+        "best_policy": "z1",
+        "best_index": 1,
+        "payoff": 1.875,
+        "margin_vs_second": 0.0
+      },
+      "OP7_DEEP_FORTRESS|map_b_split_lane_v2": {
+        "best_policy": "z1",
+        "best_index": 1,
+        "payoff": 1.96875,
+        "margin_vs_second": 0.0
+      },
+      "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.28125,
+        "margin_vs_second": 0.03125
+      },
+      "OP8_PROTECTED_CARRIER_ESCORT|map_b_split_lane_v2": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.375,
+        "margin_vs_second": 0.25
+      },
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.375,
+        "margin_vs_second": 0.21875
+      },
+      "OP9_SPLIT_LANE_FEINT|map_b_split_lane_v2": {
+        "best_policy": "z1",
+        "best_index": 1,
+        "payoff": 1.21875,
+        "margin_vs_second": 0.0
+      },
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.28125,
+        "margin_vs_second": 0.15625
+      },
+      "OP10_AGGRESSIVE_INTERCEPTOR|map_b_split_lane_v2": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.46875,
+        "margin_vs_second": 0.15625
+      },
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane": {
+        "best_policy": "z1",
+        "best_index": 1,
+        "payoff": 1.34375,
+        "margin_vs_second": 0.0625
+      },
+      "OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2": {
+        "best_policy": "z1",
+        "best_index": 1,
+        "payoff": 1.375,
+        "margin_vs_second": 0.0
+      },
+      "OP12_LATE_CONVERTER|map_b_split_lane": {
+        "best_policy": "z3",
+        "best_index": 3,
+        "payoff": 1.28125,
+        "margin_vs_second": 0.25
+      },
+      "OP12_LATE_CONVERTER|map_b_split_lane_v2": {
+        "best_policy": "z0",
+        "best_index": 0,
+        "payoff": 1.25,
+        "margin_vs_second": 0.09375
+      }
+    },
+    "best_fixed_index": 3,
+    "best_fixed_label": "z3",
+    "oracle_test_mean": 1.4151785714285714,
+    "best_fixed_test_mean": 1.3928571428571428,
+    "G_available_point": 0.022321428571428603,
+    "max_pairwise_row_distance": 0.8094896132733367,
+    "niche_signal": true,
+    "parallel_rows": false
+  }
+}

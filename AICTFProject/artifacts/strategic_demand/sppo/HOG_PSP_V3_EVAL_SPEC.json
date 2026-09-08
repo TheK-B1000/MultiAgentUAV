@@ -1,0 +1,92 @@
+{
+  "record_id": "HOG_PSP_V3_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_EVAL_IS_OPENED",
+  "utc": "2026-08-31T18:44:00Z",
+  "authority": "PI, 2026-08-31: freeze TRAJECTORY_IDENTITY_CONFIRMED, then run the sealed payoff EVAL with no further changes",
+  "THE_QUESTION": "Do H-OG-PSP V3's confirmed, specialist-like trajectory identities produce complementary strategic payoff on untouched seeds?",
+  "CLAIMS_SEPARATED_BEFORE_EVAL": {
+    "trajectory_identity": "TRAJECTORY_IDENTITY_CONFIRMED in HOG_PSP_V3_MECHANISM_DIAGNOSTIC.json, committed at df144084 before this protocol existed",
+    "strategic_payoff_crossover": "UNEVALUATED until this one-shot protocol completes",
+    "rule": "The mechanism result cannot substitute for the payoff gate, and the payoff result cannot retroactively change the frozen mechanism wording."
+  },
+  "MODEL_UNDER_TEST": {
+    "checkpoint": "final_hog_psp_v3_production.zip",
+    "sha256": "9f705eaed43e83ee48662dd95449819d0f239b5733e64184fa00cabd12885a69",
+    "frozen_in": "HOG_PSP_V3_MODEL_FROZEN.json, commit dacefc0e",
+    "terminal_checkpoint_only": true,
+    "periodic_checkpoints_ineligible": "all 10, hashes recorded in the freeze record"
+  },
+  "SEEDS": {
+    "block": "11300101..11300132",
+    "n": 32,
+    "never_used_for": [
+      "training",
+      "paired rehearsal",
+      "bank collection",
+      "calibration",
+      "the mechanism diagnostic",
+      "any prior evaluation"
+    ]
+  },
+  "CELLS": {
+    "primary": [
+      "z0 on Pole A",
+      "z1 on Pole A",
+      "z0 on Pole B",
+      "z1 on Pole B"
+    ],
+    "secondary_context_only": [
+      "pi_A on Pole A",
+      "pi_B on Pole B"
+    ],
+    "pole_A": "OP6 + SDS2_A_payoff_INIT_3 overlay",
+    "pole_B": "OP7, no overlay"
+  },
+  "PRIMARY_GATE_CROSSOVER": {
+    "metric": "episode win indicator (blue_score > red_score), per evaluation seed",
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta_A.lcb95 > 0 AND delta_B.lcb95 > 0",
+    "statistic": "paired percentile bootstrap over seed-level episode outcomes",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed",
+    "provenance": "Carried forward unchanged from OG_PSP_EVAL_SPEC.json, ORACLE_GATED_K2_EVAL_SPEC.json, and eval_exp2_k2_terminal.py. Point estimates alone do not pass.",
+    "verdict_labels": {
+      "pass": "HOG_PSP_V3_CROSSOVER_CONFIRMED",
+      "fail": "HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED"
+    }
+  },
+  "SECONDARY_REPORTED_NOT_GATED": {
+    "retention": "0.5*(wins(z0,A)+wins(z1,B)) / 0.5*(wins(pi_A,A)+wins(pi_B,B))",
+    "status": "Context only. No retention threshold gates this experiment.",
+    "per_cell_win_rates": "all six cells reported with seed-level CIs"
+  },
+  "EPISODES_PER_CELL": {
+    "value": 1,
+    "note": "one deterministic episode per (cell, seed); 32 seeds gives 32 paired observations per cell and 192 episodes total"
+  },
+  "INTERPRETIVE_CONTEXT_FROZEN_BEFORE_THE_RESULT": {
+    "mechanism": "TRAJECTORY_IDENTITY_CONFIRMED on both poles before EVAL: delta_tau_A LCB95 +5.6553, delta_tau_B LCB95 +5.1032",
+    "state_level_jsd_nats": 0.10862136199379918,
+    "teacher_relative_trajectory_ratio": {
+      "A": 1.1092706025950452,
+      "B": 1.0028354235654064,
+      "warning": "Identity separation under a discriminator ruler, not strategic payoff retention."
+    },
+    "two_axes_disclosure": "Relative to OG-PSP, V3 changes latent-private actor capacity and trajectory-identity policy-gradient supervision together; success cannot be attributed to either alone.",
+    "budget": "1,003,520 terminal steps, identical to V1 and OG-PSP"
+  },
+  "PROHIBITED_AFTER_SEEING_EVAL": [
+    "choosing a different checkpoint",
+    "adjusting the treatment and re-running",
+    "changing the metric, statistic, alpha, or criterion",
+    "adding or substituting seeds",
+    "promoting retention or mechanism diagnostics into the payoff gate",
+    "reporting point estimates as if they passed the frozen criterion",
+    "treating a single passing side as confirmed crossover"
+  ],
+  "IF_NEGATIVE": "Record HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED. The mechanism remains TRAJECTORY_IDENTITY_CONFIRMED, establishing that specialist-like long-horizon identity was insufficient for complementary strategic payoff under this treatment.",
+  "ONE_SHOT": "EVAL is opened once. This spec and evaluator are committed before execution."
+}

@@ -1,0 +1,14 @@
+{
+  "status": "LOCKED_NEGATIVE",
+  "verdict": "PHASE2_STRATEGY_HOLD_OR_FAIL",
+  "numeric_promotion": "FAIL",
+  "strategy_separation": "FAIL",
+  "delta_G": -0.0223,
+  "CI95_delta_G": [-0.183, 0.170],
+  "candidate_branch": 3,
+  "nearest_neighbor": 2,
+  "nearest_behavior_distance": 0.0824,
+  "behavior_threshold": 0.35,
+  "note": "Not promising-but-underpowered. Preserve z3 as negative. No promotion, no router, no strategy-birth claim.",
+  "source": "artifacts/v6i26_lro_niches_round1_seed1/phase2_confirm/phase2_seed1_confirm.json"
+}

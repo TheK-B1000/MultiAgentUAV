@@ -1,0 +1,32 @@
+{
+  "record_id": "4V4_POLE_B3_SELECTION_RULE",
+  "status": "FROZEN_BEFORE_ANY_RESULT",
+  "utc": "2026-09-08T16:35:00Z",
+  "authority": "PI, 2026-09-08: 'The only thing I'd lock down before looking at the B3 results is the candidate-selection rule ... choose the first candidate in B3-1 -> B3-2 -> B3-3 order that passes the scripted distinction gate and falls inside the predeclared contestability band. That prevents us from seeing all three and simply picking whichever curve looks nicest.'",
+
+  "timing_disclosure": {
+    "when": "the B3 screen (screen_b3_candidates.py) had been running for under a minute and had printed ONLY its Part-1 section header -- zero numeric results of any kind (no G_A, no per-candidate G_B, no contestability win rate) existed when this record was written.",
+    "verified": "task output at freeze time contained exactly one line: '=== PART 1: strategic distinction (scripted GUARD/BREACH, disposable seeds) ==='"
+  },
+
+  "CANDIDATE_ORDER_FIXED": ["B3-1_counter", "B3-2_counter_fastlock", "B3-3_2v1"],
+
+  "SELECTION_RULE": "the FIRST candidate in that fixed order that satisfies BOTH conditions below is selected. Do not evaluate all three and then pick by inspection; do not reorder after seeing any result.",
+
+  "CONDITION_1_STRATEGIC_DISTINCTION_unchanged_methodology": {
+    "gate": "G_A > 0 AND LCB95(G_A) > 0 AND G_B3 > 0 AND LCB95(G_B3) > 0, where G_A/G_B3 are the same GUARD-minus-BREACH / BREACH-minus-GUARD quantities used for every prior pole in this program",
+    "note": "this is the disposable-seed SCREEN's version of the gate (n=24, informal), not the certifying n=192 run. A candidate passing this screen still requires its own properly-powered certification before any specialist is trained against it -- this rule governs which candidate to CERTIFY next, not a certification result itself."
+  },
+
+  "CONDITION_2_LEARNED_CONTESTABILITY_the_new_check": {
+    "band": "0.35 <= mean(win rate of pi_A2's step-200000 checkpoint against the candidate) <= 0.75",
+    "already_fixed_in_code_before_any_result": "this exact band (0.35, 0.75) was hardcoded in screen_b3_candidates.py, written before the script was ever run -- not chosen after seeing any candidate's number.",
+    "reasoning": "2v2's two specialists held 0.42-0.60 against their own poles for the full training budget (see 4V4_SPECIALIZATION_PRESSURE_DIAGNOSTIC.json). A band centered wider than that observed range, but excluding near-certain (>0.75) or near-hopeless (<0.35) outcomes, is the descriptive contestability criterion -- not a claim that 0.35-0.75 is a proven universal threshold."
+  },
+
+  "IF_NONE_PASS_BOTH": "the B3-1/B3-2/B3-3 ladder is exhausted. A further candidate requires its own freeze (new mechanism, new selection rule) -- not authorized by this record. This mirrors the no-second-attempt discipline already used for the B2 ladder and both 4v4 confirmatory crossover attempts.",
+
+  "IF_ONE_PASSES": "that candidate proceeds to a properly-powered n=192 scripted certification (same tool, same bootstrap, same gate as B2-1's own certification) before any fresh specialist is trained against it. Passing this disposable screen is NOT itself a certification.",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["selecting a candidate that fails either condition", "widening the contestability band after seeing a result", "testing candidates out of the fixed order", "skipping the n=192 certification step for whichever candidate is selected"]
+}

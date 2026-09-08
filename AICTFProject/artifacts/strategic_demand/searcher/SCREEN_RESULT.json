@@ -1,0 +1,39 @@
+{
+  "protocol_id": "STRATEGIC_DEMAND_SEARCHER_V1",
+  "mode": "screen_only",
+  "finished_utc": "2026-08-17T17:29:42Z",
+  "search_results_are_gate_B": false,
+  "V3_STRATEGIC_DEMAND": "NOT_VALIDATED",
+  "mutation": "AUTHORIZED — static pool has no complete package (ΔG>0.15 AND t_intent>t_commit AND non-degenerate). OP6 is GUARD_PAYOFF_CANDIDATE only.",
+  "confirmation": "NOT_RUN — block 2500001 remains pristine. Not authorized for OP6.",
+  "ppo": "NOT_STARTED",
+  "anchor_B": {
+    "opponent": "OP7",
+    "cheap_delta_B": 0.625,
+    "note": "search estimate; Gate B on 2300001 remains BREACH-GUARD +0.531 LCB95=+0.375"
+  },
+  "A_candidates_delta_G": {
+    "OP6": 0.1875,
+    "OP8": -0.875,
+    "OP9": -0.375,
+    "OP10": -0.625,
+    "OP11": -0.5,
+    "OP12": -0.375
+  },
+  "frozen_A_as_found": {
+    "genome_id": "SDS_PARENT_OP6",
+    "base_opponent": "OP6",
+    "overlay": {},
+    "opening_hold_steps": 0,
+    "n": 16,
+    "seed_base": 2400009,
+    "delta_G": 0.1875,
+    "guard_wr": 0.3125,
+    "breach_wr": 0.125,
+    "mean_intent_minus_commit": -7.3125,
+    "precommitment_uncertain": false,
+    "frac_0_0": 0.71875,
+    "J": -0.046875,
+    "package": "payoff pole possible in development; observability and degeneracy fail the complete strategic-pressure package"
+  }
+}

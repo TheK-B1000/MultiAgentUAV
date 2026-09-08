@@ -1,0 +1,51 @@
+{
+  "protocol": "v6i26_actor_step_ablation",
+  "classification": "DIAGNOSTIC",
+  "hypothesis": "Joint critic-dominated clipping + insufficient z-actor LR caused the failed specialization step; separate clip + 2x z-actor LR should produce measurable policy movement on the locked OP9/z0 surface.",
+  "locked_surface": {
+    "branch": 0,
+    "target_context": "OP9_SPLIT_LANE_FEINT|map_b_split_lane",
+    "opponent": "OP9_SPLIT_LANE_FEINT",
+    "map": "map_b_split_lane"
+  },
+  "optimizer": {
+    "separate_actor_critic_clip": true,
+    "z_actor_lr_mult": 2.0,
+    "critic_lr_unchanged": true,
+    "base_learning_rate": 0.0005,
+    "max_grad_norm_per_group": 0.5
+  },
+  "learning_pressure_gates": {
+    "fixed_batch_init_to_final_kl_min": 0.001,
+    "fixed_batch_protocol": "run_v6i26_logit_control_authority_probe",
+    "training_approx_kl_above_weak_floor": 1.847735062862436e-05,
+    "training_approx_kl_finite_non_explosive_max": 1.0,
+    "clip_fraction_safety_max_mean": 0.5,
+    "clip_fraction_require_nonzero": false,
+    "entropy_field": "entropy",
+    "entropy_aggregation": "policy entropy from metrics CSV (summed action heads)",
+    "entropy_weak_run_mean": 2.636798652013143,
+    "entropy_tolerance": 0.3,
+    "inactive_branch_delta_approx_zero": true,
+    "actor_grad_norm_gt_0": true,
+    "critic_grad_norm_gt_0": true
+  },
+  "strategic_gates": {
+    "op9_margin_improves_directionally": true,
+    "op11_op12_anchors_hold": true,
+    "z0_behavior_distance_increases": true
+  },
+  "decision_rule": {
+    "learning_fail": "stop optimizer ablation",
+    "learning_pass_op9_fail": "active movement, strategically wrong",
+    "learning_op9_pass_behavior_flat": "improved response, not strategy birth",
+    "learning_op9_behavior_pass": "continue this exact checkpoint to 10u"
+  },
+  "do_not": [
+    "continue weak margin 5u checkpoint to 10u",
+    "raise residual alpha as first lever",
+    "redesign trunk",
+    "add per-z critics",
+    "switch to Case B opponents"
+  ]
+}

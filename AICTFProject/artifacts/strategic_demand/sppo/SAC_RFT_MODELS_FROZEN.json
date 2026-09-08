@@ -1,0 +1,58 @@
+{
+  "record": "SAC-RFT terminal models frozen",
+  "status": "FROZEN_MODELS",
+  "utc": "2026-09-04T00:43:47Z",
+  "implements": "SAC_RFT_SPEC.json",
+  "EVAL_STATE_AT_FREEZE": {
+    "touched": false,
+    "block": "11804001..11804064"
+  },
+  "CONTROL": {
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\sac_rft_production\\control\\ckpts\\final_sac_rft_control.zip",
+      "sha256": "7f85efef7883ed422cd9fda3f60fbbe2004486e1b28ea20ffc4dcb6de0e38261"
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "result_record": "artifacts\\strategic_demand\\sppo\\SAC_RFT_CONTROL_RESULT.json",
+      "steps_advanced": 503808,
+      "retention_path": {
+        "retention_updates": 2565,
+        "n_ppo_actor_minibatches": 2565,
+        "ema_updates": 2565,
+        "last_loss": 0.00021656410535797477,
+        "last_kl_mean": 0.02165641076862812,
+        "last_eligible_heads": 924,
+        "empty_batches": 0,
+        "lambda_ret": 0.01,
+        "ema_decay": 0.995,
+        "teacher_kind": "ema"
+      }
+    }
+  },
+  "TREATMENT": {
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\sac_rft_production\\treatment\\ckpts\\final_sac_rft_treatment.zip",
+      "sha256": "48ed0ecb960aa27eff27e73b553004739672e66ced291beb40446a896f7c493e"
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "result_record": "artifacts\\strategic_demand\\sppo\\SAC_RFT_TREATMENT_RESULT.json",
+      "steps_advanced": 503808,
+      "retention_path": {
+        "retention_updates": 2661,
+        "n_ppo_actor_minibatches": 2661,
+        "ema_updates": 0,
+        "anchor_updates": 0,
+        "last_loss": 0.004379555117338896,
+        "last_kl_mean": 0.43795549869537354,
+        "last_eligible_heads": 966,
+        "empty_batches": 0,
+        "lambda_ret": 0.01,
+        "lambda_anchor": 0.01,
+        "ema_decay": null,
+        "teacher_kind": "frozen_anchor"
+      }
+    }
+  }
+}

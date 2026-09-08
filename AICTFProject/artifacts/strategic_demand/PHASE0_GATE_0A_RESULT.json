@@ -1,0 +1,54 @@
+{
+  "record_id": "PHASE0_GATE_0A_CELL_LEVEL_REPLICATION",
+  "evaluated_utc": "2026-08-26T00:04:12Z",
+  "verdict": "PASS",
+  "gate_scope": "All 1,024 prospectively reserved plain episodes; no scorer fitting performed.",
+  "source": {
+    "path": "artifacts/strategic_demand/phase0_scorer_data/full_collection_rebuild_per_branch/episode_summaries.jsonl",
+    "sha256": "4ac4bd47968195b93812b56ac68221bf1f6a637eb994717fcb4447472c0a196a",
+    "rows": 1024,
+    "unique_seed_policy_pole_keys": 1024,
+    "seed_range": "6500001..6500256",
+    "seeds_per_cell": 256
+  },
+  "frozen_contract": {
+    "protocol_sha256": "1d3b37a73f059a267272bc11bd72d16d1afcfb61301019932faf68565627a89f",
+    "data_budget_sha256": "d902fef0e5df8c32ec267a5b5a0efa518b0c71a256446837ea89eb7758b16bcc",
+    "collection_manifest_sha256": "876915ad92b758307bdc16dc5d75691f0c49ed11cd97cb93c1e22c9b2944d681",
+    "collection_complete_sha256": "9f320908d204a2c771372ce9c0bfa5bef54e49be995a5dd62cee0866d10c3982"
+  },
+  "repository_head": "28fff28fb748054a3e1b1b8362cafa8f629916d7",
+  "cells": {
+    "pi_A|A": {"wins": 166, "episodes": 256, "win_rate": 0.6484375, "mean_margin": 1.015625},
+    "pi_B|A": {"wins": 135, "episodes": 256, "win_rate": 0.52734375, "mean_margin": 0.8046875},
+    "pi_A|B": {"wins": 87, "episodes": 256, "win_rate": 0.33984375, "mean_margin": 0.2890625},
+    "pi_B|B": {"wins": 135, "episodes": 256, "win_rate": 0.52734375, "mean_margin": 0.75390625}
+  },
+  "contrasts": {
+    "A": {
+      "definition": "WR(pi_A,A) - WR(pi_B,A)",
+      "value": 0.12109375,
+      "required": "> 0",
+      "pass": true
+    },
+    "B": {
+      "definition": "WR(pi_B,B) - WR(pi_A,B)",
+      "value": 0.1875,
+      "required": "> 0",
+      "pass": true
+    }
+  },
+  "integrity_checks": {
+    "exactly_1024_rows": true,
+    "exactly_1024_unique_seed_policy_pole_keys": true,
+    "exactly_256_seeds_per_cell": true,
+    "both_frozen_directional_inequalities_positive": true
+  },
+  "scientific_interpretation": "The fresh training-only Phase 0 sample reproduces the known SAPPO crossover at the cell level.",
+  "next_authorized_action": "Fit Q_psi using only the frozen 160-seed training split, freeze it, then run Gate 0B on the untouched 96-seed held-out split.",
+  "still_prohibited": [
+    "using held-out seeds to fit Q_psi",
+    "launching SPPPO before Gate 0B passes",
+    "starting EXP3 or EXP4"
+  ]
+}

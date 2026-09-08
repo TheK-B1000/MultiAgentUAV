@@ -1,0 +1,47 @@
+{
+  "record_id": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_AMENDMENT",
+  "name": "2v2 deployment robustness: dose-response extension to the LOW tier, all three families",
+  "status": "FROZEN_BEFORE_RUN",
+  "utc": "2026-09-08T15:30:00Z",
+
+  "authority": "PI, 2026-09-08: 'freeze and run the already-defined low-tier robustness extension ... completes the original frozen ladder without inventing a post-hoc severity after seeing the medium/high results.'",
+
+  "amends": "ROBUSTNESS_2V2_TEST_MATRIX_AMENDMENT.json#NOT_AUTHORIZED_BY_THIS_RECORD (low tier reserved as a future dose-response extension) and ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT.json (the high-tier sibling of this record, already sealed).",
+
+  "WHY_LOW_TIER_NOW": "the medium/high results (ROBUSTNESS_2V2_RUNG1_RESULT.json, ROBUSTNESS_2V2_HIGH_TIER_RESULT.json) left every R_A/R_B interval straddling zero for localization noise and motion error, and control delay was only ever tested at one severity (medium). Completing the ALREADY-FROZEN low tier -- not inventing a new one -- is the only way to get a genuine 3-point severity curve without the sequence (see a result, then pick a value) this program has avoided everywhere else. 0.03 (localization/motion) and 1 tick (control delay) were frozen in DEPLOYMENT_ROBUSTNESS_SPEC.json#TIERS before ANY 2v2 robustness episode of any severity ever ran -- this record selects an already-fully-specified tier, exactly as the high-tier amendment did.",
+
+  "SCOPE": {
+    "localization_noise_low": "AUTHORIZED -- sensor_noise=0.03",
+    "motion_error_low": "AUTHORIZED -- drift=0.03",
+    "control_delay_low": "AUTHORIZED -- delay_ticks=1 (fills in the missing lower point against the existing control_delay_medium=2-ticks result)",
+    "control_delay_high": "NOT AUTHORIZED. Remains declined per the PI's own prior direction ('the last level is fine') and ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT.json#SCOPE_DECISION. This record does not reopen that decision.",
+    "cells_added": 12,
+    "episodes_added": "3 families x 1 severity x 4 cells (z0@A, z1@A, z0@B, z1@B) x 128 seeds = 1536 episodes",
+    "nominal": "NOT re-run -- reuses the already-collected nominal CSVs (same checkpoint, same seed block), identical reasoning to the high-tier amendment: nominal is severity- and family-invariant."
+  },
+
+  "SEED_BLOCK": {
+    "block": "13400001..13400128 -- the SAME block already reserved for this study, reused deliberately for the same paired-design reason as the high-tier extension (same seeds -> the SAME nominal trajectories already on disk anchor R_A(low)/R_B(low) exactly as they anchor R_A(medium)/R_B(medium) and R_A(high)/R_B(high))."
+  },
+
+  "POLICY_UNDER_TEST": {
+    "checkpoint": "artifacts/strategic_demand/sppo/sharing_ladder/rung1/ckpts/final_rung1.pt",
+    "sha256": "815f818ac11f0546ecdaf77988f39cce2b9ea8b273acde58e6f752c8c0bdc7d1",
+    "frozen": "identical checkpoint to the medium- and high-tier studies. Not retrained, fine-tuned, or reselected."
+  },
+
+  "CODE": "no code change needed -- reuses eval_deployment_robustness.py's existing --families/--skip-nominal flags (built for the high-tier extension) unmodified. One combined invocation per (pole, z) cell with --severities low --families localization_noise,motion_error,control_delay covers all three families' low-tier cells at once.",
+
+  "PRIMARY_QUANTITIES": "identical definitions and identical bootstrap (paired percentile, n_boot=20000, alpha=0.05, rng_seed=7) to every other tier in this study: per-condition crossover (delta_A, delta_B, gate) and paired degradation vs nominal within seed (R_A, R_B).",
+
+  "FACTUAL_STATE_BEFORE_THIS_RUN_disclosed_for_the_record": {
+    "localization_noise": "2 of 3 tiers tested (medium, high) before this amendment",
+    "motion_error": "2 of 3 tiers tested (medium, high) before this amendment",
+    "control_delay": "1 of 3 tiers tested (medium) before this amendment",
+    "note": "any prior claim that all three levels were tested for any family was incorrect; corrected before this extension was authorized."
+  },
+
+  "STOPPING_RULE": "exactly one severity extension (low), for all three families except control_delay_high (still declined), on this one checkpoint. No further tiers or families are authorized by this record.",
+
+  "SEQUENCE": "freeze this record (done) -> run 3 families x 1 severity x 4 cells on the frozen block, reusing existing nominal -> report per-condition gate AND paired R_A(low)/R_B(low) against nominal -> assemble the full low/medium/high dose-response table for localization and motion, and the low/medium table for control delay -> update the figure/caption only after the result is sealed. Kept fully separate from the concurrent 4v4 confirmatory crossover result -- neither interprets the other."
+}

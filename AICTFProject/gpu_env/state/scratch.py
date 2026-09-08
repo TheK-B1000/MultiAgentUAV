@@ -61,6 +61,22 @@ class _ScratchStateMixin:
         # Tagging channel: per-agent timers accumulating time under 2+ defender pressure.
         self.red_tag_pressure_time = torch.zeros((B, Nr), dtype=f32, device=dev)
         self.blue_tag_pressure_time = torch.zeros((B, Nb), dtype=f32, device=dev)
+        # Per-tagger cooldown: seconds remaining before this vehicle may tag again.
+        self.blue_tag_cooldown = torch.zeros((B, Nb), dtype=f32, device=dev)
+        self.red_tag_cooldown = torch.zeros((B, Nr), dtype=f32, device=dev)
+        # Observational tag-event buffer (append-only; drained by the caller).
+        # Never read back into any tensor -- telemetry must not affect dynamics.
+        self.tag_events: list = []
+        # --- authoritative integer event identity -------------------------
+        # Derived at the SOURCE, never reconstructed by a consumer. Counting
+        # reset markers downstream is what let episode-scoped identity collide
+        # and produced phantom duplicate/contradiction violations.
+        #   episode_id     increments exactly once per env reset
+        #   reset_sequence per-env count of resets so far
+        #   _event_seq     global monotonic order across all events
+        self.episode_id = torch.zeros((B,), dtype=torch.int64, device=dev)
+        self.reset_sequence = torch.zeros((B,), dtype=torch.int64, device=dev)
+        self._event_seq = 0
 
     def _alloc_mine_state(
         self,

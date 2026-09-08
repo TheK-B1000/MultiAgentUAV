@@ -127,11 +127,16 @@ class CustomPPOTrainer:
         batch_size: int,
         value_clip_range: Optional[float] = None,
         curriculum: Optional[Any] = None,
+        run_identity: Optional[Any] = None,
     ) -> None:
         """Construct a trainer.
 
         Resolved hyperparameters live on :attr:`hparams`. Legacy call sites
         that read ``trainer.latent_k`` etc. are served by :meth:`__getattr__`.
+
+        ``run_identity`` is required on the production path (via
+        :func:`rl.training.initialization.build_trainer`). Unit tests may omit
+        it, but checkpoint save and episode CSV writes will fail closed.
         """
         hparams = TrainerHyperparams.from_ppo_config(
             cfg,
@@ -148,6 +153,7 @@ class CustomPPOTrainer:
         self.cfg = cfg
         self.hparams = hparams
         self.curriculum = curriculum
+        self.run_identity = run_identity
         self.device = torch.device(str(cfg.device))
 
         policy_obs_space = extend_observation_space_if_needed(env.observation_space, cfg)
@@ -185,6 +191,13 @@ class CustomPPOTrainer:
 
         self.opponent_pool = TrainingOpponentPool.from_hparams(cfg, hparams)
         self.opponent_pool.attach_before_reset_hook(self.env, self)
+        try:
+            from rl.custom_ppo.phase_pod_runtime import attach_phase_pod_hooks
+
+            attach_phase_pod_hooks(self.env, self)
+        except Exception as exc:
+            if str(getattr(cfg, "phase_pod_id", "") or "").strip():
+                raise RuntimeError(f"phase_pod hook attach failed: {exc}") from exc
 
         self.telemetry = TrainingTelemetry(
             cfg=self.cfg,

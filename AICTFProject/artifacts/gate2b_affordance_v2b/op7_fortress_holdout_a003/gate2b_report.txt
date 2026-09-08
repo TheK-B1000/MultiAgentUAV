@@ -1,0 +1,49 @@
+====================================================================================
+GATE 2B -- strategic affordance under RULESET_V2_AQUATICUS_10S, map_a, vs OP7
+Progress: 0->1 approach, 1 flag, 1->2 return, 2 capture (episode MAXIMUM)
+====================================================================================
+  paired seed 1/32
+  paired seed 8/32
+  paired seed 16/32
+  paired seed 24/32
+  paired seed 32/32
+
+INTEGRITY
+  rows=64 expected=64  OK
+
+MANIPULATION CHECK (must pass before outcomes are interpreted)
+  practical-separation floor: 0.25
+  ONE_DEFENDER extra home defense : +0.4565  CI95=[+0.4349, +0.4781]  [PASS]
+  BOTH_ATTACK extra attackers (agents): +0.4640  CI95=[+0.4499, +0.4787]  [PASS]
+  manipulation: PASS
+  [legacy, NON-GATING] contaminated home-defense separation: +0.2170  CI95=[+0.1934, +0.2405]
+
+PRIMARY CONTRASTS (paired, n=32)
+  RED progress   BOTH=1.2833  ONE=1.1399
+  BLUE progress  BOTH=1.7296  ONE=1.0716
+  defense_benefit = +0.1434  CI95=[-0.0674, +0.3516]  [FAIL]
+  offense_cost    = +0.6580  CI95=[+0.5207, +0.7895]  [PASS]
+
+SUPPORTING TELEMETRY (mechanism evidence, not gates)
+  metric                         BOTH_ATTACK  ONE_DEFENDER
+  blue_tag_successes                  5.5000        7.8438
+  red_tag_successes                  19.5625       13.0000
+  cooldown_denials                   66.4062       12.4375
+  blue_flag_pickups                   5.3438        1.8438
+  red_flag_pickups                    0.6562        0.5312
+  blue_flag_drops                     5.1875        1.8125
+  red_flag_drops                      0.6250        0.5312
+  time_to_first_tag                   8.0312        8.9375
+  mean_num_attackers                  0.8828        0.4187
+  blue_raw_carrier_return_fraction        0.6998        0.1009
+  red_raw_carrier_return_fraction        0.3421        0.2142
+  mean_num_defenders                  1.1087        1.5729
+  episode_steps                     236.9375      240.0000
+
+====================================================================================
+GATE 2B: PARTIAL_COST_ONLY
+  defender sacrifices offense without protecting home
+====================================================================================
+A pass does NOT show latent strategies exist -- only that they could
+rationally exist. Confirm with a larger paired block before spending
+the full G0-v2 budget.

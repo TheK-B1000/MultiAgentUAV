@@ -1,0 +1,52 @@
+{
+  "record": "CCP Phase 1 job plan",
+  "status": "FROZEN_PLAN",
+  "utc": "2026-09-01T15:11:44Z",
+  "hierarchy": {
+    "states": 20,
+    "state_estimand": 32,
+    "mode_cells": 64,
+    "policy_cells": 128,
+    "jobs": 2048
+  },
+  "expected": {
+    "states": 20,
+    "state_estimand": 32,
+    "mode_cells": 64,
+    "policy_cells": 128,
+    "jobs": 2048
+  },
+  "matches": true,
+  "M": 16,
+  "modes": [
+    "single_macro",
+    "full_takeover"
+  ],
+  "policies": [
+    "pi_A",
+    "pi_B"
+  ],
+  "one_free_states": 14,
+  "both_free_states": 6,
+  "ab_seed_pairing_verified": true,
+  "seed_mapping": "r_j = sha256('CCP_PHASE1|<state_id>|<j>')[:8], independent of policy/estimand/mode",
+  "jobs_by_mode": {
+    "single_macro": 1024,
+    "full_takeover": 1024
+  },
+  "jobs_by_estimand": {
+    "agent0": 768,
+    "agent1": 896,
+    "joint": 384
+  },
+  "worker_shards": {
+    "0": 256,
+    "1": 256,
+    "2": 256,
+    "3": 256,
+    "4": 256,
+    "5": 256,
+    "6": 256,
+    "7": 256
+  }
+}

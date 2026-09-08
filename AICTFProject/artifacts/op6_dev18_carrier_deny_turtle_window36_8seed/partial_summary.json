@@ -1,0 +1,9 @@
+{
+  "status": "RUNNING",
+  "updated_at_utc": "2026-07-28T13:03:29.600915+00:00",
+  "completed_episode_rows": 0,
+  "expected_episode_rows": 32,
+  "missing_episode_rows": 32,
+  "skipped_existing_rows": 0,
+  "duplicate_or_invalid_existing_rows": 0
+}

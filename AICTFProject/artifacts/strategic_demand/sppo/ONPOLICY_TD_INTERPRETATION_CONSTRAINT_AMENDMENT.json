@@ -1,0 +1,42 @@
+{
+  "record_id": "ONPOLICY_TD_INTERPRETATION_CONSTRAINT_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T18:05:00Z",
+  "authority": "PI, 2026-09-04, raised BEFORE any OTD result exists and while round-1 collection was still running. Explicit instruction: do not secretly change the running experiment -- keep OTD exactly as frozen -- but constrain what a FAIL is allowed to conclude.",
+
+  "amends": "ONPOLICY_TEACHER_DISTILLATION_SPEC.json#PREREGISTERED_INTERPRETATION and #DESIGN.student_state_collection_per_round",
+  "rule": "APPEND, not an edit. No protocol, seed, horizon, gate, or running job changes. This record narrows the permitted READING of a FAIL and corrects one overstated sentence in the parent spec.",
+
+  "THE_OVERSTATED_SENTENCE": {
+    "parent_spec_says": "'the collected states ARE the deployment distribution'",
+    "correction": "they are the CPU deployment distribution. The sealed eval is scored on CUDA (per ONPOLICY_TD_DEVICE_AMENDMENT.json, because the device A/B showed device-dependent trajectories). Collection and measurement therefore run on numerically different instruments.",
+    "already_true_of_round_0": "the offline TD teacher-state collection was also CPU while COMPRESSION_CROSSOVER_EVAL_RESULT.json was scored on CUDA. This is a standing property of the program, not a new defect introduced here."
+  },
+
+  "NEW_EVIDENCE_THE_DEVICE_EFFECT_LOOKS_SYSTEMATIC": {
+    "source": "the same controlled A/B recorded in ONPOLICY_TD_DEVICE_AMENDMENT.json (identical policy, identical 8 seeds, identical env, forced z0, Pole A -- device is the only variable)",
+    "cpu": {"blue_mean_score": 1.750, "red_mean_score": 0.625, "blue_wins": "6/8", "hit_cap": "7/8"},
+    "cuda": {"blue_mean_score": 0.875, "red_mean_score": 0.500, "blue_wins": "3/8", "hit_cap": "8/8"},
+    "reading": "blue scores roughly twice as much on CPU. This is a DIRECTIONAL, systematic-looking difference, not merely two equivalent random draws from one distribution. n=8, one cell only, so it is suggestive rather than established -- but it is strong enough that the CPU-collected DAgger distribution cannot be assumed interchangeable with the CUDA-scored one.",
+    "consistent_observation_not_a_controlled_comparison": "round-1 collection (CPU) reports z0@A win rate 0.750, while the sealed CUDA eval measured that same cell at 0.5469. Different seed blocks, so this is confounded and is NOT evidence on its own -- recorded only because its direction matches the controlled A/B."
+  },
+
+  "WHAT_THIS_DOES_NOT_INVALIDATE": {
+    "the_gate_arithmetic": "the crossover gate is a WITHIN-pole difference (z0 vs z1, both scored on the same device, same seeds, same episodes). A uniform device-induced level shift largely cancels in delta_A and delta_B. COMPRESSION_CROSSOVER_EVAL_RESULT.json and any OTD seal remain internally valid measurements.",
+    "the_concern_is_narrower": "it is specifically that DAgger's TRAINING distribution (CPU student states) may not match the distribution the seal SCORES (CUDA student states). That is a threat to the covariate-shift hypothesis test, not to the gate's arithmetic."
+  },
+
+  "CONSTRAINED_READING_OF_A_FAIL": {
+    "permitted": "OTD FAIL => covariate-shift correction was insufficient UNDER THIS PROTOCOL (CPU-collected student states, CUDA-scored seal).",
+    "NOT_permitted_on_a_FAIL_alone": "OTD FAIL => the parameter-sharing architecture is definitely at fault. The parent spec's two FAIL rows both nominate the sharing ladder as successor; that nomination is hereby demoted from a conclusion to a CANDIDATE successor.",
+    "what_would_license_the_architecture_conclusion": [
+      "on-policy fidelity rising materially across rounds AND approaching the teacher-state holdout level (~0.96/0.98) on the student's own states, while crossover still fails -- i.e. direct evidence that imitation error on the deployment distribution is no longer the binding constraint; even then the CPU/CUDA distribution gap remains a stated caveat, OR",
+      "a device-matched replication: collect student states on CUDA (the measurement instrument) and repeat. Slower (~3.3x per episode) but methodologically clean. This is the FIRST successor to consider on a FAIL, ahead of the sharing ladder, precisely because it removes the confound rather than assuming past it."
+    ],
+    "on_a_PASS": "unchanged and if anything strengthened: student-state augmentation recovered crossover despite generalising across a device-induced trajectory difference."
+  },
+
+  "THE_NEXT_INFORMATIVE_NUMBER_UNCHANGED": "the preregistered 'red-handed' diagnostic -- the offline TD student's teacher-agreement on its OWN round-1 states, versus its 0.965/0.984 on teacher-visited states. A substantial drop is direct evidence the offline fidelity numbers were hiding deployment-distribution error. It remains a DIAGNOSTIC; crossover remains the only scientific gate.",
+
+  "RUNNING_JOB_UNTOUCHED": "round-1 collection (task launched 2026-09-04T17:56:41Z, CPU, seeds 11931001..11931128) continues exactly as frozen. No protocol change, no restart, no device switch mid-experiment."
+}

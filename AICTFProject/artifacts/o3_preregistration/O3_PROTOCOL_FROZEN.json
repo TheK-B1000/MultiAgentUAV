@@ -1,0 +1,165 @@
+{
+  "preregistration": "O3 response oracle — frozen protocol",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-09T09:00:00Z",
+  "authorized_by": {
+    "artifact": "artifacts/c3_stage4/C3_STAGE4_RESULT.json",
+    "verdict": "STAGE4_PASS",
+    "policies_confirming": "3/3",
+    "authorizes": "O3 training only"
+  },
+  "inherits_verbatim": {
+    "response_supervision_prohibition": "artifacts/o3_preregistration/O3_RESPONSE_SUPERVISION_PROHIBITION.json",
+    "commit": "46c9e17"
+  },
+  "frozen_before": {
+    "o3_implementation": "does not exist",
+    "o3_training": "not started",
+    "coverage_of_the_predicate_against_known_forks": "NOT measured at freeze time — see c_fork.coverage_measurement"
+  },
+
+  "the_problem_this_protocol_solves": {
+    "finding": "The qualified commitment fork is not identifiable from a natural trajectory. Two of the three R-conditions are counterfactual: 'not effectively_doomed' and 'persistent_divergence' both require branch utilities. Only 'enough_legal_responses' (>=2) is natural.",
+    "consequence": "Under the response-supervision prohibition, O3 can never be handed control 'at the qualified fork'. That is a structural fact, not an oversight.",
+    "second_finding": "Forks sit upstream of the carrier-pressure onset: median 25 decisions, mean 24.1, and 0 of 157 coincide with it. Handing off at the pressure onset would place O3 a median of 25 decisions AFTER the commitment it is supposed to make differently.",
+    "resolution": "C_fork is a label-free precursor predicate over natural features, frozen below before its coverage was measured."
+  },
+
+  "c_fork": {
+    "name": "carrier commitment precursor",
+    "type": "window-level, natural-trajectory-only, causally available at decision time",
+    "reads_no_counterfactual_field": true,
+    "predicate_all_must_hold": [
+      "blue is carrying (a blue carrier exists at this decision)",
+      "n_legal_team_responses >= 2, computed from core._build_action_mask(side=blue)",
+      "carrier_pressure > 0.18 — the carrier is NOT yet inside the pressure radius",
+      "carrier_pressure is decreasing over the previous 5 decisions — a ready threat is closing"
+    ],
+    "onset_rule": "the FIRST decision in each carry phase satisfying all four conditions; one-way, at most one onset per carry phase",
+    "constants": {
+      "pressure_radius_frac": 0.18,
+      "pressure_radius_source": "INHERITED from the frozen C3 contract runtime_cells.pressure_predicate.pressure_radius_frac",
+      "closing_trend_window": 5,
+      "closing_trend_window_status": "the only new constant in this predicate; chosen as a short window that distinguishes a closing threat from noise, frozen before any coverage measurement"
+    },
+    "why_this_shape": "It fires while the carrier still has options and before pressure has arrived, which is where the counterfactual screen located the forks. It uses only the one R-condition that is natural (>=2 legal responses) plus geometry already frozen in the C3 contract.",
+    "coverage_measurement": {
+      "status": "NOT YET MEASURED",
+      "what": "the fraction of the 157 known qualified forks whose fork_step falls at or after a C_fork onset in the same episode",
+      "classification": "EVALUATION-ONLY DIAGNOSTIC. It reads counterfactual labels and therefore may not influence the predicate, the thresholds, or any training decision.",
+      "explicitly_may_not": "be used to tune the predicate. The predicate is frozen by this document; a low coverage number is a reportable limitation, not a licence to adjust the constants."
+    }
+  },
+
+  "c_anchor": {
+    "name": "opportunity-matched carry state without the precursor",
+    "type": "window-level, natural-trajectory-only",
+    "definition": "decisions at which blue is carrying and n_legal_team_responses >= 2, but the C_fork precursor is NOT active — i.e. the carrier is inside the pressure radius, or no ready threat is closing",
+    "matching": "matched to C_fork onsets on score stratum (leading/trailing/tied) and on decision-time bucket, so the contrast is not a proxy for score state or clock",
+    "explicitly_forbidden": "episode-level splits such as 'episodes containing a fork' vs 'other episodes'. That construction reintroduced the confound that invalidated O1 gates 1-3 and is prohibited here.",
+    "rationale": "The anchor must be a nearby state where the specialised response should NOT be needed, not a different kind of episode."
+  },
+
+  "training": {
+    "architecture": "natural G0 prefix -> one-way handoff to O3 at the C_fork onset -> O3 controls the remainder of the episode",
+    "prefix_policy": "frozen G0-V5, no gradient",
+    "reset_distribution": "natural episodes only; no synthetic or injected start states",
+    "credit_mask": {
+      "pre_onset": "O3 policy-loss weight 0; pre-onset rewards may not influence the O3 policy gradient",
+      "post_onset": "O3 policy-loss weight 1; task reward only",
+      "returns_and_gae": "begin at the handoff"
+    },
+    "optimization_signal": {
+      "task_reward": "Reward V5, unchanged",
+      "response_supervision": false,
+      "fork_witness_shaping": "FORBIDDEN",
+      "role_reward_or_z_label": "NONE",
+      "router": "ABSENT"
+    },
+    "initialization": "fresh; warm start from G0, O1 or any prior specialist is FORBIDDEN",
+    "seeds": {
+      "canonical_g0": 3200001,
+      "o3_seed": 3400001,
+      "n_seeds": 1,
+      "n_seeds_rationale": "single-seed development mode, per the standing decision for C2/O2 and forward. A single-seed result may not be described as a reproducible strategy family."
+    },
+    "steps": 1000000,
+    "map": "map_a",
+    "ruleset": "RULESET_V2_AQUATICUS_10S",
+    "opponents": "admitted OP6-OP12 mixture",
+    "episode_horizon": 240,
+    "training_onset_seed_block": [9820000, 9820029]
+  },
+
+  "primary_metric": {
+    "name": "post_onset_task_utility",
+    "definition": "final score differential of the episode, blue_score - red_score, measured on episodes containing the relevant context",
+    "secondary_reported": ["win_rate", "captures_blue", "captures_conceded"],
+    "explicitly_not_the_primary": "carrier_survival over H_response=30",
+    "why": "carrier_survival is the C3 SCREEN proxy, chosen to make controllability detectable in a bounded window. A crossover on it would establish that O3 keeps carriers alive for 30 decisions, not that it is a better team strategy. The primary claim must rest on a genuine task scalar."
+  },
+
+  "evaluation": {
+    "held_out_demand_seed_block": [9830000, 9830029],
+    "disjointness": "the O3 training onset block (9820000+) and the demand-evaluation block (9830000+) are disjoint from each other and from every prior block: 9100000+, 9200000+, 9300000-2, 9400000+, 9500000+, 9600000+, 9700000/9710000/9720000 (reserved for latent birth), 9800001 (spent by C2), 9810000+ (Stage 4), 9900000+ (O1 panels)",
+    "rule": "no Stage-4 confirmation data may serve as the O3-vs-G0 test set",
+    "fail_closed": "the evaluation harness must abort on any seed collision"
+  },
+
+  "crossover_tests": {
+    "delta_fork": {
+      "definition": "E[U_task | C_fork, O3] - E[U_task | C_fork, G0]",
+      "construction": "paired-prefix: identical seed, arm A is G0 throughout, arm B is G0 until the C_fork onset then O3",
+      "requirement": "delta_fork > 0 with LCB95 > 0"
+    },
+    "delta_anchor": {
+      "definition": "E[U_task | C_anchor, G0] - E[U_task | C_anchor, O3]",
+      "requirement": "delta_anchor > 0 with LCB95 > 0 — a genuine preference REVERSAL, not mere non-inferiority",
+      "note": "This is stricter than O1 gate 2, which only required O1 not to exceed G0 by more than a tolerance. A reversal is what distinguishes a specialist from a better generalist."
+    },
+    "g_available": {
+      "definition": "V_selector({G0,O3}) - V_best_fixed({G0,O3})",
+      "selector": "within-episode, one-way, switches to O3 at the first C_fork onset",
+      "requirement": "LCB95(G_available) > 0"
+    },
+    "statistics": {
+      "method": "paired episode-clustered bootstrap",
+      "resamples": 2000,
+      "seed": 12345,
+      "LCB95": "q_0.025"
+    }
+  },
+
+  "behavioral_nonredundancy": {
+    "inherited_from": "artifacts/latent_birth_preregistration/LATENT_BIRTH_PROTOCOL_FROZEN.json",
+    "criterion_a": "matched-observation action divergence at C_fork onsets (JSD, argmax disagreement) reported in full",
+    "criterion_b": "behavior_pair_distance_mean >= 0.35, the repository canonical DEFAULT_BEHAVIOR_PAIR_THRESHOLD",
+    "bands": {
+      "SEVERE_COLLAPSE": "< 0.060",
+      "INSUFFICIENT_DISTINCTION": "0.060 - 0.349",
+      "PAIRWISE_DISTINCTION_PASS": ">= 0.350"
+    },
+    "single_seed_caveat": "With one O3 seed the family-level B_distinct statistic is unavailable. This is a PAIRWISE distinction claim only and may not be described as a distinct strategy FAMILY.",
+    "frozen_before_any_o3_checkpoint": true
+  },
+
+  "disposition": {
+    "O3 fails C_fork": "discard O3; no latent",
+    "O3 wins C_fork and dominates C_anchor too": "BETTER_GENERALIST — consider replacing G0; K remains 1; no latent birth",
+    "O3 wins C_fork but G_available LCB95 <= 0": "no repertoire value; no latent birth",
+    "O3 wins C_fork, G0 wins C_anchor, G_available LCB95 > 0, behavior nonredundant": "O3_RETAIN; LATENT_BIRTH_ALLOWED"
+  },
+
+  "prohibited": [
+    "any use of counterfactual response labels in training, per 46c9e17",
+    "tuning the C_fork predicate using its measured coverage against known forks",
+    "episode-level context splits",
+    "using carrier_survival as the primary crossover metric",
+    "evaluating on Stage-4 or any prior block",
+    "warm-starting O3",
+    "adjusting any threshold after seeing an O3 result",
+    "describing a single-seed result as a reproducible strategy family"
+  ],
+
+  "immutability": "After any O3 training or evaluation outcome is observed, none of the above may change: the C_fork predicate or its constants, the C_anchor definition or matching variables, the credit mask, the primary metric, the seed blocks, the crossover requirements, the bootstrap procedure, the nonredundancy thresholds, or the disposition table."
+}

@@ -1,0 +1,59 @@
+{
+  "record": "CCP-S2 Stage-B representability smoke",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T02:11:05Z",
+  "VERDICT": "STAGE_B_REPRESENTABLE",
+  "question": "can the frozen routed interventions actually be represented and trained by rl/causal_supervision.py's causal_supervision_loss against the real warm-start incumbent?",
+  "checks": [
+    {
+      "unit": "11700004|A|26|agent1",
+      "steps": 214,
+      "loss": 1.6204534769058228,
+      "grad_norm": 3.961315155029297,
+      "finite": true,
+      "zero_weight_agents_contribute_nothing": true,
+      "empty_decision_mask_yields_zero_loss": true,
+      "PASS": true
+    },
+    {
+      "unit": "11700171|A|117|agent1",
+      "steps": 123,
+      "loss": 1.7272289991378784,
+      "grad_norm": 6.476158142089844,
+      "finite": true,
+      "zero_weight_agents_contribute_nothing": true,
+      "empty_decision_mask_yields_zero_loss": true,
+      "PASS": true
+    },
+    {
+      "unit": "11700175|A|124|joint",
+      "steps": 116,
+      "loss": 2.7829129695892334,
+      "grad_norm": 10.811881065368652,
+      "finite": true,
+      "zero_weight_agents_contribute_nothing": true,
+      "empty_decision_mask_yields_zero_loss": true,
+      "PASS": true
+    },
+    {
+      "unit": "11700011|B|11|agent0",
+      "steps": 229,
+      "loss": 0.9203086495399475,
+      "grad_norm": 7.710442543029785,
+      "finite": true,
+      "zero_weight_agents_contribute_nothing": true,
+      "empty_decision_mask_yields_zero_loss": true,
+      "PASS": true
+    },
+    {
+      "unit": "11700228|B|150|joint",
+      "steps": 90,
+      "loss": 0.9139336347579956,
+      "grad_norm": 7.9340620040893555,
+      "finite": true,
+      "zero_weight_agents_contribute_nothing": true,
+      "empty_decision_mask_yields_zero_loss": true,
+      "PASS": true
+    }
+  ]
+}

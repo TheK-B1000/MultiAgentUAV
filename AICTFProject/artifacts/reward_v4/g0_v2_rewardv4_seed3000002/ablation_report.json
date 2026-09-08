@@ -1,0 +1,280 @@
+{
+  "probe": "Reward V4 reliability probe",
+  "seed": 3000002,
+  "run_id": "g0_v2_rewardv4_seed3000002",
+  "sparse_tag_no_flag_points": 0.0,
+  "baseline_sparse_tag_no_flag_points": 100.0,
+  "action_failed_punishment": -0.2,
+  "sparse_tag_with_flag_points": 0.0,
+  "changed": {
+    "tag_no_flag": "100 -> 0",
+    "tag_carrier": "50 -> 0",
+    "failed_commit": "-0.2 -> -0.004",
+    "enemy_mav_kill_reward": "0.5 -> 0.0",
+    "opponent_oob": "100 -> 0",
+    "own_oob": "-100 -> -70"
+  },
+  "unresolved": {
+    "sparse_mine_tag_points": 100.0
+  },
+  "unchanged": {
+    "capture": 100.0,
+    "terminal": "win 1.0 / lose -1.0 / draw -0.5",
+    "oob": -100.0
+  },
+  "note": "budget redesign, NOT a single-factor ablation",
+  "reward_mass": {
+    "channels": {
+      "terminal": {
+        "per_episode_early": 0.459,
+        "per_episode_late": 0.9891,
+        "abs_mass_share_late": 0.1427,
+        "magnitude_rising": true
+      },
+      "sparse": {
+        "per_episode_early": 1.2471,
+        "per_episode_late": 2.07,
+        "abs_mass_share_late": 0.2987,
+        "magnitude_rising": true
+      },
+      "failed_commit": {
+        "per_episode_early": -0.8385,
+        "per_episode_late": -0.9228,
+        "abs_mass_share_late": 0.1332,
+        "magnitude_rising": true
+      },
+      "offense": {
+        "per_episode_early": 0.9185,
+        "per_episode_late": 1.6097,
+        "abs_mass_share_late": 0.2323,
+        "magnitude_rising": true
+      },
+      "pbrs": {
+        "per_episode_early": 0.2301,
+        "per_episode_late": 0.4834,
+        "abs_mass_share_late": 0.0697,
+        "magnitude_rising": true
+      },
+      "team": {
+        "per_episode_early": 0.7229,
+        "per_episode_late": 0.8556,
+        "abs_mass_share_late": 0.1235,
+        "magnitude_rising": true
+      }
+    },
+    "dominant_channel": "sparse",
+    "terminal_share": 0.1427,
+    "objective_is_minority_of_mass": false
+  },
+  "sparse_decomposition": {
+    "tag_blue_noncarrier": 9293,
+    "tag_blue_carrier": 678,
+    "tag_against_blue": 20625,
+    "capture_blue": 2990,
+    "capture_red": 707,
+    "oob_blue": 69,
+    "oob_red": 28,
+    "mine_tag_blue": 197,
+    "mine_tag_red": 15,
+    "tags_per_capture_event": 2.697,
+    "sparse_points_from_tags_at_baseline_100": -1099300.0,
+    "sparse_points_from_tags_at_ablated_value": 0.0,
+    "sparse_points_from_captures": 228300.0,
+    "tag_share_of_sparse_at_baseline": 0.828
+  },
+  "total_timesteps": 300000,
+  "collapse_zone": 225000,
+  "training": {
+    "completed": true,
+    "error": "",
+    "wall_seconds": 6366.77
+  },
+  "health_timeline": [
+    {
+      "global_step": 51200,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000002\\ckpts\\ckpt_g0_v2_rewardv4_seed3000002_50000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 51200,
+        "episodes": 9,
+        "pickups": 40,
+        "captures_blue": 20,
+        "captures_red": 10,
+        "drops": 20,
+        "wins": 7,
+        "offensive_commitment": 0.198139,
+        "defensive_commitment": 0.404136,
+        "capture_conversion": 0.5,
+        "win_rate": 0.7778,
+        "net_captures": 10,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.41912783135428644,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 100352,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000002\\ckpts\\ckpt_g0_v2_rewardv4_seed3000002_100000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 100352,
+        "episodes": 9,
+        "pickups": 45,
+        "captures_blue": 23,
+        "captures_red": 6,
+        "drops": 22,
+        "wins": 9,
+        "offensive_commitment": 0.235992,
+        "defensive_commitment": 0.438513,
+        "capture_conversion": 0.5111,
+        "win_rate": 1.0,
+        "net_captures": 17,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4567631449415646,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 151552,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000002\\ckpts\\ckpt_g0_v2_rewardv4_seed3000002_150000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 151552,
+        "episodes": 9,
+        "pickups": 45,
+        "captures_blue": 24,
+        "captures_red": 5,
+        "drops": 21,
+        "wins": 9,
+        "offensive_commitment": 0.239746,
+        "defensive_commitment": 0.449295,
+        "capture_conversion": 0.5333,
+        "win_rate": 1.0,
+        "net_captures": 19,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4719542648734475,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 200704,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000002\\ckpts\\ckpt_g0_v2_rewardv4_seed3000002_200000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 200704,
+        "episodes": 9,
+        "pickups": 43,
+        "captures_blue": 21,
+        "captures_red": 7,
+        "drops": 22,
+        "wins": 8,
+        "offensive_commitment": 0.231785,
+        "defensive_commitment": 0.42052,
+        "capture_conversion": 0.4884,
+        "win_rate": 0.8889,
+        "net_captures": 14,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.47979554873305125,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 251904,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000002\\ckpts\\ckpt_g0_v2_rewardv4_seed3000002_250000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 251904,
+        "episodes": 9,
+        "pickups": 51,
+        "captures_blue": 22,
+        "captures_red": 7,
+        "drops": 29,
+        "wins": 8,
+        "offensive_commitment": 0.21628,
+        "defensive_commitment": 0.400592,
+        "capture_conversion": 0.4314,
+        "win_rate": 0.8889,
+        "net_captures": 15,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.48458216600573223,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 301056,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000002\\ckpts\\ckpt_g0_v2_rewardv4_seed3000002_300000.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 301056,
+        "episodes": 9,
+        "pickups": 47,
+        "captures_blue": 23,
+        "captures_red": 5,
+        "drops": 24,
+        "wins": 8,
+        "offensive_commitment": 0.259163,
+        "defensive_commitment": 0.461642,
+        "capture_conversion": 0.4894,
+        "win_rate": 0.8889,
+        "net_captures": 18,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4874449606326251,
+      "zero_gradient_steps": 0
+    },
+    {
+      "global_step": 301056,
+      "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\reward_v4\\g0_v2_rewardv4_seed3000002\\ckpts\\final_g0_v2_rewardv4_seed3000002.zip",
+      "SYSTEM_HEALTH": "PASS",
+      "TASK_HEALTH": "PASS",
+      "task_panel": {
+        "global_step": 301056,
+        "episodes": 9,
+        "pickups": 47,
+        "captures_blue": 23,
+        "captures_red": 5,
+        "drops": 24,
+        "wins": 8,
+        "offensive_commitment": 0.259163,
+        "defensive_commitment": 0.461642,
+        "capture_conversion": 0.4894,
+        "win_rate": 0.8889,
+        "net_captures": 18,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "grad_norm_mean_postclip": 0.4874449606326251,
+      "zero_gradient_steps": 0
+    }
+  ],
+  "final_task_panel": {
+    "global_step": 301056,
+    "episodes": 9,
+    "pickups": 47,
+    "captures_blue": 23,
+    "captures_red": 5,
+    "drops": 24,
+    "wins": 8,
+    "offensive_commitment": 0.259163,
+    "defensive_commitment": 0.461642,
+    "capture_conversion": 0.4894,
+    "win_rate": 0.8889,
+    "net_captures": 18,
+    "reasons": [],
+    "verdict": "PASS"
+  },
+  "crossed_collapse_zone_alive": true,
+  "system_failures": []
+}

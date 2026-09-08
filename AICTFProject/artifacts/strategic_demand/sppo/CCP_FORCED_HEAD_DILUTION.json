@@ -1,0 +1,50 @@
+{
+  "record": "CCP code audit: did the paired rehearsal loss exclude committed heads?",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-01T13:05:00Z",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "question": "PI, 2026-09-01: 'Did the paired rehearsal loss actually include committed heads, or did masking already remove them from the loss?'",
+
+  "ANSWER": "INCLUDED. Committed heads were counted in the loss denominator across OG-PSP, V3 and V4.",
+
+  "THE_CHAIN": {
+    "1_the_reduction": "rl/custom_ppo/strategy_anchor.py:113 anchor_loss(model, obs, actions, decision_mask, z_idx). With a decision_mask it computes -(per_head * m).sum() / m.sum(), so a masked-out agent is excluded from BOTH numerator and denominator. Its docstring states: 'decision_mask is (batch, n_agents) and True where that agent had a macro decision available ... so a locked agent contributes nothing to the loss.'",
+    "2_what_was_actually_passed": "rl/paired_rehearsal.py:251 passes decision_mask = batch['obs']['agent_mask'].bool(). rl/oracle_rehearsal.py:271 does the same.",
+    "3_what_agent_mask_contains": "The bank's agent_mask (branch_obs_agent_mask) is ALL ONES. Measured over the 573 pooled FIT/CALIB states: np.unique(agent_mask) == [1.0], per-agent mean [1.0, 1.0].",
+    "4_therefore": "decision_mask was all-True, m was all-ones, and denom = m.sum() counted every head including committed ones. The mask-derived free predicate agrees with agent_mask on only 0.6623 of agent-rows -- the gap is exactly the committed fraction."
+  },
+
+  "WHAT_THIS_DOES_AND_DOES_NOT_MEAN": {
+    "numerator_was_NOT_contaminated": "A committed agent's observation mask is one-hot, and _mask_logits applies masked_fill(mask <= 0, -1e8), so that head's distribution is degenerate: p = 1 on the single legal action, log_prob = 0 exactly, gradient 0. Committed heads contributed no wrong-direction pressure. The anchor_loss docstring's claim that a locked agent 'contributes nothing' is true of the numerator -- but because the action mask makes the head degenerate, not because agent_mask excluded it.",
+    "denominator_WAS_inflated": "Because m was all-ones, the mean divided by the full head count while 33.8% of those heads contributed exactly zero.",
+    "the_effect_is_magnitude_not_direction": "The strategic gradient on informative free heads was scaled by approximately 0.662, equivalent to lambda_ogpsp being about 34% smaller than its nominal value throughout OG-PSP, V3 and V4.",
+    "this_does_NOT_explain_the_failures": "A 34% strength reduction is not a mechanism failure, and nothing here predicts that the correct mask would have produced crossover. V3 reached teacher-level trajectory identity (R ~1.0) WITH this dilution present, so supervision strength was evidently sufficient to move the mechanism it was aimed at. Recorded as a real inefficiency to fix in the successor, not as a retroactive explanation.",
+    "V1_to_V4_stand_exactly_as_recorded": "They were trained and evaluated as described. No result, verdict or estimator is altered by this finding."
+  },
+
+  "MEASURED_DILUTION": {
+    "pooled_n_states": 573,
+    "splits": "CALIB 10700097..10700128 (145) + BANK_10700 10700001..10700096 (428)",
+    "committed_agent_rows": 387,
+    "total_agent_rows": 1146,
+    "fraction_committed": 0.3376,
+    "effective_lambda_multiplier": 0.6624,
+    "per_agent_free_rate": {"agent0": 0.6195, "agent1": 0.7051},
+    "limitation": "the 11000001..11000320 shards are absent from the expected path, so this covers the two available splits"
+  },
+
+  "WHY_THIS_WAS_EASY_TO_MISS": "The parameter is named decision_mask and its docstring describes exactly the right semantics. The value passed is named agent_mask, which reads like the same thing and is not. The code appears to mask committed heads and does not, and no test would catch it because the loss VALUE is still well-formed -- only its normaliser is wrong.",
+
+  "FOR_THE_SUCCESSOR": {
+    "fix": "pass the boundary predicate as decision_mask, not agent_mask",
+    "predicate": "d_i = NOT (agent i's macro mask is one-hot AND its target mask is one-hot), equivalently blue_commit_ticks_left[i] <= 0 at runtime",
+    "expected_effect": "restores the intended lambda and concentrates strategic supervision on the ~66% of heads where the environment is actually accepting a decision",
+    "and_separately": "the free-head teacher disagreement rates (0.546 agent0, 0.634 agent1) confirm there is ample specialist disagreement exactly where interventions are live"
+  },
+
+  "PROVENANCE": {
+    "boundary_audit": "CCP_BOUNDARY_AUDIT.json (commit a1fc6521)",
+    "code_read": ["rl/custom_ppo/strategy_anchor.py:113-138", "rl/custom_ppo/policy.py:1238-1258", "rl/paired_rehearsal.py:235-254", "rl/oracle_rehearsal.py:259-277"]
+  },
+  "EVAL_touched": false
+}

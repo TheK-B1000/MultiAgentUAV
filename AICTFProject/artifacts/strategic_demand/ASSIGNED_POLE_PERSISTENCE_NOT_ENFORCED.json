@@ -1,0 +1,80 @@
+{
+  "record_id": "ASSIGNED_POLE_PERSISTENCE_NOT_ENFORCED_DURING_EXP2B_EXP2C_TRAINING",
+  "status": "FROZEN_CORRECTIVE_PROVENANCE_FINDING",
+  "utc": "2026-08-26T04:00:00Z",
+  "authority": "PI ruling",
+  "classification": "TREATMENT-INTEGRITY finding. Does NOT invalidate any frozen evaluation.",
+  "DOES_NOT_TOUCH": [
+    "EXP2/EXP2B/EXP2C frozen result artifacts -- unmodified",
+    "their evaluation numbers -- still valid records of what those checkpoints did",
+    "their NOT_CONFIRMED verdicts -- unchanged"
+  ],
+  "how_it_was_found": "SPPPO's RankingRunner cross-checks the latent label against the LIVE opponent_id every minibatch and aborts on disagreement. On its first contact with a real 32-env rollout it aborted: 'z/pole consistency violated on 40/512 rows'. This appears to be the first check in the project that ever verified z against the live opponent DURING training rather than only at construction.",
+  "mechanism": {
+    "config": "opponent_randomize = True, opponent_pool = ('OP6','OP7'), weights (0.5, 0.5)",
+    "what_set_next_opponent_does": "pins each env to its cell key for the FIRST episode only",
+    "what_happens_next": "when that episode ends the env RESAMPLES from the pool 50/50",
+    "why_it_went_unseen": "configure_exp2b_live_environment validates per-env z/pole exactly once, at reset. Nothing re-checked it afterwards, and neither run_exp2b_* nor run_exp2c_* sets opponent_randomize."
+  },
+  "evidence_from_existing_training_artifacts": {
+    "EXP2": {
+      "intended_cells": "(8,8,8,8) BALANCED -- 50/50 is the DESIGN",
+      "observed": {
+        "z0": {
+          "n_episodes": 4247,
+          "P(OP6|z)": 0.5074,
+          "P(OP7|z)": 0.4926
+        },
+        "z1": {
+          "n_episodes": 4248,
+          "P(OP6|z)": 0.5125,
+          "P(OP7|z)": 0.4875
+        }
+      },
+      "n_training_episodes": 8495
+    },
+    "EXP2B": {
+      "intended_cells": "(16,0,0,16) ASSIGNED -- z0 should see only OP6, z1 only OP7",
+      "observed": {
+        "z0": {
+          "n_episodes": 4255,
+          "P(OP6|z)": 0.5055,
+          "P(OP7|z)": 0.4945
+        },
+        "z1": {
+          "n_episodes": 4240,
+          "P(OP6|z)": 0.4955,
+          "P(OP7|z)": 0.5045
+        }
+      },
+      "n_training_episodes": 8495
+    },
+    "EXP2C": {
+      "intended_cells": "(16,0,0,16) ASSIGNED -- z0 should see only OP6, z1 only OP7",
+      "observed": {
+        "z0": {
+          "n_episodes": 4261,
+          "P(OP6|z)": 0.4961,
+          "P(OP7|z)": 0.5039
+        },
+        "z1": {
+          "n_episodes": 4236,
+          "P(OP6|z)": 0.4934,
+          "P(OP7|z)": 0.5066
+        }
+      },
+      "n_training_episodes": 8497
+    }
+  },
+  "interpretation": {
+    "EXP2": "UNAFFECTED. EXP2 intended balanced (8,8,8,8) cells, so ~50/50 occupancy is its design. EXP2 remains a valid shared-latent compression failure.",
+    "EXP2B": "The defining treatment did NOT instantiate. Observed occupancy is ~50/50, statistically indistinguishable from EXP2's intended-balanced condition. EXP2B can no longer be used as strong evidence that ASSIGNED-POLE optimisation was insufficient -- assigned-pole optimisation was not what ran.",
+    "EXP2C": "Same defect. EXP2C still shows that private mode-specific heads increased behavioural separation, but it was not trained under persistent assigned-pole conditions either.",
+    "net_effect_on_EXP2B_and_EXP2C": "in pole assignment they did not differ from EXP2 at all. Their real differences were architectural/loss-side only."
+  },
+  "historical_claim_revised": {
+    "previous_story": "assigned-pole training failed, then private heads also failed",
+    "corrected_story": "the intended assigned-pole treatment was never maintained past episode 1, and the first strict live z/pole check exposed it. The negative verdicts stand; the causal attribution to assigned-pole optimisation does not."
+  },
+  "consequence_for_SPPPO": "SPPPO_V1_PROTOCOL amended BEFORE any valid sweep: opponent_randomize = False for all five candidates and the 1M production run, so the frozen 16/0/0/16 treatment is actually instantiated. See SPPPO_V1_PROTOCOL.json :: AMENDMENT_ASSIGNED_POLE_PERSISTENCE."
+}

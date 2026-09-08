@@ -1,0 +1,82 @@
+{
+  "record_id": "V3_STRATEGIC_DEMAND_VALIDATED",
+  "status": "MILESTONE",
+  "utc": "2026-08-18T21:40:00Z",
+  "protocol": [
+    "artifacts/strategic_demand/CANDIDATE_A2_SDS2_INIT_3_FROZEN.json",
+    "artifacts/strategic_demand/OBSERVABILITY_V2_FROZEN.json",
+    "artifacts/strategic_demand/CONFIRMATION_N_AMENDMENT_192.json"
+  ],
+  "runner": "experiments/sds_confirmation_v2.py",
+  "raw": "artifacts/strategic_demand/confirmation_v2/{summary.json,episode_rows.csv,run.log}",
+
+  "verdict": "V3_STRATEGIC_DEMAND_VALIDATED",
+  "seeds": "6000001..6000192, 192 paired seeds, 768 episodes, no extension used",
+
+  "the_four_prospective_tests_all_pass": {
+    "A_payoff": {
+      "gate": "delta_G(A) >= 0.15 AND LCB95 > 0",
+      "delta": 0.29688, "lcb95": 0.20313, "ucb95": 0.39063,
+      "guard_wr": 0.64063, "breach_wr": 0.34375,
+      "passes": true
+    },
+    "A_concealment": {
+      "gate": "LCB95(p_C) > 0.50",
+      "p_C": 0.94271, "lcb95": 0.90625,
+      "counts": {"COMMIT_FIRST": 181, "INTENT_FIRST": 11, "UNRESOLVED": 0},
+      "passes": true
+    },
+    "B_payoff": {
+      "gate": "delta_B(OP7) >= 0.15 AND LCB95 > 0",
+      "delta": 0.45313, "lcb95": 0.38542, "ucb95": 0.52604,
+      "guard_wr": 0.00521, "breach_wr": 0.45833,
+      "passes": true
+    },
+    "B_concealment": {
+      "gate": "LCB95(p_C) > 0.50",
+      "p_C": 0.91667, "lcb95": 0.875,
+      "counts": {"COMMIT_FIRST": 176, "INTENT_FIRST": 11, "UNRESOLVED": 5},
+      "passes": true
+    }
+  },
+
+  "what_is_now_established": {
+    "conflicting_best_responses": "CONFIRMED, replicated on a second untouched block. GUARD strictly dominates against A (BREACH won 34% vs GUARD 64%); BREACH strictly dominates against OP7 (GUARD won 0.5% vs BREACH 46%).",
+    "hidden_strategic_context_both_sides": "CONFIRMED, prospectively, on both poles. Intent was observable in only 52.1% of A episodes and 31.8% of B episodes; commitment preceded intent in 94.3% (A) and 91.7% (B) of episodes.",
+    "why_both_sides_had_to_pass": "if only one pole concealed, a reactive policy could infer the other pole by elimination (clear signal -> known context; no signal -> the other context by default), which would not require persistent strategy. Both sides resisting early identification closes that route.",
+    "not_yet_established": "that LEARNING actually discovers or needs the two modes. An environment that ADMITS a valuable two-strategy solution does not guarantee PPO finds one instead of converging on a single mediocre-everywhere policy. That is the next, separate test."
+  },
+
+  "developmental_vs_confirmed_numbers": {
+    "A_delta_G_development_n32": 0.21875,
+    "A_delta_G_confirmed_n192": 0.29688,
+    "reading": "confirmed came in ABOVE the development estimate, not below. Consistent with the natural-replicate finding that the n=32 development estimate was itself noisy (implied SD(d)~0.875) rather than optimistic. The n=192 amendment was the right call independent of which direction the noise broke.",
+    "B_p_C_prior_retrospective_reading": 0.875,
+    "B_p_C_this_confirmed_prospective": 0.91667,
+    "reading_B": "the retrospective OP7 reading from the SDS_G1_4 run was not an artifact of hindsight selection -- it replicated prospectively on an independent block, slightly higher if anything."
+  },
+
+  "integrity_checks_before_reporting": {
+    "poles_are_genuinely_distinct_data": "384 rows each; only 69/384 (18%) score-cell coincidences between A and B, matching background rate rather than duplication",
+    "seed_symmetry": "both poles evaluated on the identical 192-seed set (6000001..6000192), by design, for experimental symmetry",
+    "block_provenance": "6000001..6000192 audited CLEAN under the corrected audit tool (f03cefd4), including the git-history check with a firing positive control",
+    "no_threshold_moved": "0.15 payoff floor, LCB95>0, and the 0.50 p_C floor are byte-identical to their frozen values; no extension was used"
+  },
+
+  "what_this_licenses": {
+    "immediate": "the environment now demonstrably requires conflicting, concealed strategic responses -- the precondition the whole Summer 2026 campaign was built to establish",
+    "next_gate_before_latent": "explicit GUARD/BREACH repertoire value MUST be shown to exceed the best single generalist PPO before any latent-conditioned policy is trained. An environment that admits two valuable modes does not guarantee a generalist fails to find one adequate policy; that is a separate, harder question answered by training, not by this confirmation.",
+    "still_prohibited": [
+      "training a latent-conditioned policy until the repertoire-beats-generalist gate is separately cleared",
+      "mutating SDS2_A_payoff_INIT_3 or re-running search on the strength of this result",
+      "moving any of the four thresholds retroactively",
+      "treating this milestone as license to skip the generalist-vs-repertoire comparison"
+    ]
+  },
+
+  "campaign_context": {
+    "predecessor": "SDS_G1_4 confirmation (block 5000001) established TWO_WAY_PAYOFF_REVERSAL=CONFIRMED but failed observability under the V1 sentinel estimator",
+    "this_confirmation": "used the retargeted candidate (concealment-optimized under SEARCH_OBJECTIVE_V2) and the corrected estimator (OBSERVABILITY_V2), on a wider block chosen by power analysis, testing both poles prospectively",
+    "lineage": "OP6 -> SDS_PARENT_OP6 -> SDS2_A_payoff_INIT_3 (single-gene overlay min_alive_for_defender=2, a conditional defender)"
+  }
+}

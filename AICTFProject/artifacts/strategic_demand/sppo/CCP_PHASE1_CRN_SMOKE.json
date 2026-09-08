@@ -1,0 +1,46 @@
+{
+  "record": "CCP Phase 1 CRN prerequisite smoke",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-01T13:14:18Z",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "question": "Do two branches forked from the same state consume randomness identically, so paired continuation seeds stay paired?",
+  "VERDICT": "CRN_ALIGNED",
+  "boundary": {
+    "rule": "first step at or after 60 where agent 0 is free",
+    "step": 60,
+    "seed": 11500011,
+    "pole": "A",
+    "episode_length": 154,
+    "legal_macros": [
+      0,
+      2
+    ],
+    "interventions": [
+      0,
+      2
+    ]
+  },
+  "generator": {
+    "branch_lengths": [
+      94,
+      47
+    ],
+    "ticks_with_both_branches_running": 46,
+    "byte_equal_across_running_window": true,
+    "first_divergence_anywhere": 46,
+    "divergence_attributable_to_termination": true,
+    "method": "torch.Generator.get_state() compared byte-for-byte after every tick, scored over ticks where NEITHER branch has terminated",
+    "why_the_window": "a terminating env resets and draws per-episode randomness, so comparing past that pits a mid-episode env against one that has started a new episode. Attempt 1 did exactly that and returned CRN_DIVERGES at the shorter branch's final tick (CCP_PHASE1_CRN_SMOKE_ATTEMPT1_WINDOW_TOO_WIDE.json).",
+    "stricter_not_looser": "the running-window check is accompanied by a positive attribution requirement: any divergence must coincide with a termination, so drift cannot hide behind the narrower window"
+  },
+  "stochastic_config": {
+    "rt_sensor_dropout_prob_max": 0.0,
+    "rt_sensor_noise_sigma_cells_max": 0.0,
+    "red_deception_prob_max": 0.08818939328193665
+  },
+  "all_knobs_zero": false,
+  "note": "_scripted_red.py:361 draws role_coin unconditionally each step, so the generator advances even when every knob is zero; generator-state comparison is meaningful regardless of the config.",
+  "consequence_for_M": "If POST_RESET_DYNAMICS_DETERMINISTIC, continuation rollouts from a fixed state under a deterministic policy are identical, so Q(s,pi) is exact in {0,1} and M collapses to 1 by mathematical necessity rather than by budget choice. This is recorded prospectively, before any delta_Q is computed.",
+  "EVAL_touched": false
+}

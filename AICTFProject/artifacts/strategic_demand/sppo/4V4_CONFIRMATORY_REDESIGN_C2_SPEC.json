@@ -1,0 +1,74 @@
+{
+  "record_id": "4V4_CONFIRMATORY_REDESIGN_C2_SPEC",
+  "status": "FROZEN_BEFORE_SCREEN_AND_BEFORE_TRAINING",
+  "arm": "CONFIRMATORY_REDESIGN",
+  "confirmatory": true,
+  "utc": "2026-09-08T00:20:00Z",
+  "authority": "PI, 2026-09-07/08: 'the fastest path to having something defensible by tomorrow ... make 4v4 mimic the 2v2 strategic-demand construction ... Pole A isn't what we're fixing ... start the fresh Pole-A specialist immediately if the protocol allows it.'",
+
+  "WHY_THIS_IS_A_NEW_HYPOTHESIS_NOT_A_CONTINUATION": "4V4_EXPLORATORY_AS_DIAGNOSTIC_PROTOCOL.json froze, before any exploratory result existed, that a 'do not cross over' outcome would require 'redesigning the strategic poles or task geometry, which is a new hypothesis with its own preregistration and fresh seeds -- explicitly NOT a continuation of the closed V1/V2 sequence'. The exploratory crossover eval FAILED (EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json: delta_B_spec=-0.3047, entire CI negative, audited GENUINE). This record is that new hypothesis: 'C2' names it as the second confirmatory construction attempt for 4v4 (V1/V2 were the scripted-probe attempts on the original poles; this is a new pole pair, not a V3 of the old one).",
+
+  "POLES_UNCHANGED_FROM_FROZEN": ["A"],
+  "POLE_A_DEFINITION": {
+    "source": "CANDIDATE_A_SDS_G1_4_FROZEN.json, applied via pole_A_genome(4) with the SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json defender-gate normalization -- completely unchanged from every prior 4v4 attempt (V1, V2, exploratory).",
+    "base_opponent": "OP6",
+    "overlay": {"defender_zone_frac": 0.38651033731859585, "threat_radius": 1.039531459222271,
+                "min_alive_for_defender": 4},
+    "why_unchanged": "the exploratory crossover eval's delta_A_spec PASSED cleanly (+0.25, LCB95=+0.14). Nothing about Pole A is implicated in the failure; only Pole B reversed. Changing a pole that already works would spend risk on a part of the system that is not broken."
+  },
+
+  "POLE_B2_SELECTION_PROCEDURE": {
+    "status": "PENDING -- to be resolved by amendment once the screen below concludes. No Pole-B2 seed may be spent before that amendment is frozen.",
+    "mechanism_ported_from_2v2": "experiments/strategic_demand_searcher.py's GUARD ('BLUE_ONE_DEFENDER_V2') vs BREACH ('BLUE_BOTH_ATTACK_V2') scripted-vs-scripted probe, already generalized to arbitrary team size by experiments/certify_strategic_demand_scaled.py (the same tool that produced the 4v4 V1/V2 and 6v6 GUARD_DISTRIBUTED_V2 certifications). No PPO policy is loaded for this test.",
+    "gate": {
+      "G_A": "WR(GUARD,PoleA) - WR(BREACH,PoleA) > 0 AND LCB95(G_A) > 0",
+      "G_B2": "WR(BREACH,PoleB2) - WR(GUARD,PoleB2) > 0 AND LCB95(G_B2) > 0",
+      "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7 -- identical procedure to every other gate in this program",
+      "note": "G_A is computed ONCE against the unchanged Pole A and reused for every candidate; only G_B2 varies per candidate."
+    },
+    "candidate_ladder_frozen_before_any_screen_result": {
+      "mechanism_motivating_the_ladder": "the live-role diagnostic (disposable seeds, this session) found OP7's defender assignment is STICKY (can_change gated on lock<=0) and OP7 sets lock_defender=28. A freed defender's slot recruits ANOTHER agent via a fresh argmin the next time the trigger fires, so defenders ACCUMULATE across ticks rather than holding at a fixed count: measured 2.9 of 4 red agents defending on average at 4v4, only ~27% ever attacking blue's flag (blue_flag_pressure=0.163). Pole B/OP7 is ALREADY compact (defender_zone_frac=0.05, the SDSGenome floor) and already reactive (threat_radius=12.0) -- the 2v2 'compact/reactive' mechanism is already present. The actual defect is accumulation via a long lock, not zone width or trigger range. The ladder therefore targets lock_defender directly: a legal, already-validated SDSGenome overlay field (sds_genome.py INT_BOUNDS: 4-40), not a new profile field or reward shaping.",
+      "B2-1_lockdef10": {"overlay": {"lock_defender": 10}, "rationale": "moderate release: a defender returns to another role well before OP7's native 28-tick lock expires"},
+      "B2-2_lockdef10_lockatk24": {"overlay": {"lock_defender": 10, "lock_attacker": 24}, "rationale": "B2-1 plus stickier committed offense, so a released agent that becomes an attacker stays committed rather than flip-flopping"},
+      "B2-3_lockdef6": {"overlay": {"lock_defender": 6}, "rationale": "a second dose-response point on the SAME single lever (more aggressive release), to see whether B2-1's direction holds before combining levers"},
+      "selection_rule": "the FIRST candidate in the order B2-1, B2-2, B2-3 whose G_B2 clears LCB95>0 (with G_A already known to clear) is selected. Do not screen all three and cherry-pick the largest effect; do not select based on any later PPO/specialist result. If none passes, this ladder is exhausted and a further ladder requires its own freeze -- it does not authorize an unlimited search."
+    },
+    "discovery_prescreen_disclosure": "a disposable-seed (99992001-99992032, non-scientific) prescreen of exactly this ladder was run BEFORE this record was frozen, to avoid proposing a ladder blind. The prescreen's numbers are NOT the certifying result and are not reported in this spec. The CERTIFYING screen below uses a fresh block and is the only result that may select a candidate.",
+    "certifying_seed_block": {"variant": "confirmatory_redesign_b2", "seed_base": 12420001, "n": 64,
+                              "disjoint_from": ["12400001-064 (4v4 GUARD/BREACH v1)", "12800001-064 (4v4 V2)", "99992001-032 (this session's disposable prescreen)"],
+                              "disjointness_verified": "grep for 12420001 against every JSON under artifacts/strategic_demand/: zero hits except one incidental digit match in an unrelated metrics.csv, confirmed not a seed-block reference."},
+    "run_command": "python experiments/certify_strategic_demand_scaled.py --team-size 4 --variant confirmatory_redesign_b2 --seed-base 12420001 --n-seeds 64 --device cpu (against a genome-injected Pole-B2 candidate; certify_strategic_demand_scaled.py must be extended to accept an injectable Pole-B genome before this can run as-is -- see IMPLEMENTATION_NOTE)"
+  },
+
+  "IMPLEMENTATION_NOTE": "certify_strategic_demand_scaled.py currently calls pole_B_genome(N) unconditionally for Pole B; it has no CLI parameter to substitute a candidate genome. Before the certifying screen can run, this script needs a minimal additive change (e.g. --pole-b-genome-json <path> or an equivalent injection point) that defaults to the current behaviour when omitted, so every existing 2v2/4v4/6v6 certification call is unaffected. This change has NOT been made yet as of this record's freeze; it is required before POLE_B2_SELECTION_PROCEDURE can be executed as a real certifying run (as opposed to the standalone disposable-seed prescreen script used for discovery).",
+
+  "TRAINING": {
+    "recipe": "run_r1_repertoire_training.py::build_r1_config, unchanged -- identical recipe to every 4v4/6v6 specialist trained so far",
+    "total_timesteps": 1000000,
+    "seeds": {"pi_A_4v4": 16100001, "pi_B_4v4": 16200001},
+    "seed_disjointness": "16100001 and 16200001 verified disjoint (grep, zero hits) from every prior seed allocation: 7410001/7420001 (exploratory, permanently retired for promotion), 13200001-064 (retired unused), 14400001-128 (exploratory crossover, spent), 12400001-064 / 12800001-064 (4v4 GUARD/BREACH certs), and every 2v2/6v6 block.",
+    "pi_A2_may_start_before_pi_B2": {
+      "authorized": true,
+      "why": "pi_A2 trains ONLY against Pole A, which is unchanged and frozen (see POLE_A_DEFINITION). Its training run has no dependency on Pole B2's identity or on the GUARD/BREACH screen's outcome.",
+      "disclosed_schedule_risk": "if the Pole-B2 candidate ladder above is exhausted without a pass, this confirmatory redesign does not reach certification, and pi_A2's checkpoint -- though trained cleanly against an unchanged, valid pole -- never becomes a confirmatory specialist. The joint certification (both G_A and G_B2, later both delta_A_spec and delta_B_spec) governs; training pi_A2 early is a disclosed bet on B2 succeeding, not a partial certification of anything on its own.",
+      "launch_mechanism": "experiments/train_specialist_scale.py --confirmatory-redesign-spec <this file> --team-size 4 --policy A --seed 16100001 --device cuda (new CLI flag added this session, mirroring --exploratory-spec's validation rigor but requiring arm=CONFIRMATORY_REDESIGN, confirmatory=true, and that the launched policy's OWN pole be listed in POLES_UNCHANGED_FROM_FROZEN)."
+    }
+  },
+
+  "FRESH_CONFIRMATORY_CROSSOVER_EVAL": {
+    "status": "not yet runnable -- requires both pi_A2 and pi_B2 terminal checkpoints",
+    "seed_block": {"base": 16400001, "n": 128},
+    "gate": "delta_A = V(pi_A2,A) - V(pi_B2,A); delta_B = V(pi_B2,B2) - V(pi_A2,B2); PASS iff both means > 0 AND both LCB95 > 0 -- identical criterion, identical bootstrap, used everywhere in this program.",
+    "tool": "experiments/eval_specialist_crossover_scaled.py, pointed at this spec"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "spending any Pole-B2 seed (12420001+ or 16200001) before the certifying GUARD/BREACH screen selects a candidate by amendment",
+    "spending the 16400001-128 crossover-eval block before both pi_A2 and pi_B2 terminal checkpoints exist",
+    "promoting pi_A_4v4/pi_B_4v4 (seeds 7410001/7420001, the closed exploratory arm) to any role in this track",
+    "a fourth Pole-B2 candidate beyond the 3 named above without a new freeze",
+    "tuning a candidate's overlay values after seeing its GUARD/BREACH numbers"
+  ],
+
+  "SEQUENCE": "freeze this record (done) -> launch pi_A2 immediately (Pole A unchanged) -> in parallel, extend certify_strategic_demand_scaled.py to accept an injectable Pole-B genome -> run the certifying GUARD/BREACH screen on the 3-candidate ladder -> amend this record with the selected Pole-B2 (or record ladder exhaustion) -> launch pi_B2 -> when both terminal checkpoints exist, run the fresh sealed crossover eval on 16400001-128 -> PASS: 4v4 reaches confirmatory parity with 6v6; FAIL: 4v4 closes for this paper under this construction."
+}

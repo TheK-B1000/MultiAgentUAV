@@ -1,0 +1,155 @@
+# Summer 2026 authoritative experiment manifest.
+#
+# This is a ROLLUP, not a second source of truth. Every value below is read
+# from an already-frozen JSON file or a completed run's own provenance
+# sidecar; nothing here may be edited independently of its source. If a value
+# needs to change, change the source and regenerate this file.
+#
+# Source precedence:
+#   VGC_DIVERSITY_SETS_FROZEN.json   D1/D3/D7 definitions, budget, team size
+#   D3_POOL_PREFLIGHT_FROZEN.json    D3 sampler gate criteria
+#   FP_SMOKE_FROZEN.json             FP mechanism gate criteria
+#   vgc_condition.json (per run)     what a completed run actually received
+#   crossplay/*_summary.json         evaluation results (raw episodes preserved)
+
+experiment_id: summer_2026_diversity_and_repertoire
+git_commit_at_manifest_creation: 7b94c059
+
+seed_protocol:
+  source: artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json
+  frozen_utc: 2026-08-14T11:20:00Z
+  rule: >
+    One canonical training seed per new experiment unless a result is
+    explicitly authorized for confirmatory replication.
+  philosophy: 1 seed to discover; only replicate important findings
+  evidence_label_for_new_stages: EXPLORATORY_SINGLE_SEED
+  new_stages_n_seeds: 1
+  D3_this_campaign: >
+    Seeds already RUNNING at freeze are grandfathered (3700001, 3700002 -- both
+    COMPLETE and both used in the primary eval). Seed 3700003 was stopped and is
+    NOT grandfathered into the eval; frozen protocol sets
+    do_not_schedule_further_D3_seeds = true, so D3 stands at n=2 by decision.
+  rationale_addendum: artifacts/summer_2026/SEED_PROTOCOL.json  # why n=1 is a screen
+environment:
+  map: map_a
+  ruleset: RULESET_V2
+  team_size: 2
+  reward: G0-V5 (V5 verified-aligned reward; see artifacts/g0_v5_long/G0_V5_LONG_RUN_SPEC.json)
+  training_budget_steps: 1000000
+
+opponent_pool_source: gpu_env/_core/_bt_profiles.py  # canonical OP6-OP12, no OP13
+
+conditions:
+  D1:
+    definition_source: artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json
+    opponents: [OP9]
+    selection_rule: median offensive_pressure (C7 Stage 1 measurement)
+    seeds: [3600001, 3600002, 3600003]
+    status: COMPLETE
+    provenance: NEW
+    checkpoints: &d1_checkpoints
+      3600001: artifacts/vgc_diversity/vgc_d1_seed3600001/ckpts/final_vgc_d1_seed3600001.zip
+      3600002: artifacts/vgc_diversity/vgc_d1_seed3600002/ckpts/final_vgc_d1_seed3600002.zip
+      3600003: artifacts/vgc_diversity/vgc_d1_seed3600003/ckpts/final_vgc_d1_seed3600003.zip
+    health_panels_total: 33
+    health_panels_non_pass: 0
+
+  D3:
+    definition_source: artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json
+    opponents: [OP7, OP9, OP12]
+    selection_rule: "{min, median, max} offensive_pressure"
+    seeds: [3700001, 3700002, 3700003]
+    status: COMPLETE_AT_N2   # 3700001+3700002 trained to 1M; 3700003 stopped, not rerun
+    provenance: NEW
+    blocked_by: []
+    health_panels_non_pass: 0
+    preflight_gate_source: artifacts/vgc_diversity/D3_POOL_PREFLIGHT_FROZEN.json
+    seed_protocol: artifacts/summer_2026/SEED_PROTOCOL_FROZEN.json
+    seed_notes:
+      3700001: COMPLETE
+      3700002: COMPLETE
+      3700003: STOPPED_BY_PROTOCOL  # started then explicitly ended; not in primary eval
+    evidence_label: D3_COMPLETED_SEEDS_ONLY  # 3700001, 3700002
+
+  D7:
+    definition_source: artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json
+    opponents: [OP6, OP7, OP8, OP9, OP10, OP11, OP12]
+    seeds: [3200001, 3200002, 3200003]
+    status: COMPLETE
+    provenance: EXISTING   # G0-V5, trained before this experiment was framed; reused verbatim
+    parent_experiment: G0-V5 (artifacts/g0_v5_long/G0_V5_LONG_RUN_SPEC.json)
+    checkpoints:
+      3200001: artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip
+      3200002: artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip
+      3200003: artifacts/g0_v5_long/g0_v5_long_seed3200003/ckpts/final_g0_v5_long_seed3200003.zip
+    note: >
+      C7 4v4 checkpoints (3300001-3) exist and are D7-trained but are NOT part
+      of the primary comparison -- different team size would confound team
+      size with diversity. Available only as arm=SECONDARY_TEAM_SIZE_CHECK via
+      run_crossplay_eval.py --include-secondary-4v4.
+
+evaluation:
+  evaluator: experiments/run_crossplay_eval.py   # extends run_g0_v2_evaluation; no parallel eval stack
+  opponent_board: [OP6, OP7, OP8, OP9, OP10, OP11, OP12]
+  episodes_per_cell: 30
+  eval_seed_base: run_g0_v2_evaluation.EVAL_SEED_BASE   # held out from all training blocks
+  completed_runs:
+    - tag: d1_vs_d7
+      output: artifacts/vgc_diversity/crossplay/d1_vs_d7_summary.json
+      episodes_total: 1260
+      raw_episode_rows_preserved: true
+      result_headline: >
+        D1 overall 0.803, D7 overall 0.798 (statistically indistinguishable).
+        D1 on OP9 (its only training opponent) 0.733 vs D7 on OP9 0.689;
+        difference +0.044 is within per-condition SE (~0.042 at n=30, 3 seeds).
+        No measurable specialization from single-opponent training.
+
+specialists:
+  # EXPERIMENT 2 in this project's naming discipline (see SUMMER_2026_AUDIT.md).
+  # D1's checkpoints under condition D1 ARE S_OP9 -- same training condition,
+  # reused rather than retrained. S_OP7 and S_OP12 do not exist.
+  S_OP9:
+    provenance: EXISTING
+    equivalent_to: conditions.D1
+    checkpoints: *d1_checkpoints  # see conditions.D1.checkpoints above
+  S_OP7:
+    status: NOT_STARTED
+    n_seeds_if_authorized: 1   # SEED_PROTOCOL_FROZEN.json; EXPLORATORY_SINGLE_SEED
+  S_OP12:
+    status: NOT_STARTED
+    n_seeds_if_authorized: 1
+
+fictitious_play:
+  seam: gpu_env/state/snapshots.py (SNAPSHOT opponent kind)
+  rotator: rl/custom_ppo/curriculum_runtime.py::_sample_snapshot_opponents
+  driver: experiments/run_fictitious_play.py
+  smoke_gate_source: artifacts/vgc_fp/FP_SMOKE_FROZEN.json
+  status: MECHANISM_PASS_SCIENTIFIC_PHASE_UNAUTHORIZED
+  smoke_result: artifacts/vgc_fp/FP_SMOKE_RESULT.json   # FP_SMOKE_PASS, 9/9 criteria
+  probe_finding: artifacts/vgc_fp/FP_PROBE_2026-08-13.json   # SUPERSEDED by the above
+  historical_self_play_trainer: REMOVED
+  historical_self_play_checkpoints: UNAVAILABLE
+  note: >
+    Two records exist and are kept in order. FP_PROBE_2026-08-13 was an
+    engineering probe that confirmed SNAPSHOT:<path> episode provenance but
+    stalled at 4096/6144 with no ablation report -- correctly recorded at the
+    time as NOT FP_SMOKE=PASS. The formal 9-criterion smoke ran afterwards and
+    completed: both pool checkpoints observed (72/65 snapshot episodes), same
+    seed reproduced the identical sequence, preload rejected non-checkpoints.
+    The probe's INCOMPLETE status is therefore superseded, not contradicted.
+    MECHANISM passing is still not authorization for the scientific FP phase --
+    see gates.FP_SCIENTIFIC_GATE.
+
+gates:
+  MIXED_SAMPLING_PASS: D3_POOL_PREFLIGHT_PASS
+  FP_SNAPSHOT_FORMAT: PASS
+  PPO_AS_OPPONENT_SEAM: OBSERVED
+  FP_SMOKE: FP_SMOKE_PASS            # formal 9-criterion smoke completed after the incomplete probe
+  FP_SCIENTIFIC_GATE: NOT PASSED     # mechanism PASS ≠ scientific FP phase authorized
+  SEED_PROTOCOL: ONE_CANONICAL_UNLESS_REPLICATION
+  CROSSOVER_FOUND: NOT_TESTED
+  MATCHUP_DEPENDENCE: NOT_TESTED
+  REPERTOIRE_VALUE_PASS: NOT_TESTED
+  SELECTOR_VALUE_PASS: NOT_TESTED
+  MEMORYLESS_SELECTOR: NOT_TESTED
+  TEMPORAL_OBSERVABILITY_REQUIRED: NOT_TESTED

@@ -1,0 +1,23 @@
+{
+  "record_id": "SPPPO_V1_BRANCH_CLOSED",
+  "status": "CLOSED",
+  "utc": "2026-08-27T01:30:00Z",
+  "verdict_artifact": "artifacts/strategic_demand/sppo/SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED.json",
+  "verdict": "SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED",
+  "classification": "FAIL",
+  "classification_note": "Valid completed treatment under frozen gates. Not INVALID.",
+  "branch_state": "SPPPO V1 CLOSED",
+  "next_method_policy": "No SPPPO V2 automatically. Any successor requires a fresh prospective research decision, not a rescue attempt.",
+  "still_locked": [
+    "EXP3",
+    "EXP4"
+  ],
+  "prohibited_without_new_protocol": [
+    "SPPPO rerun",
+    "lambda grid extension",
+    "seed block expansion",
+    "estimator or confidence-procedure change",
+    "post-hoc threshold modification",
+    "checkpoint cherry-picking"
+  ]
+}

@@ -1,0 +1,264 @@
+{
+  "reds": {
+    "OP10_AGGRESSIVE_INTERCEPTOR": {
+      "by_blue_style": {
+        "BLUE_ESCORT": {
+          "n": 8,
+          "mean_margin": 1.125,
+          "win_rate": 0.875,
+          "mean_first_pickup": 101.5,
+          "pickup_rate": 1.0
+        },
+        "BLUE_RUSH": {
+          "n": 8,
+          "mean_margin": 2.125,
+          "win_rate": 1.0,
+          "mean_first_pickup": 62.5,
+          "pickup_rate": 1.0
+        },
+        "BLUE_SPLIT": {
+          "n": 8,
+          "mean_margin": 0.75,
+          "win_rate": 0.375,
+          "mean_first_pickup": 110.66666666666667,
+          "pickup_rate": 0.375
+        },
+        "BLUE_TURTLE": {
+          "n": 8,
+          "mean_margin": 0.5,
+          "win_rate": 0.25,
+          "mean_first_pickup": 70.8,
+          "pickup_rate": 0.5
+        }
+      },
+      "uniquely_best": "BLUE_RUSH",
+      "runner_up": "BLUE_ESCORT",
+      "paired_best_minus_runner_up": 1.0,
+      "saturation_like": false,
+      "aggressive_margin_spread": 1.375
+    },
+    "OP11_ADAPTIVE_EXPLOITER": {
+      "by_blue_style": {
+        "BLUE_ESCORT": {
+          "n": 8,
+          "mean_margin": 3.0,
+          "win_rate": 1.0,
+          "mean_first_pickup": 35.625,
+          "pickup_rate": 1.0
+        },
+        "BLUE_RUSH": {
+          "n": 8,
+          "mean_margin": 3.0,
+          "win_rate": 1.0,
+          "mean_first_pickup": 29.25,
+          "pickup_rate": 1.0
+        },
+        "BLUE_SPLIT": {
+          "n": 8,
+          "mean_margin": 2.375,
+          "win_rate": 1.0,
+          "mean_first_pickup": 39.5,
+          "pickup_rate": 1.0
+        },
+        "BLUE_TURTLE": {
+          "n": 8,
+          "mean_margin": 1.25,
+          "win_rate": 0.75,
+          "mean_first_pickup": 59.857142857142854,
+          "pickup_rate": 0.75
+        }
+      },
+      "uniquely_best": "BLUE_ESCORT",
+      "runner_up": "BLUE_RUSH",
+      "paired_best_minus_runner_up": 0.0,
+      "saturation_like": false,
+      "aggressive_margin_spread": 0.625
+    },
+    "OP12_LATE_CONVERTER": {
+      "by_blue_style": {
+        "BLUE_ESCORT": {
+          "n": 8,
+          "mean_margin": 1.375,
+          "win_rate": 1.0,
+          "mean_first_pickup": 36.125,
+          "pickup_rate": 1.0
+        },
+        "BLUE_RUSH": {
+          "n": 8,
+          "mean_margin": 1.875,
+          "win_rate": 1.0,
+          "mean_first_pickup": 28.375,
+          "pickup_rate": 1.0
+        },
+        "BLUE_SPLIT": {
+          "n": 8,
+          "mean_margin": 0.125,
+          "win_rate": 0.5,
+          "mean_first_pickup": 38.0,
+          "pickup_rate": 1.0
+        },
+        "BLUE_TURTLE": {
+          "n": 8,
+          "mean_margin": 1.375,
+          "win_rate": 1.0,
+          "mean_first_pickup": 84.375,
+          "pickup_rate": 1.0
+        }
+      },
+      "uniquely_best": "BLUE_RUSH",
+      "runner_up": "BLUE_ESCORT",
+      "paired_best_minus_runner_up": 0.5,
+      "saturation_like": false,
+      "aggressive_margin_spread": 1.75
+    },
+    "OP6_IMMEDIATE_DUAL_RUSH": {
+      "by_blue_style": {
+        "BLUE_ESCORT": {
+          "n": 8,
+          "mean_margin": 2.75,
+          "win_rate": 1.0,
+          "mean_first_pickup": 36.5,
+          "pickup_rate": 1.0
+        },
+        "BLUE_RUSH": {
+          "n": 8,
+          "mean_margin": 3.0,
+          "win_rate": 1.0,
+          "mean_first_pickup": 29.25,
+          "pickup_rate": 1.0
+        },
+        "BLUE_SPLIT": {
+          "n": 8,
+          "mean_margin": 2.125,
+          "win_rate": 1.0,
+          "mean_first_pickup": 41.25,
+          "pickup_rate": 1.0
+        },
+        "BLUE_TURTLE": {
+          "n": 8,
+          "mean_margin": 0.75,
+          "win_rate": 0.375,
+          "mean_first_pickup": 116.0,
+          "pickup_rate": 0.375
+        }
+      },
+      "uniquely_best": "BLUE_RUSH",
+      "runner_up": "BLUE_ESCORT",
+      "paired_best_minus_runner_up": 0.25,
+      "saturation_like": false,
+      "aggressive_margin_spread": 0.875
+    },
+    "OP7_DEEP_FORTRESS": {
+      "by_blue_style": {
+        "BLUE_ESCORT": {
+          "n": 8,
+          "mean_margin": 1.5,
+          "win_rate": 0.75,
+          "mean_first_pickup": 87.57142857142857,
+          "pickup_rate": 0.875
+        },
+        "BLUE_RUSH": {
+          "n": 8,
+          "mean_margin": 2.25,
+          "win_rate": 1.0,
+          "mean_first_pickup": 57.625,
+          "pickup_rate": 1.0
+        },
+        "BLUE_SPLIT": {
+          "n": 8,
+          "mean_margin": 1.0,
+          "win_rate": 0.625,
+          "mean_first_pickup": 86.71428571428571,
+          "pickup_rate": 0.875
+        },
+        "BLUE_TURTLE": {
+          "n": 8,
+          "mean_margin": 0.25,
+          "win_rate": 0.375,
+          "mean_first_pickup": 94.5,
+          "pickup_rate": 0.625
+        }
+      },
+      "uniquely_best": "BLUE_RUSH",
+      "runner_up": "BLUE_ESCORT",
+      "paired_best_minus_runner_up": 0.75,
+      "saturation_like": false,
+      "aggressive_margin_spread": 1.25
+    },
+    "OP8_PROTECTED_CARRIER_ESCORT": {
+      "by_blue_style": {
+        "BLUE_ESCORT": {
+          "n": 8,
+          "mean_margin": 2.125,
+          "win_rate": 1.0,
+          "mean_first_pickup": 38.75,
+          "pickup_rate": 1.0
+        },
+        "BLUE_RUSH": {
+          "n": 8,
+          "mean_margin": 2.75,
+          "win_rate": 1.0,
+          "mean_first_pickup": 30.375,
+          "pickup_rate": 1.0
+        },
+        "BLUE_SPLIT": {
+          "n": 8,
+          "mean_margin": 1.25,
+          "win_rate": 0.625,
+          "mean_first_pickup": 96.8,
+          "pickup_rate": 0.625
+        },
+        "BLUE_TURTLE": {
+          "n": 8,
+          "mean_margin": 0.875,
+          "win_rate": 0.5,
+          "mean_first_pickup": 125.66666666666667,
+          "pickup_rate": 0.5
+        }
+      },
+      "uniquely_best": "BLUE_RUSH",
+      "runner_up": "BLUE_ESCORT",
+      "paired_best_minus_runner_up": 0.625,
+      "saturation_like": false,
+      "aggressive_margin_spread": 1.5
+    },
+    "OP9_SPLIT_LANE_FEINT": {
+      "by_blue_style": {
+        "BLUE_ESCORT": {
+          "n": 8,
+          "mean_margin": 2.125,
+          "win_rate": 1.0,
+          "mean_first_pickup": 47.75,
+          "pickup_rate": 1.0
+        },
+        "BLUE_RUSH": {
+          "n": 8,
+          "mean_margin": 1.375,
+          "win_rate": 1.0,
+          "mean_first_pickup": 44.25,
+          "pickup_rate": 1.0
+        },
+        "BLUE_SPLIT": {
+          "n": 8,
+          "mean_margin": 0.875,
+          "win_rate": 0.375,
+          "mean_first_pickup": 125.66666666666667,
+          "pickup_rate": 0.375
+        },
+        "BLUE_TURTLE": {
+          "n": 8,
+          "mean_margin": 0.375,
+          "win_rate": 0.625,
+          "mean_first_pickup": 96.625,
+          "pickup_rate": 0.75
+        }
+      },
+      "uniquely_best": "BLUE_ESCORT",
+      "runner_up": "BLUE_RUSH",
+      "paired_best_minus_runner_up": 0.75,
+      "saturation_like": false,
+      "aggressive_margin_spread": 1.25
+    }
+  },
+  "map": "map_a"
+}

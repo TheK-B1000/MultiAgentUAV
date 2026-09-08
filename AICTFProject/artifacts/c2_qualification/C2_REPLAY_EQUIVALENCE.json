@@ -1,0 +1,33 @@
+{
+  "PASS": true,
+  "full_run": true,
+  "missing_enforced": true,
+  "scoped_to_replayed_population": true,
+  "duplicate_keys_frozen": 111,
+  "duplicate_keys_replay": 111,
+  "duplicate_note": "Two failure events sharing a label and step collapse to one key on both sides equally, so duplicates are reported rather than compared.",
+  "frozen_reference": "artifacts\\g0_v5_evaluation\\precursor_windows.csv",
+  "n_frozen_windows_total": 5749,
+  "n_frozen_windows_in_replayed_scope": 5749,
+  "n_rebuilt_windows": 5749,
+  "n_keys_matched": 5638,
+  "n_missing_in_replay": 0,
+  "n_extra_in_replay": 0,
+  "n_feature_values_compared": 135312,
+  "n_mismatches": 0,
+  "first_missing": [],
+  "first_extra": [],
+  "first_mismatches": [],
+  "tolerance": 1e-09,
+  "meaning_if_failed": "The replay is NOT the same experiment as the frozen discovery. The lag audit must not run, because any result would describe different trajectories than the ones C2 qualification is defined against.",
+  "generated_utc": "2026-08-06T08:09:32Z",
+  "produced_by": "run_c2_lag_audit.replay_episode (reimplemented loop)",
+  "why_this_matters_here": "replay_episode does not call run_eval_episode; it reimplements its loop. This gate is the only thing establishing that the reimplementation reproduces the frozen discovery trajectories.",
+  "episodes_per_cell": 30,
+  "policy_seeds": [
+    3200001,
+    3200002,
+    3200003
+  ],
+  "runner_commit": "unknown"
+}

@@ -1,0 +1,111 @@
+{
+  "record": "SPPPO V1 production launch contract",
+  "run_tag": "sppo_v1_production_1M_seed10100001",
+  "lambda_R": 1.0,
+  "lambda_R_provenance": "SPPPO_LAMBDA_SELECTION.json, boundary caveat recorded",
+  "margin": 0.04,
+  "ranking_cadence": 1,
+  "mode": "FIXED_OPPONENT",
+  "training_block": "10100001..10100032",
+  "total_timesteps": 1000000,
+  "fresh_initialisation": true,
+  "resumed_from": null,
+  "candidate_checkpoints_reused": false,
+  "development_steps_counted_toward_budget": 0,
+  "terminal_checkpoint_only": true,
+  "final_evaluation_block": "10300001..10300192 (UNTOUCHED until terminal exists)",
+  "qpsi_sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf",
+  "resolved_config_sha256": "f0b8b6eedf9e4e7f5c6bbe510d80b9f0462fe1f5432812c865a7b7c4e74cd7c6",
+  "validation": {
+    "budget_exactly_1M": {
+      "ok": true,
+      "detail": "total_timesteps=1000000"
+    },
+    "lambda_R_is_frozen_selection": {
+      "ok": true,
+      "detail": "sppo_lambda_rank=1.0"
+    },
+    "margin_frozen": {
+      "ok": true,
+      "detail": "margin=0.04"
+    },
+    "ranking_cadence_frozen": {
+      "ok": true,
+      "detail": "cadence=1"
+    },
+    "mode_is_FIXED_OPPONENT": {
+      "ok": true,
+      "detail": "mode=FIXED_OPPONENT"
+    },
+    "opponent_randomize_off": {
+      "ok": true,
+      "detail": "opponent_randomize=False"
+    },
+    "training_seed_is_the_training_block": {
+      "ok": true,
+      "detail": "seed=10100001"
+    },
+    "starts_at_timestep_zero": {
+      "ok": true,
+      "detail": "checkpoint_run_start_step=0"
+    },
+    "no_checkpoint_input__load_path": {
+      "ok": true,
+      "detail": "load_path=None"
+    },
+    "no_checkpoint_input__gate_config_fingerprint_checkpoint": {
+      "ok": true,
+      "detail": "gate_config_fingerprint_checkpoint=''"
+    },
+    "no_checkpoint_input__evaluation_only_checkpoint_family": {
+      "ok": true,
+      "detail": "evaluation_only_checkpoint_family=''"
+    },
+    "load_weights_only_off": {
+      "ok": true,
+      "detail": "load_weights_only=False"
+    },
+    "no_input_resolves_into_the_sweep_tree": {
+      "ok": true,
+      "detail": "[]"
+    },
+    "output_outside_sweep_tree__checkpoint_dir": {
+      "ok": true,
+      "detail": "checkpoint_dir=K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\production\\sppo_v1_production_1M_seed10100001\\ckpts"
+    },
+    "output_outside_sweep_tree__metrics_csv_path": {
+      "ok": true,
+      "detail": "metrics_csv_path=K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\production\\sppo_v1_production_1M_seed10100001\\metrics.csv"
+    },
+    "output_outside_sweep_tree__episode_csv_path": {
+      "ok": true,
+      "detail": "episode_csv_path=K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\production\\sppo_v1_production_1M_seed10100001\\episode_rows.csv"
+    },
+    "qpsi_sha_matches_frozen": {
+      "ok": true,
+      "detail": "sha=930051a725e55e4f"
+    },
+    "teacher_lambda_unchanged": {
+      "ok": true,
+      "detail": "exp2_teacher_lambda=0.1"
+    },
+    "teacher_cadence_unchanged": {
+      "ok": true,
+      "detail": "exp2_teacher_cadence=4"
+    },
+    "n_envs_is_32": {
+      "ok": true,
+      "detail": "n_envs=32"
+    },
+    "periodic_checkpointing_disabled": {
+      "ok": true,
+      "detail": "periodic_checkpoint_steps=0"
+    },
+    "production_dir_is_empty": {
+      "ok": true,
+      "detail": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\strategic_demand\\sppo\\production\\sppo_v1_production_1M_seed10100001"
+    }
+  },
+  "frozen_when": "BEFORE step 1 -- prospective declaration, not runtime evidence",
+  "first_interval_evidence": "NOT YET COLLECTED. Captured separately in SPPPO_PRODUCTION_FIRST_INTERVAL_EVIDENCE.json only after the first reporting interval exists."
+}

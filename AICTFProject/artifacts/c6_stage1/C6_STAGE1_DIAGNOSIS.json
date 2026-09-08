@@ -1,0 +1,37 @@
+{
+  "record": "C6 Stage 1 failure diagnosis",
+  "verdict_being_diagnosed": "STAGE1_FAIL",
+  "status": "Stage 2 (9880000) NOT touched. No utility or reversal number exists.",
+  "the_families_did_reach_the_simulator": {
+    "evidence": "distinct red-trajectory hashes from an identical seed -- C6A 3a8becba, C6B 94589fb9, OP7 b6fb6e0a",
+    "why_this_matters": "the two earlier STAGE1_FAILs were plumbing. This one is mechanical, and is therefore informative."
+  },
+
+  "measured": {
+    "C6A": {"offensive_pressure": 0.447, "home_retention": 0.752, "blue_denial": 0.610},
+    "C6B": {"offensive_pressure": 0.260, "home_retention": 0.892, "blue_denial": 0.605},
+    "mixture_mean": {"offensive_pressure": 0.284, "home_retention": 0.847, "blue_denial": 0.598}
+  },
+
+  "failure_1_metric_confound": {
+    "check_that_failed": "C6A declines_to_contest (needs blue_denial BELOW mixture; measured 0.610 vs 0.598)",
+    "diagnosis": "blue_denial is defined as 1 - blue's advance, which is an OUTCOME jointly produced by red and blue. C6A attacks blue's home with both agents, blue responds by staying home to defend, blue advances less, and 'denial' rises -- even though C6A never blocks anyone. intercept_block_base=0.10 and enable_intercept=False are doing exactly what they should.",
+    "conclusion": "the check did not measure contesting. It measured blue's reaction to being threatened.",
+    "this_is_the_confound_class_already_flagged": "the same objection that retired the earlier conditional-correlation criterion applies here and I did not carry it through to blue_denial",
+    "correct_operationalization": "measure RED's contesting directly -- red agents positioned between blue and red's flag, or red interception engagements -- never blue's resulting advance"
+  },
+
+  "failure_2_structural_infeasibility": {
+    "check_that_failed": "C6B sustains_offence (0.260 vs 0.264 required) and denies_advance",
+    "diagnosis": "AGENTS per team is 2. C6B sets min_alive_for_defender=2, so one of its two agents holds home and one attacks. 'Retain home ABOVE mixture' and 'sustain offence AT OR ABOVE mixture' compete for the same two bodies, and the mixture mean is set by opponents that make the same tradeoff differently.",
+    "conclusion": "C6B as specified is not achievable at 2v2. This is not a tuning miss; the two requirements are in direct competition for one agent.",
+    "the_wider_implication": "with 2 agents per side, the commit-forward vs hold-home axis spans at most one agent's allocation. That is a candidate STRUCTURAL explanation for C4_NO_REVERSAL and C5_NO_REVERSAL as well, and it points at the agent/action space rather than at opponent design -- which is exactly the meaning the C6 freeze pre-committed to a C6_NO_REVERSAL.",
+    "status_of_that_implication": "HYPOTHESIS. Nothing here demonstrates it, and it must not be cited as a finding."
+  },
+
+  "what_is_and_is_not_authorized": {
+    "authorized_by_the_freeze": "correcting a family PROFILE and re-running Stage 1, because Stage 2 is untouched and no scientific number exists",
+    "NOT_yet_authorized": "changing the Stage-1 measurement definitions after seeing the numbers they produced. Even though Stage 1 is engineering, redefining a metric that just failed is the move most likely to launder a design into passing, and it is a decision to take deliberately rather than silently.",
+    "why_tuning_profiles_first_would_be_wasted": "failure 1 is a broken measurement, not a broken profile. Tuning C6A against blue_denial would optimise it toward not threatening blue's home, which is the opposite of its frozen mechanic."
+  }
+}

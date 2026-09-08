@@ -1,0 +1,87 @@
+{
+  "record": "SAC-RFT sealed EVAL terminal verdict",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-04T08:44:49Z",
+  "implements": "SAC_RFT_SPEC.json#EVAL_PROTOCOL",
+  "written_by": "experiments/finalize_sac_rft_eval.py -- eval_sac_rft.py deferred this step when it detected the off-diagonal reversal pattern and routed to the mandatory audit",
+  "PRIMARY_GATE": {
+    "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+    "ANCHOR_TREATMENT_frozen": {
+      "delta_A": {
+        "mean": 0.03125,
+        "lcb95": -0.109375,
+        "ucb95": 0.171875
+      },
+      "delta_B": {
+        "mean": -0.046875,
+        "lcb95": -0.1875,
+        "ucb95": 0.09375
+      },
+      "passes": false
+    },
+    "EMA_CONTROL": {
+      "delta_A": {
+        "mean": -0.015625,
+        "lcb95": -0.15625,
+        "ucb95": 0.140625
+      },
+      "delta_B": {
+        "mean": 0.0625,
+        "lcb95": -0.078125,
+        "ucb95": 0.203125
+      },
+      "passes": false
+    }
+  },
+  "ATTRIBUTION": {
+    "Gamma_A": {
+      "mean": 0.046875,
+      "lcb95": -0.125,
+      "ucb95": 0.21875
+    },
+    "Gamma_B": {
+      "mean": -0.109375,
+      "lcb95": -0.3125,
+      "ucb95": 0.09375
+    },
+    "clears_zero_both_poles": false
+  },
+  "READING": "frozen strategic anchor also insufficient",
+  "QUALIFIER": null,
+  "unmatched_interpretation_combination": false,
+  "integrity_audit": {
+    "verdict": "GENUINE_CROSS_REVERSAL_OFF_DIAGONAL",
+    "failures": [],
+    "triggered_by": [
+      "A_C",
+      "B_T"
+    ],
+    "off_diagonal_pattern_check": {
+      "on_diagonal_both_positive": {
+        "A_T": true,
+        "B_C": true
+      },
+      "off_diagonal_both_reversed": {
+        "A_C": true,
+        "B_T": true
+      },
+      "pattern_is_exactly_cross_shaped": true,
+      "why_this_argues_against_a_shared_defect": "a defect tied to an ARM (e.g. TREATMENT's checkpoint loaded wrong) would hit both of that arm's poles, not just one; a defect tied to a POLE (e.g. Pole B's opponent key wrong) would hit both arms on that pole, not just one. This pattern requires the defect to be simultaneously arm-AND-pole-specific in exactly the two off-diagonal cells while sparing both on-diagonal cells -- a coincidence a code-path bug would not produce, since CONTROL and TREATMENT share the identical run_cell() code path and only the loaded checkpoint differs between them."
+    },
+    "PROVENANCE": "audit was written and run before any interpretive reading of sac_rft_eval_rows.csv; a fresh script authored specifically for this trigger pattern rather than reused as-is"
+  },
+  "checkpoints": {
+    "CONTROL": "7f85efef7883ed422cd9fda3f60fbbe2004486e1b28ea20ffc4dcb6de0e38261",
+    "TREATMENT": "48ed0ecb960aa27eff27e73b553004739672e66ced291beb40446a896f7c493e"
+  },
+  "cross_instrument_context": {
+    "same_warm_start_checkpoint": true,
+    "incumbent_delta_A": 0.09375,
+    "incumbent_delta_B": -0.15625,
+    "pole_A_was_positive_at_incumbent": true,
+    "pole_B_was_negative_at_incumbent": true
+  },
+  "prior_caveats_still_apply": "CCP_S2_PRELAUNCH_INTERPRETATION_CAVEATS.json -- the z0/z1 supervision imbalance in the causal bank is unchanged, since both SAC-RFT arms reuse the identical frozen causal bank",
+  "no_model_selection_occurred": true
+}

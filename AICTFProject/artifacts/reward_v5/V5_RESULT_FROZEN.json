@@ -1,0 +1,539 @@
+{
+  "probe": "Reward V5 cleanup/confirmation probe",
+  "frozen": true,
+  "frozen_utc": "2026-08-02",
+  "classification": "PASS",
+  "gate_results": {
+    "A_TASK_ALIVE": "3/3 PASS",
+    "B_COMPETENCE": "3/3 PASS (threshold was >=2/3)",
+    "C_ALIGNMENT": "PASS \u2014 no seed shows reward_up_while_task_down",
+    "D_NO_SUSTAINED_FARMABLE_ATTRACTOR": "PASS \u2014 repaired definition; no seed had meaningful deterioration sustained across >=2 panels",
+    "E_REWARD_BUDGET": "PASS \u2014 tactical 0.0% <= 15%, safety 12.6-14.4% <= 30%"
+  },
+  "only_change_from_v4": "sparse_mine_tag_points 100 -> 0",
+  "caveats": [
+    "Seed 3100001 panel saturated (9/9 wins) from 51k onward; Condition D for that seed rests on the training-success series, not the panel. See KNOWN_LIMITATION_panel_saturation.json.",
+    "Condition D was repaired BEFORE V5 launched, not after seeing results. Under the OLD V4 definition, V5 seeds 3100001/3100003 would also have triggered on panel drift.",
+    "V5 changes one term from V4 but the V4 baseline itself changed three at once; neither run attributes credit per-term."
+  ],
+  "seeds": {
+    "3100001": {
+      "final_task_panel": {
+        "global_step": 301056,
+        "episodes": 9,
+        "pickups": 43,
+        "captures_blue": 25,
+        "captures_red": 5,
+        "drops": 18,
+        "wins": 9,
+        "offensive_commitment": 0.238864,
+        "defensive_commitment": 0.448066,
+        "capture_conversion": 0.5814,
+        "win_rate": 1.0,
+        "net_captures": 20,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "reward_mass": {
+        "channels": {
+          "terminal": {
+            "per_episode_early": 0.542,
+            "per_episode_late": 1.0148,
+            "abs_mass_share_late": 0.1414,
+            "magnitude_rising": true
+          },
+          "sparse": {
+            "per_episode_early": 1.1387,
+            "per_episode_late": 2.1328,
+            "abs_mass_share_late": 0.2971,
+            "magnitude_rising": true
+          },
+          "failed_commit": {
+            "per_episode_early": -0.8763,
+            "per_episode_late": -0.9362,
+            "abs_mass_share_late": 0.1304,
+            "magnitude_rising": true
+          },
+          "offense": {
+            "per_episode_early": 0.9707,
+            "per_episode_late": 1.6416,
+            "abs_mass_share_late": 0.2287,
+            "magnitude_rising": true
+          },
+          "pbrs": {
+            "per_episode_early": 0.283,
+            "per_episode_late": 0.5511,
+            "abs_mass_share_late": 0.0768,
+            "magnitude_rising": true
+          },
+          "team": {
+            "per_episode_early": 0.7788,
+            "per_episode_late": 0.9028,
+            "abs_mass_share_late": 0.1258,
+            "magnitude_rising": true
+          }
+        },
+        "dominant_channel": "sparse",
+        "terminal_share": 0.1414,
+        "objective_is_minority_of_mass": false
+      },
+      "panel_timeline": [
+        {
+          "global_step": 51200,
+          "episodes": 9,
+          "pickups": 46,
+          "captures_blue": 24,
+          "captures_red": 5,
+          "drops": 22,
+          "wins": 9,
+          "offensive_commitment": 0.242102,
+          "defensive_commitment": 0.446423,
+          "capture_conversion": 0.5217,
+          "win_rate": 1.0,
+          "net_captures": 19,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 100352,
+          "episodes": 9,
+          "pickups": 46,
+          "captures_blue": 24,
+          "captures_red": 5,
+          "drops": 22,
+          "wins": 9,
+          "offensive_commitment": 0.242102,
+          "defensive_commitment": 0.446423,
+          "capture_conversion": 0.5217,
+          "win_rate": 1.0,
+          "net_captures": 19,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 151552,
+          "episodes": 9,
+          "pickups": 46,
+          "captures_blue": 24,
+          "captures_red": 5,
+          "drops": 22,
+          "wins": 9,
+          "offensive_commitment": 0.242102,
+          "defensive_commitment": 0.446423,
+          "capture_conversion": 0.5217,
+          "win_rate": 1.0,
+          "net_captures": 19,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 200704,
+          "episodes": 9,
+          "pickups": 46,
+          "captures_blue": 24,
+          "captures_red": 5,
+          "drops": 22,
+          "wins": 9,
+          "offensive_commitment": 0.242102,
+          "defensive_commitment": 0.446423,
+          "capture_conversion": 0.5217,
+          "win_rate": 1.0,
+          "net_captures": 19,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 251904,
+          "episodes": 9,
+          "pickups": 46,
+          "captures_blue": 24,
+          "captures_red": 5,
+          "drops": 22,
+          "wins": 9,
+          "offensive_commitment": 0.242102,
+          "defensive_commitment": 0.446423,
+          "capture_conversion": 0.5217,
+          "win_rate": 1.0,
+          "net_captures": 19,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 301056,
+          "episodes": 9,
+          "pickups": 43,
+          "captures_blue": 25,
+          "captures_red": 5,
+          "drops": 18,
+          "wins": 9,
+          "offensive_commitment": 0.238864,
+          "defensive_commitment": 0.448066,
+          "capture_conversion": 0.5814,
+          "win_rate": 1.0,
+          "net_captures": 20,
+          "reasons": [],
+          "verdict": "PASS"
+        }
+      ],
+      "episodes": 1559,
+      "own_oob_per_ep": 0.01155,
+      "opponent_oob_per_ep": 0.01604,
+      "mine_tag_per_ep": 0.03849,
+      "tags_per_capture": 2.619,
+      "net_captures_training": 2398,
+      "success_first_sixth": 0.6834,
+      "success_last_sixth": 0.8654
+    },
+    "3100002": {
+      "final_task_panel": {
+        "global_step": 301056,
+        "episodes": 9,
+        "pickups": 34,
+        "captures_blue": 27,
+        "captures_red": 3,
+        "drops": 7,
+        "wins": 9,
+        "offensive_commitment": 0.163664,
+        "defensive_commitment": 0.455878,
+        "capture_conversion": 0.7941,
+        "win_rate": 1.0,
+        "net_captures": 24,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "reward_mass": {
+        "channels": {
+          "terminal": {
+            "per_episode_early": 0.6396,
+            "per_episode_late": 0.8812,
+            "abs_mass_share_late": 0.1377,
+            "magnitude_rising": true
+          },
+          "sparse": {
+            "per_episode_early": 1.2529,
+            "per_episode_late": 1.8384,
+            "abs_mass_share_late": 0.2872,
+            "magnitude_rising": true
+          },
+          "failed_commit": {
+            "per_episode_early": -0.8567,
+            "per_episode_late": -0.8076,
+            "abs_mass_share_late": 0.1262,
+            "magnitude_rising": false
+          },
+          "offense": {
+            "per_episode_early": 1.1309,
+            "per_episode_late": 1.567,
+            "abs_mass_share_late": 0.2448,
+            "magnitude_rising": true
+          },
+          "pbrs": {
+            "per_episode_early": 0.3012,
+            "per_episode_late": 0.4433,
+            "abs_mass_share_late": 0.0693,
+            "magnitude_rising": true
+          },
+          "team": {
+            "per_episode_early": 0.71,
+            "per_episode_late": 0.8631,
+            "abs_mass_share_late": 0.1348,
+            "magnitude_rising": true
+          }
+        },
+        "dominant_channel": "sparse",
+        "terminal_share": 0.1377,
+        "objective_is_minority_of_mass": false
+      },
+      "panel_timeline": [
+        {
+          "global_step": 51200,
+          "episodes": 9,
+          "pickups": 38,
+          "captures_blue": 23,
+          "captures_red": 5,
+          "drops": 15,
+          "wins": 9,
+          "offensive_commitment": 0.274942,
+          "defensive_commitment": 0.460211,
+          "capture_conversion": 0.6053,
+          "win_rate": 1.0,
+          "net_captures": 18,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 100352,
+          "episodes": 9,
+          "pickups": 39,
+          "captures_blue": 23,
+          "captures_red": 9,
+          "drops": 16,
+          "wins": 8,
+          "offensive_commitment": 0.206881,
+          "defensive_commitment": 0.471516,
+          "capture_conversion": 0.5897,
+          "win_rate": 0.8889,
+          "net_captures": 14,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 151552,
+          "episodes": 9,
+          "pickups": 38,
+          "captures_blue": 23,
+          "captures_red": 10,
+          "drops": 15,
+          "wins": 8,
+          "offensive_commitment": 0.191753,
+          "defensive_commitment": 0.439947,
+          "capture_conversion": 0.6053,
+          "win_rate": 0.8889,
+          "net_captures": 13,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 200704,
+          "episodes": 9,
+          "pickups": 49,
+          "captures_blue": 20,
+          "captures_red": 6,
+          "drops": 29,
+          "wins": 8,
+          "offensive_commitment": 0.200087,
+          "defensive_commitment": 0.41516,
+          "capture_conversion": 0.4082,
+          "win_rate": 0.8889,
+          "net_captures": 14,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 251904,
+          "episodes": 9,
+          "pickups": 42,
+          "captures_blue": 26,
+          "captures_red": 5,
+          "drops": 16,
+          "wins": 9,
+          "offensive_commitment": 0.221357,
+          "defensive_commitment": 0.457166,
+          "capture_conversion": 0.619,
+          "win_rate": 1.0,
+          "net_captures": 21,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 301056,
+          "episodes": 9,
+          "pickups": 34,
+          "captures_blue": 27,
+          "captures_red": 3,
+          "drops": 7,
+          "wins": 9,
+          "offensive_commitment": 0.163664,
+          "defensive_commitment": 0.455878,
+          "capture_conversion": 0.7941,
+          "win_rate": 1.0,
+          "net_captures": 24,
+          "reasons": [],
+          "verdict": "PASS"
+        }
+      ],
+      "episodes": 1518,
+      "own_oob_per_ep": 0.06522,
+      "opponent_oob_per_ep": 0.02372,
+      "mine_tag_per_ep": 0.222,
+      "tags_per_capture": 2.951,
+      "net_captures_training": 2067,
+      "success_first_sixth": 0.7391,
+      "success_last_sixth": 0.8142
+    },
+    "3100003": {
+      "final_task_panel": {
+        "global_step": 301056,
+        "episodes": 9,
+        "pickups": 48,
+        "captures_blue": 20,
+        "captures_red": 7,
+        "drops": 28,
+        "wins": 7,
+        "offensive_commitment": 0.231093,
+        "defensive_commitment": 0.433056,
+        "capture_conversion": 0.4167,
+        "win_rate": 0.7778,
+        "net_captures": 13,
+        "reasons": [],
+        "verdict": "PASS"
+      },
+      "reward_mass": {
+        "channels": {
+          "terminal": {
+            "per_episode_early": 0.4785,
+            "per_episode_late": 0.9164,
+            "abs_mass_share_late": 0.1407,
+            "magnitude_rising": true
+          },
+          "sparse": {
+            "per_episode_early": 1.0396,
+            "per_episode_late": 1.8263,
+            "abs_mass_share_late": 0.2804,
+            "magnitude_rising": true
+          },
+          "failed_commit": {
+            "per_episode_early": -0.8496,
+            "per_episode_late": -0.9394,
+            "abs_mass_share_late": 0.1443,
+            "magnitude_rising": true
+          },
+          "offense": {
+            "per_episode_early": 0.9395,
+            "per_episode_late": 1.5591,
+            "abs_mass_share_late": 0.2394,
+            "magnitude_rising": true
+          },
+          "pbrs": {
+            "per_episode_early": 0.2328,
+            "per_episode_late": 0.4267,
+            "abs_mass_share_late": 0.0655,
+            "magnitude_rising": true
+          },
+          "team": {
+            "per_episode_early": 0.6941,
+            "per_episode_late": 0.8445,
+            "abs_mass_share_late": 0.1297,
+            "magnitude_rising": true
+          }
+        },
+        "dominant_channel": "sparse",
+        "terminal_share": 0.1407,
+        "objective_is_minority_of_mass": false
+      },
+      "panel_timeline": [
+        {
+          "global_step": 51200,
+          "episodes": 9,
+          "pickups": 45,
+          "captures_blue": 22,
+          "captures_red": 7,
+          "drops": 23,
+          "wins": 8,
+          "offensive_commitment": 0.279453,
+          "defensive_commitment": 0.43264,
+          "capture_conversion": 0.4889,
+          "win_rate": 0.8889,
+          "net_captures": 15,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 100352,
+          "episodes": 9,
+          "pickups": 47,
+          "captures_blue": 19,
+          "captures_red": 8,
+          "drops": 28,
+          "wins": 7,
+          "offensive_commitment": 0.228067,
+          "defensive_commitment": 0.378527,
+          "capture_conversion": 0.4043,
+          "win_rate": 0.7778,
+          "net_captures": 11,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 151552,
+          "episodes": 9,
+          "pickups": 51,
+          "captures_blue": 22,
+          "captures_red": 8,
+          "drops": 29,
+          "wins": 9,
+          "offensive_commitment": 0.266975,
+          "defensive_commitment": 0.417282,
+          "capture_conversion": 0.4314,
+          "win_rate": 1.0,
+          "net_captures": 14,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 200704,
+          "episodes": 9,
+          "pickups": 48,
+          "captures_blue": 22,
+          "captures_red": 8,
+          "drops": 26,
+          "wins": 9,
+          "offensive_commitment": 0.252645,
+          "defensive_commitment": 0.39628,
+          "capture_conversion": 0.4583,
+          "win_rate": 1.0,
+          "net_captures": 14,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 251904,
+          "episodes": 9,
+          "pickups": 45,
+          "captures_blue": 23,
+          "captures_red": 5,
+          "drops": 22,
+          "wins": 9,
+          "offensive_commitment": 0.233058,
+          "defensive_commitment": 0.441865,
+          "capture_conversion": 0.5111,
+          "win_rate": 1.0,
+          "net_captures": 18,
+          "reasons": [],
+          "verdict": "PASS"
+        },
+        {
+          "global_step": 301056,
+          "episodes": 9,
+          "pickups": 48,
+          "captures_blue": 20,
+          "captures_red": 7,
+          "drops": 28,
+          "wins": 7,
+          "offensive_commitment": 0.231093,
+          "defensive_commitment": 0.433056,
+          "capture_conversion": 0.4167,
+          "win_rate": 0.7778,
+          "net_captures": 13,
+          "reasons": [],
+          "verdict": "PASS"
+        }
+      ],
+      "episodes": 1559,
+      "own_oob_per_ep": 0.02758,
+      "opponent_oob_per_ep": 0.02694,
+      "mine_tag_per_ep": 0.0975,
+      "tags_per_capture": 2.581,
+      "net_captures_training": 2343,
+      "success_first_sixth": 0.6448,
+      "success_last_sixth": 0.8423
+    }
+  },
+  "locked_reward_v5": {
+    "sparse_tag_no_flag_points": 0.0,
+    "sparse_tag_with_flag_points": 0.0,
+    "enemy_mav_kill_reward": 0.0,
+    "sparse_mine_tag_points": 0.0,
+    "sparse_opponent_oob_points": 0.0,
+    "sparse_own_oob_points": -70.0,
+    "action_failed_punishment": -0.004,
+    "sparse_flag_capture_points": 100.0,
+    "flag_pickup_reward": 0.1,
+    "flag_carry_home_reward": 0.5,
+    "win_team_reward": 1.0,
+    "lose_team_punish": -1.0,
+    "draw_team_penalty": -0.5,
+    "gamma": 0.995,
+    "horizon": 240
+  }
+}

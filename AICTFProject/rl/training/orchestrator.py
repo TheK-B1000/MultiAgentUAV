@@ -25,9 +25,11 @@ never from ``rl.train_ppo`` or ``rl.training.cli``.
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import os
-from typing import Optional
+from pathlib import Path
+from typing import Any, Callable, Optional
 
 from rl.config.ppo_config import PPOConfig
 from rl.training.banner import print_episode_stats_banner, print_training_banner
@@ -49,7 +51,12 @@ from rl.training.lifecycle import (
     teardown_training,
 )
 from rl.training.resolved_config import resolve_training_config
-from rl.training.run_artifacts import _acquire_run_lock, write_run_config_json
+from rl.training.run_artifacts import (
+    _acquire_run_lock,
+    write_evaluation_manifest_json,
+    write_result_summary_json,
+    write_startup_formal_artifacts,
+)
 from rl.training.run_context import RunContext
 
 
@@ -60,7 +67,7 @@ from rl.training.run_context import RunContext
 def _validate_config_gates(cfg: PPOConfig) -> None:
     """Raise typed errors for configs that must not start a training run.
 
-    Two gates are checked in order:
+    Three gates are checked in order:
 
     1. **Evaluation-only preset**: some presets (e.g. v6i2 promoted eval configs)
        set ``evaluation_only_preset=True`` to prevent accidental PPO training.
@@ -68,6 +75,19 @@ def _validate_config_gates(cfg: PPOConfig) -> None:
        match the prior 8x sweep config exactly (modulo a small allowed-diff set)
        so the ablation comparison is apples-to-apples.
     """
+    _validate_exp2_config_gates(cfg)
+    # A formal run must carry the evidence needed to audit its own tagging.
+    # Checked at start, not at report time: discovering after a million steps
+    # that the tag ledger was never recorded costs the whole run.
+    if bool(getattr(cfg, "formal_run", False)) and not bool(
+        getattr(cfg, "tag_telemetry_enabled", False)
+    ):
+        raise ValueError(
+            f"Run {getattr(cfg, 'run_tag', 'unknown')!r} sets formal_run=True but "
+            "tag_telemetry_enabled=False. A formal run must record tag successes, "
+            "cooldown denials and event identities. Set tag_telemetry_enabled=True."
+        )
+
     if bool(getattr(cfg, "evaluation_only_preset", False)):
         runner = str(getattr(cfg, "evaluation_only_runner", "") or "the evaluation runner")
         raise EvaluationOnlyPresetError(
@@ -113,11 +133,65 @@ def _validate_config_gates(cfg: PPOConfig) -> None:
             )
 
 
+def _validate_exp2_config_gates(cfg: PPOConfig) -> None:
+    """Fail closed on any drift from the frozen EXP2 treatment."""
+    if not bool(getattr(cfg, "exp2_teacher_compression_enabled", False)):
+        return
+    errors: list[str] = []
+    if not bool(getattr(cfg, "use_latent_strategy", False)) or int(cfg.latent_k) != 2:
+        errors.append("student must use latent strategy with K=2")
+    if bool(getattr(cfg, "latent_strategy_encoder_enabled", True)):
+        errors.append("q_phi/router must be structurally disabled")
+    if str(getattr(cfg, "latent_assignment_mode", "")) != "static_env":
+        errors.append("latent_assignment_mode must be static_env")
+    ids = tuple(int(v) for v in getattr(cfg, "forced_latent_env_ids", ()))
+    if len(ids) != int(cfg.n_envs) or ids.count(0) != int(cfg.n_envs) // 2 or ids.count(1) != int(cfg.n_envs) // 2:
+        errors.append("forced_latent_env_ids must contain exactly half z0 and half z1")
+    if abs(float(cfg.exp2_teacher_lambda) - 0.10) > 1e-12:
+        errors.append("teacher lambda must equal 0.10")
+    if int(cfg.exp2_teacher_cadence) != 4 or int(cfg.exp2_teacher_batch_size) != 64:
+        errors.append("teacher cadence/batch must equal 4/64")
+    if str(getattr(cfg, "sappo_anchor_dataset", "") or ""):
+        errors.append("SAPPO offline anchor path must be absent")
+    if len(tuple(cfg.exp2_teacher_checkpoints)) != 2 or len(tuple(cfg.exp2_teacher_sha256)) != 2:
+        errors.append("exactly two teacher checkpoints and hashes are required")
+    if any(float(getattr(cfg, name, 0.0) or 0.0) != 0.0 for name in (
+        "latent_strategy_ppo_coef", "latent_lam_h", "latent_lam_p",
+        "latent_kl_consecutive", "latent_episode_strategy_coef",
+        "latent_actor_z_separation_coef", "latent_behavior_contrast_coef",
+    )):
+        errors.append("router/diversity/separation objectives must all be zero")
+    protocol = Path(str(getattr(cfg, "exp2_protocol_path", "") or ""))
+    if not protocol.is_file():
+        errors.append(f"frozen protocol missing: {protocol}")
+    else:
+        try:
+            payload = json.loads(protocol.read_text(encoding="utf-8"))
+            if payload.get("protocol_id") not in {
+                "EXP2_K2_LATENT_COMPRESSION_V1",
+                "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1",
+                "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_V1",
+            }:
+                errors.append("unexpected EXP2 protocol_id")
+            if payload.get("status") != "FROZEN_BEFORE_IMPLEMENTATION_OR_TRAINING":
+                errors.append("EXP2 protocol is not in the frozen pretraining state")
+        except Exception as exc:
+            errors.append(f"EXP2 protocol unreadable: {exc}")
+    if errors:
+        raise RuntimeError("EXP2 frozen-config gate failed: " + "; ".join(errors))
+
 # ---------------------------------------------------------------------------
 # Main orchestration entry point
 # ---------------------------------------------------------------------------
 
-def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
+def orchestrate_training_run(
+    cfg: Optional[PPOConfig] = None,
+    *,
+    pre_rollout_env_setup: Optional[
+        Callable[[Any, PPOConfig], Optional[dict[str, Any]]]
+    ] = None,
+    post_trainer_setup: Optional[Callable[[Any, PPOConfig], None]] = None,
+) -> Optional[dict[str, Any]]:
     """Run the full local PPO/MAPPO training path.
 
     This is the canonical implementation extracted from
@@ -145,15 +219,6 @@ def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
     run_lock = _acquire_run_lock(cfg)
     _rotate_fresh_run_telemetry(cfg)
 
-    rc_path: Optional[str] = None
-    try:
-        rc_path = write_run_config_json(cfg)
-        print(f"[PPO] Run config written: {rc_path}")
-    except Exception as exc:
-        print(f"[PPO] WARNING: could not write run config JSON: {exc}")
-
-    run_context = RunContext(run_lock=run_lock, rc_path=rc_path)
-
     print_episode_stats_banner(
         cfg,
         curriculum=resolved.curriculum,
@@ -163,39 +228,411 @@ def orchestrate_training_run(cfg: Optional[PPOConfig] = None) -> None:
     _clamp_runtime_config_for_team_size(cfg, resolved.max_agents)
     _ensure_cuda_or_fallback(cfg)
 
+    # The environment is built BEFORE any artifact is written. Run identity must
+    # be resolved from the LIVE environment, never from config defaults -- five
+    # artifacts reconstructing "V2" independently is exactly how they end up
+    # carrying five subtly different versions of it. Consequently
+    # ``write_run_config_json`` now runs after this point, not before.
     env = build_training_env(
         cfg,
         initial_phase=resolved.initial_phase,
         initial_opponent_tag=resolved.initial_opponent_tag,
     )
 
+    # Experiment-specific live-environment plumbing belongs at this one seam:
+    # after construction, before identity/artifacts/trainer/rollout. The callback
+    # may return fields that are stamped into training_manifest.json. Any
+    # exception is fatal and therefore consumes zero training steps.
+    training_manifest_extra = None
+    if pre_rollout_env_setup is not None:
+        try:
+            training_manifest_extra = pre_rollout_env_setup(env, cfg)
+        except BaseException:
+            teardown_training(cfg, None, env, run_lock)
+            raise
+
+    from rl.ruleset_identity import RunIdentityError, build_formal_run_identity
+
+    # Mandatory: a run that cannot resolve its identity fails here, before the
+    # first rollout step, rather than producing unstampable artifacts.
+    run_identity = build_formal_run_identity(env, run_id=str(cfg.run_tag))
+    print(f"[PPO] Run identity: {run_identity.ruleset_id} "
+          f"map={run_identity.canonical_map} "
+          f"fingerprint={run_identity.ruleset_fingerprint[:12]} "
+          f"formal_eligible={run_identity.formal_result_eligible}")
+
+    # Both startup artifacts must be written from the same frozen object before
+    # any rollout. Soft-failing here would recreate the unstamped-traveler bug.
+    try:
+        startup_paths = write_startup_formal_artifacts(
+            cfg,
+            run_identity=run_identity,
+            training_manifest_extra=training_manifest_extra,
+        )
+    except Exception as exc:
+        raise RunIdentityError(
+            f"Failed to write startup formal artifacts before rollout: {exc}"
+        ) from exc
+    rc_path = startup_paths["run_config"]
+    tm_path = startup_paths["training_manifest"]
+    print(f"[PPO] Run config written: {rc_path}")
+    print(f"[PPO] Training manifest written: {tm_path}")
+
+    run_context = RunContext(
+        run_lock=run_lock,
+        run_identity=run_identity,
+        rc_path=rc_path,
+        training_manifest_path=tm_path,
+    )
+
     trainer = None
     try:
-        trainer = build_trainer(env, cfg, resolved)
+        trainer = build_trainer(env, cfg, resolved, run_identity=run_identity)
+        if getattr(trainer, "run_identity", None) is None:
+            raise RunIdentityError(
+                "Trainer was constructed without run_identity; refusing to "
+                "start the first rollout step."
+            )
         maybe_load_checkpoint(cfg, trainer)
         maybe_extend_total_timesteps(cfg, trainer)
         maybe_configure_periodic_checkpoints(cfg, trainer)
+        _maybe_attach_sappo_anchor(cfg, trainer)
+        _maybe_attach_exp2_teacher_compression(cfg, trainer)
+        _maybe_attach_sppo_ranking(cfg, trainer)
 
-        try:
-            stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
-        except KeyboardInterrupt:
-            interrupt_path = os.path.join(
-                cfg.checkpoint_dir,
-                f"interrupt_{cfg.run_tag}_{int(getattr(trainer, 'global_step', 0))}.zip",
-            )
-            trainer.save(interrupt_path)
-            print(f"[PPO] KeyboardInterrupt: emergency checkpoint saved to: {interrupt_path}")
-            raise
+        # Runtime-observer seam. Callers attach auditors to the live trainer here,
+        # after every treatment attachment and before the first rollout step, so an
+        # observer sees the run exactly as it will execute. Deliberately a callback
+        # rather than returning the trainer: observers plug in, callers do not get a
+        # handle to mutate the scientific treatment.
+        if post_trainer_setup is not None:
+            post_trainer_setup(trainer, cfg)
 
-        final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
-        trainer.save(final_path)
-        if stats:
-            print(
-                "[PPO] Final stats: "
-                f"policy_loss={stats.get('policy_loss', 0.0):.4f}, "
-                f"value_loss={stats.get('value_loss', 0.0):.4f}, "
-                f"approx_kl={stats.get('approx_kl', 0.0):.5f}"
-            )
-        print(f"[PPO] Training complete. Final checkpoint saved to: {final_path}")
+        artifact_only = bool(getattr(cfg, "formal_artifact_bundle_only", False))
+        if artifact_only:
+            _write_formal_artifact_bundle_smoke(cfg, trainer, run_identity)
+        else:
+            try:
+                stats = trainer.learn(total_timesteps=int(cfg.total_timesteps))
+            except KeyboardInterrupt:
+                interrupt_path = os.path.join(
+                    cfg.checkpoint_dir,
+                    f"interrupt_{cfg.run_tag}_{int(getattr(trainer, 'global_step', 0))}.zip",
+                )
+                trainer.save(interrupt_path)
+                print(f"[PPO] KeyboardInterrupt: emergency checkpoint saved to: {interrupt_path}")
+                raise
+
+            final_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
+            trainer.save(final_path)
+            if stats:
+                print(
+                    "[PPO] Final stats: "
+                    f"policy_loss={stats.get('policy_loss', 0.0):.4f}, "
+                    f"value_loss={stats.get('value_loss', 0.0):.4f}, "
+                    f"approx_kl={stats.get('approx_kl', 0.0):.5f}"
+                )
+            print(f"[PPO] Training complete. Final checkpoint saved to: {final_path}")
+            _write_in_run_eval_and_summary(cfg, trainer, run_identity, checkpoint_path=final_path)
     finally:
         teardown_training(cfg, trainer, env, run_context.run_lock)
+
+    # Return what pre_rollout_env_setup resolved. The env setup already asserts its
+    # invariants and raises on violation, but a check that throws only protects the
+    # run -- the caller needs the same facts back to PERSIST as evidence that the
+    # check saw what the record claims. Both jobs, not one.
+    return training_manifest_extra
+
+
+def _checkpoint_file_fingerprint(path: str) -> str:
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(8192)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _read_episode_rows(path: Optional[str]) -> list[dict]:
+    import csv
+
+    if not path or not os.path.isfile(path):
+        return []
+    with open(path, "r", encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
+
+
+def _write_in_run_eval_and_summary(cfg, trainer, run_identity, *, checkpoint_path: str) -> None:
+    """In-training evaluation/summary use the same frozen run_identity."""
+    base = cfg.checkpoint_dir
+    if getattr(cfg, "metrics_csv_path", None):
+        d = os.path.dirname(str(cfg.metrics_csv_path))
+        if d:
+            base = d
+    os.makedirs(base, exist_ok=True)
+
+    ckpt_fp = _checkpoint_file_fingerprint(checkpoint_path) if os.path.isfile(checkpoint_path) else ""
+    eval_path = os.path.join(base, "evaluation_manifest.json")
+    # In-training evaluation: the checkpoint was produced by THIS run, so the
+    # shared run id is a declared fact. Stated through the named constructor
+    # rather than by omitting arguments and letting the writer infer it.
+    from rl.ruleset_identity import VerifiedCheckpointLineage
+
+    write_evaluation_manifest_json(
+        eval_path,
+        run_identity=run_identity,
+        evaluation_run_id=run_identity.run_id,
+        lineage=VerifiedCheckpointLineage.for_in_training_evaluation(
+            run_identity, ckpt_fp),
+        extra={"scope": "in_training"},
+    )
+
+    rows = _read_episode_rows(getattr(cfg, "episode_csv_path", None))
+    if not rows:
+        # Training may finish without completing an episode on tiny budgets.
+        # Stamp a single completion marker so the formal bundle stays closed.
+        from rl.ruleset_identity import stamp_csv_row
+
+        rows = [stamp_csv_row({"episode_id": 0, "success": 0, "source": "completion_marker"}, run_identity)]
+        ep_path = getattr(cfg, "episode_csv_path", None) or os.path.join(base, "episode_rows.csv")
+        import csv
+        from rl.ruleset_identity import CSV_IDENTITY_FIELDS
+
+        fieldnames = list(dict.fromkeys(["episode_id", "success", "source", *CSV_IDENTITY_FIELDS]))
+        with open(ep_path, "w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fieldnames)
+            w.writeheader()
+            for r in rows:
+                w.writerow(r)
+        cfg.episode_csv_path = ep_path
+
+    summary_path = os.path.join(base, "result_summary.json")
+    write_result_summary_json(
+        summary_path,
+        {
+            "verdict": "TRAINING_COMPLETE",
+            "total_timesteps": int(getattr(cfg, "total_timesteps", 0) or 0),
+            "global_step": int(getattr(trainer, "global_step", 0) or 0),
+            "checkpoint_path": checkpoint_path,
+            "n_episode_rows": len(rows),
+        },
+        run_identity=run_identity,
+        source_rows=rows,
+    )
+    print(f"[PPO] Evaluation manifest written: {eval_path}")
+    print(f"[PPO] Result summary written: {summary_path}")
+
+
+def _write_formal_artifact_bundle_smoke(cfg, trainer, run_identity) -> None:
+    """Artifact-only production path for the formal-bundle integration test."""
+    from rl.ruleset_identity import CSV_IDENTITY_FIELDS, stamp_csv_row
+
+    base = cfg.checkpoint_dir
+    if getattr(cfg, "metrics_csv_path", None):
+        d = os.path.dirname(str(cfg.metrics_csv_path))
+        if d:
+            base = d
+    os.makedirs(base, exist_ok=True)
+
+    ep_path = getattr(cfg, "episode_csv_path", None) or os.path.join(base, "episode_rows.csv")
+    row = stamp_csv_row(
+        {
+            "episode_id": 0,
+            "success": 0,
+            "blue_score": 0,
+            "red_score": 0,
+            "source": "formal_artifact_bundle_only",
+        },
+        run_identity,
+    )
+    import csv
+
+    fieldnames = list(dict.fromkeys([*row.keys(), *CSV_IDENTITY_FIELDS]))
+    with open(ep_path, "w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        w.writerow(row)
+    cfg.episode_csv_path = ep_path
+
+    ckpt_path = os.path.join(cfg.checkpoint_dir, f"final_{cfg.run_tag}.zip")
+    trainer.save(ckpt_path)
+    _write_in_run_eval_and_summary(cfg, trainer, run_identity, checkpoint_path=ckpt_path)
+    print(f"[PPO] Formal artifact-bundle-only smoke complete: {base}")
+
+
+def _maybe_attach_sappo_anchor(cfg, trainer) -> None:
+    """SAPPO V1: attach interleaved teacher rehearsal, or do nothing at all.
+
+    Attached AFTER checkpoint load so rehearsal targets the resumed weights, and
+    BEFORE learn() so the very first minibatch group is counted.
+
+    With no dataset configured this function returns without constructing
+    anything, so the PPO path is untouched by construction rather than by a
+    zero-scaled term. See SAPPO_V1_LOSS_SEMANTICS_AMENDMENT.json.
+    """
+    path = str(getattr(cfg, "sappo_anchor_dataset", "") or "")
+    if not path:
+        return
+    from rl.custom_ppo.strategy_anchor import AnchorDataset, AnchorRunner
+
+    ds = AnchorDataset(path, batch_size=int(getattr(cfg, "sappo_anchor_batch_size", 64)),
+                       seed=int(getattr(cfg, "seed", 7) or 7))
+    runner = AnchorRunner(
+        trainer.model,
+        trainer.optimizer,
+        ds,
+        lambda_anchor=float(cfg.sappo_anchor_lambda),
+        cadence=int(cfg.sappo_anchor_cadence),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        device=str(getattr(cfg, "device", "cpu")),
+    )
+    trainer.sappo_anchor_runner = runner
+    print(f"[SAPPO] anchor rehearsal ATTACHED: lambda={runner.lambda_anchor} "
+          f"cadence=1:{runner.cadence} dataset={ds.describe()}")
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _maybe_attach_sppo_ranking(cfg, trainer) -> None:
+    """Attach the SPPPO strategic ranking runner, or attach nothing at all.
+
+    lambda == 0.0 is the frozen development CONTROL: no Q_psi is loaded, no
+    runner is constructed, and no attribute is set, so the updater's
+    getattr(runtime, "sppo_ranking_runner", None) misses and the branch is never
+    entered. A runner scaled by zero would still mutate optimizer state, advance
+    counters and consume RNG -- that is a different experiment wearing the
+    control's name.
+    """
+    lam = float(getattr(cfg, "sppo_lambda_rank", 0.0))
+    if lam == 0.0:
+        return
+    from rl.scorer.attach import attach_ranking_runner
+
+    regime_qpsi = bool(getattr(cfg, "rasr_regime_qpsi", False))
+    qpsi_path = (
+        str(getattr(cfg, "rasr_regime_qpsi_path", ""))
+        if regime_qpsi
+        else str(getattr(cfg, "sppo_qpsi_path", ""))
+    )
+    qpsi_sha = (
+        str(getattr(cfg, "rasr_regime_qpsi_sha256", ""))
+        if regime_qpsi
+        else str(getattr(cfg, "sppo_qpsi_sha256", ""))
+    )
+    runner = attach_ranking_runner(
+        trainer,
+        trainer.model,
+        trainer.optimizer,
+        lambda_rank=lam,
+        margin=float(getattr(cfg, "sppo_ranking_margin", 0.04)),
+        cadence=int(getattr(cfg, "sppo_ranking_cadence", 1)),
+        qpsi_path=qpsi_path,
+        expected_sha256=qpsi_sha,
+        required_n_regimes=4 if regime_qpsi else 1,
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        device=str(trainer.device),
+    )
+    print(
+        f"[SPPPO] strategic ranking ATTACHED: lambda={runner.lambda_rank} "
+        f"margin={runner.margin} cadence=1:{runner.cadence} "
+        f"qpsi_sha={runner._qpsi_sha[:16]}... pole=TRUE opponent_id "
+        f"z_map={runner.z_to_pole}"
+    )
+
+
+def _maybe_attach_exp2_teacher_compression(cfg, trainer) -> None:
+    """Attach frozen online teachers after checkpoint load and before learn()."""
+    if not bool(getattr(cfg, "exp2_teacher_compression_enabled", False)):
+        return
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("EXP2 cannot coexist with the SAPPO offline anchor runner")
+    model = trainer.model
+    if int(getattr(model, "latent_k", 0)) != 2:
+        raise RuntimeError("EXP2 student model did not resolve K=2")
+    if getattr(model, "strategy_encoder", None) is not None:
+        raise RuntimeError("EXP2 student unexpectedly constructed q_phi")
+
+    checkpoints = tuple(Path(str(p)) for p in cfg.exp2_teacher_checkpoints)
+    expected_hashes = tuple(str(v).lower() for v in cfg.exp2_teacher_sha256)
+    for path, expected in zip(checkpoints, expected_hashes):
+        if not path.is_file():
+            raise RuntimeError(f"EXP2 teacher checkpoint missing: {path}")
+        actual = _sha256(path)
+        if actual != expected:
+            raise RuntimeError(
+                f"EXP2 teacher hash mismatch for {path}: {actual} != {expected}"
+            )
+
+    from rl.custom_ppo.exp2_teacher_compression import Exp2TeacherCompressionRunner
+    from rl.custom_ppo.inference import load_custom_ppo_policy
+
+    teachers = {}
+    for z, path in enumerate(checkpoints):
+        loaded = load_custom_ppo_policy(
+            str(path), trainer.env.observation_space, trainer.env.action_space,
+            device=str(trainer.device),
+        )
+        teacher = loaded.model
+        if bool(getattr(teacher, "uses_latent_strategy", False)):
+            raise RuntimeError(f"EXP2 teacher z={z} must be a non-latent SAPPO policy")
+        if tuple(teacher.action_dims) != tuple(model.action_dims):
+            raise RuntimeError(f"EXP2 teacher z={z} action space differs from student")
+        teachers[z] = teacher
+
+    protocol_payload = json.loads(Path(str(cfg.exp2_protocol_path)).read_text(encoding="utf-8"))
+    protocol_id = protocol_payload.get("protocol_id")
+    is_exp2b = protocol_id == "EXP2B_SPECIALIZATION_PRESERVING_LATENT_COMPRESSION_V1"
+    is_exp2c = protocol_id == "EXP2C_MODE_SPECIFIC_ACTOR_COMPRESSION_V1"
+    if is_exp2c:
+        actor = model.latent_actor
+        heads = getattr(actor, "latent_action_heads", None)
+        if heads is None or len(heads) != 2:
+            raise RuntimeError("EXP2C requires exactly two mode-specific final actor heads")
+        if getattr(actor, "latent_adapters", None) is not None:
+            raise RuntimeError("EXP2C forbids latent residual adapters")
+        if getattr(actor, "latent_branch_trunks", None) is not None:
+            raise RuntimeError("EXP2C forbids private deep actor trunks")
+        if not bool(getattr(actor, "exp2c_mode_specific_action_heads", False)):
+            raise RuntimeError("EXP2C private-head flag did not reach the live actor")
+    runner = Exp2TeacherCompressionRunner(
+        model,
+        trainer.optimizer,
+        teachers,
+        lambda_teacher=float(cfg.exp2_teacher_lambda),
+        cadence=int(cfg.exp2_teacher_cadence),
+        batch_size=int(cfg.exp2_teacher_batch_size),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        seed=int(getattr(cfg, "seed", 0)) + 92_011,
+        device=str(trainer.device),
+        cell_counts=(16, 0, 0, 16) if (is_exp2b or is_exp2c) else (8, 8, 8, 8),
+        gradient_cosine_enabled=is_exp2b or is_exp2c,
+        clip_range=float(getattr(cfg, "clip_range", 0.2)),
+        directed_identity_enabled=bool(
+            getattr(cfg, "rasr_directed_identity", False)
+        ),
+    )
+    pending = trainer.updater.consume_pending_exp2_teacher_state()
+    if cfg.load_path and pending is None:
+        raise RuntimeError(
+            "EXP2 resume checkpoint has no teacher-runner state; refusing a "
+            "cadence-reset resume"
+        )
+    if pending is not None:
+        runner.load_state_dict(pending)
+    trainer.exp2_teacher_compression_runner = runner
+    print(
+        f"[{'EXP2C' if is_exp2c else ('EXP2B' if is_exp2b else 'EXP2')}] online teacher KL ATTACHED: "
+        f"lambda={runner.lambda_teacher} cadence=1:{runner.cadence} "
+        f"batch={runner.batch_size} mapping=z0:pi_A,z1:pi_B q_phi=ABSENT "
+        f"cells={runner.cell_counts} grad_cosine={runner.gradient_cosine_enabled}"
+    )

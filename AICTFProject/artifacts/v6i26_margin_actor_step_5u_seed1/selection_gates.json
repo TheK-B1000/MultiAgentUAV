@@ -1,0 +1,12 @@
+{
+  "target_metric_win_margin": true,
+  "sensitive_headroom_gt_threshold": true,
+  "branch_not_dominant_on_target": true,
+  "branch_competent_enough": true,
+  "wr_competence_floor_passes": true,
+  "target_mixture_70_80": true,
+  "anchor_mixture_20_30": true,
+  "g_before_uses_selected_cells": true,
+  "selection_viable": true,
+  "all_pass": true
+}

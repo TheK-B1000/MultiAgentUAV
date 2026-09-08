@@ -1,0 +1,597 @@
+{
+  "record": "CCP successor production run",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-02T03:52:54Z",
+  "implements": "CCP_SUCCESSOR_PPO_LAUNCH_SPEC.json",
+  "VERDICT": "COMPLETE",
+  "termination_reason": null,
+  "seed": 11600001,
+  "total_timesteps": 1000000,
+  "fresh_step_0": true,
+  "checkpoint_weights_loaded": false,
+  "MODE": {
+    "training_mode": "SEQUENCE",
+    "lambda_causal": 0.05,
+    "cadence": 4,
+    "batch_rows": 48,
+    "segment_bank_hash": "64ba35e5af451d2750b239f43f55ac0e24f342fd061b67d80f46b5946ddb948f",
+    "nonzero_segments": 7
+  },
+  "architecture": {
+    "rasr_private_critic_heads": true,
+    "private_capacity": {
+      "enable_latent_z_residual": true,
+      "latent_population_birth_per_z_action_heads": true,
+      "latent_lro_deep_branches": true,
+      "latent_z_residual_alpha": 1.0
+    }
+  },
+  "causal_sequence_telemetry": {
+    "updates": 1211,
+    "n_ppo_minibatches": 4844,
+    "rows_seen": 58128,
+    "last_loss": 0.011611048132181168,
+    "z0_exposures": 29550,
+    "z1_exposures": 28578,
+    "positive_routes": 47826,
+    "negative_routes": 10302,
+    "segment_bank_hash": "64ba35e5af451d2750b239f43f55ac0e24f342fd061b67d80f46b5946ddb948f",
+    "nonzero_segments": 7,
+    "total_segments": 20
+  },
+  "private_parameter_motion": {
+    "z0_actor_moved": true,
+    "z1_actor_moved": true,
+    "critic_V0_moved": true,
+    "critic_V1_moved": true,
+    "per_param_moved": {
+      "latent_actor.latent_adapters.0.weight": true,
+      "latent_actor.latent_adapters.0.bias": true,
+      "latent_actor.latent_adapters.1.weight": true,
+      "latent_actor.latent_adapters.1.bias": true,
+      "latent_actor.latent_action_heads.0.weight": true,
+      "latent_actor.latent_action_heads.0.bias": true,
+      "latent_actor.latent_action_heads.1.weight": true,
+      "latent_actor.latent_action_heads.1.bias": true,
+      "latent_actor.latent_branch_trunks.0.0.weight": true,
+      "latent_actor.latent_branch_trunks.0.0.bias": true,
+      "latent_actor.latent_branch_trunks.0.2.weight": true,
+      "latent_actor.latent_branch_trunks.0.2.bias": true,
+      "latent_actor.latent_branch_trunks.1.0.weight": true,
+      "latent_actor.latent_branch_trunks.1.0.bias": true,
+      "latent_actor.latent_branch_trunks.1.2.weight": true,
+      "latent_actor.latent_branch_trunks.1.2.bias": true,
+      "critic.head_V0.weight": true,
+      "critic.head_V0.bias": true,
+      "critic.head_V1.weight": true,
+      "critic.head_V1.bias": true
+    }
+  },
+  "coverage": {
+    "envs_observed": 32,
+    "expected_envs": 32,
+    "min_resets_required": 2,
+    "min_resets_observed": 129,
+    "envs_with_reset": 32,
+    "total_mismatches": 0,
+    "per_env": {
+      "0": {
+        "closes": 138,
+        "resets": 137,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "1": {
+        "closes": 135,
+        "resets": 134,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "2": {
+        "closes": 135,
+        "resets": 134,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "3": {
+        "closes": 134,
+        "resets": 133,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "4": {
+        "closes": 137,
+        "resets": 136,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "5": {
+        "closes": 135,
+        "resets": 134,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "6": {
+        "closes": 134,
+        "resets": 133,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "7": {
+        "closes": 137,
+        "resets": 136,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "8": {
+        "closes": 136,
+        "resets": 135,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "9": {
+        "closes": 137,
+        "resets": 136,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "10": {
+        "closes": 135,
+        "resets": 134,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "11": {
+        "closes": 136,
+        "resets": 135,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "12": {
+        "closes": 136,
+        "resets": 135,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "13": {
+        "closes": 136,
+        "resets": 135,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "14": {
+        "closes": 136,
+        "resets": 135,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "15": {
+        "closes": 133,
+        "resets": 132,
+        "z": [
+          0
+        ],
+        "opponents": [
+          5
+        ],
+        "poles": [
+          "A"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "16": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "17": {
+        "closes": 130,
+        "resets": 129,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "18": {
+        "closes": 132,
+        "resets": 131,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "19": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "20": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "21": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "22": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "23": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "24": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "25": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "26": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "27": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "28": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "29": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "30": {
+        "closes": 132,
+        "resets": 131,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      },
+      "31": {
+        "closes": 131,
+        "resets": 130,
+        "z": [
+          1
+        ],
+        "opponents": [
+          6
+        ],
+        "poles": [
+          "B"
+        ],
+        "mismatches": 0,
+        "z_stable": true,
+        "opponent_stable": true
+      }
+    },
+    "failures": [],
+    "passed": true
+  },
+  "legacy_paths_disabled": true,
+  "EVAL_touched": false,
+  "authorizes": "nothing further; EVAL is a separate frozen decision"
+}

@@ -1,0 +1,104 @@
+{
+  "protocol_id": "SUMMER_2026_PAPER_PATH_READOUT",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-14T12:56:00Z",
+  "frozen_before": "full 8-policy d1_d3_d7_summary.json exists (only D7 seed 3200001 board is complete)",
+  "input": "artifacts/vgc_diversity/crossplay/d1_d3_d7_summary.json",
+  "partial_board_at_freeze": {
+    "policies_complete": ["g0_v5_long_seed3200001"],
+    "policies_expected": 8,
+    "status": "PRELIMINARY_ONE_ROW_NOT_A_PATH_DECISION",
+    "observed_WR": {
+      "OP6": 0.867, "OP7": 0.867, "OP8": 0.733, "OP9": 0.767,
+      "OP10": 0.667, "OP11": 0.833, "OP12": 1.000
+    },
+    "permitted_use": "motivates the opponent-difficulty vs specialization questions; does NOT classify Path A or Path B"
+  },
+
+  "scientific_question": "Does strategic opponent diversity in this maritime CTF change difficulty for one PPO generalist, or create complementary best responses?",
+
+  "two_papers": {
+    "PATH_A": {
+      "title": "PPO absorbs strategic diversity into a robust generalist",
+      "condition": "no credible ranking crossover on the completed 8-policy board",
+      "permitted_claim": "Opponent identity mostly changes difficulty; D1/D3/D7 fingerprints are similar enough that an explicit repertoire is not justified by this matrix.",
+      "prohibited_claim": "specialization is impossible; latents cannot work; D7 is proven more robust unless the D1/D3/D7 robustness comparison is also reported as OBSERVED",
+      "next": "do not auto-train a specialist population; optional 1-seed specialist pilot only if explicitly authorized"
+    },
+    "PATH_B": {
+      "title": "Strategic opponent diversity creates complementary best responses",
+      "condition": "CROSSOVER_FOUND between DIFFERENT diversity_conditions (not same-condition seed pairs)",
+      "permitted_claim": "Different policy responses matter against different opponents on this board.",
+      "prohibited_claim": "latent demand is established; a selector will work; a full multi-seed repertoire is required",
+      "next": "1-seed specialist pilot (SEED_PROTOCOL_FROZEN.json), still a human scientific boundary"
+    }
+  },
+
+  "CROSSOVER_FOUND": {
+    "definition": "There exist policies A,B and opponents X,Y such that A beats B on X and B beats A on Y, with uncertainty excluding zero in both directions.",
+    "estimator": "per-cell win rate, n=30 episodes; two-proportion Wald 95% CI on WR(A)-WR(B) using the cell n; LCB95 > 0 required in both directions",
+    "does_not_require": "every policy specializes; action-distribution differences; a specific opponent pair chosen after seeing the heatmap",
+    "search": "all unordered policy pairs among the 8 PRIMARY rows, all opponent pairs OP6-OP12",
+    "PATH_B_requires_cross_condition": {
+      "recorded_utc": "2026-08-14T14:30:00Z",
+      "recorded_before": "any D1 or D3 evaluation row exists; 15/56 cells collected, two D7 boards complete",
+      "rule": "Same-condition seed pairs (D7 vs D7, D1 vs D1, D3 vs D3) may produce Wald crossovers; report those as SEED_NOISE. They do NOT classify PATH_B.",
+      "PATH_B_trigger": "at least one Wald two-way crossover between policies from DIFFERENT diversity_conditions (D1 vs D3, D1 vs D7, or D3 vs D7)",
+      "why": "D7-3200001 vs D7-3200002 already shows large same-condition cell movement (OP7 .867 vs .600). That is PPO seed fingerprint variance, not evidence that opponent diversity created specialization.",
+      "does_not_change": "Wald LCB95>0 estimator; multiplicity caveat; discovery-vs-confirmation hierarchy"
+    }
+  },
+
+  "opponent_difficulty_vs_specialization": {
+    "report": [
+      "per-opponent mean WR across policies (column means)",
+      "per-policy Spearman correlation of its opponent-WR vector with the column-mean ranking",
+      "worst-opponent identity per policy"
+    ],
+    "interpretation": "If worst-opponent identity is shared and rank correlations are high, columns describe opponents. This is supporting description for Path A, not a second independent gate.",
+    "no_invented_spearman_bar": true
+  },
+
+  "diversity_value_D1_D3_D7": {
+    "metrics": ["mean overall WR", "mean worst-opponent WR", "mean variance across opponents"],
+    "aggregation": "mean across available seeds per condition (D3 uses completed seeds only: 3700001, 3700002)",
+    "label": "OBSERVED",
+    "interesting_but_not_required_for_PATH_A": "D1 ≈ D3 ≈ D7 in average WR, with D7 lower matchup variance and better worst-case",
+    "inherits_VGC_outcomes": "artifacts/vgc_diversity/VGC_DIVERSITY_SETS_FROZEN.json outcomes A-F remain valid publishable diversity-scaling results independent of Path B"
+  },
+
+  "heatmap": {
+    "rows": "8 PRIMARY policies",
+    "columns": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+    "cell": "win rate",
+    "output": "artifacts/summer_2026/figures/payoff_heatmap.csv"
+  },
+
+  "specialist_decision": {
+    "PATH_A": "STOP population. Do not launch S_OP7/S_OP12 unless explicitly authorized as a 1-seed exploratory probe.",
+    "PATH_B": "1-seed specialist pilot is the minimum next experiment; not a 3-seed grid."
+  },
+
+  "latent_collapse_explanation": {
+    "if_PATH_A": "D1/D3/D7 converging to similar fingerprints is supporting explanation for why z collapsed — the board may not reward distinct strategies strongly enough. Supporting, not a causal proof.",
+    "if_PATH_B": "do not use generalist-absorption as the latent-collapse story"
+  },
+
+  "immutability": "After d1_d3_d7_summary.json exists, do not change CROSSOVER_FOUND, Path A/B conditions, or specialist_decision to flatter the observed matrix.",
+
+  "multiplicity_caveat_recorded_before_remaining_rows": {
+    "recorded_utc": "2026-08-14T13:00:00Z",
+    "does_not_change_the_gate": true,
+    "statement": "The Path A/B classifier scans all PRIMARY policy-pair × opponent-pair combinations. A Wald LCB95>0 on each comparison does not control family-wise false-positive rate across that scan.",
+    "how_to_label_a_PATH_B_hit": "preregistered DISCOVERY result, not a confirmatory demonstration of a specific matchup tradeoff",
+    "confirmation": "If PATH_B, the subsequent 1-seed specialist pilot / targeted confirmatory evaluation tests that discovered crossover again. Do not retune the matrix gate to make discovery stricter or looser after seeing the board."
+  },
+
+  "discovery_vs_confirmation_hierarchy": {
+    "1_full_matrix": "8 PRIMARY policies × OP6-OP12",
+    "2_pre_frozen_crossover_discovery": "PAPER_PATH_READOUT_FROZEN.json CROSSOVER_FOUND (unchanged)",
+    "3a_no_crossover": "PATH_A — generalist absorption; stop specialist population",
+    "3b_credible_crossover": "PATH_B — discovery only",
+    "4_if_PATH_B": "targeted 1-seed specialist pilot, then confirm the exact matchup tradeoff"
+  }
+}

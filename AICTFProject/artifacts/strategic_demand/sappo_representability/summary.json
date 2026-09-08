@@ -1,0 +1,34 @@
+{
+  "record": "SAPPO teacher representability probe",
+  "utc": "2026-08-20T00:59:45Z",
+  "status": "ENGINEERING PREREQUISITE, not a strategic claim",
+  "question": "does a PPO-action-space replay of the projected teacher reproduce the teacher's advantage on its own pole?",
+  "seeds": "7900001..7900032 (training-only)",
+  "results": {
+    "A": {
+      "TRUE": 0.59375,
+      "PROJECTED": 0.78125,
+      "OPPOSITE": 0.28125,
+      "PROJECTED_OPPOSITE": 0.375,
+      "mean_projection_error_cells": 1.8464677333831787,
+      "n": 32
+    },
+    "B": {
+      "TRUE": 0.53125,
+      "PROJECTED": 0.59375,
+      "OPPOSITE": 0.03125,
+      "PROJECTED_OPPOSITE": 0.03125,
+      "mean_projection_error_cells": 1.9780570976436138,
+      "n": 32
+    }
+  },
+  "frozen_criterion": {
+    "primary": "PROJECTED must preserve the STRATEGIC ORDERING, not reproduce TRUE exactly: on pole A, PROJECTED(GUARD) > PROJECTED(BREACH); on pole B, PROJECTED(BREACH) > PROJECTED(GUARD).",
+    "why_projected_vs_projected": "both sides must be projected, because that is the pair SAPPO would actually clone toward. Comparing a projected teacher against a SCRIPTED opposite would flatter the projection.",
+    "question_is_not": "is projected GUARD pixel-perfect GUARD?",
+    "question_is": "does the PPO-action-space version still occupy the validated GUARD strategic basin?"
+  },
+  "temporal_projection_verified": "the engine enforces macro commitment itself: blue_commit_ticks_left gates whether an issued action latches, so issuing a projected target every step is NOT per-step control. Measured on a live core: latched target changed 2 times over 39 steps while issued targets changed 4 times, with ticks cycling 3->2->1->0. The probe therefore does not overestimate representability on the temporal axis.",
+  "dataset_implication": "demonstration labels must still be collected ONLY at PPO decision points (blue_commit_ticks_left <= 0), one label per macro decision rather than one per physics step, or the dataset is dominated by locked-in steps where no decision is being made.",
+  "reading": "PROJECTED close to TRUE and clearly above PROJECTED_OPPOSITE => the teacher is representable and SAPPO V1 is well posed. PROJECTED collapsing toward OPPOSITE => cloning toward the projected teacher would anchor the student to something that is NOT the validated strategy, and the anchor dataset must be built differently before any training."
+}

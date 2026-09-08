@@ -31,6 +31,11 @@ import os
 from rl.config.ppo_config import PPOConfig, TrainMode
 from rl.custom_ppo.update.update_order import validate_actor_cf_update_mode
 
+try:
+    from gpu_env._core._bt_profiles import BT_OPPONENT_KEYS
+except Exception:  # pragma: no cover - keeps config validation importable in minimal tooling.
+    BT_OPPONENT_KEYS = frozenset()
+
 
 # Scripted tags dropped from training pools unless ``allow_op4_in_training_pool``
 # (eval / zero-shot default).
@@ -242,21 +247,8 @@ def normalize_and_validate_training_config(cfg: PPOConfig) -> PPOConfig:
             "OP4",
             "OP5_RUSHER",
             "OP5",
-            "OP6",
-            "OP6_TURTLE",
-            "OP7",
-            "OP7_SWITCHER",
-            "OP8",
-            "OP8_INTERCEPTOR",
-            "OP9",
-            "OP9_FORTRESS",
-            "OP10",
-            "OP10_ESCORT",
-            "OP11",
-            "OP11_BT_BALANCED",
-            "OP12",
-            "OP12_COUNTER",
         }
+        allowed.update(BT_OPPONENT_KEYS)
         pool = tuple(x for x in pool if x in allowed)
         if not pool:
             raise ValueError(f"opponent_pool must contain at least one of {sorted(allowed)}; got {getattr(cfg, 'opponent_pool', ())!r}.")

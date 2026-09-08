@@ -1,0 +1,104 @@
+{
+  "amendment": "C3 Stage-3 sampling amendment",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-07T18:10:00Z",
+  "amends": "artifacts/c3_discovery/C3_DISCOVERY_PREREG_FROZEN.json",
+  "human_readable": "docs/c3-stage3-sampling-amendment.md",
+  "science_scope": "CONTROLLABILITY_SCREEN_ONLY",
+  "o3_authorized_by_this_amendment": false,
+  "latent_necessity_claim": false,
+
+  "frozen_before_any_stage3_outcome": true,
+  "ordering_guarantee": {
+    "written_while": "Stage 1 still running at 537/630 episodes; no Stage-3 outcome exists",
+    "sampling_frame_source": "the COMPLETE 630-episode Stage-1 anchor census",
+    "benchmark_excluded": "the 15-episode operational benchmark must NOT influence anchor selection; it is operational benchmarking, not a sampling frame"
+  },
+
+  "why": {
+    "problem": "The first C3 attempt hit ABORTED_OPERATIONAL_SCALE at Stage 3: exhaustive per-anchor counterfactual branching over the full legal team-response product made wall-clock operationally unbounded.",
+    "insight": "The frozen aggregate gate is a RATE (fork_rate = n_qualified_commitment_forks / n_pressure_anchors, threshold 0.20), not an enumeration. A rate is estimable from a sample with quantifiable precision, so exhaustive evaluation buys precision far beyond the decision boundary at combinatorial cost.",
+    "what_changes": "the ESTIMATOR only",
+    "what_does_not_change": "the estimand, the criterion, and every scientific cell"
+  },
+
+  "scientific_cells_unchanged": {
+    "T_trace": 40,
+    "H_response": 30,
+    "delta": 0.10,
+    "U": "carrier_survival",
+    "minimum_fork_rate": 0.20,
+    "pressure_predicate": "unchanged",
+    "earliest_fork_rule": "unchanged (earliest_state_satisfying_R1_R4)",
+    "doomed_rule": "unchanged (doomed_at_or_below = 0.0)",
+    "one_response_semantics": "unchanged",
+    "legal_team_responses": "EXHAUSTIVE — unchanged"
+  },
+
+  "legal_response_enumeration_stays_exhaustive": {
+    "rule": "Within every sampled anchor, the full cartesian product of per-agent legal macros is still enumerated.",
+    "why": "top2_policy_actions_forbidden and hand_curated_subset_forbidden are anti-cherry-picking rules. Sampling responses would let us test only the alternatives we already believe in — exactly how a named strategy such as ESCORT would smuggle itself back in. Anchors are sampled; responses never are.",
+    "cost_effect": "cost falls linearly with the anchor count while the anti-bias guarantee is preserved intact"
+  },
+
+  "sampling_design": {
+    "n_anchors_target": 210,
+    "stratification": "policy x opponent",
+    "n_strata": 21,
+    "per_stratum_target": 10,
+    "rationale": "Guarantees every policy/opponent cell is examined, so no single adversary or seed can dominate the screen.",
+    "precision_at_target": "SE of a proportion near p=0.20 at n=210 is about 0.028, giving a 95% interval near +/-0.055 — sufficient to separate 0.20 from a materially larger rate, which is the only decision this screen makes.",
+    "expected_stage3_cost": "~6 hours at benchmark timing, against ~70 hours exhaustive"
+  },
+
+  "sampling_seed": {
+    "value": 3289298408,
+    "derivation": "int(sha256(C3_DISCOVERY_PREREG_FROZEN.json bytes)[:8], 16)",
+    "c3_contract_sha256": "c40eb5e8bca4f9a1d927b4779a312281a2c2fbee38bf7c4afa7fb94c35769ae0",
+    "contract_bytes": 2844,
+    "why_derived_not_chosen": "Deriving the seed from the frozen contract's own hash makes anchor selection impossible to massage after the fact: the seed is a function of a document that predates it and cannot be changed without changing the hash.",
+    "resolved_now": true
+  },
+
+  "low_count_fallback": {
+    "rule": "If a stratum holds fewer than 10 anchors, take all available anchors in that stratum and redistribute the deficit deterministically among strata that still have unused anchors.",
+    "redistribution_order": "strata sorted ascending by (policy_seed, opponent); deficit assigned round-robin over strata with remaining unused anchors",
+    "timing": "resolved from the Stage-1 census BEFORE any Stage-3 outcome is inspected",
+    "why": "Prevents a thin stratum from silently shrinking the sample, and fixes the repair rule in advance so it cannot be tuned once fork outcomes are visible."
+  },
+
+  "estimator": {
+    "problem_with_naive_rate": "qualified/210 unweighted would change the estimand: strata contain different numbers of natural pressure anchors, so equal allocation over-weights rare cells relative to the natural anchor population.",
+    "weights": "W_h = N_h / N, where N_h is the COMPLETE Stage-1 anchor count for stratum h and N is the total across all strata",
+    "point_estimate": "p_hat = sum_h W_h * p_hat_h, where p_hat_h is the fork rate observed among the sampled anchors of stratum h",
+    "estimand": "the fork rate of the NATURAL anchor population, not of the sample"
+  },
+
+  "uncertainty": {
+    "procedure": "episode-clustered, stratified bootstrap",
+    "cluster_unit": "episode",
+    "why_clustered": "several anchors can come from one trajectory and are not independent observations; resampling anchors directly would understate the interval",
+    "stratified": "resample episodes within each stratum, then recompute the weighted estimate with the frozen W_h",
+    "resamples": 2000,
+    "bootstrap_seed": 12345,
+    "frozen_before_evaluating_the_sample": true
+  },
+
+  "decision_rule": {
+    "C3_PASS": "LCB95(weighted natural fork_rate) > 0.20",
+    "otherwise": "C3 does not pass",
+    "note": "The decision is on the lower bound, not the point estimate. Under sampling, a point estimate above 0.20 with an interval straddling it is not a pass."
+  },
+
+  "operational_sequence": {
+    "1": "commit this amendment (now, before any Stage-3 outcome exists)",
+    "2": "allow pid 38124 to finish Stage 1 to 630/630 and persist C3_STAGE1_ANCHORS.jsonl + C3_STAGE1_MANIFEST.json",
+    "3": "STOP pid 38124 — it runs pre-amendment code and would proceed into exhaustive Stage 3",
+    "4": "verify the Stage-1 census is intact and complete",
+    "5": "deterministically build the sampled-anchor manifest from the census using the resolved seed",
+    "6": "relaunch Stage 3 FROM the persisted Stage 1, sampled",
+    "do_not": "kill pid 38124 before Stage-1 persistence — the first attempt already lost four hours of Stage-1 work that way"
+  },
+
+  "immutability": "After any Stage-3 outcome is observed, none of the following may change: n_anchors_target, stratification, sampling seed or its derivation, the low-count fallback, the weighting scheme, the bootstrap procedure or seed, or the decision rule."
+}

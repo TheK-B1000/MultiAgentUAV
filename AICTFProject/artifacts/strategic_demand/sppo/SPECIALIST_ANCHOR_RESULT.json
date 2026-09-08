@@ -1,0 +1,56 @@
+{
+  "record": "Specialist difficulty anchor on the CCP-S2 and RSCFT seed blocks",
+  "status": "EXPLORATORY_CALIBRATION",
+  "one_shot": true,
+  "utc": "2026-09-04T00:20:49Z",
+  "why": "eval_ccp_s2.py and eval_rscft.py omitted the pi_A@A / pi_B@B reference cells that every pre-CCP-S2 eval recorded, leaving those blocks without a difficulty anchor. This supplies exactly those cells.",
+  "not_preregistered": true,
+  "no_gate_no_verdict": true,
+  "checkpoints": {
+    "pi_A": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+      "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d"
+    },
+    "pi_B": {
+      "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+      "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+    }
+  },
+  "blocks": {
+    "CCP_S2": [
+      11701001,
+      11701064
+    ],
+    "RSCFT": [
+      11704001,
+      11704064
+    ]
+  },
+  "summary": {
+    "CCP_S2": {
+      "pi_A@A": {
+        "mean": 0.703125,
+        "lcb95": 0.59375,
+        "ucb95": 0.8125
+      },
+      "pi_B@B": {
+        "mean": 0.5625,
+        "lcb95": 0.4375,
+        "ucb95": 0.6875
+      }
+    },
+    "RSCFT": {
+      "pi_A@A": {
+        "mean": 0.671875,
+        "lcb95": 0.5625,
+        "ucb95": 0.78125
+      },
+      "pi_B@B": {
+        "mean": 0.59375,
+        "lcb95": 0.46875,
+        "ucb95": 0.71875
+      }
+    }
+  },
+  "total_episodes": 256
+}

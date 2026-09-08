@@ -1,0 +1,48 @@
+{
+  "red_preset": "OP12_LATE_CONVERTER",
+  "map": "map_b_split_lane",
+  "styles": {
+    "BLUE_RUSH": {
+      "n": 8,
+      "mean_time_cross_midfield_any": 7.625,
+      "mean_time_cross_midfield_both": 9.75,
+      "mean_time_first_flag_touch": 14.625,
+      "mean_time_first_pickup": 15.125,
+      "mean_time_first_blue_score": 42.125,
+      "mean_opening_teammate_dist": 4.693905276874131,
+      "mean_opening_lane_sep": 4.02597686983645,
+      "mean_opening_forward_velocity": 0.6672154268936107,
+      "mean_opening_clustered_frac": 0.7625,
+      "mean_opening_trailing_frac": 0.7687499999999999,
+      "mean_opening_stable_leader_frac": 0.8552244582043343,
+      "mean_pre_pickup_teammate_dist": 5.087862798392715,
+      "mean_pre_pickup_lane_sep": 4.304631597943166,
+      "mean_pre_pickup_clustered_frac": 0.6859243697478992,
+      "pickup_episodes": 8,
+      "blue_score_episodes": 8
+    },
+    "BLUE_ESCORT": {
+      "n": 8,
+      "mean_time_cross_midfield_any": 8.5,
+      "mean_time_cross_midfield_both": 15.25,
+      "mean_time_first_flag_touch": 14.625,
+      "mean_time_first_pickup": 15.25,
+      "mean_time_first_blue_score": 44.75,
+      "mean_opening_teammate_dist": 3.679001091868816,
+      "mean_opening_lane_sep": 2.198666827008128,
+      "mean_opening_forward_velocity": 0.5596242856822516,
+      "mean_opening_clustered_frac": 0.8625,
+      "mean_opening_trailing_frac": 0.875,
+      "mean_opening_stable_leader_frac": 0.9019371345029239,
+      "mean_pre_pickup_teammate_dist": 3.639992597164438,
+      "mean_pre_pickup_lane_sep": 2.326556213504794,
+      "mean_pre_pickup_clustered_frac": 0.8602941176470589,
+      "pickup_episodes": 8,
+      "blue_score_episodes": 8
+    }
+  },
+  "interpretation": {
+    "purpose": "opening behavior audit only; not a payoff confirmation",
+    "opening_steps": "metrics with opening_ prefix use the configured early OP12 window"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "record": "RSCFT mechanical preflight",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T12:02:30Z",
+  "implements": "RSCFT_SPEC.json#MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_ANY_GPU_RUN",
+  "VERDICT": "PASS",
+  "n_checks": 12,
+  "n_passed": 12,
+  "checks": [
+    {
+      "check": "1_teacher_student_identical_at_init",
+      "PASS": true,
+      "detail": "max |theta_bar - theta| = 0.000e+00 over all parameters"
+    },
+    {
+      "check": "2_initial_KL_approx_zero_and_finite",
+      "PASS": true,
+      "detail": "KL = 0.000000e+00, finite=True"
+    },
+    {
+      "check": "3_perturbation_raises_KL",
+      "PASS": true,
+      "detail": "KL after perturbing actor_cnn.conv.0.weight = 1.112700e-02 (restored to 0.000e+00); target verified to move the masked logits"
+    },
+    {
+      "check": "4_L_ret_produces_nonzero_actor_gradients",
+      "PASS": true,
+      "detail": "grad norm = 6.582471e-03"
+    },
+    {
+      "check": "5_EMA_moves_but_takes_no_gradients",
+      "PASS": true,
+      "detail": "teacher params with .grad = 0, any requires_grad = False, |delta| 1.6265e-01 -> 1.6184e-01 (moved toward student)"
+    },
+    {
+      "check": "6_mid_hold_rows_contribute_exactly_zero",
+      "PASS": true,
+      "detail": "KL with every agent masked as committed = 0.000000e+00 (eligible heads 0)"
+    },
+    {
+      "check": "7_boundary_rows_contribute_normally",
+      "PASS": true,
+      "detail": "KL at real decision boundaries = 1.706149e-02 over 138 eligible heads"
+    },
+    {
+      "check": "8_causal_loss_still_produces_gradients",
+      "PASS": true,
+      "detail": "loss = 1.479670, grad norm = 4.320976e+00"
+    },
+    {
+      "check": "9_CONTROL_fails_closed_if_retention_executes",
+      "PASS": true,
+      "detail": "retention_kl raises _FatalDisabledPath under the control arm's tripwires"
+    },
+    {
+      "check": "10_TREATMENT_fails_closed_if_retention_absent",
+      "PASS": true,
+      "detail": "the updater's cadence assertion aborts when retention updates stop firing"
+    },
+    {
+      "check": "11_config_diff_is_only_retention_and_paths",
+      "PASS": true,
+      "detail": "differing config fields: ['checkpoint_dir', 'episode_csv_path', 'metrics_csv_path', 'run_tag'] (retention is attached at runtime, not via config, so the configs themselves are identical apart from paths)"
+    },
+    {
+      "check": "12_fresh_EVAL_block_untouched",
+      "PASS": true,
+      "detail": "11704001..11704064 disjoint from training range 11703001..11703321; 0 RSCFT eval artifacts exist"
+    }
+  ],
+  "hyperparameters_verified": {
+    "lambda_ret": 0.01,
+    "ema_decay": 0.995,
+    "lambda_causal": 0.05
+  },
+  "authorizes_if_pass": "experiments/run_rscft_production.py --arm control, then --arm treatment"
+}

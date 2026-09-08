@@ -1,0 +1,412 @@
+{
+  "record": "CCP-S2 EVAL integrity audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T09:38:20Z",
+  "question": "Are the four observed reversals (CONTROL and TREATMENT, both poles) real behavioural results, or an evaluator defect such as a transposed latent?",
+  "triggered_by": [
+    "A_C",
+    "B_C",
+    "A_T",
+    "B_T"
+  ],
+  "VERDICT": "GENUINE_REVERSAL_ALL_CELLS",
+  "checks": {
+    "1_liveness_z0_vs_z1_per_arm": {
+      "CONTROL_A": {
+        "differing_any": 50,
+        "differing_win": 26,
+        "differing_margin": 48,
+        "z0_won_z1_lost": [
+          11701011,
+          11701016,
+          11701017,
+          11701019,
+          11701022,
+          11701035,
+          11701056
+        ],
+        "z1_won_z0_lost": [
+          11701001,
+          11701008,
+          11701014,
+          11701020,
+          11701026,
+          11701028,
+          11701032,
+          11701036,
+          11701039,
+          11701040,
+          11701041,
+          11701044,
+          11701045,
+          11701048,
+          11701051,
+          11701054,
+          11701057,
+          11701058,
+          11701061
+        ]
+      },
+      "CONTROL_B": {
+        "differing_any": 45,
+        "differing_win": 36,
+        "differing_margin": 42,
+        "z0_won_z1_lost": [
+          11701003,
+          11701007,
+          11701008,
+          11701009,
+          11701014,
+          11701015,
+          11701019,
+          11701025,
+          11701036,
+          11701038,
+          11701039,
+          11701041,
+          11701043,
+          11701046,
+          11701047,
+          11701048,
+          11701052,
+          11701054,
+          11701058,
+          11701064
+        ],
+        "z1_won_z0_lost": [
+          11701001,
+          11701010,
+          11701013,
+          11701024,
+          11701029,
+          11701032,
+          11701033,
+          11701034,
+          11701035,
+          11701042,
+          11701045,
+          11701050,
+          11701051,
+          11701055,
+          11701056,
+          11701062
+        ]
+      },
+      "TREATMENT_A": {
+        "differing_any": 55,
+        "differing_win": 23,
+        "differing_margin": 49,
+        "z0_won_z1_lost": [
+          11701006,
+          11701018,
+          11701020,
+          11701026,
+          11701050,
+          11701059,
+          11701062
+        ],
+        "z1_won_z0_lost": [
+          11701008,
+          11701011,
+          11701013,
+          11701014,
+          11701016,
+          11701027,
+          11701031,
+          11701034,
+          11701035,
+          11701037,
+          11701039,
+          11701041,
+          11701043,
+          11701048,
+          11701055,
+          11701064
+        ]
+      },
+      "TREATMENT_B": {
+        "differing_any": 46,
+        "differing_win": 32,
+        "differing_margin": 46,
+        "z0_won_z1_lost": [
+          11701003,
+          11701009,
+          11701013,
+          11701015,
+          11701021,
+          11701029,
+          11701037,
+          11701038,
+          11701042,
+          11701045,
+          11701048,
+          11701051,
+          11701058,
+          11701060,
+          11701061,
+          11701062,
+          11701063
+        ],
+        "z1_won_z0_lost": [
+          11701001,
+          11701002,
+          11701004,
+          11701005,
+          11701006,
+          11701008,
+          11701014,
+          11701020,
+          11701025,
+          11701032,
+          11701036,
+          11701044,
+          11701053,
+          11701056,
+          11701059
+        ]
+      }
+    },
+    "1b_liveness_control_vs_treatment": {
+      "z0_A": {
+        "differing_any": 52,
+        "differing_win": 22,
+        "control_won_treatment_lost": [
+          11701011,
+          11701013,
+          11701016,
+          11701024,
+          11701027,
+          11701031,
+          11701034,
+          11701035,
+          11701043,
+          11701064
+        ],
+        "treatment_won_control_lost": [
+          11701001,
+          11701020,
+          11701026,
+          11701028,
+          11701036,
+          11701040,
+          11701044,
+          11701051,
+          11701057,
+          11701058,
+          11701061,
+          11701063
+        ]
+      },
+      "z0_B": {
+        "differing_any": 43,
+        "differing_win": 30,
+        "control_won_treatment_lost": [
+          11701002,
+          11701004,
+          11701005,
+          11701006,
+          11701008,
+          11701014,
+          11701016,
+          11701019,
+          11701025,
+          11701036,
+          11701041,
+          11701043,
+          11701052,
+          11701059,
+          11701064
+        ],
+        "treatment_won_control_lost": [
+          11701010,
+          11701012,
+          11701013,
+          11701024,
+          11701029,
+          11701031,
+          11701035,
+          11701042,
+          11701045,
+          11701051,
+          11701055,
+          11701057,
+          11701060,
+          11701062,
+          11701063
+        ]
+      },
+      "z1_A": {
+        "differing_any": 55,
+        "differing_win": 21,
+        "control_won_treatment_lost": [
+          11701006,
+          11701018,
+          11701020,
+          11701024,
+          11701026,
+          11701032,
+          11701045,
+          11701050,
+          11701054,
+          11701059,
+          11701062
+        ],
+        "treatment_won_control_lost": [
+          11701011,
+          11701016,
+          11701017,
+          11701019,
+          11701022,
+          11701035,
+          11701037,
+          11701055,
+          11701056,
+          11701063
+        ]
+      },
+      "z1_B": {
+        "differing_any": 43,
+        "differing_win": 28,
+        "control_won_treatment_lost": [
+          11701013,
+          11701016,
+          11701021,
+          11701029,
+          11701033,
+          11701034,
+          11701037,
+          11701042,
+          11701045,
+          11701050,
+          11701051,
+          11701061,
+          11701062
+        ],
+        "treatment_won_control_lost": [
+          11701007,
+          11701008,
+          11701012,
+          11701014,
+          11701020,
+          11701025,
+          11701031,
+          11701036,
+          11701039,
+          11701044,
+          11701046,
+          11701047,
+          11701053,
+          11701054,
+          11701057
+        ]
+      }
+    },
+    "3_deltas_and_gammas_recomputed": {
+      "delta_A_CONTROL": {
+        "mean": -0.1875,
+        "lcb95": -0.328125,
+        "ucb95": -0.046875
+      },
+      "delta_B_CONTROL": {
+        "mean": -0.0625,
+        "lcb95": -0.25,
+        "ucb95": 0.125
+      },
+      "delta_A_TREATMENT": {
+        "mean": -0.140625,
+        "lcb95": -0.28125,
+        "ucb95": 0.0
+      },
+      "delta_B_TREATMENT": {
+        "mean": -0.03125,
+        "lcb95": -0.203125,
+        "ucb95": 0.140625
+      },
+      "Gamma_A": {
+        "mean": 0.046875,
+        "lcb95": -0.171875,
+        "ucb95": 0.25
+      },
+      "Gamma_B": {
+        "mean": 0.03125,
+        "lcb95": -0.21875,
+        "ucb95": 0.28125
+      },
+      "reproduces_all_negative_pattern": true
+    },
+    "4_provenance": {
+      "duplicate_rows": 0,
+      "missing_cells": [],
+      "seed_block": [
+        11701001,
+        11701064
+      ],
+      "total_rows": 512
+    },
+    "5_latent_swap_test": {
+      "CONTROL": {
+        "A_if_z0_z1_transposed": {
+          "mean": 0.1875,
+          "lcb95": 0.046875,
+          "ucb95": 0.328125,
+          "would_pass": true
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": 0.0625,
+          "lcb95": -0.125,
+          "ucb95": 0.25,
+          "would_pass": false
+        }
+      },
+      "TREATMENT": {
+        "A_if_z0_z1_transposed": {
+          "mean": 0.140625,
+          "lcb95": 0.0,
+          "ucb95": 0.28125,
+          "would_pass": false
+        },
+        "B_if_z0_z1_transposed": {
+          "mean": 0.03125,
+          "lcb95": -0.140625,
+          "ucb95": 0.203125,
+          "would_pass": false
+        }
+      }
+    },
+    "5b_cross_instrument_vs_incumbent_own_sealed_eval": {
+      "incumbent_eval_seeds": [
+        11600101,
+        11600132
+      ],
+      "this_eval_seeds": [
+        11701001,
+        11701064
+      ],
+      "seed_blocks_disjoint": true,
+      "same_warm_start_checkpoint": true,
+      "incumbent_delta_A": 0.09375,
+      "incumbent_delta_B": -0.15625,
+      "pole_B_direction_inherited": true,
+      "pole_A_direction_inherited": false,
+      "reading": "The incumbent's own sealed EVAL (disjoint seeds, same warm-start checkpoint, a fully independent code path and seed block) already showed delta_B < 0 before either arm trained further -- so a Pole-B reversal is NOT new to S2's training, it is inherited from the warm start. The incumbent's delta_A was POSITIVE (+0.0938) -- so a negative delta_A in BOTH S2 arms is a shift that occurred DURING this run's 500k additional steps, not something already present at the warm start. That it appears in CONTROL (zero causal gradient) as well as TREATMENT points to continued task-PPO training itself, not the causal supervision specifically, as the more likely source of the Pole-A shift."
+    },
+    "6_control_treatment_agreement": {
+      "A": {
+        "control": -0.1875,
+        "treatment": -0.140625,
+        "same_direction": true,
+        "gap": 0.046875
+      },
+      "B": {
+        "control": -0.0625,
+        "treatment": -0.03125,
+        "same_direction": true,
+        "gap": 0.03125
+      },
+      "reading": "Both arms reversing in the SAME direction on both poles, with a small gap between them, is evidence the reversal is a property shared by continued training from this warm start (present with or without causal supervision), not evidence either arm's specific mechanism produced it independently."
+    }
+  },
+  "conclusion": "All four reversals recompute cleanly from raw rows, latent forcing was live in every cell, CONTROL and TREATMENT are behaviourally distinct, and the pattern matches a real, shared property of continued training from this warm start (Pole B inherited from the incumbent, Pole A newly shifted in both arms) rather than an evaluator defect.",
+  "changes_no_verdict": true,
+  "failures": []
+}

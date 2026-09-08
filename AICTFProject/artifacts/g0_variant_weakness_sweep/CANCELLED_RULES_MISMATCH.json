@@ -1,0 +1,36 @@
+{
+  "run": "g0_variant_weakness_sweep (21 existing OP6-OP12 variants, map_a, discovery)",
+  "status": "CANCELLED_RULES_MISMATCH",
+  "cancelled_utc": "2026-07-30T22:05:47.247537+00:00",
+  "reason": "Official Aquaticus rules permit a single eligible defender to tag and enforce an interval between successful tags. The current simulator requires two simultaneous taggers (gpu_env/_core/_rules.py:97-98, hardcoded 'pressure >= 2') and has no cooldown. Variant results under this configuration are not evidence about strategy diversity in the Aquaticus-faithful task.",
+  "rule_divergences_found": {
+    "single_defender_tag": "ABSENT -- requires 2 simultaneous taggers (hardcoded >= 2)",
+    "tag_cooldown": "ABSENT -- no tag_cooldown / minimum interval anywhere in the codebase",
+    "nearest_eligible_target": "ABSENT -- all targets under pressure are tagged, so a teammate cannot absorb a tag to protect the carrier",
+    "one_second_group_channel": "PRESENT (tag_channel_seconds=1.0) -- not in the official per-request eligibility model; simulation approximation",
+    "territory_dependent_tagging": "present and correct",
+    "return_home_after_tag": "present (nav target overridden to home flag)",
+    "untag_at_home": "present (home_untag_radius_cells=2.0)",
+    "safe_flag_return": "present (capture requires untagged at home; tag drops flag)",
+    "marine_kinematics": "present (accel, yaw-rate, turn-radius limits)",
+    "time_pressure": "present (240 decision steps)"
+  },
+  "strategic_consequence": "In 2v2, 'pressure >= 2' means a lone defender can neither tag nor suppress. One defender is strictly dominated: it forfeits half the offense and buys no defense. There is no intermediate posture, hence no commitment cost, hence a single non-dominated policy. This is consistent with G0's measured fingerprints (num_attackers ~1.0, num_defenders ~0.17-0.27 against all seven base opponents) and plausibly explains the collapse of RUSH/SPLIT/TURTLE/ESCORT into one generalist.",
+  "partial_data": {
+    "rows": 64,
+    "expected_rows": 2016,
+    "complete_cells": 2,
+    "expected_cells": 63,
+    "complete_cell_list": [
+      "OP6_DUAL_RUSH/s901001",
+      "OP6_DUAL_RUSH/s901002"
+    ],
+    "usable_as": "historical baseline for RULESET_V1 only; NOT evidence about the Aquaticus-faithful task"
+  },
+  "ruleset_label": "RULESET_V1 (two-tagger, no cooldown)",
+  "git": {
+    "commit": "7b175c34466d7d436933f3f23b29ad05cf5ce067",
+    "branch": "lro"
+  },
+  "successor": "RULESET_V2 correction, then a fresh map_a incumbent G0-v2 trained from scratch"
+}

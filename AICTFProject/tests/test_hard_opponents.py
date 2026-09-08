@@ -1,14 +1,14 @@
-"""Tests for OP8/OP9/OP10 hard scripted opponent pool.
+"""Tests for OP8/OP9/OP10 strategic scripted opponent identities.
 
 Tests:
-1.  OP8 params: attacker=1, defender=1
-2.  OP8 params: role_switch_prob very low (<0.05)
+1.  OP8 params: attacker=1, defender=0
+2.  OP8 params: role_switch_prob low (<0.10)
 3.  OP8 params: coordinated_attack rate > 0.7 (across 1000-sample draw)
-4.  OP9 params: attacker_style=0
+4.  OP9 params: attacker_style=1
 5.  OP9 params: defender_style=1
-6.  OP9 params: coordinated_attack rate > 0.6
-7.  OP10 params: attacker_style=1
-8.  OP10 params: defender_style=0
+6.  OP9 params: high role churn and deception
+7.  OP10 params: attacker_style=0
+8.  OP10 params: defender_style=1
 9.  OP10 params: role_switch_prob low (<0.08)
 10. Registration: OP8/9/10 accepted by sample_batched_opponent_params
 11. Registration: aliases OP8_INTERCEPTOR/OP9_FORTRESS/OP10_ESCORT also accepted
@@ -58,17 +58,17 @@ class TestOP8Params(unittest.TestCase):
             "OP8 attacker_style should be 1 (medium attacker)",
         )
 
-    def test_defender_style_is_medium(self) -> None:
-        """OP8 has a medium defender to intercept flag returns."""
+    def test_defender_style_is_easy(self) -> None:
+        """OP8 is escort-led rather than home-defender-led."""
         self.assertTrue(
-            (self.p["defender_style"] == 1).all().item(),
-            "OP8 defender_style should be 1 (medium defender)",
+            (self.p["defender_style"] == 0).all().item(),
+            "OP8 defender_style should be 0",
         )
 
     def test_role_switch_prob_low(self) -> None:
-        """OP8 commits to pursuer/blocker roles: role_switch_prob < 0.05."""
+        """OP8 keeps escort commitments stable: role_switch_prob < 0.10."""
         mean_rsp = self.p["role_switch_prob"].mean().item()
-        self.assertLess(mean_rsp, 0.05, f"OP8 mean role_switch_prob={mean_rsp:.4f} should be < 0.05")
+        self.assertLess(mean_rsp, 0.10, f"OP8 mean role_switch_prob={mean_rsp:.4f} should be < 0.10")
 
 
 # ---------------------------------------------------------------------------
@@ -80,11 +80,11 @@ class TestOP9Params(unittest.TestCase):
         torch.manual_seed(1)
         self.p = _sample("OP9", n=1024)
 
-    def test_attacker_style_is_easy(self) -> None:
-        """OP9 fortress mode: attacker_style=0 (no offensive pressure)."""
+    def test_attacker_style_is_medium(self) -> None:
+        """OP9 split-lane feint keeps attack pressure live."""
         self.assertTrue(
-            (self.p["attacker_style"] == 0).all().item(),
-            "OP9 attacker_style should be 0",
+            (self.p["attacker_style"] == 1).all().item(),
+            "OP9 attacker_style should be 1",
         )
 
     def test_defender_style_is_medium(self) -> None:
@@ -94,10 +94,10 @@ class TestOP9Params(unittest.TestCase):
             "OP9 defender_style should be 1",
         )
 
-    def test_high_coordination_rate(self) -> None:
-        """OP9 counterattack relies on coordination: >60% of envs coordinated."""
-        coord_rate = self.p["coordinated_attack"].float().mean().item()
-        self.assertGreater(coord_rate, 0.60, f"OP9 coord_rate={coord_rate:.3f} should be > 0.60")
+    def test_high_role_churn(self) -> None:
+        """OP9 identity is split-lane feint/churn, not fortress coordination."""
+        self.assertGreater(float(self.p["role_switch_prob"].mean().item()), 0.55)
+        self.assertGreater(float(self.p["deception_prob"].mean().item()), 0.20)
 
 
 # ---------------------------------------------------------------------------
@@ -110,17 +110,17 @@ class TestOP10Params(unittest.TestCase):
         self.p = _sample("OP10", n=1024)
 
     def test_attacker_style_is_medium(self) -> None:
-        """OP10 escort carrier is striker-led: attacker_style=1."""
+        """OP10 is interceptor-led: attacker_style=0."""
         self.assertTrue(
-            (self.p["attacker_style"] == 1).all().item(),
-            "OP10 attacker_style should be 1",
+            (self.p["attacker_style"] == 0).all().item(),
+            "OP10 attacker_style should be 0",
         )
 
-    def test_defender_style_is_easy(self) -> None:
-        """OP10 prioritises escort over defence: defender_style=0."""
+    def test_defender_style_is_medium(self) -> None:
+        """OP10 is defender/interceptor-led."""
         self.assertTrue(
-            (self.p["defender_style"] == 0).all().item(),
-            "OP10 defender_style should be 0",
+            (self.p["defender_style"] == 1).all().item(),
+            "OP10 defender_style should be 1",
         )
 
     def test_role_switch_prob_low(self) -> None:

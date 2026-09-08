@@ -1,0 +1,6 @@
+﻿{
+    "cmd":  "python -u scripts/run_summer_2026.py",
+    "pid":  304,
+    "note":  "DIVERSITY_EVAL after stopping 3700003",
+    "launched_utc":  "2026-08-14T11:23:43.5843289Z"
+}

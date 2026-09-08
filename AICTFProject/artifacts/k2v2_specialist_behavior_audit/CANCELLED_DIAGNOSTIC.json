@@ -1,0 +1,41 @@
+{
+  "run": "k2v2_specialist_behavior_audit",
+  "status": "CANCELLED_DIAGNOSTIC",
+  "cancelled_utc": "2026-07-30T13:18:35.115390+00:00",
+  "reason": "Postmortem-only diagnostic. The decision-relevant evidence is already settled (1M FAIL; 200k/500k piR ahead on both contexts; 300k an isolated signal that does not survive the hierarchical bootstrap). The audit could explain the failure but could not change the next decision, so the GPU was released for the higher-value G0 weakness sweep.",
+  "command": "experiments/audit_k2_specialist_behavior.py --checkpoints 200000 300000 500000 1000000 --episodes 12 --device cuda",
+  "expected_cells": 8,
+  "expected_references_per_cell": 6,
+  "completed_cells": 0,
+  "completed_note": "Stopped during the first cell (step=200,000 C_RUSH), first reference policy. No cell completed.",
+  "clean_relaunch_rows": 0,
+  "duplicate_keys_in_clean_output": 0,
+  "quarantined_corrupt_runs": {
+    "CORRUPTED-20260730-091606": {
+      "rows": 493,
+      "unmapped_rows": 0,
+      "pairs_per_episode_distribution": {
+        "15": 30,
+        "10": 1,
+        "4": 1,
+        "5": 1,
+        "12": 2
+      },
+      "sha256": "9f7275f726380544cca9138fb9c2a389d840fb8c19995b413e7b4bba21159a8f",
+      "defect": "concurrent second writer truncated rows mid-line; pair counts != 15"
+    }
+  },
+  "analysis_policy": "Partial data must NOT be analyzed as a complete checkpoint.",
+  "artifacts_preserved": true,
+  "git": {
+    "commit": "240ed2f76be6fe1238f037ab1e1e834c0fd27afa",
+    "branch": "lro"
+  },
+  "script_sha256": {
+    "experiments/audit_k2_specialist_behavior.py": "5749527836db1c8ac05a8e28602da4bde918c34249ea1408b8e45403ee4601d1",
+    "experiments/analyze_k2_specialist_behavior.py": "c76a2fd638b7e7f53b04a9417d0e69564465a9f6444320350e77d400da5bbdbf",
+    "experiments/analyze_k2_behavior_gate.py": "c5cb7e2838d71ef8658df80628b9350283f81c2c0666ffb32e6d9ce9410f0305"
+  },
+  "manifest_sha256": "fa71d4e3ed9ce93498296ae0a28b609761396e8ccad89fd2a0ff38151f7a0c30",
+  "successor": "artifacts/g0_weakness_sweep"
+}

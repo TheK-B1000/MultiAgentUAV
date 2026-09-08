@@ -1,0 +1,81 @@
+{
+  "record": "CCP Phase 1 continuation entropy",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-01T14:34:56Z",
+  "implements": "CCP_PHASE1_CAUSAL_BRANCHING_SPEC.json#AMENDMENT_1",
+  "VERDICT": "RESEEDING_MACHINERY_VALIDATED",
+  "what_this_measures": "whether reseeding produces distinct environmental continuations, and how concentrated the continuation distribution is",
+  "what_this_does_NOT_define": "an effective sample size. Independent seeds producing the same continuation are still legitimate samples; precision is governed by Var(D_j), not trajectory uniqueness. M stands unless the machinery is inoperative.",
+  "M": 32,
+  "seed_mapping": "r_j = sha256('CCP_PHASE1|<state_id>|<j>')[:8] as int, mod 2^63-1",
+  "only_env_rng_reseeded": true,
+  "policy_actions": "deterministic argmax; policy stochasticity is outside the expectation",
+  "reference_episode": {
+    "seed": 11500021,
+    "pole": "A",
+    "length": 240,
+    "boundary_rule": "first live boundary at or after (40, 80, 120)"
+  },
+  "per_state": {
+    "11500021|A|40": {
+      "boundary_step": 40,
+      "reseeding_machinery_live": true,
+      "unreseeded_rollouts_identical": true,
+      "distinct_trajectories": 32,
+      "modal_trajectory_share": 0.03125,
+      "fraction_altered_vs_modal": 0.96875,
+      "distinct_terminal_outcomes": 1,
+      "outcome_mean": 1.0,
+      "outcome_counts": {
+        "win": 32,
+        "loss": 0
+      },
+      "episode_length_range": [
+        200,
+        200
+      ],
+      "effectively_deterministic_outcome": true
+    },
+    "11500021|A|80": {
+      "boundary_step": 80,
+      "reseeding_machinery_live": true,
+      "unreseeded_rollouts_identical": true,
+      "distinct_trajectories": 32,
+      "modal_trajectory_share": 0.03125,
+      "fraction_altered_vs_modal": 0.96875,
+      "distinct_terminal_outcomes": 1,
+      "outcome_mean": 1.0,
+      "outcome_counts": {
+        "win": 32,
+        "loss": 0
+      },
+      "episode_length_range": [
+        160,
+        160
+      ],
+      "effectively_deterministic_outcome": true
+    },
+    "11500021|A|120": {
+      "boundary_step": 120,
+      "reseeding_machinery_live": true,
+      "unreseeded_rollouts_identical": true,
+      "distinct_trajectories": 32,
+      "modal_trajectory_share": 0.03125,
+      "fraction_altered_vs_modal": 0.96875,
+      "distinct_terminal_outcomes": 1,
+      "outcome_mean": 1.0,
+      "outcome_counts": {
+        "win": 32,
+        "loss": 0
+      },
+      "episode_length_range": [
+        120,
+        120
+      ],
+      "effectively_deterministic_outcome": true
+    }
+  },
+  "unreseeded_control": "two rollouts with NO reseed must be identical, confirming that any variation observed is caused by the reseed and not by ambient nondeterminism",
+  "EVAL_touched": false
+}

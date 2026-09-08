@@ -1,0 +1,31 @@
+{
+  "protocol": "artifacts\\strategic_demand\\STRATEGY_ANCHORED_PPO_V1_FROZEN.json",
+  "semantics": "artifacts\\strategic_demand\\SAPPO_V1_LOSS_SEMANTICS_AMENDMENT.json",
+  "policy": "A",
+  "run_tag": "sappo_pi_A_specialist_1p5M_seed7100001",
+  "resume_from": "artifacts\\strategic_demand\\r1_training\\r1_pi_A_specialist_seed7100001\\ckpts\\final_r1_pi_A_specialist_seed7100001.zip",
+  "resume_checkpoint_sha256_16": "cdbe3ddc817f3149",
+  "additional_steps": 500000,
+  "cumulative_target": 1500000,
+  "seed": 7100001,
+  "own_flag_home_required_to_score": true,
+  "opponent_pool": [
+    "OP6"
+  ],
+  "anchor_dataset": "artifacts\\strategic_demand\\sappo_demonstrations\\anchor_A_train.npz",
+  "anchor_dataset_sha256_16": "553eb4589de86a68",
+  "demo_run_id": "6cca922e683b",
+  "lambda_anchor": 0.1,
+  "cadence": 4,
+  "changed_vs_R1_parent": [
+    "checkpoint_dir",
+    "episode_csv_path",
+    "load_path",
+    "metrics_csv_path",
+    "run_tag",
+    "sappo_anchor_dataset",
+    "total_timesteps"
+  ],
+  "scored_checkpoint": "1.5M terminal only; no checkpoint shopping",
+  "utc": "2026-08-20T11:38:06Z"
+}

@@ -1,0 +1,62 @@
+{
+  "record": "OG-PSP paired rehearsal smoke on the real bank",
+  "status": "SMOKE_RESULT",
+  "utc": "2026-08-31T06:17:41Z",
+  "VERDICT": "PASS",
+  "implements": "ORACLE_GATED_PAIRED_SPECIALIST_PRESERVATION_SPEC.json",
+  "meaning": "Proves the paired treatment path exists: same state -> two contradictory specialist targets -> loss -> optimizer -> parameter update. Says NOTHING about whether learning works.",
+  "bank": {
+    "states": 4949,
+    "eligible": 1804,
+    "A_preferred": 929,
+    "B_preferred": 875,
+    "tied_excluded_from_sampling": 3145,
+    "eligible_with_teacher_disagreement": 1182,
+    "teacher_disagreement_frac": 0.6552,
+    "targets_per_batch_state": 2
+  },
+  "model": {
+    "fresh_step_0": true,
+    "params": 3534144,
+    "seed": 5150
+  },
+  "pairing_verified_per_state": true,
+  "positive_control_disagreement_states": 240,
+  "latent_exposures": {
+    "z0": 384,
+    "z1": 384
+  },
+  "latent_exposures_equal": true,
+  "tied_exposures": 0,
+  "legacy_one_sided_path_calls": 0,
+  "loss_aggregation": {
+    "by_pairs": {
+      "32": 1.5453860759735107,
+      "64": 1.4571921825408936,
+      "128": 1.3434062004089355
+    },
+    "max_min_ratio": 1.15,
+    "verdict": "MEAN"
+  },
+  "parameters": {
+    "changed": 15,
+    "unchanged": 14,
+    "changed_groups": [
+      "actor_cnn",
+      "latent_actor"
+    ],
+    "unchanged_groups": [
+      "critic",
+      "phase_predictor",
+      "strategy_encoder"
+    ],
+    "unchanged_equals_no_gradient_set": true
+  },
+  "loss_first_last": [
+    1.534346342086792,
+    1.566992163658142
+  ],
+  "failures": [],
+  "authorizes": "nothing; the rollout smoke and a fresh PI decision remain",
+  "EVAL_touched": false
+}

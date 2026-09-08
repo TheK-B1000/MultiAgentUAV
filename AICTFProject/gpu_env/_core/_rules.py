@@ -42,17 +42,201 @@ class _RulesMixin:
         self.blue_tagged = self.blue_tagged & (~b_home)
         self.red_tagged = self.red_tagged & (~r_home)
 
+    @staticmethod
+    def _keep_nearest_target(elig: torch.Tensor, dist: torch.Tensor,
+                             target_dim: int) -> torch.Tensor:
+        """Keep only each tagger's NEAREST eligible target.
+
+        ``elig`` and ``dist`` are both (B, Nb, Nr); ``target_dim`` is the axis
+        holding the targets. This is what lets a teammate absorb a tag intended
+        for the flag carrier.
+        """
+        big = torch.finfo(dist.dtype).max
+        masked = torch.where(elig, dist, torch.full_like(dist, big))
+        nearest = masked.argmin(dim=target_dim, keepdim=True)
+        keep = torch.zeros_like(elig)
+        keep.scatter_(target_dim, nearest, True)
+        return elig & keep
+
+    def _emit_tag_events(self, *, blue_tags, red_tags, newly_red_tagged,
+                         newly_blue_tagged, dist, in_tag_range,
+                         red_targetable, blue_targetable,
+                         blue_off_cooldown, red_off_cooldown, cooldown_T) -> None:
+        """Append exact tag-success and cooldown-denial events. Read-only."""
+        rid = getattr(self.cfg, "ruleset_id", "UNKNOWN")
+        _dt = float(self.dt)
+        _has_t = hasattr(self, "sim_step_count")
+
+        def sim_time(b: int) -> float:
+            """Per-env simulation time. Reading env 0 for every event was wrong:
+            vectorized envs advance independently, so events from env k carried
+            env 0's clock and collided in identity checks."""
+            return float(self.sim_step_count[b].item()) * _dt if _has_t else 0.0
+        bx, by = self.blue_x, self.blue_y
+        rx, ry = self.red_x, self.red_y
+        # Side predicates come from the ENV's own rule, never a recomputed
+        # midline. The env uses mid = (cols - 1) * 0.5 with inclusive bounds;
+        # telemetry previously recomputed cols * 0.5, a half-cell offset that
+        # falsely flagged legal tags near the boundary as wrong-side.
+        blue_own = self._is_on_home_side("blue", bx)
+        red_own = self._is_on_home_side("red", rx)
+        blue_on_red = self._is_on_home_side("red", bx)
+        red_on_blue = self._is_on_home_side("blue", rx)
+
+        def _f(t, b, i):
+            return float(t[b, i].item())
+
+        # --- successes: attribute to the taggers that actually acted ---------
+        for team, tags, newly in (("blue", blue_tags, newly_red_tagged),
+                                  ("red", red_tags, newly_blue_tagged)):
+            idx = newly.nonzero(as_tuple=False)
+            for row in idx.tolist():
+                b, tgt = int(row[0]), int(row[1])
+                if team == "blue":
+                    taggers = tags[b, :, tgt].nonzero(as_tuple=False).flatten().tolist()
+                    elig = in_tag_range[b, :, tgt] & red_targetable[b, tgt]
+                    tpos, gpos = (rx, ry), (bx, by)
+                    cd_before = self.blue_tag_cooldown
+                    carrying = self.red_carrying
+                    was_tagged = self.red_tagged
+                    cand = blue_tags[b, :, tgt]
+                else:
+                    taggers = tags[b, tgt, :].nonzero(as_tuple=False).flatten().tolist()
+                    elig = in_tag_range[b, tgt, :] & blue_targetable[b, tgt]
+                    tpos, gpos = (bx, by), (rx, ry)
+                    cd_before = self.red_tag_cooldown
+                    carrying = self.blue_carrying
+                    was_tagged = self.blue_tagged
+                    cand = red_tags[b, tgt, :]
+                for g in taggers:
+                    if team == "blue":
+                        d = float(dist[b, g, tgt].item())
+                        gx, gy = _f(bx, b, g), _f(by, b, g)
+                        tx, ty = _f(rx, b, tgt), _f(ry, b, tgt)
+                        g_own = bool(blue_own[b, g].item())
+                        t_on_tagger_side = bool(red_on_blue[b, tgt].item())
+                        elig_targets = blue_tags[b, g, :].nonzero(
+                            as_tuple=False).flatten().tolist()
+                    else:
+                        d = float(dist[b, tgt, g].item())
+                        gx, gy = _f(rx, b, g), _f(ry, b, g)
+                        tx, ty = _f(bx, b, tgt), _f(by, b, tgt)
+                        g_own = bool(red_own[b, g].item())
+                        t_on_tagger_side = bool(blue_on_red[b, tgt].item())
+                        elig_targets = red_tags[b, :, g].nonzero(
+                            as_tuple=False).flatten().tolist()
+                    _ev = {
+                        "event_type": "tag_success",
+                        "simulation_time": sim_time(b), "ruleset_id": rid,
+                        "tagger_team": team, "tagger_index": g,
+                        "target_team": "red" if team == "blue" else "blue",
+                        "target_index": tgt,
+                        "tagger_position_at_decision": (gx, gy),
+                        "target_position_at_decision": (tx, ty),
+                        "distance_at_decision": d,
+                        "tagger_on_own_side": bool(g_own),
+                        "target_on_tagger_side": bool(t_on_tagger_side),
+                        "tagger_cooldown_before": float(cd_before[b, g].item()),
+                        "tagger_cooldown_after": float(cooldown_T),
+                        "target_was_tagged": bool(was_tagged[b, tgt].item()),
+                        "target_was_carrying_flag": bool(carrying[b, tgt].item()),
+                        "eligible_target_indices": elig_targets,
+                        "selected_nearest_target": tgt,
+                    }
+                    _ev.update(self._event_identity(b))
+                    self.tag_events.append(_ev)
+
+        # --- cooldown denials: eligible except for the cooldown --------------
+        if cooldown_T > 0.0:
+            b_den = (in_tag_range & (~self.blue_tagged)[:, :, None]
+                     & red_targetable[:, None, :] & (~blue_off_cooldown)[:, :, None])
+            r_den = (in_tag_range & (~self.red_tagged)[:, None, :]
+                     & blue_targetable[:, :, None] & (~red_off_cooldown)[:, None, :])
+            for team, den in (("blue", b_den), ("red", r_den)):
+                for row in den.nonzero(as_tuple=False).tolist():
+                    b = int(row[0])
+                    g, tgt = (int(row[1]), int(row[2])) if team == "blue" \
+                        else (int(row[2]), int(row[1]))
+                    cd = self.blue_tag_cooldown if team == "blue" else self.red_tag_cooldown
+                    _dv = {
+                        "event_type": "tag_denied", "reason": "cooldown",
+                        "simulation_time": sim_time(b), "ruleset_id": rid,
+                        "tagger_team": team, "tagger_index": g,
+                        "candidate_target_index": tgt,
+                        "cooldown_remaining": float(cd[b, g].item()),
+                    }
+                    _dv.update(self._event_identity(b))
+                    self.tag_events.append(_dv)
+
+    def _emit_capture_events(self, team: str, award_mask, delta: int) -> None:
+        """Record captures AT THE MOMENT OF SCORING.
+
+        Reading ``core.blue_score`` after ``step_wait()`` on a terminal step
+        returns the post-reset value, which silently reported 0-0 in episodes
+        that actually contained multiple captures. The ledger is the
+        authoritative record; post-step state is not.
+        """
+        if not bool(getattr(self.cfg, "tag_telemetry_enabled", False)):
+            return
+        rid = getattr(self.cfg, "ruleset_id", "UNKNOWN")
+        score_t = self.blue_score if team == "blue" else self.red_score
+        for row in award_mask.nonzero(as_tuple=False).tolist():
+            b = int(row[0])
+            before = int(score_t[b].item())
+            ev = {"event_type": "capture_scored", "ruleset_id": rid,
+                  "scoring_team": team, "score_before": before,
+                  "score_after": before + int(delta)}
+            ev.update(self._event_identity(b))
+            self.tag_events.append(ev)
+
+    def _event_identity(self, b: int, terminal_step: bool = False) -> dict:
+        """Authoritative integer identity for one event.
+
+        Produced at the SOURCE. Consumers must never re-derive episode
+        boundaries by counting reset markers -- doing so let identities collide
+        across episodes and produced phantom duplicate/contradiction findings.
+        """
+        self._event_seq = int(getattr(self, "_event_seq", 0)) + 1
+        return {
+            "env_index": int(b),
+            "episode_id": int(self.episode_id[b].item()),
+            "reset_sequence": int(self.reset_sequence[b].item()),
+            "simulation_step": int(self.sim_step_count[b].item()),
+            "decision_step": int(self.step_count[b].item()),
+            "event_sequence": int(self._event_seq),
+            "terminal_step": bool(terminal_step),
+        }
+
+    def drain_tag_events(self) -> list:
+        """Return buffered tag events and clear the buffer. Purely observational."""
+        events = list(self.tag_events)
+        self.tag_events.clear()
+        return events
+
     def _apply_aquaticus_tag_rules(
         self,
         blue_oob: torch.Tensor,
         red_oob: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-        Tagging uses a net/tag stack with a short tag channel:
+        """Aquaticus-faithful tagging (RULESET_V2).
 
-          - Each defender in tag radius contributes +1 pressure on nearby opponents.
-          - If pressure >= 2 is sustained for tag_channel_seconds, the target is tagged.
-          - If pressure drops below 2, the per-agent channel timer resets.
+        Per the official rules, a tagger is eligible when it is untagged, on its
+        OWN side, within ``tag_range_cells``, and off cooldown; the target must be
+        untagged and on the tagger's side. Then:
+
+          - ``taggers_required`` eligible taggers (default 1) tag the target.
+          - With ``tag_nearest_only`` each tagger only acts on its NEAREST
+            eligible opponent, so a teammate can absorb a tag to protect a
+            carrier -- the mechanic that makes escorts and decoys meaningful.
+          - A successful tagger is put on cooldown for
+            ``tag_min_interval_seconds`` before it may tag again.
+          - ``tag_channel_seconds`` (default 0) is a simulator debounce, not an
+            Aquaticus rule; non-zero values are an approximation.
+
+        RULESET_V1 (superseded) required two simultaneous taggers with no
+        cooldown and tagged every eligible target at once. Reproduce it with
+        taggers_required=2, tag_nearest_only=False, tag_min_interval_seconds=0,
+        tag_channel_seconds=1.0.
 
         OOB does NOT cause tagging; it only drops the flag if the agent is carrying.
         """
@@ -74,9 +258,21 @@ class _RulesMixin:
         dist = torch.sqrt(dx * dx + dy * dy + 1e-8)
         in_tag_range = dist <= float(self.cfg.tag_range_cells)
 
-        # Tagger must be untagged and on own side; target must be untagged and on opponent side
-        blue_can_tag = (~self.blue_tagged) & self._is_on_home_side("blue", self.blue_x)
-        red_can_tag = (~self.red_tagged) & self._is_on_home_side("red", self.red_x)
+        dt = self.dt
+        # Per-tagger cooldown ticks down first; a vehicle on cooldown is ineligible.
+        cooldown_T = float(getattr(self.cfg, "tag_min_interval_seconds", 0.0))
+        if cooldown_T > 0.0:
+            self.blue_tag_cooldown = (self.blue_tag_cooldown - dt).clamp(min=0.0)
+            self.red_tag_cooldown = (self.red_tag_cooldown - dt).clamp(min=0.0)
+        blue_off_cooldown = self.blue_tag_cooldown <= 0.0
+        red_off_cooldown = self.red_tag_cooldown <= 0.0
+
+        # Tagger must be untagged, on own side, and off cooldown; target must be
+        # untagged and on the tagger's side.
+        blue_can_tag = ((~self.blue_tagged) & self._is_on_home_side("blue", self.blue_x)
+                        & blue_off_cooldown)
+        red_can_tag = ((~self.red_tagged) & self._is_on_home_side("red", self.red_x)
+                       & red_off_cooldown)
         red_on_blue_side = self._is_on_home_side("blue", self.red_x)
         blue_on_red_side = self._is_on_home_side("red", self.blue_x)
         red_targetable = (~self.red_tagged) & red_on_blue_side
@@ -85,17 +281,23 @@ class _RulesMixin:
         blue_tags = in_tag_range & blue_can_tag[:, :, None] & red_targetable[:, None, :]
         red_tags = in_tag_range & red_can_tag[:, None, :] & blue_targetable[:, :, None]
 
-        # Pressure counts: how many eligible taggers are in range of each target agent.
+        # Nearest-eligible restriction: each tagger acts only on its closest
+        # eligible opponent, so a teammate can absorb a tag meant for the carrier.
+        if bool(getattr(self.cfg, "tag_nearest_only", True)):
+            blue_tags = self._keep_nearest_target(blue_tags, dist, target_dim=2)
+            red_tags = self._keep_nearest_target(red_tags, dist, target_dim=1)
+
+        # Pressure counts: how many eligible taggers are acting on each target.
         # blue_pressure_on_red: (B, Nr), red_pressure_on_blue: (B, Nb)
         blue_pressure_on_red = blue_tags.sum(dim=1)
         red_pressure_on_blue = red_tags.sum(dim=2)
 
-        dt = self.dt
-        channel_T = float(getattr(self.cfg, "tag_channel_seconds", 1.0))
+        channel_T = float(getattr(self.cfg, "tag_channel_seconds", 0.0))
+        need = int(getattr(self.cfg, "taggers_required", 1))
 
-        # Tagging channel: accumulate time when pressure >= 2; reset when below.
-        red_under_channel = blue_pressure_on_red >= 2
-        blue_under_channel = red_pressure_on_blue >= 2
+        # Tagging channel: accumulate while pressure meets the requirement.
+        red_under_channel = blue_pressure_on_red >= need
+        blue_under_channel = red_pressure_on_blue >= need
 
         self.red_tag_pressure_time = torch.where(
             red_under_channel,
@@ -108,13 +310,19 @@ class _RulesMixin:
             torch.zeros_like(self.blue_tag_pressure_time),
         )
 
+        # ``red_under_channel`` is required, not just the elapsed timer: with
+        # channel_T = 0 (the Aquaticus-faithful setting) the timer test
+        # ``>= 0`` is vacuously true, and without this conjunct every
+        # targetable agent would be tagged with no tagger present at all.
         newly_red_tagged = (
-            (self.red_tag_pressure_time >= channel_T)
+            red_under_channel
+            & (self.red_tag_pressure_time >= channel_T)
             & (~self.red_tagged)
             & red_targetable
         )
         newly_blue_tagged = (
-            (self.blue_tag_pressure_time >= channel_T)
+            blue_under_channel
+            & (self.blue_tag_pressure_time >= channel_T)
             & (~self.blue_tagged)
             & blue_targetable
         )
@@ -135,6 +343,39 @@ class _RulesMixin:
 
         red_had_flag = newly_red_tagged & self.red_carrying
         blue_had_flag = newly_blue_tagged & self.blue_carrying
+
+        # --- observational telemetry, emitted AT THE DECISION POINT ----------
+        # Recorded before cooldown is armed, before the tagged flag is set, and
+        # before movement / return-home / flag-drop side effects run. Gate 1
+        # previously reconstructed tags from post-step positions, which is
+        # temporally invalid: by then the target has been redirected home and
+        # the tagger has moved. Read-only -- must not affect dynamics.
+        if bool(getattr(self.cfg, "tag_telemetry_enabled", False)):
+            self._emit_tag_events(
+                blue_tags=blue_tags, red_tags=red_tags,
+                newly_red_tagged=newly_red_tagged, newly_blue_tagged=newly_blue_tagged,
+                dist=dist, in_tag_range=in_tag_range,
+                red_targetable=red_targetable, blue_targetable=blue_targetable,
+                blue_off_cooldown=blue_off_cooldown, red_off_cooldown=red_off_cooldown,
+                cooldown_T=cooldown_T,
+            )
+
+        # Start the cooldown on taggers that actually landed a tag, so the same
+        # vehicle cannot tag again immediately. This is what makes a decoy that
+        # "spends" a defender's tag a real tactic.
+        if cooldown_T > 0.0:
+            blue_tagger_used = (blue_tags & newly_red_tagged[:, None, :]).any(dim=2)
+            red_tagger_used = (red_tags & newly_blue_tagged[:, :, None]).any(dim=1)
+            self.blue_tag_cooldown = torch.where(
+                blue_tagger_used,
+                torch.full_like(self.blue_tag_cooldown, cooldown_T),
+                self.blue_tag_cooldown,
+            )
+            self.red_tag_cooldown = torch.where(
+                red_tagger_used,
+                torch.full_like(self.red_tag_cooldown, cooldown_T),
+                self.red_tag_cooldown,
+            )
 
         self.red_tagged = self.red_tagged | newly_red_tagged
         self.blue_tagged = self.blue_tagged | newly_blue_tagged
@@ -215,8 +456,12 @@ class _RulesMixin:
         close = dist <= float(self.cfg.suppression_range_cells)
         close_blue_count = close.sum(dim=1)
         close_red_count = close.sum(dim=2)
-        kill_red = (close_blue_count >= 2) & self.red_alive
-        kill_blue = (close_red_count >= 2) & self.blue_alive
+        # Suppression is a project-specific mechanic, NOT Aquaticus tagging. It
+        # keeps its own threshold so correcting the tag rule cannot silently
+        # change it.
+        supp_need = int(getattr(self.cfg, "suppression_attackers_required", 2))
+        kill_red = (close_blue_count >= supp_need) & self.red_alive
+        kill_blue = (close_red_count >= supp_need) & self.blue_alive
         red_had_flag = kill_red & self.red_carrying
         blue_had_flag = kill_blue & self.blue_carrying
         self._kill_agents(kill_blue, kill_red)
@@ -320,6 +565,31 @@ class _RulesMixin:
         cap_r = 1.2
         blue_capture_contact = self.blue_alive & self.blue_carrying & (~self.blue_tagged) & (b_home_dist <= cap_r)
         red_capture_contact = self.red_alive & self.red_carrying & (~self.red_tagged) & (r_home_dist <= cap_r)
+
+        # ---- M1 (V3 candidate): own flag must be home to score ------------
+        # Config-gated and DEFAULT OFF, so RULESET_V2 behaviour is unchanged
+        # bit-for-bit when the flag is absent. When enabled, a carrier that
+        # reaches its own home while its OWN flag is stolen cannot convert;
+        # scoring becomes possible again once the flag is recovered.
+        # This is the single approved V3 mechanic. Nothing else changes.
+        if bool(getattr(self.cfg, "own_flag_home_required_to_score", False)):
+            _eps = 1e-3
+            blue_own_home = (torch.sqrt(
+                (self.blue_flag_pos[:, 0] - self.blue_flag_home[:, 0]) ** 2
+                + (self.blue_flag_pos[:, 1] - self.blue_flag_home[:, 1]) ** 2
+                + 1e-12) <= _eps)
+            red_own_home = (torch.sqrt(
+                (self.red_flag_pos[:, 0] - self.red_flag_home[:, 0]) ** 2
+                + (self.red_flag_pos[:, 1] - self.red_flag_home[:, 1]) ** 2
+                + 1e-12) <= _eps)
+            # Telemetry: possessions that reached home but were denied.
+            self._m1_blue_blocked = (blue_capture_contact & (~blue_own_home[:, None]))
+            self._m1_red_blocked = (red_capture_contact & (~red_own_home[:, None]))
+            blue_capture_contact = blue_capture_contact & blue_own_home[:, None]
+            red_capture_contact = red_capture_contact & red_own_home[:, None]
+        else:
+            self._m1_blue_blocked = torch.zeros_like(blue_capture_contact)
+            self._m1_red_blocked = torch.zeros_like(red_capture_contact)
         self.blue_home_contact_frames = torch.where(
             blue_capture_contact,
             torch.clamp(self.blue_home_contact_frames + 1, max=1000),
@@ -341,6 +611,7 @@ class _RulesMixin:
         if b_cap_env.any():
             award_b = b_cap_env & grace_ok
             if award_b.any():
+                self._emit_capture_events("blue", award_b, cap_delta_b)
                 self.blue_score[award_b] += cap_delta_b
             self.blue_carrying[b_cap_env] = False
             self.red_flag_pos[b_cap_env] = self.red_flag_home[b_cap_env]
@@ -348,6 +619,7 @@ class _RulesMixin:
         if r_cap_env.any():
             award_r = r_cap_env & grace_ok & red_score_allowed
             if award_r.any():
+                self._emit_capture_events("red", award_r, cap_delta_r)
                 self.red_score[award_r] += cap_delta_r
             self.red_carrying[r_cap_env] = False
             self.blue_flag_pos[r_cap_env] = self.blue_flag_home[r_cap_env]

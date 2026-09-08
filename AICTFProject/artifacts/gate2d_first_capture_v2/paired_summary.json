@@ -1,0 +1,143 @@
+{
+  "gate": "gate2d_first_capture_latency",
+  "created_utc": "2026-07-31T21:24:02.269114+00:00",
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "opponent": "OP6",
+  "treatments": {
+    "both_attack": "BLUE_BOTH_ATTACK_V2",
+    "one_defender": "BLUE_ONE_DEFENDER_V2"
+  },
+  "paired_seeds": 32,
+  "seed_block": [
+    2200001,
+    2200032
+  ],
+  "no_capture_value": 241,
+  "capture_source": "authoritative capture_scored event ledger",
+  "integrity": {
+    "ok": true,
+    "problems": []
+  },
+  "manipulation": {
+    "min_separation": 0.25,
+    "home_defenders_agents": {
+      "mean": 0.4490933384409445,
+      "ci95": [
+        0.4099961229897278,
+        0.4859808685182065
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "forward_commit_agents": {
+      "mean": 0.4017198079360714,
+      "ci95": [
+        0.36869673175851,
+        0.4318696047345792
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "passed": true
+  },
+  "defense_benefit": {
+    "mean": 25.28125,
+    "ci95": [
+      6.375,
+      46.96953124999993
+    ],
+    "passed": true,
+    "units": "decision steps"
+  },
+  "offense_cost": {
+    "mean": 14.71875,
+    "ci95": [
+      5.90625,
+      25.1875
+    ],
+    "passed": true,
+    "units": "decision steps"
+  },
+  "supporting": {
+    "blue_captured": {
+      "both_attack": 1.0,
+      "one_defender": 1.0
+    },
+    "red_captured": {
+      "both_attack": 0.96875,
+      "one_defender": 0.90625
+    },
+    "blue_score": {
+      "both_attack": 2.75,
+      "one_defender": 2.9375
+    },
+    "red_score": {
+      "both_attack": 1.96875,
+      "one_defender": 1.21875
+    },
+    "blue_captures_by_60": {
+      "both_attack": 1.125,
+      "one_defender": 0.9375
+    },
+    "red_captures_by_60": {
+      "both_attack": 0.8125,
+      "one_defender": 0.59375
+    },
+    "first_flag_contact_step": {
+      "both_attack": 13.75,
+      "one_defender": 20.9375
+    },
+    "first_pickup_step": {
+      "both_attack": 14.9375,
+      "one_defender": 21.28125
+    },
+    "first_flag_drop_step": {
+      "both_attack": 29.1875,
+      "one_defender": 34.125
+    },
+    "carrier_return_steps": {
+      "both_attack": 54.375,
+      "one_defender": 49.875
+    },
+    "blue_tag_successes": {
+      "both_attack": 5.46875,
+      "one_defender": 5.15625
+    },
+    "red_tag_successes": {
+      "both_attack": 5.03125,
+      "one_defender": 2.5625
+    },
+    "cooldown_denials": {
+      "both_attack": 8.15625,
+      "one_defender": 15.875
+    },
+    "mean_num_attackers": {
+      "both_attack": 0.8777661712078979,
+      "one_defender": 0.4760463632718265
+    },
+    "mean_num_home_defenders": {
+      "both_attack": 0.8917778647368289,
+      "one_defender": 1.3408712031777734
+    },
+    "blue_home_defense_fraction": {
+      "both_attack": 0.7278709331193802,
+      "one_defender": 0.9926527185767026
+    },
+    "episode_steps": {
+      "both_attack": 127.0,
+      "one_defender": 151.53125
+    }
+  },
+  "verdict": "PASS",
+  "detail": "V2 demonstrates a real same-map offense/defense trade-off",
+  "passed": true
+}

@@ -308,6 +308,12 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.total_timesteps = int(args.total_steps)
     if getattr(args, "additional_steps", None) is not None:
         cfg.additional_timesteps = int(args.additional_steps)
+    if getattr(args, "sappo_anchor_dataset", None):
+        cfg.sappo_anchor_dataset = str(args.sappo_anchor_dataset)
+    if getattr(args, "sappo_anchor_lambda", None) is not None:
+        cfg.sappo_anchor_lambda = float(args.sappo_anchor_lambda)
+    if getattr(args, "sappo_anchor_cadence", None) is not None:
+        cfg.sappo_anchor_cadence = int(args.sappo_anchor_cadence)
     if args.load is not None:
         cfg.load_path = args.load
     elif args.resume is not None:
@@ -374,6 +380,8 @@ def cfg_from_args(args: argparse.Namespace) -> PPOConfig:
         cfg.reward_shaping_decay_steps = max(0, int(args.reward_shaping_decay_steps))
     if args.periodic_checkpoint_steps is not None:
         cfg.periodic_checkpoint_steps = max(0, int(args.periodic_checkpoint_steps))
+    if getattr(args, "max_decision_steps", None) is not None:
+        cfg.max_decision_steps = max(1, int(args.max_decision_steps))
     if getattr(args, "phase_a_disable_promotion", False):
         cfg.phase_a_disable_promotion = True
     if getattr(args, "csia_enabled", False):

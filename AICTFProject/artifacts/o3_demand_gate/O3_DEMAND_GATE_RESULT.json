@@ -1,0 +1,80 @@
+{
+  "record": "O3 demand gate result",
+  "generated_utc": "2026-08-10T06:14:05Z",
+  "protocol_commit": "d89e9f8",
+  "device": "cuda",
+  "torch": "2.11.0+cu128",
+  "cuda": "12.8",
+  "identities": {
+    "G0": {
+      "path": "artifacts\\g0_v5_long\\g0_v5_long_seed3200001\\ckpts\\final_g0_v5_long_seed3200001.zip",
+      "sha256": "94a28f25a1e81954b499428d29566d98b39482113666c637b289ebddd1966059",
+      "global_step": 1001472,
+      "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+      "canonical_map": "map_a",
+      "formal_result_eligible": true,
+      "identity_override_used": false
+    },
+    "O3": {
+      "path": "artifacts\\o3_run_3400001\\ckpts\\final_o3_run_3400001.zip",
+      "sha256": "f0ddfa3831ce2f14617ceb2bc7d40d46687cd6e111ced22ba7162b678147bd41",
+      "global_step": 1001472,
+      "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+      "canonical_map": "map_a",
+      "formal_result_eligible": true,
+      "identity_override_used": false
+    }
+  },
+  "seed_block": [
+    9830000,
+    9830029
+  ],
+  "n_episodes_per_arm": 210,
+  "c_fork": {
+    "delta": 0.02381,
+    "lcb95": -0.133333,
+    "ucb95": 0.171548,
+    "n_pairs": 210,
+    "PASS": false,
+    "mean_G0": 1.4143,
+    "mean_selector_B": 1.4381
+  },
+  "c_anchor": {
+    "delta": -0.004762,
+    "lcb95": -0.019048,
+    "ucb95": 0.009524,
+    "n_pairs": 210,
+    "PASS": false,
+    "mean_G0_at_boundary": -0.0095,
+    "mean_O3_at_boundary": -0.0048
+  },
+  "whole_game": {
+    "G0_score_diff": 1.4143,
+    "O3_score_diff": 1.3476,
+    "G0_win_rate": 0.8095,
+    "O3_win_rate": 0.8238
+  },
+  "g_available": {
+    "delta": 0.02381,
+    "lcb95": -0.128571,
+    "ucb95": 0.17631,
+    "n_pairs": 210,
+    "best_fixed": "G0",
+    "PASS": false,
+    "V_selector": 1.4381
+  },
+  "competence_floor": {
+    "threshold": "O3 wr >= 0.50 x G0 wr",
+    "G0_wr": 0.8095,
+    "O3_wr": 0.8238,
+    "PASS": true
+  },
+  "handoff": {
+    "fired_fraction_armA": 1.0,
+    "fired_fraction_armO": 1.0
+  },
+  "verdict": "NEGATIVE_DEVELOPMENT",
+  "permitted_claim": "O3 did not improve the carry-phase fork context in the canonical development seed.",
+  "prohibited_claim": "the task does not support multiple strategies; K=1 is established",
+  "wall_seconds": 16565.2
+}

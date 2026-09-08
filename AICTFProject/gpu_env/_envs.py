@@ -42,9 +42,16 @@ class GPUCTFVecEnv(VecEnv):
         # Optional (trainer-owned): called after terminal payloads are built but before ``reset_indices``,
         # so per-env scripted opponent changes apply to the upcoming episode (correct OP4 guard layout, etc.).
         self._before_reset_indices_hook: Optional[Any] = None
+        # Optional (trainer-owned): called after ``reset_indices`` so scenario injectors
+        # (e.g. V6I26 phase pods) can mutate the freshly reset episode start state.
+        self._after_reset_indices_hook: Optional[Any] = None
 
     def reset(self) -> Dict[str, np.ndarray]:
         self.core.reset_all()
+        after = getattr(self, "_after_reset_indices_hook", None)
+        if callable(after):
+            done = np.ones((self.num_envs,), dtype=bool)
+            after(done, [{} for _ in range(self.num_envs)])
         return self.core.get_obs()
 
     def get_obs(self) -> Dict[str, np.ndarray]:
@@ -96,6 +103,9 @@ class GPUCTFVecEnv(VecEnv):
             if callable(hook):
                 hook(done, infos)
             self.core.reset_indices(reset_mask)
+            after = getattr(self, "_after_reset_indices_hook", None)
+            if callable(after):
+                after(done, infos)
             obs = self.core.get_obs()
         self._pending_actions = None
         return obs, rew, done, infos

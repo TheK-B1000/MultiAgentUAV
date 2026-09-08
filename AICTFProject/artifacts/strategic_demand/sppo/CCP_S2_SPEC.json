@@ -1,0 +1,221 @@
+{
+  "record_id": "CCP_S2_INCUMBENT_RELATIVE_CAUSAL_IMPROVEMENT_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-02T13:30:00Z",
+  "authority": "PI, 2026-09-02, after CCP_SUCCESSOR_CROSSOVER_NOT_CONFIRMED (commit 698d5ea6, reversal audited GENUINE_REVERSAL)",
+  "name": "CCP-S2: Incumbent-Relative Causal Policy Improvement",
+  "not_a_reopening": "a genuinely new program, own name, own preregistration, own namespace -- not V5, not a further attempt on the sealed successor's SEQUENCE axis. That axis is closed: no further reopening under any outcome.",
+
+  "SCIENTIFIC_HYPOTHESIS": {
+    "predecessor_established": {
+      "training_validity": "CONFIRMED (d25ad264)",
+      "latent_differentiation": "CONFIRMED, highest JSD in the ladder (4a6e4239)",
+      "trajectory_identity": "CONFIRMED, widest margin in the ladder -- delta_tau_A +9.9418, delta_tau_B +26.4771, R 1.71/3.92 (4a6e4239)",
+      "strategic_crossover": "NOT_CONFIRMED, both poles, genuinely (698d5ea6)"
+    },
+    "hypothesis": "Sparse teacher-vs-teacher causal ranking does not guarantee improvement over the incumbent policy. Incumbent-relative causal supervision, measured on the incumbent's own deployment distribution and applied through matched warm-start fine-tuning, can improve complementary strategic payoff.",
+    "the_conceptual_change_stated_literally": "Teacher-vs-teacher superiority remains informative, but is no longer sufficient justification for training. Incumbent-relative improvement is the training gate.",
+    "what_survives_from_the_predecessor": "the discovery that a nominally non-pole specialist can be locally superior remains valid -- pi_B can still be selected on Pole A. What disappears is teacher-vs-teacher sign as SUFFICIENT justification for training; it must also beat the incumbent.",
+    "S2_does_not_target_stronger_identity": "we already proved enormous identity separation without payoff crossover. Trajectory identity is descriptive in S2, never a gate."
+  },
+
+  "CAUSAL_ESTIMAND": {
+    "unit": "x = (state s, estimand e), from the prospectively selected boundary set",
+    "three_arms_per_unit_matched_continuation_seed_j": {
+      "R_0": "incumbent latent policy continues normally (the baseline)",
+      "R_A": "pi_A receives the frozen SEQUENCE intervention",
+      "R_B": "pi_B receives the identical SEQUENCE intervention"
+    },
+    "M": 16,
+    "estimator": "A_hat_A(x) = mean_j(R_A^j - R_0^j),  A_hat_B(x) = mean_j(R_B^j - R_0^j)",
+    "these_are_estimates_not_confirmed_effects": true,
+    "ROUTING_RULE": {
+      "select_pi_A": "A_hat_A > max(0, A_hat_B)  =>  t* = pi_A, w = A_hat_A",
+      "select_pi_B": "A_hat_B > max(0, A_hat_A)  =>  t* = pi_B, w = A_hat_B",
+      "no_target_if_neither_improves": "max(A_hat_A, A_hat_B) <= 0  =>  w = 0",
+      "no_target_on_exact_positive_tie": "A_hat_A == A_hat_B > 0  =>  w = 0 -- no causal evidence favours one teacher over the other, so arbitrary routing would contaminate the interpretation",
+      "exact_tie_rate_reported_descriptively": "the 1/16 outcome grid makes exact ties a real, non-negligible source of lost training support, not a measure-zero edge case -- must be reported once the bank exists, not merely assumed rare"
+    }
+  },
+
+  "COLLECTION_DISTRIBUTION": {
+    "incumbent_checkpoint": {
+      "path": "artifacts/strategic_demand/sppo/ccp_successor_production/ckpts/final_ccp_successor_production.zip",
+      "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "role": "incumbent AND state-distribution generator"
+    },
+    "no_reuse_of_the_seven_segment_bank": true,
+    "matched_deployment_distributions_only": {
+      "Pole_A_incumbent": "z0",
+      "Pole_B_incumbent": "z1",
+      "applies_to_both_free_states_too": "the baseline continuation at a Pole-A both-free state is the FULL z0 policy; the Pole-B baseline is the full z1 policy -- stated explicitly so it cannot be read as ambiguous at freeze or at implementation"
+    },
+    "boundary_count": "64 per pole, 128 total, prospectively selected, outcome-blind",
+    "stratification_per_pole": {
+      "early": {"agent0_only": 6, "agent1_only": 8, "both_free": 7, "total": 21},
+      "mid":   {"agent0_only": 6, "agent1_only": 8, "both_free": 7, "total": 21},
+      "late":  {"agent0_only": 7, "agent1_only": 8, "both_free": 7, "total": 22},
+      "total": {"agent0_only": 19, "agent1_only": 24, "both_free": 21, "total": 64}
+    },
+    "selection_rule": "deterministic order within each stratum from a frozen hash of state identifiers (seed, prefix_len), the same discipline as the sealed predecessor's pilot selection. Never by teacher disagreement, outcome, branch result, or eventual advantage.",
+    "estimands_per_state": "one-free states: 1 estimand. both-free states: 3 (agent0, agent1, joint).",
+    "estimand_count": {
+      "one_free_per_pole": 43,
+      "both_free_estimands_per_pole": 63,
+      "per_pole_total": 106,
+      "both_poles_total": 212
+    },
+    "job_count": {
+      "formula": "212 state-estimand pairs x 3 arms x M=16",
+      "total": 10176
+    },
+    "wall_clock_estimate": {
+      "basis": "empirically measured Phase 1 rate: ~43 s/rollout on 4 CUDA workers (VRAM-limited, confirmed empirically in CCP_PHASE1_JOB_PLAN.json's execution)",
+      "formula": "10176 x 43s / 4 workers",
+      "seconds": 109392,
+      "hours_idealized_continuous": 30.4,
+      "note": "measurement is the expensive phase; offline training-bank construction afterward is cheap by comparison (one canonical rollout per SELECTED positive-advantage state-estimand, the same shape as the predecessor's 7-segment bank build). This estimate goes in the record before collection begins, not discovered mid-run."
+    }
+  },
+
+  "BANK_CONSTRUCTION": {
+    "runs_after_all_measurement_and_routing_is_frozen": true,
+    "joint_precedence_preserved": "at a both-free state, a usable joint intervention supersedes individual interventions. If no usable joint record exists (w=0 for joint), usable individual records may contribute.",
+    "ANTI_TRAJECTORY_SHOPPING_RULE": {
+      "rule": "never choose a favourable trajectory from the 16 measurement continuations for distillation",
+      "canonical_seed": "r_bank(x) = H('S2_BANK', state_id, estimand), derived INDEPENDENTLY of the 16 measurement seeds",
+      "procedure": "roll the already-selected teacher t*(x) exactly once, under this canonical seed",
+      "closed_loophole": "teacher selection and weight w come EXCLUSIVELY from the 16-arm measurement. The canonical rollout's own terminal outcome cannot alter either t* or w -- it only supplies the (obs, action) trajectory data for training."
+    }
+  },
+
+  "FROZEN_MACHINERY_UNCHANGED": [
+    "M=16", "CRN reseeding", "exact-prefix replay", "the frozen CUDA/numerical stack",
+    "decision predicate d_t^i = [commit_ticks_left_i <= 0]", "SEQUENCE takeover",
+    "episode-termination duration", "joint precedence", "static latent assignment",
+    "SAPPO specialist teacher checkpoints", "private actor branches (LRO deep)",
+    "private critic heads", "task PPO reward", "the task PPO implementation itself",
+    "lambda_causal = 0.05"
+  ],
+  "EXPLICITLY_NOT_DONE": [
+    "no JSD bonus", "no new discriminator", "no larger latent", "no identity objective",
+    "no critic architecture change", "no mid-run causal-bank refresh"
+  ],
+  "MID_RUN_REFRESH_EXPLICITLY_REJECTED": "A mid-run bank refresh is not used because it would change the treatment based on an intermediate checkpoint, undermine the fixed-bank causal interpretation, and break the clean treatment/control symmetry.",
+
+  "CAUSAL_OBJECTIVE": {
+    "weight": "w_k = max(A_hat_{t*}(k), 0)",
+    "loss": "L_causal = sum_{k,t,i} d_kti * w_k * L_teacher_kti  /  sum_{k,t,i} d_kti * w_k",
+    "committed_agents": "contribute neither numerator nor denominator",
+    "zero_weight_records": "must produce exactly zero attributable causal gradient",
+    "uniform_scaling_invariance": "uniformly scaling all positive w_k must not change the normalised causal loss -- lambda_causal carries strength, weights carry only relative importance",
+    "implementation_reuse": "rl/causal_supervision.py's causal_supervision_loss and decision-mask machinery, unchanged. Only the weight source and the routing derivation change."
+  },
+
+  "WARM_START_PROTOCOL": {
+    "this_is_not_fresh_init": "both arms load the SAME predecessor weights. This is the program's first use of warm-started weights -- flagged explicitly so it is never mistaken for the fresh_step_0 convention every prior run in the program used.",
+    "config_fields": {
+      "checkpoint_weights_loaded": true,
+      "optimizer_state_reused": false,
+      "phase": "S2_fine_tune",
+      "fresh_step_0_field_retired_for_this_experiment": "using fresh_step_0=True here would be semantically misleading -- the WEIGHTS are not fresh, only the optimizer state is"
+    },
+    "both_arms_identical_init": "same warm-start weights, same fresh optimizer initialisation, same training seed and configuration. Only the presence of L_causal differs.",
+    "arms": {
+      "CONTROL": "warm-start weights + task PPO only",
+      "TREATMENT": "same warm-start weights + same task PPO + lambda_causal * L_causal"
+    },
+    "matched_exactly": ["number and timing of task PPO minibatches", "rollout horizon",
+                        "environment assignments", "optimizer configuration",
+                        "overall training horizon", "training seed"]
+  },
+
+  "TRAINING_HORIZON": {
+    "value": 500000,
+    "not_1000000": true,
+    "reasoning": "S2's causal bank is intentionally measured from the incumbent deployment distribution. As the treatment changes the policy, the bank necessarily becomes increasingly off-policy. A 500k fixed fine-tuning horizon limits this drift while providing substantial exposure to the larger causal bank. This reasoning is specific to S2's on-policy premise -- no prior run in the program needed it, because no prior bank ever claimed to be on-policy.",
+    "rules": ["no early stopping", "no extension after observing training telemetry",
+              "no terminal-horizon change after seeing results", "no mid-run bank refresh",
+              "no checkpoint selection", "terminal checkpoint only"]
+  },
+
+  "TRAINING_INTEGRITY_DIAGNOSTICS": {
+    "trajectory_identity_is_NOT_a_gate_this_time": "STRICTLY_NOT_A_GATE. May be measured descriptively for the paper, exactly as the predecessor's own diagnostic was descriptive relative to EVAL, but it does not define S2 mechanism success.",
+    "S2_mechanism_integrity_counters": [
+      "N_{A_hat_A > 0}", "N_{A_hat_B > 0}",
+      "selected pi_A records", "selected pi_B records",
+      "exact-positive-tie count and rate",
+      "nonpositive (w=0) record count",
+      "positive-support coverage by pole / phase / commitment topology",
+      "joint-precedence suppression count",
+      "causal exposure by z0 / z1",
+      "causal-update count over training",
+      "zero-weight-record gradient check (must be exactly zero)",
+      "decision-mask integrity (committed heads excluded from numerator AND denominator)",
+      "private actor branch motion (both latents)",
+      "private critic head motion (both heads)",
+      "legacy-path guards (fatal, not merely counted, exactly as the predecessor's runner enforced)",
+      "treatment persistence through the full 500k steps"
+    ]
+  },
+
+  "EVAL_PROTOCOL": {
+    "namespace": "completely untouched, disjoint from every block this program or its predecessor used",
+    "seeds_per_cell": 64,
+    "not_32": "the predecessor's Pole-A point estimate was positive (+0.0938) but its LCB95 did not clear zero (-0.0938); a larger n directly targets that precision gap",
+    "shared_seeds_across_arms": "both TREATMENT and CONTROL are scored on the SAME 64 seeds per cell, so they can be paired directly",
+
+    "PRIMARY_CROSSOVER_GATE": {
+      "treatment": {
+        "delta_A_T": "V_T(z0,A) - V_T(z1,A)",
+        "delta_B_T": "V_T(z1,B) - V_T(z0,B)",
+        "criterion": "LCB95(delta_A_T) > 0 AND LCB95(delta_B_T) > 0",
+        "question": "Did S2 produce complementary strategic crossover?"
+      },
+      "control": {
+        "delta_A_C, delta_B_C": "identical calculation, same seeds",
+        "question": "Would continued PPO alone, from the same warm start, have crossed over?"
+      }
+    },
+
+    "ATTRIBUTION_REFINEMENT": {
+      "why_this_exists": "PI: 'treatment passes, control fails' is not by itself proof the causal loss beat continued PPO. Two nearly identical estimates could fall on opposite sides of a confidence threshold and manufacture a prettier story than the data justify.",
+      "gamma_A": "Gamma_A = delta_A_T - delta_A_C",
+      "gamma_B": "Gamma_B = delta_B_T - delta_B_C",
+      "statistic": "preregistered PAIRED bootstrap over the shared 64 seeds -- same n_boot=20000, alpha=0.05, rng_seed=7 convention as every EVAL in this program",
+      "attribution_criterion": "LCB95(Gamma_A) > 0 AND LCB95(Gamma_B) > 0",
+      "attribution_claim": "The causal treatment improved strategic crossover beyond continued PPO alone."
+    },
+
+    "PREREGISTERED_INTERPRETATION_MATRIX": [
+      {"treatment": "PASS", "control": "FAIL", "gamma": "both PASS",     "reading": "Strong S2 result: crossover plus causal-treatment advantage"},
+      {"treatment": "PASS", "control": "FAIL", "gamma": "not both PASS", "reading": "Crossover achieved under S2; superiority to continued PPO NOT confirmed"},
+      {"treatment": "PASS", "control": "PASS", "gamma": "both PASS",     "reading": "Both cross, but S2 still demonstrably improves crossover margins"},
+      {"treatment": "PASS", "control": "PASS", "gamma": "not both PASS", "reading": "Crossover achieved, causal attribution unresolved"},
+      {"treatment": "FAIL", "control": "PASS", "gamma": "any",           "reading": "Continued PPO succeeds where S2 does not; causal treatment not supported"},
+      {"treatment": "FAIL", "control": "FAIL", "gamma": "any",           "reading": "S2 crossover not confirmed"}
+    ],
+    "rule": "no row of this matrix is discarded because it produces a less favourable narrative. A successful control is not thrown away to preserve a cleaner story.",
+
+    "one_shot": "both arms' EVAL runs exactly once each, no rerun under any outcome",
+    "exact_tie_or_reversal_on_either_arm": "requires a row-level integrity audit, written before its rows are read, the same standing rule as OG-PSP's GENUINE_TIE and the sealed predecessor's GENUINE_REVERSAL"
+  },
+
+  "OPEN_ITEMS_DELIBERATELY_NOT_FROZEN_HERE": {
+    "note": "left open rather than invented, per this program's standing discipline that seed/namespace choice is a PI decision or requires explicit mechanical-preflight sign-off, not something filled in silently during a design freeze",
+    "collection_seed_namespace": "next clean block would be 117xxxxx by the program's own convention (115xxxxx=Phase0/1, 116xxxxx=successor train+eval), but not assigned here -- requires a mechanical preflight scan exactly like every prior EVAL/collection block in this program",
+    "S2_training_seed": "not assigned",
+    "S2_EVAL_block": "not assigned; must be disjoint from 117xxxxx and everything prior"
+  },
+
+  "PROVENANCE": {
+    "sealed_predecessor": "CCP_SUCCESSOR_EVAL_RESULT.json + CCP_SUCCESSOR_EVAL_INTEGRITY.json (698d5ea6)",
+    "predecessor_training_validity": "CCP_SUCCESSOR_MODEL_FROZEN.json (d25ad264)",
+    "predecessor_mechanism": "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json (4a6e4239)",
+    "reused_machinery": ["rl/causal_supervision.py", "rl/causal_segment_bank.py's joint-precedence pattern",
+                         "experiments/ccp_phase1_collect.py's CRN and prefix-replay pattern",
+                         "eval_hog_psp_v3.py's _mean_ci / _ratio_ci bootstrap objects"]
+  },
+
+  "NEXT": "assign the collection seed namespace and mechanical-preflight it; build the S2 state selector (stratified, outcome-blind); build the 3-arm CRN collector; only then begin the ~30-hour measurement phase."
+}

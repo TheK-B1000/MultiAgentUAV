@@ -1,0 +1,121 @@
+{
+  "record": "PHASE0 first-interval treatment evidence",
+  "utc": "2026-08-24T13:47:44Z",
+  "seeds_checked": [
+    6500001,
+    6500001,
+    6500002,
+    6500002
+  ],
+  "checks": {
+    "four_path_coverage": [
+      "A|pi_A",
+      "A|pi_B",
+      "B|pi_A",
+      "B|pi_B"
+    ],
+    "four_path_coverage_complete": true,
+    "source_balance_128_128_per_pole": {
+      "A": {
+        "pi_A": 128,
+        "pi_B": 128
+      },
+      "B": {
+        "pi_A": 128,
+        "pi_B": 128
+      }
+    },
+    "tertile_selection": [
+      {
+        "seed": 6500001,
+        "pole": "A",
+        "source": "pi_A",
+        "split": "train",
+        "steps": 240,
+        "n_decision_points": 174,
+        "selected": [
+          46,
+          117,
+          201
+        ],
+        "notes": []
+      },
+      {
+        "seed": 6500001,
+        "pole": "B",
+        "source": "pi_B",
+        "split": "train",
+        "steps": 240,
+        "n_decision_points": 172,
+        "selected": [
+          46,
+          121,
+          199
+        ],
+        "notes": []
+      },
+      {
+        "seed": 6500002,
+        "pole": "A",
+        "source": "pi_B",
+        "split": "train",
+        "steps": 240,
+        "n_decision_points": 181,
+        "selected": [
+          38,
+          116,
+          200
+        ],
+        "notes": []
+      },
+      {
+        "seed": 6500002,
+        "pole": "B",
+        "source": "pi_A",
+        "split": "train",
+        "steps": 240,
+        "n_decision_points": 186,
+        "selected": [
+          43,
+          120,
+          199
+        ],
+        "notes": []
+      }
+    ],
+    "no_duplicate_branch_state_within_episode": true,
+    "replay_to_state_reproduction_exact": true,
+    "both_teachers_from_identical_restored_state": true,
+    "teacher_consistent_continuation": true,
+    "split_rule": "first 160 seeds train, remaining 96 held-out",
+    "no_evaluation_seed_in_block": true,
+    "forbidden_bases_checked": [
+      2500001,
+      2600001,
+      5000001,
+      6000001,
+      7000001,
+      7100001,
+      7200001,
+      7500001,
+      7600001,
+      7800001,
+      7900001,
+      8000001,
+      8400001,
+      8900001,
+      9500001,
+      9700001
+    ]
+  },
+  "cost": {
+    "measured_plain_episode_seconds": 34.7,
+    "measured_branch_point_seconds": 67.16,
+    "branch_to_episode_ratio": 1.94,
+    "n_plain_timed": 4,
+    "n_branch_timed": 4,
+    "projected_full_collection_seconds": 138690.0,
+    "projected_full_collection_hours": 38.52,
+    "note": "branch timing here includes the DOUBLE build used for the reproduction check; production branches build two envs, not four, so the projection is conservative"
+  }
+}

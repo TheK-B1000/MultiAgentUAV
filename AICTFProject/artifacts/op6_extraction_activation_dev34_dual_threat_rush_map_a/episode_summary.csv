@@ -1,0 +1,9 @@
+blue_style,red_style,map,episode_index,episode_seed,pickups,scores,failed_returns,fail_class_counts,armed_at_pickup_n,never_armed_n,block_blue_anchor_at_pickup_n,red_score,blue_score,steps,mean_pickup_to_arm_delay
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,0,601001,3,2,1,"{""C3"": 1}",0,0,0,3,2,89,1.0
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,1,601002,3,2,1,"{""C2"": 1}",0,0,0,3,3,89,1.0
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,2,601003,3,2,1,"{""C3"": 1}",0,0,0,3,2,86,1.0
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,3,601004,3,2,1,"{""C3"": 1}",0,0,0,2,3,88,1.0
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,4,601005,3,2,1,"{""C1"": 1}",0,0,0,2,3,88,1.0
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,5,601006,3,2,1,"{""C3"": 1}",0,0,0,2,3,91,1.0
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,6,601007,3,2,1,"{""C1"": 1}",0,0,0,3,2,91,1.0
+BLUE_RUSH,OP6_IMMEDIATE_DUAL_RUSH,map_a,7,601008,3,2,1,"{""C1"": 1}",0,0,0,2,3,89,1.0

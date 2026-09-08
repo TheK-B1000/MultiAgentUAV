@@ -1,0 +1,22 @@
+{
+  "captured_utc": "2026-08-13T22:46:00Z",
+  "source": "live mid-preflight artifacts/vgc_diversity/vgc_d3_seed3799001/episode_rows.csv",
+  "n_episodes": 49,
+  "questions": {
+    "1_all_configured_occurred": {
+      "pass": true,
+      "counts": {"SCRIPTED:OP7": 26, "SCRIPTED:OP9": 10, "SCRIPTED:OP12": 13}
+    },
+    "2_no_outside_pool": {"pass": true, "outside": []},
+    "3_outside_pool_gradient_bearing": {
+      "pass": true,
+      "note": "No outside-pool episode rows; therefore no outside-pool PPO exposure observed mid-run."
+    },
+    "4_map_a_ruleset_v2": {
+      "pass": true,
+      "canonical_map": "map_a (49/49)",
+      "ruleset_id": "RULESET_V2_AQUATICUS_10S (49/49)"
+    }
+  },
+  "status": "MID_RUN_SNAPSHOT_not_final_gate_verdict"
+}

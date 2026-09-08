@@ -1,0 +1,41 @@
+{
+  "record_id": "SCALING_IS_ADDITIVE_DEADLINE_RULE",
+  "status": "FROZEN_PROGRAM_RULE",
+  "utc": "2026-09-05T18:20:00Z",
+  "authority": "PI, 2026-09-05, with the ICRA deadline on 2026-09-15.",
+
+  "THE_RULE": {
+    "verbatim": "4v4/6v6 are additive external-validity results. They are not allowed to delay or destabilize the completed 2v2 paper package.",
+    "consequence": "if certification or the scaled distillation audit discovers another rabbit hole, STOP there and keep writing. The 2v2 package ships regardless."
+  },
+
+  "COMPUTE_SEPARATION": {
+    "local_pc": ["finish the Rung 3 matched eval", "2v2 deployment robustness: localization noise, motion error, control delay", "paper results and analysis"],
+    "school_pcs": ["4v4 pi_A, pi_B", "6v6 pi_A, pi_B", "latent distillation at each size"],
+    "why_separable": "the 2v2 robustness work needs the local GPU and no new training; the scaled work needs long PPO runs and no local GPU.",
+    "OBSERVED_CONTENTION_CAVEAT": "sealed GPU evaluation in this project is bottlenecked by CPU env stepping, not GPU inference. A CPU-side job (e.g. the strategic-demand certification) therefore DOES contend with a running GPU eval: with the Rung 3 eval in flight the 4v4 certification ran far slower than its 54 s/seed solo probe. Separation is by device only in a loose sense; schedule accordingly."
+  },
+
+  "SCHOOL_PC_GREEN_LIGHT_REQUIRES_ALL_THREE": [
+    "STRATEGIC_DEMAND_<N>v<N>_CERTIFICATION.json exists with VERDICT == CERTIFIED",
+    "specialist A and B PPO smokes PASS at that size",
+    "the scaled distillation path is audited AND smoke-passes at that size"
+  ],
+  "enforcement": "experiments/train_specialist_scale.py already refuses production training for any size whose certification is missing or not CERTIFIED. The gate was tested and fires.",
+
+  "SCALED_DISTILLATION_AUDIT_RESULT": {
+    "utc": "2026-09-05T18:19:00Z",
+    "generic_already": {
+      "rl/teacher_distillation.py": "derives n_agents from decision_mask.shape[1] and validates n_heads % n_agents; no hard-coded team size",
+      "rl/causal_supervision.py": "decision_mask_from_core takes n_agents and ASSERTS the live tick tensor matches, raising CausalRoutingError otherwise"
+    },
+    "needs_parameterizing": {
+      "experiments/collect_distillation_states.py": "module constant N_AGENTS = 2, passed to decision_mask_from_core",
+      "experiments/r2_learned_crossover.py": "build_env uses its own module-level AGENTS"
+    },
+    "NAMING_TRAP_RECORDED": "the collector's constant is named N_AGENTS, not AGENTS, so train_scale.py's _propagate_team_size sweep -- which looks for an attribute literally named AGENTS -- does NOT catch it. A scaled distillation wrapper must set it explicitly. The failure mode is LOUD (the decision_mask_from_core assertion fires on the shape mismatch) rather than a silent mistrain, but the sweep must not be trusted to cover it.",
+    "verdict": "BOUNDED, NOT A RABBIT HOLE. The distillation core is already team-size generic; the work is one constant plus an env-builder global, wrapped the same way train_specialist_scale.py wraps the specialist path."
+  },
+
+  "WHAT_IS_NOT_AUTHORIZED_BY_THIS_RECORD": ["production specialist training at any size", "scaled distillation runs", "any change to the 2v2 poles, probes, checkpoints or results", "deployment robustness at 4v4 or 6v6 (those sizes have no frozen latent policy)"]
+}

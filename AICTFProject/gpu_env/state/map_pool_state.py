@@ -1,11 +1,11 @@
 """Per-episode map pool sampling for vectorized training."""
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import torch
 
-from .._maps import MAP_A_OPEN, normalize_map_layout
+from .._maps import normalize_map_layout
 
 
 class _MapPoolStateMixin:
@@ -14,6 +14,7 @@ class _MapPoolStateMixin:
     _map_pool: Tuple[str, ...]
     _map_layout_per_env: List[str]
     _map_id_per_env: List[int]
+    _pending_map_layout_per_env: List[Optional[str]]
 
     def _init_map_pool_state(self) -> None:
         pool_raw = tuple(getattr(self.cfg, "map_pool", ()) or ())
@@ -23,6 +24,7 @@ class _MapPoolStateMixin:
             self._map_pool = ()
         self._map_layout_per_env = [str(self.map_layout).lower()] * int(self.B)
         self._map_id_per_env = [-1] * int(self.B)
+        self._pending_map_layout_per_env = [None] * int(self.B)
         if self._map_pool:
             for env_i in range(int(self.B)):
                 self._assign_map_layout_for_env(env_i, self._draw_map_pool_index())
@@ -32,6 +34,21 @@ class _MapPoolStateMixin:
             return -1
         pick = int(torch.randint(len(self._map_pool), (1,), generator=self._rng, device=self.device).item())
         return pick
+
+    def set_next_map_layout(self, layout: str, env_indices=None) -> None:
+        """Queue a map layout for the next reset of selected envs (joint cell sampling)."""
+        layout_n = normalize_map_layout(str(layout))
+        if env_indices is None:
+            indices = list(range(int(self.B)))
+        else:
+            indices = [int(i) for i in env_indices]
+        if (
+            not hasattr(self, "_pending_map_layout_per_env")
+            or len(self._pending_map_layout_per_env) != int(self.B)
+        ):
+            self._pending_map_layout_per_env = [None] * int(self.B)
+        for env_i in indices:
+            self._pending_map_layout_per_env[int(env_i)] = layout_n
 
     def _assign_map_layout_for_env(self, env_i: int, pool_idx: int) -> None:
         if not self._map_pool:
@@ -51,9 +68,25 @@ class _MapPoolStateMixin:
     def _resample_map_pool(self, env_mask: torch.Tensor) -> None:
         if not self._map_pool:
             return
+        if (
+            not hasattr(self, "_pending_map_layout_per_env")
+            or len(self._pending_map_layout_per_env) != int(self.B)
+        ):
+            self._pending_map_layout_per_env = [None] * int(self.B)
         idx = torch.where(env_mask)[0]
         for env_i in idx.detach().cpu().tolist():
-            self._assign_map_layout_for_env(int(env_i), self._draw_map_pool_index())
+            env_i = int(env_i)
+            pending = self._pending_map_layout_per_env[env_i]
+            if pending is not None:
+                if pending in self._map_pool:
+                    pool_idx = int(self._map_pool.index(pending))
+                    self._assign_map_layout_for_env(env_i, pool_idx)
+                else:
+                    self._map_layout_per_env[env_i] = pending
+                    self._map_id_per_env[env_i] = -1
+                self._pending_map_layout_per_env[env_i] = None
+            else:
+                self._assign_map_layout_for_env(env_i, self._draw_map_pool_index())
 
     def _map_layout_mask(self, layouts: Sequence[str]) -> torch.Tensor:
         wanted = {normalize_map_layout(x) for x in layouts}

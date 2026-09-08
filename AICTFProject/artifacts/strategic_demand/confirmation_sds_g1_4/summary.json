@@ -1,0 +1,73 @@
+{
+  "record": "SDS_G1_4 Gate B confirmation",
+  "utc": "2026-08-18T08:08:08Z",
+  "protocol": "artifacts/strategic_demand/CANDIDATE_A_SDS_G1_4_FROZEN.json",
+  "seed_block_amendment": "artifacts/strategic_demand/CONFIRMATION_SEED_BLOCK_AMENDMENT.json",
+  "seed_base": 5000001,
+  "n_paired": 32,
+  "seed_range": "5000001..5000032",
+  "total_episodes": 128,
+  "floor": 0.15,
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "procedure": "paired percentile bootstrap, imported from m1_payoff_assay"
+  },
+  "A_pole": {
+    "pole": "A_SDS_G1_4",
+    "genome_id": "SDS_G1_4",
+    "direction": "guard_minus_breach",
+    "n_paired": 32,
+    "seed_base": 5000001,
+    "seed_range": "5000001..5000032",
+    "guard_wr": 0.46875,
+    "breach_wr": 0.0,
+    "delta": 0.46875,
+    "lcb95": 0.3125,
+    "ucb95": 0.65625,
+    "clears_floor": true,
+    "lcb_positive": true,
+    "passes": true,
+    "frac_0_0": 0.625,
+    "mean_total_score": 1.171875,
+    "degeneracy_penalty": 0.1875
+  },
+  "B_pole": {
+    "pole": "B_OP7",
+    "genome_id": "SDS_PARENT_OP7",
+    "direction": "breach_minus_guard",
+    "n_paired": 32,
+    "seed_base": 5000001,
+    "seed_range": "5000001..5000032",
+    "guard_wr": 0.0,
+    "breach_wr": 0.46875,
+    "delta": 0.46875,
+    "lcb95": 0.3125,
+    "ucb95": 0.625,
+    "clears_floor": true,
+    "lcb_positive": true,
+    "passes": true,
+    "frac_0_0": 0.71875,
+    "mean_total_score": 0.359375,
+    "degeneracy_penalty": 0.26953125
+  },
+  "observability": {
+    "definition": "t_intent - t_commit on BREACH episodes; censored values -> MAX_STEPS+1",
+    "n": 32,
+    "n_both_observed": 25,
+    "mean_intent_minus_commit": -17.40625,
+    "lcb95": -54.1875,
+    "ucb95": 18.4375,
+    "frac_positive": 0.65625,
+    "passes": false
+  },
+  "gate_B": {
+    "A_passes": true,
+    "B_passes": true,
+    "observability_passes": false,
+    "all_required": true
+  },
+  "verdict": "V3_STRATEGIC_DEMAND_NOT_VALIDATED",
+  "thresholds_not_moved": "0.15 floor and LCB95>0 unchanged from the original freeze"
+}

@@ -1,0 +1,58 @@
+{
+  "record_id": "D4_SPEC_FROZEN",
+  "status": "FROZEN_BEFORE_ANY_D4_QUANTITY_IS_COMPUTED",
+  "utc": "2026-08-27T15:35:00Z",
+  "authority": "PI ruling",
+  "name": "Target Resolution Audit",
+  "classification": "DIAGNOSTIC ONLY. Existing stored branch data. No training, no new seeds, no FINAL access, no RASR interference.",
+  "the_question": "Is the high terminal-margin tie rate SPECIFIC to own_flag_stolen, or is terminal win margin generally too coarse for state-level strategic ranking?",
+  "why_it_matters": "D3 found 91.2% of PRIMARY stolen-flag pole-B branch pairs are TIED -- only 8 of 91 states carry directional signal. If other regimes are similarly tied, the scorer objective is mismatched to the state-level ranking problem in general, and stolen-flag is not uniquely pathological. That would materially weaken the regime-specific framing.",
+  "primary_quantity": {
+    "tie_rate": "P(M(pi_B|s) == M(pi_A|s)) per regime, on pole-B paired branch states",
+    "non_tied_preference": "among non-tied states only, mean sign and fraction favouring each teacher",
+    "M": "terminal win margin, blue - red, the same target Q_psi was fit on"
+  },
+  "regimes_compared": {
+    "four_way": [
+      "home_not_carrying",
+      "home_carrying",
+      "stolen_not_carrying",
+      "stolen_carrying"
+    ],
+    "marginal_views": [
+      "own_flag_stolen vs own_flag_home",
+      "carrying vs not_carrying"
+    ],
+    "encoding": "2*stolen + carrying, via QPsi.regime_from_vec (verified 0/240 mismatches vs live core state)"
+  },
+  "scope": "pole B only, as specified. Pole A is NOT part of this frozen question.",
+  "data_sources": {
+    "PRIMARY": "Phase 0 original branch pairs -- the ONLY source spanning all four regimes, and collected before any regime finding existed",
+    "D2_supplement_EXCLUDED_from_the_comparison": "the D2 supplement is 100% stolen-flag by construction, so it cannot inform a cross-regime comparison. Including it would inflate the stolen cell only and bias the very contrast D4 exists to measure. It may be reported for the stolen cell alone, clearly labelled, and never pooled into the comparison."
+  },
+  "bootstrap": {
+    "unit": "SEED",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "rule": "resample seeds with replacement, carrying all of a seed's states together",
+    "prohibited": "treating individual branch states as independent"
+  },
+  "PERMITTED_READINGS": {
+    "stolen_uniquely_tied": "stolen-flag ~90% tied while other regimes are markedly lower -> the stolen-flag regime is genuinely TARGET-DEGENERATE. RASR R1 still makes sense, but a regime-aware scorer may need a more discriminative training signal specifically in that regime.",
+    "all_regimes_similarly_tied": "-> terminal win margin is TOO COARSE for local strategic supervision in general. A bigger result: it weakens 'stolen-flag is uniquely pathological' and indicts the scorer objective's fit to the state-level ranking problem.",
+    "mixed": "moderate elsewhere but still high enough to explain broadly weak supervision -> mixed; report as such"
+  },
+  "D2_REFINEMENT_REQUIRED_REGARDLESS_OF_OUTCOME": {
+    "preserve_verbatim": "At 50/100/200 samples, the scorer failed to recover the expected global teacher ordering.",
+    "add": "D3 later established that the conditional branch target is overwhelmingly tied in the relevant regime, so D2's REPRESENTATION_CAPACITY_LIMITED interpretation may not uniquely identify model capacity. Increased density may simply have provided more examples with zero directional supervision.",
+    "classification": "refinement of interpretation, NOT invalidation of the experiment"
+  },
+  "hard_boundaries": [
+    "does NOT touch the running RASR DEV collector or the 105... block",
+    "does NOT touch FINAL 10600001..10600192",
+    "reads stored terminal outcomes only -- no environment steps",
+    "does NOT authorize training, a successor, or any RASR advancement",
+    "does NOT alter SPPPO_V1_NOT_CONFIRMED or delete D2"
+  ]
+}

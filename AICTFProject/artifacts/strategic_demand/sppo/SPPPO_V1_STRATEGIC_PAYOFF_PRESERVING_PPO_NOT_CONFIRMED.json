@@ -1,0 +1,172 @@
+{
+  "record": "SPPPO V1 strategic payoff-preserving PPO permanent result freeze",
+  "status": "FROZEN",
+  "classification": "FAIL",
+  "classification_note": "Valid treatment that completed the frozen scientific evaluation. NOT INVALID.",
+  "verdict": "SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED",
+  "frozen_at_utc": "2026-08-27T01:30:00Z",
+  "claim": "Persistent assigned-pole latent training combined with payoff-aware strategic ranking did not achieve preregistered crossover confidence on the untouched 192-seed final block, despite strong retention and substantial behavioral separation.",
+  "closeout": "SPPPO V1 completed a valid, prospectively controlled test of persistent assigned-pole latent training combined with payoff-aware strategic ranking. The resulting K=2 policy retained strong task performance and substantial behavioral separation, and both held-out payoff contrasts were correctly signed, but neither crossover effect achieved the preregistered confidence bound and Pole-B behavioral identity failed. SPPPO V1 is therefore NOT CONFIRMED. No rerun, lambda-grid extension, seed expansion, estimator change, or post-hoc threshold modification is authorized.",
+  "interpretation_notes": [
+    {
+      "id": 1,
+      "title": "Strategic direction present but not reliable",
+      "summary": "Both payoff contrasts had the intended sign, but neither cleared the frozen confidence requirement.",
+      "metrics": {
+        "delta_A_z": {"mean": 0.036458333333333336, "lcb95": -0.052083333333333336},
+        "delta_B_z": {"mean": 0.052083333333333336, "lcb95": -0.041666666666666664}
+      },
+      "permitted_claim": "Correctly directed point estimates without statistically confirmed crossover under the preregistered 192-seed evaluation.",
+      "prohibited_claim": "SPPPO produced no strategic effect."
+    },
+    {
+      "id": 2,
+      "title": "Performance was not the bottleneck",
+      "summary": "Retention passed very strongly, ruling out the easy explanation that compression simply destroyed task competence.",
+      "metrics": {
+        "rho": 1.2212389380530975,
+        "lcb95": 1.1074380165289255
+      }
+    },
+    {
+      "id": 3,
+      "title": "Behavioral diversity was not sufficient",
+      "summary": "JSD passed strongly and Pole-A identity passed, yet strategic crossover still failed. Pole-B identity failed with confidently wrong-signed margin.",
+      "metrics": {
+        "jsd_bits": {"mean": 0.2285707935063949, "lcb95": 0.22816717115851123, "passes": true},
+        "margin_A_bits": {"mean": 0.9600696992179016, "lcb95": 0.9453380534003788, "passes": true},
+        "margin_B_bits": {"mean": -0.03092726524866408, "lcb95": -0.03642081937742811, "passes": false}
+      },
+      "central_result": "Different latent behaviors, strong retained performance, and even explicit payoff-aware training are not sufficient to guarantee a reliably complementary latent strategic repertoire."
+    },
+    {
+      "id": 4,
+      "title": "First clean negative against the treatment actually intended",
+      "summary": "EXP2B/EXP2C cannot establish this conclusion because persistent assignment was not instantiated there. SPPPO V1 maintained z0<->A and z1<->B throughout training.",
+      "authority": "artifacts/strategic_demand/ASSIGNED_POLE_PERSISTENCE_NOT_ENFORCED.json",
+      "treatment_integrity": {
+        "z0_opponent": "OP6",
+        "z1_opponent": "OP7",
+        "assigned_pole_occupancy": {"P(OP6|z0)": 1.0, "P(OP7|z1)": 1.0},
+        "z_pole_consistency_violations": 0,
+        "source": "artifacts/strategic_demand/sppo/SPPPO_V1_PRODUCTION_TERMINAL.json"
+      }
+    }
+  ],
+  "development_final_distinction": {
+    "development_selected_lambda_R": 1.0,
+    "development_reason": "Only grid point improving both contrasts relative to the corrected structural-zero control on the out-of-sample development block.",
+    "development_source": "artifacts/strategic_demand/sppo/SPPPO_LAMBDA_SELECTION.json",
+    "final_block": "10300001..10300192",
+    "caveat": "Development selection did not reproduce with sufficient confidence on the untouched final block. Boundary selection at the top of the lambda grid remains a caveat, not a reason to reopen tuning."
+  },
+  "protocol": {
+    "path": "artifacts/strategic_demand/sppo/SPPPO_V1_PROTOCOL.json",
+    "protocol_id": "SPPPO_V1",
+    "sha256": "d4a9628fe6cb3ac2bc05827422fffba7011c039f9b0ae3296b2033b951915b95",
+    "seed_block": "10300001..10300192",
+    "paired_seeds": 192,
+    "episodes_per_cell": 192,
+    "total_episodes": 1536,
+    "bootstrap": {
+      "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    }
+  },
+  "implementation": {
+    "repository_head_at_eval_commit": "26da398838bda117ca5b058c87ece92b3d20343b",
+    "experiment_wrapper": {
+      "path": "experiments/eval_sppo_v1_terminal.py",
+      "sha256": "8526933d8170e5e5e69cd66c57b2c6e71f58c461cf83cf1125ff44bb6c0bd115"
+    },
+    "shared_scoring_implementation": {
+      "path": "experiments/eval_exp2_k2_terminal.py",
+      "sha256": "e06eec66efdffe290331819625053836a6b7864a3749a18523bb2f68b1b1ced4"
+    },
+    "qpsi_on_final_path": "ABSENT by construction"
+  },
+  "checkpoints": {
+    "student_terminal": {
+      "path": "artifacts/strategic_demand/sppo/production/sppo_v1_production_1M_seed10100001/ckpts/final_sppo_v1_production_1M_seed10100001.zip",
+      "sha256": "1260e420b85ad01b1aecf433d65688adf153538195d30511e26a3585b7285f1f"
+    },
+    "teacher_pi_A_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "teacher_pi_B_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "production_treatment": {
+    "lambda_R": 1.0,
+    "margin": 0.04,
+    "ranking_cadence": "1:1",
+    "budget_realised": 1003520,
+    "combined_treatment": "persistent assigned-pole training + strategic ranking"
+  },
+  "payoff_matrix": {
+    "z0|A": 0.7552083333333334,
+    "z0|B": 0.6302083333333334,
+    "z1|A": 0.71875,
+    "z1|B": 0.6822916666666666,
+    "pi_A|A": 0.6302083333333334,
+    "pi_A|B": 0.3385416666666667,
+    "pi_B|A": 0.4427083333333333,
+    "pi_B|B": 0.546875
+  },
+  "strategic_crossover": {
+    "delta_A_z": {
+      "contrast": "WR(z0,A) - WR(z1,A)",
+      "mean": 0.036458333333333336,
+      "lcb95": -0.052083333333333336,
+      "ucb95": 0.11979166666666667,
+      "passes": false
+    },
+    "delta_B_z": {
+      "contrast": "WR(z1,B) - WR(z0,B)",
+      "mean": 0.052083333333333336,
+      "lcb95": -0.041666666666666664,
+      "ucb95": 0.14583333333333334,
+      "passes": false
+    },
+    "gate": "LCB95(delta_A_z) > 0 AND LCB95(delta_B_z) > 0",
+    "passes": false
+  },
+  "retention": {
+    "student_matched_value": 0.71875,
+    "teacher_matched_value": 0.5885416666666666,
+    "rho": 1.2212389380530975,
+    "lcb95": 1.1074380165289255,
+    "ucb95": 1.3523809523809525,
+    "gate": "paired-bootstrap LCB95(rho) >= 0.90",
+    "passes": true
+  },
+  "behavioral_action_identity": {
+    "jsd_bits": {"mean": 0.2285707935063949, "lcb95": 0.22816717115851123, "ucb95": 0.2289711635568865, "passes": true},
+    "teacher_A_alignment_margin_bits": {"mean": 0.9600696992179016, "lcb95": 0.9453380534003788, "ucb95": 0.9747130548106628, "passes": true},
+    "teacher_B_alignment_margin_bits": {"mean": -0.03092726524866408, "lcb95": -0.03642081937742811, "ucb95": -0.025383015981083588, "passes": false},
+    "argmax_disagreement": {"mean": 0.28812753588163176, "lcb95": 0.2842803634097066, "ucb95": 0.29199811117325364},
+    "passes": false
+  },
+  "artifacts": {
+    "terminal_freeze": {"path": "artifacts/strategic_demand/sppo/sppo_v1_terminal_evaluation/terminal_freeze.json", "sha256": "f990170a9803ee10927adfbddfb1825bb40331300abfce9b87dea5451f362c4d"},
+    "episode_rows": {"path": "artifacts/strategic_demand/sppo/sppo_v1_terminal_evaluation/episode_rows.csv", "rows": 1536, "sha256": "1e85a6f04653cf8b3c92afa21ababa528bf51e51bb37bd4f4b16d4cb56a2f25f"},
+    "action_identity_by_seed": {"path": "artifacts/strategic_demand/sppo/sppo_v1_terminal_evaluation/action_identity_by_seed.csv", "rows": 192, "sha256": "a9848cb93fb9976d96b4cd091cf2dd8a2d2bc44bb3f5b7eb06ca4a7c37effca5"},
+    "summary": {"path": "artifacts/strategic_demand/sppo/sppo_v1_terminal_evaluation/summary.json", "sha256": "04672a8463c09aa64c0a1cfaed2c8bf53147a1463e286e000e8dc1a59c7056ef"},
+    "stdout": {"path": "artifacts/strategic_demand/sppo/final_evaluation.log", "sha256": "74484a6fdb538ed9037c931e89586a54681b1e293c35704c239deb53f8d62082"}
+  },
+  "branch_resolution": {
+    "signature": "crossover FAIL (both contrasts correctly signed at mean), retention PASS, identity FAIL (margin_B)",
+    "SPPPO_V1": "CLOSED",
+    "SPPPO_V2": "NOT AUTHORIZED without fresh prospective PI decision",
+    "EXP3": "LOCKED",
+    "EXP4": "LOCKED"
+  },
+  "immutability": {
+    "rerun": "FORBIDDEN",
+    "lambda_grid_extension": "FORBIDDEN",
+    "seed_expansion": "FORBIDDEN",
+    "estimator_change": "FORBIDDEN",
+    "threshold_change": "FORBIDDEN",
+    "checkpoint_selection": "FORBIDDEN",
+    "artifact_regeneration": "FORBIDDEN"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "record_id": "CONCURRENT_AGENT_PROVENANCE_RECONCILIATION",
+  "status": "FROZEN",
+  "utc": "2026-08-27T02:35:00Z",
+  "authority": "PI ruling",
+  "finding": "A separate Cursor agent (co-authored-by: Cursor <cursoragent@cursor.com>) operated concurrently on this repository during the D0 background run, producing commits 0b19f8ae and 41b495ec that this session did not create. The PI confirmed it is not a session they control or launched from this conversation -- genuinely external, concurrent activity, apparently tracking the same repository state (its D0 spec pins sha256 hashes of this session's own intermediate diagnose_sppo_pole_b_failure.py outputs at the 24-seed mark).",
+  "verified_before_this_record": {
+    "no_data_conflict": "Cursor's SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED.json reads the SAME underlying payoff_matrix as this session's frozen final evaluation (z0|A: 0.7552083333333334, z1|B: 0.6822916666666666, byte-identical) -- it is reading the one frozen summary.json, not a second diverging evaluation.",
+    "no_active_resource_contention": "no competing python/GPU process was running at the time of discovery; only an unrelated blender_mcp process was alive.",
+    "nothing_overwritten": "this session's own commits (fd5702cd through 9d793a69) are unmodified in history; this session's staged D0 artifacts were untouched by either Cursor commit."
+  },
+  "RULING": {
+    "verdict_status": "SPPPO V1 CLOSED AS VALID FAIL, ratified in this conversation",
+    "closure_scope": [
+      "no automatic SPPPO V2",
+      "no rerun",
+      "no lambda grid extension",
+      "no seed block expansion",
+      "no estimator or confidence-procedure change",
+      "no post-hoc threshold modification",
+      "no checkpoint cherry-picking"
+    ],
+    "closure_does_not_prohibit": "analysing the frozen model to understand WHY it failed. D0 is authorized postmortem diagnosis on a closed branch.",
+    "cursor_closure_record_disposition": "Cursor's SPPPO_V1_CLOSED.json is substantively consistent with the closure already ratified in this conversation and does not alter the verdict. It is PRESERVED, not rewritten, squashed, or deleted.",
+    "d0_analysis_authority": "The prospectively frozen D0 analysis specification at commit 9d793a69 (D0_REPORTING_SPEC_FROZEN.json, implemented by experiments/analyze_d0_seed_bootstrap.py) is AUTHORITATIVE for the 192-seed postmortem, because it was fixed while D0 was still running and before the 192-seed outcome existed. Cursor's independently produced D0_SEED_LEVEL_UNCERTAINTY_REPORTING_FREEZE.json is PRESERVED as a concurrent artifact but is NON-AUTHORITATIVE for analysis selection -- it does not override, supplement, or reinterpret the 9d793a69 procedure unless shown byte-equivalent in all scientifically relevant respects. That equivalence has not been checked and is not asserted here.",
+    "d0_purpose": "D0 remains a diagnostic on a CLOSED V1 branch. It may inform a fresh prospective successor decision. It cannot reopen, rescue, or alter the V1 verdict."
+  },
+  "hierarchy": [
+    "SPPPO V1 result",
+    "FINAL NEGATIVE / CLOSED",
+    "D0 postmortem allowed",
+    "9d793a69 is the authoritative D0 analysis spec",
+    "D0 may motivate a NEW prospective method",
+    "no V2 automatically"
+  ],
+  "what_this_record_does_not_do": [
+    "does not rewrite, squash, or delete any commit from either agent",
+    "does not modify SPPPO_V1_CLOSED.json or any Cursor artifact",
+    "does not modify the frozen SPPPO_V1_NOT_CONFIRMED verdict",
+    "does not authorize any training"
+  ],
+  "artifact_hashes_at_reconciliation": {
+    "cursor_SPPPO_V1_CLOSED.json": "d7c34f873808ab239e5c88d34aa4e1956ecb595d5fe973ce27cccbaa512c731b",
+    "cursor_D0_reporting_freeze": "487a90ec56e6e183a52288c2deb7d953f3614f47f692d674d97ef99637444b70",
+    "this_session_D0_REPORTING_SPEC_FROZEN.json": "d12d7058f4c55a3f144645121b1dba72fa6c2e53f4c2ba9291dd1db1bac651ce",
+    "this_session_D0_SCOPE_CORRECTION.json": "b1d2581dd994a232c292b961429a0bd71190acfd5b9fd9dfe364720b5fbef107"
+  }
+}

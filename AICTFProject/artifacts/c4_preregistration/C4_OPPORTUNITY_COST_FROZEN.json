@@ -1,0 +1,133 @@
+{
+  "preregistration": "C4 — opportunity-cost / preference-reversal screen",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-10T09:00:00Z",
+  "frozen_before": "any C4 rollout, analysis or candidate selection exists",
+  "motivated_by": "artifacts/o3_demand_gate/O3_DEMAND_GATE_RESULT.json (b9e51ae)",
+
+  "why_c4_exists": {
+    "what_c3_proved": "Actionable commitment forks are common and replicate: C3_PASS at LCB95 0.7466 against a 0.20 bar, STAGE4_PASS on 3/3 policies both legs. A different legal response frequently improves the situation.",
+    "what_c3_never_measured": "whether the improving response COSTS anything elsewhere",
+    "what_o3_showed": "O3 reproduced G0 rather than specializing. Its trigger fired in 99.98% of episodes, so it trained on effectively G0's own distribution -- but the deeper gap is that actionability alone gives PPO no reason to trade anything away. Without an opportunity cost, an improvement folds into the generalist.",
+    "the_stronger_question": "C3 asked 'is there another legal response that improves this situation?'. C4 asks 'does the response that helps here make you worse somewhere else?'",
+    "explicitly_not_the_plan": "narrowing the O3 trigger until PPO produces something different. A narrower trigger is only justified once a tradeoff is demonstrated, and must then be derived from that tradeoff rather than invented."
+  },
+
+  "target_pattern": {
+    "shape": "a preference REVERSAL between two legal team responses across two naturally occurring context classes",
+    "table": "in context A, response R1 beats R2; in context B, response R2 beats R1",
+    "why_this_is_the_raw_material": "A reversal means no single response dominates, which is the minimal condition under which keeping two policies can pay. Actionability without reversal is an upgrade, not a strategy."
+  },
+
+  "unit_of_analysis": {
+    "state": "natural decision states reached by frozen G0 play",
+    "eligibility": "n_legal_team_responses >= 2, computed by rl.analysis.legal_team_responses",
+    "no_injected_states": true,
+    "no_counterfactual_labels_used_for_selection": "C3/Stage-4 fork labels and best_team_response are NOT inputs to C4 selection"
+  },
+
+  "context_classes": {
+    "rule": "frozen, natural, label-free binary partitions read from run_g0_v2_evaluation.legal_context",
+    "partitions": [
+      "score_stratum: leading vs trailing (tied excluded from pair tests)",
+      "carrier_present: blue carrying vs not",
+      "home_threatened: true vs false",
+      "agents_forward >= 2 vs agents_forward == 0",
+      "carrier_under_pressure: true vs false",
+      "defender_tag_available: true vs false"
+    ],
+    "pairing": "a context pair is the two sides of ONE partition; cross-partition pairs are not tested",
+    "why_binary_and_frozen": "an open search over context definitions would rediscover the multiplicity problem C1 was rejected for"
+  },
+
+  "utility": {
+    "name": "carrier_survival",
+    "horizon": 30,
+    "inherited_from": "the frozen C3 contract",
+    "status": "SCREEN PROXY, exactly as in C3",
+    "explicit_limitation": "a reversal on this proxy is a screening result, not a task-outcome claim. Any O4 that follows must still be judged on final score differential, per de6fb58."
+  },
+
+  "reversal_criterion": {
+    "per_response_pair_and_partition": [
+      "mean_utility(R1) - mean_utility(R2) >= 0.10 in class A, with episode-clustered 95% CI excluding zero",
+      "mean_utility(R2) - mean_utility(R1) >= 0.10 in class B, with episode-clustered 95% CI excluding zero"
+    ],
+    "delta": 0.10,
+    "delta_source": "inherited from the C3 contract's delta, not newly chosen",
+    "both_directions_required": true,
+    "why_both": "a single-direction effect is actionability, which C3 already established"
+  },
+
+  "support_minima": {
+    "min_states_per_context_class": 30,
+    "min_states_per_response_pair_per_class": 30,
+    "cluster_unit": "episode"
+  },
+
+  "replication": {
+    "policies": [3200001, 3200002, 3200003],
+    "requirement": "the same response pair and partition must reverse in the same direction in >= 2 of 3 policies"
+  },
+
+  "statistics": {
+    "method": "episode-clustered bootstrap",
+    "resamples": 2000,
+    "seed": 12345,
+    "LCB95": "q_0.025, per C3_STAGE3_LCB_DEFINITION_AMENDMENT.json"
+  },
+
+  "seeds": {
+    "discovery_block": [9840000, 9840029],
+    "confirmation_block": [9850000, 9850029],
+    "disjoint_from": [
+      "9100000+ V6I9", "9200000+ collapse", "9300000-2 TASK_HEALTH",
+      "9400000+ G0-V5 discovery / C3", "9500000+ C1 confirmation",
+      "9600000+ O1 gates", "9700000/9710000/9720000 reserved for latent birth",
+      "9800001 spent by C2", "9810000+ C3 Stage 4",
+      "9820000+ O3 training", "9830000+ O3 demand gate", "9900000+ O1 panels"
+    ],
+    "rule": "discovery selects at most one candidate; confirmation tests only that candidate on the confirmation block",
+    "no_reuse_of_o3_evaluation_data": true
+  },
+
+  "sampling": {
+    "design": "stratified over policy x opponent, mirroring the Stage-3 amendment",
+    "n_states_target": 210,
+    "seed_derivation": "int(sha256(this file's bytes)[:8], 16), resolved and recorded when the sample manifest is built",
+    "response_enumeration": "EXHAUSTIVE within every sampled state; sampling responses would let a hoped-for tradeoff select itself"
+  },
+
+  "outcomes": {
+    "C4_PASS": {
+      "condition": "at least one (response pair, partition) reverses per the criterion in >= 2/3 policies on discovery AND replicates on the confirmation block",
+      "authorizes": "freezing a narrower, label-free O4 precursor DERIVED FROM the demonstrated tradeoff",
+      "does_not_authorize": "O4 training until that precursor is frozen and its recall/precision audited on a fresh block"
+    },
+    "C4_NO_REVERSAL": {
+      "condition": "no pair satisfies the criterion",
+      "meaning": "the task offers actionable corrections without opportunity cost under these context classes and this utility",
+      "action": "STOP. Do not narrow the O3 trigger, do not train O4, and do not widen the context-class list to keep searching. Escalate to changing strategic demand -- opponents or scenario pressure -- under a new preregistration."
+    }
+  },
+
+  "o4_precursor_requirement": {
+    "applies_if": "C4_PASS",
+    "must_be": "natural, label-free, causally available at decision time",
+    "must_be_derived_from": "the demonstrated tradeoff, not invented to be narrow",
+    "prohibited": "adding an arbitrary geometric threshold because O3's trigger was too broad",
+    "firing_rate_requirement": "must NOT fire in essentially every episode; O3 fired in 99.98% and consequently trained on G0's own distribution. Enough separation is required that O4 experiences a genuinely different optimization distribution.",
+    "audit": "recall and precision measured on a fresh block before training, run once, evaluation-only, per the ce7949f pattern"
+  },
+
+  "prohibited": [
+    "using C3/Stage-4 fork labels or best_team_response to select C4 candidates",
+    "reusing the O3 demand-gate block 9830000+ for anything",
+    "widening the frozen context-class list after seeing results",
+    "adjusting delta, support minima or the replication requirement after any C4 number exists",
+    "training O4 on a C4_NO_REVERSAL result",
+    "claiming a task-outcome tradeoff from a carrier_survival screen"
+  ],
+
+  "immutability": "After any C4 rollout produces data, none of the above may change: context classes, utility, delta, support minima, replication requirement, seed blocks, sampling design, or the outcome conditions."
+}

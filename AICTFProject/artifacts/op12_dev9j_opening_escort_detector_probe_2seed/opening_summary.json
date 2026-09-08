@@ -1,0 +1,60 @@
+{
+  "red_preset": "OP12_LATE_CONVERTER",
+  "map": "map_b_split_lane",
+  "styles": {
+    "BLUE_RUSH": {
+      "n": 2,
+      "mean_time_cross_midfield_any": 7.5,
+      "mean_time_cross_midfield_both": 10.5,
+      "mean_time_first_flag_touch": 14,
+      "mean_time_first_pickup": 14.5,
+      "mean_time_first_blue_score": 54.5,
+      "mean_split_detector_first_trigger_step": null,
+      "split_detector_trigger_episodes": 0,
+      "mean_escort_detector_first_trigger_step": 6,
+      "escort_detector_trigger_episodes": 1,
+      "mean_external_escort_first_trigger_step": 7,
+      "external_escort_trigger_episodes": 1,
+      "mean_opening_teammate_dist": 5.218276355435291,
+      "mean_opening_lane_sep": 4.67736325263977,
+      "mean_opening_forward_velocity": 0.6178562672514665,
+      "mean_opening_clustered_frac": 0.7,
+      "mean_opening_trailing_frac": 0.75,
+      "mean_opening_stable_leader_frac": 0.7916666666666666,
+      "mean_pre_pickup_teammate_dist": 5.361929569020016,
+      "mean_pre_pickup_lane_sep": 4.744353015082223,
+      "mean_pre_pickup_clustered_frac": 0.5714285714285714,
+      "pickup_episodes": 2,
+      "blue_score_episodes": 2
+    },
+    "BLUE_ESCORT": {
+      "n": 2,
+      "mean_time_cross_midfield_any": 7.5,
+      "mean_time_cross_midfield_both": 10,
+      "mean_time_first_flag_touch": 13.5,
+      "mean_time_first_pickup": 14.5,
+      "mean_time_first_blue_score": 42.5,
+      "mean_split_detector_first_trigger_step": null,
+      "split_detector_trigger_episodes": 0,
+      "mean_escort_detector_first_trigger_step": 5.5,
+      "escort_detector_trigger_episodes": 2,
+      "mean_external_escort_first_trigger_step": 6.5,
+      "external_escort_trigger_episodes": 2,
+      "mean_opening_teammate_dist": 2.7805729780378483,
+      "mean_opening_lane_sep": 1.7326836585998535,
+      "mean_opening_forward_velocity": 0.535221843343032,
+      "mean_opening_clustered_frac": 1.0,
+      "mean_opening_trailing_frac": 0.925,
+      "mean_opening_stable_leader_frac": 0.9117647058823529,
+      "mean_pre_pickup_teammate_dist": 3.180707971986803,
+      "mean_pre_pickup_lane_sep": 1.9567916007268997,
+      "mean_pre_pickup_clustered_frac": 1.0,
+      "pickup_episodes": 2,
+      "blue_score_episodes": 2
+    }
+  },
+  "interpretation": {
+    "purpose": "opening behavior audit only; not a payoff confirmation",
+    "opening_steps": "metrics with opening_ prefix use the configured early OP12 window"
+  }
+}

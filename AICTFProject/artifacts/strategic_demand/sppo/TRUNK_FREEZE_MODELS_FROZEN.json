@@ -1,0 +1,88 @@
+{
+  "record_id": "TRUNK_FREEZE_MODELS_FROZEN",
+  "status": "FROZEN_MODELS -- frozen BEFORE the sealed EVAL is opened",
+  "utc": "2026-09-04T00:32:02Z",
+  "implements": "TRUNK_FREEZE_SPEC.json",
+  "shared": {
+    "training_seed": 11705001,
+    "warm_start_sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "warm_start_is_the_original_incumbent": true
+  },
+  "CONTROL": {
+    "arm": "CONTROL",
+    "seed": 11705001,
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\trunk_freeze_production\\control\\ckpts\\final_trunk_freeze_control.zip",
+      "sha256": "51d56ae33d469a5e367df0449980eef33033d3cf76af08dbf1b59694decd23b7",
+      "bytes": 19151997
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "optimizer_state_reused": false
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "steps_advanced": 503808,
+        "trunk_freeze": {
+          "n_frozen_verified_static": true,
+          "n_trainable_moved": 20
+        },
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_path": "ABSENT (causal_supervision_loss was fatal for the run)"
+      }
+    }
+  },
+  "TREATMENT": {
+    "arm": "TREATMENT",
+    "seed": 11705001,
+    "TERMINAL_CHECKPOINT": {
+      "path": "artifacts\\strategic_demand\\sppo\\trunk_freeze_production\\treatment\\ckpts\\final_trunk_freeze_treatment.zip",
+      "sha256": "4d2315169d96f18b9bd939c30871c0f69f2abeef063bba560da8ac793e8f7d9a",
+      "bytes": 19152401
+    },
+    "WARM_START_SOURCE": {
+      "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+      "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+      "optimizer_state_reused": false
+    },
+    "TERMINAL_RECORD_VALIDITY": {
+      "verdict": "VALID",
+      "summary": {
+        "steps_advanced": 503808,
+        "trunk_freeze": {
+          "n_frozen_verified_static": true,
+          "n_trainable_moved": 20
+        },
+        "z0_actor_moved": true,
+        "z1_actor_moved": true,
+        "coverage": {
+          "envs_observed": 32,
+          "total_mismatches": 0
+        },
+        "causal_path": {
+          "updates": 984,
+          "z0_exposures": 27796,
+          "z1_exposures": 19436,
+          "positive_routes": 40066,
+          "negative_routes": 7166
+        }
+      }
+    }
+  },
+  "EVAL_STATE_AT_FREEZE": {
+    "block": "11706001..11706064",
+    "touched": false,
+    "note": "sealed; opening requires a separate PI decision"
+  },
+  "NO_MODEL_SELECTION_ON_EVAL": {
+    "rule": "no model selection, no tuning, no checkpoint choice using EVAL. These two terminal checkpoints are the only artifacts that will be scored."
+  },
+  "NEXT": "a separate, explicit PI decision to open EVAL 11706001..11706064"
+}

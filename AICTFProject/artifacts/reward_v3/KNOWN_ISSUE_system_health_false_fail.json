@@ -1,0 +1,22 @@
+{
+  "issue": "SYSTEM_HEALTH reports FAIL on all three V3 seeds — false alarm",
+  "recorded_utc": "2026-08-02",
+  "recorded_while_run_in_flight": true,
+
+  "cause": "The OOB instrumentation added immediately before V3 emits a new event type 'out_of_bounds'. The probe's _check_event (experiments/run_formal_ppo_smoke_2400001.py) recognises only episode_reset / capture_scored / tag_success / tag_denied, so every OOB event falls through to legality_violations['unknown_event_type'], which forces system_ok = False.",
+
+  "introduced_by": "my own change, in the same commit-window as the OOB telemetry",
+
+  "impact": {
+    "training": "NONE — telemetry is observational and was verified byte-identical with it on vs off (tests/test_oob_instrumentation.py)",
+    "task_health": "NONE — TASK_HEALTH reports PASS independently and is computed from the validation panel, not the event checker",
+    "frozen_gate": "NONE — SYSTEM_HEALTH is not one of the four HARD_PASS_CONDITIONS in PROBE_GATE_FROZEN.json (task alive / competence / objective alignment / no new farmable attractor)",
+    "what_IS_lost": "For this run only, SYSTEM_HEALTH cannot distinguish a real legality or identity violation from the OOB false positive. Genuine violations would be masked inside the same boolean."
+  },
+
+  "verification_required_at_completion": "Check the final ablation_report.json 'system_failures' list. If 'unknown_event_type' is the SOLE violation category, the FAIL is entirely explained and no real system-health problem occurred. If any other category appears, that one is real and must be investigated.",
+
+  "fix_deferred_deliberately": "The three V3 processes loaded _check_event at start, so editing the file now would not affect them — but it would mean the on-disk code no longer matches the code that produced the results. The fix (teach _check_event about 'out_of_bounds', counting it and validating its identity fields rather than treating it as unknown) is deferred until V3 completes, to preserve provenance.",
+
+  "lesson": "Adding a new telemetry event type requires updating every consumer that validates event types. The event-identity contract was enforced; the event-TYPE registry was not."
+}

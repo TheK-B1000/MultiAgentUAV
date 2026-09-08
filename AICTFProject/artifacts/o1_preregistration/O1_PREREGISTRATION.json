@@ -1,0 +1,175 @@
+{
+  "preregistration": "O1 — first response oracle on the confirmed C1 niche",
+  "status": "FROZEN — declared before any O1 training data existed",
+  "authored_utc": "2026-08-04",
+  "document": "docs/o1-response-oracle-preregistration.md",
+  "authorised_by": {
+    "artifact": "artifacts/c1_confirmation/C1_CONFIRMATION.json",
+    "verdict": "CONFIRMED",
+    "policies_passing": "3/3",
+    "what_it_established": "Among opportunity-matched leads, greater home threat reliably predicts failure to preserve the lead across independent evaluation samples.",
+    "what_it_did_NOT_establish": "Any mechanism. O1 is a search for whether PPO discovers a useful alternative response, not an implementation of a named response."
+  },
+
+  "c1_predicate": {
+    "definition": "score_diff > 0 AND home_threatened",
+    "source_of_truth": "run_g0_v2_evaluation.legal_context",
+    "runtime_module": "experiments/c1_context.py",
+    "evaluation_path": "c1_active_from_context(ctx)",
+    "training_path": "c1_active_mask(core)",
+    "drift_guard": "tests/test_c1_context.py::test_batched_predicate_matches_the_confirmed_one — 120 randomised states covering every branch of home_threatened"
+  },
+
+  "exposure": {
+    "mechanism": "reset-state injection",
+    "function": "experiments/c1_context.apply_c1_scenario",
+    "fraction_of_training_episodes": 1.0,
+    "construction_frozen_in": "artifacts/g0_v5_evaluation/C1_PROPOSAL.json :: 6_recreatable_from_valid_states",
+    "clauses": {
+      "blue_ahead_on_score": "blue_score=1, red_score=0, score_limit=3",
+      "red_carrying_blue_flag": "red agent 0 carrying; blue_flag_pos attached to carrier",
+      "both_blue_past_midline": "blue_x > mid_x by 1.5-4.0 cells",
+      "red_defender_off_cooldown": "red_tag_cooldown = 0"
+    },
+    "randomisation": {
+      "carrier_progress_blue_home_to_red_home": [0.22, 0.38],
+      "lateral_jitter_cells": 2.5,
+      "why": "O1 must see the C1 region, not one memorised state"
+    },
+    "pod_defend_lead_rejected": {
+      "reason_1": "POD_DEFEND_LEAD places both blue agents adjacent to their own flag; C1 requires both past the midline. The confirmed context is blue leading and OUT of position, the pod is blue leading and already home.",
+      "reason_2": "Its clock line guards on core.decision_step, which does not exist on BatchedCTFCore (the counter is step_count), so it never set the late clock it documents. Its max_decision_steps lookup likewise never read the configured horizon.",
+      "reason_3": "The V6I26 phase-pod family is the birth attempt that produced distinct z indices with indistinguishable behaviour."
+    },
+    "declared_validity_limitation": {
+      "clock": "step_count left at 0, so an injected C1 has a full 240-step horizon a natural mid-episode C1 does not. The frozen construction says nothing about the clock and inventing one would add a free parameter.",
+      "prefix": "A natural C1 is reached by play; an injected one is not.",
+      "mitigation": "EVERY gate is scored on natural, uninjected episodes. The injector buys training density and influences nothing else."
+    }
+  },
+
+  "training": {
+    "seeds": [3300001, 3300002, 3300003],
+    "seed_freshness": "disjoint from 3200001-3 (G0-V5) and from evaluation blocks 9100000+, 9200000+, 9300000-2, 9400000+, 9500000+, 9600000+",
+    "initialization": "fresh",
+    "warm_start": "FORBIDDEN",
+    "warm_start_rationale": "Warm-starting from G0 reaches competence faster but biases O1 toward G0's behaviour — the exact direction in which gate 4 failed in V6I22, V6I26 and K=2.",
+    "steps_per_seed": 1000000,
+    "steps_rationale": "matched to G0-V5, not tuned",
+    "reward": "locked Reward V5, identical constants to artifacts/g0_v5_long/G0_V5_LONG_RUN_SPEC.json",
+    "reward_shaping_for_role": "NONE — no role bonus, no z label, no DEFEND/RECOVER/ROTATE_HOME term",
+    "map": "map_a",
+    "ruleset": "RULESET_V2_AQUATICUS_10S",
+    "opponents": "admitted OP6-OP12 mixture",
+    "episode_horizon": 240,
+    "domain_randomization": false,
+    "primary_checkpoint": 1000000,
+    "primary_evidence_rule": "the 1,000,000-step checkpoint is the ONLY primary evidence; intermediate checkpoints are health monitoring and may never be promoted after the fact"
+  },
+
+  "evaluation": {
+    "eval_seed_base": 9600000,
+    "disjoint_from": [
+      "9100000+ V6I9 discovery",
+      "9200000+ collapse diagnostic",
+      "9300000-9300002 TASK_HEALTH panel",
+      "9400000+ G0-V5 discovery",
+      "9500000+ C1 confirmation",
+      "all training seeds"
+    ],
+    "episodes_per_policy_pair": 210,
+    "construction": "paired-prefix rollouts",
+    "arm_A": "G0 for the whole episode",
+    "arm_B": "G0 until C1_active first true at t*, then O1 to the horizon",
+    "why_paired": "identical seed means identical trajectory up to t*; everything after t* is attributable to the handoff",
+    "selector": {
+      "granularity": "within-episode, one-way, switching at first C1 onset",
+      "departs_from": "docs/g0-c1-confirmation-preregistration.md section 4 step 7 ('z fixed per episode')",
+      "departure_rationale": "C1 is a mid-episode state; a per-episode selector could not see the context that was actually confirmed",
+      "per_episode_variant": "reported as a secondary diagnostic; does not gate"
+    },
+    "minimum_support": {
+      "natural_c1_episodes_per_o1_seed": 30,
+      "below_threshold_verdict": "INSUFFICIENT — not a failure and not a pass"
+    },
+    "scored_on_injected_episodes": false
+  },
+
+  "statistics": {
+    "method": "paired bootstrap",
+    "resamples": 2000,
+    "seed": 12345,
+    "interval": "95%",
+    "cluster_unit": "episode"
+  },
+
+  "gates": {
+    "gate_1_o1_owns_c1": {
+      "population": "natural episodes in which C1_active fires",
+      "metric": "lead_preserved = NOT lost_after_leading",
+      "metric_rationale": "the exact failure C1 was confirmed against",
+      "statistic": "P(preserve | arm B) - P(preserve | arm A), paired on (opponent, seed)",
+      "threshold": 0.10,
+      "pass": "delta >= 0.10 AND 95% CI excludes 0, in >= 2 of 3 O1 seeds"
+    },
+    "gate_2_g0_retains_an_anchor": {
+      "population": "natural episodes in which C1_active never fires",
+      "metric": "win rate, full-episode G0 vs full-episode O1, same seeds",
+      "threshold": 0.05,
+      "pass": "WR(O1, anchor) <= WR(G0, anchor) + 0.05, in >= 2 of 3 O1 seeds",
+      "why_being_better_is_a_failure": "An O1 that dominates everywhere is a better generalist, not a complementary specialist. The correct response would be to replace G0, not to birth z1."
+    },
+    "gate_3_selector_beats_best_fixed": {
+      "population": "the full evaluation pool",
+      "compare": "WR(selector) vs max(WR(G0 always), WR(O1 always))",
+      "threshold": 0.05,
+      "pass": "margin >= 0.05 AND 95% CI on (selector - best fixed) excludes 0, in >= 2 of 3 O1 seeds"
+    },
+    "gate_4_behaviour_is_distinct": {
+      "statistic": "B_distinct = median(JSD_between_families) - Q_0.95(JSD_within_families)",
+      "implementation": "experiments/analyze_k2_behavior_gate.py, unchanged",
+      "pass": "LCB95(B_distinct) > 0",
+      "level": "family, not per-seed",
+      "families": {"G0": [3200001, 3200002, 3200003], "O1": [3300001, 3300002, 3300003]},
+      "observation_bank": "natural C1 onset states; byte-identical observations for every compared policy; identical legal-action masking; balanced across G0-generated and O1-generated states",
+      "d_policy_rejected": "D_policy = mean(between) - mean(within) tests 'are these networks different at all', not 'are they meaningfully different'. It passed on a checkpoint that had completely collapsed into a single dominant generalist.",
+      "unstable_seeds_excluded": false,
+      "unstable_seed_rationale": "If a weak O1 seed inflates within-family variation enough to fail this gate, O1 is not behaviourally coherent enough to serve as a latent branch. That is a finding."
+    }
+  },
+
+  "retention_rule": {
+    "all_four_pass": "O1 retained; z0 = G0, z1 = O1; latent birth unlocks",
+    "any_gate_fails": "O1 NOT retained; z1 NOT born",
+    "insufficient_support": "INSUFFICIENT; rerun with more evaluation seeds, change nothing else",
+    "birth_is_separate": "Forcing z0 vs z1 must preserve the crossover measured here. Retention does not imply birth."
+  },
+
+  "on_failure": {
+    "report_as": "a failure of this response oracle on this niche",
+    "forbidden_responses": [
+      "retuning thresholds, the step budget, or the injector after seeing results",
+      "promoting an intermediate checkpoint",
+      "selecting the best of the three O1 seeds",
+      "swapping in a metric that separates better",
+      "reinterpreting C1"
+    ],
+    "legitimate_next_moves": [
+      "a different exposure mechanism (G0-prefix handoff training) under a NEW preregistration",
+      "the runner-up context carrier_mostly_unescorted, which inherits no part of C1's confirmation and needs a brand-new protocol on fresh data"
+    ]
+  },
+
+  "prohibited": [
+    "training O1 on POD_DEFEND_LEAD or any other V6I26 phase pod",
+    "warm-starting O1 from G0",
+    "scoring any gate on injected episodes",
+    "naming O1's behaviour before observing it",
+    "birthing z1 before all four gates pass",
+    "training the router before >= 2 branches are retained",
+    "changing any constant in this document after the freeze commit"
+  ],
+
+  "locked_until_gates_pass": ["latent_birth", "router"],
+  "freeze_record": "the commit introducing this file together with experiments/c1_context.py, tests/test_c1_context.py and docs/o1-response-oracle-preregistration.md; no O1 training data existed at that commit"
+}

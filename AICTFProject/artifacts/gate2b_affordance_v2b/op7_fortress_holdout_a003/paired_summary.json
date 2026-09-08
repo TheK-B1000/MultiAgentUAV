@@ -1,0 +1,123 @@
+{
+  "gate": "gate2b_affordance",
+  "created_utc": "2026-08-16T19:55:43.525315+00:00",
+  "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+  "ruleset": {
+    "taggers_required": 1,
+    "tag_min_interval_seconds": 10.0,
+    "tag_nearest_only": true,
+    "tag_channel_seconds": 0.0,
+    "suppression_attackers_required": 2
+  },
+  "map": "map_a",
+  "resolved_map": "map_a_open",
+  "opponent": "OP7",
+  "treatments": {
+    "both_attack": "BLUE_BOTH_ATTACK_V2",
+    "one_defender": "BLUE_ONE_DEFENDER_V2"
+  },
+  "paired_seeds": 32,
+  "seed_block": [
+    1960001,
+    1960032
+  ],
+  "integrity": {
+    "ok": true,
+    "problems": [],
+    "rows": 64
+  },
+  "manipulation": {
+    "min_separation": 0.25,
+    "home_defense": {
+      "mean": 0.4565425660789816,
+      "ci95": [
+        0.4349195820987722,
+        0.47813504114195343
+      ],
+      "passed": true
+    },
+    "forward_commit_agents": {
+      "mean": 0.46403018115080363,
+      "ci95": [
+        0.44985242648517526,
+        0.4786767490945904
+      ],
+      "passed": true,
+      "units": "agents"
+    },
+    "passed": true
+  },
+  "defense_benefit": {
+    "mean": 0.14343289658427238,
+    "ci95": [
+      -0.0674467250239104,
+      0.3515717959497122
+    ],
+    "passed": false
+  },
+  "offense_cost": {
+    "mean": 0.6579870264977217,
+    "ci95": [
+      0.5207390031311661,
+      0.7895247506443409
+    ],
+    "passed": true
+  },
+  "supporting": {
+    "blue_tag_successes": {
+      "both_attack": 5.5,
+      "one_defender": 7.84375
+    },
+    "red_tag_successes": {
+      "both_attack": 19.5625,
+      "one_defender": 13.0
+    },
+    "cooldown_denials": {
+      "both_attack": 66.40625,
+      "one_defender": 12.4375
+    },
+    "blue_flag_pickups": {
+      "both_attack": 5.34375,
+      "one_defender": 1.84375
+    },
+    "red_flag_pickups": {
+      "both_attack": 0.65625,
+      "one_defender": 0.53125
+    },
+    "blue_flag_drops": {
+      "both_attack": 5.1875,
+      "one_defender": 1.8125
+    },
+    "red_flag_drops": {
+      "both_attack": 0.625,
+      "one_defender": 0.53125
+    },
+    "time_to_first_tag": {
+      "both_attack": 8.03125,
+      "one_defender": 8.9375
+    },
+    "mean_num_attackers": {
+      "both_attack": 0.8827801811508036,
+      "one_defender": 0.41874999999999996
+    },
+    "blue_raw_carrier_return_fraction": {
+      "both_attack": 0.6998170036822557,
+      "one_defender": 0.10093752108514309
+    },
+    "red_raw_carrier_return_fraction": {
+      "both_attack": 0.3420741278678179,
+      "one_defender": 0.21419829688966274
+    },
+    "mean_num_defenders": {
+      "both_attack": 1.1087479907752127,
+      "one_defender": 1.5729166666666665
+    },
+    "episode_steps": {
+      "both_attack": 236.9375,
+      "one_defender": 240.0
+    }
+  },
+  "verdict": "PARTIAL_COST_ONLY",
+  "detail": "defender sacrifices offense without protecting home",
+  "passed": false
+}

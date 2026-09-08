@@ -1,0 +1,1007 @@
+{
+  "red_preset": "OP12_LATE_CONVERTER",
+  "map": "map_b_split_lane",
+  "episodes": 8,
+  "thresholds": [
+    2.7,
+    2.8,
+    2.9,
+    3.0,
+    3.1,
+    3.2
+  ],
+  "gate_results": [
+    {
+      "gate": "tau2.70_consec3",
+      "spec": {
+        "name": "tau2.70_consec3",
+        "mode": "consecutive",
+        "threshold": 2.7,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 1,
+          "mean_trigger_step": 4
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 4,
+          "mean_trigger_step": 14.75
+        }
+      }
+    },
+    {
+      "gate": "tau2.70_consec2",
+      "spec": {
+        "name": "tau2.70_consec2",
+        "mode": "consecutive",
+        "threshold": 2.7,
+        "window": 2
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 10
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 6,
+          "mean_trigger_step": 13.333333333333334
+        }
+      }
+    },
+    {
+      "gate": "tau2.70_2of3",
+      "spec": {
+        "name": "tau2.70_2of3",
+        "mode": "two_of_three",
+        "threshold": 2.7,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 10
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 6,
+          "mean_trigger_step": 13.166666666666666
+        }
+      }
+    },
+    {
+      "gate": "tau2.70_roll5_ev0.30",
+      "spec": {
+        "name": "tau2.70_roll5_ev0.30",
+        "mode": "rolling_evidence",
+        "threshold": 2.7,
+        "window": 5,
+        "evidence": 0.3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 1,
+          "mean_trigger_step": 4
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 10
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 6,
+          "mean_trigger_step": 12.666666666666666
+        }
+      }
+    },
+    {
+      "gate": "tau2.70_roll5_ev0.50",
+      "spec": {
+        "name": "tau2.70_roll5_ev0.50",
+        "mode": "rolling_evidence",
+        "threshold": 2.7,
+        "window": 5,
+        "evidence": 0.5
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 11.8
+        }
+      }
+    },
+    {
+      "gate": "tau2.70_roll5_ev0.70",
+      "spec": {
+        "name": "tau2.70_roll5_ev0.70",
+        "mode": "rolling_evidence",
+        "threshold": 2.7,
+        "window": 5,
+        "evidence": 0.7
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 12
+        }
+      }
+    },
+    {
+      "gate": "tau2.80_consec3",
+      "spec": {
+        "name": "tau2.80_consec3",
+        "mode": "consecutive",
+        "threshold": 2.8,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 14.333333333333334
+        }
+      }
+    },
+    {
+      "gate": "tau2.80_consec2",
+      "spec": {
+        "name": "tau2.80_consec2",
+        "mode": "consecutive",
+        "threshold": 2.8,
+        "window": 2
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 10
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 12.4
+        }
+      }
+    },
+    {
+      "gate": "tau2.80_2of3",
+      "spec": {
+        "name": "tau2.80_2of3",
+        "mode": "two_of_three",
+        "threshold": 2.8,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 1,
+          "mean_trigger_step": 4
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 10
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 12.2
+        }
+      }
+    },
+    {
+      "gate": "tau2.80_roll5_ev0.30",
+      "spec": {
+        "name": "tau2.80_roll5_ev0.30",
+        "mode": "rolling_evidence",
+        "threshold": 2.8,
+        "window": 5,
+        "evidence": 0.3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 1,
+          "mean_trigger_step": 3
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 11.6
+        }
+      }
+    },
+    {
+      "gate": "tau2.80_roll5_ev0.50",
+      "spec": {
+        "name": "tau2.80_roll5_ev0.50",
+        "mode": "rolling_evidence",
+        "threshold": 2.8,
+        "window": 5,
+        "evidence": 0.5
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 12
+        }
+      }
+    },
+    {
+      "gate": "tau2.80_roll5_ev0.70",
+      "spec": {
+        "name": "tau2.80_roll5_ev0.70",
+        "mode": "rolling_evidence",
+        "threshold": 2.8,
+        "window": 5,
+        "evidence": 0.7
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 4,
+          "mean_trigger_step": 10.25
+        }
+      }
+    },
+    {
+      "gate": "tau2.90_consec3",
+      "spec": {
+        "name": "tau2.90_consec3",
+        "mode": "consecutive",
+        "threshold": 2.9,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 14.666666666666666
+        }
+      }
+    },
+    {
+      "gate": "tau2.90_consec2",
+      "spec": {
+        "name": "tau2.90_consec2",
+        "mode": "consecutive",
+        "threshold": 2.9,
+        "window": 2
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 4,
+          "mean_trigger_step": 10.5
+        }
+      }
+    },
+    {
+      "gate": "tau2.90_2of3",
+      "spec": {
+        "name": "tau2.90_2of3",
+        "mode": "two_of_three",
+        "threshold": 2.9,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 4,
+          "mean_trigger_step": 10.5
+        }
+      }
+    },
+    {
+      "gate": "tau2.90_roll5_ev0.30",
+      "spec": {
+        "name": "tau2.90_roll5_ev0.30",
+        "mode": "rolling_evidence",
+        "threshold": 2.9,
+        "window": 5,
+        "evidence": 0.3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 12
+        }
+      }
+    },
+    {
+      "gate": "tau2.90_roll5_ev0.50",
+      "spec": {
+        "name": "tau2.90_roll5_ev0.50",
+        "mode": "rolling_evidence",
+        "threshold": 2.9,
+        "window": 5,
+        "evidence": 0.5
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 12
+        }
+      }
+    },
+    {
+      "gate": "tau2.90_roll5_ev0.70",
+      "spec": {
+        "name": "tau2.90_roll5_ev0.70",
+        "mode": "rolling_evidence",
+        "threshold": 2.9,
+        "window": 5,
+        "evidence": 0.7
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 10.333333333333334
+        }
+      }
+    },
+    {
+      "gate": "tau3.00_consec3",
+      "spec": {
+        "name": "tau3.00_consec3",
+        "mode": "consecutive",
+        "threshold": 3.0,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 15
+        }
+      }
+    },
+    {
+      "gate": "tau3.00_consec2",
+      "spec": {
+        "name": "tau3.00_consec2",
+        "mode": "consecutive",
+        "threshold": 3.0,
+        "window": 2
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 4,
+          "mean_trigger_step": 10.5
+        }
+      }
+    },
+    {
+      "gate": "tau3.00_2of3",
+      "spec": {
+        "name": "tau3.00_2of3",
+        "mode": "two_of_three",
+        "threshold": 3.0,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 4,
+          "mean_trigger_step": 10.5
+        }
+      }
+    },
+    {
+      "gate": "tau3.00_roll5_ev0.30",
+      "spec": {
+        "name": "tau3.00_roll5_ev0.30",
+        "mode": "rolling_evidence",
+        "threshold": 3.0,
+        "window": 5,
+        "evidence": 0.3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 5,
+          "mean_trigger_step": 12
+        }
+      }
+    },
+    {
+      "gate": "tau3.00_roll5_ev0.50",
+      "spec": {
+        "name": "tau3.00_roll5_ev0.50",
+        "mode": "rolling_evidence",
+        "threshold": 3.0,
+        "window": 5,
+        "evidence": 0.5
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 10.333333333333334
+        }
+      }
+    },
+    {
+      "gate": "tau3.00_roll5_ev0.70",
+      "spec": {
+        "name": "tau3.00_roll5_ev0.70",
+        "mode": "rolling_evidence",
+        "threshold": 3.0,
+        "window": 5,
+        "evidence": 0.7
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 14
+        }
+      }
+    },
+    {
+      "gate": "tau3.10_consec3",
+      "spec": {
+        "name": "tau3.10_consec3",
+        "mode": "consecutive",
+        "threshold": 3.1,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 15.333333333333334
+        }
+      }
+    },
+    {
+      "gate": "tau3.10_consec2",
+      "spec": {
+        "name": "tau3.10_consec2",
+        "mode": "consecutive",
+        "threshold": 3.1,
+        "window": 2
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 10.333333333333334
+        }
+      }
+    },
+    {
+      "gate": "tau3.10_2of3",
+      "spec": {
+        "name": "tau3.10_2of3",
+        "mode": "two_of_three",
+        "threshold": 3.1,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 10.333333333333334
+        }
+      }
+    },
+    {
+      "gate": "tau3.10_roll5_ev0.30",
+      "spec": {
+        "name": "tau3.10_roll5_ev0.30",
+        "mode": "rolling_evidence",
+        "threshold": 3.1,
+        "window": 5,
+        "evidence": 0.3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 4,
+          "mean_trigger_step": 12.5
+        }
+      }
+    },
+    {
+      "gate": "tau3.10_roll5_ev0.50",
+      "spec": {
+        "name": "tau3.10_roll5_ev0.50",
+        "mode": "rolling_evidence",
+        "threshold": 3.1,
+        "window": 5,
+        "evidence": 0.5
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 14
+        }
+      }
+    },
+    {
+      "gate": "tau3.10_roll5_ev0.70",
+      "spec": {
+        "name": "tau3.10_roll5_ev0.70",
+        "mode": "rolling_evidence",
+        "threshold": 3.1,
+        "window": 5,
+        "evidence": 0.7
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 14.666666666666666
+        }
+      }
+    },
+    {
+      "gate": "tau3.20_consec3",
+      "spec": {
+        "name": "tau3.20_consec3",
+        "mode": "consecutive",
+        "threshold": 3.2,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 17
+        }
+      }
+    },
+    {
+      "gate": "tau3.20_consec2",
+      "spec": {
+        "name": "tau3.20_consec2",
+        "mode": "consecutive",
+        "threshold": 3.2,
+        "window": 2
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 10.666666666666666
+        }
+      }
+    },
+    {
+      "gate": "tau3.20_2of3",
+      "spec": {
+        "name": "tau3.20_2of3",
+        "mode": "two_of_three",
+        "threshold": 3.2,
+        "window": 3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 10.666666666666666
+        }
+      }
+    },
+    {
+      "gate": "tau3.20_roll5_ev0.30",
+      "spec": {
+        "name": "tau3.20_roll5_ev0.30",
+        "mode": "rolling_evidence",
+        "threshold": 3.2,
+        "window": 5,
+        "evidence": 0.3
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 3,
+          "mean_trigger_step": 14
+        }
+      }
+    },
+    {
+      "gate": "tau3.20_roll5_ev0.50",
+      "spec": {
+        "name": "tau3.20_roll5_ev0.50",
+        "mode": "rolling_evidence",
+        "threshold": 3.2,
+        "window": 5,
+        "evidence": 0.5
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 2,
+          "mean_trigger_step": 12
+        }
+      }
+    },
+    {
+      "gate": "tau3.20_roll5_ev0.70",
+      "spec": {
+        "name": "tau3.20_roll5_ev0.70",
+        "mode": "rolling_evidence",
+        "threshold": 3.2,
+        "window": 5,
+        "evidence": 0.7
+      },
+      "styles": {
+        "BLUE_RUSH": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_ESCORT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_SPLIT": {
+          "trigger_count": 0,
+          "mean_trigger_step": null
+        },
+        "BLUE_TURTLE": {
+          "trigger_count": 1,
+          "mean_trigger_step": 15
+        }
+      }
+    }
+  ],
+  "viable_gates": [],
+  "decision": "NO_USABLE_OPERATING_POINT"
+}

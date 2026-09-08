@@ -1,0 +1,99 @@
+{
+  "record_id": "RSCFT_FAIL_SUCCESSOR_HYPOTHESIS_PREREGISTERED",
+  "status": "FROZEN_BEFORE_RSCFT_EVAL_RESULT",
+  "utc": "2026-09-03T13:39:50Z",
+  "authority": "PI guidance: do not alter the sealed RSCFT EVAL; if it fails, derive a new separately preregistered successor from the failure mechanism rather than retuning EMA",
+
+  "CURRENT_SEALED_RUN": {
+    "rule": "DO NOT STOP, DO NOT FIX, DO NOT RERUN",
+    "process": "eval_rscft still running; leave untouched",
+    "if_negative_Pole_A_and_audit_confirms_rows_valid": "treat that sealed result as FINAL",
+    "one_shot": "each arm's EVAL runs exactly once under RSCFT_SPEC.json; no mercy rerun"
+  },
+
+  "PREREGISTRATION_INTEGRITY": {
+    "RSCFT_EVAL_RESULT.json": "ABSENT at freeze time",
+    "cells_completed_at_freeze": "6/8",
+    "provisional_Pole_A_only_NOT_SEALED": {
+      "note": "computed from completed Pole-A cells only; Pole-B TREATMENT cells incomplete; NOT a sealed verdict; recorded only as the mechanistic clue that motivates the successor ranking",
+      "delta_A_control_provisional": -0.0781,
+      "delta_A_treatment_provisional": -0.1562,
+      "arithmetic": {
+        "control": "0.6719 - 0.7500 = -0.0781",
+        "treatment": "0.5469 - 0.7031 = -0.1562"
+      }
+    },
+    "activation": "This successor may be specified and launched ONLY after RSCFT_EVAL_RESULT.json (or an integrity-required audit that voids PASS) establishes sealed FAIL. Partial cells do not authorize implementation."
+  },
+
+  "IF_SEALED_FAIL_THE_CLAIM_TO_WRITE": "EMA temporal consistency reduced unrestricted actor drift, but was insufficient to preserve strategy-specific crossover",
+
+  "FAILURE_MECHANISM_HYPOTHESIS": {
+    "clue": "treatment delta_A is not better than control; EMA may have stabilized the wrong trajectory",
+    "limitation_of_EMA_self_distillation": "the teacher is a smoothed history of the student; if the student drifts away from desired specialization, the EMA teacher eventually follows",
+    "literature_framing": {
+      "Chen_and_Dai_SD_MAPPO": "presents EMA temporal consistency as a stabilizer that reduces abrupt policy movement, NOT as a guarantee that the policy retains a particular strategic mode",
+      "gated_teacher_refresh_2026": "raises the question of when a self-distillation teacher should move; not MARL and must NOT be cited as direct CTF evidence — mechanistic analogy only"
+    },
+    "sharp_hypothesis": "A moving teacher preserves temporal smoothness, but preserving specialization requires a strategy-specific fixed anchor."
+  },
+
+  "FORBIDDEN_AFTER_FAIL": [
+    "lambda_ret: 0.01 -> 0.02 / 0.05 / 0.1 until crossover passes",
+    "ema_decay: 0.995 -> 0.999 after seeing the result",
+    "any hyperparameter search on the same RSCFT mechanism framed as a new scientific claim",
+    "stopping or rewriting the current sealed EVAL",
+    "rerunning sealed EVAL seeds 11704001..11704064"
+  ],
+
+  "RANKED_SUCCESSOR_IDEAS": {
+    "1_PRIMARY_frozen_strategic_anchor": {
+      "rank": 1,
+      "name_working": "SAC-RFT / Strategy-Anchored Causal Retention Fine-Tuning (name not final)",
+      "one_changed_variable_relative_to_RSCFT": "replace (or add alongside) the moving EMA teacher with a FROZEN reference policy taken from the checkpoint where desired Pole-A specialization still existed",
+      "reference_checkpoint_candidate": {
+        "path": "artifacts/strategic_demand/sppo/ccp_successor_production/ckpts/final_ccp_successor_production.zip",
+        "why": "incumbent sealed EVAL recorded delta_A = +0.0938; this is the point RSCFT already warm-starts from, and the specialization that EMA failed to preserve",
+        "must_confirm_at_spec_time": "hash, behavioral-equivalence, and that the anchor is frozen (no EMA update of the reference)"
+      },
+      "retention_form": "L_anchor = D_KL( pi_specialized_reference || pi_theta )",
+      "conceptual_contrast": {
+        "EMA_asks": "Don't change too fast.",
+        "frozen_anchor_asks": "Don't lose this particular behavior."
+      },
+      "optional_combined_objective_requires_its_own_preregistration": "L = L_PPO + lambda_c L_causal + lambda_EMA L_EMA + lambda_anchor L_anchor",
+      "control_design_note": "CONTROL should isolate the new variable (frozen anchor present vs absent, or EMA-only vs EMA+anchor) — exact arm definitions belong in the successor SPEC, written only after sealed RSCFT FAIL, before any GPU run"
+    },
+
+    "2_strategy_aware_retention": {
+      "rank": 2,
+      "idea": "retain latent-specific policies against pole-specific references",
+      "form": [
+        "D_KL( pi^A_reference || pi_theta(.|z0) ) on states where strategy A is relevant",
+        "D_KL( pi^B_reference || pi_theta(.|z1) ) on states where strategy B is relevant"
+      ],
+      "why_secondary": "addresses whole-distribution retention that may preserve yesterday's already-wrong latent behavior; still depends on a fixed (or pole-specialist) reference, so it composes with idea 1 rather than replacing the core diagnosis"
+    },
+
+    "3_gated_teacher_refresh": {
+      "rank": 3,
+      "idea": "update EMA teacher only when a preregistered validation diagnostic says the student consolidated useful behavior",
+      "why_below_anchor": "indirectly addresses teacher-follows-degradation; does not directly bind the policy to the specialized mode. Prefer the frozen strategic anchor first.",
+      "citation_rule": "may be mentioned as mechanistic motivation only; not as direct evidence for this CTF setting"
+    }
+  },
+
+  "RELATION_TO_SCALING_TREE": {
+    "file": "SCALING_DECISION_TREE_PREREGISTERED.json",
+    "if_RSCFT_PASS": "this successor file is inert; take the PASS scaling branch",
+    "if_RSCFT_FAIL": "do not invent a confirmed method to scale; write the FAIL claim above; optionally open a full successor SPEC for idea 1 only after this activation rule fires; larger-team work stays on the FAIL branch of the scaling tree (narrow generalist-vs-latent at most)"
+  },
+
+  "EXECUTION": {
+    "now": "leave eval_rscft running; SAC-RFT stack is built and gated",
+    "spec": "SAC_RFT_SPEC.json",
+    "authorizer": "experiments/launch_sac_rft_after_rscft_fail.py",
+    "next_allowed_action_after_sealed_FAIL": "python experiments/launch_sac_rft_after_rscft_fail.py --authorize --launch-both",
+    "next_forbidden": "implement or launch the successor from provisional Pole-A numbers alone; EMA lambda fishing"
+  }
+}

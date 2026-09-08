@@ -1,0 +1,47 @@
+{
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
+  ],
+  "maps": [
+    "map_b_split_lane",
+    "map_b_split_lane_v2"
+  ],
+  "latents": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "reward_key": "success",
+  "n_rows": 80,
+  "n_train": 60,
+  "n_test": 20,
+  "geometry_report": {
+    "n_rows": 80,
+    "n_unique_contexts": 80,
+    "duplicate_context_rate": 0.0,
+    "feature_variance_mean": 0.01026640554376501,
+    "feature_variance_max": 0.13500000000000006,
+    "context_abs_sum_mean": 9.758593866339197
+  },
+  "geometry_q_n_keys": 60,
+  "stage_a": {
+    "context_oracle_mean": 0.75,
+    "best_fixed_mean": 0.75,
+    "best_fixed_z": 2,
+    "delta": 0.0,
+    "ci_low": 0.0,
+    "ci_high": 0.0,
+    "signal_ok": false,
+    "n": 20
+  },
+  "stage_b": null,
+  "online": null,
+  "verdict": "FAIL_SIGNAL",
+  "train": null
+}

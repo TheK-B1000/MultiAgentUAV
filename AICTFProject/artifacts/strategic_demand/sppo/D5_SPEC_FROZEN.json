@@ -1,0 +1,49 @@
+{
+  "record_id": "D5_SPEC_FROZEN",
+  "status": "FROZEN_BEFORE_ANY_REGIME_SPECIFIC_TIE_RATE_IS_COMPUTED",
+  "utc": "2026-08-27T15:45:00Z",
+  "authority": "PI ruling",
+  "name": "Regime x Horizon Tie-Rate Audit",
+  "classification": "DIAGNOSTIC ONLY. Existing stored branch data. No new seeds, no training, no RASR changes, no FINAL access.",
+  "the_question": "Does the stolen-flag tie-rate excess survive controlling for branch step? M_A == M_B may mean 'strategically indifferent' OR 'not enough remaining horizon for either policy to move the coarse terminal score'. These are different claims.",
+  "TERTILE_BOUNDARIES_FROZEN_REGIME_BLIND": {
+    "computed_from": "the GLOBAL pole-B branch_step distribution across all 256 Phase 0 seeds, WITHOUT reference to regime",
+    "n": 768,
+    "min": 15,
+    "max": 208,
+    "median": 120,
+    "q33": 48.7,
+    "q66": 127.3,
+    "early": "branch_step <= 49",
+    "mid": "49 < branch_step <= 127",
+    "late": "branch_step > 127",
+    "why_frozen_now": "fixing the boundaries before any regime-specific rate is computed prevents the cut from being chosen to produce a result"
+  },
+  "primary_comparison": {
+    "quantity": "Delta_tie(t) = P(tie | stolen, t) - P(tie | home, t), for t in {early, mid, late}",
+    "tie": "M(pi_B|s) == M(pi_A|s), terminal win margin, the target Q_psi was fit on",
+    "states": "pole-B paired branch states, Phase 0 original",
+    "reported": "per-tertile tie rate for each regime, and the within-tertile difference, all with CIs"
+  },
+  "bootstrap": {
+    "unit": "SEED",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "rule": "resample seeds with replacement, carrying all of a seed's states together"
+  },
+  "secondary_contextual_only": "carrying / not_carrying is reported as CONTEXT, not as a primary comparison -- it was not part of the prospective D5 question. D4 already showed carrying is separately elevated (0.808 vs 0.579).",
+  "PERMITTED_READINGS": {
+    "regime_effect_survives": "stolen remains markedly more tied than home WITHIN matched tertiles -> D4's stolen-flag pathology is real and independent of horizon; regime-aware strategic modelling remains strongly justified.",
+    "horizon_effect_dominant": "the stolen/home gap largely disappears once branch step is matched -> the 'stolen-flag regime failure' story was substantially temporal. A successor would then need to distinguish TRUE indifference from CENSORED insufficient-horizon ties.",
+    "both_matter": "both persist -> regime AND horizon both contribute; possibly the most realistic outcome"
+  },
+  "EXPLORATORY_INPUT_STAYS_LABELLED": "the early/mid/late tie rates computed outside the D4 spec (0.367 / 0.596 / 0.879) are EXPLORATORY. They motivated D5 and are recorded in D4_FOLLOWUP_TIE_HORIZON_CONFOUND.json. They are NOT preregistered, are NOT folded back into D4_RESULT.json, and D5's result stands on its own frozen procedure.",
+  "SELECTIVE_SUPERVISION_STATUS": "NOT AUTHORIZED AS A METHOD. It remains a hypothesis pending D5. If a 'tie' is partly just the clock running out, the model must not be taught that the strategies are equivalent there.",
+  "hard_boundaries": [
+    "does NOT touch the running RASR DEV collector or the 105... block",
+    "does NOT touch FINAL 10600001..10600192",
+    "reads stored terminal outcomes only -- no environment steps",
+    "does NOT alter D2, D3, D4, or SPPPO_V1_NOT_CONFIRMED"
+  ]
+}

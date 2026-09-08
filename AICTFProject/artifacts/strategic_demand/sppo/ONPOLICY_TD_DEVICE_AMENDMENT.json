@@ -1,0 +1,30 @@
+{
+  "record_id": "ONPOLICY_TD_DEVICE_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-04T18:45:00Z",
+  "amends": "ONPOLICY_TEACHER_DISTILLATION_SPEC.json#DEVICE_RULE_FROZEN_IN_ADVANCE",
+  "rule": "the spec froze a CONTINGENT device rule decided by a mechanical A/B that looks at no outcome. This record applies that rule. Nothing in the spec is edited.",
+
+  "THE_AB": {
+    "procedure": "experiments/diagnose_compression_student_episode_length.py run once with --device cpu and once with --device cuda on the SAME 8 non-sealed seeds (11930001..11930008), same frozen offline-TD student, forced z0, Pole A, deterministic actions",
+    "cpu": {"steps": [240, 240, 240, 240, 136, 239, 240, 240],
+            "blue_red": [[1, 0], [2, 1], [2, 0], [1, 1], [3, 0], [3, 2], [2, 1], [0, 0]],
+            "mean_wall_per_episode_s": 8.9},
+    "cuda": {"steps": [240, 240, 240, 240, 240, 240, 240, 240],
+             "blue_red": [[0, 0], [1, 0], [1, 1], [2, 0], [1, 0], [0, 0], [1, 1], [1, 2]],
+             "mean_wall_per_episode_s": 29.2},
+    "identical_across_devices": false,
+    "episodes_differing": "8 of 8 differ in (blue, red); 1 of 8 differs in step count"
+  },
+
+  "DECISION_APPLIED_MECHANICALLY": {
+    "sealed_eval_device": "cuda",
+    "why": "the frozen rule: if ANY episode differs across devices, the sealed eval runs on cuda for strict comparability with COMPRESSION_CROSSOVER_EVAL_RESULT.json (which ran on cuda). The simulation's trajectories are device-dependent in floating point, so cpu would have changed the measurement instrument, not just its speed.",
+    "cost_accepted": "~3.3x slower per episode (29.2 s vs 8.9 s); ~2 h for the 256-episode seal, as observed for the offline-TD seal"
+  },
+
+  "KNOWN_CAVEAT_RECORDED_NOT_HIDDEN": {
+    "collection_vs_eval_device": "student-state collection (and the original teacher-state collection) run on cpu per the spec; the sealed evals run on cuda. Because trajectories are device-dependent, the collected deployment states are drawn from a numerically slightly different trajectory distribution than the one the seal scores. This was already true of round 0 (teacher states on cpu, seal on cuda). It is a property of the simulator, is the same for every arm in this program, and is disclosed here rather than corrected mid-protocol.",
+    "operational_note_for_future_specs": "for this single-env one-episode-at-a-time pattern, cpu is ~3.3x faster than cuda AND numerically different from it; future evaluators should freeze a device up front and keep it fixed across every arm they intend to compare"
+  }
+}

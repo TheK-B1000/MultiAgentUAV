@@ -43,6 +43,7 @@ class EvaluationOrchestratorTests(unittest.TestCase):
             minimum_win_rate=0.6,
             competence_retention_tolerance=0.05,
             saturation_win_rate=0.95,
+            require_formal_identity=False,
         )
 
     def _runtime(self, calls: list[str], *, fail_distribution: bool = False, fail_write: bool = False) -> EvaluationRuntime:

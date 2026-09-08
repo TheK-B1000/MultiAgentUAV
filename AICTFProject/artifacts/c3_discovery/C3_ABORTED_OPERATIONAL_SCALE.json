@@ -1,0 +1,19 @@
+{
+  "status": "ABORTED_OPERATIONAL_SCALE",
+  "scientific_verdict": "NO_SCIENTIFIC_VERDICT",
+  "pid": 12820,
+  "aborted_utc": "2026-08-07T12:30:00Z",
+  "phase_at_abort": "STAGE3",
+  "progress_at_abort": {
+    "done_policies": 0,
+    "total_policies": 3,
+    "stage1_complete": true,
+    "stage1_episodes": 630,
+    "note": "Stage-1 results were not yet durable; that work was lost with the process."
+  },
+  "reason": "Stage-3 combinatorial cost made wall-clock operationally unbounded without persistence, per-anchor checkpointing, and semantics-preserving short-circuiting.",
+  "does_not_count_against_c3": true,
+  "o3_authorized": false,
+  "latent_necessity_claim": false,
+  "science_scope": "CONTROLLABILITY_SCREEN_ONLY"
+}

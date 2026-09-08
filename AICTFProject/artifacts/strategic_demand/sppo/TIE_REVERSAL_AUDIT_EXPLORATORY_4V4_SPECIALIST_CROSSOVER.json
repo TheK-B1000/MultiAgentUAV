@@ -1,0 +1,36 @@
+{
+  "record": "Row-level integrity audit (exploratory 4v4 learned-specialist crossover, 14400001-14400128)",
+  "status": "FLAGGED_BY_AUTOMATED_CHECK",
+  "utc": "2026-09-07T19:35:00Z",
+  "implements": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json#EVALUATION.tie_or_reversal",
+  "raised_by": "eval_specialist_crossover_scaled.py's own built-in tie/reversal check (unlike the 4v4 scripted-probe path, this evaluator already had the check at run time -- it wrote EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json and refused to write a verdict-bearing result, exactly as designed.",
+  "triggered_by": "delta_B_spec is a SIGN REVERSAL, not a tie: mean -0.3047, entirely negative bootstrap interval.",
+
+  "raw_cells": {
+    "pi_A_on_A": 0.7344, "pi_A_on_B": 0.9375,
+    "pi_B_on_A": 0.4844, "pi_B_on_B": 0.6328
+  },
+  "point_estimates": {"delta_A_spec": 0.25, "delta_B_spec": -0.3046875},
+
+  "n_rows": 512,
+  "per_cell_integrity": "all 4 cells (pi_A@A, pi_A@B, pi_B@A, pi_B@B) independently checked: exactly 128 rows each, seeds unique, seed set EXACTLY {14400001..14400128}, win values strictly binary. Win-flag vs (blue_score>red_score) checked against all 512 rows: 0 disagreements.",
+  "seed_pairing": "confirmed identical 128 seed keys present across all 4 cells -- paired design intact.",
+
+  "split_half_check": {
+    "purpose": "confirm the reversal is a distributed effect across the whole seed block, not an artifact of a subset of seeds (e.g. a batch boundary or a stale environment state).",
+    "first_64_seeds": {"delta_A": 0.2969, "delta_B": -0.2500},
+    "last_64_seeds": {"delta_A": 0.2031, "delta_B": -0.3594},
+    "reading": "delta_B is negative and of comparable magnitude in BOTH halves -- not driven by a subset of seeds."
+  },
+
+  "bootstrap_recomputation": {
+    "method": "independently recomputed from the raw per-episode rows CSV with fresh code, same frozen protocol (paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7)",
+    "delta_A_spec": {"mean": 0.25, "lcb95": 0.1406, "ucb95": 0.3594},
+    "delta_B_spec": {"mean": -0.3047, "lcb95": -0.3984, "ucb95": -0.2188},
+    "note": "delta_B_spec's ENTIRE interval is negative (UCB95 = -0.2188 < 0) -- this is a confirmed reversal, not a boundary case or a wide interval that happens to straddle zero. Contrast with the medium-tier control_delay boundary case elsewhere in this program, where the interval merely touched zero."
+  },
+
+  "classification": "GENUINE -- seeds unique (512/512 across 4 cells), ranges exact, win/margin internally consistent, effect consistent in sign and magnitude across both halves of the seed block. Not a duplicate-seed artifact, not a corrupted row, not a coincidental average masking an asymmetric split.",
+
+  "interpretation_licensed_by_this_audit": "pi_B_4v4 (trained against Pole B) is DECISIVELY WORSE against Pole B (0.6328) than pi_A_4v4 (trained against Pole A) is against that SAME Pole B (0.9375) -- a large, statistically confirmed margin in the wrong direction for the specialization hypothesis. pi_A_4v4 also beats pi_B_4v4 on Pole A (delta_A_spec clearly positive), so pi_A_4v4 looks like it dominates pi_B_4v4 nearly everywhere rather than the two exhibiting complementary strengths. This pattern -- one policy strong against both poles, the other weak against both -- is consistent with pi_A_4v4 having converged to a strong generalist (or pi_B_4v4 to a weak/undertrained policy) rather than either developing a genuine pole-specific specialization."
+}

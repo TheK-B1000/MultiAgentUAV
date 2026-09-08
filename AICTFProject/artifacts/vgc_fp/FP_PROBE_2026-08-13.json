@@ -1,0 +1,36 @@
+{
+  "finding_id": "FP_PROBE_2026-08-13",
+  "authored_utc": "2026-08-13T22:45:00Z",
+  "kind": "engineering_finding",
+  "not_a_scientific_gate": true,
+
+  "expected_steps": 6144,
+  "observed_progress_timesteps": 4096,
+  "termination": "manually stopped after stall (no further metrics progress; CPU still rising)",
+  "final_ablation_report": "absent",
+  "artifact_dir": "artifacts/vgc_fp/fp_smoke_seed3800999",
+  "artifact_status": "removed after probe; evidence preserved here and in summer_2026/fp_csv_probe_note.json",
+
+  "what_was_demonstrated": {
+    "FP_SNAPSHOT_FORMAT": "PASS",
+    "evidence": "episode_rows.csv opponent column contained SNAPSHOT:<relative-path> for both pool entries",
+    "observed_counts_before_stop": {
+      "SCRIPTED:OP6": 16,
+      "SNAPSHOT:artifacts/g0_v5_long/g0_v5_long_seed3200001/ckpts/final_g0_v5_long_seed3200001.zip": 4,
+      "SNAPSHOT:artifacts/g0_v5_long/g0_v5_long_seed3200002/ckpts/final_g0_v5_long_seed3200002.zip": 1
+    },
+    "scripted_warmup_note": "First episode per vecenv starts as env-default SCRIPTED:OP6 before the done-triggered SNAPSHOT hook fires."
+  },
+
+  "status_board": {
+    "FP_SNAPSHOT_FORMAT": "PASS",
+    "PPO_AS_OPPONENT_SEAM": "OBSERVED",
+    "FP_FULL_SMOKE": "INCOMPLETE",
+    "FP_ABLATION_REPORT": "NOT PRODUCED",
+    "FP_SCIENTIFIC_GATE": "NOT PASSED"
+  },
+
+  "interpretation": "snapshot-opponent seam demonstrated; full FP smoke remains unverified. Do NOT treat this probe as FP_SMOKE=PASS. Phase FP stays unauthorized until a clean end-to-end FP_SMOKE completes.",
+
+  "does_not_block": ["D3_POOL_PREFLIGHT", "D3_x3_training", "D1_D3_D7_eval"]
+}

@@ -1,0 +1,18 @@
+{
+  "record": "Frozen abstention thresholds",
+  "status": "FROZEN",
+  "utc": "2026-08-29T14:38:01Z",
+  "calibrated_on": "CALIB",
+  "experiment_class": "ORACLE_GATED_REHEARSAL",
+  "thresholds": {
+    "tau": 0.7,
+    "rho": "NOT_APPLICABLE_BY_DESIGN",
+    "o_max": "NOT_APPLICABLE_BY_DESIGN",
+    "kappa": "NOT_APPLICABLE_BY_DESIGN"
+  },
+  "provenance": {
+    "tau": "AMENDMENT_4, frozen 2026-08-29 before any probe existed; EVAL gate, point estimate",
+    "rho_o_max_kappa": "AMENDMENT_6. This class gates supervision with EXACT FIT labels at TRAINING time and has no test-time abstention mechanism, so there is no commit/abstain decision for rho or o_max to measure and nothing for kappa to threshold. Scoring them against EVAL oracle labels would return rho=1 and o=0 by construction -- a meaningless pass. Not applicable, not unmet."
+  },
+  "EVAL_touched": false
+}

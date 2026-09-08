@@ -1,0 +1,237 @@
+{
+  "record": "PHASE0 frozen action-conditioned scorer Q_psi",
+  "status": "FROZEN_BEFORE_ANY_HELD_OUT_ACCESS",
+  "utc": "2026-08-26T01:31:30Z",
+  "target": {
+    "definition": "E[terminal win margin | o, a, p], margin = blue_score - red_score",
+    "amendment": "PHASE0_SCORER_TARGET_AMENDMENT.json",
+    "monte_carlo_return": "EXCLUDED from fitting",
+    "orientation": "blue is always the evaluated policy's team; positive = better for it"
+  },
+  "architecture": {
+    "form": "Q = b(o,p) + u(o,p)^T e(a1) + v(o,p)^T e(a2) + e(a1)^T M(o,p) e(a2)",
+    "M_factorisation": "low-rank M = P Q^T, never materialised",
+    "per_agent_action": "single categorical over 250 = 5 macros x 50 waypoints",
+    "policy_identity_input": "ABSENT -- prohibited by protocol",
+    "config": {
+      "action_dim": 32,
+      "rank": 8,
+      "hidden": 256,
+      "conv_width": 64,
+      "pole_embed": 8,
+      "n_poles": 2
+    },
+    "n_parameters": 311025,
+    "module": "rl/scorer/qpsi.py"
+  },
+  "training_config": {
+    "optimizer": "Adam",
+    "lr": 0.0003,
+    "weight_decay": 0.0,
+    "batch_size": 512,
+    "max_epochs": 60,
+    "early_stop_patience": 8,
+    "torch_seed": 7,
+    "loss": "weighted MSE on terminal win margin",
+    "plain_row_weight": "1 / (decision points in that episode)",
+    "branch_row_weight": "1.0",
+    "early_stop_criterion": "inner-val weighted MSE (NOT strategic ordering)"
+  },
+  "seed_sets": {
+    "train_total": [
+      6500001,
+      6500160
+    ],
+    "inner_fit": [
+      6500001,
+      6500128,
+      128
+    ],
+    "inner_val": [
+      6500129,
+      6500160,
+      32
+    ],
+    "inner_split_frozen_before_fitting": true,
+    "held_out_range": [
+      6500161,
+      6500256,
+      96
+    ]
+  },
+  "held_out_seeds_opened": 0,
+  "data_hashes": {
+    "inner_fit_shards_sha256": "0dcfafe67054e35c2504d9dbc13903da286256befbba2bf881fd616c95c10039",
+    "inner_val_shards_sha256": "0e7fb65ced7cc181a7c9c80c91f76cc2af532658bba5a4de6baaa346f58a5620",
+    "n_fit_plain_rows": 96661,
+    "n_fit_branch_rows": 1536,
+    "n_val_plain_rows": 24888,
+    "n_val_branch_rows": 384
+  },
+  "teacher_checkpoints": {
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "weights": {
+    "path": "artifacts\\strategic_demand\\phase0_scorer_data\\qpsi_frozen.pt",
+    "sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf"
+  },
+  "effective_sample_size": {
+    "statistical_unit": "episode / seed, NOT state",
+    "inner_fit_seeds": 128,
+    "inner_fit_plain_episodes": 512,
+    "inner_fit_branch_labelled_rows": 1536,
+    "note": "plain state rows share one episode label and are weighted 1/len(episode); they are not independent payoff observations"
+  },
+  "train_side_calibration_NOT_gate_0B": {
+    "scope": "inner-val seeds only (train-side); the 96 held-out seeds were not opened",
+    "best_inner_val_weighted_mse": 0.440783,
+    "pred_vs_actual_margin_corr_inner_val": 0.692423,
+    "pred_margin_mean": 0.584324,
+    "pred_margin_std": 0.718327,
+    "actual_margin_mean": 0.612417,
+    "ordering_diagnostic": {
+      "d_A": {
+        "mean": 0.092121,
+        "per_seed_mean": 0.092121,
+        "n_states": 96,
+        "n_seeds": 32
+      },
+      "d_B": {
+        "mean": 0.081662,
+        "per_seed_mean": 0.081662,
+        "n_states": 96,
+        "n_seeds": 32
+      },
+      "teacher_query_validity": {
+        "pi_A": {
+          "agent1_argmax_agreement": 1.0,
+          "agent2_argmax_agreement": 1.0,
+          "n_states": 192
+        },
+        "pi_B": {
+          "agent1_argmax_agreement": 1.0,
+          "agent2_argmax_agreement": 1.0,
+          "n_states": 192
+        }
+      }
+    },
+    "warning": "this is a development diagnostic. It is NOT Gate 0B and must never be reported as such."
+  },
+  "epoch_history": [
+    {
+      "epoch": 0,
+      "train_wmse": 0.830534,
+      "val_wmse": 0.536341
+    },
+    {
+      "epoch": 1,
+      "train_wmse": 0.548076,
+      "val_wmse": 0.481003
+    },
+    {
+      "epoch": 2,
+      "train_wmse": 0.487863,
+      "val_wmse": 0.467775
+    },
+    {
+      "epoch": 3,
+      "train_wmse": 0.457635,
+      "val_wmse": 0.464808
+    },
+    {
+      "epoch": 4,
+      "train_wmse": 0.428358,
+      "val_wmse": 0.440783
+    },
+    {
+      "epoch": 5,
+      "train_wmse": 0.408291,
+      "val_wmse": 0.472846
+    },
+    {
+      "epoch": 6,
+      "train_wmse": 0.396192,
+      "val_wmse": 0.463055
+    },
+    {
+      "epoch": 7,
+      "train_wmse": 0.379458,
+      "val_wmse": 0.48747
+    },
+    {
+      "epoch": 8,
+      "train_wmse": 0.369405,
+      "val_wmse": 0.456574
+    },
+    {
+      "epoch": 9,
+      "train_wmse": 0.355215,
+      "val_wmse": 0.512696
+    },
+    {
+      "epoch": 10,
+      "train_wmse": 0.35082,
+      "val_wmse": 0.481215
+    },
+    {
+      "epoch": 11,
+      "train_wmse": 0.340295,
+      "val_wmse": 0.49921
+    },
+    {
+      "epoch": 12,
+      "train_wmse": 0.327038,
+      "val_wmse": 0.463765
+    }
+  ],
+  "next_action": "Gate 0B on the 96 held-out seeds, seed-level bootstrap, one shot",
+  "provenance": {
+    "classification": "REPLACEMENT EXECUTION after a post-fit diagnostic-path defect. NOT model selection, NOT bit-identical reproduction.",
+    "superseded_execution": {
+      "weights_sha256": "3d9d4b01b6d5ace9",
+      "recoverable": false,
+      "why_not": "qpsi_frozen.pt was deleted when clearing for the replacement run; those bytes no longer exist and therefore cannot be the authoritative frozen model",
+      "inner_val_weighted_mse": 0.442296,
+      "pred_vs_actual_margin_corr": 0.692742,
+      "invalid_ordering_reported": {
+        "d_A": -0.363803,
+        "d_B": 0.334452
+      },
+      "archived_record": "artifacts/strategic_demand/PHASE0_SCORER_SUPERSEDED_INVALID_DIAGNOSTIC.json"
+    },
+    "defect": {
+      "what": "the post-fit teacher-query diagnostic queried UNMASKED logits",
+      "mechanism": "load_custom_ppo_policy returns CustomPPOInferencePolicy, which exposes neither policy_logits nor _mask_logits; those live on the inner SharedActorCentralizedCritic. strategy_anchor._masked_heads therefore took its stub-friendly unmasked FALLBACK silently.",
+      "detection": "argmax of the queried distribution matched the recorded deterministic branch action on only 10-17% of states, where it must be ~1.0",
+      "scope": "POST-FIT DIAGNOSTIC ONLY. Fitting regresses Q_psi on recorded (o, a, margin) and never queries a teacher distribution, so the fit itself was never affected.",
+      "fix": "unwrap to the inner model (the path the wrapper's own entropy() uses) and REFUSE rather than fall back; assert_teacher_query_valid() now gates every value computed from a teacher distribution",
+      "post_fix_agreement": {
+        "pi_A": [
+          1.0,
+          1.0
+        ],
+        "pi_B": [
+          1.0,
+          1.0
+        ]
+      }
+    },
+    "what_was_identical_between_executions": [
+      "frozen training configuration",
+      "torch seed 7",
+      "inner split 128/32",
+      "160 outer training seeds",
+      "target (terminal win margin)",
+      "early-stopping criterion (inner-val weighted MSE)",
+      "training data"
+    ],
+    "why_the_weights_differ_anyway": "CUDA nondeterminism (cuDNN algorithm selection and atomic accumulation). Train loss at epoch 0 differs 0.83089 vs 0.83053. This is execution noise, not a configuration change.",
+    "explicitly_not": [
+      "no hyperparameter was tuned between executions",
+      "no architecture was changed between executions",
+      "multiple valid scorers were NOT compared and the better-ordering one chosen",
+      "the ordering diagnostic was never used as a selection criterion"
+    ]
+  }
+}

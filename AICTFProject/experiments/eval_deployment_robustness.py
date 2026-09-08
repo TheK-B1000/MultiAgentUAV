@@ -1,0 +1,335 @@
+"""Deployment-only robustness sweep: localization noise, motion error, control delay.
+
+Implements DEPLOYMENT_ROBUSTNESS_SPEC.json. Takes an ALREADY-TRAINED checkpoint (any team
+size, any method -- this script does not care which) and evaluates it across the frozen
+disturbance matrix: 3 families x 3 severities, plus one nominal (zero-disturbance) baseline.
+Strictly inference-only -- this file contains no optimizer, no backward(), no training-loop
+import of any kind.
+
+Mechanisms, each confirmed against the real source before use, not assumed:
+  localization noise   core.rt_sensor_noise_sigma_cells[:] = sigma   (gpu_env/state/scratch.py:
+                        shape (B,), read by _observations.py's observation model)
+  motion error          core.rt_drift_sigma_cells[:] = sigma          (same file; read by
+                        _dynamics.py, added directly to post-motion position)
+  control delay         rl.control_delay.DelayBuffer(ticks), wrapping the action between
+                        policy.predict() and env.step_async() -- self-tested standalone in
+                        rl/control_delay.py, reset() called at every episode boundary
+
+Every disturbance is applied by direct tensor assignment on the already-constructed core,
+bypassing the phase-indexed stress-schedule mechanism entirely (that mechanism exists for
+CURRICULUM difficulty during training; this is a controlled, deterministic TEST condition and
+must not depend on which curriculum phase happens to be active).
+
+Output is collision-proof by construction: one file per (checkpoint, pole, disturbance,
+severity), named so two different sweeps can never collide, and the script REFUSES if a
+target file already exists rather than overwriting it.
+
+Run:  python experiments/eval_deployment_robustness.py --checkpoint <path> --checkpoint-id <name> \
+          --team-label 2v2 --pole A --seeds-start 11705001 --n-seeds 32 --device cuda
+      python experiments/eval_deployment_robustness.py --plan-only   (no GPU, prints the matrix)
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
+SPEC = SD / "DEPLOYMENT_ROBUSTNESS_SPEC.json"
+GUARANTEE = SD / "DEPLOYMENT_ONLY_GUARANTEE_CHECK.json"
+OUT_DIR = SD / "robustness_eval_rows"
+
+FAMILIES = ("nominal", "localization_noise", "motion_error", "control_delay")
+PERTURBATION_FAMILIES = ("localization_noise", "motion_error", "control_delay")
+SEVERITIES = ("low", "medium", "high")  # not used for "nominal"
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _sha(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()
+
+
+def load_spec() -> dict:
+    spec = json.loads(SPEC.read_text(encoding="utf-8"))
+    if spec["status"] != "FROZEN_BEFORE_IMPLEMENTATION":
+        raise SystemExit(f"REFUSING: robustness spec not frozen: {spec['status']!r}")
+    guarantee = json.loads(GUARANTEE.read_text(encoding="utf-8"))
+    if guarantee["VERDICT"] != "PASS":
+        raise SystemExit(f"REFUSING: deployment-only guarantee check is not PASS: "
+                         f"{guarantee['VERDICT']!r} -- do not run a perturbation sweep "
+                         "until the structural check confirms nothing leaks into training")
+    return spec
+
+
+def build_matrix(spec: dict, severities: tuple[str, ...] = SEVERITIES,
+                  families: tuple[str, ...] = PERTURBATION_FAMILIES,
+                  skip_nominal: bool = False) -> list[dict]:
+    """Every (family, severity) cell, including exactly one nominal baseline.
+
+    ``severities`` selects which ALREADY-FROZEN tiers to include. It cannot introduce a
+    severity value -- every number still comes from spec["TIERS"] -- so restricting to
+    ("medium",) selects the frozen mid tier rather than inventing one.
+
+    ``families`` selects which perturbation families to include (default: all three, the
+    original behaviour). Lets a sweep target e.g. only localization_noise and motion_error at
+    a new severity without also spending seeds on a control_delay tier nobody asked for.
+
+    ``skip_nominal`` (default False, preserving original behaviour) omits the nominal cell.
+    Nominal is severity- and family-invariant -- "everything off" -- so a dose-response
+    extension on the SAME checkpoint and SAME seed block that already has a nominal CSV on
+    disk (from an earlier severity's sweep) would either waste 128 episodes reproducing
+    identical data or, since the collision guard checks every target before running anything,
+    refuse to run at all. Reusing the existing nominal file for R_A/R_B is correct here
+    because nominal is byte-identical in meaning regardless of which severities/families were
+    requested -- it is not a per-sweep quantity.
+    """
+    tiers = spec["TIERS"]
+    SEVERITIES = severities  # noqa: N806 - shadow deliberately, see docstring
+    cells = [] if skip_nominal else [{"family": "nominal", "severity": "nominal",
+                                       "sensor_noise": 0.0, "drift": 0.0, "delay_ticks": 0}]
+    if "localization_noise" in families:
+        for sev in SEVERITIES:
+            cells.append({"family": "localization_noise", "severity": sev,
+                          "sensor_noise": tiers["localization_noise"][sev],
+                          "drift": 0.0, "delay_ticks": 0})
+    if "motion_error" in families:
+        for sev in SEVERITIES:
+            cells.append({"family": "motion_error", "severity": sev,
+                          "sensor_noise": 0.0, "drift": tiers["motion_error"][sev],
+                          "delay_ticks": 0})
+    if "control_delay" in families:
+        for sev in SEVERITIES:
+            cells.append({"family": "control_delay", "severity": sev,
+                          "sensor_noise": 0.0, "drift": 0.0,
+                          "delay_ticks": tiers["control_delay"][sev]["ticks"]})
+    return cells
+
+
+def out_path(checkpoint_id: str, team_label: str, pole: str, z, cell: dict) -> Path:
+    """Collision-proof output name.
+
+    BUG FOUND IN PRODUCTION (2026-09-06): the original naming omitted ``z`` entirely, so
+    evaluating z=0 and z=1 against the SAME pole under the SAME checkpoint -- exactly what a
+    crossover study does for every pole -- produced identical filenames. The refusal-to-
+    overwrite check caught it before any data was lost (z=0's real files were intact), but the
+    z=1 run could not proceed until this was fixed. A latent-conditioned run must always
+    encode z; a non-latent run (z=None) omits the segment, which is the only case the original
+    naming was ever exercised with.
+    """
+    z_tag = f"__z{z}" if z is not None else ""
+    return OUT_DIR / f"{checkpoint_id}__{team_label}__pole{pole}{z_tag}__{cell['family']}__{cell['severity']}.csv"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--checkpoint", default=None)
+    ap.add_argument("--checkpoint-id", default=None,
+                    help="short identifier used in output filenames, e.g. rscft_treatment_2v2")
+    ap.add_argument("--team-label", default=None, help="e.g. 2v2, 4v4, 6v6")
+    ap.add_argument("--pole", choices=("A", "B"), default=None)
+    ap.add_argument("--z", type=int, default=None, help="fixed latent id to evaluate, if the "
+                    "checkpoint is latent-conditioned; omit for a no-latent policy")
+    ap.add_argument("--seeds-start", type=int, default=None)
+    ap.add_argument("--n-seeds", type=int, default=32)
+    ap.add_argument("--device", default="cuda")
+    ap.add_argument("--plan-only", action="store_true")
+    ap.add_argument("--rung", type=int, default=None, choices=(0, 1, 2, 3),
+                    help="load a sharing-ladder checkpoint (.pt, sharing_ladder_rungN_v1) via "
+                         "rl.ladder_rung1.load_rung instead of a custom_ppo .zip. Required for "
+                         "any ladder rung: load_custom_ppo_policy cannot read that format and "
+                         "raises CheckpointArchiveError.")
+    ap.add_argument("--team-size", type=int, default=2, choices=(2, 4, 6),
+                    help="team size used to resolve the POLE definitions. Defaults to 2, which "
+                         "reproduces this script's original behaviour exactly.")
+    ap.add_argument("--severities", default=",".join(SEVERITIES),
+                    help="comma-separated subset of the ALREADY-FROZEN tiers to run, e.g. "
+                         "'medium' for the frozen 2v2 primary matrix. Cannot introduce a "
+                         "severity value: every number still comes from the spec's TIERS.")
+    ap.add_argument("--families", default=",".join(PERTURBATION_FAMILIES),
+                    help="comma-separated subset of perturbation families to run, e.g. "
+                         "'localization_noise,motion_error' to extend those two to a new "
+                         "severity without also spending seeds on a control_delay tier nobody "
+                         "asked for. 'nominal' is always included regardless of this flag, "
+                         "unless --skip-nominal is also passed.")
+    ap.add_argument("--skip-nominal", action="store_true",
+                    help="omit the nominal cell -- for a dose-response extension on a "
+                         "checkpoint/seed block that already has a nominal CSV on disk from an "
+                         "earlier severity's sweep, so the run neither wastes episodes "
+                         "reproducing it nor collides with the existing file.")
+    args = ap.parse_args()
+
+    sevs = tuple(s.strip() for s in args.severities.split(",") if s.strip())
+    unknown = [s for s in sevs if s not in SEVERITIES]
+    if unknown:
+        raise SystemExit(f"REFUSING: unknown severity tier(s) {unknown}; the frozen tiers are "
+                         f"{list(SEVERITIES)}. A new tier would have to be frozen in the spec.")
+
+    fams = tuple(f.strip() for f in args.families.split(",") if f.strip())
+    unknown_fams = [f for f in fams if f not in PERTURBATION_FAMILIES]
+    if unknown_fams:
+        raise SystemExit(f"REFUSING: unknown famil(y/ies) {unknown_fams}; the frozen families "
+                         f"are {list(PERTURBATION_FAMILIES)}.")
+
+    spec = load_spec()
+    matrix = build_matrix(spec, sevs, fams, skip_nominal=args.skip_nominal)
+
+    if args.plan_only:
+        nominal_note = "0 nominal (skipped)" if args.skip_nominal else "1 nominal"
+        print(f"DEPLOYMENT ROBUSTNESS SWEEP -- PLAN ONLY  {_now()}\n")
+        print(f"  {len(matrix)} cells ({nominal_note} + {len(fams)} families x {len(sevs)} severities):")
+        for c in matrix:
+            print(f"    {c['family']:20s} {c['severity']:8s}  "
+                  f"sensor_noise={c['sensor_noise']}  drift={c['drift']}  "
+                  f"delay_ticks={c['delay_ticks']}")
+        print(f"\n  output naming: <checkpoint_id>__<team_label>__pole<X>[__z<N>]__<family>__<severity>.csv")
+        print(f"  output dir: {OUT_DIR}")
+        print(f"  collision policy: REFUSES if the target file already exists")
+        return 0
+
+    required = ("checkpoint", "checkpoint_id", "team_label", "pole", "seeds_start")
+    missing = [r for r in required if getattr(args, r) is None]
+    if missing:
+        raise SystemExit(f"REFUSING: --plan-only not set, but missing required args: {missing}")
+
+    ck = Path(args.checkpoint)
+    if not ck.is_file():
+        raise SystemExit(f"REFUSING: checkpoint missing: {ck}")
+    ck_sha = _sha(ck)
+
+    seeds = list(range(args.seeds_start, args.seeds_start + args.n_seeds))
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    targets = [out_path(args.checkpoint_id, args.team_label, args.pole, args.z, c) for c in matrix]
+    existing = [p for p in targets if p.is_file()]
+    if existing:
+        raise SystemExit(f"REFUSING: {len(existing)} output file(s) already exist, would be "
+                         f"overwritten: {[p.name for p in existing[:5]]}")
+
+    import torch
+    from experiments.opponent_spec import (
+        assert_live_opponent_batch, install_keyed_opponent_overlays,
+        pole_A_genome, pole_B_genome,
+    )
+    import experiments.phase0_collect_scorer_data as P0
+    import experiments.r2_learned_crossover as R2
+    from rl.control_delay import DelayBuffer
+    from rl.curriculum import phase_from_tag
+    from rl.custom_ppo import load_custom_ppo_policy
+
+    N = int(args.team_size)
+    R2.AGENTS = N
+
+    # Poles resolved at the LIVE team size. At N=2 pole_A_genome(2) reproduces the frozen
+    # record and pole_B_genome(2) adds no overlay, so this is a no-op for every 2v2 run this
+    # script has performed; at N>2 the Pole-B overlay is required and its absence would have
+    # silently deployed against the 2v2 gate.
+    genomes_by_pole = {
+        "A": {"OP6": pole_A_genome(N)},
+        "B": {"OP7": pole_B_genome(N)} if N != 2 else {},
+    }
+
+    device = args.device if torch.cuda.is_available() or args.device == "cuda" else "cpu"
+    print(f"DEPLOYMENT ROBUSTNESS SWEEP  {_now()}")
+    print(f"  checkpoint {ck.name}  sha256 {ck_sha[:16]}...")
+    print(f"  team_label={args.team_label}  team_size={N}  pole={args.pole}  z={args.z}"
+          f"{'  rung=' + str(args.rung) if args.rung is not None else ''}")
+    print(f"  pole overlay {genomes_by_pole[args.pole]}")
+    print(f"  seeds {seeds[0]}..{seeds[-1]} (n={len(seeds)})")
+    print(f"  {len(matrix)} cells, {len(matrix) * len(seeds)} episodes total\n", flush=True)
+
+    probe = R2.build_env(device, seeds[0])
+    obs_space, act_space = probe.observation_space, probe.action_space
+    grid_agents = int(obs_space.spaces["grid"].shape[0])
+    probe.close()
+    if grid_agents != N:
+        raise SystemExit(f"FAIL-CLOSED: env grid agent dim {grid_agents} != team size {N}")
+
+    if args.rung is not None:
+        # Sharing-ladder checkpoints are a different format entirely; load_custom_ppo_policy
+        # raises CheckpointArchiveError on them.
+        from rl import ladder_rung1 as L1
+
+        model, branch_cfg, _ = L1.load_rung(args.rung, str(ck), obs_space, act_space,
+                                            device=device)
+        policy = L1.make_dispatch_policy(model, branch_cfg, device=device)
+        if args.z is None:
+            raise SystemExit("REFUSING: --rung is latent-dispatched; --z is required so the "
+                             "evaluated strategy is explicit rather than defaulted.")
+    else:
+        policy = load_custom_ppo_policy(str(ck), obs_space, act_space, device=device)
+
+    def run_episode(seed: int, cell: dict) -> dict:
+        env = R2.build_env(device, seed)
+        core = env.core
+        delay = DelayBuffer(cell["delay_ticks"]) if cell["delay_ticks"] else None
+        try:
+            if args.z is not None:
+                policy.fixed_latent_strategy = True
+                policy.fixed_latent_strategy_id = int(args.z)
+            policy.reset_strategy()
+            core._bt_profile_override = None
+            core._sds_opening_hold_steps = 0
+            genomes = genomes_by_pole[args.pole]
+            install_keyed_opponent_overlays(core, genomes)
+            key = P0.POLES[args.pole]
+            env.env_method("set_phase", phase_from_tag(key))
+            env.env_method("set_next_opponent", "SCRIPTED", key)
+            obs = env.reset()
+            obs["global_state"] = env.state()
+            assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
+                                       context=f"robustness {cell['family']}/{cell['severity']} "
+                                               f"{args.pole} seed {seed}")
+            # apply the disturbance AFTER reset, by direct tensor assignment -- bypasses the
+            # phase-indexed stress schedule entirely, a deterministic test condition
+            core.rt_sensor_noise_sigma_cells[:] = float(cell["sensor_noise"])
+            core.rt_drift_sigma_cells[:] = float(cell["drift"])
+
+            terminal = None
+            for _ in range(R2.MAX_STEPS):
+                action, _ = policy.predict(obs, deterministic=True)
+                exec_action = delay.push(action) if delay is not None else action
+                env.step_async(exec_action)
+                obs, _r, done, info = env.step_wait()
+                obs["global_state"] = env.state()
+                if bool(np.asarray(done).any()):
+                    i0 = info[0] if isinstance(info, (list, tuple)) else info
+                    res = (i0 or {}).get("episode_result") or {}
+                    terminal = (int(res.get("blue_score", 0)), int(res.get("red_score", 0)))
+                    break
+            if terminal is None:
+                terminal = (int(core.blue_score[0]), int(core.red_score[0]))
+            blue, red = terminal
+            return {"blue": blue, "red": red, "win": int(blue > red), "margin": blue - red}
+        finally:
+            if delay is not None:
+                delay.reset()
+            env.close()
+
+    for cell, target in zip(matrix, targets):
+        rows = [{"seed": s, **run_episode(s, cell)} for s in seeds]
+        with target.open("w", newline="", encoding="utf-8") as fh:
+            w = csv.DictWriter(fh, fieldnames=list(rows[0]))
+            w.writeheader()
+            w.writerows(rows)
+        wr = np.mean([r["win"] for r in rows])
+        print(f"  {cell['family']:20s} {cell['severity']:8s}  win rate {wr:.4f}  "
+              f"-> {target.name}", flush=True)
+
+    print(f"\n  {len(matrix)} cells written to {OUT_DIR}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

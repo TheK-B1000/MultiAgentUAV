@@ -11,6 +11,10 @@ from game_manager import (
     FLAG_CARRY_HOME_REWARD,
     FLAG_PICKUP_REWARD,
     LOSE_TEAM_PUNISH,
+    SPARSE_MINE_TAG_POINTS,
+    SPARSE_OOB_POINTS,
+    SPARSE_TAG_NO_FLAG_POINTS,
+    SPARSE_TAG_WITH_FLAG_POINTS,
     WIN_TEAM_REWARD,
 )
 
@@ -43,6 +47,38 @@ class RewardConfig:
     team_escort_reward: float = 0.02
     team_intercept_reward: float = 0.02
     sparse_weight: float = 1.0
+    # Points for tagging an opponent who is NOT carrying a flag. Applied
+    # symmetrically: BLUE earns it for tagging, and pays it when tagged.
+    #
+    # The default (+100) equals SPARSE_FLAG_CAPTURE_POINTS, so a routine
+    # defensive tag pays exactly what scoring a flag pays -- while being far
+    # more frequent and far less risky. It also pays DOUBLE what tagging the
+    # enemy flag carrier pays (SPARSE_TAG_WITH_FLAG_POINTS = 50). This is the
+    # leading suspect for the passive tag-farming attractor that collapsed two
+    # of three G0-v2 seeds; exposed as a knob so it can be ablated without
+    # editing the shared game_manager constant.
+    sparse_tag_no_flag_points: float = float(SPARSE_TAG_NO_FLAG_POINTS)
+    # Points for tagging the enemy FLAG CARRIER. With sparse_tag_no_flag_points
+    # zeroed this becomes the only remaining tag payoff, and the seed drawing the
+    # largest share of its sparse reward from it was the one that failed. Exposed
+    # so the whole tag-reward family can be closed in a single experiment.
+    sparse_tag_with_flag_points: float = float(SPARSE_TAG_WITH_FLAG_POINTS)
+    # Out-of-bounds points. Exposed for MEASUREMENT and future budgeting only --
+    # deliberately left at its original value in Reward V3 because the OOB event
+    # rate has never been measured, and budgeting an unmeasured term is the
+    # mistake this whole exercise exists to correct.
+    sparse_oob_points: float = float(SPARSE_OOB_POINTS)
+    # OOB split into its two halves, because they are different incentives.
+    # own: a penalty for leaving the field yourself (keep, but bounded).
+    # opponent: a REWARD for the enemy leaving the field. At the historical
+    # +100 this was a points farm -- V3 seed 2900002 drove red off the field
+    # 2.39x/episode, earning +1.9/episode (3.1x its terminal signal) while
+    # losing 89% of its games. Defaults preserve the original behaviour exactly.
+    sparse_own_oob_points: float = float(SPARSE_OOB_POINTS)
+    sparse_opponent_oob_points: float = float(-SPARSE_OOB_POINTS)
+    # Mine tags are paid twice: sparse points AND enemy_mav_kill_reward,
+    # because blue_kill_count includes them. Exposed for measurement first.
+    sparse_mine_tag_points: float = float(SPARSE_MINE_TAG_POINTS)
     dense_weight: float = 0.25
     reward_scale: float = 4.0
     reward_clip: float = 1.0
@@ -158,9 +194,79 @@ class GPUFieldConfig:
     macro_commit_go_home_ticks: int = 4
     macro_arrival_radius_cells: float = 1.0
 
-    # Tagging channel controls:
-    # - tag_channel_seconds: pressure >= 2 must be sustained for this many seconds before a tag is applied.
-    tag_channel_seconds: float = 1.0
+    # --- Tagging rules -------------------------------------------------------
+    # Official Aquaticus: a SINGLE eligible defender tags by itself; the NEAREST
+    # eligible opponent receives the tag (so a teammate can absorb one to protect
+    # a carrier); and a successful tagger must wait a minimum interval before
+    # tagging again.
+    #
+    # RULESET_V1 (superseded, kept reproducible) required two simultaneous
+    # taggers with no cooldown. In 2v2 that made a lone defender strictly
+    # dominated -- it could neither tag nor suppress -- which removed the
+    # opportunity cost of committing both agents forward and collapsed the
+    # strategy space onto a single non-dominated policy.
+    #
+    # Reproduce RULESET_V1 exactly with:
+    #     taggers_required=2, tag_nearest_only=False,
+    #     tag_min_interval_seconds=0.0, tag_channel_seconds=1.0
+    taggers_required: int = 1
+    tag_nearest_only: bool = True
+    # Minimum interval before the SAME vehicle may tag again. MIT sources differ
+    # (game-mechanics page: 30 s; uFldTagManager default: 10 s), so this is a
+    # required knob rather than a hardcoded constant -- set it from the exact
+    # mission/competition configuration being replicated. Distinct from
+    # tag_duration_seconds, which is how long a tagged vehicle stays tagged.
+    tag_min_interval_seconds: float = 10.0
+    # Sustained-pressure window before a tag lands. The official per-request
+    # eligibility model has no group channel, so 0.0 is the faithful value; a
+    # small non-zero value is a simulator debounce and must be labeled as an
+    # approximation, not a rule.
+    tag_channel_seconds: float = 0.0
+    # Suppression/kill is a project-specific mechanic, NOT Aquaticus tagging.
+    # Kept on its own threshold so correcting tagging cannot silently change it.
+    suppression_attackers_required: int = 2
+    # M1 (V3 candidate, DEFAULT OFF): a capture only scores while the scoring
+    # team's OWN flag is at home. Couples offence to defence. RULESET_V2 is
+    # unchanged when False. See artifacts/strategic_demand/V3_RECOMMENDATION.md
+    own_flag_home_required_to_score: bool = False
+    # Observational tag-event telemetry. OFF by default so training pays nothing.
+    # When on, tag successes and cooldown denials are recorded AT THE DECISION
+    # POINT, before movement / return-home / flag-drop side effects run. It must
+    # be behaviour-neutral: identical states, rewards, and outcomes with it on or
+    # off under the same seed (see tests/test_tag_telemetry.py).
+    tag_telemetry_enabled: bool = False
+
+    @property
+    def ruleset_id(self) -> str:
+        """Identity of the tagging ruleset actually in force.
+
+        Stamped into run configs and checkpoints so a RULESET_V1 policy cannot
+        silently enter a RULESET_V2 result.
+        """
+        if (int(self.taggers_required) == 1 and bool(self.tag_nearest_only)
+                and float(self.tag_channel_seconds) == 0.0
+                and float(self.tag_min_interval_seconds) == 10.0):
+            if bool(self.own_flag_home_required_to_score):
+                return "RULESET_V3_M1_OWN_FLAG_HOME"
+            return "RULESET_V2_AQUATICUS_10S"
+        if (int(self.taggers_required) == 2 and not bool(self.tag_nearest_only)
+                and float(self.tag_min_interval_seconds) == 0.0):
+            return "RULESET_V1_TWO_TAGGER"
+        return (f"RULESET_CUSTOM_t{int(self.taggers_required)}"
+                f"_cd{float(self.tag_min_interval_seconds):g}"
+                f"_ch{float(self.tag_channel_seconds):g}"
+                f"_near{int(bool(self.tag_nearest_only))}")
+
+    def ruleset_fields(self) -> dict:
+        """The full tagging-rule fingerprint for provenance and load checks."""
+        return {
+            "ruleset_id": self.ruleset_id,
+            "taggers_required": int(self.taggers_required),
+            "tag_min_interval_seconds": float(self.tag_min_interval_seconds),
+            "tag_nearest_only": bool(self.tag_nearest_only),
+            "tag_channel_seconds": float(self.tag_channel_seconds),
+            "suppression_attackers_required": int(self.suppression_attackers_required),
+        }
 
     # Profile and reward controls
     aquaticus_profile: bool = False

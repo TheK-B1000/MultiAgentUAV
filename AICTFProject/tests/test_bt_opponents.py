@@ -76,6 +76,12 @@ def _make_core(opponent: str, *, seed: int = 0, max_steps: int = 400,
     return core, env
 
 
+# OP8's formation opening and OP12's stage-1 opening force every agent to
+# ATTACKER for the first sim steps (see ``_bt_assign_roles``). Role-selection
+# scenarios must therefore start after that window.
+_PAST_OPENING_STEP = 25
+
+
 def _run_bt(core, opponent: str = "OP11") -> tuple:
     """Run one BT step and return (roles, target_x, target_y)."""
     core._opponent_key[0] = opponent
@@ -171,10 +177,16 @@ class TestInterceptorFeasible(unittest.TestCase):
 
 class TestCounterCaptureWhenInterceptInfeasible(unittest.TestCase):
     """When the blue carrier is too far ahead to catch (infeasible intercept),
-    OP12 should assign COUNTER (go for enemy flag) rather than chasing."""
+    OP11 and OP12 both assign COUNTER (go for enemy flag) rather than chasing.
+
+    Both profiles carry ``counter_always=True`` in the niche table pinned by
+    ``test_bt_strategic_niches.py``. Scenarios start past step 20 because OP12's
+    stage-1 opening window forces ATTACKER for the first 20 sim steps.
+    """
 
     def _setup_infeasible(self, opponent: str, trailing: bool = False):
         core, _ = _make_core(opponent,
+                              step=_PAST_OPENING_STEP,
                               red_score=0 if trailing else 1,
                               blue_score=1 if trailing else 0)
         # Blue carrier mid-lane (not near cap): red cannot intercept in time, but
@@ -191,9 +203,14 @@ class TestCounterCaptureWhenInterceptInfeasible(unittest.TestCase):
         core.red_y[0, 1] = 15.0
         return core
 
-    def test_op12_emergency_intercept_when_near_cap(self) -> None:
-        """Adaptive OP12 collapses on near-cap carrier instead of countering."""
-        core, _ = _make_core("OP12")
+    def test_op12_counters_rather_than_chasing_near_cap_carrier(self) -> None:
+        """OP12 converts instead of chasing a carrier that is about to score.
+
+        The adaptive emergency-collapse pass only pulls a second interceptor
+        when no COUNTER was assigned; ``counter_always`` means OP12 always
+        takes the conversion, which is what LATE_CONVERTER names.
+        """
+        core, _ = _make_core("OP12", step=_PAST_OPENING_STEP)
         core.blue_carrying[0, 0] = True
         core.blue_x[0, 0] = 1.0
         core.blue_y[0, 0] = 10.0
@@ -205,9 +222,9 @@ class TestCounterCaptureWhenInterceptInfeasible(unittest.TestCase):
         core.red_y[0, 1] = 15.0
         roles, _, _ = _run_bt(core, "OP12")
         self.assertIn(
-            ROLE_INTERCEPTOR,
+            ROLE_COUNTER,
             roles,
-            f"OP12 adaptive should INTERCEPT near-cap carrier, got roles={roles}",
+            f"OP12 should COUNTER a near-cap carrier, got roles={roles}",
         )
 
     def test_op12_counter_fires_when_infeasible(self) -> None:
@@ -231,14 +248,12 @@ class TestCounterCaptureWhenInterceptInfeasible(unittest.TestCase):
         self.assertIn(ROLE_COUNTER, roles,
                       f"OP11 trailing should COUNTER when infeasible, got roles={roles}")
 
-    def test_op11_leading_no_counter_when_infeasible(self) -> None:
-        """OP11 leading should NOT counter-capture when infeasible; some other role fires."""
+    def test_op11_leading_counter_fires_when_infeasible(self) -> None:
+        """OP11 counters regardless of score: the exploiter takes a free flag."""
         core = self._setup_infeasible("OP11", trailing=False)
         roles, _, _ = _run_bt(core, "OP11")
-        # When leading and intercept is infeasible, OP11 does not flip to counter.
-        # Agents may become ATTACKER or DEFENDER but not COUNTER.
-        self.assertNotIn(ROLE_COUNTER, roles,
-                         f"OP11 leading should NOT counter when infeasible, got roles={roles}")
+        self.assertIn(ROLE_COUNTER, roles,
+                      f"OP11 leading should COUNTER when infeasible, got roles={roles}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -349,14 +364,25 @@ class TestDefenderDecisionTree(unittest.TestCase):
         self.assertGreater(tx[def_idx], float(core.red_flag_home[0, 0].item()) * 0.5,
                            "Defender target should be closer to intruder than to own base")
 
-    def test_defender_chases_carrier(self) -> None:
-        roles, tx, ty, _ = self._defender_target(intruder_on_own=True, enemy_carry=True)
-        self.assertIn(ROLE_DEFENDER, roles,
-                      f"Expected DEFENDER when enemy carrier exists, got roles={roles}")
-        # The target x should be near the carrier position (15.0).
-        def_idx = roles.index(ROLE_DEFENDER)
-        self.assertAlmostEqual(tx[def_idx], 15.0, delta=1.5,
-                               msg=f"Defender should target carrier at x=15, got {tx[def_idx]:.2f}")
+    def test_defender_collapses_onto_carrier(self) -> None:
+        """A carrier close enough to score pulls the whole team onto the cut-off.
+
+        OP11's adaptive emergency collapse promotes the would-be DEFENDER to a
+        second INTERCEPTOR, so both agents block the carrier's route home
+        rather than one guarding the flag zone.
+        """
+        roles, tx, ty, core = self._defender_target(intruder_on_own=True, enemy_carry=True)
+        self.assertNotIn(ROLE_ATTACKER, roles,
+                         f"Expected the whole team on the carrier, got roles={roles}")
+        self.assertIn(ROLE_INTERCEPTOR, roles,
+                      f"Expected INTERCEPTOR when enemy carrier exists, got roles={roles}")
+        blue_home_x = float(core.blue_flag_home[0, 0].item())
+        for target_x in tx:
+            self.assertLessEqual(
+                target_x, 15.0,
+                "Interceptors should block between the carrier and blue home "
+                f"(x in [{blue_home_x:.1f}, 15.0]), got {target_x:.2f}",
+            )
 
     def test_defender_zones_when_clear(self) -> None:
         roles, tx, ty, core = self._defender_target(intruder_on_own=False, enemy_carry=False)
@@ -465,11 +491,16 @@ class TestFlagRetrieval(unittest.TestCase):
 # ──────────────────────────────────────────────────────────────────────────────
 
 class TestOP11vsOP12BehaviorDifference(unittest.TestCase):
-    """OP12 should assign COUNTER more often than OP11 when intercept is infeasible
-    and red is leading (OP11 does not counter when leading; OP12 always does)."""
+    """OP11 and OP12 both counter-capture; they are separated by the 2v1 wing.
+
+    The niche table pinned by ``test_bt_strategic_niches.py`` gives both
+    profiles ``counter_always=True`` and reserves ``enable_2v1`` for OP11.
+    """
 
     def _infeasible_carrier_state(self, opponent: str, red_score: int = 1):
-        core, _ = _make_core(opponent, red_score=red_score, blue_score=0)
+        core, _ = _make_core(
+            opponent, step=_PAST_OPENING_STEP, red_score=red_score, blue_score=0
+        )
         core.blue_carrying[0, 0] = True
         core.blue_x[0, 0] = 8.0
         core.blue_y[0, 0] = 10.0
@@ -488,11 +519,28 @@ class TestOP11vsOP12BehaviorDifference(unittest.TestCase):
         self.assertIn(ROLE_COUNTER, roles,
                       "OP12 should COUNTER even when leading, got roles=" + str(roles))
 
-    def test_op11_does_not_counter_when_leading(self) -> None:
+    def test_op11_also_counters_when_leading(self) -> None:
         core = self._infeasible_carrier_state("OP11", red_score=1)
         roles, _, _ = _run_bt(core, "OP11")
-        self.assertNotIn(ROLE_COUNTER, roles,
-                         "OP11 should NOT COUNTER when leading, got roles=" + str(roles))
+        self.assertIn(ROLE_COUNTER, roles,
+                      "OP11 should COUNTER even when leading, got roles=" + str(roles))
+
+    def test_only_op11_promotes_a_2v1_wing(self) -> None:
+        def _wing_roles(opponent: str):
+            core, _ = _make_core(opponent, step=_PAST_OPENING_STEP)
+            core.red_x[0, 0] = 7.0
+            core.red_y[0, 0] = 10.0
+            core.red_x[0, 1] = 8.0
+            core.red_y[0, 1] = 9.0
+            core.blue_x[0, 0] = 7.5
+            core.blue_y[0, 0] = 9.5
+            core.blue_x[0, 1] = 1.0
+            core.blue_y[0, 1] = 1.0
+            roles, _, _ = _run_bt(core, opponent)
+            return roles
+
+        self.assertIn(ROLE_2V1_WING, _wing_roles("OP11"))
+        self.assertNotIn(ROLE_2V1_WING, _wing_roles("OP12"))
 
 
 # ──────────────────────────────────────────────────────────────────────────────

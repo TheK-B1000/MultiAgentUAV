@@ -1,0 +1,43 @@
+{
+  "context_id": "C_RUSH",
+  "status": "FROZEN",
+  "frozen_at_utc": "2026-07-29T02:50:00+00:00",
+  "verdict": "CONFIRM_PASS",
+  "intended_response": "BLUE_RUSH",
+  "red": "OP6_IMMEDIATE_DUAL_RUSH",
+  "map": "map_a",
+  "map_layout_normalized": "map_a_open",
+  "blue_probe_protocol": "BLUE_PROBES_V3",
+  "confirmation": {
+    "artifact": "artifacts/k2_c_rush_op6_mapa_heldout16_seed821001",
+    "episodes_per_style": 16,
+    "base_seed": 821001,
+    "matched_seed_contract": "episode_seed = f(red,map,episode_index), independent of blue_style",
+    "analysis_script": "experiments/run_scripted_style_payoff_matrix.py",
+    "device": "cpu",
+    "max_decision_steps": 240,
+    "mean_margins": {
+      "BLUE_RUSH": 0.875,
+      "BLUE_TURTLE": 0.625,
+      "BLUE_ESCORT": 0.0,
+      "BLUE_SPLIT": -0.0625
+    },
+    "rush_wr": 0.9375,
+    "runner_up": "BLUE_TURTLE",
+    "gap_vs_runner_up": 0.25,
+    "note": "Thin gap: valid scripted opportunity; does not guarantee PPO crossover."
+  },
+  "environment_commit": "458a57a0989ace3e7b17d820a01a719334cc47b9",
+  "environment_commit_note": "Working tree may contain unrelated Map C edits; C_RUSH uses map_a + OP6 + BLUE_PROBES_V3 only — do not retune those.",
+  "learned_policy_gates_required_later": [
+    "pi_R better than pi_S on C_RUSH",
+    "pi_S better than pi_R on C_SPLIT",
+    "LCB95(delta_pool) > 0"
+  ],
+  "do_not": [
+    "retune OP6 for a prettier scripted gap",
+    "change map_a",
+    "change BLUE_PROBES_V3 / RUSH V3 direct-home",
+    "train router before K=2 specialist crossover"
+  ]
+}

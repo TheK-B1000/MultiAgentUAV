@@ -1,0 +1,31 @@
+{
+  "record": "D2 fit result",
+  "status": "DIAGNOSTIC_ONLY",
+  "utc": "2026-08-27T09:18:16Z",
+  "rungs": {
+    "1": {
+      "rung": 1,
+      "n_stolen_pole_B_rows": 100,
+      "per_stolen_row_weight": 1.0,
+      "best_val_wmse": 0.4647022599847203,
+      "n_epochs_run": 22,
+      "weights_path": "artifacts\\strategic_demand\\sppo\\d2_density\\fits\\qpsi_rung1.pt"
+    },
+    "2": {
+      "rung": 2,
+      "n_stolen_pole_B_rows": 200,
+      "per_stolen_row_weight": 0.5,
+      "best_val_wmse": 0.4632521409008326,
+      "n_epochs_run": 21,
+      "weights_path": "artifacts\\strategic_demand\\sppo\\d2_density\\fits\\qpsi_rung2.pt"
+    },
+    "3": {
+      "rung": 3,
+      "n_stolen_pole_B_rows": 400,
+      "per_stolen_row_weight": 0.25,
+      "best_val_wmse": 0.46622181568625637,
+      "n_epochs_run": 16,
+      "weights_path": "artifacts\\strategic_demand\\sppo\\d2_density\\fits\\qpsi_rung3.pt"
+    }
+  }
+}

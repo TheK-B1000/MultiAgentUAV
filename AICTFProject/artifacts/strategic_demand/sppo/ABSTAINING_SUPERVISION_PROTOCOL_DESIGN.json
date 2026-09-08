@@ -1,0 +1,385 @@
+{
+  "record_id": "ABSTAINING_STRATEGIC_SUPERVISION_PROTOCOL",
+  "status": "FROZEN (STRUCTURE) -- ABSTAINING_SUPERVISION_PROTOCOL_FROZEN. tau, rho and o_max intentionally UNSET pending CALIB. Implementation NOT AUTHORIZED.",
+  "utc": "2026-08-27T18:23:02Z",
+  "authority": "PI authorized protocol DESIGN on 2026-08-27, sequenced SECOND after stratified-regime collection.",
+  "depends_on": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json. This protocol CANNOT be numerically frozen until that collection exists.",
+  "THE_PROBLEM_THIS_ADDRESSES": "We were asking a whole-episode evaluation target (terminal win margin) to manufacture an A/B preference at every individual state. It cannot. 61.5% of pole-B branch states are tied, 91.2% of stolen-flag states, and home-regime ties climb 0.368 -> 0.564 -> 0.854 with lateness. Forcing a binary ranking onto tied states manufactures supervision the evidence does not contain.",
+  "THREE_CLASS_SUPERVISION": {
+    "classes": [
+      "A preferred",
+      "B preferred",
+      "preference not established"
+    ],
+    "wording_is_load_bearing": "The third class is PREFERENCE NOT ESTABLISHED. It is NOT 'A and B are equivalent'. A tie in a coarse target is a measurement limit, not a demonstrated equality. If this wording erodes, the protocol silently becomes the thing it was built to replace.",
+    "label_rule": {
+      "quantity": "Delta(s) = M(pi_B | s) - M(pi_A | s), terminal win margin, on paired branch states",
+      "A_preferred": "Delta < 0",
+      "B_preferred": "Delta > 0",
+      "preference_not_established": "Delta == 0",
+      "why_a_bare_equality_test_suffices": "Branch continuations are DETERMINISTIC -- model.predict(deterministic=True) throughout, from a replayed and exactly restored state, with teacher-consistent continuation. Verified in collect_rasr_dev_scorer_data.py and phase0_collect_scorer_data.py. So Delta is EXACT for that state, not a noisy sample of an expectation, and no significance test is needed to call a tie a tie. This is what makes the third class measurable rather than merely asserted."
+    }
+  },
+  "TWO_DEGENERATE_SOLUTIONS_BOTH_EXCLUDED": {
+    "note": "The PI flagged the first. The second is its dual and is equally fatal; it is closed here.",
+    "degenerate_1_always_abstain": {
+      "attack": "The model 'solves' ranking by never committing, scoring perfect accuracy on an empty resolved set.",
+      "closed_by": "RESOLVED_COVERAGE_FLOOR below, stratified over 16 cells."
+    },
+    "degenerate_2_always_commit": {
+      "attack": "The model commits on every state including tied ones. Because a tied state has no correct answer, a commitment there can never be scored WRONG -- so it inflates coverage at zero accuracy cost. Coverage measured over all states is therefore gameable in the opposite direction.",
+      "closed_by": [
+        "Coverage is measured ONLY over RESOLVABLE states (Delta != 0). Committing on a tied state earns no coverage credit.",
+        "OVER_COMMITMENT_CEILING below separately bounds the rate of claiming preference on tied states."
+      ]
+    }
+  },
+  "GATES_JOINTLY_FROZEN": {
+    "requirement": "tau and c_min are set TOGETHER, before any model is trained. Neither may be adjusted after seeing model behaviour.",
+    "gate_1_strategic_accuracy": {
+      "quantity": "accuracy | resolved = P(model's committed direction == label | label != tie AND model commits)",
+      "threshold": "tau = 0.70",
+      "measured_on": "EVAL split",
+      "role_clarified_by_amendment_3": "tau is the SCIENTIFIC SUCCESS CRITERION -- how accurate the method must be on EVAL to count as working. It is NOT a tuning parameter and is NOT selected from CALIB model outputs. The commit/abstain decision threshold is kappa, a separate symbol.",
+      "tau": 0.7,
+      "statistical_form": "POINT ESTIMATE, exactly as originally frozen. accuracy|resolved >= 0.70 on EVAL. No bootstrap, no lower bound, no seed clustering is applied to this gate. The number was inserted into the existing form; the geometry was NOT changed."
+    },
+    "gate_2_resolved_coverage": {
+      "quantity": "coverage(cell) = P(model commits | state in cell AND label != tie)",
+      "threshold": "c_min = rho = 0.50, FLAT across all 16 cells",
+      "stratification": "Enforced per cell over all 16 pole x regime x horizon cells. A GLOBAL coverage number does not satisfy this gate.",
+      "why_stratified": "A global floor is satisfiable by committing confidently on early, flag-home, not-carrying states while abstaining on everything hard. That is exactly the blind spot D3-D6 spent the whole diagnostic arc exposing: the states where abstention is most tempting are the states where the strategic question matters most.",
+      "STRUCK_CRITICAL_FORM": {
+        "status": "STRUCK by AMENDMENT_2, 2026-08-29. Preserved verbatim, not deleted.",
+        "original_text": "c_min MUST be expressed as a fraction of the ACHIEVABLE resolvable mass in each cell, NOT as an absolute fraction of all states in that cell. In stolen-flag cells roughly 91% of states are tied, so any absolute floor above ~9% is unachievable there and would fail the protocol for a reason that has nothing to do with the model. Proposed form: c_min(cell) = rho * achievable(cell), where rho is a single frozen fraction and achievable(cell) is the measured resolvable mass of that cell.",
+        "why_struck": "Double normalization. The quantity line already conditions on label != tie, so coverage is ALREADY expressed as a fraction of the resolvable states -- a model committing on every resolvable state scores 1.0 however tied the cell is. CRITICAL_FORM then multiplied the floor by achievable mass a second time.",
+        "why_the_error_happened": "CRITICAL_FORM was reasoned about coverage as an ABSOLUTE fraction of all states in a cell, where the normalization is genuinely necessary. The quantity was written conditionally. Each half was correct in isolation; together they double-count.",
+        "the_inversion_it_caused": "Under the struck form the least resolvable cells received the lowest bar: B_r3_late r_c=0.000 -> c_min=0.000 (total abstention passes), A_r3_late 0.125 -> 0.062, against A_r0_not_late 0.813 -> 0.407. That is backwards against this gate's own stated rationale -- the states where abstention is most tempting are the states where the strategic question matters most -- and it would have re-opened the exact D3-D6 blind spot the gate exists to close.",
+        "caught": "Before any implementation, during pre-implementation verification of the frozen definitions against the PI's Stage-2 interpretation."
+      },
+      "ZERO_RESOLVABLE_MASS_RULE": {
+        "status": "FROZEN by AMENDMENT_2, 2026-08-29",
+        "problem": "A cell with no resolvable states makes P(commit | label != tie) a 0/0 form. gate_2 is UNDEFINED there, not merely small. B_r3_late measured 0 of 15 resolvable in CALIB.",
+        "rule": "If a cell contains zero resolvable states on the split being scored, it is EXEMPT from gate_2. The exemption is recorded explicitly in the result, never silently skipped.",
+        "what_still_binds": "gate_3 remains fully binding in exempt cells. The model may abstain freely where no preference is establishable, but may NOT manufacture preference there.",
+        "why_not_fail": "Failing the cell would penalise the model for a property of the TARGET that it cannot influence -- the same error the struck CRITICAL_FORM was originally trying to avoid.",
+        "why_not_defer": "Deferring the rule until EVAL composition is known would mean choosing a gate rule after seeing the data it governs. Frozen now instead, while EVAL is unexamined."
+      },
+      "rho": 0.5
+    },
+    "gate_3_over_commitment_ceiling": {
+      "quantity": "over_commit(cell) = P(model commits | state in cell AND label == tie)",
+      "threshold": "o_max = 0.10",
+      "purpose": "Bounds degenerate solution 2. Claiming a preference where the evidence establishes none is a failure even though it cannot be scored wrong.",
+      "o_max": 0.1
+    }
+  },
+  "THRESHOLD_PROVENANCE": {
+    "rule": "tau, rho (hence c_min) and o_max are calibrated on the CALIB split ONLY, before any model training, and frozen at that point.",
+    "prohibited": [
+      "Setting any threshold after observing model behaviour.",
+      "Setting any threshold on the EVAL split.",
+      "Adjusting a threshold because a gate failed.",
+      "Reporting a global coverage number computed on stratified data as if it were the natural-distribution rate -- see the weighting rule in the collection protocol."
+    ],
+    "WHY_THE_NUMBERS_ARE_UNSET_IN_THIS_DOCUMENT": "achievable(cell) is not yet measurable. The existing DEV branch data has 2 states in pole_B/regime_2 and 11 in pole_B/regime_1 -- computing per-cell resolvable mass from that would produce noise dressed as calibration. The stratified collection exists precisely to make these quantities estimable. This is why the PI sequenced collection FIRST, and that sequencing is confirmed correct by the measurement."
+  },
+  "SPLIT_DISCIPLINE": {
+    "FIT": "model fitting only",
+    "CALIB": "threshold calibration only; never fitting, never evaluation",
+    "EVAL": "gate scoring only; touched once",
+    "standing_rule": "No evaluation-block leakage into training or fitting data."
+  },
+  "WHAT_A_PASS_WOULD_AND_WOULD_NOT_MEAN": {
+    "would_mean": "The model commits to a strategic direction where the payoff evidence establishes one, at the frozen accuracy, across every audited regime and horizon band -- without buying that accuracy by abstaining on the hard cells.",
+    "would_NOT_mean": [
+      "That A and B are equivalent wherever the model abstains. Abstention marks unresolved evidence, never demonstrated equivalence.",
+      "That the terminal win margin is an adequate state-level target. It is not; this protocol works around that limit rather than repairing it.",
+      "Anything about policy performance. This is a supervision-signal protocol, not a training result."
+    ]
+  },
+  "RELATIONSHIP_TO_PRIOR_WORK": {
+    "supersedes": "Nothing. SPPPO V1 remains CLOSED as a valid FAIL; RASR remains INVALID on support validity.",
+    "does_not_revive": "This is not a route to re-running RASR qualification, whose prohibited repairs stand.",
+    "evidence_chain": "EXP1 -> SPPPO V1 -> D0 -> D1 -> D2 -> D3 -> D4 -> D5 -> D6 (infeasible) -> D6B (not run, underpowered) -> RASR (INVALID) -> stratified collection -> this protocol."
+  },
+  "AUTHORIZATION": {
+    "design_structure": "COMPLETE and FROZEN by PI ruling 2026-08-27 at commit c318bcea.",
+    "numeric_freeze": "BLOCKED until the stratified collection exists and CALIB is available. This is by design.",
+    "implementation": "NOT AUTHORIZED.",
+    "training_or_PPO_launch": "NOT AUTHORIZED."
+  },
+  "FREEZE_RECORD": {
+    "authority": "PI ruling, 2026-08-27",
+    "frozen_at_commit": "c318bcea",
+    "utc": "2026-08-27T18:26:03Z",
+    "ruling_verbatim_summary": [
+      "FREEZE BOTH PROTOCOLS AT c318bcea",
+      "DO NOT LAUNCH THE 35.3h COLLECTION YET",
+      "tau, rho, o_max intentionally UNSET pending calibration",
+      "NO PPO TRAINING",
+      "RASR remains INVALID and closed to repair"
+    ],
+    "cost_correction_was_before_the_freeze": "The PI was told the measured cost is 35.3 h / 2.8x RASR DEV, correcting the ~2x quoted when the 16-cell geometry was chosen, BEFORE this freeze was ordered. The geometry was reaffirmed on the corrected number.",
+    "why_the_cost_did_not_change_the_geometry": "PI reasoning, recorded because it is the justification a future reader will need: horizon is not decorative metadata. D5 showed it materially changes the target, and the abstaining successor is specifically at risk of behaving badly in late-game cells. Reverting to 8 cells would save time by weakening coverage exactly where the new method is most vulnerable. The expensive part of the last arc was not that training failed -- it was repeatedly discovering AFTERWARD that the measurement assumptions were wrong. This collection is instrumentation built before the rocket is fired.",
+    "what_freezing_does_and_does_not_commit": "Freezing does NOT commit the project to spending the 35.3 h. It commits the project to stop redesigning the experiment in response to future observations. The launch decision is separate and remains open.",
+    "AMENDMENT_RULE": "This document is frozen. Substantive changes require a separately committed, dated AMENDMENT record stating what changed and why, in the manner of D2_SPEC_AMENDMENT_*. Silent edits are prohibited. Any implementing script MUST verify the status string below and refuse to run if it does not match.",
+    "DRIFT_DETECTION": "The frozen design content is the file as committed at c318bcea. Hashes are recorded per document below. A future reader can verify the substantive design is unchanged with: git show c318bcea:<path> | sha256sum",
+    "frozen_content": {
+      "path": "AICTFProject/artifacts/strategic_demand/sppo/ABSTAINING_SUPERVISION_PROTOCOL_DESIGN.json",
+      "git_blob": "6296a041a034092d740acea9faf9adc20f4dae69",
+      "sha256": "c8ec88ffaef43e66fa8553177c48e38937ac705d4d9f942dbf5c66485268fa0d",
+      "bytes": 7633
+    },
+    "UNSET_IS_NOT_INCOMPLETE": "PI ruling: leaving tau, rho and o_max unset is correct sequencing, not an unfinished protocol. What is frozen is the STRUCTURE -- the three classes and their wording, the label rule, the two degenerate solutions and how each is excluded, the achievable-mass normalization, the stratification over 16 cells, the split discipline, and the threshold-provenance rule. The numbers are the only thing deferred, and they are deferred to a point where they can be estimated with real support rather than guessed.",
+    "what_the_collection_will_make_estimable": [
+      "how much resolvable mass actually exists in each of the 16 cells",
+      "what realistic commitment coverage looks like",
+      "what over-commitment looks like on truly tied states"
+    ],
+    "calibration_timing": "Thresholds are calibrated on CALIB and frozen BEFORE policy training. Calibrating after training, or on EVAL, or in response to a failed gate, is prohibited."
+  },
+  "AMENDMENT_1_CALIB_ADEQUACY_FLOOR": {
+    "record": "AMENDMENT 1 -- CALIB per-cell adequacy floor. Frozen PROSPECTIVELY, before any CALIB seed was collected.",
+    "utc": "2026-08-28T01:09:48Z",
+    "authority": "PI ruling, 2026-08-28",
+    "minimum_calib_seeds_per_cell": 5,
+    "scope": "All 16 pole x regime x horizon cells must meet it simultaneously. No exceptions, no pooling.",
+    "statement": "CALIB per-cell adequacy requires >=5 distinct CALIB seeds in every pole x regime x horizon cell. This is an EVIDENCE-AVAILABILITY FLOOR, NOT A PRECISION GUARANTEE. Sparse CALIB cells remain subject to seed-clustered uncertainty, which Stage 2 must propagate conservatively.",
+    "TWO_FLOORS_WITH_DIFFERENT_JOBS": {
+      "collection_floor": {
+        "value": 32,
+        "question_it_answers": "Does this cell have enough independent-seed evidence to be scientifically usable at all?",
+        "where": "STRATIFIED_REGIME_COLLECTION_PROTOCOL_DESIGN.json, over the FULL 160-seed block"
+      },
+      "calib_floor": {
+        "value": 5,
+        "question_it_answers": "Did this cell appear often enough in the 32-seed CALIB split that we may attempt to estimate its resolvable mass?"
+      },
+      "why_they_must_differ": "The scientific evidence requirement is already carried by the collection floor. By the time CALIB is read, every cell has ALREADY been proven to hold >=32 distinct seeds across the full block. The CALIB floor is not a second scientific gate; it only asks whether estimation may be attempted on this split.",
+      "the_governing_principle": "The floor determines whether we are ALLOWED TO ESTIMATE. The uncertainty determines HOW MUCH WE TRUST the estimate. Those are different jobs and must not be conflated into one number."
+    },
+    "NO_MINIMUM_ON_RESOLVED_OUTCOMES": {
+      "rule": "There is NO requirement that a cell contain any minimum number of resolvable (Delta != 0) states.",
+      "why": "The entire purpose of calibration is to DISCOVER how much resolvable mass exists. Requiring resolvable outcomes would let the measuring instrument reject the very finding it was built to detect.",
+      "worked_case": "A cell with 8 seeds and 0 resolvable outcomes is NOT insufficient support. It is evidence that resolvable mass may be extremely low -- exactly what D3/D4/D5 found and what the abstaining design exists to handle.",
+      "slogan": "5 seeds does NOT mean 5 resolvable examples. It means 5 independent chances to look."
+    },
+    "how_5_was_chosen": {
+      "decision_history_all_pre_data": "Ruled 8, revised to 6, then to 5. Every revision happened BEFORE a single CALIB seed existed and was driven by arithmetic, never by observed counts. Recorded in full because the sequence itself is evidence that the bar was not lowered after a failure.",
+      "why_8_was_withdrawn": "8 is defensible per-cell (P=0.907 at the conservative scarce-cell rate 0.344) but the floor binds on all 16 cells AT ONCE. Evaluating it one cell at a time was misleading: the joint pass probability is 0.790 on point estimates and 0.248 under the Wilson lower bound the 160-seed budget was itself computed from.",
+      "joint_probability_table": {
+        "floor_5": {
+          "point": 0.989,
+          "wilson_lower": 0.863
+        },
+        "floor_6": {
+          "point": 0.964,
+          "wilson_lower": 0.697
+        },
+        "floor_7": {
+          "point": 0.904,
+          "wilson_lower": 0.471
+        },
+        "floor_8": {
+          "point": 0.79,
+          "wilson_lower": 0.248
+        },
+        "floor_9": {
+          "point": 0.615,
+          "wilson_lower": 0.095
+        }
+      },
+      "binding_cells": [
+        "B_r2_late",
+        "B_r2_not_late"
+      ],
+      "why_not_lower_than_5": "Five distinct seeds is already a small independent-cluster sample. It is enough to attempt estimation and not enough to pretend precision. Below 5 the estimate stops being worth attempting at all.",
+      "THE_PROTOCOL_TRAP_THIS_AVOIDS": "Under an 8-seed rule we could finish the entire 35-hour collection correctly and then have the experiment blocked because one rare cell happened to land at 7 CALIB seeds -- and we would rightly refuse to change 8 -> 7 afterwards, having already seen the data. The two errors are asymmetric: an over-loose floor costs precision in two cells, which Stage 2 absorbs; an over-tight floor strands the whole collection behind a rule we are then forbidden to relax.",
+      "worked_example": "If CALIB ends up holding 6 distinct seeds for B_r2_late: under an 8-seed rule the entire calibration is blocked; under a 5-seed rule we may estimate it, the interval is wide, and Stage 2 behaves cautiously. The latter is the more sensible outcome given the full dataset has already proven that cell holds >=32 independent seeds."
+    },
+    "UNCERTAINTY_MUST_BE_REPORTED_NOT_JUST_POINT_ESTIMATES": {
+      "rule": "For every cell, Stage 1 reports r_c = #(Delta!=0)/n_c together with a seed-level 95% interval. A point estimate alone is not acceptable output.",
+      "why": "1/10 resolvable reads as 10%, but 10% is not known precisely from ten observations.",
+      "clustering": "The interval resamples whole seeds; branch states within a seed are not independent.",
+      "BOUNDARY_CASE_EXPLICITLY_HANDLED": "When every seed in a cell shows the same resolvable fraction -- most importantly when all are zero -- a nonparametric bootstrap returns a degenerate interval such as [0, 0], asserting exactly the precision this rule forbids. Stage 1 flags such cells as degenerate_bootstrap, and for the all-zero case additionally reports a rule-of-three upper bound of about 3/n_seeds so the uncertainty is visible rather than silently zero."
+    },
+    "consequence_if_unmet": "If any cell holds fewer than 5 distinct CALIB seeds, calibration is classified CALIBRATION_CANNOT_PROCEED. Do not select thresholds, do not lower the floor, and do not grow the data. A fresh PI decision is required and it may not simply relax this number.",
+    "prospective_status": "Frozen 2026-08-28 while the collection stood at roughly 21 of 160 seeds. CALIB begins at seed 10700097 and none had been collected. No CALIB count influenced this choice."
+  },
+  "AMENDMENT_2_GATE_GEOMETRY_AND_THRESHOLDS": {
+    "record": "AMENDMENT 2 -- gate_2 form corrected, rho and o_max frozen, tau explicitly still UNSET.",
+    "utc": "2026-08-29T11:36:07Z",
+    "authority": "PI ruling, 2026-08-29",
+    "made_before": "any implementation, any model, any EVAL access",
+    "FROZEN_NOW": {
+      "rho": 0.5,
+      "rho_meaning": "Of the states where A and B genuinely can be distinguished, the system must commit on at least half. Flat across all 16 cells.",
+      "o_max": 0.1,
+      "o_max_meaning": "Of the states where the target establishes no preference, the system may falsely commit on at most 10%.",
+      "why_these_values": "The new evidence shows resolvability is extremely heterogeneous -- 0.813 in A_r0_not_late down to 0.000 in B_r3_late. Demanding near-total commitment would recreate the problem the abstaining design exists to solve. Permitting 20-30% false commitment would make 'preference not established' cosmetic.",
+      "the_geometry_this_produces": {
+        "always_abstain": "coverage = 0 -> FAILS gate_2",
+        "always_commit": "over_commit ~ 1 -> FAILS gate_3",
+        "conclusion": "Both degenerate solutions are excluded by construction, which was the design goal."
+      }
+    },
+    "TAU_REMAINS_UNSET_AND_CANNOT_YET_BE_SET": {
+      "status": "UNSET. Not deferred by preference -- structurally impossible today.",
+      "why": "tau cannot be selected from CALIB because THERE IS NO MODEL. CALIBRATION_EVIDENCE.json contains only labels derived from Delta -- pure target measurement, zero model output. A selection procedure that maximises correctness on committed states presupposes model predictions to threshold, and none exist.",
+      "AMBIGUITY_TO_RESOLVE_BEFORE_TAU_IS_FROZEN": "gate_1 as frozen defines tau as a PASS BAR on accuracy, measured_on EVAL. The PI's Stage-2 procedure treats tau as a CONFIDENCE CUTOFF that determines commit versus abstain, which is what makes rho and o_max its consequences. These are different objects. Only the second is selectable, and only once a model exists. This must be resolved explicitly rather than by whichever reading the implementation happens to adopt.",
+      "what_this_blocks": "Nothing that can run today. Stage 2 cannot execute without a model regardless.",
+      "split_discipline_note": "Whichever reading wins, selection happens on CALIB and scoring on EVAL. gate_1's measured_on:EVAL and THRESHOLD_PROVENANCE's calibrate-on-CALIB are consistent, not in conflict."
+    },
+    "B_R3_LATE_READING_IS_SACRED": "15 of 15 tied in CALIB does NOT mean A and B are strategically identical in late stolen-carrying B-pole states. It means that under this target and this calibration sample, preference could not be established. The latent treatment must not apply a strategy-separation loss there. This is the distinction the entire third class exists to protect."
+  },
+  "AMENDMENT_3_KAPPA_SEPARATED_FROM_TAU": {
+    "record": "AMENDMENT 3 -- introduce kappa; freeze its selection procedure before any probe is fitted.",
+    "utc": "2026-08-29T11:39:17Z",
+    "authority": "PI ruling, 2026-08-29",
+    "made_before": "the K=2 probe exists, any fitting, any CALIB prediction, any EVAL access",
+    "WHY_A_NEW_SYMBOL": "tau was being asked to do two jobs: serve as the frozen Gate-1 accuracy bar AND act as the confidence cutoff whose position produces coverage and over-commitment. Repurposing it would have rewritten the meaning of an already-frozen gate and made the history harder to interpret. One overloaded Greek letter would have been quietly running half the experiment.",
+    "THE_FOUR_ROLES": {
+      "tau": "How accurate must the method be on EVAL to count as successful? Gate-1 pass bar.",
+      "rho": "On resolvable states, how often must it commit? Frozen at 0.50.",
+      "o_max": "On unresolved states, how often may it incorrectly commit? Frozen at 0.10.",
+      "kappa": "What confidence level makes the model commit instead of abstain? The decision threshold."
+    },
+    "KAPPA": {
+      "definition": "Model confidence cutoff for commit versus abstain.",
+      "status": "UNSET until a K=2 model and CALIB predictions exist. Structurally impossible today, exactly as tau was.",
+      "selected_on": "CALIB predictions ONLY. Never FIT, never EVAL.",
+      "SELECTION_PROCEDURE_FROZEN_NOW": [
+        "1. Sweep candidate kappa values using CALIB predictions only.",
+        "2. Require per-cell conditional coverage P(commit | resolvable) >= 0.50 in every cell WHERE RESOLVABLE MASS EXISTS.",
+        "3. Require unresolved over-commitment o <= 0.10.",
+        "4. Among qualifying kappa, maximize accuracy on committed resolvable CALIB examples.",
+        "5. If tied, choose the HIGHER, more conservative kappa.",
+        "6. If no kappa satisfies the frozen constraints, CALIBRATION FAILS. Do not relax them."
+      ],
+      "why_frozen_before_fitting": "A selection rule written after seeing model predictions is a rule chosen to be satisfiable. Freezing it now, while no probe exists, makes step 6 a real possibility rather than a formality.",
+      "step_6_is_not_decorative": "If no kappa clears both constraints, that is a genuine negative finding about the method -- the model cannot commit often enough on resolvable states without over-committing on unresolved ones. It must be recorded as a FAIL, not repaired by moving rho or o_max.",
+      "zero_resolvable_cells": "B_r3_late and any other cell with zero resolvable CALIB mass is exempt from the step-2 coverage requirement, per AMENDMENT_2's ZERO_RESOLVABLE_MASS_RULE. o_max still applies there."
+    },
+    "TAU": {
+      "status": "Numerically UNSET, but no longer blocking.",
+      "role": "Gate-1 EVAL accuracy criterion. A scientific success criterion, not a tuning parameter.",
+      "must_not": "Be selected from CALIB model outputs. That would turn a success criterion into a fitted quantity.",
+      "when_frozen": "Before EVAL is examined. This decision does NOT block implementation of the K=2 probe.",
+      "measured_on": "EVAL, unchanged from the original freeze."
+    },
+    "SPLIT_FLOW_FROZEN": {
+      "FIT": "fit/train the K=2 probe. 10700001..10700096.",
+      "CALIB": "produce predictions; select and freeze kappa. 10700097..10700128.",
+      "EVAL": "judge the final gates once. 10700129..10700160.",
+      "invariant": "No split is used for more than its stated purpose. CALIB never trains; EVAL is touched once, last."
+    },
+    "ARCHITECTURE_REQUIREMENT_ON_THE_PROBE": "The K=2 probe MUST expose a per-state confidence signal, because kappa thresholds it. A probe that emits only a hard A/B decision cannot implement abstention at all and would silently reduce the three-class design back to the two-class one it replaces.",
+    "NEXT_SEQUENCE_FROZEN": [
+      "implement K=2 treatment probe, exposing a confidence signal",
+      "fit on FIT only",
+      "produce CALIB predictions",
+      "select and freeze kappa by the procedure above",
+      "freeze the separate Gate-1 tau criterion, before touching EVAL",
+      "live smoke must return PASS",
+      "latent launch decision"
+    ]
+  },
+  "AMENDMENT_4_TAU_FROZEN": {
+    "record": "AMENDMENT 4 -- tau frozen at 0.70.",
+    "utc": "2026-08-29T11:43:52Z",
+    "authority": "PI ruling, 2026-08-29",
+    "tau": 0.7,
+    "quantity": "accuracy on committed, resolvable EVAL examples -- the frozen gate_1 quantity, unchanged",
+    "WHY_NOW_IS_THE_CLEANEST_POSSIBLE_MOMENT": "At the time of freezing there is no probe architecture, no fitted model, no FIT performance, no CALIB predictions, no kappa and no EVAL result. The success bar therefore cannot have been influenced by whether the model looks good. This is the strongest form of preregistration available for a success criterion.",
+    "why_0.70": {
+      "baseline": "Binary strategic preference has a natural 50% chance baseline.",
+      "rationale": "0.70 demands substantial improvement over chance without requiring near-perfect classification from a problem already known to be difficult and highly state-dependent.",
+      "loophole_it_closes": "Without a real accuracy bar, a model could satisfy rho by making many mediocre commitments -- committing on 60% of resolvable states while getting only 55% of them right would clear rho and still be worthless. gate_1 rejects that.",
+      "the_triangle": {
+        "gate_1": "Be right when you speak.",
+        "gate_2": "Speak often enough when an answer exists.",
+        "gate_3": "Stay quiet when the evidence does not establish one.",
+        "why_all_three_are_needed": "High accuracy bought by committing on 5% of resolvable states fails rho. High coverage bought by committing everywhere fails o_max. Many mediocre commitments fail tau. No two of the three suffice."
+      }
+    },
+    "STATISTICAL_FORM_VERIFIED_NOT_ASSUMED": {
+      "checked": "gate_1 was read before the number was inserted. It specifies a bare point quantity -- accuracy|resolved = P(...) with threshold tau, measured_on EVAL. It contains no bootstrap, no lower bound and no clustering. The words bootstrap, seed-level and clustered appear in this protocol ONLY inside AMENDMENT_1, which governs Stage-1 CALIB measurement, not the gates.",
+      "consequence": "tau = 0.70 applies to the POINT ESTIMATE. The gate geometry was not silently altered.",
+      "OPEN_QUESTION_SURFACED_NOT_DECIDED": {
+        "issue": "Every prior gate in this project -- Gate 0B, EXP2 terminal, SPPPO V1 -- required a seed-clustered lcb95 to clear the bar. These abstention gates do not. That is a real difference in evidentiary standard, and it was inherited from the original freeze rather than chosen deliberately.",
+        "magnitude_estimated_from_CALIB_only_EVAL_untouched": "CALIB holds 365 branch states across 32 seeds, 145 resolvable (39.7%). EVAL is also 32 seeds, so expect a similar count. At the minimum permitted coverage of 0.50 that is roughly 72 committed resolvable examples. At n=72 a truly-0.60 model measures >= 0.70 with probability about 0.041 ignoring clustering, and clustering widens this because examples within a seed are not independent.",
+        "status": "NOT changed. The PI ruled explicitly that the number must be inserted into the existing form without altering the geometry, and that instruction is followed here. If the evidentiary standard should be raised to a seed-clustered lower bound, that is a separate deliberate amendment, and it must be made before EVAL is examined.",
+        "why_recorded_rather_than_quietly_applied": "Adding a lower-bound requirement would make the gate strictly harder to pass. Doing so unilaterally, after the point-estimate form had been frozen, would be changing the bar without authority -- the mirror image of relaxing it."
+      }
+    },
+    "ALL_THREE_GATES_NOW_FROZEN": {
+      "tau": 0.7,
+      "rho": 0.5,
+      "o_max": 0.1,
+      "kappa": "UNSET -- requires a model, selected on CALIB by the AMENDMENT_3 procedure"
+    },
+    "prospective_status": "Frozen 2026-08-29 before any K=2 implementation existed. No probe, no predictions, no EVAL access at the time of this decision."
+  },
+  "AMENDMENT_5_UNCERTAINTY_REPORTED_NOT_GATED": {
+    "record": "AMENDMENT 5 -- seed-clustered uncertainty is MANDATORY TO REPORT and MUST NOT gate.",
+    "utc": "2026-08-29T11:48:35Z",
+    "authority": "PI ruling, 2026-08-29",
+    "resolves": "the open question raised in AMENDMENT_4 about gate_1's statistical form",
+    "ruling": {
+      "gate_1_PASS_FAIL": "accuracy >= 0.70, POINT ESTIMATE. Unchanged.",
+      "mandatory_reporting": "EVAL must report the seed-clustered 95% interval and lower bound ALONGSIDE the point estimate. Reporting is required; gating on it is prohibited."
+    },
+    "why_not_gate_on_the_lower_bound": {
+      "it_is_not_a_stylistic_change": "Requiring lcb95 >= 0.70 would not merely add uncertainty reporting, it would substantially raise the effective bar. At the expected ~72 committed resolvable EVAL examples, the first count whose Wilson lcb95 clears 0.70 is 59/72 -- an observed accuracy of 0.819. Seed clustering would make it stricter still.",
+      "verified_not_assumed": "Computed directly: 58/72 gives lcb95 0.6997, 59/72 gives 0.7152.",
+      "the_two_claims_differ": {
+        "frozen": "the model must achieve at least 70% accuracy",
+        "would_have_become": "we must be 95% confident the underlying accuracy exceeds 70%"
+      },
+      "conclusion": "Both are defensible, but they answer different questions. tau = 0.70 was frozen as a POINT-ESTIMATE success criterion before implementation, and it will not be quietly transformed into the stronger claim for stylistic consistency with older gates."
+    },
+    "what_the_paper_reports": "Gate 1 passed at <point> accuracy, seed-clustered 95% interval [lo, hi]. This preserves the preregistered gate while exposing whether the estimate is fragile.",
+    "prohibited": [
+      "Gating on the lower bound instead of the point estimate.",
+      "Omitting the clustered interval from the EVAL report.",
+      "Deciding after seeing EVAL which of the two to emphasise."
+    ]
+  },
+  "AMENDMENT_6_EXPERIMENT_CLASS_AWARE_GATES": {
+    "record": "AMENDMENT 6 -- gates apply BY EXPERIMENT CLASS, not globally.",
+    "utc": "2026-08-29T12:29:01Z",
+    "authority": "PI ruling, 2026-08-29",
+    "why": "Oracle-gated rehearsal uses exact FIT branch labels to gate supervision during TRAINING only. The resulting policy has no test-time abstention mechanism, so kappa does not exist for it. Removing kappa from a GLOBAL requirement list would have let a future online-abstention run launch without a commit/abstain cutoff.",
+    "classes": {
+      "ONLINE_ABSTENTION": {
+        "requires": [
+          "tau",
+          "rho",
+          "o_max",
+          "kappa"
+        ],
+        "status": "unchanged; probe 1 and probe 2 belong here"
+      },
+      "ORACLE_GATED_REHEARSAL": {
+        "requires": [
+          "tau"
+        ],
+        "not_applicable_by_design": [
+          "rho",
+          "o_max",
+          "kappa"
+        ]
+      }
+    },
+    "THE_DEEPER_POINT_ABOUT_RHO_AND_O_MAX": "rho and o_max measure P(commit | resolvable) and P(commit | unresolved). Without a test-time abstention mechanism there is no commit/abstain decision to measure. Worse, if EVAL oracle labels were used to decide when to commit, the gates would trivially return rho=1 and o=0 -- a meaningless pass. They are therefore NOT APPLICABLE to this class, not merely unmet.",
+    "tau_survives": "tau = 0.70 remains meaningful as EVAL direction accuracy on resolvable states.",
+    "the_real_downstream_test": "Strategic payoff and crossover remain the gold standard. Preserving complementary latent roles is judged there, not by any threshold in this document.",
+    "implementation_safeguards": [
+      "the caller declares the class it is launching and the artifact declares the class it was written for; both must agree, so a permissive artifact cannot launch a stricter run",
+      "thresholds a class does not use must be POSITIVELY marked NOT_APPLICABLE_BY_DESIGN rather than omitted, so absence-by-design is distinguishable from absence-by-omission",
+      "the default class is the strictest, so forgetting to pass one can only over-require",
+      "an unknown class name is refused outright"
+    ]
+  }
+}

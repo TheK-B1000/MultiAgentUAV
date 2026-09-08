@@ -1,0 +1,46 @@
+{
+  "status": "running",
+  "updated_at_utc": "2026-07-25T04:59:00.581366+00:00",
+  "checkpoint": "artifacts\\v6i26_margin_actor_step_5u_seed1\\final_v6i26_lro_actor_step_z0_r1_5u_seed1.zip",
+  "completed_condition_count": 6,
+  "expected_condition_count": 32,
+  "episode_count": 24,
+  "completed_conditions": [
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 0,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 1,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 2,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 3,
+      "map": "map_b_split_lane",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 0,
+      "map": "map_b_split_lane_v2",
+      "episodes": 4
+    },
+    {
+      "opponent": "OP11_ADAPTIVE_EXPLOITER",
+      "latent_z": 1,
+      "map": "map_b_split_lane_v2",
+      "episodes": 4
+    }
+  ]
+}

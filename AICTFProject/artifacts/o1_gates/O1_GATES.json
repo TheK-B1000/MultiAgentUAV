@@ -1,0 +1,217 @@
+{
+  "evaluation": "O1 retention gates",
+  "protocol": "artifacts\\o1_preregistration\\O1_PREREGISTRATION.json",
+  "generated_utc": "2026-08-05T20:58:24Z",
+  "verdict": "NOT_RETAINED",
+  "scored_on_injected_episodes": false,
+  "lost_after_leading_definition": "episode-level: a lead was held at some point AND the final blue score is below the final red score (run_g0_v2_evaluation.summarize_episode)",
+  "eval_seed_base": 9600000,
+  "episodes_per_opponent": 30,
+  "min_seeds_passing": 2,
+  "gate_summary": {
+    "gate_1_o1_owns_c1": "0/3 -> False",
+    "gate_2_g0_retains_an_anchor": "0/3 -> False",
+    "gate_3_selector_beats_best_fixed": "0/3 -> False",
+    "gate_4_behaviour_is_distinct": "family-level -> False"
+  },
+  "per_seed": [
+    {
+      "o1_seed": 3300001,
+      "g0_seed": 3200001,
+      "gate_1": {
+        "gate": "1_o1_owns_c1",
+        "population": "natural episodes in which C1_active fires (decided on arm A)",
+        "metric": "lead_preserved = NOT lost_after_leading",
+        "metric_definition": "episode-level: a lead was held at some point AND the final blue score is below the final red score (run_g0_v2_evaluation.summarize_episode)",
+        "n_c1_episodes": 144,
+        "min_required": 30,
+        "sufficient_support": true,
+        "lead_preserved_A": 0.9861,
+        "lead_preserved_B": 0.9931,
+        "threshold": 0.1,
+        "delta": 0.0069,
+        "ci_low": -0.0139,
+        "ci_high": 0.0278,
+        "excludes_zero": false,
+        "n_pairs": 144,
+        "PASS": false
+      },
+      "gate_2": {
+        "gate": "2_g0_retains_an_anchor",
+        "population": "natural episodes in which C1_active never fires",
+        "n_anchor_episodes": 66,
+        "min_required": 30,
+        "sufficient_support": true,
+        "win_rate_G0": 0.4545,
+        "win_rate_O1": 0.697,
+        "tolerance": 0.05,
+        "requirement": "WR(O1) <= WR(G0) + tolerance",
+        "margin_over_G0": 0.2424,
+        "PASS": false,
+        "note": "Failing because O1 is BETTER on the anchor is not a near miss. It means O1 dominates and G0 should be replaced, not that z1 should be born."
+      },
+      "gate_3": {
+        "gate": "3_selector_beats_best_fixed",
+        "population": "the full evaluation pool",
+        "n_episodes": 210,
+        "win_rate_G0_always": 0.8095,
+        "win_rate_O1_always": 0.7857,
+        "win_rate_selector": 0.8095,
+        "best_fixed": "G0",
+        "threshold": 0.05,
+        "delta": 0.0,
+        "ci_low": -0.019,
+        "ci_high": 0.019,
+        "excludes_zero": false,
+        "n_pairs": 210,
+        "PASS": false,
+        "selector": "within-episode, one-way, switches to O1 at first C1 onset"
+      }
+    },
+    {
+      "o1_seed": 3300002,
+      "g0_seed": 3200002,
+      "gate_1": {
+        "gate": "1_o1_owns_c1",
+        "population": "natural episodes in which C1_active fires (decided on arm A)",
+        "metric": "lead_preserved = NOT lost_after_leading",
+        "metric_definition": "episode-level: a lead was held at some point AND the final blue score is below the final red score (run_g0_v2_evaluation.summarize_episode)",
+        "n_c1_episodes": 148,
+        "min_required": 30,
+        "sufficient_support": true,
+        "lead_preserved_A": 0.9932,
+        "lead_preserved_B": 0.9797,
+        "threshold": 0.1,
+        "delta": -0.0135,
+        "ci_low": -0.0405,
+        "ci_high": 0.0135,
+        "excludes_zero": false,
+        "n_pairs": 148,
+        "PASS": false
+      },
+      "gate_2": {
+        "gate": "2_g0_retains_an_anchor",
+        "population": "natural episodes in which C1_active never fires",
+        "n_anchor_episodes": 62,
+        "min_required": 30,
+        "sufficient_support": true,
+        "win_rate_G0": 0.3871,
+        "win_rate_O1": 0.5645,
+        "tolerance": 0.05,
+        "requirement": "WR(O1) <= WR(G0) + tolerance",
+        "margin_over_G0": 0.1774,
+        "PASS": false,
+        "note": "Failing because O1 is BETTER on the anchor is not a near miss. It means O1 dominates and G0 should be replaced, not that z1 should be born."
+      },
+      "gate_3": {
+        "gate": "3_selector_beats_best_fixed",
+        "population": "the full evaluation pool",
+        "n_episodes": 210,
+        "win_rate_G0_always": 0.7952,
+        "win_rate_O1_always": 0.719,
+        "win_rate_selector": 0.781,
+        "best_fixed": "G0",
+        "threshold": 0.05,
+        "delta": -0.0143,
+        "ci_low": -0.0429,
+        "ci_high": 0.0143,
+        "excludes_zero": false,
+        "n_pairs": 210,
+        "PASS": false,
+        "selector": "within-episode, one-way, switches to O1 at first C1 onset"
+      }
+    },
+    {
+      "o1_seed": 3300003,
+      "g0_seed": 3200003,
+      "gate_1": {
+        "gate": "1_o1_owns_c1",
+        "population": "natural episodes in which C1_active fires (decided on arm A)",
+        "metric": "lead_preserved = NOT lost_after_leading",
+        "metric_definition": "episode-level: a lead was held at some point AND the final blue score is below the final red score (run_g0_v2_evaluation.summarize_episode)",
+        "n_c1_episodes": 139,
+        "min_required": 30,
+        "sufficient_support": true,
+        "lead_preserved_A": 0.9928,
+        "lead_preserved_B": 0.9856,
+        "threshold": 0.1,
+        "delta": -0.0072,
+        "ci_low": -0.036,
+        "ci_high": 0.0144,
+        "excludes_zero": false,
+        "n_pairs": 139,
+        "PASS": false
+      },
+      "gate_2": {
+        "gate": "2_g0_retains_an_anchor",
+        "population": "natural episodes in which C1_active never fires",
+        "n_anchor_episodes": 71,
+        "min_required": 30,
+        "sufficient_support": true,
+        "win_rate_G0": 0.4507,
+        "win_rate_O1": 0.7465,
+        "tolerance": 0.05,
+        "requirement": "WR(O1) <= WR(G0) + tolerance",
+        "margin_over_G0": 0.2958,
+        "PASS": false,
+        "note": "Failing because O1 is BETTER on the anchor is not a near miss. It means O1 dominates and G0 should be replaced, not that z1 should be born."
+      },
+      "gate_3": {
+        "gate": "3_selector_beats_best_fixed",
+        "population": "the full evaluation pool",
+        "n_episodes": 210,
+        "win_rate_G0_always": 0.7905,
+        "win_rate_O1_always": 0.8429,
+        "win_rate_selector": 0.7905,
+        "best_fixed": "O1",
+        "threshold": 0.05,
+        "delta": -0.0524,
+        "ci_low": -0.1143,
+        "ci_high": 0.019,
+        "excludes_zero": false,
+        "n_pairs": 210,
+        "PASS": false,
+        "selector": "within-episode, one-way, switches to O1 at first C1 onset"
+      }
+    }
+  ],
+  "gate_4": {
+    "gate": "4_behaviour_is_distinct",
+    "statistic": "B_distinct = median(JSD_between) - Q_0.95(JSD_within)",
+    "metric": "jsd_all_bits",
+    "families": {
+      "G0": 3,
+      "O1": 3
+    },
+    "median_between": 0.222552,
+    "q95_within": 0.251458,
+    "B_distinct": -0.028906,
+    "ci_low": -0.060375,
+    "ci_high": 0.031535,
+    "LCB95": -0.060375,
+    "PASS": false,
+    "level": "family, not per-seed",
+    "d_policy_not_used": "D_policy passed on a checkpoint that had collapsed into a single dominant generalist; it tests distinguishability, not distinction."
+  },
+  "retention_rule": {
+    "all_four_pass": "O1 retained; z0 = G0, z1 = O1; latent birth unlocks",
+    "any_gate_fails": "O1 NOT retained; z1 NOT born",
+    "insufficient_support": "INSUFFICIENT; rerun with more evaluation seeds, change nothing else",
+    "birth_is_separate": "Forcing z0 vs z1 must preserve the crossover measured here. Retention does not imply birth."
+  },
+  "on_failure": {
+    "report_as": "a failure of this response oracle on this niche",
+    "forbidden_responses": [
+      "retuning thresholds, the step budget, or the injector after seeing results",
+      "promoting an intermediate checkpoint",
+      "selecting the best of the three O1 seeds",
+      "swapping in a metric that separates better",
+      "reinterpreting C1"
+    ],
+    "legitimate_next_moves": [
+      "a different exposure mechanism (G0-prefix handoff training) under a NEW preregistration",
+      "the runner-up context carrier_mostly_unescorted, which inherits no part of C1's confirmation and needs a brand-new protocol on fresh data"
+    ]
+  },
+  "wall_seconds": 53578.11
+}

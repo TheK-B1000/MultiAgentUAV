@@ -1,0 +1,96 @@
+{
+  "record": "O3 optimization boundary — frozen semantics",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-09T14:00:00Z",
+  "supplements": "artifacts/o3_preregistration/O3_PROTOCOL_FROZEN.json (de6fb58)",
+  "frozen_before": "any O3 trainer implementation exists",
+  "purpose": "Remove two ambiguities that would otherwise hide inside a PPO run that appeared to work: what 'O3 controls the remainder' means across carry phases, and what 'post-onset credit only' means across the optimization path.",
+
+  "o3_activation": {
+    "state": "episode-level boolean o3_active",
+    "initialized": false,
+    "set_true_at": "the first C_fork firing in the episode",
+    "never_returns_to_false_before_terminal": true,
+    "why_not_detector_state": "CForkDetector resets its per-carry-phase latch when possession ends. An action selector keyed on detector state would hand control BACK to G0 at the next pickup, silently producing a different experiment -- multiple O3 segments per episode, each requiring its own GAE boundary. The frozen protocol says O3 controls the remainder of the episode, so the latch must be episode-level and one-way."
+  },
+
+  "control": {
+    "before_activation": "frozen G0 acts; no gradient",
+    "after_activation": "O3 acts for the remainder of the episode"
+  },
+
+  "optimization_domain": {
+    "rule": "only transitions collected while o3_active == true participate in PPO optimization",
+    "implementation_requirement": "a hard indexing boundary over the entire optimization path, NOT a weight of zero",
+    "why_not_zero_weight": "Zero-weighted samples remain present in batch statistics -- advantage normalization, clip fractions, entropy means -- so the leak survives a loss that looks correctly masked."
+  },
+
+  "included_only_post_handoff": [
+    "advantage normalization",
+    "actor loss",
+    "critic loss",
+    "entropy computation",
+    "clip-fraction and other PPO statistics",
+    "return and value targets"
+  ],
+
+  "gae": {
+    "computed_on": "the O3 segment, from the handoff step h to terminal",
+    "value_at_handoff": "the ordinary V(s_h) estimate",
+    "explicitly_not": "a forced V(s_h) = 0",
+    "why": "Zeroing the value at h would inject a false terminal boundary and bias every advantage in the segment. GAE propagates backward from future transitions, so advantages at and after h never draw on pre-handoff rewards; the boundary is about which transitions form the optimization dataset, not about truncating the value estimate.",
+    "terminal_and_bootstrap_behavior": "otherwise unchanged"
+  },
+
+  "no_trigger_episodes": {
+    "o3_optimization_samples": 0,
+    "still_counted_in": "rollout-throughput diagnostics",
+    "note": "Roughly 30% of carry phases contain no qualifying fork, and some episodes contain no carry phase at all. These consume simulator time without contributing gradient."
+  },
+
+  "hard_assertions": {
+    "rule": "asserted directly, never inferred from a mask after the fact",
+    "invariants": [
+      "pre_handoff_actor_samples == 0",
+      "pre_handoff_critic_samples == 0",
+      "pre_handoff_entropy_samples == 0",
+      "pre_handoff_norm_samples == 0",
+      "pre_handoff_return_targets == 0"
+    ],
+    "on_violation": "abort the run; a violated invariant means the optimization domain is not what this document says it is"
+  },
+
+  "architecture_note": {
+    "observed": "this model uses a separate CentralizedCritic consuming global state, while actor_cnn is the actor's own encoder",
+    "consequence": "the shared-trunk leak, where critic gradients reach actor features, does not apply to the current model",
+    "critic_masked_anyway": true,
+    "why": "It keeps the experiment definition architecture-agnostic, prevents pre-handoff states from training a component used to score post-handoff behavior, and stops a future model change from silently reopening the hole."
+  },
+
+  "throughput_diagnostics": {
+    "required_fields": [
+      "episodes_seen",
+      "episodes_with_handoff",
+      "handoff_rate",
+      "environment_steps",
+      "credited_o3_steps",
+      "credited_fraction",
+      "mean_post_handoff_length",
+      "effective_o3_steps_per_1k_env_steps"
+    ],
+    "why": "Effective O3 sample throughput must be measured rather than inferred. If a nominal 10,000-step rollout yields 3,800 post-handoff transitions, PPO received 3,800 useful samples, which bears on training speed and on how many environment steps the canonical run needs."
+  },
+
+  "device_metadata_required_on_every_o3_artifact": [
+    "device (cuda / cpu)",
+    "torch version",
+    "CUDA version when applicable",
+    "checkpoint sha256",
+    "seed",
+    "config hash"
+  ],
+
+  "summary": "G0 chooses the natural prefix; at the first C_fork, O3 owns the rest of the episode; only that suffix teaches O3.",
+
+  "immutability": "After any O3 training outcome is observed, none of the above may change: the activation latch, the control rule, the optimization domain, the GAE boundary, the assertions, or the throughput definitions."
+}

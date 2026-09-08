@@ -1,0 +1,8 @@
+{
+  "verdict": "COLLECTION_COMPLETE",
+  "utc": "2026-08-25T23:18:36Z",
+  "completed_seeds": 256,
+  "plain_episodes": 1024,
+  "branch_points": 1536,
+  "semantics": "fresh rebuild per teacher per branch"
+}

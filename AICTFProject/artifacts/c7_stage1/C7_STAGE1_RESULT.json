@@ -1,0 +1,200 @@
+{
+  "record": "C7 Stage 1 \u2014 allocation capacity at 4v4",
+  "verdict": "C7_STAGE1_CAPACITY_PASS",
+  "criterion": "some opponent offence+contest > 0.885 (the 2v2 maximum, OP7)",
+  "max_offence_plus_contest": 0.9292,
+  "max_achieved_by": {
+    "policy": "3300002",
+    "opponent": "OP7"
+  },
+  "ceiling_2v2": 0.885,
+  "ceiling_broken": true,
+  "descriptive_correlation": {
+    "r_offence_contest_4v4": -0.9149,
+    "r_offence_contest_2v2": -0.898,
+    "status": "DESCRIPTIVE ONLY. Not a C7 criterion. The r >= -0.70 bar belongs to SRCTF's affordance gate, a different experiment with a different admission question."
+  },
+  "per_policy": {
+    "3300001": {
+      "OP6": {
+        "n_steps": 1417,
+        "offensive_pressure": 0.3031,
+        "home_retention": 0.9421,
+        "red_contest_fraction": 0.3652,
+        "descriptive_conditional_response": -0.1167,
+        "offence_plus_contest": 0.6683
+      },
+      "OP7": {
+        "n_steps": 2049,
+        "offensive_pressure": 0.164,
+        "home_retention": 0.9893,
+        "red_contest_fraction": 0.7565,
+        "descriptive_conditional_response": -0.1949,
+        "offence_plus_contest": 0.9205
+      },
+      "OP8": {
+        "n_steps": 1919,
+        "offensive_pressure": 0.1614,
+        "home_retention": 0.9896,
+        "red_contest_fraction": 0.5306,
+        "descriptive_conditional_response": -0.2012,
+        "offence_plus_contest": 0.692
+      },
+      "OP9": {
+        "n_steps": 1978,
+        "offensive_pressure": 0.2204,
+        "home_retention": 0.9818,
+        "red_contest_fraction": 0.53,
+        "descriptive_conditional_response": -0.2317,
+        "offence_plus_contest": 0.7504
+      },
+      "OP10": {
+        "n_steps": 2433,
+        "offensive_pressure": 0.1544,
+        "home_retention": 0.9897,
+        "red_contest_fraction": 0.7128,
+        "descriptive_conditional_response": -0.1612,
+        "offence_plus_contest": 0.8672
+      },
+      "OP11": {
+        "n_steps": 1735,
+        "offensive_pressure": 0.2258,
+        "home_retention": 0.9879,
+        "red_contest_fraction": 0.6908,
+        "descriptive_conditional_response": -0.1604,
+        "offence_plus_contest": 0.9166
+      },
+      "OP12": {
+        "n_steps": 1171,
+        "offensive_pressure": 0.4667,
+        "home_retention": 0.8659,
+        "red_contest_fraction": 0.0529,
+        "descriptive_conditional_response": -0.0505,
+        "offence_plus_contest": 0.5196
+      }
+    },
+    "3300002": {
+      "OP6": {
+        "n_steps": 1427,
+        "offensive_pressure": 0.2927,
+        "home_retention": 0.9481,
+        "red_contest_fraction": 0.3509,
+        "descriptive_conditional_response": -0.1263,
+        "offence_plus_contest": 0.6436
+      },
+      "OP7": {
+        "n_steps": 2039,
+        "offensive_pressure": 0.1688,
+        "home_retention": 0.9809,
+        "red_contest_fraction": 0.7604,
+        "descriptive_conditional_response": -0.2375,
+        "offence_plus_contest": 0.9292
+      },
+      "OP8": {
+        "n_steps": 1487,
+        "offensive_pressure": 0.1859,
+        "home_retention": 0.9724,
+        "red_contest_fraction": 0.4578,
+        "descriptive_conditional_response": -0.23,
+        "offence_plus_contest": 0.6437
+      },
+      "OP9": {
+        "n_steps": 1919,
+        "offensive_pressure": 0.2107,
+        "home_retention": 0.9927,
+        "red_contest_fraction": 0.5636,
+        "descriptive_conditional_response": -0.1812,
+        "offence_plus_contest": 0.7743
+      },
+      "OP10": {
+        "n_steps": 2082,
+        "offensive_pressure": 0.1572,
+        "home_retention": 0.9885,
+        "red_contest_fraction": 0.6842,
+        "descriptive_conditional_response": -0.2064,
+        "offence_plus_contest": 0.8414
+      },
+      "OP11": {
+        "n_steps": 1556,
+        "offensive_pressure": 0.2283,
+        "home_retention": 0.9839,
+        "red_contest_fraction": 0.6748,
+        "descriptive_conditional_response": -0.1513,
+        "offence_plus_contest": 0.9031
+      },
+      "OP12": {
+        "n_steps": 1234,
+        "offensive_pressure": 0.4384,
+        "home_retention": 0.8768,
+        "red_contest_fraction": 0.1029,
+        "descriptive_conditional_response": -0.0366,
+        "offence_plus_contest": 0.5413
+      }
+    },
+    "3300003": {
+      "OP6": {
+        "n_steps": 1466,
+        "offensive_pressure": 0.3121,
+        "home_retention": 0.9502,
+        "red_contest_fraction": 0.332,
+        "descriptive_conditional_response": -0.0429,
+        "offence_plus_contest": 0.6441
+      },
+      "OP7": {
+        "n_steps": 2201,
+        "offensive_pressure": 0.1557,
+        "home_retention": 0.9886,
+        "red_contest_fraction": 0.7693,
+        "descriptive_conditional_response": -0.2341,
+        "offence_plus_contest": 0.925
+      },
+      "OP8": {
+        "n_steps": 2087,
+        "offensive_pressure": 0.1482,
+        "home_retention": 0.9928,
+        "red_contest_fraction": 0.5509,
+        "descriptive_conditional_response": -0.1861,
+        "offence_plus_contest": 0.6991
+      },
+      "OP9": {
+        "n_steps": 1846,
+        "offensive_pressure": 0.2264,
+        "home_retention": 0.987,
+        "red_contest_fraction": 0.5122,
+        "descriptive_conditional_response": -0.2551,
+        "offence_plus_contest": 0.7386
+      },
+      "OP10": {
+        "n_steps": 2029,
+        "offensive_pressure": 0.1867,
+        "home_retention": 0.9842,
+        "red_contest_fraction": 0.6953,
+        "descriptive_conditional_response": -0.1933,
+        "offence_plus_contest": 0.882
+      },
+      "OP11": {
+        "n_steps": 1621,
+        "offensive_pressure": 0.2357,
+        "home_retention": 0.9784,
+        "red_contest_fraction": 0.6479,
+        "descriptive_conditional_response": -0.1545,
+        "offence_plus_contest": 0.8836
+      },
+      "OP12": {
+        "n_steps": 1359,
+        "offensive_pressure": 0.4299,
+        "home_retention": 0.9154,
+        "red_contest_fraction": 0.0938,
+        "descriptive_conditional_response": -0.0524,
+        "offence_plus_contest": 0.5237
+      }
+    }
+  },
+  "seed_block": [
+    9910000,
+    9910011
+  ],
+  "agents": 4,
+  "meaning": "capacity expanded: the 4v4 manipulation is not inert, so a Stage 2 reversal result would be informative either way",
+  "stage_2_authorized": true
+}

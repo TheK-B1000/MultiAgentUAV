@@ -1,0 +1,119 @@
+{
+  "gate": "SUMMER_2026_PAPER_PATH",
+  "protocol": "artifacts/summer_2026/PAPER_PATH_READOUT_FROZEN.json",
+  "n_policies": 8,
+  "CROSSOVER_FOUND": true,
+  "n_significant_crossover_pairs": 3,
+  "n_seed_noise_same_condition_crossovers": 0,
+  "n_cross_condition_crossovers": 3,
+  "seed_noise_crossovers_sample": [],
+  "crossovers_sample": [
+    {
+      "A": "g0_v5_long_seed3200001",
+      "B": "vgc_d1_seed3600001",
+      "A_condition": "D7",
+      "B_condition": "D1",
+      "same_condition": false,
+      "X": "OP7",
+      "Y": "OP8",
+      "WR_A_X": 0.8667,
+      "WR_B_X": 0.5333,
+      "WR_A_Y": 0.7333,
+      "WR_B_Y": 0.9667,
+      "LCB95_A_minus_B_on_X": 0.1174,
+      "LCB95_B_minus_A_on_Y": 0.0626
+    },
+    {
+      "A": "g0_v5_long_seed3200001",
+      "B": "vgc_d1_seed3600001",
+      "A_condition": "D7",
+      "B_condition": "D1",
+      "same_condition": false,
+      "X": "OP7",
+      "Y": "OP11",
+      "WR_A_X": 0.8667,
+      "WR_B_X": 0.5333,
+      "WR_A_Y": 0.8333,
+      "WR_B_Y": 1.0,
+      "LCB95_A_minus_B_on_X": 0.1174,
+      "LCB95_B_minus_A_on_Y": 0.0333
+    },
+    {
+      "A": "vgc_d1_seed3600001",
+      "B": "vgc_d3_seed3700001",
+      "A_condition": "D1",
+      "B_condition": "D3",
+      "same_condition": false,
+      "X": "OP8",
+      "Y": "OP7",
+      "WR_A_X": 0.9667,
+      "WR_B_X": 0.8,
+      "WR_A_Y": 0.5333,
+      "WR_B_Y": 0.8,
+      "LCB95_A_minus_B_on_X": 0.0098,
+      "LCB95_B_minus_A_on_Y": 0.0379
+    }
+  ],
+  "paper_path": "PATH_B",
+  "paper_title": "Strategic opponent diversity creates complementary best responses",
+  "permitted_claim": "Different policy responses matter against different opponents on this board.",
+  "next": "1-seed specialist pilot (SEED_PROTOCOL_FROZEN.json), still a human scientific boundary",
+  "opponent_column_means": {
+    "OP6": 0.8417,
+    "OP7": 0.6417,
+    "OP8": 0.8125,
+    "OP9": 0.7208,
+    "OP10": 0.675,
+    "OP11": 0.9417,
+    "OP12": 0.9958
+  },
+  "hardest_opponent_by_column_mean": "OP7",
+  "easiest_opponent_by_column_mean": "OP12",
+  "per_policy_spearman_vs_column_means": {
+    "g0_v5_long_seed3200001": 0.46848748060169065,
+    "g0_v5_long_seed3200002": 0.9819805060619657,
+    "g0_v5_long_seed3200003": 0.8648999641877366,
+    "vgc_d1_seed3600001": 0.9189562119494701,
+    "vgc_d1_seed3600002": 0.9910312089651149,
+    "vgc_d1_seed3600003": 0.9549937104572925,
+    "vgc_d3_seed3700001": 0.7559289460184545,
+    "vgc_d3_seed3700002": 0.9910312089651149
+  },
+  "diversity_value_OBSERVED": {
+    "D1": {
+      "n_seeds": 3,
+      "mean_overall_WR": 0.8031666666666667,
+      "mean_worst_WR": 0.5444333333333333,
+      "mean_var_across_opponents": 0.02516,
+      "worst_opponent_identities": [
+        "OP7",
+        "OP7",
+        "OP10"
+      ]
+    },
+    "D3": {
+      "n_seeds": 2,
+      "mean_overall_WR": 0.8143,
+      "mean_worst_WR": 0.6499999999999999,
+      "mean_var_across_opponents": 0.01578,
+      "worst_opponent_identities": [
+        "OP10",
+        "OP7"
+      ]
+    },
+    "D7": {
+      "n_seeds": 3,
+      "mean_overall_WR": 0.7984333333333334,
+      "mean_worst_WR": 0.6,
+      "mean_var_across_opponents": 0.017583333333333333,
+      "worst_opponent_identities": [
+        "OP10",
+        "OP10",
+        "OP9"
+      ]
+    }
+  },
+  "evidence_label": "EXPLORATORY",
+  "status": "OBSERVED",
+  "if_PATH_B": "preregistered DISCOVERY only; family-wise error not controlled; confirm via 1-seed specialist pilot"
+}

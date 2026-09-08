@@ -1,0 +1,70 @@
+{
+  "record": "PHASE0 GATE 0B -- action-conditioned scorer validity",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-26T01:36:59Z",
+  "one_shot": true,
+  "protocol_ref": "PHASE0_ACTION_CONDITIONED_SCORER_PROTOCOL.json::GATE_0B_action_conditioned_scorer_validity",
+  "scorer": {
+    "weights_sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf",
+    "record": "PHASE0_SCORER_FROZEN.json"
+  },
+  "target_amendment": "PHASE0_SCORER_TARGET_AMENDMENT.json (terminal win margin)",
+  "held_out_block": [
+    6500161,
+    6500256,
+    96
+  ],
+  "contrasts": {
+    "d_A": "V_hat(o, pi_A, A) - V_hat(o, pi_B, A)",
+    "d_B": "V_hat(o, pi_B, B) - V_hat(o, pi_A, B)"
+  },
+  "expectation": "ANALYTIC over masked teacher action distributions, not sampled",
+  "bootstrap": {
+    "unit": "SEED",
+    "n_boot": 20000,
+    "rng": 7,
+    "alpha": 0.05,
+    "rule": "resample the 96 seeds with replacement, retain ALL branch points of each"
+  },
+  "scientific_unit": "96 seeds, NOT 288 branch states",
+  "teacher_query_validity": {
+    "pi_A": {
+      "agent1_argmax_agreement": 1.0,
+      "agent2_argmax_agreement": 1.0,
+      "n_states": 576
+    },
+    "pi_B": {
+      "agent1_argmax_agreement": 1.0,
+      "agent2_argmax_agreement": 1.0,
+      "n_states": 576
+    }
+  },
+  "results": {
+    "d_A": {
+      "mean": 0.06578,
+      "LCB95": 0.038284,
+      "bootstrap_mean": 0.065857,
+      "n_matched_states": 288,
+      "n_seeds": 96,
+      "per_seed_mean": 0.06578,
+      "per_seed_sd": 0.1446,
+      "frac_seeds_positive": 0.697917
+    },
+    "d_B": {
+      "mean": 0.099007,
+      "LCB95": 0.070432,
+      "bootstrap_mean": 0.098911,
+      "n_matched_states": 288,
+      "n_seeds": 96,
+      "per_seed_mean": 0.099007,
+      "per_seed_sd": 0.145492,
+      "frac_seeds_positive": 0.770833
+    }
+  },
+  "requirement": {
+    "LCB95(E[d_A]) > 0": true,
+    "LCB95(E[d_B]) > 0": true
+  },
+  "VERDICT": "PASS",
+  "consequence": "Phase 0 complete; SPPPO is scientifically licensed at the frozen 1M terminal-only budget"
+}

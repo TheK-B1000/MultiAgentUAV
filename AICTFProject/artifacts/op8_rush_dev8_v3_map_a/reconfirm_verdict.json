@@ -1,0 +1,64 @@
+{
+  "verdict": "RECONFIRM_FAIL",
+  "protocol": "BLUE_PROBES_V3",
+  "base_seed": 572101,
+  "n_episodes": 8,
+  "intended_best": "BLUE_RUSH",
+  "means": {
+    "BLUE_ESCORT": 2.0,
+    "BLUE_RUSH": 2.75,
+    "BLUE_SPLIT": 1.125,
+    "BLUE_TURTLE": 0.625
+  },
+  "win_rates": {
+    "BLUE_ESCORT": 0.875,
+    "BLUE_RUSH": 1.0,
+    "BLUE_SPLIT": 0.75,
+    "BLUE_TURTLE": 0.5
+  },
+  "uniquely_best": "BLUE_RUSH",
+  "paired_advantages": {
+    "BLUE_ESCORT": {
+      "mean": 0.75,
+      "ci95": [
+        0.125,
+        1.375
+      ],
+      "clear": true,
+      "pos": 5,
+      "neg": 1,
+      "zero": 2
+    },
+    "BLUE_SPLIT": {
+      "mean": 1.625,
+      "ci95": [
+        1.0,
+        2.125
+      ],
+      "clear": true,
+      "pos": 7,
+      "neg": 0,
+      "zero": 1
+    },
+    "BLUE_TURTLE": {
+      "mean": 2.125,
+      "ci95": [
+        1.0,
+        3.0
+      ],
+      "clear": true,
+      "pos": 7,
+      "neg": 1,
+      "zero": 0
+    }
+  },
+  "pooled_vs_best_other": {
+    "mean": 0.625,
+    "ci95": [
+      0.0,
+      1.25
+    ],
+    "clear": false
+  },
+  "episode_csv": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\op8_rush_dev8_v3_map_a\\episode_results.csv"
+}

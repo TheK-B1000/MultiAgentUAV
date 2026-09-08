@@ -1,0 +1,36 @@
+{
+  "styles": {
+    "BLUE_RUSH": {
+      "n": 8,
+      "preengage_fired": 8,
+      "preengage_before_pickup": 8,
+      "preengage_frac": 1.0,
+      "red_first_score_seeds": 2,
+      "mean_engage_lead_time": 4.25,
+      "screener_won_predicted_race": 0,
+      "mean_screener_travel_at_pickup": 3.416725458442095,
+      "mean_pickup_to_score": 16.0,
+      "n_pickups": 8
+    },
+    "BLUE_TURTLE": {
+      "n": 8,
+      "preengage_fired": 2,
+      "preengage_before_pickup": 2,
+      "preengage_frac": 0.25,
+      "red_first_score_seeds": 2,
+      "mean_engage_lead_time": -44.0,
+      "screener_won_predicted_race": 1,
+      "mean_screener_travel_at_pickup": 4.956611223403307,
+      "mean_pickup_to_score": 63.5,
+      "n_pickups": 8
+    }
+  },
+  "safety": {
+    "rush_preengage_frequent": true,
+    "turtle_preengage_rare": true
+  },
+  "safety_pass": true,
+  "base_seed": 701001,
+  "preengage": "on",
+  "map": "map_a"
+}

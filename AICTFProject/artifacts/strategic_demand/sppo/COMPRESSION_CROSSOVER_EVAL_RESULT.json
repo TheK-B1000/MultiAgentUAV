@@ -1,0 +1,68 @@
+{
+  "record": "Compression Crossover sealed EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-04T17:41:12Z",
+  "implements": "TEACHER_DISTILLATION_SPEC.json#EVAL_PROTOCOL_COMPRESSION_CROSSOVER",
+  "seeds": {
+    "block": [
+      11922001,
+      11922064
+    ],
+    "n": 64
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.09375,
+      "lcb95": -0.078125,
+      "ucb95": 0.265625,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.140625,
+      "lcb95": -0.046875,
+      "ucb95": 0.3125,
+      "passes": false
+    },
+    "passes": false
+  },
+  "READING": "the shared latent architecture could not preserve payoff-level specialization even under direct specialist supervision -- compression itself is the bottleneck; every retention mechanism was repairing damage done at compression",
+  "student": {
+    "sha256": "85dbaeef409d7e5422d4f4fa4b28c5b61fa9059d2c728c6c0b6c75406cd19d2d",
+    "final_holdout": {
+      "epoch": 20,
+      "train_kl_A": 0.009938989949022602,
+      "train_kl_B": 0.004046539441706278,
+      "holdout_agree_z0_vs_piA": 0.965184303501463,
+      "holdout_agree_z1_vs_piB": 0.9843267031948967,
+      "holdout_teacher_argmax_disagreement": 0.2775949252589935,
+      "holdout_kl_A": 0.016156827893976346,
+      "holdout_kl_B": 0.0050556519959066475,
+      "holdout_student_z0_z1_jsd": 0.1826444065605243,
+      "holdout_teacher_A_B_jsd": 0.17903920535855075
+    }
+  },
+  "specialist_ceiling_context_only_different_block": {
+    "delta_A": {
+      "mean": 0.171875,
+      "lcb95": 0.015625,
+      "ucb95": 0.328125,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.296875,
+      "lcb95": 0.125,
+      "ucb95": 0.46875,
+      "passes": true
+    },
+    "passes": true
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 256
+}

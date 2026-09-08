@@ -1,0 +1,112 @@
+{
+  "record_id": "CCP_SUCCESSOR_BUILD_CONTRACT",
+  "status": "FROZEN_BEFORE_PHASE_1_RESULTS_EXIST",
+  "utc": "2026-09-01T16:20:00Z",
+  "authority": "PI, 2026-09-01: build the successor machinery while Stage 2 runs, without letting hidden Phase 1 results influence implementation choices.",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "THE_BLIND_BUILD_CLAIM": {
+    "claim": "every implementation choice recorded here was made while the Phase 1 bank was still being collected and no outcome statistic had been inspected",
+    "why_it_matters": "if the trainer were built after seeing which states showed leverage, its structure could encode those results and the successor would be fitted to its own diagnostic",
+    "auditable_by": "commit timestamps against the Stage 2 worker logs and the CCP_PHASE1_CAUSAL_BRANCHING.json utc"
+  },
+  "FROZEN_NOW_BLIND": {
+    "latent_interface": "pi(a | s, z) with z0 = A strategy, z1 = B strategy, unchanged",
+    "inherited_mechanically_validated_pieces": [
+      "task PPO",
+      "static persistent z",
+      "private latent actor capacity",
+      "decision masking"
+    ],
+    "causal_objective": "L_causal = sum_{t,i} d_ti * w_ti * L_teacher(s_t, i, z) / sum_{t,i} d_ti * w_ti",
+    "weight": "w_ti = |delta_Q(s_t, i)|, the rule frozen in the Phase 1 spec",
+    "decision_predicate": "d_ti = [commit_ticks_left_i <= 0], per agent",
+    "the_defect_this_fixes": "committed heads must contribute NEITHER gradient NOR denominator mass. OG-PSP/V3/V4 passed an all-ones agent_mask and diluted effective lambda to ~0.662 of nominal (CCP_FORCED_HEAD_DILUTION.json).",
+    "two_training_paths_both_built": {
+      "LOCAL": "supervision at individual commitment boundaries",
+      "SEQUENCE": "supervision spanning multiple commitment decisions",
+      "selection": "causal_supervision_mode is chosen BY the Phase 1 reading, not by the implementer"
+    }
+  },
+  "EXPLICITLY_NOT_FROZEN_PHASE_1_DECIDES": [
+    "lambda_causal, which must not be set from observed Phase 1 effect sizes",
+    "LOCAL versus SEQUENCE training path",
+    "whether only Holm-confirmed states are used -- the frozen w = |delta_Q| already argues for continuous weights over a significance-based inclusion rule",
+    "the segment duration/termination rule for SEQUENCE mode"
+  ],
+  "UNCHANGED_AND_NOT_NEGOTIABLE": {
+    "crossover_gate": "V(z0,A) > V(z1,A) AND V(z1,B) > V(z0,B), both LCB95 > 0, on a FRESH EVAL block",
+    "phase_1_is_not_that_claim": "CCP_PHASE1_CAUSAL_BRANCHING_SPEC.json#AMENDMENT_7"
+  },
+  "PRELAUNCH_SMOKES_REQUIRED_BEFORE_ANY_TRAINING": [
+    "decision mask: one free + one committed head gives exactly the free head's loss AND gradient",
+    "weight scaling: weights 0, 0.25, 0.5, 1 scale the strategic gradient exactly; weight 0 gives zero gradient",
+    "latent routing: Pole A routes z0->pi_A and Pole B routes z1->pi_B, with a deliberate swap that MUST fail",
+    "task-objective purity: toggling causal supervision leaves reward, returns, GAE and value targets bit-identical",
+    "real gradient: on a real selected state with a synthetic non-zero weight, the intended latent parameters move",
+    "composition: a short PPO smoke with task updates > 0, causal updates > 0, z0/z1 exposures > 0, committed-head causal exposures = 0, wrong latent routing = 0, missing decision predicate = 0"
+  ],
+  "AMENDMENT_1_WINNER_DIRECTED_ROUTING": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T16:45:00Z",
+    "authority": "PI, 2026-09-01, while the Phase 1 bank was still collecting and no outcome statistic had been inspected",
+    "the_defect": "The first implementation stored the teacher independently and pinned it to the pole-matched specialist while weighting by |delta_Q|. |delta_Q| preserves magnitude but destroys direction, so a Pole-A boundary measuring delta_Q = -0.50 would carry weight 0.50 and still train z0 toward pi_A -- training HARDEST on a decision the measurement had just shown was worse. The magnitude made it worse rather than harmless.",
+    "RULE_FROZEN": {
+      "weight": "w = |delta_Q|, unchanged",
+      "teacher": "DERIVED from the sign under the pole-oriented convention. delta_Q > 0 -> pole-matched specialist; delta_Q < 0 -> the OTHER specialist; delta_Q = 0 -> no teacher and no weight.",
+      "latent": "NEVER flips. z0 carries Pole A and z1 carries Pole B, because that is the deployment condition the crossover gate scores. Only the target flips.",
+      "one_line": "teach the latent whichever specialist behaviour causally improved payoff at that state, rather than preserving specialist identity for its own sake"
+    },
+    "why_not_one_sided_weighting": "w = max(0, delta_Q) with a fixed pole-matched teacher is defensible but discards every boundary where the nominally wrong specialist was actually better. The goal is crossover PAYOFF, not stylistic purity.",
+    "made_structurally_unrepresentable": "CausalRecord now stores SIGNED delta_q and derives both weight and teacher, so a record cannot express the old inconsistency. assert_routing additionally rejects any externally declared teacher that disagrees with the sign.",
+    "lambda_note": "the loss is weight-normalised, so a uniform rescale of weights is a no-op. lambda_causal carries strength, weights carry relative importance, and lambda must not later be derived from observed |delta_Q| magnitudes -- the normalisation has already removed that scale."
+  },
+  "AMENDMENT_2_SEQUENCE_MODE_CHOSEN": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-02T00:30:00Z",
+    "authority": "PI, 2026-09-02, after CCP_PHASE1_CAUSAL_BRANCHING.json (DECISION_LEVEL_LEVERAGE, f6928a37)",
+    "decision": "SUCCESSOR_MODE = SEQUENCE. LOCAL and SEQUENCE are NOT trained as two simultaneous objectives in this first run.",
+    "why": "Both families cleared Holm significance (single_macro 2/32, full_takeover 10/32), but the asymmetry under identical M, Holm family size, states and payoff ruler is real: causal leverage was detected far more often when the specialist kept controlling the agent. Training both losses at once would let LOCAL and SEQUENCE targets disagree at the same starting boundary and double-count or fight over the first action -- an avoidable ambiguity on a one-shot launch.",
+    "the_two_significant_LOCAL_results_are_kept": "as supporting evidence that decision-level causality also exists, recorded in the paper analysis. They are not a second training signal in this run.",
+    "segment_duration_rule_NOW_FROZEN": {
+      "rule": "active_until = episode termination, i.e. exactly what full_takeover measured: the specialist controls the intervened agent(s) from the boundary through the end of the episode. This is not invented -- it is a direct copy of the intervention that produced the causal claim.",
+      "why_not_something_shorter": "training on a shorter or differently-bounded segment would be training on a claim Phase 1 never tested. The only causal evidence collected is for full-episode handover from that boundary."
+    },
+    "weighting": "continuous, w = |delta_Q_takeover|, over ALL 32 full_takeover state-estimand contrasts -- not filtered to the 10 Holm-significant ones. This is amendment 2 of the Phase 1 spec applied as originally frozen: the near-zero contrasts contribute near-zero weight by construction, so no significance-based inclusion rule is introduced now that real numbers exist.",
+    "routing": "winner-directed, unchanged from rl/causal_supervision.py: the SIGN of delta_Q_takeover selects the teacher (pole-matched specialist if positive, the other if negative), and the LATENT never flips (z0 stays Pole A's latent, z1 stays Pole B's)."
+  },
+  "AMENDMENT_3_JOINT_PRECEDENCE_AND_LAMBDA": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-02T00:45:00Z",
+    "authority": "PI, 2026-09-02, after the joint-vs-individual conflict was found at 11500105|B|133",
+    "THE_CONFLICT": "at a both-free state, the individual-agent0/agent1 full_takeover segments and the joint full_takeover segment can imply DIFFERENT teachers for the same agent under the same latent. Measured once in the bank: 11500105|B|133, agent0 individual implies pi_A (delta_Q=-1.0), joint implies pi_B for both agents (delta_Q=+1.0). Zero such conflicts exist in single_macro, which is moot now that SEQUENCE was chosen.",
+    "RULE_FROZEN_JOINT_PRECEDENCE": {
+      "rule": "wherever a joint segment exists for a state (i.e. every both-free state), it ALONE supervises both agents there. The individual agent0 and agent1 segments for that same state are EXCLUDED from the training loader.",
+      "why": "the deployed policy is a single joint controller, and joint full-takeover is the intervention that matches what training is trying to reproduce -- coordinated behaviour, not two independently-acting specialists. A weighted blend of contradictory targets was rejected: it would let the loss be minimised by hedging between pi_A and pi_B rather than teaching either measurement.",
+      "kept_in_the_artifact": "the excluded individual segments remain in CCP_PHASE1_CAUSAL_BRANCHING.json and the paper's descriptive analysis. Exclusion is from the TRAINING loader only.",
+      "consequence": "every state reduces to exactly one training signal per agent; the described contradiction is now structurally unrepresentable in the loader's output, the same discipline used for the record-level routing invariant."
+    },
+    "LAMBDA_CAUSAL_FROZEN": {
+      "value": 0.05,
+      "matches": "lambda_tau, V3's trajectory-identity PG term",
+      "why_this_precedent": "the closest structural analog in this codebase: a signed, per-decision auxiliary POLICY loss, not a blanket paired-state loss like lambda_ogpsp (0.1, applied unconditionally to every resolved state). V3 trained without divergence at this strength and it was sufficient to reach TRAJECTORY_IDENTITY_CONFIRMED.",
+      "not_derived_from_phase_1_delta_Q_magnitudes": "per the standing rule in this contract; chosen from prior-run precedent instead"
+    }
+  },
+  "AMENDMENT_4_INIT_SOURCE_AND_CRITIC_ARCHITECTURE": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-02T01:10:00Z",
+    "authority": "PI, 2026-09-02, flagged as unresolved before launch: 'I would resolve that before launch rather than let the runner's default decide it silently'",
+    "gap_found": "neither the initialization source nor the private-critic-heads architecture was ever actually frozen in this contract, despite the original 4-layer plan naming the critic-heads question explicitly. Found while assembling the launch skeleton, before any runner config was written.",
+    "INIT_SOURCE_FRESH": {
+      "decision": "fresh_step_0 = True, checkpoint_weights_loaded = False, optimizer_state_reused = False",
+      "precedent": "unbroken across every run in the program: V1, OG-PSP, V3, V4 all used fresh_step_0=True. Warm-starting from V4 would be the first departure.",
+      "why_not_warm_start": "V4's own mechanism diagnostic found IDENTITY_DEGRADED (z0 lost its A-like identity against Pole B). Warm-starting risks that residual pathology persisting as an inductive bias, confounding attribution of a crossover result (or a continued failure) between the new causal-supervision mechanism and inherited V4 structure -- exactly the kind of confound this program has repeatedly refused to introduce.",
+      "cost_accepted": "the successor does not start from V4's task competence; it re-learns from scratch under task PPO + causal supervision together, as every prior run in the ladder did"
+    },
+    "CRITIC_ARCHITECTURE_PRIVATE_HEADS_KEPT": {
+      "decision": "rasr_private_critic_heads = True, unchanged from V4",
+      "why": "V4 established the mechanism itself works: both_critic_heads_live=True, row_balance_ratio=0.9997. V4's failure was IDENTITY_DEGRADED plus a dead-flat payoff tie -- not evidence the private-critic axis is broken. Dropping it now would silently reintroduce the shared-critic/private-actor asymmetry that motivated building V4 in the first place (the MultiCriticAL failure mode V3's postmortem identified).",
+      "note": "since init source is fresh (not warm-start), this is a free architectural choice made on its own merits, not one forced by a loaded checkpoint's shape"
+    }
+  }
+}

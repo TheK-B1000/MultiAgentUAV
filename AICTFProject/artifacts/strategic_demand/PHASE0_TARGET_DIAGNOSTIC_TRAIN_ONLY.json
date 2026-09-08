@@ -1,0 +1,67 @@
+{
+  "record": "PHASE0 scorer-target diagnostic (TRAIN SEEDS ONLY)",
+  "utc": "2026-08-26T00:48:43Z",
+  "purpose": "provenance for the target under-specification finding; NOT Gate 0B",
+  "data_scope": "6500001..6500160 (160 train seeds)",
+  "held_out_seeds_opened": 0,
+  "bootstrap": {
+    "unit": "seed",
+    "n_boot": 20000,
+    "rng": 7,
+    "alpha": 0.05
+  },
+  "orientation": "positive = the strategically appropriate teacher for that pole is favoured",
+  "terminal_margin_support_train": {
+    "-2": 2,
+    "-1": 103,
+    "0": 789,
+    "1": 634,
+    "2": 283,
+    "3": 109
+  },
+  "poles": {
+    "A": {
+      "n_matched_states": 480,
+      "n_seeds": 160,
+      "targets": {
+        "monte_carlo_return": {
+          "mean": -0.961013,
+          "LCB95": -1.284505,
+          "sign_correct": false
+        },
+        "terminal_win_margin": {
+          "mean": 0.254167,
+          "LCB95": 0.15625,
+          "sign_correct": true
+        },
+        "terminal_win_flag": {
+          "mean": 0.091667,
+          "LCB95": 0.05,
+          "sign_correct": true
+        }
+      }
+    },
+    "B": {
+      "n_matched_states": 480,
+      "n_seeds": 160,
+      "targets": {
+        "monte_carlo_return": {
+          "mean": -1.145294,
+          "LCB95": -1.539388,
+          "sign_correct": false
+        },
+        "terminal_win_margin": {
+          "mean": 0.179167,
+          "LCB95": 0.097917,
+          "sign_correct": true
+        },
+        "terminal_win_flag": {
+          "mean": 0.079167,
+          "LCB95": 0.029167,
+          "sign_correct": true
+        }
+      }
+    }
+  },
+  "finding": "Monte-Carlo return is oriented AGAINST the strategic payoff ordering on both poles; terminal win margin and terminal win flag are oriented with it. The frozen protocol recorded all three but designated none as the regression target."
+}

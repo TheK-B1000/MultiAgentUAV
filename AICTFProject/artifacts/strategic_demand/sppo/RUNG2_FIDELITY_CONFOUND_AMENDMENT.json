@@ -1,0 +1,38 @@
+{
+  "record_id": "RUNG2_FIDELITY_CONFOUND_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-05T10:20:00Z",
+  "authority": "PI, 2026-09-05, while Rung 2 was at epoch 2 of 20: freeze the fidelity-confound interpretation rule now, before the final numbers are known. Either freeze a numerical comparability band now or keep the comparison descriptive -- do not invent a cutoff after seeing epoch 20.",
+  "timing_disclosure": "written with only epochs 1-2 of Rung 2 visible (epoch 2: holdout KL_A 0.1437, KL_B 0.0360, agree z0~pi_A 0.892, z1~pi_B 0.966, student z0/z1 JSD 0.1736). Final fidelity, all crossover cells, D_A/D_B and the on/off-pole decomposition were NOT visible. The band below was chosen from PRIOR runs' fidelity, not from any Rung 2 outcome.",
+
+  "amends": "RUNG2_CONSTRUCTION_AND_PREDICTION.json#PRIMARY_MECHANISTIC_PREDICTION_FROZEN_BEFORE_TRAINING",
+  "rule": "APPEND. The 0.50 fit-check floor, the 20-epoch recipe, the loss, the data, the seeds and the matched-evaluation rule are all UNCHANGED and stay frozen. This record adds a precondition on how the mechanism classification may be READ.",
+
+  "THE_OBSERVATION_THAT_PROMPTED_IT": {
+    "epoch_2_comparison": {"rung1_holdout_KL_A_at_epoch2": "~0.02", "rung2_holdout_KL_A_at_epoch2": 0.1437,
+                            "rung1_agree_z0_at_epoch2": "~0.96", "rung2_agree_z0_at_epoch2": 0.892},
+    "reading": "Rung 2 is learning its teachers markedly more slowly than Rung 1 -- the first architecture in the ladder whose shared parameters visibly resist fitting both specialists at once. It was still improving quickly (agreement 0.840 -> 0.892 in one epoch, JSD 0.1335 -> 0.1736 climbing toward the teachers' 0.1790), so at epoch 2 this is OPTIMIZATION STRAIN, not evidence of representational interference, and it does not predict where epoch 20 lands.",
+    "why_it_matters": "the 0.50 fit-check floor is far too permissive to catch a student that fits materially worse than Rung 1 while still clearing the floor. Without this record, a crossover drop caused by a poorer fit could be misread as sharing-induced leakage or interference."
+  },
+
+  "PRECOMMITTED_COMPARABILITY_BAND": {
+    "criterion": "Rung 2's final teacher-holdout agreement is COMPARABLE to Rung 1's iff agree(z0, pi_A) >= 0.957 AND agree(z1, pi_B) >= 0.979 -- that is, within 0.010 absolute of Rung 1's 0.967 / 0.989 on both latents.",
+    "justification": "the two fully-converged distilled students available before Rung 2 -- the offline TD student (0.965 / 0.984) and Rung 1 (0.967 / 0.989) -- differ by at most 0.005. The band is set at roughly twice that observed spread.",
+    "stated_weakness": "this anchor rests on only TWO reference points, and those two differ in architecture as well as in run, so the 0.005 spread is not a clean estimate of run-to-run variation. The band is therefore coarse and pre-committed rather than statistically calibrated. It is recorded this way deliberately, in preference to choosing a number after seeing the outcome.",
+    "not_a_gate": "failing the band does NOT invalidate Rung 2, does not stop the eval, and does not change the 0.50 fit-check floor that governs whether the eval opens at all. It governs only which CLAIM the result licenses."
+  },
+
+  "CONDITIONAL_INTERPRETATION_RULE": {
+    "verbatim": "Rung 2's leakage/interference classification is considered mechanistically interpretable only in the context of its final teacher fidelity relative to Rung 1. If final fidelity is materially worse, any crossover degradation is reported as sharing-associated but not uniquely attributable to leakage or interference.",
+    "if_within_band": "the on-pole/off-pole decomposition and its mechanism_signature may be read as designed -- a crossover change is attributable to the additional sharing, since the student fits its teachers about as well as Rung 1 did.",
+    "if_outside_band": "report the crossover result as SHARING-ASSOCIATED but NOT uniquely attributable. The honest statement becomes 'the more-shared architecture was harder to distill, and crossover also fell' -- which is a real architectural finding, but a different and weaker claim than 'sharing destroys crossover despite an equally good fit'.",
+    "the_two_claims_kept_distinct": {
+      "claim_1_weaker": "sharing causes poorer fit (interesting architectural result in its own right)",
+      "claim_2_stronger": "sharing destroys crossover despite equally good fit (the mechanism claim the prediction was written to test)"
+    }
+  },
+
+  "ALWAYS_REPORTED_REGARDLESS": "Rung 2's final teacher-holdout agreement and KL are reported side by side with Rung 1's (0.967 / 0.989) and the offline TD student's (0.965 / 0.984) in the result record and in any writeup of the ladder, whichever side of the band Rung 2 lands on -- so a reader can apply their own judgement to the confound rather than inheriting only mine.",
+
+  "NOT_CHANGED_BY_THIS_RECORD": ["the 0.50 fit-check floor", "the 20-epoch fixed schedule", "batch/lr/clip", "the distillation loss and dataset", "seeds 11963001/11963002", "the matched 128-seed evaluation rule", "the on/off-pole decomposition and its classification thresholds"]
+}

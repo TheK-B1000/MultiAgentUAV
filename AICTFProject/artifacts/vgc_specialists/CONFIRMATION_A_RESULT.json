@@ -1,0 +1,101 @@
+{
+  "gate": "CONFIRMATION_A_SPECIALIST_PILOT",
+  "protocol": "artifacts/vgc_specialists/SPECIALIST_PILOT_FROZEN.json",
+  "amendment": "artifacts/vgc_specialists/SPECIALIST_PILOT_AMENDMENT_1.json",
+  "eval_seed_base": 9300000,
+  "episodes_per_cell": 60,
+  "git_commit_of_evaluation": "76bebe38e846931cbffa0523e6936adb0cd68c2c",
+  "provenance_invariants": {
+    "eval_seed_base_is_9300000": true,
+    "not_default_block": true,
+    "episodes_per_cell_is_60": true,
+    "five_policies": true,
+    "all_35_cells": true,
+    "specialists_present": true,
+    "checkpoint_sha_recorded": true
+  },
+  "gate1": {
+    "claim": "S_OP7 > S_OP8 on OP7",
+    "wr_a": 0.5833,
+    "wr_b": 0.5333,
+    "diff": 0.05,
+    "LCB95": -0.1275,
+    "verdict": "FAIL"
+  },
+  "gate2": {
+    "claim": "S_OP8 > S_OP7 on OP8",
+    "wr_a": 0.6667,
+    "wr_b": 0.7833,
+    "diff": -0.1166,
+    "LCB95": -0.275,
+    "verdict": "FAIL"
+  },
+  "descriptive_dominance": {
+    "S_OP7_beats_or_ties_S_OP8_on": 7,
+    "of_opponents": 7
+  },
+  "per_cell_win_rates": {
+    "vgc_s_op7_seed3900007": {
+      "OP10": 0.75,
+      "OP11": 0.9833,
+      "OP12": 1.0,
+      "OP6": 0.7833,
+      "OP7": 0.5833,
+      "OP8": 0.7833,
+      "OP9": 0.5667
+    },
+    "vgc_s_op8_seed3900008": {
+      "OP10": 0.6167,
+      "OP11": 0.8833,
+      "OP12": 1.0,
+      "OP6": 0.6,
+      "OP7": 0.5333,
+      "OP8": 0.6667,
+      "OP9": 0.55
+    },
+    "vgc_d1_seed3600001": {
+      "OP10": 0.7333,
+      "OP11": 0.9667,
+      "OP12": 1.0,
+      "OP6": 0.85,
+      "OP7": 0.6833,
+      "OP8": 0.9,
+      "OP9": 0.7333
+    },
+    "vgc_d3_seed3700001": {
+      "OP10": 0.65,
+      "OP11": 0.9167,
+      "OP12": 0.9833,
+      "OP6": 0.7667,
+      "OP7": 0.55,
+      "OP8": 0.8,
+      "OP9": 0.6167
+    },
+    "g0_v5_long_seed3200001": {
+      "OP10": 0.75,
+      "OP11": 0.95,
+      "OP12": 1.0,
+      "OP6": 0.7,
+      "OP7": 0.55,
+      "OP8": 0.7333,
+      "OP9": 0.6333
+    }
+  },
+  "gate3": {
+    "verdict": "BLOCKED",
+    "reason": "MISSING_EPISODE_ROWS",
+    "detail": "SPECIALIST_PILOT_FROZEN.delta_pool_definition.SPLIT_HALF_ORACLE requires per-episode outcomes keyed by eval_seed: the per-opponent argmax and the fixed comparator are both selected on half A and scored on half B. run_crossplay_eval.py built `all_rows` in memory but did not persist it, so only per-cell aggregates survive for block 9300000. Split-half cannot be computed from aggregates.",
+    "prohibited_alternative": "the naive same-episode oracle IS computable from aggregates and is explicitly prohibited -- it is positively biased by construction and cannot return a non-positive gap. Reporting it as delta_pool would reintroduce the exact bias the gate exists to exclude.",
+    "remedy": "evaluation is deterministic on a fixed seed block, so re-running Confirmation A with the now-added row persistence reproduces the identical per-cell win rates AND yields the rows. It is a replay, not a re-roll. Cost ~15h GPU. Requires human authorisation."
+  },
+  "SPECIALIST_INCREMENTAL_VALUE": {
+    "verdict": "BLOCKED",
+    "reason": "MISSING_EPISODE_ROWS"
+  },
+  "SELECTED_POLICY_PER_OPPONENT": {
+    "verdict": "BLOCKED",
+    "reason": "MISSING_EPISODE_ROWS",
+    "note": "a full-cell argmax is computable but is NOT the frozen quantity, which is the half-A selection. Not reported, to avoid a differently-defined number being read as the gate."
+  },
+  "verdict": "PARTIAL_GATE3_BLOCKED"
+}

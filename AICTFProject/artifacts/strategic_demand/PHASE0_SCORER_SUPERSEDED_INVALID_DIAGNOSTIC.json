@@ -1,0 +1,177 @@
+{
+  "record": "PHASE0 frozen action-conditioned scorer Q_psi",
+  "status": "FROZEN_BEFORE_ANY_HELD_OUT_ACCESS",
+  "utc": "2026-08-26T01:25:28Z",
+  "target": {
+    "definition": "E[terminal win margin | o, a, p], margin = blue_score - red_score",
+    "amendment": "PHASE0_SCORER_TARGET_AMENDMENT.json",
+    "monte_carlo_return": "EXCLUDED from fitting",
+    "orientation": "blue is always the evaluated policy's team; positive = better for it"
+  },
+  "architecture": {
+    "form": "Q = b(o,p) + u(o,p)^T e(a1) + v(o,p)^T e(a2) + e(a1)^T M(o,p) e(a2)",
+    "M_factorisation": "low-rank M = P Q^T, never materialised",
+    "per_agent_action": "single categorical over 250 = 5 macros x 50 waypoints",
+    "policy_identity_input": "ABSENT -- prohibited by protocol",
+    "config": {
+      "action_dim": 32,
+      "rank": 8,
+      "hidden": 256,
+      "conv_width": 64,
+      "pole_embed": 8,
+      "n_poles": 2
+    },
+    "n_parameters": 311025,
+    "module": "rl/scorer/qpsi.py"
+  },
+  "training_config": {
+    "optimizer": "Adam",
+    "lr": 0.0003,
+    "weight_decay": 0.0,
+    "batch_size": 512,
+    "max_epochs": 60,
+    "early_stop_patience": 8,
+    "torch_seed": 7,
+    "loss": "weighted MSE on terminal win margin",
+    "plain_row_weight": "1 / (decision points in that episode)",
+    "branch_row_weight": "1.0",
+    "early_stop_criterion": "inner-val weighted MSE (NOT strategic ordering)"
+  },
+  "seed_sets": {
+    "train_total": [
+      6500001,
+      6500160
+    ],
+    "inner_fit": [
+      6500001,
+      6500128,
+      128
+    ],
+    "inner_val": [
+      6500129,
+      6500160,
+      32
+    ],
+    "inner_split_frozen_before_fitting": true,
+    "held_out_range": [
+      6500161,
+      6500256,
+      96
+    ]
+  },
+  "held_out_seeds_opened": 0,
+  "data_hashes": {
+    "inner_fit_shards_sha256": "0dcfafe67054e35c2504d9dbc13903da286256befbba2bf881fd616c95c10039",
+    "inner_val_shards_sha256": "0e7fb65ced7cc181a7c9c80c91f76cc2af532658bba5a4de6baaa346f58a5620",
+    "n_fit_plain_rows": 96661,
+    "n_fit_branch_rows": 1536,
+    "n_val_plain_rows": 24888,
+    "n_val_branch_rows": 384
+  },
+  "teacher_checkpoints": {
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "weights": {
+    "path": "artifacts\\strategic_demand\\phase0_scorer_data\\qpsi_frozen.pt",
+    "sha256": "3d9d4b01b6d5ace9e24c4ed46991850edc829a18dd48fc0aa51747a38082439a"
+  },
+  "effective_sample_size": {
+    "statistical_unit": "episode / seed, NOT state",
+    "inner_fit_seeds": 128,
+    "inner_fit_plain_episodes": 512,
+    "inner_fit_branch_labelled_rows": 1536,
+    "note": "plain state rows share one episode label and are weighted 1/len(episode); they are not independent payoff observations"
+  },
+  "train_side_calibration_NOT_gate_0B": {
+    "scope": "inner-val seeds only (train-side); the 96 held-out seeds were not opened",
+    "best_inner_val_weighted_mse": 0.442296,
+    "pred_vs_actual_margin_corr_inner_val": 0.692742,
+    "pred_margin_mean": 0.590182,
+    "pred_margin_std": 0.713254,
+    "actual_margin_mean": 0.612417,
+    "ordering_diagnostic": {
+      "d_A": {
+        "mean": -0.363803,
+        "per_seed_mean": -0.363803,
+        "n_states": 96,
+        "n_seeds": 32
+      },
+      "d_B": {
+        "mean": 0.334452,
+        "per_seed_mean": 0.334452,
+        "n_states": 96,
+        "n_seeds": 32
+      }
+    },
+    "warning": "this is a development diagnostic. It is NOT Gate 0B and must never be reported as such."
+  },
+  "epoch_history": [
+    {
+      "epoch": 0,
+      "train_wmse": 0.830893,
+      "val_wmse": 0.533447
+    },
+    {
+      "epoch": 1,
+      "train_wmse": 0.548231,
+      "val_wmse": 0.4836
+    },
+    {
+      "epoch": 2,
+      "train_wmse": 0.48866,
+      "val_wmse": 0.473966
+    },
+    {
+      "epoch": 3,
+      "train_wmse": 0.460729,
+      "val_wmse": 0.469102
+    },
+    {
+      "epoch": 4,
+      "train_wmse": 0.431077,
+      "val_wmse": 0.442296
+    },
+    {
+      "epoch": 5,
+      "train_wmse": 0.410588,
+      "val_wmse": 0.476257
+    },
+    {
+      "epoch": 6,
+      "train_wmse": 0.397214,
+      "val_wmse": 0.466619
+    },
+    {
+      "epoch": 7,
+      "train_wmse": 0.379698,
+      "val_wmse": 0.488151
+    },
+    {
+      "epoch": 8,
+      "train_wmse": 0.370303,
+      "val_wmse": 0.460643
+    },
+    {
+      "epoch": 9,
+      "train_wmse": 0.354951,
+      "val_wmse": 0.516129
+    },
+    {
+      "epoch": 10,
+      "train_wmse": 0.350529,
+      "val_wmse": 0.495699
+    },
+    {
+      "epoch": 11,
+      "train_wmse": 0.338407,
+      "val_wmse": 0.490877
+    },
+    {
+      "epoch": 12,
+      "train_wmse": 0.325058,
+      "val_wmse": 0.465522
+    }
+  ],
+  "next_action": "Gate 0B on the 96 held-out seeds, seed-level bootstrap, one shot"
+}

@@ -1,0 +1,231 @@
+{
+  "protocol": "v6i24_population_eval_gates",
+  "classification": "DIAGNOSTIC",
+  "path": "C_fallback_independent_teachers",
+  "primary_gate": "cross_fitted_context_oracle_gt_best_fixed",
+  "checkpoint_dir": "artifacts\\v6i24_population_seed1\\probe_05u",
+  "episodes_per_cell": 8,
+  "members": [
+    {
+      "id": 0,
+      "label": "balanced",
+      "path": "artifacts\\v6i24_population_seed1\\probe_05u\\member_0_balanced.zip"
+    },
+    {
+      "id": 1,
+      "label": "failure_cells",
+      "path": "artifacts\\v6i24_population_seed1\\probe_05u\\member_1_failure_cells.zip"
+    },
+    {
+      "id": 2,
+      "label": "high_variance",
+      "path": "artifacts\\v6i24_population_seed1\\probe_05u\\member_2_high_variance.zip"
+    },
+    {
+      "id": 3,
+      "label": "complementary",
+      "path": "artifacts\\v6i24_population_seed1\\probe_05u\\member_3_complementary.zip"
+    }
+  ],
+  "winrate_matrix": [
+    [
+      0.75,
+      0.5,
+      0.75,
+      0.75
+    ],
+    [
+      0.75,
+      1.0,
+      0.875,
+      0.875
+    ],
+    [
+      0.5,
+      0.75,
+      0.625,
+      0.5
+    ],
+    [
+      0.875,
+      0.0,
+      0.75,
+      0.0
+    ]
+  ],
+  "strategic": {
+    "payoff_matrix": [
+      [
+        0.8,
+        0.5125,
+        0.7875,
+        0.78125
+      ],
+      [
+        0.8,
+        1.125,
+        0.94375,
+        0.9375000000000001
+      ],
+      [
+        0.53125,
+        0.7875000000000001,
+        0.65,
+        0.5062500000000001
+      ],
+      [
+        0.9437500000000001,
+        -0.15000000000000002,
+        0.78125,
+        -0.15000000000000002
+      ]
+    ],
+    "context_labels": [
+      "OP11|map_b_split_lane",
+      "OP11|map_b_split_lane_v2",
+      "OP12|map_b_split_lane",
+      "OP12|map_b_split_lane_v2"
+    ],
+    "member_labels": [
+      "balanced",
+      "failure_cells",
+      "high_variance",
+      "complementary"
+    ],
+    "pairwise_row_distance": [
+      [
+        0.0,
+        0.23125000000000004,
+        0.2390625,
+        0.4359375
+      ],
+      [
+        0.23125000000000004,
+        0.0,
+        0.33281249999999996,
+        0.6671875
+      ],
+      [
+        0.2390625,
+        0.33281249999999996,
+        0.0,
+        0.534375
+      ],
+      [
+        0.4359375,
+        0.6671875,
+        0.534375,
+        0.0
+      ]
+    ],
+    "max_pairwise_row_distance": 0.6671875,
+    "best_per_context": [
+      3,
+      1,
+      1,
+      1
+    ],
+    "unique_best_policies": 2,
+    "cells_with_margin_ge_0_10": [
+      {
+        "context": "OP11|map_b_split_lane",
+        "best": "complementary",
+        "best_idx": 3,
+        "margin": 0.14375000000000004
+      },
+      {
+        "context": "OP11|map_b_split_lane_v2",
+        "best": "failure_cells",
+        "best_idx": 1,
+        "margin": 0.3374999999999999
+      },
+      {
+        "context": "OP12|map_b_split_lane",
+        "best": "failure_cells",
+        "best_idx": 1,
+        "margin": 0.15625
+      },
+      {
+        "context": "OP12|map_b_split_lane_v2",
+        "best": "failure_cells",
+        "best_idx": 1,
+        "margin": 0.1562500000000001
+      }
+    ],
+    "hindsight_oracle_return": 0.9875,
+    "hindsight_oracle_gap": 0.03593750000000007,
+    "oracle_return": 0.95,
+    "best_fixed_return": 0.95,
+    "best_fixed_member": "failure_cells",
+    "oracle_gap": 0.0,
+    "cross_fitted_oracle": {
+      "context_oracle_mean": 0.95,
+      "best_fixed_mean": 0.95,
+      "best_fixed_idx": 1,
+      "best_fixed_member": "failure_cells",
+      "delta": 0.0,
+      "ci_low": 0.0,
+      "ci_high": 0.0,
+      "gate_cross_fitted_oracle": false,
+      "n_heldout": 8,
+      "n_train_episodes": 6,
+      "n_test_episodes": 2,
+      "pi_star_per_context": [
+        {
+          "context": "OP11|map_b_split_lane",
+          "member": "complementary",
+          "idx": 3
+        },
+        {
+          "context": "OP11|map_b_split_lane_v2",
+          "member": "failure_cells",
+          "idx": 1
+        },
+        {
+          "context": "OP12|map_b_split_lane",
+          "member": "failure_cells",
+          "idx": 1
+        },
+        {
+          "context": "OP12|map_b_split_lane_v2",
+          "member": "failure_cells",
+          "idx": 1
+        }
+      ],
+      "unique_train_best_policies": 2
+    },
+    "gate_row_distance": true,
+    "gate_different_best_with_margin": true,
+    "gate_oracle_above_fixed": false,
+    "gate_cross_fitted_oracle": false
+  },
+  "classifier": {
+    "accuracy": 0.859375,
+    "n_test": 128,
+    "chance": 0.25,
+    "gate_classifier": true,
+    "protocol": "leave_one_cell_out_nearest_centroid_action_freqs"
+  },
+  "action_jsd": {
+    "cells": [],
+    "cells_with_jsd_gt_0_05": 0,
+    "gate_jsd": false,
+    "skipped": true
+  },
+  "verdict": {
+    "functional_pass": true,
+    "supporting_pass": true,
+    "primary_pass": false,
+    "strategic_pass": false,
+    "overall_pass": false,
+    "decision": "TREND_EXTEND_TO_100K"
+  },
+  "thresholds": {
+    "cf_jsd": 0.05,
+    "cf_jsd_min_cells": 2,
+    "trajectory_accuracy": 0.5,
+    "payoff_row_distance": 0.1,
+    "best_margin": 0.1,
+    "min_cells_different_best": 2
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "record": "RSCFT control launch manifest",
+  "status": "FROZEN_BEFORE_LAUNCH",
+  "utc": "2026-09-03T12:06:36Z",
+  "arm": "CONTROL",
+  "implements": "RSCFT_SPEC.json",
+  "training_seed": 11703001,
+  "additional_timesteps": 500000,
+  "warm_start": {
+    "checkpoint": "artifacts\\strategic_demand\\sppo\\ccp_successor_production\\ckpts\\final_ccp_successor_production.zip",
+    "sha256": "7164b662ad3fa6ce130350d10c25ae3a9e61f76e28a30b5911cca9d0c1b7a7f0",
+    "is_original_incumbent_not_an_S2_terminal": true,
+    "optimizer_state_reused": false
+  },
+  "causal": {
+    "lambda_causal": 0.05,
+    "cadence": 4,
+    "batch_rows": 48,
+    "segment_bank_hash": "6b6eadf5064b1ca312a5dbae59381e19b0bc33c5450fb0354b2c66dd596222ac",
+    "present_in_both_arms": true
+  },
+  "retention": "ABSENT -- retention_kl and EMATeacher.update are fatal if called",
+  "outputs": {
+    "checkpoint_dir": "artifacts\\strategic_demand\\sppo\\rscft_production\\control\\ckpts"
+  },
+  "sealed_eval_block": "11704001..11704064"
+}

@@ -1,0 +1,190 @@
+{
+  "record": "CCP retrospective decision-boundary audit of the teacher bank",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-01T12:43:58Z",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "DESCRIPTIVE_ONLY": "No verdict, threshold or gate. Computes exactly the quantities the PI prespecified. Does not reinterpret any frozen result: V1-V4 were evaluated through the real environment and stand as recorded.",
+  "boundary_predicate": {
+    "runtime_source": "_step.py: new_commit = blue_commit_ticks_left <= 0, per agent",
+    "recovered_from_the_bank_via": "_observations.py collapses a committed agent's mask to one-hot(commit_macro) and one-hot(commit_target), so d_i = NOT(macro one-hot AND target one-hot)",
+    "mask_layout": "[a0_macro(5), a0_target(50), a1_macro(5), a1_target(50)]",
+    "commit_durations": {
+      "go_to": 4,
+      "grab": 3,
+      "get_flag": 4,
+      "place": 2,
+      "go_home": 4
+    }
+  },
+  "splits": {
+    "CALIB": {
+      "n_states": 145,
+      "mask_decode_validated": "all teacher actions legal under the assumed layout",
+      "boundary_rates": {
+        "P_agent0_free": 0.5862068965517241,
+        "P_agent1_free": 0.7448275862068966,
+        "P_at_least_one_free": 1.0,
+        "P_both_free": 0.3310344827586207,
+        "P_both_mid_hold": 0.0
+      },
+      "teacher_disagreement": {
+        "overall": 0.7034482758620689,
+        "given_at_least_one_free": {
+          "n": 145,
+          "rate": 0.7034482758620689
+        },
+        "given_both_free": {
+          "n": 48,
+          "rate": 0.8333333333333334
+        },
+        "given_both_mid_hold": {
+          "n": 0,
+          "rate": null
+        }
+      },
+      "per_agent_disagreement": {
+        "agent0": {
+          "overall": 0.36551724137931035,
+          "given_this_agent_free": {
+            "n": 85,
+            "rate": 0.6235294117647059
+          },
+          "given_this_agent_mid_hold": {
+            "n": 60,
+            "rate": 0.0
+          }
+        },
+        "agent1": {
+          "overall": 0.496551724137931,
+          "given_this_agent_free": {
+            "n": 108,
+            "rate": 0.6666666666666666
+          },
+          "given_this_agent_mid_hold": {
+            "n": 37,
+            "rate": 0.0
+          }
+        }
+      },
+      "structural_check": {
+        "claim": "a committed agent's mask is one-hot, so its action is forced and the teachers cannot disagree about it",
+        "violations": 0,
+        "holds": true
+      }
+    },
+    "BANK_10700": {
+      "n_states": 428,
+      "mask_decode_validated": "all teacher actions legal under the assumed layout",
+      "boundary_rates": {
+        "P_agent0_free": 0.6308411214953271,
+        "P_agent1_free": 0.6915887850467289,
+        "P_at_least_one_free": 1.0,
+        "P_both_free": 0.32242990654205606,
+        "P_both_mid_hold": 0.0
+      },
+      "teacher_disagreement": {
+        "overall": 0.6658878504672897,
+        "given_at_least_one_free": {
+          "n": 428,
+          "rate": 0.6658878504672897
+        },
+        "given_both_free": {
+          "n": 138,
+          "rate": 0.7971014492753623
+        },
+        "given_both_mid_hold": {
+          "n": 0,
+          "rate": null
+        }
+      },
+      "per_agent_disagreement": {
+        "agent0": {
+          "overall": 0.3294392523364486,
+          "given_this_agent_free": {
+            "n": 270,
+            "rate": 0.5222222222222223
+          },
+          "given_this_agent_mid_hold": {
+            "n": 158,
+            "rate": 0.0
+          }
+        },
+        "agent1": {
+          "overall": 0.42990654205607476,
+          "given_this_agent_free": {
+            "n": 296,
+            "rate": 0.6216216216216216
+          },
+          "given_this_agent_mid_hold": {
+            "n": 132,
+            "rate": 0.0
+          }
+        }
+      },
+      "structural_check": {
+        "claim": "a committed agent's mask is one-hot, so its action is forced and the teachers cannot disagree about it",
+        "violations": 0,
+        "holds": true
+      }
+    },
+    "BANK_11000": {
+      "unavailable": "FileNotFoundError: [Errno 2] No such file or directory: 'K:\\\\MultiAgentUAV\\\\AICTFProject\\\\artifacts\\\\strategic_demand\\\\stratified_regime_data\\\\seed_shards\\\\seed_11000001.npz'"
+    }
+  },
+  "pooled": {
+    "n_states": 573,
+    "mask_decode_validated": "all teacher actions legal under the assumed layout",
+    "boundary_rates": {
+      "P_agent0_free": 0.6195462478184991,
+      "P_agent1_free": 0.7050610820244329,
+      "P_at_least_one_free": 1.0,
+      "P_both_free": 0.32460732984293195,
+      "P_both_mid_hold": 0.0
+    },
+    "teacher_disagreement": {
+      "overall": 0.675392670157068,
+      "given_at_least_one_free": {
+        "n": 573,
+        "rate": 0.675392670157068
+      },
+      "given_both_free": {
+        "n": 186,
+        "rate": 0.8064516129032258
+      },
+      "given_both_mid_hold": {
+        "n": 0,
+        "rate": null
+      }
+    },
+    "per_agent_disagreement": {
+      "agent0": {
+        "overall": 0.33856893542757416,
+        "given_this_agent_free": {
+          "n": 355,
+          "rate": 0.5464788732394367
+        },
+        "given_this_agent_mid_hold": {
+          "n": 218,
+          "rate": 0.0
+        }
+      },
+      "agent1": {
+        "overall": 0.4467713787085515,
+        "given_this_agent_free": {
+          "n": 404,
+          "rate": 0.6336633663366337
+        },
+        "given_this_agent_mid_hold": {
+          "n": 169,
+          "rate": 0.0
+        }
+      }
+    },
+    "structural_check": {
+      "claim": "a committed agent's mask is one-hot, so its action is forced and the teachers cannot disagree about it",
+      "violations": 0,
+      "holds": true
+    }
+  },
+  "EVAL_touched": false
+}

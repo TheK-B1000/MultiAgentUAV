@@ -1,0 +1,132 @@
+{
+  "record_id": "RSCFT_SPEC",
+  "name": "Retention-Stabilized Causal Fine-Tuning",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-03T10:05:00Z",
+  "authority": "PI, 2026-09-03, authorizing exactly one targeted successor on the strength of CCP-S2's identified failure mechanism",
+
+  "SCIENTIFIC_HYPOTHESIS": {
+    "hypothesis": "CCP-S2's sparse causal corrections were being washed out by continued PPO drift.",
+    "what_CCP_S2_established": {
+      "eval": "CCP_S2_EVAL_INTEGRITY.json, VERDICT GENUINE_REVERSAL_ALL_CELLS, zero failures",
+      "all_four_deltas_negative": {"delta_A_C": -0.1875, "delta_B_C": -0.0625, "delta_A_T": -0.1406, "delta_B_T": -0.0312},
+      "gamma_favoured_treatment_but_not_significant": {"Gamma_A": "+0.0469 [-0.172, +0.250]", "Gamma_B": "+0.0312 [-0.219, +0.281]"},
+      "the_load_bearing_observation": "the incumbent's OWN sealed EVAL (disjoint seeds, same checkpoint) had delta_A = +0.0938, POSITIVE. Both S2 arms drove it negative during 500k additional steps. It went negative in CONTROL too, which carried zero causal gradient -- so continued task-PPO training, not the causal supervision, is the leading suspect for erasing the Pole-A specialization that existed at the warm start.",
+      "pole_B_is_not_the_new_problem": "the incumbent already had delta_B = -0.1562 before either arm trained; the Pole-B reversal is inherited, not caused by S2."
+    },
+    "what_this_successor_tests": "Does adding retention stabilization to the causal treatment prevent PPO from erasing strategy?",
+    "why_the_control_changes": "CONTROL is now the PREVIOUS CAUSAL TREATMENT, not plain PPO. Causal treatment alone is already known to fail. Making plain PPO the control again would re-answer a question already answered and would not isolate the one new variable."
+  },
+
+  "THE_ONE_CHANGED_VARIABLE": {
+    "added": "an EMA actor teacher penalising abrupt policy drift",
+    "unchanged": [
+      "the critic", "the Stage A/B causal bank (exact existing frozen artifacts)",
+      "the causal objective and lambda_causal = 0.05", "the environment and opponents",
+      "the specialists / teacher checkpoints", "the 500k training horizon",
+      "latent assignments (z0 = Pole A, z1 = Pole B, never flipped)", "rewards, returns, GAE",
+      "the evaluation gate"
+    ]
+  },
+
+  "ARMS": {
+    "RETENTION_CONTROL": {
+      "start_checkpoint": "the ORIGINAL 1,003,520-step incumbent (final_ccp_successor_production.zip)",
+      "ppo": true, "ccp_s2_causal_loss": true, "lambda_causal": 0.05,
+      "causal_bank": "the exact existing frozen Stage A/B bank",
+      "ema_retention": "ABSENT -- and fatal if its code executes",
+      "horizon": "+500000 additional steps"
+    },
+    "RETENTION_TREATMENT": {
+      "start_checkpoint": "the SAME original incumbent",
+      "ppo": true, "ccp_s2_causal_loss": true, "lambda_causal": 0.05,
+      "causal_bank": "the exact existing frozen Stage A/B bank",
+      "ema_retention": "PRESENT -- and fatal if absent",
+      "horizon": "+500000 additional steps"
+    },
+    "why_restart_from_the_original_incumbent": "NOT from either CCP-S2 terminal checkpoint. The original incumbent is the checkpoint where delta_A = +0.0938 still existed. The entire purpose is to test whether that specialization can be preserved while causal corrections operate; starting from a checkpoint where it has already been erased would test nothing."
+  },
+
+  "EMA_RETENTION": {
+    "teacher_init": "theta_bar_0 = theta_0 -- an exact copy of the original warm-start actor",
+    "update_rule": "after each actor optimizer update: theta_bar <- 0.995 * theta_bar + 0.005 * theta",
+    "loss": "L_ret = D_KL( pi_theta_bar || pi_theta )",
+    "lambda_ret": 0.01,
+    "total_actor_objective": "L = L_PPO + 0.05 * L_causal + 0.01 * L_ret",
+    "DECISION_BOUNDARY_MASKING": {
+      "rule": "retention is applied ONLY at real decision boundaries, using the already-validated per-agent predicate d_t^i = [commit_ticks_left_i <= 0]",
+      "why": "regularising policy outputs the environment never executes would repeat exactly the temporal-abstraction mistake this program already diagnosed and corrected (CCP_FORCED_HEAD_DILUTION.json). A committed agent's logits are not a decision.",
+      "mid_hold_rows_must_contribute": "exactly zero retention loss"
+    },
+    "NUMERICAL_REQUIREMENT": {
+      "rule": "compute the KL directly from logits using numerically stable log_softmax machinery, and fail closed on any NaN or Inf",
+      "why": "the policy is effectively deterministic at logged precision (CCP_S2_PRELAUNCH_INTERPRETATION_CAVEATS.json). The existing telemetry KL implementation returns inf under exactly this condition and MUST NOT be reused as the retention loss."
+    },
+    "HYPERPARAMETER_PROVENANCE": {
+      "values": {"ema_decay": 0.995, "lambda_ret": 0.01},
+      "status": "PREREGISTERED CONSERVATIVE CHOICES BY THIS PROGRAM",
+      "explicitly_not_claimed": "these are NOT copied hyperparameters from any published source. They are our own conservative choices, frozen here before implementation.",
+      "literature_basis": {
+        "mechanism": "EMA teacher plus KL temporal consistency to suppress late-stage MAPPO drift",
+        "cited_by_PI_as": "recent SD-MAPPO work (Chen & Dai), framed by its authors as a stabiliser for collapse-prone on-policy CTDE rather than a universal performance booster",
+        "PI_verification_note": "the PI reports being unable to verify the paper's exact hyperparameter values from an accessible full-text source; only the MECHANISM is taken from the literature.",
+        "this_session_did_not_independently_verify": "the coding session that implemented this spec had no browsing access and did NOT independently verify the citation, its authorship, or its contents. The scientific weight here rests on the mechanism being sensible for the diagnosed failure and on this program's own frozen evidence -- not on the citation."
+      }
+    }
+  },
+
+  "SEEDS": {
+    "training_seed": 11703001,
+    "shared_by_both_arms": true,
+    "derived_environment_range": "11703001..11703321",
+    "sealed_eval_block": "11704001..11704064",
+    "eval_n": 64,
+    "must_not_reuse": "11701001..11701064 (CCP-S2's sealed EVAL) is spent and must not be reused",
+    "full_partition": "11700001..11700320 [S2 collection] | 11700321..11701000 [gap] | 11701001..11701064 [S2 sealed EVAL, SPENT] | 11702001..11702321 [S2 training] | 11703001..11703321 [RSCFT training] | 11704001..11704064 [RSCFT sealed EVAL]",
+    "disjointness_required": "mechanically verified before launch, including the derived environment range, not merely the seed itself"
+  },
+
+  "MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_ANY_GPU_RUN": [
+    "teacher and student are behaviorally identical at initialization",
+    "initial retention KL is approximately zero and finite",
+    "a controlled actor perturbation makes retention KL > 0",
+    "L_ret produces nonzero actor gradients",
+    "EMA parameters move after an actor update but receive no optimizer gradients",
+    "mid-hold rows contribute exactly zero retention loss",
+    "real commitment-boundary rows contribute normally",
+    "the CCP-S2 causal loss still produces its known gradients",
+    "CONTROL fails closed if retention code executes",
+    "TREATMENT fails closed if retention is absent",
+    "the config diff between arms contains only retention-related fields",
+    "the fresh EVAL block remains untouched"
+  ],
+
+  "EVAL_PROTOCOL": {
+    "seeds_per_cell": 64,
+    "block": "11704001..11704064",
+    "shared_seeds_across_arms": true,
+    "PRIMARY_GATE": {
+      "delta_A": "V(z0,A) - V(z1,A)",
+      "delta_B": "V(z1,B) - V(z0,B)",
+      "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+      "rule": "same primary gate. No mercy, no reinterpretation."
+    },
+    "ATTRIBUTION": {
+      "Gamma_A": "delta_A_retention - delta_A_control",
+      "Gamma_B": "delta_B_retention - delta_B_control",
+      "statistic": "preregistered PAIRED bootstrap over the shared 64 seeds, n_boot=20000, alpha=0.05, rng_seed=7 -- unchanged convention"
+    },
+    "PREREGISTERED_INTERPRETATION": [
+      {"retention": "PASS", "control": "FAIL", "reading": "crossover recovered under retention stabilization"},
+      {"retention": "PASS", "control": "PASS", "reading": "crossover recovered, but retention is not necessary under this run"},
+      {"retention": "FAIL", "control": "FAIL", "reading": "retention stabilization insufficient"},
+      {"retention": "PASS", "gamma": "CIs do not clear zero", "reading": "claim recovery under the complete treatment, not statistically established retention attribution"}
+    ],
+    "tie_or_reversal": "any tie or reversal triggers the same row-level integrity audit before interpretation, written before its rows are read",
+    "one_shot": "each arm's EVAL runs exactly once, no rerun under any outcome"
+  },
+
+  "SEQUENCE": "freeze spec -> implement EMA retention -> mechanical preflight -> CONTROL 500k -> TREATMENT 500k -> fresh sealed EVAL",
+
+  "PROGRAM_TERMINATION_RULE": "No more architecture ladder after this. This is the targeted successor that the CCP-S2 failure earned. A negative result here is recorded as a negative result and does not license a further reopening without a fresh PI decision on new evidence."
+}

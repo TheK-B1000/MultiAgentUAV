@@ -1,0 +1,16 @@
+{
+  "record_id": "D1_RESULT_INVALID_ATTEMPT_1",
+  "status": "INVALID",
+  "utc": "2026-08-27T02:08:46Z",
+  "reason": "Produced before D1_IMPLEMENTATION_FROZEN (e8ee6c9d). Lacks hard obs-schema contract enforcement metadata, runner_sha256, and secondary_training_weight_diagnostic labeling. Not authoritative for D1 interpretation.",
+  "scientific_protocol_commit": "4c0a8fd4",
+  "authoritative_implementation_commit": "e8ee6c9d",
+  "quarantined_path": "artifacts\\strategic_demand\\sppo\\D1_RESULT_INVALID_ATTEMPT_1.json",
+  "quarantined_sha256": "d5e1e76301178935f740fba7768d9466b92157b04b3189b1965d5b91d5302f36",
+  "does_not_authorize": [
+    "interpretation",
+    "successor method",
+    "training"
+  ],
+  "next": "Launch exactly once from committed runner experiments/run_sppo_d1_localization.py after process uniqueness is clean."
+}

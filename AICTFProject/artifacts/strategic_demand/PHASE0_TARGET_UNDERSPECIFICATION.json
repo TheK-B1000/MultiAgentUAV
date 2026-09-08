@@ -1,0 +1,78 @@
+{
+  "record_id": "PHASE0_TARGET_UNDERSPECIFICATION",
+  "status": "FROZEN_NEGATIVE_METHODOLOGICAL_FINDING",
+  "frozen_utc": "2026-08-26T01:05:00Z",
+  "authority": "PI ruling",
+  "classification": "PROTOCOL DEFECT, recorded rather than repaired silently",
+
+  "finding": "The original Phase 0 protocol specified terminal outcome, score/win margin, and Monte-Carlo return as recorded quantities but failed to designate the scorer regression target. Before scorer fitting and before any held-out access, training-only target diagnostics revealed that shaped Monte-Carlo return is not aligned with the strategic payoff ordering Gate 0A and SPPPO are designed to preserve. Phase 0 is therefore formally marked UNDER-SPECIFIED at the scorer-target boundary. A prospective amendment designates terminal win margin as the sole Q_psi regression target on construct-validity grounds. No scorer has been fitted and no held-out data have been accessed.",
+
+  "where_the_gap_is": {
+    "protocol": "PHASE0_ACTION_CONDITIONED_SCORER_PROTOCOL.json",
+    "recorded_but_undesignated": [
+      "terminal outcome",
+      "score / win margin",
+      "Monte-Carlo return from t"
+    ],
+    "cited_at": "collection.per_decision_point_records[5..7]",
+    "what_was_specified": "the scorer FORM Q_psi(o,a1,a2,p), the analytic expectation, the continuation semantics, the branching mechanism, and both gates",
+    "what_was_not_specified": "which recorded quantity Q_psi regresses",
+    "why_it_escaped_the_freeze": "the form/expectation/continuation amendments were written to close structural holes in the scorer's INPUTS and in state coverage. The target was referred to only as 'G_A'/'G_B' and read as self-evident. It was not."
+  },
+
+  "diagnostic_provenance": {
+    "artifact": "artifacts/strategic_demand/PHASE0_TARGET_DIAGNOSTIC_TRAIN_ONLY.json",
+    "generator": "experiments/phase0_target_diagnostic.py",
+    "data_scope": "6500001..6500160, the 160 TRAIN seeds only",
+    "held_out_seeds_opened": 0,
+    "bootstrap": "by seed, rng 7, n_boot 20000, alpha 0.05 -- same procedure as Gate 0B",
+    "orientation": "positive = the strategically appropriate teacher for that pole is favoured",
+    "result": {
+      "pole_A": {
+        "monte_carlo_return": {"mean": -0.961, "LCB95": -1.2845, "sign_correct": false},
+        "terminal_win_margin": {"mean": 0.2542, "LCB95": 0.1562, "sign_correct": true},
+        "terminal_win_flag": {"mean": 0.0917, "LCB95": 0.05, "sign_correct": true}
+      },
+      "pole_B": {
+        "monte_carlo_return": {"mean": -1.1453, "LCB95": -1.5394, "sign_correct": false},
+        "terminal_win_margin": {"mean": 0.1792, "LCB95": 0.0979, "sign_correct": true},
+        "terminal_win_flag": {"mean": 0.0792, "LCB95": 0.0292, "sign_correct": true}
+      }
+    },
+    "supporting": {
+      "spearman_return_margin": 0.0993,
+      "spearman_return_win": 0.04,
+      "non_monotone": "mean return at margin 0 is -5.270 but at margin +1 is -5.411; the shaped return is not monotone in payoff",
+      "terminal_margin_support_train": {"-2": 2, "-1": 103, "0": 789, "1": 634, "2": 283, "3": 109}
+    },
+    "plain_english": "the strategically correct teacher earns HIGHER payoff but LOWER shaped Monte-Carlo return"
+  },
+
+  "why_this_is_recorded_as_a_defect_and_not_quietly_fixed": {
+    "hazard": "the choice was made AFTER training-only diagnostics showed which candidate carries the signal. That resembles the prohibited pattern 'changed estimator'.",
+    "why_it_is_formally_distinct": [
+      "no Q_psi exists; nothing has been fitted",
+      "Gate 0B has not been run and its 96 held-out seeds have never been opened",
+      "the choice is logically PRIOR to any gate evaluation, not a re-scoring of a completed one",
+      "no gate, threshold, confidence procedure or effect floor is altered"
+    ],
+    "why_the_record_exists_anyway": "the resemblance is close enough that the honest move is to document it. An unusually clean experimental record is worth more than the appearance of never having drafted a protocol imperfectly.",
+    "target_independent_argument": "every gate in this program -- Gate 0A, the EXP1 crossover, delta_pool -- is defined on PAYOFF. Shaped Monte-Carlo return is a training-time optimisation signal containing reward shaping. Regressing Q_psi on it would build a shaped-reward critic and then ask it to reproduce a payoff ordering its own target opposes. That is a construct-validity failure, and the argument does not depend on the diagnostic above."
+  },
+
+  "what_this_does_NOT_license": [
+    "changing Gate 0B in any respect",
+    "changing the 160/96 split, the seed block, or the bootstrap unit",
+    "revisiting Gate 0A, which is frozen and passed",
+    "growing the dataset if Gate 0B fails (DATA_GROWTH_AFTER_FAILURE remains PROHIBITED)",
+    "selecting a different target later if win margin fails Gate 0B"
+  ],
+
+  "successor": "PHASE0_SCORER_TARGET_AMENDMENT.json",
+  "state_at_freeze": {
+    "gate_0A": "PASS, frozen (phase0_scorer_data/gate0a.json)",
+    "Q_psi": "DOES NOT EXIST",
+    "held_out_seeds": "UNTOUCHED (6500161..6500256)",
+    "gate_0B": "GENUINELY PROSPECTIVE"
+  }
+}

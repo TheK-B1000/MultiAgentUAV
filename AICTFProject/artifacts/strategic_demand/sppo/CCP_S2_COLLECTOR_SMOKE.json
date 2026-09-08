@@ -1,0 +1,111 @@
+{
+  "record": "CCP-S2 collector smoke",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-02T13:56:38Z",
+  "implements": "PI requirement: exact-prefix replay + 3-arm bitwise state/RNG identity + negative control, before any of the 10176 real jobs run",
+  "sample_states": [
+    "11700306|A|60",
+    "11700019|A|4",
+    "11700122|B|75",
+    "11700019|B|4"
+  ],
+  "VERDICT": "COLLECTOR_VERIFIED",
+  "check1_prefix_replay_bitwise_reproducible": {
+    "passed": true,
+    "rows": [
+      {
+        "state_id": "11700306|A|60",
+        "free_set": "agent0_only",
+        "bitwise_identical_across_two_independent_replays": true,
+        "diffs": []
+      },
+      {
+        "state_id": "11700019|A|4",
+        "free_set": "both_free",
+        "bitwise_identical_across_two_independent_replays": true,
+        "diffs": []
+      },
+      {
+        "state_id": "11700122|B|75",
+        "free_set": "agent0_only",
+        "bitwise_identical_across_two_independent_replays": true,
+        "diffs": []
+      },
+      {
+        "state_id": "11700019|B|4",
+        "free_set": "both_free",
+        "bitwise_identical_across_two_independent_replays": true,
+        "diffs": []
+      }
+    ]
+  },
+  "check2_three_arm_state_and_rng_identity": {
+    "passed": true,
+    "rows": [
+      {
+        "state_id": "11700306|A|60",
+        "estimand": "agent0",
+        "j": 0,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      },
+      {
+        "state_id": "11700306|A|60",
+        "estimand": "agent0",
+        "j": 15,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      },
+      {
+        "state_id": "11700019|A|4",
+        "estimand": "agent0",
+        "j": 0,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      },
+      {
+        "state_id": "11700019|A|4",
+        "estimand": "agent0",
+        "j": 15,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      },
+      {
+        "state_id": "11700122|B|75",
+        "estimand": "agent0",
+        "j": 0,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      },
+      {
+        "state_id": "11700122|B|75",
+        "estimand": "agent0",
+        "j": 15,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      },
+      {
+        "state_id": "11700019|B|4",
+        "estimand": "agent0",
+        "j": 0,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      },
+      {
+        "state_id": "11700019|B|4",
+        "estimand": "agent0",
+        "j": 15,
+        "pre_intervention_state_identical_across_arms": true,
+        "rng_state_identical_across_arms": true
+      }
+    ]
+  },
+  "check3_negative_control_broken_dispatcher_detected": {
+    "passed": true,
+    "design": "an order-dependent stream counter dispensed to R_0/pi_A/pi_B in that order, in place of the frozen CCP_S2_MEASURE mapping",
+    "identical_across_arms_under_broken_dispatcher": false,
+    "why_required": "a check that cannot fail proves nothing; this confirms check2's methodology would actually catch a broken seed dispatcher, not merely agree with a correct one"
+  },
+  "authorizes_if_verified": "the 10176 real CCP-S2 measurement jobs (experiments/ccp_s2_collect.py, worker mode)"
+}

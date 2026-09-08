@@ -1,0 +1,94 @@
+{
+  "status": "INCONCLUSIVE_SCORE_DEGENERACY",
+  "archived_utc": "2026-07-31T19:54:35.636592+00:00",
+  "reason": "All compared styles produced zero BLUE and RED scores. The preregistered score-difference metrics therefore had no variance and could not measure defensive benefit or offensive cost.",
+  "verdict_must_not_be_used": "The script computes FAIL from defense_benefit = 0 - 0 and offense_cost = 0 - 0. That is a measurement degeneracy, not evidence that the trade-off is absent.",
+  "observed": {
+    "BLUE_RUSH": {
+      "blue": 0.0,
+      "red": 0.0,
+      "defend_frac": 0.57,
+      "red_incursion": 0.468
+    },
+    "BLUE_SPLIT": {
+      "blue": 0.0,
+      "red": 0.0,
+      "defend_frac": 0.43,
+      "red_incursion": 0.432
+    }
+  },
+  "non_score_signal": "defend_frac 0.57 vs 0.43 and red_incursion 0.468 vs 0.432 move in the expected direction: the harness does see behavioural variation. Small, and the V1-era style labels may not implement the intended V2 roles.",
+  "do_not": [
+    "add more episodes (more zeros stay zero)",
+    "lengthen the 240-step horizon (changes the primary task)"
+  ],
+  "successor": "Gate 2B: explicit BOTH_ATTACK / ONE_DEFENDER probes + normalized flag-progress metric (0->1 toward enemy flag, 1->2 carrier return, 2 = capture), 32 paired seeds, manipulation check before outcomes.",
+  "raw_result": {
+    "gate": "gate2_affordance",
+    "created_utc": "2026-07-31T19:52:58.418129+00:00",
+    "ruleset_id": "RULESET_V2_AQUATICUS_10S",
+    "ruleset": {
+      "taggers_required": 1,
+      "tag_min_interval_seconds": 10.0,
+      "tag_nearest_only": true,
+      "tag_channel_seconds": 0.0,
+      "suppression_attackers_required": 2
+    },
+    "map": "map_a",
+    "resolved_map": "map_a_open",
+    "opponent": "OP6",
+    "episodes_per_style": 10,
+    "seed_block": [
+      1600001,
+      1600010
+    ],
+    "by_style": {
+      "BLUE_RUSH": {
+        "style": "BLUE_RUSH",
+        "episodes": 10,
+        "blue_score": 0.0,
+        "red_score": 0.0,
+        "margin": 0.0,
+        "defend_frac": 0.5707029801555552,
+        "red_incursion": 0.4681521557962796,
+        "mean_steps": 121.9
+      },
+      "BLUE_SPLIT": {
+        "style": "BLUE_SPLIT",
+        "episodes": 10,
+        "blue_score": 0.0,
+        "red_score": 0.0,
+        "margin": 0.0,
+        "defend_frac": 0.4261058394436624,
+        "red_incursion": 0.43222195967593346,
+        "mean_steps": 106.7
+      },
+      "BLUE_TURTLE": {
+        "style": "BLUE_TURTLE",
+        "episodes": 10,
+        "blue_score": 0.0,
+        "red_score": 0.0,
+        "margin": 0.0,
+        "defend_frac": 0.7566666666666666,
+        "red_incursion": 0.4477083333333334,
+        "mean_steps": 240.0
+      },
+      "BLUE_ESCORT": {
+        "style": "BLUE_ESCORT",
+        "episodes": 10,
+        "blue_score": 0.0,
+        "red_score": 0.0,
+        "margin": 0.0,
+        "defend_frac": 0.6117444187420243,
+        "red_incursion": 0.47855813823793286,
+        "mean_steps": 127.7
+      }
+    },
+    "defense_benefit": 0.0,
+    "offense_cost": 0.0,
+    "defense_ok": false,
+    "offense_cost_ok": false,
+    "verdict": "FAIL",
+    "note": "Scripted blue styles only -- measures ENVIRONMENT affordances, not policy skill."
+  }
+}

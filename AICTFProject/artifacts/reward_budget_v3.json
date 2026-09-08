@@ -1,0 +1,145 @@
+{
+  "current_values": {
+    "capture": 100.0,
+    "tag_no_flag": 100.0,
+    "tag_carrier": 50.0,
+    "oob": -100.0,
+    "failed_commit": -0.2
+  },
+  "runs": [
+    {
+      "rates": {
+        "run": "notag_2700001",
+        "episodes": 1428,
+        "tag_no_flag_per_ep": 17.517,
+        "tag_carrier_per_ep": 0.553,
+        "captures_per_ep": 2.207,
+        "blue_captures_per_ep": 1.412
+      },
+      "current_per_episode": {
+        "capture_per_ep": 2.207,
+        "tag_no_flag_per_ep": 17.517,
+        "tag_carrier_per_ep": 0.277,
+        "tag_total_per_ep": 17.793,
+        "failed_commit_per_ep": 36.731,
+        "tag_to_capture_ratio": 8.06,
+        "failure_to_capture_ratio": 16.64,
+        "implied_oob_events_per_ep": -0.58
+      },
+      "channel_per_episode": {
+        "terminal": 0.266,
+        "sparse_total": 1.473,
+        "failure": -36.731,
+        "offense": -1.018,
+        "pbrs": 0.128,
+        "team": 0.784
+      }
+    },
+    {
+      "rates": {
+        "run": "notag_2700002",
+        "episodes": 1487,
+        "tag_no_flag_per_ep": 19.223,
+        "tag_carrier_per_ep": 0.387,
+        "captures_per_ep": 2.307,
+        "blue_captures_per_ep": 1.676
+      },
+      "current_per_episode": {
+        "capture_per_ep": 2.307,
+        "tag_no_flag_per_ep": 19.223,
+        "tag_carrier_per_ep": 0.194,
+        "tag_total_per_ep": 19.416,
+        "failed_commit_per_ep": 42.261,
+        "tag_to_capture_ratio": 8.42,
+        "failure_to_capture_ratio": 18.32,
+        "implied_oob_events_per_ep": -0.384
+      },
+      "channel_per_episode": {
+        "terminal": 0.573,
+        "sparse_total": 1.622,
+        "failure": -42.261,
+        "offense": -2.357,
+        "pbrs": 0.275,
+        "team": 0.734
+      }
+    },
+    {
+      "rates": {
+        "run": "notag_2700003",
+        "episodes": 1335,
+        "tag_no_flag_per_ep": 12.294,
+        "tag_carrier_per_ep": 1.011,
+        "captures_per_ep": 1.798,
+        "blue_captures_per_ep": 0.59
+      },
+      "current_per_episode": {
+        "capture_per_ep": 1.798,
+        "tag_no_flag_per_ep": 12.294,
+        "tag_carrier_per_ep": 0.505,
+        "tag_total_per_ep": 12.8,
+        "failed_commit_per_ep": 25.724,
+        "tag_to_capture_ratio": 7.12,
+        "failure_to_capture_ratio": 14.31,
+        "implied_oob_events_per_ep": -7.25
+      },
+      "channel_per_episode": {
+        "terminal": -0.544,
+        "sparse_total": 7.138,
+        "failure": -25.724,
+        "offense": 2.267,
+        "pbrs": -0.258,
+        "team": 0.791
+      }
+    },
+    {
+      "rates": {
+        "run": "baseline_2500001",
+        "episodes": 5134,
+        "tag_all_per_ep": 19.56,
+        "captures_per_ep": 2.34
+      },
+      "current_per_episode": null
+    },
+    {
+      "rates": {
+        "run": "baseline_2500002",
+        "episodes": 4398,
+        "tag_all_per_ep": 13.949,
+        "captures_per_ep": 1.106
+      },
+      "current_per_episode": null
+    },
+    {
+      "rates": {
+        "run": "baseline_2500003",
+        "episodes": 4359,
+        "tag_all_per_ep": 13.72,
+        "captures_per_ep": 1.065
+      },
+      "current_per_episode": null
+    }
+  ],
+  "v3_derivation": {
+    "observed": {
+      "mean_tags_per_episode": 16.995,
+      "mean_captures_per_episode": 2.104,
+      "tags_per_capture": 8.08,
+      "mean_capture_reward_per_episode": 2.104,
+      "mean_failed_commit_cost_per_episode": 34.905
+    },
+    "budget": {
+      "objective_reference": "capture",
+      "tactical_shaping_max_share": 0.15,
+      "safety_penalty_max_share": 0.3,
+      "tags_start_at_zero": true
+    },
+    "derived": {
+      "tag_points_ceiling_if_nonzero": 1.86,
+      "recommended_tag_points": 0.0,
+      "recommended_tag_points_rationale": "start at zero: tagging already serves the objective through its consequences (carrier drops the flag, attack is interrupted, cooldown opens a window). The ceiling above is what the budget would permit IF an explicit tag reward turns out to be needed.",
+      "failed_commit_rescale_factor": 0.0181,
+      "derived_failed_commit_points": -0.0036
+    },
+    "warning": "Derived from 300k-step probes where the tag reward was ALREADY zeroed, so tag frequencies reflect a policy not being paid to tag. Frequencies under a restored tag reward would be higher, making these ceilings conservative in the wrong direction if tags are ever re-enabled."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "protocol_version": "level1b_v2",
+  "checkpoint_z0": "artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/final_v6i26_lro_kl_ladder_z0_u3_seed1.zip",
+  "checkpoint_z3": "artifacts/v6i26_lro_niches_round1_seed1/final_v6i26_lro_z3_r1_25u_seed1.zip",
+  "prefix_steps": 15,
+  "prefix_branch": 1,
+  "locked_target_json": "artifacts/v6i26_margin_actor_step_3x_5u_seed1/current_response_target.json",
+  "base_seed": 70001,
+  "note": "Fixes v1's same-object tracker-warmth confound: prefix_model, candidate_z0, candidate_z3 are three separate model instances; candidates are context-primed symmetrically during the prefix. Short episodes are included as ties (context_capture_step < prefix_steps), not dropped or given a fabricated forced-z0 fallback."
+}

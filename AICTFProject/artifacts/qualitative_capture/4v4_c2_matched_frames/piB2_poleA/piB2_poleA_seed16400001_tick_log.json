@@ -1,0 +1,802 @@
+[
+  {
+    "tick": 0,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 1,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 2,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 3,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 4,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 5,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 6,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 7,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 8,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 9,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 10,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 11,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 12,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 13,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 14,
+    "red_role_counts": {
+      "DEFENDER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 15,
+    "red_role_counts": {
+      "DEFENDER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 16,
+    "red_role_counts": {
+      "DEFENDER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 17,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 8.560867309570312,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 18,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 9.742111206054688,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 19,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 7.575579643249512,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 20,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 5.568864345550537,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 21,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 3.7811503410339355,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 22,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.1899968385696411,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 23,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.549804449081421,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 24,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.7164463996887207,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 25,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.0348939895629883,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 26,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.327972173690796,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 27,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.7296040058135986,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 28,
+    "red_role_counts": {
+      "ATTACKER": 1,
+      "DEFENDER": 3
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.9416521787643433,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 29,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.973382830619812,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 30,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.9878681898117065,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 31,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 32,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 33,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 34,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 35,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 36,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 37,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 38,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 39,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 40,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 41,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 42,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 43,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 44,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.1860218048095703,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 45,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.6454850435256958,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 46,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 0.9065806865692139,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 47,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.739467978477478,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 48,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.2277321815490723,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 49,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.770540714263916,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 50,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.8825727701187134,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 51,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.3594375848770142,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 52,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.1766654253005981,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 53,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.1637541055679321,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 54,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.3466991186141968,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 55,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.141236424446106,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 56,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.5257917642593384,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 57,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.67023503780365,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 58,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.8047869205474854,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 59,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 60,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 61,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 62,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": false
+  },
+  {
+    "tick": 63,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 64,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 65,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 66,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 67,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": false,
+    "carrier_nearest_teammate_dist": null,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 68,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 4.301596164703369,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 69,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 3.7018465995788574,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 70,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.9337064027786255,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 71,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.3829470872879028,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 72,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.4615215063095093,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 73,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.462239980697632,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 74,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.7372939586639404,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 75,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.6615710258483887,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 76,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 3.0714917182922363,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 77,
+    "red_role_counts": {
+      "ATTACKER": 2,
+      "DEFENDER": 2
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 3.0536386966705322,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 78,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.4456679821014404,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 79,
+    "red_role_counts": {
+      "ATTACKER": 3,
+      "DEFENDER": 1
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.6852718591690063,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 80,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 1.1536006927490234,
+    "blue_flag_pressure": true
+  },
+  {
+    "tick": 81,
+    "red_role_counts": {
+      "ATTACKER": 4
+    },
+    "carrying": true,
+    "carrier_nearest_teammate_dist": 2.0191493034362793,
+    "blue_flag_pressure": true
+  }
+]

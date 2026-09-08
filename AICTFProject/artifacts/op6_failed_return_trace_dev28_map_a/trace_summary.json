@@ -1,0 +1,54 @@
+{
+  "failed_returns_by_style": {
+    "BLUE_RUSH": 17,
+    "BLUE_ESCORT": 16,
+    "BLUE_SPLIT": 18,
+    "BLUE_TURTLE": 44
+  },
+  "loss_class_counts": {
+    "BLUE_RUSH": {
+      "tagged_from_behind": 3,
+      "red_agents_crossing_blocking": 10,
+      "carrier_route_detour": 2,
+      "other_or_ambiguous": 1,
+      "head_on_interception": 1
+    },
+    "BLUE_ESCORT": {
+      "tagged_from_behind": 5,
+      "red_agents_crossing_blocking": 11
+    },
+    "BLUE_SPLIT": {
+      "tagged_from_behind": 2,
+      "other_or_ambiguous": 1,
+      "carrier_route_detour": 9,
+      "red_agents_crossing_blocking": 4,
+      "head_on_interception": 2
+    },
+    "BLUE_TURTLE": {
+      "carrier_route_detour": 20,
+      "red_agents_crossing_blocking": 6,
+      "tagged_from_behind": 4,
+      "head_on_interception": 4,
+      "support_chasing_wrong_target": 3,
+      "other_or_ambiguous": 7
+    }
+  },
+  "dominant_by_style": {
+    "BLUE_RUSH": [
+      "red_agents_crossing_blocking",
+      10
+    ],
+    "BLUE_ESCORT": [
+      "red_agents_crossing_blocking",
+      11
+    ],
+    "BLUE_SPLIT": [
+      "carrier_route_detour",
+      9
+    ],
+    "BLUE_TURTLE": [
+      "carrier_route_detour",
+      20
+    ]
+  }
+}

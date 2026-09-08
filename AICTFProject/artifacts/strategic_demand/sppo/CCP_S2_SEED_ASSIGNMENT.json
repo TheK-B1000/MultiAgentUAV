@@ -1,0 +1,58 @@
+{
+  "record_id": "CCP_S2_SEED_ASSIGNMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-02T14:00:00Z",
+  "authority": "PI, 2026-09-02, assigning the two open namespace fields CCP_S2_SPEC.json (bf41980a) deliberately left unfilled",
+  "amends": "CCP_S2_SPEC.json#OPEN_ITEMS_DELIBERATELY_NOT_FROZEN_HERE (bf41980a)",
+  "rule": "this is an APPEND, not an edit. CCP_S2_SPEC.json is not modified in place; this record supplies the two fields it left open and nothing else. Any conflict between this record and the frozen spec is resolved by re-freezing, never by silent edit of either file.",
+
+  "SEED_BLOCKS": {
+    "collection_state_source": {
+      "block": "11700001..11700320",
+      "n": 320,
+      "purpose": "generates the incumbent's own deployment trajectories from which the frozen stratified selector (CCP_S2_SPEC.json#COLLECTION_DISTRIBUTION) chooses the 64 Pole-A and 64 Pole-B boundaries",
+      "scale_precedent": "mirrors the previous 320-seed collection scale used elsewhere in this program",
+      "hard_bound": "the selector may draw candidates ONLY from this block. If a frozen stratum cannot be filled from within it, the run STOPS with a selection shortfall and is recorded as such -- seeds are never quietly added to fill a stratum."
+    },
+    "eval_block": {
+      "block": "11701001..11701064",
+      "n": 64,
+      "purpose": "S2 sealed payoff EVAL, per CCP_S2_SPEC.json#EVAL_PROTOCOL",
+      "sharing_rule": "the SAME 64 seeds score TREATMENT and CONTROL, and both z0/z1 cells on each pole -- required for both the within-policy crossover bootstrap and the treatment-control Gamma bootstrap to be properly paired"
+    },
+    "intentional_gap": {
+      "block": "11700321..11701000",
+      "n": 680,
+      "purpose": "deliberately unused, a visual and mechanical separation between the collection namespace and the sealed EVAL namespace -- makes an accidental off-by-one or copy-paste overlap immediately implausible rather than merely improbable"
+    },
+    "visual_partition": "11700001..11700320 [S2 state-source collection] | 11700321..11701000 [gap, unused] | 11701001..11701064 [S2 sealed EVAL]"
+  },
+
+  "CONTINUATION_SEED_MAPPING": {
+    "measurement": {
+      "formula": "r_j = H('CCP_S2_MEASURE', state_id, estimand, j)",
+      "domain_separated_from": "the sealed predecessor's 'CCP_PHASE1' mapping and from the bank-construction mapping below -- distinct string literals guarantee no collision even if state_id/estimand/j values coincide",
+      "pairing_rule": "BASE, pi_A, and pi_B all receive the IDENTICAL r_j for a given (state_id, estimand, j) -- three-arm CRN, not pairwise. This is the direct three-arm generalisation of the predecessor's two-arm r(s,e,m,pi_A,j) == r(s,e,m,pi_B,j) invariant."
+    },
+    "bank_construction": {
+      "formula": "r_bank = H('S2_BANK', state_id, estimand)",
+      "already_frozen_in": "CCP_S2_SPEC.json#BANK_CONSTRUCTION (bf41980a)",
+      "domain_separated_from_measurement": "distinct namespace string ('S2_BANK' vs 'CCP_S2_MEASURE') and distinct arity (no j) -- the canonical rollout cannot coincide with any of the 16 measurement continuations even by construction, not merely by low collision probability."
+    }
+  },
+
+  "REQUIRED_MECHANICAL_PREFLIGHT_BEFORE_ANY_SELECTOR_OR_COLLECTOR_IS_BUILT": {
+    "rule": "all seven checks below run as ONE report. Any failure blocks all subsequent CCP-S2 work, including the state selector.",
+    "checks": [
+      "no previously frozen artifact in this project contains 11700001..11700320 or 11701001..11701064 as an experimental seed allocation",
+      "the collection block and the EVAL block are disjoint from each other",
+      "the collection selector's implementation is hard-bounded to 11700001..11700320 -- cannot construct a candidate state outside that range",
+      "the EVAL manifest, once built, contains exactly 64 unique seeds, no duplicates, no seeds outside 11701001..11701064",
+      "no collection or training code path can import or reference the EVAL manifest module/file",
+      "BASE, pi_A and pi_B receive IDENTICAL CCP_S2_MEASURE continuation seeds for every (state_id, estimand, j) triple",
+      "the bank-construction seed namespace (S2_BANK) is lexically and functionally distinct from the measurement namespace (CCP_S2_MEASURE)"
+    ],
+    "output": "CCP_S2_SEED_PREFLIGHT.json, one-shot",
+    "sequence": "seed preflight PASS -> build state selector -> build 3-arm collector -> no causal measurement begins before both."
+  }
+}

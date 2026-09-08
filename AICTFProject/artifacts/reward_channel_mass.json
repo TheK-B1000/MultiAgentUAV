@@ -1,0 +1,230 @@
+[
+  {
+    "run": "g0_v2_seed2500001",
+    "success_early": 0.6788,
+    "success_late": 0.8132,
+    "task_declined": false,
+    "channels": {
+      "terminal": {
+        "early_mean": 0.00111,
+        "late_mean": 0.00397,
+        "abs_mass_share_late": 0.0161,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "sparse": {
+        "early_mean": -0.02928,
+        "late_mean": -0.03011,
+        "abs_mass_share_late": 0.1222,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "failure": {
+        "early_mean": -0.17459,
+        "late_mean": -0.19456,
+        "abs_mass_share_late": 0.7895,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "offense": {
+        "early_mean": -0.01285,
+        "late_mean": -0.01205,
+        "abs_mass_share_late": 0.0489,
+        "magnitude_rising": false,
+        "rises_while_task_falls": false
+      },
+      "pbrs": {
+        "early_mean": 0.00046,
+        "late_mean": 0.00206,
+        "abs_mass_share_late": 0.0083,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "team": {
+        "early_mean": 0.00262,
+        "late_mean": 0.00367,
+        "abs_mass_share_late": 0.0149,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      }
+    },
+    "dominant_channel_by_mass": "failure",
+    "terminal_share_of_mass": 0.0161,
+    "objective_is_minority_of_reward_mass": true,
+    "channels_rising_while_task_falls": []
+  },
+  {
+    "run": "g0_v2_seed2500003",
+    "success_early": 0.4965,
+    "success_late": 0.0014,
+    "task_declined": true,
+    "channels": {
+      "terminal": {
+        "early_mean": 0.00115,
+        "late_mean": -0.00268,
+        "abs_mass_share_late": 0.0137,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "sparse": {
+        "early_mean": -0.02868,
+        "late_mean": 0.0792,
+        "abs_mass_share_late": 0.4064,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "failure": {
+        "early_mean": -0.1761,
+        "late_mean": -0.09114,
+        "abs_mass_share_late": 0.4676,
+        "magnitude_rising": false,
+        "rises_while_task_falls": false
+      },
+      "offense": {
+        "early_mean": -0.01237,
+        "late_mean": 0.01738,
+        "abs_mass_share_late": 0.0892,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "pbrs": {
+        "early_mean": 0.00067,
+        "late_mean": -0.00137,
+        "abs_mass_share_late": 0.007,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "team": {
+        "early_mean": 0.00278,
+        "late_mean": 0.00314,
+        "abs_mass_share_late": 0.0161,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      }
+    },
+    "dominant_channel_by_mass": "failure",
+    "terminal_share_of_mass": 0.0137,
+    "objective_is_minority_of_reward_mass": true,
+    "channels_rising_while_task_falls": [
+      "terminal",
+      "sparse",
+      "offense",
+      "pbrs",
+      "team"
+    ]
+  },
+  {
+    "run": "g0_v2_notag_seed2700002",
+    "success_early": 0.4372,
+    "success_late": 0.8508,
+    "task_declined": false,
+    "channels": {
+      "terminal": {
+        "early_mean": 6e-05,
+        "late_mean": 0.00384,
+        "abs_mass_share_late": 0.0178,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "sparse": {
+        "early_mean": 0.00255,
+        "late_mean": 0.0091,
+        "abs_mass_share_late": 0.0423,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "failure": {
+        "early_mean": -0.16484,
+        "late_mean": -0.18678,
+        "abs_mass_share_late": 0.8674,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "offense": {
+        "early_mean": -0.01023,
+        "late_mean": -0.01014,
+        "abs_mass_share_late": 0.0471,
+        "magnitude_rising": false,
+        "rises_while_task_falls": false
+      },
+      "pbrs": {
+        "early_mean": 0.00027,
+        "late_mean": 0.00189,
+        "abs_mass_share_late": 0.0088,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      },
+      "team": {
+        "early_mean": 0.00261,
+        "late_mean": 0.00357,
+        "abs_mass_share_late": 0.0166,
+        "magnitude_rising": true,
+        "rises_while_task_falls": false
+      }
+    },
+    "dominant_channel_by_mass": "failure",
+    "terminal_share_of_mass": 0.0178,
+    "objective_is_minority_of_reward_mass": true,
+    "channels_rising_while_task_falls": []
+  },
+  {
+    "run": "g0_v2_notag_seed2700003",
+    "success_early": 0.4144,
+    "success_late": 0.0807,
+    "task_declined": true,
+    "channels": {
+      "terminal": {
+        "early_mean": 0.0,
+        "late_mean": -0.00302,
+        "abs_mass_share_late": 0.0194,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "sparse": {
+        "early_mean": 0.00237,
+        "late_mean": 0.04925,
+        "abs_mass_share_late": 0.3162,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "failure": {
+        "early_mean": -0.16182,
+        "late_mean": -0.07997,
+        "abs_mass_share_late": 0.5135,
+        "magnitude_rising": false,
+        "rises_while_task_falls": false
+      },
+      "offense": {
+        "early_mean": -0.00835,
+        "late_mean": 0.01791,
+        "abs_mass_share_late": 0.115,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "pbrs": {
+        "early_mean": 0.00016,
+        "late_mean": -0.00165,
+        "abs_mass_share_late": 0.0106,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      },
+      "team": {
+        "early_mean": 0.00263,
+        "late_mean": 0.00395,
+        "abs_mass_share_late": 0.0254,
+        "magnitude_rising": true,
+        "rises_while_task_falls": true
+      }
+    },
+    "dominant_channel_by_mass": "failure",
+    "terminal_share_of_mass": 0.0194,
+    "objective_is_minority_of_reward_mass": true,
+    "channels_rising_while_task_falls": [
+      "terminal",
+      "sparse",
+      "offense",
+      "pbrs",
+      "team"
+    ]
+  }
+]

@@ -1,0 +1,66 @@
+{
+  "record": "SPPPO V1 development evaluation of lambda_R candidates",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-08-26T05:47:30Z",
+  "train_block": "10100001..10100032",
+  "evaluation_block": "10200001..10200032",
+  "out_of_sample": "candidates were TRAINED on the training block; measured here on the development block",
+  "env_construction": "build_training_env, 32 envs, same as training; per-env z/pole asserted",
+  "actions": "deterministic masked argmax under the ASSIGNED z per cell",
+  "qpsi_sha256": "930051a725e55e4f14e05dfe178e5f1dc7bd8f3d7e3adeba01187958bb7417bf",
+  "qpsi_mutated": false,
+  "episodes_per_candidate": 4,
+  "results": {
+    "0.0": {
+      "delta_A": 0.10632527800852026,
+      "delta_B": -0.02490469319926578,
+      "ep_rew_mean": 0.04488970081899879,
+      "n_decision_states_A": 1412,
+      "n_decision_states_B": 1701,
+      "n_episodes": 4,
+      "n_envs": 32,
+      "checkpoint": "final_sppo_dev_lambda0p0_seed10100001.zip"
+    },
+    "0.03": {
+      "delta_A": 0.01934821843486958,
+      "delta_B": 0.01654734470672584,
+      "ep_rew_mean": 0.07811899023744218,
+      "n_decision_states_A": 1262,
+      "n_decision_states_B": 1413,
+      "n_episodes": 4,
+      "n_envs": 32,
+      "checkpoint": "final_sppo_dev_lambda0p03_seed10100001.zip"
+    },
+    "0.1": {
+      "delta_A": 0.0457361284537429,
+      "delta_B": 0.018321409512292868,
+      "ep_rew_mean": 0.09121804221535967,
+      "n_decision_states_A": 1406,
+      "n_decision_states_B": 2030,
+      "n_episodes": 4,
+      "n_envs": 32,
+      "checkpoint": "final_sppo_dev_lambda0p1_seed10100001.zip"
+    },
+    "0.3": {
+      "delta_A": 0.0641620505590432,
+      "delta_B": 0.05006148111477375,
+      "ep_rew_mean": 0.10478770928773429,
+      "n_decision_states_A": 1735,
+      "n_decision_states_B": 2121,
+      "n_episodes": 4,
+      "n_envs": 32,
+      "checkpoint": "final_sppo_dev_lambda0p3_seed10100001.zip"
+    },
+    "1.0": {
+      "delta_A": 0.11693624148452744,
+      "delta_B": 0.07112602271201537,
+      "ep_rew_mean": 0.09636698859981152,
+      "n_decision_states_A": 1648,
+      "n_decision_states_B": 1805,
+      "n_episodes": 4,
+      "n_envs": 32,
+      "checkpoint": "final_sppo_dev_lambda1p0_seed10100001.zip"
+    }
+  },
+  "note": "training-time telemetry is diagnostic only and is NOT the selection quantity"
+}

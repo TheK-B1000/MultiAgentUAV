@@ -1,0 +1,158 @@
+{
+  "mode": "LAUNCH",
+  "block": "10300001..10300192",
+  "cells": [
+    "z0|A",
+    "z0|B",
+    "z1|A",
+    "z1|B",
+    "pi_A|A",
+    "pi_A|B",
+    "pi_B|A",
+    "pi_B|B"
+  ],
+  "episodes": 1536,
+  "checkpoint_hashes": {
+    "student": "1260e420b85ad01b1aecf433d65688adf153538195d30511e26a3585b7285f1f",
+    "pi_A": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+    "pi_B": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+  },
+  "bootstrap": {
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  }
+}
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+scoring z0|A ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+scoring z0|B ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+scoring z1|A ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+scoring z1|B ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+scoring pi_A|A ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+scoring pi_A|B ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+scoring pi_B|A ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+scoring pi_B|B ...
+  24/192
+  48/192
+  72/192
+  96/192
+  120/192
+  144/192
+  168/192
+  192/192
+{
+  "payoff_matrix": {
+    "z0|A": 0.7552083333333334,
+    "z0|B": 0.6302083333333334,
+    "z1|A": 0.71875,
+    "z1|B": 0.6822916666666666,
+    "pi_A|A": 0.6302083333333334,
+    "pi_A|B": 0.3385416666666667,
+    "pi_B|A": 0.4427083333333333,
+    "pi_B|B": 0.546875
+  },
+  "delta_A_z": {
+    "mean": 0.036458333333333336,
+    "lcb95": -0.052083333333333336,
+    "ucb95": 0.11979166666666667,
+    "passes": false
+  },
+  "delta_B_z": {
+    "mean": 0.052083333333333336,
+    "lcb95": -0.041666666666666664,
+    "ucb95": 0.14583333333333334,
+    "passes": false
+  },
+  "retention": {
+    "student_matched_value": 0.71875,
+    "teacher_matched_value": 0.5885416666666666,
+    "rho": 1.2212389380530975,
+    "lcb95": 1.1074380165289255,
+    "ucb95": 1.3523809523809525,
+    "passes": true
+  },
+  "behavioral_action_identity": {
+    "jsd_bits": {
+      "mean": 0.2285707935063949,
+      "lcb95": 0.22816717115851123,
+      "ucb95": 0.2289711635568865,
+      "passes": true
+    },
+    "margin_A_bits": {
+      "mean": 0.9600696992179016,
+      "lcb95": 0.9453380534003788,
+      "ucb95": 0.9747130548106628,
+      "passes": true
+    },
+    "margin_B_bits": {
+      "mean": -0.03092726524866408,
+      "lcb95": -0.03642081937742811,
+      "ucb95": -0.025383015981083588,
+      "passes": false
+    },
+    "argmax_disagree": {
+      "mean": 0.28812753588163176,
+      "lcb95": 0.2842803634097066,
+      "ucb95": 0.29199811117325364
+    }
+  },
+  "verdict": "SPPPO_V1_STRATEGIC_PAYOFF_PRESERVING_PPO_NOT_CONFIRMED"
+}

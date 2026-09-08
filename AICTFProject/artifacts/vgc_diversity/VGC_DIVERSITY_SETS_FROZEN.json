@@ -1,0 +1,97 @@
+{
+  "preregistration": "VGC-style opponent-diversity scaling — D1/D3/D7 set definition and budget",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-12T23:30:00Z",
+  "frozen_before": "any D1 or D3 training run exists",
+
+  "research_question": "How does increasing opponent-strategy diversity affect PPO generalization and robustness in maritime multi-agent CTF, and do population-based methods handle that diversity better than standard PPO?",
+
+  "not_gated_by_C4_C7": {
+    "statement": "C4-C7 are diagnostic evidence, NOT a stop gate for this experiment.",
+    "why": "C4-C7 asked whether response-ranking reversals exist. This asks how generalization scales with opponent diversity. A broad PPO generalist performing well is a VALID and interesting result here.",
+    "use": "C4-C7 become explanatory material AFTER primary performance results exist (Phase 18)."
+  },
+
+  "the_predeclared_selection_rule": {
+    "rule": "Rank OP6-OP12 by measured offensive_pressure from artifacts/c7_stage1/C7_STAGE1_RESULT.json (mean over the three 4v4 policies). D1 = the MEDIAN opponent. D3 = {minimum, median, maximum}. D7 = all seven.",
+    "why_this_source": "those measurements are already frozen, predate this experiment, and describe opponent MECHANICS. They are not a function of any D1/D3/D7 performance result, so the sets cannot be chosen to flatter an outcome.",
+    "why_median_for_D1": "so the single-opponent condition is not accidentally an extreme specialist, which would confound 'low diversity' with 'unusual opponent'.",
+    "why_extremes_plus_median_for_D3": "maximum behavioural spread on the one quantitative axis this project has already frozen, rather than a subset chosen by eye.",
+    "nesting": "D1 subset of D3 subset of D7, so the ladder varies diversity while holding the included behaviours cumulative."
+  },
+
+  "measured_ranking_offensive_pressure_desc": [
+    {"opponent": "OP12", "canonical": "OP12_LATE_CONVERTER", "offence": 0.445, "contest": 0.083, "role": "MAXIMUM"},
+    {"opponent": "OP6", "canonical": "OP6_IMMEDIATE_DUAL_RUSH", "offence": 0.303, "contest": 0.349},
+    {"opponent": "OP11", "canonical": "OP11_ADAPTIVE_EXPLOITER", "offence": 0.230, "contest": 0.671},
+    {"opponent": "OP9", "canonical": "OP9_SPLIT_LANE_FEINT", "offence": 0.219, "contest": 0.535, "role": "MEDIAN"},
+    {"opponent": "OP10", "canonical": "OP10_AGGRESSIVE_INTERCEPTOR", "offence": 0.166, "contest": 0.697},
+    {"opponent": "OP8", "canonical": "OP8_PROTECTED_CARRIER_ESCORT", "offence": 0.165, "contest": 0.513},
+    {"opponent": "OP7", "canonical": "OP7_DEEP_FORTRESS", "offence": 0.163, "contest": 0.762, "role": "MINIMUM"}
+  ],
+
+  "THE_SETS": {
+    "D1": ["OP9"],
+    "D3": ["OP7", "OP9", "OP12"],
+    "D7": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"]
+  },
+
+  "held_out_opponents": {
+    "D1": ["OP6", "OP7", "OP8", "OP10", "OP11", "OP12"],
+    "D3": ["OP6", "OP8", "OP10", "OP11"],
+    "D7": [],
+    "note": "every policy is evaluated against the FULL board regardless. The generalization gap is seen-average minus held-out-average; it is undefined for D7 by construction, which is expected and must be reported as such rather than as a zero."
+  },
+
+  "budget_control": {
+    "rule": "identical total interaction budget across D1, D3 and D7. Diversity is the research variable, not training exposure.",
+    "total_timesteps": 1000000,
+    "why_that_number": "inherited from the frozen G0-V5 protocol, so the existing D7 runs are directly comparable without retraining",
+    "explicitly_not": "D7 does NOT get 7x the budget for having 7 opponents",
+    "recorded_per_run": ["total environment steps", "PPO updates", "episode count", "opponent sampling counts"],
+    "wall_clock": "metadata only, never a comparison variable"
+  },
+
+  "team_size": {
+    "choice": "2v2",
+    "why": "G0-V5 (seeds 3200001-3) is already Mixed-PPO D7 at 2v2 under this exact protocol, so the D7 rung of the ladder EXISTS and needs no retraining. 4v4 D7 also exists (C7 seeds 3300001-3) and may be reported as a secondary team-size check.",
+    "constraint": "all three rungs must share one team size for comparability"
+  },
+
+  "training_method": {
+    "mechanism": "the existing trainer, unchanged: mode=OPPONENT_POOL with cfg.opponent_pool set to the diversity set",
+    "sampling": "uniform per COMPLETED episode, deterministic under cfg.seed, no mid-episode switching",
+    "no_new_code": "verified in the Phase 1 audit; D1/D3/D7 differ only by pool contents",
+    "seeds": {"D1": [3600001, 3600002, 3600003], "D3": [3700001, 3700002, 3700003],
+              "D7": [3200001, 3200002, 3200003]},
+    "seed_disjointness": "3600000+ and 3700000+ are unused; 2500001-3 (G0-v2), 3200001-3 (G0-V5), 3300001-3 (C7 4v4) and 3400001 (O3) are taken"
+  },
+
+  "evaluation": {
+    "protocol": "every policy against the FULL OP6-OP12 board under one frozen protocol",
+    "metrics": ["win rate by opponent", "average win rate", "worst-opponent win rate",
+                "best-opponent win rate", "mean task return", "variance across opponents",
+                "seen-opponent average", "held-out average", "generalization gap"],
+    "reversals": "may be reported as a diagnostic; NOT required for the experiment to proceed"
+  },
+
+  "outcomes_are_all_publishable": {
+    "A": "D1 strong locally, weak held-out -> specialization/generalization tradeoff",
+    "B": "D7 strong across the board -> standard PPO absorbs substantial diversity (valid positive)",
+    "C": "FP/self-play improve worst-case robustness -> supports population training",
+    "D": "Mixed ~ FP ~ self-play -> population methods add little here (still useful)",
+    "E": "performance falls as D1->D3->D7 -> VGC-style evidence that diversity makes learning harder",
+    "F": "performance stable as diversity increases -> maritime CTF differs from VGC-Bench's pattern"
+  },
+
+  "prohibited": [
+    "changing D1 or D3 membership after seeing final performance",
+    "giving D7 a larger budget because it has more opponents",
+    "creating OP13 or any new opponent",
+    "modifying map_a, RULESET_V2, or any OP6-OP12 profile",
+    "requiring a ranking reversal for the experiment to continue",
+    "starting SRCTF work under this experiment"
+  ],
+
+  "immutability": "After any D1 or D3 training number exists, the sets, budget, team size and evaluation protocol may not change."
+}

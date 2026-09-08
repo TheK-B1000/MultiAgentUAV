@@ -1,0 +1,85 @@
+{
+  "record": "Oracle-gated K=2 held-out EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-08-29T20:14:04Z",
+  "implements": "ORACLE_GATED_K2_EVAL_SPEC.json (frozen c82c1ef5)",
+  "VERDICT": "ORACLE_GATED_K2_CROSSOVER_NOT_CONFIRMED",
+  "checkpoint": {
+    "path": "artifacts/strategic_demand/sppo/oracle_gated_k2_production/ckpts/final_oracle_gated_k2_production.zip",
+    "sha256": "b2d5d8868b60b8a5b2cdc49d64213bb646f58838b70b41c6049622d7c0764cb0",
+    "verified_at_eval_time": true,
+    "terminal_only": true
+  },
+  "seeds": {
+    "block": [
+      10700129,
+      10700160
+    ],
+    "n": 32
+  },
+  "payoff_matrix": {
+    "z0|A": {
+      "mean": 0.5625,
+      "lcb95": 0.375,
+      "ucb95": 0.71875
+    },
+    "z1|A": {
+      "mean": 0.59375,
+      "lcb95": 0.40625,
+      "ucb95": 0.75
+    },
+    "z0|B": {
+      "mean": 0.5,
+      "lcb95": 0.3125,
+      "ucb95": 0.65625
+    },
+    "z1|B": {
+      "mean": 0.625,
+      "lcb95": 0.4375,
+      "ucb95": 0.78125
+    },
+    "pi_A|A": {
+      "mean": 0.6875,
+      "lcb95": 0.53125,
+      "ucb95": 0.84375
+    },
+    "pi_B|B": {
+      "mean": 0.53125,
+      "lcb95": 0.375,
+      "ucb95": 0.6875
+    }
+  },
+  "delta_A": {
+    "mean": -0.03125,
+    "lcb95": -0.25,
+    "ucb95": 0.15625,
+    "passes": false
+  },
+  "delta_B": {
+    "mean": 0.125,
+    "lcb95": -0.09375,
+    "ucb95": 0.34375,
+    "passes": false
+  },
+  "gate": "BOTH delta lcb95 > 0",
+  "retention_context_only_not_a_gate": {
+    "mean": 0.9815549818347259,
+    "lcb95": 0.75,
+    "ucb95": 1.2571428571428571
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seed-level episode outcomes",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "unit": "evaluation seed"
+  },
+  "interpretive_context_frozen_before_the_result": {
+    "replay_factor": 188.86,
+    "budget": "1,003,520 steps vs EXP2C's 2,002,944 -- comparisons carry a ~2x gap",
+    "thin_margin": "76.4% of rehearsal states had |Delta| = 1"
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 192
+}

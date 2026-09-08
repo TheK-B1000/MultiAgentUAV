@@ -1,0 +1,12 @@
+{
+  "verdict": "WORKER_RANGE_COMPLETE",
+  "utc": "2026-08-31T05:52:07Z",
+  "worker_id": "w1",
+  "seed_range": [
+    11000007,
+    11000085,
+    79
+  ],
+  "completed_seeds": 79,
+  "next_step": "experiments/merge_oracle_gated_v2_bank_workers.py after ALL workers + serial prefix"
+}

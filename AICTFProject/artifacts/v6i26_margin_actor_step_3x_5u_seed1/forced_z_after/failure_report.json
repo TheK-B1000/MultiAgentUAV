@@ -1,0 +1,7 @@
+{
+  "status": "failed",
+  "created_at_utc": "2026-07-25T05:26:54.458149+00:00",
+  "checkpoint": "artifacts\\v6i26_margin_actor_step_3x_5u_seed1\\final_v6i26_lro_actor_step_z0_r1_5u_seed1.zip",
+  "reason": "[Errno 22] Invalid argument",
+  "traceback": "Traceback (most recent call last):\n  File \"K:\\MultiAgentUAV\\AICTFProject\\experiments\\forced_z_eval\\runner.py\", line 143, in _run_reuse_env_block\n    eps = run_eval_episodes(\n          ^^^^^^^^^^^^^^^^^^\n  File \"K:\\MultiAgentUAV\\AICTFProject\\plot\\eval_rollout.py\", line 702, in run_eval_episodes\n    print(f\"  episode {le}/{n_episodes}\", flush=True)\nOSError: [Errno 22] Invalid argument\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"K:\\MultiAgentUAV\\AICTFProject\\experiments\\run_forced_z_eval.py\", line 253, in main\n    cells = run_forced_z_episodes(protocol, on_cell_complete=_on_cell_complete)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"K:\\MultiAgentUAV\\AICTFProject\\experiments\\forced_z_eval\\runner.py\", line 96, in run_forced_z_episodes\n    return _run_reuse_env_block(\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"K:\\MultiAgentUAV\\AICTFProject\\experiments\\forced_z_eval\\runner.py\", line 157, in _run_reuse_env_block\n    print(f\"  ERROR {opponent} z={z} {map_name}: {exc}\")\nOSError: [Errno 22] Invalid argument\n"
+}

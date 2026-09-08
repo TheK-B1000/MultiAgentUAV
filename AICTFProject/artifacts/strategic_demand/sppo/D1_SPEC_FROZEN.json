@@ -1,0 +1,68 @@
+{
+  "record_id": "D1_SPEC_FROZEN",
+  "status": "FROZEN_BEFORE_ANY_D1_QUANTITY_IS_COMPUTED",
+  "utc": "2026-08-27T13:10:00Z",
+  "authority": "PI directive",
+  "predecessor": "D0 postmortem (commit 17d6d706)",
+  "classification": "DIAGNOSTIC ONLY. Cannot alter SPPPO_V1_NOT_CONFIRMED. Cannot authorize training.",
+
+  "governing_context": {
+    "SPPPO_V1": "CLOSED AS VALID FAIL -- ratified; closure forbids automatic V2, rerun, grid extension, seed expansion, estimator change, threshold change, checkpoint cherry-picking",
+    "closure_does_not_forbid": "analysing the frozen model and its frozen scorer to understand why it failed",
+    "D1_purpose": "may inform a fresh prospective successor decision; cannot itself authorize one",
+    "no_new_seeds_no_training": true
+  },
+
+  "the_question": "Is the own_flag_stolen Q_psi failure primarily an off-support/data-coverage problem, and how much is that localized failure depressing the otherwise optimization/interference-looking D0 aggregate?",
+
+  "D1A_phase0_scorer_support_audit": {
+    "purpose": "measure how much representation Q_psi's OWN fitting data actually had of the state categories D0 flagged",
+    "data_source": "artifacts/strategic_demand/phase0_scorer_data/full_collection_rebuild_per_branch/ -- the EXACT data Q_psi was fit on. No new seeds; reads only the 256 already-collected Phase 0 shards.",
+    "categories": {
+      "regime_encoding": "2*stolen + carrying -> 0=home/not_carrying, 1=home/carrying, 2=stolen/not_carrying, 3=stolen/carrying",
+      "tagging_method": "QPsi.regime_from_vec(vec), reconstructing flag/carrying state from the stored obs_vec array",
+      "tagging_method_verification": "cross-checked against LIVE core ground truth (core.blue_carrying, core.blue_flag_pos vs blue_flag_home) over a full 240-step episode with random actions: 0 mismatches / 240 steps",
+      "marginal_views_reported": ["own_flag_home vs own_flag_stolen", "carrying vs not_carrying", "the full 2x2"]
+    },
+    "row_populations_covered_separately": {
+      "plain_rows": "the bulk representation-learning data (~751/seed)",
+      "branch_rows": "the counterfactual pairs that directly supply the ranking ordering (6/seed) -- reported SEPARATELY because early inspection shows branch coverage may be far thinner than plain coverage for stolen-flag states"
+    },
+    "stratified_by": ["pole (A/B)", "seed"],
+    "bootstrap": {"unit": "seed", "n_boot": 20000, "alpha": 0.05, "rng_seed": 7,
+                 "note": "same convention used throughout this program (Gate 0B, D0)"},
+    "reported": ["counts", "proportions with seed-level 95% CI"],
+    "comparison": "against D0's own z1|B trajectory regime distribution, already tagged and available in D0_pole_b_decision_rows.csv (ground-truth core state, not reconstructed)",
+    "explicitly_prohibited": "inventing a retrospective off-support THRESHOLD or pass/fail rule. D1A reports counts and proportions only; it does not declare a category 'insufficient'."
+  },
+
+  "D1B_prespecified_localization_analysis": {
+    "purpose": "test whether Q_psi's aggregate worst-quartile weakness is concentrated in own_flag_stolen states",
+    "classification": "POSTMORTEM FOLLOW-UP DIAGNOSTIC, NOT independent confirmation, NOT a new gate -- own_flag_stolen was discovered FROM D0 on this same data, so this is explicitly a non-independent follow-up test, not a fresh confirmation",
+    "data_source": "the EXISTING D0_pole_b_decision_rows.csv, 192 seeds, 35,757 decision points. No new seeds, no new rollouts, no new environment steps.",
+    "procedure": [
+      "identical to D0's Q2 (worst-quartile Q_psi correct-rate), with the quartile cutoff RECOMPUTED INSIDE each seed-bootstrap replicate exactly as in D0",
+      "computed on THREE row populations: (a) all rows [D0's original Q2, for reference], (b) rows with own_flag_stolen EXCLUDED, (c) rows restricted to own_flag_home (the complementary stratum)"
+    ],
+    "bootstrap": {"unit": "seed", "n_boot": 20000, "alpha": 0.05, "rng_seed": 7,
+                 "identical_to": "D0_REPORTING_SPEC_FROZEN.json (commit 9d793a69)"},
+    "reported": ["Q_psi correct-rate in the worst quartile, each of the three populations, with seed-level 95% CI",
+                "mean margin_B_bits in the worst quartile, same three populations"]
+  },
+
+  "PERMITTED_INTERPRETATIONS": {
+    "rule": "exactly these four readings, decided by the D1A+D1B results, not chosen after seeing them",
+    "1_localized_off_support": "Phase 0 barely contained flag-stolen states AND excluding them makes Q_psi look substantially stronger -> localized surrogate off-support + broader optimization interference",
+    "2_capacity_or_representation_failure": "flag-stolen states were well represented but Q_psi is still confidently inverted there -> scorer target/capacity/representation failure in that regime, not a coverage problem",
+    "3_diffuse_interference": "removing flag-stolen states barely changes the aggregate -> the interference problem is more diffuse than D0 currently suggests",
+    "4_unresolved": "if the uncertainty remains broad -> record UNRESOLVED",
+    "prohibited": ["declaring a successor method design from D1 alone",
+                  "treating D1B as independent confirmation of the own_flag_stolen finding",
+                  "any threshold invented after seeing the D1A proportions"]
+  },
+
+  "what_this_authorizes": "D1A and D1B only, both diagnostic, both on already-existing data (Phase 0 shards, D0 rows)",
+  "what_this_does_not_authorize": ["SPPPO V2", "any training", "any new seed block",
+                                   "the n_regimes=4 multi-regime Q_psi scaffold present in qpsi.py",
+                                   "reopening the SPPPO_V1_NOT_CONFIRMED verdict"]
+}

@@ -1,0 +1,19 @@
+{
+  "experiment": "VGC explicit specialist pilot",
+  "experiment_kind": "SPECIALIST",
+  "is_a_diversity_rung": false,
+  "specialist": "S_OP7",
+  "opponent_pool": [
+    "OP7"
+  ],
+  "n_opponents": 1,
+  "training_method": "single-opponent PPO (mode=OPPONENT_POOL, |pool| = 1)",
+  "seed": 3900007,
+  "team_size": "2v2",
+  "map": "map_a",
+  "total_timesteps": 1000000,
+  "smoke": false,
+  "frozen_protocol": "artifacts/vgc_specialists/SPECIALIST_PILOT_FROZEN.json",
+  "triggered_by": "PATH_B (artifacts/summer_2026/gate_results.json)",
+  "git_commit": "77e41adedeb64b4765442a49249c1576bb80a4a5"
+}

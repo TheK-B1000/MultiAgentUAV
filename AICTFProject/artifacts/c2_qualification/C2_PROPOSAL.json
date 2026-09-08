@@ -1,0 +1,125 @@
+{
+  "title": "C2 confirmation prereg input",
+  "source_artifacts": {
+    "selected_candidate": "artifacts\\c2_qualification\\C2_SELECTED_CANDIDATE.json",
+    "lag_audit": "artifacts\\c2_qualification\\C2_LAG_AUDIT.json",
+    "frozen_contract": "artifacts\\c2_qualification\\C2_QUALIFICATION_FROZEN.json"
+  },
+  "candidate_id": "C2_tagged_carrier_none_forward",
+  "failure_label": "tagged_while_carrying",
+  "primary_feature": "none_forward_frac",
+  "expected_direction": "NEGATIVE",
+  "discovery_population": {
+    "policies": [
+      3200001,
+      3200002,
+      3200003
+    ],
+    "opponents": [
+      "OP6",
+      "OP7",
+      "OP8",
+      "OP9",
+      "OP10",
+      "OP11",
+      "OP12"
+    ],
+    "eval_seed_base": 9400000,
+    "episodes_per_opponent": 30
+  },
+  "frozen_precursor_lag": {
+    "selected_lag_from_artifact": "No single-lag field is selected in C2_SELECTED_CANDIDATE.json; selection is feature-level under the frozen 3-band contract.",
+    "bands": [
+      [
+        -30,
+        -20
+      ],
+      [
+        -20,
+        -10
+      ],
+      [
+        -10,
+        -1
+      ]
+    ],
+    "outcome_step_excluded": true,
+    "post_outcome_state_excluded": true,
+    "note": "bands are decisions relative to the outcome step t; all are strictly before t"
+  },
+  "primary_outcome_opportunity_definition": {
+    "outcome_label": "tagged_while_carrying",
+    "opportunity_matching_rule": "opp_has_carrier == true (carrier-context matched controls)",
+    "window_unit_requirement": "the candidate must exist at the exact temporal unit a future handoff can consume",
+    "score_stratum_rule": "the effect must survive WITHIN at least one score stratum that meets the support minimum, not only pooled",
+    "actionability_proxy": "intervention_margin = nearest_ready_defender_distance - mate_distance >= 0",
+    "actionability_threshold": "mate_could_intervene_frac >= 0.30 among failure onsets"
+  },
+  "discovery_effects": {
+    "earliest": {
+      "3200001": -0.2602,
+      "3200002": -0.3645,
+      "3200003": -0.3824
+    },
+    "latest": {
+      "3200001": -0.236,
+      "3200002": -0.2718,
+      "3200003": -0.3199
+    }
+  },
+  "support": {
+    "natural_onsets_per_seed": {
+      "3200001": 631,
+      "3200002": 647,
+      "3200003": 547
+    }
+  },
+  "headroom_min": 0.8534,
+  "actionability": 0.3422,
+  "qualification": "10 / 10 criteria PASS",
+  "confirmation_requirements_exact_from_frozen_contract": {
+    "stage_2_data_source_rule": "existing G0 discovery trajectories only; no fresh confirmation seed block consumed",
+    "selection_rule": "eligible: only candidates passing EVERY criterion above",
+    "3_replication": "same effect direction across all 3 established G0-V5 policies",
+    "4_effect_size": "abs(delta) >= 0.15 in >= 2 of 3 policies",
+    "5_uncertainty": "episode-clustered bootstrap CI excludes zero in >= 2 of 3 policies",
+    "6_support": {
+      "min_failure_windows": 30,
+      "min_matched_control_windows": 30,
+      "applies": "per policy, per reported cell"
+    },
+    "7_headroom": {
+      "definition": "headroom = 1 - baseline_success, where baseline_success is natural frozen-G0 success in the exact candidate window",
+      "requirement": "headroom >= 0.20",
+      "also_requires": "headroom >= 2 x planned_gate1_min_effect",
+      "planned_gate1_min_effect": 0.1
+    },
+    "8_actionability": {
+      "requirement": "at onset BLUE must have >= 2 legal continuations that could affect the outcome",
+      "operational_proxy": "the free teammate can contest at least as quickly as the nearest red that is able to tag now, i.e. intervention_margin = nearest_ready_defender_distance - mate_distance >= 0",
+      "threshold": "mate_could_intervene_frac >= 0.30 among failure onsets"
+    },
+    "9_non_mechanical_non_circular_lag_decay_test": {
+      "rule": "the effect must be present with the correct direction in the EARLIEST band (t-30..t-20), not only in the latest",
+      "failure_classification": "OUTCOME_CONTAMINATION"
+    },
+    "9_non_mechanical_non_circular_score_confound_test": {
+      "rule": "the effect must survive WITHIN at least one score stratum that meets the support minimum, not only pooled"
+    },
+    "10_natural_support": {
+      "min_onset_prevalence_of_episodes": 0.02,
+      "min_onsets_per_policy": 30
+    }
+  },
+  "immutability": [
+    "No criterion, threshold, lag band, or ranking rule above may change after the Stage 2 audit produces numbers.",
+    "No feature swapping",
+    "No lag swapping",
+    "No threshold adjustment",
+    "No runner-up substitution using confirmation data"
+  ],
+  "post_confirmation_decision_rule": {
+    "pass": "Use this block as the foundation for O2 preregistration and proceed to O2 pipeline.",
+    "fail": "STOP. No O2 GPU run."
+  }
+}

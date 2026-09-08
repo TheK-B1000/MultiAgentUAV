@@ -1,0 +1,87 @@
+{
+  "blues": [
+    "BLUE_ESCORT",
+    "BLUE_RUSH",
+    "BLUE_SPLIT",
+    "BLUE_TURTLE"
+  ],
+  "reds": [
+    "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor",
+    "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor"
+  ],
+  "n_episodes": {
+    "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 4,
+    "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": 4
+  },
+  "mean_margin": {
+    "BLUE_ESCORT": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 0.0,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": -1.0
+    },
+    "BLUE_RUSH": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 1.75,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": 1.25
+    },
+    "BLUE_SPLIT": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 2.0,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": 1.25
+    },
+    "BLUE_TURTLE": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": -1.25,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": -2.25
+    }
+  },
+  "win_rate": {
+    "BLUE_ESCORT": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 0.25,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": 0.0
+    },
+    "BLUE_RUSH": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 1.0,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": 1.0
+    },
+    "BLUE_SPLIT": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 1.0,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": 1.0
+    },
+    "BLUE_TURTLE": {
+      "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": 0.25,
+      "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": 0.0
+    }
+  },
+  "v_selective_insample": 1.625,
+  "v_best_fixed_insample": 1.625,
+  "best_fixed_style": "BLUE_SPLIT",
+  "v_selective": 1.4525,
+  "v_best_fixed": 1.4525,
+  "delta_pool": 0.0,
+  "delta_pool_ci95": [
+    0.0,
+    0.0
+  ],
+  "delta_pool_lcb": 0.0,
+  "v_hindsight": 1.75,
+  "best_response_by_red": {
+    "OP11_ADAPTIVE_EXPLOITER|map_c_home_corridor": "BLUE_SPLIT",
+    "OP6_IMMEDIATE_DUAL_RUSH|map_c_home_corridor": "BLUE_RUSH"
+  },
+  "br_diversity": 2,
+  "dominating_blue_style": "BLUE_SPLIT",
+  "unprotected_blues": [
+    "BLUE_ESCORT",
+    "BLUE_TURTLE"
+  ],
+  "degenerate_red_styles": [],
+  "best_blue_overall_wr": 1.0,
+  "tie_rate": 0.09375,
+  "gates": {
+    "delta_pool_lcb_positive": false,
+    "no_dominating_blue_style": false,
+    "best_response_diversity": true,
+    "all_blues_protected": false,
+    "best_blue_wr_in_band": false,
+    "tie_rate_under_threshold": true,
+    "no_degenerate_red_styles": true
+  },
+  "admissible": false
+}

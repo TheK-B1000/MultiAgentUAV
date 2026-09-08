@@ -1,0 +1,79 @@
+{
+  "probe": "G0-v2 sparse tag-reward causal ablation",
+  "frozen_utc": "2026-08-01",
+  "frozen_before_any_probe_result": true,
+  "status": "FROZEN — thresholds declared before the first probe run; do not edit after results exist",
+
+  "hypothesis": "SPARSE_TAG_NO_FLAG_POINTS = +100 creates a defensive tag-farming attractor. A routine tag pays exactly what a flag capture pays (+100) while being far more frequent and far less risky, and pays DOUBLE what tagging the enemy flag carrier pays (+50). If tags stop paying, the passive attractor should disappear.",
+
+  "status_of_hypothesis": "LEADING SUSPECT, NOT PROVEN. Evidence is trajectory-based: collapsed seeds drove reward_sparse strongly up while success fell; the competent seed stayed negative on sparse and won. Causality is what this probe tests.",
+
+  "design": {
+    "type": "one-factor-at-a-time causal ablation",
+    "control_reference": "existing G0-v2 baseline seeds 2500001/2/3 (SPARSE_TAG_NO_FLAG_POINTS = +100) — reused, not retrained",
+    "ablation": "sparse_tag_no_flag_points = 0.0",
+    "symmetry_note": "the constant is applied to BOTH directions (+ blue tags opponent, - blue is tagged). Zeroing removes both. Zeroing only the income would leave attack punished with no compensating income and could make camping MORE attractive, which would not be a clean test.",
+    "restored_to_baseline": {
+      "ACTION_FAILED_PUNISHMENT": -0.2,
+      "reason": "the previous probe zeroed this; it must return to baseline so only ONE factor differs"
+    },
+    "unchanged": [
+      "SPARSE_TAG_WITH_FLAG_POINTS = 50",
+      "SPARSE_FLAG_CAPTURE_POINTS = 100",
+      "SPARSE_OOB_POINTS = -100",
+      "learning_rate", "entropy schedule", "value coefficient",
+      "n_epochs / batch_size / n_steps / n_envs",
+      "map, ruleset, opponents, horizon, domain randomization"
+    ],
+    "seeds": [2700001, 2700002, 2700003],
+    "steps_per_seed": 300000,
+    "collapse_zone_crossed": 225000,
+    "checkpoint_and_panel_interval": 50000
+  },
+
+  "per_seed_gate_at_250k_to_300k": {
+    "pickups": "> 0",
+    "offensive_commitment": "> 0",
+    "defensive_commitment": "< 1.0"
+  },
+
+  "across_seed_gate": {
+    "min_seeds_behaviourally_alive": 3,
+    "min_seeds_retaining_competence": 2,
+    "competence_definition": {
+      "net_captures": "> 0",
+      "win_rate": ">= 0.30",
+      "measured_on": "held-out TASK_HEALTH panel, seeds 9300000-9300002, opponents OP6/OP9/OP12"
+    }
+  },
+
+  "hypothesis_specific_gate": {
+    "requirement": "reward_sparse must NOT increase while task performance collapses",
+    "test": "sparse_up_while_task_down == false for every probe seed",
+    "note": "the previous probe failed exactly this check with the failed-action penalty at zero"
+  },
+
+  "required_decomposition_reporting": [
+    "tag_successes_blue_noncarrier",
+    "tag_successes_blue_carrier",
+    "tags_against_blue",
+    "captures_blue",
+    "captures_red",
+    "tags_per_capture",
+    "sparse_points_from_tags",
+    "sparse_points_from_captures",
+    "reward_terminal_mean"
+  ],
+
+  "outcome_interpretation": {
+    "collapse_disappears": "tag reward is causally implicated. THEN derive a small positive value from event frequency — do not keep zero by default and do not hand-pick.",
+    "collapse_remains": "tag reward alone is not sufficient. Return to the reward decomposition and rank the next term BY DELTA, not by magnitude.",
+    "reckless_play": "some tag cost/reward is useful but +100 is oversized; sweep magnitude.",
+    "forbidden": "reading a partial result and then editing these thresholds"
+  },
+
+  "scale_derivation_principle_for_later": "Expected CUMULATIVE tag shaping per episode should be a small fraction (10-20%) of the reward for accomplishing the objective. At the competent seed's observed ~8.4 tags per capture event, a 10% budget implies single-digit points, not 100. Not authorized until this probe resolves.",
+
+  "locked_downstream": ["C1", "O1", "latent_birth", "router"],
+  "unlock_condition": "at least two independent G0 seeds remain competent under a reward configuration that no longer incentivizes camping"
+}

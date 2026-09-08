@@ -1,0 +1,268 @@
+{
+  "record_id": "HOG_PSP_V3_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-08-31T14:05:00Z",
+  "authority": "PI, 2026-08-31: reopen latent work for ONE bounded H-OG-PSP experiment, run in parallel with the SAPPO manuscript",
+  "name": "Heterogeneous Oracle-Gated Paired Specialist Preservation (H-OG-PSP)",
+  "THE_HYPOTHESIS": {
+    "statement": "Complementary latent strategies require BOTH latent-private actor capacity AND supervision at the trajectory level. OG-PSP supplied neither and produced action differentiation without strategic separation.",
+    "two_components": [
+      "z must control actor PARAMETERS, not merely enter actor INPUTS",
+      "specialist identity must be reinforced over TRAJECTORIES, not only individual states"
+    ],
+    "why_now": "Both components are licensed by evidence obtained after OG-PSP's verdict was frozen, not by dissatisfaction with it."
+  },
+  "WHAT_PRIOR_WORK_ALREADY_ELIMINATED": {
+    "strategic_demand_absent": "RULED OUT -- 0.3919 bits of measured teacher contrast, SUBSTANTIAL_TEACHER_CONTRAST (bbe1685f)",
+    "specialists_not_genuinely_different": "RULED OUT -- 0.9531 / 0.9688 held-out trajectory separability with opponent controlled",
+    "z_ignored": "RULED OUT -- OG-PSP raised matched-CALIB JSD 6.39x",
+    "small_rehearsal_bank": "RULED OUT -- 1,804 states, replay factor 49.42 vs V1's 188.86",
+    "memorisation": "RULED OUT -- CALIB JSD slightly EXCEEDED FIT",
+    "insufficient_persistence": "RULED OUT -- one fixed z per env for all 1M steps, stronger than MAVEN's episode-level commitment",
+    "reading": "Six candidate explanations are closed. The two this spec addresses are what remain."
+  },
+  "COMPONENT_1_LATENT_PRIVATE_ACTOR_CAPACITY": {
+    "mechanism": "V6I26 LRO deep branches: each latent owns a private 2-layer trunk (Linear(H,H)->ReLU->Linear(H,H)->ReLU) plus a private action head Linear(H, action_dim).",
+    "config": {
+      "enable_latent_z_residual": true,
+      "latent_population_birth_per_z_action_heads": true,
+      "latent_lro_deep_branches": true,
+      "latent_z_residual_alpha": "> 0 (fixed-alpha mode)"
+    },
+    "why_fixed_alpha_not_gated": "rl/latent_marl.py:339-343 -- fixed-alpha uses Kaiming init deliberately. Zero-init adapters cannot accumulate gradient signal and form a zero-gradient degenerate equilibrium. This was the V6I22E root cause and must not be reintroduced.",
+    "why_not_adapters": "V6I22 ran adapter-based repertoire birth and reached behavior_pair_dist 0.033 against a 0.06 bar. Adapters alone did not deliver behavioral separation. This spec deliberately picks a substantially stronger structural mechanism.",
+    "honest_status_of_this_code": "The mechanism is IMPLEMENTED AND EXERCISED, but in a different experimental context -- V6I26 targeted weakness-driven branch birth against niche opponents on map_b and OP8-12. It has NEVER been used as the private-capacity substrate for OG-PSP paired supervision on map_a Pole A/B. It is untested HERE, not untested code.",
+    "exactly_one_mechanism": "FiLM, z-adapters, and z-onehot remain DISABLED. Stacking mechanisms would make a result unattributable, which is the two-axes problem OG-PSP already carries."
+  },
+  "COMPONENT_2_TEACHER_GROUNDED_TRAJECTORY_IDENTITY": {
+    "mechanism": "A discriminator D(tau) -> {A, B} trained ONCE on frozen SAPPO specialist trajectories, then held FIXED. During training, z0 rollout segments are encouraged toward A-classification and z1 segments toward B.",
+    "feature_map": "IDENTICAL to the frozen probe: per-agent obs_vec mean and std plus action histogram, 128 dims. Reused unchanged so the training signal is the same quantity the probe validated at 0.95/0.97.",
+    "the_discriminator_is_frozen": {
+      "rule": "D is trained on teacher trajectories and never co-adapted with the policy.",
+      "why": "A co-adapted discriminator can be satisfied by arbitrary difference. We have a direct counterexample in our own data: OG-PSP's z1 achieved a +10.0 pp crossed gap and converted it to exactly zero payoff advantage. Freezing D to teacher-defined identity is what ties diversity to strategies of proven strategic value.",
+      "anchors": "ROMA's explicit identifiability and DGPO's performance-aware diversity"
+    },
+    "task_reward_stays_primary": "lambda_traj is bounded so the auxiliary cannot dominate PPO. A policy must not be able to win the auxiliary objective by behaving strangely.",
+    "prohibited": [
+      "naked JSD or mutual-information bonuses",
+      "any objective rewarding difference not grounded in teacher identity",
+      "training D on the policy's own rollouts"
+    ]
+  },
+  "PRESERVED_UNCHANGED_FROM_OG_PSP": {
+    "paired_state_level_rehearsal": "(s,z0)->pi_A(s) AND (s,z1)->pi_B(s) on every resolved state, mean aggregation, ties get zero pressure. This is validated and is NOT the thing being changed.",
+    "bank": "the existing 1,804-state bank; NO new collection campaign",
+    "budget": "1,000,000 steps, same as V1 and OG-PSP, so budget is not a confound",
+    "persistence": "static_env, 16x z0 + 16x z1, unchanged",
+    "poles": "Pole A = OP6 + SDS2_A_payoff_INIT_3 overlay; Pole B = OP7",
+    "auditors": "all fail-closed, unchanged",
+    "exp2_teacher_compression_enabled": false
+  },
+  "FRESH_AND_SEALED": {
+    "model": "fresh step-0, no checkpoint or optimizer reuse",
+    "training_seed": 11300001,
+    "EVAL_block": "11300101..11300132, n=32, NEVER touched by training, rehearsal, bank collection, the probe, or any diagnostic",
+    "prior_EVAL_blocks_stay_closed": "10700129..10700160 (V1) and 11200001..11200032 (OG-PSP) are spent and must not be reused or re-scored"
+  },
+  "THE_GATE_IS_UNCHANGED": {
+    "delta_A": "wins(z0, A) - wins(z1, A)",
+    "delta_B": "wins(z1, B) - wins(z0, B)",
+    "criterion": "BOTH delta lcb95 > 0",
+    "statistic": "paired percentile bootstrap, n_boot 20000, alpha 0.05, rng seed 7, seed-level unit",
+    "provenance": "carried forward unchanged from OG-PSP, V1, and EXP2C",
+    "one_passing_side_is_not_a_pass": true,
+    "verdict_labels": {
+      "pass": "HOG_PSP_V3_CROSSOVER_CONFIRMED",
+      "fail": "HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED"
+    }
+  },
+  "THE_HARD_WALL": {
+    "rule": "V3 gets to improve the paper. It does not get to endanger the paper.",
+    "icra_deadline": "2027 submissions due 2026-09-15 23:59 PST, 8 pages including references, no planned extension",
+    "manuscript_starts_immediately": "SAPPO-centered ICRA manuscript work begins today, in parallel, independent of V3 status",
+    "engineering_timebox": {
+      "budget": "approximately 48 hours to reach a VERIFIED LAUNCHABLE TREATMENT",
+      "explicitly_not": "48 hours of debugging research code",
+      "if_exceeded": "PARK V3 until after ICRA and commit fully to SAPPO. This is a default, not a judgement call to be relitigated."
+    },
+    "scope_limit": "Exactly ONE experiment. There is no V4 under any outcome.",
+    "if_v3_fails": "HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED is recorded and the SAPPO paper proceeds with the compression-limit finding as the centerpiece. The fallback story is already complete and does not depend on V3."
+  },
+  "SEQUENCE": [
+    "freeze this spec (done at commit time)",
+    "implement private capacity + frozen trajectory discriminator",
+    "MECHANISM SMOKE -- must pass before any 1M run",
+    "fresh 1M run",
+    "mechanism diagnostic on CALIB",
+    "separate PI decision to open EVAL",
+    "one-shot EVAL"
+  ],
+  "MECHANISM_SMOKE_MUST_PROVE": [
+    "updating z0 moves z0's private trunk and head and does NOT move z1's private parameters",
+    "and the converse for z1",
+    "the frozen trajectory discriminator is actually invoked during training (a runner-accessor tripwire, since a silently dead runner already nearly cost a full 1M run twice)",
+    "D's parameters do NOT change during PPO",
+    "paired rehearsal still emits both latent targets per state",
+    "tied exposures remain 0",
+    "legacy one-sided rehearsal path remains at 0 invocations",
+    "rollout z->pole assignment remains 32/32 with 0 mismatches",
+    "loss aggregation remains MEAN"
+  ],
+  "KNOWN_RISKS_RECORDED_BEFORE_THE_RESULT": {
+    "two_components_change_at_once": "Private capacity and trajectory supervision are introduced together. A success cannot be attributed to either alone. This is accepted deliberately because the timebox does not permit an ablation, and it is recorded now so it cannot be quietly omitted later.",
+    "discriminator_transfer": "D is trained on TEACHER trajectories and applied to STUDENT rollouts. Its 0.95/0.97 accuracy is on teacher data; accuracy on student trajectories is unknown and may be much lower.",
+    "segment_length": "The probe validated D on full episodes. Applying it to shorter training segments may weaken the signal. Segment length is a design parameter, not a validated one.",
+    "prior_negative_on_related_capacity": "V6I22's adapter result and the K2V2 specialist failure both bear on whether private capacity delivers separation."
+  },
+  "PROHIBITED": [
+    "re-scoring, re-seeding, or reinterpreting OG-PSP's frozen verdict",
+    "reusing a spent EVAL block",
+    "adding a second private-capacity mechanism",
+    "adding an ungrounded diversity objective",
+    "collecting a new bank",
+    "extending the timebox by relitigating the hard wall",
+    "a V4"
+  ],
+  "PROVENANCE": {
+    "reopens": "LATENT_PROGRAM_POSTMORTEM.json#AMENDMENT_1_STOPPING_RULE_REOPENED",
+    "licensed_by": "TEACHER_TRAJECTORY_SEPARABILITY_PROBE.json, VERDICT TRAJECTORY_SIGNAL_PRESENT (bdd23fc4)",
+    "supersedes_nothing": "OG_PSP_EVAL_RESULT.json stands unmodified as a frozen negative result"
+  },
+  "EVAL_BLOCK_PREFLIGHT": {
+    "utc": "2026-08-31T14:06:54Z",
+    "authority": "PI, 2026-08-31: keep the block subject to a mechanical collision scan",
+    "block": "11300101..11300132",
+    "scanned": {
+      "npz_shards": 1224,
+      "csvs_with_a_seed_column": 413,
+      "json_artifacts": 3076
+    },
+    "method": "Checked every seed-named array in every npz shard, every CSV column whose name contains 'seed', and every numeric value in every JSON artifact, against the 32-seed block. A raw substring grep was rejected as the method because 8-digit numerics in metrics CSVs produce false positives.",
+    "RESULT": "CLEAN -- the block appears in no seed field, seed column, or artifact value",
+    "conclusion": "Block frozen as chosen. Not to be touched until the terminal V3 checkpoint is frozen."
+  },
+  "AMENDMENT_1_COMPONENT_2_MECHANISM": {
+    "utc": "2026-08-31T14:33:21Z",
+    "authority": "PI, 2026-08-31, before Component 2 was implemented and before any V3 result exists",
+    "status": "Resolves an implementability conflict in the original Component 2 text and tightens three design choices. The hypothesis, gate, budget, bank, poles, and Component 1 are unchanged.",
+    "THE_CONFLICT_FOUND_AT_IMPLEMENTATION": {
+      "original_text": "'A discriminator D(tau) -> {A,B} ... feature_map: IDENTICAL to the frozen probe'",
+      "problem": "The probe's feature map is NOT differentiable with respect to the policy: obs_vec comes from a non-differentiable environment and the action histogram comes from argmax/sampled actions. There is no gradient path from a D-classification loss into the private branches. As written, Component 2 cannot be implemented as a backprop loss.",
+      "resolution": "Policy gradient, not backprop through D. D stays exactly as validated."
+    },
+    "MECHANISM_AS_BUILT": {
+      "name": "trajectory-identity policy-gradient regulariser",
+      "explicitly_NOT": "an auxiliary environment reward. D's output is NEVER added to the CTF return, and does not touch reward, returns, GAE, or critic targets.",
+      "why_not_reward_injection": "Mixing D into r_t alters the return, critic targets, GAE, and what 'good policy' means. A reviewer could then say: 'of course z0 and z1 separated, you paid them to act like A and B.' That would muddy the exact question the experiment asks.",
+      "total_loss": "L = L_PPO_task + lambda_ogpsp * L_paired + lambda_tau * L_trajectory_PG",
+      "score": "S_z(tau) = clipped target-class log-probability under the pole's frozen D",
+      "target_class": "A for z0, B for z1 -- fixed by latent identity, never by local preference",
+      "advantage": "A_tau = S_z(tau) - baseline[z, pole]",
+      "loss": "L_tau = -A_tau * sum_t log pi(a_t | s_t, z)",
+      "gradient_path": "D(tau) -> trajectory advantage -> log pi_z(a|s) -> private branch",
+      "why_this_works": "D never needs to be differentiable."
+    },
+    "THREE_TIGHTENED_CHOICES": {
+      "1_full_episodes_not_segments": {
+        "rule": "Credit is assigned over FULL EPISODES. No segment horizon is introduced.",
+        "why": "The probe validated D on full episodes at 0.9531 / 0.9688. It did NOT validate D on 32-, 64-, or 128-step segments. With exactly one experiment available, none of its causal budget is spent inventing an unvalidated segment horizon. Since z is already static across the episode, full-episode credit is the natural unit."
+      },
+      "2_pole_specific_discriminators": {
+        "rule": "D_A scores Pole A trajectories; D_B scores Pole B trajectories. Never one shared D.",
+        "why": "A single classifier across both poles can rediscover OP6-vs-OP7. The probe measured exactly how easy that shortcut is: the confounded comparison scored 1.0000. The confound protection that made the diagnostic trustworthy is carried into training."
+      },
+      "3_score_stabilisation_chosen_prospectively": {
+        "rule": "Clipped target-class log-probability, centred by a per-(latent, pole) baseline.",
+        "why": "D is ~96% accurate, so raw probabilities sit near 0 or 1 and give badly scaled credit. The stabilisation is fixed NOW, before any training behaviour is observed, so it cannot be tuned into existence afterwards.",
+        "prohibited": "tuning any of this against EVAL, or redesigning it after seeing training curves"
+      }
+    },
+    "LIVENESS_SMOKE_MUST_ALSO_PROVE": [
+      "CTF rewards BIT-IDENTICAL with the regulariser active vs inactive",
+      "task returns and GAE BIT-IDENTICAL",
+      "task critic targets BIT-IDENTICAL",
+      "the correct pole-specific D is used for each trajectory",
+      "z0 episodes score against A-identity and z1 against B-identity",
+      "trajectory runner disabled -> HARD FAIL",
+      "wrong or missing D -> HARD FAIL"
+    ],
+    "why_the_bit_identical_block_matters": "It is the proof that V3 has not been silently converted into reward-shaped CTF. Without it, the separation result would be uninterpretable."
+  },
+  "AMENDMENT_2_TERMINAL_RECORD_ACCEPTANCE_AND_INVALID_CHANNEL_VERDICT": {
+    "utc": "2026-08-31T15:50:52Z",
+    "authority": "PI, 2026-08-31, while the run was ~25% complete and only partially observable mid-run",
+    "status": "Frozen before the terminal record exists. Does not alter the treatment.",
+    "why_this_amendment_exists": "Mid-run monitoring discovered a real observability gap: paired-rehearsal and trajectory-PG counters (n_updates, episodes_flushed, D.assert_still_frozen results, dropped_too_long) only print in --verify-steps mode or get written into the final RECORD at completion, mirroring OG-PSP's runner too closely. During the run itself there is no periodic evidence beyond 'no crash' and 'episodes are completing per the trainer's own independent bookkeeping'. That is real but INDIRECT evidence of channel health, not direct confirmation, because a silent-drop failure mode exists (an episode whose opponent does not resolve to a known pole, or whose transitions exceed the retention cap, is quietly skipped -- no exception, no log line).",
+    "ruling": "Do not run the mechanism diagnostic or open EVAL until the final production record PROVES all three channels remained live for the full run. 'No crash occurred' is not sufficient; the terminal record must show positive counts.",
+    "TERMINAL_RECORD_MUST_CONFIRM": {
+      "task_ppo_updates_gt_0": {
+        "value": 245,
+        "pass": true
+      },
+      "paired_rehearsal_updates_gt_0": {
+        "value": 1351,
+        "pass": true
+      },
+      "trajectory_pg_updates_gt_0": {
+        "value": 243,
+        "pass": true
+      },
+      "paired_z0_z1_exposures_equal": {
+        "value": {
+          "z0": 86464,
+          "z1": 86464
+        },
+        "pass": true
+      },
+      "tied_exposures_eq_0": {
+        "value": 0,
+        "pass": true
+      },
+      "legacy_one_sided_calls_eq_0": {
+        "value": 0,
+        "pass": true
+      },
+      "episodes_flushed_gt_0": {
+        "value": 4236,
+        "pass": true
+      },
+      "episodes_dropped_too_long_reported": {
+        "value": 0,
+        "pass": true
+      },
+      "unknown_pole_drops_reported_and_expected_0": {
+        "value": 0,
+        "pass": true,
+        "how_verified": "cross-checked independently: sum of auditor per_env episode closes (4236) EQUALS trajectory_identity.episodes_flushed (4236); difference is exactly 0, not merely assumed from one counter"
+      },
+      "discriminators_remained_frozen": {
+        "value": true,
+        "pass": true,
+        "how_verified": "assert_still_frozen() runs after every one of the 243 trajectory updates and raises TrajectoryIdentityError on failure, which would have produced VERDICT=INVALID_TREATMENT. VERDICT is COMPLETE with termination_reason null, so it held for all 243 checks."
+      },
+      "env_assignment_32_of_32_intact": {
+        "value": "32/32, all z_stable, all opponent_stable",
+        "pass": true
+      },
+      "assignment_mismatches_eq_0": {
+        "value": 0,
+        "pass": true
+      },
+      "note": "Filled in against HOG_PSP_V3_PRODUCTION_RESULT.json after the run completed. All 12 checks PASS."
+    },
+    "NEW_VERDICT_CATEGORY": {
+      "name": "INVALID_TRAJECTORY_CHANNEL_NOT_LIVE",
+      "when_it_applies": "If the terminal record shows trajectory PG updates at zero or essentially absent despite the run completing without a raised exception -- i.e. the channel was silently dead rather than the treatment having been genuinely tried and failed.",
+      "distinct_from_a_scientific_result": "This is NOT HOG_PSP_V3_CROSSOVER_NOT_CONFIRMED and it is not evidence that trajectory-grounded identity does not work. It means the mechanism was never actually exercised at production scale, which is an engineering failure of THIS run's wiring, not a finding about the hypothesis.",
+      "consequence": "The sealed EVAL block (11300101..11300132) remains untouched. No EVAL is run against a checkpoint whose defining mechanism did not fire. If this occurs, diagnosing and possibly relaunching is a fresh PI decision, not an automatic retry.",
+      "same_bar_could_apply_to_paired_rehearsal": "Though considered less likely since it reuses OG-PSP's proven runner unchanged, the same invalidation applies symmetrically if paired_rehearsal_updates is zero or z0/z1 exposures are unequal."
+    },
+    "MONITORING_LESSON_FOR_FUTURE_RUNS": "Scientific outputs (JSD, discriminator scores, crossed teacher-match) should stay hidden during training -- that separation is deliberate and load-bearing. But treatment-integrity counters (update counts, drop counts, frozen-parameter checks, assignment violations) are not performance peeking and should be periodically visible during future production runs, the same way an engine's oil level is checked without inspecting how fast the car is going.",
+    "for_this_run": "Leave it running untouched. Do not restart or modify it to add telemetry -- that would mutate a one-shot treatment to fix an observability inconvenience, which is worse than the gap itself. Evaluate against this checklist only once it completes.",
+    "RESOLUTION": {
+      "utc": "2026-08-31T17:11:41Z",
+      "verdict": "VALID -- all three channels confirmed live. Not INVALID_TRAJECTORY_CHANNEL_NOT_LIVE.",
+      "next": "freeze the terminal checkpoint (sha256 + all periodic hashes), per the standard sequence"
+    }
+  }
+}

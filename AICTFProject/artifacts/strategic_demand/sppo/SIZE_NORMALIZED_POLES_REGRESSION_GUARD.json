@@ -1,0 +1,89 @@
+{
+  "record": "2v2 regression guard for size-normalized pole semantics",
+  "status": "FROZEN_RESULT",
+  "implements": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json#MANDATORY_REGRESSION_GUARD",
+  "checks": {
+    "1_guard_N2_is_exactly_agent_index_1": true,
+    "2_guard_fraction_is_half_at_every_size": true,
+    "3_poleA_at_N2_equals_frozen_record": true,
+    "4_poleB_at_N2_has_no_overlay": true,
+    "5_min_alive_equals_N_at_larger_sizes": true,
+    "6_resolved_2v2_profiles_unchanged": true,
+    "7_2v2_guard_rollout_shape_ok": true
+  },
+  "passed": "7/7",
+  "detail": {
+    "guard_defender_indices": {
+      "2": [
+        1
+      ],
+      "4": [
+        2,
+        3
+      ],
+      "6": [
+        3,
+        4,
+        5
+      ]
+    },
+    "guard_defensive_fraction": {
+      "2": "1/2",
+      "4": "2/4",
+      "6": "3/6"
+    },
+    "pole_overlays": {
+      "2": {
+        "A": {
+          "min_alive_for_defender": 2
+        },
+        "B": {}
+      },
+      "4": {
+        "A": {
+          "min_alive_for_defender": 4
+        },
+        "B": {
+          "min_alive_for_defender": 4
+        }
+      },
+      "6": {
+        "A": {
+          "min_alive_for_defender": 6
+        },
+        "B": {
+          "min_alive_for_defender": 6
+        }
+      }
+    },
+    "resolved_profiles_N2": {
+      "poleA": {
+        "min_alive_for_defender": 2,
+        "defender_zone_frac": 0.35,
+        "threat_radius": 0.0
+      },
+      "poleB": {
+        "min_alive_for_defender": 2,
+        "defender_zone_frac": 0.05,
+        "threat_radius": 12.0
+      }
+    },
+    "expected_profiles_N2": {
+      "poleA": {
+        "min_alive_for_defender": 2,
+        "defender_zone_frac": 0.35,
+        "threat_radius": 0.0
+      },
+      "poleB": {
+        "min_alive_for_defender": 2,
+        "defender_zone_frac": 0.05,
+        "threat_radius": 12.0
+      }
+    },
+    "rollout_target_shape": [
+      2,
+      2
+    ]
+  },
+  "VERDICT": "PASS"
+}

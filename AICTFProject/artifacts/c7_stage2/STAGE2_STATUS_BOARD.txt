@@ -1,0 +1,19 @@
+﻿==============================================================================
+C7 Stage 2 — status board (new terminal)
+
+Earlier wave-2 snapshot (while resume was in flight):
+  Wave-2 workers ~5,701s–9,233s CPU — next batch ETA was ~50–110 min
+  State held: 11 complete, 10 pending, zero failures
+  Re-armed monitors on c7_stage2_4v4_resume.log ([done]/[FAIL]/merged|wall)
+
+CURRENT (live check now):
+  4v4 arm: COMPLETE — 21/21, merged 1260 states, wall 605.5 min
+  2v2 control: COMPLETE — wall 156.8 min
+  Verdict artifact: C7_STAGE2_VERDICT.json
+  VERDICT: C7_NO_REVERSAL_AT_4V4
+  Pre-committed action: STOP team-size work. Stage 3 / 9930000 unspent.
+  Next main line: Strategy-Rich CTF v1 (construction not started).
+
+4v4 detail: 6615 combos, 7 single-policy CI passes, 0 replicated
+2v2 detail: 189 combos, 0 single-policy passes, 0 replicated
+==============================================================================

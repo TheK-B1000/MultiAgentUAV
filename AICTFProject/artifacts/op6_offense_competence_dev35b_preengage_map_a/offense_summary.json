@@ -1,0 +1,67 @@
+{
+  "n_episodes_per_style": {
+    "BLUE_RUSH": 8,
+    "BLUE_SPLIT": 8,
+    "BLUE_ESCORT": 8,
+    "BLUE_TURTLE": 8
+  },
+  "styles": {
+    "BLUE_RUSH": {
+      "mean_red_pickups": 3.125,
+      "mean_red_failed_returns": 0.125,
+      "mean_blue_home_occupancy": 0.38980828541141266,
+      "frac_red_scored_first": 0.25,
+      "red_first_score_seeds": 2,
+      "mean_assault_stopped": 0.0,
+      "mean_turtle_anchor_at_stop": 0.0,
+      "turtle_counter_score_seeds": 0,
+      "mean_win_margin": -0.875
+    },
+    "BLUE_SPLIT": {
+      "mean_red_pickups": 3.125,
+      "mean_red_failed_returns": 0.5,
+      "mean_blue_home_occupancy": 0.26779113137578175,
+      "frac_red_scored_first": 1.0,
+      "red_first_score_seeds": 8,
+      "mean_assault_stopped": 0.0,
+      "mean_turtle_anchor_at_stop": 0.0,
+      "turtle_counter_score_seeds": 0,
+      "mean_win_margin": -0.125
+    },
+    "BLUE_ESCORT": {
+      "mean_red_pickups": 3.0,
+      "mean_red_failed_returns": 0.0,
+      "mean_blue_home_occupancy": 0.3930263940704942,
+      "frac_red_scored_first": 0.875,
+      "red_first_score_seeds": 7,
+      "mean_assault_stopped": 0.0,
+      "mean_turtle_anchor_at_stop": 0.0,
+      "turtle_counter_score_seeds": 0,
+      "mean_win_margin": -1.625
+    },
+    "BLUE_TURTLE": {
+      "mean_red_pickups": 6.25,
+      "mean_red_failed_returns": 3.625,
+      "mean_blue_home_occupancy": 0.5724468420596334,
+      "frac_red_scored_first": 0.25,
+      "red_first_score_seeds": 2,
+      "mean_assault_stopped": 6.125,
+      "mean_turtle_anchor_at_stop": 6.125,
+      "turtle_counter_score_seeds": 8,
+      "mean_win_margin": -0.875
+    }
+  },
+  "micro_gates": {
+    "rush_red_first_score_ge_5_8": false,
+    "split_red_first_score_ge_5_8": true,
+    "escort_red_first_score_ge_5_8": true,
+    "turtle_red_first_score_le_2_8": true,
+    "turtle_counter_score_ge_5_8": true
+  },
+  "rush_failed_returns": 0.125,
+  "micro_gates_pass": false,
+  "rush_true_failed_returns_le_0_5": true,
+  "rush_minus_split": -0.75,
+  "rush_minus_turtle": 0.0,
+  "rush_minus_escort": 0.75
+}

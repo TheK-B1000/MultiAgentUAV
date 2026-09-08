@@ -1,0 +1,18 @@
+﻿{
+    "status":  "ABORTED_BY_PROTOCOL",
+    "next":  [
+                 "Fix/verify branch-KL logging",
+                 "Add advantage/grad/clip/entropy/value diagnostics",
+                 "Recompute weaknesses from 32-eps current forced-z payoff",
+                 "Exclude saturated; select context+branch from headroom",
+                 "One 5u diagnostic pilot; continue to 25u only if separating"
+             ],
+    "reason":  "Seed-1 Phase-2 FAIL; seeds 2-3 same flawed recipe (fixed z3, 4-eps landscape targets, saturated cells, no learning-signal diagnostics). Expected info value too low. Postponing replication until mechanism worth replicating.",
+    "preserved":  {
+                      "episode_count":  56,
+                      "forced_z_before_partial_summary":  true,
+                      "stage1_round_log":  true,
+                      "completed_conditions":  14
+                  },
+    "aborted_at_utc":  "2026-07-25T02:35:07.5345137Z"
+}

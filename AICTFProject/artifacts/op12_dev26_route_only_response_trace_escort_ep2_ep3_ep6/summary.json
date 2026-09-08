@@ -1,0 +1,114 @@
+{
+  "protocol": "op12_confirmed_escort_response_trace",
+  "blue_probe_protocol": "BLUE_PROBES_V2",
+  "blue_style": "BLUE_ESCORT",
+  "red": "OP12_LATE_CONVERTER",
+  "map": "map_b_split_lane",
+  "base_seed": 556001,
+  "episode_indices": [
+    2,
+    3,
+    6
+  ],
+  "response": "OFF vs ON paired within identical episode seeds",
+  "paired": [
+    {
+      "episode_index": 2,
+      "episode_seed": 556003,
+      "off_margin": -3,
+      "on_margin": -1,
+      "delta_margin": 2,
+      "off_confirmation_step": 24,
+      "on_confirmation_step": 24,
+      "off_steps": 97,
+      "on_steps": 240
+    },
+    {
+      "episode_index": 3,
+      "episode_seed": 556004,
+      "off_margin": -3,
+      "on_margin": -2,
+      "delta_margin": 1,
+      "off_confirmation_step": 23,
+      "on_confirmation_step": 23,
+      "off_steps": 149,
+      "on_steps": 240
+    },
+    {
+      "episode_index": 6,
+      "episode_seed": 556007,
+      "off_margin": -3,
+      "on_margin": -2,
+      "delta_margin": 1,
+      "off_confirmation_step": 23,
+      "on_confirmation_step": 23,
+      "off_steps": 179,
+      "on_steps": 194
+    }
+  ],
+  "summaries": [
+    {
+      "episode_index": 2,
+      "episode_seed": 556003,
+      "response_enabled": 0,
+      "blue_score": 0,
+      "red_score": 3,
+      "win_margin": -3,
+      "steps": 97,
+      "confirmation_step": 24
+    },
+    {
+      "episode_index": 2,
+      "episode_seed": 556003,
+      "response_enabled": 1,
+      "blue_score": 0,
+      "red_score": 1,
+      "win_margin": -1,
+      "steps": 240,
+      "confirmation_step": 24
+    },
+    {
+      "episode_index": 3,
+      "episode_seed": 556004,
+      "response_enabled": 0,
+      "blue_score": 0,
+      "red_score": 3,
+      "win_margin": -3,
+      "steps": 149,
+      "confirmation_step": 23
+    },
+    {
+      "episode_index": 3,
+      "episode_seed": 556004,
+      "response_enabled": 1,
+      "blue_score": 0,
+      "red_score": 2,
+      "win_margin": -2,
+      "steps": 240,
+      "confirmation_step": 23
+    },
+    {
+      "episode_index": 6,
+      "episode_seed": 556007,
+      "response_enabled": 0,
+      "blue_score": 0,
+      "red_score": 3,
+      "win_margin": -3,
+      "steps": 179,
+      "confirmation_step": 23
+    },
+    {
+      "episode_index": 6,
+      "episode_seed": 556007,
+      "response_enabled": 1,
+      "blue_score": 1,
+      "red_score": 3,
+      "win_margin": -2,
+      "steps": 194,
+      "confirmation_step": 23
+    }
+  ],
+  "artifacts": [
+    "trace_rows.csv"
+  ]
+}

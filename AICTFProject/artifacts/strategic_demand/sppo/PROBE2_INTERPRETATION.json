@@ -1,0 +1,58 @@
+{
+  "record": "Probe 2 interpretation -- resolvability is learnable, but not separable enough",
+  "status": "DIAGNOSTIC. Does NOT alter the frozen CALIBRATION_FAILED verdict.",
+  "utc": "2026-08-29T12:03:03Z",
+  "verdict_being_interpreted": "CALIBRATION_FAILED (KAPPA_SELECTION_PROBE2.json)",
+  "THE_HYPOTHESIS_WAS_CONFIRMED": {
+    "claim_tested": "Supervising resolvability explicitly produces a usable abstention signal.",
+    "probe_1_auc": 0.415,
+    "probe_2_auc": 0.7041,
+    "reading": "The diagnosis behind probe 2 was CORRECT. Probe 1's direction confidence pointed the wrong way on resolvability; an explicitly supervised head predicts it well above chance on held-out CALIB. Tied states, given a legitimate job, taught the model something real -- and they did so without ever exerting A/B pressure.",
+    "the_only_change": "one small head; trunk and direction head bit-identical throughout"
+  },
+  "BUT_THE_GATES_STILL_FAIL": {
+    "why": "An AUC of 0.70 orders states better than chance but does not SEPARATE the two populations sharply enough for a single global cutoff to satisfy both constraints simultaneously. Coverage and over-commitment fall together as kappa rises.",
+    "the_binding_geometry": "At kappa=0.20 every cell still has coverage >= 0.667 but over-commitment is 0.777. Over-commitment only reaches 0.100 at kappa=0.620, where minimum cell coverage has been 0.000 since roughly 0.26. There is no kappa in between.",
+    "distance_from_feasible": "At the closest point excluding the thin cell (kappa=0.290) coverage is exactly at the 0.50 floor while over-commitment is 0.559 -- more than five times the 0.10 ceiling. This is not a near miss."
+  },
+  "WHICH_CELL_DIED_FIRST": {
+    "cell": "A_r3_late",
+    "coverage_by_kappa": {
+      "0.14": 1.0,
+      "0.20": 0.667,
+      "0.26": 0.0
+    },
+    "was_pre_registered_as_thin": true,
+    "fit_resolvable_examples": 8,
+    "recorded_in": "K2_PROBE_FIT.json DOCUMENTED_LIMITATION, written before any CALIB prediction existed",
+    "B_r3_late": "exempt -- zero resolvable CALIB mass, per AMENDMENT_2's ZERO_RESOLVABLE_MASS_RULE, which fired exactly as designed"
+  },
+  "IS_THE_THIN_CELL_DECISIVE": {
+    "question": "The pre-registration required that a failure driven by a thin cell be read jointly with the documented FIT support, not as clean evidence against selective supervision. So: would calibration have succeeded without it?",
+    "counterfactual_diagnostic_only": {
+      "drop_A_r3_late": "still NONE. closest kappa 0.290: coverage 0.500 exactly, over-commitment 0.559",
+      "drop_A_r3_late_and_B_r0_late": "still NONE. closest kappa 0.360: coverage 0.429, over-commitment 0.409",
+      "drop_all_six_weakest_cells": "still NONE. closest kappa 0.375: coverage 0.389, over-commitment 0.364"
+    },
+    "answer": "NO. The thin cell is the first to fail but is NOT the cause. Removing it, and even removing the six weakest cells, leaves over-commitment three to five times above the ceiling wherever coverage survives. The limitation was correctly pre-registered and is genuinely present, but this result does not rest on it.",
+    "why_this_matters": "It rules out the most convenient explanation. Had the thin cell been decisive, the honest conclusion would have been 'insufficient data in one regime'. It is not, so the finding stands on its own."
+  },
+  "WHAT_THIS_ESTABLISHES": {
+    "positive": "Resolvability IS predictable from state, better than chance, from 1109 FIT examples.",
+    "negative": "A single global confidence cutoff on that prediction cannot simultaneously achieve 50% coverage of resolvable states and under 10% commitment on unresolved ones. The two populations overlap too much.",
+    "what_is_NOT_established": [
+      "That abstention is impossible -- only that a global scalar cutoff on this signal cannot deliver it at these constraints.",
+      "That rho=0.50 / o_max=0.10 are the wrong constraints. They were frozen prospectively and are not evidence about themselves.",
+      "Anything about EVAL, which remains untouched.",
+      "Anything about the K=2 latent treatment, which was never reached."
+    ]
+  },
+  "PROHIBITED": [
+    "relaxing rho or o_max in response to this result",
+    "re-fitting either head after seeing it",
+    "per-cell or adaptive kappa, unless separately frozen as a new prospective design",
+    "class weighting to balance 428 against 681",
+    "touching EVAL"
+  ],
+  "STATUS": "HUMAN_DECISION_REQUIRED. No repair attempted. EVAL untouched. No thresholds artifact written."
+}

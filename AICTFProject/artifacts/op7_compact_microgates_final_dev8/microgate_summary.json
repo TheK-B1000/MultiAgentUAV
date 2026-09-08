@@ -1,0 +1,78 @@
+{
+  "episodes_per_style": 8,
+  "latch_counts": {
+    "RUSH": 0,
+    "SPLIT": 6,
+    "ESCORT": 0,
+    "TURTLE": 0
+  },
+  "compact_counts": {
+    "RUSH": 8,
+    "SPLIT": 8,
+    "ESCORT": 8,
+    "TURTLE": 8
+  },
+  "gates": {
+    "split_latch_ge_6_of_8": true,
+    "split_compact_le_1_of_8": false,
+    "rush_compact_ge_6_of_8": true,
+    "escort_compact_ge_5_of_8": true,
+    "turtle_compact_le_2_of_8": false,
+    "rush_false_split_latch_le_2_of_8": true,
+    "escort_false_split_latch_le_2_of_8": true,
+    "turtle_false_split_latch_le_2_of_8": true
+  },
+  "tactical": {
+    "split_uncovered_after_latch_gt_0": true,
+    "split_same_corridor_gt_0": true,
+    "split_ttfs_near_improved_38": true,
+    "rush_margin_not_above_prior_tie": false
+  },
+  "style_stats": {
+    "BLUE_ESCORT": {
+      "n": 8,
+      "latch_count": 0,
+      "compact_count": 8,
+      "mean_win_margin": 3.0,
+      "mean_ttfs": 38.625,
+      "mean_uncovered_after_latch": 0.0,
+      "mean_same_corridor_steps": 0.0,
+      "mean_response_steps": 0.0,
+      "mean_compact_response_steps": 100.125
+    },
+    "BLUE_RUSH": {
+      "n": 8,
+      "latch_count": 0,
+      "compact_count": 8,
+      "mean_win_margin": 2.875,
+      "mean_ttfs": 47.125,
+      "mean_uncovered_after_latch": 0.0,
+      "mean_same_corridor_steps": 0.0,
+      "mean_response_steps": 0.0,
+      "mean_compact_response_steps": 79.875
+    },
+    "BLUE_SPLIT": {
+      "n": 8,
+      "latch_count": 6,
+      "compact_count": 8,
+      "mean_win_margin": 2.375,
+      "mean_ttfs": 46.125,
+      "mean_uncovered_after_latch": 6.125,
+      "mean_same_corridor_steps": 6.625,
+      "mean_response_steps": 6.75,
+      "mean_compact_response_steps": 56.875
+    },
+    "BLUE_TURTLE": {
+      "n": 8,
+      "latch_count": 0,
+      "compact_count": 8,
+      "mean_win_margin": 1.875,
+      "mean_ttfs": 90.0,
+      "mean_uncovered_after_latch": 0.0,
+      "mean_same_corridor_steps": 0.0,
+      "mean_response_steps": 0.0,
+      "mean_compact_response_steps": 140.625
+    }
+  },
+  "microgates_pass": false
+}

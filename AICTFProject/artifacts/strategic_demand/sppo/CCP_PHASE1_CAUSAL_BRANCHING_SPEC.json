@@ -1,0 +1,349 @@
+{
+  "record_id": "CCP_PHASE1_CAUSAL_BRANCHING_SPEC",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-01T13:20:00Z",
+  "authority": "PI, 2026-09-01: 'Draft it. I would freeze Phase 1 now, with only the two remaining prereg items resolved before any causal delta_Q is inspected.'",
+  "program": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json",
+  "THE_QUESTION": "Which live specialist decisions causally change the probability of winning?",
+  "PREREQUISITES_BOTH_RESOLVED": {
+    "phase_0_replay_equivalence": "REPLAY_EQUIVALENCE_CONFIRMED, commit 5c67c093. 102/102 prefix points exact across 8 seeds and both poles, no tolerance adopted, negative control fired.",
+    "crn": "CRN_ALIGNED, commit 5839ff3d. Two branches taking different legal macros from the same state consume randomness identically for every tick in which both are still inside their episode; the sole divergence is attributable to one branch terminating. red_deception_prob_max = 0.0882, so this is NOT post-reset deterministic and real continuation randomness exists."
+  },
+  "CENTRAL_ESTIMAND": {
+    "individual": "delta_Q_A(s_t, i) = P(win | do(pi_A at agent i), s_t) - P(win | do(pi_B at agent i), s_t), defined only where d_t^i = 1",
+    "individual_B": "delta_Q_B(s_t, i) = P(win | do(pi_B at agent i), s_t) - P(win | do(pi_A at agent i), s_t)",
+    "joint": "delta_Q_A_joint(s_t) = P(win | do(pi_A at agents 0 and 1), s_t) - P(win | do(pi_B at agents 0 and 1), s_t), defined only where BOTH agents are free",
+    "joint_B": "the analogous B-pole contrast",
+    "kept_separate": "Individual and joint estimands are never pooled. That separation is what makes the MACA-style individual-versus-joint credit question empirical rather than philosophical.",
+    "primary_outcome": "terminal win/loss only",
+    "range": "Q in [0,1], delta_Q in [-1,1]"
+  },
+  "BRANCHING_RULES": {
+    "1_branch_only_at_live_boundaries": "fork only where d_t^i = 1, i.e. blue_commit_ticks_left[i] <= 0 at runtime, equivalently the agent's macro mask and target mask are not both one-hot",
+    "2_preserve_the_free_set": "the exact set of free agents at s_t is recorded and preserved; interventions are defined relative to it",
+    "3_individual_when_one_is_free": "if only agent i is free, only agent i is intervened on",
+    "4_both_estimands_when_both_free": "if both are free, the individual estimand for each agent AND the joint estimand are all collected, separately",
+    "5_never_modify_committed_agents": "a committed agent's macro and target are left exactly as the environment holds them. Overriding them would be intervening on a decision the environment is not accepting.",
+    "6_own_schedules_after_the_fork": "each branch follows its own macro-duration schedule. If pi_A takes a 4-tick GO_TO and pi_B a 2-tick PLACE_MINE, that timing difference is part of the treatment.",
+    "7_no_decision_index_alignment": "branches are never realigned by future decision index. This is an asynchronous semi-MDP and option duration may itself be strategically causal; forcing alignment would erase part of the effect being measured.",
+    "8_matched_continuation_randomness": "paired continuation seeds, validated by the CRN smoke",
+    "9_fixed_M": "M is fixed for every intervention; never adaptive, never state-dependent",
+    "10_secondary_covariates_only": "blue_commit_success and option timing are recorded as mechanism covariates and are never the objective",
+    "11_no_delta_Q_dependent_filtering": "no state is dropped, reweighted, or resampled on the basis of its observed delta_Q",
+    "12_fresh_artifact_before_any_training": "Phase 1 freezes its own result artifact before any successor training consumes it"
+  },
+  "M_AND_CONTINUATION_SAMPLING": {
+    "M": 32,
+    "authority": "PI, 2026-09-01: 'I would use a fixed rollout count per branch, not an adaptive one. My default would be M = 32 paired continuation seeds per intervention.'",
+    "MANDATORY_IMPLEMENTATION_DETAIL": "Prefix replay is exact, so (seed, prefix) determines the future completely. Running M continuations without changing anything would produce M IDENTICAL rollouts and an estimator with zero variance and zero validity. The M continuations must therefore be drawn by explicitly reseeding the environment generator after the prefix is replayed -- core._rng.manual_seed(base + j) for j in 0..M-1 -- and pairing is achieved by using the SAME j for every policy compared at that state.",
+    "why_this_is_not_a_free_choice": "Without the reseed the bank would be full of exact zeros and near-degenerate estimates that look like 'the specialists agree here'. This is the same silent-null failure mode the mid-hold branching problem would have produced.",
+    "REQUIRED_SMOKE_BEFORE_COLLECTION": {
+      "name": "continuation entropy",
+      "question": "how many of the M reseeded continuations are actually distinct?",
+      "why": "red_deception_prob is 0.0882 and its effect is gated on sim_step_count % 30, so continuation randomness is real but SPARSE. If most reseeded rollouts coincide, M=32 buys far less precision than its nominal value suggests.",
+      "what_it_must_report": "the number of distinct terminal outcomes and distinct trajectories across M reseeds at a prospectively fixed state, for at least 3 states",
+      "prospective_rule": "This smoke measures the ESTIMATOR, not delta_Q, and runs before any delta_Q is computed. If it shows the effective sample size is far below M, the M decision is revisited ONCE, at that point, before any delta_Q exists -- and the revised M is frozen then."
+    }
+  },
+  "WEIGHTING_FOR_THE_SUCCESSOR": {
+    "rule": "w(s) = |delta_Q(s)|, and for pole-signed specialist assignment w_A(s) = max(0, delta_Q_A(s)), w_B(s) = max(0, delta_Q_B(s))",
+    "frozen_now": true,
+    "no_threshold": "There is no tau. The weight is bounded, monotonic, and prospectively fixed, so there is nothing to shop.",
+    "why_bounded_works_here": "the primary outcome is binary, so Q is a probability in [0,1] and delta_Q is already on a natural [-1,1] scale",
+    "a_decision_with_no_payoff_effect": "receives essentially zero strategic supervision, by construction rather than by filtering"
+  },
+  "WHAT_PHASE_1_MAY_NOT_DO": [
+    "branch at a step where the intervened agent is committed",
+    "override a committed agent's macro or target",
+    "realign branches by future decision index",
+    "pool individual and joint estimands",
+    "vary M across states, or choose M after seeing any delta_Q",
+    "filter, reweight or resample states on observed delta_Q",
+    "introduce a delta_Q threshold",
+    "treat blue_commit_success or timing as the objective",
+    "touch any EVAL block",
+    "run M continuations without reseeding, which would silently produce M identical rollouts"
+  ],
+  "OUTPUT": "CCP_PHASE1_CAUSAL_BRANCHING.json, one-shot, frozen before any successor training",
+  "PROVENANCE": {
+    "phase_0": "CCP_PHASE0_REPLAY_EQUIVALENCE.json (5c67c093)",
+    "crn": "CCP_PHASE1_CRN_SMOKE.json (5839ff3d)",
+    "cadence_and_predicate": "_step.py new_commit = blue_commit_ticks_left <= 0; macro_commit_*_ticks 2-4",
+    "boundary_audit": "CCP_BOUNDARY_AUDIT.json (a1fc6521)",
+    "rehearsal_defect_to_avoid_repeating": "CCP_FORCED_HEAD_DILUTION.json (884abf25), guarded by tests/test_anchor_loss_decision_mask.py (d9c7f8fc)"
+  },
+  "AMENDMENT_1_ESTIMATOR_REPORTING_AND_SEEDING": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T13:30:00Z",
+    "authority": "PI, 2026-09-01, before any delta_Q exists",
+    "PAIRED_DISCORDANCE_IS_THE_REPORTING_FORM": {
+      "definition": "D_j = Y_A^(j) - Y_B^(j) in {-1, 0, +1} over paired continuation seed j",
+      "counts": {
+        "n_plus": "# seeds where pi_A wins and pi_B loses",
+        "n_minus": "# seeds where pi_B wins and pi_A loses",
+        "n_zero": "# seeds with the same terminal outcome"
+      },
+      "estimator": "delta_Q_hat = (n_plus - n_minus) / M",
+      "why_this_form": "It is directly interpretable and it makes the concordant seeds legible as evidence rather than as waste. If 30 of 32 paired continuations produce the same winner, those 30 are evidence that the intervention usually does NOT alter terminal success under matched randomness. The causal signal lives in the imbalance n_plus - n_minus.",
+      "required_output": "n_plus, n_minus and n_zero are recorded per state and per estimand, not only the summary delta_Q"
+    },
+    "CORRECTION_TO_THE_ENTROPY_SMOKE_INTERPRETATION": {
+      "what_it_is_NOT": "The number of unique trajectories is NOT the effective sample size, and effective M must not be defined that way.",
+      "why": "If the continuation seeds are independent, two seeds producing the same trajectory are still two legitimate samples from the environment's continuation distribution. Sparse randomness means that distribution simply places large mass on the same continuation. Precision is governed by Var(D_j), not by trajectory uniqueness -- and many identical outcomes can mean LESS variance, not more.",
+      "what_the_smoke_is_actually_for": [
+        "does reseeding actually generate distinct environmental continuations, i.e. is the machinery working",
+        "how often does stochasticity alter trajectories",
+        "how often does it alter terminal outcomes",
+        "is the continuation distribution effectively almost deterministic"
+      ],
+      "consequence_for_M": "M = 32 stands unless the smoke shows the reseeding machinery is INOPERATIVE. A concentrated continuation distribution is a property of the environment to be characterised, not a reason to change M."
+    },
+    "CONTINUATION_SEED_MAPPING": {
+      "rule": "r_j = H('CCP_PHASE1', state_id, j), a deterministic hash -- never drawn opportunistically",
+      "requirements": [
+        "both branches receive exactly the same r_j",
+        "r_j does not depend on which policy ran first",
+        "r_j does not depend on collection order, wall-clock, or process state",
+        "the mapping is reproducible from the artifact alone"
+      ],
+      "why": "Opportunistic seeds would make pairing an accident of execution order and would make the bank unreproducible."
+    },
+    "ONLY_THE_ENVIRONMENT_RNG_IS_RESEEDED": {
+      "rule": "reseeding applies to core._rng and to nothing else",
+      "policy_stochasticity": "OUT of the Q expectation. All Phase 1 rollouts use deterministic argmax actions (predict(deterministic=True)), which is the same convention every diagnostic and EVAL in this project has used.",
+      "consequence": "Q is an expectation over environment continuation randomness alone, so the issue of policy sampling entering the estimand does not arise.",
+      "if_that_ever_changes": "it becomes a separate prospective decision, recorded before collection, never after seeing delta_Q"
+    }
+  },
+  "AMENDMENT_2_M16_PILOT_AND_CLAIM_SCOPE": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:05:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 delta_Q value exists",
+    "M_REVISED_32_TO_16": {
+      "M": 16,
+      "resolution": "delta_Q_hat granularity 1/16 = 0.0625",
+      "REASON": "RUNTIME FEASIBILITY. Measured scalar cost is ~43 s/rollout, and BOTH safe batching axes failed the frozen gate (CCP_PHASE1_BATCH_EQUIVALENCE.json, BATCHING_INVALID: a B-lane env initialises B different episodes, so lanes are not identical at reset). M = 32 became operationally infeasible.",
+      "EXPLICITLY_NOT_THE_REASON": "The continuation-entropy result is NOT cited as justification. That smoke returned RESEEDING_MACHINERY_VALIDATED with 32/32 distinct trajectories, and AMENDMENT_1 states M stands unless the machinery is inoperative. It is operative. Lowering M on the strength of the 32/32-win outcome degeneracy would be a budget decision dressed as a measurement finding.",
+      "timing_is_the_anti_shopping_property": "This amendment precedes the existence of any Phase 1 delta_Q value.",
+      "estimator_unchanged": true
+    },
+    "PILOT_STRATIFICATION_FROZEN": {
+      "size": 20,
+      "design": "10 Pole A + 10 Pole B; within each pole: agent0-only 3, agent1-only 4, both-free 3, one per phase except agent1-only which takes 2 in mid",
+      "cells_per_pole": {
+        "agent0_only": {
+          "early": 1,
+          "mid": 1,
+          "late": 1
+        },
+        "agent1_only": {
+          "early": 1,
+          "mid": 2,
+          "late": 1
+        },
+        "both_free": {
+          "early": 1,
+          "mid": 1,
+          "late": 1
+        }
+      },
+      "totals_across_poles": {
+        "agent0_only": 6,
+        "agent1_only": 8,
+        "both_free": 6
+      },
+      "pilot_proportions": [
+        0.3,
+        0.4,
+        0.3
+      ],
+      "observed_audit_proportions": [
+        0.295,
+        0.38,
+        0.325
+      ],
+      "coverage": "all 2 x 3 x 3 = 18 pole/free-set/phase cells are covered",
+      "phase_definition_prospective": {
+        "early": "0..79",
+        "mid": "80..159",
+        "late": "160..239"
+      },
+      "SELECTION_RULE": "within each stratum, select by a deterministic hash/order over IMMUTABLE state identifiers (seed, prefix length). Never by teacher disagreement, commit success, trajectory appearance, or anything downstream of the causal question.",
+      "EMPTY_STRATUM_RULE": "if a required stratum has no candidate, STOP and record it. Do not quietly substitute a state from another cell."
+    },
+    "CLAIM_SCOPE_IS_EXISTENTIAL": {
+      "the_pilot_asks": "Does at least one prospectively sampled live boundary show causal specialist leverage?",
+      "the_pilot_does_NOT_estimate": [
+        "P(boundary is strategically important)",
+        "any population rate of important decisions",
+        "that these 20 states represent the boundary distribution"
+      ],
+      "a_null_result_reads_as": "no leverage found at these 20 boundaries -- never as a measured rate"
+    },
+    "REPORTING_AND_THE_FORMAL_TEST": {
+      "every_state_reports": "delta_Q_hat = (n_plus - n_minus)/16, with n_plus, n_minus and n_zero given explicitly",
+      "candidate_leverage_boundary": "any state with a non-zero delta_Q_hat. This is the descriptive label.",
+      "CAUSAL_LEVERAGE_CONFIRMED": "reserved for states passing an exact paired test on the DISCORDANT terminal outcomes (binomial on n_plus vs n_plus + n_minus, p = 0.5), Holm-corrected across the 20 states at familywise alpha = 0.05",
+      "why": "PI: this prevents one lucky 9-vs-7 continuation split from turning into a causal claim",
+      "both_labels_are_reported": "the descriptive count and the corrected test result are both in the artifact; neither is suppressed in favour of the other"
+    },
+    "EXECUTION_PLAN": {
+      "workers": "8 independent B=1 processes, each with its own scalar core and keyed continuation jobs",
+      "why_this_and_not_batching": "preserves exactly the semantics validated by Phase 0, the CRN smoke and the entropy smoke; no environment change, no lane dependence, no estimator change",
+      "machine": "16 cores; 8 workers leaves headroom for the concurrent agent session sharing this machine",
+      "budget": "20 states x 52.8 rollouts/state = ~1056 scalar rollouts; ideal 8-worker time ~95 min, budgeted 1.5-2.5 h for contention and orchestration",
+      "incremental_state": "one JSONL row per COMPLETED rollout, so an interruption leaves a visible boundary rather than a silent truncation, and resumption verifies existing rows against the frozen seed mapping"
+    },
+    "TEACHER_POLICIES": {
+      "pi_A": {
+        "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+        "sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d"
+      },
+      "pi_B": {
+        "path": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+        "sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc"
+      },
+      "verified_at_collection_time": "both sha256 values are re-checked before the first rollout; a mismatch is fatal"
+    }
+  },
+  "AMENDMENT_3_TWO_INTERVENTION_MODES": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:40:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 delta_Q exists",
+    "why_this_amendment_exists": "The frozen estimand do(pi_A at agent i) was ambiguous between two readings that measure different failures. Resolved explicitly rather than by an implementer's default.",
+    "MODE_1_SINGLE_MACRO": {
+      "definition": "the specialist supplies the macro and target at s_t ONLY. V4 resumes control of that agent as soon as the committed macro expires (its macro_commit_*_ticks).",
+      "measures": "is the missing strategic value locally recoverable at ONE decision",
+      "this_is_the_decision_problem_probe": true
+    },
+    "MODE_2_FULL_TAKEOVER": {
+      "definition": "the specialist drives the intervened agent for the remainder of the episode. V4 continues to drive the other agent. Each branch follows its own commitment schedule.",
+      "measures": "does handing the agent to the specialist from here recover value",
+      "conflates": "the boundary decision with every subsequent decision, deliberately"
+    },
+    "BOTH_COLLECTED_FOR_EVERY_STATE": true,
+    "NEVER_POOLED": "the two modes are reported as separate estimands, exactly as individual and joint are",
+    "PREREGISTERED_DISCRIMINATION": {
+      "note": "Recorded BEFORE any delta_Q exists so the reading cannot be chosen after seeing the numbers.",
+      "single_macro_nonzero_AND_takeover_nonzero": "decision-level leverage: the boundary choice itself carries payoff. Points at decision-level causal distillation.",
+      "single_macro_near_zero_AND_takeover_nonzero": "SEQUENCE leverage: one macro is not enough, the value lives in the option sequence the specialist would go on to play. Points at option/segment-level distillation, and matches the leading suspect from V3.",
+      "single_macro_nonzero_AND_takeover_near_zero": "would require explanation. Recorded as a possibility so it cannot be quietly rationalised: a single correct macro helping while sustained specialist control does not is not an expected shape.",
+      "both_near_zero": "no local leverage at these boundaries. Points earlier, at visitation, rather than at decision or sequence.",
+      "these_are_readings_not_gates": "The existential claim scope from AMENDMENT_2 is unchanged, and none of these labels is a payoff gate."
+    },
+    "BUDGET": {
+      "rollouts": "one-free state: 2 modes x 2 policies x 16 = 64. both-free state: 2 modes x 3 estimands x 2 policies x 16 = 192.",
+      "total": "20 states at the audit's 0.325 both-free mix = ~2112 scalar rollouts",
+      "estimate": "~3.2 h ideal with 8 workers; budget 4-5 h for contention"
+    }
+  },
+  "AMENDMENT_4_MULTIPLICITY_TWO_FAMILIES": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:20:00Z",
+    "authority": "PI, 2026-09-01, before rollout #1",
+    "what_was_wrong": "AMENDMENT_2 froze Holm across 20 states. After the individual/joint distinction and AMENDMENT_3's two intervention modes, stage 2 produces 32 state-estimand contrasts x 2 modes = 64 distinct A-vs-B causal contrasts. Holm across 20 would not match what is actually tested.",
+    "PRIMARY_FAMILY": {
+      "family": "single_macro",
+      "n_tests": 32,
+      "correction": "Holm across the 32 state-estimand contrasts, familywise alpha = 0.05",
+      "test": "exact paired binomial on the DISCORDANT terminal outcomes: n_plus successes out of n_plus + n_minus, p = 0.5",
+      "label_on_success": "CAUSAL_LEVERAGE_CONFIRMED",
+      "why_primary": "it is the decision-repair hypothesis: is the missing strategic value locally recoverable at ONE live decision"
+    },
+    "SECONDARY_FAMILY": {
+      "family": "full_takeover",
+      "n_tests": 32,
+      "correction": "Holm across its own 32 contrasts, SEPARATELY, familywise alpha = 0.05",
+      "label_on_success": "SEQUENCE_LEVERAGE_CONFIRMED",
+      "cannot_rescue_the_primary": "A significant takeover contrast with no significant local contrast is NOT evidence for decision repair. It gets its own label and cannot retroactively rescue the local-decision hypothesis."
+    },
+    "THE_INTERPRETATION_THIS_PRESERVES": {
+      "local_positive": "delta_Q_local > 0 => decision repair",
+      "local_null_takeover_positive": "delta_Q_local ~ 0 AND delta_Q_takeover > 0 => sequence-level strategy",
+      "unchanged_from": "AMENDMENT_3's preregistered discrimination, now with the multiplicity correction that matches it"
+    },
+    "DESCRIPTIVE_LABEL_UNCHANGED": "any non-zero delta_Q_hat remains a 'candidate leverage boundary', reported alongside the corrected test in both families",
+    "supersedes": "AMENDMENT_2's 'Holm-corrected across the 20 states' clause",
+    "job_table_unchanged": "the 2048-job decomposition is not modified by this amendment"
+  },
+  "AMENDMENT_5_POWER_AND_THE_UNDERPOWERED_READING": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:35:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 delta_Q exists",
+    "POWER_CHARACTERISATION": {
+      "statement": "Phase 1 has HIGH sensitivity to strong, consistent causal leverage and LOW sensitivity to modest leverage. That is acceptable because the pilot's question is existential.",
+      "worst_case_bar": "For the SMALLEST Holm-ranked test in a family the multiplier is 32, so p_raw must be <= 0.0016. Unanimous discordance of 11 of 11 gives p_raw 9.8e-4 and clears; 10 of 10 gives 2.0e-3 and does not.",
+      "CORRECTION_TO_AN_EARLIER_STATEMENT": "The executing agent described '11 of 16 discordant and unanimous' as a requirement. That is wrong as stated. It is a worst-case SUFFICIENT condition for the first-ranked test only. A 10/10 contrast reached later in the ordered family faces a smaller multiplier and can still be significant. '10/10 cannot be guaranteed significant' is correct; '10/10 can never be significant' is not.",
+      "the_cost_of_M16": "This is the direct price of lowering M for runtime, recorded as a limitation of the pilot rather than discovered when a 9-vs-2 split fails to confirm."
+    },
+    "NEW_READING_SUGGESTIVE_BUT_UNDERPOWERED": {
+      "why_it_exists": "PI, 2026-09-01: 'If we instead see lots of candidate effects like 9:2, 8:3 that fail Holm, I would not call that no leverage. I would call it suggestive but underpowered, which is a very different conclusion and should matter when we decide what to train next.'",
+      "mechanical_criterion": "the PRIMARY family has 0 Holm-significant contrasts AND at least 4 of its 32 contrasts have delta_Q_hat >= +0.25 (a net imbalance of at least 4 of 16 in the pole-matched direction)",
+      "threshold_provenance": "The specific numbers (4 contrasts, +0.25) were proposed by the executing agent and are FROZEN as of AMENDMENT_6. They were fixed while collection was ongoing and before any Phase 1 outcome statistic had been inspected. They are not adjustable.",
+      "what_it_licenses": "a decision to re-run at higher M on the SAME frozen states, which is a power increase and not a re-analysis. It does NOT license calling leverage confirmed.",
+      "what_it_forbids": "reporting 'no leverage found' when the pattern is consistently directional but underpowered"
+    },
+    "READING_PRECEDENCE": [
+      "DECISION_LEVEL_LEVERAGE: primary family has >=1 Holm-significant contrast, and so does secondary",
+      "LOCAL_ONLY_REQUIRES_EXPLANATION: primary significant, secondary not",
+      "SEQUENCE_LEVERAGE: primary not significant, secondary significant",
+      "SUGGESTIVE_BUT_UNDERPOWERED: neither family significant, but the primary meets the criterion above",
+      "NO_LOCAL_LEVERAGE_FOUND: neither family significant and the primary does not meet the criterion"
+    ],
+    "ENTROPY_SMOKE_DOES_NOT_GENERALISE": {
+      "caution": "The three smoke states showed terminal outcomes fully robust to continuation randomness under ONE policy. That does not guarantee low outcome variance across all 20 states or across both specialist branches.",
+      "consequence": "Stage 2 must report the discordance distribution per contrast, and stage 3 must surface it rather than only the corrected tests, so a high-variance regime is visible rather than inferred."
+    }
+  },
+  "AMENDMENT_6_THRESHOLDS_CLOSED_AND_NO_SEQUENTIAL_CONFIRMATION": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T15:50:00Z",
+    "authority": "PI, 2026-09-01, during collection and before any outcome statistic was inspected",
+    "THRESHOLDS_CLOSED": {
+      "what": "the SUGGESTIVE_BUT_UNDERPOWERED trigger: 0 Holm-significant primary contrasts AND >= 4 of 32 with delta_Q_hat >= +0.25",
+      "status": "CLOSED. Not adjustable when collection completes, not adjustable at any later point.",
+      "why_now_rather_than_later": "PI: even with a promise not to look, freezing while nobody has inspected delta_Q makes the provenance materially cleaner. The record can state plainly that the criterion was fixed during collection and before any outcome statistic existed.",
+      "supersedes": "AMENDMENT_5's clause making these adjustable until collection completes"
+    },
+    "NO_SEQUENTIAL_CONFIRMATION": {
+      "the_trap": "If the pilot fails Holm, triggers SUGGESTIVE_BUT_UNDERPOWERED, and is then re-run with more continuation seeds on the same states, granting the second run a fresh alpha = 0.05 confirmation opportunity would be sequential testing conditioned on the first result. That inflates the familywise false-positive rate.",
+      "RULE_CHOSEN": "A higher-M re-run on the same frozen states is a POWER AND MEASUREMENT REFINEMENT ONLY.",
+      "what_it_may_do": "sharpen delta_Q estimates, inform the design of the next PPO treatment, and be reported descriptively",
+      "what_it_may_NOT_do": "produce CAUSAL_LEVERAGE_CONFIRMED or SEQUENCE_LEVERAGE_CONFIRMED. Formal confirmation is whatever the currently frozen M=16 families establish, and nothing else.",
+      "why_this_option": "PI: the alternative -- an explicit sequential alpha-spending rule frozen now -- adds complexity this program does not need for the paper. The simple rule is chosen deliberately, not by omission.",
+      "if_that_ever_changes": "a sequential alpha-spending rule must be frozen BEFORE any additional data is collected, never after seeing what a re-run produced"
+    },
+    "THE_THREE_OUTCOMES_ARE_NOW_A_DECISION_INSTRUMENT": {
+      "CAUSAL_LEVERAGE_CONFIRMED": "strong corrected evidence at M=16",
+      "SUGGESTIVE_BUT_UNDERPOWERED": "coherent positive effects this pilot cannot formally resolve",
+      "NO_LOCAL_LEVERAGE_FOUND": "neither pattern present",
+      "why_it_matters": "it replaces a false binary. 'Failed Holm' and 'no causal leverage' are not the same statement at M=16, and conflating them would send the successor program in the wrong direction."
+    }
+  },
+  "AMENDMENT_7_PHASE_1_IS_NOT_THE_CROSSOVER_CLAIM": {
+    "status": "FROZEN_AMENDMENT",
+    "utc": "2026-09-01T16:05:00Z",
+    "authority": "PI, 2026-09-01, before any Phase 1 outcome statistic was inspected",
+    "why_this_exists": "A Phase 1 positive is the sentence most likely to be misread later, including by us, as the crossover result. It is not. Recorded now so the distinction survives contact with a good outcome.",
+    "THE_CROSSOVER_OBJECTIVE_IS_UNCHANGED": {
+      "gate": "V(z0,A) > V(z1,A) AND V(z1,B) > V(z0,B), both LCB95 > 0, in a fresh end-to-end evaluation",
+      "owner": "CAUSAL_CROSSOVER_PROGRAM_OPENING.json#TARGET",
+      "phase_1_does_not_test_it": true
+    },
+    "WHAT_PHASE_1_ACTUALLY_MEASURES": "delta_Q(s) = Q(s, pole-matched specialist) - Q(s, other specialist), at specific live boundaries the deployed V4 policy actually reaches. It answers: at THIS decision boundary, does the correct specialist choice improve eventual winning?",
+    "THREE_REASONS_IT_IS_NOT_CROSSOVER": {
+      "1_wrong_policies": "The contrast is between the SAPPO specialists pi_A and pi_B, not between the latent policies z0 and z1. Phase 1 says nothing about whether a latent can carry the value.",
+      "2_conditioned_on_selected_states": "s_t ~ d^V4 at 20 chosen boundaries, not whole episodes from reset. It is a conditional statement about states, not a policy-level win rate.",
+      "3_learnability_is_untested": "Even a strong causal decision must then be LEARNED and PRESERVED by a new latent PPO often enough to move end-to-end win rates. Nothing in Phase 1 establishes that it can be."
+    },
+    "THE_CORRECT_FRAMING": {
+      "phase_1": "find the ingredients that crossover depends on",
+      "successor_training": "teach z0 and z1 those ingredients",
+      "fresh_EVAL": "did crossover actually happen",
+      "one_line": "Phase 1 measures the causal strategic value the crossover objective depends on. The crossover claim still requires a newly trained latent policy to reproduce that value end to end.",
+      "what_changed_vs_V1_to_V4": "not the finish line, but the map. The ladder searched for the finish line in fog; Phase 1 produces a chart of where strategic value actually sits."
+    },
+    "LANGUAGE_RULE": "No Phase 1 artifact, commit message, or writeup may describe a positive result as crossover, as evidence of crossover, or as partial crossover. The permitted phrasing is causal specialist leverage at the measured boundaries.",
+    "and_a_null_is_equally_bounded": "A null Phase 1 does not establish that crossover is impossible. It bounds where local specialist leverage was found at 20 boundaries under M=16."
+  }
+}

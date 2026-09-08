@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import torch
 import torch.nn.functional as F
 
+from rl import launch_audit_hooks
 from rl.custom_ppo.csv_writers import SCRIPTED_OPPONENT_MI_COUNT
 from rl.custom_ppo.curriculum_gates import is_staged_v6i1_curriculum
 from rl.custom_ppo.latent.context_buckets import episode_bucket_baseline_keys, strategy_experience_bucket_ids
@@ -282,6 +283,12 @@ class EpisodeCreditManager:
 
         opponent = resolve_opponent_id(trainer.cfg, info)
         opponent_id = opponent.value
+
+        # Runtime audit seam: z and the LIVE opponent are both known here, once per
+        # episode boundary. No-op unless auditors are explicitly attached; on a
+        # z->pole drift this raises rather than letting the run finish and be
+        # discovered invalid afterwards. See rl/launch_audit_hooks.py.
+        launch_audit_hooks.observe_episode_close(trainer, env_i, z_val, opponent_id)
 
         if is_forced_z:
             er = info.get("episode_result") if isinstance(info.get("episode_result"), dict) else {}

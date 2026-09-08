@@ -18,6 +18,15 @@ def get_blue_score(env: GPUCTFSingleEnv) -> int:
 
 def move_blue_agent_to_enemy_flag(env: GPUCTFSingleEnv):
     core = env.vec.core
+    # Clear red defenders out of tag range first. This helper exists to exercise
+    # the PICKUP/CAPTURE code path, not the tag rule. Under the Aquaticus-faithful
+    # ruleset a single eligible defender tags on its own, and at this seed a red
+    # agent sits 2.10 cells from the red flag -- inside tag_range_cells=2.5 -- so
+    # the teleported carrier would be tagged and drop the flag before pickup could
+    # be observed. (Under the superseded two-tagger rule that defender was
+    # harmless, which is why this fixture used to pass.)
+    core.red_x[0, :] = float(core.cols - 1)
+    core.red_y[0, :] = 0.0
     # Teleport blue agent 0 directly onto the red flag position
     core.blue_x[0, 0] = core.red_flag_pos[0, 0]
     core.blue_y[0, 0] = core.red_flag_pos[0, 1]

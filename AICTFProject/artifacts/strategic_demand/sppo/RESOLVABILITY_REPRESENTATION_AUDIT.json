@@ -1,0 +1,119 @@
+{
+  "record": "State-level resolvability representation audit",
+  "status": "DIAGNOSTIC_RESULT -- no kappa, no gates, no EVAL, no new seeds",
+  "utc": "2026-08-29T12:18:13Z",
+  "implements": "RESOLVABILITY_REPRESENTATION_AUDIT_SPEC.json",
+  "primary_metric": "pair-weighted within-cell AUC on CALIB",
+  "why_within_cell": "Global AUC is inflated by between-cell base rates, which per-cell thresholds provably cannot exploit -- the oracle bound was o*_min = 0.3455 against a 0.10 ceiling.",
+  "arms": {
+    "arm_1_cell_only": {
+      "input": "cell identity (pole x regime x horizon) -> FIT base rate",
+      "trainable_params": 0,
+      "global_auc": 0.7194,
+      "within_cell_auc_pair_weighted": 0.507,
+      "note": "within-cell AUC is 0.5 by construction; the score is constant inside a cell"
+    },
+    "arm_2_frozen_qpsi": {
+      "input": "Q_psi.encode(grid, vec, agent_mask, pole) -> h(256), FROZEN",
+      "trainable_params": 2065,
+      "global_auc": 0.7109,
+      "within_cell_auc_pair_weighted": 0.5526,
+      "probe2_reference": {
+        "global_auc": 0.7041,
+        "within_cell_auc": 0.5449
+      }
+    },
+    "arm_3_dedicated_encoder": {
+      "input": "IDENTICAL raw inputs to arm 2 (grid, vec, agent_mask, pole)",
+      "architecture": "Conv(14->16,s2) ReLU Conv(16->16,s2) ReLU GAP -> MLP(62->16->1)",
+      "trainable_params": 5377,
+      "global_auc": 0.678,
+      "within_cell_auc_pair_weighted": 0.5198
+    }
+  },
+  "arm3_minus_arm2_within_cell": -0.0329,
+  "per_cell_within_auc": {
+    "arm_1": {
+      "A_r0_late": 0.6339,
+      "A_r0_not_late": 0.5833,
+      "A_r1_late": 0.5441,
+      "A_r1_not_late": 0.4115,
+      "A_r2_late": 0.775,
+      "A_r2_not_late": 0.5104,
+      "A_r3_late": 0.3651,
+      "A_r3_not_late": 0.5833,
+      "B_r0_late": 0.4396,
+      "B_r0_not_late": 0.2626,
+      "B_r1_late": 0.4462,
+      "B_r1_not_late": 0.632,
+      "B_r2_late": 0.3571,
+      "B_r2_not_late": 0.5,
+      "B_r3_late": null,
+      "B_r3_not_late": 0.2727
+    },
+    "arm_2": {
+      "A_r0_late": 0.6696,
+      "A_r0_not_late": 0.3269,
+      "A_r1_late": 0.4706,
+      "A_r1_not_late": 0.4323,
+      "A_r2_late": 0.375,
+      "A_r2_not_late": 0.5573,
+      "A_r3_late": 0.7619,
+      "A_r3_not_late": 0.6481,
+      "B_r0_late": 0.5121,
+      "B_r0_not_late": 0.7071,
+      "B_r1_late": 0.6538,
+      "B_r1_not_late": 0.5152,
+      "B_r2_late": 0.75,
+      "B_r2_not_late": 0.3571,
+      "B_r3_late": null,
+      "B_r3_not_late": 0.9091
+    },
+    "arm_3": {
+      "A_r0_late": 0.6964,
+      "A_r0_not_late": 0.4103,
+      "A_r1_late": 0.5,
+      "A_r1_not_late": 0.4896,
+      "A_r2_late": 0.15,
+      "A_r2_not_late": 0.4271,
+      "A_r3_late": 0.6032,
+      "A_r3_not_late": 0.625,
+      "B_r0_late": 0.4396,
+      "B_r0_not_late": 0.5253,
+      "B_r1_late": 0.6231,
+      "B_r1_not_late": 0.4892,
+      "B_r2_late": 0.6071,
+      "B_r2_not_late": 0.5714,
+      "B_r3_late": null,
+      "B_r3_not_late": 0.9697
+    }
+  },
+  "VERDICT": "REPRESENTATION_IS_NOT_THE_BINDING_LIMIT",
+  "reading": "Arm 3 reaches only 0.5198 within-cell, against arm 2's 0.5526, from identical inputs. Enlarging or unfreezing Q_psi is unlikely to help. The limit lies in observation sufficiency or in the target itself -- and per the frozen spec's ARM_4 note, those two remain ENTANGLED because no privileged-state collection exists.",
+  "arm_4_full_state_oracle": "INFEASIBLE -- no privileged state was ever collected; see the frozen spec",
+  "does_not_alter": "the CALIBRATION_FAILED verdicts of probe 1 or probe 2",
+  "EVAL_touched": false,
+  "THE_DECISIVE_OBSERVATION": {
+    "utc": "2026-08-29T12:18:55Z",
+    "finding": "A ZERO-PARAMETER cell lookup achieves the HIGHEST global AUC of the three arms: 0.7194, against 0.7109 for the frozen Q_psi head and 0.6780 for the dedicated encoder. Knowing nothing but which regime a state belongs to beats both learned models.",
+    "global_auc": {
+      "arm_1_cell_only_zero_params": 0.7194,
+      "arm_2_frozen_qpsi_2065_params": 0.7109,
+      "arm_3_dedicated_encoder_5377_params": 0.678
+    },
+    "within_cell_auc": {
+      "arm_1": 0.507,
+      "arm_2": 0.5526,
+      "arm_3": 0.5198
+    },
+    "what_it_means": "The ~0.70 global AUC reported for probe 2 was ENTIRELY a regime base rate. It was never evidence of state-level resolvability prediction. Both learned representations sit at or below what a lookup table achieves, and within a cell all three are close to chance.",
+    "why_this_is_stronger_than_arm_3_merely_failing": "If arm 3 had simply underperformed arm 2, the reading would be 'this particular encoder was inadequate'. But arm 1 has no parameters and cannot overfit, cannot be under-trained, and encodes nothing except the cell. Being beaten by it means the learned models extracted no usable state-level signal at all -- not that they extracted it poorly.",
+    "arm_2_reproducibility_note": "Arm 2 here scores 0.7109 global / 0.5526 within-cell against probe 2's 0.7041 / 0.5449. Different head seed, same conclusion -- the small gap is seed noise, which is itself a useful check that neither number is fragile."
+  },
+  "CONSEQUENCE_FOR_THE_PROGRAMME": {
+    "closed": "Threshold machinery (o*_min = 0.3455 with oracle knowledge) and representation improvement (a zero-parameter baseline wins) are both exhausted as routes to state-level abstention under this target.",
+    "still_entangled": "Observation insufficiency versus genuine target difficulty. No privileged-state collection exists, so this audit cannot separate them -- recorded in the frozen spec before the result was known.",
+    "what_survives_intact": "Direction prediction. CALIB accuracy 0.7241 on resolvable states, above tau=0.70. The project can predict WHICH strategy is preferred where a preference exists. What it cannot do is recognise WHERE that is, at the level of individual states.",
+    "not_established": "That abstaining supervision is impossible in principle. Only that, under terminal win margin as the target and the policy observation as the input, state-level resolvability is not predictable at the frozen constraints."
+  }
+}

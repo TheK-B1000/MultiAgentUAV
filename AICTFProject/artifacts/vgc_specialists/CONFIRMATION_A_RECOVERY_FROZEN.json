@@ -1,0 +1,89 @@
+{
+  "protocol_id": "CONFIRMATION_A_EPISODE_ROW_RECOVERY",
+  "status": "FROZEN",
+  "frozen_utc": "2026-08-15T22:00:00Z",
+  "authorized_by": "PI, after Confirmation A scoring returned gate3 BLOCKED",
+
+  "this_is_not_a_replication": {
+    "it_is": "a deterministic REPLAY to recover episode-level records that the frozen Gate 3 estimator requires and the evaluator failed to persist",
+    "it_is_not": "Confirmation A v2, a rerun hoping for a better outcome, or a new sample",
+    "naming_rule": "refer to this as CONFIRMATION_A_EPISODE_ROW_RECOVERY. Never as 'Confirmation A v2'.",
+    "why_it_is_legitimate": "evaluation is deterministic given (checkpoint, opponent, seed). Every input is byte-identical to the original run; the only difference is that per-episode rows are written to disk instead of discarded."
+  },
+
+  "the_defect_being_repaired": {
+    "what_happened": "run_crossplay_eval.py built `all_rows` in memory and wrote only per-cell aggregates. Block 9300000 therefore has win rates but no per-episode outcomes.",
+    "why_it_blocks_gate3": "SPECIALIST_PILOT_FROZEN.delta_pool_definition.SPLIT_HALF_ORACLE selects the per-opponent argmax AND the fixed comparator on half the episodes (by eval_seed parity) and scores both on the other half. Aggregates cannot be split.",
+    "gate3_status_is_BLOCKED_not_FAIL": "we do not have the data required to evaluate it. Writing gate3 = FAIL would misreport an engineering defect as a scientific result."
+  },
+
+  "unchanged_from_the_original_run": {
+    "checkpoints": "the same five, verified by checkpoint_sha256 recorded in specialist_pilot_summary.json",
+    "policy_set": "S_OP7, S_OP8, vgc_d1_seed3600001, vgc_d3_seed3700001, g0_v5_long_seed3200001",
+    "opponent_board": ["OP6", "OP7", "OP8", "OP9", "OP10", "OP11", "OP12"],
+    "eval_seed_base": 9300000,
+    "eval_seeds": "9300000-9300059",
+    "episodes_per_cell": 60,
+    "evaluator": "experiments/run_crossplay_eval.py",
+    "action_selection": "deterministic",
+    "map": "map_a",
+    "ruleset": "RULESET_V2",
+    "team_size": "2v2",
+    "estimator": "the already-frozen split-half oracle and AMENDMENT_1 symmetric V_fixed selection, unchanged"
+  },
+
+  "the_only_software_change": {
+    "change": "per-episode rows persisted to <tag>_episode_rows.csv",
+    "properties": "additive and write-only. `all_rows` already existed in memory; no RNG, no policy load, no episode loop, and no aggregation path is touched.",
+    "commit": "39bd2268",
+    "consequence_if_it_were_not_write_only": "the acceptance check below would detect it"
+  },
+
+  "output_isolation": {
+    "tag": "specialist_pilot_recovery",
+    "rule": "the recovery run writes to its OWN tag. It must not overwrite specialist_pilot_summary.json, which is the original evidence.",
+    "original_preserved": "artifacts/vgc_diversity/crossplay/specialist_pilot_summary.json"
+  },
+
+  "ACCEPTANCE_GATE": {
+    "name": "REPLAY_EQUIVALENCE",
+    "rule": "for all 35 cells, the replayed per-cell win_rate must EXACTLY equal the original, and n must be 60",
+    "cells": 35,
+    "tolerance": 0.0,
+    "why_exact": "deterministic evaluation on identical inputs must reproduce identical aggregates. Any tolerance would let a genuine behavioural change hide inside it.",
+    "on_mismatch": "BLOCKED_REPLAY_MISMATCH -- do not score gate3, do not reinterpret, do not adjust the tolerance. A mismatch means the persistence patch was not write-only, or some input was not what we believe it was, and that must be diagnosed before any number from the replay is used.",
+    "doubles_as": "an integrity test of the persistence patch itself"
+  },
+
+  "what_is_computed_only_after_the_acceptance_gate_passes": [
+    "Gate 3 delta_pool via SPLIT_HALF_ORACLE",
+    "SELECTED_POLICY_PER_OPPONENT (half-A selection)",
+    "SPECIALIST_INCREMENTAL_VALUE (both mappings chosen on half A, per AMENDMENT_1)",
+    "paired episode-level bootstrap CI"
+  ],
+
+  "what_is_NOT_recomputed": {
+    "gate1": "FAIL, already scored on the original run -- LCB95 -.128",
+    "gate2": "FAIL, already scored on the original run -- LCB95 -.275",
+    "rule": "Gate 1 and Gate 2 stand as originally scored. They need only per-cell proportions, which were never missing. Do not rescore or reinterpret them; the recovery adds Gate 3 and the attribution diagnostics and nothing else.",
+    "artifact": "the original CONFIRMATION_A_RESULT.json is not edited; Gate 3 lands in CONFIRMATION_A_GATE3_RESULT.json"
+  },
+
+  "scientific_result_unaffected": {
+    "specialist_hypothesis": "already FAILED and is not revisited. S_OP7 beats or ties S_OP8 on 7 of 7 opponents; gate2 fails on direction alone.",
+    "do_not_rerun": "the 1M-step specialist TRAINING runs. Those have spoken. Only the deterministic evaluation is replayed."
+  },
+
+  "why_gate3_still_matters_after_the_specialists_failed": {
+    "question_gate3_answers": "does the five-policy population contain useful held-out repertoire value at all, and which policies carry it?",
+    "if_PASS": "the specialist experiment failed while the VGC population still uncovered a useful repertoire -- the selected policies become candidate latent teachers",
+    "if_FAIL": "even the full five-policy population lacks sufficient selective value, which strengthens the case for the VGC-4 gauntlet",
+    "confirmation_B_cannot_answer_it": "B evaluates two policies, so V_fixed over the five-policy set is undefined on block 9200000"
+  },
+
+  "scheduling": {
+    "must_not_interrupt": "Confirmation B, currently running on block 9200000",
+    "launch_condition": "Confirmation B complete AND scored AND the GPU free",
+    "estimated_cost": "~15h GPU, 2100 episodes"
+  }
+}

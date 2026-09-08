@@ -1,0 +1,431 @@
+{
+  "experiment": "v6i26_strategic_landscape_scan",
+  "lro": {
+    "protocol": "v6i26_latent_response_oracle",
+    "claim": "B_population_guided_lro",
+    "classification": "DIAGNOSTIC",
+    "paper_claim": "Summer autonomously discovers a population of task-reward-optimal latent team strategies through response-oracle training, stores them within a single latent-conditioned decentralized policy, and learns a persistent context router that outperforms fixed-strategy and non-latent PPO agents.",
+    "stages": {
+      "0_landscape_scan": "policy\u00d7opponent\u00d7map payoff; promote if G_available>0",
+      "1_lro_birth": "router OFF; one branch BR per round; league/mixture driven",
+      "2_sparse_router": "freeze branches; train q_phi with switch cost",
+      "3_headline": "LRO-Summer vs K=1 / matched non-latent / end-to-end Summer"
+    },
+    "phase_context_axis": {
+      "protocol": "v6i26_phase_pod_exclusive_birth",
+      "classification": "DIAGNOSTIC",
+      "path": "C_phase_pod_psro",
+      "claim": "B_population_guided",
+      "pods": [
+        {
+          "pod_id": "open_pressure",
+          "member_id": 0,
+          "label": "open_pressure",
+          "description": "No carriers; early scramble \u2014 early pressure / race",
+          "seed_offset": 0
+        },
+        {
+          "pod_id": "intercept",
+          "member_id": 1,
+          "label": "intercept",
+          "description": "Red has flag carrier mid-field \u2014 intercept and deny",
+          "seed_offset": 100
+        },
+        {
+          "pod_id": "escort",
+          "member_id": 2,
+          "label": "escort",
+          "description": "Blue has flag carrier mid-field \u2014 protect and convert",
+          "seed_offset": 200
+        },
+        {
+          "pod_id": "defend_lead",
+          "member_id": 3,
+          "label": "defend_lead",
+          "description": "Blue score lead + late clock \u2014 stall / home defense",
+          "seed_offset": 300
+        }
+      ],
+      "pod_to_z": {
+        "open_pressure": 0,
+        "intercept": 1,
+        "escort": 2,
+        "defend_lead": 3
+      },
+      "note": "Exclusive scenario injection at episode start; no z-role rewards; contract specialist OFF; router OFF during birth."
+    },
+    "pod_to_z": {
+      "open_pressure": 0,
+      "intercept": 1,
+      "escort": 2,
+      "defend_lead": 3
+    },
+    "phase_ids": [
+      "open_pressure",
+      "intercept",
+      "escort",
+      "defend_lead"
+    ]
+  },
+  "policies": [
+    {
+      "policy_id": "v6i24_m0",
+      "label": "v6i24_balanced",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_0_balanced.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i24_m1",
+      "label": "v6i24_failure_cells",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_1_failure_cells.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i24_m2",
+      "label": "v6i24_high_variance",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_2_high_variance.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i24_m3",
+      "label": "v6i24_complementary",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i24_population_seed1\\probe_05u\\member_3_complementary.zip",
+      "kind": "teacher"
+    },
+    {
+      "policy_id": "v6i23_donor",
+      "label": "v6i23_population_birth",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\v6i23_population_birth_5u_seed1\\final_v6i23_population_birth_5u_seed1_2v2.zip",
+      "kind": "checkpoint"
+    }
+  ],
+  "opponents": [
+    "OP8",
+    "OP9",
+    "OP10",
+    "OP11",
+    "OP12"
+  ],
+  "maps": [
+    "map_b_split_lane",
+    "map_b_split_lane_v2"
+  ],
+  "episodes_per_cell": 4,
+  "seed": 1,
+  "payoff_matrix": [
+    [
+      1.0625,
+      0.7625,
+      0.5625,
+      0.5625,
+      1.1375,
+      1.125,
+      0.8125000000000001,
+      0.5375000000000001,
+      0.5125000000000001,
+      0.7875000000000001
+    ],
+    [
+      1.1,
+      1.1375,
+      0.2625,
+      0.8375,
+      0.7875000000000001,
+      1.1375,
+      1.05,
+      1.1125,
+      0.5125000000000001,
+      1.1375
+    ],
+    [
+      0.7749999999999999,
+      0.5000000000000001,
+      0.0,
+      0.7875000000000001,
+      0.5625,
+      1.0875000000000001,
+      0.7875,
+      1.05,
+      0.7750000000000001,
+      1.05
+    ],
+    [
+      1.075,
+      0.0,
+      0.525,
+      -0.037500000000000006,
+      1.0750000000000002,
+      -0.15000000000000002,
+      0.2625,
+      -0.15000000000000002,
+      -0.037500000000000006,
+      -0.15000000000000002
+    ],
+    [
+      0.8,
+      0.7625000000000001,
+      0.5625,
+      0.8250000000000001,
+      0.7875000000000001,
+      1.125,
+      0.18750000000000003,
+      0.5,
+      0.225,
+      0.22499999999999998
+    ]
+  ],
+  "winrate_matrix": [
+    [
+      1.0,
+      0.75,
+      0.5,
+      0.5,
+      1.0,
+      1.0,
+      0.75,
+      0.5,
+      0.5,
+      0.75
+    ],
+    [
+      1.0,
+      1.0,
+      0.25,
+      0.75,
+      0.75,
+      1.0,
+      1.0,
+      1.0,
+      0.5,
+      1.0
+    ],
+    [
+      0.75,
+      0.5,
+      0.0,
+      0.75,
+      0.5,
+      1.0,
+      0.75,
+      1.0,
+      0.75,
+      1.0
+    ],
+    [
+      1.0,
+      0.0,
+      0.5,
+      0.0,
+      1.0,
+      0.0,
+      0.25,
+      0.0,
+      0.0,
+      0.0
+    ],
+    [
+      0.75,
+      0.75,
+      0.5,
+      0.75,
+      0.75,
+      1.0,
+      0.25,
+      0.5,
+      0.25,
+      0.25
+    ]
+  ],
+  "contexts": [
+    "OP8|map_b_split_lane",
+    "OP8|map_b_split_lane_v2",
+    "OP9|map_b_split_lane",
+    "OP9|map_b_split_lane_v2",
+    "OP10|map_b_split_lane",
+    "OP10|map_b_split_lane_v2",
+    "OP11|map_b_split_lane",
+    "OP11|map_b_split_lane_v2",
+    "OP12|map_b_split_lane",
+    "OP12|map_b_split_lane_v2"
+  ],
+  "summary": {
+    "n_policies": 5,
+    "n_contexts": 10,
+    "unique_best_count": 3,
+    "unique_best_indices": [
+      0,
+      1,
+      2
+    ],
+    "unique_best_labels": [
+      "v6i24_balanced",
+      "v6i24_failure_cells",
+      "v6i24_high_variance"
+    ],
+    "cells_with_margin_ge": 3,
+    "margin_threshold": 0.1,
+    "best_by_context": {
+      "OP8|map_b_split_lane": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.1,
+        "margin_vs_second": 0.025000000000000133
+      },
+      "OP8|map_b_split_lane_v2": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.1375,
+        "margin_vs_second": 0.3749999999999999
+      },
+      "OP9|map_b_split_lane": {
+        "best_policy": "v6i24_balanced",
+        "best_index": 0,
+        "payoff": 0.5625,
+        "margin_vs_second": 0.0
+      },
+      "OP9|map_b_split_lane_v2": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 0.8375,
+        "margin_vs_second": 0.012499999999999956
+      },
+      "OP10|map_b_split_lane": {
+        "best_policy": "v6i24_balanced",
+        "best_index": 0,
+        "payoff": 1.1375,
+        "margin_vs_second": 0.06249999999999978
+      },
+      "OP10|map_b_split_lane_v2": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.1375,
+        "margin_vs_second": 0.012499999999999956
+      },
+      "OP11|map_b_split_lane": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.05,
+        "margin_vs_second": 0.23749999999999993
+      },
+      "OP11|map_b_split_lane_v2": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.1125,
+        "margin_vs_second": 0.0625
+      },
+      "OP12|map_b_split_lane": {
+        "best_policy": "v6i24_high_variance",
+        "best_index": 2,
+        "payoff": 0.7750000000000001,
+        "margin_vs_second": 0.26250000000000007
+      },
+      "OP12|map_b_split_lane_v2": {
+        "best_policy": "v6i24_failure_cells",
+        "best_index": 1,
+        "payoff": 1.1375,
+        "margin_vs_second": 0.08749999999999991
+      }
+    },
+    "best_fixed_index": 0,
+    "best_fixed_label": "v6i24_balanced",
+    "oracle_test_mean": 1.0725,
+    "best_fixed_test_mean": 0.7550000000000001,
+    "G_available_point": 0.3174999999999999,
+    "max_pairwise_row_distance": 0.8968608419999085,
+    "niche_signal": true,
+    "parallel_rows": false
+  },
+  "next_response_target": {
+    "target_context": "OP12|map_b_split_lane_v2",
+    "target_context_index": 9,
+    "target_regret": 0.5274999999999999,
+    "mixture_weights": {
+      "OP8|map_b_split_lane": 0.06376579113620931,
+      "OP8|map_b_split_lane_v2": 0.1329824091524012,
+      "OP9|map_b_split_lane": 0.06942290508151655,
+      "OP9|map_b_split_lane_v2": 0.07866645750052559,
+      "OP10|map_b_split_lane": 0.08269977302459544,
+      "OP10|map_b_split_lane_v2": 0.08353091956131535,
+      "OP11|map_b_split_lane": 0.11445902028169233,
+      "OP11|map_b_split_lane_v2": 0.13231915661974636,
+      "OP12|map_b_split_lane": 0.10305026279080637,
+      "OP12|map_b_split_lane_v2": 0.13910330485119157
+    },
+    "branch_to_train_index": 3,
+    "branch_to_train_label": "v6i24_complementary",
+    "acceptance_requires": [
+      "competent_mean",
+      "best_on_ge_1_heldout_context",
+      "increases_G_available",
+      "not_duplicate_payoff_row"
+    ]
+  },
+  "cross_fitted_oracle": {
+    "context_oracle_mean": 0.665,
+    "best_fixed_mean": 0.6700000000000002,
+    "best_fixed_idx": 1,
+    "best_fixed_member": "v6i24_failure_cells",
+    "delta": -0.005000000000000023,
+    "ci_low": -0.35000000000000003,
+    "ci_high": 0.33999999999999997,
+    "gate_cross_fitted_oracle": false,
+    "n_heldout": 10,
+    "n_train_episodes": 3,
+    "n_test_episodes": 1,
+    "pi_star_per_context": [
+      {
+        "context": "OP8|map_b_split_lane",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP8|map_b_split_lane_v2",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP9|map_b_split_lane",
+        "member": "v6i23_population_birth",
+        "idx": 4
+      },
+      {
+        "context": "OP9|map_b_split_lane_v2",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP10|map_b_split_lane",
+        "member": "v6i24_balanced",
+        "idx": 0
+      },
+      {
+        "context": "OP10|map_b_split_lane_v2",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP11|map_b_split_lane",
+        "member": "v6i24_high_variance",
+        "idx": 2
+      },
+      {
+        "context": "OP11|map_b_split_lane_v2",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      },
+      {
+        "context": "OP12|map_b_split_lane",
+        "member": "v6i24_balanced",
+        "idx": 0
+      },
+      {
+        "context": "OP12|map_b_split_lane_v2",
+        "member": "v6i24_failure_cells",
+        "idx": 1
+      }
+    ],
+    "unique_train_best_policies": 4
+  },
+  "decision": "PROMOTE_LRO_BIRTH",
+  "note": "Archived policies show niches; proceed to Stage-1 LRO oracle rounds."
+}

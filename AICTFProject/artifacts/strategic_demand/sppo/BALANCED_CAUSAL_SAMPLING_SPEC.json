@@ -1,0 +1,109 @@
+{
+  "record_id": "BALANCED_CAUSAL_SAMPLING_SPEC",
+  "name": "Balanced z0/z1 causal-bank sampling (BCS) -- fifth crossover-preservation attempt",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "utc": "2026-09-04T09:10:00Z",
+  "authority": "PI, 2026-09-04, choosing 'one more attempt: balanced bank' after CCP-S2, RSCFT, trunk-freeze, and SAC-RFT all failed the primary crossover gate. This is a fresh authorization, not covered by the earlier RSCFT-termination-rule override (which was spent by trunk-freeze) or by SAC_RFT_SPEC.json's own activation (spent by SAC-RFT).",
+
+  "NOT_A_NEW_HYPOTHESIS": {
+    "note": "this mechanism was identified and logged BEFORE CCP-S2 ever launched, specifically so it could not become a post-hoc explanation: CCP_S2_TREATMENT_RESULT.json#launch_manifest.documented_treatment_asymmetry_not_corrected, written 2026-09-03T04:22:29Z, before any CCP-S2 training step.",
+    "verbatim_prelaunch_caveat": {
+      "N_causal_anchors": 5, "N_usable_supervision_targets": 486,
+      "N_behavior_changing_targets": 228,
+      "behavior_changing_by_latent": {"z0": 177, "z1": 51},
+      "implication_if_outcome_is_asymmetric": "a pre-existing 3.5x z0/z1 imbalance in behaviour-changing supervision is already on record as a candidate explanation for a delta_A > 0, delta_B <= 0 outcome -- to be investigated, never assumed"
+    },
+    "why_investigating_it_now_is_not_p_hacking": "the caveat predates all four outcomes it might explain (CCP-S2, RSCFT, trunk-freeze, SAC-RFT), was logged with the explicit intent of being tested later rather than assumed, and this spec is frozen before this experiment's own training run starts -- the same boundary every prior stage in this program has protected."
+  },
+
+  "MECHANISM_CONFIRMED_BEFORE_FREEZING_THIS_SPEC": {
+    "source": "CCP_S2_CAUSAL_BANK_ARRAY.json#rows_by_latent, read directly from disk 2026-09-04",
+    "rows_by_latent": {"z0": 453, "z1": 319},
+    "n_rows_total": 772,
+    "nonzero_segments_rolled_out": "5 of 100 candidate segments passed CCP-S2's strictly-positive-over-both routing gate",
+    "segment_composition": "3 segments tagged latent=0 (rows 214+123+116=453), 2 segments tagged latent=1 (rows 229+90=319) -- confirmed by reading CCP_S2_CAUSAL_BANK_ARRAY.json#segments directly, not inferred",
+    "sampling_code_confirmed": "rl/causal_sequence_runner.py:CausalSequenceRunner.step() draws batch_rows indices via torch.randint(0, self.n_rows, ...) -- UNIFORM over all 772 rows, no stratification by z_idx. The ~59/41 z0/z1 exposure ratio measured in every one of the four prior training runs (CCP-S2, RSCFT, trunk-freeze, SAC-RFT -- all reused this identical bank and this identical unmodified sampler) is a direct, mechanical consequence of this uniform draw over an already-imbalanced row pool, not a separate bug.",
+    "what_this_experiment_changes": "ONLY the sampling procedure. Same bank, same 5 segments, same routing, same segment weights, same loss function, same lambda/cadence/batch_rows. rl/causal_sequence_runner.py:BalancedCausalSequenceRunner (new, additive subclass -- CausalSequenceRunner itself is untouched, so every prior arm's code path remains exactly reproducible) pre-partitions bank rows by z_idx and draws an EQUAL count from each latent's own pool every step, guaranteeing exact per-step balance regardless of the 453/319 underlying skew.",
+    "what_this_experiment_does_NOT_change": "segment DIVERSITY. There are still only 3 distinct z0 segments and 2 distinct z1 segments. Balancing exposure COUNT means revisiting that same small pool more evenly; it does not enlarge it. If the true bottleneck is insufficient z1 supervision diversity (not merely under-sampling of the z1 rows that already exist), this experiment will not fix it -- that would require re-collecting Stage A/B data, explicitly out of scope given the deadline. This limitation is disclosed here, before the run, not discovered after a FAIL."
+  },
+
+  "THE_ONE_CHANGED_VARIABLE": {
+    "changed": "causal-bank row sampling: uniform-over-all-rows (CausalSequenceRunner, reproducing CCP-S2's original TREATMENT recipe exactly) REPLACED BY balanced-per-latent (BalancedCausalSequenceRunner)",
+    "unchanged": [
+      "warm-start checkpoint (original incumbent, final_ccp_successor_production.zip, where delta_A = +0.0938)",
+      "full network trainable -- NO trunk freezing this time; that variable was already tested separately by TRUNK_FREEZE_SPEC.json and is not conflated with this one",
+      "critic", "Stage A/B causal bank contents and routing", "lambda_causal = 0.05",
+      "cadence = 4", "batch_rows = 48 (24/24 split under balancing, since 48 is evenly divisible by 2 latents)",
+      "500k additional steps (matched horizon to every prior stage for comparability)",
+      "latent assignments", "rewards / returns / GAE", "primary EVAL gate shape",
+      "no retention mechanism of any kind (this is not a fifth retention variant -- it tests supervision balance, orthogonal to RSCFT's/SAC-RFT's retention-teacher question)"
+    ]
+  },
+
+  "ARMS": {
+    "UNBALANCED_CONTROL": {
+      "role": "CONTROL",
+      "mechanism": "CausalSequenceRunner (unmodified, uniform-over-all-rows sampling) -- this reproduces CCP-S2's original TREATMENT recipe under a FRESH matched seed, not a reuse of the old checkpoint, to preserve this program's matched-seed-pair discipline",
+      "start_checkpoint": "original incumbent (final_ccp_successor_production.zip)",
+      "ppo": true, "lambda_causal": 0.05, "cadence": 4, "batch_rows": 48,
+      "horizon": "+500000 additional steps"
+    },
+    "BALANCED_TREATMENT": {
+      "role": "TREATMENT",
+      "mechanism": "BalancedCausalSequenceRunner -- equal-count-per-latent sampling every step",
+      "start_checkpoint": "the SAME original incumbent",
+      "ppo": true, "lambda_causal": 0.05, "cadence": 4, "batch_rows": 48,
+      "horizon": "+500000 additional steps"
+    }
+  },
+
+  "SEEDS": {
+    "training_seed": 11901001,
+    "shared_by_both_arms": true,
+    "derived_environment_range": "11901001..11901321",
+    "sealed_eval_block": "11902001..11902064",
+    "eval_n": 64,
+    "disjointness_confirmed": "grepped 11901001, 11901321, 11902001, 11902064 against every JSON under artifacts/strategic_demand/sppo/ before freezing -- zero matches"
+  },
+
+  "MECHANICAL_PREFLIGHT_REQUIRED_BEFORE_ANY_GPU_PRODUCTION_RUN": [
+    "BalancedCausalSequenceRunner.self_test(): after 8 real steps against the real bank and a real trainer, gained z0/z1 exposure counts match the exact target split (24/24 per step x 8 = 192/192), not merely balanced on average",
+    "CausalSequenceRunner (parent, used by CONTROL) reproduces its historically-measured imbalance under the same real bank -- a contrast/positive-control check confirming the two classes genuinely differ in behavior, not just in name",
+    "both classes produce nonzero gradients through causal_supervision_loss (loss.backward() moves real parameters)",
+    "segment_bank_hash freshly rebuilt and verified against CCP_S2_CAUSAL_BANK_ARRAY.json before either class loads the npz",
+    "--verify-steps wiring check under REAL training (same pattern as every prior stage), confirming actor parameters move, causal telemetry is nonzero, and z0_exposures/z1_exposures are within 1 row of exactly equal for BALANCED_TREATMENT specifically"
+  ],
+
+  "EVAL_PROTOCOL": {
+    "seeds_per_cell": 64,
+    "block": "11902001..11902064",
+    "shared_seeds_across_arms": true,
+    "PRIMARY_GATE": {
+      "delta_A": "V(z0,A) - V(z1,A)",
+      "delta_B": "V(z1,B) - V(z0,B)",
+      "criterion": "delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
+      "rule": "same primary gate as every prior stage. No mercy, no reinterpretation."
+    },
+    "ATTRIBUTION": {
+      "Gamma_A": "delta_A_BALANCED_TREATMENT - delta_A_UNBALANCED_CONTROL",
+      "Gamma_B": "delta_B_BALANCED_TREATMENT - delta_B_UNBALANCED_CONTROL",
+      "statistic": "preregistered PAIRED bootstrap over the shared 64 seeds, n_boot=20000, alpha=0.05, rng_seed=7"
+    },
+    "PREREGISTERED_INTERPRETATION": [
+      {"balanced": "PASS", "unbalanced": "FAIL",
+       "reading": "balanced sampling recovered crossover where unbalanced sampling did not -- supports the supervision-imbalance hypothesis"},
+      {"balanced": "PASS", "unbalanced": "PASS",
+       "reading": "crossover recovered under both; balancing not necessary under this run"},
+      {"balanced": "FAIL", "unbalanced": "FAIL",
+       "reading": "balanced sampling also insufficient -- the bottleneck is more likely segment diversity (only 3 vs 2 distinct segments) than sampling weight, or the erosion mechanism is unrelated to the causal bank at all"}
+    ],
+    "tie_or_reversal": "any tie or reversal triggers a row-level integrity audit before interpretation, written before its rows are read -- same standard as every prior stage",
+    "one_shot": true
+  },
+
+  "PROGRAM_TERMINATION_RULE": {
+    "this_is_the_attempt_the_new_evidence_justifies": "this experiment operationalizes a mechanism that was on record before any of the four prior FAILs and was explicitly deferred ('to be investigated, never assumed') rather than invented after seeing them. If BALANCED_TREATMENT also fails the primary gate, the honest reading is that supervision-COUNT imbalance was not the dominant erosion mechanism (segment diversity, or something outside the causal bank entirely, remains open) -- and per the deadline reality (Sept 15, 4v4/6v6 locked and required regardless of this outcome), a further architecture attempt at 2v2 crossover requires a fresh, explicit PI authorization the same way this one did, not an assumed continuation."
+  },
+
+  "SEQUENCE": "confirm mechanism from real artifacts (done, this file's MECHANISM_CONFIRMED_BEFORE_FREEZING_THIS_SPEC section) -> implement BalancedCausalSequenceRunner (done, rl/causal_sequence_runner.py, additive) -> freeze this spec (done, this file) -> mechanical preflight incl. --verify-steps under real training -> UNBALANCED_CONTROL 500k -> BALANCED_TREATMENT 500k -> freeze models -> sealed EVAL 11902001..11902064"
+}

@@ -1,0 +1,36 @@
+Mean win margin  (rows = blue style, cols = red preset)
+             OP9_SPLIT_LANE_FEINT|map_b_split_lane
+BLUE_ESCORT              0.0000
+BLUE_RUSH                0.0000
+BLUE_SPLIT               2.1250
+BLUE_TURTLE              0.0000
+
+Win rate
+             OP9_SPLIT_LANE_FEINT|map_b_split_lane
+BLUE_ESCORT               0.125
+BLUE_RUSH                 0.000
+BLUE_SPLIT                1.000
+BLUE_TURTLE               0.000
+
+V_selective (cross-fit)  = 2.1250   (insample=2.1250)
+V_best_fixed (cross-fit) = 2.1250   (insample=2.1250, style=BLUE_SPLIT)
+delta_pool              = 0.0000   CI95=[0.0000, 0.0000]  LCB=0.0000
+V_hindsight             = 2.1250   (per-episode upper bound, NOT a gate)
+
+Best response by red preset:
+  OP9_SPLIT_LANE_FEINT|map_b_split_lane -> BLUE_SPLIT
+  distinct best responses: 1/1
+  DOMINATING blue style: BLUE_SPLIT
+
+best blue overall WR = 1.000   tie rate = 0.688
+
+Gates:
+  [FAIL] delta_pool_lcb_positive
+  [FAIL] no_dominating_blue_style
+  [FAIL] best_response_diversity
+  [FAIL] best_blue_wr_in_band
+  [FAIL] tie_rate_under_threshold
+  [PASS] no_degenerate_red_styles
+
+POOL ADMISSIBLE: False
+  -> iterate the red presets. Do not train latents on this pool.

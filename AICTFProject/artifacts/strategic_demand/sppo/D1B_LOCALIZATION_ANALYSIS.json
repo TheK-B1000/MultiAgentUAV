@@ -1,0 +1,57 @@
+{
+  "record": "D1B pre-specified localization follow-up",
+  "status": "DIAGNOSTIC_ONLY -- POSTMORTEM FOLLOW-UP, not independent confirmation, not a gate",
+  "utc": "2026-08-27T04:10:04Z",
+  "data_source": "D0_pole_b_decision_rows.csv (existing, no new seeds/rollouts)",
+  "bootstrap": {
+    "unit": "seed",
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "quartile_cutoff": "recomputed inside every replicate, identical to D0 Q2"
+  },
+  "populations": {
+    "all_rows_D0_reference": {
+      "qpsi_correct_rate_worst_quartile": {
+        "mean": 0.7087670437157598,
+        "lcb95": 0.6701684348757372,
+        "ucb95": 0.7447054627379964
+      },
+      "mean_margin_B_worst_quartile": {
+        "mean": -1.0906499470717084,
+        "lcb95": -1.1557170344619014,
+        "ucb95": -1.0283984335856444
+      },
+      "n_seeds": 192,
+      "n_bootstrap_replicates_with_data": 20000
+    },
+    "own_flag_stolen_excluded_EQUALS_own_flag_home_only": {
+      "qpsi_correct_rate_worst_quartile": {
+        "mean": 0.8227780342882672,
+        "lcb95": 0.8091842557244081,
+        "ucb95": 0.8355939583097559
+      },
+      "mean_margin_B_worst_quartile": {
+        "mean": -0.9179579643521855,
+        "lcb95": -0.9433835141721377,
+        "ucb95": -0.8934446822224001
+      },
+      "n_seeds": 192,
+      "n_bootstrap_replicates_with_data": 20000
+    },
+    "own_flag_stolen_only": {
+      "qpsi_correct_rate_worst_quartile": {
+        "mean": 0.21484916816743016,
+        "lcb95": 0.16643889226357036,
+        "ucb95": 0.2648823051948051
+      },
+      "mean_margin_B_worst_quartile": {
+        "mean": -2.204018549373647,
+        "lcb95": -2.2903603501256447,
+        "ucb95": -2.11268103456778
+      },
+      "n_seeds": 79,
+      "n_bootstrap_replicates_with_data": 20000
+    }
+  }
+}

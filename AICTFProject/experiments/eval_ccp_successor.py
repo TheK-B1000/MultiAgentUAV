@@ -1,0 +1,250 @@
+"""One-shot held-out payoff EVAL for the frozen CCP successor terminal checkpoint.
+
+Implements CCP_SUCCESSOR_EVAL_SPEC.json. Training validity (VALID) and trajectory identity
+(TRAJECTORY_IDENTITY_CONFIRMED) were both frozen before this evaluator existed. This file
+carries the V3/V4 six-cell payoff design and paired-bootstrap gate UNCHANGED -- _mean_ci and
+_ratio_ci are imported from eval_hog_psp_v3, the same code objects the whole ladder scored on.
+
+A confirmed identity does not predict a confirmed crossover: V3 had identity confirmed and
+payoff REVERSED. This measures payoff only.
+
+Run: python experiments/eval_ccp_successor.py --device cuda
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from experiments.eval_hog_psp_v3 import _mean_ci, _ratio_ci
+
+SD = ROOT / "artifacts" / "strategic_demand"
+SPEC = SD / "sppo" / "CCP_SUCCESSOR_EVAL_SPEC.json"
+FROZEN = SD / "sppo" / "CCP_SUCCESSOR_MODEL_FROZEN.json"
+MECHANISM = SD / "sppo" / "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json"
+OUT = SD / "sppo" / "CCP_SUCCESSOR_EVAL_RESULT.json"
+ROWS_CSV = SD / "sppo" / "ccp_successor_eval_rows.csv"
+
+EVAL_SEEDS = list(range(11_600_101, 11_600_133))
+N_BOOT, ALPHA, BOOTSTRAP_SEED = 20_000, 0.05, 7
+POLES = ("A", "B")
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _preflight() -> tuple[dict, dict, dict, Path]:
+    spec = json.loads(SPEC.read_text(encoding="utf-8"))
+    if spec["status"] != "FROZEN_BEFORE_EVAL_IS_OPENED":
+        raise SystemExit(f"REFUSING: eval spec is not frozen: {spec['status']!r}")
+    frozen = json.loads(FROZEN.read_text(encoding="utf-8"))
+    mechanism = json.loads(MECHANISM.read_text(encoding="utf-8"))
+
+    if frozen["TERMINAL_RECORD_VALIDITY"]["verdict"] != "VALID":
+        raise SystemExit("REFUSING: the successor training run was not established VALID")
+    if frozen["EVAL_STATE_AT_FREEZE"]["touched"]:
+        raise SystemExit("REFUSING: the EVAL block was not untouched at model freeze")
+    if mechanism["READING"] != "TRAJECTORY_IDENTITY_CONFIRMED":
+        raise SystemExit(f"REFUSING: frozen mechanism reading {mechanism['READING']!r} does "
+                         "not match the eval context recorded in the spec")
+    if mechanism["CCP_EVAL_touched"]:
+        raise SystemExit("REFUSING: mechanism record says the EVAL block was touched")
+
+    ck = ROOT / frozen["TERMINAL_CHECKPOINT"]["path"]
+    if not ck.is_file():
+        raise SystemExit(f"REFUSING: terminal checkpoint missing: {ck}")
+    actual = hashlib.sha256(ck.read_bytes()).hexdigest()
+    if actual != frozen["TERMINAL_CHECKPOINT"]["sha256"] or \
+       actual != spec["MODEL_UNDER_TEST"]["sha256"]:
+        raise SystemExit("REFUSING: terminal checkpoint identity mismatch")
+
+    if OUT.is_file() or ROWS_CSV.is_file():
+        raise SystemExit("REFUSING: a CCP successor EVAL output already exists; EVAL is one-shot")
+    if spec["SEEDS"]["block"] != "11600101..11600132":
+        raise SystemExit("REFUSING: eval seed block drifted from the frozen spec")
+    if [EVAL_SEEDS[0], EVAL_SEEDS[-1]] != [11_600_101, 11_600_132] or len(EVAL_SEEDS) != 32:
+        raise SystemExit("REFUSING: evaluator seed range does not match the frozen block")
+    gate = spec["PRIMARY_GATE_CROSSOVER"]
+    if (gate["n_boot"], gate["alpha"], gate["rng_seed"]) != (N_BOOT, ALPHA, BOOTSTRAP_SEED):
+        raise SystemExit("REFUSING: bootstrap settings drifted from the frozen spec")
+    return spec, frozen, mechanism, ck
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--device", default="cuda")
+    args = ap.parse_args()
+
+    import torch
+    from experiments.opponent_spec import (
+        assert_live_opponent_batch, install_keyed_opponent_overlays, pole_A_genome,
+    )
+    import experiments.phase0_collect_scorer_data as P0
+    import experiments.r2_learned_crossover as R2
+    from rl.curriculum import phase_from_tag
+    from rl.custom_ppo import load_custom_ppo_policy
+
+    spec, frozen, mechanism, ck_path = _preflight()
+    device = args.device if torch.cuda.is_available() or args.device == "cpu" else "cpu"
+
+    print(f"CCP SUCCESSOR HELD-OUT PAYOFF EVAL  {_now()}")
+    print("  terminal checkpoint sha256 VERIFIED against freeze record and eval spec")
+    print(f"  seeds {EVAL_SEEDS[0]}..{EVAL_SEEDS[-1]}  (n={len(EVAL_SEEDS)})")
+    print(f"  gate: BOTH delta lcb95 > 0, paired bootstrap n={N_BOOT}, alpha={ALPHA}")
+    print("  trajectory identity is frozen CONFIRMED; this run measures payoff only\n",
+          flush=True)
+
+    probe = R2.build_env(device, EVAL_SEEDS[0])
+    obs_space, act_space = probe.observation_space, probe.action_space
+    probe.close()
+
+    student = load_custom_ppo_policy(str(ck_path), obs_space, act_space, device=device)
+    if student.model.latent_k != 2 or not student.model.uses_latent_strategy:
+        raise SystemExit("REFUSING: checkpoint is not a latent K=2 policy")
+    if not getattr(student.model.critic, "private_z_heads", False):
+        raise SystemExit("REFUSING: loaded critic does not have private latent heads")
+    teachers = {k: load_custom_ppo_policy(str(v), obs_space, act_space, device=device)
+                for k, v in P0.TEACHERS.items()}
+
+    def run_cell(policy, pole: str, z: int | None, seed: int) -> dict:
+        env = R2.build_env(device, seed)
+        core = env.core
+        try:
+            if z is not None:
+                policy.fixed_latent_strategy = True
+                policy.fixed_latent_strategy_id = int(z)
+            policy.reset_strategy()
+            core._bt_profile_override = None
+            core._sds_opening_hold_steps = 0
+            genomes = {"OP6": pole_A_genome()} if pole == "A" else {}
+            install_keyed_opponent_overlays(core, genomes)
+            key = P0.POLES[pole]
+            env.env_method("set_phase", phase_from_tag(key))
+            env.env_method("set_next_opponent", "SCRIPTED", key)
+            obs = env.reset()
+            obs["global_state"] = env.state()
+            assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
+                                       context=f"ccp successor eval {pole} z{z} seed {seed}")
+            terminal = None
+            for _ in range(R2.MAX_STEPS):
+                action, _ = policy.predict(obs, deterministic=True)
+                env.step_async(action)
+                obs, _reward, done, info = env.step_wait()
+                obs["global_state"] = env.state()
+                if bool(np.asarray(done).any()):
+                    i0 = info[0] if isinstance(info, (list, tuple)) else info
+                    result = (i0 or {}).get("episode_result") or {}
+                    terminal = (int(result.get("blue_score", 0)),
+                                int(result.get("red_score", 0)))
+                    break
+            if terminal is None:
+                terminal = (int(core.blue_score[0]), int(core.red_score[0]))
+            blue, red = terminal
+            return {"blue": blue, "red": red, "win": int(blue > red), "margin": blue - red}
+        finally:
+            env.close()
+
+    cells = [("z0", 0, student), ("z1", 1, student),
+             ("pi_A", None, teachers["pi_A"]), ("pi_B", None, teachers["pi_B"])]
+    rows = []
+    for name, z, policy in cells:
+        for pole in POLES:
+            if name == "pi_A" and pole != "A":
+                continue
+            if name == "pi_B" and pole != "B":
+                continue
+            for seed in EVAL_SEEDS:
+                result = run_cell(policy, pole, z, seed)
+                rows.append({"policy": name, "pole": pole, "seed": seed, **result})
+            wr = np.mean([r["win"] for r in rows
+                          if r["policy"] == name and r["pole"] == pole])
+            print(f"  {name:5s} on Pole {pole}: win rate {wr:.4f}", flush=True)
+
+    def wins(name: str, pole: str) -> np.ndarray:
+        by_seed = {r["seed"]: r["win"] for r in rows
+                   if r["policy"] == name and r["pole"] == pole}
+        return np.array([by_seed[s] for s in EVAL_SEEDS], dtype=np.float64)
+
+    delta_a = _mean_ci(wins("z0", "A") - wins("z1", "A"))
+    delta_b = _mean_ci(wins("z1", "B") - wins("z0", "B"))
+    delta_a["passes"] = delta_a["lcb95"] > 0
+    delta_b["passes"] = delta_b["lcb95"] > 0
+    matrix = {f"{name}|{pole}": _mean_ci(wins(name, pole))
+              for name, pole in (("z0", "A"), ("z1", "A"), ("z0", "B"),
+                                 ("z1", "B"), ("pi_A", "A"), ("pi_B", "B"))}
+    retention = _ratio_ci(0.5 * (wins("z0", "A") + wins("z1", "B")),
+                          0.5 * (wins("pi_A", "A") + wins("pi_B", "B")))
+    passed = bool(delta_a["passes"] and delta_b["passes"])
+    labels = spec["PRIMARY_GATE_CROSSOVER"]["verdict_labels"]
+    verdict = labels["pass"] if passed else labels["fail"]
+
+    print("\n  CROSS-EVALUATION MATRIX (win rate, seed-level CI)")
+    for key in ("z0|A", "z1|A", "z0|B", "z1|B", "pi_A|A", "pi_B|B"):
+        m = matrix[key]
+        print(f"    {key:8s} {m['mean']:.4f}  [{m['lcb95']:.4f}, {m['ucb95']:.4f}]")
+    print(f"\n  delta_A = z0|A - z1|A : {delta_a['mean']:+.4f} "
+          f"[{delta_a['lcb95']:+.4f}, {delta_a['ucb95']:+.4f}]  "
+          f"{'PASS' if delta_a['passes'] else 'FAIL'}")
+    print(f"  delta_B = z1|B - z0|B : {delta_b['mean']:+.4f} "
+          f"[{delta_b['lcb95']:+.4f}, {delta_b['ucb95']:+.4f}]  "
+          f"{'PASS' if delta_b['passes'] else 'FAIL'}")
+    print(f"  retention (context only): {retention['mean']:.4f} "
+          f"[{retention['lcb95']:.4f}, {retention['ucb95']:.4f}]")
+
+    with ROWS_CSV.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    OUT.write_text(json.dumps({
+        "record": "CCP successor held-out payoff EVAL",
+        "status": "FROZEN_RESULT", "one_shot": True, "utc": _now(),
+        "implements": "CCP_SUCCESSOR_EVAL_SPEC.json",
+        "VERDICT": verdict,
+        "trajectory_identity_frozen_before_eval": mechanism["READING"],
+        "training_validity_frozen_before_eval": frozen["TERMINAL_RECORD_VALIDITY"]["verdict"],
+        "checkpoint": {"path": frozen["TERMINAL_CHECKPOINT"]["path"],
+                       "sha256": frozen["TERMINAL_CHECKPOINT"]["sha256"],
+                       "verified_at_eval_time": True, "terminal_only": True},
+        "seeds": {"block": [EVAL_SEEDS[0], EVAL_SEEDS[-1]], "n": len(EVAL_SEEDS)},
+        "payoff_matrix": matrix,
+        "delta_A": delta_a,
+        "delta_B": delta_b,
+        "gate": "BOTH delta lcb95 > 0",
+        "retention_context_only_not_a_gate": retention,
+        "bootstrap": {"procedure": "paired percentile bootstrap over seed-level episode outcomes",
+                      "samples": N_BOOT, "alpha": ALPHA, "rng_seed": BOOTSTRAP_SEED,
+                      "unit": "evaluation seed",
+                      "provenance": "unchanged from V4/V3/OG-PSP/V1"},
+        "mechanism_context_frozen_before_the_result": {
+            "reading": mechanism["READING"],
+            "delta_tau_A": mechanism["LAYER_2_trajectory_identity"]["delta_tau_A"],
+            "delta_tau_B": mechanism["LAYER_2_trajectory_identity"]["delta_tau_B"],
+            "R": mechanism["LAYER_3_teacher_reference"]["ratio_R"],
+            "interpretation_if_fail": "with training validity and trajectory identity both "
+                                      "independently confirmed and frozen beforehand, a failure "
+                                      "isolates the open question to whether sparse causal "
+                                      "support from 7 payoff-bearing segments transfers broadly "
+                                      "enough to move deployment payoff."},
+        "no_model_selection_occurred": True,
+        "total_episodes": len(rows),
+    }, indent=2), encoding="utf-8")
+
+    print(f"\n  VERDICT: {verdict}")
+    print(f"  -> {OUT}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

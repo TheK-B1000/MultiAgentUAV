@@ -1,0 +1,28 @@
+{
+  "styles": {
+    "BLUE_RUSH": {
+      "n": 8,
+      "race_fired": 8,
+      "blue_interrupted": 8,
+      "red_first_score_seeds": 1,
+      "mean_blue_delay_steps": 6.875,
+      "contact_eps": 8
+    },
+    "BLUE_TURTLE": {
+      "n": 8,
+      "race_fired": 0,
+      "blue_interrupted": 0,
+      "red_first_score_seeds": 2,
+      "mean_blue_delay_steps": 0.0,
+      "contact_eps": 0
+    }
+  },
+  "gates": {
+    "rush_blue_interrupted_ge_5_8": true,
+    "rush_red_first_ge_5_8": false,
+    "turtle_race_le_1_8": true
+  },
+  "gates_pass": false,
+  "base_seed": 701001,
+  "map": "map_a"
+}

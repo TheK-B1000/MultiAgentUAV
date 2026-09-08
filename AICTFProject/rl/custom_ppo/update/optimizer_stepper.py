@@ -20,6 +20,38 @@ def clip_optimizer_grad_norm(optimizer: torch.optim.Optimizer, max_norm: float) 
     return float(torch.nn.utils.clip_grad_norm_(params, float(max_norm)))
 
 
+def clip_named_param_groups(
+    *,
+    actor_params: list[torch.nn.Parameter],
+    critic_params: list[torch.nn.Parameter],
+    max_norm: float,
+) -> tuple[float, float]:
+    """Independently clip actor and critic grads; return pre-clip norms."""
+    actor_gn = 0.0
+    critic_gn = 0.0
+    actor_with_grad = [p for p in actor_params if p.grad is not None]
+    critic_with_grad = [p for p in critic_params if p.grad is not None]
+    if actor_with_grad:
+        actor_gn = float(torch.nn.utils.clip_grad_norm_(actor_with_grad, float(max_norm)))
+    if critic_with_grad:
+        critic_gn = float(torch.nn.utils.clip_grad_norm_(critic_with_grad, float(max_norm)))
+    return actor_gn, critic_gn
+
+
+def _params_from_named_groups(
+    optimizer: torch.optim.Optimizer,
+) -> tuple[list[torch.nn.Parameter], list[torch.nn.Parameter]] | None:
+    """If optimizer has named z_actor/critic groups, return those param lists."""
+    by_name: dict[str, list[torch.nn.Parameter]] = {}
+    for group in optimizer.param_groups:
+        name = str(group.get("name") or "")
+        if name:
+            by_name[name] = list(group["params"])
+    if "z_actor" in by_name and "critic" in by_name:
+        return by_name["z_actor"], by_name["critic"]
+    return None
+
+
 @dataclass(frozen=True)
 class OptimizerStepResult:
     actor_grad_norm: float
@@ -86,11 +118,25 @@ class SharedOptimizerStepper:
 
             record_repertoire_grad_audit(self.runtime, model)
         strategy_grad_norm = float(latent_state.strategy_encoder_grad_norm())
-        grad_norm = clip_optimizer_grad_norm(self.optimizer, max_grad_norm)
+
+        cfg = getattr(self.runtime, "cfg", None) if self.runtime is not None else None
+        separate_clip = bool(getattr(cfg, "latent_lro_separate_actor_critic_clip", False))
+        named = _params_from_named_groups(self.optimizer)
+        actor_grad_norm = 0.0
+        critic_grad_norm = 0.0
+        if separate_clip and named is not None:
+            actor_grad_norm, critic_grad_norm = clip_named_param_groups(
+                actor_params=named[0],
+                critic_params=named[1],
+                max_norm=float(max_grad_norm),
+            )
+            grad_norm = max(actor_grad_norm, critic_grad_norm)
+        else:
+            grad_norm = clip_optimizer_grad_norm(self.optimizer, max_grad_norm)
         self.optimizer.step()
         return OptimizerStepResult(
-            actor_grad_norm=0.0,
-            critic_grad_norm=0.0,
+            actor_grad_norm=float(actor_grad_norm),
+            critic_grad_norm=float(critic_grad_norm),
             router_grad_norm=0.0,
             global_grad_norm=float(grad_norm),
             strategy_grad_norm=strategy_grad_norm,

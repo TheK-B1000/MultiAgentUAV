@@ -1,0 +1,102 @@
+{
+  "record": "SAPPO V1 permanent crossover result freeze",
+  "status": "FROZEN",
+  "verdict": "SAPPO_V1_CROSSOVER_CONFIRMED",
+  "frozen_at_utc": "2026-08-20T21:07:33Z",
+  "claim": "Strategy anchoring produced a statistically reliable complementary learned repertoire on the frozen two-pole task.",
+  "claim_boundary": "This result establishes learned-policy complementarity under forced terminal-policy evaluation. It does not establish latent compression, routing, held-out-family generalization, or deployment realism.",
+  "implementation": {
+    "git_commit": "a91fc7440b7a80074c30f8f9635a28f6f2c3337f",
+    "evaluation_script": "experiments/sappo_crossover_eval.py",
+    "evaluation_script_git_tracked_at_freeze": false,
+    "evaluation_script_sha256": "c3797ea9ecef2c10452e15ec1449e2d0882f80ae5478e817c3bd65c95626af3e"
+  },
+  "training": {
+    "terminal_step_A": 1501184,
+    "terminal_step_B": 1501184,
+    "lambda_anchor": 0.1,
+    "cadence": 4,
+    "demonstration_run_id": "6cca922e683b",
+    "demonstration_manifest": {
+      "path": "artifacts/strategic_demand/sappo_demonstrations/manifest.json",
+      "sha256": "da8d95273253e77affcf43d07514438dc223aa253d2779fd426cad9b05020e25"
+    },
+    "pi_A": {
+      "terminal_checkpoint": "artifacts/strategic_demand/sappo_continuation/sappo_pi_A_specialist_1p5M_seed7100001/ckpts/final_sappo_pi_A_specialist_1p5M_seed7100001.zip",
+      "terminal_sha256": "5bd5f54f5ce206b139626bded8ca1f296d82d47c0d4c21db4ed561297a2d411d",
+      "training_manifest_sha256": "7ef064165835f55c483b5e1feeeb4ef4833c9c9f4516cb9b4d9d74f0df9e277f",
+      "sappo_manifest_sha256": "e9b3b22b4492cc5f2f9013b70826b212555987494ce73fd826c73f1dae2d1079",
+      "measured_anchor_to_ppo_ratio": 0.24990347476917577,
+      "final_anchor_loss": 0.022662066388875246
+    },
+    "pi_B": {
+      "terminal_checkpoint": "artifacts/strategic_demand/sappo_continuation/sappo_pi_B_specialist_1p5M_seed7200001/ckpts/final_sappo_pi_B_specialist_1p5M_seed7200001.zip",
+      "terminal_sha256": "8e4fb58be11465c24a258da3ac94648e669c0f65ab98a64b42a7b4c8b6a6c8fc",
+      "training_manifest_sha256": "10463bc44991181a279440ebff9134102ab0469a00440261fb11069a7ae100aa",
+      "sappo_manifest_sha256": "ecd3e00d8ce78c240c434df0a41700fdf1ef055b2f89b372c5c7190a4c557aa6",
+      "measured_anchor_to_ppo_ratio": 0.24990325896130264,
+      "final_anchor_loss": 0.02161432523280382
+    }
+  },
+  "evaluation": {
+    "seed_block": "7800001..7800192",
+    "paired_seeds": 192,
+    "episodes_per_cell": 192,
+    "total_episodes": 768,
+    "raw_episode_rows": {
+      "path": "artifacts/strategic_demand/sappo_crossover/episode_rows.csv",
+      "bytes": 27740,
+      "sha256": "7bad339ddfaa8bd5c18ebaa42de09ad2d3213cde640673b6f88e48abb83235c1"
+    },
+    "summary": {
+      "path": "artifacts/strategic_demand/sappo_crossover/summary.json",
+      "sha256": "f64a764ccd53d9fb491289c490b126830fb7a7b85294be0ae3730b1979ebf754"
+    },
+    "payoff_matrix": {
+      "pi_A|A": 0.7083333333333334,
+      "pi_A|B": 0.28125,
+      "pi_B|A": 0.484375,
+      "pi_B|B": 0.5
+    },
+    "delta_A": {
+      "mean": 0.22395833333333334,
+      "lcb95": 0.125,
+      "ucb95": 0.3177083333333333,
+      "n_plus": 71,
+      "n_minus": 28,
+      "discordant": 99,
+      "purity": 0.7171717171717171,
+      "passes": true
+    },
+    "delta_B": {
+      "mean": 0.21875,
+      "lcb95": 0.13020833333333334,
+      "ucb95": 0.3072916666666667,
+      "n_plus": 65,
+      "n_minus": 23,
+      "discordant": 88,
+      "purity": 0.7386363636363636,
+      "passes": true
+    },
+    "bootstrap": {
+      "procedure": "paired percentile bootstrap over seed-level differences",
+      "samples": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    },
+    "gate": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0",
+    "gate_passes": true
+  },
+  "freeze_rules": {
+    "additional_sappo_training": "FORBIDDEN",
+    "lambda_retuning": "FORBIDDEN",
+    "checkpoint_shopping": "FORBIDDEN",
+    "additional_confirmation_block": "FORBIDDEN",
+    "next_experiment": "K=2 latent compression with episode-persistent forced z and no router",
+    "later_sequence": [
+      "held-out A/B family generalization",
+      "deployment realism and latent-mode stability",
+      "ICRA manuscript"
+    ]
+  }
+}

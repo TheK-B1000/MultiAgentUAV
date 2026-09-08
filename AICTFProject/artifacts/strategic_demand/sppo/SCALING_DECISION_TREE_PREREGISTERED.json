@@ -1,0 +1,76 @@
+{
+  "record_id": "SCALING_DECISION_TREE_PREREGISTERED",
+  "status": "FROZEN_BEFORE_RSCFT_EVAL_RESULT",
+  "utc": "2026-09-03T13:37:41Z",
+  "authority": "PI decision tree agreed in chat before sealed RSCFT EVAL completion; written to remove fallback ambiguity",
+
+  "PREREGISTRATION_INTEGRITY": {
+    "RSCFT_EVAL_RESULT.json": "ABSENT at freeze time",
+    "RSCFT_EVAL_INTEGRITY_REQUIRED.json": "ABSENT at freeze time",
+    "cells_completed_at_freeze": "6/8",
+    "remaining_cells_at_freeze": "TREATMENT only",
+    "forbidden": [
+      "reading partial cell win rates as a branch signal",
+      "inventing a 'best confirmed latent method' fallback that does not exist",
+      "opening a 4v4/6v6 RSCFT stack after FAIL to ask whether failure disappears with team size"
+    ],
+    "prior_sealed_evals_all_NOT_CONFIRMED": [
+      "ORACLE_GATED_K2_EVAL_RESULT.json",
+      "OG_PSP_EVAL_RESULT.json",
+      "HOG_PSP_V3_EVAL_RESULT.json",
+      "HOG_PSP_V4_EVAL_RESULT.json",
+      "CCP_SUCCESSOR_EVAL_RESULT.json"
+    ],
+    "implication": "There is currently no previously confirmed 2v2 latent crossover method to scale. The PASS branch is the only path that authorizes successful-method scaling."
+  },
+
+  "DECISION_TREE": {
+    "RSCFT_PASS": {
+      "trigger": "sealed RSCFT EVAL writes CROSSOVER_CONFIRMED (or equivalent primary-gate PASS) on the frozen protocol, with no integrity-required flag that voids the claim",
+      "scaling_claim": "Does the confirmed RSCFT specialization scale to 4v4 and 6v6?",
+      "minimum_honest_stack_at_each_larger_team_size": [
+        "train pole specialists (team-size-specific; 2v2 SAPPO teachers cannot load)",
+        "train latent incumbent",
+        "team-size-specific causal collection / bank (Phase 0/1 machinery re-measurement)",
+        "CCP-S2 control arm",
+        "RSCFT treatment arm",
+        "crossover EVAL on frozen sealed protocol"
+      ],
+      "mandatory_non_latent_baseline": "pi_G (no-latent generalist)",
+      "why_pi_G_is_load_bearing": "Crossover only measures within-policy contrasts V(z0,A)-V(z1,A) and V(z1,B)-V(z0,B). It cannot answer whether a single non-latent policy would have performed just as well. The paper needs both: functional latent specialization AND advantage over a non-latent generalist.",
+      "paper_claims_authorized": [
+        "functional latent specialization (crossover)",
+        "advantage over a non-latent generalist (pi_G comparison)"
+      ],
+      "nature_of_4v4_6v6_work": "re-measurement, not re-discovery. Machinery exists and is guarded; specialists, incumbent, causal bank, and deployment distribution are team-size-specific and must be budgeted as compute."
+    },
+
+    "RSCFT_FAIL": {
+      "trigger": "sealed RSCFT EVAL writes CROSSOVER_NOT_CONFIRMED, or any integrity-required flag that voids a PASS claim",
+      "honest_conclusion": "No tested latent method has yet produced confirmed 2v2 crossover",
+      "forbidden": [
+        "pretend there is a best confirmed latent method to scale",
+        "spend ~140 GPU-hours reproducing the full RSCFT stack at 4v4/6v6 solely to ask whether a 2v2 failure disappears at larger team size",
+        "frame any larger-team run as successful-method scaling"
+      ],
+      "optional_narrower_pivot_if_useful": {
+        "question": "Does latent conditioning still provide measurable behavioral or performance structure relative to a generalist as team size increases, even though strict crossover was not confirmed?",
+        "allowed_arms": ["pi_G", "pi_latent"],
+        "framing": "generalist-vs-latent structure study — NOT scaling the successful method",
+        "status_of_failed_2v2_crossover": "important negative result; do not outrun it with team size"
+      }
+    }
+  },
+
+  "SKIP_LIST_UNDER_EITHER_BRANCH": [
+    "failed compression ladder",
+    "re-proving every negative 2v2 result at larger team size",
+    "unnecessary causal-development stages (V1, OG-PSP, V3, V4, intermediate discovery runs) that existed only to find the final method"
+  ],
+
+  "EXECUTION_HOLD": {
+    "rule": "Take exactly one branch after the frozen evaluator writes its own conclusion. No scientific decision from partial cells.",
+    "eval_log": "rscft_eval_run.log",
+    "result_artifact": "RSCFT_EVAL_RESULT.json"
+  }
+}

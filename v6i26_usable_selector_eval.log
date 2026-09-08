@@ -1,0 +1,41 @@
+Contexts (5): [('OP9_SPLIT_LANE_FEINT', 'map_b_split_lane'), ('OP12_LATE_CONVERTER', 'map_b_split_lane'), ('OP11_ADAPTIVE_EXPLOITER', 'map_b_split_lane'), ('OP7_DEEP_FORTRESS', 'map_b_split_lane_v2'), ('OP11_ADAPTIVE_EXPLOITER', 'map_b_split_lane_v2')]
+
+=== Collecting z0 outcomes ===
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z0] OP9_SPLIT_LANE_FEINT|map_b_split_lane: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z0] OP12_LATE_CONVERTER|map_b_split_lane: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z0] OP11_ADAPTIVE_EXPLOITER|map_b_split_lane: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z0] OP7_DEEP_FORTRESS|map_b_split_lane_v2: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z0] OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2: 32 episodes collected
+
+=== Collecting z3 outcomes ===
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z3] OP9_SPLIT_LANE_FEINT|map_b_split_lane: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z3] OP12_LATE_CONVERTER|map_b_split_lane: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z3] OP11_ADAPTIVE_EXPLOITER|map_b_split_lane: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z3] OP7_DEEP_FORTRESS|map_b_split_lane_v2: 32 episodes collected
+[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0)
+  [z3] OP11_ADAPTIVE_EXPLOITER|map_b_split_lane_v2: 32 episodes collected
+
+Matched units: 160
+
+=== Capturing c0 (env.state()[0] at reset) per matched seed ===
+c0 shape: (160, 34)
+Selection split: 80 units | Held-out split: 80 units
+
+========================================================================
+V6I26 usable-repertoire test (leakage-free)
+========================================================================
+V_z0=1.1875  V_z3=1.2875  best_fixed=1.2875
+V_hindsight_oracle=1.3875  delta_oracle=0.1000  CI95=[0.03749999999999987, 0.17499999999999982]  (upper bound -- not deployable evidence)
+V_legal_selector=1.1875  delta_usable=-0.1000  CI95=[-0.23750000000000004, 0.0]
+LCB(delta_usable)=-0.2375 > 0 ? False
+verdict=USABLE_REPERTOIRE_HOLD_OR_FAIL
+wrote artifacts/v6i26_margin_actor_step_3x_kl_ladder_seed1/usable_selector_eval_u3.json

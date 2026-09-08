@@ -1,0 +1,74 @@
+{
+  "record_id": "SELECTIVE_ABSTAINING_SUPERVISION_DIRECTION",
+  "status": "FROZEN_RESEARCH_DIRECTION -- not a protocol, implementation NOT authorized",
+  "utc": "2026-08-27T16:20:00Z",
+  "authority": "PI ruling",
+  "the_reframing": {
+    "old_question": "Which strategy is better at this state? -- asked of EVERY state",
+    "why_it_was_wrong": "D3/D4/D5 showed the terminal-margin target frequently cannot answer it: 61.5% of pole-B branch states are tied, and even ordinary LATE HOME states reach 85.4%. The scorer was being asked to manufacture a preference the target does not contain.",
+    "new_question": "FIRST: is there enough payoff evidence at this state to say strategy matters? THEN, only if yes: which strategy?"
+  },
+  "THREE_CLASS_SUPERVISION": {
+    "A_preferred": "apply A-directed strategic ranking pressure",
+    "B_preferred": "apply B-directed strategic ranking pressure",
+    "UNRESOLVED": "apply NO ranking loss -- AND do not use the state as evidence that the modes ought to converge. A tie means 'our measurement does not establish a preference here', NOT 'these strategies are equivalent here'.",
+    "why_this_beats_the_earlier_tie_gating_idea": "the earlier proposal was tie -> no pressure, which silently treats a tie as evidence OF equivalence. D5 showed ties are substantially horizon-censored, so that would teach the model strategies are equivalent across most of late-episode play in BOTH regimes. Abstaining protects against censoring without pretending to have resolved it."
+  },
+  "definition_arrived_at": "A latent strategy is a persistent high-level role that is forced to differentiate from other roles ONLY where actual payoff evidence identifies a strategic choice, while ambiguous states are left UNCLASSIFIED rather than falsely labelled equivalent.",
+  "evidence_chain": {
+    "EXP1": "SAPPO specialists confirmed complementary -- the strategies themselves work",
+    "EXP2_2B_2C": "compression failed; 2B/2C never instantiated their stated assigned-pole treatment",
+    "SPPPO_V1": "NOT_CONFIRMED; retention/jsd/margin_A pass, crossover and margin_B fail",
+    "D0": "mixed mechanism: aggregate 0.709 favours interference, own_flag_stolen 0.244",
+    "D1": "not proportional starvation; excluding stolen lifts 0.709 -> 0.823",
+    "D2": "4x density does not recover Q_psi -- later refined by D3/D4, not invalidated",
+    "D3": "91.2% of stolen-flag branch pairs TIED -- target-resolution problem found",
+    "D4": "stolen uniquely degenerate AND target coarse everywhere (57.5% tied at best)",
+    "D5": "regime AND horizon both matter; regime effect roughly halves under horizon control",
+    "D6": "INFEASIBLE -- horizon is an observation input, not a timer",
+    "D6B": "NOT RUN -- structurally underpowered (33 points, 6 seeds)"
+  },
+  "horizon_is_part_of_the_strategic_state": "the failed D6 check established that the policy observes normalized episode progress (obs channel 14) and scripted RED responds to it too. Horizon is not nuisance noise. 'BREACH with 180 steps left' may rationally differ from 'BREACH with 15 steps left' without ceasing to be BREACH -- strengthening the hierarchical framing.",
+  "authorization_status": {
+    "implementation": "NOT AUTHORIZED. Direction record only.",
+    "requires": "its own prospective freeze, fresh audited blocks, and a PI decision",
+    "RASR": "DEV collection and DEV qualification may proceed; 4M PPO launch remains PAUSED",
+    "why_RASR_stays_paused": "a qualification PASS would show the regime scorer fits the FROZEN target -- not that the target is the right state-level quantity. D4/D5 were discovered after RASR was frozen."
+  },
+  "ABSTENTION_IS_A_FIRST_CLASS_PROTOCOL_RISK": {
+    "utc": "2026-08-27T16:40:00Z",
+    "authority": "PI ruling -- recorded BEFORE any successor protocol exists",
+    "the_degenerate_solution": "if the model may output UNRESOLVED, a trivial winning strategy exists: abstain on everything and never make a wrong strategic call. Any successor protocol must make this impossible BY CONSTRUCTION, not detect it afterwards.",
+    "two_thresholds_must_be_frozen_JOINTLY": {
+      "quality_on_resolved_states": "strategic_accuracy | resolved >= tau",
+      "coverage_floor": "P(resolved) >= c_min",
+      "why_jointly": "either alone is gameable -- accuracy alone rewards abstaining, coverage alone rewards guessing"
+    },
+    "COVERAGE_MUST_BE_STRATIFIED_NOT_GLOBAL": {
+      "requirement": "coverage floors reported and enforced BY REGIME and BY HORIZON, not as one global number",
+      "why": "a model could satisfy a global coverage floor while abstaining on every difficult late-game or carrying state -- recreating exactly the blind spot D3-D6 spent this entire arc uncovering. The states where abstention is most tempting are the states where the strategic question matters most.",
+      "strata_implied_by_the_diagnostics": [
+        "own_flag_stolen vs own_flag_home",
+        "carrying vs not_carrying",
+        "early / mid / late branch step"
+      ]
+    },
+    "threshold_provenance_rule": "tau and c_min must come from a prospective calibration study or EXISTING training-side evidence, frozen before the successor runs. Choosing either after seeing the successor's output is the prohibited move.",
+    "the_bar_is_not_lowered": "the reframing does NOT relax 'be strategically right' into 'avoid being wrong'. The requirement becomes: be strategically right where evidence supports a distinction, AND explicitly admit uncertainty where it does not -- while still committing often enough, and in the right parts of the game, to constitute a meaningful strategic repertoire.",
+    "validation_question": "Does the model abstain when evidence is genuinely ambiguous, while still committing often enough, and in the right parts of the game, to form a meaningful strategic repertoire?"
+  },
+  "STRONGEST_CURRENT_CONCLUSION": {
+    "utc": "2026-08-27T18:08:07Z",
+    "authority": "PI, stated directly; consolidates D3+D4+D5",
+    "statement": "The conclusion is NOT 'the scorer is broken'. It is: the state-level terminal-margin supervision signal frequently cannot distinguish the strategies, especially late in episodes and during stolen-flag situations.",
+    "why_this_is_deeper_than_the_earlier_readings": "We may have been trying to learn a precise STATE-LEVEL strategic ranking from a target designed for WHOLE-EPISODE strategy evaluation. Terminal win margin is a legitimate episode-level quantity; it is simply too low-resolution to express a preference at many individual states. That is a different and deeper failure class than data sparsity (D1) or scorer representational capacity (D2), both of which were investigated and neither of which explains the tie structure.",
+    "supporting_numbers_frozen": {
+      "D3_stolen_flag": "UNRESOLVED. PRIMARY -0.0434 [-0.1047,+0.0119] n=91/58 seeds; SECONDARY +0.1201 [-0.0323,+0.2778] n=150/71 seeds. Opposite signs, both cross zero. Neither teacher is demonstrably better conditional on reaching the regime.",
+      "D4_tie_rates": "61.5% of ALL pole-B branch states tied [0.581,0.648]; 91.2% of stolen-flag states tied [0.849,0.967].",
+      "D5_horizon": "Home regime alone, by frozen regime-blind tertile: 0.368 -> 0.564 -> 0.854. Lateness independently drives ties upward. Stolen excess survives horizon control (mid +0.226 [0.064,0.375], late +0.128 [0.066,0.185]) but roughly halves."
+    },
+    "what_follows": "Distinguish A-preferred from B-preferred from PREFERENCE-NOT-ESTABLISHED, rather than forcing every state into A or B. Forcing a binary ranking onto states where the target is tied manufactures supervision that the evidence does not contain. See THREE_CLASS_SUPERVISION.",
+    "naming_precision": "The third class is PREFERENCE NOT ESTABLISHED, not 'the strategies are equivalent'. A tie in a coarse target is a measurement limit, not a demonstrated equality. This distinction is the whole point and must not be eroded in any successor protocol.",
+    "status": "CONCLUSION RECORDED. No successor protocol authorized by this entry."
+  }
+}

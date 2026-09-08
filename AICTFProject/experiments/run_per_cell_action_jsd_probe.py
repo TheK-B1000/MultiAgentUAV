@@ -115,6 +115,10 @@ def _pairwise_jsd_report(model, obs_t: dict[str, torch.Tensor], latent_k: int) -
             logits = model._mask_logits(logits, obs_t.get("mask"))
             logits_by_z.append(logits.float())
 
+    # Entropy-aware non-tie: both head0 distributions must be sufficiently peaked.
+    # For a 5-way macro head, H_uniform≈1.609; require max_prob >= 0.40 on both sides.
+    _NON_TIE_MAX_PROB = 0.40
+
     pair_rows = []
     for i, j in combinations(range(latent_k), 2):
         dists_i = list(model._categoricals(logits_by_z[i]))
@@ -124,24 +128,49 @@ def _pairwise_jsd_report(model, obs_t: dict[str, torch.Tensor], latent_k: int) -
         for di, dj in zip(dists_i, dists_j):
             jsd_sum = jsd_sum + jsd_from_logits(di.logits, dj.logits)
         jsd_mean = float(jsd_sum.mean().item())
-        disagree = float(
-            (dists_i[0].probs.argmax(-1) != dists_j[0].probs.argmax(-1)).float().mean().item()
+        p_i = dists_i[0].probs
+        p_j = dists_j[0].probs
+        arg_i = p_i.argmax(-1)
+        arg_j = p_j.argmax(-1)
+        disagree_mask = arg_i != arg_j
+        disagree = float(disagree_mask.float().mean().item())
+        peaked = (p_i.max(-1).values >= _NON_TIE_MAX_PROB) & (
+            p_j.max(-1).values >= _NON_TIE_MAX_PROB
         )
+        non_tie_n = int(peaked.sum().item())
+        if non_tie_n > 0:
+            non_tie_disagree = float((disagree_mask & peaked).float().sum().item() / non_tie_n)
+        else:
+            non_tie_disagree = float("nan")
+        ent_i = float((-(p_i * (p_i.clamp_min(1e-8).log())).sum(-1)).mean().item())
+        ent_j = float((-(p_j * (p_j.clamp_min(1e-8).log())).sum(-1)).mean().item())
         pair_rows.append(
             {
                 "z_i": i,
                 "z_j": j,
                 "action_jsd_mean": jsd_mean,
                 "head0_argmax_disagree": disagree,
+                "head0_non_tie_argmax_disagree": non_tie_disagree,
+                "head0_non_tie_state_frac": float(peaked.float().mean().item()),
+                "head0_entropy_mean_zi": ent_i,
+                "head0_entropy_mean_zj": ent_j,
             }
         )
     jsds = [r["action_jsd_mean"] for r in pair_rows]
+    nontie = [
+        r["head0_non_tie_argmax_disagree"]
+        for r in pair_rows
+        if r["head0_non_tie_argmax_disagree"] == r["head0_non_tie_argmax_disagree"]
+    ]
     return {
         "n_states": n,
         "pair_jsd_mean": float(np.mean(jsds)) if jsds else float("nan"),
         "pair_jsd_max": float(np.max(jsds)) if jsds else float("nan"),
         "pair_jsd_min": float(np.min(jsds)) if jsds else float("nan"),
         "pairs_above_0_05": int(sum(1 for v in jsds if v > 0.05)),
+        "non_tie_argmax_disagree_mean": float(np.mean(nontie)) if nontie else float("nan"),
+        "non_tie_argmax_disagree_max": float(np.max(nontie)) if nontie else float("nan"),
+        "non_tie_max_prob_threshold": _NON_TIE_MAX_PROB,
         "pairs": pair_rows,
     }
 
@@ -209,12 +238,14 @@ def main() -> int:
             report["cells"][key] = cell_report
             print(
                 f"  n={cell_report['n_states']} jsd_mean={cell_report['pair_jsd_mean']:.4f} "
-                f"jsd_max={cell_report['pair_jsd_max']:.4f} pairs>0.05={cell_report['pairs_above_0_05']}"
+                f"jsd_max={cell_report['pair_jsd_max']:.4f} pairs>0.05={cell_report['pairs_above_0_05']} "
+                f"nontie_max={cell_report.get('non_tie_argmax_disagree_max', float('nan')):.3f}"
             )
             for pr in cell_report["pairs"]:
                 print(
                     f"    z{pr['z_i']}-z{pr['z_j']}: JSD={pr['action_jsd_mean']:.4f} "
-                    f"head0_disagree={pr['head0_argmax_disagree']:.3f}"
+                    f"head0_disagree={pr['head0_argmax_disagree']:.3f} "
+                    f"nontie={pr.get('head0_non_tie_argmax_disagree', float('nan')):.3f}"
                 )
             try:
                 env.close()
@@ -233,6 +264,29 @@ def main() -> int:
         ),
         "gate_any_pair_jsd_gt_0_05": bool(
             any(c["pairs_above_0_05"] > 0 for c in report["cells"].values())
+        ),
+        "mean_of_cell_non_tie_argmax_disagree": float(
+            np.nanmean(
+                [
+                    c.get("non_tie_argmax_disagree_mean", float("nan"))
+                    for c in report["cells"].values()
+                ]
+            )
+        ),
+        "max_of_cell_non_tie_argmax_disagree": float(
+            np.nanmax(
+                [
+                    c.get("non_tie_argmax_disagree_max", float("nan"))
+                    for c in report["cells"].values()
+                ]
+            )
+        ),
+        "cells_with_non_tie_disagree_gt_0_20": int(
+            sum(
+                1
+                for c in report["cells"].values()
+                if (c.get("non_tie_argmax_disagree_max") or 0) > 0.20
+            )
         ),
     }
     print()

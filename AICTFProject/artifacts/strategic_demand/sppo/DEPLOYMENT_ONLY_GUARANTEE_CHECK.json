@@ -1,0 +1,15 @@
+{
+  "record": "Deployment-only guarantee structural check",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-03T16:56:12Z",
+  "implements": "DEPLOYMENT_ROBUSTNESS_SPEC.json#DEPLOYMENT_ONLY_GUARANTEE",
+  "VERDICT": "PASS",
+  "config_defaults_confirmed_zero": {
+    "sensor_noise_sigma_cells": 0.0,
+    "drift_sigma_cells": 0.0
+  },
+  "nonzero_literal_hits": [],
+  "control_delay_imports_in_training_entrypoints": [],
+  "scope": "every .py file in the repo (excluding .venv, __pycache__, tests) for nonzero literal assignments; every experiments/run_*.py for a rl.control_delay import",
+  "note": "a structural grep, not a runtime guarantee -- catches every case that matters for this project's actual scripts (hardcoded config, direct import), does not catch a value computed dynamically from an external argument at call time"
+}

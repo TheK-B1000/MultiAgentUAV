@@ -1,0 +1,85 @@
+{
+  "amendment": "C_fork precursor — recall-first redefinition",
+  "status": "FROZEN",
+  "authored_utc": "2026-08-09T10:00:00Z",
+  "amends": "artifacts/o3_preregistration/O3_PROTOCOL_FROZEN.json (de6fb58)",
+  "supersedes": "the c_fork.predicate_all_must_hold block of de6fb58",
+
+  "legitimacy_of_amending_a_freeze": {
+    "coverage_measured_at_amendment_time": false,
+    "labels_consulted": "none — no known-fork label has been compared against any predicate",
+    "motivation": "a stated design principle (recall over precision), not an observed result",
+    "original_preserved": "de6fb58 remains in history; this document records exactly what changed and why",
+    "why_this_is_not_the_thing_the_freezes_guard_against": "The hazard is tuning a definition against measured outcomes. Nothing has been measured. Amending on a principle, before any audit, is the only point at which this correction can be made honestly at all."
+  },
+
+  "what_was_wrong": {
+    "original_predicate": [
+      "blue is carrying",
+      "n_legal_team_responses >= 2",
+      "carrier_pressure > 0.18",
+      "carrier_pressure decreasing over the previous 5 decisions"
+    ],
+    "defect": "The fourth clause is a PRECISION condition. A commitment fork can exist at a state where the threat closes later, so requiring the threat to be closing already would silently exclude such forks.",
+    "asymmetry_that_matters": "False positives waste training exposure. False negatives remove the causal opportunity entirely and would make an O3 failure uninterpretable. The predicate must therefore favour recall."
+  },
+
+  "c_fork_redefined": {
+    "name": "carrier commitment precursor (recall-first)",
+    "type": "window-level, natural-trajectory-only, causally available at decision time",
+    "reads_no_counterfactual_field": true,
+    "predicate_all_must_hold": [
+      "blue is carrying (a blue carrier exists at this decision)",
+      "n_legal_team_responses >= 2, computed from core._build_action_mask(side=blue)"
+    ],
+    "onset_rule": "the FIRST decision in each carry phase satisfying both conditions; one-way, at most one onset per carry phase",
+    "removed_conditions": [
+      "carrier_pressure > 0.18",
+      "carrier_pressure decreasing over the previous 5 decisions"
+    ],
+    "why_minimal": "These two conditions are the minimum that make the context meaningful at all: there must be a carrier to commit, and at least two legal team responses to choose between. Both are natural. Everything beyond them trades recall for precision, and the asymmetry above says not to make that trade.",
+    "new_constants_introduced": "none — the amendment REMOVES constants rather than adding them, which also removes the surface on which a threshold could later be tuned",
+    "expected_property": "firing at or before the first decision of every carry phase that contains a fork, since a qualified fork requires >=2 legal team responses by its own R1 condition and requires a carrier by the C3 pressure predicate"
+  },
+
+  "recall_by_construction": {
+    "claim": "Every qualified commitment fork satisfies both surviving conditions.",
+    "reasoning": "R1 (enough_legal_responses >= 2) is one of the three fork conditions and is exactly the second clause here. The C3 pressure predicate requires blue carrying, and the backward trace runs within a carry phase, so the first clause holds throughout. The onset therefore fires at or before any fork in that carry phase.",
+    "status": "an argument from the frozen definitions, NOT a measurement",
+    "still_to_be_audited": "whether it holds in the data, and with what lead time"
+  },
+
+  "precursor_gate_audit": {
+    "when": "after this amendment is committed, before O3 training begins",
+    "classification": "EVALUATION-ONLY DIAGNOSTIC — reads counterfactual labels and may not influence the predicate",
+    "reports": [
+      "fraction of known qualified forks preceded by a detector firing in the same carry phase",
+      "lead time in decisions from detector firing to fork_step",
+      "false-positive frequency: detector firings in carry phases containing no qualified fork",
+      "distribution across policies and opponents"
+    ],
+    "may_not": "be used to retune the predicate. The predicate is frozen by this document. A poor audit result is a reportable limitation and an interpretation constraint, never a licence to adjust.",
+    "one_audit_only": "the audit is run once on the known-fork set; iterating audit-and-adjust would let the labels supervise the detector through model selection even though they never enter PPO"
+  },
+
+  "interpretation_rule_frozen_now": {
+    "rule": "If the frozen precursor precedes fewer than half of the known qualified forks, or typically fires AFTER them, then an O3 failure is classified INCONCLUSIVE_FOR_SPECIALIZATION rather than as evidence against specialization.",
+    "threshold": 0.50,
+    "threshold_justification": "Not an intuition about detector quality. It is the point at which the experiment tests more of the phenomenon than it misses: below it, the majority of the opportunities C3 established would never have been reachable by O3, so a null result would describe the trigger rather than the hypothesis.",
+    "what_it_does_not_do": "It is not a training gate and does not block O3. It constrains what a NEGATIVE O3 result may be said to mean.",
+    "a_positive_o3_result": "is unaffected by coverage: if O3 wins the crossover from a low-coverage trigger, the specialization exists regardless of how many other forks were missed."
+  },
+
+  "unchanged_from_de6fb58": [
+    "C_anchor definition and matching variables",
+    "the credit mask and handoff architecture",
+    "primary metric: final score differential, not carrier_survival",
+    "seed blocks 9820000+ training and 9830000+ demand evaluation",
+    "crossover requirements including the delta_anchor preference reversal",
+    "behavioral nonredundancy thresholds and the single-seed caveat",
+    "the disposition table",
+    "the response-supervision prohibition inherited from 46c9e17"
+  ],
+
+  "immutability": "After the precursor-gate audit is run or any O3 outcome is observed, neither the predicate nor the 0.50 interpretation threshold may change."
+}

@@ -48,9 +48,14 @@ class ReturnNormalizer:
 
     def __init__(self, *, enabled: bool = True) -> None:
         self.enabled = bool(enabled)
+        self.frozen: bool = False
         self.mean: float = 0.0
         self.var: float = 1.0
         self.count: float = self._COUNT_INIT
+
+    def freeze(self) -> None:
+        """Keep normalize/denormalize active but stop updating running stats."""
+        self.frozen = True
 
     # ------------------------------------------------------------------
     # Serialization helpers (trainer.save / trainer.load).
@@ -84,7 +89,7 @@ class ReturnNormalizer:
 
     def update(self, values: torch.Tensor) -> None:
         """Fold a batch of observations into the running mean / var / count."""
-        if not self.enabled:
+        if not self.enabled or self.frozen:
             return
         v = values.detach().float().reshape(-1)
         if v.numel() <= 0:

@@ -1,0 +1,74 @@
+{
+  "stopped_utc": "2026-08-18T12:46:44Z",
+  "reason": "first Stage-2 development-eligible candidate",
+  "candidate_genome": {
+    "genome_id": "SDS2_A_payoff_INIT_3",
+    "derived_from": "SDS_PARENT_OP6",
+    "base_opponent": "OP6",
+    "overlay": {
+      "min_alive_for_defender": 2
+    },
+    "opening_hold_steps": 0
+  },
+  "candidate_record": {
+    "genome": {
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "derived_from": "SDS_PARENT_OP6",
+      "base_opponent": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 2
+      },
+      "opening_hold_steps": 0
+    },
+    "objective": "SEARCH_OBJECTIVE_V2",
+    "observability": "OBSERVABILITY_V2",
+    "n": 32,
+    "seed_base": 2420321,
+    "stage": 32,
+    "guard_wr": 0.5,
+    "breach_wr": 0.28125,
+    "delta_G": 0.21875,
+    "payoff_floor_this_stage": 0.1,
+    "payoff_constraint_ok": true,
+    "p_C": 0.9375,
+    "p_C_lcb95": 0.84375,
+    "p_C_counts": {
+      "COMMIT_FIRST": 30,
+      "INTENT_FIRST": 1,
+      "UNRESOLVED": 1
+    },
+    "p_C_screen_this_stage": 0.65,
+    "p_C_screen_ok": true,
+    "frac_0_0": 0.359375,
+    "mean_total_score": 1.421875,
+    "degeneracy_penalty": 0.0546875,
+    "J_v2": 0.8828125,
+    "J_v2_definition": "p_C - degeneracy_penalty, admissible only while delta_G clears the stage payoff floor",
+    "telemetry_v1_mean_intent_minus_commit": 30.0,
+    "telemetry": {
+      "n_both_observed": 14,
+      "complete_case_mean_gap": 30.0,
+      "complete_case_median_gap": 40.0,
+      "complete_case_frac_positive": 0.9285714285714286,
+      "commitment_instantiation_rate": 0.96875,
+      "intent_observation_rate": 0.4375,
+      "horizon": 240,
+      "status": "MECHANISM TELEMETRY -- descriptive only, never the gate"
+    },
+    "search_not_gate_B": true,
+    "stage_n": 32,
+    "J": 0.8828125,
+    "delta_B_anchor": 0.625,
+    "not_gate_B": true,
+    "confirmation_block_spent": false,
+    "development_eligible": true,
+    "island": "A_payoff",
+    "gen": 0
+  },
+  "lineage": "SDS_PARENT_OP6",
+  "archive_rows_at_stop": 4,
+  "pareto_size_at_stop": 2,
+  "seed_cursor": 2420385,
+  "generation": 0,
+  "rows_are_provenance_only": "anything evaluated before this candidate is retained for provenance and cannot displace it"
+}

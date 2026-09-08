@@ -1,0 +1,12 @@
+{
+  "record_id": "SPPPO_PRODUCTION_LAUNCH_ATTEMPT_1_INVALID",
+  "status": "INVALID_BEFORE_TRAINING",
+  "training_steps_consumed": 0,
+  "metrics_rows_written": 0,
+  "checkpoints_written": 0,
+  "cause": "NameError on a stale `EVIDENCE` reference. A rename splitting the pre-launch contract from first-interval evidence replaced the constant but missed one use site.",
+  "where_it_died": "after validate() passed, before orchestrate_training_run",
+  "budget_impact": "NONE -- the 1M budget was not touched; the empty output dir was deleted",
+  "lesson": "the 22 guard tests exercise validate() and never reach the launch block, so they proved the REFUSAL surface but not the happy path. A lightweight launch-path smoke that gets past the contract write without spending meaningful budget would have caught this.",
+  "deferred_action": "add that smoke AFTER production completes; do not touch the running job"
+}

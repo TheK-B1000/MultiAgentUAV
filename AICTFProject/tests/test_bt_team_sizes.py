@@ -90,7 +90,11 @@ class Test4v4RoleSpread(unittest.TestCase):
         self.assertGreater(len(pairs), 1)
 
     def test_escort_limited_to_one_support_agent(self) -> None:
-        core, _ = _make(4, 4, "OP10")
+        # OP12 carries the escort gate; OP10 is the pure interceptor niche.
+        core, _ = _make(4, 4, "OP12")
+        # Past OP12's stage-1 opening window, which forces ATTACKER.
+        core.step_count[0] = 25
+        core.sim_step_count[0] = 25
         core.red_carrying[0, 0] = True
         core.red_x[0, 0] = 14.0
         core.red_y[0, 0] = 10.0

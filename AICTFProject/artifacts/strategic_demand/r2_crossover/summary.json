@@ -1,0 +1,68 @@
+{
+  "record": "R2 learned crossover",
+  "utc": "2026-08-19T21:46:56Z",
+  "protocol": "artifacts/strategic_demand/REPERTOIRE_LADDER_FROZEN.json",
+  "block": "7500001..7500192",
+  "n_paired": 192,
+  "total_episodes": 1152,
+  "checkpoints": {
+    "pi_A": "artifacts\\strategic_demand\\r1_training\\r1_pi_A_specialist_seed7100001\\ckpts\\final_r1_pi_A_specialist_seed7100001.zip",
+    "pi_B": "artifacts\\strategic_demand\\r1_training\\r1_pi_B_specialist_seed7200001\\ckpts\\final_r1_pi_B_specialist_seed7200001.zip",
+    "pi_G": "artifacts\\strategic_demand\\r1_training\\r1_pi_G_generalist_seed7000001\\ckpts\\final_r1_pi_G_generalist_seed7000001.zip"
+  },
+  "payoff_matrix": {
+    "pi_A|A": {
+      "win_rate": 0.5677083333333334,
+      "frac_0_0": 0.359375,
+      "mean_total_score": 1.078125
+    },
+    "pi_A|B": {
+      "win_rate": 0.546875,
+      "frac_0_0": 0.34375,
+      "mean_total_score": 0.9583333333333334
+    },
+    "pi_B|A": {
+      "win_rate": 0.484375,
+      "frac_0_0": 0.4375,
+      "mean_total_score": 0.8645833333333334
+    },
+    "pi_B|B": {
+      "win_rate": 0.609375,
+      "frac_0_0": 0.3697916666666667,
+      "mean_total_score": 0.9322916666666666
+    },
+    "pi_G|A": {
+      "win_rate": 0.3645833333333333,
+      "frac_0_0": 0.53125,
+      "mean_total_score": 0.7552083333333334
+    },
+    "pi_G|B": {
+      "win_rate": 0.5416666666666666,
+      "frac_0_0": 0.4114583333333333,
+      "mean_total_score": 0.875
+    }
+  },
+  "delta_A": {
+    "contrast": "WR(pi_A,A) - WR(pi_B,A)",
+    "mean": 0.08333333333333333,
+    "lcb95": -0.015625,
+    "ucb95": 0.18229166666666666,
+    "passes": false
+  },
+  "delta_B": {
+    "contrast": "WR(pi_B,B) - WR(pi_A,B)",
+    "mean": 0.0625,
+    "lcb95": -0.026041666666666668,
+    "ucb95": 0.15625,
+    "passes": false
+  },
+  "gate": "LCB95 > 0 in BOTH directions; no magnitude floor by design",
+  "generalist_excluded_from_gate": "pi_G cells are reported for R3's matrix but take no part in the crossover contrasts",
+  "verdict": "R2_LEARNED_CROSSOVER_NOT_CONFIRMED",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "procedure": "paired percentile bootstrap over seed-level differences"
+  }
+}

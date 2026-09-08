@@ -1,0 +1,32 @@
+{
+  "status": "COMPLETED",
+  "updated_at_utc": "2026-07-27T17:17:38.603769+00:00",
+  "completed_episode_rows": 16,
+  "expected_episode_rows": 16,
+  "missing_episode_rows": 0,
+  "skipped_existing_rows": 0,
+  "duplicate_or_invalid_existing_rows": 0,
+  "last_row": {
+    "blue_style": "BLUE_ESCORT",
+    "red_style": "OP12_LATE_CONVERTER",
+    "map": "map_b_split_lane",
+    "episode_index": 3,
+    "episode_seed": 551004,
+    "success": 1,
+    "blue_score": 3,
+    "red_score": 2,
+    "win_margin": 1,
+    "steps": 195,
+    "return": -4.047038205870194,
+    "outcome": "win",
+    "time_to_first_score": 37.0,
+    "collision_free": 0,
+    "zone_coverage": 0.6399999856948853,
+    "split_detector_first_trigger_step": -1,
+    "split_detector_active_steps": 0,
+    "split_detector_max_lateral_sep": 3.899425983428955,
+    "split_detector_max_teammate_dist": 5.3587141036987305,
+    "conversion_phase_first_step": -1,
+    "carrier_intercept_attempts": 131
+  }
+}
