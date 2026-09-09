@@ -1,0 +1,112 @@
+{
+  "record": "Complete 2v2 Results package checklist",
+  "status": "FLAGSHIP_COMPLETE",
+  "scientific_arc": [
+    "Strategies exist (specialists + pi_G)",
+    "One z-conditioned policy can express them (Share-Encoder PASS)",
+    "Encoder sharing is tolerated (no detectable D loss)",
+    "Backbone sharing begins to erode specialization (detectable D_A loss)",
+    "Macro sharing breaks the joint gate (Delta_A LCB = 0)"
+  ],
+  "claim_sentence": "In 2v2, payoff-relevant strategy specialization is preserved under shared perception, begins to degrade when the policy backbone is shared, and fails once macro-action outputs are also shared.",
+  "claim_separation": "paper/data/icra_claim_separation.json",
+  "lead_with": "strategy-conditioned architecture + progressive sharing characterization (Claim A). Do not credit SP-PPO/CSC/SPFT for Share-Encoder PASS.",
+  "icra_figure_stack": [
+    "fig_claim_a_2v2",
+    "fig_sharing_ladder_2v2",
+    "fig_2v2_measurement_hierarchy",
+    "fig_claim_b_spp_ablation",
+    "fig_qualitative_latent_2v2",
+    "fig_robustness_delta_dose"
+  ],
+  "presentation_notes": {
+    "behavior_bars": "Coarse means are mostly pole-driven; caption must not overclaim tactic switching. Qualitative matched frames carry the z-flip visual.",
+    "n_caveat": "pi_G/specialists n=64 vs sharing n=128 must stay explicit in captions.",
+    "cross_scale": "4v4/6v6 columns stay withheld until sealed specialist crossover PASS.",
+    "claim_separation_visual": "fig_claim_a_2v2 is the Claim A composite; fig_claim_b_spp_ablation is the Claim B non-recovery ablation. Do not merge captions."
+  },
+  "pieces": [
+    {
+      "id": 0,
+      "name": "Claim A composite (specialists -> z-modes -> sharing)",
+      "status": "DONE",
+      "star": true,
+      "figure": "fig_claim_a_2v2",
+      "builder": "paper/figures/build_claim_a_2v2.py"
+    },
+    {
+      "id": "0b",
+      "name": "Claim B SP-PPO ablation (valid non-recovery)",
+      "status": "DONE",
+      "star": true,
+      "figure": "fig_claim_b_spp_ablation",
+      "builder": "paper/figures/build_claim_b_spp_ablation.py",
+      "note": "PPO / PPO+CSC / PPO+CSC+SPFT all FAIL gate; architectural PASS is not SP-PPO credit."
+    },
+    {
+      "id": 1,
+      "name": "Strategic regimes / demand",
+      "status": "DONE",
+      "artifact": "artifacts/strategic_demand/V3_STRATEGIC_DEMAND_VALIDATED.json",
+      "figure": "fig1_environment (task/poles)"
+    },
+    {
+      "id": 2,
+      "name": "Specialist crossover",
+      "status": "DONE",
+      "artifact": "SPECIALIST_BASELINE_EVAL_RESULT.json",
+      "figure": "fig_specialist_crossover_2v2"
+    },
+    {
+      "id": 3,
+      "name": "Baseline + strategy-conditioned across sharing",
+      "status": "DONE",
+      "star": true,
+      "figure": "fig_2v2_baseline_sharing_performance",
+      "also": "fig_strategy_existence_2v2 (Rung-1 only summary)"
+    },
+    {
+      "id": 4,
+      "name": "Progressive-sharing specialization Delta",
+      "status": "DONE",
+      "star": true,
+      "figure": "fig_sharing_ladder_2v2"
+    },
+    {
+      "id": 5,
+      "name": "Behavior + qualitative",
+      "status": "DONE",
+      "star": true,
+      "figures": [
+        "fig_latent_behavior_2v2",
+        "fig_qualitative_latent_2v2"
+      ],
+      "note": "Behavior characterization is exploratory (n=24/cell, CCP-successor ckpt). Qualitative grid is sealed Rung-1 matched seed 11960003 CUDA fidelity MATCH."
+    },
+    {
+      "id": 6,
+      "name": "Robustness",
+      "status": "DONE",
+      "figures": [
+        "fig_robustness_delta_dose",
+        "fig_robustness_dose_response_winrate",
+        "robustness_2v2_rung1_bars"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Imitation ≠ closed-loop specialization table",
+      "status": "DONE",
+      "star": true,
+      "figure": "fig_2v2_measurement_hierarchy",
+      "data": "paper/data/2v2_measurement_hierarchy.json"
+    }
+  ],
+  "companion_training": "fig_training_emergence_2v2",
+  "cross_scale_scaffold": [
+    "fig_cross_scale_winrate",
+    "fig_cross_scale_delta",
+    "paper/data/cross_scale_fill_matrix.json"
+  ],
+  "missing_compute": "none for 2v2 package; 4v4 B3 crossover is the other lane"
+}

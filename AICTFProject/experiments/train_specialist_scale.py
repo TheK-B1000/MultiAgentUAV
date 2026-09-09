@@ -69,7 +69,14 @@ BASE_KEY = {"A": "OP6", "B": "OP7"}
 #: defect), 4v4 was rebuilt on a new Pole-B2 (4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json) and
 #: properly powered (n=192, matching this Pole-A genome's own 2v2 precedent) rather than the
 #: n=64 every prior 4v4 attempt used. Both older records are retained unmodified.
+#: POLE_B3_3_N192 supersedes CONFIRMATORY_REDESIGN_N192 at 4v4: the C2/B2-1 construction
+#: certified cleanly (scripted probe) but its own learned-specialist crossover eval FAILED
+#: (CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json). B3-3 is a NEW pole
+#: construction (coordinated 2v1 flanking) selected specifically because it also cleared a
+#: learned-contestability screen B2-1 lacked (4V4_POLE_B3_DIFFICULTY_SCREEN.json). Both older
+#: certification records are retained unmodified; only which one GATES production changes.
 _CERT_PRECEDENCE = (
+    "STRATEGIC_DEMAND_{n}v{n}_POLE_B3_3_N192_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_CONFIRMATORY_REDESIGN_N192_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_CERTIFICATION.json",
@@ -199,6 +206,17 @@ def main() -> int:
                          "-- otherwise the run would silently train against the OLD, "
                          "uncertified canonical Pole B while the certification banner claims "
                          "CERTIFIED.")
+    ap.add_argument("--run-label-suffix", default="",
+                    help="appended verbatim to the artifact label/checkpoint directory (e.g. "
+                         "'_b3'), so a NEW pole-redesign track never collides with an older "
+                         "track's already-sealed checkpoints at the same team size. Discovered "
+                         "as a real gap when the B3 track's first dry-run hit the C2 track's "
+                         "still-present pi_A_specialist_4v4/pi_B_specialist_4v4 directories "
+                         "('already holds N checkpoint(s); refusing to overwrite'). Those "
+                         "checkpoints are referenced by frozen records "
+                         "(CONFIRMATORY_REDESIGN_C2_PI_{A2,B2}_FROZEN.json) and must never be "
+                         "renamed or overwritten -- a NEW track takes a new label instead. "
+                         "Empty by default so every existing invocation is unaffected.")
     args = ap.parse_args()
 
     n, policy, seed = int(args.team_size), args.policy, int(args.seed)
@@ -340,8 +358,9 @@ def main() -> int:
     if args.total_timesteps is not None:
         spec["steps"] = int(args.total_timesteps)
     _prefix = "exploratory_" if exploratory is not None else ""
-    spec["label"] = (f"{_prefix}smoke_pi_{policy}_specialist_{n}v{n}" if is_smoke
-                     else f"{_prefix}pi_{policy}_specialist_{n}v{n}")
+    _suffix = str(args.run_label_suffix or "")
+    spec["label"] = (f"{_prefix}smoke_pi_{policy}_specialist_{n}v{n}{_suffix}" if is_smoke
+                     else f"{_prefix}pi_{policy}_specialist_{n}v{n}{_suffix}")
     R.POLICIES[policy] = spec
 
     cfg, contract = R.build_r1_config(policy)

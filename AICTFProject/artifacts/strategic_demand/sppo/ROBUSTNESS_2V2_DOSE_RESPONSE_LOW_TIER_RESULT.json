@@ -1,0 +1,86 @@
+{
+  "record_id": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-09T07:45:00Z",
+  "implements": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_AMENDMENT.json",
+
+  "VERIFICATION_BEFORE_FREEZE": {
+    "checkpoint_sha256": "recomputed directly from artifacts/strategic_demand/sppo/sharing_ladder/rung1/ckpts/final_rung1.pt at freeze time: 815f818ac11f0546ecdaf77988f39cce2b9ea8b273acde58e6f752c8c0bdc7d1 -- EXACT MATCH to the medium- and high-tier studies. Same checkpoint throughout the whole dose-response study, confirmed not substituted.",
+    "input_files": "all 16 CSVs feeding this result (12 new low-tier cells + 4 reused nominal cells, via --skip-nominal) independently checked: exactly 128 rows each, seed set EXACTLY {13400001..13400128} in every file, win values strictly binary. ALL 16 FILES OK.",
+    "seed_pairing": "confirmed the same 128 seed keys are present, in the same set, across every one of the 16 files -- the paired design is intact.",
+    "delta_formula_sanity_check": "delta_A = win(poleA,z0) - win(poleA,z1); delta_B = win(poleB,z1) - win(poleB,z0). Verified against the ALREADY-FROZEN nominal row (shared across all three tiers): win(poleA,z0)=0.640625, win(poleA,z1)=0.4609375 -> 0.1797, and win(poleB,z1)=0.5, win(poleB,z0)=0.34375 -> 0.1562 -- both an EXACT match to ROBUSTNESS_2V2_RUNG1_RESULT.json's frozen nominal delta_A/delta_B, confirming the formula and file identification are correct before trusting any low-tier number.",
+    "bootstrap_recomputation": "delta_A/delta_B/R_A/R_B computed via paired percentile bootstrap (n_boot=20000, alpha=0.05, rng_seed=7, seed as resampling unit; per-condition resampled indices reused against the paired nominal arrays for R_A/R_B), then independently recomputed with a SEPARATE, vectorized implementation (same seed/algorithm, different code shape). Recomputed values are BYTE-IDENTICAL to every number below.",
+    "verdict": "all four required checks (formula sanity, input file integrity, seed pairing, checkpoint sha) pass, plus independent bootstrap recompute matches exactly. Freezing."
+  },
+
+  "seeds": {"block": [13400001, 13400128], "n": 128},
+  "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+
+  "PER_CONDITION_CROSSOVER": {
+    "localization_noise_low": {
+      "delta_A": {"mean": 0.1875, "lcb95": 0.0703, "ucb95": 0.3047},
+      "delta_B": {"mean": 0.1797, "lcb95": 0.0625, "ucb95": 0.2969},
+      "gate": "PASS"
+    },
+    "motion_error_low": {
+      "delta_A": {"mean": 0.2656, "lcb95": 0.1562, "ucb95": 0.375},
+      "delta_B": {"mean": 0.0938, "lcb95": -0.0234, "ucb95": 0.2031},
+      "gate": "FAIL"
+    },
+    "control_delay_low": {
+      "delta_A": {"mean": 0.1094, "lcb95": -0.0078, "ucb95": 0.2266},
+      "delta_B": {"mean": 0.1641, "lcb95": 0.0469, "ucb95": 0.2812},
+      "gate": "FAIL"
+    }
+  },
+
+  "PAIRED_DEGRADATION_VS_NOMINAL_WITHIN_SEED": {
+    "localization_noise_low": {
+      "R_A": {"mean": 0.0078, "lcb95": -0.0625, "ucb95": 0.0781},
+      "R_B": {"mean": 0.0234, "lcb95": -0.0547, "ucb95": 0.1016}
+    },
+    "motion_error_low": {
+      "R_A": {"mean": 0.0859, "lcb95": -0.0781, "ucb95": 0.25},
+      "R_B": {"mean": -0.0625, "lcb95": -0.2109, "ucb95": 0.0859}
+    },
+    "control_delay_low": {
+      "R_A": {"mean": -0.0703, "lcb95": -0.2109, "ucb95": 0.0703},
+      "R_B": {"mean": 0.0078, "lcb95": -0.1328, "ucb95": 0.1562}
+    }
+  },
+
+  "NOMINAL_REFERENCE_shared_across_all_three_tiers": {
+    "delta_A": {"mean": 0.1797, "lcb95": 0.0547, "ucb95": 0.3047},
+    "delta_B": {"mean": 0.1562, "lcb95": 0.0312, "ucb95": 0.2812},
+    "gate": "PASS"
+  },
+
+  "FULL_DOSE_RESPONSE_TABLE_nominal_low_medium_high": {
+    "localization_noise": {
+      "nominal": {"delta_A": 0.1797, "delta_B": 0.1562, "gate": "PASS"},
+      "low_0.03": {"delta_A": 0.1875, "delta_B": 0.1797, "gate": "PASS"},
+      "medium_0.06": {"delta_A": 0.1797, "delta_B": 0.1953, "gate": "PASS"},
+      "high_0.12": {"delta_A": 0.2031, "delta_B": 0.1797, "gate": "PASS"},
+      "pattern": "PASSES at every tested severity, 0 -> 0.12. R stays near zero throughout (never confirmed degradation, never even a near-miss on the gate). This is the one family that is unambiguously robust across the full tested range."
+    },
+    "motion_error": {
+      "nominal": {"delta_A": 0.1797, "delta_B": 0.1562, "gate": "PASS"},
+      "low_0.03": {"delta_A": 0.2656, "delta_B": 0.0938, "gate": "FAIL"},
+      "medium_0.06": {"delta_A": 0.1094, "delta_B": 0.0156, "gate": "FAIL"},
+      "high_0.12": {"delta_A": 0.2031, "delta_B": 0.1172, "gate": "FAIL"},
+      "pattern": "FAILS at EVERY tested nonzero severity, always through Pole B's delta_B LCB95 crossing (or, at high, touching) zero, never through Pole A. The failure is not dose-dependent: R_B is -0.0625 (low), -0.1406 (medium), -0.0391 (high) -- non-monotonic, and no R_B interval ever clears zero, so degradation is never statistically CONFIRMED at any severity either. This directly answers the question that motivated running the low tier: mildness of the tested perturbation was NOT why the medium/high results were ambiguous -- even the mildest tested level (0.03) already reproduces the identical failure signature."
+    },
+    "control_delay": {
+      "nominal": {"delta_A": 0.1797, "delta_B": 0.1562, "gate": "PASS"},
+      "low_1tick": {"delta_A": 0.1094, "delta_B": 0.1641, "gate": "FAIL"},
+      "medium_2tick": {"delta_A": 0.0312, "delta_B": 0.1641, "gate": "FAIL"},
+      "high_4tick": "not authorized; scope remains closed per ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT.json#SCOPE_DECISION",
+      "pattern": "unlike the other two families, this one shows a genuinely MONOTONIC trend, and it is isolated to Pole A: delta_A falls 0.1797 -> 0.1094 -> 0.0312 as delay increases 0 -> 1 -> 2 ticks, while delta_B stays flat and never fails (0.1562 -> 0.1641 -> 0.1641). Neither R_A interval clears zero yet (low ucb95=+0.0703, medium ucb95=0.0000 exactly), so degradation is still not statistically CONFIRMED at either tested point -- but medium already sits exactly at the boundary, and the monotone direction is consistent with a real, still-emerging dose-response concentrated entirely in Pole A. This is a materially different pattern from motion_error's flat, non-monotonic Pole-B failure."
+    }
+  },
+
+  "READING": "The low-tier extension resolves the ambiguity raised about whether the medium/high localization and motion-error levels were too mild to reveal real degradation: they were not. Localization noise remains fully robust (gate PASS) at all three tested severities, 0.03 through 0.12, with no evidence of a real crossover boundary anywhere in the tested range. Motion error fails the joint gate at all three severities via Pole B, but this failure does not grow with dose and is never itself statistically confirmed as degradation (every R_B interval straddles zero) -- the honest characterization is a persistently fragile Pole-B margin under any motion perturbation, not a dose-dependent breakdown. Control delay is the one family showing a genuinely monotonic, dose-consistent pattern, concentrated entirely in Pole A, with the medium-tier point (2 ticks) sitting exactly at the statistical boundary (R_A UCB95 = 0.0000) -- suggestive of a real, still-emerging effect that the declined high-tier (4-tick) point would have been positioned to confirm or rule out, had it been authorized.",
+
+  "SCOPE": "This completes the originally frozen low/medium/high ladder for localization_noise and motion_error, and adds the frozen low-tier (1-tick) point for control_delay alongside its existing medium-tier (2-tick) result. control_delay_high (4 ticks) remains declined, unchanged from the high-tier amendment's scope decision. Per PI direction 2026-09-08, this closes the preregistered low-tier gap without inventing any post-hoc severity value; every number above corresponds to a tier defined in DEPLOYMENT_ROBUSTNESS_SPEC.json#TIERS before any episode in this study ran."
+}

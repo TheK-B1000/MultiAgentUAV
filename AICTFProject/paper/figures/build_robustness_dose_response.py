@@ -1,14 +1,13 @@
-"""2v2 deployment robustness dose-response (win rate + Delta), available tiers only.
+"""2v2 deployment robustness dose-response (win rate + Delta), full sealed ladder.
 
-Three panels:
-  (a) localization noise  -- nominal (0) + medium (0.06) + high (0.12); low incomplete
-  (b) motion error        -- same available ladder
-  (c) control delay       -- nominal (0) + medium (2 ticks); low incomplete, high N/A
+Three panels matching the paper's three robustness stories:
+  (a) localization noise  -- nominal + low(0.03) + medium(0.06) + high(0.12)
+  (b) motion error        -- same numeric ladder (matched-scale, not equated severity)
+  (c) control delay       -- nominal + low(1 tick) + medium(2 ticks); high declined
 
-Each panel plots Mode A / Mode B win rates vs severity (lines + markers + 95% CI),
-with a second twin showing Delta_A / Delta_B from the sealed result JSONs where present
-is omitted here -- this figure answers "does the system still perform?" via win rate.
-A companion Delta figure is produced in the same script as fig_robustness_delta_dose.
+Win-rate figure: own-pole Mode A / Mode B performance vs severity.
+Delta figure: specialization Delta_A / Delta_B vs severity, with per-severity gate
+annotations (PASS/FAIL) from the sealed result JSONs.
 
 Bootstrap CIs recomputed from raw CSVs (n_boot=20000, alpha=0.05, rng_seed=7).
 
@@ -41,9 +40,16 @@ FAMILIES = [
         "xlabel": r"Localization noise $\sigma$ (cells)",
         "points": [
             ("nominal", "nominal", 0.0),
+            ("localization_noise", "low", 0.03),
             ("localization_noise", "medium", 0.06),
             ("localization_noise", "high", 0.12),
         ],
+        "gate_keys": {
+            0.0: "nominal",
+            0.03: "localization_noise_low",
+            0.06: "localization_noise_medium",
+            0.12: "localization_noise_high",
+        },
     },
     {
         "key": "motion_error",
@@ -51,9 +57,16 @@ FAMILIES = [
         "xlabel": r"Motion error $\sigma$ (cells)",
         "points": [
             ("nominal", "nominal", 0.0),
+            ("motion_error", "low", 0.03),
             ("motion_error", "medium", 0.06),
             ("motion_error", "high", 0.12),
         ],
+        "gate_keys": {
+            0.0: "nominal",
+            0.03: "motion_error_low",
+            0.06: "motion_error_medium",
+            0.12: "motion_error_high",
+        },
     },
     {
         "key": "control_delay",
@@ -61,8 +74,14 @@ FAMILIES = [
         "xlabel": "Control delay (ticks)",
         "points": [
             ("nominal", "nominal", 0.0),
+            ("control_delay", "low", 1.0),
             ("control_delay", "medium", 2.0),
         ],
+        "gate_keys": {
+            0.0: "nominal",
+            1.0: "control_delay_low",
+            2.0: "control_delay_medium",
+        },
     },
 ]
 
@@ -93,6 +112,24 @@ def _delta_ci(wins_on: np.ndarray, wins_off: np.ndarray, n_boot=20000, alpha=0.0
     return mean * 100, max(0.0, (mean - lo) * 100), max(0.0, (hi - mean) * 100)
 
 
+def _load_gate_table() -> dict[str, str]:
+    """Merge sealed PER_CONDITION_CROSSOVER gate labels across the three result files."""
+    out: dict[str, str] = {}
+    for name in (
+        "ROBUSTNESS_2V2_RUNG1_RESULT.json",
+        "ROBUSTNESS_2V2_HIGH_TIER_RESULT.json",
+        "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT.json",
+    ):
+        with (SD / name).open(encoding="utf-8") as fh:
+            blob = json.load(fh)
+        for key, cell in blob["PER_CONDITION_CROSSOVER"].items():
+            out[key] = cell["gate"]
+    # Nominal lives only in the medium/low files; keep a stable key.
+    if "nominal" in out:
+        out["nominal"] = out["nominal"]
+    return out
+
+
 def build_winrate_figure() -> dict:
     apply_style()
     fig, axes = plt.subplots(1, 3, figsize=(TWO_COLUMN, 2.8), sharey=True)
@@ -101,7 +138,6 @@ def build_winrate_figure() -> dict:
         for mode, z, pole_for_own in (("A", 0, "A"), ("B", 1, "B")):
             xs, ys, elo, ehi = [], [], [], []
             for family, severity, x in fam["points"]:
-                # Own-pole win rate of mode under that severity
                 wins = _load(pole_for_own, z, family, severity)
                 m, lo, hi = _mean_ci_pct(wins)
                 xs.append(x)
@@ -125,9 +161,9 @@ def build_winrate_figure() -> dict:
         ax.tick_params(labelleft=False)
 
     caption = (
-        "Available sealed tiers only (low tier incomplete). Lines are Mode A / Mode B "
-        "win rate against their own pole under each deployment perturbation. "
-        "Error bars: 95% bootstrap CIs."
+        "2v2 sealed dose-response (n=128 matched seeds). Localization and motion share a "
+        "matched numeric schedule (0.03 / 0.06 / 0.12 cells); control delay is 0 / 1 / 2 ticks "
+        "(4-tick high declined). Error bars: 95% bootstrap CIs."
     )
     fig.text(0.5, -0.08, caption, ha="center", va="top", fontsize=8, style="italic")
     fig.subplots_adjust(wspace=0.14, bottom=0.24, top=0.88)
@@ -136,12 +172,12 @@ def build_winrate_figure() -> dict:
 
 def build_delta_figure() -> dict:
     apply_style()
-    fig, axes = plt.subplots(1, 3, figsize=(TWO_COLUMN, 2.8), sharey=True)
+    gates = _load_gate_table()
+    fig, axes = plt.subplots(1, 3, figsize=(TWO_COLUMN, 2.9), sharey=True)
 
     for ax, fam in zip(axes, FAMILIES):
         xs, da, da_lo, da_hi, db, db_lo, db_hi = [], [], [], [], [], [], []
         for family, severity, x in fam["points"]:
-            # Delta_A = V(z0,A) - V(z1,A); Delta_B = V(z1,B) - V(z0,B)
             w_a0 = _load("A", 0, family, severity)
             w_a1 = _load("A", 1, family, severity)
             w_b0 = _load("B", 0, family, severity)
@@ -163,30 +199,46 @@ def build_delta_figure() -> dict:
             marker=MARKERS["B"], ms=5, mec="white", mew=0.5, lw=1.3,
             capsize=3, elinewidth=0.8, label=r"$\Delta_B$", zorder=2,
         )
+
+        # Compact gate trail under the title: one letter per severity (P/F).
+        gate_bits = []
+        for x in xs:
+            gkey = fam["gate_keys"][x]
+            gate_bits.append("P" if gates.get(gkey) == "PASS" else "F")
+        ax.text(
+            0.5, 0.02, "gate " + "·".join(gate_bits),
+            transform=ax.transAxes, ha="center", va="bottom", fontsize=7.5,
+            color="#444444",
+        )
+
         ax.set_title(fam["title"], fontsize=9.5, fontweight="bold")
         ax.set_xlabel(fam["xlabel"])
         ax.set_ylim(-25, 45)
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
-        ax.legend(loc="lower left", frameon=False, fontsize=7.5)
+        ax.legend(loc="upper right", frameon=False, fontsize=7.5)
 
     axes[0].set_ylabel(r"Specialization $\Delta$ (pp)")
     for ax in axes[1:]:
         ax.tick_params(labelleft=False)
 
     caption = (
-        r"Does specialization survive the perturbation? $\Delta_A=V(z_0,A)-V(z_1,A)$, "
-        r"$\Delta_B=V(z_1,B)-V(z_0,B)$ in percentage points. "
-        "CI crossing zero means the crossover gate fails at that severity."
+        r"Does specialization survive? $\Delta_A=V(z_0,A)-V(z_1,A)$, "
+        r"$\Delta_B=V(z_1,B)-V(z_0,B)$ (pp). "
+        "Localization stays PASS at every severity; motion fails from the first nonzero "
+        "level via Pole B; control delay shows monotone Pole-A erosion (P=PASS, F=FAIL)."
     )
     fig.text(0.5, -0.08, caption, ha="center", va="top", fontsize=8, style="italic")
-    fig.subplots_adjust(wspace=0.14, bottom=0.24, top=0.88)
+    fig.subplots_adjust(wspace=0.14, bottom=0.26, top=0.88)
     return save_figure(fig, "fig_robustness_delta_dose")
 
 
 def main() -> None:
-    # Touch sealed JSONs so provenance is obvious if a reader greps the script.
-    for name in ("ROBUSTNESS_2V2_RUNG1_RESULT.json", "ROBUSTNESS_2V2_HIGH_TIER_RESULT.json"):
+    for name in (
+        "ROBUSTNESS_2V2_RUNG1_RESULT.json",
+        "ROBUSTNESS_2V2_HIGH_TIER_RESULT.json",
+        "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT.json",
+    ):
         assert (SD / name).exists(), name
     p1 = build_winrate_figure()
     p2 = build_delta_figure()

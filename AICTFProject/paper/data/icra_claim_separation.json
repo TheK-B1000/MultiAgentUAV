@@ -1,0 +1,93 @@
+{
+  "record": "ICRA claim separation: what 2v2 results prove vs what SP-PPO must prove",
+  "status": "LOCKED",
+  "utc": "2026-09-09",
+  "deadline": "ICRA 2027 contributed papers 2026-09-15; 8 pages incl. refs",
+
+  "LEAD_WITH": "We demonstrate that a strategy-conditioned multi-robot PPO controller can represent distinct, payoff-relevant latent strategies and systematically characterize how progressive parameter sharing affects their preservation.",
+
+  "DO_NOT_LEAD_WITH": "We created a new PPO that allows latent strategies / SP-PPO preserves latent strategies better than PPO alone.",
+
+  "CLAIM_A_architecture_and_sharing": {
+    "supported_by": [
+      "specialist crossover PASS (SPECIALIST_BASELINE_EVAL_RESULT)",
+      "Share-Encoder latent closed-loop X-pattern (RUNG1_LADDER_EVAL_RESULT OWN_GATE PASS)",
+      "sharing ladder Share-0 -> Encoder -> Backbone -> Macro (RUNG0..3)",
+      "measurement hierarchy: imitation/JS can remain strong while gate fails (Share-Macro)",
+      "robustness dose-response (localization / motion / delay)"
+    ],
+    "proves": [
+      "Distinct learned strategies exist (pi_A/pi_B crossover).",
+      "Discrete z modes in pi_theta(a|o,z) can express payoff-relevant specialization (z0 advantageous on A, z1 on B).",
+      "Shared perception (Share-Encoder) is tolerated with no detectable paired loss vs Share-0.",
+      "Sharing the backbone begins statistically detectable Pole-A degradation while absolute gate may still PASS.",
+      "Sharing macro outputs breaks the joint specialization gate (Delta_A LCB = 0)."
+    ],
+    "does_NOT_prove": [
+      "That CSC caused the latent modes.",
+      "That SPFT caused the latent modes.",
+      "That SP-PPO (PPO+CSC+SPFT) preserves specialization better than matched PPO alone."
+    ],
+    "flagship_sentence": "In 2v2, payoff-relevant strategy specialization is preserved under shared perception, begins to degrade when the policy backbone is shared, and fails once macro-action outputs are also shared.",
+    "composite_figure": "fig_claim_a_2v2",
+    "composite_builder": "paper/figures/build_claim_a_2v2.py",
+    "composite_panels": [
+      "(a) specialist crossover",
+      "(b) latent z-modes + pi_G/pi_A/pi_B",
+      "(c) progressive sharing Delta ladder"
+    ]
+  },
+
+  "CLAIM_B_algorithmic_SP_PPO": {
+    "required_evidence": "Matched controlled comparison measuring the same Delta_A/Delta_B crossover gate (and preferably retention + behavior): PPO vs PPO+CSC vs PPO+CSC+SPFT.",
+    "methodology_defines_SP_PPO_as": "PPO + CSC + SPFT (methodology.tex)",
+    "sealed_status_in_methodology_results": {
+      "CSC_vs_PPO_only": "NEITHER satisfies specialization criterion; paired treatment-minus-control does not clear zero. CSC does NOT recover payoff-level specialization under frozen protocol.",
+      "SPFT_vs_CSC_only": "NEITHER satisfies specialization criterion; paired contrasts do not clear zero. SPFT does NOT establish recovery relative to CSC alone."
+    },
+    "spppo_v1_program_status": "CLOSED as valid FAIL (SPPPO_DIAGNOSTIC_ARC_CLOSEOUT / SPPPO_V1_NOT_CONFIRMED). Do not reopen as automatic success from sharing-ladder results.",
+    "how_to_report_in_paper": "Report CSC/SPFT as the proposed intervention family for retention during continued PPO, with sealed negative / non-recovery results if that is what is on disk. Do not attribute Share-Encoder PASS to SP-PPO.",
+    "ablation_figure": "fig_claim_b_spp_ablation",
+    "ablation_builder": "paper/figures/build_claim_b_spp_ablation.py",
+    "ablation_arm_mapping": {
+      "PPO": "CCP-S2 CONTROL (CCP_S2_EVAL_INTEGRITY.json)",
+      "PPO+CSC": "CCP-S2 TREATMENT",
+      "PPO+CSC+SPFT": "RSCFT RETENTION_treatment (RSCFT_EVAL_RESULT.json)"
+    },
+    "visual_point": "None of the three arms recovers the specialization gate; Share-Encoder PASS is architectural, not SP-PPO credit."
+  },
+
+  "ICRA_FIGURE_STACK": [
+    {"fig": 1, "stem": "fig_claim_a_2v2", "role": "Claim A: specialists -> latent z -> sharing (composite)"},
+    {"fig": 2, "stem": "fig_sharing_ladder_2v2", "role": "Claim A detail: progressive sharing Delta + paired D (optional if composite panel c is enough)"},
+    {"fig": 3, "stem": "fig_2v2_measurement_hierarchy", "role": "imitation != distributional != closed-loop"},
+    {"fig": 4, "stem": "fig_claim_b_spp_ablation", "role": "Claim B: SP-PPO non-recovery"},
+    {"fig": 5, "stem": "fig_qualitative_latent_2v2", "role": "matched-state z0/z1 behavior"},
+    {"fig": 6, "stem": "fig_robustness_delta_dose", "role": "robustness dose-response"}
+  ],
+
+  "PRIORITY_BEFORE_2026_09_15": [
+    "1. Keep 2v2 flagship claim A intact; regenerate fig_claim_a_2v2 + supporting stars.",
+    "2. Present fig_claim_b_spp_ablation as valid FAIL / non-recovery (no credit leakage).",
+    "3. Seal 4v4 B3 specialist crossover if ready -- unlocks second scale column; FAIL is also reportable.",
+    "4. Polish qualitative z0/z1 matched frames as behavioral proof without overclaiming coarse telemetry.",
+    "5. Do NOT open new methodological branches."
+  ],
+
+  "figures_owned_by_claim_A": [
+    "fig_claim_a_2v2",
+    "fig_specialist_crossover_2v2",
+    "fig_strategy_existence_2v2",
+    "fig_2v2_baseline_sharing_performance",
+    "fig_sharing_ladder_2v2",
+    "fig_2v2_measurement_hierarchy",
+    "fig_qualitative_latent_2v2",
+    "fig_latent_behavior_2v2",
+    "fig_robustness_*"
+  ],
+
+  "figures_owned_by_claim_B": [
+    "fig_claim_b_spp_ablation"
+  ]
+}
+

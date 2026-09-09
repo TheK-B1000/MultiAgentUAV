@@ -1,0 +1,41 @@
+{
+  "record": "Cross-scale results fill matrix (discipline for fig_cross_scale_*)",
+  "rule": "Latent/sharing rows earned only after sealed learned-specialist crossover PASS at that scale.",
+  "scales": {
+    "2v2": {
+      "demand": "VALIDATED (V3_STRATEGIC_DEMAND_VALIDATED)",
+      "pi_G": "FILLED (PI_G_EVAL_RESULT)",
+      "specialists": "FILLED PASS (SPECIALIST_BASELINE_EVAL_RESULT)",
+      "Share-0": "FILLED PASS (RUNG0_LADDER_REFERENCE POOLED_N128)",
+      "Share-Encoder": "FILLED PASS (RUNG1_LADDER_EVAL_RESULT)",
+      "Share-Backbone": "FILLED PASS (RUNG2_LADDER_EVAL_RESULT; detectable D_A loss)",
+      "Share-Macro": "FILLED FAIL (RUNG3_LADDER_EVAL_RESULT; Delta_A LCB=0)"
+    },
+    "4v4": {
+      "demand": "CERTIFIED (C2 n192 + B3-3 n192)",
+      "pi_G": "EMPTY (not wired)",
+      "specialists": "C2 sealed FAIL; B3 crossover NOT sealed (pi_B3 in progress)",
+      "Share-0": "WITHHELD",
+      "Share-Encoder": "WITHHELD",
+      "Share-Backbone": "WITHHELD",
+      "Share-Macro": "WITHHELD"
+    },
+    "6v6": {
+      "demand": "CERTIFIED (GUARD_DISTRIBUTED_V2)",
+      "pi_G": "EMPTY (not wired)",
+      "specialists": "EMPTY (smoke only; no production crossover)",
+      "Share-0": "WITHHELD (ladder not rebuilt at 6v6 by design)",
+      "Share-Encoder": "WITHHELD (Rung-1 planned; not run)",
+      "Share-Backbone": "WITHHELD",
+      "Share-Macro": "WITHHELD"
+    }
+  },
+  "figures": [
+    "paper/generated/fig_cross_scale_winrate.{png,pdf}",
+    "paper/generated/fig_cross_scale_delta.{png,pdf}"
+  ],
+  "next_unlock": {
+    "4v4": "Seal B3 confirmatory specialist crossover PASS, then train/eval Share-* before filling latent rows.",
+    "6v6": "Production specialists + sealed crossover PASS, then Rung-1 absolute gate (not full 0-3 ladder)."
+  }
+}

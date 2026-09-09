@@ -1,0 +1,41 @@
+{
+  "record_id": "4V4_B3_CONFIRMATORY_SPEC_IMPLEMENTATION_VERIFIED_AMENDMENT",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-08T22:40:00Z",
+  "amends": "4V4_B3_CONFIRMATORY_SPEC.json#IMPLEMENTATION_GAP_TO_CLOSE_BEFORE_LAUNCH",
+  "authorizes_training": false,
+
+  "PURPOSE": "Close the implementation gap the parent spec flagged, verify it by dry-run, and record a SECOND gap discovered only once the dry-run was actually attempted. Neither action spends a seed, starts training, or touches the 2v2 sweep.",
+
+  "GAP_1_CERT_PRECEDENCE": {
+    "description": "train_specialist_scale.py::_CERT_PRECEDENCE did not yet list STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json, so it would have resolved 4v4 to the C2/N192 record (whose own crossover eval already FAILED) instead of the newer, passing B3-3 record.",
+    "fix": "Added POLE_B3_3_N192 as the new first (highest-precedence) entry, above CONFIRMATORY_REDESIGN_N192, with an explanatory comment mirroring the existing V1->V2 and V2->C2 precedent comments. Both older records retained unmodified on disk.",
+    "verified": "_certification_verdict(4) == ('CERTIFIED', .../STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json)"
+  },
+
+  "GAP_2_CHECKPOINT_PATH_COLLISION_discovered_by_the_dry_run_itself": {
+    "description": "The FIRST dry-run attempt (pi_A3, seed 16500001, no --run-label-suffix) correctly FAILED CLOSED: 'K:\\...\\scale_4v4_specialists\\pi_A_specialist_4v4\\ckpts already holds 11 checkpoint(s); refusing to overwrite.' Root cause: spec['label'] for a non-exploratory run has always been the bare pi_{policy}_specialist_{n}v{n}, with no per-track distinction -- so B3's pi_A3/pi_B3 would write into the SAME directory as the C2 track's already-completed pi_A2/pi_B2 (verified by file timestamps: pi_A_specialist_4v4 final checkpoint 2026-09-08T01:17, pi_B_specialist_4v4 final checkpoint 2026-09-08T05:25 -- both complete, no live writer, consistent with the sealed C2 track).",
+    "why_the_directory_could_not_simply_be_renamed_aside": "pi_A_specialist_4v4/pi_B_specialist_4v4 are referenced by name from frozen records (CONFIRMATORY_REDESIGN_C2_PI_A2_FROZEN.json, CONFIRMATORY_REDESIGN_C2_PI_B2_FROZEN.json) and were the exact checkpoints fidelity-verified against the sealed C2 crossover eval and the qualitative-capture tool. Renaming or moving them would orphan those frozen pointers. Per standing project discipline, frozen artifacts are never relocated to make room for a new attempt -- the new attempt takes a new path instead.",
+    "fix": "Added --run-label-suffix (default '', so every existing call site and prior invocation is byte-for-byte unaffected) to train_specialist_scale.py. Appended verbatim to spec['label'], which drives both cfg.run_tag and the checkpoint directory.",
+    "corrected_launch_commands": {
+      "pi_A3": "python experiments/train_specialist_scale.py --team-size 4 --policy A --seed 16500001 --device cuda --run-label-suffix _b3",
+      "pi_B3": "python experiments/train_specialist_scale.py --team-size 4 --policy B --seed 16600001 --device cuda --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json --run-label-suffix _b3"
+    },
+    "resulting_checkpoint_dirs": {
+      "pi_A3": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts",
+      "pi_B3": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts"
+    },
+    "verified": "C2's pi_A_specialist_4v4/pi_B_specialist_4v4 directories confirmed untouched (11 checkpoints each, unchanged mtimes) after this fix; both corrected dry-runs now resolve cleanly to the new _b3-suffixed paths with LIVE POLE CHECK: PASS and certification CERTIFIED via the B3-3 record."
+  },
+
+  "DRY_RUN_EVIDENCE": {
+    "pi_A3": "certification=CERTIFIED (STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json), checkpoint dir=.../pi_A_specialist_4v4_b3/ckpts, LIVE POLE CHECK: PASS (live_min_alive_for_defender=4, installed_overlay_keys=['OP6','OP7']), '--dry-run: config resolved and checks passed. NOT training, NOT writing a run manifest.'",
+    "pi_B3": "Pole B SOURCE = candidate genome 'SDS2_B3_LOCKDEF10_2V1' from B3-3_lockdef10_2v1.json (NOT canonical pole_B_genome(4)); certification=CERTIFIED; checkpoint dir=.../pi_B_specialist_4v4_b3/ckpts; LIVE POLE CHECK: PASS (live_min_alive_for_defender=4, installed_overlay_keys=['OP7']); same dry-run-only confirmation line."
+  },
+
+  "2V2_SWEEP_STATUS_AT_TIME_OF_THIS_AMENDMENT": "cell 3 of 4 (Pole B, z=0) running, started 2026-09-08T21:49:46Z; cell 4 (Pole B, z=1) not yet started. Based on the observed ~3h41m pace of cells 1-2, cell 3 is estimated to finish roughly 2026-09-09T01:30Z, with cell 4 finishing roughly 2026-09-09T05:10Z. This does NOT yet meet the PI's 'finished or safely at the sealing stage' bar.",
+
+  "STILL_NOT_AUTHORIZED_BY_THIS_RECORD": ["launching pi_A3 or pi_B3 training", "spending 16500001, 16600001, or any seed in 16700001-128", "interpreting the 2v2 low-tier Delta_A/Delta_B before all 4 cells (Pole A z0/z1, Pole B z0/z1) are present"],
+
+  "NEXT_ACTION": "Both implementation gaps are closed and dry-run verified with zero artifacts written. The only remaining blocker to launching pi_A3 is the 2v2 sweep reaching completion or the sealing stage, per the PI's explicit, still-governing instruction. Continue monitoring; launch pi_A3 (then pi_B3) the moment that condition is met."
+}
