@@ -1,0 +1,30 @@
+{
+  "stem": "fig_absolute_winrate_context_2v2",
+  "role": "absolute_performance_context_not_specialization_test",
+  "policies": [
+    "pi_G",
+    "pi_A",
+    "pi_B",
+    "z0",
+    "z1"
+  ],
+  "n": {
+    "pi_G": 64,
+    "pi_A": 64,
+    "pi_B": 64,
+    "z0": 128,
+    "z1": 128
+  },
+  "win_rate_pct": {
+    "pi_G_regimeA": 37.5,
+    "pi_G_regimeB": 50.0,
+    "pi_A_regimeA": 60.94,
+    "pi_A_regimeB": 32.81,
+    "pi_B_regimeA": 43.75,
+    "pi_B_regimeB": 62.5,
+    "z0_regimeA": 70.31,
+    "z0_regimeB": 43.75,
+    "z1_regimeA": 43.75,
+    "z1_regimeB": 60.16
+  }
+}

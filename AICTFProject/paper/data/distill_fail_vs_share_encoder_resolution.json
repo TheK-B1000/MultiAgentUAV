@@ -1,0 +1,42 @@
+{
+  "record": "Resolution of distilled-policy FAIL vs Share-Encoder PASS contradiction",
+  "status": "RESOLVED",
+  "utc": "2026-09-09",
+  "question": "Do Claim-A artifacts support experts->distillation PASS->sharing, or experts->distillation FAIL->Share-Encoder unexpectedly PASS?",
+
+  "verdict": "FIRST sequence, once artifacts are correctly labeled. The FAIL numbers in the old manuscript were mis-attributed.",
+
+  "FAIL_numbers_source": {
+    "artifact": "artifacts/strategic_demand/sppo/COMPRESSION_CROSSOVER_EVAL_RESULT.json",
+    "delta_A": "+0.09375 [-0.078125, +0.265625]",
+    "delta_B": "+0.140625 [-0.046875, +0.3125]",
+    "n_seeds": 64,
+    "architecture": "heavily shared/compressed student (historical TEACHER_DISTILLATION / compression crossover)",
+    "ladder_spec_note": "SHARING_LADDER_SPEC.json#rung_3 already identified this seal as the prior measurement of the compressed architecture -- closest to Share-Macro, NOT Share-Encoder"
+  },
+
+  "Share_Encoder_PASS_source": {
+    "artifact": "artifacts/strategic_demand/sppo/RUNG1_LADDER_EVAL_RESULT.json OWN_GATE_N128",
+    "delta_A": "+0.265625 [+0.1484375, +0.3828125]",
+    "delta_B": "+0.1640625 [+0.046875, +0.28125]",
+    "n_seeds": 128,
+    "architecture": "full per-strategy specialist-capacity branches; ONLY CNN encoder shared; ladder distillation recipe"
+  },
+
+  "true_Claim_A_story": "experts PASS -> Share-0 structural control PASS (n=128 pooled) -> Share-Encoder distilled PASS -> Share-Backbone PASS-but-degraded -> Share-Macro FAIL",
+
+  "Share_0_clarification": {
+    "what_it_is": "verbatim pi_A/pi_B behind z-dispatch; bit-exact; NOT distilled",
+    "what_Share_Encoder_is": "distilled under ladder recipe with encoder tied",
+    "honest_claim": "Among distilled rungs Enc->Back->Macro, sharing is the sole manipulated variable. Share-0->Encoder compares a structural expert-dispatch control to a distilled shared-encoder student; paired D asks whether the distilled student matches the control, not that only a sharing flag changed."
+  },
+
+  "manuscript_fixes_applied": [
+    "Abstract: numbers; no SP-PPO",
+    "Related Work section added",
+    "Algorithm 1: Share-0 constructed; distill rungs with common recipe",
+    "Sharing section: primary experimental variable; Share-0 vs Enc honesty",
+    "Results: Share-Encoder PASS as Claim A distill; compression FAIL as prior ablation",
+    "CSC/SPFT cut to short negative-result paragraphs; details to supplement"
+  ]
+}

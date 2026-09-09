@@ -36,7 +36,7 @@ SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 FAMILIES = [
     {
         "key": "localization_noise",
-        "title": "Localization noise",
+        "title": "Localization (GPS-like)",
         "xlabel": r"Localization noise $\sigma$ (cells)",
         "points": [
             ("nominal", "nominal", 0.0),
@@ -53,7 +53,7 @@ FAMILIES = [
     },
     {
         "key": "motion_error",
-        "title": "Motion error",
+        "title": "Motion (currents/actuators)",
         "xlabel": r"Motion error $\sigma$ (cells)",
         "points": [
             ("nominal", "nominal", 0.0),
@@ -70,7 +70,7 @@ FAMILIES = [
     },
     {
         "key": "control_delay",
-        "title": "Control delay",
+        "title": "Control latency (comms)",
         "xlabel": "Control delay (ticks)",
         "points": [
             ("nominal", "nominal", 0.0),
@@ -161,9 +161,10 @@ def build_winrate_figure() -> dict:
         ax.tick_params(labelleft=False)
 
     caption = (
-        "2v2 sealed dose-response (n=128 matched seeds). Localization and motion share a "
-        "matched numeric schedule (0.03 / 0.06 / 0.12 cells); control delay is 0 / 1 / 2 ticks "
-        "(4-tick high declined). Error bars: 95% bootstrap CIs."
+        "Sim-to-real diagnostic dose-response (n=128). Families map to physical deployment: "
+        "localization → GPS/pose uncertainty; motion → currents/wind/actuator mismatch; "
+        "delay → communications/control latency. Matched numeric schedule for localization/"
+        "motion (0.03/0.06/0.12 cells); delay 0/1/2 ticks. Error bars: 95% bootstrap CIs."
     )
     fig.text(0.5, -0.08, caption, ha="center", va="top", fontsize=8, style="italic")
     fig.subplots_adjust(wspace=0.14, bottom=0.24, top=0.88)
@@ -223,10 +224,11 @@ def build_delta_figure() -> dict:
         ax.tick_params(labelleft=False)
 
     caption = (
-        r"Does specialization survive? $\Delta_A=V(z_0,A)-V(z_1,A)$, "
-        r"$\Delta_B=V(z_1,B)-V(z_0,B)$ (pp). "
-        "Localization stays PASS at every severity; motion fails from the first nonzero "
-        "level via Pole B; control delay shows monotone Pole-A erosion (P=PASS, F=FAIL)."
+        r"What breaks first toward physical deployment? "
+        r"$\Delta_A=V(z_0,A)-V(z_1,A)$, $\Delta_B=V(z_1,B)-V(z_0,B)$ (pp). "
+        "Localization specialization remains PASS at every severity; motion error breaks "
+        "Pole-B specialization from the first nonzero dose; control latency shows monotone "
+        "Pole-A erosion (P=PASS, F=FAIL)."
     )
     fig.text(0.5, -0.08, caption, ha="center", va="top", fontsize=8, style="italic")
     fig.subplots_adjust(wspace=0.14, bottom=0.26, top=0.88)

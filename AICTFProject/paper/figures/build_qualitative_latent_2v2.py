@@ -123,10 +123,13 @@ def main() -> dict:
     )
     caption = (
         f"Matched seed {SEED}, shared Rung-1 policy $\\pi_\\theta(a\\mid o,z)$; "
-        f"columns differ only in forced $z$, rows differ only in opponent pole. "
+        f"columns differ only in forced $z$, rows differ only in opponent pole "
+        f"(identical initial conditions within each row). "
         f"CUDA fidelity-checked replay (terminals MATCH sealed rung1_ladder_eval_rows.csv). "
-        f"READ AS: visual proof that flipping $z$ changes spatial strategy. "
-        f"DO NOT READ AS: a statistical gate -- that is fig_latent_crossover_2v2."
+        f"READ AS: tangible proof that flipping $z$ changes the team's spatial decision. "
+        f"DO NOT READ AS: the statistical specialization gate "
+        f"(that is fig_claim_a_2v2 / fig_sharing_ladder_2v2). "
+        f"Avoid over-reading coarse telemetry averages (often pole-dominated)."
     )
     fig.text(0.5, -0.02, caption, ha="center", va="top", fontsize=7.5, style="italic")
     fig.subplots_adjust(wspace=0.14, hspace=0.62, bottom=0.16, top=0.90,

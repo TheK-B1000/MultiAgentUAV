@@ -1,0 +1,9 @@
+front	00_front.tex
+Abstract	01_abstract.tex
+Introduction	02_introduction.tex
+Problem Setup	03_problem_setup.tex
+Related Work	04_related_work.tex
+Methodology	05_methodology.tex
+Results	06_results.tex
+Discussion	07_discussion.tex
+Conclusion	08_conclusion.tex

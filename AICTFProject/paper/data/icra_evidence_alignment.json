@@ -1,0 +1,90 @@
+{
+  "record": "ICRA 2027 evidence alignment -- 8-page figure rent",
+  "status": "LOCKED",
+  "utc": "2026-09-09",
+  "deadline": "2026-09-15",
+  "story_shape": "strategic demand -> PPO experts -> distilled latent modes -> progressive sharing -> closed-loop specialization boundary -> robustness",
+  "paper_type": "robot-policy architecture and evaluation study (NOT yet another PPO variant)",
+
+  "FIVE_MAJOR_FIGURES": [
+    {
+      "fig": 1,
+      "stem": "fig_method_pipeline_2v2",
+      "builder": "paper/figures/build_method_pipeline_2v2.py",
+      "nails": "How latent strategies are obtained (pipeline roles)"
+    },
+    {
+      "fig": 2,
+      "stem": "fig_claim_a_2v2",
+      "builder": "paper/figures/build_claim_a_2v2.py",
+      "nails": "strategies exist -> transfer into z -> sharing erodes them (killer 3-panel)"
+    },
+    {
+      "fig": 3,
+      "stem": "fig_sharing_ladder_2v2",
+      "builder": "paper/figures/build_sharing_ladder_2v2.py",
+      "data": "paper/data/sharing_ladder_sealed_deltas.json",
+      "nails": "Exact sealed Delta CIs + paired D; Backbone PASS-but-degraded nuance"
+    },
+    {
+      "fig": 4,
+      "stem": "fig_qualitative_latent_2v2",
+      "companion": "fig_trajectory_strip_2v2",
+      "builder": "paper/figures/build_qualitative_latent_2v2.py",
+      "companion_builder": "paper/figures/build_trajectory_strip_2v2.py",
+      "export": "experiments/export_matched_z_trajectories_2v2.py",
+      "nails": "Matched-state z0 vs z1: frames + path overlay with first action divergence (t=4)"
+    },
+    {
+      "fig": 5,
+      "stem": "fig_robustness_delta_dose",
+      "builder": "paper/figures/build_robustness_dose_response.py",
+      "nails": "Sim-to-real diagnostic: localization vs motion vs latency -- what breaks first"
+    }
+  ],
+
+  "SUPPORTING_MAIN_FIGURE": {
+    "stem": "fig_absolute_winrate_context_2v2",
+    "builder": "paper/figures/build_absolute_winrate_context_2v2.py",
+    "data": "paper/data/absolute_winrate_context_2v2.json",
+    "nails": "Absolute win-rate context: pi_G / pi_A / pi_B / Share-Encoder z0,z1. Not the specialization hypothesis test. n=64 vs n=128 disclosed.",
+    "omit": "CSC/SPFT/PPO-only arms; Encoder/Backbone/Macro degradation (those live in Claim B and the Delta ladder)"
+  },
+
+  "ONE_COMPACT_TABLE": {
+    "role": "baselines + measurement hierarchy",
+    "source": "paper/data/2v2_measurement_hierarchy.json",
+    "figure_alt": "fig_2v2_measurement_hierarchy",
+    "nails": "high imitation / nonzero JS does NOT imply payoff specialization (Share-Macro)"
+  },
+
+  "APPENDIX_OR_TINY_PARAGRAPH": {
+    "stem": "fig_claim_b_spp_ablation",
+    "text": "intervention family did not recover the prespecified specialization criterion",
+    "rule": "Do not spend main-paper page making SP-PPO a protagonist"
+  },
+
+  "WITHHOLD_UNTIL_SEALED": {
+    "4v4_latent_ladder": "Only if B3 specialist crossover PASSes sealed. If FAIL, one concise boundary sentence. Do not force the latent ladder.",
+    "b3_status_note": "pi_A B3 training reached 1M steps; crossover eval not sealed as of this lock."
+  },
+
+  "REMAINING_EFFORT_BEFORE_DEADLINE": [
+    "1. Trajectory strip DONE (fig_trajectory_strip_2v2; first action diverge t=4; CUDA fidelity MATCH)",
+    "2. Writing/polish: camera-ready TeX; cut CSC/SPFT to appendix",
+    "3. ICRA accompanying video <=180s: same situation under z0 vs z1, then localization vs motion",
+    "4. 4v4 only if B3 crossover seals PASS -- do not let 4v4 consume the polished 2v2 paper",
+    "5. Do NOT open new learning mechanisms or hyperparameter sweeps"
+  ],
+
+  "VIDEO_BRIEF": {
+    "max_seconds": 180,
+    "beats": [
+      "same initial state, z0 vs z1 side-by-side (behavioral claim)",
+      "Share-Encoder preserved specialization one-liner with Delta plot flash",
+      "localization still specialized vs motion breaking Pole B"
+    ]
+  },
+
+  "ROBOTICS_TAKEAWAY": "shared perception can be reused aggressively; strategy-specific higher-level action capacity is where specialization becomes fragile"
+}

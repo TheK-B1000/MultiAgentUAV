@@ -1,9 +1,14 @@
 # Regenerate Claim A / Claim B separation figures + regenerable PNG previews.
 # Run from AICTFProject/:
 #   powershell -NoProfile -File paper/figures/regen_claim_separation.ps1
+#
+# Prefer Python 3.12 with matplotlib if `python`/`uv` lacks it.
 
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot\..\..
+
+$py = "C:\Users\K-B\AppData\Local\Programs\Python\Python312\python.exe"
+if (-not (Test-Path $py)) { $py = "python" }
 
 $scripts = @(
   "paper/figures/build_claim_a_2v2.py",
@@ -21,7 +26,7 @@ foreach ($s in $scripts) {
     continue
   }
   Write-Host "==> $s"
-  python $s
+  & $py $s
   if ($LASTEXITCODE -ne 0) { throw "failed: $s" }
 }
 

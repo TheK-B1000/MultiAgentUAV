@@ -12,13 +12,14 @@
   "claim_separation": "paper/data/icra_claim_separation.json",
   "lead_with": "strategy-conditioned architecture + progressive sharing characterization (Claim A). Do not credit SP-PPO/CSC/SPFT for Share-Encoder PASS.",
   "icra_figure_stack": [
+    "fig_method_pipeline_2v2",
     "fig_claim_a_2v2",
     "fig_sharing_ladder_2v2",
-    "fig_2v2_measurement_hierarchy",
-    "fig_claim_b_spp_ablation",
     "fig_qualitative_latent_2v2",
     "fig_robustness_delta_dose"
   ],
+  "icra_table": "2v2_measurement_hierarchy (imitation != specialization)",
+  "evidence_alignment": "paper/data/icra_evidence_alignment.json",
   "presentation_notes": {
     "behavior_bars": "Coarse means are mostly pole-driven; caption must not overclaim tactic switching. Qualitative matched frames carry the z-flip visual.",
     "n_caveat": "pi_G/specialists n=64 vs sharing n=128 must stay explicit in captions.",
@@ -59,18 +60,31 @@
     },
     {
       "id": 3,
-      "name": "Baseline + strategy-conditioned across sharing",
+      "name": "Absolute win-rate context (main-paper)",
       "status": "DONE",
       "star": true,
+      "figure": "fig_absolute_winrate_context_2v2",
+      "builder": "paper/figures/build_absolute_winrate_context_2v2.py",
+      "data": "paper/data/absolute_winrate_context_2v2.json",
+      "note": "pi_G, pi_A, pi_B, Share-Encoder z0/z1 only. Descriptive context, not Delta criterion. Dense sharing lasagna stays in fig_2v2_baseline_sharing_performance (appendix/internal)."
+    },
+    {
+      "id": "3b",
+      "name": "Baseline + strategy-conditioned across sharing (dense)",
+      "status": "DONE",
+      "star": false,
       "figure": "fig_2v2_baseline_sharing_performance",
-      "also": "fig_strategy_existence_2v2 (Rung-1 only summary)"
+      "also": "fig_strategy_existence_2v2 (Rung-1 + behavior panels)"
     },
     {
       "id": 4,
       "name": "Progressive-sharing specialization Delta",
       "status": "DONE",
       "star": true,
-      "figure": "fig_sharing_ladder_2v2"
+      "figure": "fig_sharing_ladder_2v2",
+      "builder": "paper/figures/build_sharing_ladder_2v2.py",
+      "data": "paper/data/sharing_ladder_sealed_deltas.json",
+      "note": "Annotated sealed mean [LCB95, UCB95] pp on all four rungs; Share-Macro FAIL because LCB95(Delta_A)=0."
     },
     {
       "id": 5,

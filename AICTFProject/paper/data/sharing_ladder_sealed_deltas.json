@@ -1,0 +1,168 @@
+{
+  "record": "Sealed progressive-sharing specialization deltas (2v2)",
+  "units": "percentage points (pp); means and percentile-bootstrap 95% CIs",
+  "n_seeds": 128,
+  "bootstrap": {
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "gate_criterion": "PASS iff mean(Delta)>0 AND LCB95(Delta)>0 on BOTH poles",
+  "reading": "Share-0 and Share-Encoder preserve the joint gate; Share-Backbone still PASSes but with lower Delta_A; Share-Macro FAILs because LCB95(Delta_A)=0.",
+  "rungs": [
+    {
+      "label": "Share-0",
+      "sub": "Independent experts",
+      "source": {
+        "file": "RUNG0_LADDER_REFERENCE.json",
+        "key": "POOLED_N128"
+      },
+      "delta_A": {
+        "mean_pp": 28.90625,
+        "lcb95_pp": 16.40625,
+        "ucb95_pp": 40.625,
+        "passes": true
+      },
+      "delta_B": {
+        "mean_pp": 25.78125,
+        "lcb95_pp": 14.0625,
+        "ucb95_pp": 37.5,
+        "passes": true
+      },
+      "gate": "PASS",
+      "paired_D": {
+        "source": null,
+        "D_A": {
+          "mean_pp": 0.0,
+          "lcb95_pp": 0.0,
+          "ucb95_pp": 0.0,
+          "detectable_loss": false
+        },
+        "D_B": {
+          "mean_pp": 0.0,
+          "lcb95_pp": 0.0,
+          "ucb95_pp": 0.0,
+          "detectable_loss": false
+        },
+        "note": "reference (D \u2261 0 by definition)"
+      }
+    },
+    {
+      "label": "Share-Encoder",
+      "sub": "Shared CNN",
+      "source": {
+        "file": "RUNG1_LADDER_EVAL_RESULT.json",
+        "key": "OWN_GATE_N128"
+      },
+      "delta_A": {
+        "mean_pp": 26.5625,
+        "lcb95_pp": 14.84375,
+        "ucb95_pp": 38.28125,
+        "passes": true
+      },
+      "delta_B": {
+        "mean_pp": 16.40625,
+        "lcb95_pp": 4.6875,
+        "ucb95_pp": 28.125,
+        "passes": true
+      },
+      "gate": "PASS",
+      "paired_D": {
+        "source": {
+          "file": "RUNG1_LADDER_EVAL_RESULT.json",
+          "key": "PRIMARY_WITHIN_SEED"
+        },
+        "D_A": {
+          "mean_pp": -2.34375,
+          "lcb95_pp": -15.625,
+          "ucb95_pp": 10.15625,
+          "detectable_loss": false
+        },
+        "D_B": {
+          "mean_pp": -9.375,
+          "lcb95_pp": -21.09375,
+          "ucb95_pp": 2.34375,
+          "detectable_loss": false
+        }
+      }
+    },
+    {
+      "label": "Share-Backbone",
+      "sub": "+ MLP backbone",
+      "source": {
+        "file": "RUNG2_LADDER_EVAL_RESULT.json",
+        "key": "OWN_GATE_N128"
+      },
+      "delta_A": {
+        "mean_pp": 14.84375,
+        "lcb95_pp": 2.34375,
+        "ucb95_pp": 26.5625,
+        "passes": true
+      },
+      "delta_B": {
+        "mean_pp": 14.0625,
+        "lcb95_pp": 1.5625,
+        "ucb95_pp": 26.5625,
+        "passes": true
+      },
+      "gate": "PASS",
+      "paired_D": {
+        "source": {
+          "file": "RUNG2_LADDER_EVAL_RESULT.json",
+          "key": "PRIMARY_WITHIN_SEED"
+        },
+        "D_A": {
+          "mean_pp": -14.0625,
+          "lcb95_pp": -27.34375,
+          "ucb95_pp": -0.78125,
+          "detectable_loss": true
+        },
+        "D_B": {
+          "mean_pp": -11.71875,
+          "lcb95_pp": -23.4375,
+          "ucb95_pp": 0.0,
+          "detectable_loss": false
+        }
+      }
+    },
+    {
+      "label": "Share-Macro",
+      "sub": "+ macro outputs",
+      "source": {
+        "file": "RUNG3_LADDER_EVAL_RESULT.json",
+        "key": "OWN_GATE_N128"
+      },
+      "delta_A": {
+        "mean_pp": 12.5,
+        "lcb95_pp": 0.0,
+        "ucb95_pp": 25.0,
+        "passes": false
+      },
+      "delta_B": {
+        "mean_pp": 15.625,
+        "lcb95_pp": 3.125,
+        "ucb95_pp": 28.125,
+        "passes": true
+      },
+      "gate": "FAIL",
+      "paired_D": {
+        "source": {
+          "file": "RUNG3_LADDER_EVAL_RESULT.json",
+          "key": "PRIMARY_WITHIN_SEED"
+        },
+        "D_A": {
+          "mean_pp": -16.40625,
+          "lcb95_pp": -31.25,
+          "ucb95_pp": -1.5625,
+          "detectable_loss": true
+        },
+        "D_B": {
+          "mean_pp": -10.15625,
+          "lcb95_pp": -25.0,
+          "ucb95_pp": 4.6875,
+          "detectable_loss": false
+        }
+      }
+    }
+  ]
+}

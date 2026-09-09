@@ -1,0 +1,19 @@
+{
+  "record": "ICRA 2027 paper spine FREEZE",
+  "status": "FROZEN",
+  "utc": "2026-09-09",
+  "consistency_pass": "terminology sweep completed; compression FAIL labeled prior ablation; Share-0 = structural control; Enc->Back->Macro = sharing axis",
+  "spine": "Experts PASS -> Share-0 PASS -> Share-Encoder PASS -> Share-Backbone PASS-but-degraded -> Share-Macro FAIL",
+  "controlled_sharing_axis": "Encoder -> Backbone -> Macro (common distillation recipe)",
+  "Share_0_role": "structural control / bit-exact expert dispatch; NOT a distillation rung",
+  "compression_ablation_role": "secondary measurement-hierarchy evidence; NOT a Claim-A ladder rung",
+  "novelty_one_liner": "A controlled framework for transferring validated strategies into a shared multi-robot policy and experimentally identifying how architectural sharing affects their closed-loop preservation.",
+  "not_claiming": ["a new PPO algorithm", "SP-PPO as the successful method", "Share-0->Encoder changes only a sharing flag"],
+  "stop_touching": "experimental framing -- next work is writing quality, figure integration, citations/Related Work, page budget",
+  "remaining_priority_order": [
+    "1. writing quality / figure integration into camera-ready TeX",
+    "2. Related Work citations (expand stub)",
+    "3. ICRA video <=180s",
+    "4. 4v4 only if B3 crossover independently seals PASS"
+  ]
+}

@@ -1,0 +1,26 @@
+\section*{Abstract}
+%======================================================================
+
+Multi-robot teams operating against heterogeneous adversaries may require
+qualitatively different coordination strategies under different opponent
+regimes. Deploying a separate network for every regime preserves specialization
+but scales poorly; a single shared policy conditioned on a discrete strategy
+code is more compact, yet strategically important behavior can be difficult to
+preserve under parameter sharing. We study this question in a partially
+observable maritime multi-robot Capture-the-Flag task with two scripted opponent
+regimes. We train independent opponent-specific PPO experts with complementary
+closed-loop specialization, distill their matched-state behaviors into discrete
+modes of a strategy-conditioned controller $\pi_\theta(a\mid o,z)$, and
+progressively increase shared policy structure while measuring whether
+payoff-level specialization survives. Evaluation separates action imitation,
+action-distribution separation, and closed-loop payoff specialization. On a
+matched $128$-seed protocol, sharing only the perception encoder preserves
+specialization
+($\Delta_A=+0.266\,[+0.148,+0.383]$, $\Delta_B=+0.164\,[+0.047,+0.281]$)
+with no detectable paired loss relative to a zero-sharing expert dispatch
+control; sharing the policy backbone still clears the absolute criterion but
+yields detectable specialization loss despite comparable imitation fidelity; and
+sharing macro-action outputs no longer satisfies the specialization criterion
+($\mathrm{LCB}_{95}(\Delta_A)=0$). PPO is used only as the expert-learning
+engine; the primary experimental variable is progressive parameter sharing after
+matched-state distillation.

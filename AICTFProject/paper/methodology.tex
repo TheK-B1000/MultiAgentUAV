@@ -20,24 +20,25 @@ Multi-robot teams operating against heterogeneous adversaries may require
 qualitatively different coordination strategies under different opponent
 regimes. Deploying a separate network for every regime preserves specialization
 but scales poorly; a single shared policy conditioned on a discrete strategy
-code is more compact, yet strategically important behavior can be difficult not
-only to learn, but also to preserve under continued optimization and parameter
-sharing. We study strategy preservation in a partially observable maritime
-multi-robot Capture-the-Flag task with two scripted opponent regimes. We
-transfer complementary expert strategies into strategy-conditioned policies and
-systematically increase parameter sharing from perception to higher-level action
-components. We additionally introduce \emph{Strategy-Preserving PPO} (SP-PPO),
-combining \emph{Counterfactual Strategy Correction} (CSC) with
-\emph{Strategy-Preserving Fine-Tuning} (SPFT), as an intervention family for
-studying whether strategically consequential decisions can be identified and
-retained during continued optimization. Evaluation separates action imitation,
-policy separation, and payoff-level strategic specialization. In the
-progressive-sharing study, sharing only the perception encoder preserves the
-specialization criterion with no detectable paired loss relative to independent
-experts, while deeper sharing yields detectable or fit-confounded degradation.
-These results clarify which components of a multi-robot policy can be shared
-while attempting to retain opponent-conditioned coordination strategies under
-the stated training and evaluation protocol.
+code is more compact, yet strategically important behavior can be difficult to
+preserve under parameter sharing. We study this question in a partially
+observable maritime multi-robot Capture-the-Flag task with two scripted opponent
+regimes. We train independent opponent-specific PPO experts with complementary
+closed-loop specialization, distill their matched-state behaviors into discrete
+modes of a strategy-conditioned controller $\pi_\theta(a\mid o,z)$, and
+progressively increase shared policy structure while measuring whether
+payoff-level specialization survives. Evaluation separates action imitation,
+action-distribution separation, and closed-loop payoff specialization. On a
+matched $128$-seed protocol, sharing only the perception encoder preserves
+specialization
+($\Delta_A=+0.266\,[+0.148,+0.383]$, $\Delta_B=+0.164\,[+0.047,+0.281]$)
+with no detectable paired loss relative to a zero-sharing expert dispatch
+control; sharing the policy backbone still clears the absolute criterion but yields
+detectable specialization loss despite comparable imitation fidelity; and
+sharing macro-action outputs no longer satisfies the specialization criterion
+($\mathrm{LCB}_{95}(\Delta_A)=0$). PPO is used only as the expert-learning
+engine; the primary experimental variable is progressive parameter sharing after
+matched-state distillation.
 
 %======================================================================
 \section{Introduction}
@@ -79,42 +80,42 @@ distinction is important because high action-level imitation fidelity does not
 necessarily imply preservation of closed-loop strategic behavior.
 
 We therefore study strategy preservation under progressive policy sharing in a
-multi-robot adversarial task. We first establish independently trained expert
-policies with complementary opponent-conditioned behavior, then transfer these
-strategies into strategy-conditioned policies while systematically increasing
-parameter sharing from perception to higher-level action components. In
-addition, we introduce \emph{Strategy-Preserving PPO} (SP-PPO) as a
-methodological intervention family:
-\emph{Counterfactual Strategy Correction} (CSC) identifies which strategically
-important decisions should be corrected using matched counterfactual rollouts,
-and \emph{Strategy-Preserving Fine-Tuning} (SPFT) aims to prevent those
-corrections from being erased during continued PPO optimization. Our evaluation
-separates action imitation, policy separation, and payoff-level strategic
-specialization, allowing us to identify when a policy remains locally similar to
-its experts while losing behaviorally meaningful strategy specialization.
+multi-robot adversarial task. The pipeline is intentionally staged so that each
+box has a distinct role:
+\begin{quote}
+\emph{PPO learns the experts;}
+\emph{matched-state distillation creates discrete shared strategy modes;}
+\emph{progressive parameter sharing is the primary experimental variable;}
+\emph{closed-loop crossover is the validation.}
+\end{quote}
+Concretely, we train two independent opponent-specific PPO specialists
+($\pi_A$ vs.\ Regime~A / OP6; $\pi_B$ vs.\ Regime~B / OP7), validate their
+complementary payoff specialization, and construct a zero-sharing structural
+control that dispatches the verbatim experts by strategy code (Share-0). We then
+distill the experts into modes $z_0\!\sim\!\pi_A$ and $z_1\!\sim\!\pi_B$ of
+shared controllers under a \emph{common} distillation recipe while progressively
+tying modules (Share-Encoder $\rightarrow$ Share-Backbone $\rightarrow$
+Share-Macro), asking where closed-loop specialization survives or collapses.
+Among the distilled rungs, the primary experimental variable is the location and
+amount of parameter sharing; Share-0 is the bit-exact expert dispatch reference
+against which paired losses are measured. We do \emph{not} present this core as
+a new PPO algorithm.
 
 The main contributions of this work are:
 \begin{enumerate}
-  \item We introduce a progressive sharing study that isolates the effect of
-  sharing perception, policy-backbone, and action-output parameters on
-  opponent-conditioned strategy specialization while holding expert
-  supervision, training data, optimization budget, and evaluation conditions
-  fixed.
-  \item We distinguish action-level imitation fidelity from closed-loop
-  strategic fidelity and evaluate specialization through matched-seed payoff
-  contrasts rather than latent separation or action agreement alone.
-  \item We develop \emph{Strategy-Preserving PPO} (SP-PPO), a multi-robot
-  policy-learning framework for studying whether counterfactual strategy
-  correction and retention-based fine-tuning can preserve opponent-conditioned
-  strategies during continued optimization.
-  \item Within SP-PPO, we develop \emph{Counterfactual Strategy Correction}
-  (CSC), which uses matched continuation rollouts to identify strategically
-  consequential action interventions and incorporates positively validated
-  interventions as strategy-conditioned corrective supervision.
-  \item Within SP-PPO, we develop \emph{Strategy-Preserving Fine-Tuning}
-  (SPFT), which augments CSC with temporal policy retention to reduce the
-  washout of sparse strategy-defining updates during continued PPO
-  optimization.
+  \item A strategy-conditioned expert-distillation framework that grounds
+  discrete modes $z$ in independently learned, crossover-validated PPO experts
+  via matched-state supervision, isolating strategy differences from
+  state-distribution differences.
+  \item A progressive parameter-sharing study that isolates the effect of
+  sharing perception, policy-backbone, and action-output modules on
+  opponent-conditioned specialization while holding the distillation recipe,
+  data, schedule, seeds, and payoff criterion fixed among distilled rungs---with
+  a bit-exact expert-dispatch Share-0 control as the zero-sharing reference.
+  \item A measurement hierarchy that refuses to equate imitation or
+  action-distribution separation with closed-loop strategic meaning: a
+  $z_0$/$z_1$ pair counts only if changing $z$ changes payoff preference
+  against the opponent regimes.
 \end{enumerate}
 
 %======================================================================
@@ -204,10 +205,11 @@ when deploying with strategy code $z$ against opponent regime
 $p\in\{A,B\}$, estimated over a held-out seed block.
 
 Independently trained \emph{strategy-specific expert policies} $\pi_A$ and
-$\pi_B$ provide the zero-sharing reference: each is trained against one regime
-with no shared parameters and no strategy-code mechanism. A single
-\emph{generalist} policy $\pi_G$ trained on the mixed opponent distribution
-without a strategy code provides a single-policy baseline.
+$\pi_B$ are the source behaviors: each is trained against one regime with no
+shared parameters and no strategy-code mechanism. Their bit-exact $z$-dispatch
+wrapper is Share-0 (Section~\ref{sec:sharing}). A single \emph{generalist}
+policy $\pi_G$ trained on the mixed opponent distribution without a strategy
+code provides a single-policy baseline.
 
 \subsection{Strategy-specialization criterion}
 \label{sec:specialization}
@@ -251,30 +253,81 @@ for the primary sharing conclusions and are not used to select the primary
 architecture.
 
 %======================================================================
+\section{Related Work}
+\label{sec:related}
+%======================================================================
+
+Latent-conditioned multi-agent RL, emergent-role methods (e.g., ROMA), latent
+exploration (e.g., MAVEN), and partner/opponent latent models (e.g., LILI)
+study how discrete or continuous latent variables can induce behavioral
+diversity or coordination. Multi-agent and policy distillation transfer
+expertise into compact or shared controllers, and parameter sharing is a
+standard MARL efficiency tool. Our question is different: \emph{after}
+establishing independently learned, payoff-specialized strategies, how does
+\emph{progressively increasing architectural sharing} affect their closed-loop
+specialization under a fixed distillation recipe and matched-seed payoff gate?
+We also situate the task relative to multi-robot CTF platforms such as
+Aquaticus / Pyquaticus, which provide the maritime adversarial setting but do
+not address this sharing-preservation measurement.
+
+%======================================================================
 \section{Methodology}
 \label{sec:method}
 %======================================================================
 
-\subsection{Reference policies}
+\paragraph{Overview.}
+The successful method is not a new PPO variant. It is
+\emph{opponent-specific PPO expert training}, followed by
+\emph{matched-state strategy-conditioned distillation}, followed by
+\emph{progressive parameter sharing} with a closed-loop payoff gate.
 
-\textbf{Independent experts (zero-sharing reference).}
-We train strategy-specific experts $\pi_A$ and $\pi_B$ under matched conditions,
-one per opponent regime, with no shared parameters and no strategy-code
-mechanism. The independently trained experts provide the zero-sharing reference
-for strategy specialization.
+\begin{figure}[t]
+\centering
+\fbox{\parbox{0.96\linewidth}{\small
+\textbf{Algorithm 1}~~Strategy-conditioned expert distillation and progressive sharing\\[0.4em]
+\textbf{Require:} regimes $A,B$; seeds; KL distill budget; bootstrap gate\\
+1:\quad Train independent PPO experts $\pi_A$ (vs~$A$), $\pi_B$ (vs~$B$)\\
+2:\quad Verify specialist crossover: $\Delta_A>0$, $\Delta_B>0$ with LCB$_{95}>0$\\
+3:\quad Build Share-0: bit-exact $z$-dispatch of verbatim experts (structural control)\\
+4:\quad Collect a shared state set $\{s\}$ (both experts queried on each $s$)\\
+5:\quad For share $\in\{$Encoder, Backbone, Macro$\}$: distill under a \emph{common} recipe\\
+\quad\quad with the corresponding modules tied; freeze the terminal checkpoint\\
+6:\quad Evaluate each distilled rung on matched seeds: absolute $\Delta$ gate + paired $D$ vs Share-0\\
+7:\quad Report where specialization is preserved, degraded, or lost\\
+\textbf{Fixed among distilled rungs:} data, schedule, seeds, CUDA path, no post-hoc ckpt selection.\\
+\textbf{Note:} Share-0 is constructed, not distilled; Enc$\rightarrow$Back$\rightarrow$Macro varies sharing only.
+}}
+\caption{Reproducible Claim-A pipeline. PPO is the expert engine; among distilled rungs the primary experimental variable is progressive parameter sharing; closed-loop $\Delta$/$D$ is the validation.}
+\label{alg:pipeline}
+\end{figure}
+
+\subsection{Opponent-specific PPO experts}
+
+\textbf{Independent specialists.}
+We train strategy-specific experts $\pi_A$ and $\pi_B$ with a standard
+opponent-specific multi-agent PPO recipe under matched conditions---one policy
+against Regime~A / OP6, one against Regime~B / OP7---with no shared parameters
+and no strategy-code mechanism. PPO's role here is only to produce behavioral
+experts with demonstrated complementary payoff specialization; it is not the
+claimed algorithmic novelty. These experts are the teachers for distillation and
+the verbatim actors behind Share-0.
 
 \textbf{Generalist baseline.}
 We also evaluate $\pi_G$, a single policy trained on the mixed opponent
 distribution with no strategy-code mechanism. The generalist provides a
 single-policy baseline trained on the mixed opponent distribution.
 
-\subsection{Strategy-conditioned policy distillation}
+\subsection{Matched-state strategy-conditioned distillation}
 \label{sec:distill}
 
-We transfer expert behaviors into a shared strategy-conditioned policy
-$\pi_\theta(a\mid o,z)$ by supervised distillation. Both experts are queried on
-the \emph{same} stored states, so differences between conditioned outputs are
-attributable to expert strategies rather than different state datasets.
+Treating $\pi_A$ and $\pi_B$ as behavioral experts rather than as the final
+shared controller, we transfer their behaviors into one strategy-conditioned
+policy $\pi_\theta(a\mid o,z)$ by supervised distillation, with
+$z_0$ meaning ``behave like the A expert'' and $z_1$ meaning ``behave like the
+B expert.'' Both experts are queried on the \emph{same} stored states, so
+differences between conditioned outputs are attributable to expert strategies
+rather than different state visitation distributions
+($s\!\sim\!d_{\pi_A}$ vs.\ $s\!\sim\!d_{\pi_B}$).
 
 The distillation objective is
 \[
@@ -305,135 +358,43 @@ Different strategy-conditioned action distributions likewise do not logically
 imply payoff-relevant specialization. The payoff-based criterion is the primary
 task-level definition.
 
-\subsection{Strategy-Preserving PPO}
+\subsection{Attempted strategy-preserving fine-tuning (negative result)}
 \label{sec:spppo}
 
-We introduce \emph{Strategy-Preserving PPO} (SP-PPO) as a methodological
-intervention family for studying strategy installation and retention in a
-shared multi-robot policy. CSC identifies which strategically important
-decisions should be corrected using matched counterfactual rollouts. SPFT aims
-to prevent those corrections from being erased during continued PPO
-optimization.
+We separately evaluated Counterfactual Strategy Correction (CSC) and
+Strategy-Preserving Fine-Tuning (SPFT) as interventions for preserving
+specialization during continued PPO optimization (SP-PPO~$=$~PPO+CSC+SPFT).
+Neither recovered the prespecified closed-loop specialization criterion under
+frozen matched protocols. Because these interventions are \emph{not} responsible
+for the successful progressive-sharing results, we report their complete
+formulation and sealed evaluation in the supplementary material rather than the
+main text.
 
-\subsection{Counterfactual Strategy Correction (CSC)}
-\label{sec:csc}
-
-CSC addresses \emph{which decisions should change}. Because macro-actions are
-temporally extended, we evaluate interventions only at decision-eligible ticks
-($d_t^i=1$). At such boundaries, matched continuation rollouts estimate whether
-substituting an expert decision improves terminal task success relative to a
-baseline continuation of the current strategy-conditioned policy.
-
-\paragraph{Matched-continuation intervention estimate.}
-For a boundary state $s_t$ drawn from a prospectively selected, outcome-blind,
-stratified sample of the baseline policy's deployment distribution, and an
-estimand $e$ identifying which agent(s) may be intervened on, define three
-matched continuation arms that share an identical continuation seed $r_j$:
-$R_0$ (baseline continues unmodified), $R_A$ ($\pi_A$ takes over the intervened
-agent(s) for the remainder of the episode), and $R_B$ ($\pi_B$ takes over
-identically). With $M=16$ matched continuations,
-\[
-\hat{A}_A(x)=\frac{1}{M}\sum_{j=1}^{M}\left(R_A^j-R_0^j\right),
-\qquad
-\hat{A}_B(x)=\frac{1}{M}\sum_{j=1}^{M}\left(R_B^j-R_0^j\right),
-\]
-where $R$ is the binary episode win indicator. These are matched-continuation
-intervention estimates under the controlled simulator experiment, not general
-causal effects beyond that design.
-
-\paragraph{Positive-advantage routing.}
-An expert is selected only when its estimated advantage is strictly positive
-over both zero and the alternative expert:
-\[
-t^*(x)=
-\begin{cases}
-\pi_A, & \hat{A}_A(x)>\max\left(0,\hat{A}_B(x)\right),\\[3pt]
-\pi_B, & \hat{A}_B(x)>\max\left(0,\hat{A}_A(x)\right),\\[3pt]
-\mathrm{none}, & \text{otherwise},
-\end{cases}
-\qquad
-w(x)=
-\begin{cases}
-\hat{A}_{t^*}(x), & t^*(x)\neq\mathrm{none},\\[3pt]
-0, & \text{otherwise}.
-\end{cases}
-\]
-Exact positive ties receive zero weight. At both-free states, a usable joint
-intervention supersedes constituent per-agent units.
-
-\paragraph{Counterfactual correction loss.}
-The $(o,a)$ trajectory used for supervision is obtained by rolling $t^*(x)$
-exactly once under a canonical seed independent of the measurement seeds
-$\{r_j\}$, so trajectory construction cannot alter $t^*$ or $w$. The auxiliary
-loss is a weighted negative log-likelihood of the routed expert's action,
-restricted to decision-eligible agents:
-\[
-\mathcal{L}_{\mathrm{csc}}
-=
-\frac{\sum_{t,i} d_t^i\,w_{t,i}\,\mathcal{L}_{\mathrm{expert}}(s_t,i,z)}
-{\sum_{t,i} d_t^i\,w_{t,i}}.
-\]
-Committed agents ($d_t^i=0$) contribute to neither numerator nor denominator.
-CSC fine-tuning combines this term with task PPO,
-\[
-\mathcal{L}=\mathcal{L}_{\mathrm{PPO}}+\lambda_c\mathcal{L}_{\mathrm{csc}},
-\]
-with $\lambda_c=0.05$. Reward, returns, GAE, and value targets are unchanged.
-A matched control arm uses the same warm start, horizon, and PPO recipe without
-$\mathcal{L}_{\mathrm{csc}}$.
-
-\subsection{Strategy-Preserving Fine-Tuning (SPFT)}
-\label{sec:spft}
-
-SPFT addresses \emph{how sparse corrections are retained during continued
-optimization}. CSC interventions are sparse: only decision points with strictly
-positive matched-continuation advantage receive nonzero weight. Continued PPO
-updates can therefore overwrite strategically consequential corrections. SPFT
-keeps the CSC correction bank and $\lambda_c$ fixed and adds temporal retention
-against an exponential-moving-average (EMA) actor teacher.
-
-\paragraph{EMA teacher and retention loss.}
-Initialize $\bar\theta_0=\theta_0$ as an exact copy of the warm-start actor.
-After each actor optimizer update,
-\[
-\bar\theta\leftarrow 0.995\,\bar\theta + 0.005\,\theta.
-\]
-The retention loss is a KL between the EMA teacher and the current policy,
-\[
-\mathcal{L}_{\mathrm{ret}}
-=
-D_{\mathrm{KL}}\!\left(\pi_{\bar\theta}(\cdot\mid o,z)\,\|\,\pi_\theta(\cdot\mid o,z)\right),
-\]
-applied only at decision-eligible agents under the same legality masks used by
-PPO. Mid-hold (committed) frames contribute zero retention loss.
-
-\paragraph{Full SP-PPO objective.}
-When CSC and SPFT are combined, the actor objective is
-\[
-\mathcal{L}
-=
-\mathcal{L}_{\mathrm{PPO}}
-+
-\lambda_c\mathcal{L}_{\mathrm{csc}}
-+
-\lambda_r\mathcal{L}_{\mathrm{ret}},
-\]
-with $\lambda_c=0.05$ and $\lambda_r=0.01$. A matched control arm uses CSC
-without retention, isolating the SPFT term.
-
-\subsection{Progressive parameter-sharing study}
+\subsection{Progressive parameter sharing (primary experimental variable)}
 \label{sec:sharing}
 
-Holding the distillation recipe, dataset, schedule, and evaluation seeds fixed,
-we vary only which modules are tied between the two strategy branches. Sharing
-is cumulative. The manipulated variable is the location and amount of parameter
-sharing.
+Having established payoff-specialized experts and a bit-exact Share-0 dispatch
+control, we ask: how much neural representation can two strategically distinct
+behaviors share before closed-loop specialization disappears? For
+Share-Encoder, Share-Backbone, and Share-Macro we hold the distillation recipe,
+dataset, schedule, and evaluation seeds fixed and vary only which modules are
+tied between the two strategy branches. Sharing is cumulative. Among these
+distilled rungs, the primary experimental variable is the location and amount of
+parameter sharing.
+
+Share-0 is \emph{not} produced by that distillation: it is a structural
+zero-sharing control that installs the frozen experts behind a $z$-dispatch
+wrapper (bit-exact logit match). Paired contrasts $D$ vs.\ Share-0 therefore
+ask whether a distilled shared controller matches the structural control's
+specialization; they do not claim that Share-0$\rightarrow$Share-Encoder
+changes only a sharing flag. The clean single-axis comparison is
+Share-Encoder$\rightarrow$Share-Backbone$\rightarrow$Share-Macro.
 
 \begin{table}[t]
 \centering
-\caption{Progressive parameter-sharing conditions. Sharing is cumulative.
-Every condition uses the same experts, distillation data, optimization budget,
-evaluation seeds, and specialization criterion.}
+\caption{Progressive parameter-sharing conditions. Share-0 is a bit-exact
+expert-dispatch control (not distilled). Share-Encoder/Backbone/Macro share a
+common distillation recipe; only tied modules change among those three.}
 \label{tab:sharing}
 \begin{tabular}{lll}
 \toprule
@@ -461,11 +422,12 @@ by reduced per-strategy capacity. Module tying is verified by object identity
 and unique-parameter arithmetic. A mixed-$z$ minibatch gives each shared module
 gradient from both strategies in the same step.
 
-\paragraph{Share-0.}
+\paragraph{Share-0 (structural control).}
 Share-0 installs $\pi_A$ and $\pi_B$ behind a strategy-code dispatch wrapper with
 zero shared parameters, verified bit-exact against both experts on the
 evaluation device. It establishes that the dispatch-and-evaluate path can
-express specialization when no parameters are shared.
+express specialization when no parameters are shared and when no distillation
+has occurred.
 
 \subsection{Matched-seed paired evaluation}
 \label{sec:matched}
@@ -527,9 +489,10 @@ mechanism.
 \subsection{Mechanism diagnostics}
 \label{sec:diagnostics}
 
-To interpret cases in which a distilled strategy-conditioned policy does not
-satisfy the specialization criterion despite high imitation fidelity, we apply
-three diagnostic analyses:
+When a distilled student retains high imitation fidelity but fails the
+specialization criterion---as in the prior compression ablation and in
+Share-Macro---we apply three diagnostic analyses to localize the failure mode
+without reinterpreting the gate:
 
 \paragraph{H1: Distribution shift.}
 Does expert--student agreement decrease on student-visited states relative to
@@ -564,16 +527,66 @@ evaluations use a fixed CUDA path.
 \label{sec:results}
 %======================================================================
 
+\paragraph{How to read the plots (terminology).}
+Throughout Results and figure captions we use a small set of pre-specified
+statistical phrases. They are \emph{not} informal judgments about whether a run
+``looked good.''
+
+\begin{itemize}
+  \item \textbf{Specialization / crossover.}
+  Strategy codes $z_0$ and $z_1$ are payoff-specialized only if each code
+  yields a higher win rate than the other against its intended opponent regime.
+  Formally,
+  $\Delta_A=V(z_0,A)-V(z_1,A)$ and $\Delta_B=V(z_1,B)-V(z_0,B)$ must both be
+  strictly positive with $95\%$ lower confidence bounds
+  $\mathrm{LCB}_{95}(\Delta)>0$ under a paired seed bootstrap
+  ($n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$). We call this the
+  \emph{specialization criterion} (equivalently, specialization crossover).
+
+  \item \textbf{Satisfies criterion / fails criterion}
+  (figures may label these \textsc{pass}/\textsc{fail}).
+  The pre-specified specialization criterion above is met, or is not.
+  Point estimates alone never decide the label.
+
+  \item \textbf{$\mathrm{LCB}_{95}$ / $\mathrm{UCB}_{95}$.}
+  Lower/upper endpoints of a percentile bootstrap $95\%$ confidence interval
+  over matched evaluation seeds.
+
+  \item \textbf{Detectable loss.}
+  Relative to the Share-0 expert-dispatch reference, a paired change
+  $D_p=\Delta_p^{(\mathrm{cond})}-\Delta_p^{(\mathrm{Share\textrm{-}0})}$ is a
+  \emph{detectable specialization loss} on regime $p$ only if
+  $\mathrm{UCB}_{95}(D_p)<0$ (the entire CI lies below zero).
+
+  \item \textbf{Contested / unsaturated matchup}
+  (when used for opponent-regime demand).
+  Neither side of a policy--opponent pairing is effectively saturated: win rates
+  are not near $0$ or $1$, so meaningful performance variation remains and
+  specialization contrasts are informative rather than floor/ceiling artifacts.
+
+  \item \textbf{Certified} (opponent-regime demand only).
+  A preregistered strategic-demand protocol for a scale/regime pair was
+  satisfied under its sealed evaluation; it does \emph{not} by itself imply
+  that a learned controller specializes.
+\end{itemize}
+
+\noindent
+Figures also report means with $95\%$ CIs; sample sizes are stated in captions.
+
+%----------------------------------------------------------------------
 \subsection{Do the opponent regimes require different strategies?}
 
 The opponent-conditioned strategy-preference test establishes complementary
-strategic demand under Regimes~A and~B.
-% [draft] Insert quantitative table/figure (GUARD vs BREACH contrasts; LCB95).
+strategic demand under Regimes~A and~B: each regime favors a different
+coordination style, and the matchups remain contested (unsaturated) rather than
+almost-always-win or almost-always-lose.
+% [draft] Insert demand figure/table with win-rate contrasts and LCB95.
 
+%----------------------------------------------------------------------
 \subsection{Can independent expert policies specialize?}
 
 Independent experts $\pi_A$ and $\pi_B$, scored under a preregistered protocol
-on a held-out $64$-seed block, satisfy the strategy-specialization criterion:
+on a held-out $64$-seed block, satisfy the specialization criterion:
 \[
 \Delta_A = +0.172\;[+0.016,+0.328],
 \qquad
@@ -583,75 +596,105 @@ The generalist attains
 $V(\pi_G,A)=0.375\;[0.265,0.500]$ and
 $V(\pi_G,B)=0.500\;[0.375,0.625]$.
 
-On the matched $128$-seed Share-0 reference,
+On the matched $128$-seed Share-0 expert-dispatch reference (bit-exact $z$
+selection of the verbatim experts; not a distilled model),
 \[
 \Delta_A = +0.289\;[+0.164,+0.406],
 \qquad
-\Delta_B = +0.258\;[+0.141,+0.375].
+\Delta_B = +0.258\;[+0.141,+0.375],
 \]
+so the evaluation path can express specialization when nothing is shared.
 
-\subsection{Can those strategies be represented in one conditioned policy?}
+%----------------------------------------------------------------------
+\subsection{Can distilled strategy modes preserve specialization under sharing?}
 
-\paragraph{Strategy-conditioned distillation.}
-The distilled shared policy reproduces its experts closely (holdout argmax
-agreement $0.965$ for $z_0\!\sim\!\pi_A$ and $0.984$ for $z_1\!\sim\!\pi_B$;
-conditioned-branch Jensen--Shannon divergence $0.183$, compared with the
-experts' $0.179$) yet does not satisfy the specialization criterion:
+\paragraph{Shared perception only (Share-Encoder).}
+Under the common ladder distillation recipe with full per-strategy branch
+capacity and only the CNN encoder tied, Share-Encoder satisfies the
+specialization criterion on the matched $128$-seed set:
 \[
-\Delta_A=+0.094\;[-0.078,+0.266],
+\Delta_A=+0.266\;[+0.148,+0.383],
 \qquad
-\Delta_B=+0.141\;[-0.047,+0.313].
+\Delta_B=+0.164\;[+0.047,+0.281].
 \]
-Both point estimates are correctly signed; neither confidence interval clears
-zero. High-fidelity imitation therefore does not automatically preserve
-closed-loop specialization on the student's own state distribution.
+Holdout argmax agreements are $0.967/0.989$; branch Jensen--Shannon divergence
+is $0.178$ (experts $0.179$). Paired contrasts vs.\ Share-0 show no detectable
+loss ($D_A=-0.023$, $D_B=-0.094$; both $\mathrm{UCB}_{95}\ge 0$). Thus
+matched-state distillation into discrete $z$ modes preserves closed-loop
+specialization when only perception is shared
+(Fig.~\ref{fig:claim-a}, panel~b; Fig.~\ref{fig:sharing-ladder}).
 
-\paragraph{Mechanism diagnostics.}
-On $24{,}693$ student-generated states, expert agreement remains high
-($0.971$ / $0.986$), not below expert-visited holdout agreement
-($0.965$ / $0.984$), so H1 is not supported in the tested CPU regime.
-For H2, the powered $z_0$ arm shows $18$ of $20$ expert substitutions
-producing an identical final outcome (mean $|L_{\mathrm{margin}}|=0.100$ vs.\
-decision-sensitivity reference $0.450$); the $z_1$ arm ($6$ branch points) is
-underpowered and yields no conclusion. For H3, macro disagreement is
-$1.11\%$ ($z_0$) and $0.23\%$ ($z_1$), while target disagreement is $5.21\%$
-and $1.60\%$ (factors of approximately $4.7$--$7.0$).
+\paragraph{Absolute performance context.}
+In addition to the paired specialization contrasts, we report regime-specific
+win rates for the mixed-opponent generalist, independently trained experts, and
+the preserved Share-Encoder policy (Fig.~\ref{fig:winrate-context}).
+These values provide absolute-performance context and are \emph{not} used as the
+criterion for strategy specialization.
+Independent expert and generalist results use their held-out $64$-seed
+evaluations, whereas shared-policy results use the matched $128$-seed evaluation
+block.
 
-\subsection{Strategy-Preserving PPO components}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_absolute_winrate_context_2v2.pdf}
+\caption{Absolute win-rate comparison across reference and shared policies.
+The mixed-opponent generalist $\pi_G$, opponent-specific experts $\pi_A,\pi_B$,
+and Share-Encoder strategy modes $z_0,z_1$ are evaluated against Regimes~A
+and~B.
+The expected crossover pattern is visible when the A-specialized policies
+achieve higher win rate on Regime~A and the B-specialized policies achieve
+higher win rate on Regime~B.
+This plot provides absolute-performance context only; specialization is
+determined by the paired $\Delta_A,\Delta_B$ confidence-bound criterion.
+Error bars are $95\%$ bootstrap CIs ($\pi_G$/experts $n{=}64$; Share-Encoder
+$n{=}128$).}
+\label{fig:winrate-context}
+\end{figure*}
 
-CSC and SPFT are evaluated under the same strategy-specialization criterion on
-held-out seed blocks, with matched treatment/control designs.
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_claim_a_2v2.pdf}
+\caption{Causal chain for Claim~A.
+(a)~Independent PPO experts establish complementary payoff strategies.
+(b)~Matched-state distillation transfers them into discrete modes of one
+Share-Encoder controller ($z_0\!\sim\!\pi_A$, $z_1\!\sim\!\pi_B$).
+(c)~Sealed $\Delta_A,\Delta_B$ with $95\%$ CIs across progressive sharing
+($n{=}128$). Share-0 is a bit-exact expert-dispatch control; Encoder/Backbone/Macro
+share one distillation recipe.
+\textsc{pass}/\textsc{fail} denote whether the pre-specified specialization
+criterion is satisfied.}
+\label{fig:claim-a}
+\end{figure*}
 
-\paragraph{Counterfactual Strategy Correction (CSC).}
-Neither the CSC treatment arm nor the matched PPO-only control satisfies the
-specialization criterion. Point estimates are negative on both regimes for both
-arms (treatment:
-$\Delta_A=-0.141\;[-0.281,0.000]$,
-$\Delta_B=-0.031\;[-0.203,+0.141]$;
-control:
-$\Delta_A=-0.188\;[-0.328,-0.047]$,
-$\Delta_B=-0.063\;[-0.250,+0.125]$).
-Paired treatment-minus-control contrasts do not clear zero on either regime.
-Thus CSC does not recover payoff-level specialization under the frozen protocol.
+\paragraph{Prior compression ablation (not Claim~A).}
+An earlier offline student under a heavily shared/compressed architecture
+($n{=}64$) imitated experts well (agreement $0.965/0.984$, JS $0.183$) yet
+\emph{failed} the specialization criterion
+($\Delta_A=+0.094\,[-0.078,+0.266]$, $\Delta_B=+0.141\,[-0.047,+0.313]$).
+That artifact is architecturally closest to Share-Macro, not Share-Encoder. It
+shows that high action-level imitation can coexist with failed closed-loop
+specialization under aggressive sharing---reinforcing the measurement hierarchy
+(Fig.~\ref{fig:hierarchy})---and must not be read as ``distillation failed before
+sharing.''
 
-\paragraph{Strategy-Preserving Fine-Tuning (SPFT).}
-Neither the SPFT treatment nor the CSC-only control satisfies the
-specialization criterion (treatment:
-$\Delta_A=-0.156\;[-0.313,+0.016]$,
-$\Delta_B=+0.031\;[-0.141,+0.203]$;
-control:
-$\Delta_A=-0.078\;[-0.219,+0.063]$,
-$\Delta_B=+0.063\;[-0.109,+0.234]$).
-Paired SPFT-minus-control contrasts likewise do not clear zero. Under the stated
-protocol, retention stabilization does not establish recovery of specialization
-relative to CSC alone.
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_2v2_measurement_hierarchy.pdf}
+\caption{Measurement hierarchy: high imitation and nonzero action-distribution
+separation do not imply closed-loop payoff specialization. Share-Macro retains
+strong expert agreement yet fails the specialization criterion via
+$\mathrm{LCB}_{95}(\Delta_A)=0$.}
+\label{fig:hierarchy}
+\end{figure}
 
-\subsection{Where does parameter sharing begin to affect specialization?}
+%----------------------------------------------------------------------
+\subsection{Where does parameter sharing begin to erode specialization?}
 
 \begin{table}[t]
 \centering
 \caption{Progressive parameter-sharing results on the matched $128$-seed set.
-$D_A$ and $D_B$ are within-seed differences against Share-0.}
+$D_A$ and $D_B$ are within-seed differences against the Share-0 expert-dispatch
+reference. ``Detectable loss'' means $\mathrm{UCB}_{95}(D)<0$.}
 \label{tab:sharing-results}
 \begin{tabular}{lllll}
 \toprule
@@ -659,7 +702,7 @@ $D_A$ and $D_B$ are within-seed differences against Share-0.}
 \textbf{Paired $D$} \\
 \midrule
 Share-0
-  & none
+  & none (dispatch)
   & $+0.289\;[+0.164,+0.406]$
   & $+0.258\;[+0.141,+0.375]$
   & reference \\
@@ -667,42 +710,54 @@ Share-Encoder
   & CNN encoder
   & $+0.266\;[+0.148,+0.383]$
   & $+0.164\;[+0.047,+0.281]$
-  & $D_A=-0.023$, $D_B=-0.094$; no detectable loss \\
+  & no detectable loss \\
 Share-Backbone
   & $+$ MLP backbone
   & $+0.148\;[+0.023,+0.266]$
   & $+0.141\;[+0.016,+0.266]$
-  & $D_A=-0.141$ (detectable loss);
-    $D_B=-0.117$ (no detectable loss) \\
+  & detectable loss on $A$ \\
 Share-Macro
-  & $+$ macro-action outputs
+  & $+$ macro outputs
   & $+0.125\;[0.000,+0.250]$
   & $+0.156\;[+0.031,+0.281]$
-  & $D_A=-0.164$ (detectable loss);
-    $D_B=-0.102$ (no detectable loss) \\
+  & detectable loss on $A$; fails criterion \\
 \bottomrule
 \end{tabular}
 \end{table}
 
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_sharing_ladder_2v2.pdf}
+\caption{Exact sealed $\Delta_A,\Delta_B$ (left) and paired $D$ vs.\ Share-0
+(right) with $95\%$ CIs ($n{=}128$).
+Share-Backbone still satisfies the absolute specialization criterion but already
+shows detectable Pole-A loss; Share-Macro fails because
+$\mathrm{LCB}_{95}(\Delta_A)=0$.
+Among Encoder/Backbone/Macro, only tied modules change under a common
+distillation recipe.}
+\label{fig:sharing-ladder}
+\end{figure*}
+
 \paragraph{Share-Encoder.}
 Share-Encoder holdout argmax agreements are $0.967/0.989$; these values define
-the imitation-fidelity reference band used in Section~\ref{sec:fidelity}.
+the imitation-fidelity reference band
+(Section~\ref{sec:fidelity}).
 Sharing only the perception encoder preserves the specialization criterion on
-both regimes, and neither within-seed difference against Share-0 reaches
-$\mathrm{UCB}_{95}(D_p)<0$. Decomposing by role: on-regime cells shift by
-$-0.012$ on average, while cross-regime cells shift by $+0.047$, driven by
-$z_0$ under Regime~B rising $+0.086$. This pattern is consistent with strategy
-homogenization rather than on-regime specialization loss.
+both regimes, with no detectable paired loss vs.\ Share-0.
+Decomposing by role: on-regime cells shift by $-0.012$ on average, while
+cross-regime cells shift by $+0.047$, driven by $z_0$ under Regime~B rising
+$+0.086$---consistent with mild strategy homogenization rather than on-regime
+collapse.
 
 \paragraph{Share-Backbone.}
 Share-Backbone terminal holdout agreement is $0.963/0.985$ (within $0.010$ of
-the Share-Encoder reference on both codes), so fidelity is comparable.
+Share-Encoder on both codes), so fidelity is comparable.
 Branch Jensen--Shannon divergence is $0.172$ (Share-Encoder $0.178$; experts
 $0.179$). The specialization criterion still holds on both regimes, but the
 paired contrast against Share-0 shows a detectable reduction on Regime~A
 ($\mathrm{UCB}_{95}(D_A)<0$). On-regime performance declines on average while
-cross-regime performance rises, a pattern consistent with specialization loss /
-negative transfer under fidelity-comparable sharing of the backbone.
+cross-regime performance rises---consistent with specialization loss / negative
+transfer under fidelity-comparable backbone sharing.
 
 \paragraph{Share-Macro.}
 Share-Macro terminal holdout agreement is $0.936/0.969$, outside the
@@ -710,18 +765,61 @@ imitation-fidelity band anchored on Share-Encoder. The specialization criterion
 is not satisfied ($\mathrm{LCB}_{95}(\Delta_A)=0$). Paired evaluation likewise
 shows a detectable reduction on Regime~A. Because imitation fidelity is not
 comparable, we report this as sharing-associated and fit-confounded degradation
-and do not uniquely attribute it to strategy homogenization or specialization
-loss.
+and do not uniquely attribute it to homogenization vs.\ capacity loss.
 
-\subsection{External validity}
-\label{sec:external}
+%----------------------------------------------------------------------
+\subsection{Matched-state behavior: what do the latent modes do?}
 
-$4$-vs-$4$ / $6$-vs-$6$ scalability and robustness perturbations (localization,
-motion, control delay) are reported only when completed, and only as
-external-validity experiments---not as evidence used to choose among sharing
-conditions.
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.92\textwidth]{fig_trajectory_strip_2v2.pdf}
+\caption{Matched seed $11960003$, Share-Encoder policy: identical initial
+conditions within each panel; only forced $z$ differs.
+Solid~$z_0$, dashed~$z_1$; stars mark first action divergence ($t{=}4$).
+Terminal scores match the sealed evaluation rows (CUDA fidelity check).
+Read as visual evidence that changing $z$ changes team behavior---not as a
+substitute for the statistical specialization criterion.}
+\label{fig:traj}
+\end{figure*}
 
-%======================================================================
+Under identical initial conditions, forcing $z_0$ vs.\ $z_1$ produces an action
+divergence at tick~$4$ and visibly different team paths, with different closed-loop
+outcomes (Fig.~\ref{fig:traj}). Qualitative matched frames
+(Fig.~\ref{fig:qual}) show the same seed with only $z$ changed.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{fig_qualitative_latent_2v2.pdf}
+\caption{Matched-frame grid at tick~$30$ for the same seed and Share-Encoder
+policy. Columns differ only in forced $z$; rows differ only in opponent regime.}
+\label{fig:qual}
+\end{figure*}
+
+%----------------------------------------------------------------------
+\subsection{Robustness as a sim-to-real diagnostic}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_robustness_delta_dose.pdf}
+\caption{Dose--response of specialization under deployment-relevant perturbations
+($n{=}128$): localization (GPS-like), motion (currents/actuators), and control
+latency (communications).
+\textsc{pass}/\textsc{fail} mark the specialization criterion at each severity.
+Localization remains specialized at every tested dose; motion breaks Pole-B
+specialization from the first nonzero dose; latency shows monotone Pole-A
+erosion.}
+\label{fig:robust}
+\end{figure*}
+
+%----------------------------------------------------------------------
+\subsection{Attempted strategy-preserving fine-tuning (negative result)}
+
+Counterfactual Strategy Correction (CSC) and Strategy-Preserving Fine-Tuning
+(SPFT) do not recover the specialization criterion under frozen matched
+protocols; complete formulation and numbers appear in the supplementary
+material. These interventions are not credited for Share-Encoder satisfying the
+criterion.
+
 \section{Discussion}
 \label{sec:discussion}
 %======================================================================
@@ -739,15 +837,14 @@ of the specialization criterion; under the imitation-fidelity control, that
 degradation is reported as sharing-associated but not uniquely attributed to a
 single interference mechanism.
 
-SP-PPO is a methodological contribution and an informative intervention family
-for strategy installation and retention. CSC identifies high-leverage strategic
-decisions via matched counterfactual rollouts; SPFT aims to keep those
-corrections from drifting away under continued PPO. Under the frozen protocols
-studied here, neither CSC nor SPFT satisfies the payoff-based specialization
-criterion. Identifying positively advantageous interventions---and attempting to
-retain them---therefore does not automatically restore closed-loop complementary
-strategies. Local policy similarity remains insufficient evidence of preserved
-strategic identity.
+The centerpiece is architectural and experimental, not algorithmic PPO novelty:
+independently learned strategies are encoded as discrete modes of shared
+controllers under a common distillation recipe, validated by closed-loop
+crossover at Share-Encoder, and then subjected to controlled progressive
+sharing. Share-0 is the bit-exact expert-dispatch reference; Enc$\rightarrow$Back$\rightarrow$Macro
+is the clean sharing axis. Attempted PPO interventions (CSC/SPFT) remain a
+sealed non-recovery side study in the supplementary material and are not the
+method that produced Share-Encoder satisfying the criterion.
 
 For multi-robot policy design, the sharing study suggests that substantial
 perception sharing can be tolerable in this setting, while sharing deeper
@@ -762,19 +859,15 @@ experiments are finished.
 \label{sec:conclusion}
 %======================================================================
 
-We study whether a strategy-conditioned multi-robot policy can preserve
-opponent-conditioned coordination strategies under progressive parameter sharing
-and continued optimization. Independent experts provide a zero-sharing
-specialization reference. The progressive-sharing study is the primary empirical
-contribution: Share-Encoder preserves specialization, Share-Backbone introduces
-a detectable paired specialization loss on one regime despite comparable
-fidelity, and Share-Macro yields fit-confounded degradation together with
-failure of the specialization criterion. Strategy-Preserving PPO (SP-PPO)
-combines Counterfactual Strategy Correction (CSC) with Strategy-Preserving
-Fine-Tuning (SPFT) as a methodological intervention family for strategy
-installation and retention; under the frozen protocols reported here, neither
-component recovers the payoff-based specialization criterion. High imitation
-alone does not guarantee payoff-level specialization. Claims remain scoped to
-the nominal $2$-vs-$2$, two-regime setting and training recipes studied here.
+We use standard opponent-specific PPO to learn complementary multi-robot
+experts, distill their matched-state behaviors into discrete modes of shared
+strategy-conditioned controllers under a common recipe, and progressively tie
+policy modules to identify where closed-loop specialization survives or
+collapses. Share-Encoder preserves specialization; Share-Backbone introduces a
+detectable paired loss on one regime despite comparable fidelity; Share-Macro
+yields fit-confounded degradation with failure of the specialization criterion.
+High imitation alone does not guarantee payoff-level specialization. Claims
+remain scoped to the nominal $2$-vs-$2$, two-regime setting and training recipes
+studied here.
 
 \end{document}

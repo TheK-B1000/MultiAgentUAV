@@ -1,0 +1,92 @@
+{
+  "record_id": "6V6_TRACK_HOLD_DOSE_PILOT_V1",
+  "experiment": "6v6_track_hold_dose_pilot_v1",
+  "status": "FROZEN_BEFORE_RUN",
+  "utc": "2026-09-09T17:45:00Z",
+  "authority": "PI / student design lock 2026-09-09: paired 20-seed dose-response pilot for stale opponent localization (track-hold), inference-only; queued behind 4v4 B3 sealed crossover.",
+
+  "claim_scope": "exploratory_inference_only",
+  "certification": false,
+  "NOT_A_CERTIFICATION": "n=20 is a pilot for dose-ordering (V_full >= V_K1 >= V_K2 >= V_K3 / positive loss L_K = V_full - V_K). It does NOT authorize claims of a certified robustness limit at any K.",
+
+  "INTERVENTION_NAME": "opponent track staleness / track-hold sensing degradation / stale opponent localization",
+  "NOT_CALLED": "occlusion (implies no observation; this holds the last known pose)",
+
+  "DESIGN": {
+    "n_seeds": 20,
+    "conditions": ["full_info", "K1", "K2", "K3"],
+    "episodes_total": 80,
+    "same_seed_block_all_conditions": true,
+    "pairing": "every degraded episode shares its episode seed with the full_info reference",
+    "primary_metric": "binary_win",
+    "secondary_metrics": ["score_margin", "captures", "episode_length"],
+    "loss_definition": "L_K = V_full - V_K  (positive = performance loss)"
+  },
+
+  "SEED_BLOCK": {
+    "eval_seeds": [13700001, 13700002, 13700003, 13700004, 13700005, 13700006, 13700007, 13700008, 13700009, 13700010, 13700011, 13700012, 13700013, 13700014, 13700015, 13700016, 13700017, 13700018, 13700019, 13700020],
+    "disjointness_verified": "rg for 13700001/13700020 against artifacts/**/*.json: zero hits at freeze time; distinct from 6v6 pipeline blocks 13640001-128 (crossover), 13660001-128 (robustness), specialist train 7610001/7620001, cert 12600001+",
+    "chosen_before_any_result": true
+  },
+
+  "CHECKPOINT": {
+    "path": "TBD_AFTER_6V6_PRODUCTION_POLICY_EXISTS",
+    "sha256": null,
+    "requirement": "fixed trained 6v6 BLUE policy (inference only). Prefer the governing production latent/specialist checkpoint once frozen with recorded sha256. Smoke-only 6v6 artifacts are NOT eligible.",
+    "blocked_until": "a production 6v6 checkpoint freeze exists AND 4v4 B3 sealed crossover has finished (PASS or FAIL) unless this pilot runs on entirely separate compute"
+  },
+
+  "OCCLUSION_SELECTION": {
+    "timing": "once_per_episode",
+    "not": "resample every timestep",
+    "occluded_team": "RED",
+    "nested_doses": true,
+    "rule": "for episode seed s, rng = default_rng(s + FIXED_OCCLUSION_OFFSET); red_order = permutation(6); K1=red_order[:1], K2=red_order[:2], K3=red_order[:3] (nested prefixes)",
+    "FIXED_OCCLUSION_OFFSET": 900_001,
+    "subset_selection_seeded_by_episode_seed": true
+  },
+
+  "TRACK_HOLD": {
+    "fields": ["position_x", "position_y"],
+    "occlusion_start": "after_initial_observation",
+    "t0_rule": "Blue receives correct initial Red positions at the first observation; selected Red tracks are then held at those last-known positions for the remainder of the episode",
+    "forbidden_fillers": ["map_center", "zeros", "random_noise_as_substitute_pose"],
+    "world_truth_unchanged": "simulator Red poses continue normally; intervention is observation-side only",
+    "pipeline": "true Red pose -> simulator -> TRACK-HOLD FILTER -> Blue observation builder / derived features -> frozen policy",
+    "leakage_rule": "intervention MUST occur before derived opponent geometry (distance, bearing, relative_xy, nearest_enemy_distance, grid enemy channel) is computed from perceived_red_xy; never overwrite only raw xy after true-derived features are built",
+    "no_reacquisition_in_v1": "permanent hold after t=0 for selected indices; reacquisition is a future variant requiring its own freeze"
+  },
+
+  "EXECUTION_INVARIANTS": [
+    "identical checkpoint, device path, opponent configuration, episode horizon, reward config across conditions",
+    "policy stochasticity handling identical (same seed drives env; document deterministic vs stochastic action sampling)",
+    "ONLY intended difference: track-hold intervention for K in {0,1,2,3}"
+  ],
+
+  "OUTPUT_SCHEMA": {
+    "per_seed": {
+      "seed": "int",
+      "held_red_order": "list[6]",
+      "full_info": {"win": "0|1", "score_margin": "float", "captures": "int", "episode_length": "int"},
+      "K1": {"held": "list", "win": "0|1", "...": "secondary"},
+      "K2": {"held": "list", "win": "0|1", "...": "secondary"},
+      "K3": {"held": "list", "win": "0|1", "...": "secondary"}
+    },
+    "aggregate": ["WR_full", "WR_K1", "WR_K2", "WR_K3", "L_K1", "L_K2", "L_K3"]
+  },
+
+  "ALLOWED_READING_IF_DOSE_ORDERED": "Increasing the number of stale opponent tracks produced a dose-ordered reduction in closed-loop performance in this exploratory 6v6 pilot.",
+  "FORBIDDEN_READING": "The policy has a statistically certified robustness limit of K=k.",
+
+  "QUEUE": "behind 4v4 B3 sealed crossover on the shared GPU; may run earlier only on separate compute that does not contend with pi_B3 / crossover",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "running any episode in 13700001..13700020 before checkpoint path+sha256 is filled by amendment",
+    "implementing evaluator after peeking at any result from this block",
+    "retraining under track-hold",
+    "calling this certification",
+    "using smoke_scale_6v6 / smoke specialist checkpoints",
+    "non-nested independent K subsets",
+    "t0 filler other than true initial pose"
+  ]
+}

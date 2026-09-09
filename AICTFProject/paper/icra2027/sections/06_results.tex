@@ -1,0 +1,296 @@
+\section{Results}
+\label{sec:results}
+%======================================================================
+
+\paragraph{How to read the plots (terminology).}
+Throughout Results and figure captions we use a small set of pre-specified
+statistical phrases. They are \emph{not} informal judgments about whether a run
+``looked good.''
+
+\begin{itemize}
+  \item \textbf{Specialization / crossover.}
+  Strategy codes $z_0$ and $z_1$ are payoff-specialized only if each code
+  yields a higher win rate than the other against its intended opponent regime.
+  Formally,
+  $\Delta_A=V(z_0,A)-V(z_1,A)$ and $\Delta_B=V(z_1,B)-V(z_0,B)$ must both be
+  strictly positive with $95\%$ lower confidence bounds
+  $\mathrm{LCB}_{95}(\Delta)>0$ under a paired seed bootstrap
+  ($n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$). We call this the
+  \emph{specialization criterion} (equivalently, specialization crossover).
+
+  \item \textbf{Satisfies criterion / fails criterion}
+  (figures may label these \textsc{pass}/\textsc{fail}).
+  The pre-specified specialization criterion above is met, or is not.
+  Point estimates alone never decide the label.
+
+  \item \textbf{$\mathrm{LCB}_{95}$ / $\mathrm{UCB}_{95}$.}
+  Lower/upper endpoints of a percentile bootstrap $95\%$ confidence interval
+  over matched evaluation seeds.
+
+  \item \textbf{Detectable loss.}
+  Relative to the Share-0 expert-dispatch reference, a paired change
+  $D_p=\Delta_p^{(\mathrm{cond})}-\Delta_p^{(\mathrm{Share\textrm{-}0})}$ is a
+  \emph{detectable specialization loss} on regime $p$ only if
+  $\mathrm{UCB}_{95}(D_p)<0$ (the entire CI lies below zero).
+
+  \item \textbf{Contested / unsaturated matchup}
+  (when used for opponent-regime demand).
+  Neither side of a policy--opponent pairing is effectively saturated: win rates
+  are not near $0$ or $1$, so meaningful performance variation remains and
+  specialization contrasts are informative rather than floor/ceiling artifacts.
+
+  \item \textbf{Certified} (opponent-regime demand only).
+  A preregistered strategic-demand protocol for a scale/regime pair was
+  satisfied under its sealed evaluation; it does \emph{not} by itself imply
+  that a learned controller specializes.
+\end{itemize}
+
+\noindent
+Figures also report means with $95\%$ CIs; sample sizes are stated in captions.
+
+%----------------------------------------------------------------------
+\subsection{Do the opponent regimes require different strategies?}
+
+The opponent-conditioned strategy-preference test establishes complementary
+strategic demand under Regimes~A and~B: each regime favors a different
+coordination style, and the matchups remain contested (unsaturated) rather than
+almost-always-win or almost-always-lose.
+% [draft] Insert demand figure/table with win-rate contrasts and LCB95.
+
+%----------------------------------------------------------------------
+\subsection{Can independent expert policies specialize?}
+
+Independent experts $\pi_A$ and $\pi_B$, scored under a preregistered protocol
+on a held-out $64$-seed block, satisfy the specialization criterion:
+\[
+\Delta_A = +0.172\;[+0.016,+0.328],
+\qquad
+\Delta_B = +0.297\;[+0.125,+0.469].
+\]
+The generalist attains
+$V(\pi_G,A)=0.375\;[0.265,0.500]$ and
+$V(\pi_G,B)=0.500\;[0.375,0.625]$.
+
+On the matched $128$-seed Share-0 expert-dispatch reference (bit-exact $z$
+selection of the verbatim experts; not a distilled model),
+\[
+\Delta_A = +0.289\;[+0.164,+0.406],
+\qquad
+\Delta_B = +0.258\;[+0.141,+0.375],
+\]
+so the evaluation path can express specialization when nothing is shared.
+
+%----------------------------------------------------------------------
+\subsection{Can distilled strategy modes preserve specialization under sharing?}
+
+\paragraph{Shared perception only (Share-Encoder).}
+Under the common ladder distillation recipe with full per-strategy branch
+capacity and only the CNN encoder tied, Share-Encoder satisfies the
+specialization criterion on the matched $128$-seed set:
+\[
+\Delta_A=+0.266\;[+0.148,+0.383],
+\qquad
+\Delta_B=+0.164\;[+0.047,+0.281].
+\]
+Holdout argmax agreements are $0.967/0.989$; branch Jensen--Shannon divergence
+is $0.178$ (experts $0.179$). Paired contrasts vs.\ Share-0 show no detectable
+loss ($D_A=-0.023$, $D_B=-0.094$; both $\mathrm{UCB}_{95}\ge 0$). Thus
+matched-state distillation into discrete $z$ modes preserves closed-loop
+specialization when only perception is shared
+(Fig.~\ref{fig:claim-a}, panel~b; Fig.~\ref{fig:sharing-ladder}).
+
+\paragraph{Absolute performance context.}
+In addition to the paired specialization contrasts, we report regime-specific
+win rates for the mixed-opponent generalist, independently trained experts, and
+the preserved Share-Encoder policy (Fig.~\ref{fig:winrate-context}).
+These values provide absolute-performance context and are \emph{not} used as the
+criterion for strategy specialization.
+Independent expert and generalist results use their held-out $64$-seed
+evaluations, whereas shared-policy results use the matched $128$-seed evaluation
+block.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_absolute_winrate_context_2v2.pdf}
+\caption{Absolute win-rate comparison across reference and shared policies.
+The mixed-opponent generalist $\pi_G$, opponent-specific experts $\pi_A,\pi_B$,
+and Share-Encoder strategy modes $z_0,z_1$ are evaluated against Regimes~A
+and~B.
+The expected crossover pattern is visible when the A-specialized policies
+achieve higher win rate on Regime~A and the B-specialized policies achieve
+higher win rate on Regime~B.
+This plot provides absolute-performance context only; specialization is
+determined by the paired $\Delta_A,\Delta_B$ confidence-bound criterion.
+Error bars are $95\%$ bootstrap CIs ($\pi_G$/experts $n{=}64$; Share-Encoder
+$n{=}128$).}
+\label{fig:winrate-context}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_claim_a_2v2.pdf}
+\caption{Causal chain for Claim~A.
+(a)~Independent PPO experts establish complementary payoff strategies.
+(b)~Matched-state distillation transfers them into discrete modes of one
+Share-Encoder controller ($z_0\!\sim\!\pi_A$, $z_1\!\sim\!\pi_B$).
+(c)~Sealed $\Delta_A,\Delta_B$ with $95\%$ CIs across progressive sharing
+($n{=}128$). Share-0 is a bit-exact expert-dispatch control; Encoder/Backbone/Macro
+share one distillation recipe.
+\textsc{pass}/\textsc{fail} denote whether the pre-specified specialization
+criterion is satisfied.}
+\label{fig:claim-a}
+\end{figure*}
+
+\paragraph{Prior compression ablation (not Claim~A).}
+An earlier offline student under a heavily shared/compressed architecture
+($n{=}64$) imitated experts well (agreement $0.965/0.984$, JS $0.183$) yet
+\emph{failed} the specialization criterion
+($\Delta_A=+0.094\,[-0.078,+0.266]$, $\Delta_B=+0.141\,[-0.047,+0.313]$).
+That artifact is architecturally closest to Share-Macro, not Share-Encoder. It
+shows that high action-level imitation can coexist with failed closed-loop
+specialization under aggressive sharing---reinforcing the measurement hierarchy
+(Fig.~\ref{fig:hierarchy})---and must not be read as ``distillation failed before
+sharing.''
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig_2v2_measurement_hierarchy.pdf}
+\caption{Measurement hierarchy: high imitation and nonzero action-distribution
+separation do not imply closed-loop payoff specialization. Share-Macro retains
+strong expert agreement yet fails the specialization criterion via
+$\mathrm{LCB}_{95}(\Delta_A)=0$.}
+\label{fig:hierarchy}
+\end{figure}
+
+%----------------------------------------------------------------------
+\subsection{Where does parameter sharing begin to erode specialization?}
+
+\begin{table}[t]
+\centering
+\caption{Progressive parameter-sharing results on the matched $128$-seed set.
+$D_A$ and $D_B$ are within-seed differences against the Share-0 expert-dispatch
+reference. ``Detectable loss'' means $\mathrm{UCB}_{95}(D)<0$.}
+\label{tab:sharing-results}
+\begin{tabular}{lllll}
+\toprule
+\textbf{Condition} & \textbf{Shared} & $\boldsymbol{\Delta_A}$ & $\boldsymbol{\Delta_B}$ &
+\textbf{Paired $D$} \\
+\midrule
+Share-0
+  & none (dispatch)
+  & $+0.289\;[+0.164,+0.406]$
+  & $+0.258\;[+0.141,+0.375]$
+  & reference \\
+Share-Encoder
+  & CNN encoder
+  & $+0.266\;[+0.148,+0.383]$
+  & $+0.164\;[+0.047,+0.281]$
+  & no detectable loss \\
+Share-Backbone
+  & $+$ MLP backbone
+  & $+0.148\;[+0.023,+0.266]$
+  & $+0.141\;[+0.016,+0.266]$
+  & detectable loss on $A$ \\
+Share-Macro
+  & $+$ macro outputs
+  & $+0.125\;[0.000,+0.250]$
+  & $+0.156\;[+0.031,+0.281]$
+  & detectable loss on $A$; fails criterion \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_sharing_ladder_2v2.pdf}
+\caption{Exact sealed $\Delta_A,\Delta_B$ (left) and paired $D$ vs.\ Share-0
+(right) with $95\%$ CIs ($n{=}128$).
+Share-Backbone still satisfies the absolute specialization criterion but already
+shows detectable Pole-A loss; Share-Macro fails because
+$\mathrm{LCB}_{95}(\Delta_A)=0$.
+Among Encoder/Backbone/Macro, only tied modules change under a common
+distillation recipe.}
+\label{fig:sharing-ladder}
+\end{figure*}
+
+\paragraph{Share-Encoder.}
+Share-Encoder holdout argmax agreements are $0.967/0.989$; these values define
+the imitation-fidelity reference band
+(Section~\ref{sec:fidelity}).
+Sharing only the perception encoder preserves the specialization criterion on
+both regimes, with no detectable paired loss vs.\ Share-0.
+Decomposing by role: on-regime cells shift by $-0.012$ on average, while
+cross-regime cells shift by $+0.047$, driven by $z_0$ under Regime~B rising
+$+0.086$---consistent with mild strategy homogenization rather than on-regime
+collapse.
+
+\paragraph{Share-Backbone.}
+Share-Backbone terminal holdout agreement is $0.963/0.985$ (within $0.010$ of
+Share-Encoder on both codes), so fidelity is comparable.
+Branch Jensen--Shannon divergence is $0.172$ (Share-Encoder $0.178$; experts
+$0.179$). The specialization criterion still holds on both regimes, but the
+paired contrast against Share-0 shows a detectable reduction on Regime~A
+($\mathrm{UCB}_{95}(D_A)<0$). On-regime performance declines on average while
+cross-regime performance rises---consistent with specialization loss / negative
+transfer under fidelity-comparable backbone sharing.
+
+\paragraph{Share-Macro.}
+Share-Macro terminal holdout agreement is $0.936/0.969$, outside the
+imitation-fidelity band anchored on Share-Encoder. The specialization criterion
+is not satisfied ($\mathrm{LCB}_{95}(\Delta_A)=0$). Paired evaluation likewise
+shows a detectable reduction on Regime~A. Because imitation fidelity is not
+comparable, we report this as sharing-associated and fit-confounded degradation
+and do not uniquely attribute it to homogenization vs.\ capacity loss.
+
+%----------------------------------------------------------------------
+\subsection{Matched-state behavior: what do the latent modes do?}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.92\textwidth]{fig_trajectory_strip_2v2.pdf}
+\caption{Matched seed $11960003$, Share-Encoder policy: identical initial
+conditions within each panel; only forced $z$ differs.
+Solid~$z_0$, dashed~$z_1$; stars mark first action divergence ($t{=}4$).
+Terminal scores match the sealed evaluation rows (CUDA fidelity check).
+Read as visual evidence that changing $z$ changes team behavior---not as a
+substitute for the statistical specialization criterion.}
+\label{fig:traj}
+\end{figure*}
+
+Under identical initial conditions, forcing $z_0$ vs.\ $z_1$ produces an action
+divergence at tick~$4$ and visibly different team paths, with different closed-loop
+outcomes (Fig.~\ref{fig:traj}). Qualitative matched frames
+(Fig.~\ref{fig:qual}) show the same seed with only $z$ changed.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.95\textwidth]{fig_qualitative_latent_2v2.pdf}
+\caption{Matched-frame grid at tick~$30$ for the same seed and Share-Encoder
+policy. Columns differ only in forced $z$; rows differ only in opponent regime.}
+\label{fig:qual}
+\end{figure*}
+
+%----------------------------------------------------------------------
+\subsection{Robustness as a sim-to-real diagnostic}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_robustness_delta_dose.pdf}
+\caption{Dose--response of specialization under deployment-relevant perturbations
+($n{=}128$): localization (GPS-like), motion (currents/actuators), and control
+latency (communications).
+\textsc{pass}/\textsc{fail} mark the specialization criterion at each severity.
+Localization remains specialized at every tested dose; motion breaks Pole-B
+specialization from the first nonzero dose; latency shows monotone Pole-A
+erosion.}
+\label{fig:robust}
+\end{figure*}
+
+%----------------------------------------------------------------------
+\subsection{Attempted strategy-preserving fine-tuning (negative result)}
+
+Counterfactual Strategy Correction (CSC) and Strategy-Preserving Fine-Tuning
+(SPFT) do not recover the specialization criterion under frozen matched
+protocols; complete formulation and numbers appear in the supplementary
+material. These interventions are not credited for Share-Encoder satisfying the
+criterion.

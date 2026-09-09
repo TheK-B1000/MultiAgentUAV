@@ -1,0 +1,252 @@
+\section{Methodology}
+\label{sec:method}
+%======================================================================
+
+\paragraph{Overview.}
+The successful method is not a new PPO variant. It is
+\emph{opponent-specific PPO expert training}, followed by
+\emph{matched-state strategy-conditioned distillation}, followed by
+\emph{progressive parameter sharing} with a closed-loop payoff gate.
+
+\begin{figure}[t]
+\centering
+\fbox{\parbox{0.96\linewidth}{\small
+\textbf{Algorithm 1}~~Strategy-conditioned expert distillation and progressive sharing\\[0.4em]
+\textbf{Require:} regimes $A,B$; seeds; KL distill budget; bootstrap gate\\
+1:\quad Train independent PPO experts $\pi_A$ (vs~$A$), $\pi_B$ (vs~$B$)\\
+2:\quad Verify specialist crossover: $\Delta_A>0$, $\Delta_B>0$ with LCB$_{95}>0$\\
+3:\quad Build Share-0: bit-exact $z$-dispatch of verbatim experts (structural control)\\
+4:\quad Collect a shared state set $\{s\}$ (both experts queried on each $s$)\\
+5:\quad For share $\in\{$Encoder, Backbone, Macro$\}$: distill under a \emph{common} recipe\\
+\quad\quad with the corresponding modules tied; freeze the terminal checkpoint\\
+6:\quad Evaluate each distilled rung on matched seeds: absolute $\Delta$ gate + paired $D$ vs Share-0\\
+7:\quad Report where specialization is preserved, degraded, or lost\\
+\textbf{Fixed among distilled rungs:} data, schedule, seeds, CUDA path, no post-hoc ckpt selection.\\
+\textbf{Note:} Share-0 is constructed, not distilled; Enc$\rightarrow$Back$\rightarrow$Macro varies sharing only.
+}}
+\caption{Reproducible Claim-A pipeline. PPO is the expert engine; among distilled rungs the primary experimental variable is progressive parameter sharing; closed-loop $\Delta$/$D$ is the validation.}
+\label{alg:pipeline}
+\end{figure}
+
+\subsection{Opponent-specific PPO experts}
+
+\textbf{Independent specialists.}
+We train strategy-specific experts $\pi_A$ and $\pi_B$ with a standard
+opponent-specific multi-agent PPO recipe under matched conditions---one policy
+against Regime~A / OP6, one against Regime~B / OP7---with no shared parameters
+and no strategy-code mechanism. PPO's role here is only to produce behavioral
+experts with demonstrated complementary payoff specialization; it is not the
+claimed algorithmic novelty. These experts are the teachers for distillation and
+the verbatim actors behind Share-0.
+
+\textbf{Generalist baseline.}
+We also evaluate $\pi_G$, a single policy trained on the mixed opponent
+distribution with no strategy-code mechanism. The generalist provides a
+single-policy baseline trained on the mixed opponent distribution.
+
+\subsection{Matched-state strategy-conditioned distillation}
+\label{sec:distill}
+
+Treating $\pi_A$ and $\pi_B$ as behavioral experts rather than as the final
+shared controller, we transfer their behaviors into one strategy-conditioned
+policy $\pi_\theta(a\mid o,z)$ by supervised distillation, with
+$z_0$ meaning ``behave like the A expert'' and $z_1$ meaning ``behave like the
+B expert.'' Both experts are queried on the \emph{same} stored states, so
+differences between conditioned outputs are attributable to expert strategies
+rather than different state visitation distributions
+($s\!\sim\!d_{\pi_A}$ vs.\ $s\!\sim\!d_{\pi_B}$).
+
+The distillation objective is
+\[
+\mathcal{L}_{\mathrm{distill}}
+=
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_A(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_0)\right)
++
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_B(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_1)\right),
+\]
+evaluated per action head over masked distributions and averaged over
+decision-eligible heads only ($d_t^i=1$). Only actor parameters are optimized;
+critic parameters remain unchanged and are verified immobile. Training runs a
+fixed number of epochs with no early stopping and no checkpoint selection; the
+terminal checkpoint is the sole artifact.
+
+We maintain three measurement levels and do not conflate them:
+\begin{itemize}
+  \item \textbf{Action-level imitation:} argmax agreement and KL divergence
+  relative to the matched expert.
+  \item \textbf{Strategy separation:} Jensen--Shannon divergence between the
+  two conditioned action distributions.
+  \item \textbf{Closed-loop strategy specialization:} $V(z,p)$, $\Delta_A$,
+  $\Delta_B$, and the paired-bootstrap criterion of
+  Section~\ref{sec:specialization}.
+\end{itemize}
+High action-level imitation does not logically imply task-level specialization.
+Different strategy-conditioned action distributions likewise do not logically
+imply payoff-relevant specialization. The payoff-based criterion is the primary
+task-level definition.
+
+\subsection{Attempted strategy-preserving fine-tuning (negative result)}
+\label{sec:spppo}
+
+We separately evaluated Counterfactual Strategy Correction (CSC) and
+Strategy-Preserving Fine-Tuning (SPFT) as interventions for preserving
+specialization during continued PPO optimization (SP-PPO~$=$~PPO+CSC+SPFT).
+Neither recovered the prespecified closed-loop specialization criterion under
+frozen matched protocols. Because these interventions are \emph{not} responsible
+for the successful progressive-sharing results, we report their complete
+formulation and sealed evaluation in the supplementary material rather than the
+main text.
+
+\subsection{Progressive parameter sharing (primary experimental variable)}
+\label{sec:sharing}
+
+Having established payoff-specialized experts and a bit-exact Share-0 dispatch
+control, we ask: how much neural representation can two strategically distinct
+behaviors share before closed-loop specialization disappears? For
+Share-Encoder, Share-Backbone, and Share-Macro we hold the distillation recipe,
+dataset, schedule, and evaluation seeds fixed and vary only which modules are
+tied between the two strategy branches. Sharing is cumulative. Among these
+distilled rungs, the primary experimental variable is the location and amount of
+parameter sharing.
+
+Share-0 is \emph{not} produced by that distillation: it is a structural
+zero-sharing control that installs the frozen experts behind a $z$-dispatch
+wrapper (bit-exact logit match). Paired contrasts $D$ vs.\ Share-0 therefore
+ask whether a distilled shared controller matches the structural control's
+specialization; they do not claim that Share-0$\rightarrow$Share-Encoder
+changes only a sharing flag. The clean single-axis comparison is
+Share-Encoder$\rightarrow$Share-Backbone$\rightarrow$Share-Macro.
+
+\begin{table}[t]
+\centering
+\caption{Progressive parameter-sharing conditions. Share-0 is a bit-exact
+expert-dispatch control (not distilled). Share-Encoder/Backbone/Macro share a
+common distillation recipe; only tied modules change among those three.}
+\label{tab:sharing}
+\begin{tabular}{lll}
+\toprule
+\textbf{Condition} & \textbf{Shared components} & \textbf{Strategy-specific components} \\
+\midrule
+Share-0: Independent Experts
+  & None
+  & Entire actor \\
+Share-Encoder: Shared Perception
+  & Perception encoder
+  & Backbone + outputs \\
+Share-Backbone: Shared Perception + Backbone
+  & Encoder + MLP backbone
+  & Strategy branches + outputs \\
+Share-Macro: Shared Backbone + Macro-Action Output
+  & Encoder + backbone + macro-action outputs
+  & Target-selection outputs \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each condition uses complete actors of the experts' own architecture class,
+thereby reducing the likelihood that performance differences are explained solely
+by reduced per-strategy capacity. Module tying is verified by object identity
+and unique-parameter arithmetic. A mixed-$z$ minibatch gives each shared module
+gradient from both strategies in the same step.
+
+\paragraph{Share-0 (structural control).}
+Share-0 installs $\pi_A$ and $\pi_B$ behind a strategy-code dispatch wrapper with
+zero shared parameters, verified bit-exact against both experts on the
+evaluation device. It establishes that the dispatch-and-evaluate path can
+express specialization when no parameters are shared and when no distillation
+has occurred.
+
+\subsection{Matched-seed paired evaluation}
+\label{sec:matched}
+
+All parameter-sharing conditions are evaluated on the same $128$ held-out
+episode seeds as the Share-0 reference. For each seed, we compute the change in
+specialization contrast relative to Share-0, yielding a paired estimate that
+controls for variation in episode difficulty. The Share-0 outcomes on this
+matched set are fixed before evaluating subsequent sharing conditions.
+
+The primary statistics are
+\[
+D_A=\mathbb{E}_s\!\left[\Delta_A^{\mathrm{(cond)}}(s)-\Delta_A^{\mathrm{(Share\textrm{-}0)}}(s)\right],
+\qquad
+D_B=\mathbb{E}_s\!\left[\Delta_B^{\mathrm{(cond)}}(s)-\Delta_B^{\mathrm{(Share\textrm{-}0)}}(s)\right],
+\]
+under a paired bootstrap. We declare a detectable sharing-associated reduction
+in specialization on a regime only if $\mathrm{UCB}_{95}(D_p)<0$: that is, the
+upper $95\%$ confidence bound on the paired change lies below zero.
+
+Because CPU and CUDA execution can produce different closed-loop trajectories
+despite identical nominal seeds, all primary paired comparisons use a fixed CUDA
+execution path. Diagnostics collected on CPU are scoped to the CPU-generated
+state distribution.
+
+\subsection{Imitation-fidelity control}
+\label{sec:fidelity}
+
+To interpret a reduction in specialization as associated with representation
+sharing, compared models must reproduce their expert policies with similar
+fidelity. We therefore define an imitation-fidelity comparability band:
+final holdout argmax agreement must lie within $0.010$ of the Share-Encoder
+reference agreements on the same holdout set. This band is an
+\emph{interpretation criterion}, not a success gate and not a theoretically
+privileged threshold. Continuous agreement and KL values are reported for every
+condition regardless of band membership. If a condition falls outside the band,
+any specialization degradation is reported as sharing-associated but is not
+uniquely attributed to strategy homogenization or specialization loss /
+negative transfer. Observed Share-Encoder reference agreements are reported in
+Results.
+
+\subsection{Mechanism decomposition}
+\label{sec:decomp}
+
+For fidelity-comparable conditions, we decompose specialization change into:
+\begin{itemize}
+  \item \textbf{On-regime} performance: strategy code evaluated against its
+  intended opponent regime.
+  \item \textbf{Cross-regime} performance: the same strategy code evaluated
+  against the other opponent regime.
+\end{itemize}
+For fidelity-comparable conditions, increased cross-regime performance with
+preserved on-regime performance is interpreted as evidence consistent with
+strategy homogenization, whereas decreased on-regime performance is interpreted
+as specialization loss / negative transfer. If imitation fidelity is not
+comparable, we report sharing-associated degradation without assigning a
+mechanism.
+
+\subsection{Mechanism diagnostics}
+\label{sec:diagnostics}
+
+When a distilled student retains high imitation fidelity but fails the
+specialization criterion---as in the prior compression ablation and in
+Share-Macro---we apply three diagnostic analyses to localize the failure mode
+without reinterpreting the gate:
+
+\paragraph{H1: Distribution shift.}
+Does expert--student agreement decrease on student-visited states relative to
+expert-visited states?
+
+\paragraph{H2: High-leverage mismatches.}
+Are expert--student disagreements disproportionately associated with final
+outcomes? Using matched counterfactual branching---replaying a recorded prefix,
+seeding the environment identically across branches, and altering exactly one
+decision---we compare expert substitution at disagreement states against a
+decision-sensitivity reference.
+
+\paragraph{H3: Action-component localization.}
+Are residual mismatches concentrated in macro-action selection or in target
+selection?
+
+Each diagnostic is a measurement with a fixed interpretation rule, not a
+training method. Device scope is stated with each result.
+
+\subsection{Reproducibility}
+\label{sec:repro}
+
+Training and evaluation specifications are fixed before execution. Final
+comparisons use held-out evaluation seeds and terminal checkpoints without
+post-hoc checkpoint selection. Architecture sharing is verified
+programmatically, and checkpoint hashes identify evaluated models. Because
+execution device can affect closed-loop trajectories, all primary paired
+evaluations use a fixed CUDA path.
+
+%======================================================================
