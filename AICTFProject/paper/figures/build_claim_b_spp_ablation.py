@@ -132,13 +132,13 @@ def main() -> dict:
     ax.axhspan(-40, 0, color="#FFEBEE", zorder=0, alpha=0.55)
 
     caption = (
-        r"\textbf{Claim B only -- do not merge with Claim A.} "
-        r"Matched sealed arms: PPO = CCP-S2 control; PPO+CSC = CCP-S2 treatment; "
-        r"PPO+CSC+SPFT = RSCFT retention treatment. "
-        r"All three FAIL the crossover gate. "
-        r"Share-Encoder PASS (Claim A) is an architectural sharing result, "
-        r"not evidence that SP-PPO outperformed PPO. "
-        r"Sources: CCP\_S2\_EVAL\_INTEGRITY.json, RSCFT\_EVAL\_RESULT.json."
+        "Claim B only -- do not merge with Claim A. "
+        "Matched sealed arms: PPO = CCP-S2 control; PPO+CSC = CCP-S2 treatment; "
+        "PPO+CSC+SPFT = RSCFT retention treatment. "
+        "All three FAIL the crossover gate. "
+        "Share-Encoder PASS (Claim A) is an architectural sharing result, "
+        "not evidence that SP-PPO outperformed PPO. "
+        "Sources: CCP_S2_EVAL_INTEGRITY.json, RSCFT_EVAL_RESULT.json."
     )
     fig.text(0.5, -0.08, caption, ha="center", va="top", fontsize=7.2, style="italic")
     fig.subplots_adjust(bottom=0.28, top=0.88, left=0.12, right=0.98)

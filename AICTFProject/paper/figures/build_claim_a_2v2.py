@@ -167,13 +167,13 @@ def main() -> dict:
                ncol=4, frameon=False, fontsize=7.5)
 
     caption = (
-        r"\textbf{Claim A only.} "
-        r"(a) Independent specialists establish payoff-relevant strategies. "
+        "Claim A only. "
+        "(a) Independent specialists establish payoff-relevant strategies. "
         r"(b) Forced $z$ in one shared Share-Encoder policy reproduces the X-pattern "
         r"alongside $\pi_G/\pi_A/\pi_B$. "
-        r"(c) Sharing ladder: Encoder tolerated; Backbone degrades; Macro fails the gate. "
-        r"This figure does \emph{not} attribute (b)--(c) to SP-PPO/CSC/SPFT "
-        r"(see fig\_claim\_b\_spp\_ablation)."
+        "(c) Sharing ladder: Encoder tolerated; Backbone degrades; Macro fails the gate. "
+        "This figure does not attribute (b)--(c) to SP-PPO/CSC/SPFT "
+        "(see fig_claim_b_spp_ablation)."
     )
     fig.text(0.5, -0.08, caption, ha="center", va="top", fontsize=7.0, style="italic")
     fig.subplots_adjust(wspace=0.28, bottom=0.24, top=0.82, left=0.06, right=0.99)
