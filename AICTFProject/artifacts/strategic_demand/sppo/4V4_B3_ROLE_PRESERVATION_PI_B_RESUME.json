@@ -1,0 +1,25 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_PI_B_RESUME",
+  "status": "RESUME_IN_PROGRESS",
+  "utc": "2026-09-11T11:46:00Z",
+  "authority": "PI yes to resume pi_B_role after mid-run stop at ~723k/1M",
+  "seed": 17000001,
+  "resume_from": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_role/ckpts/ckpt_pi_B_specialist_4v4_b3_role_700000.zip",
+  "died_at_approx_steps": 722944,
+  "target_total_timesteps": 1000000,
+  "stderr_at_death": "empty",
+  "note": "Same SPEC, same seed, crash recovery only. Sealed crossover still unspent.",
+  "restored_from_checkpoint": [
+    "model_state_dict",
+    "optimizer_state_dict",
+    "global_step (=700416 in zip)",
+    "updates_completed",
+    "return_norm / strategy_return_norm",
+    "ppo_updater_state",
+    "cfg including role_pres_*"
+  ],
+  "not_restored": ["python/numpy/torch RNG (absent from checkpoint schema)"],
+  "role_pres_reattach": "identical CLI: lambda=0.05 style=BREACH same role_targets.json",
+  "arm_status": "CONTINUATION_NOT_NEW_ARM",
+  "provenance_audit": "4V4_B3_ROLE_PRESERVATION_PROVENANCE_AUDIT_PRE_CROSSOVER.json"
+}

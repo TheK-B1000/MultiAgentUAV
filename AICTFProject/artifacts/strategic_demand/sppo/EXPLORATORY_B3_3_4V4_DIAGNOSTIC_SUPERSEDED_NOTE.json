@@ -1,0 +1,15 @@
+{
+  "record_id": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SUPERSEDED_NOTE",
+  "status": "FROZEN_RESULT_PARTIALLY_CORRECTED",
+  "CORRECTED_BY": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_RUN_STATUS_CORRECTION.json -- this note's claim that BOTH runs crashed and that seed block 16800001-16800256 produced no valid data is FACTUALLY WRONG. The run it described as crashed 'after 3 of 4 win-rate lines' was still executing (PID 4164, 8.9 h wall, 31623 CPU-seconds, empty stderr) and was allowed to complete. The block is NOT retired. Everything this note says about non-pooling and about the sealed n=128 result remaining authoritative REMAINS IN FORCE.",
+  "utc": "2026-09-10T14:10:00Z",
+  "amends": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPEC.json",
+
+  "WHAT_HAPPENED": "Two sessions launched the same EXPLORATORY_B3_3_4V4_DIAGNOSTIC eval concurrently on the identical seed block (16800001-16800256): this session's background run (exit code 4, crashed after printing only the run header, before any win-rate line) and a parallel session's run logged to exploratory_b3_3_4v4_diagnostic.log (crashed mid-way, after 3 of 4 win-rate lines, before a gate/verdict). Neither run produced EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPECIALIST_CROSSOVER_EVAL_RESULT.json or its rows CSV -- confirmed absent. No valid sealed result exists from this block from either attempt.",
+
+  "WHY_THIS_ROUTE_IS_NOT_BEING_RETRIED": "A parallel session, under a separate and more recent PI authority ('do not spend more seeds certifying current B3 specialists; diagnose small learned crossover from existing artifacts only'), completed CONFIRMATORY_B3_3_4V4_LEARNED_CROSSOVER_DIAGNOSIS.json using ONLY the already-sealed n=128 crossover rows and the existing pi_A3/pi_B3 metrics.csv -- zero new seeds. That diagnosis already answers what this n=256 batch was trying to answer (why delta_B is small), with a clear, well-supported finding: all four absolute cells sit in ~0.67-0.72 (both specialists strong on both poles); delta_A/delta_B are small because of CROSS-REGIME TRANSFER (pi_B nearly matches pi_A on Pole A, and vice versa on Pole B), not because either specialist collapses in its own regime. This supersedes the need for this diagnostic block entirely.",
+
+  "DISPOSITION_OF_SEED_BLOCK_16800001_16800256": "No valid data was produced by either crashed attempt. The block is NOT being reused or retried under this label. Any future use of this range requires a fresh, explicitly-authorized amendment -- it is not silently available for reuse.",
+
+  "CURRENT_GOVERNING_STATE": "CONFIRMATORY_B3_3_4V4_LEARNED_CROSSOVER_DIAGNOSIS.json is authoritative. Its NOT_AUTHORIZED list (no additional evaluation seeds on these specialists, no retraining/B4, no gate change, no checkpoint promotion, no latent/sharing-ladder distillation from these experts) governs going forward, superseding this spec's own plan to spend n=256 fresh seeds."
+}

@@ -226,12 +226,16 @@ def main() -> int:
               "at N. NO episodes run, NOTHING written.")
         return 0
 
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
+
+    cells = [(name, pole, seed) for name in POLICIES for pole in ("A", "B") for seed in seeds]
     rows = []
-    for name in POLICIES:
-        for pole in ("A", "B"):
-            for seed in seeds:
-                rows.append({"policy": name, "pole": pole, "seed": seed,
-                             **run_cell(policies[name], pole, seed)})
+    bar = tqdm_iter(cells, desc=f"{label} crossover", unit="ep")
+    for name, pole, seed in bar:
+        set_postfix(bar, f"{name}@Pole{pole} seed={seed}")
+        rows.append({"policy": name, "pole": pole, "seed": seed,
+                     **run_cell(policies[name], pole, seed)})
+        if seed == seeds[-1]:
             wr = np.mean([r["win"] for r in rows if r["policy"] == name and r["pole"] == pole])
             print(f"  {name:5s} on Pole {pole}: win rate {wr:.4f}", flush=True)
 

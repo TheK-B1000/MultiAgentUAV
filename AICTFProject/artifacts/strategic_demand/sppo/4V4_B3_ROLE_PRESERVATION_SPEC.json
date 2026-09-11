@@ -1,0 +1,129 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_SPEC",
+  "status": "FROZEN_TRAINING_COMPLETE",
+  "training_started_utc": "2026-09-10T22:50:00Z",
+  "training_completed_utc": "2026-09-11T12:59:00Z",
+  "training_note": "Relaunch after stronger semantic gate PASS on style-intent targets. pi_A_role seed 16910001 (fresh; 16900001 aborted). MSE+CE restored. pi_B waits on A.",
+  "training_completion_note": "pi_A_role: terminal 1M-step checkpoint, sha256 cb406b1e1d5d9004... . pi_B_role: crashed at ~722944/1M (empty stderr), resumed cleanly from ckpt_700000 per 4V4_B3_ROLE_PRESERVATION_PI_B_RESUME.json, terminal 1M-step checkpoint, sha256 f1f979d367cbd196... . Provenance (loss-form MSE+CE throughout; resume continuity; 11:44Z mtime = bulk touch, byte-identical) independently verified in 4V4_B3_ROLE_PRESERVATION_PROVENANCE_NOTE.json, 4V4_B3_ROLE_PRESERVATION_PROVENANCE_AUDIT_PRE_CROSSOVER.json, and 4V4_B3_ROLE_PRESERVATION_ROLE_PRES_PY_1144Z_NOTE.json before this status was set. Next: one-shot sealed crossover on 17200001-17200128, per SEALED_CROSSOVER below.",
+  "arm": "CONFIRMATORY_LEARNING_SIDE",
+  "confirmatory": true,
+  "utc": "2026-09-10T21:55:00Z",
+  "authority": "PI 2026-09-10: freeze trajectory/role-level separation next, not the payoff penalty. One training experiment only. Same B3-3 poles, same PPO recipe, same budget. Don't run the held JSD intervention.",
+
+  "AMENDED_BY": [
+    "4V4_B3_ROLE_PRESERVATION_TARGET_PROJECTION_AMENDMENT.json (half-plane bridge; SUPERSEDED for attack/defend channel by STYLE_INTENT)",
+    "4V4_B3_ROLE_PRESERVATION_LOSS_AMENDMENT.json (CE-only workaround; SUPERSEDED if style-intent targets pass stronger gate — then restore MSE+CE)",
+    "4V4_B3_ROLE_PRESERVATION_STYLE_INTENT_PROJECTION_AMENDMENT.json (project from scripted allocation intent)",
+    "4V4_B3_ROLE_PRESERVATION_PREMATURE_LAUNCH_ABORT.json (aborted ~6k-step pi_A on seed 16900001)"
+  ],
+  "MOTIVATED_BY": [
+    "4V4_B3_VANILLA_PAIR_DISAGREEMENT_JSD_MEASUREMENT.json",
+    "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE.json",
+    "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE_FORK_DECISION.json"
+  ],
+
+  "HYPOTHESIS": "Does explicit role preservation toward frozen scripted GUARD/BREACH team-role statistics recover complementary closed-loop specialization under the same 4v4 B3-3 opponent regimes where vanilla PPO produced local action diversity but the same dominant escort_pair role family?",
+
+  "FRAMING": "Certified demand exists; vanilla crossover FAIL; JSD shows the specialists are not collapsed at the action-distribution level; blue-side capture shows they still share the same dominant strategic role family. The intervention therefore pushes each specialist toward its intended TEAM-LEVEL role statistics (GUARD for π_A, BREACH for π_B), not away from its sibling and not by penalizing other-pole return.",
+
+  "PAPER_SAFE_CLAIM_IF_PASS": "Vanilla PPO retained local action diversity but lost team-level strategic specialization; explicit role preservation recovered complementary closed-loop specialization under the same 4v4 opponent regimes.",
+
+  "ENVIRONMENT_HELD_FIXED": {
+    "poles": "identical to sealed B3 track",
+    "Pole_A": "pole_A_genome(4) / OP6 + {min_alive_for_defender: 4}",
+    "Pole_B": "B3-3_lockdef10_2v1.json (SDS2_B3_LOCKDEF10_2V1)",
+    "certification": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json CERTIFIED — demand not reopened"
+  },
+
+  "VANILLA_BASELINE_HELD_FIXED": {
+    "pi_A3_sha256": "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0",
+    "pi_B3_sha256": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+    "crossover": "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json FAIL — FROZEN"
+  },
+
+  "SINGLE_AXIS_INTERVENTION": {
+    "objective": "L_i = L_PPO,i + lambda_role * L_role,i",
+    "L_role": "RESTORED by MSE_RESTORED_AMENDMENT after style-intent targets passed the stronger directional gate: L_role = MSE(f_soft, f*_style) + CE(p*_style, q_soft). f_soft from MacroAction GET_FLAG/GO_HOME probs; q_soft temperature-smoothed over 4v4 role_bucket vocabulary with carrier boosts from global_state. (LOSS_AMENDMENT CE-only workaround SUPERSEDED.)",
+    "style_assignment": {
+      "pi_A_role": "GUARD = BLUE_ONE_DEFENDER_V2 → targets f*_GUARD, p*_GUARD",
+      "pi_B_role": "BREACH = BLUE_BOTH_ATTACK_V2 → targets f*_BREACH, p*_BREACH"
+    },
+    "why_not_sibling_jsd": "capture showed same dominant role family despite JSD=0.338; repulsion from sibling is the wrong axis",
+    "why_not_payoff_penalty": "R_A - lambda V(pi_A,B) can manufacture crossover by deliberate weakness; reviewer-vulnerable",
+    "lambda_role": 0.05,
+    "cadence": "1 role-preservation optimizer step per 4 completed PPO actor minibatches (SAPPO-style separate step; never shares backward with PPO)",
+    "soft_role_temperature": 0.5,
+    "target_source": {
+      "tool": "experiments/collect_role_targets_4v4_b3.py",
+      "styles": ["BLUE_ONE_DEFENDER_V2", "BLUE_BOTH_ATTACK_V2"],
+      "seeds": [16810001, 16810032],
+      "episodes_per_style_per_pole": 16,
+      "poles": "16 Pole A + 16 Pole B3 per style (32 episodes/style total)",
+      "metrics": "hard role_bucket_detailed_id occupancy (7-d) + mean (n_attackers, n_defenders, attack_defense_ratio) via rl.behavior_telemetry",
+      "output": "artifacts/strategic_demand/sppo/role_targets_guard_breach_4v4_b3/role_targets.json",
+      "seed_note": "reuses ALREADY-SPENT disagreement-collection prefix 16810001-16810032; no new experimental seed budget. Targets are scripted references, not learned policies."
+    },
+    "PPO_backbone": "run_r1_repertoire_training.py::build_r1_config UNCHANGED except role_pres_* attach fields",
+    "budget": "1,000,000 steps, terminal checkpoint only",
+    "coexistence": "FAIL-CLOSED if sibling_sep_lambda>0 or SAPPO/EXP2 active — this experiment is role preservation alone"
+  },
+
+  "CHECKPOINT_RULE": {
+    "rung_1": "TERMINAL final zip after 1M steps — identical selection rule to vanilla B3. No model selection on sealed or reserved seeds."
+  },
+
+  "SEEDS": {
+    "note": "REASSIGNED from never-spent JSD reservations (4V4_B3_SPECIALIZATION_PRESERVING_RETIRED_UNUSED.json). Zero of these integers were consumed by the retired intervention.",
+    "pi_A_role_4v4": 16910001,
+    "pi_A_role_4v4_ABORTED_PARTIAL": 16900001,
+    "pi_B_role_4v4": 17000001,
+    "role_target_collection_reused": [16810001, 16810032],
+    "dev_diagnostic_reserved": [17100001, 17100064],
+    "sealed_crossover": [17200001, 17200128]
+  },
+
+  "RUN_LABEL_SUFFIX": "_b3_role",
+
+  "LAUNCH_COMMANDS": {
+    "collect_targets": "python experiments/collect_role_targets_4v4_b3.py --team-size 4 --seed-base 16810001 --n-episodes-per-style-per-pole 16 --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json --out-dir artifacts/strategic_demand/sppo/role_targets_guard_breach_4v4_b3 --device cpu",
+    "pi_A_role": "python experiments/train_specialist_scale.py --team-size 4 --policy A --seed 16910001 --device cuda --run-label-suffix _b3_role --role-pres-lambda 0.05 --role-pres-targets artifacts/strategic_demand/sppo/role_targets_guard_breach_4v4_b3/role_targets.json --role-pres-style GUARD",
+    "pi_B_role": "python experiments/train_specialist_scale.py --team-size 4 --policy B --seed 17000001 --device cuda --run-label-suffix _b3_role --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json --role-pres-lambda 0.05 --role-pres-targets artifacts/strategic_demand/sppo/role_targets_guard_breach_4v4_b3/role_targets.json --role-pres-style BREACH"
+  },
+
+  "SEALED_CROSSOVER": {
+    "seed_block": [17200001, 17200128],
+    "n": 128,
+    "tool": "experiments/eval_specialist_crossover_scaled.py",
+    "gate": "PASS iff LCB95(delta_A)>0 AND LCB95(delta_B)>0 where delta_A=V(pi_A_role,A)-V(pi_B_role,A), delta_B=V(pi_B_role,B)-V(pi_A_role,B)",
+    "bootstrap": "n_boot=20000, alpha=0.05, rng_seed=7",
+    "label": "CONFIRMATORY_B3_3_4V4_ROLE_SPECIALIST_CROSSOVER",
+    "comparator": "vanilla B3 FAIL is context only; this is a fresh one-shot gate on role-preserved specialists"
+  },
+
+  "FAILURE_POLICY": "A FAIL remains a FAIL. No changing lambda_role, targets, checkpoint, or B3. No second lambda. No B4. No enlarging n. Stop after this one experiment if FAIL — enough 4v4 evidence for a meaningful negative scaling result.",
+
+  "EXPLICIT_PROHIBITIONS": [
+    "any change to B3-3 / Pole B genome",
+    "launching the retired sibling-JSD SPEC",
+    "payoff anti-transfer of the form R - lambda V(other pole)",
+    "lambda_role search / reporting-the-winner",
+    "using sealed crossover seeds 17200001-128 for checkpoint selection or tuning",
+    "pooling exploratory 16800001-256 (INVALID_INCOMPLETE) with any result",
+    "inventing a new role metric after seeing sealed results — vocabulary is rl.behavior_telemetry role_bucket_detailed_id + MacroAction attack/defend counts only"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD_UNTIL_TARGETS_FROZEN_AND_DRY_RUN": [
+    "spending training seeds 16900001 / 17000001",
+    "spending sealed crossover seeds 17200001-128"
+  ],
+
+  "SEQUENCE": [
+    "1. Freeze this SPEC (done)",
+    "2. Collect and freeze role_targets.json from scripted GUARD/BREACH",
+    "3. Implement role-preservation attach path (fail-closed when lambda=0)",
+    "4. Dry-run both launch commands",
+    "5. Train pi_A_role then pi_B_role to terminal 1M",
+    "6. One-shot sealed crossover on 17200001-128",
+    "7. If FAIL: STOP (no second intervention under this deadline)"
+  ]
+}

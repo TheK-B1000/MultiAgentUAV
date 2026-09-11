@@ -32,8 +32,10 @@
       "companion": "fig_trajectory_strip_2v2",
       "builder": "paper/figures/build_qualitative_latent_2v2.py",
       "companion_builder": "paper/figures/build_trajectory_strip_2v2.py",
+      "role_allocation": "fig_role_allocation_2v2",
+      "role_builder": "paper/figures/build_role_allocation_2v2.py",
       "export": "experiments/export_matched_z_trajectories_2v2.py",
-      "nails": "Matched-state z0 vs z1: frames + path overlay with first action divergence (t=4)"
+      "nails": "Matched-state z0 vs z1: frames + path overlay (first action diverge t=4) + exploratory role proxies"
     },
     {
       "fig": 5,
@@ -49,6 +51,27 @@
     "data": "paper/data/absolute_winrate_context_2v2.json",
     "nails": "Absolute win-rate context: pi_G / pi_A / pi_B / Share-Encoder z0,z1. Not the specialization hypothesis test. n=64 vs n=128 disclosed.",
     "omit": "CSC/SPFT/PPO-only arms; Encoder/Backbone/Macro degradation (those live in Claim B and the Delta ladder)"
+  },
+
+  "RECOGNIZABLE_STRATEGY_TRIPLET": {
+    "qualitative_trajectories": {
+      "stems": ["fig_trajectory_strip_2v2", "fig_qualitative_latent_2v2"],
+      "status": "DONE_IN_RESULTS",
+      "nails": "Matched seed 11960003; first action diverge t=4; frames at t=30"
+    },
+    "role_allocations": {
+      "stem": "fig_role_allocation_2v2",
+      "also": "fig_latent_behavior_2v2",
+      "builder": "paper/figures/build_role_allocation_2v2.py",
+      "status": "BUILDER_READY_WIRED_IN_TEX",
+      "source": "Z0_Z1_BEHAVIOR_CHARACTERIZATION_final_ccp_successor_production.json",
+      "caution": "Exploratory n=24/cell; pole-driven means; not Share-Encoder sealed block"
+    },
+    "payoff_contrasts": {
+      "stems": ["fig_absolute_winrate_context_2v2", "fig_sharing_ladder_2v2", "fig_claim_a_2v2"],
+      "status": "DONE_IN_RESULTS",
+      "nails": "Absolute WR context + sealed Delta gate"
+    }
   },
 
   "ONE_COMPACT_TABLE": {

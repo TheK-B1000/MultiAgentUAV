@@ -1,0 +1,95 @@
+{
+  "record": "ICRA Results first-draft plot map (data collection -> figure)",
+  "utc": "2026-09-09",
+  "status": "DRAFT",
+  "evaluation_blocks": {
+    "strategic_demand_V3": {
+      "n": 192,
+      "seeds": "6000001..6000192",
+      "artifact": "artifacts/strategic_demand/V3_STRATEGIC_DEMAND_VALIDATED.json",
+      "role": "environment admits conflicting concealed best responses"
+    },
+    "pi_G_and_specialists": {
+      "n": 64,
+      "artifacts": [
+        "artifacts/strategic_demand/sppo/PI_G_EVAL_RESULT.json",
+        "artifacts/strategic_demand/sppo/SPECIALIST_BASELINE_EVAL_RESULT.json"
+      ],
+      "role": "absolute context + independent-expert specialization gate"
+    },
+    "sharing_ladder_matched": {
+      "n": 128,
+      "seeds": "11960001..11970064 (pooled)",
+      "artifacts": [
+        "RUNG0_LADDER_REFERENCE.json",
+        "RUNG1_LADDER_EVAL_RESULT.json",
+        "RUNG2_LADDER_EVAL_RESULT.json",
+        "RUNG3_LADDER_EVAL_RESULT.json"
+      ],
+      "role": "primary Claim A Delta / paired D"
+    },
+    "matched_qualitative": {
+      "seed": 11960003,
+      "checkpoint": "sharing_ladder/rung1 final_rung1.pt",
+      "role": "visual z-flip under identical IC"
+    },
+    "role_telemetry_exploratory": {
+      "n_per_cell": 24,
+      "artifact": "Z0_Z1_BEHAVIOR_CHARACTERIZATION_final_ccp_successor_production.json",
+      "role": "NOT a specialization gate; role proxies only"
+    },
+    "robustness_dose": {
+      "n": 128,
+      "role": "external validity diagnostic"
+    }
+  },
+  "figure_map": [
+    {
+      "question": "Do regimes require different strategies?",
+      "figure": null,
+      "table_or_numbers": "V3 demand sealed contrasts in Results text"
+    },
+    {
+      "question": "Can independent experts specialize?",
+      "figure": "fig_claim_a_2v2 (panel a)",
+      "also": "specialist Delta numbers in text"
+    },
+    {
+      "question": "Absolute win rates vs generalist?",
+      "figure": "fig_absolute_winrate_context_2v2"
+    },
+    {
+      "question": "Does Share-Encoder preserve specialization?",
+      "figure": "fig_claim_a_2v2 (panel b) + fig_sharing_ladder_2v2"
+    },
+    {
+      "question": "Where does sharing erode specialization?",
+      "figure": "fig_sharing_ladder_2v2",
+      "table": "tab:sharing-results"
+    },
+    {
+      "question": "Imitation != closed-loop specialization?",
+      "figure": "fig_2v2_measurement_hierarchy"
+    },
+    {
+      "question": "Do latent modes look like team strategies? (paths)",
+      "figure": "fig_trajectory_strip_2v2"
+    },
+    {
+      "question": "Do latent modes look like team strategies? (frames)",
+      "figure": "fig_qualitative_latent_2v2"
+    },
+    {
+      "question": "Role allocation proxies (main 3-panel)",
+      "figure": "fig_role_allocation_2v2"
+    },
+    {
+      "question": "Extended role telemetry (5-panel)",
+      "figure": "fig_latent_behavior_2v2"
+    },
+    {
+      "question": "Robustness dose-response?",
+      "figure": "fig_robustness_delta_dose"
+    }
+  ]
+}

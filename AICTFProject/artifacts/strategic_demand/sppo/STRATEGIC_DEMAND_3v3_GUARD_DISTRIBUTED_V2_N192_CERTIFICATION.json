@@ -1,0 +1,1422 @@
+{
+  "record": "Strategic demand certification 3v3 (guard_distributed_v2_n192)",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-10T03:57:58Z",
+  "implements": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json#CERTIFICATION_PROTOCOL",
+  "variant": "guard_distributed_v2_n192",
+  "supersedes": "v1 (12300001)",
+  "team_size": 3,
+  "device": "cpu",
+  "guard_defenders": 2,
+  "guard_defender_indices": [
+    1,
+    2
+  ],
+  "seeds": {
+    "base": 12321001,
+    "n": 192,
+    "paired": true
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 3
+      },
+      "min_alive_for_defender": 3,
+      "defender_zone_frac": 0.35,
+      "threat_radius": 0.0
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {
+        "min_alive_for_defender": 3
+      },
+      "min_alive_for_defender": 3,
+      "defender_zone_frac": 0.05,
+      "threat_radius": 12.0,
+      "lock_defender": 28,
+      "lock_attacker": 10,
+      "candidate_genome_id": null,
+      "candidate_source": null
+    }
+  },
+  "cell_win_rates": {
+    "poleA_guard_wr": 0.4322916666666667,
+    "poleA_breach_wr": 0.421875,
+    "poleB_guard_wr": 0.0,
+    "poleB_breach_wr": 0.5625
+  },
+  "PRIMARY": {
+    "delta_A": {
+      "mean": 0.010416666666666666,
+      "lcb95": -0.08333333333333333,
+      "ucb95": 0.10416666666666667,
+      "n": 192
+    },
+    "delta_B": {
+      "mean": 0.5625,
+      "lcb95": 0.4947916666666667,
+      "ucb95": 0.6354166666666666,
+      "n": 192
+    }
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "gate": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0",
+  "VERDICT": "NOT_CERTIFIED",
+  "tie_reversal_audit": null,
+  "rows": [
+    {
+      "seed": 12321001,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321002,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321003,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321004,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321005,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321006,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321007,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321008,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321009,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321010,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321011,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321012,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321013,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321014,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321015,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321016,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321017,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321018,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321019,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321020,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321021,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321022,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321023,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321024,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321025,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321026,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321027,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321028,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321029,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321030,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321031,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321032,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321033,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321034,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321035,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321036,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321037,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321038,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321039,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321040,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321041,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321042,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321043,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321044,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321045,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321046,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321047,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321048,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321049,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321050,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321051,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321052,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321053,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321054,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321055,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321056,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321057,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321058,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321059,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321060,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321061,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321062,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321063,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321064,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321065,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321066,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321067,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321068,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321069,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321070,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321071,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321072,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321073,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321074,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321075,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321076,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321077,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321078,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321079,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321080,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321081,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321082,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321083,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321084,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321085,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321086,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321087,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321088,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321089,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321090,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321091,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321092,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321093,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321094,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321095,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321096,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321097,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321098,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321099,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321100,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321101,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321102,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321103,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321104,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321105,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321106,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321107,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321108,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321109,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321110,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321111,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321112,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321113,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321114,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321115,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321116,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321117,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321118,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321119,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321120,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321121,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321122,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321123,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321124,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321125,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321126,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321127,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321128,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321129,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321130,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321131,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321132,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321133,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321134,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321135,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321136,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321137,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321138,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321139,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321140,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321141,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321142,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321143,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321144,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321145,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321146,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321147,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321148,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321149,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321150,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321151,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321152,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321153,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321154,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321155,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321156,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321157,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321158,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321159,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321160,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321161,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321162,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321163,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321164,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321165,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321166,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321167,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321168,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321169,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321170,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321171,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321172,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321173,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321174,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321175,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321176,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321177,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321178,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321179,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321180,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321181,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321182,
+      "A_guard": 1,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321183,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321184,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321185,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321186,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321187,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    },
+    {
+      "seed": 12321188,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321189,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321190,
+      "A_guard": 1,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321191,
+      "A_guard": 0,
+      "A_breach": 0,
+      "B_guard": 0,
+      "B_breach": 0
+    },
+    {
+      "seed": 12321192,
+      "A_guard": 0,
+      "A_breach": 1,
+      "B_guard": 0,
+      "B_breach": 1
+    }
+  ],
+  "total_episodes": 768,
+  "note_if_not_certified": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json#NORMALIZATION_1_GUARD_PROBE records that multiple defenders CONVERGE on a single threat rather than covering distinct intruders. That stacking is a candidate explanation for a failure at N>2 and must be acknowledged before concluding the poles do not demand different behaviour."
+}

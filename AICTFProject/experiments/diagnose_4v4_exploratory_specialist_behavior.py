@@ -28,6 +28,13 @@ Measured (concrete operational proxies for the protocol's stated categories):
 
 Run:  python experiments/diagnose_4v4_exploratory_specialist_behavior.py \
           --pi-a-path <ckpt> --pi-b-path <ckpt> --n-seeds 16 --device cpu
+
+B3 track: Pole B is a candidate genome, not canonical ``pole_B_genome(4)``. Pass
+``--pole-b-genome-json`` (and the track's own ``--seed-base`` / ``--out``) or the
+diagnostic would profile behaviour against the WRONG Pole B while reporting B3
+checkpoints. The seed-reuse convention above is unchanged: the block passed to
+``--seed-base`` is the track's already-spent sealed crossover block, so the
+behaviour observed corresponds to the very episodes the sealed cells summarize.
 """
 from __future__ import annotations
 
@@ -151,10 +158,20 @@ def main() -> int:
     ap.add_argument("--pi-b-path", required=True)
     ap.add_argument("--n-seeds", type=int, default=16)
     ap.add_argument("--device", default="cpu")
+    ap.add_argument("--seed-base", type=int, default=SEED_BASE,
+                    help="seed block to reuse; defaults to the exploratory track's 14400001. "
+                         "A different track must pass its OWN already-spent sealed crossover "
+                         "block so the behaviour matches that track's sealed episodes.")
+    ap.add_argument("--pole-b-genome-json", default=None,
+                    help="JSON SDSGenome candidate used INSTEAD of canonical pole_B_genome(N). "
+                         "REQUIRED for any track whose Pole B is a candidate (e.g. B3-3).")
+    ap.add_argument("--out", default=None,
+                    help="output JSON path; defaults to the exploratory track's record")
     args = ap.parse_args()
 
     import experiments.r2_learned_crossover as R2
     from experiments.opponent_spec import (
+        _with_full_team_defender_gate,
         assert_live_opponent_batch, install_keyed_opponent_overlays,
         pole_A_genome, pole_B_genome,
     )
@@ -163,42 +180,64 @@ def main() -> int:
 
     R2.AGENTS = N_AGENTS
     device = args.device
-    genomes_by_pole = {"A": {"OP6": pole_A_genome(N_AGENTS)}, "B": {"OP7": pole_B_genome(N_AGENTS)}}
+    seed_base = int(args.seed_base)
+    out_path = Path(args.out) if args.out else OUT
 
-    probe = R2.build_env(device, SEED_BASE)
+    if args.pole_b_genome_json:
+        from experiments.sds_genome import SDSGenome
+
+        pole_b = _with_full_team_defender_gate(
+            SDSGenome.from_dict(
+                json.loads(Path(args.pole_b_genome_json).read_text(encoding="utf-8"))
+            ),
+            N_AGENTS,
+        )
+        pole_b_source = f"CANDIDATE_OVERRIDE:{pole_b.genome_id} from {args.pole_b_genome_json}"
+    else:
+        pole_b = pole_B_genome(N_AGENTS)
+        pole_b_source = "canonical_pole_B_genome"
+    genomes_by_pole = {"A": {"OP6": pole_A_genome(N_AGENTS)}, "B": {"OP7": pole_b}}
+
+    probe = R2.build_env(device, seed_base)
     obs_space, act_space = probe.observation_space, probe.action_space
     probe.close()
 
     policies = {"pi_A": load_custom_ppo_policy(str(args.pi_a_path), obs_space, act_space, device=device),
                 "pi_B": load_custom_ppo_policy(str(args.pi_b_path), obs_space, act_space, device=device)}
 
-    print(f"4V4 EXPLORATORY SPECIALIST BEHAVIOR DIAGNOSTIC  {_now()}")
-    print(f"  DIAGNOSTIC, NOT A GATE. Reuses seeds {SEED_BASE}+ deliberately (the sealed "
-          f"crossover eval's own block); spends nothing new.\n", flush=True)
+    print(f"4V4 SPECIALIST BEHAVIOR DIAGNOSTIC  {_now()}")
+    print(f"  DIAGNOSTIC, NOT A GATE. Reuses seeds {seed_base}+ deliberately (that track's "
+          f"sealed crossover block); spends nothing new.")
+    print(f"  pole_B  {pole_b_source}")
+    print(f"  out     {out_path}\n", flush=True)
+
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
 
     results = {"pi_A": {"A": [], "B": []}, "pi_B": {"A": [], "B": []}}
-    for name in ("pi_A", "pi_B"):
-        for pole in ("A", "B"):
-            for i in range(args.n_seeds):
-                seed = SEED_BASE + i
-                env = R2.build_env(device, seed)
-                core = env.core
-                try:
-                    policies[name].reset_strategy()
-                    core._bt_profile_override = None
-                    core._sds_opening_hold_steps = 0
-                    genomes = genomes_by_pole[pole]
-                    install_keyed_opponent_overlays(core, genomes)
-                    key = BASE_KEY[pole]
-                    env.env_method("set_phase", phase_from_tag(key))
-                    env.env_method("set_next_opponent", "SCRIPTED", key)
-                    assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
-                                               context=f"4v4 behavior diagnostic {name}@{pole} seed {seed}")
-                    results[name][pole].append(diagnose_episode(env, core, policies[name]))
-                finally:
-                    env.close()
-                if (i + 1) % 8 == 0 or (i + 1) == args.n_seeds:
-                    print(f"    {name}@{pole}: {i + 1}/{args.n_seeds} episodes", flush=True)
+    cells = [(name, pole, seed_base + i)
+             for name in ("pi_A", "pi_B")
+             for pole in ("A", "B")
+             for i in range(args.n_seeds)]
+    bar = tqdm_iter(cells, desc="4v4 behavior diagnostic", unit="ep")
+    for name, pole, seed in bar:
+        set_postfix(bar, f"{name}@Pole{pole} seed={seed}")
+        env = R2.build_env(device, seed)
+        core = env.core
+        try:
+            policies[name].reset_strategy()
+            core._bt_profile_override = None
+            core._sds_opening_hold_steps = 0
+            genomes = genomes_by_pole[pole]
+            install_keyed_opponent_overlays(core, genomes)
+            key = BASE_KEY[pole]
+            env.env_method("set_phase", phase_from_tag(key))
+            env.env_method("set_next_opponent", "SCRIPTED", key)
+            assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
+                                       context=f"4v4 behavior diagnostic {name}@{pole} seed {seed}")
+            results[name][pole].append(diagnose_episode(env, core, policies[name]))
+        finally:
+            env.close()
+        if seed == seed_base + args.n_seeds - 1:
             print(f"  {name} on Pole {pole}: {len(results[name][pole])} episodes diagnosed", flush=True)
 
     def agg(key, path):
@@ -243,18 +282,21 @@ def main() -> int:
     for k, v in summary.items():
         print(f"    {k}: {json.dumps(v)}")
 
-    OUT.write_text(json.dumps({
-        "record": "4v4 exploratory specialist behavior diagnostic",
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps({
+        "record": "4v4 specialist behavior diagnostic",
         "status": "DIAGNOSTIC_NOT_A_GATE", "utc": _now(),
         "implements": "4V4_EXPLORATORY_AS_DIAGNOSTIC_PROTOCOL.json#MEASUREMENT_CATEGORIES",
-        "seeds_reused_from": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_AMENDMENT.json (14400001+), "
-                             "deliberately, no new seed spent",
+        "seeds_reused_from": f"that track's own already-spent sealed crossover block "
+                             f"({seed_base}+), deliberately, no new seed spent",
+        "seed_base": seed_base,
+        "pole_b_source": pole_b_source,
         "n_seeds_diagnosed_per_cell": args.n_seeds,
         "checkpoints": {"pi_A": str(args.pi_a_path), "pi_B": str(args.pi_b_path)},
         "summary": summary,
         "raw_per_episode": results,
     }, indent=2, default=str), encoding="utf-8")
-    print(f"\n  -> {OUT}")
+    print(f"\n  -> {out_path}")
     return 0
 
 

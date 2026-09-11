@@ -1,0 +1,10 @@
+﻿{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_SEALED_CROSSOVER_DOUBLE_LAUNCH_ABORT",
+  "status": "DUPLICATE_KILLED_KEEP_FIRST",
+  "utc": "2026-09-11T13:09:00Z",
+  "authority": "Agent detected two concurrent eval_specialist_crossover_scaled processes on sealed seeds 17200001..128 within ~7s of each other.",
+  "kept": {"venv_wrapper_pid": 15052, "worker_pid": 32468, "start_local": "2026-09-11 09:07:27", "owns_log": "confirmatory_b3_3_4v4_role_specialist_crossover.log"},
+  "killed": {"venv_wrapper_pid": 36944, "worker_pid": 26576, "start_local": "2026-09-11 09:07:34", "parent_pid": 7780, "reason": "second concurrent one-shot on same sealed block"},
+  "outputs_at_kill_time": "no RESULT/ROWS/PREAUDIT files yet for this label",
+  "reading": "Sealed block remains one-shot under the first launch only. Duplicate spent ~2 minutes of wall clock but wrote no sealed artifacts; first process continues."
+}

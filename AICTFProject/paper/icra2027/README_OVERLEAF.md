@@ -41,7 +41,7 @@ Defined at the opening of Results so plots never require repo slang:
 
 ## Figures included
 
-`figures/*.pdf` — pipeline, Claim A, absolute win-rate context (`fig_absolute_winrate_context_2v2`), sharing ladder, qualitative, trajectory strip, robustness, measurement hierarchy, Claim B ablation.
+`figures/*.pdf` — pipeline, Claim A, absolute win-rate context, sharing ladder, qualitative frames, trajectory strip, role allocation (3-panel) + extended latent behavior (5-panel), robustness, measurement hierarchy, Claim B ablation.
 
 ## Sync rule
 

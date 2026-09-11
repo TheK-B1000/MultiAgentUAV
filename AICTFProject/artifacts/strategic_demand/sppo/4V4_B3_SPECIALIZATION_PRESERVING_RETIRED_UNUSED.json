@@ -1,0 +1,34 @@
+{
+  "record_id": "4V4_B3_SPECIALIZATION_PRESERVING_RETIRED_UNUSED",
+  "status": "RETIRED_UNUSED",
+  "utc": "2026-09-10T21:55:00Z",
+  "retires": "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json",
+  "authority": "PI, 2026-09-10, after 4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE.json: freeze trajectory/role-level separation next, not the payoff penalty. Don't run the held JSD intervention.",
+
+  "WHY_RETIRED": {
+    "mechanism": "different action distributions do NOT imply different strategic roles",
+    "jsd": "4V4_B3_VANILLA_PAIR_DISAGREEMENT_JSD_MEASUREMENT.json: JSD=0.3378 nats (48.7% of ln2) — not policy-level collapse",
+    "capture": "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE.json: all four cells dominate on escort_pair; Pole A same_dominant_role=84% despite Hamming=0.42; Pole B same_dominant_role=38% but mean occupancy still close",
+    "implication": "adding more per-state JSD pressure is poorly targeted. The held SPEC's homogenization premise (collapse into one action family) is rejected by evidence."
+  },
+
+  "SEEDS_NEVER_SPENT": {
+    "pi_A_sep_train": 16900001,
+    "pi_B_sep_train": 17000001,
+    "dev_diagnostic_reserved": [17100001, 17100064],
+    "sealed_crossover": [17200001, 17200128],
+    "disposition": "REASSIGNED to 4V4_B3_ROLE_PRESERVATION_SPEC.json (documented there). Disagreement-collection block 16810001-16810064 WAS spent and remains spent; it is not reused as a training seed."
+  },
+
+  "CODE_LEFT_IN_TREE": "rl/custom_ppo/sibling_separation.py and sibling_sep_* config remain as UNUSED infrastructure (default OFF). They are not deleted, so the audit trail of the held-then-retired intervention stays intact. They must not be enabled for the role-preservation experiment.",
+
+  "REPLACED_BY": "4V4_B3_ROLE_PRESERVATION_SPEC.json",
+
+  "CAUSAL_CHAIN_PRESERVED": [
+    "Certified 4v4 strategic demand (B3-3)",
+    "Vanilla PPO crossover FAIL (sealed n=128)",
+    "JSD=0.338: not policy-level collapse",
+    "Behavior capture: mostly same role family (escort_pair)",
+    "Hypothesis: strategic-role homogenization → role preservation (next)"
+  ]
+}

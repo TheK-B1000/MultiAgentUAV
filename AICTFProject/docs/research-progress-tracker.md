@@ -16,7 +16,40 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-31 — H-OG-PSP V4 completed valid training. Its frozen mechanism diagnostic returned `TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_DEGRADED` (`af03130b`). The terminal-only payoff EVAL on untouched `11400101..11400132` is running as PID `47992` under protocol/evaluator commit `cd2a0d40`; terminal SHA and frozen gate were verified before episode 1.
+> **Last updated:** 2026-09-11 — Sealed role crossover **restarted with tqdm**
+> (`4V4_B3_ROLE_PRESERVATION_SEALED_CROSSOVER_TQDM_RESTART.json`; no RESULT
+> from first attempt). Single worker; bar on stderr (`0/512…`). Shared
+> `experiments/tqdm_loop.py` wired into crossover/certify/diagnostic collectors;
+> PPO already has SB3-style bar (`enable_progress_bar=True`).
+>
+> Prior same day — 3v3 strategic-demand Step 1 completed:
+> `STRATEGIC_DEMAND_3v3_GUARD_DISTRIBUTED_V2_N192_CERTIFICATION.json` =
+> **NOT_CERTIFIED** (`delta_A` +0.0104 [−0.0833, +0.1042], `delta_B` +0.5625
+> [+0.4948, +0.6354], n=192, seeds `12321001..12321192`). Reading:
+> [`3V3_STRATEGIC_DEMAND_N192_RESULT_READING.json`](../artifacts/strategic_demand/sppo/3V3_STRATEGIC_DEMAND_N192_RESULT_READING.json).
+> **No 3v3 specialist training is authorized.** This is demand failure, not
+> latent-strategy verification.
+
+### 3v3 strategic-demand ladder (Step 1 only) — `NOT_CERTIFIED`
+
+Preregistered in
+[`3V3_STRATEGIC_DEMAND_N192_AMENDMENT.json`](../artifacts/strategic_demand/sppo/3V3_STRATEGIC_DEMAND_N192_AMENDMENT.json)
+(seed retirement:
+[`3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json`](../artifacts/strategic_demand/sppo/3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json)).
+Protocol: size-normalized Pole A/B, GUARD_DISTRIBUTED_V2, paired n=192,
+same bootstrap/gate as 4v4 n=192 demand certs. Tool:
+`experiments/certify_strategic_demand_scaled.py --team-size 3`.
+
+| Cell | Win rate |
+|------|----------|
+| GUARD @ A | 0.4323 |
+| BREACH @ A | 0.4219 |
+| GUARD @ B | 0.0000 |
+| BREACH @ B | 0.5625 |
+
+Pole B demand is strong; Pole A GUARD advantage is null at powered n.
+Same qualitative pattern as 4v4 GUARD_DISTRIBUTED_V2. Concealment N/A on
+this scaled row. Steps 2–4 (specialists / crossover / Share-*) **not started**.
 
 ### Current non-latent campaign (V3 M1)
 

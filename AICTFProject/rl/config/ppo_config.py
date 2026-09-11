@@ -100,6 +100,25 @@ class PPOConfig:
     sappo_anchor_cadence: int = 4
     sappo_anchor_batch_size: int = 64
 
+    # 4v4 specialization-preserving sibling separation (B3 track).
+    # Default OFF = structurally absent (no runner). See
+    # artifacts/strategic_demand/sppo/4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json.
+    sibling_sep_lambda: float = 0.0
+    sibling_sep_ckpt: str = ""
+    sibling_sep_ckpt_sha256: str = ""
+    sibling_sep_dataset: str = ""
+    sibling_sep_cadence: int = 4
+    sibling_sep_batch_size: int = 64
+
+    # 4v4 role preservation (B3 track). Default OFF = structurally absent.
+    # See artifacts/strategic_demand/sppo/4V4_B3_ROLE_PRESERVATION_SPEC.json.
+    # Mutually exclusive with sibling_sep_lambda > 0.
+    role_pres_lambda: float = 0.0
+    role_pres_targets: str = ""
+    role_pres_style: str = ""  # GUARD | BREACH
+    role_pres_cadence: int = 4
+    role_pres_temperature: float = 0.5
+
     # EXP2 K=2 supervised repertoire compression. Default OFF means the two
     # frozen teacher checkpoints are never opened and no teacher runner exists.
     # These fields are separate from SAPPO's offline hard-action dataset path:

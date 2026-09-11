@@ -11,6 +11,15 @@
       "Share-Backbone": "FILLED PASS (RUNG2_LADDER_EVAL_RESULT; detectable D_A loss)",
       "Share-Macro": "FILLED FAIL (RUNG3_LADDER_EVAL_RESULT; Delta_A LCB=0)"
     },
+    "3v3": {
+      "demand": "NOT_CERTIFIED (GUARD_DISTRIBUTED_V2_N192; delta_A LCB95=-0.083, delta_B LCB95=+0.495)",
+      "pi_G": "EMPTY (not authorized -- demand gate failed)",
+      "specialists": "EMPTY (not authorized -- demand gate failed)",
+      "Share-0": "WITHHELD",
+      "Share-Encoder": "WITHHELD",
+      "Share-Backbone": "WITHHELD",
+      "Share-Macro": "WITHHELD"
+    },
     "4v4": {
       "demand": "CERTIFIED (C2 n192 + B3-3 n192)",
       "pi_G": "EMPTY (not wired)",
@@ -35,6 +44,7 @@
     "paper/generated/fig_cross_scale_delta.{png,pdf}"
   ],
   "next_unlock": {
+    "3v3": "Demand gate FAILED under size-normalized canonical poles. No specialist training. Further 3v3 work needs a new prospective freeze (not an automatic B3 port).",
     "4v4": "Seal B3 confirmatory specialist crossover PASS, then train/eval Share-* before filling latent rows.",
     "6v6": "Production specialists + sealed crossover PASS, then Rung-1 absolute gate (not full 0-3 ladder)."
   }

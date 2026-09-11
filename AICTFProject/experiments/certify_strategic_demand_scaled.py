@@ -17,6 +17,7 @@ GUARD and BREACH are run on the SAME seed, so the comparison is paired per seed.
 No policy is trained, loaded or updated: both blue styles are scripted.
 
 Run:  python experiments/certify_strategic_demand_scaled.py --team-size 4 --n-seeds 64 --device cpu
+      python experiments/certify_strategic_demand_scaled.py --team-size 3 --variant guard_distributed_v2_n192 --seed-base 12321001 --n-seeds 192 --device cpu
       python experiments/certify_strategic_demand_scaled.py --team-size 4 --n-seeds 2 --probe
 """
 from __future__ import annotations
@@ -37,7 +38,9 @@ if str(ROOT) not in sys.path:
 OUT_DIR = ROOT / "artifacts" / "strategic_demand" / "sppo"
 
 # Certification seed blocks, disjoint per team size and from every prior block.
-SEED_BASE = {4: 12_400_001, 6: 12_600_001}
+# N=3 v1 default is reserved but unused: GUARD_DISTRIBUTED_V2 is the first 3v3
+# certification (see 3V3_STRATEGIC_DEMAND_N192_AMENDMENT.json).
+SEED_BASE = {3: 12_300_001, 4: 12_400_001, 6: 12_600_001}
 
 
 def _now() -> str:
@@ -56,7 +59,7 @@ def _mean_ci(vals, n_boot=20000, alpha=0.05, rng_seed=7):
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--team-size", type=int, required=True, choices=(2, 4, 6))
+    ap.add_argument("--team-size", type=int, required=True, choices=(2, 3, 4, 6))
     ap.add_argument("--n-seeds", type=int, default=64)
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--probe", action="store_true",
@@ -129,6 +132,11 @@ def main() -> int:
             f"FAIL-CLOSED: --variant={variant!r} but --seed-base resolved to the v1 block "
             f"({v1_base}). A non-v1 variant must spend a FRESH block, passed explicitly via "
             f"--seed-base, not the v1 default.")
+    # Timing probes must never spend the certification block. Offset far above any
+    # preregistered strategic-demand seed range used in this program.
+    cert_base = base
+    if args.probe:
+        base = cert_base + 50_000_000
 
     print("=" * 78)
     print(f"STRATEGIC DEMAND CERTIFICATION  {N}v{N}  variant={variant}  device={args.device}")
@@ -150,10 +158,14 @@ def main() -> int:
     print(f"  gate           LCB95(delta_A) > 0 AND LCB95(delta_B) > 0")
     print("=" * 78, flush=True)
 
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
+
     rows = []
     t0 = time.time()
-    for i in range(n_seeds):
+    bar = tqdm_iter(range(n_seeds), desc=f"certify demand {N}v{N}", unit="seed")
+    for i in bar:
         seed = base + i
+        set_postfix(bar, f"seed={seed}")
         r = {"seed": seed}
         for pole, genome in (("A", gA), ("B", gB)):
             for style_tag, style in (("guard", S.GUARD), ("breach", S.BREACH)):
@@ -210,15 +222,19 @@ def main() -> int:
                                "SUSPECT -- duplicate or missing seeds, investigate before reading"),
         }
         audit_out = OUT_DIR / f"TIE_REVERSAL_AUDIT_{N}v{N}_{variant.upper()}.json"
-        audit_out.write_text(json.dumps(audit, indent=2), encoding="utf-8")
-        print(f"\n  TIE/REVERSAL on {tie_or_reversal} -- integrity audit written: {audit_out}")
+        print(f"\n  TIE/REVERSAL on {tie_or_reversal}")
         print(f"  classification: {audit['classification']}")
-        if audit["classification"] != "GENUINE -- seeds unique, range as expected, split symmetric":
-            raise SystemExit(
-                f"REFUSING to write the frozen certification result: the tie/reversal audit "
-                f"classified this run as SUSPECT. Investigate {audit_out} before proceeding; "
-                f"a tie or reversal is a legitimate outcome only once the rows themselves are "
-                f"verified clean.")
+        if args.probe:
+            print("  --probe: tie/reversal audit NOT written.")
+        else:
+            audit_out.write_text(json.dumps(audit, indent=2), encoding="utf-8")
+            print(f"  integrity audit written: {audit_out}")
+            if audit["classification"] != "GENUINE -- seeds unique, range as expected, split symmetric":
+                raise SystemExit(
+                    f"REFUSING to write the frozen certification result: the tie/reversal audit "
+                    f"classified this run as SUSPECT. Investigate {audit_out} before proceeding; "
+                    f"a tie or reversal is a legitimate outcome only once the rows themselves are "
+                    f"verified clean.")
 
     certified = bool(ciA["lcb95"] > 0 and ciB["lcb95"] > 0)
 

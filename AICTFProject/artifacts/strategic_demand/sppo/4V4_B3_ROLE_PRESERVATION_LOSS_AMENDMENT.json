@@ -1,0 +1,18 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_LOSS_AMENDMENT",
+  "status": "FROZEN_AMENDMENT_BEFORE_TRAINING",
+  "utc": "2026-09-10T22:25:00Z",
+  "amends": "4V4_B3_ROLE_PRESERVATION_SPEC.json#SINGLE_AXIS_INTERVENTION.L_role",
+  "authority": "Pre-launch audit after TARGET_PROJECTION_AMENDMENT recollection: GUARD vs BREACH separate strongly on role occupancy (L1=1.30; GUARD dominates one_attack_three_defend/turtle; BREACH dominates escort_pair), but f*=(n_att,n_def,adr) is nearly identical (~0.7/3.3/0.17) and slightly reversed. Soft q from (n_att,n_def) alone cannot express escort_pair. Keeping MSE would push both specialists toward the same f* and fight the CE term.",
+
+  "AMENDMENT": {
+    "L_role": "CE(p*_style, q_soft) ONLY. MSE(f_soft, f*) is dropped for this rung because f* does not separate the styles under the frozen collection. f* remains recorded in role_targets.json for audit/telemetry but is not a training term.",
+    "q_soft": "Temperature-smoothed distribution over the existing 7 role_bucket labels. Allocation prototypes still use soft (n_att, n_def) from MacroAction probabilities. escort_pair / intercept_pair scores are boosted from PPO-batch global_state carrier features already in the buffer (red_flag_captured=blue carrying; blue_flag_captured=red carrying; carrier_teammate_support) — no new metric vocabulary.",
+    "lambda_role": "unchanged at 0.05",
+    "cadence": "unchanged"
+  },
+
+  "WHY_STILL_ROLE_PRESERVATION": "The capture-motivated distinction is team-level role occupancy (GUARD allocation/turtle vs BREACH escort), not local action JSD and not other-pole payoff. CE on frozen p* is exactly that axis.",
+
+  "TIMING_INTEGRITY": "Zero training seeds and zero sealed crossover seeds spent at amendment time."
+}

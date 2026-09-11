@@ -1,0 +1,18 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_MSE_RESTORED_AMENDMENT",
+  "status": "FROZEN_AMENDMENT_BEFORE_TRAINING",
+  "utc": "2026-09-10T22:50:00Z",
+  "amends": "4V4_B3_ROLE_PRESERVATION_SPEC.json#L_role",
+  "supersedes": "4V4_B3_ROLE_PRESERVATION_LOSS_AMENDMENT.json (CE-only workaround)",
+  "authority": "Style-intent recollection passed the stronger directional semantic gate. Restore the originally frozen L_role = MSE + CE.",
+
+  "GATE_RESULT": {
+    "GUARD": {"dom": "two_attack_two_defend", "att": 2.0, "def": 2.0, "adr": 0.5},
+    "BREACH": {"dom": "escort_pair", "att": 4.0, "def": 0.0, "adr": 1.0},
+    "occupancy_L1": 1.6978,
+    "directional": "GUARD more defensive on n_def; BREACH more attack-heavy on n_att and adr — ALL AND-clauses PASS"
+  },
+
+  "L_role_RESTORED": "MSE(f_soft, f*_style) + CE(p*_style, q_soft)",
+  "TIMING_INTEGRITY": "No new production training seed spent after the abort. Next launch uses seed 16910001."
+}

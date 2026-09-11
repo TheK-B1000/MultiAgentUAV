@@ -1,0 +1,49 @@
+{
+  "record_id": "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE_PROTOCOL",
+  "status": "FROZEN_BEFORE_CAPTURE",
+  "utc": "2026-09-10T19:20:00Z",
+  "arm": "DIAGNOSTIC_NOT_A_GATE",
+  "confirmatory": false,
+
+  "QUESTION": "Are pi_A3 and pi_B3 strategically different over full trajectories, or are their per-state JSD differences washing out into the same closed-loop role pattern?",
+
+  "SEED_POLICY": {
+    "source": "REUSE sealed confirmatory crossover block 16700001-16700128 from confirmatory_b3_3_4v4_specialist_crossover_eval_rows.csv",
+    "new_experimental_seed_budget": 0,
+    "representative_subset_prospective": {
+      "seed_base": 16700001,
+      "n_seeds": 32,
+      "inclusive_range": [16700001, 16700032],
+      "rationale": "First 32 seeds of the sealed block, frozen BEFORE seeing blue-side aggregates. Matched across both policies and both poles. Sufficient for descriptive fork; full 128 remains available as a follow-up without spending new seeds."
+    },
+    "matched": "every (policy, pole, seed) cell uses the same seed integers so pi_A vs pi_B divergence is on identical episodes"
+  },
+
+  "CHECKPOINTS": {
+    "pi_A3": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip",
+    "pi_B3": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip"
+  },
+
+  "POLES": {
+    "A": "pole_A_genome(4)",
+    "B": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json (SDS2_B3_LOCKDEF10_2V1)"
+  },
+
+  "METRICS_REQUIRED": [
+    "blue defender/attacker split over time (from existing BEHAVIOR_TELEMETRY num_defenders / num_attackers)",
+    "fraction of time each agent spends in defensive vs offensive regions (own half vs enemy half)",
+    "penetration depth (max/mean enemy-half x-progress)",
+    "flag attempts / carries / returns",
+    "mine acquisition / placement",
+    "role switches (4v4 role_bucket_detailed_id transitions)",
+    "trajectory summaries (mean telemetry + role occupancy)",
+    "first meaningful divergence time (matched seed: first tick where role_bucket or attack/defend split differs between pi_A and pi_B)",
+    "macro-action usage counts (GET_FLAG, GO_HOME, GO_TO, GRAB_MINE, PLACE_MINE, ...)"
+  ],
+
+  "ANALYSIS_RULE": "Aggregate over the prospective subset side-by-side for all four cells. Qualitative matched frames are optional and secondary. This record is DIAGNOSTIC_NOT_A_GATE and cannot reopen the sealed FAIL.",
+
+  "OUTPUT": "artifacts/strategic_demand/sppo/4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE.json",
+
+  "RESOLVES": "4V4_B3_SPECIALIZATION_PRESERVING_HOLD.json"
+}

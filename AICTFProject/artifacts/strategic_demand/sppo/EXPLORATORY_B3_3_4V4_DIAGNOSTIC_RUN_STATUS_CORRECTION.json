@@ -1,0 +1,63 @@
+{
+  "record_id": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_RUN_STATUS_CORRECTION",
+  "status": "FROZEN_CORRECTION__DISPOSITION_SUPERSEDED",
+  "utc": "2026-09-10T18:55:00Z",
+  "corrects": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SUPERSEDED_NOTE.json",
+  "DISPOSITION_SUPERSEDED_BY": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE.json -- PI 2026-09-10: the authoritative disposition of seed block 16800001-16800256 is INVALID_INCOMPLETE, no result produced. The 'subsequently completed' wording in CORRECTED_DISPOSITION below is STALE and must not be cited as authoritative.",
+  "authority": "PI, 2026-09-10, on being shown the live process state: let the run finish and correct the note; keep it strictly non-pooled; the sealed n=128 confirmatory result remains the authoritative 4v4 learned-crossover result.",
+
+  "WHAT_THE_SUPERSEDED_NOTE_CLAIMED": "that BOTH concurrent EXPLORATORY_B3_3_4V4_DIAGNOSTIC launches crashed -- one after only the run header (exit code 4) and one 'mid-way, after 3 of 4 win-rate lines, before a gate/verdict' -- and that seed block 16800001-16800256 therefore produced no valid data and was retired.",
+
+  "MEASURED_FACT_AT_CORRECTION_TIME": {
+    "process": "PID 4164 (Python312 interpreter) ALIVE",
+    "wall_clock_hours": 8.9,
+    "cpu_seconds_accrued": 31623,
+    "stderr_file_bytes": 0,
+    "log": "artifacts/strategic_demand/sppo/exploratory_b3_3_4v4_diagnostic.log",
+    "cells_completed": 3,
+    "cell_win_rates_logged": {
+      "V(pi_A,A)": 0.7227,
+      "V(pi_A,B)": 0.6641,
+      "V(pi_B,A)": 0.7148
+    },
+    "cell_in_progress": "V(pi_B,B)",
+    "reading": "The run described by the note as having 'crashed mid-way after 3 of 4 win-rate lines' had not crashed. It was, and is, executing its fourth and final cell. The note mistook slow per-cell progress (~2.7 h/cell, with no intermediate progress printing) for termination."
+  },
+
+  "SINGLE_WRITER_VERIFIED": {
+    "measurement": "process-tree inspection at correction time",
+    "pid_20160": "parent=40088, 1 thread, 4 MB working set, 0 CPU-seconds -- a launcher stub",
+    "pid_4164": "parent=20160, 26 threads, 487 MB working set, 31963 CPU-seconds -- the real evaluation",
+    "conclusion": "There were never two competing evaluations of this seed block. PID 20160 is the venv launcher stub that spawned PID 4164; the 'two runs' in the superseded note are a parent stub and its own child. Exactly ONE process owns the exploratory log and will write the exploratory result artifact.",
+    "unrelated_concurrent_job": "PIDs 19592 (stub) / 35908 (worker) are the GUARD/BREACH disagreement-dataset collection on the disjoint block 16810001-16810064; they write only to artifacts/strategic_demand/sppo/disagreement_guard_breach_4v4_b3/ and never touch the exploratory paths."
+  },
+
+  "CORRECTED_DISPOSITION_OF_SEED_BLOCK_16800001_16800256": {
+    "not_retired_as_unused": "The block was validly and exclusively consumed by PID 4164 under EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPEC.json, frozen before the run. The run completes and writes its own result artifact. It is not restarted and the seed block is not changed.",
+    "permanently_spent_after_completion": "Once the run completes, seeds 16800001-16800256 are PERMANENTLY UNAVAILABLE for any future sealed or confirmatory evaluation, and for any model selection, at any team size. Exploratory consumption still spends a seed block.",
+    "PI_language_STALE_DO_NOT_CITE": "The earlier superseded note incorrectly reported that both duplicate exploratory evaluations terminated. One evaluation, PID 4164, remained active on the prospectively specified exploratory block 16800001..16800256 and subsequently completed. The block remains exploratory-only and is permanently excluded from any confirmatory evaluation or model selection.",
+    "STALE_CLAUSE": "The phrase 'subsequently completed' in PI_language_STALE_DO_NOT_CITE is retracted. Authoritative disposition: EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE.json (INVALID_INCOMPLETE, no result produced)."
+  },
+
+  "REQUIRED_LABELLING_OF_THE_FINAL_ARTIFACT": {
+    "arm": "EXPLORATORY",
+    "confirmatory": false,
+    "seeds": [16800001, 16800256],
+    "duplicate_run_collision_documented": true,
+    "no_pooling_with_sealed_n128": true,
+    "no_reinterpretation_of_sealed_B3_PASS_FAIL": true,
+    "seeds_permanently_unavailable_for_future_sealed_evaluation": true
+  },
+
+  "CONSTRAINTS_THAT_REMAIN_IN_FORCE": [
+    "arm=EXPLORATORY, confirmatory=false -- this batch is NOT a confirmatory verdict and may not be relabelled as one",
+    "MUST NOT be pooled or concatenated with the sealed n=128 rows to compute a combined delta_A/delta_B",
+    "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json (FAIL) remains the authoritative 4v4 learned-crossover result",
+    "MUST NOT be used to select checkpoints, tune the sibling-separation lambda, or justify a Pole-B (B4) redesign",
+    "the four absolute cells are reported separately, as precision on the diagnostic question (why delta_B is small), not as a gate"
+  ],
+
+  "RELATIONSHIP_TO_THE_LEARNING_SIDE_RESCUE": "CONFIRMATORY_B3_3_4V4_LEARNED_CROSSOVER_DIAGNOSIS.json (built from sealed rows only, zero new seeds) already established the cross-regime-transfer reading, and 4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json was frozen on that basis. This exploratory batch sharpens the same reading with tighter absolute-cell estimates; it did not and cannot alter the frozen rescue SPEC, whose lambda, mask, divergence, checkpoint rule and seed blocks were fixed independently of it.",
+
+  "WHY_THE_NOTE_IS_CORRECTED_RATHER_THAN_DELETED": "The superseded note is preserved verbatim on disk. Its factual claim about process termination was wrong; that error, and the evidence used to establish it, are recorded here rather than edited away, so the audit trail shows what was believed, when, and on what measurement it was revised."
+}

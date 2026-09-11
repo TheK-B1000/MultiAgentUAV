@@ -298,6 +298,8 @@ def orchestrate_training_run(
         maybe_configure_periodic_checkpoints(cfg, trainer)
         _maybe_attach_sappo_anchor(cfg, trainer)
         _maybe_attach_exp2_teacher_compression(cfg, trainer)
+        _maybe_attach_sibling_separation(cfg, trainer)
+        _maybe_attach_role_preservation(cfg, trainer)
         _maybe_attach_sppo_ranking(cfg, trainer)
 
         # Runtime-observer seam. Callers attach auditors to the live trainer here,
@@ -547,6 +549,131 @@ def _maybe_attach_sppo_ranking(cfg, trainer) -> None:
         f"margin={runner.margin} cadence=1:{runner.cadence} "
         f"qpsi_sha={runner._qpsi_sha[:16]}... pole=TRUE opponent_id "
         f"z_map={runner.z_to_pole}"
+    )
+
+
+def _maybe_attach_sibling_separation(cfg, trainer) -> None:
+    """Attach disagreement-masked sibling separation, or attach nothing.
+
+    λ==0 or empty paths = structurally absent (no runner). Matches SAPPO
+    discipline: separate zero_grad/backward/step on cadence, never shares a
+    backward with PPO.
+    """
+    lam = float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0)
+    ckpt = str(getattr(cfg, "sibling_sep_ckpt", "") or "")
+    dataset = str(getattr(cfg, "sibling_sep_dataset", "") or "")
+    if lam <= 0.0:
+        return
+    if not ckpt or not dataset:
+        raise RuntimeError(
+            "sibling_sep_lambda > 0 requires sibling_sep_ckpt and sibling_sep_dataset"
+        )
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("sibling separation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("sibling separation cannot coexist with EXP2 teacher compression")
+
+    ckpt_path = Path(ckpt)
+    if not ckpt_path.is_file():
+        raise RuntimeError(f"sibling checkpoint missing: {ckpt_path}")
+    expected = str(getattr(cfg, "sibling_sep_ckpt_sha256", "") or "").lower()
+    actual = _sha256(ckpt_path)
+    if expected and actual != expected:
+        raise RuntimeError(
+            f"sibling checkpoint hash mismatch for {ckpt_path}: {actual} != {expected}"
+        )
+
+    ds_path = Path(dataset)
+    if ds_path.is_dir():
+        npz = ds_path / "disagreement_rows.npz"
+    else:
+        npz = ds_path
+    if not npz.is_file():
+        raise RuntimeError(f"sibling disagreement dataset missing: {npz}")
+
+    from rl.custom_ppo.inference import load_custom_ppo_policy
+    from rl.custom_ppo.sibling_separation import DisagreementDataset, SiblingSepRunner
+
+    loaded = load_custom_ppo_policy(
+        str(ckpt_path),
+        trainer.env.observation_space,
+        trainer.env.action_space,
+        device=str(trainer.device),
+    )
+    sibling = loaded.model
+    if bool(getattr(sibling, "uses_latent_strategy", False)):
+        raise RuntimeError("sibling checkpoint must be a non-latent specialist")
+    if tuple(sibling.action_dims) != tuple(trainer.model.action_dims):
+        raise RuntimeError("sibling action space differs from student")
+
+    ds = DisagreementDataset(
+        str(npz),
+        batch_size=int(getattr(cfg, "sibling_sep_batch_size", 64)),
+        seed=int(getattr(cfg, "seed", 7) or 7) + 41_017,
+    )
+    runner = SiblingSepRunner(
+        trainer.model,
+        trainer.optimizer,
+        sibling,
+        ds,
+        lambda_sep=lam,
+        cadence=int(getattr(cfg, "sibling_sep_cadence", 4)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        device=str(trainer.device),
+    )
+    trainer.sibling_sep_runner = runner
+    print(
+        f"[SIBLING-SEP] disagreement-masked separation ATTACHED: "
+        f"divergence=JSD(in-repo jsd_per_head, bounded ln2) "
+        f"lambda={runner.lambda_sep} cadence=1:{runner.cadence} "
+        f"sibling={ckpt_path.name} "
+        f"dataset_rows={ds.n_rows} sha={actual[:12]}..."
+    )
+
+
+def _maybe_attach_role_preservation(cfg, trainer) -> None:
+    """Attach frozen GUARD/BREACH role preservation, or attach nothing."""
+    lam = float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0)
+    targets_path = str(getattr(cfg, "role_pres_targets", "") or "")
+    style = str(getattr(cfg, "role_pres_style", "") or "")
+    if lam <= 0.0:
+        return
+    if not targets_path or not style:
+        raise RuntimeError(
+            "role_pres_lambda > 0 requires role_pres_targets and role_pres_style"
+        )
+    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError(
+            "role preservation cannot coexist with sibling separation "
+            "(retired JSD intervention)"
+        )
+    if getattr(trainer, "sibling_sep_runner", None) is not None:
+        raise RuntimeError("role preservation cannot coexist with sibling_sep_runner")
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("role preservation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("role preservation cannot coexist with EXP2 teacher compression")
+
+    from rl.custom_ppo.role_preservation import RolePresRunner, load_role_targets
+
+    targets = load_role_targets(targets_path, style)
+    runner = RolePresRunner(
+        trainer.model,
+        trainer.optimizer,
+        targets=targets,
+        lambda_role=lam,
+        cadence=int(getattr(cfg, "role_pres_cadence", 4)),
+        temperature=float(getattr(cfg, "role_pres_temperature", 0.5)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+    )
+    trainer.role_pres_runner = runner
+    print(
+        f"[ROLE-PRES] role preservation ATTACHED: "
+        f"style={targets['style']} ({targets['style_id']}) "
+        f"dominant_target={targets['dominant_role']} "
+        f"lambda={runner.lambda_role} cadence=1:{runner.cadence} "
+        f"temperature={runner.temperature} "
+        f"targets={targets_path}"
     )
 
 

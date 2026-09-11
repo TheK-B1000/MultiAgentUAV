@@ -1,0 +1,69 @@
+{
+  "record": "Sealed unique-actor-parameter tradeoff vs Share-0 (2v2 sharing ladder)",
+  "utc": "2026-09-09",
+  "units": {
+    "params": "unique deployed actor parameters (float32 elements)",
+    "reduction": "1 - n_unique / n_Share0"
+  },
+  "share0_reference": {
+    "definition": "two verbatim specialist actors behind z-dispatch (zero tied modules)",
+    "n_branch_each": 3473592,
+    "n_unique": 6947184,
+    "sources": [
+      "RUNG1_STUDENT_FROZEN.json sharing_arithmetic.n_branch_total",
+      "PSRO_SYSTEM_IDENTITY_AND_DEPLOYMENT_AMENDMENT.json specialists_reference_ceiling"
+    ],
+    "cell_win_rates_n128": {
+      "source": "RUNG0_LADDER_REFERENCE.json cell_win_rates_n128",
+      "z0_poleA": 0.71875,
+      "z1_poleA": 0.4296875,
+      "z0_poleB": 0.3515625,
+      "z1_poleB": 0.609375
+    }
+  },
+  "rungs": [
+    {
+      "label": "Share-0",
+      "n_unique": 6947184,
+      "params_M": 6.947,
+      "reduction_vs_share0": 0.0,
+      "gate": "PASS",
+      "paired_D": "reference"
+    },
+    {
+      "label": "Share-Encoder",
+      "n_unique": 3612784,
+      "params_M": 3.613,
+      "reduction_vs_share0": 0.48,
+      "source": "RUNG1_STUDENT_FROZEN.json sharing_arithmetic",
+      "gate": "PASS",
+      "paired_D": "no detectable loss",
+      "cell_win_rates_n128": {
+        "source": "RUNG1_LADDER_EVAL_RESULT.json cell_win_rates",
+        "z0_poleA": 0.703125,
+        "z1_poleA": 0.4375,
+        "z0_poleB": 0.4375,
+        "z1_poleB": 0.6015625
+      }
+    },
+    {
+      "label": "Share-Backbone",
+      "n_unique": 3508848,
+      "params_M": 3.509,
+      "reduction_vs_share0": 0.495,
+      "source": "RUNG2_STUDENT_FROZEN.json sharing_arithmetic",
+      "gate": "PASS",
+      "paired_D": "detectable loss on A"
+    },
+    {
+      "label": "Share-Macro",
+      "n_unique": 3507563,
+      "params_M": 3.508,
+      "reduction_vs_share0": 0.495,
+      "source": "RUNG3_STUDENT_FROZEN.json sharing_arithmetic",
+      "gate": "FAIL",
+      "paired_D": "detectable loss on A; fails criterion"
+    }
+  ],
+  "headline": "Share-Encoder cuts the two-strategy actor footprint by ~48% while preserving the specialization criterion; further sharing saves only ~1.5 pp more parameters but increasingly erodes specialization."
+}

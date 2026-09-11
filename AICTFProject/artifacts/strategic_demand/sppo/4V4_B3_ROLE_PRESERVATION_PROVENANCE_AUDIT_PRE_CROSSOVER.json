@@ -1,0 +1,65 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_PROVENANCE_AUDIT_PRE_CROSSOVER",
+  "status": "AUDIT_COMPLETE",
+  "utc": "2026-09-11T12:35:00Z",
+  "authority": "PI pre-crossover provenance check: loss form vs executed method; resume continuation integrity",
+
+  "QUESTION_1_LOSS_FORM": {
+    "verdict": "PRODUCTION_USED_MSE_PLUS_CE",
+    "executed": {
+      "aborted_non_result_16900001": "CE-only (LOSS_AMENDMENT coded into role_preservation.py; ~6k steps; not a scientific result)",
+      "pi_A_role_16910001": "MSE+CE (RolePresRunner always passes f_star; include_mse default True after restore)",
+      "pi_B_role_17000001": "MSE+CE (same code path; checkpoint cfg embeds role_pres_*; no include_mse=False in file)"
+    },
+    "paper_amendment_chain": [
+      {"t": "2026-09-10T22:25:00Z", "id": "LOSS_AMENDMENT", "L_role": "CE-only workaround (half-plane f* non-separating)"},
+      {"t": "2026-09-10T22:27:21Z", "id": "abort launch 16900001", "note": "CE-only code; aborted ~6k"},
+      {"t": "2026-09-10T22:32:00Z", "id": "STYLE_INTENT_PROJECTION_AMENDMENT", "L_role": "PROSPECTIVE conditional: if stronger gate PASS then restore MSE+CE and SUPERSEDE LOSS_AMENDMENT; else do not train"},
+      {"t": "2026-09-10T22:43:32Z", "id": "role_targets.json FROZEN", "gate": "PASS (GUARD 2/2/0.5 two_attack_two_defend; BREACH 4/0/1.0 escort_pair)"},
+      {"t": "code restore before relaunch", "id": "role_preservation.py include_mse=True", "L_role": "MSE+CE"},
+      {"t": "2026-09-10T22:45:50Z", "id": "pi_A run_manifest.json", "seed": 16910001, "note": "first production seed spend start"},
+      {"t": "2026-09-10T22:50:00Z", "id": "MSE_RESTORED_AMENDMENT.json file UTC", "note": "explicit restore document; wall-clock stamp is ~4 min AFTER run_manifest start"}
+    ],
+    "clock_hygiene": {
+      "issue": "MSE_RESTORED_AMENDMENT.utc (22:50Z) and SPEC.training_started_utc (22:50Z) are later than pi_A run_manifest.utc (22:45:50Z).",
+      "mitigation_already_on_record": "STYLE_INTENT_PROJECTION_AMENDMENT at 22:32Z prospectively authorized MSE+CE restoration contingent on the stronger gate; that gate passed when role_targets.json froze at 22:43:32Z — both before the production seed was spent.",
+      "reading": "Executed production method = MSE+CE on style-intent targets. Explicit MSE_RESTORED file is a confirmatory write with a rounded/late UTC, not a post-hoc change of what ran. CE-only applies only to the aborted non-result.",
+      "action_before_crossover": "Do not treat CE-only as the production L_role. Cite STYLE_INTENT conditional + gate-PASS targets + MSE_RESTORED (with this clock note) as the authorizing chain."
+    }
+  },
+
+  "QUESTION_2_PI_B_RESUME": {
+    "verdict": "CONTINUATION_NOT_NEW_ARM",
+    "seed": 17000001,
+    "resume_from": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_role/ckpts/ckpt_pi_B_specialist_4v4_b3_role_700000.zip",
+    "checkpoint_global_step": 700416,
+    "restored_from_checkpoint": [
+      "model_state_dict",
+      "optimizer_state_dict",
+      "global_step",
+      "updates_completed",
+      "return_norm_*",
+      "strategy_return_norm_*",
+      "ppo_updater_state",
+      "cfg (includes role_pres_lambda/targets/style/cadence/temperature)"
+    ],
+    "reattached_from_identical_CLI": [
+      "RolePresRunner (lambda=0.05, style=BREACH, same role_targets.json)",
+      "B3-3 pole overlay",
+      "total_timesteps=1_000_000 (budget continuation, not +extra)"
+    ],
+    "not_in_checkpoint": [
+      "python/numpy/torch RNG states (trainer checkpoint schema has no rng keys; same as other specialist resumes in this repo)"
+    ],
+    "behavioral_equivalence_on_load": "PASS (mean_kl=0)",
+    "reading": "Crash recovery of the same pi_B_role arm. Document interruption; do not count as a second training condition."
+  },
+
+  "SEALED_CROSSOVER_STILL_GATES": {
+    "seeds": "17200001..17200128",
+    "gate": "LCB95(Delta_A)>0 AND LCB95(Delta_B)>0",
+    "do_not_launch_until": "final_pi_B_specialist_4v4_b3_role.zip exists"
+  },
+
+  "FOLLOW_ON": "4V4_B3_ROLE_PRESERVATION_ROLE_PRES_PY_1144Z_NOTE.json (11:44Z mtime = bulk touch; bytes == MSE-restore source; resume plumbing was train_specialist_scale.py). Audit closed."
+}

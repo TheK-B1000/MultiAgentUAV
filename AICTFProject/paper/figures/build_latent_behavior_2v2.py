@@ -33,6 +33,7 @@ SRC = ROOT / (
 )
 
 MODE_COLOR = {"z0": COLORS["A"], "z1": COLORS["B"]}
+MODE_HATCH = {"z0": "///", "z1": "xxx"}
 MODE_LABEL = {
     "z0": r"$z_0$ (Pole-A code)",
     "z1": r"$z_1$ (Pole-B code)",
@@ -66,7 +67,7 @@ def main() -> dict:
                 x = group_x[pole] + mode_dx[z]
                 ax.bar(
                     x, value, width=bar_w, color=MODE_COLOR[z],
-                    edgecolor="black", linewidth=0.6,
+                    hatch=MODE_HATCH[z], edgecolor="black", linewidth=0.6,
                 )
         ax.set_xticks([group_x["A"], group_x["B"]])
         ax.set_xticklabels(["vs Pole A", "vs Pole B"])
@@ -78,7 +79,10 @@ def main() -> dict:
         ax.spines["right"].set_visible(False)
 
     handles = [
-        mpatches.Patch(facecolor=MODE_COLOR[z], edgecolor="black", label=MODE_LABEL[z])
+        mpatches.Patch(
+            facecolor=MODE_COLOR[z], hatch=MODE_HATCH[z],
+            edgecolor="black", label=MODE_LABEL[z],
+        )
         for z in ("z0", "z1")
     ]
     fig.legend(

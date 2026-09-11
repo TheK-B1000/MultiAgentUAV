@@ -1,0 +1,42 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_ROLE_PRES_PY_1144Z_NOTE",
+  "status": "FROZEN_PROVENANCE_NOTE",
+  "utc": "2026-09-11T12:50:00Z",
+  "authority": "PI: nail down 11:44Z role_preservation.py mtime before sealed crossover; then stop auditing",
+
+  "PROPOSED_NOTE_AS_ASKED": "The 11:44Z edit preceding the pi_B resume affected resume/support plumbing only. It did not alter the role-preservation objective, lambda=0.05, target file, target style, cadence, temperature, or loss composition.",
+
+  "VERIFIED_NOTE": "The 11:44:29Z mtime on role_preservation.py was part of a bulk filesystem touch of dozens of unrelated project files (SPPO amendments, paper tex/json, several experiments, updater/orchestrator/ppo_config, sibling_separation, etc.) at the exact same second — not a targeted edit. On-disk bytes are identical to the post-MSE-restore source that trained pi_A and the first ~723k of pi_B (sha256 c009c67137136b17; transcript Write/StrReplace replay). That touch therefore did not alter the role-preservation objective, lambda=0.05, target file, target style, cadence, temperature, or loss composition. The actual resume/support plumbing change lived separately in train_specialist_scale.py at 11:46:58Z (--resume / load_path / append metrics) and likewise did not alter L_role.",
+
+  "VERIFICATION": {
+    "file": "AICTFProject/rl/custom_ppo/role_preservation.py",
+    "mtime_utc": "2026-09-11T11:44:29Z",
+    "content_vs_mse_restore_source": "BYTE_IDENTICAL (sha256_16=c009c67137136b17)",
+    "method": "Replayed transcript ops 1214 Write → 1217 StrReplace → 1242 Write (CE-only) → 1258 StrReplace (MSE restore). Replay == disk.",
+    "cannot_prove_from_git_diff": true,
+    "reason_no_git_diff": "File untracked; no HEAD baseline; no pre-touch snapshot.",
+    "bulk_touch_evidence": ">=40 files under AICTFProject share LastWriteTimeUtc=2026-09-11T11:44:29Z (amendments, paper, experiments, rl). Interpreting 11:44Z as a purposeful role_preservation science edit would be false.",
+    "resume_plumbing_file": {
+      "path": "AICTFProject/experiments/train_specialist_scale.py",
+      "mtime_utc": "2026-09-11T11:46:58Z",
+      "change": "--resume only"
+    },
+    "certainty": {
+      "scientific_no_change_in_role_preservation_py": "YES",
+      "11:44Z_was_resume_plumbing": "NO — that claim is not supported; resume plumbing was train_specialist_scale.py three minutes later",
+      "11:44Z_cause": "Bulk touch/sync/checkout-class mtime bump (identity of tool unknown); content unchanged"
+    }
+  },
+
+  "TIMELINE_PRESERVED_AS_IS": {
+    "STYLE_INTENT": "2026-09-10T22:32:00Z",
+    "targets_gate_PASS": "2026-09-10T22:43:32Z",
+    "pi_A_production_start": "2026-09-10T22:45:50Z",
+    "MSE_RESTORED_file_utc_late_stamp": "2026-09-10T22:50:00Z",
+    "role_preservation_py_bulk_mtime": "2026-09-11T11:44:29Z",
+    "train_specialist_scale_resume_edit": "2026-09-11T11:46:58Z",
+    "pi_B_resume_launch": "2026-09-11T11:47:16Z"
+  },
+
+  "STOP": "No further provenance archaeology. After final_pi_B: sealed crossover 17200001..17200128 only; gate LCB95(Delta_A)>0 AND LCB95(Delta_B)>0 unchanged."
+}

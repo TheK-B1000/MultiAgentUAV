@@ -1,0 +1,64 @@
+{
+  "record": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC specialist crossover EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-10T21:11:21Z",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "implements": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPEC.json#EVALUATION",
+  "team_size": 4,
+  "device": "cuda",
+  "seeds": {
+    "block": [
+      16800001,
+      16800256
+    ],
+    "n": 256,
+    "shared_across_policies": true
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 4
+      },
+      "candidate_genome_id": null
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {
+        "lock_defender": 10,
+        "enable_2v1": true,
+        "min_alive_for_defender": 4
+      },
+      "candidate_genome_id": "SDS2_B3_LOCKDEF10_2V1"
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.0078125,
+      "lcb95": -0.0703125,
+      "ucb95": 0.0859375,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.05078125,
+      "lcb95": -0.01953125,
+      "ucb95": 0.12109375,
+      "passes": false
+    },
+    "passes": false
+  },
+  "checkpoints": {
+    "pi_A": "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0",
+    "pi_B": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8"
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 1024
+}

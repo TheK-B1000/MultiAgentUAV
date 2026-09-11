@@ -106,6 +106,8 @@ def _open_sb3_style_progress(
         return None
     return tqdm(
         total=rem,
+        desc="PPO",
+        unit="step",
         dynamic_ncols=True,
         file=sys.stderr,
         mininterval=0.2,

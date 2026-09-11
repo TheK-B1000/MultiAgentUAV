@@ -1,0 +1,51 @@
+{
+  "record_id": "3V3_STRATEGIC_DEMAND_N192_RESULT_READING",
+  "status": "FROZEN_RESULT_READING",
+  "utc": "2026-09-10T04:02:00Z",
+  "implements": [
+    "3V3_STRATEGIC_DEMAND_N192_AMENDMENT.json",
+    "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json",
+    "STRATEGIC_DEMAND_3v3_GUARD_DISTRIBUTED_V2_N192_CERTIFICATION.json"
+  ],
+  "VERDICT": "NOT_CERTIFIED",
+  "CLAIM_LANGUAGE": {
+    "allowed_if_PASS": "3v3 strategic demand verified",
+    "actual": "3v3 strategic demand NOT verified under size-normalized canonical poles + GUARD_DISTRIBUTED_V2 at n=192",
+    "forbidden": "3v3 latent strategies verified (never earned; specialist training not authorized)"
+  },
+  "PRIMARY": {
+    "delta_A": {"mean": 0.010416666666666666, "lcb95": -0.08333333333333333, "ucb95": 0.10416666666666667, "n": 192},
+    "delta_B": {"mean": 0.5625, "lcb95": 0.4947916666666667, "ucb95": 0.6354166666666666, "n": 192}
+  },
+  "CELLS": {
+    "V(GUARD, A)": 0.4322916666666667,
+    "V(BREACH, A)": 0.421875,
+    "V(GUARD, B)": 0.0,
+    "V(BREACH, B)": 0.5625
+  },
+  "READING": {
+    "pole_B": "strong complementary demand -- BREACH beats GUARD decisively on size-normalized OP7 (LCB95(delta_B)=+0.495)",
+    "pole_A": "no detectable GUARD advantage on size-normalized OP6 (mean delta_A=+0.010, LCB95=-0.083). Same qualitative failure mode as 4v4 GUARD_DISTRIBUTED_V2 (exact tie at n=64), now with powered n=192 ruling out a small-n underpowered miss",
+    "joint_gate": "FAIL because LCB95(delta_A) is not > 0"
+  },
+  "COMPARISON": {
+    "4v4_GUARD_DISTRIBUTED_V2_n64": {"delta_A": 0.0, "delta_B": 0.625, "verdict": "NOT_CERTIFIED"},
+    "6v6_GUARD_DISTRIBUTED_V2_n64": {"delta_A": 0.265625, "delta_B": 0.625, "verdict": "CERTIFIED"},
+    "4v4_B3_3_n192": {"delta_A": 0.1198, "delta_B": 0.5052, "verdict": "CERTIFIED (redesigned Pole B)"}
+  },
+  "CONCEALMENT": "not applicable -- scaled demand protocol does not run Observability V2",
+  "RUNTIME": {
+    "wall_seconds": 7698.4,
+    "seconds_per_seed": 40.10,
+    "total_episodes": 768,
+    "device": "cpu",
+    "seed_range": "12321001..12321192"
+  },
+  "AUTHORIZED_NEXT": "none automatically. Per amendment IF_FAILS: do not train 3v3 specialists. Any further 3v3 work (e.g. B3-class Pole B redesign at 3v3, or a different probe) requires a new prospective freeze. This result does not reopen 4v4 B3 specialist work and does not authorize Share-* at 3v3.",
+  "NOT_DONE": [
+    "3v3 specialist training",
+    "3v3 sealed crossover",
+    "3v3 Share-0 / Share-Encoder",
+    "modification of any 2v2 or 4v4 frozen artifact"
+  ]
+}

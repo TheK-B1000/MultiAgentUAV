@@ -88,14 +88,16 @@
     },
     {
       "id": 5,
-      "name": "Behavior + qualitative",
+      "name": "Behavior + qualitative + roles",
       "status": "DONE",
       "star": true,
       "figures": [
-        "fig_latent_behavior_2v2",
-        "fig_qualitative_latent_2v2"
+        "fig_trajectory_strip_2v2",
+        "fig_qualitative_latent_2v2",
+        "fig_role_allocation_2v2",
+        "fig_latent_behavior_2v2"
       ],
-      "note": "Behavior characterization is exploratory (n=24/cell, CCP-successor ckpt). Qualitative grid is sealed Rung-1 matched seed 11960003 CUDA fidelity MATCH."
+      "note": "Trajectories+frames sealed Rung-1 seed 11960003 CUDA MATCH. Role allocation PDF regenerated. Exploratory Z0_Z1 characterization (n=24/cell, CCP-successor ckpt) -- largely pole-driven; caption must not overclaim. Payoff contrasts: fig_absolute_winrate_context_2v2 + Delta ladder."
     },
     {
       "id": 6,

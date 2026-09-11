@@ -1,0 +1,42 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_PROVENANCE_NOTE",
+  "status": "FROZEN_BEFORE_SEALED_CROSSOVER",
+  "utc": "2026-09-11T12:15:00Z",
+  "authority": "PI, 2026-09-11: freeze one short provenance note on the 11:44Z role_preservation.py edit before the sealed crossover; verify from a diff if possible, otherwise disclose the limit explicitly rather than assert certainty.",
+
+  "TIMELINE_PRESERVED_AS_ACTUALLY_HAPPENED_not_smoothed": {
+    "22:10Z": "TARGET_PROJECTION_AMENDMENT -- fixed vacuous scripted targets",
+    "22:25Z": "LOSS_AMENDMENT -- CE-only workaround (half-plane f* did not separate GUARD/BREACH)",
+    "22:27-22:30Z": "premature pi_A launch under CE-only on seed 16900001, aborted at ~6144 steps (targets failed the stronger directional gate); seed never reused",
+    "22:32Z": "STYLE_INTENT_PROJECTION_AMENDMENT -- new projection method + stronger directional gate criteria frozen PROSPECTIVELY, before recollection was scored: 'if the recollected targets pass, restore MSE+CE'",
+    "~22:43Z": "style-intent targets recollected and scored against the 22:32Z gate -- PASS (occupancy_L1=1.6978, all AND-clauses satisfied per MSE_RESTORED_AMENDMENT's own GATE_RESULT block)",
+    "22:45:50Z": "PRODUCTION launch, pi_A_role seed 16910001 (run_manifest.json utc, verified)",
+    "22:50:00Z": "MSE_RESTORED_AMENDMENT frozen -- documents the GATE_RESULT and restores L_role=MSE+CE in writing",
+    "reading": "the 22:50Z record is treated as a DOCUMENTATION STAMP on a decision already made and acted on per the 22:32Z prospective criteria, not a post-hoc method change decided after seeing training results. This is recorded as PI's own assessment, preserved exactly, not rewritten to look cleaner than the actual sequence."
+  },
+
+  "PI_B_RESUME_CONTINUITY_CONFIRMED": {
+    "restored_from_checkpoint": ["model_state_dict", "optimizer state (trainer.optimizers, load_weights_only=False, not overridden by --resume)", "return_norm running stats", "global_step", "updates_completed", "curriculum state", "cfg"],
+    "role_pres_config_identical_pre_and_post_resume": "lambda=0.05, style=BREACH, targets=role_targets_guard_breach_4v4_b3/role_targets.json, cadence=4, temperature=0.5 -- verified by grepping both the pre-crash and resume text logs, identical strings",
+    "shared_optimizer": "RolePresRunner(trainer.model, trainer.optimizer, ...) in rl/training/orchestrator.py::_maybe_attach_role_preservation uses the SAME optimizer instance as the main PPO update, not an independent one -- so there is no separate, uncheckpointed momentum state for the role-preservation gradient step to lose on resume",
+    "disclosed_limitation": "RNG state (torch/numpy/python) is NOT part of the checkpoint payload; the resumed process's rollout stochasticity restarts from the --seed value rather than continuing the pre-crash stream. Standard for RL training resume; does not invalidate the arm; disclosed per PI instruction rather than omitted."
+  },
+
+  "THE_11_44Z_EDIT_TO_role_preservation.py": {
+    "measured_facts": {
+      "source_mtime": "2026-09-11T11:44:29Z",
+      "compiled_pyc_mtime": "2026-09-11T11:47:20Z (consistent with the resumed pi_B process importing the module at its ~11:46-11:47Z relaunch; this only confirms WHEN it was picked up, not WHAT changed)",
+      "pi_B_resume_authorized": "2026-09-11T11:46:00Z (4V4_B3_ROLE_PRESERVATION_PI_B_RESUME.json)",
+      "concurrent_file_changes": "rl/config/ppo_config.py, rl/custom_ppo/update/updater.py, rl/training/orchestrator.py all show as modified (tracked files) in the same window, consistent with implementing the --resume flag itself (train_specialist_scale.py's --resume/load_path plumbing), which needed to exist for this crash-recovery to be possible at all"
+    },
+    "verification_attempted_and_result": {
+      "git_history": "role_preservation.py is untracked (never committed); git log/fsck/dangling-blob search returned nothing -- no version-controlled prior state exists to diff against",
+      "backup_or_local_history": "searched the working tree for backup/.bak copies and VS Code local-history folders -- none found",
+      "conclusion": "NO DIFF OR PRE-EDIT SNAPSHOT COULD BE OBTAINED. The claim below is recorded as the most probable reading given circumstantial evidence, NOT as an independently verified fact."
+    },
+    "STATEMENT_WITH_HONEST_CONFIDENCE_LEVEL": "Circumstantial evidence (the concurrent edits to three tracked orchestration files, all consistent with adding checkpoint-resume support; the fact that a working --resume flag did not previously exist and was clearly needed at this exact moment; the absence of any amendment claiming a deliberate objective change) supports that the 11:44Z edit to role_preservation.py was resume/support plumbing and did not alter lambda_role (0.05), the target file, the target style (GUARD/BREACH), cadence (4), temperature (0.5), or loss composition (MSE+CE, per the still-active include_mse=True default read directly from the current file). This is NOT independently verified by a diff -- it could not be, given no prior snapshot exists. It is reported as the best available reading, not as certainty.",
+    "what_IS_independently_verified": "the config-level fields (lambda/style/targets/cadence/temperature) are provably identical before and after the edit, because they are logged as plain text in both the pre-crash and resume training logs. What is NOT independently verified is the internal loss-composition code path itself across that edit."
+  },
+
+  "DISPOSITION": "Per PI instruction: this note closes the provenance audit. No further archaeology on this file or this timeline. The sealed crossover on untouched block 17200001-17200128 is the next and only remaining step; its gate (LCB95(delta_A)>0 AND LCB95(delta_B)>0) is unchanged and decides the arm."
+}

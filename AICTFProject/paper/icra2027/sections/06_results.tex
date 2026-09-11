@@ -2,6 +2,44 @@
 \label{sec:results}
 %======================================================================
 
+\subsection{Evaluation data and plot map}
+\label{sec:results-data}
+
+All headline numbers below come from \emph{sealed} evaluation artifacts with
+fixed seed blocks and terminal checkpoints (no post-hoc checkpoint shopping).
+Bootstrap intervals use a paired percentile procedure over seeds
+($n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$) unless a caption states otherwise.
+
+\paragraph{Data blocks.}
+\begin{itemize}
+  \item \textbf{Strategic demand (V3).}
+  Paired confirmation on $n{=}192$ seeds
+  ($6000001$--$6000192$): conflicting best-response payoff gaps and concealment
+  gates on both regimes.
+  \item \textbf{Independent experts and generalist.}
+  Held-out $n{=}64$ evaluations of $\pi_A$, $\pi_B$, and $\pi_G$.
+  \item \textbf{Progressive sharing (primary Claim~A).}
+  Matched $n{=}128$ CUDA evaluations of Share-0 / Encoder / Backbone / Macro
+  under forced $z_0,z_1$ on both regimes (identical seeds across rungs).
+  \item \textbf{Matched qualitative.}
+  Single sealed seed $11960003$ under Share-Encoder: trajectory overlay and
+  frame grid with CUDA terminal-score fidelity checks against the sealed CSV.
+  \item \textbf{Role telemetry (exploratory).}
+  Episode-mean defender/attacker proxies, $n{=}24$/cell; \emph{not} a
+  specialization gate.
+  \item \textbf{Robustness.}
+  Matched $n{=}128$ dose--response under localization, motion, and latency
+  perturbations (external validity).
+\end{itemize}
+
+\paragraph{How figures answer questions.}
+Demand and specialist $\Delta$ appear as sealed numerical contrasts; absolute
+win rates as Fig.~\ref{fig:winrate-context}; Claim~A causal chain as
+Fig.~\ref{fig:claim-a}; sharing erosion as Fig.~\ref{fig:sharing-ladder} and
+Table~\ref{tab:sharing-results}; imitation$\neq$payoff as
+Fig.~\ref{fig:hierarchy}; recognizable strategies as
+Figs.~\ref{fig:traj}--\ref{fig:roles-ext}; robustness as Fig.~\ref{fig:robust}.
+
 \paragraph{How to read the plots (terminology).}
 Throughout Results and figure captions we use a small set of pre-specified
 statistical phrases. They are \emph{not} informal judgments about whether a run
@@ -51,11 +89,19 @@ Figures also report means with $95\%$ CIs; sample sizes are stated in captions.
 %----------------------------------------------------------------------
 \subsection{Do the opponent regimes require different strategies?}
 
-The opponent-conditioned strategy-preference test establishes complementary
-strategic demand under Regimes~A and~B: each regime favors a different
-coordination style, and the matchups remain contested (unsaturated) rather than
-almost-always-win or almost-always-lose.
-% [draft] Insert demand figure/table with win-rate contrasts and LCB95.
+A preregistered opponent-conditioned demand protocol (V3; $n{=}192$ paired seeds)
+establishes that Regimes~A and~B admit \emph{conflicting} best responses with
+concealed strategic context on both sides. Payoff gaps between scripted
+guard-style and breach-style responses satisfy the sealed floors
+\[
+\Delta_G(A)=+0.297\;[+0.203,+0.391],
+\qquad
+\Delta_B(B)=+0.453\;[+0.385,+0.526],
+\]
+with concealment gates $\mathrm{LCB}_{95}(p_C)>0.50$ on both regimes
+($p_C(A)=0.943$, $p_C(B)=0.917$). Matchups remain contested rather than
+floor/ceiling-dominated. This certifies strategic \emph{demand} in the
+environment; it does not yet show that a learned controller discovers two modes.
 
 %----------------------------------------------------------------------
 \subsection{Can independent expert policies specialize?}
@@ -167,38 +213,52 @@ $\mathrm{LCB}_{95}(\Delta_A)=0$.}
 
 \begin{table}[t]
 \centering
-\caption{Progressive parameter-sharing results on the matched $128$-seed set.
-$D_A$ and $D_B$ are within-seed differences against the Share-0 expert-dispatch
-reference. ``Detectable loss'' means $\mathrm{UCB}_{95}(D)<0$.}
+\caption{Parameter--specialization tradeoff on the matched $128$-seed set.
+Unique actor parameters are sealed construction counts (Share-0 $=$ two
+verbatim experts; Encoder/Backbone/Macro $=$ unique tied dual-branch actors).
+Reduction is relative to Share-0.
+$D_A$/$D_B$ are within-seed differences vs.\ Share-0; ``detectable loss'' means
+$\mathrm{UCB}_{95}(D)<0$.
+Module tying is defined in Table~\ref{tab:sharing}.}
 \label{tab:sharing-results}
-\begin{tabular}{lllll}
+\begin{tabular}{@{}lrrlll@{}}
 \toprule
-\textbf{Condition} & \textbf{Shared} & $\boldsymbol{\Delta_A}$ & $\boldsymbol{\Delta_B}$ &
-\textbf{Paired $D$} \\
+\textbf{Condition} & \textbf{Params (M)} & \textbf{Red.} &
+$\boldsymbol{\Delta_A}$ & $\boldsymbol{\Delta_B}$ &
+\textbf{Criterion / $D$} \\
 \midrule
 Share-0
-  & none (dispatch)
+  & $6.947$ & $0\%$
   & $+0.289\;[+0.164,+0.406]$
   & $+0.258\;[+0.141,+0.375]$
-  & reference \\
+  & PASS (reference) \\
 Share-Encoder
-  & CNN encoder
+  & $3.613$ & $\mathbf{48.0\%}$
   & $+0.266\;[+0.148,+0.383]$
   & $+0.164\;[+0.047,+0.281]$
-  & no detectable loss \\
+  & PASS; no detectable loss \\
 Share-Backbone
-  & $+$ MLP backbone
+  & $3.509$ & $49.5\%$
   & $+0.148\;[+0.023,+0.266]$
   & $+0.141\;[+0.016,+0.266]$
-  & detectable loss on $A$ \\
+  & PASS; detectable loss on $A$ \\
 Share-Macro
-  & $+$ macro outputs
+  & $3.508$ & $49.5\%$
   & $+0.125\;[0.000,+0.250]$
   & $+0.156\;[+0.031,+0.281]$
-  & detectable loss on $A$; fails criterion \\
+  & FAIL ($\mathrm{LCB}_{95}(\Delta_A)=0$) \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\noindent
+Most of the parameter saving appears at Share-Encoder ($\approx\!48\%$ fewer
+unique actor parameters than the two-expert deployment) while the specialization
+criterion is preserved.
+Share-Backbone and Share-Macro add only about $1.5$ percentage points of further
+reduction, yet paired evaluation already detects Regime-$A$ loss and Share-Macro
+fails the absolute criterion---so aggressive sharing buys little footprint and
+costs specialization.
 
 \begin{figure*}[t]
 \centering
@@ -245,6 +305,12 @@ and do not uniquely attribute it to homogenization vs.\ capacity loss.
 %----------------------------------------------------------------------
 \subsection{Matched-state behavior: what do the latent modes do?}
 
+Three complementary views establish that the latent modes correspond to
+recognizable team strategies: \emph{qualitative trajectories}
+(Figs.~\ref{fig:traj}--\ref{fig:qual}), \emph{role-allocation proxies}
+(Figs.~\ref{fig:roles}--\ref{fig:roles-ext}), and \emph{payoff contrasts}
+(Fig.~\ref{fig:winrate-context}; Table~\ref{tab:sharing-results}).
+
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.92\textwidth]{fig_trajectory_strip_2v2.pdf}
@@ -268,6 +334,29 @@ outcomes (Fig.~\ref{fig:traj}). Qualitative matched frames
 \caption{Matched-frame grid at tick~$30$ for the same seed and Share-Encoder
 policy. Columns differ only in forced $z$; rows differ only in opponent regime.}
 \label{fig:qual}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_role_allocation_2v2.pdf}
+\caption{Role-allocation proxies under forced $z_0$ vs.\ $z_1$ on Regimes~A and~B
+(defender count, attacker count, attack/defense ratio).
+Bars are episode-mean telemetry from an exploratory characterization
+($n{=}24$/cell; not a specialization gate).
+Coarse means are largely regime-driven, with smaller within-regime $z$ gaps;
+use with Figs.~\ref{fig:traj}--\ref{fig:qual} rather than as standalone tactic
+cartoons.}
+\label{fig:roles}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_latent_behavior_2v2.pdf}
+\caption{Extended role telemetry (same exploratory source as
+Fig.~\ref{fig:roles}): defenders, attackers, intercept near enemy carrier,
+carrier escort, and attack/defense ratio under forced $z_0$ vs.\ $z_1$
+($n{=}24$/cell). Regime effects dominate; within-regime $z$ gaps remain modest.}
+\label{fig:roles-ext}
 \end{figure*}
 
 %----------------------------------------------------------------------

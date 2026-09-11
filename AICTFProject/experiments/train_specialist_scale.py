@@ -217,6 +217,26 @@ def main() -> int:
                          "(CONFIRMATORY_REDESIGN_C2_PI_{A2,B2}_FROZEN.json) and must never be "
                          "renamed or overwritten -- a NEW track takes a new label instead. "
                          "Empty by default so every existing invocation is unaffected.")
+    ap.add_argument("--sibling-sep-lambda", type=float, default=0.0,
+                    help="specialization-preserving sibling separation coefficient. 0 = OFF "
+                         "(structurally absent). See 4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json.")
+    ap.add_argument("--sibling-ckpt", default="",
+                    help="path to frozen opposite-pole specialist zip used as stop-grad sibling")
+    ap.add_argument("--sibling-ckpt-sha256", default="",
+                    help="optional expected sha256 of --sibling-ckpt (fail-closed on mismatch)")
+    ap.add_argument("--sibling-sep-dataset", default="",
+                    help="path to disagreement NPZ or directory containing disagreement_rows.npz")
+    ap.add_argument("--role-pres-lambda", type=float, default=0.0,
+                    help="role-preservation coefficient. 0 = OFF (structurally absent). "
+                         "See 4V4_B3_ROLE_PRESERVATION_SPEC.json.")
+    ap.add_argument("--role-pres-targets", default="",
+                    help="path to frozen role_targets.json from collect_role_targets_4v4_b3.py")
+    ap.add_argument("--role-pres-style", default="",
+                    help="GUARD or BREACH — which frozen target this specialist should match")
+    ap.add_argument("--resume", default="",
+                    help="resume from an existing checkpoint zip in this run's ckpt dir "
+                         "(crash recovery). Sets load_path, appends metrics, and allows "
+                         "the pre-existing zip set that a fresh launch would refuse.")
     args = ap.parse_args()
 
     n, policy, seed = int(args.team_size), args.policy, int(args.seed)
@@ -376,22 +396,105 @@ def main() -> int:
         cfg.formal_run = False
         cfg.periodic_checkpoint_steps = max(1, int(cfg.total_timesteps) // 2)
 
+    sep_lam = float(args.sibling_sep_lambda or 0.0)
+    if sep_lam > 0.0:
+        if not args.sibling_ckpt or not args.sibling_sep_dataset:
+            raise SystemExit(
+                "FAIL-CLOSED: --sibling-sep-lambda > 0 requires --sibling-ckpt and "
+                "--sibling-sep-dataset"
+            )
+        cfg.sibling_sep_lambda = sep_lam
+        cfg.sibling_sep_ckpt = str(args.sibling_ckpt)
+        cfg.sibling_sep_ckpt_sha256 = str(args.sibling_ckpt_sha256 or "")
+        cfg.sibling_sep_dataset = str(args.sibling_sep_dataset)
+        # Frozen SPEC defaults.
+        cfg.sibling_sep_cadence = 4
+        cfg.sibling_sep_batch_size = 64
+        # Pin expected hashes for the vanilla B3 siblings when not overridden.
+        if not cfg.sibling_sep_ckpt_sha256:
+            _known = {
+                "final_pi_A_specialist_4v4_b3.zip":
+                    "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0",
+                "final_pi_B_specialist_4v4_b3.zip":
+                    "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+            }
+            cfg.sibling_sep_ckpt_sha256 = _known.get(Path(cfg.sibling_sep_ckpt).name, "")
+    elif args.sibling_ckpt or args.sibling_sep_dataset:
+        raise SystemExit(
+            "FAIL-CLOSED: sibling ckpt/dataset provided but --sibling-sep-lambda is 0; "
+            "refusing a silently disabled intervention"
+        )
+
+    role_lam = float(args.role_pres_lambda or 0.0)
+    if role_lam > 0.0:
+        if sep_lam > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: role preservation and sibling separation are mutually "
+                "exclusive (JSD SPEC is RETIRED_UNUSED)"
+            )
+        if not args.role_pres_targets or not args.role_pres_style:
+            raise SystemExit(
+                "FAIL-CLOSED: --role-pres-lambda > 0 requires --role-pres-targets and "
+                "--role-pres-style"
+            )
+        style = str(args.role_pres_style).upper()
+        if style not in ("GUARD", "BREACH"):
+            raise SystemExit(f"FAIL-CLOSED: --role-pres-style must be GUARD or BREACH, got {style!r}")
+        expected = "GUARD" if policy == "A" else "BREACH"
+        if style != expected:
+            raise SystemExit(
+                f"FAIL-CLOSED: policy {policy} must use style {expected}, got {style}"
+            )
+        if not Path(args.role_pres_targets).is_file():
+            raise SystemExit(f"FAIL-CLOSED: role targets missing: {args.role_pres_targets}")
+        cfg.role_pres_lambda = role_lam
+        cfg.role_pres_targets = str(args.role_pres_targets)
+        cfg.role_pres_style = style
+        cfg.role_pres_cadence = 4
+        cfg.role_pres_temperature = 0.5
+    elif args.role_pres_targets or args.role_pres_style:
+        raise SystemExit(
+            "FAIL-CLOSED: role targets/style provided but --role-pres-lambda is 0; "
+            "refusing a silently disabled intervention"
+        )
+
     if int(getattr(cfg, "max_blue_agents", -1)) != n:
         raise SystemExit(f"FAIL-CLOSED: cfg.max_blue_agents={getattr(cfg,'max_blue_agents',None)} "
                          f"!= team size {n}; AGENTS propagation did not reach build_r1_config")
 
     ck = Path(cfg.checkpoint_dir)
-    existing = sorted(ck.glob("*.zip")) if ck.is_dir() else []
-    if existing:
-        raise SystemExit(f"FAIL-CLOSED: {ck} already holds {len(existing)} checkpoint(s); "
-                         f"refusing to overwrite. Choose another seed or move them aside.")
+    resume_path = str(args.resume or "").strip()
+    if resume_path:
+        rp = Path(resume_path)
+        if not rp.is_file():
+            raise SystemExit(f"FAIL-CLOSED: --resume not found: {rp}")
+        # Must live under this run's checkpoint dir (no silent cross-run warm-start).
+        try:
+            rp.resolve().relative_to(ck.resolve())
+        except ValueError:
+            raise SystemExit(
+                f"FAIL-CLOSED: --resume {rp} is not under this run's checkpoint dir {ck}"
+            )
+        cfg.load_path = str(rp)
+        cfg.fresh_metrics_csv = False
+        print(f"  RESUME from {rp.name} (metrics will append; total_timesteps stays "
+              f"{int(cfg.total_timesteps):,})")
+    else:
+        existing = sorted(ck.glob("*.zip")) if ck.is_dir() else []
+        if existing:
+            raise SystemExit(
+                f"FAIL-CLOSED: {ck} already holds {len(existing)} checkpoint(s); "
+                f"refusing to overwrite. Choose another seed, move them aside, or "
+                f"pass --resume <ckpt.zip> for crash recovery."
+            )
 
     sha, dirty = _git_sha(), _git_dirty()
     print("=" * 78)
     print(f"SPECIALIST_SCALE  pi_{policy}  {n}v{n}   "
           f"{'[SMOKE - NON-SCIENTIFIC]' if is_smoke else '[PRODUCTION]'}"
           f"{'  [EXPLORATORY ARM - NOT CONFIRMATORY]' if exploratory is not None else ''}"
-          f"{'  [CONFIRMATORY REDESIGN - PENDING JOINT CERT]' if redesign is not None else ''}")
+          f"{'  [CONFIRMATORY REDESIGN - PENDING JOINT CERT]' if redesign is not None else ''}"
+          f"{'  [RESUME]' if resume_path else ''}")
     print("=" * 78)
     print(f"  utc              {_now()}")
     print(f"  git sha          {sha}{'  (DIRTY)' if dirty else ''}")
@@ -401,10 +504,18 @@ def main() -> int:
     print(f"  seed             {seed}")
     print(f"  device           {cfg.device}")
     print(f"  total timesteps  {int(cfg.total_timesteps):,}")
+    if resume_path:
+        print(f"  resume           {cfg.load_path}")
     print(f"  opponent pool    {getattr(cfg, 'opponent_pool', None)}  "
           f"fixed={getattr(cfg, 'fixed_opponent_tag', None)}")
     print(f"  max_blue_agents  {cfg.max_blue_agents}")
     print(f"  checkpoint dir   {cfg.checkpoint_dir}")
+    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  sibling_sep      lambda={cfg.sibling_sep_lambda}  "
+              f"ckpt={cfg.sibling_sep_ckpt}  dataset={cfg.sibling_sep_dataset}")
+    if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  role_pres        lambda={cfg.role_pres_lambda}  "
+              f"style={cfg.role_pres_style}  targets={cfg.role_pres_targets}")
     print("=" * 78, flush=True)
 
     # FAIL CLOSED on the LIVE resolved pole, before any step. Builds a throwaway env,
@@ -446,6 +557,22 @@ def main() -> int:
                                        if redesign is not None else None),
         "distillation_started_by_this_script": False,
         "evaluation_started_by_this_script": False,
+        "sibling_sep_lambda": float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0),
+        "sibling_sep_ckpt": str(getattr(cfg, "sibling_sep_ckpt", "") or ""),
+        "sibling_sep_dataset": str(getattr(cfg, "sibling_sep_dataset", "") or ""),
+        "role_pres_lambda": float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0),
+        "role_pres_targets": str(getattr(cfg, "role_pres_targets", "") or ""),
+        "role_pres_style": str(getattr(cfg, "role_pres_style", "") or ""),
+        "resume_from": (str(cfg.load_path) if getattr(cfg, "load_path", None) else None),
+        "implements_spec": (
+            "4V4_B3_ROLE_PRESERVATION_SPEC.json"
+            if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+            else (
+                "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
+                if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
+                else None
+            )
+        ),
     }, indent=2), encoding="utf-8")
 
     # R.run_policy(policy) rebuilds its own config from build_r1_config and would discard the

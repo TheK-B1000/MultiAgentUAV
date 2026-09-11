@@ -150,14 +150,19 @@ def main() -> int:
         finally:
             env.close()
 
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
+
+    cells = [(z, pole, seed) for z, pole in ((0, "A"), (1, "A"), (0, "B"), (1, "B")) for seed in EVAL_SEEDS]
     rows = []
-    for z, pole in ((0, "A"), (1, "A"), (0, "B"), (1, "B")):
-        for seed in EVAL_SEEDS:
-            rows.append({"arm": "RUNG0", "z": f"z{z}", "pole": pole, "seed": seed,
-                         **run_cell(pole, z, seed)})
-        wr = np.mean([r["win"] for r in rows if r["z"] == f"z{z}" and r["pole"] == pole])
-        who = "pi_A" if z == 0 else "pi_B"
-        print(f"  RUNG0 z{z} ({who}) on Pole {pole}: win rate {wr:.4f}", flush=True)
+    bar = tqdm_iter(cells, desc="rung0 crossover", unit="ep")
+    for z, pole, seed in bar:
+        set_postfix(bar, f"z{z}@Pole{pole} seed={seed}")
+        rows.append({"arm": "RUNG0", "z": f"z{z}", "pole": pole, "seed": seed,
+                     **run_cell(pole, z, seed)})
+        if seed == EVAL_SEEDS[-1]:
+            wr = np.mean([r["win"] for r in rows if r["z"] == f"z{z}" and r["pole"] == pole])
+            who = "pi_A" if z == 0 else "pi_B"
+            print(f"  RUNG0 z{z} ({who}) on Pole {pole}: win rate {wr:.4f}", flush=True)
 
     with ROWS_CSV.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0])); w.writeheader(); w.writerows(rows)

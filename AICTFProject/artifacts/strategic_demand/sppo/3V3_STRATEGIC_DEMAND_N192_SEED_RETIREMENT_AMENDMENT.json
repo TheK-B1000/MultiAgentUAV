@@ -1,0 +1,30 @@
+{
+  "record_id": "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT",
+  "status": "FROZEN_BEFORE_CERTIFICATION_EPISODES",
+  "utc": "2026-09-10T01:50:00Z",
+  "amends": "3V3_STRATEGIC_DEMAND_N192_AMENDMENT.json#SEED_BLOCK",
+  "authority": "agent, 2026-09-10: timing probe with --n-seeds 2 --probe used seed = seed_base + i and therefore spent 12320001..12320002 from the preregistered block. Certification must not reuse spent seeds.",
+
+  "RETIRED": {
+    "seeds": [12320001, 12320002],
+    "reason": "timing/smoke probe only; --probe wrote no certification record; cell estimates from n=2 are non-scientific and are discarded",
+    "probe_command": "python experiments/certify_strategic_demand_scaled.py --team-size 3 --variant guard_distributed_v2_n192 --seed-base 12320001 --n-seeds 2 --device cpu --probe"
+  },
+
+  "REPLACEMENT_SEED_BLOCK": {
+    "variant": "guard_distributed_v2_n192",
+    "seed_base": 12321001,
+    "n": 192,
+    "range": "12321001..12321192",
+    "paired": true,
+    "note": "same n, same gate, same poles; only the base shifts to clear the two spent probe seeds and leave a clear gap"
+  },
+
+  "CODE_FIX": "certify_strategic_demand_scaled.py now refuses to write tie/reversal audit files under --probe (the probe also briefly wrote TIE_REVERSAL_AUDIT_3v3_GUARD_DISTRIBUTED_V2_N192.json, which was deleted before any certification episode).",
+
+  "RUN_COMMAND": "python experiments/certify_strategic_demand_scaled.py --team-size 3 --variant guard_distributed_v2_n192 --seed-base 12321001 --n-seeds 192 --device cpu",
+
+  "OUTPUT_RECORD": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_3v3_GUARD_DISTRIBUTED_V2_N192_CERTIFICATION.json",
+
+  "PREDECLARED_BEFORE_RESULT": "replacement seed block locked before any episode in 12321001..12321192 is spent."
+}

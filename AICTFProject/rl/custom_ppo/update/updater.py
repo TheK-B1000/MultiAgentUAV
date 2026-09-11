@@ -106,6 +106,14 @@ class PPOUpdater:
         """Read the rehearsal runner at USE time, never cached at construction."""
         return getattr(self.runtime, "sappo_anchor_runner", None)
 
+    def _sibling_sep_runner(self):
+        """Read sibling-sep runner at USE time; attachment occurs after loading."""
+        return getattr(self.runtime, "sibling_sep_runner", None)
+
+    def _role_pres_runner(self):
+        """Read role-preservation runner at USE time; attachment occurs after loading."""
+        return getattr(self.runtime, "role_pres_runner", None)
+
     def _exp2_teacher_runner(self):
         """Read the EXP2 runner at use time; attachment occurs after loading."""
         return getattr(self.runtime, "exp2_teacher_compression_runner", None)
@@ -399,6 +407,27 @@ class PPOUpdater:
                             runner.n_anchor_updates / max(1, runner.n_ppo_actor_minibatches)),
                         "sappo_anchor_loss": float(runner.last_anchor_loss),
                     })
+                sibling_runner = self._sibling_sep_runner()
+                if sibling_runner is not None:
+                    if runner is not None or exp2_runner is not None:
+                        raise RuntimeError(
+                            "sibling separation cannot share a run with SAPPO or EXP2"
+                        )
+                    sibling_runner.note_ppo_minibatch()
+                    accumulator.record_minibatch(sibling_runner.telemetry())
+                role_runner = self._role_pres_runner()
+                if role_runner is not None:
+                    if (
+                        runner is not None
+                        or exp2_runner is not None
+                        or sibling_runner is not None
+                    ):
+                        raise RuntimeError(
+                            "role preservation cannot share a run with SAPPO, EXP2, "
+                            "or sibling separation"
+                        )
+                    role_runner.note_ppo_minibatch(batch)
+                    accumulator.record_minibatch(role_runner.telemetry())
                 if exp2_runner is not None:
                     # Pass the actual completed PPO minibatch so teacher logits
                     # are evaluated on the student's on-policy states and z.
