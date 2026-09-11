@@ -2,6 +2,10 @@
 CTF Viewer -- renders a single BatchedCTFCore environment in pygame.
 
 Blue team is controlled by a local custom PPO checkpoint (if found) or scripted DEMO.
+Supports:
+  - custom PPO specialist ``.zip`` (single strategy)
+  - sharing-ladder Rung-1+ ``.pt`` (``sharing_ladder_rung*_v1``) with forced z0/z1 dispatch
+
 Red team uses the scripted bot built into the GPU core.
 
 No dependency on game_field.py, viewer_game_field.py, or policies.py.
@@ -10,6 +14,7 @@ No dependency on game_field.py, viewer_game_field.py, or policies.py.
 import os
 import csv
 import math
+import re
 from typing import Optional, Tuple, Any, List, Dict
 
 import numpy as np
@@ -35,9 +40,16 @@ from rl.custom_ppo import load_custom_ppo_policy, read_custom_ppo_metadata
 # ---------------------------------------------------------------------------
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 METRICS_DIR = os.path.join(_SCRIPT_DIR, "csv")
-# Default matches a typical local PPO run: `python -m rl.train_ppo --agents 2 --run-tag my_smoke_2v2`
-# (override with: python ctfviewer.py --ppo-model checkpoints/2v2/your_run.zip)
-DEFAULT_PPO_MODEL_PATH = "checkpoints/2v2/final_v6i8-adapter-balanced-seed1_2v2.zip"
+# Sealed Rung-1 dual-strategy students (separate trees; do not overwrite 2v2 with 6v6).
+# z0 ≈ Pole-A/GUARD, z1 ≈ Pole-B/BREACH. Toggle with Z. Specialist .zip still works via --ppo-model.
+RUNG1_LADDER_BY_AGENTS: Dict[int, str] = {
+    2: "artifacts/strategic_demand/sppo/sharing_ladder/rung1/ckpts/final_rung1.pt",
+    6: "artifacts/strategic_demand/sppo/sharing_ladder_6v6/rung1/ckpts/final_rung1_6v6.pt",
+}
+DEFAULT_PPO_MODEL_PATH = RUNG1_LADDER_BY_AGENTS[2]
+_LADDER_FORMAT_RE = re.compile(r"^sharing_ladder_rung(\d+)_v1$")
+_Z_LABELS = {0: "z0/GUARD", 1: "z1/BREACH"}
+_TEAM_SIZE_CYCLE = (2, 3, 4, 6, 8)
 N_MACROS = 5
 N_TARGETS = 50
 MAP_LAYOUT_CHOICES = MAP_LAYOUTS + (
@@ -131,18 +143,32 @@ def _try_paths(*candidates: str) -> Optional[str]:
     return None
 
 
-def _resolve_zip_path(path: str) -> Optional[str]:
+def _resolve_model_path(path: str) -> Optional[str]:
+    """Resolve a viewer policy path (.zip specialist or sharing-ladder .pt)."""
     if not path:
         return None
     candidates = [path]
-    if not path.endswith(".zip"):
-        candidates.append(path + ".zip")
+    lower = path.lower()
+    if not lower.endswith((".zip", ".pt")):
+        candidates.extend([path + ".pt", path + ".zip"])
     if not os.path.isabs(path):
         sr = os.path.join(_SCRIPT_DIR, path)
         candidates.append(sr)
-        if not sr.endswith(".zip"):
-            candidates.append(sr + ".zip")
+        if not sr.lower().endswith((".zip", ".pt")):
+            candidates.extend([sr + ".pt", sr + ".zip"])
     return _try_paths(*candidates)
+
+
+def _resolve_zip_path(path: str) -> Optional[str]:
+    """Backward-compatible alias used by team-size sibling search."""
+    return _resolve_model_path(path)
+
+
+def _ladder_rung_from_format(fmt: Any) -> Optional[int]:
+    if not isinstance(fmt, str):
+        return None
+    m = _LADDER_FORMAT_RE.match(fmt.strip())
+    return int(m.group(1)) if m else None
 
 
 def _team_size_tag(n_agents: int) -> str:
@@ -152,29 +178,45 @@ def _team_size_tag(n_agents: int) -> str:
 
 def _candidate_model_paths_for_agents(model_path: str, n_agents: int) -> List[str]:
     """Infer sibling checkpoints for the requested team size from the currently selected model path."""
-    resolved = _resolve_zip_path(model_path)
+    resolved = _resolve_model_path(model_path)
     raw = resolved or model_path or ""
-    if not raw:
-        return []
-
     team_tag = _team_size_tag(n_agents)
-    dirname = os.path.dirname(raw)
-    basename = os.path.basename(raw)
+    dirname = os.path.dirname(raw) if raw else ""
+    basename = os.path.basename(raw) if raw else ""
     stem, ext = os.path.splitext(basename)
     ext = ext or ".zip"
 
     candidates: List[str] = []
 
-    # Replace both directory tag and filename suffix when the checkpoint follows the repo naming scheme.
-    for src_tag in ("2v2", "3v3", "4v4", "6v6", "8v8"):
-        dir_variant = raw.replace(f"\\{src_tag}\\", f"\\{team_tag}\\").replace(f"/{src_tag}/", f"/{team_tag}/")
-        file_variant = os.path.join(os.path.dirname(dir_variant), os.path.basename(dir_variant).replace(src_tag, team_tag))
-        candidates.append(file_variant)
+    # Canonical sealed Rung-1 students (2v2 and 6v6 live in separate trees).
+    canon = RUNG1_LADDER_BY_AGENTS.get(int(n_agents))
+    if canon:
+        candidates.append(os.path.join(_SCRIPT_DIR, canon))
+        candidates.append(canon)
 
-    # Generic filename replacement for custom names that still embed the team tag.
-    for src_tag in ("2v2", "3v3", "4v4", "6v6", "8v8"):
-        if src_tag in stem:
-            candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
+    if raw:
+        # sharing_ladder <-> sharing_ladder_6v6 directory swap (Rung-1 sealed layout).
+        norm = raw.replace("\\", "/")
+        if int(n_agents) == 6 and "/sharing_ladder/" in norm and "/sharing_ladder_6v6/" not in norm:
+            candidates.append(raw.replace("sharing_ladder", "sharing_ladder_6v6")
+                              .replace("final_rung1.pt", "final_rung1_6v6.pt"))
+        if int(n_agents) == 2 and "/sharing_ladder_6v6/" in norm:
+            candidates.append(raw.replace("sharing_ladder_6v6", "sharing_ladder")
+                              .replace("final_rung1_6v6.pt", "final_rung1.pt"))
+
+        # Replace both directory tag and filename suffix when the checkpoint follows the repo naming scheme.
+        for src_tag in ("2v2", "3v3", "4v4", "6v6", "8v8"):
+            dir_variant = raw.replace(f"\\{src_tag}\\", f"\\{team_tag}\\").replace(f"/{src_tag}/", f"/{team_tag}/")
+            file_variant = os.path.join(
+                os.path.dirname(dir_variant),
+                os.path.basename(dir_variant).replace(src_tag, team_tag),
+            )
+            candidates.append(file_variant)
+
+        # Generic filename replacement for custom names that still embed the team tag.
+        for src_tag in ("2v2", "3v3", "4v4", "6v6", "8v8"):
+            if src_tag in stem:
+                candidates.append(os.path.join(dirname, stem.replace(src_tag, team_tag) + ext))
 
     # Final fallbacks: common local training outputs (FIXED_OPPONENT / smoke runs).
     candidates.append(os.path.join(_SCRIPT_DIR, "checkpoints", team_tag, f"final_my_smoke_{team_tag}.zip"))
@@ -232,12 +274,38 @@ def _infer_obstacle_channel(model_path: str, model_meta: Dict[str, Any], map_lay
 
 
 def _read_model_metadata(model_path: str) -> Dict[str, Any]:
-    """Read saved custom PPO metadata so viewer/core shape matches the checkpoint."""
-    resolved = _resolve_zip_path(model_path)
+    """Read saved custom PPO / sharing-ladder metadata so viewer/core shape matches."""
+    resolved = _resolve_model_path(model_path)
     if resolved is None:
         return {}
 
-    meta: Dict[str, Any] = {"model_path": resolved}
+    meta: Dict[str, Any] = {"model_path": resolved, "kind": "zip"}
+    if resolved.lower().endswith(".pt"):
+        try:
+            payload = torch.load(resolved, map_location="cpu", weights_only=False)
+        except Exception as exc:
+            meta["load_error"] = str(exc)
+            return meta
+        fmt = payload.get("format")
+        rung = _ladder_rung_from_format(fmt)
+        if rung is None:
+            meta["load_error"] = f"unsupported .pt format {fmt!r}"
+            return meta
+        branch_cfg = dict(payload.get("branch_cfg") or {})
+        meta.update(
+            {
+                "kind": "sharing_ladder",
+                "format": fmt,
+                "rung": int(payload.get("rung") or rung),
+                "n_blue": int(branch_cfg.get("max_blue_agents", 2)),
+                "map_layout": branch_cfg.get("map_layout", MAP_A_OPEN),
+                "obstacle_obs_channel": branch_cfg.get("obstacle_obs_channel"),
+                "branch_cfg": branch_cfg,
+                "model_kwargs": dict(payload.get("model_kwargs") or {}),
+            }
+        )
+        return meta
+
     try:
         meta.update(read_custom_ppo_metadata(resolved))
         return meta
@@ -252,6 +320,9 @@ class PPOController:
     """
     Wraps a local PPO model trained on GPUCTFVecEnv. Given a
     BatchedCTFCore (B=1), produces a flat int64 action tensor each tick.
+
+    Sharing-ladder ``.pt`` checkpoints are loaded through ``rl.ladder_rung1`` and
+    dispatched by forced ``fixed_latent_strategy_id`` (z0/z1), matching sealed eval.
     """
 
     def __init__(
@@ -264,6 +335,7 @@ class PPOController:
         deterministic: bool = True,
         device: str = "cpu",
         print_traceback: bool = False,
+        forced_z: int = 0,
     ):
         self.model: Optional[Any] = None
         self.model_loaded = False
@@ -273,11 +345,19 @@ class PPOController:
         self.n_blue = int(n_blue)
         self.print_traceback = bool(print_traceback)
         self.model_meta = _read_model_metadata(model_path)
-        self.model_path: Optional[str] = self.model_meta.get("model_path") or _resolve_zip_path(model_path)
+        self.model_path: Optional[str] = self.model_meta.get("model_path") or _resolve_model_path(model_path)
         self.device = str(device)
+        self.kind = str(self.model_meta.get("kind") or "zip")
+        self.rung: Optional[int] = (
+            int(self.model_meta["rung"]) if self.model_meta.get("rung") is not None else None
+        )
+        self.forced_z = int(forced_z) % 2
 
         if self.model_path is None:
             print(f"[PPO] Model not found: {model_path}")
+            return
+        if self.model_meta.get("load_error"):
+            print(f"[PPO] Failed to read metadata: {self.model_meta['load_error']}")
             return
         try:
             obs_space, action_space = _make_obs_action_spaces(
@@ -286,19 +366,53 @@ class PPOController:
                 self.n_targets,
                 num_cnn_channels=int(num_cnn_channels),
             )
-            self.model = load_custom_ppo_policy(
-                self.model_path,
-                obs_space,
-                action_space,
-                device=self.device,
-            )
-            self.model_loaded = True
-            print(f"[PPO] Loaded: {self.model_path} (device={self.device})")
+            if self.kind == "sharing_ladder":
+                from rl import ladder_rung1 as L1
+
+                rung = int(self.rung if self.rung is not None else 1)
+                ladder_model, branch_cfg, _payload = L1.load_rung(
+                    rung,
+                    self.model_path,
+                    obs_space,
+                    action_space,
+                    device=self.device,
+                )
+                self.model = L1.make_dispatch_policy(ladder_model, branch_cfg, device=self.device)
+                self.model.fixed_latent_strategy = True
+                self.model.fixed_latent_strategy_id = self.forced_z
+                self.model.reset_strategy()
+                self.model_loaded = True
+                print(
+                    f"[PPO] Loaded Rung-{rung} ladder: {self.model_path} "
+                    f"(device={self.device}, {_Z_LABELS.get(self.forced_z, f'z{self.forced_z}')})"
+                )
+            else:
+                self.model = load_custom_ppo_policy(
+                    self.model_path,
+                    obs_space,
+                    action_space,
+                    device=self.device,
+                )
+                self.model_loaded = True
+                print(f"[PPO] Loaded: {self.model_path} (device={self.device})")
         except Exception as exc:
             print(f"[PPO] Failed to load: {exc}")
             if self.print_traceback:
                 import traceback
                 traceback.print_exc()
+
+    def set_forced_z(self, z: int) -> None:
+        """Force sharing-ladder dispatch to z0 or z1 (no-op for specialist .zip)."""
+        self.forced_z = int(z) % 2
+        if self.model is None or self.kind != "sharing_ladder":
+            return
+        self.model.fixed_latent_strategy = True
+        self.model.fixed_latent_strategy_id = self.forced_z
+        self.model.reset_strategy()
+
+    def cycle_forced_z(self) -> int:
+        self.set_forced_z(1 - self.forced_z)
+        return self.forced_z
 
     def predict(self, obs: Dict[str, np.ndarray]) -> np.ndarray:
         """Return flat int64 action array [n_blue * 2] from batched obs (B=1)."""
@@ -311,12 +425,25 @@ class PPOController:
 
     def reset_strategy(self) -> None:
         if self.model is not None and hasattr(self.model, "reset_strategy"):
+            if self.kind == "sharing_ladder":
+                self.model.fixed_latent_strategy = True
+                self.model.fixed_latent_strategy_id = self.forced_z
             self.model.reset_strategy()
 
     def strategy_info(self) -> Dict[str, Any]:
+        info: Dict[str, Any] = {}
+        if self.kind == "sharing_ladder":
+            info.update(
+                {
+                    "kind": "sharing_ladder",
+                    "rung": self.rung,
+                    "forced_z": self.forced_z,
+                    "z_label": _Z_LABELS.get(self.forced_z, f"z{self.forced_z}"),
+                }
+            )
         if self.model is not None and hasattr(self.model, "strategy_info"):
-            return dict(self.model.strategy_info())
-        return {}
+            info.update(dict(self.model.strategy_info()))
+        return info
 
 
 # ---------------------------------------------------------------------------
@@ -525,12 +652,14 @@ class CTFViewer:
                  deterministic: bool = True,
                  map_layout: str = MAP_A_OPEN,
                  opponent: str = DEFAULT_VIEWER_OPPONENT,
-                 own_flag_home_required_to_score: bool = False):
+                 own_flag_home_required_to_score: bool = False,
+                 forced_z: int = 0):
         self.device = str(device)
         self.ppo_model_path = str(ppo_model_path)
         self.deterministic = bool(deterministic)
         self.map_layout = _normalize_viewer_map_layout(map_layout)
         self.own_flag_home_required_to_score = bool(own_flag_home_required_to_score)
+        self._forced_z = int(forced_z) % 2
         self._opponent_pool = _viewer_opponent_pool()
         self._map_pool = list(MAP_LAYOUTS)
         requested = canonicalize_opponent_key(opponent) or DEFAULT_VIEWER_OPPONENT
@@ -591,10 +720,14 @@ class CTFViewer:
             num_cnn_channels=int(getattr(cfg, "num_cnn_channels", NUM_CNN_CHANNELS)),
             device=self.device,
             deterministic=self.deterministic,
+            forced_z=self._forced_z,
         )
 
         if self.ppo.model_loaded:
-            print("[Viewer] PPO ready. F3 toggles PPO / DEMO.")
+            if self.ppo.kind == "sharing_ladder":
+                print("[Viewer] PPO ready (sharing ladder). F3 PPO/DEMO | Z cycles z0/z1.")
+            else:
+                print("[Viewer] PPO ready. F3 toggles PPO / DEMO.")
             self.blue_mode: str = "PPO"
         else:
             print("[Viewer] No PPO model. Running DEMO (scripted blue).")
@@ -635,13 +768,21 @@ class CTFViewer:
                 device=self.device,
                 deterministic=self.deterministic,
                 print_traceback=False,
+                forced_z=self._forced_z,
             )
             if controller.model_loaded:
                 self.ppo = controller
                 self.ppo_model_path = resolved
                 self._ppo_mismatch_warned = False
-                print(f"[Viewer] PPO model -> {agents}v{agents}: {resolved}")
+                kind = "Rung-1 ladder" if controller.kind == "sharing_ladder" else "PPO"
+                print(f"[Viewer] {kind} -> {agents}v{agents}: {resolved}")
                 return True
+        expected = RUNG1_LADDER_BY_AGENTS.get(agents)
+        if expected and _resolve_model_path(expected) is None:
+            print(
+                f"[Viewer] No {agents}v{agents} Rung-1 checkpoint yet "
+                f"(expected {expected}). Staying on current model / DEMO."
+            )
         return False
 
     def _ppo_team_size_compatible(self, agents_per_team: Optional[int] = None) -> bool:
@@ -969,13 +1110,17 @@ class CTFViewer:
             self.core.reset_all()
             print("[Viewer] Reset")
         elif k == pg.K_F2:
-            # Cycle 2v2 -> 3v3 -> 4v4 -> 8v8 -> 2v2
+            # Cycle 2v2 -> 3v3 -> 4v4 -> 6v6 -> 8v8 -> 2v2
             current = int(getattr(self.cfg, "max_blue_agents", 2))
-            new_agents = {2: 3, 3: 4, 4: 8, 8: 2}.get(current, 3)
+            try:
+                idx = _TEAM_SIZE_CYCLE.index(current)
+            except ValueError:
+                idx = 0
+            new_agents = _TEAM_SIZE_CYCLE[(idx + 1) % len(_TEAM_SIZE_CYCLE)]
             self._rebuild_core(new_agents)
-        elif k in (pg.K_2, pg.K_3, pg.K_4, pg.K_8):
-            # Direct switch: 2 -> 2v2, 3 -> 3v3, 4 -> 4v4, 8 -> 8v8
-            new_agents = {pg.K_2: 2, pg.K_3: 3, pg.K_4: 4, pg.K_8: 8}[k]
+        elif k in (pg.K_2, pg.K_3, pg.K_4, pg.K_6, pg.K_8):
+            # Direct switch: 2/3/4/6/8 -> NvN (6 loads sealed Rung-1 6v6 when present)
+            new_agents = {pg.K_2: 2, pg.K_3: 3, pg.K_4: 4, pg.K_6: 6, pg.K_8: 8}[k]
             if new_agents != int(getattr(self.cfg, "max_blue_agents", 2)):
                 self._rebuild_core(new_agents)
         elif k == pg.K_F3:
@@ -1006,6 +1151,13 @@ class CTFViewer:
                 self.ppo.deterministic = self.deterministic
             mode = "deterministic" if self.deterministic else "stochastic"
             print(f"[Viewer] PPO inference -> {mode}")
+        elif k == pg.K_z:
+            if self.ppo is None or not self.ppo.model_loaded or self.ppo.kind != "sharing_ladder":
+                print("[Viewer] Z toggle requires a sharing-ladder .pt (Rung-1+).")
+            else:
+                z = self.ppo.cycle_forced_z()
+                self._forced_z = z
+                print(f"[Viewer] Forced strategy -> {_Z_LABELS.get(z, f'z{z}')}")
         elif k == pg.K_o:
             self._opponent_idx = (self._opponent_idx + 1) % len(self._opponent_pool)
             self._set_opponent(self._opponent_pool[self._opponent_idx])
@@ -1041,15 +1193,18 @@ class CTFViewer:
             "PPO": (120, 255, 120),
             "DEMO": (120, 200, 255),
         }.get(self.blue_mode, (230, 230, 240))
-        txt("F1 reset | F2/2/3/4/8 team | F3 PPO/Demo | F4 det | O/P opp | M/N map | H M1 | ESC",
+        txt("F1 reset | F2/2/3/4/6/8 team | F3 PPO/Demo | F4 det | Z z0/z1 | O/P opp | M/N map | H M1 | ESC",
             30, 8, (200, 200, 220))
         txt(f"Blue: {self.blue_mode} | {int(self.cfg.max_blue_agents)} v {int(self.cfg.max_red_agents)} | Map: {self.map_layout}",
             30, 32, mode_clr)
 
         if self.blue_mode == "PPO" and self.ppo.model_loaded:
             infer_mode = "det" if self.deterministic else "stoch"
-            txt(f"Model: {os.path.basename(self.ppo.model_path or '')} | {infer_mode}",
-                430, 32, (140, 240, 140))
+            model_txt = f"Model: {os.path.basename(self.ppo.model_path or '')} | {infer_mode}"
+            if self.ppo.kind == "sharing_ladder":
+                z_lbl = _Z_LABELS.get(self.ppo.forced_z, f"z{self.ppo.forced_z}")
+                model_txt = f"Rung-{self.ppo.rung} {z_lbl} | {os.path.basename(self.ppo.model_path or '')} | {infer_mode}"
+            txt(model_txt, 430, 32, (140, 240, 140))
 
         bs = int(self.core.blue_score[0].item())
         rs = int(self.core.red_score[0].item())
@@ -1097,7 +1252,11 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="CTF Viewer (GPU core, PPO)")
     parser.add_argument("--ppo-model", type=str, default=None,
-                        help=f"PPO .zip path (default: {DEFAULT_PPO_MODEL_PATH})")
+                        help=f"PPO .zip or sharing-ladder .pt (default: sealed Rung-1 for --agents, else {DEFAULT_PPO_MODEL_PATH})")
+    parser.add_argument("--agents", type=int, default=None, choices=_TEAM_SIZE_CYCLE,
+                        help="Team size (2 default via Rung-1 2v2; 6 selects sealed Rung-1 6v6 when present)")
+    parser.add_argument("--z", type=int, default=0, choices=(0, 1),
+                        help="Forced latent for sharing-ladder .pt (z0=GUARD, z1=BREACH)")
     parser.add_argument("--eval", type=int, metavar="N",
                         help="Run N evaluation episodes")
     parser.add_argument("--headless", action="store_true",
@@ -1114,14 +1273,25 @@ if __name__ == "__main__":
                         help="Use stochastic PPO actions instead of deterministic inference")
     args = parser.parse_args()
 
+    if args.ppo_model:
+        model_path = args.ppo_model
+    elif args.agents in RUNG1_LADDER_BY_AGENTS:
+        model_path = RUNG1_LADDER_BY_AGENTS[int(args.agents)]
+    else:
+        model_path = DEFAULT_PPO_MODEL_PATH
+
     viewer = CTFViewer(
-        ppo_model_path=args.ppo_model or DEFAULT_PPO_MODEL_PATH,
+        ppo_model_path=model_path,
         device=args.device,
         deterministic=not args.stochastic,
         map_layout=args.map_layout,
         opponent=args.opponent,
         own_flag_home_required_to_score=bool(args.m1),
+        forced_z=int(args.z),
     )
+
+    if args.agents is not None and int(args.agents) != int(viewer.cfg.max_blue_agents):
+        viewer._rebuild_core(int(args.agents))
 
     if args.eval is not None:
         viewer.evaluate(num_episodes=args.eval, headless=args.headless)
