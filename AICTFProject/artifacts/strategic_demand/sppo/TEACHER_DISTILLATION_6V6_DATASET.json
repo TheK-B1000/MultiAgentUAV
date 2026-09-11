@@ -1,0 +1,1967 @@
+{
+  "record": "Teacher-distillation state set (6v6)",
+  "status": "FROZEN_DATASET",
+  "utc": "2026-09-10T16:53:13Z",
+  "implements": "TEACHER_DISTILLATION_6V6_SPEC.json#DATASET",
+  "team_size": 6,
+  "teachers": {
+    "pi_A": {
+      "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+      "sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82"
+    },
+    "pi_B": {
+      "path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip",
+      "sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4"
+    }
+  },
+  "seeds": {
+    "A": [
+      13600003,
+      13600098
+    ],
+    "B": [
+      13600103,
+      13600198
+    ]
+  },
+  "device": "cpu",
+  "decision_rows_only": true,
+  "totals": {
+    "A": {
+      "episodes": 96,
+      "steps": 21736,
+      "decision_rows": 18410,
+      "wins": 76,
+      "teacher_deployment_win_rate": 0.7916666666666666
+    },
+    "B": {
+      "episodes": 96,
+      "steps": 15674,
+      "decision_rows": 14031,
+      "wins": 91,
+      "teacher_deployment_win_rate": 0.9479166666666666
+    }
+  },
+  "shards": [
+    {
+      "pole": "A",
+      "episode": 0,
+      "seed": 13600003,
+      "steps": 240,
+      "decision_rows": 206,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600003.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 1,
+      "seed": 13600004,
+      "steps": 240,
+      "decision_rows": 206,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600004.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 2,
+      "seed": 13600005,
+      "steps": 132,
+      "decision_rows": 114,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600005.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 3,
+      "seed": 13600006,
+      "steps": 240,
+      "decision_rows": 178,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600006.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 4,
+      "seed": 13600007,
+      "steps": 240,
+      "decision_rows": 213,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600007.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 5,
+      "seed": 13600008,
+      "steps": 240,
+      "decision_rows": 179,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600008.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 6,
+      "seed": 13600009,
+      "steps": 240,
+      "decision_rows": 200,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600009.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 7,
+      "seed": 13600010,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600010.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 8,
+      "seed": 13600011,
+      "steps": 106,
+      "decision_rows": 99,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600011.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 9,
+      "seed": 13600012,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600012.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 10,
+      "seed": 13600013,
+      "steps": 240,
+      "decision_rows": 211,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600013.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 11,
+      "seed": 13600014,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600014.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 12,
+      "seed": 13600015,
+      "steps": 101,
+      "decision_rows": 93,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600015.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 13,
+      "seed": 13600016,
+      "steps": 240,
+      "decision_rows": 196,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600016.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 14,
+      "seed": 13600017,
+      "steps": 240,
+      "decision_rows": 199,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600017.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 15,
+      "seed": 13600018,
+      "steps": 240,
+      "decision_rows": 178,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600018.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 16,
+      "seed": 13600019,
+      "steps": 240,
+      "decision_rows": 202,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600019.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 17,
+      "seed": 13600020,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600020.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 18,
+      "seed": 13600021,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600021.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 19,
+      "seed": 13600022,
+      "steps": 240,
+      "decision_rows": 211,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600022.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 20,
+      "seed": 13600023,
+      "steps": 240,
+      "decision_rows": 209,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600023.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 21,
+      "seed": 13600024,
+      "steps": 238,
+      "decision_rows": 212,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600024.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 22,
+      "seed": 13600025,
+      "steps": 240,
+      "decision_rows": 210,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600025.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 23,
+      "seed": 13600026,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600026.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 24,
+      "seed": 13600027,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600027.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 25,
+      "seed": 13600028,
+      "steps": 240,
+      "decision_rows": 210,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600028.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 26,
+      "seed": 13600029,
+      "steps": 240,
+      "decision_rows": 197,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600029.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 27,
+      "seed": 13600030,
+      "steps": 240,
+      "decision_rows": 201,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600030.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 28,
+      "seed": 13600031,
+      "steps": 217,
+      "decision_rows": 195,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600031.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 29,
+      "seed": 13600032,
+      "steps": 240,
+      "decision_rows": 205,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600032.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 30,
+      "seed": 13600033,
+      "steps": 240,
+      "decision_rows": 197,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600033.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 31,
+      "seed": 13600034,
+      "steps": 240,
+      "decision_rows": 202,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600034.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 32,
+      "seed": 13600035,
+      "steps": 240,
+      "decision_rows": 205,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600035.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 33,
+      "seed": 13600036,
+      "steps": 240,
+      "decision_rows": 180,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600036.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 34,
+      "seed": 13600037,
+      "steps": 240,
+      "decision_rows": 187,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600037.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 35,
+      "seed": 13600038,
+      "steps": 240,
+      "decision_rows": 174,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600038.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 36,
+      "seed": 13600039,
+      "steps": 240,
+      "decision_rows": 195,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600039.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 37,
+      "seed": 13600040,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600040.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 38,
+      "seed": 13600041,
+      "steps": 240,
+      "decision_rows": 197,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600041.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 39,
+      "seed": 13600042,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600042.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 40,
+      "seed": 13600043,
+      "steps": 240,
+      "decision_rows": 225,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600043.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 41,
+      "seed": 13600044,
+      "steps": 240,
+      "decision_rows": 196,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600044.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 42,
+      "seed": 13600045,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600045.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 43,
+      "seed": 13600046,
+      "steps": 240,
+      "decision_rows": 209,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600046.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 44,
+      "seed": 13600047,
+      "steps": 106,
+      "decision_rows": 97,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600047.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 45,
+      "seed": 13600048,
+      "steps": 181,
+      "decision_rows": 130,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600048.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 46,
+      "seed": 13600049,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600049.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 47,
+      "seed": 13600050,
+      "steps": 240,
+      "decision_rows": 202,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600050.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 48,
+      "seed": 13600051,
+      "steps": 240,
+      "decision_rows": 212,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600051.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 49,
+      "seed": 13600052,
+      "steps": 240,
+      "decision_rows": 176,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600052.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 50,
+      "seed": 13600053,
+      "steps": 240,
+      "decision_rows": 200,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600053.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 51,
+      "seed": 13600054,
+      "steps": 240,
+      "decision_rows": 203,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600054.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 52,
+      "seed": 13600055,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600055.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 53,
+      "seed": 13600056,
+      "steps": 114,
+      "decision_rows": 108,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600056.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 54,
+      "seed": 13600057,
+      "steps": 240,
+      "decision_rows": 217,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600057.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 55,
+      "seed": 13600058,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600058.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 56,
+      "seed": 13600059,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600059.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 57,
+      "seed": 13600060,
+      "steps": 240,
+      "decision_rows": 227,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600060.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 58,
+      "seed": 13600061,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600061.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 59,
+      "seed": 13600062,
+      "steps": 240,
+      "decision_rows": 206,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600062.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 60,
+      "seed": 13600063,
+      "steps": 240,
+      "decision_rows": 179,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600063.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 61,
+      "seed": 13600064,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600064.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 62,
+      "seed": 13600065,
+      "steps": 240,
+      "decision_rows": 196,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600065.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 63,
+      "seed": 13600066,
+      "steps": 240,
+      "decision_rows": 200,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600066.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 64,
+      "seed": 13600067,
+      "steps": 240,
+      "decision_rows": 202,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600067.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 65,
+      "seed": 13600068,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600068.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 66,
+      "seed": 13600069,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600069.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 67,
+      "seed": 13600070,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600070.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 68,
+      "seed": 13600071,
+      "steps": 240,
+      "decision_rows": 194,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600071.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 69,
+      "seed": 13600072,
+      "steps": 240,
+      "decision_rows": 211,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600072.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 70,
+      "seed": 13600073,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600073.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 71,
+      "seed": 13600074,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600074.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 72,
+      "seed": 13600075,
+      "steps": 240,
+      "decision_rows": 207,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600075.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 73,
+      "seed": 13600076,
+      "steps": 240,
+      "decision_rows": 228,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600076.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 74,
+      "seed": 13600077,
+      "steps": 87,
+      "decision_rows": 83,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600077.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 75,
+      "seed": 13600078,
+      "steps": 95,
+      "decision_rows": 87,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600078.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 76,
+      "seed": 13600079,
+      "steps": 240,
+      "decision_rows": 194,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600079.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 77,
+      "seed": 13600080,
+      "steps": 240,
+      "decision_rows": 175,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600080.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 78,
+      "seed": 13600081,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600081.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 79,
+      "seed": 13600082,
+      "steps": 240,
+      "decision_rows": 225,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600082.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 80,
+      "seed": 13600083,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600083.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 81,
+      "seed": 13600084,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600084.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 82,
+      "seed": 13600085,
+      "steps": 240,
+      "decision_rows": 219,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600085.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 83,
+      "seed": 13600086,
+      "steps": 84,
+      "decision_rows": 79,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600086.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 84,
+      "seed": 13600087,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600087.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 85,
+      "seed": 13600088,
+      "steps": 240,
+      "decision_rows": 183,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600088.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 86,
+      "seed": 13600089,
+      "steps": 240,
+      "decision_rows": 228,
+      "blue": 1,
+      "red": 1,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600089.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 87,
+      "seed": 13600090,
+      "steps": 240,
+      "decision_rows": 214,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600090.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 88,
+      "seed": 13600091,
+      "steps": 240,
+      "decision_rows": 208,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600091.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 89,
+      "seed": 13600092,
+      "steps": 240,
+      "decision_rows": 194,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600092.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 90,
+      "seed": 13600093,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600093.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 91,
+      "seed": 13600094,
+      "steps": 240,
+      "decision_rows": 212,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600094.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 92,
+      "seed": 13600095,
+      "steps": 240,
+      "decision_rows": 199,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600095.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 93,
+      "seed": 13600096,
+      "steps": 115,
+      "decision_rows": 107,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600096.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 94,
+      "seed": 13600097,
+      "steps": 240,
+      "decision_rows": 196,
+      "blue": 2,
+      "red": 1,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600097.npz"
+    },
+    {
+      "pole": "A",
+      "episode": 95,
+      "seed": 13600098,
+      "steps": 240,
+      "decision_rows": 199,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/A_13600098.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 0,
+      "seed": 13600103,
+      "steps": 100,
+      "decision_rows": 92,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600103.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 1,
+      "seed": 13600104,
+      "steps": 136,
+      "decision_rows": 130,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600104.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 2,
+      "seed": 13600105,
+      "steps": 95,
+      "decision_rows": 90,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600105.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 3,
+      "seed": 13600106,
+      "steps": 89,
+      "decision_rows": 84,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600106.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 4,
+      "seed": 13600107,
+      "steps": 240,
+      "decision_rows": 179,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600107.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 5,
+      "seed": 13600108,
+      "steps": 175,
+      "decision_rows": 163,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600108.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 6,
+      "seed": 13600109,
+      "steps": 240,
+      "decision_rows": 193,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600109.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 7,
+      "seed": 13600110,
+      "steps": 240,
+      "decision_rows": 216,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600110.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 8,
+      "seed": 13600111,
+      "steps": 107,
+      "decision_rows": 104,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600111.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 9,
+      "seed": 13600112,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600112.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 10,
+      "seed": 13600113,
+      "steps": 130,
+      "decision_rows": 121,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600113.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 11,
+      "seed": 13600114,
+      "steps": 170,
+      "decision_rows": 160,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600114.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 12,
+      "seed": 13600115,
+      "steps": 207,
+      "decision_rows": 201,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600115.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 13,
+      "seed": 13600116,
+      "steps": 240,
+      "decision_rows": 198,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600116.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 14,
+      "seed": 13600117,
+      "steps": 93,
+      "decision_rows": 87,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600117.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 15,
+      "seed": 13600118,
+      "steps": 107,
+      "decision_rows": 95,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600118.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 16,
+      "seed": 13600119,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600119.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 17,
+      "seed": 13600120,
+      "steps": 200,
+      "decision_rows": 195,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600120.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 18,
+      "seed": 13600121,
+      "steps": 240,
+      "decision_rows": 185,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600121.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 19,
+      "seed": 13600122,
+      "steps": 240,
+      "decision_rows": 228,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600122.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 20,
+      "seed": 13600123,
+      "steps": 88,
+      "decision_rows": 77,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600123.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 21,
+      "seed": 13600124,
+      "steps": 87,
+      "decision_rows": 83,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600124.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 22,
+      "seed": 13600125,
+      "steps": 240,
+      "decision_rows": 203,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600125.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 23,
+      "seed": 13600126,
+      "steps": 194,
+      "decision_rows": 189,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600126.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 24,
+      "seed": 13600127,
+      "steps": 223,
+      "decision_rows": 214,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600127.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 25,
+      "seed": 13600128,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600128.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 26,
+      "seed": 13600129,
+      "steps": 88,
+      "decision_rows": 84,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600129.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 27,
+      "seed": 13600130,
+      "steps": 240,
+      "decision_rows": 235,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600130.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 28,
+      "seed": 13600131,
+      "steps": 240,
+      "decision_rows": 190,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600131.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 29,
+      "seed": 13600132,
+      "steps": 84,
+      "decision_rows": 79,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600132.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 30,
+      "seed": 13600133,
+      "steps": 91,
+      "decision_rows": 84,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600133.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 31,
+      "seed": 13600134,
+      "steps": 91,
+      "decision_rows": 85,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600134.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 32,
+      "seed": 13600135,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600135.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 33,
+      "seed": 13600136,
+      "steps": 86,
+      "decision_rows": 71,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600136.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 34,
+      "seed": 13600137,
+      "steps": 133,
+      "decision_rows": 129,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600137.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 35,
+      "seed": 13600138,
+      "steps": 240,
+      "decision_rows": 179,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600138.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 36,
+      "seed": 13600139,
+      "steps": 240,
+      "decision_rows": 218,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600139.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 37,
+      "seed": 13600140,
+      "steps": 240,
+      "decision_rows": 191,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600140.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 38,
+      "seed": 13600141,
+      "steps": 87,
+      "decision_rows": 85,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600141.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 39,
+      "seed": 13600142,
+      "steps": 100,
+      "decision_rows": 94,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600142.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 40,
+      "seed": 13600143,
+      "steps": 191,
+      "decision_rows": 186,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600143.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 41,
+      "seed": 13600144,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600144.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 42,
+      "seed": 13600145,
+      "steps": 101,
+      "decision_rows": 93,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600145.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 43,
+      "seed": 13600146,
+      "steps": 99,
+      "decision_rows": 96,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600146.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 44,
+      "seed": 13600147,
+      "steps": 240,
+      "decision_rows": 215,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600147.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 45,
+      "seed": 13600148,
+      "steps": 89,
+      "decision_rows": 84,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600148.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 46,
+      "seed": 13600149,
+      "steps": 115,
+      "decision_rows": 105,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600149.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 47,
+      "seed": 13600150,
+      "steps": 86,
+      "decision_rows": 82,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600150.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 48,
+      "seed": 13600151,
+      "steps": 103,
+      "decision_rows": 94,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600151.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 49,
+      "seed": 13600152,
+      "steps": 240,
+      "decision_rows": 231,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600152.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 50,
+      "seed": 13600153,
+      "steps": 98,
+      "decision_rows": 90,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600153.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 51,
+      "seed": 13600154,
+      "steps": 84,
+      "decision_rows": 78,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600154.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 52,
+      "seed": 13600155,
+      "steps": 87,
+      "decision_rows": 82,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600155.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 53,
+      "seed": 13600156,
+      "steps": 90,
+      "decision_rows": 82,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600156.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 54,
+      "seed": 13600157,
+      "steps": 240,
+      "decision_rows": 157,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600157.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 55,
+      "seed": 13600158,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600158.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 56,
+      "seed": 13600159,
+      "steps": 182,
+      "decision_rows": 171,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600159.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 57,
+      "seed": 13600160,
+      "steps": 96,
+      "decision_rows": 91,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600160.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 58,
+      "seed": 13600161,
+      "steps": 162,
+      "decision_rows": 154,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600161.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 59,
+      "seed": 13600162,
+      "steps": 86,
+      "decision_rows": 83,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600162.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 60,
+      "seed": 13600163,
+      "steps": 84,
+      "decision_rows": 77,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600163.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 61,
+      "seed": 13600164,
+      "steps": 120,
+      "decision_rows": 112,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600164.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 62,
+      "seed": 13600165,
+      "steps": 89,
+      "decision_rows": 82,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600165.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 63,
+      "seed": 13600166,
+      "steps": 202,
+      "decision_rows": 199,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600166.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 64,
+      "seed": 13600167,
+      "steps": 240,
+      "decision_rows": 204,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600167.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 65,
+      "seed": 13600168,
+      "steps": 118,
+      "decision_rows": 113,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600168.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 66,
+      "seed": 13600169,
+      "steps": 86,
+      "decision_rows": 83,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600169.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 67,
+      "seed": 13600170,
+      "steps": 240,
+      "decision_rows": 196,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600170.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 68,
+      "seed": 13600171,
+      "steps": 84,
+      "decision_rows": 77,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600171.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 69,
+      "seed": 13600172,
+      "steps": 240,
+      "decision_rows": 239,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600172.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 70,
+      "seed": 13600173,
+      "steps": 240,
+      "decision_rows": 198,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600173.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 71,
+      "seed": 13600174,
+      "steps": 87,
+      "decision_rows": 80,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600174.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 72,
+      "seed": 13600175,
+      "steps": 86,
+      "decision_rows": 81,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600175.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 73,
+      "seed": 13600176,
+      "steps": 88,
+      "decision_rows": 83,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600176.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 74,
+      "seed": 13600177,
+      "steps": 113,
+      "decision_rows": 106,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600177.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 75,
+      "seed": 13600178,
+      "steps": 83,
+      "decision_rows": 77,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600178.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 76,
+      "seed": 13600179,
+      "steps": 240,
+      "decision_rows": 235,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600179.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 77,
+      "seed": 13600180,
+      "steps": 240,
+      "decision_rows": 194,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600180.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 78,
+      "seed": 13600181,
+      "steps": 107,
+      "decision_rows": 100,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600181.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 79,
+      "seed": 13600182,
+      "steps": 240,
+      "decision_rows": 234,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600182.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 80,
+      "seed": 13600183,
+      "steps": 240,
+      "decision_rows": 233,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600183.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 81,
+      "seed": 13600184,
+      "steps": 156,
+      "decision_rows": 150,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600184.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 82,
+      "seed": 13600185,
+      "steps": 240,
+      "decision_rows": 234,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600185.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 83,
+      "seed": 13600186,
+      "steps": 240,
+      "decision_rows": 233,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600186.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 84,
+      "seed": 13600187,
+      "steps": 120,
+      "decision_rows": 111,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600187.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 85,
+      "seed": 13600188,
+      "steps": 240,
+      "decision_rows": 234,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600188.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 86,
+      "seed": 13600189,
+      "steps": 137,
+      "decision_rows": 131,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600189.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 87,
+      "seed": 13600190,
+      "steps": 112,
+      "decision_rows": 104,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600190.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 88,
+      "seed": 13600191,
+      "steps": 240,
+      "decision_rows": 233,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600191.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 89,
+      "seed": 13600192,
+      "steps": 240,
+      "decision_rows": 189,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600192.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 90,
+      "seed": 13600193,
+      "steps": 104,
+      "decision_rows": 98,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600193.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 91,
+      "seed": 13600194,
+      "steps": 240,
+      "decision_rows": 198,
+      "blue": 2,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600194.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 92,
+      "seed": 13600195,
+      "steps": 98,
+      "decision_rows": 90,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600195.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 93,
+      "seed": 13600196,
+      "steps": 240,
+      "decision_rows": 186,
+      "blue": 0,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600196.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 94,
+      "seed": 13600197,
+      "steps": 90,
+      "decision_rows": 78,
+      "blue": 3,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600197.npz"
+    },
+    {
+      "pole": "B",
+      "episode": 95,
+      "seed": 13600198,
+      "steps": 240,
+      "decision_rows": 234,
+      "blue": 1,
+      "red": 0,
+      "file": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/B_13600198.npz"
+    }
+  ]
+}

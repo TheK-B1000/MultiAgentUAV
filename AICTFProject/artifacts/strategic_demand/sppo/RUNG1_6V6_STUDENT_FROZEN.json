@@ -1,0 +1,57 @@
+{
+  "record_id": "RUNG1_6V6_STUDENT_FROZEN",
+  "status": "FROZEN_STUDENT",
+  "utc": "2026-09-10T16:57:12Z",
+  "rung": 1,
+  "team_size": 6,
+  "implements": "RUNG1_CONSTRUCTION_6V6_AMENDMENT.json",
+  "architecture": "shared ['actor_cnn']; everything else private per z",
+  "TERMINAL_CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/sharing_ladder_6v6/rung1/ckpts/final_rung1_6v6.pt",
+    "sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
+    "bytes": 27823653,
+    "format": "sharing_ladder_rung1_v1"
+  },
+  "sharing_arithmetic": {
+    "n_unique": 3612784,
+    "n_shared": 3334400,
+    "n_branch_total": 3473592,
+    "expected_unique": 3612784,
+    "ok": true,
+    "shared_modules": [
+      "actor_cnn"
+    ]
+  },
+  "modules_shared_after_training": true,
+  "training": {
+    "epochs": 20,
+    "batch": 256,
+    "lr": 0.0003,
+    "clip": 1.0,
+    "seeds": [
+      13621001,
+      13621002
+    ],
+    "updates_per_epoch": 97,
+    "optimized": "shared modules + both private stacks; critics excluded"
+  },
+  "final_holdout": {
+    "epoch": 20,
+    "train_kl_A": 0.021267898582382917,
+    "train_kl_B": 0.03400631440976232,
+    "holdout_agree_z0_vs_piA": 0.9629380966910869,
+    "holdout_agree_z1_vs_piB": 0.9608576152681255,
+    "holdout_teacher_argmax_disagreement": 0.7019368143025732,
+    "holdout_kl_A": 0.05420075682295033,
+    "holdout_kl_B": 0.09400722752393516,
+    "holdout_student_z0_z1_jsd": 0.47759700160571905,
+    "holdout_teacher_A_B_jsd": 0.4838482085211186
+  },
+  "fit_check": {
+    "min_agreement": 0.5,
+    "passed": true
+  },
+  "roundtrip_max_abs_logit_diff": 0.0,
+  "fidelity_band": "NONE -- not inherited from the 2v2 ladder, per RUNG1_CONSTRUCTION_6V6_AMENDMENT.json",
+  "NEXT": "sealed crossover eval on a fresh block via eval_rung1_crossover_scaled.py"
+}

@@ -1,0 +1,21 @@
+{
+  "record_id": "RUNG1_6V6_CROSSOVER_TQDM_RESTART",
+  "status": "RESTARTED_BEFORE_RESULT",
+  "utc": "2026-09-11T18:44:00Z",
+  "authority": "PI: restart 6v6 sealed crossover with stderr/stdout log capture so tqdm ETA is visible",
+  "prior_launch": {
+    "worker_pid": 42312,
+    "venv_wrapper_pid": 34708,
+    "bash_parent_pid": 4856,
+    "started_local": "2026-09-11 14:33:08",
+    "elapsed_before_kill_approx_min": 11,
+    "RESULT_ROWS_INTEGRITY_written": false,
+    "seed_block": [13640001, 13640128],
+    "note": "Prior launch had tqdm in code but no file redirect; progress not watchable from another terminal"
+  },
+  "reading": "Same one-shot arm (RUNG1_6V6, seeds 13640001..128). No sealed artifacts existed. Restart adds log redirects only — not a new scientific condition.",
+  "watch": {
+    "stdout": "artifacts/strategic_demand/sppo/rung1_6v6_crossover.log",
+    "stderr_tqdm": "artifacts/strategic_demand/sppo/rung1_6v6_crossover.log.err"
+  }
+}

@@ -1,0 +1,783 @@
+{
+  "record": "Consolidated sealed Results data, 2v2 + 6v6",
+  "generated_by": "paper/figures/harvest_results_data.py (re-run to refresh)",
+  "rule": "Every value is read from a sealed artifact. PENDING means not yet sealed and MUST NOT be estimated.",
+  "criterion": {
+    "delta_A": "V(z0,A) - V(z1,A)",
+    "delta_B": "V(z1,B) - V(z0,B)",
+    "gate": "PASS iff both means > 0 AND both LCB95 > 0",
+    "bootstrap": {
+      "procedure": "paired percentile over seeds",
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "unit": "seed"
+    },
+    "applied_identically_at": [
+      "2v2",
+      "6v6"
+    ]
+  },
+  "compression_invariance": {
+    "why": "the actor is per-agent weight-shared; team size changes the observation batch dimension, not any parameter shape",
+    "n_branch_each": 3473592,
+    "two_independent_experts": 6947184,
+    "shared_encoder_unique": 3612784,
+    "shared_module_params": 3334400,
+    "private_per_branch": 139192,
+    "reduction_vs_two_experts": 0.48,
+    "shared_fraction_of_one_branch": 0.9599,
+    "identical_at_2v2_and_6v6": true,
+    "2v2_sharing_arithmetic": {
+      "n_unique": 3612784,
+      "n_cnn": 3334400,
+      "n_branch_total": 3473592,
+      "expected_unique": 3612784,
+      "ok": true
+    },
+    "6v6_sharing_arithmetic": {
+      "n_unique": 3612784,
+      "n_shared": 3334400,
+      "n_branch_total": 3473592,
+      "expected_unique": 3612784,
+      "ok": true,
+      "shared_modules": [
+        "actor_cnn"
+      ]
+    }
+  },
+  "2v2": {
+    "demand": {
+      "artifact": "V3_STRATEGIC_DEMAND_VALIDATED.json",
+      "verdict": "V3_STRATEGIC_DEMAND_VALIDATED",
+      "seeds": "6000001..6000192, 192 paired seeds, 768 episodes, no extension used",
+      "n": 192,
+      "payoff_A": {
+        "delta": 0.29688,
+        "lcb95": 0.20313,
+        "ucb95": 0.39063,
+        "guard_wr": 0.64063,
+        "breach_wr": 0.34375,
+        "passes": true
+      },
+      "payoff_B": {
+        "delta": 0.45313,
+        "lcb95": 0.38542,
+        "ucb95": 0.52604,
+        "guard_wr": 0.00521,
+        "breach_wr": 0.45833,
+        "passes": true
+      },
+      "concealment_A": {
+        "p_C": 0.94271,
+        "lcb95": 0.90625
+      },
+      "concealment_B": {
+        "p_C": 0.91667,
+        "lcb95": 0.875
+      }
+    },
+    "generalist_pi_G": {
+      "artifact": "PI_G_EVAL_RESULT.json",
+      "seeds": {
+        "block": [
+          11704001,
+          11704064
+        ],
+        "n": 64,
+        "reused_from": "RSCFT sealed EVAL block"
+      },
+      "V_pi_G_A": {
+        "mean": 0.375,
+        "lcb95": 0.26523437500000036,
+        "ucb95": 0.5
+      },
+      "V_pi_G_B": {
+        "mean": 0.5,
+        "lcb95": 0.375,
+        "ucb95": 0.625
+      },
+      "total_episodes": 128
+    },
+    "independent_experts": {
+      "artifact": "SPECIALIST_BASELINE_EVAL_RESULT.json",
+      "seeds": {
+        "block": [
+          11805001,
+          11805064
+        ],
+        "n": 64,
+        "shared_across_policies": true
+      },
+      "delta_A": {
+        "mean": 0.1719,
+        "lcb95": 0.0156,
+        "ucb95": 0.3281
+      },
+      "delta_B": {
+        "mean": 0.2969,
+        "lcb95": 0.125,
+        "ucb95": 0.4688
+      },
+      "passes": true,
+      "total_episodes": 256
+    },
+    "sharing_ladder": {
+      "Share-0": {
+        "artifact": "RUNG0_LADDER_REFERENCE.json",
+        "cell_win_rates": {
+          "z0_poleA": 0.71875,
+          "z1_poleA": 0.4296875,
+          "z0_poleB": 0.3515625,
+          "z1_poleB": 0.609375
+        },
+        "delta_A": {
+          "mean": 0.2891,
+          "lcb95": 0.1641,
+          "ucb95": 0.4062
+        },
+        "delta_B": {
+          "mean": 0.2578,
+          "lcb95": 0.1406,
+          "ucb95": 0.375
+        },
+        "passes": null,
+        "role": "bit-exact expert-dispatch reference (zero tied modules)",
+        "params": {
+          "n_unique": 6947184,
+          "params_M": 6.947,
+          "reduction_vs_share0": 0.0
+        }
+      },
+      "Share-Encoder": {
+        "artifact": "RUNG1_LADDER_EVAL_RESULT.json",
+        "matched_seeds": {
+          "n_per_cell": 128,
+          "first": 11960001,
+          "last": 11970064
+        },
+        "cell_win_rates": {
+          "z0_poleA": 0.703125,
+          "z1_poleA": 0.4375,
+          "z0_poleB": 0.4375,
+          "z1_poleB": 0.6015625
+        },
+        "delta_A": {
+          "mean": 0.2656,
+          "lcb95": 0.1484,
+          "ucb95": 0.3828
+        },
+        "delta_B": {
+          "mean": 0.1641,
+          "lcb95": 0.0469,
+          "ucb95": 0.2812
+        },
+        "passes": true,
+        "paired_vs_share0": {
+          "D_A": {
+            "mean": -0.0234,
+            "lcb95": -0.1562,
+            "ucb95": 0.1016
+          },
+          "D_B": {
+            "mean": -0.0938,
+            "lcb95": -0.2109,
+            "ucb95": 0.0234
+          },
+          "classification": {
+            "A": "NO_DETECTABLE_WITHIN_SEED_LOSS",
+            "B": "NO_DETECTABLE_WITHIN_SEED_LOSS"
+          }
+        },
+        "total_episodes": 512,
+        "params": {
+          "n_unique": 3612784,
+          "params_M": 3.613,
+          "reduction_vs_share0": 0.48
+        },
+        "fidelity": {
+          "epoch": 20,
+          "train_kl_A": 0.008363235140872052,
+          "train_kl_B": 0.0027989188575337077,
+          "holdout_agree_z0_vs_piA": 0.9673036267169882,
+          "holdout_agree_z1_vs_piB": 0.9888184816596067,
+          "holdout_teacher_argmax_disagreement": 0.2775949252589935,
+          "holdout_kl_A": 0.013337938024160693,
+          "holdout_kl_B": 0.003293411496563143,
+          "holdout_student_z0_z1_jsd": 0.17824163232864634,
+          "holdout_teacher_A_B_jsd": 0.17903920535855075
+        },
+        "sharing_arithmetic": {
+          "n_unique": 3612784,
+          "n_cnn": 3334400,
+          "n_branch_total": 3473592,
+          "expected_unique": 3612784,
+          "ok": true
+        }
+      },
+      "Share-Backbone": {
+        "artifact": "RUNG2_LADDER_EVAL_RESULT.json",
+        "matched_seeds": {
+          "n_per_cell": 128,
+          "first": 11960001,
+          "last": 11970064
+        },
+        "cell_win_rates": {
+          "z0_poleA": 0.6015625,
+          "z1_poleA": 0.453125,
+          "z0_poleB": 0.40625,
+          "z1_poleB": 0.546875
+        },
+        "delta_A": {
+          "mean": 0.1484,
+          "lcb95": 0.0234,
+          "ucb95": 0.2656
+        },
+        "delta_B": {
+          "mean": 0.1406,
+          "lcb95": 0.0156,
+          "ucb95": 0.2656
+        },
+        "passes": true,
+        "paired_vs_share0": {
+          "D_A": {
+            "mean": -0.1406,
+            "lcb95": -0.2734,
+            "ucb95": -0.0078
+          },
+          "D_B": {
+            "mean": -0.1172,
+            "lcb95": -0.2344,
+            "ucb95": 0.0
+          },
+          "classification": {
+            "A": "SHARING_DAMAGED_SPECIALIZATION",
+            "B": "NO_DETECTABLE_WITHIN_SEED_LOSS"
+          }
+        },
+        "total_episodes": 512,
+        "params": {
+          "n_unique": 3508848,
+          "params_M": 3.509,
+          "reduction_vs_share0": 0.495
+        }
+      },
+      "Share-Macro": {
+        "artifact": "RUNG3_LADDER_EVAL_RESULT.json",
+        "matched_seeds": {
+          "n_per_cell": 128,
+          "first": 11960001,
+          "last": 11970064
+        },
+        "cell_win_rates": {
+          "z0_poleA": 0.625,
+          "z1_poleA": 0.5,
+          "z0_poleB": 0.3828125,
+          "z1_poleB": 0.5390625
+        },
+        "delta_A": {
+          "mean": 0.125,
+          "lcb95": 0.0,
+          "ucb95": 0.25
+        },
+        "delta_B": {
+          "mean": 0.1562,
+          "lcb95": 0.0312,
+          "ucb95": 0.2812
+        },
+        "passes": false,
+        "paired_vs_share0": {
+          "D_A": {
+            "mean": -0.1641,
+            "lcb95": -0.3125,
+            "ucb95": -0.0156
+          },
+          "D_B": {
+            "mean": -0.1016,
+            "lcb95": -0.25,
+            "ucb95": 0.0469
+          },
+          "classification": {
+            "A": "SHARING_DAMAGED_SPECIALIZATION",
+            "B": "NO_DETECTABLE_WITHIN_SEED_LOSS"
+          }
+        },
+        "total_episodes": 512,
+        "params": {
+          "n_unique": 3507563,
+          "params_M": 3.508,
+          "reduction_vs_share0": 0.495
+        }
+      }
+    },
+    "robustness": {
+      "low": {
+        "artifact": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT.json",
+        "per_condition_crossover": {
+          "localization_noise_low": {
+            "delta_A": {
+              "mean": 0.1875,
+              "lcb95": 0.0703,
+              "ucb95": 0.3047
+            },
+            "delta_B": {
+              "mean": 0.1797,
+              "lcb95": 0.0625,
+              "ucb95": 0.2969
+            },
+            "gate": "PASS"
+          },
+          "motion_error_low": {
+            "delta_A": {
+              "mean": 0.2656,
+              "lcb95": 0.1562,
+              "ucb95": 0.375
+            },
+            "delta_B": {
+              "mean": 0.0938,
+              "lcb95": -0.0234,
+              "ucb95": 0.2031
+            },
+            "gate": "FAIL"
+          },
+          "control_delay_low": {
+            "delta_A": {
+              "mean": 0.1094,
+              "lcb95": -0.0078,
+              "ucb95": 0.2266
+            },
+            "delta_B": {
+              "mean": 0.1641,
+              "lcb95": 0.0469,
+              "ucb95": 0.2812
+            },
+            "gate": "FAIL"
+          }
+        },
+        "paired_degradation_vs_nominal": {
+          "localization_noise_low": {
+            "R_A": {
+              "mean": 0.0078,
+              "lcb95": -0.0625,
+              "ucb95": 0.0781
+            },
+            "R_B": {
+              "mean": 0.0234,
+              "lcb95": -0.0547,
+              "ucb95": 0.1016
+            }
+          },
+          "motion_error_low": {
+            "R_A": {
+              "mean": 0.0859,
+              "lcb95": -0.0781,
+              "ucb95": 0.25
+            },
+            "R_B": {
+              "mean": -0.0625,
+              "lcb95": -0.2109,
+              "ucb95": 0.0859
+            }
+          },
+          "control_delay_low": {
+            "R_A": {
+              "mean": -0.0703,
+              "lcb95": -0.2109,
+              "ucb95": 0.0703
+            },
+            "R_B": {
+              "mean": 0.0078,
+              "lcb95": -0.1328,
+              "ucb95": 0.1562
+            }
+          }
+        },
+        "reading": "The low-tier extension resolves the ambiguity raised about whether the medium/high localization and motion-error levels were too mild to reveal real degradation: they were not. Localization noise remains fully robust (gate PASS) at all three tested severities, 0.03 through 0.12, with no evidence of a real crossover boundary anywhere in the tested range. Motion error fails the joint gate at all three severities via Pole B, but this failure does not grow with dose and is never itself statistically confirmed as degradation (every R_B interval straddles zero) -- the honest characterization is a persistently fragile Pole-B margin under any motion perturbation, not a dose-dependent breakdown. Control delay is the one family showing a genuinely monotonic, dose-consistent pattern, concentrated entirely in Pole A, with the medium-tier point (2 ticks) sitting exactly at the statistical boundary (R_A UCB95 = 0.0000) -- suggestive of a real, still-emerging effect that the declined high-tier (4-tick) point would have been positioned to confirm or rule out, had it been authorized."
+      },
+      "medium": {
+        "artifact": "ROBUSTNESS_2V2_RUNG1_RESULT.json",
+        "per_condition_crossover": {
+          "nominal": {
+            "delta_A": {
+              "mean": 0.1797,
+              "lcb95": 0.0547,
+              "ucb95": 0.3047
+            },
+            "delta_B": {
+              "mean": 0.1562,
+              "lcb95": 0.0312,
+              "ucb95": 0.2812
+            },
+            "gate": "PASS"
+          },
+          "localization_noise_medium": {
+            "delta_A": {
+              "mean": 0.1797,
+              "lcb95": 0.0547,
+              "ucb95": 0.2969
+            },
+            "delta_B": {
+              "mean": 0.1953,
+              "lcb95": 0.0703,
+              "ucb95": 0.3125
+            },
+            "gate": "PASS"
+          },
+          "motion_error_medium": {
+            "delta_A": {
+              "mean": 0.1094,
+              "lcb95": -0.0078,
+              "ucb95": 0.2266
+            },
+            "delta_B": {
+              "mean": 0.0156,
+              "lcb95": -0.1094,
+              "ucb95": 0.1328
+            },
+            "gate": "FAIL"
+          },
+          "control_delay_medium": {
+            "delta_A": {
+              "mean": 0.0312,
+              "lcb95": -0.0938,
+              "ucb95": 0.1562
+            },
+            "delta_B": {
+              "mean": 0.1641,
+              "lcb95": 0.0547,
+              "ucb95": 0.2812
+            },
+            "gate": "FAIL"
+          }
+        },
+        "paired_degradation_vs_nominal": {
+          "localization_noise_medium": {
+            "R_A": {
+              "mean": 0.0,
+              "lcb95": -0.0938,
+              "ucb95": 0.0938
+            },
+            "R_B": {
+              "mean": 0.0391,
+              "lcb95": -0.0547,
+              "ucb95": 0.1328
+            }
+          },
+          "motion_error_medium": {
+            "R_A": {
+              "mean": -0.0703,
+              "lcb95": -0.2344,
+              "ucb95": 0.0938
+            },
+            "R_B": {
+              "mean": -0.1406,
+              "lcb95": -0.3047,
+              "ucb95": 0.0234
+            }
+          },
+          "control_delay_medium": {
+            "R_A": {
+              "mean": -0.1484,
+              "lcb95": -0.2969,
+              "ucb95": 0.0
+            },
+            "R_B": {
+              "mean": 0.0078,
+              "lcb95": -0.1328,
+              "ucb95": 0.1562
+            }
+          }
+        },
+        "reading": {
+          "localization_noise": "crossover fully survives. Both deltas hold their sign and both LCB95 clear zero, matching nominal. R_A and R_B both center near zero -- no detectable degradation.",
+          "motion_error": "gate FAILS, driven by Pole B: delta_B's LCB95 crosses zero (was +0.0312 at nominal) and R_B is the largest-magnitude shift in the table (-0.1406). Pole A holds (delta_A remains positive, though its own LCB95 also touches -0.0078).",
+          "control_delay": "gate FAILS, driven by Pole A: delta_A's mean nearly vanishes (0.0312) and R_A's UCB95 lands at EXACTLY 0.0000 -- a boundary case, not a confirmed loss (UCB95 < 0 would be required to call it statistically detected). Pole B holds and even shows a positive point-estimate shift.",
+          "no_condition_fails_both_poles": "in every disturbance tested, at least one pole's crossover remains intact. No condition produces a simultaneous two-pole failure.",
+          "no_R_interval_clears_zero_at_95_percent": "every R_A/R_B confidence interval in the table straddles zero. The honest description for motion and delay is 'degraded but not statistically confirmed as degraded', not 'robust' and not 'broken'.",
+          "asymmetry_is_the_finding": "the two failing conditions fail through DIFFERENT poles (motion -> Pole B, delay -> Pole A), which is itself informative: no single pole is uniformly the fragile one across disturbance types."
+        }
+      },
+      "high": {
+        "artifact": "ROBUSTNESS_2V2_HIGH_TIER_RESULT.json",
+        "per_condition_crossover": {
+          "localization_noise_high": {
+            "delta_A": {
+              "mean": 0.2031,
+              "lcb95": 0.0859,
+              "ucb95": 0.3203
+            },
+            "delta_B": {
+              "mean": 0.1797,
+              "lcb95": 0.0625,
+              "ucb95": 0.2969
+            },
+            "gate": "PASS"
+          },
+          "motion_error_high": {
+            "delta_A": {
+              "mean": 0.2031,
+              "lcb95": 0.0859,
+              "ucb95": 0.3203
+            },
+            "delta_B": {
+              "mean": 0.1172,
+              "lcb95": 0.0,
+              "ucb95": 0.2344
+            },
+            "gate": "FAIL"
+          }
+        },
+        "paired_degradation_vs_nominal": {
+          "localization_noise_high": {
+            "R_A": {
+              "mean": 0.0234,
+              "lcb95": -0.0859,
+              "ucb95": 0.1328
+            },
+            "R_B": {
+              "mean": 0.0234,
+              "lcb95": -0.0938,
+              "ucb95": 0.1328
+            }
+          },
+          "motion_error_high": {
+            "R_A": {
+              "mean": 0.0234,
+              "lcb95": -0.1328,
+              "ucb95": 0.1797
+            },
+            "R_B": {
+              "mean": -0.0391,
+              "lcb95": -0.2031,
+              "ucb95": 0.125
+            }
+          }
+        },
+        "reading": "High-tier deployment robustness does not reveal a stronger degradation boundary for either tested disturbance family. Under localization noise, crossover remains statistically confirmed at high severity on both poles, and paired changes relative to nominal remain statistically indistinguishable from zero. Across medium and high localization severities, there is therefore no evidence of crossover degradation within the tested range. Under motion error, Pole A remains statistically confirmed while Pole B reaches the preregistered boundary condition with LCB95=0.000. However, the paired degradation estimates relative to nominal remain statistically indistinguishable from zero, and the severity response is non-monotonic: the high-severity result is not more degraded than the medium-severity result. Accordingly, motion error is not confirmed robust, but neither is it confirmed to degrade or break crossover within the tested severity range. No tested high-tier disturbance produces statistically confirmed degradation relative to nominal."
+      },
+      "nominal_reference": {
+        "delta_A": {
+          "mean": 0.1797,
+          "lcb95": 0.0547,
+          "ucb95": 0.3047
+        },
+        "delta_B": {
+          "mean": 0.1562,
+          "lcb95": 0.0312,
+          "ucb95": 0.2812
+        },
+        "gate": "PASS"
+      },
+      "FULL_DOSE_TABLE": {
+        "localization_noise": {
+          "nominal": {
+            "delta_A": 0.1797,
+            "delta_B": 0.1562,
+            "gate": "PASS"
+          },
+          "low_0.03": {
+            "delta_A": 0.1875,
+            "delta_B": 0.1797,
+            "gate": "PASS"
+          },
+          "medium_0.06": {
+            "delta_A": 0.1797,
+            "delta_B": 0.1953,
+            "gate": "PASS"
+          },
+          "high_0.12": {
+            "delta_A": 0.2031,
+            "delta_B": 0.1797,
+            "gate": "PASS"
+          },
+          "pattern": "PASSES at every tested severity, 0 -> 0.12. R stays near zero throughout (never confirmed degradation, never even a near-miss on the gate). This is the one family that is unambiguously robust across the full tested range."
+        },
+        "motion_error": {
+          "nominal": {
+            "delta_A": 0.1797,
+            "delta_B": 0.1562,
+            "gate": "PASS"
+          },
+          "low_0.03": {
+            "delta_A": 0.2656,
+            "delta_B": 0.0938,
+            "gate": "FAIL"
+          },
+          "medium_0.06": {
+            "delta_A": 0.1094,
+            "delta_B": 0.0156,
+            "gate": "FAIL"
+          },
+          "high_0.12": {
+            "delta_A": 0.2031,
+            "delta_B": 0.1172,
+            "gate": "FAIL"
+          },
+          "pattern": "FAILS at EVERY tested nonzero severity, always through Pole B's delta_B LCB95 crossing (or, at high, touching) zero, never through Pole A. The failure is not dose-dependent: R_B is -0.0625 (low), -0.1406 (medium), -0.0391 (high) -- non-monotonic, and no R_B interval ever clears zero, so degradation is never statistically CONFIRMED at any severity either. This directly answers the question that motivated running the low tier: mildness of the tested perturbation was NOT why the medium/high results were ambiguous -- even the mildest tested level (0.03) already reproduces the identical failure signature."
+        },
+        "control_delay": {
+          "nominal": {
+            "delta_A": 0.1797,
+            "delta_B": 0.1562,
+            "gate": "PASS"
+          },
+          "low_1tick": {
+            "delta_A": 0.1094,
+            "delta_B": 0.1641,
+            "gate": "FAIL"
+          },
+          "medium_2tick": {
+            "delta_A": 0.0312,
+            "delta_B": 0.1641,
+            "gate": "FAIL"
+          },
+          "high_4tick": "not authorized; scope remains closed per ROBUSTNESS_2V2_DOSE_RESPONSE_HIGH_TIER_AMENDMENT.json#SCOPE_DECISION",
+          "pattern": "unlike the other two families, this one shows a genuinely MONOTONIC trend, and it is isolated to Pole A: delta_A falls 0.1797 -> 0.1094 -> 0.0312 as delay increases 0 -> 1 -> 2 ticks, while delta_B stays flat and never fails (0.1562 -> 0.1641 -> 0.1641). Neither R_A interval clears zero yet (low ucb95=+0.0703, medium ucb95=0.0000 exactly), so degradation is still not statistically CONFIRMED at either tested point -- but medium already sits exactly at the boundary, and the monotone direction is consistent with a real, still-emerging dose-response concentrated entirely in Pole A. This is a materially different pattern from motion_error's flat, non-monotonic Pole-B failure."
+        }
+      }
+    }
+  },
+  "6v6": {
+    "demand": {
+      "artifact": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+      "verdict": "CERTIFIED",
+      "seeds": {
+        "base": 13000001,
+        "n": 64,
+        "paired": true
+      },
+      "total_episodes": 256,
+      "guard_defenders": 3,
+      "guard_defender_indices": [
+        3,
+        4,
+        5
+      ],
+      "poles": {
+        "A": {
+          "base": "OP6",
+          "overlay": {
+            "min_alive_for_defender": 6
+          },
+          "min_alive_for_defender": 6,
+          "defender_zone_frac": 0.35,
+          "threat_radius": 0.0
+        },
+        "B": {
+          "base": "OP7",
+          "overlay": {
+            "min_alive_for_defender": 6
+          },
+          "min_alive_for_defender": 6,
+          "defender_zone_frac": 0.05,
+          "threat_radius": 12.0
+        }
+      },
+      "cell_win_rates": {
+        "poleA_guard_wr": 0.75,
+        "poleA_breach_wr": 0.484375,
+        "poleB_guard_wr": 0.078125,
+        "poleB_breach_wr": 0.703125
+      },
+      "delta_guard_A": {
+        "mean": 0.2656,
+        "lcb95": 0.0938,
+        "ucb95": 0.4375
+      },
+      "delta_breach_B": {
+        "mean": 0.625,
+        "lcb95": 0.4844,
+        "ucb95": 0.75
+      }
+    },
+    "specialist_teachers": {
+      "pi_A": {
+        "seed": 7610001,
+        "pole": "A",
+        "base_opponent": "OP6",
+        "steps": 1000000
+      },
+      "pi_B": {
+        "seed": 7620001,
+        "pole": "B",
+        "base_opponent": "OP7",
+        "steps": 1000000
+      },
+      "role": "distillation teachers only; expert crossover NOT re-certified at 6v6 (scope decision)",
+      "source": "artifacts/scale_6v6_specialists/pi_{A,B}_specialist_6v6/run_manifest.json"
+    },
+    "distillation_rung1": {
+      "artifact": "RUNG1_6V6_STUDENT_FROZEN.json",
+      "architecture": "shared ['actor_cnn']; everything else private per z",
+      "terminal_checkpoint": {
+        "path": "artifacts/strategic_demand/sppo/sharing_ladder_6v6/rung1/ckpts/final_rung1_6v6.pt",
+        "sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
+        "bytes": 27823653,
+        "format": "sharing_ladder_rung1_v1"
+      },
+      "training": {
+        "epochs": 20,
+        "batch": 256,
+        "lr": 0.0003,
+        "clip": 1.0,
+        "seeds": [
+          13621001,
+          13621002
+        ],
+        "updates_per_epoch": 97,
+        "optimized": "shared modules + both private stacks; critics excluded"
+      },
+      "fidelity": {
+        "epoch": 20,
+        "train_kl_A": 0.021267898582382917,
+        "train_kl_B": 0.03400631440976232,
+        "holdout_agree_z0_vs_piA": 0.9629380966910869,
+        "holdout_agree_z1_vs_piB": 0.9608576152681255,
+        "holdout_teacher_argmax_disagreement": 0.7019368143025732,
+        "holdout_kl_A": 0.05420075682295033,
+        "holdout_kl_B": 0.09400722752393516,
+        "holdout_student_z0_z1_jsd": 0.47759700160571905,
+        "holdout_teacher_A_B_jsd": 0.4838482085211186
+      },
+      "sharing_arithmetic": {
+        "n_unique": 3612784,
+        "n_shared": 3334400,
+        "n_branch_total": 3473592,
+        "expected_unique": 3612784,
+        "ok": true,
+        "shared_modules": [
+          "actor_cnn"
+        ]
+      },
+      "fit_check": {
+        "min_agreement": 0.5,
+        "passed": true
+      },
+      "roundtrip_max_abs_logit_diff": 0.0
+    },
+    "distillation_preflight": {
+      "artifact": "RUNG1_6V6_PREFLIGHT.json",
+      "passed": "8/8",
+      "verdict": "PASS"
+    },
+    "crossover": {
+      "status": "PENDING",
+      "seed_block": [
+        13640001,
+        13640128
+      ],
+      "n": 128,
+      "episodes": 512,
+      "note": "eval in flight; DO NOT ESTIMATE. Re-run this harvester when the artifact lands."
+    },
+    "robustness": {
+      "status": "RESERVED_UNSPENT",
+      "seed_block": [
+        13660001,
+        13660128
+      ],
+      "n": 128,
+      "gating_rule": "runs only after the 6v6 crossover seals PASS"
+    }
+  }
+}

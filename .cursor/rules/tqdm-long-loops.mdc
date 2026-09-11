@@ -1,0 +1,19 @@
+---
+description: Long experiment/eval loops must use tqdm for ETA
+alwaysApply: true
+---
+
+# tqdm on long loops
+
+When writing or launching multi-episode / multi-seed experiment or evaluation
+scripts under `AICTFProject/experiments/`, wrap the main work loop with
+`experiments.tqdm_loop.tqdm_iter` (stderr ETA). Do not use silent nested seed
+loops.
+
+- PPO training: already has SB3-style tqdm via `enable_progress_bar=True`
+  (`rl.custom_ppo.trainer`); do not disable it for production runs.
+- Prefer one flat progress bar over nested silent loops.
+- Do not restart a one-shot sealed run just to add tqdm unless the user
+  explicitly requests a restart before RESULT artifacts exist.
+- Durable heartbeat (optional): `experiments/long_session_progress.py`.
+

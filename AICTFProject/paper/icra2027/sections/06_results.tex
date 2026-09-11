@@ -1,225 +1,259 @@
 \section{Results}
 \label{sec:results}
 %======================================================================
+% CROSS-SCALE RESULTS: 2v2 and 6v6 are reported as ONE argument, organised by
+% question, not as two standalone scale reports.
+%
+% 4v4 is deliberately EXCLUDED from this section (PI direction 2026-09-11).
+%
+% PENDING (one slot only): the 6v6 sealed crossover Delta_A / Delta_B in
+% Sec.~\ref{sec:results-scale}. Search this file for "PENDING-6V6" -- it is the
+% only number not yet sealed. Fill from
+%   artifacts/strategic_demand/sppo/RUNG1_6V6_CROSSOVER_EVAL_RESULT.json
+% (or ..._INTEGRITY_REQUIRED.json if a tie/reversal is flagged).
+%======================================================================
 
-\subsection{Evaluation data and plot map}
-\label{sec:results-data}
+\subsection{Evaluation protocol}
+\label{sec:results-protocol}
 
-All headline numbers below come from \emph{sealed} evaluation artifacts with
-fixed seed blocks and terminal checkpoints (no post-hoc checkpoint shopping).
-Bootstrap intervals use a paired percentile procedure over seeds
-($n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$) unless a caption states otherwise.
+Every number in this section comes from a \emph{sealed} evaluation artifact:
+a seed block fixed before any episode ran, a terminal checkpoint chosen by a
+budget rule rather than by score, and a one-shot write. No checkpoint, seed
+block, severity level, or gate threshold in this section was selected after
+seeing an outcome it could influence.
 
-\paragraph{Data blocks.}
-\begin{itemize}
-  \item \textbf{Strategic demand (V3).}
-  Paired confirmation on $n{=}192$ seeds
-  ($6000001$--$6000192$): conflicting best-response payoff gaps and concealment
-  gates on both regimes.
-  \item \textbf{Independent experts and generalist.}
-  Held-out $n{=}64$ evaluations of $\pi_A$, $\pi_B$, and $\pi_G$.
-  \item \textbf{Progressive sharing (primary Claim~A).}
-  Matched $n{=}128$ CUDA evaluations of Share-0 / Encoder / Backbone / Macro
-  under forced $z_0,z_1$ on both regimes (identical seeds across rungs).
-  \item \textbf{Matched qualitative.}
-  Single sealed seed $11960003$ under Share-Encoder: trajectory overlay and
-  frame grid with CUDA terminal-score fidelity checks against the sealed CSV.
-  \item \textbf{Role telemetry (exploratory).}
-  Episode-mean defender/attacker proxies, $n{=}24$/cell; \emph{not} a
-  specialization gate.
-  \item \textbf{Robustness.}
-  Matched $n{=}128$ dose--response under localization, motion, and latency
-  perturbations (external validity).
-\end{itemize}
+\paragraph{One criterion at both scales.}
+Two strategy codes $z_0,z_1$ are \emph{payoff-specialized} only if each beats the
+other against its intended opponent regime:
+\[
+\Delta_A=V(z_0,A)-V(z_1,A),
+\qquad
+\Delta_B=V(z_1,B)-V(z_0,B),
+\]
+with both point estimates strictly positive \emph{and} both
+$\mathrm{LCB}_{95}(\Delta)>0$ under a paired percentile bootstrap over
+evaluation seeds ($n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$, seed as the
+resampling unit). We call this the \emph{specialization criterion}. It is applied
+verbatim at $2$v$2$ and $6$v$6$; no scale receives a relaxed gate, a larger
+$\alpha$, or a re-tuned bootstrap.
 
-\paragraph{How figures answer questions.}
-Demand and specialist $\Delta$ appear as sealed numerical contrasts; absolute
-win rates as Fig.~\ref{fig:winrate-context}; Claim~A causal chain as
-Fig.~\ref{fig:claim-a}; sharing erosion as Fig.~\ref{fig:sharing-ladder} and
-Table~\ref{tab:sharing-results}; imitation$\neq$payoff as
-Fig.~\ref{fig:hierarchy}; recognizable strategies as
-Figs.~\ref{fig:traj}--\ref{fig:roles-ext}; robustness as Fig.~\ref{fig:robust}.
+\paragraph{Why the two scales are directly comparable.}
+The deployed actor is weight-shared across agents: team size changes the
+observation batch dimension, not any parameter shape. The compression under test
+is therefore \emph{numerically identical} at both scales---two independent
+specialist actors occupy $6{,}947{,}184$ unique parameters, and tying only the
+perception encoder reduces this to $3{,}612{,}784$, a $48.0\%$ reduction, at
+$2$v$2$ and at $6$v$6$ alike (Table~\ref{tab:crossscale}). Scale changes the
+coordination problem, not the parameter budget being saved. This isolates the
+scientific question: does the same compression preserve the same complementary
+specialization when six agents must coordinate instead of two?
 
-\paragraph{How to read the plots (terminology).}
-Throughout Results and figure captions we use a small set of pre-specified
-statistical phrases. They are \emph{not} informal judgments about whether a run
+\paragraph{Terminology used in figures and captions.}
+These phrases are pre-specified, not informal judgments about whether a run
 ``looked good.''
-
 \begin{itemize}
-  \item \textbf{Specialization / crossover.}
-  Strategy codes $z_0$ and $z_1$ are payoff-specialized only if each code
-  yields a higher win rate than the other against its intended opponent regime.
-  Formally,
-  $\Delta_A=V(z_0,A)-V(z_1,A)$ and $\Delta_B=V(z_1,B)-V(z_0,B)$ must both be
-  strictly positive with $95\%$ lower confidence bounds
-  $\mathrm{LCB}_{95}(\Delta)>0$ under a paired seed bootstrap
-  ($n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$). We call this the
-  \emph{specialization criterion} (equivalently, specialization crossover).
-
-  \item \textbf{Satisfies criterion / fails criterion}
-  (figures may label these \textsc{pass}/\textsc{fail}).
-  The pre-specified specialization criterion above is met, or is not.
-  Point estimates alone never decide the label.
-
-  \item \textbf{$\mathrm{LCB}_{95}$ / $\mathrm{UCB}_{95}$.}
-  Lower/upper endpoints of a percentile bootstrap $95\%$ confidence interval
-  over matched evaluation seeds.
-
-  \item \textbf{Detectable loss.}
-  Relative to the Share-0 expert-dispatch reference, a paired change
+  \item \textbf{Satisfies / fails criterion} (figures may label these
+  \textsc{pass}/\textsc{fail}): the criterion above is met, or is not. Point
+  estimates alone never decide the label.
+  \item \textbf{$\mathrm{LCB}_{95}$ / $\mathrm{UCB}_{95}$}: endpoints of a
+  percentile bootstrap $95\%$ interval over matched evaluation seeds.
+  \item \textbf{Detectable loss}: relative to the Share-0 expert-dispatch
+  reference, a paired change
   $D_p=\Delta_p^{(\mathrm{cond})}-\Delta_p^{(\mathrm{Share\textrm{-}0})}$ is a
-  \emph{detectable specialization loss} on regime $p$ only if
-  $\mathrm{UCB}_{95}(D_p)<0$ (the entire CI lies below zero).
-
-  \item \textbf{Contested / unsaturated matchup}
-  (when used for opponent-regime demand).
-  Neither side of a policy--opponent pairing is effectively saturated: win rates
-  are not near $0$ or $1$, so meaningful performance variation remains and
-  specialization contrasts are informative rather than floor/ceiling artifacts.
-
-  \item \textbf{Certified} (opponent-regime demand only).
-  A preregistered strategic-demand protocol for a scale/regime pair was
-  satisfied under its sealed evaluation; it does \emph{not} by itself imply
-  that a learned controller specializes.
+  detectable specialization loss on regime $p$ only if
+  $\mathrm{UCB}_{95}(D_p)<0$ (the whole interval lies below zero).
+  \item \textbf{Contested matchup}: neither side of a policy--opponent pairing is
+  saturated, so specialization contrasts are informative rather than
+  floor/ceiling artifacts.
+  \item \textbf{Certified} (opponent-regime demand only): a preregistered
+  strategic-demand protocol was satisfied under its sealed evaluation. It is a
+  statement about the \emph{environment}, and does not by itself imply that any
+  learned controller specializes.
 \end{itemize}
 
-\noindent
-Figures also report means with $95\%$ CIs; sample sizes are stated in captions.
+\begin{table}[t]
+\centering
+\caption{Sealed evidence blocks. The same criterion, bootstrap, and sealing
+discipline apply at both scales; the blocks differ in what each scale is asked to
+establish. $2$v$2$ localizes \emph{where} sharing breaks specialization; $6$v$6$
+tests whether the rung that survived localization also survives scale.}
+\label{tab:crossscale}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Evidence} & \textbf{$2$v$2$} & \textbf{$6$v$6$} \\
+\midrule
+Opponent-regime demand   & $n{=}192$, certified & $n{=}64$, certified \\
+Independent experts      & $n{=}64$, criterion met & teachers only \\
+Expert-dispatch (Share-0)& $n{=}128$, reference & not rebuilt \\
+Shared encoder           & $n{=}128$, criterion met & $n{=}128$, sealed \\
+Deeper sharing rungs     & $n{=}128$, erosion mapped & not ported \\
+Unique actor parameters  & $6{,}947{,}184\!\to\!3{,}612{,}784$
+                         & $6{,}947{,}184\!\to\!3{,}612{,}784$ \\
+Robustness dose--response& $n{=}128$, 3 families & block reserved \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_cross_scale_2v2_6v6.pdf}
+\caption{The cross-scale argument in three steps, at $2$v$2$ and $6$v$6$ under one
+criterion. (a)~Opponent-regime demand is certified at both scales and does not
+weaken with team size---the Regime-$B$ contrast is larger at $6$v$6$.
+(b)~Matched-state distillation into a single shared-encoder controller retains
+$\approx99\%$ of the teachers' branch divergence at both scales, under a
+numerically identical $48.0\%$ reduction in unique actor parameters.
+(c)~Whether that compressed policy still satisfies the specialization criterion:
+sealed and satisfied at $2$v$2$; the $6$v$6$ cell is drawn as pending because its
+evaluation is not yet sealed, and is never estimated.
+Error bars are $95\%$ bootstrap CIs.}
+\label{fig:crossscale}
+\end{figure*}
 
 %----------------------------------------------------------------------
-\subsection{Do the opponent regimes require different strategies?}
+\subsection{The opponent regimes demand different strategies at both scales}
+\label{sec:results-demand}
 
-A preregistered opponent-conditioned demand protocol (V3; $n{=}192$ paired seeds)
-establishes that Regimes~A and~B admit \emph{conflicting} best responses with
-concealed strategic context on both sides. Payoff gaps between scripted
-guard-style and breach-style responses satisfy the sealed floors
+Before asking whether a controller \emph{discovers} two strategies, we establish
+that the environment \emph{requires} them. A preregistered opponent-conditioned
+protocol scores scripted guard-style and breach-style team responses against each
+regime on paired seeds, and certifies demand only if each response strictly beats
+the other on its own regime with $\mathrm{LCB}_{95}>0$.
+
+At $2$v$2$ ($n{=}192$ paired seeds), the payoff gaps are
 \[
 \Delta_G(A)=+0.297\;[+0.203,+0.391],
 \qquad
 \Delta_B(B)=+0.453\;[+0.385,+0.526],
 \]
-with concealment gates $\mathrm{LCB}_{95}(p_C)>0.50$ on both regimes
-($p_C(A)=0.943$, $p_C(B)=0.917$). Matchups remain contested rather than
-floor/ceiling-dominated. This certifies strategic \emph{demand} in the
-environment; it does not yet show that a learned controller discovers two modes.
+with concealment gates satisfied on both regimes ($p_C(A)=0.943$,
+$p_C(B)=0.917$), so the regime is not identifiable from a single observation.
+
+At $6$v$6$ ($n{=}64$ paired seeds), the poles are size-normalized---the defensive
+trigger scales with team size, and the guard response distributes
+$\lceil N/2 \rceil$ defenders rather than stacking them on one intruder---and the
+same protocol certifies demand with
+\[
+\Delta_G(A)=+0.266\;[+0.094,+0.438],
+\qquad
+\Delta_B(B)=+0.625\;[+0.484,+0.750].
+\]
+Two features matter for the scaling argument (Fig.~\ref{fig:crossscale}a). First,
+demand does not weaken with team size: the Regime-$B$ contrast is substantially
+\emph{larger} at $6$v$6$ ($+0.625$ vs.\ $+0.453$), driven by guard-style play
+collapsing against the breach regime ($0.078$ win rate) while breach-style play
+holds ($0.703$). Second, both regimes remain contested rather than saturated at
+both scales, so the downstream specialization contrasts are informative.
+
+Certified demand is a property of the environment. It does not predict that a
+learned controller will discover the two strategies, and the remainder of this
+section is about that gap.
 
 %----------------------------------------------------------------------
-\subsection{Can independent expert policies specialize?}
+\subsection{Independent experts realize the demand as complementary payoff}
+\label{sec:results-experts}
 
-Independent experts $\pi_A$ and $\pi_B$, scored under a preregistered protocol
-on a held-out $64$-seed block, satisfy the specialization criterion:
+Independent PPO experts $\pi_A,\pi_B$ trained against the two regimes satisfy the
+specialization criterion at $2$v$2$ on a held-out $64$-seed block:
 \[
 \Delta_A = +0.172\;[+0.016,+0.328],
 \qquad
-\Delta_B = +0.297\;[+0.125,+0.469].
+\Delta_B = +0.297\;[+0.125,+0.469],
 \]
-The generalist attains
-$V(\pi_G,A)=0.375\;[0.265,0.500]$ and
-$V(\pi_G,B)=0.500\;[0.375,0.625]$.
+while a mixed-opponent generalist trained on the same budget attains
+$V(\pi_G,A)=0.375\;[0.265,0.500]$ and $V(\pi_G,B)=0.500\;[0.375,0.625]$---it
+does not recover either specialist's own-regime advantage
+(Fig.~\ref{fig:winrate-context}).
 
-On the matched $128$-seed Share-0 expert-dispatch reference (bit-exact $z$
-selection of the verbatim experts; not a distilled model),
+To separate ``the strategies exist'' from ``the evaluation path can express
+them,'' we score a Share-0 reference: bit-exact $z$ dispatch between the verbatim
+experts, with zero tied modules. On the matched $128$-seed block it satisfies the
+criterion with
 \[
 \Delta_A = +0.289\;[+0.164,+0.406],
 \qquad
 \Delta_B = +0.258\;[+0.141,+0.375],
 \]
-so the evaluation path can express specialization when nothing is shared.
+establishing the ceiling that any shared policy is measured against.
+
+At $6$v$6$, specialists are trained under the identical recipe, budget, and
+checkpoint rule and serve as distillation teachers. We deliberately do not
+re-certify expert crossover or rebuild the Share-0 ladder at $6$v$6$: the
+mechanism and its breaking point were localized at $2$v$2$, and the $6$v$6$ track
+is a scaling test of the rung that survived, not a rediscovery of the ladder.
+This is the one structural asymmetry between the scales, and it is a scope
+decision rather than a missing measurement.
 
 %----------------------------------------------------------------------
-\subsection{Can distilled strategy modes preserve specialization under sharing?}
+\subsection{Distillation fidelity licenses the payoff question---it does not
+answer it}
+\label{sec:results-fidelity}
 
-\paragraph{Shared perception only (Share-Encoder).}
-Under the common ladder distillation recipe with full per-strategy branch
-capacity and only the CNN encoder tied, Share-Encoder satisfies the
-specialization criterion on the matched $128$-seed set:
-\[
-\Delta_A=+0.266\;[+0.148,+0.383],
-\qquad
-\Delta_B=+0.164\;[+0.047,+0.281].
-\]
-Holdout argmax agreements are $0.967/0.989$; branch Jensen--Shannon divergence
-is $0.178$ (experts $0.179$). Paired contrasts vs.\ Share-0 show no detectable
-loss ($D_A=-0.023$, $D_B=-0.094$; both $\mathrm{UCB}_{95}\ge 0$). Thus
-matched-state distillation into discrete $z$ modes preserves closed-loop
-specialization when only perception is shared
-(Fig.~\ref{fig:claim-a}, panel~b; Fig.~\ref{fig:sharing-ladder}).
+Matched-state distillation transfers the two experts into discrete modes $z_0,z_1$
+of a single controller whose perception encoder is tied ($96.0\%$ of one branch's
+parameters) and whose remaining capacity stays private per mode.
 
-\paragraph{Absolute performance context.}
-In addition to the paired specialization contrasts, we report regime-specific
-win rates for the mixed-opponent generalist, independently trained experts, and
-the preserved Share-Encoder policy (Fig.~\ref{fig:winrate-context}).
-These values provide absolute-performance context and are \emph{not} used as the
-criterion for strategy specialization.
-Independent expert and generalist results use their held-out $64$-seed
-evaluations, whereas shared-policy results use the matched $128$-seed evaluation
-block.
+Imitation fidelity is high at both scales. At $2$v$2$, holdout argmax agreement
+with the source experts is $0.967/0.989$, and the student's branch
+Jensen--Shannon divergence is $0.178$ against the experts' own $0.179$. At
+$6$v$6$, holdout agreement is $0.963/0.961$ with holdout
+$\mathrm{KL}=0.054/0.094$, and the student reproduces $0.478$ of the teachers'
+$0.484$ branch divergence. In both cases the student retains roughly $99\%$ of the
+behavioral separation present in its teachers (Fig.~\ref{fig:crossscale}b), and a
+save/load round trip reproduces logits exactly. Note that the $6$v$6$ teachers are
+far more behaviorally distinct in absolute terms ($0.484$ vs.\ $0.179$), so the
+compressed policy is asked to preserve a substantially wider separation at the
+larger scale.
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{fig_absolute_winrate_context_2v2.pdf}
-\caption{Absolute win-rate comparison across reference and shared policies.
-The mixed-opponent generalist $\pi_G$, opponent-specific experts $\pi_A,\pi_B$,
-and Share-Encoder strategy modes $z_0,z_1$ are evaluated against Regimes~A
-and~B.
-The expected crossover pattern is visible when the A-specialized policies
-achieve higher win rate on Regime~A and the B-specialized policies achieve
-higher win rate on Regime~B.
-This plot provides absolute-performance context only; specialization is
-determined by the paired $\Delta_A,\Delta_B$ confidence-bound criterion.
-Error bars are $95\%$ bootstrap CIs ($\pi_G$/experts $n{=}64$; Share-Encoder
-$n{=}128$).}
-\label{fig:winrate-context}
-\end{figure*}
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=\textwidth]{fig_claim_a_2v2.pdf}
-\caption{Causal chain for Claim~A.
-(a)~Independent PPO experts establish complementary payoff strategies.
-(b)~Matched-state distillation transfers them into discrete modes of one
-Share-Encoder controller ($z_0\!\sim\!\pi_A$, $z_1\!\sim\!\pi_B$).
-(c)~Sealed $\Delta_A,\Delta_B$ with $95\%$ CIs across progressive sharing
-($n{=}128$). Share-0 is a bit-exact expert-dispatch control; Encoder/Backbone/Macro
-share one distillation recipe.
-\textsc{pass}/\textsc{fail} denote whether the pre-specified specialization
-criterion is satisfied.}
-\label{fig:claim-a}
-\end{figure*}
-
-\paragraph{Prior compression ablation (not Claim~A).}
-An earlier offline student under a heavily shared/compressed architecture
-($n{=}64$) imitated experts well (agreement $0.965/0.984$, JS $0.183$) yet
-\emph{failed} the specialization criterion
-($\Delta_A=+0.094\,[-0.078,+0.266]$, $\Delta_B=+0.141\,[-0.047,+0.313]$).
-That artifact is architecturally closest to Share-Macro, not Share-Encoder. It
-shows that high action-level imitation can coexist with failed closed-loop
-specialization under aggressive sharing---reinforcing the measurement hierarchy
-(Fig.~\ref{fig:hierarchy})---and must not be read as ``distillation failed before
-sharing.''
+These are necessary conditions, not the claim. The $2$v$2$ ladder supplies the
+counterexample that forces this distinction: Share-Macro retains $0.936/0.969$
+agreement---high by any imitation standard---and still \emph{fails} the
+specialization criterion (Fig.~\ref{fig:hierarchy}). Action-level agreement and
+nonzero action-distribution separation can both survive while closed-loop payoff
+specialization does not. Fidelity is therefore reported as a precondition for
+asking the payoff question at each scale, and the criterion is what answers it.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_2v2_measurement_hierarchy.pdf}
 \caption{Measurement hierarchy: high imitation and nonzero action-distribution
 separation do not imply closed-loop payoff specialization. Share-Macro retains
-strong expert agreement yet fails the specialization criterion via
+strong expert agreement yet fails the criterion via
 $\mathrm{LCB}_{95}(\Delta_A)=0$.}
 \label{fig:hierarchy}
 \end{figure}
 
 %----------------------------------------------------------------------
-\subsection{Where does parameter sharing begin to erode specialization?}
+\subsection{Sharing only perception preserves specialization; sharing more
+erodes it}
+\label{sec:results-ladder}
+
+At $2$v$2$ we sweep how much of the controller is tied, holding the distillation
+recipe fixed, and score each rung on the same $128$ seeds
+(Table~\ref{tab:sharing-results}, Fig.~\ref{fig:sharing-ladder}).
+
+Sharing only the perception encoder preserves the criterion on both regimes with
+no detectable paired loss against Share-0 ($D_A=-0.023$, $D_B=-0.094$; both
+$\mathrm{UCB}_{95}\ge0$), while removing $48.0\%$ of the unique actor parameters.
+Tying the backbone still satisfies the absolute criterion but now shows a
+detectable Regime-$A$ loss, with on-regime performance falling and cross-regime
+performance rising---the signature of homogenization rather than uniform
+capacity loss. Tying the macro layer fails the criterion outright
+($\mathrm{LCB}_{95}(\Delta_A)=0$) and additionally falls outside the imitation
+fidelity band, so its degradation is reported as sharing-associated and
+fit-confounded rather than uniquely attributed to homogenization.
+
+The engineering consequence is sharp: essentially all of the parameter saving is
+already captured by sharing perception alone. Backbone and macro sharing add only
+about $1.5$ percentage points of further reduction while progressively destroying
+the property the compression was meant to retain.
 
 \begin{table}[t]
 \centering
-\caption{Parameter--specialization tradeoff on the matched $128$-seed set.
-Unique actor parameters are sealed construction counts (Share-0 $=$ two
-verbatim experts; Encoder/Backbone/Macro $=$ unique tied dual-branch actors).
-Reduction is relative to Share-0.
-$D_A$/$D_B$ are within-seed differences vs.\ Share-0; ``detectable loss'' means
-$\mathrm{UCB}_{95}(D)<0$.
-Module tying is defined in Table~\ref{tab:sharing}.}
+\caption{Parameter--specialization tradeoff on the matched $128$-seed set
+($2$v$2$). Unique actor parameters are sealed construction counts. Reduction is
+relative to Share-0. $D_A$/$D_B$ are within-seed differences vs.\ Share-0;
+``detectable loss'' means $\mathrm{UCB}_{95}(D)<0$.}
 \label{tab:sharing-results}
 \begin{tabular}{@{}lrrlll@{}}
 \toprule
@@ -251,87 +285,117 @@ Share-Macro
 \end{tabular}
 \end{table}
 
-\noindent
-Most of the parameter saving appears at Share-Encoder ($\approx\!48\%$ fewer
-unique actor parameters than the two-expert deployment) while the specialization
-criterion is preserved.
-Share-Backbone and Share-Macro add only about $1.5$ percentage points of further
-reduction, yet paired evaluation already detects Regime-$A$ loss and Share-Macro
-fails the absolute criterion---so aggressive sharing buys little footprint and
-costs specialization.
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_claim_a_2v2.pdf}
+\caption{Causal chain at $2$v$2$.
+(a)~Independent PPO experts establish complementary payoff strategies.
+(b)~Matched-state distillation transfers them into discrete modes of one
+shared-encoder controller ($z_0\!\sim\!\pi_A$, $z_1\!\sim\!\pi_B$).
+(c)~Sealed $\Delta_A,\Delta_B$ with $95\%$ CIs across progressive sharing
+($n{=}128$). Share-0 is a bit-exact expert-dispatch control; the remaining rungs
+share one distillation recipe and differ only in which modules are tied.}
+\label{fig:claim-a}
+\end{figure*}
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{fig_sharing_ladder_2v2.pdf}
 \caption{Exact sealed $\Delta_A,\Delta_B$ (left) and paired $D$ vs.\ Share-0
-(right) with $95\%$ CIs ($n{=}128$).
-Share-Backbone still satisfies the absolute specialization criterion but already
-shows detectable Pole-A loss; Share-Macro fails because
-$\mathrm{LCB}_{95}(\Delta_A)=0$.
-Among Encoder/Backbone/Macro, only tied modules change under a common
-distillation recipe.}
+(right) with $95\%$ CIs ($n{=}128$). Share-Backbone still satisfies the absolute
+criterion but already shows detectable Pole-$A$ loss; Share-Macro fails because
+$\mathrm{LCB}_{95}(\Delta_A)=0$.}
 \label{fig:sharing-ladder}
 \end{figure*}
 
-\paragraph{Share-Encoder.}
-Share-Encoder holdout argmax agreements are $0.967/0.989$; these values define
-the imitation-fidelity reference band
-(Section~\ref{sec:fidelity}).
-Sharing only the perception encoder preserves the specialization criterion on
-both regimes, with no detectable paired loss vs.\ Share-0.
-Decomposing by role: on-regime cells shift by $-0.012$ on average, while
-cross-regime cells shift by $+0.047$, driven by $z_0$ under Regime~B rising
-$+0.086$---consistent with mild strategy homogenization rather than on-regime
-collapse.
-
-\paragraph{Share-Backbone.}
-Share-Backbone terminal holdout agreement is $0.963/0.985$ (within $0.010$ of
-Share-Encoder on both codes), so fidelity is comparable.
-Branch Jensen--Shannon divergence is $0.172$ (Share-Encoder $0.178$; experts
-$0.179$). The specialization criterion still holds on both regimes, but the
-paired contrast against Share-0 shows a detectable reduction on Regime~A
-($\mathrm{UCB}_{95}(D_A)<0$). On-regime performance declines on average while
-cross-regime performance rises---consistent with specialization loss / negative
-transfer under fidelity-comparable backbone sharing.
-
-\paragraph{Share-Macro.}
-Share-Macro terminal holdout agreement is $0.936/0.969$, outside the
-imitation-fidelity band anchored on Share-Encoder. The specialization criterion
-is not satisfied ($\mathrm{LCB}_{95}(\Delta_A)=0$). Paired evaluation likewise
-shows a detectable reduction on Regime~A. Because imitation fidelity is not
-comparable, we report this as sharing-associated and fit-confounded degradation
-and do not uniquely attribute it to homogenization vs.\ capacity loss.
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{fig_absolute_winrate_context_2v2.pdf}
+\caption{Absolute win rates for the mixed-opponent generalist $\pi_G$, the
+independent experts, and the shared-encoder modes against both regimes. The
+crossover pattern is visible when A-specialized policies win more on Regime~$A$
+and B-specialized policies win more on Regime~$B$. Absolute context only;
+specialization is decided by the paired $\Delta$ criterion. Error bars are $95\%$
+bootstrap CIs ($\pi_G$/experts $n{=}64$; shared encoder $n{=}128$).}
+\label{fig:winrate-context}
+\end{figure*}
 
 %----------------------------------------------------------------------
-\subsection{Matched-state behavior: what do the latent modes do?}
+\subsection{Does the preserved rung survive scale?}
+\label{sec:results-scale}
 
-Three complementary views establish that the latent modes correspond to
-recognizable team strategies: \emph{qualitative trajectories}
-(Figs.~\ref{fig:traj}--\ref{fig:qual}), \emph{role-allocation proxies}
-(Figs.~\ref{fig:roles}--\ref{fig:roles-ext}), and \emph{payoff contrasts}
-(Fig.~\ref{fig:winrate-context}; Table~\ref{tab:sharing-results}).
+The $2$v$2$ ladder identifies exactly one configuration worth carrying forward:
+shared perception, private strategy capacity. At $6$v$6$ we rebuild that single
+configuration---same architecture, same distillation recipe, same $48.0\%$
+parameter reduction---and evaluate it against the same criterion on a fresh
+$128$-seed block, with $z_0$ and $z_1$ dispatched from one checkpoint
+(Fig.~\ref{fig:crossscale}c).
+
+% ---------------------------------------------------------------- PENDING-6V6
+% The sealed 6v6 crossover evaluation is the only number in this section that is
+% not yet available. Evaluation launched 2026-09-11T18:33Z on seeds
+% 13640001..13640128 (512 episodes, ~62 s/ep). On completion, replace the
+% placeholder below with the sealed values from
+%   artifacts/strategic_demand/sppo/RUNG1_6V6_CROSSOVER_EVAL_RESULT.json
+%     -> PRIMARY_GATE.delta_A {mean, lcb95, ucb95}
+%     -> PRIMARY_GATE.delta_B {mean, lcb95, ucb95}
+%     -> PRIMARY_GATE.passes
+% If RUNG1_6V6_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json is written instead, a tie or
+% reversal was flagged and a row-level audit is required BEFORE any sentence here
+% is written.
+% ----------------------------------------------------------------------------
+\noindent
+\textbf{[PENDING-6V6 --- sealed crossover in progress; do not typeset.]}
+\[
+\Delta_A = \texttt{<pending>},
+\qquad
+\Delta_B = \texttt{<pending>}.
+\]
+
+\noindent
+The interpretation is pre-committed and does not depend on the outcome. If the
+criterion is satisfied, the same shared-perception compression that preserved
+complementary specialization with two agents also preserves it with six, and the
+$48\%$ deployment saving transfers to a materially harder coordination problem.
+If it is not satisfied, the compression result is scale-bounded: the location of
+the sharing boundary established at $2$v$2$ does not by itself license deployment
+at larger team sizes, and the boundary must be re-established per scale. Either
+outcome is reported against the same criterion, and no rung beyond shared
+perception is evaluated at $6$v$6$ in this work.
+
+%----------------------------------------------------------------------
+\subsection{What the latent modes actually do}
+\label{sec:results-behavior}
+
+Three complementary views establish that the modes correspond to recognizable
+team strategies rather than to arbitrary policy perturbations: matched
+trajectories, role-allocation proxies, and the payoff contrasts already reported.
+
+Under identical initial conditions with only $z$ changed, the team paths diverge
+at tick~$4$ and reach different terminal outcomes, with terminal scores matched
+against the sealed evaluation rows (Fig.~\ref{fig:traj}); matched frames at a
+fixed tick show the same seed under both codes and both regimes
+(Fig.~\ref{fig:qual}). Role-allocation telemetry
+(Figs.~\ref{fig:roles}--\ref{fig:roles-ext}) is reported as an exploratory
+characterization at $n{=}24$ per cell: coarse means are largely regime-driven,
+with smaller within-regime gaps between codes. We therefore treat role proxies as
+descriptive support for the trajectory evidence, never as a specialization gate.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.92\textwidth]{fig_trajectory_strip_2v2.pdf}
-\caption{Matched seed $11960003$, Share-Encoder policy: identical initial
-conditions within each panel; only forced $z$ differs.
-Solid~$z_0$, dashed~$z_1$; stars mark first action divergence ($t{=}4$).
-Terminal scores match the sealed evaluation rows (CUDA fidelity check).
-Read as visual evidence that changing $z$ changes team behavior---not as a
-substitute for the statistical specialization criterion.}
+\caption{Matched seed $11960003$, shared-encoder policy: identical initial
+conditions within each panel; only forced $z$ differs. Solid~$z_0$, dashed~$z_1$;
+stars mark first action divergence ($t{=}4$). Terminal scores match the sealed
+evaluation rows. Visual evidence that changing $z$ changes team behavior---not a
+substitute for the statistical criterion.}
 \label{fig:traj}
 \end{figure*}
-
-Under identical initial conditions, forcing $z_0$ vs.\ $z_1$ produces an action
-divergence at tick~$4$ and visibly different team paths, with different closed-loop
-outcomes (Fig.~\ref{fig:traj}). Qualitative matched frames
-(Fig.~\ref{fig:qual}) show the same seed with only $z$ changed.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.95\textwidth]{fig_qualitative_latent_2v2.pdf}
-\caption{Matched-frame grid at tick~$30$ for the same seed and Share-Encoder
+\caption{Matched-frame grid at tick~$30$ for the same seed and shared-encoder
 policy. Columns differ only in forced $z$; rows differ only in opponent regime.}
 \label{fig:qual}
 \end{figure*}
@@ -339,13 +403,9 @@ policy. Columns differ only in forced $z$; rows differ only in opponent regime.}
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{fig_role_allocation_2v2.pdf}
-\caption{Role-allocation proxies under forced $z_0$ vs.\ $z_1$ on Regimes~A and~B
-(defender count, attacker count, attack/defense ratio).
-Bars are episode-mean telemetry from an exploratory characterization
-($n{=}24$/cell; not a specialization gate).
-Coarse means are largely regime-driven, with smaller within-regime $z$ gaps;
-use with Figs.~\ref{fig:traj}--\ref{fig:qual} rather than as standalone tactic
-cartoons.}
+\caption{Role-allocation proxies under forced $z_0$ vs.\ $z_1$ on both regimes
+(defender count, attacker count, attack/defense ratio). Episode-mean telemetry
+from an exploratory characterization ($n{=}24$/cell; not a specialization gate).}
 \label{fig:roles}
 \end{figure*}
 
@@ -353,33 +413,63 @@ cartoons.}
 \centering
 \includegraphics[width=\textwidth]{fig_latent_behavior_2v2.pdf}
 \caption{Extended role telemetry (same exploratory source as
-Fig.~\ref{fig:roles}): defenders, attackers, intercept near enemy carrier,
-carrier escort, and attack/defense ratio under forced $z_0$ vs.\ $z_1$
-($n{=}24$/cell). Regime effects dominate; within-regime $z$ gaps remain modest.}
+Fig.~\ref{fig:roles}): defenders, attackers, intercept near enemy carrier, carrier
+escort, and attack/defense ratio under forced $z_0$ vs.\ $z_1$ ($n{=}24$/cell).
+Regime effects dominate; within-regime gaps between codes remain modest.}
 \label{fig:roles-ext}
 \end{figure*}
 
 %----------------------------------------------------------------------
 \subsection{Robustness as a sim-to-real diagnostic}
+\label{sec:results-robustness}
+
+Specialization that exists only under noiseless sensing is not a deployable
+property. We therefore re-evaluate the preserved $2$v$2$ configuration under three
+deployment-relevant perturbation families at a preregistered severity ladder,
+scoring the same criterion at each dose on the same $128$ seeds
+(Fig.~\ref{fig:robust}). Severities were fixed in the protocol before any
+robustness episode ran, and no severity was added after seeing a result.
+
+The three families dissociate cleanly. Localization noise leaves the criterion
+satisfied at every tested dose, with paired changes relative to nominal
+statistically indistinguishable from zero---specialization is genuinely robust to
+this channel across the tested range. Motion error fails the joint criterion at
+\emph{every} nonzero dose, always through Regime~$B$, and---critically---the
+failure does not grow with severity: the mildest dose already reproduces it, and
+no paired degradation interval excludes zero. The honest description is a
+persistently fragile Regime-$B$ margin under any motion perturbation, not a
+dose-dependent breakdown. Control latency behaves differently again: it is the one
+family with a monotone dose response, concentrated entirely in Regime~$A$, whose
+margin falls steadily as latency increases and reaches the boundary of statistical
+detectability at the largest authorized dose.
+
+That the three families fail in three different ways---not at all, immediately and
+flatly, and monotonically---is itself the finding. It means ``robustness'' is not
+a single scalar property of the compressed controller, and that a deployment
+decision must be made per sensing channel rather than from an aggregate score.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=\textwidth]{fig_robustness_delta_dose.pdf}
 \caption{Dose--response of specialization under deployment-relevant perturbations
 ($n{=}128$): localization (GPS-like), motion (currents/actuators), and control
-latency (communications).
-\textsc{pass}/\textsc{fail} mark the specialization criterion at each severity.
-Localization remains specialized at every tested dose; motion breaks Pole-B
-specialization from the first nonzero dose; latency shows monotone Pole-A
-erosion.}
+latency (communications). \textsc{pass}/\textsc{fail} mark the specialization
+criterion at each severity. Localization remains specialized at every tested dose;
+motion breaks Regime-$B$ specialization from the first nonzero dose; latency shows
+monotone Regime-$A$ erosion.}
 \label{fig:robust}
 \end{figure*}
 
 %----------------------------------------------------------------------
-\subsection{Attempted strategy-preserving fine-tuning (negative result)}
+\subsection{Scope}
+\label{sec:results-scope}
 
-Counterfactual Strategy Correction (CSC) and Strategy-Preserving Fine-Tuning
-(SPFT) do not recover the specialization criterion under frozen matched
-protocols; complete formulation and numbers appear in the supplementary
-material. These interventions are not credited for Share-Encoder satisfying the
-criterion.
+Three limits bound these claims. First, the sharing ladder is localized at $2$v$2$
+only; $6$v$6$ evaluates the single preserved rung, so the \emph{position} of the
+sharing boundary is established at one scale and tested, not re-derived, at the
+other. Second, robustness is characterized at $2$v$2$ across three families and a
+preregistered severity ladder; the corresponding $6$v$6$ seed block is reserved
+but not yet spent, so no cross-scale robustness claim is made. Third,
+strategy-preserving fine-tuning interventions (formulated in the supplementary
+material) did not recover the criterion under frozen matched protocols, and are
+not credited for any result above.

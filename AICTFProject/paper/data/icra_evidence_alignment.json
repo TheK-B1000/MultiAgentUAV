@@ -89,7 +89,7 @@
 
   "WITHHOLD_UNTIL_SEALED": {
     "4v4_latent_ladder": "Only if B3 specialist crossover PASSes sealed. If FAIL, one concise boundary sentence. Do not force the latent ladder.",
-    "b3_status_note": "pi_A B3 training reached 1M steps; crossover eval not sealed as of this lock."
+    "b3_status_note": "UPDATED 2026-09-11: vanilla B3-3 crossover SEALED FAIL (CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json, delta_A=+0.047[-0.070,+0.156], delta_B=+0.016[-0.078,+0.109], independently audited). A further role-preservation intervention (targeting the diagnosed cross-regime-transfer mechanism) is confirmatory and in flight; its delta_A is already mathematically fixed negative (both its cells are complete: 0.6328-0.8281=-0.1953), so it cannot pass regardless of its remaining cell. Per this record's own rule, the boundary paragraph now added to 06_results.tex cites the two SEALED attempts (C2/B2-1 and vanilla B3-3) only; the role-preservation result will be added once its own record seals, not before."
   },
 
   "REMAINING_EFFORT_BEFORE_DEADLINE": [
