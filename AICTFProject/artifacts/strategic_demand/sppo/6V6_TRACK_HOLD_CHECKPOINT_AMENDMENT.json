@@ -1,0 +1,85 @@
+{
+  "record_id": "6V6_TRACK_HOLD_CHECKPOINT_AMENDMENT",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "EXPLORATORY_INFERENCE_ONLY",
+  "confirmatory": false,
+  "utc": "2026-09-12T08:05:00Z",
+  "amends": "6V6_TRACK_HOLD_DOSE_PILOT_V1.json#CHECKPOINT",
+
+  "AUTHORITY": "PI 2026-09-12: 'For #4, use the 6v6 Share-Encoder student under both fixed codes z0 and z1, not a specialist... Keep the frozen nested construction exactly as written... Treat binary win rate and L_K = V_full - V_K as the outcomes. This is an absolute task-performance robustness experiment only, not a specialization or latent-strategy robustness claim.'",
+
+  "WHY_THIS_AMENDMENT_IS_REQUIRED": "the parent spec lists 'running any episode in 13700001..13700020 before checkpoint path+sha256 is filled by amendment' under NOT_AUTHORIZED. The checkpoint field was 'TBD_AFTER_6V6_PRODUCTION_POLICY_EXISTS'. It now exists and is frozen, so this record fills it and nothing else.",
+
+  "PRECONDITIONS_NOW_SATISFIED": {
+    "production_6v6_checkpoint_frozen": "RUNG1_6V6_STUDENT_FROZEN.json, terminal Rung-1 student, sha256 recorded",
+    "4v4_B3_sealed_crossover_finished": "yes -- finished 2026-09-11T18:33Z (wrote an INTEGRITY_REQUIRED flag; 'finished, PASS or FAIL' is the parent spec's condition and it is met)",
+    "not_a_smoke_checkpoint": "confirmed -- smoke_scale_6v6 artifacts are NOT eligible per the parent spec and are not used here"
+  },
+
+  "CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/sharing_ladder_6v6/rung1/ckpts/final_rung1_6v6.pt",
+    "sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
+    "what_it_is": "the frozen 6v6 Share-Encoder (Rung-1) latent-conditioned controller -- shared perception encoder, private strategy capacity",
+    "why_this_and_not_a_specialist": "Share-Encoder is the controller the paper actually scaled and deployed. Evaluating a specialist would test a different object from the shared-policy contribution, and evaluating only one code would invite an unanswerable 'why that code?' question.",
+    "verified_at_runtime": "the evaluator recomputes this sha256 and refuses to run on mismatch"
+  },
+
+  "DESIGN_AS_RUN": {
+    "codes": "both fixed codes, z0 and z1, reported SEPARATELY and never collapsed into one primary number",
+    "pole_per_code": {"z0": "Pole A", "z1": "Pole B"},
+    "why_own_regime": "each code is evaluated on its intended opponent regime, giving one V(z) per code. This is the only reading consistent with the authorized episode count of 2 codes x 4 doses x 20 seeds = 160.",
+    "doses": "K = 0 (full information), 1, 2, 3 stale Red tracks",
+    "nesting": "K1 subset K2 subset K3, from ONE deterministic permutation per episode seed: rng = default_rng(seed + 900001); perm = permutation(6); K_k = perm[:k]",
+    "same_assignment_across_codes": "the identical permutation and therefore the identical held-agent sets are used for z0 and z1, so the dose-response is paired by seed AND by which Red agents are stale",
+    "episodes": 160,
+    "outcomes": {
+      "primary": "binary win",
+      "derived": "L_K(z) = V_full(z) - V_K(z)",
+      "secondary": "score margin, episode length"
+    }
+  },
+
+  "IMPLEMENTATION_AND_ITS_LEAKAGE_GUARANTEE": {
+    "single_origin": "Blue's view of Red originates only at _side_tensors('blue'), whose enemy_x/enemy_y are red_x/red_y. All derived opponent geometry (relative dx/dy, distances, grid enemy channel) is computed downstream of that dict, so substituting there satisfies the frozen leakage_rule by construction rather than by inspection.",
+    "why_not_a_blanket_patch": "_side_tensors is ALSO called by gpu_env/_core/_mines.py (2 sites) and _rules.py (1 site). Patching it globally would corrupt mine mechanics and win determination and would violate world_truth_unchanged. The substitution is therefore gated on a flag raised ONLY inside the two observation builders that consume enemy position: _build_grid_obs and _build_vec_obs.",
+    "action_mask_verified_unaffected": "_build_action_mask was read in full: it uses only own_alive, own_carrying, own_mine_charges, own_x, own_y and pickup positions -- no enemy field. Action legality is provably independent of the intervention.",
+    "world_truth_unchanged": "red_x/red_y are never written. Red's behaviour tree acts on truth throughout; only Blue's observation is filtered.",
+    "t0_rule": "the hook is installed AFTER env.reset(), capturing the true initial Red pose. Because the held values ARE the t0 values, Blue's first observation is bit-identical with or without the hook, exactly as the parent spec requires.",
+    "no_reacquisition": "permanent hold after t0 for the selected indices, per v1",
+    "forbidden_fillers_not_used": "held values are the true last-known t0 pose -- never map centre, zeros, or noise"
+  },
+
+  "INTEGRITY_SELF_TEST_BEFORE_ANY_PILOT_SEED": {
+    "runs_on": "a disposable smoke seed (99990006), not a pilot seed",
+    "asserts": [
+      "world truth advances from t0 (otherwise the test would be vacuous)",
+      "held tracks, as Blue perceives them, remain exactly at their t0 pose",
+      "unheld tracks, as Blue perceives them, follow live truth exactly",
+      "uninstalling restores fully truthful observation"
+    ],
+    "fails_closed": "any violation raises SystemExit before a pilot seed is spent"
+  },
+
+  "CLAIM_FENCE": {
+    "this_measures": "absolute task-performance robustness of the frozen 6v6 Share-Encoder controller under stale opponent localization",
+    "this_does_not_measure": "robustness of strategic specialization, latent-strategy robustness, or anything requiring Delta_A/Delta_B",
+    "reason": "the 6v6 sealed crossover (RUNG1_6V6_CROSSOVER_EVAL_RESULT.json) did NOT establish joint specialization, and the Share-0 teacher diagnostic did not either. A specialization-robustness reading would be measuring the decay of a property the nominal controller never statistically established.",
+    "must_not_be_written_as": "'6v6 specialization was robust to sensing degradation' or any variant implying the failed crossover was rescued",
+    "may_be_written_as": "'the frozen 6v6 shared-perception controller retains/loses X% absolute win rate when K Red tracks go stale'"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "the 6v6 specialization deployment-robustness sweep (block 13660001-128) -- explicitly not run",
+    "any Delta-based interpretation of these rows",
+    "reuse of 13700001-13700020 for any other purpose",
+    "collapsing z0 and z1 into a single headline number",
+    "retraining, redistillation, or checkpoint reselection of any kind",
+    "extending n beyond the frozen 20 seeds to chase significance -- this is a pilot and is labelled exploratory_inference_only"
+  ],
+
+  "OUTPUT_LABEL": "TRACK_HOLD_6V6",
+  "outputs": {
+    "result": "TRACK_HOLD_6V6_RESULT.json",
+    "rows": "track_hold_6v6_rows.csv"
+  }
+}

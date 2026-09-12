@@ -5,8 +5,8 @@ All numbers below are read directly from sealed artifacts by
 Re-run that script to refresh `data/RESULTS_DATA_2v2_6v6.json` after any new
 evaluation seals.
 
-**One item is not yet sealed: the 6v6 crossover Δ. It is marked PENDING and must
-not be estimated.**
+**6v6 Share-Encoder crossover and Share-0 teacher diagnostic are both sealed
+(FAIL). Robustness remains reserved/unspent.**
 
 ---
 
@@ -116,48 +116,49 @@ never *statistically confirmed*, so the honest reading is "fails the joint gate"
 not "broken." Full per-condition tables in `data/RESULTS_DATA_2v2_6v6.json`
 under `2v2.robustness`.
 
-## 8. 6v6 — status
+## 8. 6v6 — sealed
 
 | stage | status |
 |---|---|
 | demand | SEALED, CERTIFIED |
-| specialists (teachers) | trained, terminal ckpts frozen (seeds 7610001 / 7620001, 1M steps) |
-| Rung-1 distillation | SEALED, frozen (sha256 `0df6d067…`), preflight 8/8 |
-| **crossover (Δ_A, Δ_B)** | **PENDING** — seeds 13640001–128, 512 ep, launched 18:44Z, ETA ≈ 03:35Z |
-| robustness | RESERVED UNSPENT — seeds 13660001–128, gated on crossover PASS |
+| specialists (teachers) | frozen (seeds 7610001 / 7620001) |
+| Rung-1 distillation | SEALED (sha256 `0df6d067…`), preflight 8/8 |
+| **Share-Encoder crossover** | **SEALED FAIL** — Δ_A=+0.0312 [−0.0469,+0.1094]; Δ_B=+0.0391 [+0.0078,+0.0781] |
+| **Share-0 teacher diagnostic** | **SEALED FAIL** — Δ_A=+0.0078 [−0.0703,+0.0859]; Δ_B=+0.0078 [−0.0234,+0.0391] |
+| robustness | RESERVED UNSPENT (not authorized after FAIL) |
 
-Expert crossover is deliberately **not** re-certified at 6v6, and the Share-0 /
-Backbone / Macro rungs are **not** ported — 2v2 localizes *where* sharing breaks
-specialization; 6v6 tests only whether the surviving rung survives scale.
+Teacher cells (n=128): π_A@A=0.8438, π_A@B=0.9531, π_B@A=0.8359, π_B@B=0.9609.  
+Student cells: z0@A=0.8672, z0@B=0.9531, z1@A=0.8359, z1@B=0.9922.
 
-When the crossover seals:
+**Interpretation:** teachers were essentially flat under the sealed gate; Rung-1 A-side failure is not well attributed to compression of a strong source specialization gap. Offline fidelity remained high (~99% JSD retained).
+
 ```bash
-./.venv/Scripts/python.exe paper/figures/harvest_results_data.py   # refresh data
-./.venv/Scripts/python.exe paper/figures/build_cross_scale_2v2_6v6.py  # panel (c) auto-fills
+./.venv/Scripts/python.exe paper/figures/harvest_results_data.py
+./.venv/Scripts/python.exe paper/figures/build_cross_scale_2v2_6v6.py
+./.venv/Scripts/python.exe paper/figures/build_specialization_scaling_2v2_6v6.py
+./.venv/Scripts/python.exe paper/figures/build_6v6_payoff_share0_vs_encoder.py
+./.venv/Scripts/python.exe paper/figures/build_sharing_ladder_2v2.py
 ```
 
 ---
 
 ## 9. Plots
 
-`plots_pdf/` (vector, for the paper) and `plots_png/` (600 dpi preview).
+`plots_pdf/` (vector) and `plots_png/` (600 dpi). Draft paths also under `paper/plots/`.
 
-| figure | shows | source data |
-|---|---|---|
-| `fig_cross_scale_2v2_6v6` | **(a)** demand certified at both scales **(b)** ~99% teacher separation retained under identical 48% cut **(c)** criterion on compressed policy — 2v2 sealed, 6v6 pending | harvested + sealed artifacts |
-| `fig_method_pipeline_2v2` | how latent strategies are obtained | — |
-| `fig_claim_a_2v2` | 3-panel causal chain: experts → distilled modes → sharing erodes | ladder artifacts |
-| `fig_sharing_ladder_2v2` | exact sealed Δ (left) + paired D vs Share-0 (right) | RUNG0–3 |
-| `fig_absolute_winrate_context_2v2` | absolute WR: π_G / π_A / π_B / z0,z1 | PI_G + specialists + Rung-1 |
-| `fig_2v2_measurement_hierarchy` | high imitation ≠ payoff specialization | Share-Macro |
-| `fig_robustness_delta_dose` | dose–response across 3 perturbation families | low/med/high tiers |
-| `fig_trajectory_strip_2v2` | matched seed 11960003, z0 vs z1 paths, diverge t=4 | sealed rows |
-| `fig_qualitative_latent_2v2` | matched frame grid at t=30 | sealed rows |
-| `fig_role_allocation_2v2` | role proxies (exploratory, n=24/cell — not a gate) | telemetry |
-| `fig_latent_behavior_2v2` | extended role telemetry (exploratory) | telemetry |
-
-`fig_cross_scale_2v2_6v6` is the only figure carrying both scales; the rest are
-2v2. All are also in `paper/icra2027/figures/` for Overleaf.
+| figure | shows |
+|---|---|
+| `fig_cross_scale_2v2_6v6` | (a) demand (b) fidelity (c) compressed-policy Δ — 6v6 now FAIL |
+| `fig_specialization_scaling_2v2_6v6` | 2v2 Share-0/Encoder + 6v6 teachers/Encoder Δ |
+| `fig_6v6_payoff_share0_vs_encoder` | absolute WR: teachers vs Share-Encoder student |
+| `fig_sharing_ladder_2v2` | sealed Δ + paired D vs Share-0 |
+| `fig_method_pipeline_2v2` | how latent strategies are obtained |
+| `fig_claim_a_2v2` | experts → distilled modes → sharing erodes |
+| `fig_absolute_winrate_context_2v2` | absolute WR context (2v2) |
+| `fig_2v2_measurement_hierarchy` | high imitation ≠ payoff specialization |
+| `fig_robustness_delta_dose` | dose–response |
+| `fig_trajectory_strip_2v2` / `fig_qualitative_latent_2v2` | qualitative |
+| `fig_role_allocation_2v2` / `fig_latent_behavior_2v2` | exploratory telemetry |
 
 ## 10. Excluded
 

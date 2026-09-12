@@ -703,8 +703,41 @@
         "base_opponent": "OP7",
         "steps": 1000000
       },
-      "role": "distillation teachers only; expert crossover NOT re-certified at 6v6 (scope decision)",
+      "role": "distillation teachers; sealed Share-0 diagnostic crossover exists (not a rebuilt sharing ladder \u2014 interpretation key after Rung-1 FAIL)",
       "source": "artifacts/scale_6v6_specialists/pi_{A,B}_specialist_6v6/run_manifest.json"
+    },
+    "share0_teacher_diagnostic": {
+      "status": "SEALED",
+      "artifact": "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "rows_csv": "share0_6v6_teacher_specialist_crossover_eval_rows.csv",
+      "arm": "DIAGNOSTIC",
+      "seeds": {
+        "block": [
+          13680001,
+          13680128
+        ],
+        "n": 128,
+        "shared_across_policies": true
+      },
+      "cell_win_rates": {
+        "pi_A_poleA": 0.8438,
+        "pi_A_poleB": 0.9531,
+        "pi_B_poleA": 0.8359,
+        "pi_B_poleB": 0.9609
+      },
+      "delta_A": {
+        "mean": 0.0078,
+        "lcb95": -0.0703,
+        "ucb95": 0.0859
+      },
+      "delta_B": {
+        "mean": 0.0078,
+        "lcb95": -0.0234,
+        "ucb95": 0.0391
+      },
+      "passes": false,
+      "total_episodes": 512,
+      "reading": "Teachers essentially flat under the sealed crossover gate (both LCBs cross zero). Rung-1 A-side FAIL is not well explained as compression of a strong teacher specialization gap."
     },
     "distillation_rung1": {
       "artifact": "RUNG1_6V6_STUDENT_FROZEN.json",
@@ -761,14 +794,35 @@
       "verdict": "PASS"
     },
     "crossover": {
-      "status": "PENDING",
-      "seed_block": [
-        13640001,
-        13640128
-      ],
-      "n": 128,
-      "episodes": 512,
-      "note": "eval in flight; DO NOT ESTIMATE. Re-run this harvester when the artifact lands."
+      "status": "SEALED",
+      "artifact": "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
+      "seeds": {
+        "block": [
+          13640001,
+          13640128
+        ],
+        "n": 128,
+        "shared_across_z_and_poles": true
+      },
+      "cell_win_rates": {
+        "z0_poleA": 0.8672,
+        "z0_poleB": 0.9531,
+        "z1_poleA": 0.8359,
+        "z1_poleB": 0.9922
+      },
+      "delta_A": {
+        "mean": 0.0312,
+        "lcb95": -0.0469,
+        "ucb95": 0.1094
+      },
+      "delta_B": {
+        "mean": 0.0391,
+        "lcb95": 0.0078,
+        "ucb95": 0.0781
+      },
+      "passes": false,
+      "total_episodes": 512,
+      "reading": "Joint specialization FAIL: A soft (LCB crosses 0), B PASS. Absolute WRs remain high; offline fidelity was high (~99% JSD retained)."
     },
     "robustness": {
       "status": "RESERVED_UNSPENT",

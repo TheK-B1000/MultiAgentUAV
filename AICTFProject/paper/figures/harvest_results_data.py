@@ -217,9 +217,51 @@ if c6:
 out["6v6"]["specialist_teachers"] = {
     "pi_A": {"seed": 7610001, "pole": "A", "base_opponent": "OP6", "steps": 1000000},
     "pi_B": {"seed": 7620001, "pole": "B", "base_opponent": "OP7", "steps": 1000000},
-    "role": "distillation teachers only; expert crossover NOT re-certified at 6v6 (scope decision)",
+    "role": (
+        "distillation teachers; sealed Share-0 diagnostic crossover exists "
+        "(not a rebuilt sharing ladder — interpretation key after Rung-1 FAIL)"
+    ),
     "source": "artifacts/scale_6v6_specialists/pi_{A,B}_specialist_6v6/run_manifest.json",
 }
+
+# ======================================== 6v6 : Share-0 teacher diagnostic
+share0 = load("SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json")
+if share0:
+    pg0 = share0.get("PRIMARY_GATE", {})
+    # Absolute cells from sealed row CSV (JSON gate-only record has no cell_win_rates).
+    cells0 = {}
+    rows0 = SP / "share0_6v6_teacher_specialist_crossover_eval_rows.csv"
+    if rows0.is_file():
+        import csv as _csv
+        from collections import defaultdict as _dd
+        bucket = _dd(list)
+        with rows0.open(encoding="utf-8") as fh:
+            for r in _csv.DictReader(fh):
+                bucket[(r["policy"], r["pole"])].append(int(r["win"]))
+        for (pol, pole), wins in sorted(bucket.items()):
+            cells0[f"{pol}_pole{pole}"] = round(sum(wins) / len(wins), 4)
+    out["6v6"]["share0_teacher_diagnostic"] = {
+        "status": "SEALED",
+        "artifact": "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+        "rows_csv": "share0_6v6_teacher_specialist_crossover_eval_rows.csv",
+        "arm": share0.get("arm"),
+        "seeds": share0.get("seeds"),
+        "cell_win_rates": cells0 or None,
+        "delta_A": trip(pg0.get("delta_A")),
+        "delta_B": trip(pg0.get("delta_B")),
+        "passes": pg0.get("passes"),
+        "total_episodes": share0.get("total_episodes"),
+        "reading": (
+            "Teachers essentially flat under the sealed crossover gate "
+            "(both LCBs cross zero). Rung-1 A-side FAIL is not well explained "
+            "as compression of a strong teacher specialization gap."
+        ),
+    }
+else:
+    out["6v6"]["share0_teacher_diagnostic"] = {
+        "status": "PENDING",
+        "note": "diagnostic unlocked after Rung-1 FAIL; re-run harvest when sealed",
+    }
 
 # ====================================================== 6v6 : distillation
 if fz6:
@@ -245,15 +287,33 @@ res6 = load("RUNG1_6V6_CROSSOVER_EVAL_RESULT.json")
 flag6 = (SP / "RUNG1_6V6_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json").is_file()
 if res6:
     pg = res6.get("PRIMARY_GATE", {})
+    cells1 = res6.get("cell_win_rates")
+    if not cells1:
+        rows1 = SP / "rung1_6v6_crossover_eval_rows.csv"
+        if rows1.is_file():
+            import csv as _csv
+            from collections import defaultdict as _dd
+            bucket = _dd(list)
+            with rows1.open(encoding="utf-8") as fh:
+                for r in _csv.DictReader(fh):
+                    bucket[(r["z"], r["pole"])].append(int(r["win"]))
+            cells1 = {
+                f"z{z}_pole{pole}": round(sum(wins) / len(wins), 4)
+                for (z, pole), wins in sorted(bucket.items())
+            }
     out["6v6"]["crossover"] = {
         "status": "SEALED",
         "artifact": "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
         "seeds": res6.get("seeds"),
-        "cell_win_rates": res6.get("cell_win_rates"),
+        "cell_win_rates": cells1,
         "delta_A": trip(pg.get("delta_A")),
         "delta_B": trip(pg.get("delta_B")),
         "passes": pg.get("passes"),
         "total_episodes": res6.get("total_episodes"),
+        "reading": (
+            "Joint specialization FAIL: A soft (LCB crosses 0), B PASS. "
+            "Absolute WRs remain high; offline fidelity was high (~99% JSD retained)."
+        ),
     }
 elif flag6:
     out["6v6"]["crossover"] = {

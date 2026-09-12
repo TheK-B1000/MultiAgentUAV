@@ -42,7 +42,7 @@
     "occluded_team": "RED",
     "nested_doses": true,
     "rule": "for episode seed s, rng = default_rng(s + FIXED_OCCLUSION_OFFSET); red_order = permutation(6); K1=red_order[:1], K2=red_order[:2], K3=red_order[:3] (nested prefixes)",
-    "FIXED_OCCLUSION_OFFSET": 900_001,
+    "FIXED_OCCLUSION_OFFSET": 900001,
     "subset_selection_seeded_by_episode_seed": true
   },
 

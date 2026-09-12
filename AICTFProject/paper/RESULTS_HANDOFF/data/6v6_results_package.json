@@ -1,113 +1,81 @@
 {
   "record": "Sealed 6v6 results package for the ICRA Results section",
-  "utc": "2026-09-11",
-  "status": "PARTIAL -- crossover eval in flight; robustness block reserved and unspent",
+  "utc": "2026-09-12T07:04:26Z",
+  "status": "COMPLETE for Results narrative -- Rung-1 crossover SEALED FAIL; Share-0 teacher diagnostic SEALED FAIL; robustness RESERVED UNSPENT",
   "scale": "6v6",
-  "discipline": "Every value below is copied from a sealed artifact. The one PENDING field is marked as such and must not be filled by estimate.",
+  "discipline": "Every value below is copied from a sealed artifact.",
 
-  "why_6v6_differs_structurally_from_2v2": "2v2 localizes WHERE progressive sharing breaks specialization (Share-0/Encoder/Backbone/Macro). 6v6 rebuilds ONLY the rung that survived that localization (shared perception encoder, private strategy capacity) and asks whether it survives scale. Expert crossover re-certification and the full ladder are deliberately not rebuilt at 6v6 -- a scope decision, not a missing measurement.",
+  "why_6v6_differs_structurally_from_2v2": "2v2 localizes WHERE progressive sharing breaks specialization (Share-0/Encoder/Backbone/Macro). 6v6 rebuilds ONLY the rung that survived that localization (shared perception encoder, private strategy capacity) and asks whether it survives scale. The Share-0 teacher crossover is a post-FAIL diagnostic (not a rebuilt ladder).",
 
   "compression_invariance": {
-    "claim": "The deployed actor parameter count is IDENTICAL at 2v2 and 6v6 because the actor is per-agent weight-shared: team size changes the observation batch dimension, not any parameter shape.",
+    "claim": "The deployed actor parameter count is IDENTICAL at 2v2 and 6v6 because the actor is per-agent weight-shared.",
     "n_branch_each": 3473592,
     "two_independent_experts": 6947184,
     "shared_encoder_student_unique": 3612784,
-    "shared_module_params": 3334400,
-    "private_per_branch": 139192,
     "reduction_vs_two_experts": 0.48,
-    "shared_fraction_of_one_branch": 0.96,
-    "verified": "6v6 sharing_arithmetic (RUNG1_6V6_STUDENT_FROZEN.json) matches 2v2 sharing_params_tradeoff.json n_branch_each/n_unique exactly",
-    "shared_modules": ["actor_cnn"]
+    "identical_at_2v2_and_6v6": true
   },
 
   "strategic_demand": {
     "status": "SEALED -- CERTIFIED",
     "artifact": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
-    "variant": "guard_distributed_v2",
-    "seeds": {"base": 13000001, "n": 64, "paired": true},
-    "total_episodes": 256,
-    "size_normalization": {
-      "min_alive_for_defender": 6,
-      "guard_defenders": 3,
-      "guard_defender_indices": [3, 4, 5],
-      "note": "guard response distributes ceil(N/2) defenders rather than stacking them on one intruder"
-    },
-    "cell_win_rates": {
-      "poleA_guard_wr": 0.75,
-      "poleA_breach_wr": 0.484375,
-      "poleB_guard_wr": 0.078125,
-      "poleB_breach_wr": 0.703125
-    },
     "delta_A": {"mean": 0.265625, "lcb95": 0.09375, "ucb95": 0.4375},
     "delta_B": {"mean": 0.625, "lcb95": 0.484375, "ucb95": 0.75},
-    "verdict": "CERTIFIED",
-    "cross_scale_reading": "Demand does not weaken with team size. The Regime-B contrast is substantially LARGER at 6v6 (+0.625) than at 2v2 (+0.453), driven by guard-style play collapsing against the breach regime (0.078) while breach-style play holds (0.703)."
+    "verdict": "CERTIFIED"
   },
 
-  "specialist_teachers": {
-    "status": "SEALED -- trained, terminal checkpoints frozen",
-    "pi_A": {"seed": 7610001, "pole": "A", "base_opponent": "OP6", "total_timesteps": 1000000, "formal_run": true},
-    "pi_B": {"seed": 7620001, "pole": "B", "base_opponent": "OP7", "total_timesteps": 1000000, "formal_run": true},
-    "checkpoint_rule": "Only the terminal-budget checkpoint is scored; periodic checkpoints are diagnostics and may not be cherry-picked.",
-    "role_in_paper": "distillation teachers only -- expert crossover is NOT re-certified at 6v6"
+  "share0_teacher_diagnostic": {
+    "status": "SEALED -- FAIL",
+    "artifact": "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "rows_csv": "share0_6v6_teacher_specialist_crossover_eval_rows.csv",
+    "seeds": {"block": [13680001, 13680128], "n": 128},
+    "cell_win_rates": {
+      "pi_A_poleA": 0.8438,
+      "pi_A_poleB": 0.9531,
+      "pi_B_poleA": 0.8359,
+      "pi_B_poleB": 0.9609
+    },
+    "delta_A": {"mean": 0.0078125, "lcb95": -0.0703125, "ucb95": 0.0859375, "passes": false},
+    "delta_B": {"mean": 0.0078125, "lcb95": -0.0234375, "ucb95": 0.0390625, "passes": false},
+    "passes": false,
+    "reading": "Source teachers essentially flat under the sealed crossover gate. Rung-1 A-side FAIL is not well explained as compression of a strong teacher specialization gap."
   },
 
   "distillation_rung1": {
     "status": "SEALED -- student frozen",
-    "artifacts": ["RUNG1_6V6_STUDENT_FROZEN.json", "RUNG1_6V6_PREFLIGHT.json"],
-    "architecture": "shared ['actor_cnn']; everything else private per z",
-    "terminal_checkpoint": {
-      "path": "artifacts/strategic_demand/sppo/sharing_ladder_6v6/rung1/ckpts/final_rung1_6v6.pt",
-      "sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
-      "sha256_verified_after_transfer": true
-    },
-    "training": {"epochs": 20, "batch": 256, "lr": 0.0003, "seeds": [13621001, 13621002]},
+    "terminal_sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
     "fidelity": {
       "holdout_agree_z0_vs_piA": 0.9629380966910869,
       "holdout_agree_z1_vs_piB": 0.9608576152681255,
-      "holdout_kl_A": 0.05420075682295033,
-      "holdout_kl_B": 0.09400722752393516,
-      "holdout_student_z0_z1_jsd": 0.47759700160571905,
-      "holdout_teacher_A_B_jsd": 0.4838482085211186,
-      "teacher_separation_retained_frac": 0.9871,
-      "roundtrip_max_abs_logit_diff": 0.0
-    },
-    "preflight": {"checks_passed": "8/8", "verdict": "PASS"},
-    "cross_scale_reading": "Both scales retain ~99% of the teachers' branch divergence (2v2: 0.178 of 0.179; 6v6: 0.478 of 0.484). Note the 6v6 teachers are far more behaviorally distinct in absolute terms. Fidelity is a precondition for asking the payoff question, not an answer to it -- 2v2 Share-Macro held 0.936/0.969 agreement and still FAILED the criterion."
-  },
-
-  "crossover_eval": {
-    "status": "PENDING -- IN FLIGHT, DO NOT ESTIMATE",
-    "launched_utc": "2026-09-11T18:33:10Z",
-    "seeds": {"block": [13640001, 13640128], "n": 128},
-    "episodes": 512,
-    "observed_pace_s_per_ep": 62,
-    "eta_utc": "approximately 2026-09-12T03:20Z",
-    "gate": "PASS iff delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0",
-    "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
-    "result_artifact_on_success": "artifacts/strategic_demand/sppo/RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
-    "result_artifact_if_tie_or_reversal": "artifacts/strategic_demand/sppo/RUNG1_6V6_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
-    "delta_A": null,
-    "delta_B": null,
-    "passes": null,
-    "tex_slot": "paper/icra2027/sections/06_results.tex -- search 'PENDING-6V6' (single occurrence)",
-    "pre_committed_interpretation": {
-      "if_pass": "the shared-perception compression that preserved complementary specialization at 2v2 also preserves it at 6v6; the 48% deployment saving transfers to a materially harder coordination problem",
-      "if_fail": "the compression result is scale-bounded; the sharing boundary located at 2v2 does not by itself license deployment at larger team sizes and must be re-established per scale",
-      "note": "Interpretation was fixed before the result existed. Per the standing no-second-attempt discipline, a FAIL does not authorize retraining, reselecting architecture, or tuning the distillation schedule."
+      "teacher_separation_retained_frac": 0.9871
     }
   },
 
-  "robustness": {
-    "status": "RESERVED -- block unspent, not started",
-    "seeds": {"block": [13660001, 13660128], "n": 128},
-    "planned_cells": "4 cells (poleA/poleB x z0/z1) x families x severities",
-    "tool": "experiments/eval_deployment_robustness.py --rung 1 --team-size 6",
-    "gating_rule": "Runs only after the crossover eval seals PASS. Running robustness on an unconfirmed crossover would characterize the degradation of a property not yet shown to exist.",
-    "estimated_runtime": "2048 episodes; the longest stage in the 6v6 pipeline"
+  "crossover_eval": {
+    "status": "SEALED -- FAIL",
+    "artifact": "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
+    "rows_csv": "rung1_6v6_crossover_eval_rows.csv",
+    "seeds": {"block": [13640001, 13640128], "n": 128},
+    "cell_win_rates": {
+      "z0_poleA": 0.8672,
+      "z0_poleB": 0.9531,
+      "z1_poleA": 0.8359,
+      "z1_poleB": 0.9922
+    },
+    "delta_A": {"mean": 0.03125, "lcb95": -0.046875, "ucb95": 0.109375, "passes": false},
+    "delta_B": {"mean": 0.0390625, "lcb95": 0.0078125, "ucb95": 0.078125, "passes": true},
+    "passes": false,
+    "reading": "Joint FAIL via A (B individually PASS). High absolute WRs and high action-level fidelity; closed-loop complementary specialization not established."
   },
 
-  "not_in_this_package": {
-    "4v4": "excluded from the Results section by PI direction 2026-09-11; its sealed records remain on disk and are unaffected"
+  "robustness": {
+    "status": "RESERVED -- unspent (gated on crossover PASS; not authorized after FAIL)"
+  },
+
+  "figures": {
+    "fig_cross_scale_2v2_6v6": "demand + fidelity + compressed-policy Delta",
+    "fig_specialization_scaling_2v2_6v6": "2v2 Share-0/Encoder + 6v6 teachers/Encoder Delta",
+    "fig_6v6_payoff_share0_vs_encoder": "absolute WR teachers vs student",
+    "fig_sharing_ladder_2v2": "2v2 progressive sharing mechanism study"
   }
 }

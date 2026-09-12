@@ -59,6 +59,25 @@ CRITERION_2V2 = {"dA": (0.266, 0.148, 0.383), "dB": (0.164, 0.047, 0.281)}
 RESULT_6V6 = SD / "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json"
 FLAG_6V6 = SD / "RUNG1_6V6_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
 
+# 6v6 ZERO-SHARING reference (frozen teachers, bit-exact dispatch, no tied modules).
+# Required in panel (c): without it the panel reads as "compression killed it",
+# which the data contradicts -- the uncompressed reference fails too.
+SHARE0_6V6 = SD / "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+# 2v2 zero-sharing reference (Share-0 / Rung 0), sealed
+SHARE0_2V2 = {"dA": (0.289, 0.164, 0.406), "dB": (0.258, 0.141, 0.375)}
+
+
+def load_share0_6v6():
+    """Zero-sharing 6v6 reference. Returns (dA, dB) or (None, None)."""
+    if not SHARE0_6V6.is_file():
+        return None, None
+    g = json.loads(SHARE0_6V6.read_text(encoding="utf-8")).get("PRIMARY_GATE", {})
+    a, b = g.get("delta_A"), g.get("delta_B")
+    if not (a and b):
+        return None, None
+    return ((a["mean"], a["lcb95"], a["ucb95"]),
+            (b["mean"], b["lcb95"], b["ucb95"]))
+
 
 def load_6v6_criterion():
     """Return (dA, dB, status). Never invents a value."""
@@ -131,31 +150,51 @@ def main() -> int:
               handlelength=1.2, borderpad=0.2)
 
     # ------------------------------------------------------------------ (c) criterion
+    # Four x-positions: zero-sharing reference and compressed policy, at each scale.
+    # Showing the zero-sharing reference is NOT optional -- at 6v6 it also fails,
+    # which is what localizes the failure upstream of compression.
     ax = axes[2]
     dA6, dB6, status6 = load_6v6_criterion()
+    s0A6, s0B6 = load_share0_6v6()
 
-    _err(ax, -0.09, CRITERION_2V2["dA"], COLORS["A"], "o")
-    _err(ax, +0.09, CRITERION_2V2["dB"], COLORS["B"], "s")
-    ax.text(0, -0.115, "satisfies", ha="center", fontsize=8)
+    POS = {"2v2_share0": 0.0, "2v2_enc": 0.75, "6v6_share0": 1.85, "6v6_enc": 2.60}
+    off = 0.13
 
+    _err(ax, POS["2v2_share0"] - off, SHARE0_2V2["dA"], COLORS["A"], "o")
+    _err(ax, POS["2v2_share0"] + off, SHARE0_2V2["dB"], COLORS["B"], "s")
+    _err(ax, POS["2v2_enc"] - off, CRITERION_2V2["dA"], COLORS["A"], "o")
+    _err(ax, POS["2v2_enc"] + off, CRITERION_2V2["dB"], COLORS["B"], "s")
+
+    if s0A6 is not None:
+        _err(ax, POS["6v6_share0"] - off, s0A6, COLORS["A"], "o")
+        _err(ax, POS["6v6_share0"] + off, s0B6, COLORS["B"], "s")
     if dA6 is not None:
-        _err(ax, 1 - 0.09, dA6, COLORS["A"], "o")
-        _err(ax, 1 + 0.09, dB6, COLORS["B"], "s")
-        ax.text(1, -0.115, status6.lower(), ha="center", fontsize=8)
-    else:
-        ax.axvspan(0.55, 1.45, color="#EEEEEE", zorder=0)
-        ax.text(1, 0.16, status6, ha="center", va="center", fontsize=8,
-                style="italic", color="#444444")
-        ax.text(1, -0.115, "not yet sealed", ha="center", fontsize=8,
-                color="#444444")
+        _err(ax, POS["6v6_enc"] - off, dA6, COLORS["A"], "o")
+        _err(ax, POS["6v6_enc"] + off, dB6, COLORS["B"], "s")
 
     ax.axhline(0.0, color=COLORS["zero"], linewidth=0.8, zorder=0)
-    ax.set_xticks([0, 1])
-    ax.set_xticklabels(["2v2", "6v6"])
-    ax.set_xlim(-0.5, 1.5)
-    ax.set_ylim(-0.16, 0.45)
-    ax.set_ylabel(r"$\Delta$ on compressed policy")
-    ax.set_title("(c) does specialization\nsurvive compression?", loc="left")
+    ax.axvline(1.3, color="#BBBBBB", linewidth=0.7, linestyle=":", zorder=0)
+
+    ax.set_xticks(list(POS.values()))
+    ax.set_xticklabels(["no\nsharing", "shared\nencoder",
+                        "no\nsharing", "shared\nencoder"], fontsize=7.5)
+    ax.set_xlim(-0.45, 3.05)
+    ax.set_ylim(-0.20, 0.62)
+    ax.set_ylabel(r"$\Delta$ (specialization)")
+    ax.set_title("(c) payoff specialization:\nsources vs. compressed", loc="left")
+
+    # verdict strip + scale labels
+    for key, txt in (("2v2_share0", "pass"), ("2v2_enc", "pass"),
+                     ("6v6_share0", "fail"), ("6v6_enc", "fail")):
+        ax.text(POS[key], -0.155, txt, ha="center", fontsize=7.5,
+                color="#222222" if txt == "pass" else "#B00020")
+    ax.text(0.375, 0.425, "2v2", ha="center", fontsize=8.5)
+    ax.text(2.225, 0.425, "6v6", ha="center", fontsize=8.5)
+
+    ax.plot([], [], "o", color=COLORS["A"], label=r"$\Delta_A$")
+    ax.plot([], [], "s", color=COLORS["B"], label=r"$\Delta_B$")
+    ax.legend(frameon=False, loc="upper center", fontsize=8, ncol=2,
+              handlelength=1.0, columnspacing=0.9)
 
     for ax in axes:
         ax.spines["top"].set_visible(False)
