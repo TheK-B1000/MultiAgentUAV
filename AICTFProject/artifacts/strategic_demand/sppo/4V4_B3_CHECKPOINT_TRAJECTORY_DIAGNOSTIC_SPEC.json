@@ -1,0 +1,94 @@
+{
+  "record_id": "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "claim_scope": "exploratory_inference_only",
+  "utc": "2026-09-12T14:05:00Z",
+
+  "AUTHORITY": "PI 2026-09-12: 'Checkpoint-over-time crossover -- if intermediate checkpoints exist, test a small set of them on a cheap exploratory seed block, not to claim a result, but to answer: did specialization appear earlier and disappear later? That would tell us whether the fix is early stopping / checkpoint selection versus better training pressure.'",
+
+  "QUESTION": "Does the specialization margin of the B3-3 specialist pair exist at an earlier point in training and then collapse by the terminal checkpoint, or is it flat and near-zero throughout?",
+
+  "WHY_THIS_QUESTION_SHARPENED_TODAY": "The training-curve diagnostic showed the B3-3 vanilla pair NEVER saturated: both specialists sat in a 0.63-0.74 rolling win-rate band for the entire 1M-step budget and neither ever reached 0.80. So the C2-style explanation ('they became high-win-rate generalists too early') does NOT apply to B3-3, yet B3-3 still produced delta_A=+0.047, delta_B=+0.016 at its terminal checkpoint. Either a margin existed mid-training and was lost, or it never formed. Those imply different fixes, and only this measurement separates them.",
+
+  "POLICIES_AND_POLES": {
+    "track": "B3-3 vanilla (the certified-pole track; NOT C2, NOT role-preservation)",
+    "pi_A_dir": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts",
+    "pi_B_dir": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts",
+    "Pole_A": "pole_A_genome(4) / OP6 + {min_alive_for_defender: 4}",
+    "Pole_B": "B3-3_lockdef10_2v1.json (SDS2_B3_LOCKDEF10_2V1) -- the certified candidate genome, NOT canonical OP7",
+    "pairing_rule": "pi_A and pi_B must ALWAYS be taken from the SAME training step. delta is only defined for a matched pair."
+  },
+
+  "CHECKPOINT_LADDER": {
+    "steps": [200000, 400000, 600000, 800000, 1000000],
+    "n_points": 5,
+    "chosen_before_any_result": true,
+    "why_sparse_and_even": "an evenly spaced ladder localises WHERE a margin would peak, which is what an early-stopping prescription needs. Choosing points after seeing a curve would be checkpoint shopping.",
+    "terminal_included": "the 1,000,000-step point is included so the trajectory has an internal anchor measured on the SAME block as every other point",
+    "terminal_is_not_the_sealed_number": "the sealed terminal result (delta_A=+0.047, delta_B=+0.016) was measured on block 16700001-128 at n=128. The terminal point measured here uses a different, smaller block and will differ. These two numbers MUST NOT be compared as though they were the same measurement; only within-ladder comparisons are meaningful."
+  },
+
+  "SEEDS": {
+    "block": [17300001, 17300024],
+    "n": 24,
+    "disposable": true,
+    "shared_across_all_checkpoints_and_cells": true,
+    "disjointness_verified": "grep for 17300001/17300024 across artifacts/**/*.json at freeze time: ZERO hits. Disjoint from the sealed B3 crossover block 16700001-128 and from every other spent block.",
+    "why_shared": "every checkpoint is scored on the identical seeds so the trajectory is paired within-seed across training steps, not confounded by different episode draws"
+  },
+
+  "DESIGN": {
+    "cells_per_checkpoint": ["pi_A@PoleA", "pi_B@PoleA", "pi_A@PoleB", "pi_B@PoleB"],
+    "episodes": "5 checkpoints x 4 cells x 24 seeds = 480",
+    "delta_A": "V(pi_A, A) - V(pi_B, A) at the same training step",
+    "delta_B": "V(pi_B, B) - V(pi_A, B) at the same training step",
+    "estimated_runtime": "~5-6 h at the observed 4v4 pace (~40 s/ep), subject to machine load"
+  },
+
+  "POWER_DISCLOSED_BEFORE_RUNNING": {
+    "resolution": "at n=24 one flipped episode moves delta by 0.042; the 95% CI half-width on a paired delta is roughly +/-0.20",
+    "can_detect": "a LARGE early margin (delta of roughly 0.25 or more) that later collapses",
+    "cannot_detect": "a modest early margin (e.g. delta ~0.10) -- it would be statistically indistinguishable from the terminal value",
+    "consequence": "a flat trajectory here is evidence AGAINST a large transient margin, NOT proof that no margin ever existed",
+    "stated_before_the_result_exists": true
+  },
+
+  "THE_CENTRAL_FENCE_CHECKPOINT_SHOPPING": {
+    "rule": "This scan is DIAGNOSTIC ONLY. It does not license promoting any intermediate checkpoint into any confirmatory result, paper claim, comparison table, or downstream distillation.",
+    "if_an_intermediate_checkpoint_looks_better": "that is a HYPOTHESIS, not a finding. Acting on it requires a NEW prospectively frozen experiment with its own fresh seed block and its own pre-declared checkpoint rule, scored once. The terminal-checkpoint rule remains in force for every existing confirmatory record.",
+    "why_this_fence_matters_here": "scanning checkpoints and keeping the best one is exactly the selection procedure this program has refused everywhere else. The sealed B3-3 FAIL stands regardless of what this scan shows.",
+    "does_not_modify": "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json remains sealed and unreinterpreted"
+  },
+
+  "PRECOMMITTED_INTERPRETATION": {
+    "large_early_margin_then_collapse": "specialization forms and is subsequently lost -> early stopping, specialization-margin checkpointing, or regularisation become plausible interventions, to be tested as a NEW frozen experiment",
+    "flat_near_zero_throughout": "no large transient margin existed -> the fix is upstream in acquisition (curriculum, warm-start, objective pressure), not checkpoint selection",
+    "margin_grows_monotonically_but_stays_small": "specialization is forming but too slowly for the budget -> longer training or stronger pressure, not early stopping",
+    "noisy_non_monotone": "no detectable trajectory at n=24 -- report as underpowered and do not read a shape into it"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "promoting any intermediate checkpoint into a confirmatory result or the paper",
+    "re-running the sealed terminal evaluation or reinterpreting it",
+    "adding checkpoints or seeds after inspecting the trajectory",
+    "using this block (17300001-024) for any other purpose",
+    "any retraining, redistillation, or architecture change",
+    "extending this scan to the C2 or role-preservation tracks without a new freeze"
+  ],
+
+  "OUTPUT_LABEL": "B3_CKPT_TRAJECTORY_4V4",
+  "outputs": {
+    "result": "B3_CKPT_TRAJECTORY_4V4_RESULT.json",
+    "rows": "b3_ckpt_trajectory_4v4_rows.csv"
+  },
+
+  "SEQUENCE": [
+    "1. Freeze this spec (done, before any episode)",
+    "2. Dry-run: verify all 10 checkpoint files exist, both poles resolve at N=4, spec frozen",
+    "3. Run 480 episodes on 17300001-024",
+    "4. Report delta_A/delta_B trajectory with CIs, per checkpoint, and branch per PRECOMMITTED_INTERPRETATION",
+    "5. Any follow-up training intervention requires its own new frozen spec"
+  ]
+}

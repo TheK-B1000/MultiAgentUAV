@@ -1,0 +1,80 @@
+{
+  "record_id": "6V6_TRACK_HOLD_SEVERE_EXTENSION_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "EXPLORATORY_INFERENCE_ONLY",
+  "confirmatory": false,
+  "claim_scope": "exploratory_inference_only",
+  "certification": false,
+  "utc": "2026-09-12T11:20:00Z",
+  "extends": "6V6_TRACK_HOLD_DOSE_PILOT_V1.json (separate seed block -- NOT a continuation of it)",
+
+  "AUTHORITY": "PI 2026-09-12, verbatim: '6v6 severe stale-track extension, exploratory. Evaluate the frozen Share-Encoder controller separately under z0 and z1 at K in {0,4,5,6}, where K Red tracks are frozen at their t=0 positions. Use a fresh, disjoint 20-seed block. For each seed, draw one deterministic Red-agent permutation and construct nested held sets K4 subset K5 subset K6, identical across both strategy codes. Re-evaluate K=0 on the same fresh seeds so all severe-dose losses L_K(z) = V_0(z) - V_K(z) are paired within the new block. Report each strategy code separately.'",
+
+  "WHY_THIS_IS_A_NEW_SEVERITY_QUESTION_NOT_SIGNIFICANCE_CHASING": "The pre-specified K<=3 pilot produced a CEILING, not a null worth resampling: z1 won 20/20 at every dose and not one of its 60 degraded episodes changed outcome. That is structural evidence the tested dose range was too weak to reach a breakdown, and it is a reason to probe the untested half of a bounded dose axis. It is explicitly NOT 'add samples until the old null becomes significant' -- no seed is added at K=1,2,3, and the pilot's result stands exactly as sealed.",
+
+  "THESE_ARE_TWO_BLOCKS_NOT_ONE_CURVE": {
+    "rule": "The K=1,2,3 pilot (seeds 13700001-13700020) and this K=4,5,6 extension (seeds 13710001-13710020) use DIFFERENT seeds. They are two separate exploratory experiments.",
+    "pilot_L_K_baseline": "paired against the pilot's own K=0 on 13700001-020",
+    "extension_L_K_baseline": "paired against THIS block's own K=0 on 13710001-020",
+    "permitted": "showing both descriptively in one table or figure, with the block boundary marked",
+    "forbidden": "drawing one smooth inferential curve through K=0..6 as though every dose used identical seeds; any paired statistic that crosses the block boundary",
+    "a_matched_full_axis_experiment_would_cost": "2 codes x 7 doses x 20 seeds = 280 fresh episodes; deliberately NOT spent"
+  },
+
+  "CHECKPOINT": {
+    "path": "artifacts/strategic_demand/sppo/sharing_ladder_6v6/rung1/ckpts/final_rung1_6v6.pt",
+    "sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
+    "what_it_is": "the frozen 6v6 Share-Encoder (Rung-1) latent-conditioned controller -- identical to the pilot's checkpoint, unmodified",
+    "verified_at_runtime": "the evaluator recomputes this sha256 and refuses to run on mismatch"
+  },
+
+  "SEED_BLOCK": {
+    "eval_seeds": [13710001, 13710002, 13710003, 13710004, 13710005, 13710006, 13710007, 13710008, 13710009, 13710010, 13710011, 13710012, 13710013, 13710014, 13710015, 13710016, 13710017, 13710018, 13710019, 13710020],
+    "n": 20,
+    "disjointness_verified": "grep for 13710001/13710020 across artifacts/**/*.json at freeze time: ZERO hits. Disjoint from the pilot block 13700001-020 and from every 6v6 block (7610001/7620001, 13000001-064, 13600003-098, 13600103-198, 13621001-002, 13640001-128, 13660001-128, 13680001-128).",
+    "chosen_before_any_result": true
+  },
+
+  "DESIGN": {
+    "codes": "z0 and z1, reported SEPARATELY, never collapsed",
+    "pole_per_code": {"z0": "Pole A", "z1": "Pole B"},
+    "doses": [0, 4, 5, 6],
+    "K_meaning": "K Red tracks frozen at their true t=0 position for the remainder of the episode; K=6 means Blue's entire picture of Red is stale",
+    "nesting": "K4 subset K5 subset K6, from ONE deterministic permutation per seed: rng = default_rng(seed + 900001); perm = permutation(6); K_k = perm[:k]",
+    "same_assignment_across_codes": true,
+    "K0_rerun_on_this_block": "REQUIRED -- L_K must be paired within this block",
+    "episodes": 160,
+    "outcomes": {"primary": "binary win", "derived": "L_K(z) = V_0(z) - V_K(z)",
+                 "secondary": "score margin, episode length"}
+  },
+
+  "POWER_DISCLOSED_BEFORE_RUNNING": "n=20 detects only gross breakdowns. A drop from 1.00 to ~0.70 would show clearly; 1.00 to 0.90 would not reliably. This experiment can locate WHERE performance breaks, not precisely HOW MUCH it degrades. Stated here, before the result exists, so the limitation cannot later be presented as a discovery.",
+
+  "PRECOMMITTED_INTERPRETATION": {
+    "strong_drop_at_K456": "severe stale-track corruption exposes absolute task-performance sensitivity in the frozen 6v6 Share-Encoder controller",
+    "noisy_or_non_monotone": "no detectable severity-ordered effect at n=20",
+    "z1_still_20_of_20_at_K6": "no gross breakdown was observed under complete stale-opponent tracking on this exploratory block -- explicitly NOT 'the controller is robust'",
+    "afterward": "no significance chasing, no added seeds, no intermediate severity values"
+  },
+
+  "CLAIM_FENCE": {
+    "measures": "absolute task-performance sensitivity of the frozen 6v6 Share-Encoder controller to stale opponent localization",
+    "does_not_measure": "specialization robustness, latent-strategy robustness, or anything requiring Delta_A/Delta_B",
+    "reason": "the 6v6 sealed crossover did not establish joint specialization, and the Share-0 teacher diagnostic did not either",
+    "does_not_modify": "the nominal 6v6 specialization verdict (RUNG1_6V6_CROSSOVER_EVAL_RESULT.json) stands exactly as sealed",
+    "not_used_for": ["architecture selection", "checkpoint selection", "any modification of the specialization verdict"],
+    "paper_label_required": "post-hoc exploratory severity extension"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "adding seeds or intermediate severity values after inspecting the results",
+    "pooling these rows with the K<=3 pilot for any paired statistic",
+    "any Delta-based interpretation",
+    "retraining, redistillation, or checkpoint reselection",
+    "the 6v6 specialization deployment-robustness sweep (block 13660001-128), which remains unrun"
+  ],
+
+  "OUTPUT_LABEL": "TRACK_HOLD_6V6_SEVERE",
+  "outputs": {"result": "TRACK_HOLD_6V6_SEVERE_RESULT.json",
+              "rows": "track_hold_6v6_severe_rows.csv"}
+}

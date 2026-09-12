@@ -1,0 +1,66 @@
+{
+  "record": "TRACK_HOLD_6V6_SEVERE absolute track-hold dose-response",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-12T15:04:10Z",
+  "arm": "EXPLORATORY_INFERENCE_ONLY",
+  "confirmatory": false,
+  "implements": "6V6_TRACK_HOLD_SEVERE_EXTENSION_SPEC.json (checkpoint from 6V6_TRACK_HOLD_SEVERE_EXTENSION_SPEC.json)",
+  "WHAT_THIS_IS": "absolute task-performance robustness of the frozen 6v6 Share-Encoder controller under stale opponent tracks",
+  "WHAT_THIS_IS_NOT": "NOT robustness of strategic specialization. The 6v6 crossover did not establish joint specialization, so no Delta-based or latent-strategy robustness claim follows from these numbers.",
+  "checkpoint_sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
+  "seeds": {
+    "block": [
+      13710001,
+      13710020
+    ],
+    "n": 20
+  },
+  "doses": "K=[0, 4, 5, 6] stale Red tracks (0 = full information); nested prefixes",
+  "L_K_paired_within_this_block_only": true,
+  "occlusion_offset": 900001,
+  "per_code": {
+    "z0": {
+      "pole": "A",
+      "V_full": 0.9,
+      "V_K": {
+        "K4": 1.0,
+        "K5": 0.95,
+        "K6": 0.95
+      },
+      "L_K": {
+        "K4": -0.1,
+        "K5": -0.05,
+        "K6": -0.05
+      },
+      "mean_margin": {
+        "K0": 1.25,
+        "K4": 1.4,
+        "K5": 1.15,
+        "K6": 1.05
+      }
+    },
+    "z1": {
+      "pole": "B",
+      "V_full": 0.95,
+      "V_K": {
+        "K4": 0.95,
+        "K5": 0.95,
+        "K6": 0.95
+      },
+      "L_K": {
+        "K4": 0.0,
+        "K5": 0.0,
+        "K6": 0.0
+      },
+      "mean_margin": {
+        "K0": 2.05,
+        "K4": 2.3,
+        "K5": 2.25,
+        "K6": 2.3
+      }
+    }
+  },
+  "codes_not_collapsed": true,
+  "total_episodes": 160
+}

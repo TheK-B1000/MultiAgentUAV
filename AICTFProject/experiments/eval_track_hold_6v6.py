@@ -211,18 +211,35 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--spec", default=None,
+                    help="frozen spec. Default: the K<=3 pilot. Pass the severe-extension "
+                         "spec to run K in {0,4,5,6} on its own fresh block.")
+    ap.add_argument("--amendment", default=None,
+                    help="frozen amendment carrying checkpoint path+sha256. Not needed when "
+                         "the spec carries CHECKPOINT itself (the severe extension does).")
     args = ap.parse_args()
 
-    spec = json.loads(SPEC.read_text(encoding="utf-8"))
+    spec_path = Path(args.spec) if args.spec else SPEC
+    if not spec_path.is_file():
+        raise SystemExit(f"REFUSING: spec not found: {spec_path}")
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"REFUSING: spec not frozen: {spec.get('status')!r}")
-    if not AMENDMENT.is_file():
-        raise SystemExit(
-            "REFUSING: the spec forbids running before the checkpoint path+sha256 are "
-            f"filled by amendment. Missing: {AMENDMENT.name}")
-    amd = json.loads(AMENDMENT.read_text(encoding="utf-8"))
-    if not str(amd.get("status", "")).startswith("FROZEN"):
-        raise SystemExit(f"REFUSING: amendment not frozen: {amd.get('status')!r}")
+
+    # The checkpoint may live in the spec itself (severe extension) or be supplied
+    # by a separate amendment (the original pilot, whose spec had it as TBD).
+    if "CHECKPOINT" in spec and spec["CHECKPOINT"].get("sha256"):
+        src, amd = spec_path.name, spec
+    else:
+        amd_path = Path(args.amendment) if args.amendment else AMENDMENT
+        if not amd_path.is_file():
+            raise SystemExit(
+                "REFUSING: the spec forbids running before the checkpoint path+sha256 are "
+                f"filled by amendment. Missing: {amd_path}")
+        amd = json.loads(amd_path.read_text(encoding="utf-8"))
+        if not str(amd.get("status", "")).startswith("FROZEN"):
+            raise SystemExit(f"REFUSING: amendment not frozen: {amd.get('status')!r}")
+        src = amd_path.name
 
     ck = ROOT / amd["CHECKPOINT"]["path"]
     if not ck.is_file():
@@ -233,8 +250,13 @@ def main() -> int:
                          f"  frozen : {amd['CHECKPOINT']['sha256']}")
 
     seeds = list(spec["SEED_BLOCK"]["eval_seeds"])
-    offset = int(spec["OCCLUSION_SELECTION"]["FIXED_OCCLUSION_OFFSET"])
-    label = amd.get("OUTPUT_LABEL", "TRACK_HOLD_6V6")
+    offset = int(spec.get("OCCLUSION_SELECTION", {}).get("FIXED_OCCLUSION_OFFSET", 900001))
+    label = amd.get("OUTPUT_LABEL") or spec.get("OUTPUT_LABEL", "TRACK_HOLD_6V6")
+    # Doses come from the frozen record; the pilot's implicit set is 0..3.
+    doses = [int(k) for k in spec.get("DESIGN", {}).get("doses", [0, 1, 2, 3])]
+    if 0 not in doses:
+        raise SystemExit("FAIL-CLOSED: dose set must contain K=0; L_K is paired within block.")
+    degraded = [k for k in doses if k != 0]
     OUT = SD / f"{label}_RESULT.json"
     ROWS = SD / f"{label.lower()}_rows.csv"
     if not args.dry_run and (OUT.is_file() or ROWS.is_file()):
@@ -260,14 +282,14 @@ def main() -> int:
         install_keyed_opponent_overlays(core, genomes_by_pole[pole])
         return genomes_by_pole[pole]
 
-    print(f"TRACK-HOLD 6v6 PILOT  {label}  {_now()}")
-    print(f"  spec        {SPEC.name}  [{spec['status']}]  arm={spec.get('claim_scope')}")
-    print(f"  amendment   {AMENDMENT.name}")
+    print(f"TRACK-HOLD 6v6  {label}  {_now()}")
+    print(f"  spec        {spec_path.name}  [{spec['status']}]  arm={spec.get('claim_scope')}")
+    print(f"  checkpoint source  {src}")
     print(f"  checkpoint  {ck.name}  sha {got_sha[:12]}...")
     print(f"  seeds       {seeds[0]}..{seeds[-1]} (n={len(seeds)})")
-    print(f"  doses       K=0(full),1,2,3 nested; offset={offset}")
+    print(f"  doses       K={doses} (0=full info), nested; offset={offset}")
     print(f"  codes       z0 on Pole {POLE_FOR_Z[0]}, z1 on Pole {POLE_FOR_Z[1]} (own regime)")
-    print(f"  episodes    2 x 4 x {len(seeds)} = {2 * 4 * len(seeds)}")
+    print(f"  episodes    2 x {len(doses)} x {len(seeds)} = {2 * len(doses) * len(seeds)}")
     print("  MEASURES    absolute win rate + L_K = V_full - V_K. NOT specialization.\n",
           flush=True)
 
@@ -333,7 +355,7 @@ def main() -> int:
 
     from experiments.tqdm_loop import set_postfix, tqdm_iter
 
-    cells = [(z, k, s) for z in (0, 1) for k in (0, 1, 2, 3) for s in seeds]
+    cells = [(z, k, s) for z in (0, 1) for k in doses for s in seeds]
     rows = []
     bar = tqdm_iter(cells, desc=f"{label}", unit="ep")
     for z, k, s in bar:
@@ -358,18 +380,18 @@ def main() -> int:
         per_code[f"z{z}"] = {
             "pole": POLE_FOR_Z[z],
             "V_full": round(v_full, 6),
-            "V_K": {f"K{k}": round(wr(z, k), 6) for k in (1, 2, 3)},
-            "L_K": {f"K{k}": round(v_full - wr(z, k), 6) for k in (1, 2, 3)},
+            "V_K": {f"K{k}": round(wr(z, k), 6) for k in degraded},
+            "L_K": {f"K{k}": round(v_full - wr(z, k), 6) for k in degraded},
             "mean_margin": {f"K{k}": round(float(np.mean(
                 [r["margin"] for r in rows if r["z"] == z and r["K"] == k])), 4)
-                for k in (0, 1, 2, 3)},
+                for k in doses},
         }
 
     OUT.write_text(json.dumps({
         "record": f"{label} absolute track-hold dose-response",
         "status": "FROZEN_RESULT", "one_shot": True, "utc": _now(),
         "arm": "EXPLORATORY_INFERENCE_ONLY", "confirmatory": False,
-        "implements": f"{SPEC.name} + {AMENDMENT.name}",
+        "implements": f"{spec_path.name} (checkpoint from {src})",
         "WHAT_THIS_IS": "absolute task-performance robustness of the frozen 6v6 "
                         "Share-Encoder controller under stale opponent tracks",
         "WHAT_THIS_IS_NOT": "NOT robustness of strategic specialization. The 6v6 "
@@ -378,7 +400,8 @@ def main() -> int:
                             "from these numbers.",
         "checkpoint_sha256": got_sha,
         "seeds": {"block": [seeds[0], seeds[-1]], "n": len(seeds)},
-        "doses": "K=0 (full information), 1, 2, 3 stale Red tracks; nested prefixes",
+        "doses": f"K={doses} stale Red tracks (0 = full information); nested prefixes",
+        "L_K_paired_within_this_block_only": True,
         "occlusion_offset": offset,
         "per_code": per_code,
         "codes_not_collapsed": True,

@@ -1,0 +1,741 @@
+{
+  "record": "seed allocation registry (Rule 9)",
+  "rule": "three seed classes, never overlapping; confirmatory seeds are spent exactly once and never on debugging",
+  "backfilled_from": "artifacts\\strategic_demand\\sppo",
+  "backfill_note": "HIST_* ids are historical blocks recovered from sealed artifacts after Rule 9 was codified. Their classification comes from each artifact's own arm/confirmatory fields.",
+  "blocks": [
+    {
+      "lo": 10700001,
+      "hi": 10700096,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json",
+      "purpose": "Oracle-gated K=2 V2 bank assembly audit",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json"
+      ],
+      "experiment_id": "HIST_10700001_10700096",
+      "n": 96,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 10700097,
+      "hi": 10700128,
+      "seed_class": "exploratory",
+      "evidence": "record name declares EXPLORATORY/DIAGNOSTIC/PILOT",
+      "spec": "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json",
+      "purpose": "CCP successor mechanism diagnostic",
+      "cited_by": [
+        "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json",
+        "HOG_PSP_V3_MECHANISM_DIAGNOSTIC.json",
+        "HOG_PSP_V4_MECHANISM_DIAGNOSTIC.json",
+        "OG_PSP_MECHANISM_DIAGNOSTIC.json"
+      ],
+      "experiment_id": "HIST_10700097_10700128",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 10700129,
+      "hi": 10700160,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ORACLE_GATED_K2_EVAL_RESULT.json",
+      "purpose": "Oracle-gated K=2 held-out EVAL",
+      "cited_by": [
+        "ORACLE_GATED_K2_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_10700129_10700160",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11000001,
+      "hi": 11000320,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json",
+      "purpose": "Oracle-gated K=2 V2 bank assembly audit",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json"
+      ],
+      "experiment_id": "HIST_11000001_11000320",
+      "n": 320,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11000007,
+      "hi": 11000085,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000007_11000085",
+      "n": 79,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11000086,
+      "hi": 11000164,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000086_11000164",
+      "n": 79,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11000165,
+      "hi": 11000243,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000165_11000243",
+      "n": 79,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11000244,
+      "hi": 11000320,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000244_11000320",
+      "n": 77,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11200001,
+      "hi": 11200032,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "OG_PSP_EVAL_RESULT.json",
+      "purpose": "OG-PSP held-out EVAL",
+      "cited_by": [
+        "OG_PSP_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11200001_11200032",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11300101,
+      "hi": 11300132,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "HOG_PSP_V3_EVAL_RESULT.json",
+      "purpose": "H-OG-PSP V3 held-out payoff EVAL",
+      "cited_by": [
+        "HOG_PSP_V3_EVAL_INTEGRITY.json",
+        "HOG_PSP_V3_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11300101_11300132",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11400101,
+      "hi": 11400132,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "HOG_PSP_V4_EVAL_RESULT.json",
+      "purpose": "H-OG-PSP V4 held-out payoff EVAL",
+      "cited_by": [
+        "HOG_PSP_V4_EVAL_INTEGRITY.json",
+        "HOG_PSP_V4_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11400101_11400132",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11600101,
+      "hi": 11600132,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "CCP_SUCCESSOR_EVAL_RESULT.json",
+      "purpose": "CCP successor held-out payoff EVAL",
+      "cited_by": [
+        "CCP_SUCCESSOR_EVAL_INTEGRITY.json",
+        "CCP_SUCCESSOR_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11600101_11600132",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11700001,
+      "hi": 11700320,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "CCP_S2_SEED_PREFLIGHT.json",
+      "purpose": "CCP-S2 seed preflight",
+      "cited_by": [
+        "CCP_S2_SEED_PREFLIGHT.json"
+      ],
+      "experiment_id": "HIST_11700001_11700320",
+      "n": 320,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11701001,
+      "hi": 11701064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "CCP_S2_SEED_PREFLIGHT.json",
+      "purpose": "CCP-S2 seed preflight",
+      "cited_by": [
+        "CCP_S2_EVAL_INTEGRITY.json",
+        "CCP_S2_SEED_PREFLIGHT.json"
+      ],
+      "experiment_id": "HIST_11701001_11701064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11704001,
+      "hi": 11704064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "PI_G_EVAL_RESULT.json",
+      "purpose": "pi_G single-generalist baseline EVAL",
+      "cited_by": [
+        "PI_G_EVAL_RESULT.json",
+        "RSCFT_EVAL_INTEGRITY.json"
+      ],
+      "experiment_id": "HIST_11704001_11704064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11706001,
+      "hi": 11706064,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "TRUNK_FREEZE_EVAL_INTEGRITY.json",
+      "purpose": "Trunk-freeze EVAL integrity audit",
+      "cited_by": [
+        "TRUNK_FREEZE_EVAL_INTEGRITY.json"
+      ],
+      "experiment_id": "HIST_11706001_11706064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11804001,
+      "hi": 11804064,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "SAC_RFT_EVAL_INTEGRITY.json",
+      "purpose": "SAC-RFT EVAL integrity audit",
+      "cited_by": [
+        "SAC_RFT_EVAL_INTEGRITY.json"
+      ],
+      "experiment_id": "HIST_11804001_11804064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11805001,
+      "hi": 11805064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "SPECIALIST_BASELINE_EVAL_RESULT.json",
+      "purpose": "Specialist baseline sealed EVAL",
+      "cited_by": [
+        "SPECIALIST_BASELINE_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11805001_11805064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11922001,
+      "hi": 11922064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "COMPRESSION_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "Compression Crossover sealed EVAL",
+      "cited_by": [
+        "COMPRESSION_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11922001_11922064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11960001,
+      "hi": 11960064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "RUNG0_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "Rung 0 sealed crossover EVAL -- sharing-ladder positive control",
+      "cited_by": [
+        "RUNG0_CROSSOVER_EVAL_RESULT.json",
+        "RUNG0_LADDER_REFERENCE.json",
+        "RUNG0_STABILITY_RERUN_RESULT.json",
+        "RUNG1_LADDER_EVAL_RESULT.json",
+        "RUNG2_LADDER_EVAL_RESULT.json",
+        "RUNG3_LADDER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11960001_11960064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11961001,
+      "hi": 11961002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG1_STUDENT_FROZEN.json",
+      "purpose": "RUNG1_STUDENT_FROZEN",
+      "cited_by": [
+        "RUNG1_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_11961001_11961002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11963001,
+      "hi": 11963002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG2_STUDENT_FROZEN.json",
+      "purpose": "RUNG2_STUDENT_FROZEN",
+      "cited_by": [
+        "RUNG2_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_11963001_11963002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11965001,
+      "hi": 11965002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG3_CONSTRUCTION_AND_PREDICTION.json",
+      "purpose": "RUNG3_CONSTRUCTION_AND_PREDICTION",
+      "cited_by": [
+        "RUNG3_CONSTRUCTION_AND_PREDICTION.json",
+        "RUNG3_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_11965001_11965002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11970001,
+      "hi": 11970064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "RUNG1_LADDER_EVAL_RESULT.json",
+      "purpose": "Rung 1 matched evaluation",
+      "cited_by": [
+        "RUNG0_LADDER_REFERENCE.json",
+        "RUNG1_LADDER_EVAL_RESULT.json",
+        "RUNG2_LADDER_EVAL_RESULT.json",
+        "RUNG3_LADDER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11970001_11970064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 12320001,
+      "hi": 12320002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json",
+      "purpose": "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT",
+      "cited_by": [
+        "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json"
+      ],
+      "experiment_id": "HIST_12320001_12320002",
+      "n": 2,
+      "status": "RETIRED",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 12400001,
+      "hi": 12400001,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "TIE_REVERSAL_AUDIT_4v4_V1.json",
+      "purpose": "Row-level integrity audit (4v4, variant=v1)",
+      "cited_by": [
+        "TIE_REVERSAL_AUDIT_4v4_V1.json"
+      ],
+      "experiment_id": "HIST_12400001_12400001",
+      "n": 1,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 12800001,
+      "hi": 12800064,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "TIE_REVERSAL_AUDIT_4v4_GUARD_DISTRIBUTED_V2.json",
+      "purpose": "Row-level integrity audit (4v4, variant=guard_distributed_v2)",
+      "cited_by": [
+        "TIE_REVERSAL_AUDIT_4v4_GUARD_DISTRIBUTED_V2.json"
+      ],
+      "experiment_id": "HIST_12800001_12800064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13400001,
+      "hi": 13400128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT.json",
+      "purpose": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT",
+      "cited_by": [
+        "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT.json",
+        "ROBUSTNESS_2V2_HIGH_TIER_RESULT.json",
+        "ROBUSTNESS_2V2_RUNG1_RESULT.json"
+      ],
+      "experiment_id": "HIST_13400001_13400128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13621001,
+      "hi": 13621002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG1_6V6_STUDENT_FROZEN.json",
+      "purpose": "RUNG1_6V6_STUDENT_FROZEN",
+      "cited_by": [
+        "RUNG1_6V6_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_13621001_13621002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13640001,
+      "hi": 13640128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY' confirmatory=True",
+      "spec": "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "RUNG1_6V6 crossover EVAL",
+      "cited_by": [
+        "6V6_PIPELINE_SEED_ALLOCATION.json",
+        "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
+        "RUNG1_6V6_CROSSOVER_EVAL_SPEC.json",
+        "RUNG1_6V6_CROSSOVER_TQDM_RESTART.json"
+      ],
+      "experiment_id": "HIST_13640001_13640128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13660001,
+      "hi": 13660128,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "6V6_PIPELINE_SEED_ALLOCATION.json",
+      "purpose": "6V6_PIPELINE_SEED_ALLOCATION",
+      "cited_by": [
+        "6V6_PIPELINE_SEED_ALLOCATION.json"
+      ],
+      "experiment_id": "HIST_13660001_13660128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13680001,
+      "hi": 13680128,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='DIAGNOSTIC' confirmatory=False",
+      "spec": "SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC.json",
+      "purpose": "SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC",
+      "cited_by": [
+        "SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC.json",
+        "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_13680001_13680128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13700001,
+      "hi": 13700020,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='EXPLORATORY_INFERENCE_ONLY' confirmatory=False",
+      "spec": "TRACK_HOLD_6V6_RESULT.json",
+      "purpose": "TRACK_HOLD_6V6 absolute track-hold dose-response",
+      "cited_by": [
+        "TRACK_HOLD_6V6_RESULT.json"
+      ],
+      "experiment_id": "HIST_13700001_13700020",
+      "n": 20,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13710001,
+      "hi": 13710020,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='EXPLORATORY_INFERENCE_ONLY' confirmatory=False",
+      "spec": "TRACK_HOLD_6V6_SEVERE_RESULT.json",
+      "purpose": "TRACK_HOLD_6V6_SEVERE absolute track-hold dose-response",
+      "cited_by": [
+        "TRACK_HOLD_6V6_SEVERE_RESULT.json"
+      ],
+      "experiment_id": "HIST_13710001_13710020",
+      "n": 20,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 14400001,
+      "hi": 14400128,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='EXPLORATORY' confirmatory=False",
+      "spec": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT",
+      "cited_by": [
+        "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_14400001_14400128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16400001,
+      "hi": 16400128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY_REDESIGN' confirmatory=True",
+      "spec": "CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT",
+      "cited_by": [
+        "CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_16400001_16400128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16700001,
+      "hi": 16700128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY' confirmatory=True",
+      "spec": "4V4_B3_CONFIRMATORY_SPEC.json",
+      "purpose": "4V4_B3_CONFIRMATORY_SPEC",
+      "cited_by": [
+        "4V4_B3_CONFIRMATORY_SPEC.json",
+        "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_16700001_16700128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16800001,
+      "hi": 16800256,
+      "seed_class": "exploratory",
+      "evidence": "record name declares EXPLORATORY/DIAGNOSTIC/PILOT",
+      "spec": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE.json",
+      "purpose": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE",
+      "cited_by": [
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE.json",
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_RUN_STATUS_CORRECTION.json",
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPEC.json",
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_16800001_16800256",
+      "n": 256,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16810001,
+      "hi": 16810032,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY_LEARNING_SIDE' confirmatory=True",
+      "spec": "4V4_B3_ROLE_PRESERVATION_SPEC.json",
+      "purpose": "4V4_B3_ROLE_PRESERVATION_SPEC",
+      "cited_by": [
+        "4V4_B3_ROLE_PRESERVATION_SPEC.json"
+      ],
+      "experiment_id": "HIST_16810001_16810032",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 17200001,
+      "hi": 17200128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY_LEARNING_SIDE' confirmatory=True",
+      "spec": "4V4_B3_ROLE_PRESERVATION_SPEC.json",
+      "purpose": "4V4_B3_ROLE_PRESERVATION_SPEC",
+      "cited_by": [
+        "4V4_B3_ROLE_PRESERVATION_SEALED_CROSSOVER_TQDM_RESTART.json",
+        "4V4_B3_ROLE_PRESERVATION_SPEC.json",
+        "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
+      ],
+      "experiment_id": "HIST_17200001_17200128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 17300001,
+      "hi": 17300024,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='DIAGNOSTIC' confirmatory=False",
+      "spec": "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC.json",
+      "purpose": "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC",
+      "cited_by": [
+        "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC.json"
+      ],
+      "experiment_id": "HIST_17300001_17300024",
+      "n": 24,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 17400001,
+      "hi": 17400032,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='DIAGNOSTIC' confirmatory=False",
+      "spec": "6V6_OPPONENT_CHANNEL_ABLATION_SPEC.json",
+      "purpose": "6V6_OPPONENT_CHANNEL_ABLATION_SPEC",
+      "cited_by": [
+        "6V6_OPPONENT_CHANNEL_ABLATION_SPEC.json"
+      ],
+      "experiment_id": "HIST_17400001_17400032",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true,
+      "spent_utc": "2026-09-12T23:38:38Z",
+      "notes": [
+        {
+          "utc": "2026-09-12T23:38:38Z",
+          "note": "partially spent: 84/384 episodes of OPP_ABLATION_6V6 before PI decision to stop; superseded by ARM1 TEST_0; block NOT free for reuse"
+        }
+      ]
+    },
+    {
+      "experiment_id": "GRAD_SNR_SCALING",
+      "purpose": "policy-gradient SNR vs team size at matched init; tests the Kuba MAPG-variance scaling hypothesis in our env",
+      "seed_class": "exploratory",
+      "lo": 17500001,
+      "hi": 17500032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "GRAD_SNR_SCALING_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-12T18:10:46Z"
+    },
+    {
+      "experiment_id": "ARM1_TEACHER_IDENTIFIABILITY",
+      "purpose": "observation-to-teacher-target identifiability probe; measures whether GUARD's target is a function of the student's observation at N=2/4/6",
+      "seed_class": "exploratory",
+      "lo": 17600001,
+      "hi": 17600032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "ARM1_TEACHER_IDENTIFIABILITY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-12T22:57:55Z"
+    }
+  ],
+  "updated_utc": "2026-09-12T23:38:38Z"
+}

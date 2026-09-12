@@ -1,0 +1,633 @@
+{
+  "record": "ARM1_TEST0_COUNTEREXAMPLE observation-equivalence counterexample probe",
+  "status": "FROZEN_RESULT",
+  "one_shot": false,
+  "utc": "2026-09-12T23:32:23Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "ARM1_TEACHER_IDENTIFIABILITY_SPEC.json#TEST_0_OBSERVATION_EQUIVALENCE_COUNTEREXAMPLE",
+  "search_budget": {
+    "n_seeds": 3,
+    "tick_stride": 6,
+    "max_ticks": 240
+  },
+  "elapsed_s": 88.1,
+  "results": {
+    "2v2": {
+      "scale": "2v2",
+      "n_defenders": 1,
+      "n_perturbation_attempts": 74,
+      "n_pairs_with_identical_obs": 74,
+      "n_tick_samples_with_intruder": 37,
+      "n_tick_samples_skipped_no_intruder": 76,
+      "n_counterexamples": 0,
+      "counterexamples": []
+    },
+    "4v4": {
+      "scale": "4v4",
+      "n_defenders": 2,
+      "n_perturbation_attempts": 128,
+      "n_pairs_with_identical_obs": 384,
+      "n_tick_samples_with_intruder": 32,
+      "n_tick_samples_skipped_no_intruder": 88,
+      "n_counterexamples": 9,
+      "counterexamples": [
+        {
+          "seed": 17600001,
+          "tick": 30,
+          "perturbed_defender_j": 2,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            2.55,
+            11.0
+          ],
+          "j_pos_B": [
+            3.45,
+            11.0
+          ],
+          "same_grid_cell": [
+            3.0,
+            11.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            2.582834243774414,
+            10.233206748962402
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 15,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 30,
+          "perturbed_defender_j": 2,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            3.0,
+            10.55
+          ],
+          "j_pos_B": [
+            3.0,
+            11.45
+          ],
+          "same_grid_cell": [
+            3.0,
+            11.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            2.582834243774414,
+            10.233206748962402
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 15,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 30,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 2,
+          "i_is_defender": true,
+          "j_pos_A": [
+            1.55,
+            11.0
+          ],
+          "j_pos_B": [
+            2.45,
+            11.0
+          ],
+          "same_grid_cell": [
+            2.0,
+            11.0
+          ],
+          "target_i_A": [
+            2.582834243774414,
+            10.233206748962402
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 15,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 30,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 2,
+          "i_is_defender": true,
+          "j_pos_A": [
+            2.0,
+            10.55
+          ],
+          "j_pos_B": [
+            2.0,
+            11.45
+          ],
+          "same_grid_cell": [
+            2.0,
+            11.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            2.582834243774414,
+            10.233206748962402
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 15,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 138,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 2,
+          "i_is_defender": true,
+          "j_pos_A": [
+            2.0,
+            9.55
+          ],
+          "j_pos_B": [
+            2.0,
+            10.45
+          ],
+          "same_grid_cell": [
+            2.0,
+            10.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            2.7183241844177246,
+            8.56899642944336
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 14,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600002,
+          "tick": 78,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 2,
+          "i_is_defender": true,
+          "j_pos_A": [
+            3.55,
+            9.0
+          ],
+          "j_pos_B": [
+            4.45,
+            9.0
+          ],
+          "same_grid_cell": [
+            4.0,
+            9.0
+          ],
+          "target_i_A": [
+            2.571514844894409,
+            8.67877197265625
+          ],
+          "target_i_B": [
+            1.5916379690170288,
+            8.941365242004395
+          ],
+          "q_idx_A": 14,
+          "q_idx_B": 4,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600002,
+          "tick": 162,
+          "perturbed_defender_j": 2,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            2.55,
+            9.0
+          ],
+          "j_pos_B": [
+            3.45,
+            9.0
+          ],
+          "same_grid_cell": [
+            3.0,
+            9.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            1.861049771308899,
+            9.164196014404297
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 4,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600003,
+          "tick": 42,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 2,
+          "i_is_defender": true,
+          "j_pos_A": [
+            1.55,
+            9.0
+          ],
+          "j_pos_B": [
+            2.45,
+            9.0
+          ],
+          "same_grid_cell": [
+            2.0,
+            9.0
+          ],
+          "target_i_A": [
+            2.7430672645568848,
+            7.829312324523926
+          ],
+          "target_i_B": [
+            4.773284912109375,
+            11.144067764282227
+          ],
+          "q_idx_A": 14,
+          "q_idx_B": 15,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600003,
+          "tick": 42,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 2,
+          "i_is_defender": true,
+          "j_pos_A": [
+            2.0,
+            8.55
+          ],
+          "j_pos_B": [
+            2.0,
+            9.45
+          ],
+          "same_grid_cell": [
+            2.0,
+            9.0
+          ],
+          "target_i_A": [
+            4.773284912109375,
+            11.144067764282227
+          ],
+          "target_i_B": [
+            2.7430672645568848,
+            7.829312324523926
+          ],
+          "q_idx_A": 15,
+          "q_idx_B": 14,
+          "obs_bytes_identical_verified": true
+        }
+      ]
+    },
+    "6v6": {
+      "scale": "6v6",
+      "n_defenders": 3,
+      "n_perturbation_attempts": 204,
+      "n_pairs_with_identical_obs": 1020,
+      "n_tick_samples_with_intruder": 34,
+      "n_tick_samples_skipped_no_intruder": 46,
+      "n_counterexamples": 25,
+      "counterexamples": [
+        {
+          "seed": 17600001,
+          "tick": 78,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 5,
+          "i_is_defender": true,
+          "j_pos_A": [
+            3.55,
+            8.0
+          ],
+          "j_pos_B": [
+            4.45,
+            8.0
+          ],
+          "same_grid_cell": [
+            4.0,
+            8.0
+          ],
+          "target_i_A": [
+            4.362030982971191,
+            8.150456428527832
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 14,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 78,
+          "perturbed_defender_j": 5,
+          "subject_agent_i": 4,
+          "i_is_defender": true,
+          "j_pos_A": [
+            4.55,
+            9.0
+          ],
+          "j_pos_B": [
+            5.45,
+            9.0
+          ],
+          "same_grid_cell": [
+            5.0,
+            9.0
+          ],
+          "target_i_A": [
+            4.784788131713867,
+            11.115776062011719
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 15,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 78,
+          "perturbed_defender_j": 5,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            5.0,
+            8.55
+          ],
+          "j_pos_B": [
+            5.0,
+            9.45
+          ],
+          "same_grid_cell": [
+            5.0,
+            9.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            4.362030982971191,
+            8.150456428527832
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 14,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 78,
+          "perturbed_defender_j": 5,
+          "subject_agent_i": 4,
+          "i_is_defender": true,
+          "j_pos_A": [
+            5.0,
+            8.55
+          ],
+          "j_pos_B": [
+            5.0,
+            9.45
+          ],
+          "same_grid_cell": [
+            5.0,
+            9.0
+          ],
+          "target_i_A": [
+            4.784788131713867,
+            11.115776062011719
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 15,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 156,
+          "perturbed_defender_j": 4,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            3.55,
+            8.0
+          ],
+          "j_pos_B": [
+            4.45,
+            8.0
+          ],
+          "same_grid_cell": [
+            4.0,
+            8.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            3.357537031173706,
+            8.675201416015625
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 14,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 156,
+          "perturbed_defender_j": 4,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            4.0,
+            7.55
+          ],
+          "j_pos_B": [
+            4.0,
+            8.45
+          ],
+          "same_grid_cell": [
+            4.0,
+            8.0
+          ],
+          "target_i_A": [
+            3.357537031173706,
+            8.675201416015625
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 14,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 228,
+          "perturbed_defender_j": 5,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            1.55,
+            11.0
+          ],
+          "j_pos_B": [
+            2.45,
+            11.0
+          ],
+          "same_grid_cell": [
+            2.0,
+            11.0
+          ],
+          "target_i_A": [
+            4.455330848693848,
+            8.276239395141602
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 14,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600001,
+          "tick": 228,
+          "perturbed_defender_j": 5,
+          "subject_agent_i": 3,
+          "i_is_defender": true,
+          "j_pos_A": [
+            2.0,
+            10.55
+          ],
+          "j_pos_B": [
+            2.0,
+            11.45
+          ],
+          "same_grid_cell": [
+            2.0,
+            11.0
+          ],
+          "target_i_A": [
+            2.0,
+            10.0
+          ],
+          "target_i_B": [
+            4.455330848693848,
+            8.276239395141602
+          ],
+          "q_idx_A": 5,
+          "q_idx_B": 14,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600002,
+          "tick": 12,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 5,
+          "i_is_defender": true,
+          "j_pos_A": [
+            4.55,
+            11.0
+          ],
+          "j_pos_B": [
+            5.45,
+            11.0
+          ],
+          "same_grid_cell": [
+            5.0,
+            11.0
+          ],
+          "target_i_A": [
+            3.7534260749816895,
+            12.434234619140625
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 16,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        },
+        {
+          "seed": 17600002,
+          "tick": 12,
+          "perturbed_defender_j": 3,
+          "subject_agent_i": 5,
+          "i_is_defender": true,
+          "j_pos_A": [
+            5.0,
+            10.55
+          ],
+          "j_pos_B": [
+            5.0,
+            11.45
+          ],
+          "same_grid_cell": [
+            5.0,
+            11.0
+          ],
+          "target_i_A": [
+            3.7534260749816895,
+            12.434234619140625
+          ],
+          "target_i_B": [
+            2.0,
+            10.0
+          ],
+          "q_idx_A": 16,
+          "q_idx_B": 5,
+          "obs_bytes_identical_verified": true
+        }
+      ]
+    }
+  },
+  "READING": "a counterexample at N>=4 but NOT at N=2 supports the audit's claim that the multi-defender assignment machinery requires information erased by the student's observation mapping. Absence of a counterexample is 'not constructed', NOT evidence of consistency.",
+  "run_id": "20260912T233223Z_16ddccb9",
+  "config_signature": {
+    "device": "cpu",
+    "max_ticks": 240,
+    "n_seeds": 3,
+    "scales": [
+      2,
+      4,
+      6
+    ],
+    "seed_lo": 17600001,
+    "tick_stride": 6
+  }
+}

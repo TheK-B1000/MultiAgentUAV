@@ -1,0 +1,58 @@
+{
+  "record": "RUNG1_6V6 crossover EVAL",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-12T01:00:42Z",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "implements": "RUNG1_6V6_CROSSOVER_EVAL_SPEC.json#EVALUATION",
+  "team_size": 6,
+  "rung": 1,
+  "device": "cuda",
+  "checkpoint_sha256": "0df6d0674bf79c10ce6ff15dc4eb844a8867111e4f6a87c06c1c3dcc745fa7bf",
+  "seeds": {
+    "block": [
+      13640001,
+      13640128
+    ],
+    "n": 128,
+    "shared_across_z_and_poles": true
+  },
+  "poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 6
+      }
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {
+        "min_alive_for_defender": 6
+      }
+    }
+  },
+  "PRIMARY_GATE": {
+    "delta_A": {
+      "mean": 0.03125,
+      "lcb95": -0.046875,
+      "ucb95": 0.109375,
+      "passes": false
+    },
+    "delta_B": {
+      "mean": 0.0390625,
+      "lcb95": 0.0078125,
+      "ucb95": 0.078125,
+      "passes": true
+    },
+    "passes": false
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "no_model_selection_occurred": true,
+  "total_episodes": 512
+}

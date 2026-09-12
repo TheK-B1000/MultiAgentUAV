@@ -1,0 +1,188 @@
+{
+  "record_id": "ARM1_TEACHER_IDENTIFIABILITY_SPEC",
+  "status": "FROZEN_BEFORE_ANY_SAMPLE",
+  "utc": "2026-09-12T22:55:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "OUTPUT_LABEL": "ARM1_TEACHER_IDENTIFIABILITY",
+
+  "QUESTION": "Is the scripted GUARD teacher's commanded target actually a FUNCTION of what the student policy can observe, at N=2 vs N=4 vs N=6?",
+
+  "WHY_THIS_BEFORE_ANY_BC_OR_SNR": "The controller audit (docs/SCRIPTED_CONTROLLER_AUDIT_GUARD_BREACH.md) found that GUARD's multi-defender assignment machinery is DEAD CODE at N=2 (one defender, one loop pass, argmin over one element, a `taken` mask that can never exclude anyone) and ACTIVATES at N=4. From N>=4 the teacher uses centralized assignment state -- defender-subset membership, other defenders' exact positions, and an intra-step `taken` mask -- that is absent or lossy in the student's observation. If the teacher's action is not a function of the student's input, then training o->a fits an ill-posed target, its loss floor is irreducible, and that floor would be MISREAD as network capacity. This probe measures the non-identifiability directly instead of inferring it from a BC loss.",
+
+  "PRIMARY_HYPOTHESIS": {
+    "H1": "At N=2, GUARD's teacher target is (approximately) determined by the student observation, because multi-defender assignment is inactive.",
+    "H2": "At N in {4,6}, GUARD's teacher target becomes partially NON-IDENTIFIABLE from the student observation.",
+    "H3_negative_control": "BREACH's target is a constant function of the observable enemy flag position and must remain highly consistent at ALL N.",
+    "expected_pattern": "GUARD inconsistency: 2v2 << 4v4, 6v6   while   BREACH inconsistency: low at all scales",
+    "why_the_control_is_load_bearing": "If EVERYTHING becomes ambiguous including BREACH, the fingerprint or the distance metric is wrong and the probe is invalid -- no scientific conclusion may be drawn. Only a GUARD-specific explosion at N>=4 is evidence."
+  },
+
+  "DESIGN": {
+    "scales": ["2v2", "4v4", "6v6"],
+    "strategies": {"GUARD": "BLUE_ONE_DEFENDER_V2", "BREACH": "BLUE_BOTH_ATTACK_V2"},
+    "cells": 6,
+    "device": "cpu",
+    "no_training": true,
+    "no_policy_evaluation": true,
+    "no_gpu": "runs on CPU so it cannot contend with the live OPP_ABLATION_6V6 run",
+    "episodes_per_cell": 16,
+    "sampling": "EVERY scripted tick (instantaneous observability, measurement A -- see SAFEGUARDS.2_decision_timing_NOT_INVENTED). Up to MAX_STEPS=240 sample points per episode per agent. No decision cadence is imposed.",
+    "samples_per_cell": "16 episodes x steps x N agents"
+  },
+
+  "TIMING_ESTIMATE": {
+    "measured_not_guessed": "one real scripted-vs-scripted GUARD episode timed directly, CPU, before freezing this spec",
+    "per_episode_seconds_measured": {"2v2": 7.73, "4v4": 11.25, "6v6": 14.08},
+    "episodes_total": 96,
+    "estimate": "sum over scales of 32 episodes (16 GUARD + 16 BREACH) x that scale's measured per-episode time = 32*(7.73+11.25+14.08) = ~1058s = ~17.6 minutes, plus fingerprinting/logging overhead",
+    "expected_wall_clock": "~20-25 minutes total",
+    "resource_contention_disclosure": "the project has a standing memory note that GPU sealed evals are bottlenecked on CPU env-stepping, not GPU compute (project_eval_bottleneck_is_cpu_rollout). This CPU-only probe therefore competes for the SAME resource the live OPP_ABLATION_6V6 run depends on, even though Arm 1 never touches the GPU. Mitigated by using n_envs=1 (no batching) to keep Arm 1's CPU footprint minimal; the ablation's ETA may still stretch modestly while Arm 1 runs. Disclosed rather than silently absorbed."
+  },
+
+  "SAFEGUARDS_2026-09-12_ADDED_BEFORE_FREEZE": {
+    "1_exact_executable_input": "the fingerprint serializes grid, vec, agent_mask and mask EXACTLY as they would reach the actor -- same dtype (float32), same shape, same values, byte-for-byte. No z/latent code exists in this setup distinct from strategy: GUARD and BREACH ARE the two conditions under test, so fingerprint groups are formed WITHIN one (scale, strategy) stratum ONLY and are NEVER pooled across strategies -- an identical-looking GUARD observation and BREACH observation must never be treated as the same group, since strategy functions as a hidden context exactly the way a z code would. Recurrent state: VERIFIED ABSENT for the production specialist actor this probe stands in for (rl/custom_ppo/policy.py's only GRU is `use_recurrent_selector`, a Q_phi latent-router selector over 34-dim global state in an unrelated subsystem, not used by the pi_A/pi_B specialists this probe concerns). No hidden state to fingerprint.",
+    "2_decision_timing_NOT_INVENTED": {
+      "the_problem": "Scripted blue BYPASSES the commit-tick machinery entirely -- gpu_env/_core/_step.py's `new_commit = self.blue_commit_ticks_left <= 0` bookkeeping lives inside the function that decodes an incoming `blue_action_flat` array, which is never called on the scripted branch. So there is NO decision-boundary signal to read off a scripted rollout.",
+      "REJECTED_APPROACH": "An earlier draft of this spec imposed a fixed 'sample every 4 ticks' cadence justified as GO_TO's commit horizon. That was an INVENTED cadence presented as a derivation, and it is withdrawn before any sample was taken. We do not assume a student decision cadence we cannot derive.",
+      "RESOLUTION_split_into_two_measurements": {
+        "A_INSTANTANEOUS_OBSERVABILITY": "THIS IS WHAT ARM 1 MEASURES. Sample at EVERY scripted tick. This answers: is the teacher's target a function of the information available in the student observation? That is a question about the MAPPING o -> t, and it is entirely independent of when a student would be allowed to act. It makes NO claim about student decision timing. Sampling every tick is therefore not merely acceptable but the assumption-free choice, and it yields ~4x more samples than the withdrawn cadence, strengthening the natural-collision test.",
+        "B_DECISION_ALIGNED_OBSERVABILITY": "DEFERRED. Requires a frozen, justified teacher->student action adapter that deterministically projects a teacher command into a macro, so the real commitment-horizon function can drive a shadow student commitment clock (scripted world dynamics untouched; shadow timing only determines when the o->t question is evaluated). Until such an adapter exists and is frozen, this measurement is NOT attempted. If the macro cannot be deterministically inferred from the teacher command, no cadence will be invented to paper over it."
+      },
+      "why_this_split_protects_the_result": "It prevents contaminating a potentially very strong interface finding with a questionable timing assumption. Measurement A's claim stands on its own and needs no timing model."
+    },
+    "3_raw_vs_effective_teacher_target": "Verified by reading the dispatch code: nothing transforms btx/bty between `_get_scripted_targets(\"blue\")`'s return and the movement/physics step for scripted blue -- the carrier-evasion override (return-the-flag priority) is applied INSIDE the dispatch call itself, before it returns. So raw_teacher_target and effective_teacher_target collapse to the SAME captured value in this codebase. BOTH fields are still recorded (populated identically) as defensive redundancy: if a future run ever shows them differing, that is itself a signal this modeling assumption needs revisiting, not a silent inconsistency.",
+    "4_collision_proof_verification": "sha256 is used ONLY to INDEX candidate groups cheaply. Before any group is reported as an exact collision, every pair within it is verified byte-for-byte via `numpy.array_equal` on the raw serialized bytes of grid+vec+agent_mask+mask. A hash match alone is NEVER sufficient to declare non-functionality.",
+    "5_continuous_vs_projected_kept_separate": "every sample stores t_teacher (raw continuous, 2 floats), q(t) (nearest of the 50 waypoints), and e_q = ||t_teacher - q(t)||_2 as three distinct fields. Test 1's decisive claim is evaluated on q(t); the raw t_teacher is retained so a case that is continuous-consistent but projection-ambiguous (or vice versa) can be told apart -- which interface causes it.",
+    "6_teacher_only_state_is_sidecar_only": "is_defender, n_live_intruders, assigned_threat_index and any other centralized-assignment variable are written to a SEPARATE sidecar column set, explicitly excluded from the fingerprint hash computation (verified by construction: the hash function's input buffer is built ONLY from the four PER_DECISION_RECORD.student_fingerprint_inputs fields, nothing else touches it). If ambiguous groups later separate cleanly along these sidecar variables (e.g. all collisions involve a defender-role agent whose sidecar 'is_defender' or 'assigned_threat_index' differs), that is reported as strong MECHANISTIC evidence tying the failure to the centralized assignment machinery -- but it is diagnostic labeling applied AFTER grouping by the (fingerprint-only) student input, never a grouping criterion itself."
+  },
+
+  "REQUIRED_BREAKDOWN": {
+    "ambiguity_prevalence_by": ["team_size (N)", "strategy (GUARD/BREACH)", "role (defender vs attacker, derived from index >= N - ceil(N/2), sidecar only)"],
+    "why": "the audit's mechanistic claim is that ambiguity should concentrate specifically in the DEFENDER subset once multi-defender assignment activates (N>=4), not merely that 'more agents make observations complicated' in general. If ambiguity jumps for defenders at N=4/6 while attackers and all of BREACH remain clean, that ties the observation failure directly to the centralized assignment machinery identified in docs/SCRIPTED_CONTROLLER_AUDIT_GUARD_BREACH.md rather than to team size alone."
+  },
+
+  "TQDM_AND_TELEMETRY_COMMITMENT": "Per standing instruction, every new evaluator is built with visible progress from the start, not retrofitted. The runner (experiments/eval_arm1_teacher_identifiability.py) uses experiments/tqdm_loop for a live per-episode bar (scale/strategy/seed/elapsed/ETA), matching the convention already used by eval_opponent_ablation_6v6.py and eval_checkpoint_trajectory_4v4.py.",
+
+  "PER_DECISION_RECORD": {
+    "student_fingerprint_inputs": [
+      "grid[i]      -- the agent's full spatial tensor, every channel",
+      "vec[i]       -- all 20 features, unmodified",
+      "agent_mask   -- team liveness vector as passed to the policy",
+      "mask[i]      -- the agent's legal macro+target action mask"
+    ],
+    "fingerprint_rule": "sha256 over the exact float32 bytes of the COMPLETE per-agent policy input listed above, concatenated in a fixed order. NO manual field selection, NO rounding, NO feature engineering. Including more of the input makes collisions RARER, which makes the non-identifiability claim HARDER to establish -- this is deliberately the conservative direction.",
+    "raw_teacher_target": "t_i = (btx[i], bty[i]) from core._get_scripted_targets('blue'), captured from the SAME core state that produced the paired observation",
+    "effective_teacher_target": "the value that actually governs blue's movement this tick. Verified identical to raw_teacher_target in this codebase (see SAFEGUARDS.3) -- recorded as a separate field regardless, populated from the same call, as a defensive check against a future/overlooked transform.",
+    "primary_label_for_all_tests": "effective_teacher_target",
+    "projected_target": "q(t) = argmin over w in W50 of ||t - w||_2, where W50 = core._macro_targets (shape (50,2)), the student's entire target vocabulary",
+    "also_logged_for_DIAGNOSIS_ONLY_never_in_the_fingerprint": [
+      "is_defender (index >= N - ceil(N/2))",
+      "n_live_intruders",
+      "assigned threat index if any",
+      "raw teacher target before waypoint projection"
+    ],
+    "why_teacher_variables_are_excluded_from_the_fingerprint": "Including them would make the mapping trivially a function and destroy the test. They are recorded only to explain WHICH teacher variable drives an observed collision."
+  },
+
+  "TEST_0_OBSERVATION_EQUIVALENCE_COUNTEREXAMPLE": {
+    "status": "MECHANISTIC SUBPROBE -- separately labeled. Strongest CONSTRUCTIVE evidence if it fires; independent of BC performance, PPO, initialization, or whether natural duplicate observations happen to occur often enough.",
+    "claim_it_would_establish": "exists two physically valid underlying states with BYTE-IDENTICAL student input for some agent i, whose projected teacher targets differ: o_1 = o_2 (byte-for-byte) AND q(t_1) != q(t_2). That is a constructive proof that the larger-team teacher policy cannot be represented as a deterministic function of the current student input.",
+    "WHY_IT_IS_FEASIBLE_verified_from_the_obs_layout": "Audited gpu_env/_core/_observations.py::_build_vec_obs: of the 20 vec features, NONE depends on teammate positions (0-3 own pose, 4-7 own-relative flag deltas, 8-10 own payload, 11 nearest ENEMY distance, 12 time, 13 agent_id, 14 decision fraction, 15 own mine charge, 16 nearest pickup, 17 nearest friendly MINE, 18-19 scores). Teammates reach the student ONLY through grid channel 1, which is a CELL-QUANTIZED set-scatter (`_scatter_points`). Meanwhile the teacher's assignment uses EXACT continuous defender coordinates: `dd = self._dist(def_px, def_py, tx, ty)` followed by `pick = dd.argmin(dim=1)`. Therefore a SUB-CELL perturbation of defender j's continuous position can flip which defender is nearest a threat -- changing the assignment and hence the target -- while leaving a DIFFERENT agent i's observation bit-for-bit unchanged.",
+    "perturbation_rule": "perturb one defender j's continuous (own_x, own_y) strictly WITHIN its current 20x20 grid cell, so `_scatter_points` produces an identical channel-1 scatter. Evaluate the teacher on both the original and perturbed state.",
+    "MANDATORY_VERIFICATION_before_any_counterexample_is_reported": [
+      "byte-for-byte equality of grid[i], vec[i], agent_mask and mask[i] between the two states, for the agent i whose target changed -- verified via raw bytes, not a hash",
+      "the perturbed state is PHYSICALLY VALID: in bounds, same grid cell, not inside an obstacle, agent alive/untagged status unchanged",
+      "agent i is NOT the perturbed agent j (agent j's own vec 0-1 necessarily changes, so it can never be the subject of the counterexample)",
+      "the target difference survives projection onto W50: q(t_1) != q(t_2), not merely a continuous difference"
+    ],
+    "expected_scale_dependence": "must NOT fire at N=2 (one defender, argmin over a single element -- nothing to flip) and may fire at N>=4 where the defender-to-threat assignment matrix has 2+ rows. A counterexample at N=2 would indicate a bug in the probe, not a finding.",
+    "if_infeasible": "if no valid counterexample is found after the declared search budget, report that plainly as 'not constructed', NOT as evidence of consistency -- failure to construct is not proof of absence."
+  },
+
+  "ARM1_EVIDENCE_HIERARCHY": [
+    "TEST_1 natural exact collisions -- strongest PASSIVE evidence",
+    "TEST_0 observation-equivalence counterexamples -- strong CONSTRUCTIVE evidence if feasible",
+    "TEST_3 near-neighbour ambiguity -- descriptive SUPPORTING evidence only",
+    "SIDECAR W50 quantization error -- separates observability failure from action-expressivity failure"
+  ],
+
+  "TEST_1_EXACT_OBSERVATIONAL_COLLISIONS": {
+    "status": "PRIMARY",
+    "procedure": "Group samples by bit-identical fingerprint. Within each group ask whether two samples with o_j = o_k carry different teacher targets, tested BOTH on the raw continuous target and on the projected target q(t).",
+    "decisive_form": "exists j,k with o_j = o_k AND q(t_j) != q(t_k)",
+    "why_the_projection_matters": "The student can only emit one of the 50 waypoints. A raw continuous difference that projects to the SAME waypoint is expressible; a difference in q(t) is not. The projected form is the one that bears on the student's achievable policy.",
+    "claim_licensed_by_a_single_verified_collision": "constructive evidence that the projected teacher policy is NOT a deterministic function of the student input",
+    "but_also_report_prevalence": "One pathological collision and widespread ambiguity are different engineering problems and must be reported as such. Prevalence is mandatory, not optional."
+  },
+
+  "TEST_2_CONDITIONAL_LABEL_AMBIGUITY": {
+    "procedure": "For every repeated fingerprint f, compute the empirical distribution p(q(t) | f) and its Shannon entropy.",
+    "report": [
+      "number of repeated fingerprints",
+      "fraction of repeated fingerprints containing conflicting projected targets",
+      "mean and median target entropy in bits",
+      "fraction of ALL decision samples that sit inside an ambiguous group",
+      "continuous teacher-target spread (max pairwise ||t_j - t_k||) within each group"
+    ],
+    "comparison_table": "scale x strategy, with BREACH as the control column"
+  },
+
+  "TEST_3_NEAR_OBSERVATION_CONSISTENCY": {
+    "status": "SECONDARY -- descriptive only. Does NOT substitute for Test 1; only exact observational equivalence supports the strongest non-functionality claim.",
+    "procedure": "For each sample find nearest neighbours within the SAME scale, strategy and represented agent identity, then report P[q(t_j) != q(t_i) | d(o_i,o_j) <= eps].",
+    "distance_rule": "Structure-respecting, NOT a single Euclidean soup: grid disagreement (count of differing cells) and normalized-vector L2 are computed and reported SEPARATELY, never summed.",
+    "radii_PREDECLARED": {
+      "grid_cell_disagreement": [0, 1, 2, 4, 8],
+      "vec_l2": [0.0, 0.01, 0.05, 0.1, 0.25]
+    },
+    "no_post_hoc_epsilon": "The full consistency curve over the predeclared radii is reported. Choosing one convenient eps after seeing the data is forbidden."
+  },
+
+  "SIDECAR_WAYPOINT_EXPRESSIVITY_GAP": {
+    "why": "Separates two different failures that need different fixes: 'the student cannot know which target the teacher wants' vs 'the student knows approximately what the teacher wants but cannot express it'.",
+    "metrics": [
+      "e_q = min over w in W50 of ||t_teacher - w||_2, full distribution per scale per strategy",
+      "waypoint switching rate: fraction of consecutive steps (same agent, same episode) where q(t) changes",
+      "raw target movement per step ||t_(s+1) - t_s|| for comparison against the waypoint spacing"
+    ]
+  },
+
+  "PRECOMMITTED_INTERPRETATION": [
+    {"outcome": "Exact/strong GUARD ambiguity appears at 4v4/6v6 but not 2v2, and BREACH stays clean", "interpretation": "observation-interface insufficiency SUPPORTED", "next": "privileged-teacher vs standard-observation BC (Arms 2 and 3)"},
+    {"outcome": "Observations are consistent, but waypoint error e_q becomes large", "interpretation": "the ACTION-TARGET representation binds, not the observation", "next": "richer / relative / intercept-capable target head"},
+    {"outcome": "Both observation ambiguity and waypoint error are substantial", "interpretation": "both interfaces bind", "next": "factorial repair, ONE change at a time"},
+    {"outcome": "Neither is substantial", "interpretation": "the existing interface appears capable at this diagnostic level", "next": "return to learnability: PPO / acquisition / SNR"},
+    {"outcome": "Everything including BREACH looks ambiguous", "interpretation": "PROBE LIKELY INVALID -- fingerprint or distance metric wrong", "next": "audit the diagnostic itself; NO scientific conclusion"}
+  ],
+
+  "STANDING_RULE_REAFFIRMED": "Do NOT run GRAD_SNR_SCALING merely because the trajectory diagnostic was inconclusive. A plausible structural discontinuity has been located at N=2 -> N=4; representability/interface sufficiency is resolved BEFORE optimization efficiency.",
+
+  "WHAT_THIS_MAY_NOT_CLAIM": [
+    "that PPO cannot learn GUARD -- this probe never trains or evaluates a policy",
+    "that a neural network lacks capacity -- capacity is not measured here",
+    "any statement about win rates, payoffs or specialization margins",
+    "that ambiguity is the CAUSE of the 4v4 failure; it establishes that the teacher's target is not identifiable from the student input, which is a precondition claim, not a causal one",
+    "anything about a policy trained with a different observation schema"
+  ],
+
+  "SEEDS": {
+    "block": [17600001, 17600032],
+    "n": 32,
+    "class": "exploratory",
+    "registry": "allocated to ARM1_TEACHER_IDENTIFIABILITY via experiments/seed_registry.py",
+    "deviation_note": "The PI's brief said 'no new seed allocation'. A FRESH exploratory block is allocated instead of replaying spent certification blocks, because (a) seeds are free -- only GPU time is scarce, and this probe is CPU-only and trains nothing, and (b) replaying a sealed confirmatory block, even read-only, muddies the Rule 9 registry for no benefit. This honours the intent (spend no confirmatory seeds, no GPU budget) more cleanly than literal reuse would. The probe's conclusions do not depend on which seeds are used, since it characterises the teacher's input-output mapping rather than estimating any payoff."
+  },
+
+  "COMPLIANCE": {
+    "rule_1_telemetry": "tqdm per episode with scale/strategy/seed; per-cell summary printed as each cell closes",
+    "rule_2_incremental": "per-sample rows appended + fsynced; per-cell summaries written as cells close",
+    "rule_3_frozen_spec": "this document, frozen before any sample",
+    "rule_4_preflight": "self-test asserts (a) the captured teacher target matches a second independent call on unchanged core state, (b) W50 has exactly n_targets rows, (c) BREACH's target equals the enemy flag position for every agent, which is a known-answer check on the capture path itself",
+    "rule_5_resumability": "completed (scale, strategy, seed) cells skipped on restart",
+    "rule_6_live_status": "ARM1_TEACHER_IDENTIFIABILITY_LIVE_STATUS.json",
+    "rule_7_audit_gated_seal": "uses experiments/run_state.py::seal -- this is the FIRST evaluator migrated onto the sealing state machine",
+    "rule_9_seed_registry": "block reserved before this spec was written",
+    "rule_10_decision_tree": "PRECOMMITTED_INTERPRETATION above"
+  }
+}

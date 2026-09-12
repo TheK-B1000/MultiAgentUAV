@@ -1,0 +1,13 @@
+{
+  "record": "GRAD_SNR_SCALING implementation freeze",
+  "note": "Recorded once all planned pre-data validation passed (115 tests: estimator calibration, fail-closed behavior, dimension-cancellation proof, aggregate_spec_index gating, power analysis, five-way decision routing). Per standing rule: if code changes materially after this point, this hash stops matching and the diagnostic must be re-validated before any real rollout is collected under it.",
+  "combined_sha256": "22dbe62d641c8fe866d6e67e9a55249403879d29e2ea716296432756caf80520",
+  "per_file_sha256": {
+    "experiments/grad_snr_metrics.py": "feb539c56e67103437ce6b5674ec18f657278f8f1afc71818860b3fb137c7c74",
+    "experiments/grad_snr_decision.py": "8449fc1cbe5daae08cd41d42238513f265e7726858ea9f02b2675f18e3128e95",
+    "tests/test_grad_snr_metrics.py": "7735eef2d4419d4d6340bc0caaebaa0dfd030514b6fd1b1d59ff7e287d386947",
+    "tests/test_grad_snr_decision.py": "15b41a4ed9887e2fd1c00eede60892bb509ba9753dfd872eb7be536c2e3cf646"
+  },
+  "test_count": 115,
+  "frozen_utc": "2026-09-12T18:45:00Z"
+}

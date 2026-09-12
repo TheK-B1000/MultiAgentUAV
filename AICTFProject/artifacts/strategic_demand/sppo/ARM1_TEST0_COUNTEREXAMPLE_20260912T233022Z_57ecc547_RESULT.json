@@ -1,0 +1,39 @@
+{
+  "record": "ARM1_TEST0_COUNTEREXAMPLE observation-equivalence counterexample probe",
+  "status": "FROZEN_RESULT",
+  "one_shot": false,
+  "utc": "2026-09-12T23:30:22Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "ARM1_TEACHER_IDENTIFIABILITY_SPEC.json#TEST_0_OBSERVATION_EQUIVALENCE_COUNTEREXAMPLE",
+  "search_budget": {
+    "n_seeds": 1,
+    "tick_stride": 200,
+    "max_ticks": 10
+  },
+  "elapsed_s": 2.6,
+  "results": {
+    "2v2": {
+      "scale": "2v2",
+      "n_defenders": 1,
+      "n_perturbation_attempts": 0,
+      "n_pairs_with_identical_obs": 0,
+      "n_tick_samples_with_intruder": 0,
+      "n_tick_samples_skipped_no_intruder": 1,
+      "n_counterexamples": 0,
+      "counterexamples": []
+    }
+  },
+  "READING": "a counterexample at N>=4 but NOT at N=2 supports the audit's claim that the multi-defender assignment machinery requires information erased by the student's observation mapping. Absence of a counterexample is 'not constructed', NOT evidence of consistency.",
+  "run_id": "20260912T233022Z_57ecc547",
+  "config_signature": {
+    "device": "cpu",
+    "max_ticks": 10,
+    "n_seeds": 1,
+    "scales": [
+      2
+    ],
+    "seed_lo": 17600001,
+    "tick_stride": 200
+  }
+}

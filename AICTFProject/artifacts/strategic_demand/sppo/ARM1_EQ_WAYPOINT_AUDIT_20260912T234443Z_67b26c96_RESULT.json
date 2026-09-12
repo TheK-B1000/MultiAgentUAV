@@ -1,0 +1,300 @@
+{
+  "record": "ARM1_EQ_WAYPOINT_AUDIT waypoint quantization-error audit",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-12T23:44:43Z",
+  "run_id": "20260912T234443Z_67b26c96",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "ARM1_TEACHER_IDENTIFIABILITY_SPEC.json#SIDECAR_WAYPOINT_EXPRESSIVITY_GAP",
+  "config_signature": {
+    "device": "cpu",
+    "max_ticks": 240,
+    "n_seeds": 3,
+    "scales": [
+      2,
+      4,
+      6
+    ],
+    "seed_lo": 17600001
+  },
+  "elapsed_s": 177.5,
+  "units": "grid cells (arena is 20x20 cells; CNN grid is 20x20, so 1 unit = 1 cell)",
+  "results": {
+    "2v2_GUARD": {
+      "overall": {
+        "n": 1346,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.0757,
+        "max": 2.5258,
+        "mean": 1.8263,
+        "frac_gt_0.5_cells": 0.9606,
+        "frac_gt_1_cell": 0.8633,
+        "frac_gt_2_cells": 0.7786
+      },
+      "defenders": {
+        "n": 673,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.0757,
+        "max": 2.35,
+        "mean": 1.708,
+        "frac_gt_0.5_cells": 0.9346,
+        "frac_gt_1_cell": 0.7949,
+        "frac_gt_2_cells": 0.6939
+      },
+      "attackers": {
+        "n": 673,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.0757,
+        "max": 2.5258,
+        "mean": 1.9447,
+        "frac_gt_0.5_cells": 0.9866,
+        "frac_gt_1_cell": 0.9316,
+        "frac_gt_2_cells": 0.8633
+      },
+      "n_defenders": 1,
+      "waypoint_geometry": {
+        "n_waypoints": 50,
+        "nearest_neighbour_spacing": {
+          "median": 2.1111,
+          "mean": 2.0797,
+          "max": 2.1111
+        },
+        "extent": {
+          "x": [
+            0.0,
+            19.0
+          ],
+          "y": [
+            0.0,
+            19.0
+          ]
+        },
+        "expected_e_q_for_a_uniformly_random_point": 1.0556,
+        "how_to_read": "a point dropped at random between waypoints sits roughly half a nearest-neighbour spacing from the closest one. e_q well BELOW that means the teacher happens to command points the vocabulary covers; e_q AT or ABOVE it means the vocabulary is no better than arbitrary for this teacher."
+      }
+    },
+    "2v2_BREACH": {
+      "overall": {
+        "n": 1440,
+        "median": 2.0757,
+        "p90": 2.2024,
+        "p95": 2.3339,
+        "max": 2.5174,
+        "mean": 1.9343,
+        "frac_gt_0.5_cells": 0.9972,
+        "frac_gt_1_cell": 0.9708,
+        "frac_gt_2_cells": 0.7181
+      },
+      "n_defenders": 1,
+      "waypoint_geometry": {
+        "n_waypoints": 50,
+        "nearest_neighbour_spacing": {
+          "median": 2.1111,
+          "mean": 2.0797,
+          "max": 2.1111
+        },
+        "extent": {
+          "x": [
+            0.0,
+            19.0
+          ],
+          "y": [
+            0.0,
+            19.0
+          ]
+        },
+        "expected_e_q_for_a_uniformly_random_point": 1.0556,
+        "how_to_read": "a point dropped at random between waypoints sits roughly half a nearest-neighbour spacing from the closest one. e_q well BELOW that means the teacher happens to command points the vocabulary covers; e_q AT or ABOVE it means the vocabulary is no better than arbitrary for this teacher."
+      }
+    },
+    "4v4_GUARD": {
+      "overall": {
+        "n": 2880,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.1716,
+        "max": 2.5053,
+        "mean": 1.9122,
+        "frac_gt_0.5_cells": 0.9726,
+        "frac_gt_1_cell": 0.9222,
+        "frac_gt_2_cells": 0.7976
+      },
+      "defenders": {
+        "n": 1440,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.0757,
+        "max": 2.5053,
+        "mean": 1.8948,
+        "frac_gt_0.5_cells": 0.9576,
+        "frac_gt_1_cell": 0.9062,
+        "frac_gt_2_cells": 0.8431
+      },
+      "attackers": {
+        "n": 1440,
+        "median": 2.0757,
+        "p90": 2.1512,
+        "p95": 2.2937,
+        "max": 2.5034,
+        "mean": 1.9296,
+        "frac_gt_0.5_cells": 0.9875,
+        "frac_gt_1_cell": 0.9382,
+        "frac_gt_2_cells": 0.7521
+      },
+      "n_defenders": 2,
+      "waypoint_geometry": {
+        "n_waypoints": 50,
+        "nearest_neighbour_spacing": {
+          "median": 2.1111,
+          "mean": 2.0797,
+          "max": 2.1111
+        },
+        "extent": {
+          "x": [
+            0.0,
+            19.0
+          ],
+          "y": [
+            0.0,
+            19.0
+          ]
+        },
+        "expected_e_q_for_a_uniformly_random_point": 1.0556,
+        "how_to_read": "a point dropped at random between waypoints sits roughly half a nearest-neighbour spacing from the closest one. e_q well BELOW that means the teacher happens to command points the vocabulary covers; e_q AT or ABOVE it means the vocabulary is no better than arbitrary for this teacher."
+      }
+    },
+    "4v4_BREACH": {
+      "overall": {
+        "n": 2880,
+        "median": 2.0757,
+        "p90": 2.252,
+        "p95": 2.3303,
+        "max": 2.5218,
+        "mean": 1.8278,
+        "frac_gt_0.5_cells": 0.9865,
+        "frac_gt_1_cell": 0.9319,
+        "frac_gt_2_cells": 0.5587
+      },
+      "n_defenders": 2,
+      "waypoint_geometry": {
+        "n_waypoints": 50,
+        "nearest_neighbour_spacing": {
+          "median": 2.1111,
+          "mean": 2.0797,
+          "max": 2.1111
+        },
+        "extent": {
+          "x": [
+            0.0,
+            19.0
+          ],
+          "y": [
+            0.0,
+            19.0
+          ]
+        },
+        "expected_e_q_for_a_uniformly_random_point": 1.0556,
+        "how_to_read": "a point dropped at random between waypoints sits roughly half a nearest-neighbour spacing from the closest one. e_q well BELOW that means the teacher happens to command points the vocabulary covers; e_q AT or ABOVE it means the vocabulary is no better than arbitrary for this teacher."
+      }
+    },
+    "6v6_GUARD": {
+      "overall": {
+        "n": 4320,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.0757,
+        "max": 2.5247,
+        "mean": 1.896,
+        "frac_gt_0.5_cells": 0.9637,
+        "frac_gt_1_cell": 0.8986,
+        "frac_gt_2_cells": 0.8421
+      },
+      "defenders": {
+        "n": 2160,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.0757,
+        "max": 2.3722,
+        "mean": 1.854,
+        "frac_gt_0.5_cells": 0.9463,
+        "frac_gt_1_cell": 0.8676,
+        "frac_gt_2_cells": 0.8375
+      },
+      "attackers": {
+        "n": 2160,
+        "median": 2.0757,
+        "p90": 2.0757,
+        "p95": 2.0757,
+        "max": 2.5247,
+        "mean": 1.9379,
+        "frac_gt_0.5_cells": 0.981,
+        "frac_gt_1_cell": 0.9296,
+        "frac_gt_2_cells": 0.8468
+      },
+      "n_defenders": 3,
+      "waypoint_geometry": {
+        "n_waypoints": 50,
+        "nearest_neighbour_spacing": {
+          "median": 2.1111,
+          "mean": 2.0797,
+          "max": 2.1111
+        },
+        "extent": {
+          "x": [
+            0.0,
+            19.0
+          ],
+          "y": [
+            0.0,
+            19.0
+          ]
+        },
+        "expected_e_q_for_a_uniformly_random_point": 1.0556,
+        "how_to_read": "a point dropped at random between waypoints sits roughly half a nearest-neighbour spacing from the closest one. e_q well BELOW that means the teacher happens to command points the vocabulary covers; e_q AT or ABOVE it means the vocabulary is no better than arbitrary for this teacher."
+      }
+    },
+    "6v6_BREACH": {
+      "overall": {
+        "n": 4320,
+        "median": 1.9726,
+        "p90": 2.2548,
+        "p95": 2.3442,
+        "max": 2.5586,
+        "mean": 1.7823,
+        "frac_gt_0.5_cells": 0.9815,
+        "frac_gt_1_cell": 0.9201,
+        "frac_gt_2_cells": 0.4845
+      },
+      "n_defenders": 3,
+      "waypoint_geometry": {
+        "n_waypoints": 50,
+        "nearest_neighbour_spacing": {
+          "median": 2.1111,
+          "mean": 2.0797,
+          "max": 2.1111
+        },
+        "extent": {
+          "x": [
+            0.0,
+            19.0
+          ],
+          "y": [
+            0.0,
+            19.0
+          ]
+        },
+        "expected_e_q_for_a_uniformly_random_point": 1.0556,
+        "how_to_read": "a point dropped at random between waypoints sits roughly half a nearest-neighbour spacing from the closest one. e_q well BELOW that means the teacher happens to command points the vocabulary covers; e_q AT or ABOVE it means the vocabulary is no better than arbitrary for this teacher."
+      }
+    }
+  },
+  "DECISION_RULE_precommitted_by_PI": {
+    "small_e_q_everywhere": "waypoint quantization is probably not the main bottleneck -> proceed to macro-adapter audit and privileged-vs-standard BC",
+    "large_e_q_for_GUARD_at_4v4_6v6": "the ACTION interface is likely part of the scaling defect -> do NOT design BC as though observation is the only difference",
+    "large_e_q_even_at_2v2": "PAUSE -- the action projection may not faithfully represent even the WORKING strategy",
+    "BREACH_small_GUARD_large": "particularly compelling: it matches the exact strategic component that is causing trouble"
+  }
+}

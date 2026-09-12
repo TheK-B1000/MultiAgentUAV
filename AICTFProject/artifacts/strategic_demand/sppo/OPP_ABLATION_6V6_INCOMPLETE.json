@@ -1,0 +1,71 @@
+{
+  "record_id": "OPP_ABLATION_6V6_INCOMPLETE",
+  "status": "INCOMPLETE_STOPPED_BY_DECISION",
+  "NOT_SEALED": true,
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-12T23:45:00Z",
+  "implements": "6V6_OPPONENT_CHANNEL_ABLATION_SPEC.json",
+
+  "WHY_STOPPED": {
+    "decision": "PI decision to stop at 84/384 episodes and redirect the compute.",
+    "reasoning": "This experiment was designed when the leading hypothesis was that 6v6 policies might not be using opponent-position information. ARM1 TEST_0 has since found a more proximal structural defect: the scripted teacher's multi-defender ASSIGNMENT requires TEAMMATE coordination information the student does not observe, demonstrated constructively at both 4v4 and 6v6. Whatever FULL/ZERO/RANDOM would have shown, the next action is the same -- repair and test the scalable interface at 4v4.",
+    "rule_applied": "RESEARCH_RUN_STANDARDS rule 10: 'If every possible result leads to the same next action, the experiment is not worth running.' That became true of the remaining ~300 episodes partway through, so the run was cut rather than finished for its own sake.",
+    "explicitly_not_sunk_cost": "The ~68 minutes already spent are not a reason to spend another ~4 hours."
+  },
+
+  "PROGRESS_AT_STOP": {
+    "episodes_completed": 84,
+    "episodes_total_planned": 384,
+    "fraction": 0.219,
+    "elapsed_s": 4073.8,
+    "sec_per_episode": 48.5,
+    "stopped_mid_cell_at": {"policy": "pi_A", "pole": "A", "condition": "RANDOM_OPP", "seed": 17400020},
+    "rows_file": "opp_ablation_6v6_rows.csv",
+    "rows_durable": "84 data rows on disk, written with per-episode append + fsync, verified after process stop"
+  },
+
+  "CELLS_COMPLETE": {
+    "pi_A@PoleA/FULL": "32/32",
+    "pi_A@PoleA/ZERO_OPP": "32/32",
+    "pi_A@PoleA/RANDOM_OPP": "20/32 (partial)"
+  },
+
+  "PARTIAL_READING_EXPLORATORY_ONLY": {
+    "SCOPE_WARNING": "ONE policy, ONE pole, ONE of three conditions fully paired. This is a single cell of a 12-cell design. It is NOT the experiment, it is NOT sealed, and it must never be cited as the opponent-channel ablation result.",
+    "pi_A_at_PoleA_FULL_vs_ZERO_OPP": {
+      "paired_seeds": 32,
+      "V_FULL": 0.75,
+      "V_ZERO_OPP": 0.8125,
+      "L_ZERO_FULL_minus_ZERO": -0.0625,
+      "lcb95": -0.25,
+      "ucb95": 0.0938,
+      "outcome_flips": "8/32 episodes changed outcome",
+      "reading": "The CI contains zero, so this does not establish that zeroing the opponent channels changes performance for this cell in either direction. The point estimate is NEGATIVE (the policy scored slightly HIGHER with opponent positions zeroed), but the interval is far too wide to support any claim, and per the standing rule we do not narrate a direction the statistics do not support. 8/32 outcome flips shows the ablation is not inert -- it does perturb episodes -- without establishing a net effect."
+    }
+  },
+
+  "RESUMABILITY": {
+    "resumable": true,
+    "how": "experiments/eval_opponent_ablation_6v6.py skips completed (policy, pole, condition, seed) rows on restart. Relaunching resumes from episode 85, not from zero.",
+    "run_lock": "OPP_ABLATION_6V6.run.lock removed on stop so a future resume is not refused.",
+    "sealed_result_absent_by_design": "no OPP_ABLATION_6V6_RESULT.json was written, so the one-shot guard will not block a resume.",
+    "resume_if": "opponent-position dependence becomes decision-relevant again -- e.g. if the 4v4 interface repair closes the teammate-assignment gap and a specialization gap remains."
+  },
+
+  "WHAT_THIS_RECORD_MAY_NOT_BE_USED_FOR": [
+    "any claim about whether 6v6 policies use opponent-position information",
+    "any sealed or confirmatory purpose",
+    "any comparison against the 2v2/4v4 tracks",
+    "publication of the partial cell as if it were the designed experiment"
+  ],
+
+  "SEEDS": {
+    "block": [17400001, 17400032],
+    "class": "exploratory",
+    "spent_status": "PARTIALLY SPENT -- seeds 17400001-17400032 were used for the completed cells and the partial RANDOM_OPP cell. Registry entry should reflect partial expenditure; the block is NOT free for a different experiment.",
+    "registry_action_required": "mark OPP_ABLATION_6V6 block as SPENT (not RESERVED) in artifacts/SEED_REGISTRY.json"
+  },
+
+  "SUPERSEDED_BY": "ARM1_TEACHER_IDENTIFIABILITY / TEST_0, which answered the more proximal structural question in ~30 seconds of CPU rather than ~5 GPU-hours."
+}
