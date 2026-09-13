@@ -1,0 +1,71 @@
+{
+  "record_id": "PROJECTED_TEACHER_ORACLE_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "utc": "2026-09-13T00:05:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "OUTPUT_LABEL": "PROJECTED_TEACHER_ORACLE",
+
+  "QUESTION": "If the teacher keeps ALL of its privileged coordination information, but is forced to act through the student's REAL macro + 50-waypoint action interface, does the strategic behaviour still work closed-loop?",
+
+  "WHY_THIS_IS_THE_DECISIVE_ACTION_SPACE_TEST": "It isolates the ACTION interface from the OBSERVATION interface. TEST_0 proved the observation interface cannot identify the teacher's assignment at N>=4. The adapter audit showed per-decision quantization residual is modest (median 0.75-0.89 cells) and that the working 2v2 case uses the waypoint pathway MORE than 4v4/6v6. But a per-decision residual bound cannot rule out that small projection errors become toxic when MULTIPLE DEFENDERS coordinate on distinct moving intercepts. Only closed loop can show that.",
+
+  "DESIGN": {
+    "arms": {
+      "ORIGINAL": "blue_scripted=True. The scripted teacher drives continuous targets directly, exactly as in the strategic-demand certification. Baseline.",
+      "PROJECTED": "blue_scripted=False so the engine consumes real student actions. At each decision boundary the teacher is queried with FULL PRIVILEGED STATE, its continuous target is passed through the validated adapter (experiments/teacher_action_adapter.py), and the resulting (macro, target_idx) is submitted as a student action."
+    },
+    "CRITICAL_FIDELITY_RULE": {
+      "rule": "The teacher is re-queried ONLY at ACTUAL student decision boundaries, i.e. where the engine's own `blue_commit_ticks_left <= 0`. Between boundaries the previously chosen action is held and the engine's real commitment logic governs.",
+      "why": "An every-tick teacher override would give the projected oracle reactivity the learned student can never have, inflating its performance and invalidating the comparison. This is the single most important implementation detail in the experiment.",
+      "verified_mechanism": "gpu_env/_core/_step.py:45 `new_commit = self.blue_commit_ticks_left <= 0`; when false the requested macro/target is discarded and the committed one persists."
+    },
+    "matrix": {
+      "strategies": ["GUARD", "BREACH"],
+      "poles": ["A", "B"],
+      "scales": [2, 4, 6],
+      "note": "full {GUARD,BREACH} x {A,B} matrix, not only the favoured cells. 4v4 is the decision-driving scale; 2v2 is the working control; 6v6 included because the implementation is identical and the cost is trivial."
+    },
+    "pairing": "ORIGINAL and PROJECTED run on IDENTICAL seeds, so the loss is a paired per-seed quantity.",
+    "episodes_per_cell": 24,
+    "device": "cpu"
+  },
+
+  "PRIMARY_QUANTITIES": {
+    "V_original": "win rate of the unmodified scripted teacher",
+    "V_projected": "win rate of the teacher forced through the student action interface",
+    "L_paired": "V_original - V_projected on identical seeds, with percentile-bootstrap CI (n_boot=20000, alpha=0.05, rng_seed=7, seed as resampling unit)",
+    "delta_A": "V(GUARD, A) - V(BREACH, A), computed SEPARATELY for each arm",
+    "delta_B": "V(BREACH, B) - V(GUARD, B), computed SEPARATELY for each arm",
+    "why_deltas_matter_as_much_as_value": "A projected controller could preserve average win rate while DESTROYING the strategic distinction. That would still make the student action interface unsuitable for our actual research question, so specialization preservation is co-primary with value preservation, not secondary."
+  },
+
+  "PRECOMMITTED_INTERPRETATION": [
+    {"outcome": "PROJECTED ~ ORIGINAL and preserves delta_A, delta_B", "reading": "the action space is ADEQUATE", "next": "focus almost entirely on the missing assignment/role information in the observation interface"},
+    {"outcome": "PROJECTED loses noticeable value but still preserves specialization", "reading": "action quantization is imperfect but probably not the main 2->4 failure", "next": "keep action repair as a SECONDARY item; proceed with the observation repair"},
+    {"outcome": "PROJECTED loses specialization at 4v4 while 2v2 stays intact", "reading": "the student action interface contributes DIRECTLY to the scaling failure", "next": "observation repair alone will not be enough; repair action representation too"},
+    {"outcome": "PROJECTED already fails badly at 2v2", "reading": "STOP. The adapter or the action-space assumption is wrong despite the static anchors passing.", "next": "audit the oracle itself; draw no scientific conclusion"},
+    {"outcome": "BREACH intact while projected GUARD degrades", "reading": "especially informative -- isolates the problem to the moving-intercept / multi-defender pathway", "next": "target the intercept representation specifically"}
+  ],
+
+  "WHAT_THIS_MAY_NOT_CLAIM": [
+    "anything about whether PPO can LEARN the strategy -- no policy is trained or evaluated",
+    "that the observation interface is adequate (TEST_0 already showed it is not at N>=4)",
+    "that a PASS here means 4v4 specialists will train successfully",
+    "any sealed or confirmatory status; this is a mechanism diagnostic"
+  ],
+
+  "SEEDS": {"block": [17600001, 17600032], "class": "exploratory",
+            "note": "shares the ARM1 exploratory block; this is diagnostic, not confirmatory, and the two probes measure different quantities on the same scripted rollouts."},
+
+  "COMPLIANCE": {
+    "rule_1": "tqdm per cell; per-cell result printed as it closes",
+    "rule_2": "per-episode append + fsync to rows CSV",
+    "rule_3": "this document, frozen before any episode",
+    "rule_4": "RULE 11 adapter anchors must pass before any episode; refuses to run otherwise",
+    "rule_5": "completed (scale, strategy, pole, arm, seed) rows skipped on restart",
+    "rule_6": "PROJECTED_TEACHER_ORACLE_LIVE_STATUS.json",
+    "rule_10": "PRECOMMITTED_INTERPRETATION above",
+    "rule_11": "the adapter it depends on was built by CALLING the real engine target builder and is anchor-verified"
+  }
+}

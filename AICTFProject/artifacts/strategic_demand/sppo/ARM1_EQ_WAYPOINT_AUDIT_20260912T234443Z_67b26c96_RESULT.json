@@ -1,6 +1,6 @@
 {
   "record": "ARM1_EQ_WAYPOINT_AUDIT waypoint quantization-error audit",
-  "status": "FROZEN_RESULT",
+  "status": "INVALID_METRIC_MISSPECIFIED",
   "utc": "2026-09-12T23:44:43Z",
   "run_id": "20260912T234443Z_67b26c96",
   "arm": "DIAGNOSTIC",
@@ -296,5 +296,13 @@
     "large_e_q_for_GUARD_at_4v4_6v6": "the ACTION interface is likely part of the scaling defect -> do NOT design BC as though observation is the only difference",
     "large_e_q_even_at_2v2": "PAUSE -- the action projection may not faithfully represent even the WORKING strategy",
     "BREACH_small_GUARD_large": "particularly compelling: it matches the exact strategic component that is causing trouble"
+  },
+  "INVALIDATION": {
+    "utc": "2026-09-13T00:05:00Z",
+    "why": "e_q was computed as if EVERY teacher target had to be expressed through the 50-waypoint GO_TO head. It does not. gpu_env/_core/_rules.py::_build_targets_from_action resolves GET_FLAG to the EXACT enemy flag position and GO_HOME to the EXACT own flag home, bypassing the waypoint vocabulary entirely; a carrying agent is also redirected to exact home. BREACH's target is always the enemy flag and GUARD's defender default is always home, so this metric charged the student a quantization cost it never pays.",
+    "the_tell": "median e_q was identical at 2.076 in all six cells. That is not a measurement, it is the fixed distance from flag/home to the nearest waypoint.",
+    "would_have_caused": "the reported >1-cell fractions of 0.86-0.97 INCLUDING at 2v2 would have triggered the PI's 'large e_q even at 2v2 -> PAUSE' branch and sent us toward redesigning the action space for the wrong reason.",
+    "superseded_by": "conditional e_q computed only on the GO_TO branch (see ARM1_MACRO_ADAPTER_AUDIT when frozen)",
+    "retained_because": "the failure mode is worth preserving: a metric must be conditioned on the actual execution pathway, not on an assumed one."
   }
 }

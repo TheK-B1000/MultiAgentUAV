@@ -1,0 +1,16 @@
+{
+  "record": "CANONICAL ARM1_ADAPTER_AUDIT",
+  "points_to": "ARM1_ADAPTER_AUDIT_20260912T235748Z_7776f0f7_RESULT.json",
+  "run_id": "20260912T235748Z_7776f0f7",
+  "promoted_utc": "2026-09-12T23:57:48Z",
+  "config_signature": {
+    "device": "cpu",
+    "n_seeds": 3,
+    "scales": [
+      2,
+      4,
+      6
+    ],
+    "seed_lo": 17600001
+  }
+}

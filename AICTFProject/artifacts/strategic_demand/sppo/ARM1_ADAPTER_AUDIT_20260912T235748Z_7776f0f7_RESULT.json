@@ -1,0 +1,372 @@
+{
+  "record": "ARM1_ADAPTER_AUDIT exhaustive action-adapter audit + conditional e_q",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-12T23:57:48Z",
+  "run_id": "20260912T235748Z_7776f0f7",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "supersedes": "ARM1_EQ_WAYPOINT_AUDIT (INVALID_METRIC_MISSPECIFIED)",
+  "rule_11_anchors": "PASSED before any cell ran; audit refuses to run otherwise",
+  "config_signature": {
+    "device": "cpu",
+    "n_seeds": 3,
+    "scales": [
+      2,
+      4,
+      6
+    ],
+    "seed_lo": 17600001
+  },
+  "elapsed_s": 177.2,
+  "units": "grid cells",
+  "total_UNMAPPED": 0,
+  "results": {
+    "2v2_GUARD": {
+      "n_decisions": 1346,
+      "categories": {
+        "FORCED_HOME_TAGGED": 219,
+        "FORCED_HOME_CARRYING": 117,
+        "GET_FLAG": 337,
+        "GO_HOME": 468,
+        "WAYPOINT": 205,
+        "UNMAPPED": 0
+      },
+      "category_fractions": {
+        "FORCED_HOME_TAGGED": 0.1627,
+        "FORCED_HOME_CARRYING": 0.0869,
+        "GET_FLAG": 0.2504,
+        "GO_HOME": 0.3477,
+        "WAYPOINT": 0.1523,
+        "UNMAPPED": 0.0
+      },
+      "UNMAPPED_count": 0,
+      "exhaustive": true,
+      "conditional_e_q_WAYPOINT_ONLY": {
+        "n": 205,
+        "median": 0.8614,
+        "p90": 1.474,
+        "p95": 1.7003,
+        "max": 2.2065,
+        "frac_gt_0.5": 0.7854,
+        "frac_gt_1": 0.3268,
+        "frac_gt_2": 0.0098
+      },
+      "defenders": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0,
+          "FORCED_HOME_CARRYING": 0.0,
+          "GET_FLAG": 0.0,
+          "GO_HOME": 0.6954,
+          "WAYPOINT": 0.3046,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 205,
+          "median": 0.8614,
+          "p90": 1.474,
+          "p95": 1.7003,
+          "max": 2.2065,
+          "frac_gt_0.5": 0.7854,
+          "frac_gt_1": 0.3268,
+          "frac_gt_2": 0.0098
+        }
+      },
+      "attackers": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.3254,
+          "FORCED_HOME_CARRYING": 0.1738,
+          "GET_FLAG": 0.5007,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      }
+    },
+    "2v2_BREACH": {
+      "n_decisions": 1440,
+      "categories": {
+        "FORCED_HOME_TAGGED": 88,
+        "FORCED_HOME_CARRYING": 622,
+        "GET_FLAG": 730,
+        "GO_HOME": 0,
+        "WAYPOINT": 0,
+        "UNMAPPED": 0
+      },
+      "category_fractions": {
+        "FORCED_HOME_TAGGED": 0.0611,
+        "FORCED_HOME_CARRYING": 0.4319,
+        "GET_FLAG": 0.5069,
+        "GO_HOME": 0.0,
+        "WAYPOINT": 0.0,
+        "UNMAPPED": 0.0
+      },
+      "UNMAPPED_count": 0,
+      "exhaustive": true,
+      "conditional_e_q_WAYPOINT_ONLY": {
+        "n": 0
+      },
+      "defenders": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0556,
+          "FORCED_HOME_CARRYING": 0.5667,
+          "GET_FLAG": 0.3778,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      },
+      "attackers": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0667,
+          "FORCED_HOME_CARRYING": 0.2972,
+          "GET_FLAG": 0.6361,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      }
+    },
+    "4v4_GUARD": {
+      "n_decisions": 2880,
+      "categories": {
+        "FORCED_HOME_TAGGED": 240,
+        "FORCED_HOME_CARRYING": 453,
+        "GET_FLAG": 749,
+        "GO_HOME": 1214,
+        "WAYPOINT": 224,
+        "UNMAPPED": 0
+      },
+      "category_fractions": {
+        "FORCED_HOME_TAGGED": 0.0833,
+        "FORCED_HOME_CARRYING": 0.1573,
+        "GET_FLAG": 0.2601,
+        "GO_HOME": 0.4215,
+        "WAYPOINT": 0.0778,
+        "UNMAPPED": 0.0
+      },
+      "UNMAPPED_count": 0,
+      "exhaustive": true,
+      "conditional_e_q_WAYPOINT_ONLY": {
+        "n": 224,
+        "median": 0.8929,
+        "p90": 1.6754,
+        "p95": 1.8661,
+        "max": 2.2988,
+        "frac_gt_0.5": 0.7277,
+        "frac_gt_1": 0.3973,
+        "frac_gt_2": 0.0357
+      },
+      "defenders": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0,
+          "FORCED_HOME_CARRYING": 0.0,
+          "GET_FLAG": 0.0014,
+          "GO_HOME": 0.8431,
+          "WAYPOINT": 0.1556,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 224,
+          "median": 0.8929,
+          "p90": 1.6754,
+          "p95": 1.8661,
+          "max": 2.2988,
+          "frac_gt_0.5": 0.7277,
+          "frac_gt_1": 0.3973,
+          "frac_gt_2": 0.0357
+        }
+      },
+      "attackers": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.1667,
+          "FORCED_HOME_CARRYING": 0.3146,
+          "GET_FLAG": 0.5188,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      }
+    },
+    "4v4_BREACH": {
+      "n_decisions": 2880,
+      "categories": {
+        "FORCED_HOME_TAGGED": 290,
+        "FORCED_HOME_CARRYING": 600,
+        "GET_FLAG": 1990,
+        "GO_HOME": 0,
+        "WAYPOINT": 0,
+        "UNMAPPED": 0
+      },
+      "category_fractions": {
+        "FORCED_HOME_TAGGED": 0.1007,
+        "FORCED_HOME_CARRYING": 0.2083,
+        "GET_FLAG": 0.691,
+        "GO_HOME": 0.0,
+        "WAYPOINT": 0.0,
+        "UNMAPPED": 0.0
+      },
+      "UNMAPPED_count": 0,
+      "exhaustive": true,
+      "conditional_e_q_WAYPOINT_ONLY": {
+        "n": 0
+      },
+      "defenders": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.1146,
+          "FORCED_HOME_CARRYING": 0.0042,
+          "GET_FLAG": 0.8812,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      },
+      "attackers": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0868,
+          "FORCED_HOME_CARRYING": 0.4125,
+          "GET_FLAG": 0.5007,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      }
+    },
+    "6v6_GUARD": {
+      "n_decisions": 4320,
+      "categories": {
+        "FORCED_HOME_TAGGED": 857,
+        "FORCED_HOME_CARRYING": 150,
+        "GET_FLAG": 1154,
+        "GO_HOME": 1811,
+        "WAYPOINT": 348,
+        "UNMAPPED": 0
+      },
+      "category_fractions": {
+        "FORCED_HOME_TAGGED": 0.1984,
+        "FORCED_HOME_CARRYING": 0.0347,
+        "GET_FLAG": 0.2671,
+        "GO_HOME": 0.4192,
+        "WAYPOINT": 0.0806,
+        "UNMAPPED": 0.0
+      },
+      "UNMAPPED_count": 0,
+      "exhaustive": true,
+      "conditional_e_q_WAYPOINT_ONLY": {
+        "n": 348,
+        "median": 0.7481,
+        "p90": 1.077,
+        "p95": 1.3319,
+        "max": 2.0083,
+        "frac_gt_0.5": 0.6667,
+        "frac_gt_1": 0.181,
+        "frac_gt_2": 0.0029
+      },
+      "defenders": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0,
+          "FORCED_HOME_CARRYING": 0.0,
+          "GET_FLAG": 0.0005,
+          "GO_HOME": 0.8384,
+          "WAYPOINT": 0.1611,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 348,
+          "median": 0.7481,
+          "p90": 1.077,
+          "p95": 1.3319,
+          "max": 2.0083,
+          "frac_gt_0.5": 0.6667,
+          "frac_gt_1": 0.181,
+          "frac_gt_2": 0.0029
+        }
+      },
+      "attackers": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.3968,
+          "FORCED_HOME_CARRYING": 0.0694,
+          "GET_FLAG": 0.5338,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      }
+    },
+    "6v6_BREACH": {
+      "n_decisions": 4320,
+      "categories": {
+        "FORCED_HOME_TAGGED": 190,
+        "FORCED_HOME_CARRYING": 649,
+        "GET_FLAG": 3481,
+        "GO_HOME": 0,
+        "WAYPOINT": 0,
+        "UNMAPPED": 0
+      },
+      "category_fractions": {
+        "FORCED_HOME_TAGGED": 0.044,
+        "FORCED_HOME_CARRYING": 0.1502,
+        "GET_FLAG": 0.8058,
+        "GO_HOME": 0.0,
+        "WAYPOINT": 0.0,
+        "UNMAPPED": 0.0
+      },
+      "UNMAPPED_count": 0,
+      "exhaustive": true,
+      "conditional_e_q_WAYPOINT_ONLY": {
+        "n": 0
+      },
+      "defenders": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0435,
+          "FORCED_HOME_CARRYING": 0.1162,
+          "GET_FLAG": 0.8403,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      },
+      "attackers": {
+        "category_fractions": {
+          "FORCED_HOME_TAGGED": 0.0444,
+          "FORCED_HOME_CARRYING": 0.1843,
+          "GET_FLAG": 0.7713,
+          "GO_HOME": 0.0,
+          "WAYPOINT": 0.0,
+          "UNMAPPED": 0.0
+        },
+        "conditional_e_q": {
+          "n": 0
+        }
+      }
+    }
+  },
+  "HOW_TO_READ": {
+    "category_fractions": "exhaustive per cell; sum to 1.0 by construction",
+    "conditional_e_q": "defined ONLY on WAYPOINT decisions. Semantic-macro and forced-home decisions execute exactly, so e_q is not merely small for them -- it is undefined, and including them is what invalidated the previous audit.",
+    "UNMAPPED_expectation": "0 is EXPECTED, not a strong validation: any in-map target is reachable through the waypoint pathway with bounded residual. UNMAPPED exists to catch out-of-map or pathological commands."
+  }
+}
