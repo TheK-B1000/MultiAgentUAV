@@ -1,0 +1,15 @@
+{
+  "record_id": "PRIVILEGED_VS_STANDARD_BC_PAUSED",
+  "status": "PAUSED",
+  "utc": "2026-09-13T02:45:00Z",
+  "authority": "PI direction: pause Privileged-vs-Standard BC until action-side representability is repaired or ruled out.",
+  "reason": "PROJECTED_TEACHER_ORACLE: 4v4 PROJECTED loses GUARD-side specialization. ACTION_INTERFACE_DECOMP (Rule-12 PASS): L_S^{4v4}=0, L_C^{4v4}=+0.71 — binder is stale GO_TO commitment, not W50 projection.",
+  "two_defects": [
+    "hidden multi-defender assignment information (TEST_0)",
+    "stale GO_TO interception targets (action-side; this repair axis)"
+  ],
+  "next": "REPAIRED_GO_TO_H1_PROJECTED_SPEC.json — 4v4 projected teacher with macro_commit_go_to_ticks 4→1; primary gate = recover LCB95(delta_A)>0 AND LCB95(delta_B)>0. Resume BC only after action-side gate recovery (or explicit abort of this axis).",
+  "does_not_cancel": "observation/role-assignment repair remains required; it is next after action-side validation, not instead of it.",
+  "pauses": ["Privileged-vs-Standard BC", "PPO", "SNR"]
+}
+

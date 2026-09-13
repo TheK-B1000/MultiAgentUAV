@@ -1,0 +1,77 @@
+{
+  "record": "ACTION_INTERFACE_DECOMP sealed paired-loss reading",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-13T02:40:57Z",
+  "implements": [
+    "ACTION_INTERFACE_DECOMP_RULE12_ORACLE_CONTRACT_AMENDMENT.json",
+    "ACTION_INTERFACE_DECOMP_SPEC.json"
+  ],
+  "study_class": "MECHANISTIC_FOLLOW_UP",
+  "not": "INDEPENDENT_CONFIRMATION",
+  "rule12_oracle_contract": {
+    "passed": true,
+    "compared": 96,
+    "mismatches": 0,
+    "equalities": [
+      "DECOMP.ORIGINAL == ORACLE.ORIGINAL",
+      "DECOMP.FULL == ORACLE.PROJECTED"
+    ]
+  },
+  "primary": "L_S, L_C, L_F with paired CIs; binder label is secondary",
+  "results": {
+    "2v2": {
+      "n": 24,
+      "V": {
+        "ORIGINAL": 0.75,
+        "SPATIAL_ONLY": 0.5833,
+        "COMMIT_ONLY": 0.0833,
+        "FULL": 0.5417
+      },
+      "L_S": {
+        "mean": 0.166667,
+        "lcb95": -0.125,
+        "ucb95": 0.416667,
+        "n": 24
+      },
+      "L_C": {
+        "mean": 0.666667,
+        "lcb95": 0.416667,
+        "ucb95": 0.875,
+        "n": 24
+      },
+      "L_F": {
+        "mean": 0.208333,
+        "lcb95": -0.041667,
+        "ucb95": 0.416667,
+        "n": 24
+      }
+    },
+    "4v4": {
+      "n": 24,
+      "V": {
+        "ORIGINAL": 0.7083,
+        "SPATIAL_ONLY": 0.7083,
+        "COMMIT_ONLY": 0.0,
+        "FULL": 0.5417
+      },
+      "L_S": {
+        "mean": 0.0,
+        "lcb95": -0.25,
+        "ucb95": 0.208333,
+        "n": 24
+      },
+      "L_C": {
+        "mean": 0.708333,
+        "lcb95": 0.5,
+        "ucb95": 0.875,
+        "n": 24
+      },
+      "L_F": {
+        "mean": 0.166667,
+        "lcb95": -0.083333,
+        "ucb95": 0.416667,
+        "n": 24
+      }
+    }
+  }
+}

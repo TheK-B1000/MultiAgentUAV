@@ -1,0 +1,16 @@
+{
+  "record": "CANONICAL ACTION_INTERFACE_DECOMP",
+  "points_to": "ACTION_INTERFACE_DECOMP_20260913T021738Z_df14ce63_RESULT.json",
+  "run_id": "20260913T021738Z_df14ce63",
+  "promoted_utc": "2026-09-13T02:17:38Z",
+  "config_signature": {
+    "device": "cpu",
+    "go_to_horizon": 4,
+    "n_seeds": 24,
+    "scales": [
+      4,
+      2
+    ],
+    "seed_lo": 17600001
+  }
+}

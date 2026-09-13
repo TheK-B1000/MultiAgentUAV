@@ -52,7 +52,7 @@ def _boot(d: np.ndarray, n_boot=20000, alpha=0.05, seed=7) -> dict:
             "ucb95": round(float(hi), 6), "n": int(d.size)}
 
 
-def _make_env(scale, pole, style, seed, device):
+def _make_env(scale, pole, style, seed, device, go_to_horizon: int | None = None):
     import experiments.strategic_demand_searcher as S
     from experiments.opponent_spec import pole_A_genome, pole_B_genome
     from experiments.strategic_demand_searcher import apply_genome_to_core
@@ -64,6 +64,8 @@ def _make_env(scale, pole, style, seed, device):
         aquaticus_profile=True, rules_profile="OURS", device=device, seed=seed,
         obstacle_obs_channel=True, tag_telemetry_enabled=True,
         own_flag_home_required_to_score=True, **S.RULESET)
+    if go_to_horizon is not None:
+        cfg.macro_commit_go_to_ticks = int(go_to_horizon)
     env = GPUCTFVecEnv(cfg); core = env.core
     opp = g.base_opponent
     env.env_method("set_phase", opp)
@@ -82,7 +84,8 @@ def _make_env(scale, pole, style, seed, device):
     return env, core, S
 
 
-def harness_anchor(scale: int, device: str, seeds: tuple[int, ...]) -> list[str]:
+def harness_anchor(scale: int, device: str, seeds: tuple[int, ...],
+                   go_to_horizon: int | None = None) -> list[str]:
     """KNOWN-ANSWER ANCHOR the oracle must pass before spending episodes:
     the ORIGINAL arm must reproduce experiments/strategic_demand_searcher.run_episode
     EXACTLY on the same seed. Rule 11 was applied to the adapter but not to the
@@ -94,7 +97,8 @@ def harness_anchor(scale: int, device: str, seeds: tuple[int, ...]) -> list[str]
     fails = []
     for seed in seeds:
         ref = S.run_episode(style=S.GUARD, genome=g, seed=seed, device=device)
-        mine = run_episode(scale, "GUARD", "A", "ORIGINAL", seed, device)
+        mine = run_episode(scale, "GUARD", "A", "ORIGINAL", seed, device,
+                           go_to_horizon=go_to_horizon)
         if not (ref["win"] == mine["win"] and ref["blue_score"] == mine["blue"]
                 and ref["red_score"] == mine["red"]):
             fails.append(f"{scale}v{scale} seed={seed}: reference "
@@ -103,11 +107,13 @@ def harness_anchor(scale: int, device: str, seeds: tuple[int, ...]) -> list[str]
     return fails
 
 
-def run_episode(scale, strategy, pole, arm, seed, device) -> dict:
+def run_episode(scale, strategy, pole, arm, seed, device,
+                go_to_horizon: int | None = None) -> dict:
     import experiments.strategic_demand_searcher as S0
     from experiments.teacher_action_adapter import adapt
     style = S0.GUARD if strategy == "GUARD" else S0.BREACH
-    env, core, S = _make_env(scale, pole, style, seed, device)
+    env, core, S = _make_env(scale, pole, style, seed, device,
+                             go_to_horizon=go_to_horizon)
     n_dec = n_wp = 0
     try:
         if arm == "PROJECTED":
@@ -161,26 +167,61 @@ def main() -> int:
     ap.add_argument("--scales", type=int, nargs="+", default=[2, 4])
     ap.add_argument("--n-seeds", type=int, default=24)
     ap.add_argument("--promote", action="store_true")
+    ap.add_argument("--go-to-horizon", type=int, default=None,
+                    help="Override GPUFieldConfig.macro_commit_go_to_ticks "
+                         "(default: cfg=4). Use 1 for the repaired projected validation.")
+    ap.add_argument("--spec", type=str, default=None,
+                    help="Alternate frozen SPEC path (required when --go-to-horizon != 4).")
+    ap.add_argument("--label", type=str, default=None,
+                    help="Output label / artifact prefix (defaults from SPEC OUTPUT_LABEL).")
     a = ap.parse_args()
 
-    spec = json.loads(SPEC.read_text(encoding="utf-8"))
+    go_to_h = a.go_to_horizon
+    if go_to_h is not None and go_to_h < 1:
+        raise SystemExit("REFUSING: --go-to-horizon must be >= 1")
+
+    spec_path = Path(a.spec) if a.spec else SPEC
+    if not spec_path.is_absolute():
+        # allow bare filename under SD, or relative to CWD / ROOT
+        cand = [spec_path, SD / spec_path.name, ROOT / spec_path]
+        spec_path = next((p for p in cand if p.is_file()), cand[0])
+    spec = json.loads(spec_path.read_text(encoding="utf-8"))
     if not str(spec.get("status", "")).startswith("FROZEN"):
         raise SystemExit(f"REFUSING: spec not frozen: {spec.get('status')!r}")
-    lo, _ = spec["SEEDS"]["block"]
-    seeds = list(range(lo, lo + a.n_seeds))
-    ROWS = SD / f"{LABEL.lower()}_rows.csv"
-    LIVE = SD / f"{LABEL}_LIVE_STATUS.json"
-    LOCK = SD / f"{LABEL}.run.lock"
+
+    label = a.label or str(spec.get("OUTPUT_LABEL") or LABEL)
+    # Protect the sealed h=4 oracle artifacts from accidental overwrite.
+    if go_to_h is not None and int(go_to_h) != 4 and label == LABEL:
+        raise SystemExit(
+            "REFUSING: --go-to-horizon != 4 would overwrite sealed PROJECTED_TEACHER_ORACLE "
+            "artifacts. Pass --spec REPAIRED_GO_TO_H1_PROJECTED_SPEC.json "
+            "(or another non-oracle --label)."
+        )
+    if go_to_h is None and label != LABEL and a.spec is None:
+        raise SystemExit("REFUSING: custom --label without --spec / --go-to-horizon")
+
+    if "SEEDS" in spec and "block" in spec["SEEDS"]:
+        lo, _ = spec["SEEDS"]["block"]
+    else:
+        # Repair SPEC reuses the sealed oracle seed block by explicit design.
+        lo = 17600001
+    seeds = list(range(int(lo), int(lo) + a.n_seeds))
+    ROWS = SD / f"{label.lower()}_rows.csv"
+    LIVE = SD / f"{label}_LIVE_STATUS.json"
+    LOCK = SD / f"{label}.run.lock"
     if LOCK.is_file():
         raise SystemExit(f"REFUSING: {LOCK.name} exists.")
-    LOCK.write_text(json.dumps({"pid": os.getpid(), "utc": _now()}), encoding="utf-8")
+    LOCK.write_text(json.dumps({"pid": os.getpid(), "utc": _now(),
+                                "go_to_horizon": go_to_h}), encoding="utf-8")
 
     # RULE 11 gate: adapter anchors must pass before any episode.
     from experiments.teacher_action_adapter import golden_anchors
     import experiments.strategic_demand_searcher as S0
-    env, core, _ = _make_env(a.scales[0], "A", S0.GUARD, seeds[0], a.device)
+    env, core, _ = _make_env(a.scales[0], "A", S0.GUARD, seeds[0], a.device,
+                             go_to_horizon=go_to_h)
     try:
         fails = golden_anchors(core, core._macro_targets.detach().cpu().numpy(), 0)
+        effective_h = int(core.cfg.macro_commit_go_to_ticks)
     finally:
         env.close()
     if fails:
@@ -189,15 +230,17 @@ def main() -> int:
     # HARNESS anchor: the ORIGINAL arm must reproduce the reference implementation.
     hfails = []
     for sc in a.scales:
-        hfails += harness_anchor(sc, a.device, tuple(seeds[:3]))
+        hfails += harness_anchor(sc, a.device, tuple(seeds[:3]), go_to_horizon=go_to_h)
     if hfails:
         LOCK.unlink(missing_ok=True)
         raise SystemExit("HARNESS ANCHOR FAILED -- the ORIGINAL arm does not reproduce "
                          "strategic_demand_searcher.run_episode. Oracle refuses to run:\n  "
                          + "\n  ".join(hfails))
-    print(f"{LABEL}  {_now()}\n  rule-11 adapter anchors: PASS\n  harness anchor "
+    print(f"{label}  {_now()}\n  rule-11 adapter anchors: PASS\n  harness anchor "
           f"(ORIGINAL == reference run_episode): PASS")
     print(f"  matrix {{GUARD,BREACH}} x {{A,B}} x scales {a.scales}, n={len(seeds)} paired seeds")
+    print(f"  macro_commit_go_to_ticks={effective_h}"
+          f"{' (CLI override)' if go_to_h is not None else ' (cfg default)'}")
     print(f"  PROJECTED re-queries the teacher ONLY at real commitment boundaries\n", flush=True)
 
     done_keys = set()
@@ -216,7 +259,7 @@ def main() -> int:
     cells = [(n, st, p, arm) for n in a.scales for st in ("GUARD", "BREACH")
              for p in ("A", "B") for arm in ("ORIGINAL", "PROJECTED")]
     t0 = time.time()
-    bar = tqdm_iter(cells, desc=LABEL, unit="cell")
+    bar = tqdm_iter(cells, desc=label, unit="cell")
     for n, st, p, arm in bar:
         set_postfix(bar, f"{n}v{n} {st} pole{p} {arm}")
         wins = []
@@ -226,14 +269,15 @@ def main() -> int:
                 wins.append(int(next(r["win"] for r in rows if (r["scale"], r["strategy"],
                             r["pole"], r["arm"], int(r["seed"])) == key)))
                 continue
-            rec = run_episode(n, st, p, arm, seed, a.device)
+            rec = run_episode(n, st, p, arm, seed, a.device, go_to_horizon=go_to_h)
             wins.append(rec["win"])
             with ROWS.open("a", newline="", encoding="utf-8") as fh:
                 csv.DictWriter(fh, fieldnames=FIELDS).writerow(rec)
                 fh.flush(); os.fsync(fh.fileno())
             rows.append({k: str(v) for k, v in rec.items()})
         print(f"  {n}v{n} {st:<7s} pole{p} {arm:<9s} V={np.mean(wins):.4f}", flush=True)
-        LIVE.write_text(json.dumps({"label": LABEL, "pid": os.getpid(),
+        LIVE.write_text(json.dumps({"label": label, "pid": os.getpid(),
+            "go_to_horizon": effective_h,
             "current": f"{n}v{n} {st} {p} {arm}", "elapsed_s": round(time.time() - t0, 1),
             "heartbeat_utc": _now()}, indent=2), encoding="utf-8")
 
@@ -263,28 +307,41 @@ def main() -> int:
                 "delta_A": _boot(gA[:mA] - bA[:mA]) if mA else None,
                 "delta_B": _boot(bB[:mB] - gB[:mB]) if mB else None,
             }
+            da, db = cell[f"delta_{arm}"]["delta_A"], cell[f"delta_{arm}"]["delta_B"]
+            cell[f"gate_{arm}"] = (
+                da is not None and db is not None
+                and da["lcb95"] is not None and db["lcb95"] is not None
+                and float(da["lcb95"]) > 0.0 and float(db["lcb95"]) > 0.0
+            )
         out[f"{n}v{n}"] = cell
         d_o, d_p = cell["delta_ORIGINAL"], cell["delta_PROJECTED"]
-        print(f"\n  {n}v{n} SPECIALIZATION CONTRAST")
-        for nm, dd in (("ORIGINAL ", d_o), ("PROJECTED", d_p)):
+        print(f"\n  {n}v{n} SPECIALIZATION CONTRAST  "
+              f"(PRIMARY GATE = LCB95(delta_A)>0 AND LCB95(delta_B)>0)")
+        for nm, dd, gkey in (("ORIGINAL ", d_o, "gate_ORIGINAL"),
+                             ("PROJECTED", d_p, "gate_PROJECTED")):
             da, db = dd["delta_A"], dd["delta_B"]
+            gate = "PASS" if cell[gkey] else "FAIL"
             print(f"    {nm}  delta_A={da['mean']:+.4f} [{da['lcb95']:+.4f},{da['ucb95']:+.4f}]"
-                  f"   delta_B={db['mean']:+.4f} [{db['lcb95']:+.4f},{db['ucb95']:+.4f}]")
+                  f"   delta_B={db['mean']:+.4f} [{db['lcb95']:+.4f},{db['ucb95']:+.4f}]"
+                  f"   gate={gate}")
 
     cfg_sig = json.dumps({"scales": a.scales, "n_seeds": a.n_seeds,
-                          "device": a.device, "seed_lo": seeds[0]}, sort_keys=True)
+                          "device": a.device, "seed_lo": seeds[0],
+                          "go_to_horizon": effective_h}, sort_keys=True)
     run_id = f"{_now().replace(':', '').replace('-', '')}_{hashlib.sha256(cfg_sig.encode()).hexdigest()[:8]}"
-    rec = {"record": f"{LABEL} closed-loop action-interface test", "status": "FROZEN_RESULT",
+    rec = {"record": f"{label} closed-loop action-interface test", "status": "FROZEN_RESULT",
            "utc": _now(), "run_id": run_id, "arm": "DIAGNOSTIC", "confirmatory": False,
-           "implements": SPEC.name, "config_signature": json.loads(cfg_sig),
+           "study_class": spec.get("study_class", "DIAGNOSTIC"),
+           "implements": [spec_path.name],
+           "config_signature": json.loads(cfg_sig),
            "elapsed_s": round(time.time() - t0, 1), "results": out}
-    p = SD / f"{LABEL}_{run_id}_RESULT.json"
+    p = SD / f"{label}_{run_id}_RESULT.json"
     if p.exists():
         raise SystemExit(f"REFUSING: {p.name} exists.")
     p.write_text(json.dumps(rec, indent=2), encoding="utf-8")
     if a.promote:
-        (SD / f"{LABEL}_CANONICAL.json").write_text(json.dumps({
-            "record": f"CANONICAL {LABEL}", "points_to": p.name, "run_id": run_id,
+        (SD / f"{label}_CANONICAL.json").write_text(json.dumps({
+            "record": f"CANONICAL {label}", "points_to": p.name, "run_id": run_id,
             "promoted_utc": _now(), "config_signature": json.loads(cfg_sig)}, indent=2),
             encoding="utf-8")
     LOCK.unlink(missing_ok=True)

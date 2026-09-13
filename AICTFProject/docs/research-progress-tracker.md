@@ -16,7 +16,14 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-11 — Sealed role crossover **restarted with tqdm**
+> **Last updated:** 2026-09-13 — Action-interface diagnosis sealed:
+> `ACTION_INTERFACE_DECOMP_SEALED_READING.json` (Rule-12 PASS). Binder is
+> **stale GO_TO commitment** (\(L_C^{4v4}=+0.71\)), not W50 projection
+> (\(L_S^{4v4}=0\)). Next: `REPAIRED_GO_TO_H1_PROJECTED_SPEC.json`
+> (`macro_commit_go_to_ticks` 4→1) for 4v4 specialization-gate recovery.
+> **Privileged BC / PPO / SNR remain PAUSED.**
+>
+> Prior 2026-09-11 — Sealed role crossover **restarted with tqdm**
 > (`4V4_B3_ROLE_PRESERVATION_SEALED_CROSSOVER_TQDM_RESTART.json`; no RESULT
 > from first attempt). Single worker; bar on stderr (`0/512…`). Shared
 > `experiments/tqdm_loop.py` wired into crossover/certify/diagnostic collectors;

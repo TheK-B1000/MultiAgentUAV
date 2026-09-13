@@ -1,0 +1,15 @@
+{
+  "record": "CANONICAL PROJECTED_TEACHER_ORACLE",
+  "points_to": "PROJECTED_TEACHER_ORACLE_20260913T012159Z_afb31c3b_RESULT.json",
+  "run_id": "20260913T012159Z_afb31c3b",
+  "promoted_utc": "2026-09-13T01:21:59Z",
+  "config_signature": {
+    "device": "cpu",
+    "n_seeds": 24,
+    "scales": [
+      2,
+      4
+    ],
+    "seed_lo": 17600001
+  }
+}
