@@ -735,7 +735,31 @@
       "spec": "ARM1_TEACHER_IDENTIFIABILITY_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-12T22:57:55Z"
+    },
+    {
+      "experiment_id": "4V4_ENTITY_REPAIR_TRAINING",
+      "purpose": "pi_A3/pi_B3 4v4 entity-repair specialist training seeds (one each), warm-started from the sealed B3-3 checkpoints per 4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json",
+      "seed_class": "sealed_confirmatory",
+      "lo": 17700001,
+      "hi": 17700002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-13T07:44:56Z"
+    },
+    {
+      "experiment_id": "4V4_ENTITY_REPAIR_CROSSOVER_EVAL",
+      "purpose": "closed-loop crossover evaluation of pi_A3 vs pi_B3 (Delta_A/Delta_B), n=192 matching the sealed B3-3 crossover eval sample size, per 4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json",
+      "seed_class": "sealed_confirmatory",
+      "lo": 17800001,
+      "hi": 17800192,
+      "n": 192,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-13T07:45:12Z"
     }
   ],
-  "updated_utc": "2026-09-12T23:38:38Z"
+  "updated_utc": "2026-09-13T07:45:12Z"
 }

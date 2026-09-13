@@ -496,23 +496,28 @@ def main() -> int:
         # Deliberately NOT constrained to this run's own checkpoint dir (unlike
         # --resume): warm-starting from a DIFFERENT completed run is the point.
         cfg.load_path = str(lp)
+        # --load-path is WEIGHT INITIALIZATION, not run continuation: global_step
+        # starts at 0 and total_timesteps below is THIS run's own fresh budget,
+        # not extended by whatever the loaded checkpoint had already trained
+        # (see PPOConfig.warm_start_reset_progress). Optimizer/RNG/return-norm
+        # state also start fresh for the same reason -- a warm start is
+        # "initialize weights from X", never "continue X's run".
+        cfg.warm_start_reset_progress = True
         if cfg.entity_repair_enabled:
             # entity_encoder is a NEW module the old checkpoint's optimizer state
-            # never had params for -- an active-actor architecture migration by
-            # construction whenever this combination is used, exactly the case
-            # this existing flag exists for (see its 7->8 CNN-channel precedent
-            # in rl/custom_ppo/checkpoints/state_dict.py). Model weights still
-            # load via the normal compat path (entity_encoder.* allowed missing,
-            # verified behaviourally equivalent); only optimizer state is
-            # skipped and starts fresh, matching the flag's own error message.
+            # never had params for. warm_start_reset_progress=True already forces
+            # a fresh optimizer for every --load-path use (see loader.py); this
+            # flag is kept for explicitness and matches its own error message if
+            # ever inspected independently of reset_progress.
             cfg.allow_active_actor_module_migration = True
             print(f"  allow_active_actor_module_migration=True (entity_encoder is new "
                  f"vs. the loaded checkpoint's optimizer state; model weights still "
                  f"load via the normal compat path)")
         print(f"  WARM START from {lp.name}"
              f"{' [entity_repair_enabled=True]' if cfg.entity_repair_enabled else ''} "
-             f"(fresh run/label; metrics start fresh, total_timesteps = "
-             f"{int(cfg.total_timesteps):,})")
+             f"(weight init only: global_step resets to 0; fresh run/label; "
+             f"metrics start fresh; total_timesteps = {int(cfg.total_timesteps):,} "
+             f"is this run's OWN fresh budget)")
     elif resume_path:
         rp = Path(resume_path)
         if not rp.is_file():

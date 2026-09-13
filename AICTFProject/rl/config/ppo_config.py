@@ -52,6 +52,14 @@ class PPOConfig:
     checkpoint_dir: str = "checkpoints"
     load_path: Optional[str] = None
     allow_active_actor_module_migration: bool = False
+    # True means `load_path` is WEIGHT INITIALIZATION, not run continuation: the
+    # loaded checkpoint's global_step/updates_completed/return-norm stats/PPO
+    # updater RNG state (z_separation_generator)/comm+curriculum state are left at
+    # this run's own freshly-constructed values instead of being overwritten from
+    # the checkpoint. Model weights still load via the normal compat path. Default
+    # False preserves --resume's existing crash-recovery semantics (carry
+    # everything over) for every pre-existing call site.
+    warm_start_reset_progress: bool = False
     run_tag: str = "ppo_latent_2v2"
     enable_metrics_csv: bool = True
     metrics_csv_path: Optional[str] = None

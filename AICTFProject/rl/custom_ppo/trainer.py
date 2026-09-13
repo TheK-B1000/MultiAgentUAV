@@ -525,10 +525,17 @@ class CustomPPOTrainer:
             write_duration_seconds=report.write_seconds,
         )
 
-    def load(self, path: str) -> None:
-        """Restore a checkpoint produced by :meth:`save`."""
+    def load(self, path: str, *, reset_progress: bool = False) -> None:
+        """Restore a checkpoint produced by :meth:`save`.
+
+        ``reset_progress=True`` treats ``path`` as weight initialization rather
+        than run continuation: global_step, updates_completed, return-norm
+        stats, and the PPO updater's RNG/comm/curriculum state are left at this
+        run's own freshly-constructed values instead of being overwritten from
+        the checkpoint. See ``PPOConfig.warm_start_reset_progress``.
+        """
         from rl.custom_ppo.checkpoints.loader import load_trainer_checkpoint
-        report = load_trainer_checkpoint(self, path)
+        report = load_trainer_checkpoint(self, path, reset_progress=reset_progress)
         self.telemetry.emit_checkpoint_loaded(
             path=path,
             duration_seconds=report.total_seconds,

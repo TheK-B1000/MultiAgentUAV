@@ -83,8 +83,9 @@ def build_trainer(
 def maybe_load_checkpoint(cfg: PPOConfig, trainer: "CustomPPOTrainer") -> None:
     """Load a checkpoint into ``trainer`` when ``cfg.load_path`` points to an existing file."""
     if cfg.load_path and os.path.isfile(cfg.load_path):
-        print(f"[PPO] Resuming checkpoint: {cfg.load_path}")
-        trainer.load(cfg.load_path)
+        reset_progress = bool(getattr(cfg, "warm_start_reset_progress", False))
+        print(f"[PPO] {'Warm-starting (weight init only) from' if reset_progress else 'Resuming checkpoint:'} {cfg.load_path}")
+        trainer.load(cfg.load_path, reset_progress=reset_progress)
         if bool(getattr(cfg, "freeze_return_norm_after_load", False)):
             trainer.return_norm.freeze()
             print(

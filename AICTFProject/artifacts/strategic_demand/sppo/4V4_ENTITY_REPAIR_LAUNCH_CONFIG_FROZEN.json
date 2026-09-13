@@ -1,0 +1,98 @@
+{
+  "record_id": "4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN",
+  "parent_spec": "4V4_ENTITY_REPAIR_SPEC.json",
+  "engineering_closure": "4V4_ENTITY_REPAIR_ENGINEERING_GAP_CLOSED.json",
+  "status": "FROZEN",
+  "utc": "2026-09-13T07:25:00Z",
+  "amended_utc": "2026-09-13T07:46:00Z",
+  "git_sha": "bd7e9fcbfaa6653cb659651b3e80ce9910651369 (DIRTY)",
+
+  "PURPOSE": "Rule 3 (frozen spec before any seed is spent) applied specifically to the LAUNCH CONFIGURATION, now that 4V4_ENTITY_REPAIR_ENGINEERING_GAP_CLOSED.json has proven the production launcher can actually build, warm-start, train, save, and reconstruct the repaired architecture. This document was first frozen with the two training seeds and the eval seed block left as an explicit placeholder (hash recorded in 4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.sha256.json as sha256_pre_seed), then amended in place with the concrete values once experiments/seed_registry.py reserved them (see amended_utc) -- this is the ONLY sanctioned amendment; any further change requires a new, separate, explicitly justified amendment.",
+
+  "TRAINING_BUDGET": {
+    "decision": "1,000,000 FRESH steps for each of pi_A3 and pi_B3, counted from global_step=0.",
+    "why_not_2001472": "4V4_ENTITY_REPAIR_SPEC.json's held_fixed list commits literally to 'same training budget (steps) as the sealed B3-3 4v4 baseline' (1,000,000). Warm-starting via --load-path is WEIGHT INITIALIZATION, not run continuation (see engineering closure, section 3) -- so the repaired specialists' own training gets its own fresh 1,000,000-step counter, exactly matching the baseline's own budget, rather than carrying forward B3-3's already-spent 1,001,472 steps into the same counter (which would have made the budget commitment either double or, if uncorrected, silently zero).",
+    "what_this_means_and_does_not_mean": "the WEIGHTS carry everything B3-3 learned over its own 1,000,000-step run; this experiment does not pretend otherwise. 'Same training budget' means the entity-repair experiment gets the same amount of NEW optimization (1,000,000 fresh gradient-step-worth of environment interaction) as the baseline had in total, not that the repaired policy has only ever seen 1,000,000 lifetime steps.",
+    "cfg.total_timesteps": 1000000,
+    "cfg.warm_start_reset_progress": true
+  },
+
+  "SOURCE_CHECKPOINTS": {
+    "pi_A_specialist_4v4_b3": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip",
+      "sha256": "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0",
+      "global_step": 1001472,
+      "lineage": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json / CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    },
+    "pi_B_specialist_4v4_b3": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip",
+      "sha256": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+      "global_step": 1001472,
+      "lineage": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json / CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+    }
+  },
+
+  "ARCHITECTURE": {
+    "entity_repair_enabled": true,
+    "entity_hidden_dim": 32,
+    "reference": "rl/custom_ppo/entity_residual.py::EntityResidualEncoder; fusion point rl/custom_ppo/policy.py::_encode_local_obs"
+  },
+
+  "EVERYTHING_ELSE_UNCHANGED_FROM_B3_3": {
+    "verified_by": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/pi_A_specialist_4v4_b3_run_config.json's own argv: only --team-size, --policy, --seed, --device, --run-label-suffix were ever passed for B3-3; every other resolved_ppo_config field comes from R.POLICIES[policy] defaults untouched by this session's changes.",
+    "n_envs": 16,
+    "n_steps": 128,
+    "batch_size": 512,
+    "n_epochs": 4,
+    "gamma": 0.995,
+    "gae_lambda": 0.99,
+    "clip_range": 0.25,
+    "clip_range_vf": 0.2,
+    "vf_coef": 1.0,
+    "ent_coef": 0.01,
+    "learning_rate": "resolved per-team-size effective_lr (3.75e-04 for n>2, matching B3-3's own printed banner)",
+    "reward_config": "identical env_* overrides and dense/sparse weights as B3-3 (unchanged code paths)",
+    "opponent_pool": "['OP6'] fixed, OPPONENT_POOL mode, matching B3-3",
+    "use_latent_strategy": false,
+    "map_set/map_layout": "train / map_a_open, matching B3-3"
+  },
+
+  "LAUNCH_COMMANDS": {
+    "pi_A3": "python -m experiments.train_specialist_scale --team-size 4 --policy A --seed 17700001 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip --run-label-suffix _b3_entity_repair",
+    "pi_B3": "python -m experiments.train_specialist_scale --team-size 4 --policy B --seed 17700002 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip --run-label-suffix _b3_entity_repair",
+    "output_directories": [
+      "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/",
+      "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair/"
+    ],
+    "collision_check": "neither directory exists yet as of this freeze (pi_A/B_specialist_4v4_b3_role and pi_A/B_specialist_4v4_b3_role_ABORTED_seed16900001 are a DIFFERENT, unrelated track already on disk; _b3_entity_repair is a new, non-colliding suffix)."
+  },
+
+  "SEED_BLOCKS": {
+    "status": "RESERVED via experiments/seed_registry.py at 2026-09-13T07:44-07:46Z. Disjoint from every prior block, including B3-3's own 16500001/16600001 training seeds and the ARM1_TEACHER_IDENTIFIABILITY (17600001-17600032) / GRAD_SNR_SCALING (17500001-17500032) exploratory blocks.",
+    "training": {
+      "experiment_id": "4V4_ENTITY_REPAIR_TRAINING",
+      "seed_class": "sealed_confirmatory",
+      "lo": 17700001,
+      "hi": 17700002,
+      "n": 2,
+      "pi_A3_seed": 17700001,
+      "pi_B3_seed": 17700002,
+      "purpose": "pi_A3/pi_B3 entity-repair 4v4 training seeds (one each)."
+    },
+    "eval": {
+      "experiment_id": "4V4_ENTITY_REPAIR_CROSSOVER_EVAL",
+      "seed_class": "sealed_confirmatory",
+      "lo": 17800001,
+      "hi": 17800192,
+      "n": 192,
+      "purpose": "closed-loop crossover evaluation of pi_A3 vs pi_B3 under the frozen Delta_A/Delta_B protocol (paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7, seed as resampling unit). n=192 matches the sealed B3-3 crossover's own sample size. NOT YET SPENT -- reserved for the eval step that follows successful training; using any of these seeds for anything other than that eval is a registry violation."
+    }
+  },
+
+  "SUCCESS_CRITERION": "unchanged from 4V4_ENTITY_REPAIR_SPEC.json: LCB95(delta_A) > 0 AND LCB95(delta_B) > 0. This document governs ONLY how pi_A3/pi_B3 are trained; the crossover evaluation itself must still be sealed under Rule 7 (experiments/run_state.py::seal) before any result counts.",
+
+  "WHAT_THIS_DOCUMENT_MAY_NOT_BE_USED_TO_CLAIM": [
+    "that training has started -- it has not; this is the frozen config, not a result",
+    "any deviation from these exact CLI arguments without a new amendment explaining and justifying the change, per this project's standing rule against silently altering a frozen parameter after seeing any part of the answer"
+  ]
+}

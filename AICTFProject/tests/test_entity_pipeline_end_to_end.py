@@ -182,3 +182,62 @@ def test_entity_pathway_receives_gradient_and_updates():
             "after one optimizer step, real entity content must be able to move logits"
     finally:
         env.close()
+
+
+# ------------------ 7: warm start (--load-path) is initialization, not resume
+@pytest.mark.skipif(not CKPT_A.is_file(), reason="sealed B3-3 checkpoint not present")
+def test_warm_start_reset_progress_starts_fresh_global_step():
+    """4V4_ENTITY_REPAIR_SPEC.json commits to "same training budget (steps) as
+    the sealed B3-3 baseline" for the repaired specialists. B3-3's own
+    global_step is 1,001,472 -- if warm-starting carried that over, a
+    "1,000,000-step budget" would silently mean total_timesteps=2,001,472 (an
+    unintended DOUBLE budget), or worse, immediately satisfy `global_step <
+    total_timesteps` and train for zero steps (the actual failure this
+    surfaced as during launcher testing). warm_start_reset_progress=True must
+    make trainer.load(...) treat the checkpoint as pure weight initialization:
+    global_step/updates_completed reset to 0, while model weights still load
+    and remain behaviourally identical to the checkpoint at that instant."""
+    from rl.config.ppo_config import PPOConfig
+    from rl.custom_ppo.entity_residual import EntityResidualEncoder
+    from rl.custom_ppo.trainer import CustomPPOTrainer
+
+    env, core = _live_4v4_env()
+    try:
+        checkpoint_global_step = int(torch.load(str(CKPT_A), map_location="cpu",
+                                                weights_only=False)["global_step"])
+        assert checkpoint_global_step > 0, "fixture assumption: sealed checkpoint has trained steps"
+
+        cfg = PPOConfig()
+        cfg.device = "cpu"
+        cfg.n_steps = 8
+        cfg.use_latent_strategy = False
+        cfg.normalize_returns = False
+        cfg.entity_repair_enabled = True
+        cfg.allow_active_actor_module_migration = True  # entity_encoder is new vs. old optimizer
+        n_envs = int(env.num_envs)
+        trainer = CustomPPOTrainer(env, cfg, learning_rate=1e-4, clip_range=0.2,
+                                  ent_coef=0.01, n_epochs=1, batch_size=cfg.n_steps * n_envs)
+        assert trainer.model.entity_encoder is not None
+
+        _advance_ticks(env, core, 10)
+        obs = core.get_obs_tensors("blue")
+        d = build_entity_tensors(core, "blue")
+        tm, tm_v, en, en_v = d["teammates"], d["teammates_valid"], d["enemies"], d["enemies_valid"]
+        with torch.no_grad():
+            pre_load_logits = trainer.model.policy_logits(
+                obs, teammates=tm, teammates_valid=tm_v, enemies=en, enemies_valid=en_v)
+
+        trainer.load(str(CKPT_A), reset_progress=True)
+
+        assert trainer.global_step == 0, \
+            f"reset_progress=True must zero global_step, got {trainer.global_step}"
+        assert trainer._updates_completed == 0
+
+        with torch.no_grad():
+            post_load_logits = trainer.model.policy_logits(
+                obs, teammates=tm, teammates_valid=tm_v, enemies=en, enemies_valid=en_v)
+        assert not torch.allclose(pre_load_logits, post_load_logits, atol=1e-5), \
+            "warm start must actually change the weights (loaded from a trained checkpoint, " \
+            "not left at random init) -- equal logits would mean the load silently no-op'd"
+    finally:
+        env.close()
