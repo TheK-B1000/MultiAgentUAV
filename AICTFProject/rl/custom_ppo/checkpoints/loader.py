@@ -38,6 +38,13 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
     )
     kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
+        # 4v4 entity repair: reconstruct from the CHECKPOINT'S OWN saved cfg,
+        # unconditionally (mirrors the trainer-side wiring in
+        # build_model_kwargs, which is also not gated on use_latent_strategy).
+        # Absent in every pre-2026-09-13 checkpoint -> defaults False, so old
+        # checkpoints reconstruct exactly as before this addition.
+        "entity_repair_enabled": bool(cfg.get("entity_repair_enabled", False)),
+        "entity_hidden_dim": int(cfg.get("entity_hidden_dim", 32)),
     }
     if bool(cfg.get("use_latent_strategy", False)):
         kwargs.update(

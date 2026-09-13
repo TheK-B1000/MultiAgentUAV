@@ -1,0 +1,99 @@
+{
+  "record": "PROJECTION_DIVERGENCE_TRACE execution-path divergence trace",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-13T04:45:08Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "study_class": "MECHANISTIC_FOLLOW_UP",
+  "scale": "4v4",
+  "pole": "A",
+  "seeds": [
+    17600001,
+    17600008
+  ],
+  "go_to_horizon": null,
+  "hypotheses": {
+    "H1": "commitment blocks an intended macro switch",
+    "H2": "carrier target substituted: evasion -> exact home"
+  },
+  "summary": {
+    "GUARD@A": {
+      "n_agent_ticks": 7680,
+      "H1_commitment_blocking": {
+        "frac_ticks_switch_blocked": 0.0669,
+        "top_blocked_transitions": [
+          {
+            "from": "GO_TO",
+            "to": "GET_FLAG",
+            "n": 261,
+            "frac_of_all_ticks": 0.034
+          },
+          {
+            "from": "GO_HOME",
+            "to": "GO_TO",
+            "n": 193,
+            "frac_of_all_ticks": 0.0251
+          },
+          {
+            "from": "GO_TO",
+            "to": "GO_HOME",
+            "n": 59,
+            "frac_of_all_ticks": 0.0077
+          },
+          {
+            "from": "GO_HOME",
+            "to": "GET_FLAG",
+            "n": 1,
+            "frac_of_all_ticks": 0.0001
+          }
+        ]
+      },
+      "H2_carrier_substitution": {
+        "frac_ticks_carrying": 0.1086,
+        "exec_residual_on_CARRYING_ticks": {
+          "n": 834,
+          "median": 0.0,
+          "p90": 11.8432,
+          "max": 13.8895,
+          "frac_gt_1_cell": 0.2842
+        },
+        "exec_residual_on_NONCARRYING_untagged_ticks": {
+          "n": 5982,
+          "median": 0.0,
+          "p90": 3.0,
+          "frac_gt_1_cell": 0.1638
+        }
+      }
+    },
+    "BREACH@A": {
+      "n_agent_ticks": 7680,
+      "H1_commitment_blocking": {
+        "frac_ticks_switch_blocked": 0.0281,
+        "top_blocked_transitions": [
+          {
+            "from": "GO_TO",
+            "to": "GET_FLAG",
+            "n": 216,
+            "frac_of_all_ticks": 0.0281
+          }
+        ]
+      },
+      "H2_carrier_substitution": {
+        "frac_ticks_carrying": 0.2025,
+        "exec_residual_on_CARRYING_ticks": {
+          "n": 1555,
+          "median": 0.0,
+          "p90": 5.1276,
+          "max": 14.3814,
+          "frac_gt_1_cell": 0.1248
+        },
+        "exec_residual_on_NONCARRYING_untagged_ticks": {
+          "n": 5462,
+          "median": 0.0,
+          "p90": 0.0,
+          "frac_gt_1_cell": 0.059
+        }
+      }
+    }
+  }
+}

@@ -158,6 +158,18 @@ class MinibatchUpdater:
             "agent_mask": batch["obs_agent_mask"],
             "mask": batch["obs_mask"],
         }
+        # 4v4 entity-repair: present in `batch` iff the rollout buffer registered
+        # these fields (i.e. the collecting model had entity_encoder enabled).
+        # iter_minibatches() flattens/index-selects every registered field with
+        # the SAME indices, so obs_teammates[i] is guaranteed to be the same
+        # (env, timestep) sample as obs_grid[i] -- no separate alignment logic
+        # needed or trusted here.
+        entity_kwargs: dict[str, torch.Tensor] = {}
+        if "obs_teammates" in batch:
+            entity_kwargs = dict(
+                teammates=batch["obs_teammates"], teammates_valid=batch["obs_teammates_valid"],
+                enemies=batch["obs_enemies"], enemies_valid=batch["obs_enemies_valid"],
+            )
         z_idx = batch["z"] if hparams.use_latent_strategy else None
         selector_hidden = None
         if hparams.use_latent_strategy and bool(getattr(model, "use_recurrent_selector", False)):
@@ -178,6 +190,7 @@ class MinibatchUpdater:
             router_context=batch.get("router_context"),
             message_symbols=message_symbols,
             message_boundary_mask=message_boundary_mask,
+            **entity_kwargs,
         )
         if hparams.use_latent_strategy and "strategy_logits" in aux:
             masked_strategy_logits = apply_router_allowed_latent_mask(

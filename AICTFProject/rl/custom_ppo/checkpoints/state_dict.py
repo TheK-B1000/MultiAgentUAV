@@ -233,6 +233,11 @@ def _load_model_state_dict_compat(
     allowed_missing.extend(
         k for k in missing if any(k.startswith(p) for p in _V6I7_RESIDUAL_PREFIXES)
     )
+    # 4v4 entity-repair (2026-09-13): a checkpoint sealed before entity_encoder
+    # existed warm-starts everything ELSE exactly, with entity_encoder left at
+    # its fresh zero-init projection -- proven behavior-preserving at load time
+    # by tests/test_entity_pipeline_end_to_end.py's warm-start equivalence check.
+    allowed_missing.extend(k for k in missing if k.startswith("entity_encoder."))
     router_reinit = bool(
         target_cfg is not None and getattr(target_cfg, "router_reinitialize_on_load", False)
     )

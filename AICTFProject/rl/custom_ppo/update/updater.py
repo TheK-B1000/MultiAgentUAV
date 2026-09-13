@@ -90,7 +90,28 @@ class PPOUpdater:
         if gen_state is not None:
             if isinstance(gen_state, torch.Tensor):
                 gen_state = gen_state.cpu()
-            self._z_separation_generator.set_state(gen_state)
+            current_state = self._z_separation_generator.get_state()
+            if gen_state.numel() != current_state.numel():
+                # torch.Generator state is device-family-specific and NOT
+                # portable across families: a CPU generator's Mersenne-Twister
+                # state is always 5056 bytes; a CUDA generator's Philox
+                # seed+offset state is always 16 bytes. There is no defined
+                # conversion between the two, so loading a checkpoint saved on
+                # one device family into a trainer on the other deterministically
+                # hits this branch every time -- it is not corruption and not
+                # flaky. Keep the freshly cfg.seed-derived generator from
+                # __init__ instead of crashing the whole run. This generator only
+                # feeds SeparationObjective's subsampling, which is itself gated
+                # inactive whenever z_idx is None (use_latent_strategy=False) --
+                # so for baseline/specialist runs, skipping the restore has zero
+                # behavioral effect.
+                print(f"[PPOUpdater] z_separation_generator state size mismatch "
+                      f"(checkpoint={gen_state.numel()}B vs. current device "
+                      f"expects={current_state.numel()}B) -- checkpoint was saved "
+                      f"on a different device family; keeping the freshly "
+                      f"cfg.seed-derived generator instead of crashing.")
+            else:
+                self._z_separation_generator.set_state(gen_state)
         pending = state.get("exp2_teacher_compression")
         self._pending_exp2_teacher_state = dict(pending) if pending is not None else None
 

@@ -93,11 +93,20 @@ class RolloutStepRecorder:
         device = self.trainer.device
         obs = frame.obs
         rc = frame.reward_component
+        entity_items: Dict[str, torch.Tensor] = {}
+        if getattr(self.trainer.model, "entity_encoder", None) is not None:
+            entity_items = dict(
+                obs_teammates=torch.as_tensor(obs["teammates"], dtype=torch.float32, device=device),
+                obs_teammates_valid=torch.as_tensor(obs["teammates_valid"], dtype=torch.bool, device=device),
+                obs_enemies=torch.as_tensor(obs["enemies"], dtype=torch.float32, device=device),
+                obs_enemies_valid=torch.as_tensor(obs["enemies_valid"], dtype=torch.bool, device=device),
+            )
         return dict(
             obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
             obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),
             obs_agent_mask=torch.as_tensor(obs["agent_mask"], dtype=torch.float32, device=device),
             obs_mask=torch.as_tensor(obs["mask"], dtype=torch.float32, device=device),
+            **entity_items,
             global_state=frame.context_state,
             actions=frame.actions_t,
             log_probs=frame.log_probs_t,

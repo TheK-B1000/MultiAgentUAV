@@ -1,0 +1,53 @@
+{
+  "record": "BC_REPRESENTATION_SMOKE representation-sufficiency smoke",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-13T05:59:15Z",
+  "run_id": "20260913T055915Z_16dd99ac",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "study_class": "MECHANISTIC_FOLLOW_UP",
+  "builds_on": "OBSERVATION_LADDER (teammates alone insufficient: enemy ce 10 -> 10)",
+  "control": "identical architecture and parameter count in all configs; entity streams zero-masked to ablate information only",
+  "config_signature": {
+    "epochs": 30,
+    "n_seeds": 10,
+    "scale": 4,
+    "strategy": "GUARD"
+  },
+  "elapsed_s": 156.3,
+  "results": {
+    "BASE": {
+      "config": "BASE",
+      "n_train": 7539,
+      "n_val": 1885,
+      "val_mean_target_dist_cells": 1.5451,
+      "val_median_target_dist_cells": 0.9763,
+      "val_macro_accuracy": 0.6504,
+      "n_params": 17751
+    },
+    "TEAMMATES": {
+      "config": "TEAMMATES",
+      "n_train": 7539,
+      "n_val": 1885,
+      "val_mean_target_dist_cells": 1.2753,
+      "val_median_target_dist_cells": 0.8752,
+      "val_macro_accuracy": 0.7618,
+      "n_params": 17751
+    },
+    "BOTH": {
+      "config": "BOTH",
+      "n_train": 7539,
+      "n_val": 1885,
+      "val_mean_target_dist_cells": 1.1698,
+      "val_median_target_dist_cells": 0.7766,
+      "val_macro_accuracy": 0.8074,
+      "n_params": 17751
+    }
+  },
+  "READING": "If TEAMMATES improves over BASE but BOTH improves further, teacher predictability tracks the counterexample ladder and the repair is behaving for the reason we think. If TEAMMATES alone closes everything, the ladder's mechanism is wrong.",
+  "NOT_A_CLAIM": [
+    "that PPO can learn this",
+    "closed-loop performance",
+    "that entity features are sufficient for specialization"
+  ]
+}

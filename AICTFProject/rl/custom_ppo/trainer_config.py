@@ -762,6 +762,12 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
     model_kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(getattr(cfg, "actor_cnn_feature_dim", 128)),
         "actor_hidden_dim": int(getattr(cfg, "actor_hidden_dim", 256)),
+        # 4v4 entity repair -- unconditional (not gated on use_latent_strategy):
+        # the repaired specialists use latent_k=0, same as every prior
+        # specialist track. Default False, so every existing config is
+        # unaffected.
+        "entity_repair_enabled": bool(getattr(cfg, "entity_repair_enabled", False)),
+        "entity_hidden_dim": int(getattr(cfg, "entity_hidden_dim", 32)),
     }
     if hparams.use_latent_strategy:
         v6i1_staged = is_staged_v6i1_curriculum(cfg)

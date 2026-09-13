@@ -923,5 +923,18 @@ class PPOConfig:
     # Global step at which the current run/stage started (set on resume).
     checkpoint_run_start_step: int = 0
 
+    # --- 4v4 entity repair (2026-09-13) ---
+    # Adds EntityResidualEncoder (rl/custom_ppo/entity_residual.py): a
+    # bias-free, zero-init residual over exact teammate/enemy geometry, added
+    # to the actor's local_in AFTER the CNN/vec fusion, BEFORE latent_actor.
+    # Bias-free construction + zero-init projection guarantee g(empty,empty)=0
+    # for any weights and g(T,E)=0 at t=0 even with real entities -- proven in
+    # tests/test_entity_residual.py and tests/test_entity_pipeline_end_to_end.py
+    # (including against the real sealed B3-3 checkpoint). Disabled by default
+    # so every existing checkpoint, config, and preset is completely unaffected.
+    # Critic (values()) NEVER receives these -- actor observation geometry only.
+    entity_repair_enabled: bool = False
+    entity_hidden_dim: int = 32
+
 
 __all__ = ["PPOConfig", "TrainMode"]

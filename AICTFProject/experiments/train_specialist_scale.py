@@ -237,6 +237,20 @@ def main() -> int:
                     help="resume from an existing checkpoint zip in this run's ckpt dir "
                          "(crash recovery). Sets load_path, appends metrics, and allows "
                          "the pre-existing zip set that a fresh launch would refuse.")
+    ap.add_argument("--entity-repair-enabled", action="store_true",
+                    help="add EntityResidualEncoder: a bias-free, zero-init residual over "
+                         "exact teammate/enemy geometry (rl/custom_ppo/entity_residual.py). "
+                         "Actor observation only -- the critic is never touched. Combine with "
+                         "--load-path pointing at a pre-repair checkpoint for a warm start "
+                         "that is behaviourally identical at step 0 (proven in "
+                         "tests/test_entity_repair_production_api.py).")
+    ap.add_argument("--entity-hidden-dim", type=int, default=32,
+                    help="hidden width of the per-entity encoder MLPs (default 32, matching "
+                         "the validated BC_REPRESENTATION_SMOKE architecture)")
+    ap.add_argument("--load-path", default="",
+                    help="warm-start from this checkpoint (e.g. the sealed B3-3 specialist) "
+                         "before applying --entity-repair-enabled. Distinct from --resume, "
+                         "which is for crash recovery of THIS run.")
     args = ap.parse_args()
 
     n, policy, seed = int(args.team_size), args.policy, int(args.seed)
@@ -462,9 +476,44 @@ def main() -> int:
         raise SystemExit(f"FAIL-CLOSED: cfg.max_blue_agents={getattr(cfg,'max_blue_agents',None)} "
                          f"!= team size {n}; AGENTS propagation did not reach build_r1_config")
 
+    cfg.entity_repair_enabled = bool(args.entity_repair_enabled)
+    cfg.entity_hidden_dim = int(args.entity_hidden_dim)
+
     ck = Path(cfg.checkpoint_dir)
     resume_path = str(args.resume or "").strip()
-    if resume_path:
+    load_path_arg = str(args.load_path or "").strip()
+    if resume_path and load_path_arg:
+        raise SystemExit(
+            "FAIL-CLOSED: --resume and --load-path are mutually exclusive -- --resume is "
+            "crash recovery of THIS run's own checkpoint dir; --load-path is a warm start "
+            "from a DIFFERENT, already-completed checkpoint (e.g. the sealed B3-3 "
+            "specialist for the entity-repair run)."
+        )
+    if load_path_arg:
+        lp = Path(load_path_arg)
+        if not lp.is_file():
+            raise SystemExit(f"FAIL-CLOSED: --load-path not found: {lp}")
+        # Deliberately NOT constrained to this run's own checkpoint dir (unlike
+        # --resume): warm-starting from a DIFFERENT completed run is the point.
+        cfg.load_path = str(lp)
+        if cfg.entity_repair_enabled:
+            # entity_encoder is a NEW module the old checkpoint's optimizer state
+            # never had params for -- an active-actor architecture migration by
+            # construction whenever this combination is used, exactly the case
+            # this existing flag exists for (see its 7->8 CNN-channel precedent
+            # in rl/custom_ppo/checkpoints/state_dict.py). Model weights still
+            # load via the normal compat path (entity_encoder.* allowed missing,
+            # verified behaviourally equivalent); only optimizer state is
+            # skipped and starts fresh, matching the flag's own error message.
+            cfg.allow_active_actor_module_migration = True
+            print(f"  allow_active_actor_module_migration=True (entity_encoder is new "
+                 f"vs. the loaded checkpoint's optimizer state; model weights still "
+                 f"load via the normal compat path)")
+        print(f"  WARM START from {lp.name}"
+             f"{' [entity_repair_enabled=True]' if cfg.entity_repair_enabled else ''} "
+             f"(fresh run/label; metrics start fresh, total_timesteps = "
+             f"{int(cfg.total_timesteps):,})")
+    elif resume_path:
         rp = Path(resume_path)
         if not rp.is_file():
             raise SystemExit(f"FAIL-CLOSED: --resume not found: {rp}")
@@ -516,6 +565,9 @@ def main() -> int:
     if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
         print(f"  role_pres        lambda={cfg.role_pres_lambda}  "
               f"style={cfg.role_pres_style}  targets={cfg.role_pres_targets}")
+    if bool(getattr(cfg, "entity_repair_enabled", False)):
+        print(f"  entity_repair    enabled  hidden_dim={cfg.entity_hidden_dim}  "
+             f"warm_start={getattr(cfg, 'load_path', None) or '(none -- fresh init)'}")
     print("=" * 78, flush=True)
 
     # FAIL CLOSED on the LIVE resolved pole, before any step. Builds a throwaway env,
@@ -563,6 +615,9 @@ def main() -> int:
         "role_pres_lambda": float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0),
         "role_pres_targets": str(getattr(cfg, "role_pres_targets", "") or ""),
         "role_pres_style": str(getattr(cfg, "role_pres_style", "") or ""),
+        "entity_repair_enabled": bool(getattr(cfg, "entity_repair_enabled", False)),
+        "entity_hidden_dim": int(getattr(cfg, "entity_hidden_dim", 32)),
+        "warm_start_from": (str(load_path_arg) if load_path_arg else None),
         "resume_from": (str(cfg.load_path) if getattr(cfg, "load_path", None) else None),
         "implements_spec": (
             "4V4_B3_ROLE_PRESERVATION_SPEC.json"

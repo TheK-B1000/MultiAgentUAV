@@ -246,6 +246,8 @@ class SharedActorCentralizedCritic(nn.Module):
         experiment_id: str = "",
         router_context_mode: str = "",
         router_context_dimension: int = 0,
+        entity_repair_enabled: bool = False,
+        entity_hidden_dim: int = 32,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -263,6 +265,19 @@ class SharedActorCentralizedCritic(nn.Module):
         self.actor_cnn_feature_dim = int(self.actor_cnn.feature_dim)
         self._scalar_per_agent = self.vec_dim
         self._local_actor_in_dim = self.actor_cnn_feature_dim + self._scalar_per_agent
+
+        # 4v4 entity-repair (2026-09-13): optional residual over exact teammate/
+        # enemy geometry, added to local_in AFTER the CNN/vec fusion above and
+        # BEFORE latent_actor -- see rl/custom_ppo/entity_residual.py for the
+        # bias-free/zero-init contract this depends on. Disabled (None) by
+        # default so every pre-existing checkpoint and call path is untouched.
+        self.entity_repair_enabled = bool(entity_repair_enabled)
+        if self.entity_repair_enabled:
+            from rl.custom_ppo.entity_residual import EntityResidualEncoder
+            self.entity_encoder = EntityResidualEncoder(
+                out_dim=self._local_actor_in_dim, hidden=int(entity_hidden_dim))
+        else:
+            self.entity_encoder = None
         self.action_dims = tuple(int(v) for v in getattr(action_space, "nvec", []))
         if len(self.action_dims) % self.n_agents != 0:
             raise ValueError("MultiDiscrete action heads must divide evenly across agents.")
@@ -903,8 +918,24 @@ class SharedActorCentralizedCritic(nn.Module):
     def _encode_local_obs(
         self,
         obs: Dict[str, torch.Tensor],
+        *,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Return ``(local_in, cnn_features, agent_mask)`` with shape ``(B*N, F)``."""
+        """Return ``(local_in, cnn_features, agent_mask)`` with shape ``(B*N, F)``.
+
+        ``teammates``/``enemies``: ``(B, N, K, ENTITY_FEATURES)``; ``*_valid``:
+        ``(B, N, K)``. Same (B, N, ...) convention as ``grid``/``vec`` -- the
+        ``(B*N)`` flatten happens HERE, not in the caller, mirroring how
+        grid/vec are already flattened below.
+
+        Fails CLOSED rather than silently dropping information: a model built
+        with ``entity_repair_enabled=True`` requires all four entity tensors on
+        every call; a model built WITHOUT it must never receive them. Absence
+        is an error state here, not a default.
+        """
         grid = obs["grid"].float()
         vec = obs["vec"].float()
         if grid.dim() != 5:
@@ -937,6 +968,32 @@ class SharedActorCentralizedCritic(nn.Module):
             raise AssertionError(
                 f"local actor input width {int(local_in.shape[-1])} != expected "
                 f"{int(self._local_actor_in_dim)}"
+            )
+
+        entity_args = (teammates, teammates_valid, enemies, enemies_valid)
+        if self.entity_encoder is not None:
+            if any(a is None for a in entity_args):
+                raise ValueError(
+                    "this model was constructed with entity_repair_enabled=True "
+                    "and requires teammates, teammates_valid, enemies, and "
+                    "enemies_valid on every call -- refusing to silently fall "
+                    "back to the base pathway."
+                )
+            n = self.n_agents
+            k_t, feat = int(teammates.shape[2]), int(teammates.shape[3])
+            k_e = int(enemies.shape[2])
+            g = self.entity_encoder(
+                teammates.reshape(batch * n, k_t, feat),
+                teammates_valid.reshape(batch * n, k_t),
+                enemies.reshape(batch * n, k_e, feat),
+                enemies_valid.reshape(batch * n, k_e),
+            )
+            local_in = local_in + g
+        elif any(a is not None for a in entity_args):
+            raise ValueError(
+                "entity tensors were provided but this model was constructed "
+                "with entity_repair_enabled=False -- refusing to silently "
+                "ignore them."
             )
         return local_in, cnn_features, mask.squeeze(-1)
 
@@ -1100,6 +1157,10 @@ class SharedActorCentralizedCritic(nn.Module):
         z_idx: Optional[torch.Tensor] = None,
         *,
         detach_local_features: bool = False,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``.
 
@@ -1107,12 +1168,20 @@ class SharedActorCentralizedCritic(nn.Module):
 
         1. ``actor_cnn`` encodes per-agent grids → ``cnn_features``.
         2. Optional agent mask zeroes out padded agents' features / scalars.
-        3. ``local_features = concat(cnn_features, scalars)`` per-agent.
+        3. ``local_features = concat(cnn_features, scalars)`` per-agent, plus
+           the optional entity residual (see ``_encode_local_obs``).
         4. ``self.latent_actor`` handles the strategy embedding (when present)
            and the 256-256 MLP + action head. Per-agent ``z`` is shared across
            the team — the same ``z_idx`` row is broadcast across all agents.
+
+        ``teammates``/``teammates_valid``/``enemies``/``enemies_valid`` are
+        optional and default to ``None`` -- the legacy call path (no entity
+        arguments) is EXACTLY unchanged. Required, and validated, when this
+        model was built with ``entity_repair_enabled=True``.
         """
-        local_in, _, _ = self._encode_local_obs(obs)
+        local_in, _, _ = self._encode_local_obs(
+            obs, teammates=teammates, teammates_valid=teammates_valid,
+            enemies=enemies, enemies_valid=enemies_valid)
         if detach_local_features:
             local_in = local_in.detach()
         batch = int(obs["grid"].shape[0])
@@ -1136,6 +1205,10 @@ class SharedActorCentralizedCritic(nn.Module):
         obs: Dict[str, torch.Tensor],
         *,
         z_idx: Optional[torch.Tensor] = None,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
     ) -> MultiHeadActionDistribution:
         """Return per-action-head logit distribution (public PolicyInferenceContract).
 
@@ -1155,7 +1228,9 @@ class SharedActorCentralizedCritic(nn.Module):
                 "tensor explicitly:\n"
                 "    z_idx = torch.zeros(batch, dtype=torch.long, device=obs['grid'].device)"
             )
-        flat = self.policy_logits(obs, z_idx=z_idx)
+        flat = self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
+                                  teammates_valid=teammates_valid, enemies=enemies,
+                                  enemies_valid=enemies_valid)
         heads = torch.split(flat, list(self.action_dims), dim=-1)
         return MultiHeadActionDistribution([ActionHead(h) for h in heads])
 
@@ -1280,11 +1355,25 @@ class SharedActorCentralizedCritic(nn.Module):
         *,
         deterministic: bool = False,
         z_idx: Optional[torch.Tensor] = None,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Sample or greedily select actions and return values/log-probs/entropy."""
+        """Sample or greedily select actions and return values/log-probs/entropy.
+
+        ``teammates``/``teammates_valid``/``enemies``/``enemies_valid`` are
+        optional (default ``None``); the legacy call path is unchanged when
+        they are omitted. See ``_encode_local_obs`` for the fail-closed
+        contract when this model has ``entity_repair_enabled=True``.
+        """
         if self.uses_latent_strategy and z_idx is None:
             raise ValueError("Sample and provide z_idx before calling act() when latent strategy is enabled.")
-        logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
+        logits = self._mask_logits(
+            self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
+                               teammates_valid=teammates_valid, enemies=enemies,
+                               enemies_valid=enemies_valid),
+            obs.get("mask"))
         actions = []
         g_act = self._sampling_gen_action
         for dist in self._categoricals(logits):
@@ -1309,9 +1398,24 @@ class SharedActorCentralizedCritic(nn.Module):
         router_context: Optional[torch.Tensor] = None,
         message_symbols: Optional[torch.Tensor] = None,
         message_boundary_mask: Optional[torch.Tensor] = None,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
-        """Evaluate fixed actions under the current policy."""
-        logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
+        """Evaluate fixed actions under the current policy.
+
+        ``teammates``/``teammates_valid``/``enemies``/``enemies_valid`` are
+        optional (default ``None``); the legacy call path is unchanged when
+        they are omitted. ``global_state`` (the critic path, via ``values()``
+        below) NEVER receives entity tensors -- the frozen intervention is
+        actor observation geometry only.
+        """
+        logits = self._mask_logits(
+            self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
+                               teammates_valid=teammates_valid, enemies=enemies,
+                               enemies_valid=enemies_valid),
+            obs.get("mask"))
         log_prob, entropy = self._log_prob_entropy(logits, actions)
         values = self.values(global_state, z_idx=z_idx)
         aux: dict[str, torch.Tensor] = {}

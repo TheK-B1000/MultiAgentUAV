@@ -1,0 +1,69 @@
+{
+  "record_id": "ACTION_INTERFACE_INTERPRETATION_2026-09-13",
+  "status": "FROZEN_READING",
+  "utc": "2026-09-13T05:05:00Z",
+  "supersedes_interpretation_in": ["ACTION_INTERFACE_DECOMP_SEALED_READING.json",
+                                   "REPAIRED_GO_TO_H1_PROJECTED_20260913T033638Z_8aef55c7_RESULT.json"],
+  "arm": "DIAGNOSTIC", "confirmatory": false,
+
+  "CURRENT_INTERPRETATION": "Commitment staleness is real, but the h=1 repair did not restore specialization. Trace analysis revealed a larger unisolated action-interface divergence: carrying agents are forced to exact-home behaviour and cannot reproduce the teacher's evasive carrier motion. This axis is now the next mechanistic target.",
+
+  "WHY_THE_H1_REPAIR_FAILED_precise_mechanism": {
+    "headline": "delta_A did NOT collapse because GUARD degraded. It collapsed because BREACH@A improved.",
+    "numbers_4v4_poleA_h1": {
+      "GUARD@A": {"V_original": 0.7083, "V_projected": 0.75,
+                  "L_paired": {"mean": -0.041667, "lcb95": -0.208333, "ucb95": 0.125}},
+      "BREACH@A": {"V_original": 0.2917, "V_projected": 0.75,
+                   "L_paired": {"mean": -0.458333, "lcb95": -0.708333, "ucb95": -0.208333}},
+      "delta_A_ORIGINAL": 0.4167, "delta_A_PROJECTED": 0.0
+    },
+    "reading": "GUARD@A is statistically unchanged. BREACH@A improved by +0.458 with a CI excluding zero. The entire delta_A collapse is that one cell moving up, so any hypothesis about GUARD being degraded cannot be the explanation."
+  },
+
+  "TRACE_RESULT_4v4_poleA": {
+    "source": "PROJECTION_DIVERGENCE_TRACE_RESULT.json (8 seeds, 15360 agent-ticks)",
+    "H1_commitment_blocking": {
+      "GUARD@A": {"frac_ticks_blocked": 0.0669,
+                  "top": [["GO_TO->GET_FLAG", 0.034], ["GO_HOME->GO_TO", 0.0251], ["GO_TO->GO_HOME", 0.0077]]},
+      "BREACH@A": {"frac_ticks_blocked": 0.0281, "top": [["GO_TO->GET_FLAG", 0.0281]]},
+      "verdict": "real but small. NOTE: the pre-registered suspect GO_HOME<->GO_TO appears only in GUARD (3.3% of ticks) and is ENTIRELY ABSENT from BREACH. Since BREACH@A is the cell that moved, GO_HOME<->GO_TO cannot explain the delta_A collapse. The dominant blocked transition in both strategies is GO_TO->GET_FLAG."
+    },
+    "H2_carrier_substitution": {
+      "GUARD@A": {"frac_ticks_carrying": 0.1086,
+                  "exec_residual_carrying": {"median": 0.0, "p90": 11.8432, "max": 13.8895, "frac_gt_1_cell": 0.2842},
+                  "exec_residual_noncarrying": {"median": 0.0, "p90": 3.0, "frac_gt_1_cell": 0.1638}},
+      "BREACH@A": {"frac_ticks_carrying": 0.2025,
+                   "exec_residual_carrying": {"median": 0.0, "p90": 5.1276, "max": 14.3814, "frac_gt_1_cell": 0.1248},
+                   "exec_residual_noncarrying": {"median": 0.0, "p90": 0.0, "frac_gt_1_cell": 0.059}},
+      "verdict": "BREACH's non-carrying behaviour is reproduced essentially perfectly (p90 = 0.00). EVERY material divergence in BREACH is on carrying ticks -- 20% of its ticks, diverging by up to 14 cells in a 20x20 arena. BREACH's value is grab-flag-and-return, so replacing the teacher's tangent evasion with a straight beeline home is the kind of change that could produce +0.458."
+    }
+  },
+
+  "SELF_CORRECTION_verified_against_the_decomposition_code": {
+    "claim_i_made": "the carrier override sat inside BOTH the SPATIAL_ONLY and COMMIT_ONLY arms, unmeasured",
+    "verification": "read experiments/eval_action_interface_decomp.py. The carrier override lives in _build_targets_from_action, which runs ONLY when blue_scripted=False.",
+    "what_the_code_actually_does": {
+      "ORIGINAL": "blue_scripted=True at step (L111) -> override NOT active; teacher evasion preserved",
+      "SPATIAL_ONLY": "blue_scripted=False at step (L120) -> override ACTIVE",
+      "COMMIT_ONLY": "blue_scripted=True at step (L148); holds CONTINUOUS teacher targets incl. evasion -> override NOT active",
+      "FULL": "blue_scripted=False at step (L152) -> override ACTIVE"
+    },
+    "verdict": "MY CLAIM WAS WRONG on both counts. The override is in SPATIAL_ONLY and FULL, ABSENT from COMMIT_ONLY, and it WAS measured: L_S = 0.00 at 4v4 is exactly 'quantization + carrier override with zero staleness costs nothing' -- for GUARD@A.",
+    "the_correct_and_narrower_statement": "The decomposition is GUARD@A-ONLY BY DESIGN (module docstring: 'Primary cell: 4v4 GUARD Pole A'; strategy='GUARD', pole='A' hardcoded at L184). delta_A requires BREACH@A, so the decomposition could not measure delta_A at all. What was never measured is the carrier override's effect on BREACH -- the cell that actually broke.",
+    "why_this_matters": "It changes the reason the carrier axis is the next target. Not 'it was hidden inside both arms' (false) but 'it was never measured on the cell that broke' (true, and verifiable from the code)."
+  },
+
+  "STATUS_OF_THE_CARRIER_AXIS": "CANDIDATE, NOT ESTABLISHED. The trace shows a large divergence concentrated exactly where BREACH's value comes from, which is consistent with the observed improvement, but consistency is not causation. CARRIER_RESTORE_TEST is the controlled test.",
+
+  "WHAT_IS_NOT_A_CONFOUND": "The carrier override is NOT an artifact of the oracle harness. _build_targets_from_action hard-overrides any carrying agent to exact home on the action path, so a REAL learned student cannot express carrier evasion either. It is a genuine property of the student action interface, which is why it is worth repairing rather than merely correcting for.",
+
+  "THREE_AXES_OF_ACTION_INTERFACE_DIVERGENCE": {
+    "1_waypoint_quantization": "measured small: conditional e_q median 0.75-0.89 cells; 2v2 (which works) uses the waypoint pathway MORE than 4v4/6v6",
+    "2_commitment_staleness": "measured: 2.8% (BREACH) to 6.7% (GUARD) of agent-ticks block an intended switch; h=1 on GO_TO alone did not restore delta_A",
+    "3_carrier_evasion_impossible": "measured in the trace, never isolated in an experiment; up to 14-cell divergence on 10-20% of ticks; CARRIER_RESTORE_TEST now running"
+  },
+
+  "NEXT": "CARRIER_RESTORE_TEST: CURRENT PROJECTED vs CARRIER-EVASION-RESTORED, everything else identical, 4v4 pole A primary with 2v2 pole A control, GUARD and BREACH both, delta_A as the primary quantity. Gated by three known-answer anchors (non-carrier bit-identical; carrier-at-home unchanged; carrier-with-evasive-target PRESERVED not substituted) plus the oracle harness anchor. All passed before launch.",
+
+  "STOP_RULE_REAFFIRMED": "No further commitment-horizon tweaking until the carrier axis is resolved. The trace says a global h=1 would target a 2.8-6.7% effect while leaving a 10-20% effect untouched, and would not touch BREACH's improvement at all."
+}

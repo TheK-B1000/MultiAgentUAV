@@ -208,6 +208,13 @@ class RolloutCollector:
         buffer.register_field("obs_vec", tuple(obs["vec"].shape[1:]))
         buffer.register_field("obs_agent_mask", tuple(obs["agent_mask"].shape[1:]))
         buffer.register_field("obs_mask", tuple(obs["mask"].shape[1:]))
+        if getattr(self.model, "entity_encoder", None) is not None:
+            buffer.register_field("obs_teammates", tuple(obs["teammates"].shape[1:]))
+            buffer.register_field("obs_teammates_valid", tuple(obs["teammates_valid"].shape[1:]),
+                                  dtype=torch.bool)
+            buffer.register_field("obs_enemies", tuple(obs["enemies"].shape[1:]))
+            buffer.register_field("obs_enemies_valid", tuple(obs["enemies_valid"].shape[1:]),
+                                  dtype=torch.bool)
         buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
@@ -471,6 +478,9 @@ class RolloutCollector:
                 obs,
                 expected_grid_channels=int(self.model.grid_shape[0]),
             )
+        if getattr(self.model, "entity_encoder", None) is not None:
+            from gpu_env._core._entity_obs import augment_obs_with_entities
+            obs = augment_obs_with_entities(obs, self.env.core, side="blue")
         buffer = self.make_buffer(obs)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
@@ -673,6 +683,9 @@ class RolloutCollector:
                 obs,
                 expected_grid_channels=int(self.model.grid_shape[0]),
             )
+        if getattr(self.model, "entity_encoder", None) is not None:
+            from gpu_env._core._entity_obs import augment_obs_with_entities
+            obs = augment_obs_with_entities(obs, env.core, side="blue")
         obs_t = self.tensor_obs(obs)
         comm_boundary = (
             comm.current_boundary_mask()
@@ -711,8 +724,14 @@ class RolloutCollector:
                         boundary_mask=comm_boundary,
                         num_agents=int(self.model.n_agents),
                     )
+            entity_act_kwargs: Dict[str, torch.Tensor] = {}
+            if getattr(self.model, "entity_encoder", None) is not None:
+                entity_act_kwargs = dict(
+                    teammates=obs_t["teammates"], teammates_valid=obs_t["teammates_valid"],
+                    enemies=obs_t["enemies"], enemies_valid=obs_t["enemies_valid"],
+                )
             actions_t, values_norm_t, log_probs_t, _ = self.model.act(
-                obs_t, context_state, z_idx=z_t
+                obs_t, context_state, z_idx=z_t, **entity_act_kwargs
             )
             values_t = _denormalize_values(runtime, values_norm_t)
         if detailed_timing:

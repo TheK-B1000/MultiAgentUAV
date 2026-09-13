@@ -1,0 +1,346 @@
+{
+  "record": "OBSERVATION_LADDER minimal observation repair selection",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-13T05:43:21Z",
+  "run_id": "20260913T054321Z_7658d1d8",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "study_class": "MECHANISTIC_FOLLOW_UP",
+  "builds_on": "ARM1_TEST0_COUNTEREXAMPLE (observation defect, established)",
+  "config_signature": {
+    "max_ticks": 240,
+    "n_seeds": 3,
+    "scales": [
+      4,
+      2
+    ],
+    "tick_stride": 6
+  },
+  "elapsed_s": 101.8,
+  "READING": "The lowest rung at which counterexamples vanish for BOTH perturbation families is the minimal geometric repair. If they survive TEAMMATES_ENEMIES, exact geometry is insufficient and an explicit role/assignment signal r_i is required.",
+  "results": {
+    "4v4": {
+      "n_defenders": 2,
+      "perturbation_attempts": {
+        "DEFENDER": 128,
+        "ENEMY": 84
+      },
+      "rungs": {
+        "BASE": {
+          "DEFENDER": {
+            "obs_identical_pairs": 384,
+            "counterexamples": 9,
+            "examples": [
+              {
+                "seed": 17600001,
+                "tick": 30,
+                "perturbed_j": 2,
+                "subject_i": 3,
+                "q": [
+                  5,
+                  15
+                ],
+                "t_i": [
+                  [
+                    2.0,
+                    10.0
+                  ],
+                  [
+                    2.582834243774414,
+                    10.233206748962402
+                  ]
+                ]
+              },
+              {
+                "seed": 17600001,
+                "tick": 30,
+                "perturbed_j": 2,
+                "subject_i": 3,
+                "q": [
+                  5,
+                  15
+                ],
+                "t_i": [
+                  [
+                    2.0,
+                    10.0
+                  ],
+                  [
+                    2.582834243774414,
+                    10.233206748962402
+                  ]
+                ]
+              },
+              {
+                "seed": 17600001,
+                "tick": 30,
+                "perturbed_j": 3,
+                "subject_i": 2,
+                "q": [
+                  15,
+                  5
+                ],
+                "t_i": [
+                  [
+                    2.582834243774414,
+                    10.233206748962402
+                  ],
+                  [
+                    2.0,
+                    10.0
+                  ]
+                ]
+              }
+            ]
+          },
+          "ENEMY": {
+            "obs_identical_pairs": 200,
+            "counterexamples": 10,
+            "examples": [
+              {
+                "seed": 17600001,
+                "tick": 24,
+                "perturbed_enemy": 1,
+                "subject_i": 2,
+                "i_is_defender": true,
+                "q": [
+                  16,
+                  15
+                ],
+                "t_i": [
+                  [
+                    4.504587173461914,
+                    11.651375770568848
+                  ],
+                  [
+                    4.628138542175293,
+                    11.44668197631836
+                  ]
+                ]
+              },
+              {
+                "seed": 17600001,
+                "tick": 24,
+                "perturbed_enemy": 1,
+                "subject_i": 2,
+                "i_is_defender": true,
+                "q": [
+                  15,
+                  16
+                ],
+                "t_i": [
+                  [
+                    4.672506332397461,
+                    11.362977981567383
+                  ],
+                  [
+                    4.469240188598633,
+                    11.703775405883789
+                  ]
+                ]
+              },
+              {
+                "seed": 17600001,
+                "tick": 132,
+                "perturbed_enemy": 3,
+                "subject_i": 2,
+                "i_is_defender": true,
+                "q": [
+                  13,
+                  14
+                ],
+                "t_i": [
+                  [
+                    3.356908082962036,
+                    7.324406623840332
+                  ],
+                  [
+                    3.6094560623168945,
+                    7.468271255493164
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "TEAMMATES": {
+          "DEFENDER": {
+            "obs_identical_pairs": 0,
+            "counterexamples": 0,
+            "examples": []
+          },
+          "ENEMY": {
+            "obs_identical_pairs": 200,
+            "counterexamples": 10,
+            "examples": [
+              {
+                "seed": 17600001,
+                "tick": 24,
+                "perturbed_enemy": 1,
+                "subject_i": 2,
+                "i_is_defender": true,
+                "q": [
+                  16,
+                  15
+                ],
+                "t_i": [
+                  [
+                    4.504587173461914,
+                    11.651375770568848
+                  ],
+                  [
+                    4.628138542175293,
+                    11.44668197631836
+                  ]
+                ]
+              },
+              {
+                "seed": 17600001,
+                "tick": 24,
+                "perturbed_enemy": 1,
+                "subject_i": 2,
+                "i_is_defender": true,
+                "q": [
+                  15,
+                  16
+                ],
+                "t_i": [
+                  [
+                    4.672506332397461,
+                    11.362977981567383
+                  ],
+                  [
+                    4.469240188598633,
+                    11.703775405883789
+                  ]
+                ]
+              },
+              {
+                "seed": 17600001,
+                "tick": 132,
+                "perturbed_enemy": 3,
+                "subject_i": 2,
+                "i_is_defender": true,
+                "q": [
+                  13,
+                  14
+                ],
+                "t_i": [
+                  [
+                    3.356908082962036,
+                    7.324406623840332
+                  ],
+                  [
+                    3.6094560623168945,
+                    7.468271255493164
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "TEAMMATES_ENEMIES": {
+          "DEFENDER": {
+            "obs_identical_pairs": 0,
+            "counterexamples": 0,
+            "examples": []
+          },
+          "ENEMY": {
+            "obs_identical_pairs": 0,
+            "counterexamples": 0,
+            "examples": []
+          }
+        }
+      }
+    },
+    "2v2": {
+      "n_defenders": 1,
+      "perturbation_attempts": {
+        "DEFENDER": 74,
+        "ENEMY": 82
+      },
+      "rungs": {
+        "BASE": {
+          "DEFENDER": {
+            "obs_identical_pairs": 74,
+            "counterexamples": 0,
+            "examples": []
+          },
+          "ENEMY": {
+            "obs_identical_pairs": 64,
+            "counterexamples": 1,
+            "examples": [
+              {
+                "seed": 17600002,
+                "tick": 108,
+                "perturbed_enemy": 0,
+                "subject_i": 1,
+                "i_is_defender": true,
+                "q": [
+                  15,
+                  14
+                ],
+                "t_i": [
+                  [
+                    4.639119625091553,
+                    11.42655086517334
+                  ],
+                  [
+                    4.846105575561523,
+                    9.051484107971191
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "TEAMMATES": {
+          "DEFENDER": {
+            "obs_identical_pairs": 0,
+            "counterexamples": 0,
+            "examples": []
+          },
+          "ENEMY": {
+            "obs_identical_pairs": 64,
+            "counterexamples": 1,
+            "examples": [
+              {
+                "seed": 17600002,
+                "tick": 108,
+                "perturbed_enemy": 0,
+                "subject_i": 1,
+                "i_is_defender": true,
+                "q": [
+                  15,
+                  14
+                ],
+                "t_i": [
+                  [
+                    4.639119625091553,
+                    11.42655086517334
+                  ],
+                  [
+                    4.846105575561523,
+                    9.051484107971191
+                  ]
+                ]
+              }
+            ]
+          }
+        },
+        "TEAMMATES_ENEMIES": {
+          "DEFENDER": {
+            "obs_identical_pairs": 0,
+            "counterexamples": 0,
+            "examples": []
+          },
+          "ENEMY": {
+            "obs_identical_pairs": 0,
+            "counterexamples": 0,
+            "examples": []
+          }
+        }
+      }
+    }
+  }
+}
