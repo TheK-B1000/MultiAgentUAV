@@ -1,0 +1,94 @@
+{
+  "record_id": "PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION",
+  "status": "INVALIDATION",
+  "severity": "CRITICAL",
+  "utc": "2026-09-14T11:40:00Z",
+  "discovered_by": "DELTA_B_TRAJECTORY -- the trajectory showed pi_B3's ABSOLUTE Pole-B win rate FALLING from 0.766 (t=0) to 0.609 (t=1M) across 1,000,000 steps of training on what was supposed to be its OWN pole. A policy getting worse at its own specialty is not a coordination finding; it prompted a check of the actual training opponent.",
+  "THE_DEFECT": {
+    "statement": "pi_B3 (the entity-repair continuation specialist) was TRAINED against the CANONICAL Pole B, but EVALUATED against the B3-3 CANDIDATE Pole B. They are different opponents.",
+    "trained_against": {
+      "genome_id": "SDS_PARENT_OP7",
+      "overlay": {
+        "min_alive_for_defender": 4
+      }
+    },
+    "evaluated_against": {
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "overlay": {
+        "lock_defender": 10,
+        "enable_2v1": true,
+        "min_alive_for_defender": 4
+      }
+    },
+    "missing_from_training": "lock_defender=10 and enable_2v1=True -- precisely the mechanics that make the B3-3 pole a harder, differently-structured coordination problem. pi_B3 never trained against the 2v1 / locked-defender structure it was scored on.",
+    "evidence": {
+      "sealed_B3_3_pi_B_argv": "['--team-size','4','--policy','B','--seed','16600001','--device','cuda','--pole-b-genome-json','artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json','--run-label-suffix','_b3']",
+      "entity_repair_pi_B3_argv": "['--team-size','4','--policy','B','--seed','17700002','--device','cuda','--total-timesteps','1000000','--entity-repair-enabled','--entity-hidden-dim','32','--load-path',...,'--run-label-suffix','_b3_entity_repair']",
+      "difference": "--pole-b-genome-json is ABSENT from the entity-repair launch",
+      "confirmed_live": "the pi_B3 training log's own LIVE POLE CHECK printed expected_overlay={'min_alive_for_defender': 4} -- the canonical overlay, not the candidate's"
+    }
+  },
+  "ROOT_CAUSES": {
+    "1_my_verification_error": {
+      "what": "4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json#EVERYTHING_ELSE_UNCHANGED_FROM_B3_3 asserts 'only --team-size, --policy, --seed, --device, --run-label-suffix were ever passed for B3-3', citing as verification the run_config of pi_A_specialist_4v4_b3.",
+      "why_it_is_wrong": "that argv was read from pi_A's run_config only, and then asserted for BOTH policies. pi_B's run_config -- which was sitting on disk the whole time and does contain --pole-b-genome-json -- was never opened.",
+      "which_standing_rule_this_violates": "the project's own 'validate the concrete runtime object before any live-state claim', and the frozen-spec discipline that a 'verified_by' field must cite what was ACTUALLY checked. Generalizing one policy's argv to both is exactly the class of error these rules exist to prevent."
+    },
+    "2_a_real_guard_gap_in_the_launcher": {
+      "what": "experiments/train_specialist_scale.py fails closed on a missing --pole-b-genome-json ONLY when the governing certification's FILENAME contains the substring 'CONFIRMATORY_REDESIGN'.",
+      "why_it_did_not_fire": "the governing record here is STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json. It certifies a specific candidate genome exactly like a confirmatory-redesign record does, but its filename does not contain that substring, so the guard stayed silent and the run proceeded against canonical OP7.",
+      "why_the_LIVE_POLE_CHECK_did_not_catch_it": "that check verifies the live overlay matches what the launcher EXPECTS for the resolved genome. Since the launcher had resolved the canonical genome, expectation and reality agreed. It validates internal consistency, not agreement with the governing certification.",
+      "proposed_structural_fix": "the launcher must compare the LIVE resolved Pole-B overlay against the overlay recorded in the GOVERNING CERTIFICATION RECORD and fail closed on mismatch -- verifying against the record itself rather than a filename substring. A filename test cannot carry a scientific guarantee."
+    }
+  },
+  "WHAT_THIS_INVALIDATES": {
+    "DELTA_B_TRAJECTORY_RESULT.json": "FULLY INVALID as evidence about coordination or acquisition. Its pattern is explained mundanely: t=0 is the correctly-trained (candidate-pole) checkpoint and every later point has drifted toward a different opponent. The apparent 'erosion' is opponent drift.",
+    "CONFIRMATORY_B3_ENTITY_REPAIR_SPECIALIST_CROSSOVER_EVAL (delta_B arm)": "INVALID. delta_B = -0.0859 measured a policy against an opponent it never trained on. The Pole-B failure that has driven this entire investigation is confounded at the source.",
+    "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json": "RETRACTED in its delta_B half, and therefore in its headline. 'Asymmetric recovery' is not established: the B side was never given a fair test.",
+    "TIE_REVERSAL_AUDIT_CONFIRMATORY_B3_ENTITY_REPAIR.json": "its ROW-LEVEL findings remain correct (the rows genuinely were clean, seeds unique, bootstrap reproducible) -- but its conclusion that the delta_B result was 'GENUINE' now has a mundane upstream explanation the audit could not see. A row-level audit cannot detect a train/eval opponent mismatch.",
+    "POLE_B_ENTITY_UTILIZATION_RESULT.json": "the pi_B3@PoleB cell measured a mis-trained policy on an unseen opponent, so the load-bearing comparison 'pi_A3 and pi_B3 use geometry equally' is BROKEN. The pi_A3@PoleA cell is unaffected.",
+    "POLE_A_GEOMETRY_ABLATION_RESULT.json": "C_A, delta_A_full and delta_A_zero all use pi_B3 as the off-pole comparator and are therefore CONTAMINATED. See WHAT_SURVIVES for the part that is not."
+  },
+  "WHAT_SURVIVES": {
+    "pi_A3_training": "CLEAN. Pole A requires no genome override; pole_A_genome(4) was used identically in training and every evaluation, and the live check confirms overlay {'min_alive_for_defender': 4} in both.",
+    "L_A_from_the_ablation": "CLEAN and still meaningful: L_A = V(pi_A3,FULL,A) - V(pi_A3,ZERO,A) = -0.016 [-0.078, +0.047] involves ONLY pi_A3 and no comparator. Deleting geometry does not measurably change pi_A3's own Pole-A performance. The conclusion 'inference-time geometry is not load-bearing for pi_A3' therefore stands on pi_A3-only evidence.",
+    "pi_A3_utilization_cell": "CLEAN: residual ~4.5% of input norm, 96.6% greedy-action agreement when geometry is deleted.",
+    "all_infrastructure_and_its_contracts": [
+      "the EntityResidualEncoder architecture and its bias-free / zero-init / permutation / critic-isolation guarantees",
+      "the z_separation_generator cross-device state fix",
+      "warm-start-is-initialization semantics (warm_start_reset_progress) and its regression test",
+      "CustomPPOInferencePolicy entity threading and its fail-closed contract",
+      "all associated tests, which pass and are unaffected"
+    ],
+    "the_sealed_pre_repair_B3_3_baseline": "CLEAN. Its pi_B WAS trained with the candidate genome and its crossover evaluated against the same, so training and evaluation matched. It remains the correct reference point."
+  },
+  "COST_OF_THE_ERROR": {
+    "gpu_hours": "approximately 17.5 -- pi_B3 training (~3.5 h), the sealed crossover (~6 h), the utilization probe (~0.2 h), the Pole-A ablation (~2.8 h), the trajectory run (~5 h)",
+    "seeds_spent_and_unrecoverable": [
+      "17700002 (pi_B3 training)",
+      "17800001-17800128 (crossover eval)",
+      "17900001-17900004 (utilization probe)",
+      "18000001-18000064 (Pole-A ablation)",
+      "18100001-18100064 (trajectory)"
+    ],
+    "note": "seeds are never reused, so all of the above stay spent regardless of the invalidation."
+  },
+  "RECOVERY_PLAN_not_yet_authorized": [
+    "1. Harden the launcher guard: compare the live resolved Pole-B overlay against the governing certification record's overlay and fail closed on mismatch. Add a regression test that the B3-3 certification path now REFUSES a --policy B launch lacking --pole-b-genome-json.",
+    "2. Retrain pi_B3 correctly: identical recipe and warm-start, plus --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json. ~3.5 GPU-hours. pi_A3 is unaffected and is NOT retrained.",
+    "3. Re-run the joint crossover on a FRESH confirmatory seed block, both poles, with the corrected pi_B3.",
+    "4. Only then revisit whether delta_B fails, and whether any of the Pole-B diagnostics need redoing."
+  ],
+  "WHAT_MUST_NOT_BE_CONCLUDED_FROM_THE_INVALID_RUNS": [
+    "that Pole B needs a different coordination mechanism -- never fairly tested",
+    "that entity geometry failed on Pole B -- never fairly tested",
+    "that pi_B3 'eroded' its specialization -- the decline is opponent drift",
+    "that the 4v4 entity repair produced asymmetric recovery"
+  ],
+  "RECOVERY_STATUS": {
+    "step_1_harden_guard": "COMPLETE 2026-09-14. experiments/pole_attestation.py: certification is the source of truth; pre-GPU field+hash equality; zero-step live attestation read from the behaviour tree; cross-policy parity diff. Filename heuristic DELETED from train_specialist_scale.py. A second defect found and fixed in the same pass: _verify_live_pole installed the CANONICAL genome regardless of any override, so it attested an opponent the run never saw -- it now installs the RESOLVED genome. Verified end-to-end: the exact bad launch is refused before env construction; the corrected launch passes field equality, hash equality and live attestation (enable_2v1=True, lock_defender=10, min_alive_for_defender=4 read live). 11 regression tests in tests/test_pole_certification_guard.py; 221 passed in the pole/specialist/certification sweep, zero regressions. Rule 14 added to docs/RESEARCH_RUN_STANDARDS.md.",
+    "step_2_retrain_pi_B3": "BLOCKED ON A FRESH TRAINING SEED -- 17700002 is spent and seeds are never reused.",
+    "step_3_fresh_crossover": "NOT STARTED",
+    "step_4_rejudge_4v4": "NOT STARTED"
+  }
+}

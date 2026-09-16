@@ -208,3 +208,40 @@ def test_critic_never_receives_entity_tensors_by_construction():
     params = set(inspect.signature(SharedActorCentralizedCritic.values).parameters)
     assert not any("teammate" in p or "enem" in p for p in params), \
         f"values() must never accept entity parameters, got {params}"
+
+
+# ------------------ 7: CustomPPOInferencePolicy.predict() -- the eval/deploy seam
+def test_inference_policy_predict_requires_and_uses_entity_tensors():
+    """load_custom_ppo_policy().predict() (and the CustomPPOInferencePolicy
+    wrapper it returns) is the seam every eval/deploy script calls (e.g.
+    experiments/eval_specialist_crossover_scaled.py) -- distinct from
+    act()/evaluate_actions() tested above, which are the TRAINING-side entry
+    points. This seam was missing entity-tensor support entirely until this
+    fix (discovered when the real crossover eval's dry-run passed but the
+    first real episode step would have raised ValueError on the very first
+    policy.predict() call). Must (a) fail closed with a clear message when
+    entity tensors are missing from obs, and (b) actually thread them into the
+    real forward pass when present, using the exact key names
+    gpu_env._core._entity_obs.augment_obs_with_entities produces."""
+    import numpy as np
+    from rl.custom_ppo.inference_policy import CustomPPOInferencePolicy
+    from gpu_env._core._entity_obs import augment_obs_with_entities
+
+    env, core = _live_env()
+    try:
+        obs_space, act_space = env.observation_space, env.action_space
+        model = SharedActorCentralizedCritic(obs_space, act_space,
+                                             strategy_encoder_enabled=False, latent_k=0,
+                                             entity_repair_enabled=True)
+        inference = CustomPPOInferencePolicy(model, device="cpu")
+
+        obs = env.reset()
+
+        with pytest.raises(ValueError, match="entity_repair_enabled=True"):
+            inference.predict(obs, deterministic=True)
+
+        obs_aug = augment_obs_with_entities(obs, core, side="blue")
+        action, _ = inference.predict(obs_aug, deterministic=True)
+        assert not np.isnan(np.asarray(action)).any(), "predict() produced NaN actions"
+    finally:
+        env.close()

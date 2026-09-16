@@ -1,0 +1,49 @@
+{
+  "record": "Row-level integrity audit (confirmatory 4v4 entity-repair specialist crossover, 17800001-17800128)",
+  "status": "FLAGGED_BY_AUTOMATED_CHECK",
+  "utc": "2026-09-13T23:55:00Z",
+  "implements": "4V4_ENTITY_REPAIR_SPEC.json#EVALUATION.tie_or_reversal",
+  "raised_by": "eval_specialist_crossover_scaled.py's own built-in tie/reversal check (mean<=0.0 on either delta). Wrote CONFIRMATORY_B3_ENTITY_REPAIR_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json and refused to write a verdict-bearing result, exactly as designed.",
+  "triggered_by": "delta_B_spec mean is negative (-0.0859), which alone is enough to trip the check regardless of confidence interval width -- distinct from a DECISIVE reversal (see classification below).",
+
+  "raw_cells": {
+    "pi_A_on_A": 0.8203,
+    "pi_A_on_B": 0.7031,
+    "pi_B_on_A": 0.4688,
+    "pi_B_on_B": 0.6172
+  },
+  "point_estimates": {
+    "delta_A_spec": 0.3516,
+    "delta_B_spec": -0.0859
+  },
+  "n_rows": 512,
+
+  "per_cell_integrity": "all 4 cells (pi_A@A, pi_A@B, pi_B@A, pi_B@B) independently checked: exactly 128 rows each, seeds unique, seed set EXACTLY {17800001..17800128}, win values strictly binary. Win-flag vs (blue>red) checked against all 512 rows: 0 disagreements.",
+  "seed_pairing": "confirmed identical 128 seed keys present across all 4 cells -- paired design intact.",
+
+  "split_half_check": {
+    "purpose": "confirm each delta's SIGN is a distributed effect across the whole seed block, not an artifact of a subset of seeds.",
+    "first_64_seeds": {"delta_A": 0.3906, "delta_B": -0.1094},
+    "last_64_seeds": {"delta_A": 0.3125, "delta_B": -0.0625},
+    "reading": "delta_A stays clearly positive in both halves. delta_B stays negative in both halves, though its magnitude shrinks in the second half (-0.11 -> -0.06) -- consistent direction, no batch-boundary artifact, but a hint of noise rather than a large stable effect."
+  },
+
+  "bootstrap_recomputation": {
+    "method": "independently recomputed from the raw per-episode rows CSV with fresh code, same frozen protocol (paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7)",
+    "delta_A_spec": {"mean": 0.3516, "lcb95": 0.2422, "ucb95": 0.4609, "passes": true},
+    "delta_B_spec": {"mean": -0.0859, "lcb95": -0.1953, "ucb95": 0.0234, "passes": false},
+    "note": "delta_A_spec's entire interval is positive -- a clean, confirmed PASS. delta_B_spec's mean is negative but its interval STRADDLES ZERO (ucb95=+0.0234 > 0) -- this is NOT a decisive reversal like the earlier EXPLORATORY_4V4 case (whose delta_B interval was entirely negative, ucb95=-0.2188). This is a genuine but statistically inconclusive negative point estimate: consistent with either a small true reversal or with noise around a true null."
+  },
+
+  "classification": "GENUINE, NON-DECISIVE. Rows are structurally clean (seeds unique 512/512, exact ranges, zero win/margin disagreements, sign-consistent across both seed-block halves) -- not a duplicate-seed artifact, not a corrupted row, not a pairing bug. But delta_B's confidence interval crossing zero means this audit cannot classify it as a confirmed reversal the way the EXPLORATORY_4V4 precedent's decisively-negative interval could. It fails the PRIMARY_GATE's mean>0 requirement outright regardless.",
+
+  "interpretation_licensed_by_this_audit": "delta_A_spec passes cleanly (pi_A3 beats pi_B3 on Pole A with a confirmed positive margin). delta_B_spec fails the mean>0 requirement and its interval straddles zero, so it does not confirm complementary specialization on Pole B, but it also does not confirm pi_B3 is DECISIVELY worse against Pole B than pi_A3 is -- the two are statistically indistinguishable there (or pi_B3 is marginally, non-significantly behind). This lands in the frozen spec's precommitted 'only ONE regime specializes -- partial/asymmetric recovery' branch, NOT the 'training unstable' branch (both runs trained with healthy telemetry: ev 0.85-0.98, stable losses, no NaNs) and NOT the 'neither specializes' branch (delta_A clearly did).",
+
+  "PRECOMMITTED_NEXT_STEP_PER_4V4_ENTITY_REPAIR_SPEC": "diagnose the FAILED regime (Pole B / pi_B3) specifically -- do not redesign both. Check whether Pole B's specific mechanic (lock_defender=10, enable_2v1=True -- a more complex, asymmetric multi-threat defensive scenario, distinct from Pole A's simpler defender-gate overlay) stresses the entity representation differently than Pole A does. Do not conclude the entity-repair architecture is wrong in general; delta_A is direct evidence it CAN work.",
+
+  "checkpoints": {
+    "pi_A3": "94dde69d091a... (final_pi_A_specialist_4v4_b3_entity_repair.zip)",
+    "pi_B3": "e6d2e5940fdc... (final_pi_B_specialist_4v4_b3_entity_repair.zip)"
+  },
+  "rows_csv": "confirmatory_b3_entity_repair_specialist_crossover_eval_rows.csv"
+}

@@ -1,0 +1,116 @@
+{
+  "record_id": "DELTA_B_TRAJECTORY_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-14T04:15:00Z",
+
+  "THE_QUESTION": "Is pi_B3 still improving against Pole A's specialist with more training, or is it stuck because Pole B needs a different coordination mechanism?",
+
+  "WHY_THIS_AND_NOT_THE_CONTINUATION_CONTROL": {
+    "decision": "ENTITY_CONTINUATION_CONTROL_SPEC.json is drafted, frozen, and PARKED -- not cancelled. It answers the H2-vs-H3 causal question about Pole A, which is publication-relevant but does not move the practical target.",
+    "the_practical_target": "delta_B > 0 with LCB95 > 0, while keeping the already-working delta_A. Pole A is FROZEN and is not retrained or 'fixed' at any point in this plan.",
+    "cost_argument": "the continuation control costs ~15 GPU-hours and tells us about A. This experiment costs ~5 GPU-hours, spends NO training time at all (it reads checkpoints already paid for), and directly determines whether the next GPU hours should go into more B training or into a B-specific coordination repair."
+  },
+
+  "DESIGN": {
+    "comparator": "pi_A3 FINAL, FROZEN (final_pi_A_specialist_4v4_b3_entity_repair.zip, sha 94dde69d091a...). Evaluated on Pole B ONCE and reused as the shared comparator for every time point.",
+    "trajectory_points": [
+      {"t": "0 (warm-start state)", "checkpoint": "sealed B3-3 final_pi_B_specialist_4v4_b3.zip", "sha256_prefix": "57d354e10c56",
+       "why_this_is_a_legitimate_t0": "the entity run's step-0 behaviour was verified IDENTICAL to this checkpoint by the compat loader's behavioural-equivalence check at launch (mean_kl=0, max_logit_diff=0.0000e+00, argmax_diff=0). Evaluating this checkpoint IS evaluating the entity run at t=0.",
+       "caveat": "this checkpoint is PRE-repair and therefore has no entity_encoder. Its architecture differs from the later points. POLE_A_GEOMETRY_ABLATION established that inference-time geometry does not detectably move the crossover deltas (C_A = -0.078 [-0.266, +0.109]), so this is treated as a minor wrinkle, but it is recorded rather than hidden, and t=0 is excluded from the primary slope fit (see STATISTICS)."},
+      {"t": "200k", "checkpoint": "ckpt_pi_B_specialist_4v4_b3_entity_repair_200000.zip"},
+      {"t": "400k", "checkpoint": "ckpt_pi_B_specialist_4v4_b3_entity_repair_400000.zip"},
+      {"t": "600k", "checkpoint": "ckpt_pi_B_specialist_4v4_b3_entity_repair_600000.zip"},
+      {"t": "800k", "checkpoint": "ckpt_pi_B_specialist_4v4_b3_entity_repair_800000.zip"},
+      {"t": "1M", "checkpoint": "final_pi_B_specialist_4v4_b3_entity_repair.zip", "sha256_prefix": "e6d2e5940fdc",
+       "why_final_not_the_1000000_periodic": "the FINAL checkpoint (global_step 1,001,472) is the one the sealed crossover evaluated, so using it makes delta_B(1M) here directly comparable to the sealed delta_B = -0.0859. The periodic 1000000 checkpoint is a different, unevaluated artifact."}
+    ],
+    "cells": "6 pi_B3 time points + 1 frozen pi_A3 comparator = 7 cells, all on Pole B",
+    "pole_B_definition": "OP7 + candidate genome SDS2_B3_LOCKDEF10_2V1 (lock_defender=10, enable_2v1=True, min_alive_for_defender=4) -- the same genome the specialists were trained against; the evaluator must load it explicitly or it would silently score against canonical OP7",
+    "seeds": {"n": 64, "class": "exploratory", "shared_across_all_seven_cells": true,
+              "block": "fresh, to be reserved immediately before launch; must be disjoint from 16700001-16700128, 17700001-17700002, 17800001-17800192, 17900001-17900128, 18000001-18000064"},
+    "total_episodes": 448,
+    "estimated_cost": "~5 GPU-hours at the observed ~40 s/episode",
+    "action_selection": "deterministic=True, matching the frozen crossover protocol",
+    "entity_tensors": "provided truthfully (real geometry) to every entity-enabled checkpoint, exactly as the sealed crossover fed them. The t=0 pre-repair checkpoint has no entity_encoder and ignores them -- already verified empirically to produce bit-identical actions with or without the extra obs keys."
+  },
+
+  "ESTIMANDS": {
+    "delta_B(t)": "V(pi_B3^(t), B) - V(pi_A3_final, B)   for each t, a SEED-LEVEL PAIRED contrast against the shared comparator",
+    "slope_beta": "ordinary least squares slope of delta_B(t) on t, with t measured in MILLIONS of steps, fitted over the five post-warm-start points {200k, 400k, 600k, 800k, 1M}",
+    "endpoint_contrast": "delta_B(1M) - delta_B(200k), a directly paired contrast requiring no functional-form assumption",
+    "bootstrap": "resample SEEDS with replacement (n_boot=20000, alpha=0.05, rng_seed=7, single shared resample matrix). On each resample, recompute ALL delta_B(t) and REFIT the slope, so the slope's interval carries the seed-level uncertainty through the fit rather than treating the fitted points as fixed.",
+    "why_t0_is_excluded_from_the_slope_fit": "it is an architecturally different checkpoint (no entity_encoder) and is the warm-start anchor rather than a point on the continuation's own learning curve. It is reported and plotted, but including it in the slope would mix an architecture change into a trend estimate about training progress."
+  },
+
+  "REPLICATION_CHECK_before_any_trend_is_read": {
+    "quantity": "delta_B(1M) on this fresh block, versus the sealed crossover's delta_B = -0.0859 [-0.1953, +0.0234] (seeds 17800001-17800128)",
+    "criterion_frozen_now": "compatible if the fresh delta_B(1M) point estimate lies within [-0.35, +0.15]. Outside that range, the sealed and fresh estimates are grossly incompatible and a robustness problem takes precedence.",
+    "if_incompatible": "STOP. Do not read the trajectory. Diagnose the discrepancy first -- a trend built on a non-reproducing endpoint is uninterpretable.",
+    "note_on_power": "n=64 here vs n=128 sealed, so a wider interval is EXPECTED and is not by itself an incompatibility. The criterion deliberately keys on the point estimate, mirroring POLE_A_GEOMETRY_ABLATION_BRANCH4_CRITERION_AMENDMENT.json."
+  },
+
+  "PRECOMMITTED_DECISION_TREE": [
+    {
+      "branch": "STILL_IMPROVING",
+      "condition": "LCB95(slope_beta) > 0 AND the optimistic linear extrapolation reaches delta_B = 0 within 2,000,000 additional steps, i.e. steps_to_zero = -delta_B(1M) / beta <= 2.0 (millions)",
+      "reading": "B is acquisition-limited, not mechanism-limited. More training is a live route.",
+      "next": "continue pi_B3 training with a PRECOMMITTED extra budget of 2,000,000 steps (warm-start from the final entity checkpoint, same recipe, A untouched), then re-run the joint crossover on a fresh confirmatory block."
+    },
+    {
+      "branch": "STUCK",
+      "condition": "UCB95(slope_beta) <= 0, OR the interval includes zero with a non-positive point estimate, OR steps_to_zero > 2.0 (millions) even under the optimistic linear fit",
+      "reading": "more training is feeding the GPU furnace. Pole B is limited by coordination mechanism, not by acquisition time.",
+      "next": "pivot to the B-specific coordination repair -- the explicit role/assignment rung (r_i) already reserved in 4V4_ENTITY_REPAIR_SPEC.json's ladder. A stays frozen."
+    },
+    {
+      "branch": "AMBIGUOUS",
+      "condition": "slope interval includes zero with a positive point estimate, and steps_to_zero <= 2.0",
+      "reading": "a possible but unestablished trend.",
+      "next": "do NOT default to either action. Either widen n on the existing checkpoints (cheap: more seeds, no training) or accept the ambiguity explicitly. Do not silently pick whichever branch the surrounding narrative prefers."
+    },
+    {
+      "branch": "EROSION_PEAK_THEN_DECLINE",
+      "condition": "an INTERIOR time point beats the endpoint: argmax_t delta_B(t) occurs at t < 1M, AND the paired contrast delta_B(t_peak) - delta_B(1M) has LCB95 > 0",
+      "reading": "B ACQUIRED specialization during training and then ERODED it. This is emphatically NOT the same failure as 'B never learned it', and must not be read as evidence that Pole B needs a different coordination mechanism -- the mechanism demonstrably sufficed at t_peak.",
+      "next": "the fix is checkpoint selection / early stopping / preventing late-training erosion (e.g. entropy floor, LR decay, or a specialization-preserving regulariser), NOT a representation redesign. A stays frozen.",
+      "why_this_branch_was_added_before_launch": "the STUCK branch fires on slope <= 0, which would also capture a decline -- but STUCK's prescribed next step (move to the role/assignment rung) would be the WRONG action under erosion. Precedence rule: if EROSION's condition is met, it OVERRIDES STUCK."
+    },
+    {
+      "branch": "NON_MONOTONE",
+      "condition": "delta_B(t) oscillates with no coherent trend (e.g. the per-point estimates swing by more than their own CI widths without direction)",
+      "reading": "training instability or evaluation noise dominates the signal",
+      "next": "treat as STUCK for planning purposes but record the instability separately -- an oscillating delta_B is itself evidence about Pole B's optimization landscape and may matter for the eventual fix."
+    }
+  ],
+
+  "SELECTION_BIAS_RULE_binding_on_every_branch": {
+    "issue": "this experiment measures delta_B at SIX time points on ONE seed block. Choosing the best-looking t after the fact is selection on noise: the winner's delta_B is upward-biased by the max-over-k operation, and the bias grows with the per-point CI width (here roughly +-0.15 at n=64).",
+    "binding_consequence": "NO checkpoint selected from this block may be claimed to make 4v4 pass, however good its delta_B looks here. Any candidate identified by this exploratory run MUST be re-evaluated under the full joint crossover protocol on a FRESH CONFIRMATORY seed block, against both poles, before any pass/fail claim.",
+    "what_this_run_IS_for": "deciding WHERE to look and WHICH action to take next -- more training, erosion control, or a mechanism repair. It is a routing decision, not a result.",
+    "applies_equally_to": "EROSION_PEAK_THEN_DECLINE (t_peak is a selected quantity) and NON_MONOTONE (any 'best region' is selected)."
+  },
+
+  "WHY_THE_LINEAR_EXTRAPOLATION_IS_USED_ONE_DIRECTIONALLY": "RL learning curves typically DECELERATE, so a linear fit over-estimates future progress. The extrapolation is therefore used only as an OPTIMISTIC BOUND: if even the optimistic linear projection says delta_B cannot reach zero within 2,000,000 additional steps, more training is definitively not worth it. It is never used to argue that training WILL succeed -- only to rule training out.",
+
+  "KNOWN_ANSWER_CONTRACTS_before_the_main_loop": [
+    "K1. All 7 checkpoint files exist and their sha256 values are distinct from one another (no accidental duplicate path producing a fake flat trajectory).",
+    "K2. The t=1M checkpoint's sha256 equals the one the sealed crossover recorded for pi_B3 (e6d2e5940fdc...), proving the trajectory's endpoint is the same artifact that produced delta_B = -0.0859.",
+    "K3. The frozen comparator's sha256 equals the sealed crossover's pi_A3 (94dde69d091a...).",
+    "K4. Live Pole B resolves min_alive_for_defender == 4 AND carries the lock_defender=10 / enable_2v1 overlay -- asserted from the live BT tensors, not from the genome file.",
+    "K5. Each entity-enabled checkpoint loads with entity_encoder present; the t=0 pre-repair checkpoint loads with entity_encoder None. Both must be true or the checkpoint set is mislabelled.",
+    "K6. The entity residual differs across time points: g computed on a common state must NOT be identical between the 200k and 1M checkpoints, confirming the checkpoints are genuinely different trained states and not the same weights under different filenames.",
+    "GATE: all contracts must pass before the first episode."
+  ],
+
+  "WHAT_THIS_EXPERIMENT_MAY_NOT_CLAIM": [
+    "any confirmatory status -- exploratory seeds, n=64, diagnostic arm",
+    "anything about Pole A -- the comparator is frozen and its own performance is not under test",
+    "that continued training WOULD succeed -- the extrapolation is used only to rule training out (see above)",
+    "a causal account of WHY B is stuck, if it is stuck -- that is the next diagnostic, not this one",
+    "anything about 6v6 or 2v2"
+  ],
+
+  "LAUNCH_GATE": "awaiting PI release. On release: reserve the fresh exploratory block, run contracts K1-K6 via --dry-run, then launch."
+}

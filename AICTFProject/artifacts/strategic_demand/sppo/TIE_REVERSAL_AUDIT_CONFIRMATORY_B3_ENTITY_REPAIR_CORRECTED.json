@@ -1,0 +1,51 @@
+{
+  "record": "Row-level integrity audit (corrected 4v4 entity-repair specialist crossover, 18300001-18300128)",
+  "status": "FLAGGED_BY_AUTOMATED_CHECK",
+  "utc": "2026-09-14T21:50:00Z",
+  "implements": "4V4_ENTITY_REPAIR_SPEC.json#EVALUATION.tie_or_reversal",
+  "raised_by": "eval_specialist_crossover_scaled.py's own built-in tie/reversal check. Wrote CONFIRMATORY_B3_ENTITY_REPAIR_CORRECTED_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json and refused to write a verdict-bearing result, exactly as designed.",
+  "triggered_by": "delta_B mean is negative (-0.15625).",
+
+  "context": "this is the FIRST valid crossover for a pi_B3 that actually trained against the certified Pole B (SDS2_B3_LOCKDEF10_2V1, attested: certified hash == live hash). It replaces the CONFIRMATORY_B3_ENTITY_REPAIR run (seed block 17800001-17800128), which is invalid: that pi_B3 trained against canonical OP7. See PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json.",
+
+  "raw_cells": {
+    "pi_A3_on_A": 0.8125,
+    "pi_A3_on_B": 0.7422,
+    "pi_B3_corrected_on_A": 0.5391,
+    "pi_B3_corrected_on_B": 0.5859
+  },
+  "point_estimates": {"delta_A": 0.2734375, "delta_B": -0.15625},
+  "n_rows": 512,
+
+  "per_cell_integrity": "all 4 cells independently checked: exactly 128 rows each, seeds unique, seed set EXACTLY {18300001..18300128}, win values strictly binary. Win-flag vs (blue>red) checked against all 512 rows: 0 disagreements.",
+  "seed_pairing": "confirmed identical 128 seed keys present across all 4 cells -- paired design intact.",
+
+  "split_half_check": {
+    "purpose": "confirm each delta's sign and magnitude are a distributed effect across the seed block, not a subset artifact.",
+    "first_64_seeds": {"delta_A": 0.3125, "delta_B": -0.15625},
+    "last_64_seeds": {"delta_A": 0.234375, "delta_B": -0.15625},
+    "reading": "delta_B is IDENTICAL to four decimal places in both halves. delta_A is positive and large in both halves. Neither effect is a batch-boundary artifact -- both are stable across the entire seed block."
+  },
+
+  "bootstrap_recomputation": {
+    "method": "independently recomputed from the raw per-episode rows CSV with fresh code, same frozen protocol (paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7)",
+    "delta_A": {"mean": 0.2734, "lcb95": 0.1719, "ucb95": 0.3750, "passes": true},
+    "delta_B": {"mean": -0.1562, "lcb95": -0.2656, "ucb95": -0.0469, "passes": false},
+    "note": "delta_B's ENTIRE interval is negative (ucb95 = -0.0469 < 0). This IS a decisive reversal, unlike the invalid run's delta_B = -0.086 [-0.195, +0.023], whose interval straddled zero. With the confound removed, the negative effect did not shrink to inconclusive -- it sharpened into a confirmed one."
+  },
+
+  "classification": "GENUINE, DECISIVE. Rows are structurally clean (seeds unique 512/512, exact ranges, zero win/margin disagreements, delta_B bit-identical across both seed-block halves). Not a duplicate-seed artifact, not a corrupted row, not a pairing bug.",
+
+  "interpretation_licensed_by_this_audit": "with a properly trained pi_B3 (attested against the certified Pole B), delta_A_spec passes cleanly and delta_B_spec is a CONFIRMED reversal, not an inconclusive null. pi_A3 beats Pole B at 0.7422 -- HIGHER than pi_B3_corrected's own 0.5859 on the pole it was specifically trained for. This is the pattern already seen once before in this project (EXPLORATORY_4V4_SPECIALIST_CROSSOVER, delta_B=-0.3047, fully negative interval): one policy performing strongly against BOTH poles while the other underperforms even on its own, consistent with pi_A3 having converged toward a strong generalist rather than the two developing complementary, mutually-exclusive specializations.",
+
+  "PRIMARY_GATE": {"delta_A": {"mean": 0.2734, "lcb95": 0.1719, "ucb95": 0.3750, "passes": true},
+                   "delta_B": {"mean": -0.1562, "lcb95": -0.2656, "ucb95": -0.0469, "passes": false},
+                   "joint_gate": "FAIL -- requires both to pass; only delta_A did"},
+
+  "checkpoints": {
+    "pi_A3": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "pi_B3_corrected": "021342c84bbe... (final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip, seed 18200001, attested against SDS2_B3_LOCKDEF10_2V1)"
+  },
+  "rows_csv": "confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv",
+  "note_on_seed_matching": "pi_A3 (training seed 17700001) and pi_B3_corrected (training seed 18200001) are NOT matched-seed treatments -- the corrected retrain required a fresh seed after the construct-validity failure. This adds a training-seed nuisance term to the comparison; it does not explain a decisive, fully-negative interval of this size."
+}

@@ -112,6 +112,7 @@ def main() -> int:
     import experiments.r2_learned_crossover as R2
     from rl.curriculum import phase_from_tag
     from rl.custom_ppo import load_custom_ppo_policy
+    from gpu_env._core._entity_obs import augment_obs_with_entities
 
     # Team size reaches the env builder by NAME, not by sweep (this module's global is what
     # R2.build_env feeds into GPUFieldConfig).
@@ -119,16 +120,24 @@ def main() -> int:
 
     device = args.device if torch.cuda.is_available() or args.device == "cpu" else "cpu"
 
-    if args.pole_b_genome_json:
-        pbp = Path(args.pole_b_genome_json)
-        if not pbp.is_file():
-            raise SystemExit(f"REFUSING: --pole-b-genome-json not found: {pbp}")
-        pole_b_resolved = _with_full_team_defender_gate(
-            SDSGenome.from_dict(json.loads(pbp.read_text(encoding="utf-8"))), N)
-        print(f"  Pole B SOURCE  candidate genome {pole_b_resolved.genome_id!r} from "
-              f"{pbp.name} (NOT canonical pole_B_genome({N}))")
-    else:
-        pole_b_resolved = pole_B_genome(N)
+    # Rule 14: the EVALUATOR is an experiment too. It must prove its poles are the
+    # certified poles rather than trusting the operator to remember a flag -- the
+    # same hole that let pi_B3 TRAIN against canonical OP7
+    # (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json). Both poles are attested,
+    # before any episode.
+    from experiments.pole_attestation import (
+        assert_resolved_matches_certification, format_attestation_banner,
+        governing_certification, resolve_pole_genome,
+    )
+    _cert_verdict, _cert_path = governing_certification(N)
+    pole_attestations = {}
+    for _pol in ("A", "B"):
+        _g = resolve_pole_genome(_pol, N, args.pole_b_genome_json if _pol == "B" else None)
+        pole_attestations[_pol] = assert_resolved_matches_certification(
+            _pol, N, _cert_path, _g, is_smoke=False)
+        print(f"  POLE {_pol} ATTESTATION vs {_cert_path.name}:")
+        print(format_attestation_banner(pole_attestations[_pol]))
+    pole_b_resolved = resolve_pole_genome("B", N, args.pole_b_genome_json)
 
     # Both poles resolved at the LIVE team size. At N=2 pole_B_genome(2) carries no overlay,
     # reproducing the 2v2 evaluator exactly; at N>2 the Pole-B overlay is required.
@@ -174,6 +183,10 @@ def main() -> int:
             env.env_method("set_next_opponent", "SCRIPTED", key)
             obs = env.reset()
             obs["global_state"] = env.state()
+            # Additive, unconditional: harmless no-op for a non-entity-repair
+            # policy (predict() only reads these keys when the loaded model's
+            # entity_encoder is not None); required for pi_A3/pi_B3.
+            obs = augment_obs_with_entities(obs, core, side="blue")
             assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
                                        context=f"{label} {pole} seed {seed}")
             # Fail closed on the size-normalized gate, read from the live BT tensors.
@@ -189,6 +202,7 @@ def main() -> int:
                 env.step_async(action)
                 obs, _r, done, info = env.step_wait()
                 obs["global_state"] = env.state()
+                obs = augment_obs_with_entities(obs, core, side="blue")
                 if bool(np.asarray(done).any()):
                     i0 = info[0] if isinstance(info, (list, tuple)) else info
                     res = (i0 or {}).get("episode_result") or {}
@@ -289,6 +303,10 @@ def main() -> int:
                       "candidate_genome_id": (pole_b_resolved.genome_id
                                               if p == "B" and args.pole_b_genome_json else None)}
                   for p in ("A", "B")},
+        "pole_attestations": {p: {k: pole_attestations[p][k] for k in (
+            "certification_record", "certified_genome_id", "live_genome_id",
+            "certified_overlay", "live_overlay", "certified_config_hash",
+            "live_config_hash", "hashes_match")} for p in ("A", "B")},
         "PRIMARY_GATE": {"delta_A": delta_a, "delta_B": delta_b, "passes": gate_passes},
         "checkpoints": {n: _sha(paths[n]) for n in POLICIES},
         "bootstrap": {"procedure": "paired percentile bootstrap over evaluation seeds",

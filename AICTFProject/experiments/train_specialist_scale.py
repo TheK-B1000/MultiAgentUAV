@@ -136,8 +136,16 @@ def assert_live_pole_matches_team_size(env, policy: str, n: int) -> dict:
     return detail
 
 
-def _verify_live_pole(cfg, policy: str, n: int) -> dict:
-    """Build a throwaway env, install the pole overlay, and assert the LIVE profile."""
+def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
+                      pole_attestation: dict | None = None, is_smoke: bool = False) -> dict:
+    """Build a throwaway env, install the pole overlay, and assert the LIVE profile.
+
+    ``resolved_genome`` MUST be the genome this run will actually train against.
+    Installing the canonical genome here regardless of an override -- which this
+    function used to do -- attests an opponent the run never sees, which is how a
+    Pole-B candidate override could pass a "LIVE POLE CHECK: PASS" banner while
+    training against canonical OP7 (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json).
+    """
     from experiments.opponent_spec import (install_keyed_opponent_overlays, pole_A_genome,
                                            pole_B_genome)
     from rl.training.env_factory import build_training_env
@@ -149,11 +157,23 @@ def _verify_live_pole(cfg, policy: str, n: int) -> dict:
         core = env.core
         core._bt_profile_override = None
         core._sds_opening_hold_steps = 0
-        genomes = {"OP6": pole_A_genome(n)} if policy == "A" else {}
-        if n != 2:
-            genomes["OP7"] = pole_B_genome(n)
+        # The pole under test uses the RESOLVED genome; the other pole keeps its
+        # canonical definition (it is not what this specialist trains against).
+        if policy == "A":
+            genomes = {"OP6": resolved_genome if resolved_genome is not None else pole_A_genome(n)}
+            if n != 2:
+                genomes["OP7"] = pole_B_genome(n)
+        else:
+            genomes = {"OP6": pole_A_genome(n)} if n == 2 else {}
+            genomes["OP7"] = resolved_genome if resolved_genome is not None else pole_B_genome(n)
         install_keyed_opponent_overlays(core, genomes)
         detail = assert_live_pole_matches_team_size(env, policy, n)
+        if pole_attestation is not None:
+            from experiments.pole_attestation import attest_live_pole
+            detail["pole_attestation"] = attest_live_pole(
+                core, policy, n, pole_attestation,
+                context=f"pre-training zero-step attestation ({n}v{n} pole {policy})",
+                is_smoke=is_smoke)
         detail["installed_overlay_keys"] = sorted(genomes)
         detail["grid_agent_dim"] = int(env.observation_space.spaces["grid"].shape[0])
         if detail["grid_agent_dim"] != n:
@@ -348,29 +368,31 @@ def main() -> int:
               f"later passes.")
         print("!" * 78, flush=True)
 
-    # ---- Pole B genome source: fail closed if the GOVERNING certification is itself a -----
-    # confirmatory-redesign record. That record certified a SPECIFIC candidate genome, not
-    # canonical OP7; training "policy B" via the default pole_B_genome(N) would silently
-    # answer a different, uncertified question while the banner above still says CERTIFIED.
-    pole_b_override = None
-    if policy == "B":
-        if args.pole_b_genome_json:
-            pbp = Path(args.pole_b_genome_json)
-            if not pbp.is_file():
-                raise SystemExit(f"FAIL-CLOSED: --pole-b-genome-json not found: {pbp}")
-            from experiments.sds_genome import SDSGenome
-            from experiments.opponent_spec import _with_full_team_defender_gate
-            pole_b_override = _with_full_team_defender_gate(
-                SDSGenome.from_dict(json.loads(pbp.read_text(encoding="utf-8"))), n)
-            print(f"  Pole B SOURCE  candidate genome {pole_b_override.genome_id!r} from "
-                  f"{pbp.name} (NOT canonical pole_B_genome({n}))", flush=True)
-        elif not is_smoke and "CONFIRMATORY_REDESIGN" in cert_path.name:
-            raise SystemExit(
-                f"FAIL-CLOSED: the governing certification for {n}v{n} is a confirmatory-"
-                f"redesign record ({cert_path.name}), which certified a SPECIFIC Pole-B "
-                f"candidate genome, not canonical OP7. --policy B requires "
-                f"--pole-b-genome-json naming that candidate, or this run would silently "
-                f"train against the wrong, uncertified Pole B.")
+    # ---- CERTIFICATION IS THE SOURCE OF TRUTH for which opponent this run trains against.
+    # The resolved pole is compared FIELD BY FIELD and BY HASH against the governing
+    # certification record, before any environment is built and before any GPU work.
+    #
+    # This replaces a filename-substring heuristic ("CONFIRMATORY_REDESIGN" in cert_path.name)
+    # that let pi_B3 train against canonical OP7 while being evaluated against the certified
+    # B3-3 candidate -- ~17.5 GPU-hours answering the wrong experiment. See
+    # PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json. A filename cannot carry a scientific
+    # guarantee; the record can.
+    from experiments.pole_attestation import (
+        assert_resolved_matches_certification, cross_policy_parity,
+        format_attestation_banner, resolve_pole_genome,
+    )
+
+    parity = cross_policy_parity(n, cert_path)
+    print(f"  CROSS-POLICY PARITY ({cert_path.name}) -- the two poles of this study are NOT symmetric:")
+    for line in parity["lines"]:
+        print(line)
+
+    resolved_genome = resolve_pole_genome(policy, n, args.pole_b_genome_json)
+    pole_attestation = assert_resolved_matches_certification(
+        policy, n, cert_path, resolved_genome, is_smoke=is_smoke)
+    print(format_attestation_banner(pole_attestation), flush=True)
+
+    pole_b_override = resolved_genome if (policy == "B" and args.pole_b_genome_json) else None
 
     try:
         import torch
@@ -578,10 +600,19 @@ def main() -> int:
     # FAIL CLOSED on the LIVE resolved pole, before any step. Builds a throwaway env,
     # installs the same overlay the R1 seam installs, and reads the behaviour tree's own
     # resolved tensors -- the only authority that cannot be fooled by an unapplied override.
-    live = _verify_live_pole(cfg, policy, n)
+    live = _verify_live_pole(cfg, policy, n, resolved_genome=resolved_genome,
+                             pole_attestation=pole_attestation, is_smoke=is_smoke)
     print("  LIVE POLE CHECK: PASS")
     for k, v in live.items():
+        if k == "pole_attestation":
+            continue
         print(f"    {k}: {v}")
+    live_att = live.get("pole_attestation")
+    if live_att is not None:
+        print("  LIVE POLE ATTESTATION vs CERTIFICATION:")
+        print(format_attestation_banner(live_att))
+        print(f"    live_verified_overlay: {live_att.get('live_verified_overlay')}")
+        pole_attestation = live_att
 
     if args.dry_run:
         # A dry run starts nothing, so it must leave nothing behind. Writing the manifest
@@ -599,6 +630,18 @@ def main() -> int:
         "git_sha": sha, "git_dirty": dirty,
         "total_timesteps": int(cfg.total_timesteps),
         "certification_verdict": verdict,
+        "certification_record": cert_path.name,
+        # Certified vs live opponent identity + hashes, so train/eval agreement is
+        # AUDITABLE after the fact instead of assumed. See pole_attestation.py.
+        "CERTIFIED_OPPONENT": pole_attestation["certified_genome_id"],
+        "LIVE_OPPONENT": pole_attestation["live_genome_id"],
+        "certified_overlay": pole_attestation["certified_overlay"],
+        "live_overlay": pole_attestation["live_overlay"],
+        "certified_config_hash": pole_attestation["certified_config_hash"],
+        "live_config_hash": pole_attestation["live_config_hash"],
+        "pole_config_hashes_match": bool(pole_attestation["hashes_match"]),
+        "live_pole_attestation_passed": bool(pole_attestation.get("live_attestation_passed", False)),
+        "cross_policy_parity": parity,
         "checkpoint_dir": cfg.checkpoint_dir,
         "recipe_inherited_from": "experiments/run_r1_repertoire_training.py::build_r1_config",
         "pole_b_source": (f"CANDIDATE_OVERRIDE:{pole_b_override.genome_id}"

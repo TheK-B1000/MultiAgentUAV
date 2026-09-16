@@ -1,0 +1,85 @@
+{
+  "record": "POLE_A_GEOMETRY_ABLATION closed-loop Pole-A geometry ablation",
+  "status": "COMPLETE_DIAGNOSTIC",
+  "utc": "2026-09-14T03:29:39Z",
+  "device": "cuda",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "POLE_A_GEOMETRY_ABLATION_SPEC.json#ESTIMANDS",
+  "question_answered": "Is the entity pathway load-bearing AT INFERENCE for the recovered Pole-A specialization?",
+  "question_NOT_answered": "Did entity geometry CAUSE the specialization to emerge during training? That is the scaffold hypothesis (H2) and requires the no-entity +1,000,000-step continuation control. Nothing in this experiment may be used to argue for or against H2.",
+  "seeds": {
+    "block": [
+      18000001,
+      18000064
+    ],
+    "n": 64,
+    "shared_across_cells": true
+  },
+  "checkpoints": {
+    "pi_A3": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "pi_B3": "e6d2e5940fdcf6e6d860c339b810e46d40208dfdfa3ecb330d00d3dc9ff66f8a"
+  },
+  "contracts": {
+    "checkpoints_are_distinct": true,
+    "both_have_entity_encoder": true,
+    "live_pole_A_min_alive_is_4": true,
+    "intervention_isolated_base_obs_bit_identical": true,
+    "intervention_actually_changed_entities": true,
+    "ZERO_residual_is_exactly_zero_trained_weights": true,
+    "FULL_residual_is_nonzero_trained_weights": true,
+    "logits_deterministic": true
+  },
+  "win_rates": {
+    "pi_A3/FULL": 0.8125,
+    "pi_A3/ZERO": 0.828125,
+    "pi_B3/FULL": 0.53125,
+    "pi_B3/ZERO": 0.46875
+  },
+  "estimates": {
+    "delta_A_full": {
+      "name": "delta_A_full",
+      "mean": 0.28125,
+      "lcb95": 0.125,
+      "ucb95": 0.4375
+    },
+    "delta_A_zero": {
+      "name": "delta_A_zero",
+      "mean": 0.359375,
+      "lcb95": 0.203125,
+      "ucb95": 0.515625
+    },
+    "C_A": {
+      "name": "C_A",
+      "mean": -0.078125,
+      "lcb95": -0.265625,
+      "ucb95": 0.109375
+    },
+    "L_A": {
+      "name": "L_A",
+      "mean": -0.015625,
+      "lcb95": -0.078125,
+      "ucb95": 0.046875
+    },
+    "L_B": {
+      "name": "L_B",
+      "mean": 0.0625,
+      "lcb95": -0.09375,
+      "ucb95": 0.21875
+    }
+  },
+  "pairing_correlation_d_full_d_zero": 0.3179062068204197,
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over evaluation seeds, single shared resample matrix across all estimands",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "total_episodes": 256,
+  "NOT_A_CLAIM": [
+    "any confirmatory status -- exploratory seeds, diagnostic arm, n=64",
+    "that geometry did or did not cause specialization to EMERGE (that is H2/H3, untouched here)",
+    "anything about Pole B -- not evaluated",
+    "anything about 6v6 or 2v2"
+  ]
+}

@@ -759,7 +759,103 @@
       "spec": "4V4_ENTITY_REPAIR_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-13T07:45:12Z"
+    },
+    {
+      "experiment_id": "POLE_B_ENTITY_DIAGNOSIS",
+      "purpose": "Pole-B-only diagnosis of the asymmetric 4v4 entity-repair result: entity-use ablation of pi_B3, Pole-B observation-sufficiency probe, and pi_A3-vs-pi_B3 behavioural comparison on Pole B. DIAGNOSTIC ONLY -- never a confirmatory claim.",
+      "seed_class": "exploratory",
+      "lo": 17900001,
+      "hi": 17900128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-13T23:58:51Z"
+    },
+    {
+      "experiment_id": "POLE_A_GEOMETRY_ABLATION",
+      "purpose": "Closed-loop Pole-A geometry ablation: 4 cells (pi_A3/pi_B3 x FULL/ZERO) on shared seeds, estimating C_A = delta_A_full - delta_A_zero plus per-policy deletion effects L_A, L_B. Tests INFERENCE-TIME load-bearing only. DIAGNOSTIC.",
+      "seed_class": "exploratory",
+      "lo": 18000001,
+      "hi": 18000064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "POLE_A_GEOMETRY_ABLATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T00:39:26Z"
+    },
+    {
+      "experiment_id": "DELTA_B_TRAJECTORY",
+      "purpose": "delta_B(t) across pi_B3 entity-repair training checkpoints (t=0/200k/400k/600k/800k/1M) on Pole B against the FROZEN pi_A3 final comparator. Routing decision: more training vs erosion control vs B-specific mechanism repair. DIAGNOSTIC -- any candidate checkpoint requires a fresh confirmatory crossover before any pass claim.",
+      "seed_class": "exploratory",
+      "lo": 18100001,
+      "hi": 18100064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DELTA_B_TRAJECTORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T04:06:45Z"
+    },
+    {
+      "experiment_id": "B3_CORRECTED_RETRAIN",
+      "purpose": "Corrected pi_B3 entity-repair retrain against the ATTESTED certified Pole B (SDS2_B3_LOCKDEF10_2V1). Replaces the contaminated run on seed 17700002, which trained against canonical SDS_PARENT_OP7 (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json). 17700002 is SPENT and must never be reused; exact A/B training-seed matching with pi_A3 (17700001) is therefore lost and is recorded as a known nuisance term.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 18200001,
+      "hi": 18200001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T12:04:10Z"
+    },
+    {
+      "experiment_id": "B3_ENTITY_REPAIR_CORRECTED_CROSSOVER",
+      "purpose": "Fresh confirmatory crossover: FROZEN pi_A3 (seed 17700001) vs CORRECTED pi_B3 (seed 18200001, trained against the attested certified Pole B SDS2_B3_LOCKDEF10_2V1). Replaces the invalid 17800001-17800128 crossover, whose pi_B3 was contaminated. NOT an exact matched-seed contrast: the two specialists were trained on different seeds after the construct-validity failure.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 18300001,
+      "hi": 18300128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T16:01:16Z"
+    },
+    {
+      "experiment_id": "DELTA_B_TRAJECTORY_CORRECTED",
+      "purpose": "delta_B(t) across all 9 CORRECTED pi_B3 checkpoints (100k granularity) plus t0 anchor and final, on Pole B against the FROZEN pi_A3 comparator. Replaces the invalid DELTA_B_TRAJECTORY run whose checkpoints trained against the wrong opponent. Routing decision: training duration/checkpointing vs B-specific coordination diagnosis. DIAGNOSTIC -- any candidate checkpoint requires a fresh confirmatory crossover before any pass claim.",
+      "seed_class": "exploratory",
+      "lo": 18400001,
+      "hi": 18400064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DELTA_B_TRAJECTORY_CORRECTED_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T21:47:22Z"
+    },
+    {
+      "experiment_id": "B3_100K_CANDIDATE_CROSSOVER",
+      "purpose": "Fresh confirmatory joint crossover of the FROZEN candidate pair: pi_A3 final (seed 17700001) vs pi_B3_corrected@100k (seed 18200001, checkpoint sha 4d4b813a5f9a...), selected by DELTA_B_TRAJECTORY_CORRECTED as the argmax of 11 evaluated checkpoints. This IS the selection-bias-controlled confirmatory test of that candidate: full gate on BOTH poles, delta_A and delta_B, on seeds untouched by the selection. Per the trajectory spec, no checkpoint selected there may be claimed to pass 4v4 without this test.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 18500001,
+      "hi": 18500128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "DELTA_B_TRAJECTORY_CORRECTED_READING.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-15T13:06:58Z"
+    },
+    {
+      "experiment_id": "POLE_B_BEHAVIORAL_DIAGNOSIS",
+      "purpose": "Behavioural diagnosis: A3 / B100k / Bfinal on identical Pole-B seeds (plus Pole-A reference), instrumenting macro/role allocation, command degeneracy, switching, spacing, posture, attrition, carrier and 2v1 support response, plus counterfactual macro replay on Bfinal Pole-B states. Measures WHAT the policies do, not whether they win. No delta computed; no gate claim possible.",
+      "seed_class": "exploratory",
+      "lo": 18600001,
+      "hi": 18600032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "POLE_B_BEHAVIORAL_DIAGNOSIS_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-16T00:57:35Z"
     }
   ],
-  "updated_utc": "2026-09-13T07:45:12Z"
+  "updated_utc": "2026-09-16T00:57:35Z"
 }

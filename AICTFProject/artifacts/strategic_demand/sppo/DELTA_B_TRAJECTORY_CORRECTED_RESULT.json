@@ -1,0 +1,193 @@
+{
+  "record": "DELTA_B_TRAJECTORY_CORRECTED delta_B across CORRECTED pi_B3 training trajectory",
+  "status": "COMPLETE_DIAGNOSTIC",
+  "utc": "2026-09-15T13:05:02Z",
+  "device": "cuda",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "DELTA_B_TRAJECTORY_CORRECTED_SPEC.json#ESTIMANDS",
+  "question_answered": "What actually happened during CORRECT Pole-B learning? Did pi_B3 improve steadily, peak and decline, or stay weak throughout?",
+  "seeds": {
+    "block": [
+      18400001,
+      18400064
+    ],
+    "n": 64,
+    "shared_across_cells": true
+  },
+  "checkpoints": {
+    "pi_A3_final": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "t0_warmstart": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+    "t100k": "4d4b813a5f9ac4cad295be6969cd3ab3e7c918326767f049cbd5130d11923160",
+    "t200k": "1167546571a0798572470af218777a1d314793f8bc4b2c76067741da596e6ecf",
+    "t300k": "a4eaf91516112e9e7a369f0fffdf15c8c5c3ae166ad1611a1cf85b25eed2b616",
+    "t400k": "d287c6c1b7ef5a07ee6da111ed4f9ccb9842077854eda448fb02fceb6e5ee543",
+    "t500k": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+    "t600k": "e3dc7808a5035b38a857245d29c6df8fc35aded68b213250ca9bb37c3184d5e8",
+    "t700k": "f1124d39e63779e2323ec212fba6bb3d15135254f2165d190f80db74e7b42c49",
+    "t800k": "8c52da2063c4af035197cac3cf24eefe1d4b56a5add7758c2344cbb9fbdad287",
+    "t900k": "ded8ca29e4c9b2cf3d14cb5d90b00044269549a4c6c5bf7479a09ecf83425779",
+    "tfinal": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+  },
+  "contracts": {
+    "K1_all_checkpoints_distinct": true,
+    "K2_final_matches_corrected_crossover_pi_B3": true,
+    "K3_comparator_matches_corrected_crossover_pi_A3": true,
+    "K5_entity_encoders_as_expected": true,
+    "K4_rule14_live_pole_attestation_passed": true,
+    "K6_checkpoints_are_genuinely_different_states": true
+  },
+  "rule14_attestation": {
+    "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+    "certification_verdict": "CERTIFIED",
+    "policy": "B",
+    "team_size": 4,
+    "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+    "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+    "certified_overlay": {
+      "enable_2v1": true,
+      "lock_defender": 10,
+      "min_alive_for_defender": 4
+    },
+    "live_overlay": {
+      "enable_2v1": true,
+      "lock_defender": 10,
+      "min_alive_for_defender": 4
+    },
+    "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+    "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+    "hashes_match": true,
+    "stage": "live_pole_attestation",
+    "live_verified_overlay": {
+      "enable_2v1": true,
+      "lock_defender": 10.0,
+      "min_alive_for_defender": 4.0
+    },
+    "unresolvable_keys": [],
+    "context": "DELTA_B_TRAJECTORY_CORRECTED preflight",
+    "live_attestation_passed": true
+  },
+  "win_rates": {
+    "pi_A3_final": 0.6875,
+    "t0_warmstart": 0.703125,
+    "t100k": 0.859375,
+    "t200k": 0.6875,
+    "t300k": 0.59375,
+    "t400k": 0.625,
+    "t500k": 0.75,
+    "t600k": 0.6875,
+    "t700k": 0.578125,
+    "t800k": 0.453125,
+    "t900k": 0.515625,
+    "tfinal": 0.578125
+  },
+  "delta_B_by_t": {
+    "t0_warmstart": {
+      "mean": 0.015625,
+      "lcb95": -0.109375,
+      "ucb95": 0.140625,
+      "t_millions": null
+    },
+    "t100k": {
+      "mean": 0.171875,
+      "lcb95": 0.0625,
+      "ucb95": 0.28125,
+      "t_millions": 0.1
+    },
+    "t200k": {
+      "mean": 0.0,
+      "lcb95": -0.140625,
+      "ucb95": 0.140625,
+      "t_millions": 0.2
+    },
+    "t300k": {
+      "mean": -0.09375,
+      "lcb95": -0.25,
+      "ucb95": 0.0625,
+      "t_millions": 0.3
+    },
+    "t400k": {
+      "mean": -0.0625,
+      "lcb95": -0.203125,
+      "ucb95": 0.078125,
+      "t_millions": 0.4
+    },
+    "t500k": {
+      "mean": 0.0625,
+      "lcb95": -0.09375,
+      "ucb95": 0.21875,
+      "t_millions": 0.5
+    },
+    "t600k": {
+      "mean": 0.0,
+      "lcb95": -0.140625,
+      "ucb95": 0.15625,
+      "t_millions": 0.6
+    },
+    "t700k": {
+      "mean": -0.109375,
+      "lcb95": -0.265625,
+      "ucb95": 0.0625,
+      "t_millions": 0.7
+    },
+    "t800k": {
+      "mean": -0.234375,
+      "lcb95": -0.40625,
+      "ucb95": -0.0625,
+      "t_millions": 0.8
+    },
+    "t900k": {
+      "mean": -0.171875,
+      "lcb95": -0.3125,
+      "ucb95": -0.03125,
+      "t_millions": 0.9
+    },
+    "tfinal": {
+      "mean": -0.109375,
+      "lcb95": -0.265625,
+      "ucb95": 0.046875,
+      "t_millions": 1.001472
+    }
+  },
+  "slope": {
+    "mean": -0.2808958441322847,
+    "lcb95": -0.41430174559428184,
+    "ucb95": -0.15132754686208555,
+    "units": "delta_B per 1,000,000 training steps"
+  },
+  "endpoint_contrast_final_minus_100k": {
+    "mean": -0.28125,
+    "lcb95": -0.421875,
+    "ucb95": -0.140625
+  },
+  "peak_label": "t100k",
+  "peak_minus_final_contrast": {
+    "mean": 0.28125,
+    "lcb95": 0.140625,
+    "ucb95": 0.421875
+  },
+  "steps_to_zero_millions_optimistic_linear": null,
+  "replication_check": {
+    "delta_B_final_fresh": -0.109375,
+    "corrected_crossover_delta_B": -0.15625,
+    "ok_range": [
+      -0.4,
+      0.05
+    ],
+    "compatible": true
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seeds; slope REFIT on every resample; single shared resample matrix across all estimands",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "total_episodes": 768,
+  "NOT_A_CLAIM": [
+    "any confirmatory status -- exploratory seeds, n=64, diagnostic arm",
+    "anything about Pole A -- the comparator is frozen and not under test",
+    "that continued training WOULD succeed -- the linear extrapolation is used ONLY to rule training out",
+    "a causal account of WHY B is weak -- that is the behavioural diagnosis, not this",
+    "anything about 6v6 or 2v2"
+  ]
+}

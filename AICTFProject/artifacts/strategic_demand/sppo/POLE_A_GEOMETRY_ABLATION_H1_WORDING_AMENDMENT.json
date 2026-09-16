@@ -1,0 +1,25 @@
+{
+  "record_id": "POLE_A_GEOMETRY_ABLATION_H1_WORDING_AMENDMENT",
+  "status": "AMENDMENT",
+  "utc": "2026-09-14T03:50:00Z",
+  "amends": "POLE_A_GEOMETRY_ABLATION_READING.json",
+  "amends_fields": ["HEADLINE", "STATUS_OF_THE_THREE_LIVE_HYPOTHESES.H1_geometry_load_bearing_at_inference"],
+  "raised_by": "PI review.",
+
+  "THE_CORRECTION": {
+    "as_written": "'H1 ... is REJECTED' / 'H1 ... is REJECTED. C_A's mean is not just non-significant, it is in the WRONG direction for H1'.",
+    "why_that_overstates": "a null result is not proof of a zero effect. C_A = -0.078 [-0.266, +0.109] still PERMITS a modest positive inference-time contribution from geometry -- the interval's upper end is +0.109, which is not nothing. Writing 'REJECTED' unqualified invites a reader to hear 'proven zero', which the data does not support and which a reviewer would correctly attack.",
+    "corrected_wording": "H1 is OPERATIONALLY REJECTED AS THE LOAD-BEARING EXPLANATION for the recovered Pole-A specialization -- not proven to be a zero effect.",
+    "what_supports_the_operational_rejection": [
+      "C_A = -0.078 [-0.266, +0.109]: no detectable erosion of the specialization gap when geometry is deleted, point estimate wrong-signed for H1",
+      "delta_A_zero = +0.359 [+0.203, +0.516]: the gap not only survives geometry deletion, it independently clears the pass criterion WITHOUT geometry",
+      "L_A = -0.016 [-0.078, +0.047] and L_B = +0.063 [-0.094, +0.219]: no detectable absolute-capability cost on either policy",
+      "POLE_B_ENTITY_UTILIZATION: an independent, open-loop measurement (per-decision footprint ~4% of input norm, ~97% greedy-action agreement, symmetric between the passing and failing regime)"
+    ],
+    "the_precise_claim": "inference-time entity geometry is a very poor explanation for the recovered specialization. A modest inference-time contribution is not excluded; a LOAD-BEARING one is."
+  },
+
+  "WHY_THIS_DISTINCTION_IS_KEPT": "every downstream document -- and any eventual write-up -- inherits this sentence. 'Operationally rejected as the load-bearing explanation' is defensible against the actual interval; 'rejected' is not. The experiment was powered to detect a load-bearing effect, not to establish equivalence, and the record should say only what the design can carry.",
+
+  "NO_OTHER_CHANGE": "the numbers, contracts, branch assignment (branch 1), and the H2/H3 next-step reasoning in POLE_A_GEOMETRY_ABLATION_READING.json are unchanged and remain correct."
+}

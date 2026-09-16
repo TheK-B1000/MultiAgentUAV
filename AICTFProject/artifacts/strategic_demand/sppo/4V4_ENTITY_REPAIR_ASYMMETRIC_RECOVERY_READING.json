@@ -1,0 +1,84 @@
+{
+  "record_id": "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING",
+  "status": "READING_FROZEN_POST_AUDIT",
+  "utc": "2026-09-14T00:05:00Z",
+  "governed_by": "4V4_ENTITY_REPAIR_SPEC.json",
+  "rests_on": [
+    "CONFIRMATORY_B3_ENTITY_REPAIR_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json (the evaluator's own tie/reversal refusal)",
+    "TIE_REVERSAL_AUDIT_CONFIRMATORY_B3_ENTITY_REPAIR.json (row-level integrity audit: rows clean, bootstrap independently reproduced)",
+    "4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json (the exact launch config, hashed pre- and post-seed)"
+  ],
+
+  "VERDICT": "4v4 entity repair produced ASYMMETRIC RECOVERY.",
+
+  "PRIMARY_GATE_OUTCOME": {
+    "delta_A": {"mean": 0.3516, "lcb95": 0.2422, "ucb95": 0.4609, "passes": true},
+    "delta_B": {"mean": -0.0859, "lcb95": -0.1953, "ucb95": 0.0234, "passes": false},
+    "joint_gate": "FAIL -- the criterion requires BOTH deltas to pass. Only delta_A did.",
+    "delta_B_character": "fails the mean>0 requirement outright, but its interval STRADDLES ZERO -- statistically inconclusive, NOT a confirmed reversal. Distinct from the EXPLORATORY_4V4 precedent whose delta_B interval lay entirely below zero (ucb95=-0.2188)."
+  },
+
+  "raw_cells": {
+    "pi_A3_on_A": 0.8203,
+    "pi_A3_on_B": 0.7031,
+    "pi_B3_on_A": 0.4688,
+    "pi_B3_on_B": 0.6172
+  },
+
+  "PRECOMMITTED_BRANCH_THIS_LANDS_IN": "4V4_ENTITY_REPAIR_SPEC.json#PRECOMMITTED_DECISION_TREE -> 'only ONE regime specializes (one delta's LCB95 > 0, the other's does not)' -> reading: 'partial / asymmetric recovery' -> next: 'diagnose the FAILED regime specifically -- do not redesign both.' This branch was frozen BEFORE any training step; it was not chosen after seeing the answer.",
+
+  "BRANCHES_EXPLICITLY_RULED_OUT": {
+    "training_unstable": "ruled out -- both runs trained with healthy telemetry end to end (explained variance 0.85-0.98, stable policy/value losses, approx_kl 0.0008-0.004, no NaNs, TRAINING_COMPLETE verdicts, matching ruleset fingerprints).",
+    "neither_specializes": "ruled out -- delta_A passed cleanly with an entirely positive interval.",
+    "full_success": "ruled out -- delta_B failed."
+  },
+
+  "CAUSAL_ATTRIBUTION_LIMIT_do_not_overclaim": {
+    "what_is_licensed": "The repaired pipeline CAN produce strong Pole-A-side specialization. Comparing two sealed evaluations of the same protocol at the same sample size: the sealed pre-repair B3-3 crossover had delta_A = +0.0469 [-0.0703, +0.1563] (FAIL), and this post-repair run has delta_A = +0.3516 [+0.2422, +0.4609] (PASS).",
+    "what_is_NOT_licensed": "That the entity stream ALONE causally produced the entire delta_A improvement. pi_A3/pi_B3 received 1,000,000 fresh optimization steps on top of the B3-3 weights; the pre-repair baseline did not receive those steps. No matched 'B3-3 weights + 1,000,000 further steps, entity stream ABSENT' continuation control was run.",
+    "confound_named_explicitly": "additional-training-time vs. entity-representation, unseparated.",
+    "what_would_separate_them": "a continuation control: warm-start from the SAME sealed B3-3 checkpoints, same fresh 1,000,000-step budget, same seeds, --entity-repair-enabled OMITTED, then the identical crossover protocol. Cost is the same as this run (~3.5 h/policy training + ~6 h eval on the current GPU).",
+    "why_it_is_deferred_not_dismissed": "the immediate engineering question -- WHERE does the remaining failure live -- is answered by Pole-B diagnosis on checkpoints already paid for, and does not depend on resolving this confound. The control is REQUIRED before any publication-grade causal claim about delta_A, and is recorded here as outstanding rather than quietly skipped.",
+    "also_note": "the two evaluations used disjoint seed blocks (16700001-16700128 pre-repair vs 17800001-17800128 post-repair), so the comparison above is between two independent sealed estimates, not a paired contrast."
+  },
+
+  "WHAT_HAPPENS_NEXT": {
+    "1_freeze_A_as_recovered": "pi_A3 (artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair, sha 94dde69d091a...) is treated as recovered on Pole A. Do NOT retrain it as part of the B-side investigation.",
+    "2_diagnose_B_only": "three cheap diagnostics on the ALREADY-TRAINED checkpoints, no new training: (a) entity-use ablation of pi_B3 on Pole B (full / teammates-zeroed / enemies-zeroed / both-zeroed, matched seeds) to establish whether pi_B3 actually uses the new geometry; (b) a Pole-B-specific observation-sufficiency / identifiability probe, to test whether exact geometry still leaves ambiguity under the lock_defender=10 / enable_2v1 mechanics; (c) behavioural comparison of pi_A3 vs pi_B3 on Pole B (role allocation, macro usage, entity-conditioned behaviour) to separate 'B never learned the specialized behaviour' from 'A generalized so well it erased the contrast'.",
+    "3_smallest_B_specific_repair": "chosen by the diagnostic fork below -- not chosen in advance, and deliberately NOT a redesign of both poles.",
+    "4_re_evaluate_joint_crossover": "same frozen protocol, fresh confirmatory seed block."
+  },
+
+  "DIAGNOSTIC_FORK_precommitted_before_running_the_diagnostics": [
+    {
+      "finding": "pi_B3 demonstrably USES the entity stream but still cannot specialize on Pole B",
+      "reading": "exact geometry was NECESSARY but INSUFFICIENT for Pole B",
+      "next": "licenses the next rung: explicit role/assignment information (r_i) or an assignment-learning auxiliary signal"
+    },
+    {
+      "finding": "pi_B3 barely uses the entity stream (ablating it changes little)",
+      "reading": "the problem is ACQUISITION/UTILIZATION, not missing information",
+      "next": "attack optimization pressure, not representation -- the information is present and unused"
+    },
+    {
+      "finding": "Pole B still contains observation ambiguity even WITH exact geometry",
+      "reading": "the Pole-B state is incompletely observed in a way Pole A is not",
+      "next": "extend ONLY the missing Pole-B state -- minimal, targeted, not a general redesign"
+    },
+    {
+      "finding": "pi_A3 is simply a strong generalist on Pole B (0.7031 there is high)",
+      "reading": "the contrast was erased from the A side, not lost on the B side",
+      "next": "the training objective needs stronger pressure to PRESERVE opponent-specific behaviour"
+    }
+  ],
+
+  "seed_hygiene": "the Pole-B diagnostics must use a FRESH EXPLORATORY block. The confirmatory training block (17700001-17700002) and crossover-eval block (17800001-17800128) are spent and must never be reused for debugging. The 64 unspent seeds remaining in the reserved 17800129-17800192 range are NOT to be repurposed as diagnostic seeds either -- they belong to the confirmatory eval reservation.",
+
+  "WHAT_THIS_READING_MAY_NOT_BE_USED_TO_CLAIM": [
+    "that 4v4 specialization is solved -- the joint gate FAILED",
+    "that the entity stream caused the delta_A gain (see CAUSAL_ATTRIBUTION_LIMIT)",
+    "that pi_B3 is confirmed WORSE than pi_A3 on Pole B -- delta_B is inconclusive, not a reversal",
+    "anything about 6v6 -- untested with this architecture",
+    "a sealed/confirmatory status: the crossover evaluator deliberately wrote no verdict-bearing result, so nothing here has passed Rule 7 sealing"
+  ]
+}

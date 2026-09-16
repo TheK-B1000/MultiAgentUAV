@@ -11,7 +11,7 @@ the incident is forgotten.
 
 ---
 
-## The thirteen rules
+## The fourteen rules
 
 ### 1. Live telemetry on every run
 tqdm on every episode loop, with current cell/condition, seed, checkpoint,
@@ -280,6 +280,57 @@ because a process merely *looks* dead.
 > that caught a real bug in the module itself: the context-manager's
 > `__exit__` originally released the lock unconditionally, which would have
 > silently defeated the crash-preservation guarantee it exists to provide.
+
+### 14. The live environment is proven against the certification, never against the launch arguments
+
+**No experiment may start unless the live resolved environment is independently
+proven identical to the governing certified configuration; launch arguments
+alone are never evidence of correctness.**
+
+The chain, in order, with only the last step costing real time:
+
+```
+certification → resolved config → hash/field equality → live pole attestation
+              → known-answer contracts → GPU training
+```
+
+Filename heuristics are banned from the safety decision. The certification
+record states which opponent it certified — genome id, overlay, team size — and
+the launcher must resolve what it will actually instantiate and compare, field
+by field and by deterministic hash. A record that cannot express the pole it
+certified is not a basis for spending GPU hours (absence is an error state).
+Paired studies must additionally print a **cross-policy parity diff**, because
+the failure below came from assuming two launches were symmetric.
+
+> *Motivating failure (2026-09-14):* `pi_B3` was **trained** against canonical
+> Pole B (`SDS_PARENT_OP7`) while every evaluation **scored** it against the
+> certified B3-3 candidate (`SDS2_B3_LOCKDEF10_2V1`, which adds
+> `lock_defender=10`, `enable_2v1=True`). The launch omitted
+> `--pole-b-genome-json`. The guard that should have caught it demanded that
+> flag only when the certification's *filename* contained
+> `"CONFIRMATORY_REDESIGN"` — the B3-3 record certifies a candidate genome the
+> same way but does not match that substring, so nothing fired. The existing
+> `LIVE POLE CHECK` could not catch it either: it verified the live overlay
+> against *what the launcher expected*, and the launcher expected canonical, so
+> expectation and reality agreed. **~17.5 GPU-hours and five seed blocks were
+> spent answering the wrong experiment**, and the resulting Δ_B = −0.086 drove
+> weeks of downstream diagnosis into a Pole-B problem that had never been
+> fairly tested.
+>
+> Two further lessons from the same incident, both now enforced:
+> *A preflight that installs the canonical genome regardless of an override
+> attests an opponent the run never sees* — the throwaway-env check now installs
+> the **resolved** genome. And *a "verified_by" field in a frozen spec must cite
+> the object actually opened*: the claim that B3-3 passed no genome flag was
+> written after reading **pi_A's** run_config and asserting it for both policies.
+>
+> *Implemented:* `experiments/pole_attestation.py` (certification parsing,
+> deterministic `pole_config_hash`, pre-GPU field equality, zero-step live
+> attestation read from the behaviour tree's own resolved tensors, cross-policy
+> parity). 11 tests in `tests/test_pole_certification_guard.py` prove the exact
+> bad launch is refused, a *wrong* genome is refused, the certified genome
+> passes, Pole A is unaffected, a mismatch is caught **before** any environment
+> is constructed, and a warm start cannot silently swap the opponent.
 
 ---
 

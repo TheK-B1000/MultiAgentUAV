@@ -1,0 +1,7 @@
+{
+  "pid": 38644,
+  "run_id": "POLE_B_BEHAVIORAL_DIAGNOSIS",
+  "hostname": "DESKTOP-9MUFES4",
+  "start_utc": "2026-09-16T00:57:46Z",
+  "cmdline": "K:\\MultiAgentUAV\\AICTFProject\\experiments\\eval_pole_b_behavioral_diagnosis.py"
+}
