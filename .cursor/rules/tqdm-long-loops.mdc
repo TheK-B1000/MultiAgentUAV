@@ -10,8 +10,13 @@ scripts under `AICTFProject/experiments/`, wrap the main work loop with
 `experiments.tqdm_loop.tqdm_iter` (stderr ETA). Do not use silent nested seed
 loops.
 
-- PPO training: already has SB3-style tqdm via `enable_progress_bar=True`
+- PPO training: SB3-style tqdm via `enable_progress_bar=True`
   (`rl.custom_ppo.trainer`); do not disable it for production runs.
+- **Redirected / headless runs must still show a durable bar.** Do not use
+  `tqdm.rich` when stderr is not a TTY — it often writes zero bytes to
+  `*.log.err`. Trainer + `tqdm_iter` switch to plain ASCII tqdm (and PPO
+  also emits newline heartbeats to stdout+stderr) so
+  `Get-Content … -Wait -Tail` always shows progress.
 - Prefer one flat progress bar over nested silent loops.
 - Do not restart a one-shot sealed run just to add tqdm unless the user
   explicitly requests a restart before RESULT artifacts exist.

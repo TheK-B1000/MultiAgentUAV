@@ -16,10 +16,16 @@ the incident is forgotten.
 ### 1. Live telemetry on every run
 tqdm on every episode loop, with current cell/condition, seed, checkpoint,
 elapsed and ETA. Long evaluators must print a result **as soon as a cell closes**.
+Redirected / headless launches must still emit a **durable** bar (plain ASCII
+tqdm when stderr is not a TTY — never silent `tqdm.rich` into an empty
+`*.log.err`). Watching `Get-Content … -Wait` from a terminal counts as
+observability; if the bar is invisible there, the rule is failed.
 
 > *Motivating failure:* the 4v4 checkpoint-trajectory evaluator computed every
 > checkpoint's Δ only after all 480 episodes. Four hours of finished science sat
 > invisible in RAM, and a mid-run crash would have surfaced none of it.
+> *Follow-on:* PPO `tqdm.rich` under Windows stderr redirect wrote **zero
+> bytes** to `b_rule_role_cond.log.err`, so terminal log tails showed no bar.
 
 ### 2. Write incrementally, never at exit
 Raw rows append after **each episode** (flush + `fsync`). Cell summaries write as
