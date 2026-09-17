@@ -22,15 +22,16 @@
       "additional_gpu_now": false
     },
     "ASSIGNMENT": {
-      "status": "NEXT",
-      "hypothesis": "Agents lack enough information to determine specific responsibilities (who handles what), not merely broad ATTACK/DEFEND roles — a more proximal explanation for 2v2→4v4 scaling failure.",
-      "first_step": "Build an assignment diagnostic against the teacher: can we deterministically expose the teacher-relevant who-handles-what information?",
-      "compute": "ZERO additional GPU training initially",
-      "if_diagnostic_fails": "Redesign the representation without training anything.",
-      "if_diagnostic_succeeds_and_removes_ambiguity": "Then justify a fresh Assignment Conditioning experiment.",
+      "status": "DIAGNOSTIC_PASS__V1_TRAIN_AUTHORIZED",
+      "diagnostic_result": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_RESULT.json",
+      "diagnostic_reading": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_READING.json",
+      "train_spec": "ASSIGNMENT_CONDITIONING_V1_SPEC.json",
+      "gates": {"G1": 1.0, "G2": "9/9", "G3": true},
+      "next": "Implement+launch Assignment-v1 200k B train (seed 19400001), then crossover 19500001-64",
       "forbidden": [
-        "combine ASSIGNMENT + GETFLAG in one student",
-        "launch PPO / Assignment Conditioning before the teacher exposure diagnostic"
+        "combine ASSIGNMENT + GETFLAG",
+        "resume GETFLAG crossover as part of this work",
+        "6v6 before 4v4 Assignment crossover"
       ]
     }
   },

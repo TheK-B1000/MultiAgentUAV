@@ -172,6 +172,8 @@ class MinibatchUpdater:
             )
         if "obs_roles" in batch:
             entity_kwargs["roles"] = batch["obs_roles"]
+        if "obs_assignment" in batch:
+            entity_kwargs["assignment"] = batch["obs_assignment"]
         z_idx = batch["z"] if hparams.use_latent_strategy else None
         selector_hidden = None
         if hparams.use_latent_strategy and bool(getattr(model, "use_recurrent_selector", False)):

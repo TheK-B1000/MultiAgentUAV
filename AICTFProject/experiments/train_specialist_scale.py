@@ -282,6 +282,12 @@ def main() -> int:
     ap.add_argument("--role-hold-ticks", type=int, default=8,
                     help="H_r decision-tick hold for role assignment (frozen exploratory "
                          "value is 8; not a screen)")
+    ap.add_argument("--assignment-conditioning-enabled", action="store_true",
+                    help="concat privileged GUARD_DISTRIBUTED_V2 z_i (4-d) into the actor "
+                         "(ASSIGNMENT_CONDITIONING_V1_SPEC). Requires entity repair. "
+                         "Mutually exclusive with role / GETFLAG / sibling-sep / role-pres.")
+    ap.add_argument("--assignment-hold-ticks", type=int, default=8,
+                    help="H_a decision-tick hold for assignment (frozen at 8 for v1)")
     ap.add_argument("--load-path", default="",
                     help="warm-start from this checkpoint (e.g. the sealed B3-3 specialist) "
                          "before applying --entity-repair-enabled. Distinct from --resume, "
@@ -307,13 +313,20 @@ def main() -> int:
                              "the certification gate")
         declared = (exploratory.get("TRAINING", {}).get("seeds") or {})
         key = f"pi_{policy}_{n}v{n}"
-        if key not in declared:
+        tr_block = exploratory.get("TRAINING") or {}
+        prereg_seed = declared.get(key)
+        if prereg_seed is None and tr_block.get("policy") == policy and int(
+            tr_block.get("team_size", -1)
+        ) == n and "seed" in tr_block:
+            prereg_seed = int(tr_block["seed"])
+        if prereg_seed is None:
             raise SystemExit(f"FAIL-CLOSED: exploratory spec does not preregister {key}; it "
-                             f"declares {sorted(declared)}. This spec does not cover this "
+                             f"declares seeds={sorted(declared)} and TRAINING.seed="
+                             f"{tr_block.get('seed')!r}. This spec does not cover this "
                              f"team size / policy.")
-        if not is_smoke and int(declared[key]) != seed:
+        if not is_smoke and int(prereg_seed) != seed:
             raise SystemExit(f"FAIL-CLOSED: exploratory spec preregisters seed "
-                             f"{declared[key]} for {key}, but --seed={seed}. A production "
+                             f"{prereg_seed} for {key}, but --seed={seed}. A production "
                              f"exploratory run must use the preregistered seed exactly.")
 
     # ---- confirmatory redesign: one named policy may start before the OTHER pole's own -----
@@ -538,11 +551,23 @@ def main() -> int:
         raise SystemExit(f"FAIL-CLOSED: cfg.max_blue_agents={getattr(cfg,'max_blue_agents',None)} "
                          f"!= team size {n}; AGENTS propagation did not reach build_r1_config")
 
+    # G0-V5 / R1 parents set enable_progress_bar=False for historical probes.
+    # Specialist production launches always need a durable redirected bar
+    # (stderr heartbeats for Get-Content -Wait on *.log.err).
+    cfg.enable_progress_bar = True
+
     cfg.entity_repair_enabled = bool(args.entity_repair_enabled)
     cfg.entity_hidden_dim = int(args.entity_hidden_dim)
 
     cfg.role_conditioning_enabled = bool(args.role_conditioning_enabled)
     cfg.role_hold_ticks = int(args.role_hold_ticks)
+    cfg.assignment_conditioning_enabled = bool(args.assignment_conditioning_enabled)
+    cfg.assignment_hold_ticks = int(args.assignment_hold_ticks)
+    if cfg.role_conditioning_enabled and cfg.assignment_conditioning_enabled:
+        raise SystemExit(
+            "FAIL-CLOSED: role conditioning and assignment conditioning cannot coexist "
+            "(ASSIGNMENT_CONDITIONING_V1_SPEC / RULE_BASED_ROLE_CONDITIONING_SPEC)"
+        )
     if cfg.role_conditioning_enabled:
         if cfg.role_hold_ticks != 8:
             raise SystemExit(
@@ -565,6 +590,31 @@ def main() -> int:
             raise SystemExit(
                 "FAIL-CLOSED: role conditioning v1 requires --entity-repair-enabled "
                 "(clean B_t500k entity-repair architecture)"
+            )
+
+    if cfg.assignment_conditioning_enabled:
+        if cfg.assignment_hold_ticks != 8:
+            raise SystemExit(
+                f"FAIL-CLOSED: ASSIGNMENT_CONDITIONING_V1_SPEC freezes H_a=8; "
+                f"got --assignment-hold-ticks={cfg.assignment_hold_ticks}. Amend the SPEC "
+                f"before changing this."
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: assignment conditioning cannot coexist with GETFLAG preservation"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: assignment conditioning cannot coexist with sibling-sep")
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: assignment conditioning cannot coexist with role-pres MSE loss"
+            )
+        if cfg.role_conditioning_enabled:
+            raise SystemExit("FAIL-CLOSED: assignment conditioning cannot coexist with role bit")
+        if not cfg.entity_repair_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: assignment conditioning v1 requires --entity-repair-enabled "
+                "(ASSIGNMENT_CONDITIONING_V1_SPEC)"
             )
 
     ck = Path(cfg.checkpoint_dir)
@@ -668,6 +718,9 @@ def main() -> int:
     if bool(getattr(cfg, "role_conditioning_enabled", False)):
         print(f"  role_conditioning enabled  H_r={cfg.role_hold_ticks}  "
               f"(pi(a|o,r); no GETFLAG / no macro hard-code)")
+    if bool(getattr(cfg, "assignment_conditioning_enabled", False)):
+        print(f"  assignment_conditioning enabled  H_a={cfg.assignment_hold_ticks}  "
+              f"(pi(a|o,z_i); GUARD_DISTRIBUTED_V2; no GETFLAG / no ROLE bit)")
     print("=" * 78, flush=True)
 
     # FAIL CLOSED on the LIVE resolved pole, before any step. Builds a throwaway env,
@@ -744,17 +797,34 @@ def main() -> int:
         "entity_hidden_dim": int(getattr(cfg, "entity_hidden_dim", 32)),
         "role_conditioning_enabled": bool(getattr(cfg, "role_conditioning_enabled", False)),
         "role_hold_ticks": int(getattr(cfg, "role_hold_ticks", 8)),
+        "assignment_conditioning_enabled": bool(
+            getattr(cfg, "assignment_conditioning_enabled", False)
+        ),
+        "assignment_hold_ticks": int(getattr(cfg, "assignment_hold_ticks", 8)),
         "branch_isolation": (
             {
                 "parent": "B_t500k",
                 "parent_sha256_prefix": "d4c0d7ba2477",
                 "getflag_preservation": False,
                 "role_conditioning": True,
+                "assignment_conditioning": False,
                 "inherits_getflag_ckpt": False,
                 "optimizer_state_inherited": False,
             }
             if bool(getattr(cfg, "role_conditioning_enabled", False))
-            else None
+            else (
+                {
+                    "parent": "B_t500k",
+                    "parent_sha256_prefix": "d4c0d7ba2477",
+                    "getflag_preservation": False,
+                    "role_conditioning": False,
+                    "assignment_conditioning": True,
+                    "inherits_getflag_ckpt": False,
+                    "optimizer_state_inherited": False,
+                }
+                if bool(getattr(cfg, "assignment_conditioning_enabled", False))
+                else None
+            )
         ),
         "warm_start_from": (str(load_path_arg) if load_path_arg else None),
         "resume_from": (str(cfg.load_path) if getattr(cfg, "load_path", None) else None),
@@ -762,15 +832,19 @@ def main() -> int:
             "RULE_BASED_ROLE_CONDITIONING_SPEC.json"
             if bool(getattr(cfg, "role_conditioning_enabled", False))
             else (
-                "B_GETFLAG_PRESERVE_SPEC.json"
-                if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0
+                "ASSIGNMENT_CONDITIONING_V1_SPEC.json"
+                if bool(getattr(cfg, "assignment_conditioning_enabled", False))
                 else (
-                    "4V4_B3_ROLE_PRESERVATION_SPEC.json"
-                    if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+                    "B_GETFLAG_PRESERVE_SPEC.json"
+                    if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0
                     else (
-                        "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
-                        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
-                        else None
+                        "4V4_B3_ROLE_PRESERVATION_SPEC.json"
+                        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+                        else (
+                            "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
+                            if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
+                            else None
+                        )
                     )
                 )
             )

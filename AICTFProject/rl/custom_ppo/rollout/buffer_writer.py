@@ -103,6 +103,10 @@ class RolloutStepRecorder:
             )
         if bool(getattr(self.trainer.model, "role_conditioning_enabled", False)):
             entity_items["obs_roles"] = torch.as_tensor(obs["roles"], dtype=torch.float32, device=device)
+        if bool(getattr(self.trainer.model, "assignment_conditioning_enabled", False)):
+            entity_items["obs_assignment"] = torch.as_tensor(
+                obs["assignment"], dtype=torch.float32, device=device
+            )
         return dict(
             obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
             obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),

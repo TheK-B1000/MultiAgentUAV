@@ -1,0 +1,25 @@
+{
+  "record_id": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_READING",
+  "status": "READING_FROZEN",
+  "utc": "2026-09-17T21:06:00Z",
+  "reads": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_RESULT.json",
+  "implements": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC.json",
+
+  "VERDICT": "PASS — privileged GUARD_DISTRIBUTED_V2 assignment z_i reproduces the teacher assignment subroutine, resolves sealed ARM1 TEST_0 ambiguities, and does not leak macros/actions.",
+
+  "GATES": {
+    "G1": {"N4_accuracy": 1.0, "n": 480, "baseline": "_blue_one_defender_v2_targets (not full _get_scripted_targets)"},
+    "G2": {"N4_resolved": "9/9", "N2_pairs": 0},
+    "G3": true
+  },
+
+  "ATTEMPT1_NOTE": "First RESULT invalidated (ASSIGNMENT_INFORMATION_DIAGNOSTIC_ATTEMPT1_INVALID_G1_BASELINE.json) for comparing against carrier-evasion-inclusive targets. Attempt 2 is authoritative.",
+
+  "AUTHORIZATION": "Assignment Conditioning v1 training AUTHORIZED. Freeze train SPEC before any PPO step.",
+
+  "DOES_NOT_CLAIM": [
+    "that Delta_B will recover",
+    "that student-recon from grid alone suffices (privileged path only)",
+    "anything about GETFLAG"
+  ]
+}

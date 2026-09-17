@@ -16,7 +16,22 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-17 — Board:
+> **Last updated:** 2026-09-17 — **Assignment-v1 200k LIVE**
+> (`exploratory_pi_B_specialist_4v4_b3_entity_repair_assignment_v1`,
+> seed 19400001, warm-start B_t500k SHA `d4c0d7ba…`). Logs:
+> `b_assignment_v1.log` / `.err`. After train: crossover
+> `ASSIGNMENT_V1_4V4` seeds `19500001-64`. GETFLAG still PAUSED.
+>
+> Prior same day — Assignment diagnostic PASS (G1=1.0, G2=9/9, G3=PASS);
+> [`ASSIGNMENT_CONDITIONING_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_CONDITIONING_V1_SPEC.json)
+> frozen and train wiring landed.
+>
+> Prior same day — Board + Assignment diagnostic SPEC frozen
+> ([`ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC.json)).
+> CPU-only G1∧G2∧G3 before any Assignment PPO. GETFLAG stays PAUSED.
+> No active GPU experiment.
+>
+> Prior same day — Board:
 > [`4V4_REPAIR_BOARD_20260917.json`](../artifacts/strategic_demand/sppo/4V4_REPAIR_BOARD_20260917.json)
 > + [`4V4_RESCUE_TREE_AFTER_ROLE_AMENDMENT_PAUSE_GETFLAG.json`](../artifacts/strategic_demand/sppo/4V4_RESCUE_TREE_AFTER_ROLE_AMENDMENT_PAUSE_GETFLAG.json).
 >
@@ -26,12 +41,12 @@ It is **not** the source of truth for:
 > * **GETFLAG:** **PAUSED** —
 >   `B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json`. Boxed:
 >   **MANIPULATION CONFIRMED / OUTCOME UNEVALUATED** (0.191→0.0013;
->   Δ_B=UNKNOWN). Premature `GETFLAG_PRESERVE_4V4` launch aborted at
->   0/256 (no rows). Branch intact; n=64 crossover later. **Do not
+>   Δ_B=UNKNOWN). Premature `GETFLAG_PRESERVE_4V4` launch aborted;
+>   no rows. Branch intact; n=64 crossover later. **Do not
 >   combine with ASSIGNMENT.**
-> * **ASSIGNMENT:** **next** — teacher “who handles what?” diagnostic
->   **first**, **zero GPU training**. Redesign representation if exposure
->   fails; only then consider Assignment Conditioning.
+> * **ASSIGNMENT:** **diagnostic frozen** — teacher greedy+`taken`
+>   who↔what signal; must PASS G1 agreement / G2 resolve ARM1 TEST_0
+>   / G3 no macro leak before any train.
 >
 > Prior same day — Rescue tree frozen (`4V4_RESCUE_TREE_AFTER_ROLE.json`)
 > had sequenced GETFLAG crossover next; that step is superseded by the

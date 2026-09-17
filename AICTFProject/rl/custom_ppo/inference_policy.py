@@ -636,6 +636,14 @@ class CustomPPOInferencePolicy:
                             "role_conditioning_enabled=True and requires obs['roles'] (B, N)."
                         )
                     entity_kwargs["roles"] = obs_t["roles"]
+                if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+                    if "assignment" not in obs_t:
+                        raise ValueError(
+                            "CustomPPOInferencePolicy.predict(): the loaded model has "
+                            "assignment_conditioning_enabled=True and requires "
+                            "obs['assignment'] (B, N, 4)."
+                        )
+                    entity_kwargs["assignment"] = obs_t["assignment"]
                 action_tensor, _, _, _ = self.model.act(
                     obs_t, global_state, deterministic=deterministic, z_idx=None, **entity_kwargs
                 )

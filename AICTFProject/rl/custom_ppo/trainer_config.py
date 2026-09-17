@@ -769,6 +769,10 @@ def build_model_kwargs(cfg: Any, hparams: TrainerHyperparams) -> dict[str, Any]:
         "entity_repair_enabled": bool(getattr(cfg, "entity_repair_enabled", False)),
         "entity_hidden_dim": int(getattr(cfg, "entity_hidden_dim", 32)),
         "role_conditioning_enabled": bool(getattr(cfg, "role_conditioning_enabled", False)),
+        "assignment_conditioning_enabled": bool(
+            getattr(cfg, "assignment_conditioning_enabled", False)
+        ),
+        "assignment_feature_dim": int(getattr(cfg, "assignment_feature_dim", 4)),
     }
     if hparams.use_latent_strategy:
         v6i1_staged = is_staged_v6i1_curriculum(cfg)

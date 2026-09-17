@@ -201,6 +201,38 @@ class RolloutCollector:
         out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
         return out
 
+    def _augment_obs_with_assignment(
+        self, obs: Dict[str, np.ndarray], *, force: bool = False, advance_age: bool = True
+    ) -> Dict[str, np.ndarray]:
+        """Attach privileged assignment z_i when ``assignment_conditioning_enabled``."""
+        if not bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+            return obs
+        from rl.custom_ppo.guard_assignment import AssignmentHoldState, assignment_from_core
+
+        hold = getattr(self, "_assignment_hold", None)
+        if hold is None:
+            n_enemies = int(self.env.core.red_x.shape[1])
+            hold = AssignmentHoldState(
+                int(self.env.num_envs),
+                int(self.model.n_agents),
+                hold_ticks=int(getattr(self.cfg, "assignment_hold_ticks", 8) or 8),
+                n_enemies=n_enemies,
+                device=self.device,
+            )
+            self._assignment_hold = hold
+        assignment = assignment_from_core(
+            self.env.core, hold, force=force, advance_age=advance_age
+        )
+        out = dict(obs)
+        out["assignment"] = assignment.detach().cpu().numpy().astype(np.float32)
+        return out
+
+    def _augment_obs_with_privileged_conditioning(
+        self, obs: Dict[str, np.ndarray], *, force: bool = False, advance_age: bool = True
+    ) -> Dict[str, np.ndarray]:
+        obs = self._augment_obs_with_roles(obs, force=force, advance_age=advance_age)
+        return self._augment_obs_with_assignment(obs, force=force, advance_age=advance_age)
+
     def on_sb3_rollout_env_step(self) -> None:
         p = self.runtime._sb3_rollout_pbar
         if p is None:
@@ -239,6 +271,8 @@ class RolloutCollector:
                                   dtype=torch.bool)
         if bool(getattr(self.model, "role_conditioning_enabled", False)):
             buffer.register_field("obs_roles", tuple(obs["roles"].shape[1:]))
+        if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+            buffer.register_field("obs_assignment", tuple(obs["assignment"].shape[1:]))
         buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
@@ -379,6 +413,7 @@ class RolloutCollector:
         with torch.no_grad():
             if not self.hparams.use_latent_strategy:
                 team_roles = None
+                team_assignment = None
                 if bool(getattr(self.model, "role_conditioning_enabled", False)):
                     # Post-step geometry; do not consume an extra hold tick.
                     synced = self._augment_obs_with_roles(
@@ -389,8 +424,20 @@ class RolloutCollector:
                     team_roles = torch.as_tensor(
                         synced["roles"], dtype=torch.float32, device=device
                     )
+                if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+                    synced_a = self._augment_obs_with_assignment(
+                        next_obs if next_obs is not None else {},
+                        force=False,
+                        advance_age=False,
+                    )
+                    team_assignment = torch.as_tensor(
+                        synced_a["assignment"], dtype=torch.float32, device=device
+                    )
                 return _denormalize_values(
-                    runtime, self.model.values(gs, team_roles=team_roles)
+                    runtime,
+                    self.model.values(
+                        gs, team_roles=team_roles, team_assignment=team_assignment
+                    ),
                 )
 
             done_t = torch.as_tensor(dones, dtype=torch.bool, device=device) if dones is not None else None
@@ -518,7 +565,7 @@ class RolloutCollector:
         if getattr(self.model, "entity_encoder", None) is not None:
             from gpu_env._core._entity_obs import augment_obs_with_entities
             obs = augment_obs_with_entities(obs, self.env.core, side="blue")
-        obs = self._augment_obs_with_roles(obs, force=True)
+        obs = self._augment_obs_with_privileged_conditioning(obs, force=True)
         buffer = self.make_buffer(obs)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
@@ -724,7 +771,7 @@ class RolloutCollector:
         if getattr(self.model, "entity_encoder", None) is not None:
             from gpu_env._core._entity_obs import augment_obs_with_entities
             obs = augment_obs_with_entities(obs, env.core, side="blue")
-        obs = self._augment_obs_with_roles(obs, force=False)
+        obs = self._augment_obs_with_privileged_conditioning(obs, force=False)
         obs_t = self.tensor_obs(obs)
         comm_boundary = (
             comm.current_boundary_mask()
@@ -771,6 +818,8 @@ class RolloutCollector:
                 )
             if bool(getattr(self.model, "role_conditioning_enabled", False)):
                 entity_act_kwargs["roles"] = obs_t["roles"]
+            if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+                entity_act_kwargs["assignment"] = obs_t["assignment"]
             actions_t, values_norm_t, log_probs_t, _ = self.model.act(
                 obs_t, context_state, z_idx=z_t, **entity_act_kwargs
             )
@@ -805,9 +854,12 @@ class RolloutCollector:
             comm.advance_after_step(env.core)
             if bool(np.asarray(dones).any()):
                 comm.reset_env_indices(np.asarray(dones))
-        if bool(np.asarray(dones).any()) and getattr(self, "_role_hold", None) is not None:
+        if bool(np.asarray(dones).any()):
             done_t = torch.as_tensor(np.asarray(dones), dtype=torch.bool, device=self.device)
-            self._role_hold.reset_envs(done_t)
+            if getattr(self, "_role_hold", None) is not None:
+                self._role_hold.reset_envs(done_t)
+            if getattr(self, "_assignment_hold", None) is not None:
+                self._assignment_hold.reset_envs(done_t)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
                 torch.cuda.synchronize()

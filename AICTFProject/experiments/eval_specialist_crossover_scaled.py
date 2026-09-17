@@ -172,8 +172,10 @@ def main() -> int:
     # Rule-role policies require obs['roles'] at predict time (fail-closed in
     # CustomPPOInferencePolicy). Inject the same geometric RoleHoldState path
     # used in training (RULE_BASED_ROLE_CONDITIONING_SPEC: H_r=8). Non-role
-    # policies are untouched.
+    # policies are untouched. Assignment-v1 policies similarly need
+    # obs['assignment'] via AssignmentHoldState (H_a=8).
     from rl.custom_ppo.rule_role_assignment import RoleHoldState, roles_from_core
+    from rl.custom_ppo.guard_assignment import AssignmentHoldState, assignment_from_core
 
     def _maybe_attach_roles(obs, core, hold: RoleHoldState | None, *, force: bool):
         if hold is None:
@@ -183,16 +185,33 @@ def main() -> int:
         out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
         return out
 
+    def _maybe_attach_assignment(obs, core, hold: AssignmentHoldState | None, *, force: bool):
+        if hold is None:
+            return obs
+        feat = assignment_from_core(core, hold, force=force, advance_age=True)
+        out = dict(obs)
+        out["assignment"] = feat.detach().cpu().numpy().astype(np.float32)
+        return out
+
     def run_cell(policy, pole: str, seed: int) -> dict:
         env = R2.build_env(device, seed)
         core = env.core
         role_hold = None
+        assignment_hold = None
         if bool(getattr(policy.model, "role_conditioning_enabled", False)):
             hold_ticks = int(getattr(policy.model, "role_hold_ticks", 0) or 0)
             if hold_ticks < 1:
                 # Checkpoints may only store the enable bit; SPEC locks H_r=8.
                 hold_ticks = 8
             role_hold = RoleHoldState(
+                int(env.num_envs), int(policy.model.n_agents),
+                hold_ticks=hold_ticks, device=device,
+            )
+        if bool(getattr(policy.model, "assignment_conditioning_enabled", False)):
+            hold_ticks = int(getattr(policy.model, "assignment_hold_ticks", 0) or 0)
+            if hold_ticks < 1:
+                hold_ticks = 8
+            assignment_hold = AssignmentHoldState(
                 int(env.num_envs), int(policy.model.n_agents),
                 hold_ticks=hold_ticks, device=device,
             )
@@ -212,6 +231,7 @@ def main() -> int:
             # entity_encoder is not None); required for pi_A3/pi_B3.
             obs = augment_obs_with_entities(obs, core, side="blue")
             obs = _maybe_attach_roles(obs, core, role_hold, force=True)
+            obs = _maybe_attach_assignment(obs, core, assignment_hold, force=True)
             assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
                                        context=f"{label} {pole} seed {seed}")
             # Fail closed on the size-normalized gate, read from the live BT tensors.
@@ -229,6 +249,7 @@ def main() -> int:
                 obs["global_state"] = env.state()
                 obs = augment_obs_with_entities(obs, core, side="blue")
                 obs = _maybe_attach_roles(obs, core, role_hold, force=False)
+                obs = _maybe_attach_assignment(obs, core, assignment_hold, force=False)
                 if bool(np.asarray(done).any()):
                     i0 = info[0] if isinstance(info, (list, tuple)) else info
                     res = (i0 or {}).get("episode_result") or {}

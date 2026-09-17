@@ -249,6 +249,8 @@ class SharedActorCentralizedCritic(nn.Module):
         entity_repair_enabled: bool = False,
         entity_hidden_dim: int = 32,
         role_conditioning_enabled: bool = False,
+        assignment_conditioning_enabled: bool = False,
+        assignment_feature_dim: int = 4,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -269,8 +271,25 @@ class SharedActorCentralizedCritic(nn.Module):
         # Role bit is concatenated AFTER entity residual and widens the actor MLP only.
         self._local_actor_in_dim = self.actor_cnn_feature_dim + self._scalar_per_agent
         self.role_conditioning_enabled = bool(role_conditioning_enabled)
+        self.assignment_conditioning_enabled = bool(assignment_conditioning_enabled)
+        if self.role_conditioning_enabled and self.assignment_conditioning_enabled:
+            raise ValueError(
+                "role_conditioning_enabled and assignment_conditioning_enabled are "
+                "mutually exclusive (ASSIGNMENT_CONDITIONING_V1_SPEC / RULE_ROLE_SPEC)."
+            )
         self._role_feature_dim = 1 if self.role_conditioning_enabled else 0
-        self._actor_local_with_role_dim = int(self._local_actor_in_dim + self._role_feature_dim)
+        locked_assign_dim = 4
+        if self.assignment_conditioning_enabled and int(assignment_feature_dim) != locked_assign_dim:
+            raise ValueError(
+                f"assignment_feature_dim is locked at {locked_assign_dim}; "
+                f"got {assignment_feature_dim}"
+            )
+        self._assignment_feature_dim = (
+            locked_assign_dim if self.assignment_conditioning_enabled else 0
+        )
+        self._actor_local_with_role_dim = int(
+            self._local_actor_in_dim + self._role_feature_dim + self._assignment_feature_dim
+        )
 
         # 4v4 entity-repair (2026-09-13): optional residual over exact teammate/
         # enemy geometry, added to local_in AFTER the CNN/vec fusion above and
@@ -420,6 +439,10 @@ class SharedActorCentralizedCritic(nn.Module):
         )
         critic_extra_dim = (self.latent_k if self.uses_latent_strategy else 0) + (
             self.n_agents if self.role_conditioning_enabled else 0
+        ) + (
+            self.n_agents * self._assignment_feature_dim
+            if self.assignment_conditioning_enabled
+            else 0
         )
         self.critic = CentralizedCritic(
             global_state_dim=self.global_state_dim,
@@ -567,6 +590,7 @@ class SharedActorCentralizedCritic(nn.Module):
             int(self.actor_cnn_feature_dim)
             + int(self._scalar_per_agent)
             + int(self._role_feature_dim)
+            + int(self._assignment_feature_dim)
         )
         if self.uses_latent_strategy:
             actor_expected += int(self.z_embed_dim) + int(self.z_onehot_dim)
@@ -607,6 +631,10 @@ class SharedActorCentralizedCritic(nn.Module):
                 )
             expected_extra = int(self.latent_k) + (
                 int(self.n_agents) if self.role_conditioning_enabled else 0
+            ) + (
+                int(self.n_agents * self._assignment_feature_dim)
+                if self.assignment_conditioning_enabled
+                else 0
             )
             if int(self.critic.extra_dim) != expected_extra:
                 raise ValueError(
@@ -621,7 +649,14 @@ class SharedActorCentralizedCritic(nn.Module):
                 raise ValueError(
                     f"no-latent critic global_state_dim must be {GLOBAL_STATE_DIM}, got {self.critic.global_state_dim}"
                 )
-            expected_extra = int(self.n_agents) if self.role_conditioning_enabled else 0
+            expected_extra = (
+                (int(self.n_agents) if self.role_conditioning_enabled else 0)
+                + (
+                    int(self.n_agents * self._assignment_feature_dim)
+                    if self.assignment_conditioning_enabled
+                    else 0
+                )
+            )
             if int(self.critic.extra_dim) != expected_extra:
                 raise ValueError(
                     f"no-latent critic extra_dim must be {expected_extra}, got {self.critic.extra_dim}"
@@ -941,6 +976,7 @@ class SharedActorCentralizedCritic(nn.Module):
         enemies: Optional[torch.Tensor] = None,
         enemies_valid: Optional[torch.Tensor] = None,
         roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Return ``(local_in, cnn_features, agent_mask)`` with shape ``(B*N, F)``.
 
@@ -1038,6 +1074,33 @@ class SharedActorCentralizedCritic(nn.Module):
             raise ValueError(
                 "roles were provided but this model was constructed with "
                 "role_conditioning_enabled=False -- refusing to silently ignore them."
+            )
+
+        if self.assignment_conditioning_enabled:
+            if assignment is None:
+                raise ValueError(
+                    "this model was constructed with assignment_conditioning_enabled=True "
+                    "and requires assignment (B, N, 4) on every call -- refusing to silently "
+                    "fall back to the base pathway."
+                )
+            if (
+                assignment.dim() != 3
+                or int(assignment.shape[0]) != batch
+                or int(assignment.shape[1]) != self.n_agents
+                or int(assignment.shape[2]) != self._assignment_feature_dim
+            ):
+                raise ValueError(
+                    f"assignment must have shape (B={batch}, N={self.n_agents}, "
+                    f"{self._assignment_feature_dim}), got {tuple(assignment.shape)}"
+                )
+            local_in = torch.cat(
+                [local_in, assignment.float().reshape(batch * self.n_agents, self._assignment_feature_dim)],
+                dim=-1,
+            )
+        elif assignment is not None:
+            raise ValueError(
+                "assignment was provided but this model was constructed with "
+                "assignment_conditioning_enabled=False -- refusing to silently ignore it."
             )
 
         if int(local_in.shape[-1]) != int(self._actor_local_with_role_dim):
@@ -1212,6 +1275,7 @@ class SharedActorCentralizedCritic(nn.Module):
         enemies: Optional[torch.Tensor] = None,
         enemies_valid: Optional[torch.Tensor] = None,
         roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``.
 
@@ -1232,7 +1296,8 @@ class SharedActorCentralizedCritic(nn.Module):
         """
         local_in, _, _ = self._encode_local_obs(
             obs, teammates=teammates, teammates_valid=teammates_valid,
-            enemies=enemies, enemies_valid=enemies_valid, roles=roles)
+            enemies=enemies, enemies_valid=enemies_valid, roles=roles,
+            assignment=assignment)
         if detach_local_features:
             local_in = local_in.detach()
         batch = int(obs["grid"].shape[0])
@@ -1261,6 +1326,7 @@ class SharedActorCentralizedCritic(nn.Module):
         enemies: Optional[torch.Tensor] = None,
         enemies_valid: Optional[torch.Tensor] = None,
         roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> MultiHeadActionDistribution:
         """Return per-action-head logit distribution (public PolicyInferenceContract).
 
@@ -1282,7 +1348,8 @@ class SharedActorCentralizedCritic(nn.Module):
             )
         flat = self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
                                   teammates_valid=teammates_valid, enemies=enemies,
-                                  enemies_valid=enemies_valid, roles=roles)
+                                  enemies_valid=enemies_valid, roles=roles,
+                                  assignment=assignment)
         heads = torch.split(flat, list(self.action_dims), dim=-1)
         return MultiHeadActionDistribution([ActionHead(h) for h in heads])
 
@@ -1341,6 +1408,7 @@ class SharedActorCentralizedCritic(nn.Module):
         self,
         z_idx: Optional[torch.Tensor],
         team_roles: Optional[torch.Tensor] = None,
+        team_assignment: Optional[torch.Tensor] = None,
     ) -> Optional[torch.Tensor]:
         parts: list[torch.Tensor] = []
         if self.uses_latent_strategy:
@@ -1359,6 +1427,23 @@ class SharedActorCentralizedCritic(nn.Module):
                     f"team_roles must have shape (B, {self.n_agents}), got {tuple(team_roles.shape)}"
                 )
             parts.append(team_roles.float())
+        if self.assignment_conditioning_enabled:
+            if team_assignment is None:
+                raise ValueError(
+                    "team_assignment (B, N, 4) is required for critic conditioning when "
+                    "assignment_conditioning_enabled=True."
+                )
+            if (
+                team_assignment.dim() != 3
+                or int(team_assignment.shape[1]) != self.n_agents
+                or int(team_assignment.shape[2]) != self._assignment_feature_dim
+            ):
+                raise ValueError(
+                    f"team_assignment must have shape (B, {self.n_agents}, "
+                    f"{self._assignment_feature_dim}), got {tuple(team_assignment.shape)}"
+                )
+            b = int(team_assignment.shape[0])
+            parts.append(team_assignment.float().reshape(b, self.n_agents * self._assignment_feature_dim))
         if not parts:
             return None
         return torch.cat(parts, dim=-1)
@@ -1369,6 +1454,7 @@ class SharedActorCentralizedCritic(nn.Module):
         actions: Optional[torch.Tensor] = None,
         z_idx: Optional[torch.Tensor] = None,
         team_roles: Optional[torch.Tensor] = None,
+        team_assignment: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return scalar :math:`V_\\phi(s, z)` with shape ``(B,)`` (PPO/GAE baseline)."""
         if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.critic_context_dim):
@@ -1381,7 +1467,9 @@ class SharedActorCentralizedCritic(nn.Module):
             )
         return self.critic(
             global_state.float(),
-            extra=self._critic_extra(z_idx, team_roles=team_roles),
+            extra=self._critic_extra(
+                z_idx, team_roles=team_roles, team_assignment=team_assignment
+            ),
         ).squeeze(-1)
 
     def _mask_logits(self, logits: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
@@ -1434,6 +1522,7 @@ class SharedActorCentralizedCritic(nn.Module):
         enemies: Optional[torch.Tensor] = None,
         enemies_valid: Optional[torch.Tensor] = None,
         roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily select actions and return values/log-probs/entropy.
 
@@ -1446,7 +1535,8 @@ class SharedActorCentralizedCritic(nn.Module):
         logits = self._mask_logits(
             self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
                                teammates_valid=teammates_valid, enemies=enemies,
-                               enemies_valid=enemies_valid, roles=roles),
+                               enemies_valid=enemies_valid, roles=roles,
+                               assignment=assignment),
             obs.get("mask"))
         actions = []
         g_act = self._sampling_gen_action
@@ -1458,7 +1548,9 @@ class SharedActorCentralizedCritic(nn.Module):
             )
         action_tensor = torch.stack(actions, dim=1)
         log_prob, entropy = self._log_prob_entropy(logits, action_tensor)
-        values = self.values(global_state, z_idx=z_idx, team_roles=roles)
+        values = self.values(
+            global_state, z_idx=z_idx, team_roles=roles, team_assignment=assignment
+        )
         return action_tensor, values, log_prob, entropy
 
     def evaluate_actions(
@@ -1477,6 +1569,7 @@ class SharedActorCentralizedCritic(nn.Module):
         enemies: Optional[torch.Tensor] = None,
         enemies_valid: Optional[torch.Tensor] = None,
         roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Evaluate fixed actions under the current policy.
 
@@ -1486,10 +1579,13 @@ class SharedActorCentralizedCritic(nn.Module):
         logits = self._mask_logits(
             self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
                                teammates_valid=teammates_valid, enemies=enemies,
-                               enemies_valid=enemies_valid, roles=roles),
+                               enemies_valid=enemies_valid, roles=roles,
+                               assignment=assignment),
             obs.get("mask"))
         log_prob, entropy = self._log_prob_entropy(logits, actions)
-        values = self.values(global_state, z_idx=z_idx, team_roles=roles)
+        values = self.values(
+            global_state, z_idx=z_idx, team_roles=roles, team_assignment=assignment
+        )
         aux: dict[str, torch.Tensor] = {}
         if self.communication_enabled and message_symbols is not None and message_boundary_mask is not None:
             msg_log_prob, msg_entropy = self._evaluate_messages(

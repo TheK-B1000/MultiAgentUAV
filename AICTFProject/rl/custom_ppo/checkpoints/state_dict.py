@@ -204,6 +204,27 @@ def _expand_role_conditioning_linears(sd: dict[str, Any], model: nn.Module) -> d
     return out
 
 
+def _expand_assignment_conditioning_linears(sd: dict[str, Any], model: nn.Module) -> dict[str, Any]:
+    """Expand actor/critic first Linears when the target model has assignment features."""
+    if not bool(getattr(model, "assignment_conditioning_enabled", False)):
+        return sd
+    out = dict(sd)
+    body0 = getattr(getattr(model, "latent_actor", None), "body", None)
+    if body0 is not None and len(body0) > 0 and hasattr(body0[0], "in_features"):
+        out = _expand_linear_in_features(out, "latent_actor.body.0.weight", int(body0[0].in_features))
+    critic = getattr(model, "critic", None)
+    net = getattr(critic, "net", None) if critic is not None else None
+    if net is not None and len(net) > 0 and hasattr(net[0], "in_features"):
+        out = _expand_linear_in_features(out, "critic.net.0.weight", int(net[0].in_features))
+    return out
+
+
+def _expand_privileged_conditioning_linears(sd: dict[str, Any], model: nn.Module) -> dict[str, Any]:
+    """Role (+1 / +N critic) and assignment (+4 / +N*4 critic) warm-start expansion."""
+    out = _expand_role_conditioning_linears(sd, model)
+    return _expand_assignment_conditioning_linears(out, model)
+
+
 def _load_model_state_dict_compat(
     model: nn.Module,
     sd: Mapping[str, Any],
@@ -246,8 +267,11 @@ def _load_model_state_dict_compat(
     # must load these unexpanded weights (W_B500k), not W'=[W 0].
     source_state_dict = {k: (v.detach().clone() if isinstance(v, torch.Tensor) else v)
                          for k, v in actor_remapped.items()}
-    role_expanded = bool(getattr(model, "role_conditioning_enabled", False))
-    actor_remapped = _expand_role_conditioning_linears(actor_remapped, model)
+    cond_expanded = bool(getattr(model, "role_conditioning_enabled", False)) or bool(
+        getattr(model, "assignment_conditioning_enabled", False)
+    )
+    actor_remapped = _expand_privileged_conditioning_linears(actor_remapped, model)
+    role_expanded = cond_expanded
     if role_expanded:
         # Detect whether expansion actually widened any Linear (warm-start seam).
         role_expanded = any(
@@ -487,11 +511,13 @@ def _load_model_state_dict_compat(
             
             # Require tight tolerance for non-override cases
             role_on = bool(getattr(model, "role_conditioning_enabled", False))
+            assign_on = bool(getattr(model, "assignment_conditioning_enabled", False))
+            priv_on = role_on or assign_on
             if argmax_diff > 0 or max_kl >= 1e-6:
                 print(f"[checkpoint compat] Behavioral-equivalence check: FAIL (mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
                 # Role warm-start is never overridable: W'=[W 0] must hold or the
                 # scientific branch is contaminated at initialization.
-                if role_on or not migration_override_allowed:
+                if priv_on or not migration_override_allowed:
                     raise CheckpointStateDictError(
                         f"Behavioral equivalence check failed: argmax_diff={argmax_diff}, max_kl={max_kl:.3e}"
                         f", max_logit_diff={max_logit_diff:.4e}. "
@@ -500,18 +526,27 @@ def _load_model_state_dict_compat(
                             "for r in {0,1}; refusing to proceed."
                             if role_on
                             else (
-                                "The policy logits differ from the source checkpoint. "
-                                "To override this and proceed anyway, use "
-                                "--allow-active-actor-module-migration or set "
-                                "ALLOW_ACTIVE_COMPAT_MIGRATION=1."
+                                "Assignment-conditioning warm-start requires pi_assign,t0 == "
+                                "pi_B500k for any z_i (zero-init columns); refusing to proceed."
+                                if assign_on
+                                else (
+                                    "The policy logits differ from the source checkpoint. "
+                                    "To override this and proceed anyway, use "
+                                    "--allow-active-actor-module-migration or set "
+                                    "ALLOW_ACTIVE_COMPAT_MIGRATION=1."
+                                )
                             )
                         )
                     )
             else:
                 role_note = (
                     " role-warmstart r0==r1==source;"
-                    if bool(getattr(model, "role_conditioning_enabled", False))
-                    else ""
+                    if role_on
+                    else (
+                        " assignment-warmstart z-any==source;"
+                        if assign_on
+                        else ""
+                    )
                 )
                 if _adapter_bypass_set:
                     print(f"[checkpoint compat] Behavioral-equivalence check: PASS (trunk-only; residual/per-z specialists bypassed;{role_note} mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
@@ -530,9 +565,11 @@ def _load_model_state_dict_compat(
                 raise
             # Role-conditioning warm-start MUST prove π_role,t0 ≡ π_B500k.
             # NOT_RUN is fail-closed (do not proceed with a silent seam).
-            if bool(getattr(model, "role_conditioning_enabled", False)):
+            if bool(getattr(model, "role_conditioning_enabled", False)) or bool(
+                getattr(model, "assignment_conditioning_enabled", False)
+            ):
                 raise CheckpointStateDictError(
-                    "Role-conditioning warm-start behavioral-equivalence check "
+                    "Privileged-conditioning warm-start behavioral-equivalence check "
                     f"NOT_RUN / failed to execute: {exc}. Refusing to train -- "
                     "the W'=[W 0] contract was not proven."
                 ) from exc

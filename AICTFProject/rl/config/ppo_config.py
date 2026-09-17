@@ -962,5 +962,12 @@ class PPOConfig:
     role_conditioning_enabled: bool = False
     role_hold_ticks: int = 8
 
+    # --- Assignment conditioning v1 (ASSIGNMENT_CONDITIONING_V1_SPEC) ---
+    # Privileged GUARD_DISTRIBUTED_V2 z_i (4-d per agent) on actor; critic gets
+    # flattened team assignment (N*4). Mutually exclusive with role conditioning.
+    assignment_conditioning_enabled: bool = False
+    assignment_hold_ticks: int = 8
+    assignment_feature_dim: int = 4
+
 
 __all__ = ["PPOConfig", "TrainMode"]

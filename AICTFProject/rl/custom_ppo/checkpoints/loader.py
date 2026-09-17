@@ -46,6 +46,10 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
         "entity_repair_enabled": bool(cfg.get("entity_repair_enabled", False)),
         "entity_hidden_dim": int(cfg.get("entity_hidden_dim", 32)),
         "role_conditioning_enabled": bool(cfg.get("role_conditioning_enabled", False)),
+        "assignment_conditioning_enabled": bool(
+            cfg.get("assignment_conditioning_enabled", False)
+        ),
+        "assignment_feature_dim": int(cfg.get("assignment_feature_dim", 4)),
     }
     if bool(cfg.get("use_latent_strategy", False)):
         kwargs.update(
@@ -410,8 +414,10 @@ def load_trainer_checkpoint(trainer: Any, path: str, *, reset_progress: bool = F
         # post-expansion Parameter objects so no 148-d moment buffers can linger
         # from any other path. Fresh global_step / scheduler identity already
         # follows from reset_progress=True below.
-        if bool(getattr(trainer.model, "role_conditioning_enabled", False)) or bool(
-            getattr(trainer.model, "_role_warmstart_expanded", False)
+        if (
+            bool(getattr(trainer.model, "role_conditioning_enabled", False))
+            or bool(getattr(trainer.model, "assignment_conditioning_enabled", False))
+            or bool(getattr(trainer.model, "_role_warmstart_expanded", False))
         ):
             from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
 
@@ -419,8 +425,8 @@ def load_trainer_checkpoint(trainer: Any, path: str, *, reset_progress: bool = F
                 model=trainer.model, cfg=trainer.cfg, hparams=trainer.hparams
             )
             print(
-                "[PPO] Rebuilt fresh Adam optimizer after role-conditioning "
-                "weight expansion (W'=[W 0]; no inherited 148-d moments from "
+                "[PPO] Rebuilt fresh Adam optimizer after privileged-conditioning "
+                "weight expansion (W'=[W 0]; no inherited narrow moments from "
                 "B_t500k or any other run)."
             )
     else:

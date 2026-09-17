@@ -1,0 +1,105 @@
+{
+  "record_id": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_ANY_SAMPLE",
+  "utc": "2026-09-17T20:53:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "authority": "PI board 2026-09-17: ROLE miss + GETFLAG paused → Assignment information diagnostic ONLY before any Assignment Conditioning PPO",
+
+  "BOARD_CONTEXT": {
+    "ROLE": "FINISHED — binary ATTACK/DEFEND did not move Delta_B (RULE_ROLE_4V4_READING.json)",
+    "GETFLAG": "PAUSED — manipulated=true, Delta_B UNKNOWN; do not resume or mix here",
+    "ASSIGNMENT": "THIS SPEC — CPU information diagnostic; zero PPO until PASS"
+  },
+
+  "QUESTION": "Given information available to construct a responsibility signal z_i (without leaking teacher macros/actions), can z_i identify WHO is responsible for WHAT — well enough to resolve the sealed 4v4 assignment ambiguities that binary ROLE did not address?",
+
+  "WHY_NOT_ANOTHER_ROLE_BIT": "ROLE answered 'Am I ATTACK or DEFEND?'. ARM1 TEST_0 already showed the harder failure: at N>=4 the GUARD teacher's defender↔threat assignment uses continuous teammate geometry + an intra-step `taken` mask that is absent/lossy in student observations (docs/SCRIPTED_CONTROLLER_AUDIT_GUARD_BREACH.md; ARM1_TEST0_COUNTEREXAMPLE_READING.json: 0 counterexamples at 2v2, 9 at 4v4, >=25 at 6v6).",
+
+  "TEACHER_GROUND_TRUTH_locked": {
+    "style": "BLUE_ONE_DEFENDER_V2 / GUARD_DISTRIBUTED_V2 assignment in gpu_env/_core/_scripted_blue_styles.py",
+    "defender_pool": "last ceil(N/2) living agents by index (size-normalized)",
+    "threat_order": "living intruders ranked by distance to own flag home (nearest-home first); stable argsort by enemy index on ties",
+    "matching": "for each threat in that order: assign nearest UNASSIGNED defender (continuous Euclidean); update `taken`; surplus defenders hold home",
+    "post": "no chase past midline; clamp to defensive disc",
+    "NOT_hungarian_global": "teacher uses sequential greedy with `taken`, not a global bipartite optimum — the diagnostic MUST reproduce THIS rule, not invent Hungarian unless an amendment freezes a deliberate alternative"
+  },
+
+  "CANDIDATE_z_i_v1_locked": {
+    "principle": "math decides responsibility; RL would later decide behavior — this diagnostic does not train RL",
+    "fields_allowed": [
+      "responsibility_type in {DEFEND, ATTACK, HOLD} derived from the same defender-pool rule as the teacher (index band + alive)",
+      "assigned_entity_id (enemy index, or HOME sentinel when holding)",
+      "relative geometry to assigned entity: (Delta_x, Delta_y) and/or distance in continuous coords used by the core"
+    ],
+    "FORBIDDEN_in_z_i": [
+      "teacher macro / action / argmax",
+      "teacher (btx, bty) or W50 waypoint index q(t)",
+      "reward, return, pole id, opponent genome id",
+      "GETFLAG preservation features",
+      "binary ROLE bit alone as a substitute for assigned_entity"
+    ],
+    "hold_ticks": "optional H_a (default 8) for stability in a FUTURE train arm; diagnostic primary metrics are evaluated on instantaneous assignment matching the teacher tick (H_a ablation may be reported as secondary)"
+  },
+
+  "THREE_GATES_before_any_PPO": {
+    "G1_TEACHER_ASSIGNMENT_AGREEMENT": {
+      "question": "Does a pure-geometry implementation of TEACHER_GROUND_TRUTH reproduce the teacher's per-agent assigned entity / responsibility on recorded GUARD ticks?",
+      "metric": "Accuracy = (# agent-ticks where diagnostic assignment matches teacher sidecar assignment) / (# eligible agent-ticks)",
+      "eligible": "living blue agents on GUARD / BLUE_ONE_DEFENDER_V2 rollouts at N=4 (primary); N=2 negative control; N=6 optional severity",
+      "PASS_floor_exploratory": "Accuracy >= 0.95 on N=4 primary block (point estimate). Fail-closed: if G1 fails, the extractor is wrong — redesign code, do not train.",
+      "note": "Near-perfect G1 is expected if the extractor is a faithful lift of the teacher loop; G1 is a known-answer contract, not the scientific claim."
+    },
+    "G2_RESOLVES_SEALED_AMBIGUITY": {
+      "question": "On the sealed ARM1 TEST_0 counterexample pairs (and/or natural o-collisions), does z_i differ whenever the teacher's projected target q(t) differs under byte-identical student observations?",
+      "corpus": "ARM1_TEST0_COUNTEREXAMPLE_CANONICAL.json → 20260912T233223Z_16ddccb9 (primary). Prefer replaying stored pairs; do not invent a new ambiguity search unless the stored corpus cannot be loaded.",
+      "PASS": "For every verified TEST_0 pair at N=4 with o_i identical and q(t) different: z_i(state_1) != z_i(state_2) (exact on discrete assignment fields; continuous deltas may differ as a consequence).",
+      "FAIL": "Any N=4 TEST_0 pair remains z-identical while q(t) differs — proposed z_i does not carry the missing responsibility bit.",
+      "negative_control": "N=2 TEST_0 has 0 counterexamples; G2 is N/A there (report as control only)."
+    },
+    "G3_NO_ACTION_LEAK": {
+      "question": "Is z_i free of teacher action/macro leakage by construction and by audit?",
+      "static_audit": "z_i builder call graph / argument list contains none of FORBIDDEN_in_z_i; pinned by unit tests.",
+      "dynamic_audit": "holding geometry+alive fixed, permute or mask teacher macros/actions must not change z_i.",
+      "PASS": "both audits green."
+    },
+    "OVERALL": "Assignment Conditioning v1 training is AUTHORIZED only if G1 ∧ G2 ∧ G3 all PASS. Otherwise redesign z_i / assignment rule and rerun this diagnostic — do not touch PPO."
+  },
+
+  "PRIVILEGED_VS_STUDENT_RECON_split": {
+    "z_privileged": "assignment computed from exact continuous blue/enemy positions available to the teacher (centralized). This is the upper bound for 'if we inject responsibility, does ambiguity resolve?'",
+    "z_student_recon": "OPTIONAL secondary: attempt to reconstruct assignment from student-visible features only (grid quantization, nearest-enemy vec, etc.). Failure of recon does NOT block Assignment Conditioning if z_privileged passes G1–G3 — it motivates centralized injection during CTDE training (same pattern as ROLE's geometric r_i).",
+    "primary_gate_path": "z_privileged for G1–G3. Student recon is diagnostic labeling only unless an amendment elevates it."
+  },
+
+  "COMPUTE_locked": {
+    "device": "cpu",
+    "no_PPO": true,
+    "no_GPU_training": true,
+    "no_GETFLAG_crossover": true,
+    "no_specialist_eval": true
+  },
+
+  "SEEDS": {
+    "primary_ambiguity_corpus": "reuse ARM1 TEST_0 sealed seeds 17600001..17600003 (matched reading); do not spend a new block to rediscover known counterexamples",
+    "optional_fresh_agreement_block": "if a fresh GUARD rollout is needed for G1 prevalence, reserve exploratory seeds at launch time disjoint from 187–193; record in SEED_REGISTRY before sampling"
+  },
+
+  "OUTPUTS": {
+    "RESULT": "artifacts/strategic_demand/sppo/ASSIGNMENT_INFORMATION_DIAGNOSTIC_RESULT.json",
+    "rows": "optional CSV of per-tick assignment agreement / z fields",
+    "reading": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_READING.json only after RESULT exists"
+  },
+
+  "EXPLICITLY_FORBIDDEN": [
+    "launching Assignment Conditioning PPO before G1∧G2∧G3 PASS",
+    "combining Assignment with GETFLAG preservation in one student",
+    "reinterpreting ROLE or GETFLAG results from this diagnostic",
+    "replacing teacher greedy+taken with Hungarian without a written amendment",
+    "putting macros/actions into z_i",
+    "claiming that resolving ambiguity proves Delta_B will recover — that requires a later frozen train+crossover"
+  ],
+
+  "IF_PASS": "Freeze Assignment Conditioning v1 SPEC (exact z encoding, H_a, warm-start W'=[W 0] equivalence, 200k budget, seeds, crossover rule vs frozen A) BEFORE any PPO step.",
+  "IF_FAIL": "Redesign assignment signal / rule; rerun THIS diagnostic; still no PPO."
+}

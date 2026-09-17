@@ -103,6 +103,9 @@ def run_behavioral_equivalence_probe(
     tgt_entity = _entity_kwargs_for_probe(target_model, batch_size=batch_size, device=device)
     src_role_on = bool(getattr(source_model, "role_conditioning_enabled", False))
     tgt_role_on = bool(getattr(target_model, "role_conditioning_enabled", False))
+    src_assign_on = bool(getattr(source_model, "assignment_conditioning_enabled", False))
+    tgt_assign_on = bool(getattr(target_model, "assignment_conditioning_enabled", False))
+    assign_dim = int(getattr(target_model, "_assignment_feature_dim", 4) or 4)
     
     all_kls = []
     all_max_logit_diffs = []
@@ -128,31 +131,47 @@ def run_behavioral_equivalence_probe(
             else:
                 role_pairs = [(None, None)]
 
+            if tgt_assign_on and not src_assign_on:
+                z_probe_a = torch.zeros(batch_size, n_agents, assign_dim, device=device)
+                z_probe_b = torch.ones(batch_size, n_agents, assign_dim, device=device)
+                assign_pairs = [(None, z_probe_a), (None, z_probe_b)]
+            elif tgt_assign_on and src_assign_on:
+                z_probe_a = torch.zeros(batch_size, n_agents, assign_dim, device=device)
+                z_probe_b = torch.ones(batch_size, n_agents, assign_dim, device=device)
+                assign_pairs = [(z_probe_a, z_probe_a), (z_probe_b, z_probe_b)]
+            else:
+                assign_pairs = [(None, None)]
+
             for src_roles, tgt_roles in role_pairs:
-                sk = dict(src_entity)
-                tk = dict(tgt_entity)
-                if src_roles is not None:
-                    sk["roles"] = src_roles
-                if tgt_roles is not None:
-                    tk["roles"] = tgt_roles
-                try:
-                    src_logits = source_model.policy_logits(obs, z_idx=z_idx, **sk)
-                except TypeError:
-                    src_logits = source_model.policy_logits(obs, **sk)
-                try:
-                    tgt_logits = target_model.policy_logits(obs, z_idx=z_idx, **tk)
-                except TypeError:
-                    tgt_logits = target_model.policy_logits(obs, **tk)
-                kls, diffs, argmax_d = _logit_agreement(
-                    src_logits,
-                    tgt_logits,
-                    batch_size=batch_size,
-                    n_agents=n_agents,
-                    per_agent_action_dims=list(source_model.per_agent_action_dims),
-                )
-                all_kls.extend(kls)
-                all_max_logit_diffs.extend(diffs)
-                total_argmax_disagreements += argmax_d
+                for src_assign, tgt_assign in assign_pairs:
+                    sk = dict(src_entity)
+                    tk = dict(tgt_entity)
+                    if src_roles is not None:
+                        sk["roles"] = src_roles
+                    if tgt_roles is not None:
+                        tk["roles"] = tgt_roles
+                    if src_assign is not None:
+                        sk["assignment"] = src_assign
+                    if tgt_assign is not None:
+                        tk["assignment"] = tgt_assign
+                    try:
+                        src_logits = source_model.policy_logits(obs, z_idx=z_idx, **sk)
+                    except TypeError:
+                        src_logits = source_model.policy_logits(obs, **sk)
+                    try:
+                        tgt_logits = target_model.policy_logits(obs, z_idx=z_idx, **tk)
+                    except TypeError:
+                        tgt_logits = target_model.policy_logits(obs, **tk)
+                    kls, diffs, argmax_d = _logit_agreement(
+                        src_logits,
+                        tgt_logits,
+                        batch_size=batch_size,
+                        n_agents=n_agents,
+                        per_agent_action_dims=list(source_model.per_agent_action_dims),
+                    )
+                    all_kls.extend(kls)
+                    all_max_logit_diffs.extend(diffs)
+                    total_argmax_disagreements += argmax_d
                 
     mean_kl = float(np.mean(all_kls)) if all_kls else 0.0
     max_kl = float(np.max(all_kls)) if all_kls else 0.0
