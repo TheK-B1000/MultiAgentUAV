@@ -1,0 +1,70 @@
+{
+  "utc": "2026-09-17T15:27:42Z",
+  "seed": 16700001,
+  "poles": [
+    "A",
+    "B"
+  ],
+  "n_rows": 7488,
+  "fidelity": [
+    {
+      "policy": "pi_A",
+      "pole": "A",
+      "seed": 16700001,
+      "expected": [
+        1,
+        0
+      ],
+      "got": [
+        1,
+        0
+      ],
+      "match": true
+    },
+    {
+      "policy": "pi_B",
+      "pole": "A",
+      "seed": 16700001,
+      "expected": [
+        1,
+        0
+      ],
+      "got": [
+        1,
+        0
+      ],
+      "match": true
+    },
+    {
+      "policy": "pi_A",
+      "pole": "B",
+      "seed": 16700001,
+      "expected": [
+        3,
+        0
+      ],
+      "got": [
+        3,
+        0
+      ],
+      "match": true
+    },
+    {
+      "policy": "pi_B",
+      "pole": "B",
+      "seed": 16700001,
+      "expected": [
+        0,
+        0
+      ],
+      "got": [
+        0,
+        0
+      ],
+      "match": true
+    }
+  ],
+  "pole_b_source": "CANDIDATE_OVERRIDE:SDS2_B3_LOCKDEF10_2V1 from artifacts\\strategic_demand\\sppo\\pole_b2_candidates\\B3-3_lockdef10_2v1.json",
+  "out": "artifacts\\strategic_demand\\sppo\\role_heartbeat_timeline_agent_step_rows.csv",
+  "role_proxy": "CARRIER if carrying; GET_FLAG\u2192OFFENSE; GO_HOME\u2192DEFENSE; own_half+(near_own_flag|linger)\u2192DEFENSE; near_enemy_flag+enemy_half\u2192OFFENSE; else TRANSIT"
+}

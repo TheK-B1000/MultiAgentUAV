@@ -26,6 +26,8 @@ def tensor_obs_dict(
         out["teammates_valid"] = torch.as_tensor(obs["teammates_valid"], dtype=torch.bool, device=device)
         out["enemies"] = torch.as_tensor(obs["enemies"], dtype=torch.float32, device=device)
         out["enemies_valid"] = torch.as_tensor(obs["enemies_valid"], dtype=torch.bool, device=device)
+    if "roles" in obs:
+        out["roles"] = torch.as_tensor(obs["roles"], dtype=torch.float32, device=device)
     return out
 
 

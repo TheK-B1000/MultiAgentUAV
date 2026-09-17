@@ -274,6 +274,14 @@ def main() -> int:
     ap.add_argument("--entity-hidden-dim", type=int, default=32,
                     help="hidden width of the per-entity encoder MLPs (default 32, matching "
                          "the validated BC_REPRESENTATION_SMOKE architecture)")
+    ap.add_argument("--role-conditioning-enabled", action="store_true",
+                    help="concat geometric N/2 DEFEND/ATTACK bit into the actor "
+                         "(RULE_BASED_ROLE_CONDITIONING_SPEC). Requires entity repair for "
+                         "the clean B_t500k warm-start path. Mutually exclusive with "
+                         "GETFLAG preserve / sibling-sep / role-pres losses.")
+    ap.add_argument("--role-hold-ticks", type=int, default=8,
+                    help="H_r decision-tick hold for role assignment (frozen exploratory "
+                         "value is 8; not a screen)")
     ap.add_argument("--load-path", default="",
                     help="warm-start from this checkpoint (e.g. the sealed B3-3 specialist) "
                          "before applying --entity-repair-enabled. Distinct from --resume, "
@@ -533,6 +541,32 @@ def main() -> int:
     cfg.entity_repair_enabled = bool(args.entity_repair_enabled)
     cfg.entity_hidden_dim = int(args.entity_hidden_dim)
 
+    cfg.role_conditioning_enabled = bool(args.role_conditioning_enabled)
+    cfg.role_hold_ticks = int(args.role_hold_ticks)
+    if cfg.role_conditioning_enabled:
+        if cfg.role_hold_ticks != 8:
+            raise SystemExit(
+                f"FAIL-CLOSED: RULE_BASED_ROLE_CONDITIONING_SPEC freezes H_r=8; "
+                f"got --role-hold-ticks={cfg.role_hold_ticks}. Amend the SPEC before "
+                f"changing this."
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: role conditioning cannot coexist with GETFLAG preservation "
+                "(SINGLE_AXIS_v1)"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: role conditioning cannot coexist with sibling-sep")
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: role conditioning cannot coexist with role-pres MSE loss"
+            )
+        if not cfg.entity_repair_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: role conditioning v1 requires --entity-repair-enabled "
+                "(clean B_t500k entity-repair architecture)"
+            )
+
     ck = Path(cfg.checkpoint_dir)
     resume_path = str(args.resume or "").strip()
     load_path_arg = str(args.load_path or "").strip()
@@ -631,6 +665,9 @@ def main() -> int:
     if bool(getattr(cfg, "entity_repair_enabled", False)):
         print(f"  entity_repair    enabled  hidden_dim={cfg.entity_hidden_dim}  "
              f"warm_start={getattr(cfg, 'load_path', None) or '(none -- fresh init)'}")
+    if bool(getattr(cfg, "role_conditioning_enabled", False)):
+        print(f"  role_conditioning enabled  H_r={cfg.role_hold_ticks}  "
+              f"(pi(a|o,r); no GETFLAG / no macro hard-code)")
     print("=" * 78, flush=True)
 
     # FAIL CLOSED on the LIVE resolved pole, before any step. Builds a throwaway env,
@@ -702,20 +739,39 @@ def main() -> int:
         "getflag_preserve_lambda": float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0),
         "getflag_preserve_ckpt": str(getattr(cfg, "getflag_preserve_ckpt", "") or ""),
         "getflag_preserve_ckpt_sha256": str(getattr(cfg, "getflag_preserve_ckpt_sha256", "") or ""),
+        "getflag_preservation": bool(float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0),
         "entity_repair_enabled": bool(getattr(cfg, "entity_repair_enabled", False)),
         "entity_hidden_dim": int(getattr(cfg, "entity_hidden_dim", 32)),
+        "role_conditioning_enabled": bool(getattr(cfg, "role_conditioning_enabled", False)),
+        "role_hold_ticks": int(getattr(cfg, "role_hold_ticks", 8)),
+        "branch_isolation": (
+            {
+                "parent": "B_t500k",
+                "parent_sha256_prefix": "d4c0d7ba2477",
+                "getflag_preservation": False,
+                "role_conditioning": True,
+                "inherits_getflag_ckpt": False,
+                "optimizer_state_inherited": False,
+            }
+            if bool(getattr(cfg, "role_conditioning_enabled", False))
+            else None
+        ),
         "warm_start_from": (str(load_path_arg) if load_path_arg else None),
         "resume_from": (str(cfg.load_path) if getattr(cfg, "load_path", None) else None),
         "implements_spec": (
-            "B_GETFLAG_PRESERVE_SPEC.json"
-            if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0
+            "RULE_BASED_ROLE_CONDITIONING_SPEC.json"
+            if bool(getattr(cfg, "role_conditioning_enabled", False))
             else (
-                "4V4_B3_ROLE_PRESERVATION_SPEC.json"
-                if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+                "B_GETFLAG_PRESERVE_SPEC.json"
+                if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0
                 else (
-                    "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
-                    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
-                    else None
+                    "4V4_B3_ROLE_PRESERVATION_SPEC.json"
+                    if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+                    else (
+                        "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
+                        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
+                        else None
+                    )
                 )
             )
         ),

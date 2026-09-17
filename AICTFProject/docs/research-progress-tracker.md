@@ -16,12 +16,27 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-17 — Frozen `B_GETFLAG_PRESERVE_SPEC.json`: one
-> short B-only continuation from mechanically-defined B_better (`B_t500k`),
-> 200k steps, gated non-carrying GET_FLAG macro preservation (no GET_FLAG
-> reward, no global JSD, no A training). 2×2 kill table frozen before launch:
-> if the diagnosed GET_FLAG→GO_TO drift is manipulated and Δ_B does not
-> improve, the branch dies. A remains frozen (`A_FREEZE_RULE.json`).
+> **Last updated:** 2026-09-17 — Role arm **200k GREENLIT + LIVE**
+> (`exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond`, seed
+> 19100001). Sealed:
+> `RULE_ROLE_ATTEMPT_1_INVALID_INFRA_WARMSTART` (crash = infra, not science),
+> `RULE_ROLE_WARMSTART_CONTRACT_PROBE` (`max_logit_diff=0`, `argmax_diff=0`,
+> `π(r=0)=π(r=1)=π_B500k` at t=0 via `W=[W_B500k|0]`),
+> `RULE_ROLE_BRANCH_ISOLATION_ATTESTATION`
+> (`parent=B_t500k`, `GETFLAG=OFF`, `role=ON`, fresh Adam),
+> `RULE_ROLE_200K_RELAUNCH_GREENLIGHT`. Do not restart. GETFLAG manip
+> continues in parallel; role arm stays clean of GETFLAG loss.
+>
+> Prior same day — Parallel routing for 4v4 speed: freeze
+> [`RULE_BASED_ROLE_CONDITIONING_SPEC.json`](../artifacts/strategic_demand/sppo/RULE_BASED_ROLE_CONDITIONING_SPEC.json)
+> (`π(a|o,r)`, geometric N/2 DEFEND/ATTACK, `H_r=8`, no macro hard-code, no
+> GETFLAG mix, short 200k after contracts). **Do not cancel** in-flight
+> GETFLAG manipulation; record it when done — role arm does **not** wait on
+> GETFLAG Δ_B / kill-table.
+>
+> Prior same day — Frozen `B_GETFLAG_PRESERVE_SPEC.json`: one short B-only
+> continuation from `B_t500k`, 200k steps, gated non-carrying GET_FLAG macro
+> preservation. 2×2 kill table frozen; A remains frozen (`A_FREEZE_RULE.json`).
 >
 > Prior 2026-09-13 — Action-interface diagnosis sealed:
 > `ACTION_INTERFACE_DECOMP_SEALED_READING.json` (Rule-12 PASS). Binder is

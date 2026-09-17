@@ -378,21 +378,25 @@ class TrainerOptimizerBundle:
                 payload["router_optimizer_state_dict"] = self.router.state_dict()
 
     def load_checkpoint(self, payload: dict[str, Any], *, allow_architecture_migration: bool = False) -> None:
+        # Role-conditioning / entity-repair warm-starts change Linear in_features.
+        # Adam.load_state_dict can succeed while leaving exp_avg/exp_avg_sq at the
+        # OLD shapes; the first step then dies inside foreach_lerp. When migration
+        # is explicitly allowed, never attempt to reuse optimizer state.
+        if allow_architecture_migration:
+            print(
+                "[optimizer] Architecture migration allowed — skipping optimizer state "
+                "(starting fresh; avoids silent shape-mismatched Adam moments)."
+            )
+            return
         try:
             self.primary.load_state_dict(payload["optimizer_state_dict"])
         except (ValueError, RuntimeError) as exc:
-            if not allow_architecture_migration:
-                raise RuntimeError(
-                    f"Optimizer state mismatch on load — parameter groups do not match the current model. "
-                    f"If this is an intentional architecture migration (e.g. adding a CNN channel), "
-                    f"pass --allow-active-actor-module-migration to skip optimizer state and start fresh. "
-                    f"Original error: {exc}"
-                ) from exc
-            print(
-                f"[optimizer] Architecture migration allowed — skipping optimizer state (starting fresh). "
-                f"Reason: {exc}"
-            )
-            return
+            raise RuntimeError(
+                f"Optimizer state mismatch on load — parameter groups do not match the current model. "
+                f"If this is an intentional architecture migration (e.g. adding a CNN channel), "
+                f"pass --allow-active-actor-module-migration to skip optimizer state and start fresh. "
+                f"Original error: {exc}"
+            ) from exc
         if not bool(payload.get("v6i1_three_optimizer_mode", False)):
             return
         if "actor_optimizer_state_dict" in payload:

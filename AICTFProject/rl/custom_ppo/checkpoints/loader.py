@@ -45,6 +45,7 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
         # checkpoints reconstruct exactly as before this addition.
         "entity_repair_enabled": bool(cfg.get("entity_repair_enabled", False)),
         "entity_hidden_dim": int(cfg.get("entity_hidden_dim", 32)),
+        "role_conditioning_enabled": bool(cfg.get("role_conditioning_enabled", False)),
     }
     if bool(cfg.get("use_latent_strategy", False)):
         kwargs.update(
@@ -390,17 +391,45 @@ def load_trainer_checkpoint(trainer: Any, path: str, *, reset_progress: bool = F
     
     state_start = time.perf_counter()
     load_weights_only = bool(getattr(trainer.cfg, "load_weights_only", False))
-    if load_weights_only:
-        print("[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.")
+    # Honor both the explicit caller flag and cfg (initialization.py sets both;
+    # unit tests may pass only reset_progress=True on trainer.load).
+    reset_progress = bool(reset_progress) or bool(
+        getattr(trainer.cfg, "warm_start_reset_progress", False)
+    )
+    if load_weights_only or reset_progress:
+        why = (
+            "--load-weights-only was set"
+            if load_weights_only
+            else "warm_start_reset_progress / reset_progress=True (weight init only; fresh optimizer)"
+        )
+        print(f"[PPO] Skipping checkpoint optimizer state: {why}.")
         if bool(getattr(trainer.cfg, "router_reinitialize_on_load", False)):
             trainer._reinitialize_router_after_load()
+        # Role-conditioning warm-start widens Linear in_features (148→149 actor,
+        # 34→38 critic). Even with optimizer load skipped, rebuild Adam from the
+        # post-expansion Parameter objects so no 148-d moment buffers can linger
+        # from any other path. Fresh global_step / scheduler identity already
+        # follows from reset_progress=True below.
+        if bool(getattr(trainer.model, "role_conditioning_enabled", False)) or bool(
+            getattr(trainer.model, "_role_warmstart_expanded", False)
+        ):
+            from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
+
+            trainer.optimizers = TrainerOptimizerBundle.build(
+                model=trainer.model, cfg=trainer.cfg, hparams=trainer.hparams
+            )
+            print(
+                "[PPO] Rebuilt fresh Adam optimizer after role-conditioning "
+                "weight expansion (W'=[W 0]; no inherited 148-d moments from "
+                "B_t500k or any other run)."
+            )
     else:
         reinit_router = bool(getattr(trainer.cfg, "router_reinitialize_on_load", False))
         if reinit_router:
             print("[PPO] Skipping checkpoint optimizer state: router_reinitialize_on_load=True")
             trainer._reinitialize_router_after_load()
         else:
-            allow_migration = bool(getattr(trainer.cfg, "allow_active_actor_module_migration", False)) or reset_progress
+            allow_migration = bool(getattr(trainer.cfg, "allow_active_actor_module_migration", False))
             trainer.optimizers.load_checkpoint(payload, allow_architecture_migration=allow_migration)
 
     if reset_progress:

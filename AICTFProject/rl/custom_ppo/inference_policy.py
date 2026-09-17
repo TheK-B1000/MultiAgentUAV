@@ -308,6 +308,8 @@ class CustomPPOInferencePolicy:
         for k in ("teammates", "teammates_valid", "enemies", "enemies_valid"):
             if k in obs:
                 out[k] = torch.as_tensor(obs[k], dtype=torch.float32, device=self.device)
+        if "roles" in obs:
+            out["roles"] = torch.as_tensor(obs["roles"], dtype=torch.float32, device=self.device)
         return out
 
     def _global_state_tensor(self, obs: Dict[str, np.ndarray], batch: int) -> torch.Tensor:
@@ -627,6 +629,13 @@ class CustomPPOInferencePolicy:
                             f"before calling predict()."
                         )
                     entity_kwargs = {k: obs_t[k] for k in entity_keys}
+                if bool(getattr(self.model, "role_conditioning_enabled", False)):
+                    if "roles" not in obs_t:
+                        raise ValueError(
+                            "CustomPPOInferencePolicy.predict(): the loaded model has "
+                            "role_conditioning_enabled=True and requires obs['roles'] (B, N)."
+                        )
+                    entity_kwargs["roles"] = obs_t["roles"]
                 action_tensor, _, _, _ = self.model.act(
                     obs_t, global_state, deterministic=deterministic, z_idx=None, **entity_kwargs
                 )

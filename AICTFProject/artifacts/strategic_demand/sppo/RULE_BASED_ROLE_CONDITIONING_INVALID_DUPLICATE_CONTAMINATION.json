@@ -1,0 +1,9 @@
+﻿{
+  "record_id": "RULE_BASED_ROLE_CONDITIONING_INVALID_DUPLICATE_CONTAMINATION",
+  "status": "INVALID_DUPLICATE_CONTAMINATION",
+  "scientific_trial": false,
+  "seed_spent": false,
+  "utc_sealed": "2026-09-17T16:02:00Z",
+  "why_invalid": "Multiple concurrent train_specialist_scale processes (including a stale INVALID_INFRA_WARMSTART-era PID) wrote the same live metrics/log path. Log contains interleaved null bytes. Warm-start contract had PASSED, but training telemetry is not trustworthy.",
+  "relaunch_seed": 19100001
+}

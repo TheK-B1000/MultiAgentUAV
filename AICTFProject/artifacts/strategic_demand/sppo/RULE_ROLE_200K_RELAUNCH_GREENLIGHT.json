@@ -1,0 +1,21 @@
+{
+  "record_id": "RULE_ROLE_200K_RELAUNCH_GREENLIGHT",
+  "status": "GREENLIT",
+  "utc": "2026-09-17T16:00:00Z",
+  "decision": "Keep the already-running weight-only 200k relaunch (seed 19100001). Do not restart. Do not Adam-patch.",
+  "preconditions_satisfied": [
+    "RULE_ROLE_ATTEMPT_1_INVALID_INFRA_WARMSTART sealed — crashed attempt is NOT a spent scientific trial",
+    "RULE_ROLE_WARMSTART_CONTRACT_PROBE pass: max_logit_diff=0.0, argmax_diff=0, r0≡r1≡B500k at t=0",
+    "RULE_ROLE_BRANCH_ISOLATION_ATTESTATION: parent=B_t500k, GETFLAG_loss=OFF, role=ON",
+    "Live log shows 148→149 zero-column expand + fresh optimizer (warm_start_reset_progress)",
+    "test_rule_role_conditioning.py 17/17 green"
+  ],
+  "live_at_greenlight": {
+    "run_tag": "exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond",
+    "seed": 19100001,
+    "approx_steps": 12288,
+    "budget": 200000,
+    "pid": 26956
+  },
+  "scientific_note": "The Adam 148↔149 crash was an engineering catch at the warm-start seam. It carries no evidence about whether role conditioning works. First valid scientific trial is this greenlit relaunch."
+}

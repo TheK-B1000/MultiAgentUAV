@@ -1,0 +1,24 @@
+{
+  "record_id": "RULE_BASED_ROLE_CONDITIONING_INVALID_INFRA_WARMSTART",
+  "status": "INVALID_INFRA_WARMSTART",
+  "scientific_trial": false,
+  "seed_spent": false,
+  "utc_sealed": "2026-09-17T15:50:00Z",
+  "run_dir": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond",
+  "training_seed": 19100001,
+  "why_invalid": "Crashed on first Adam step after Linear in_features expansion 148→149 (actor) / 34→38 (critic). Behavioral-equivalence check was NOT_RUN because the probe loaded already-expanded W' into a 148-d source model. No scientifically interpretable learning occurred; warm-start seam was not proven.",
+  "what_was_correct": [
+    "parent checkpoint was sealed B_t500k (sha d4c0d7ba…)",
+    "getflag_preserve_lambda=0",
+    "role_conditioning_enabled=True",
+    "separate exploratory run dir / lock / seed 19100001"
+  ],
+  "fix_required_before_relaunch": [
+    "W'=[W 0] zero-column expansion for role-facing Linears",
+    "fresh Adam for the 149-d model (no transplanted 148-d moments)",
+    "behavioral equivalence PASS with max_logit_diff≈0, argmax_diff=0, and r=0≡r=1≡π_B500k",
+    "manifest attests getflag_preservation=false and branch_isolation"
+  ],
+  "relaunch_seed": 19100001,
+  "note": "Same training seed is reused because this run is sealed INVALID and is not a spent scientific trial."
+}

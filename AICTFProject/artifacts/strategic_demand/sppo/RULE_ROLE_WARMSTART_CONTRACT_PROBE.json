@@ -1,0 +1,39 @@
+{
+  "probe_id": "RULE_ROLE_WARMSTART_CONTRACT_PROBE",
+  "parent_ckpt": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+  "parent_sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+  "actor_in_base": 148,
+  "actor_in_role": 149,
+  "role_column_nnz": 0,
+  "contract": "W_role,t0=[W_B500k | 0] => pi(r=0)=pi(r=1)=pi_B500k",
+  "max_logit_diff": 0.0,
+  "argmax_diff_total": 0,
+  "pairs": {
+    "r0_vs_r1": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "r0_vs_B500k": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "r1_vs_B500k": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "rmix_vs_B500k": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "value_r0_vs_B500k": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "value_r1_vs_B500k": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    }
+  },
+  "pass": true,
+  "note": "Dedicated probe; in-trainer Behavioral-equivalence NOT_RUN is expected because expand mutates the remapped dict before reverse-load into the 148 model."
+}

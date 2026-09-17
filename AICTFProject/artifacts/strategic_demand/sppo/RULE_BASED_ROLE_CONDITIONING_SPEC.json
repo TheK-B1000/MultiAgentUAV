@@ -1,0 +1,186 @@
+{
+  "record_id": "RULE_BASED_ROLE_CONDITIONING_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-17T15:20:00Z",
+  "utc_engineering_greenlight": "2026-09-17T15:30:00Z",
+  "authority": "PI, 2026-09-17: speed priority on 4v4. Freeze the role-conditioning hypothesis now while B_GETFLAG_PRESERVE manipulation finishes. Do not wait on the GETFLAG Δ_B / kill-table chain before preparing this arm. Engineering greenlighted: contracts → wiring → smoke → 200k.",
+  "classification": "DIAGNOSTIC / EXPLORATORY. Not PAPER-FAITHFUL. Not a confirmatory Δ_B pass. Not latent-strategy work.",
+
+  "TRAINING": {
+    "policy": "B",
+    "team_size": 4,
+    "pole": "certified B3-3 (SDS2_B3_LOCKDEF10_2V1) via --pole-b-genome-json",
+    "entity_repair_enabled": true,
+    "role_conditioning_enabled": true,
+    "getflag_preservation": false,
+    "role_hold_ticks": 8,
+    "total_timesteps": 200000,
+    "seeds": {"pi_B_4v4": 19100001},
+    "device": "cuda",
+    "run_label_suffix": "_b3_entity_repair_rule_role_cond",
+    "warm_start": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+    "warm_start_sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+    "launcher": "experiments/train_specialist_scale.py with --exploratory-spec this file"
+  },
+
+  "MOTIVATION_already_measured": {
+    "claim": "At 4v4 and 6v6, multi-defender team assignment is nontrivial; the analogous 2v2 case is effectively degenerate. Forcing PPO to reconstruct who attacks vs who defends from local observations is a scaling-specific coordination / observability burden we already measured.",
+    "plain_english": "Math decides who has the job. RL learns how to perform the job.",
+    "not_a_rescue_of_GETFLAG": "This arm is scientifically distinct from B_GETFLAG_PRESERVE. It must not be mixed with GETFLAG preservation in v1. GETFLAG manip may finish and be recorded in parallel; this arm does not require GETFLAG kill-table completion to proceed to contracts / short training."
+  },
+
+  "THE_HYPOTHESIS": "Supplying a deterministic geometric role bit r_i removes the need for the policy to solve N/2 vs N/2 assignment implicitly. With π_θ(a_i | o_i, r_i), 4v4 Pole-B specialization (Δ_B) can improve where unaided entity-repair B failed — without hard-coding macros.",
+
+  "ROLE_ASSIGNMENT_locked": {
+    "k": "N/2 (integer; N even: 4→2, 6→3)",
+    "distance": "d_i = ||p_i - p_home||_2 Euclidean in the same continuous coordinates the core uses for agent positions",
+    "p_home": "own-team flag home / base for the controlled (blue) team",
+    "pool": "living agents only (dead / tagged-out agents receive no ATTACK/DEFEND bit for ranking; see dead_trigger)",
+    "rule": {
+      "DEFEND": "r_i = 0 for the closest k living agents by d_i",
+      "ATTACK": "r_i = 1 for the remaining living agents"
+    },
+    "when_n_alive_less_than_k": "assign DEFEND to all living agents (no fabricated attackers)",
+    "counts_when_all_alive": {
+      "4v4": "exactly 2 DEFEND + 2 ATTACK",
+      "6v6": "exactly 3 DEFEND + 3 ATTACK"
+    },
+    "ties": "strictly deterministic: smaller agent index ranks as closer (wins DEFEND) when d_i equal",
+    "permutation": "geometric ranking is invariant to observation-batch permutation of agents except for the frozen index tie-break"
+  },
+
+  "STABILITY_locked": {
+    "mechanism": "fixed reassignment period (not per-frame rerank; not adaptive hysteresis in v1)",
+    "H_r_decision_ticks": 8,
+    "H_r_rationale": "single exploratory hold length: long enough to stop N/2-boundary chatter, short enough to adapt. THIS IS NOT AN H_r SCREEN. Change only by written amendment before any training step that uses roles.",
+    "hold": "after an assignment event, keep each living agent's r_i fixed for H_r decision ticks",
+    "dead_trigger": "any death / revival that changes the living set triggers immediate reassignment (does not wait for the hold to expire)",
+    "episode_start": "assign at t=0 of each episode"
+  },
+
+  "POLICY_INTERFACE_locked": {
+    "form": "π_θ(a_i | o_i, r_i)",
+    "r_encoding": "one bit: 0=DEFEND, 1=ATTACK",
+    "actor_path": "r_i must be concatenated into agent i's actor input pathway (exact tensor join point named in implementation; contracts prove it affects logits)",
+    "critic_path": "critic receives the full team role vector (length N) so value is not blind to assignment; no separate role value head",
+    "FORBIDDEN_macro_map": [
+      "DEFEND → GUARD (or any fixed macro)",
+      "ATTACK → GET_FLAG (or any fixed macro)",
+      "any hard-coded action override from r_i"
+    ],
+    "plain_english": "role does not determine macro; PPO still learns tactics inside the role"
+  },
+
+  "SINGLE_AXIS_v1": {
+    "change_only": "rule-based role assignment + r_i conditioning on the actor (and team role vector on the critic)",
+    "held_fixed": [
+      "entity_repair_enabled=True architecture / obs schema used by the clean B baseline",
+      "Pole B genome SDS2_B3_LOCKDEF10_2V1 via --pole-b-genome-json",
+      "A frozen comparator (A_FREEZE_RULE.json) — no A training, no A architecture change",
+      "rewards, opponent pool, map, M1 rules as in the clean B baseline run",
+      "no GETFLAG preservation loss / no λ_GETFLAG",
+      "no sibling-separation / role-preservation MSE losses from prior arms"
+    ],
+    "warm_start": {
+      "rule": "clean baseline only — NOT the GETFLAG-preserve final checkpoint",
+      "B_init": "B_t500k from scale_4v4 entity-repair corrected (same zip as STATE_CONDITIONED_DIAGNOSIS B_better)",
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+      "sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+      "warm_start_reset_progress": true,
+      "why_not_getflag_ckpt": "mixing roles + GETFLAG preservation would make a successful Δ_B scientifically muddy"
+    }
+  },
+
+  "EXPLICITLY_FORBIDDEN": [
+    "implementing or launching training before executable contracts pass",
+    "combining GETFLAG preservation (or any GET_FLAG occupancy / macro-preservation loss) with this arm in v1",
+    "hard-coding DEFEND/ATTACK to GUARD/GET_FLAG or any macro",
+    "reward shaping for role occupancy or role-success",
+    "any A training or A repair",
+    "a 1,000,000-step run as the first learning experiment",
+    "tuning H_r (or k, tie-break, encoding) after seeing crossover / win-rate results",
+    "porting to 6v6 before 4v4 exploratory crossover is interpreted",
+    "claiming PAPER-FAITHFUL or confirmatory specialization from the first short run"
+  ],
+
+  "SEQUENCING_locked": {
+    "parallel_now": "B_GETFLAG_PRESERVE manipulation (48 seeds) continues to completion and is recorded; do not cancel it",
+    "does_not_block_this_arm": "GETFLAG Δ_B crossover and GETFLAG 2x2 kill-table completion",
+    "this_arm_order": [
+      "1. This SPEC freeze (done)",
+      "2. Implementation of assignment + r_i wiring ONLY after contracts are written",
+      "3. Executable contracts (must pass before any learning run)",
+      "4. Short 4v4 exploratory B learning run (budget frozen below)",
+      "5. Exploratory Δ_B / joint crossover vs frozen π_A3",
+      "6. ONLY if 4v4 evidence supports: freeze the exact mechanism and port to 6v6"
+    ],
+    "causal_ladder_unmixed": "entity geometry → GETFLAG preservation (separate branch) → explicit role information (this branch). Do not stack treatments in one student."
+  },
+
+  "CONTRACTS_before_training": {
+    "must_prove": [
+      "N=4 all-alive ⇒ exactly 2 DEFEND + 2 ATTACK",
+      "N=6 all-alive ⇒ exactly 3 DEFEND + 3 ATTACK",
+      "permutation of agent ordering does not change geometric assignment except via the frozen index tie-break",
+      "equal distances resolve by smaller agent index → DEFEND preference as locked",
+      "r_i is constant across a hold of H_r ticks absent death/revival",
+      "death/revival triggers reassignment before the hold expires",
+      "r_i reaches the actor: identical o_i with flipped r_i changes actor logits (or a designated probe layer)",
+      "structurally absent when role_conditioning_enabled=False (bit not injected)"
+    ],
+    "test_home": "tests/ (new module named at implementation time); fail-closed in CI before exploratory launch"
+  },
+
+  "TRAINING_first_exploratory_not_1M": {
+    "note": "Canonical TRAINING block above is authoritative for train_specialist_scale --exploratory-spec. This section retains the scientific freeze narrative.",
+    "policy": "B only",
+    "team_size": 4,
+    "total_timesteps": 200000,
+    "seeds": {"pi_B_4v4_role_cond": 19100001}
+  },
+
+  "EVALUATION_after_short_run": {
+    "instrument": "experiments/eval_specialist_crossover_scaled.py (same paired bootstrap protocol as B_CHECKPOINT_SCREENING)",
+    "n": 64,
+    "seed_class": "exploratory",
+    "seeds": "19200001-19200064 (FROZEN before training relaunch; disjoint from GETFLAG 189/190 and from training 19100001)",
+    "seed_lo": 19200001,
+    "n_seeds": 64,
+    "disjoint_from": [187, 188, 189, 190, 191],
+    "comparator_A": "frozen π_A3 per A_FREEZE_RULE / screening protocol",
+    "control_checkpoint": "sealed B_t500k (d4c0d7ba…) — NOT the GETFLAG-preserve final",
+    "treatment_checkpoint": "final of THIS role-conditioning run only",
+    "estimands": {
+      "delta_A": "V(π_A3, A) − V(π_new, A)",
+      "delta_B": "V(π_new, B) − V(π_A3, B)"
+    },
+    "reading_rule_exploratory": "Interpret as evidence whether role information moves Δ_B relative to the clean B_t500k screen (δ_B = −0.046875 on that protocol). Not a confirmatory PASS. Confirmatory replication is a separate reserved block only if joint specialization looks promising and δ_A is not destroyed (δ_A ≥ 0 point estimate).",
+    "narrow_claim_if_delta_B_improves": "explicit deterministic role conditioning improved this 4v4 B exploratory experiment — NOT that role ambiguity caused the original failure, NOT that 6v6 is solved, NOT that GETFLAG+ROLE works"
+  },
+
+  "BRANCH_ISOLATION_attested": {
+    "parent": "B_t500k",
+    "parent_sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+    "getflag_preservation": false,
+    "role_conditioning": true,
+    "inherits_getflag_ckpt": false,
+    "optimizer_state_inherited_from_B500k_or_getflag": false,
+    "warm_start_contract": "W'_actor=[W_B500k | 0], W'_critic=[W_B500k | 0_N]; π_role,t0(a|o,r=0)=π_role,t0(a|o,r=1)=π_B500k(a|o); fresh Adam after expansion",
+    "combination_is_third_experiment": "GETFLAG + ROLE requires its own frozen spec; neither branch may claim the combination"
+  },
+
+  "WHAT_THIS_MAY_NOT_CLAIM": [
+    "that geometric roles are the unique cause of 4v4 Δ_B failure — that is what the short run + crossover test",
+    "any confirmatory specialization pass from the first 200k run",
+    "that 6v6 is fixed before 4v4 evidence",
+    "credit to GETFLAG preservation for any role-arm result",
+    "that GETFLAG + ROLE works (third experiment)",
+    "PAPER-FAITHFUL / Summer-faithful status"
+  ],
+
+  "INVALID_PRIOR_LAUNCH": "artifacts/strategic_demand/sppo/RULE_BASED_ROLE_CONDITIONING_INVALID_INFRA_WARMSTART.json — first launch sealed INVALID_INFRA_WARMSTART; seed 19100001 reused only because that run is not a spent scientific trial.",
+
+  "NEXT_AFTER_THIS_FREEZE": "Contracts green + warm-start equivalence PASS required before 200k relaunch. GETFLAG manipulation continues independently; do not cancel it; do not retune H_r from GETFLAG results."
+}

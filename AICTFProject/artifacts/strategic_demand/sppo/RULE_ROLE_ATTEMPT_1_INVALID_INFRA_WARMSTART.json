@@ -1,0 +1,22 @@
+{
+  "record_id": "RULE_ROLE_ATTEMPT_1_INVALID_INFRA_WARMSTART",
+  "status": "INVALID_INFRA_WARMSTART",
+  "scientific_trial": false,
+  "training_steps_consumed": 0,
+  "metrics_rows_written": 0,
+  "checkpoints_written": 0,
+  "budget_impact": "NONE — no valid PPO update completed; output dir was wiped before the weight-only relaunch",
+  "utc_crash_window": "2026-09-17T15:42:00Z–2026-09-17T15:47:00Z",
+  "seed_attempted": 19100001,
+  "run_tag_attempted": "exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond",
+  "cause": "Architecture migration 148→149 expanded latent_actor.body.0.weight (and critic 34→38) but the first launch path still restored checkpoint Adam moment buffers shaped for the old in_features. First optimizer step then failed inside torch foreach_lerp (exp_avg 148-wide vs param 149-wide).",
+  "where_it_died": "first Adam step after warm-start Linear expand; before any sealed RESULT / before any scientifically interpretable update",
+  "not_a_spent_scientific_trial": true,
+  "lesson": "Weight-only warm start across an input-dim change must (1) zero-column expand W_role,t0=[W_B500k | 0] and (2) start a fresh optimizer / global_step / scheduler / RNG identity. Never transplant Adam moments across the seam.",
+  "fix_landed_before_relaunch": {
+    "loader": "warm_start_reset_progress skips checkpoint optimizer state",
+    "optimizers": "TrainerOptimizerBundle.load_checkpoint(allow_architecture_migration=True) refuses Adam transplant",
+    "weights": "_expand_role_conditioning_linears zero-inits new columns"
+  },
+  "superseded_by": "RULE_ROLE_BRANCH_ISOLATION_ATTESTATION + RULE_ROLE_WARMSTART_CONTRACT_PROBE + live seed-19100001 relaunch"
+}

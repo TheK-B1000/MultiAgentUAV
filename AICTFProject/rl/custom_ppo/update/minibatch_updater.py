@@ -170,6 +170,8 @@ class MinibatchUpdater:
                 teammates=batch["obs_teammates"], teammates_valid=batch["obs_teammates_valid"],
                 enemies=batch["obs_enemies"], enemies_valid=batch["obs_enemies_valid"],
             )
+        if "obs_roles" in batch:
+            entity_kwargs["roles"] = batch["obs_roles"]
         z_idx = batch["z"] if hparams.use_latent_strategy else None
         selector_hidden = None
         if hparams.use_latent_strategy and bool(getattr(model, "use_recurrent_selector", False)):
@@ -546,6 +548,7 @@ class MinibatchUpdater:
                         router_context=batch.get("router_context"),
                         message_symbols=message_symbols,
                         message_boundary_mask=message_boundary_mask,
+                        **entity_kwargs,
                     )
                     new_lp, old_lp = combine_action_and_message_log_probs(
                         action_log_prob=lp,
@@ -566,6 +569,7 @@ class MinibatchUpdater:
                     router_context=batch.get("router_context"),
                     message_symbols=message_symbols,
                     message_boundary_mask=message_boundary_mask,
+                    **entity_kwargs,
                 )
                 new_lp, old_lp = combine_action_and_message_log_probs(
                     action_log_prob=lp,

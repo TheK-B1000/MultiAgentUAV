@@ -179,6 +179,28 @@ class RolloutCollector:
     def tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
         return tensor_obs_dict(obs, device=self.device)
 
+    def _augment_obs_with_roles(
+        self, obs: Dict[str, np.ndarray], *, force: bool = False, advance_age: bool = True
+    ) -> Dict[str, np.ndarray]:
+        """Attach geometric roles when ``role_conditioning_enabled`` (fail-closed)."""
+        if not bool(getattr(self.model, "role_conditioning_enabled", False)):
+            return obs
+        from rl.custom_ppo.rule_role_assignment import RoleHoldState, roles_from_core
+
+        hold = getattr(self, "_role_hold", None)
+        if hold is None:
+            hold = RoleHoldState(
+                int(self.env.num_envs),
+                int(self.model.n_agents),
+                hold_ticks=int(getattr(self.cfg, "role_hold_ticks", 8) or 8),
+                device=self.device,
+            )
+            self._role_hold = hold
+        roles = roles_from_core(self.env.core, hold, force=force, advance_age=advance_age)
+        out = dict(obs)
+        out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
+        return out
+
     def on_sb3_rollout_env_step(self) -> None:
         p = self.runtime._sb3_rollout_pbar
         if p is None:
@@ -215,6 +237,8 @@ class RolloutCollector:
             buffer.register_field("obs_enemies", tuple(obs["enemies"].shape[1:]))
             buffer.register_field("obs_enemies_valid", tuple(obs["enemies_valid"].shape[1:]),
                                   dtype=torch.bool)
+        if bool(getattr(self.model, "role_conditioning_enabled", False)):
+            buffer.register_field("obs_roles", tuple(obs["roles"].shape[1:]))
         buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
@@ -354,7 +378,20 @@ class RolloutCollector:
         )
         with torch.no_grad():
             if not self.hparams.use_latent_strategy:
-                return _denormalize_values(runtime, self.model.values(gs))
+                team_roles = None
+                if bool(getattr(self.model, "role_conditioning_enabled", False)):
+                    # Post-step geometry; do not consume an extra hold tick.
+                    synced = self._augment_obs_with_roles(
+                        next_obs if next_obs is not None else {},
+                        force=False,
+                        advance_age=False,
+                    )
+                    team_roles = torch.as_tensor(
+                        synced["roles"], dtype=torch.float32, device=device
+                    )
+                return _denormalize_values(
+                    runtime, self.model.values(gs, team_roles=team_roles)
+                )
 
             done_t = torch.as_tensor(dones, dtype=torch.bool, device=device) if dones is not None else None
             if self._is_v6i7_mode:
@@ -481,6 +518,7 @@ class RolloutCollector:
         if getattr(self.model, "entity_encoder", None) is not None:
             from gpu_env._core._entity_obs import augment_obs_with_entities
             obs = augment_obs_with_entities(obs, self.env.core, side="blue")
+        obs = self._augment_obs_with_roles(obs, force=True)
         buffer = self.make_buffer(obs)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
@@ -686,6 +724,7 @@ class RolloutCollector:
         if getattr(self.model, "entity_encoder", None) is not None:
             from gpu_env._core._entity_obs import augment_obs_with_entities
             obs = augment_obs_with_entities(obs, env.core, side="blue")
+        obs = self._augment_obs_with_roles(obs, force=False)
         obs_t = self.tensor_obs(obs)
         comm_boundary = (
             comm.current_boundary_mask()
@@ -730,6 +769,8 @@ class RolloutCollector:
                     teammates=obs_t["teammates"], teammates_valid=obs_t["teammates_valid"],
                     enemies=obs_t["enemies"], enemies_valid=obs_t["enemies_valid"],
                 )
+            if bool(getattr(self.model, "role_conditioning_enabled", False)):
+                entity_act_kwargs["roles"] = obs_t["roles"]
             actions_t, values_norm_t, log_probs_t, _ = self.model.act(
                 obs_t, context_state, z_idx=z_t, **entity_act_kwargs
             )
@@ -764,6 +805,9 @@ class RolloutCollector:
             comm.advance_after_step(env.core)
             if bool(np.asarray(dones).any()):
                 comm.reset_env_indices(np.asarray(dones))
+        if bool(np.asarray(dones).any()) and getattr(self, "_role_hold", None) is not None:
+            done_t = torch.as_tensor(np.asarray(dones), dtype=torch.bool, device=self.device)
+            self._role_hold.reset_envs(done_t)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
                 torch.cuda.synchronize()

@@ -54,10 +54,11 @@ class PPOConfig:
     allow_active_actor_module_migration: bool = False
     # True means `load_path` is WEIGHT INITIALIZATION, not run continuation: the
     # loaded checkpoint's global_step/updates_completed/return-norm stats/PPO
-    # updater RNG state (z_separation_generator)/comm+curriculum state are left at
-    # this run's own freshly-constructed values instead of being overwritten from
-    # the checkpoint. Model weights still load via the normal compat path. Default
-    # False preserves --resume's existing crash-recovery semantics (carry
+    # updater RNG state (z_separation_generator)/comm+curriculum state AND
+    # optimizer moments are left at this run's own freshly-constructed values
+    # instead of being overwritten from the checkpoint. Model weights still load
+    # via the normal compat path (with role/entity Linear expansion as needed).
+    # Default False preserves --resume's existing crash-recovery semantics (carry
     # everything over) for every pre-existing call site.
     warm_start_reset_progress: bool = False
     run_tag: str = "ppo_latent_2v2"
@@ -952,6 +953,14 @@ class PPOConfig:
     # Critic (values()) NEVER receives these -- actor observation geometry only.
     entity_repair_enabled: bool = False
     entity_hidden_dim: int = 32
+
+    # --- Rule-based role conditioning (RULE_BASED_ROLE_CONDITIONING_SPEC) ---
+    # Geometric N/2 DEFEND / N/2 ATTACK bit concatenated into the actor after
+    # CNN/vec (+ optional entity residual). Critic receives the length-N team
+    # role vector via CentralizedCritic.extra. Default OFF = structurally absent.
+    # H_r is frozen at 8 for the exploratory arm (not a screen).
+    role_conditioning_enabled: bool = False
+    role_hold_ticks: int = 8
 
 
 __all__ = ["PPOConfig", "TrainMode"]
