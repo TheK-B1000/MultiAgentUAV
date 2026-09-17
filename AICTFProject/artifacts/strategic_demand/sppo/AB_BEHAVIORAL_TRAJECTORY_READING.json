@@ -1,0 +1,48 @@
+{
+  "record_id": "AB_BEHAVIORAL_TRAJECTORY_READING",
+  "status": "READING_FROZEN",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-16T13:40:00Z",
+  "rests_on": "AB_BEHAVIORAL_TRAJECTORY_RESULT.json (all 6 contracts passed: both trajectories internally distinct by sha, A_tfinal/B_tfinal match every prior crossover's recorded checkpoints, cross-check cell deliberately duplicates A_tfinal, both poles Rule-14 attested)",
+
+  "MECHANICAL_SELECTION_RESULT": {
+    "rule_applied": "B_CHECKPOINT_SCREENING_SPEC.json#SELECTION_RULE, applied exactly as frozen before this data existed",
+    "max_won_among_post_repair_B_checkpoints": {"checkpoint": "B_t200k", "won": 0.750},
+    "threshold": 0.650,
+    "qualifying_by_margin": ["B_t200k (0.750)", "B_t500k (0.688)"],
+    "always_included": "B_tfinal (0.438)",
+    "SELECTED_CANDIDATES": ["B_t200k", "B_t500k", "B_tfinal"],
+    "cap_triggered": false
+  },
+
+  "SHAPE_COMPARISON_A_vs_B": {
+    "A_side": {
+      "GET_FLAG_fraction": "0.480(t0) dips to 0.278(t100k) -> recovers through 0.52-0.61 from t400k onward -> 0.567(tfinal), ABOVE its own t0 baseline",
+      "won": "0.719(t0), dips to 0.656(t200k) -- the single worst A point -- then climbs to 0.81-0.94 from t400k onward, 0.938(tfinal) is A's best point",
+      "reading": "a genuine early dip in both quantities, followed by recovery and stabilization ABOVE the starting baseline. Matches AB_BEHAVIORAL_TRAJECTORY_SPEC.json's A_DRIFTS_THEN_RECOVERS pattern on overall shape."
+    },
+    "B_side": {
+      "GET_FLAG_fraction": "0.516(t0) -> peaks near 0.52-0.54 around t200k-t300k -> declines to 0.36-0.44 from t600k onward -> 0.405(tfinal), BELOW its own t0 baseline",
+      "won": "0.625(t0) -> peaks 0.750(t200k) -> declines with noise to a 0.38-0.44 floor from t800k onward -> 0.438(tfinal), BELOW both t0 and the t200k peak",
+      "reading": "no recovery by tfinal on either quantity -- the trajectory ends worse than where it started, unlike A's."
+    },
+    "HONEST_CAVEAT_point_by_point_noise": "the clean 'GET_FLAG tracks win rate' story from the earlier 3-point diagnosis is a coarse trend, not a tight point-by-point relationship at this 100k-granularity resolution. Counter-examples exist in BOTH trajectories: A_t100k has A's single LOWEST GET_FLAG fraction (0.278) but a still-strong win rate (0.781); B_t300k has B's single HIGHEST GET_FLAG fraction (0.536) but a middling-low win rate (0.531). Switch rate tells a similar story -- B's switch rate (0.15-0.21 throughout) is consistently higher than A's (0.10-0.16), but neither shows a clean monotonic trend across the 10 points; B's peaks mid-trajectory (t500k-t600k, 0.20-0.21) and comes back down by tfinal (0.183), it does not climb steadily to a maximum. The A-vs-B ENDPOINT contrast (A recovers above baseline, B does not) is real and is the most defensible summary; a strict per-checkpoint causal story is not supported at this resolution."
+  },
+
+  "CROSS_CHECK_CONSISTENCY": {
+    "A_tfinal_on_PoleB_this_run": {"won": 0.594, "seeds": "18700001-18700032"},
+    "A3_at_PoleB_first_diagnosis": {"won": 0.6875, "seeds": "18600001-18600032"},
+    "reading": "same checkpoint (sha 94dde69d091a..., confirmed by K3b), two independent n=32 seed blocks, comparable win rates (0.594 vs 0.6875, a ~3-win difference out of 32 -- within ordinary sampling noise for a true rate in the 0.6-0.7 range). The two behavioural diagnoses are mutually consistent.",
+    "additional_corroboration": "on Pole B, A3 uses GET_FLAG MORE (0.654) and switches LESS (0.103) than it does on its own Pole A (0.567 GET_FLAG, 0.126 switch) -- directly consistent with the first diagnosis's counterfactual-replay finding that A3 substitutes GO_TO->GET_FLAG relative to Bfinal."
+  },
+
+  "WHAT_THIS_READING_MAY_NOT_CLAIM": [
+    "any win-rate or gate result -- n=32 per cell, exploratory, no delta computed against a comparator in the A-side/B-side own-pole cells (only the cross-check cell involves both policies)",
+    "a causal mechanism for either trajectory's shape -- correlation across one training run's own checkpoints is not an intervention",
+    "that B_t200k or B_t500k will show positive delta_A/delta_B against frozen A3 -- that is exactly what the next screening step (B_CHECKPOINT_SCREENING_SPEC.json) tests, not yet run",
+    "anything about 6v6 or 2v2"
+  ],
+
+  "NEXT_STEP_per_the_already_frozen_spec": "reserve a fresh exploratory seed block (n=64, disjoint from every prior block) and run the screening crossover: {B_t200k, B_t500k, B_tfinal} each against frozen pi_A3 on BOTH Pole A and Pole B, per B_CHECKPOINT_SCREENING_SPEC.json and its decision-tree amendment. NOT YET AUTHORIZED -- awaiting PI go-ahead."
+}

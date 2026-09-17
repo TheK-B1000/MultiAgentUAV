@@ -1,0 +1,68 @@
+{
+  "record": "train_specialist_scale run manifest",
+  "utc": "2026-09-17T14:05:04Z",
+  "smoke_non_scientific": false,
+  "team_size": 4,
+  "policy": "B",
+  "pole_base": "OP7",
+  "seed": 19000001,
+  "device": "cuda",
+  "git_sha": "8ee8859d855aa91b547df00d05189738e10cb503",
+  "git_dirty": true,
+  "total_timesteps": 200000,
+  "certification_verdict": "CERTIFIED",
+  "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+  "CERTIFIED_OPPONENT": "SDS2_B3_LOCKDEF10_2V1",
+  "LIVE_OPPONENT": "SDS2_B3_LOCKDEF10_2V1",
+  "certified_overlay": {
+    "enable_2v1": true,
+    "lock_defender": 10,
+    "min_alive_for_defender": 4
+  },
+  "live_overlay": {
+    "enable_2v1": true,
+    "lock_defender": 10,
+    "min_alive_for_defender": 4
+  },
+  "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+  "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+  "pole_config_hashes_match": true,
+  "live_pole_attestation_passed": true,
+  "cross_policy_parity": {
+    "lines": [
+      "    A: no genome override (canonical)  overlay={'min_alive_for_defender': 4}",
+      "    B: requires --pole-b-genome-json SDS2_B3_LOCKDEF10_2V1  overlay={'enable_2v1': True, 'lock_defender': 10, 'min_alive_for_defender': 4}"
+    ],
+    "overlay_only_in_A": {},
+    "overlay_only_in_B": {
+      "enable_2v1": true,
+      "lock_defender": 10
+    },
+    "A_requires_override": null,
+    "B_requires_override": "SDS2_B3_LOCKDEF10_2V1"
+  },
+  "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_4v4_specialists\\exploratory_pi_B_specialist_4v4_b3_entity_repair_getflag_preserve\\ckpts",
+  "recipe_inherited_from": "experiments/run_r1_repertoire_training.py::build_r1_config",
+  "pole_b_source": "CANDIDATE_OVERRIDE:SDS2_B3_LOCKDEF10_2V1",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "confirmatory_pending_joint_certification": false,
+  "exploratory_spec": "B_GETFLAG_PRESERVE_SPEC.json",
+  "confirmatory_redesign_spec": null,
+  "distillation_started_by_this_script": false,
+  "evaluation_started_by_this_script": false,
+  "sibling_sep_lambda": 0.0,
+  "sibling_sep_ckpt": "",
+  "sibling_sep_dataset": "",
+  "role_pres_lambda": 0.0,
+  "role_pres_targets": "",
+  "role_pres_style": "",
+  "getflag_preserve_lambda": 0.1,
+  "getflag_preserve_ckpt": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+  "getflag_preserve_ckpt_sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+  "entity_repair_enabled": true,
+  "entity_hidden_dim": 32,
+  "warm_start_from": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+  "resume_from": "artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+  "implements_spec": "B_GETFLAG_PRESERVE_SPEC.json"
+}

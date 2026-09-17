@@ -1,0 +1,47 @@
+{
+  "record_id": "B_CHECKPOINT_SCREENING_DECISION_TREE_AMENDMENT",
+  "status": "AMENDMENT",
+  "utc": "2026-09-16T13:10:00Z",
+  "amends": "B_CHECKPOINT_SCREENING_SPEC.json#PRECOMMITTED_DECISION_TREE",
+  "written_while": "AB_BEHAVIORAL_TRAJECTORY was still running (B_tfinal in progress, cross-check cell not started). No screening or confirmatory crossover of any candidate checkpoint exists yet.",
+  "raised_by": "PI, extending the A_BASIN_EXISTS branch with what happens when confirmation is ambiguous rather than a clean pass, and adding a fourth fallback stage.",
+
+  "THE_GAP_BEING_CLOSED": "the original decision tree specified what happens if a candidate clears BOTH delta point-estimates at screening (A_BASIN_EXISTS -> checkpoint selection/early stopping -> fresh confirmatory crossover) and what happens if none do (NO_BASIN_FOUND -> specialization-preserving objective). It did not specify what happens if the CONFIRMATORY crossover on a screened candidate comes back with the right SIGN on both deltas but fails to clear LCB95>0 -- a real, likely outcome this amendment now covers before it can happen.",
+
+  "REVISED_A_BASIN_EXISTS_SUBTREE": [
+    {
+      "sub_branch": "CONFIRMED",
+      "condition": "the fresh confirmatory crossover on the screened candidate clears LCB95(delta_A)>0 AND LCB95(delta_B)>0",
+      "action": "DONE. Freeze 4v4 with this checkpoint pair. The repair was checkpoint selection / early stopping -- no new training objective was needed. Port the identical recipe (same architecture, same training budget, same evaluation-based checkpoint selection procedure) to 6v6 with no redesign."
+    },
+    {
+      "sub_branch": "PROMISING_BUT_UNCONFIRMED",
+      "condition": "the confirmatory crossover shows delta_A>0 AND delta_B>0 in POINT ESTIMATE, but at least one LCB95 does not clear zero",
+      "reading": "the useful basin is real in direction but not yet separated enough to confirm -- exactly what continuing PPO past it would then erode further, per the original trajectory evidence. This is NOT a failure of the checkpoint-selection idea; it is a signal to STOP training from zero and instead protect the basin while extending it.",
+      "action": {
+        "mechanism": "continue PPO from the selected checkpoint (the same one that was screened, not a fresh restart) against Pole B, adding a preservation term that penalizes divergence from that checkpoint's OWN action distribution on states visited during the continuation: L = L_PPO + lambda * JSD(pi_new(.|s), stopgrad[pi_selected(.|s)]).",
+        "why_JSD_not_the_originally_sketched_KL": "this project already has a near-identical mechanism, rl/custom_ppo/sibling_separation.py, computing JSD(pi_active, stopgrad[pi_reference]) on legality-masked heads with a separate zero_grad/backward/step cadence. Its own docstring states the reason for JSD over a hand-rolled KL: JSD is bounded in [0, ln 2] and symmetric, so it needs no ad-hoc clip the way an unbounded KL would. The needed preservation term is that SAME loss with the sign reversed (minimize JSD -> pull toward, instead of maximize JSD -> push away) and the reference swapped from 'the sibling pole's specialist' to 'this policy's own earlier checkpoint'. This is an adaptation of existing, tested infrastructure (mask/cadence/stop-grad plumbing reused as-is), not a new mechanism built from scratch -- verified by reading the module before this amendment was written, not assumed.",
+        "lambda_screen": {
+          "candidates": [0.02, 0.1, 0.5],
+          "precedent_for_this_range": "the only nonzero sibling_sep_lambda value found anywhere in this codebase (experiments/verify_role_pres_pretrain.py:175) is 0.05, used for the structurally identical JSD-based loss shape. These three candidates span roughly an order of magnitude on either side of that single precedent. THIS IS THIN GROUND, stated plainly: one value from a verification script, not a production run. The screen exists precisely so this weak prior does not have to be trusted -- it only has to be a reasonable place to start looking.",
+          "protocol": "continue each candidate lambda for a SMALL, PRE-DECLARED additional budget (proposed: +200,000 steps, matching the granularity already used for behavioural instrumentation, not a full 1,000,000-step run) from the SAME selected checkpoint, then run the SAME screening-level exploratory crossover (both poles, both deltas, point estimate only, fresh seeds disjoint from every prior block) on each resulting checkpoint.",
+          "selection_among_lambdas": "if more than one lambda produces a positive-direction candidate, take the one with the LARGEST delta_B point estimate for confirmatory testing -- a single, predeclared tie-break, not a post-hoc judgment call."
+        },
+        "then": "the winning (checkpoint, lambda) pair goes through its OWN fresh confirmatory crossover before any pass claim -- exactly the same selection-bias discipline applied to the original screen. If it confirms: DONE (same freeze-and-port action as CONFIRMED above). If it does not: proceed to STATE_CONDITIONED_DIAGNOSIS below."
+      }
+    }
+  ],
+
+  "NEW_FOURTH_BRANCH": {
+    "branch": "STATE_CONDITIONED_DIAGNOSIS",
+    "condition": "reached only if PROMISING_BUT_UNCONFIRMED's preservation-constrained continuation, across all screened lambda values, still fails to produce a confirmable checkpoint",
+    "reading": "simple preservation of the anchor's action distribution is not sufficient -- either the anchor itself is not far enough into the basin, or PPO continues eroding the useful behaviour even under the constraint, or the useful behaviour cannot be characterised as 'stay close to one checkpoint' at all.",
+    "action": {
+      "method": "REUSE the counterfactual-replay methodology already built and validated in experiments/eval_pole_b_behavioral_diagnosis.py (matched-state macro-agreement + substitution-table replay) -- do not build a new comparison tool.",
+      "which_two_checkpoints": "the best-performing preserved checkpoint from the lambda screen (the 'good' reference) versus the FIRST checkpoint along its own continuation trajectory whose absolute Pole-B win rate drops more than 0.15 below the good reference's -- a mechanical definition of 'first clearly worse', fixed now rather than chosen by eye once the continuation trajectory exists.",
+      "goal": "find the SPECIFIC state-conditioned decision PPO changes between those two points (e.g. GO_TO<-GET_FLAG in particular situations, a specific macro-switch pattern, reduced commitment near a particular game event) rather than continuing to reason from aggregate statistics. Only once such a specific mechanism is identified would a targeted intervention (as opposed to another blanket preservation constant) be designed."
+    }
+  },
+
+  "NO_CHANGE_TO": "the SELECTION_RULE, the MEASUREMENT_DESIGN (both poles, both deltas, fresh exploratory seeds), the NO_BASIN_FOUND branch, or any WHAT_THIS_SCREEN_MAY_NOT_CLAIM item in the parent spec -- this amendment only extends what happens AFTER a basin is found at screening, filling the gap between 'screen looks good' and 'confirmed' or 'needs a preservation-constrained follow-up'."
+}

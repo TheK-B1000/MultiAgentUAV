@@ -135,6 +135,10 @@ class PPOUpdater:
         """Read role-preservation runner at USE time; attachment occurs after loading."""
         return getattr(self.runtime, "role_pres_runner", None)
 
+    def _getflag_preserve_runner(self):
+        """Read GET_FLAG-preservation runner at USE time; attachment occurs after loading."""
+        return getattr(self.runtime, "getflag_preserve_runner", None)
+
     def _exp2_teacher_runner(self):
         """Read the EXP2 runner at use time; attachment occurs after loading."""
         return getattr(self.runtime, "exp2_teacher_compression_runner", None)
@@ -449,6 +453,20 @@ class PPOUpdater:
                         )
                     role_runner.note_ppo_minibatch(batch)
                     accumulator.record_minibatch(role_runner.telemetry())
+                getflag_runner = self._getflag_preserve_runner()
+                if getflag_runner is not None:
+                    if (
+                        runner is not None
+                        or exp2_runner is not None
+                        or sibling_runner is not None
+                        or role_runner is not None
+                    ):
+                        raise RuntimeError(
+                            "GET_FLAG preservation cannot share a run with SAPPO, EXP2, "
+                            "sibling separation, or role preservation"
+                        )
+                    getflag_runner.note_ppo_minibatch(batch)
+                    accumulator.record_minibatch(getflag_runner.telemetry())
                 if exp2_runner is not None:
                     # Pass the actual completed PPO minibatch so teacher logits
                     # are evaluated on the student's on-policy states and z.

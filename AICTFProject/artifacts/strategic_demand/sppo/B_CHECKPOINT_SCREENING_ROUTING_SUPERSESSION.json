@@ -1,0 +1,17 @@
+{
+  "record_id": "B_CHECKPOINT_SCREENING_ROUTING_SUPERSESSION",
+  "status": "SUPERSESSION",
+  "utc": "2026-09-17T12:15:00Z",
+  "supersedes": "B_CHECKPOINT_SCREENING_SPEC.json#PRECOMMITTED_DECISION_TREE[NO_BASIN_FOUND].action",
+  "does_not_delete_or_edit": "B_CHECKPOINT_SCREENING_SPEC.json is left exactly as originally frozen. This record sits alongside it, not in place of it.",
+
+  "THE_SUPERSESSION": "B_CHECKPOINT_SCREENING_SPEC.NO_BASIN_FOUND -> JSD [superseded]. Original prescription: 'continue from the best available B checkpoint (by absolute Pole-B performance) with an added JSD-preservation anchor'. Superseded by the routing decision below, made by the PI after the screen's own result clarified what the branch actually meant.",
+
+  "REASON_stated_by_the_PI_recorded_verbatim_in_substance": "preservation requires evidence that the anchor already contains the target crossover behaviour; the basin screen found none. B_t200k -- the checkpoint the original JSD branch would have anchored to, being the highest absolute-Pole-B-win-rate candidate -- showed delta_A=-0.063 and delta_B=-0.125 against frozen A3: it is not merely insufficiently separated, it never demonstrated the desired specialization at all, and on Pole A it actually outperforms A3. Anchoring future training to a policy that was never shown to contain the target behaviour is the wrong object to preserve. Route to state-conditioned diagnosis before any further B training.",
+
+  "WHY_THIS_IS_A_CORRECTION_NOT_JUST_A_CHOICE": "the original NO_BASIN_FOUND branch was written on 2026-09-16 without yet distinguishing 'no candidate shows separation, so preserve the best imperfect one anyway' from 'no candidate shows separation, and the deltas reveal training PRODUCES separation only in the wrong direction (Bfinal: delta_A=+0.203, delta_B=-0.203)'. The screening result surfaced the second reading: training clearly CAN move the policy into a regime-dependent state (Bfinal is confirmed different on the two poles, just backwards), which weakens the premise that nothing exists to compare and strengthens the case for finding WHAT changes between a less-bad and more-bad B checkpoint before deciding what, if anything, to preserve.",
+
+  "WHAT_GOVERNS_NOW": "B_CHECKPOINT_SCREENING_DECISION_TREE_AMENDMENT.json#NEW_FOURTH_BRANCH (STATE_CONDITIONED_DIAGNOSIS), reached directly from NO_BASIN_FOUND rather than only after a preservation continuation that will not now be run. See STATE_CONDITIONED_DIAGNOSIS_PAIR_SELECTION_SPEC.json for how the comparison pair is chosen for THIS entry path -- the amendment's own pair rule ('the best-performing preserved checkpoint... versus the first checkpoint along ITS OWN continuation trajectory...') presupposes a preservation continuation that is being skipped, so it does not directly apply and a new mechanical rule is frozen separately rather than the pair being chosen by inspection.",
+
+  "WHAT_IS_NOT_CLOSED_BY_THIS": "JSD-preservation itself is not ruled out in general -- only its application to B_t200k as the anchor, at this point in the investigation, given this evidence. If the state-conditioned diagnosis identifies a SPECIFIC useful decision or state class, a targeted preservation constraint on THAT specific behaviour remains a live option, explicitly named by the PI as the intended next-next step."
+}

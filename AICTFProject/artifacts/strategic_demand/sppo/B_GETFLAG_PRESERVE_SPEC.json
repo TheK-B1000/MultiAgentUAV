@@ -1,0 +1,120 @@
+{
+  "record_id": "B_GETFLAG_PRESERVE_SPEC",
+  "status": "FROZEN_BEFORE_ANY_STEP",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-17T14:05:00Z",
+  "authority": "PI, 2026-09-17: one small B-only intervention; not another giant retrain. Preserve previously learned state-conditioned GET_FLAG decisions, do not reward GET_FLAG frequency.",
+  "governs": "A_FREEZE_RULE.json (A remains frozen comparator). B_CHECKPOINT_SCREENING_READING.json (NO_BASIN_FOUND). STATE_CONDITIONED_DIAGNOSIS_READING.json (genuine finding: not-carrying GET_FLAG→GO_TO).",
+  "classification": "DIAGNOSTIC / EXPLORATORY. Not PAPER-FAITHFUL. Not a confirmatory Δ_B pass.",
+
+  "THE_HYPOTHESIS_candidate_not_established": "When not carrying, continued B training systematically shifts GET_FLAG → GO_TO across essentially every context bucket in STATE_CONDITIONED_DIAGNOSIS. That is a real executed-behavior difference (unlike the retracted carrying GO_HOME label disagreement). Outcome association was weak, so this is a candidate causal lever, not 'the reason Δ_B fails'.",
+
+  "ANCHOR_B_better_mechanical_not_B200k": {
+    "rule": "use the B_better checkpoint already mechanically defined in STATE_CONDITIONED_DIAGNOSIS_SPEC.json, NOT the trajectory-win-rate peak.",
+    "B_better": "B_t500k",
+    "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+    "sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+    "why_not_B200k": "B_CHECKPOINT_SCREENING_READING: Δ_A=-0.0625, Δ_B=-0.125. B200k is not a specialist. The intervention tests whether preserving decisions that later disappear lets subsequent B learning develop specialization; it does not claim the anchor is already specialized."
+  },
+
+  "LOSS": {
+    "formula": "L = L_PPO + λ * 1[¬carrying_i] * 1[π_{B*} favors GET_FLAG] * D_macro(π_θ, π_{B*})",
+    "D_macro": "−log π_θ(GET_FLAG | o_i) on gated agent-heads only. Macro head only. Waypoint / mine heads are never in D. This is NOT JSD/KL on the full action distribution.",
+    "why_macro_only": "global JSD/KL could prevent useful learning elsewhere. The diagnosis identified one specific drift; constrain that drift.",
+    "carrying_source": "per-agent vec[..., 10] (own_carrying), the same field gpu_env/_core/_observations.py writes. Team-level 'any carrying' is forbidden as the gate.",
+    "anchor_favors_GET_FLAG": "argmax of the frozen anchor's legality-masked macro head equals MacroAction.GET_FLAG (=2).",
+    "decision_points_only": "gated heads must also be decision-eligible (more than one legal macro), matching sibling_separation.decision_eligible_agents. Locked commit ticks contribute no gradient.",
+    "cadence": "separate zero_grad/backward/step on cadence=4, never sharing a backward with the PPO surrogate (same discipline as sibling_sep / role_pres).",
+    "lambda": 0.1,
+    "lambda_rationale": "single exploratory value, the middle of the previously proposed sibling-sep screen {0.02, 0.1, 0.5}. Thin prior. THIS IS NOT A LAMBDA SCREEN — one run only.",
+    "structurally_absent_when_lambda_0": true
+  },
+
+  "EXPLICITLY_FORBIDDEN": [
+    "r += α 1[GET_FLAG] or any GET_FLAG-frequency / occupancy target",
+    "forcing a global GET_FLAG percentage",
+    "global JSD or KL on the full action distribution",
+    "carrier-path changes (GO_HOME / own_carrying override) — those disagreements were retracted as execution-irrelevant",
+    "any A training, A architecture, A reward, or A-specific diagnostic",
+    "a 1,000,000-step retrain from scratch",
+    "auto-launching confirmatory Stage 2 regardless of the 2x2 cell"
+  ],
+
+  "TRAINING": {
+    "policy": "B",
+    "pole": "certified B3-3 (SDS2_B3_LOCKDEF10_2V1) via --pole-b-genome-json. Missing this flag is a known train/eval invalidation.",
+    "entity_repair_enabled": true,
+    "warm_start": "B_t500k (same zip as the frozen anchor). Weight initialization only: warm_start_reset_progress=True, global_step starts at 0, this run's budget is 200,000 steps, not an extension of the original 1M.",
+    "total_timesteps": 200000,
+    "seeds": {"pi_B_4v4": 19000001},
+    "device": "cuda",
+    "run_label_suffix": "_b3_entity_repair_getflag_preserve",
+    "launcher": "experiments/train_specialist_scale.py with --exploratory-spec this file (so artifacts cannot be mistaken for confirmatory)"
+  },
+
+  "EVALUATION_after_training_not_during": {
+    "do_not_eval_until_training_writes_final_ckpt": true,
+    "manipulation_check": {
+      "question": "Did GET_FLAG→GO_TO drift actually decrease on the diagnosed non-carrying states?",
+      "instrument": "reuse eval_state_conditioned_diagnosis.py matched-state protocol",
+      "driver": "Bfinal (same as the sealed diagnosis) so visit distribution is paired",
+      "seeds": "18900001-18900048 (subdivides STATE_CONDITIONED_DIAGNOSIS; matched-state, not a new independent claim)",
+      "query": "the NEW continuation checkpoint, counterfactually, in the slot the diagnosis used for B_worse",
+      "metric": "among agent-steps with carrying=False AND B_better argmax=GET_FLAG, P(student argmax=GO_TO)",
+      "baseline": "the same metric on the sealed diagnosis's Bfinal queries (computed from state_conditioned_diagnosis_agent_step_rows.csv before this run's eval is interpreted)",
+      "manipulated": "NEW rate is STRICTLY lower than the Bfinal baseline"
+    },
+    "delta_B_check": {
+      "question": "Did Δ_B move in the correct direction without destroying the joint specialization requirement?",
+      "instrument": "experiments/eval_specialist_crossover_scaled.py, same protocol as B_CHECKPOINT_SCREENING (paired bootstrap, both poles, frozen pi_A3 comparator)",
+      "n": 64,
+      "seed_class": "exploratory",
+      "seeds": "fresh block reserved immediately before that eval, disjoint from 187/188/189/190",
+      "estimands": {
+        "delta_A": "V(π_A3, A) − V(π_new, A)",
+        "delta_B": "V(π_new, B) − V(π_A3, B)"
+      },
+      "ΔB_improved": "point estimate δ_B(π_new) > δ_B(B_t500k) = −0.046875 (the screened starting checkpoint, same protocol)",
+      "joint_not_destroyed": "point estimate δ_A(π_new) ≥ 0. If δ_A < 0 the policy is reading as a Pole-A generalist (the B200k failure mode) and the YES/YES cell cannot fire."
+    }
+  },
+
+  "PRECOMMITTED_2x2_KILL_TABLE": {
+    "axes": {
+      "drift_manipulated": "manipulation_check.manipulated",
+      "delta_B_improved": "delta_B_check.ΔB_improved"
+    },
+    "cells": [
+      {
+        "drift_manipulated": true,
+        "delta_B_improved": true,
+        "meaning": "Promising causal repair. Scale/confirm ONLY if joint_not_destroyed also holds. That confirmatory crossover is a separate reserved seed block, not auto-launched by this spec."
+      },
+      {
+        "drift_manipulated": true,
+        "delta_B_improved": false,
+        "meaning": "KILL THIS BRANCH. Drift is a symptom, not the Δ_B mechanism. Do not polish GET_FLAG preservation, do not retune λ, do not run another week on this hypothesis."
+      },
+      {
+        "drift_manipulated": false,
+        "delta_B_improved": false,
+        "meaning": "Intervention failed to manipulate the target. Not a test of the hypothesis. Report as failed manipulation; do not treat as evidence against the drift being causal."
+      },
+      {
+        "drift_manipulated": false,
+        "delta_B_improved": true,
+        "meaning": "Something else about the continuation helped. Diagnose before claiming mechanism. Do not credit GET_FLAG preservation."
+      }
+    ],
+    "THE_KILL_RULE_verbatim": "If we successfully manipulate the diagnosed GET_FLAG→GO_TO drift but Δ_B does not improve, this branch dies."
+  },
+
+  "WHAT_THIS_MAY_NOT_CLAIM": [
+    "that GET_FLAG→GO_TO causes the Δ_B failure — that is what the 2x2 tests",
+    "any confirmatory specialization pass",
+    "that B_t500k is already a specialist",
+    "anything about 6v6 or 2v2",
+    "a license to reopen observation repair, commitment repair, entity architecture, or A training"
+  ]
+}

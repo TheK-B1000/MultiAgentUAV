@@ -16,7 +16,14 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-13 — Action-interface diagnosis sealed:
+> **Last updated:** 2026-09-17 — Frozen `B_GETFLAG_PRESERVE_SPEC.json`: one
+> short B-only continuation from mechanically-defined B_better (`B_t500k`),
+> 200k steps, gated non-carrying GET_FLAG macro preservation (no GET_FLAG
+> reward, no global JSD, no A training). 2×2 kill table frozen before launch:
+> if the diagnosed GET_FLAG→GO_TO drift is manipulated and Δ_B does not
+> improve, the branch dies. A remains frozen (`A_FREEZE_RULE.json`).
+>
+> Prior 2026-09-13 — Action-interface diagnosis sealed:
 > `ACTION_INTERFACE_DECOMP_SEALED_READING.json` (Rule-12 PASS). Binder is
 > **stale GO_TO commitment** (\(L_C^{4v4}=+0.71\)), not W50 projection
 > (\(L_S^{4v4}=0\)). Next: `REPAIRED_GO_TO_H1_PROJECTED_SPEC.json`

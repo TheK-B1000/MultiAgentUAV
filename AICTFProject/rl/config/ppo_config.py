@@ -127,6 +127,15 @@ class PPOConfig:
     role_pres_cadence: int = 4
     role_pres_temperature: float = 0.5
 
+    # B-only non-carrying GET_FLAG macro preservation (2026-09-17).
+    # Default OFF = structurally absent. See
+    # artifacts/strategic_demand/sppo/B_GETFLAG_PRESERVE_SPEC.json.
+    # Mutually exclusive with sibling_sep_lambda > 0 and role_pres_lambda > 0.
+    getflag_preserve_lambda: float = 0.0
+    getflag_preserve_ckpt: str = ""
+    getflag_preserve_ckpt_sha256: str = ""
+    getflag_preserve_cadence: int = 4
+
     # EXP2 K=2 supervised repertoire compression. Default OFF means the two
     # frozen teacher checkpoints are never opened and no teacher runner exists.
     # These fields are separate from SAPPO's offline hard-action dataset path:

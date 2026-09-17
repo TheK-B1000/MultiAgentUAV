@@ -424,6 +424,12 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **B-only GET_FLAG preservation (diagnostic, default OFF):** Added
+  `PPOConfig.getflag_preserve_{lambda,ckpt,ckpt_sha256,cadence}` (all default
+  off / empty) for a gated non-carrying GET_FLAG *macro* NLL, not full-action
+  JSD. Regenerated `tests/preset_snapshots.json`; the only change to every
+  existing preset entry is the four additive defaults. No paper-faithful
+  objective, actor path, or alias changed.
 - **PSRO weighted snapshot sampling snapshot resync:**
   `PPOConfig.snapshot_opponent_weights` (default empty tuple = uniform over
   `snapshot_opponent_pool`) was added for Nash-weighted / meta-strategy sampling

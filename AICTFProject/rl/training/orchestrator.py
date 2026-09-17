@@ -300,6 +300,7 @@ def orchestrate_training_run(
         _maybe_attach_exp2_teacher_compression(cfg, trainer)
         _maybe_attach_sibling_separation(cfg, trainer)
         _maybe_attach_role_preservation(cfg, trainer)
+        _maybe_attach_getflag_preservation(cfg, trainer)
         _maybe_attach_sppo_ranking(cfg, trainer)
 
         # Runtime-observer seam. Callers attach auditors to the live trainer here,
@@ -653,6 +654,8 @@ def _maybe_attach_role_preservation(cfg, trainer) -> None:
         raise RuntimeError("role preservation cannot coexist with SAPPO anchor")
     if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
         raise RuntimeError("role preservation cannot coexist with EXP2 teacher compression")
+    if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("role preservation cannot coexist with GET_FLAG preservation")
 
     from rl.custom_ppo.role_preservation import RolePresRunner, load_role_targets
 
@@ -674,6 +677,73 @@ def _maybe_attach_role_preservation(cfg, trainer) -> None:
         f"lambda={runner.lambda_role} cadence=1:{runner.cadence} "
         f"temperature={runner.temperature} "
         f"targets={targets_path}"
+    )
+
+
+def _maybe_attach_getflag_preservation(cfg, trainer) -> None:
+    """Attach gated GET_FLAG macro preservation, or attach nothing.
+
+    λ==0 or empty path = structurally absent. Separate zero_grad/backward/step.
+    """
+    lam = float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0)
+    ckpt = str(getattr(cfg, "getflag_preserve_ckpt", "") or "")
+    if lam <= 0.0:
+        return
+    if not ckpt:
+        raise RuntimeError("getflag_preserve_lambda > 0 requires getflag_preserve_ckpt")
+    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with sibling separation")
+    if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with role preservation")
+    if getattr(trainer, "sibling_sep_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with sibling_sep_runner")
+    if getattr(trainer, "role_pres_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with role_pres_runner")
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with EXP2 teacher compression")
+
+    ckpt_path = Path(ckpt)
+    if not ckpt_path.is_file():
+        raise RuntimeError(f"GET_FLAG-preservation anchor missing: {ckpt_path}")
+    expected = str(getattr(cfg, "getflag_preserve_ckpt_sha256", "") or "").lower()
+    actual = _sha256(ckpt_path)
+    if expected and actual != expected:
+        raise RuntimeError(
+            f"GET_FLAG-preservation anchor hash mismatch for {ckpt_path}: "
+            f"{actual} != {expected}"
+        )
+
+    from rl.custom_ppo.getflag_preservation import GetflagPreserveRunner
+    from rl.custom_ppo.inference import load_custom_ppo_policy
+
+    loaded = load_custom_ppo_policy(
+        str(ckpt_path),
+        trainer.env.observation_space,
+        trainer.env.action_space,
+        device=str(trainer.device),
+    )
+    anchor = loaded.model
+    if bool(getattr(anchor, "uses_latent_strategy", False)):
+        raise RuntimeError("GET_FLAG-preservation anchor must be a non-latent specialist")
+    if tuple(anchor.action_dims) != tuple(trainer.model.action_dims):
+        raise RuntimeError("GET_FLAG-preservation anchor action space differs from student")
+
+    runner = GetflagPreserveRunner(
+        trainer.model,
+        trainer.optimizer,
+        anchor,
+        lambda_preserve=lam,
+        cadence=int(getattr(cfg, "getflag_preserve_cadence", 4)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+    )
+    trainer.getflag_preserve_runner = runner
+    print(
+        f"[GETFLAG-PRESERVE] non-carrying GET_FLAG macro preservation ATTACHED: "
+        f"D=NLL(GET_FLAG) on gated agent-heads only (not full-action JSD/KL) "
+        f"lambda={runner.lambda_preserve} cadence=1:{runner.cadence} "
+        f"anchor={ckpt_path.name} sha={actual[:12]}..."
     )
 
 

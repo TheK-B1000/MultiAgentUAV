@@ -855,7 +855,79 @@
       "spec": "POLE_B_BEHAVIORAL_DIAGNOSIS_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-16T00:57:35Z"
+    },
+    {
+      "experiment_id": "AB_BEHAVIORAL_TRAJECTORY",
+      "purpose": "Checkpoint-trajectory behavioural comparison: A3 own-trajectory on Pole A (11 pts) vs B3-corrected own-trajectory on Pole B (11 pts), 100k granularity, plus one cross-check (A tfinal on Pole B). Tests whether the GET_FLAG->GO_TO drift found in POLE_B_BEHAVIORAL_DIAGNOSIS is B-specific, general to both runs, or a phase A passes through and exits. No win-rate gate; behavioural characterization only.",
+      "seed_class": "exploratory",
+      "lo": 18700001,
+      "hi": 18700032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "AB_BEHAVIORAL_TRAJECTORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-16T11:41:55Z"
+    },
+    {
+      "experiment_id": "B_CHECKPOINT_SCREENING",
+      "purpose": "Screening crossover for B_CHECKPOINT_SCREENING_SPEC.json: mechanically selected candidates {B_t200k, B_t500k, B_tfinal} vs frozen pi_A3, both poles, both deltas (delta_A and delta_B), point estimate only (no LCB95 gate at this stage). Answers whether a positive-delta_B B-basin already exists in the trajectory. NOT confirmatory -- any candidate clearing both deltas still requires its own fresh confirmatory joint crossover before any pass claim.",
+      "seed_class": "exploratory",
+      "lo": 18800001,
+      "hi": 18800064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "B_CHECKPOINT_SCREENING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-16T21:01:03Z"
+    },
+    {
+      "experiment_id": "STATE_CONDITIONED_DIAGNOSIS",
+      "purpose": "Context-bucketed macro-substitution diagnosis: B_worse (Bfinal, drives real rollout) vs B_better (B_t500k) vs frozen A3 (tertiary), all queried at every visited Pole-B state. Mechanical pair selected by delta_B ranking among B_CHECKPOINT_SCREENING candidates (B_t500k=best, Bfinal=worst), NOT by standalone win rate. Per-agent context buckets (carrying, pressured, near enemy/own flag, prev macro), fixed reporting threshold. Supersedes the JSD-preservation routing per B_CHECKPOINT_SCREENING_ROUTING_SUPERSESSION.json.",
+      "seed_class": "exploratory",
+      "lo": 18900001,
+      "hi": 18900048,
+      "n": 48,
+      "status": "RESERVED",
+      "spec": "STATE_CONDITIONED_DIAGNOSIS_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T12:05:06Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE_MANIPULATION",
+      "purpose": "Matched-state manipulation check for B_GETFLAG_PRESERVE: Bfinal drives, NEW continuation queried counterfactually on non-carrying + B_better=GET_FLAG states. Same seeds as sealed STATE_CONDITIONED_DIAGNOSIS for visit pairing.",
+      "seed_class": "exploratory",
+      "lo": 18900001,
+      "hi": 18900048,
+      "n": 48,
+      "status": "RESERVED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": "STATE_CONDITIONED_DIAGNOSIS",
+      "allocated_utc": "2026-09-17T15:00:41Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE",
+      "purpose": "Short B-only continuation from mechanically-defined B_better (B_t500k) with a gated non-carrying GET_FLAG macro-preservation loss. Tests whether reducing the diagnosed GET_FLAG\u2192GO_TO drift moves \u0394_B. Exploratory, 200k steps, not confirmatory. Eval seeds for the post-training crossover are reserved later, not here.",
+      "seed_class": "exploratory",
+      "lo": 19000001,
+      "hi": 19000001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T14:05:00Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE_CROSSOVER",
+      "purpose": "64-seed exploratory crossover for B_GETFLAG_PRESERVE_SPEC delta_B_check: NEW continuation vs frozen pi_A3, both poles, both deltas, point estimate. Manipulation check uses subdivided STATE_CONDITIONED_DIAGNOSIS seeds 18900001-48 separately.",
+      "seed_class": "exploratory",
+      "lo": 19100001,
+      "hi": 19100064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T15:00:22Z"
     }
   ],
-  "updated_utc": "2026-09-16T00:57:35Z"
+  "updated_utc": "2026-09-17T15:00:41Z"
 }

@@ -253,6 +253,13 @@ def main() -> int:
                     help="path to frozen role_targets.json from collect_role_targets_4v4_b3.py")
     ap.add_argument("--role-pres-style", default="",
                     help="GUARD or BREACH — which frozen target this specialist should match")
+    ap.add_argument("--getflag-preserve-lambda", type=float, default=0.0,
+                    help="non-carrying GET_FLAG macro-preservation coefficient. 0 = OFF "
+                         "(structurally absent). See B_GETFLAG_PRESERVE_SPEC.json.")
+    ap.add_argument("--getflag-preserve-ckpt", default="",
+                    help="frozen B_better zip used as stop-grad GET_FLAG anchor")
+    ap.add_argument("--getflag-preserve-ckpt-sha256", default="",
+                    help="expected sha256 of --getflag-preserve-ckpt (fail-closed on mismatch)")
     ap.add_argument("--resume", default="",
                     help="resume from an existing checkpoint zip in this run's ckpt dir "
                          "(crash recovery). Sets load_path, appends metrics, and allows "
@@ -494,6 +501,31 @@ def main() -> int:
             "refusing a silently disabled intervention"
         )
 
+    gf_lam = float(args.getflag_preserve_lambda or 0.0)
+    if gf_lam > 0.0:
+        if not args.getflag_preserve_ckpt:
+            raise SystemExit(
+                "FAIL-CLOSED: --getflag-preserve-lambda > 0 requires --getflag-preserve-ckpt"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: GET_FLAG preservation cannot coexist with sibling-sep")
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: GET_FLAG preservation cannot coexist with role-pres")
+        cfg.getflag_preserve_lambda = gf_lam
+        cfg.getflag_preserve_ckpt = str(args.getflag_preserve_ckpt)
+        cfg.getflag_preserve_ckpt_sha256 = str(args.getflag_preserve_ckpt_sha256 or "")
+        cfg.getflag_preserve_cadence = 4
+        if not cfg.getflag_preserve_ckpt_sha256:
+            raise SystemExit(
+                "FAIL-CLOSED: --getflag-preserve-ckpt-sha256 is required when the "
+                "preservation loss is on (anchor identity must be pinned, not assumed)"
+            )
+    elif args.getflag_preserve_ckpt or args.getflag_preserve_ckpt_sha256:
+        raise SystemExit(
+            "FAIL-CLOSED: GET_FLAG-preserve ckpt/sha provided but "
+            "--getflag-preserve-lambda is 0; refusing a silently disabled intervention"
+        )
+
     if int(getattr(cfg, "max_blue_agents", -1)) != n:
         raise SystemExit(f"FAIL-CLOSED: cfg.max_blue_agents={getattr(cfg,'max_blue_agents',None)} "
                          f"!= team size {n}; AGENTS propagation did not reach build_r1_config")
@@ -592,6 +624,10 @@ def main() -> int:
     if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
         print(f"  role_pres        lambda={cfg.role_pres_lambda}  "
               f"style={cfg.role_pres_style}  targets={cfg.role_pres_targets}")
+    if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  getflag_preserve lambda={cfg.getflag_preserve_lambda}  "
+              f"anchor={cfg.getflag_preserve_ckpt}  "
+              f"sha={str(cfg.getflag_preserve_ckpt_sha256)[:12]}...")
     if bool(getattr(cfg, "entity_repair_enabled", False)):
         print(f"  entity_repair    enabled  hidden_dim={cfg.entity_hidden_dim}  "
              f"warm_start={getattr(cfg, 'load_path', None) or '(none -- fresh init)'}")
@@ -663,17 +699,24 @@ def main() -> int:
         "role_pres_lambda": float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0),
         "role_pres_targets": str(getattr(cfg, "role_pres_targets", "") or ""),
         "role_pres_style": str(getattr(cfg, "role_pres_style", "") or ""),
+        "getflag_preserve_lambda": float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0),
+        "getflag_preserve_ckpt": str(getattr(cfg, "getflag_preserve_ckpt", "") or ""),
+        "getflag_preserve_ckpt_sha256": str(getattr(cfg, "getflag_preserve_ckpt_sha256", "") or ""),
         "entity_repair_enabled": bool(getattr(cfg, "entity_repair_enabled", False)),
         "entity_hidden_dim": int(getattr(cfg, "entity_hidden_dim", 32)),
         "warm_start_from": (str(load_path_arg) if load_path_arg else None),
         "resume_from": (str(cfg.load_path) if getattr(cfg, "load_path", None) else None),
         "implements_spec": (
-            "4V4_B3_ROLE_PRESERVATION_SPEC.json"
-            if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+            "B_GETFLAG_PRESERVE_SPEC.json"
+            if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0
             else (
-                "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
-                if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
-                else None
+                "4V4_B3_ROLE_PRESERVATION_SPEC.json"
+                if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+                else (
+                    "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
+                    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
+                    else None
+                )
             )
         ),
     }, indent=2), encoding="utf-8")

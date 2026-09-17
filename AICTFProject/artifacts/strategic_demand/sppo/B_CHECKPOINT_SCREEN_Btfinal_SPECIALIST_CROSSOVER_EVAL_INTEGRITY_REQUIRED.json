@@ -1,0 +1,14 @@
+{
+  "record": "B_CHECKPOINT_SCREEN_Btfinal specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-17T11:39:14Z",
+  "implements": "B_CHECKPOINT_SCREENING_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.203125,
+    "delta_B": -0.203125
+  },
+  "rule": "requires a row-level integrity audit before any verdict-bearing result. Raw rows: b_checkpoint_screen_btfinal_specialist_crossover_eval_rows.csv."
+}
