@@ -1,0 +1,14 @@
+{
+  "record": "RULE_ROLE_4V4 specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-17T20:12:43Z",
+  "implements": "RULE_BASED_ROLE_CONDITIONING_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.203125,
+    "delta_B": -0.046875
+  },
+  "rule": "requires a row-level integrity audit before any verdict-bearing result. Raw rows: rule_role_4v4_specialist_crossover_eval_rows.csv."
+}

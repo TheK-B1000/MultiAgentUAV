@@ -918,16 +918,42 @@
     },
     {
       "experiment_id": "B_GETFLAG_PRESERVE_CROSSOVER",
-      "purpose": "64-seed exploratory crossover for B_GETFLAG_PRESERVE_SPEC delta_B_check: NEW continuation vs frozen pi_A3, both poles, both deltas, point estimate. Manipulation check uses subdivided STATE_CONDITIONED_DIAGNOSIS seeds 18900001-48 separately.",
+      "purpose": "RETIRED: originally reserved 19100001-19100064 for GETFLAG delta_B_check, but ROLE training spent 19100001. See B_GETFLAG_PRESERVE_CROSSOVER_SEED_RETIREMENT.json. Replacement block below.",
       "seed_class": "exploratory",
       "lo": 19100001,
       "hi": 19100064,
       "n": 64,
+      "status": "RETIRED_CONTAMINATED_BY_ROLE_TRAINING_SEED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T15:00:22Z",
+      "retired_utc": "2026-09-17T20:40:00Z"
+    },
+    {
+      "experiment_id": "RULE_ROLE_4V4_CROSSOVER",
+      "purpose": "Exploratory 4v4 specialist crossover for RULE_BASED_ROLE_CONDITIONING_SPEC.json EVALUATION_after_short_run: frozen pi_A3 vs B_ROLE-final, both poles, both deltas (delta_A / delta_B), n=64, seeds 19200001-19200064. Point-estimate exploratory reading vs B_t500k screen; NOT confirmatory. Disjoint from GETFLAG 189/190/191 and ROLE training 19100001.",
+      "seed_class": "exploratory",
+      "lo": 19200001,
+      "hi": 19200064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "RULE_BASED_ROLE_CONDITIONING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T17:18:00Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE_CROSSOVER",
+      "purpose": "64-seed exploratory crossover for B_GETFLAG_PRESERVE_SPEC delta_B_check (replacement after 191xxxx retirement): GETFLAG-preserve final vs frozen pi_A3, both poles, both deltas. Completes the 2x2 kill table with already-sealed manipulated=true.",
+      "seed_class": "exploratory",
+      "lo": 19300001,
+      "hi": 19300064,
+      "n": 64,
       "status": "RESERVED",
       "spec": "B_GETFLAG_PRESERVE_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-17T15:00:22Z"
+      "allocated_utc": "2026-09-17T20:40:00Z",
+      "replaces": "19100001-19100064"
     }
   ],
-  "updated_utc": "2026-09-17T15:00:41Z"
+  "updated_utc": "2026-09-17T20:40:00Z"
 }

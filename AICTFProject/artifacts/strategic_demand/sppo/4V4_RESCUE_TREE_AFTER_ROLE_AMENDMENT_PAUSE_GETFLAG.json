@@ -1,0 +1,29 @@
+{
+  "record_id": "4V4_RESCUE_TREE_AFTER_ROLE_AMENDMENT_PAUSE_GETFLAG",
+  "status": "AMENDMENT",
+  "utc": "2026-09-17T20:45:00Z",
+  "amends": "4V4_RESCUE_TREE_AFTER_ROLE.json",
+  "authority": "PI, 2026-09-17: pause GETFLAG crossover; assignment diagnostic is next; zero GPU on GETFLAG for now.",
+
+  "SEQUENCE_LOCKED_NOW": [
+    "1. ASSIGNMENT diagnostic ONLY (teacher who-handles-what exposure) — no PPO, no Assignment Conditioning training yet",
+    "2. GETFLAG preserve exploratory crossover remains PAUSED (B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json); resume later with frozen n=64 protocol — branch intact",
+    "3. If assignment resolves measured ambiguity: freeze Assignment Conditioning v1, then short B train + crossover",
+    "4. Combine GETFLAG+assignment ONLY if each independent result justifies it",
+    "5. Separately inspect centralized critic / credit path before any COMA-class jump"
+  ],
+
+  "CLOSED_unchanged": {
+    "binary_ROLE_2_2": "insufficient for Delta_B recovery; no 400k ROLE, no H_r retune, no 3/1 roles, no 6v6 port"
+  },
+
+  "GETFLAG_status": "MANIPULATION CONFIRMED / OUTCOME UNEVALUATED",
+
+  "NOT_AUTHORIZED_YET": [
+    "GETFLAG specialization crossover (paused)",
+    "Assignment Conditioning training",
+    "GETFLAG + ROLE or GETFLAG + Assignment combination",
+    "COMA or other algorithm swap",
+    "6v6 port of ROLE or Assignment"
+  ]
+}

@@ -169,9 +169,33 @@ def main() -> int:
         if getattr(pol.model, "uses_latent_strategy", False):
             raise SystemExit(f"REFUSING: {n} is latent-conditioned; specialists must be single-strategy")
 
+    # Rule-role policies require obs['roles'] at predict time (fail-closed in
+    # CustomPPOInferencePolicy). Inject the same geometric RoleHoldState path
+    # used in training (RULE_BASED_ROLE_CONDITIONING_SPEC: H_r=8). Non-role
+    # policies are untouched.
+    from rl.custom_ppo.rule_role_assignment import RoleHoldState, roles_from_core
+
+    def _maybe_attach_roles(obs, core, hold: RoleHoldState | None, *, force: bool):
+        if hold is None:
+            return obs
+        roles = roles_from_core(core, hold, force=force, advance_age=True)
+        out = dict(obs)
+        out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
+        return out
+
     def run_cell(policy, pole: str, seed: int) -> dict:
         env = R2.build_env(device, seed)
         core = env.core
+        role_hold = None
+        if bool(getattr(policy.model, "role_conditioning_enabled", False)):
+            hold_ticks = int(getattr(policy.model, "role_hold_ticks", 0) or 0)
+            if hold_ticks < 1:
+                # Checkpoints may only store the enable bit; SPEC locks H_r=8.
+                hold_ticks = 8
+            role_hold = RoleHoldState(
+                int(env.num_envs), int(policy.model.n_agents),
+                hold_ticks=hold_ticks, device=device,
+            )
         try:
             policy.reset_strategy()
             core._bt_profile_override = None
@@ -187,6 +211,7 @@ def main() -> int:
             # policy (predict() only reads these keys when the loaded model's
             # entity_encoder is not None); required for pi_A3/pi_B3.
             obs = augment_obs_with_entities(obs, core, side="blue")
+            obs = _maybe_attach_roles(obs, core, role_hold, force=True)
             assert_live_opponent_batch(core, genomes, allowed_keys=(key,),
                                        context=f"{label} {pole} seed {seed}")
             # Fail closed on the size-normalized gate, read from the live BT tensors.
@@ -203,6 +228,7 @@ def main() -> int:
                 obs, _r, done, info = env.step_wait()
                 obs["global_state"] = env.state()
                 obs = augment_obs_with_entities(obs, core, side="blue")
+                obs = _maybe_attach_roles(obs, core, role_hold, force=False)
                 if bool(np.asarray(done).any()):
                     i0 = info[0] if isinstance(info, (list, tuple)) else info
                     res = (i0 or {}).get("episode_result") or {}

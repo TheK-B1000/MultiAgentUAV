@@ -1,0 +1,48 @@
+{
+  "record_id": "RULE_ROLE_4V4_READING",
+  "status": "READING_FROZEN_POST_AUDIT",
+  "utc": "2026-09-17T20:40:00Z",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "governed_by": "RULE_BASED_ROLE_CONDITIONING_SPEC.json",
+  "rests_on": [
+    "RULE_ROLE_4V4_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+    "rule_role_4v4_specialist_crossover_eval_rows.csv",
+    "RULE_ROLE_BRANCH_ISOLATION_ATTESTATION.json (parent=B_t500k, GETFLAG=OFF, role=ON)"
+  ],
+
+  "VERDICT": "NOT SPECIALIZED / NO DEMONSTRATED RECOVERY. Explicit deterministic 2/2 ATTACK/DEFEND role conditioning, initialized behaviorally equivalent to clean B_t500k and trained 200k against Pole B, did not recover required 4v4 opponent-conditioned specialization.",
+
+  "PRIMARY_GATE": {
+    "delta_A": {"mean": 0.203125, "lcb95": 0.046875, "ucb95": 0.359375, "passes_point_and_lcb": true},
+    "delta_B": {"mean": -0.046875, "lcb95": -0.203125, "ucb95": 0.109375, "passes": false},
+    "joint_gate": "FAIL",
+    "integrity_path": "FLAGGED on delta_B tie/reversal; do NOT override the integrity flag to manufacture a RESULT file"
+  },
+
+  "COMPARISON_TO_CLEAN_Bt500k_SCREEN": {
+    "delta_B_Bt500k": -0.046875,
+    "delta_B_B_ROLE": -0.046875,
+    "note": "Identical point estimates on this exploratory protocol. Not claimed statistically equivalent without a direct paired contrast; there is no evidence of the recovery sought."
+  },
+
+  "WHAT_THIS_FALSIFIES": "distance-ranked binary ATTACK/DEFEND role bit + 200k PPO as the demonstrated 4v4 repair",
+
+  "WHAT_THIS_DOES_NOT_ESTABLISH": [
+    "that assignment information is irrelevant",
+    "that richer role representations cannot work",
+    "that the original observability / multi-defender assignment diagnosis was wrong"
+  ],
+
+  "PROMOTION": {
+    "to_6v6": false,
+    "reason": "frozen decision tree: intervention not promoted when joint 4v4 specialization gate fails"
+  },
+
+  "FORBIDDEN_FOLLOWUPS_on_this_arm": [
+    "400k ROLE continuation",
+    "retune H_r",
+    "3-1 role splits as a rescue of this candidate",
+    "6v6 ROLE run"
+  ]
+}

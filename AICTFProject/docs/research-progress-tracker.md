@@ -16,16 +16,32 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-17 — Role arm **200k GREENLIT + LIVE**
-> (`exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond`, seed
-> 19100001). Sealed:
-> `RULE_ROLE_ATTEMPT_1_INVALID_INFRA_WARMSTART` (crash = infra, not science),
-> `RULE_ROLE_WARMSTART_CONTRACT_PROBE` (`max_logit_diff=0`, `argmax_diff=0`,
-> `π(r=0)=π(r=1)=π_B500k` at t=0 via `W=[W_B500k|0]`),
-> `RULE_ROLE_BRANCH_ISOLATION_ATTESTATION`
-> (`parent=B_t500k`, `GETFLAG=OFF`, `role=ON`, fresh Adam),
-> `RULE_ROLE_200K_RELAUNCH_GREENLIGHT`. Do not restart. GETFLAG manip
-> continues in parallel; role arm stays clean of GETFLAG loss.
+> **Last updated:** 2026-09-17 — Board:
+> [`4V4_REPAIR_BOARD_20260917.json`](../artifacts/strategic_demand/sppo/4V4_REPAIR_BOARD_20260917.json)
+> + [`4V4_RESCUE_TREE_AFTER_ROLE_AMENDMENT_PAUSE_GETFLAG.json`](../artifacts/strategic_demand/sppo/4V4_RESCUE_TREE_AFTER_ROLE_AMENDMENT_PAUSE_GETFLAG.json).
+>
+> * **ROLE:** finished — `RULE_ROLE_4V4_READING.json`. Δ_A=+0.203
+>   [+0.047,+0.359], Δ_B=**−0.046875** [−0.203,+0.109] (= clean `B_t500k`
+>   point estimate). Integrity flag kept; **no 6v6 ROLE**.
+> * **GETFLAG:** **PAUSED** —
+>   `B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json`. Boxed:
+>   **MANIPULATION CONFIRMED / OUTCOME UNEVALUATED** (0.191→0.0013;
+>   Δ_B=UNKNOWN). Premature `GETFLAG_PRESERVE_4V4` launch aborted at
+>   0/256 (no rows). Branch intact; n=64 crossover later. **Do not
+>   combine with ASSIGNMENT.**
+> * **ASSIGNMENT:** **next** — teacher “who handles what?” diagnostic
+>   **first**, **zero GPU training**. Redesign representation if exposure
+>   fails; only then consider Assignment Conditioning.
+>
+> Prior same day — Rescue tree frozen (`4V4_RESCUE_TREE_AFTER_ROLE.json`)
+> had sequenced GETFLAG crossover next; that step is superseded by the
+> pause amendment above.
+>
+> Prior same day — **ROLE 4v4 crossover FLAGGED / did not help.**
+> `RULE_ROLE_4V4`: Δ_A=+0.203 [+0.047,+0.359], Δ_B=**−0.046875**
+> [−0.203,+0.109] — identical point estimate to clean `B_t500k` screen.
+> Integrity flag (δ_B≤0); no PASS RESULT. **Do not** 400k ROLE / retune
+> H_r / 3–1 roles / port to 6v6.
 >
 > Prior same day — Parallel routing for 4v4 speed: freeze
 > [`RULE_BASED_ROLE_CONDITIONING_SPEC.json`](../artifacts/strategic_demand/sppo/RULE_BASED_ROLE_CONDITIONING_SPEC.json)

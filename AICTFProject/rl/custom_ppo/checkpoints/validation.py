@@ -86,10 +86,12 @@ def run_behavioral_equivalence_probe(
     
     Returns: (mean_kl, max_kl, max_logit_diff, argmax_disagreement)
 
-    Role-conditioning warm-start contract: if ``target_model`` has
-    ``role_conditioning_enabled``, compare source logits against target with
-    ``r=0`` and ``r=1``. Both must match the source (zero new columns ⇒ role
-    has no effect at t=0).
+    Role-conditioning contracts:
+    * Warm-start (source role OFF, target role ON): target logits with ``r=0``
+      and ``r=1`` must both match the source (zero new columns ⇒ role inert
+      at t=0).
+    * Same-architecture resume/eval (both role ON): compare source vs target
+      under matching role vectors (do not withhold roles from source).
     """
     source_model.eval()
     target_model.eval()
@@ -99,7 +101,8 @@ def run_behavioral_equivalence_probe(
     obs = _probe_obs_bank(observation_space, batch_size=batch_size, n_agents=n_agents, device=device)
     src_entity = _entity_kwargs_for_probe(source_model, batch_size=batch_size, device=device)
     tgt_entity = _entity_kwargs_for_probe(target_model, batch_size=batch_size, device=device)
-    role_on = bool(getattr(target_model, "role_conditioning_enabled", False))
+    src_role_on = bool(getattr(source_model, "role_conditioning_enabled", False))
+    tgt_role_on = bool(getattr(target_model, "role_conditioning_enabled", False))
     
     all_kls = []
     all_max_logit_diffs = []
@@ -108,24 +111,34 @@ def run_behavioral_equivalence_probe(
     with torch.no_grad():
         for z in allowed_latents:
             z_idx = torch.full((batch_size,), z, dtype=torch.long, device=device)
-            src_kwargs = dict(src_entity)
-            tgt_kwargs = dict(tgt_entity)
-            # Non-latent models ignore z_idx; passing is harmless when latent_k=0 pathways accept it.
-            try:
-                src_logits = source_model.policy_logits(obs, z_idx=z_idx, **src_kwargs)
-            except TypeError:
-                src_logits = source_model.policy_logits(obs, **src_kwargs)
+            # Warm-start: source has no role bit; target must match at r∈{0,1}.
+            # Same-arch: both models need matching roles on every call.
+            if tgt_role_on and not src_role_on:
+                role_pairs = [
+                    (None, torch.zeros(batch_size, n_agents, device=device)),
+                    (None, torch.ones(batch_size, n_agents, device=device)),
+                ]
+            elif tgt_role_on and src_role_on:
+                role_pairs = [
+                    (torch.zeros(batch_size, n_agents, device=device),
+                     torch.zeros(batch_size, n_agents, device=device)),
+                    (torch.ones(batch_size, n_agents, device=device),
+                     torch.ones(batch_size, n_agents, device=device)),
+                ]
+            else:
+                role_pairs = [(None, None)]
 
-            role_vectors = (
-                [torch.zeros(batch_size, n_agents, device=device),
-                 torch.ones(batch_size, n_agents, device=device)]
-                if role_on
-                else [None]
-            )
-            for roles in role_vectors:
-                tk = dict(tgt_kwargs)
-                if roles is not None:
-                    tk["roles"] = roles
+            for src_roles, tgt_roles in role_pairs:
+                sk = dict(src_entity)
+                tk = dict(tgt_entity)
+                if src_roles is not None:
+                    sk["roles"] = src_roles
+                if tgt_roles is not None:
+                    tk["roles"] = tgt_roles
+                try:
+                    src_logits = source_model.policy_logits(obs, z_idx=z_idx, **sk)
+                except TypeError:
+                    src_logits = source_model.policy_logits(obs, **sk)
                 try:
                     tgt_logits = target_model.policy_logits(obs, z_idx=z_idx, **tk)
                 except TypeError:

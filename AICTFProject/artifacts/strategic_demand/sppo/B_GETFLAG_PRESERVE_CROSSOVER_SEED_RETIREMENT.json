@@ -1,0 +1,22 @@
+{
+  "record_id": "B_GETFLAG_PRESERVE_CROSSOVER_SEED_RETIREMENT",
+  "status": "FROZEN_BEFORE_CROSSOVER_LAUNCH",
+  "utc": "2026-09-17T20:40:00Z",
+  "governed_by": "B_GETFLAG_PRESERVE_SPEC.json#EVALUATION_after_training_not_during.delta_B_check",
+  "reason": "Original registry block B_GETFLAG_PRESERVE_CROSSOVER seeds 19100001-19100064 cannot be used: ROLE training spent seed 19100001 as its training seed (RULE_BASED_ROLE_CONDITIONING_SPEC TRAINING.seeds.pi_B_4v4). Using any overlapping evaluation seed would mix lanes and violate disjointness from ROLE training.",
+  "retired_block": {
+    "experiment_id": "B_GETFLAG_PRESERVE_CROSSOVER",
+    "lo": 19100001,
+    "hi": 19100064,
+    "status": "RETIRED_CONTAMINATED_BY_ROLE_TRAINING_SEED"
+  },
+  "replacement_block": {
+    "experiment_id": "B_GETFLAG_PRESERVE_CROSSOVER",
+    "lo": 19300001,
+    "hi": 19300064,
+    "n": 64,
+    "seed_class": "exploratory",
+    "disjoint_from": [187, 188, 189, 190, 191, 192]
+  },
+  "NOT_A_SCIENTIFIC_CHANGE": "Same estimands, same n, same instrument, same frozen A comparator, same GETFLAG-preserve final checkpoint. Only the seed integers change for integrity."
+}

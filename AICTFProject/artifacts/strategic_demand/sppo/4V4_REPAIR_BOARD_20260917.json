@@ -1,0 +1,45 @@
+{
+  "record_id": "4V4_REPAIR_BOARD_20260917",
+  "status": "FROZEN_BOARD",
+  "utc": "2026-09-17T20:41:00Z",
+  "authority": "PI, 2026-09-17",
+
+  "board": {
+    "ROLE": {
+      "status": "FINISHED",
+      "verdict": "NOT SPECIALIZED / NO DEMONSTRATED RECOVERY",
+      "reading": "RULE_ROLE_4V4_READING.json",
+      "promote_to_6v6": false,
+      "additional_gpu": false
+    },
+    "GETFLAG": {
+      "status": "PAUSED",
+      "boxed": "MANIPULATION CONFIRMED / OUTCOME UNEVALUATED",
+      "pause_record": "B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json",
+      "manipulation": "B_GETFLAG_PRESERVE_MANIPULATION_RESULT.json",
+      "delta_B": "UNKNOWN",
+      "resume_later": "frozen n=64 specialization crossover only; no retune",
+      "additional_gpu_now": false
+    },
+    "ASSIGNMENT": {
+      "status": "NEXT",
+      "hypothesis": "Agents lack enough information to determine specific responsibilities (who handles what), not merely broad ATTACK/DEFEND roles — a more proximal explanation for 2v2→4v4 scaling failure.",
+      "first_step": "Build an assignment diagnostic against the teacher: can we deterministically expose the teacher-relevant who-handles-what information?",
+      "compute": "ZERO additional GPU training initially",
+      "if_diagnostic_fails": "Redesign the representation without training anything.",
+      "if_diagnostic_succeeds_and_removes_ambiguity": "Then justify a fresh Assignment Conditioning experiment.",
+      "forbidden": [
+        "combine ASSIGNMENT + GETFLAG in one student",
+        "launch PPO / Assignment Conditioning before the teacher exposure diagnostic"
+      ]
+    }
+  },
+
+  "isolation": "ROLE finished alone. GETFLAG parked alone. ASSIGNMENT diagnostic alone. No stacked treatments.",
+
+  "does_not_cancel": [
+    "A_FREEZE_RULE.json",
+    "B_GETFLAG_PRESERVE_SPEC.json (branch intact)",
+    "RULE_BASED_ROLE_CONDITIONING_SPEC.json (historical; arm closed by reading)"
+  ]
+}

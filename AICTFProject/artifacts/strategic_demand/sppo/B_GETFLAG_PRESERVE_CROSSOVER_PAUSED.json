@@ -1,0 +1,52 @@
+{
+  "record_id": "B_GETFLAG_PRESERVE_CROSSOVER_PAUSED",
+  "status": "PAUSED",
+  "utc": "2026-09-17T20:45:00Z",
+  "authority": "PI, 2026-09-17: pause GETFLAG specialization crossover; do not invalidate or alter the branch.",
+  "supersedes_sequencing_in": "4V4_RESCUE_TREE_AFTER_ROLE.json step 1 (was 'run GETFLAG crossover now') — crossover deferred; assignment diagnostic moves ahead.",
+
+  "BOXED_STATUS": "GETFLAG = MANIPULATION CONFIRMED / OUTCOME UNEVALUATED",
+
+  "rests_on": [
+    "B_GETFLAG_PRESERVE_SPEC.json",
+    "B_GETFLAG_PRESERVE_MANIPULATION_RESULT.json",
+    "B_GETFLAG_PRESERVE_CROSSOVER_SEED_RETIREMENT.json"
+  ],
+
+  "manipulation_confirmed": {
+    "metric": "among agent-steps with carrying=False AND B_better argmax=GET_FLAG, P(student argmax=GO_TO)",
+    "baseline_Bfinal": 0.1905381317146023,
+    "new_continuation": 0.0012525894878836056,
+    "delta_new_minus_baseline": -0.1892855422267187,
+    "manipulated": true
+  },
+
+  "outcome_unevaluated": {
+    "delta_B": "UNKNOWN",
+    "delta_A": "UNKNOWN",
+    "kill_table_cell": "NOT YET LANDABLE — needs delta_B_check axis",
+    "may_not_call": ["promising", "failed", "specialization repair", "KILL THIS BRANCH"]
+  },
+
+  "premature_launch_aborted": {
+    "label": "GETFLAG_PRESERVE_4V4",
+    "seeds_intended": "19300001-19300064",
+    "stopped_utc": "2026-09-17T20:46:30Z",
+    "progress": "partial tqdm only; no rows CSV / no RESULT written (killed to honor PAUSE)",
+    "scientific_trial": false,
+    "seed_block_status": "RESERVED_BUT_UNUSED — may be reused on resume; do not treat as a spent trial",
+    "artifacts_left_as_partial_logs_only": [
+      "getflag_preserve_4v4_crossover.log",
+      "getflag_preserve_4v4_crossover.log.err"
+    ]
+  },
+
+  "branch_integrity": {
+    "invalidated": false,
+    "altered": false,
+    "resume_path": "B_GETFLAG_PRESERVE_SPEC.json#EVALUATION_after_training_not_during.delta_B_check — already-specified n=64 exploratory crossover vs frozen pi_A3; compare point estimate to B_t500k delta_B=-0.046875; require delta_A>=0 for YES/YES",
+    "do_not_spend_gpu_now": true
+  },
+
+  "isolation_rule": "Do not combine ASSIGNMENT (or ROLE) with GETFLAG. GETFLAG stays parked as a clean independent arm so a later crossover can attribute movement to one intervention."
+}

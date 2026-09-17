@@ -1,0 +1,60 @@
+{
+  "record_id": "RULE_ROLE_TRAINING_COMPLETE_HEALTHY__EVALUATION_PENDING",
+  "status": "ROLE_TRAINING_COMPLETE_HEALTHY__EVALUATION_PENDING",
+  "utc": "2026-09-17T17:18:00Z",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "governed_by": "RULE_BASED_ROLE_CONDITIONING_SPEC.json",
+
+  "TRAINING_SEAL": {
+    "run_id": "exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond",
+    "seed": 19100001,
+    "total_timesteps": 200000,
+    "global_step": 200704,
+    "verdict": "TRAINING_COMPLETE",
+    "result_summary": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond/result_summary.json",
+    "final_checkpoint": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond/ckpts/final_exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond.zip",
+    "final_checkpoint_sha256": "786ad17a960f5c118ea06c19ee362f770c47948c6563fd9234f96b31359629e6",
+    "warm_start_parent": "B_t500k",
+    "warm_start_sha256_prefix": "d4c0d7ba2477",
+    "getflag_preservation": false,
+    "role_conditioning_enabled": true,
+    "role_hold_ticks": 8,
+    "optimizer_state_inherited": false,
+    "training_telemetry_only": {
+      "n_episodes": 887,
+      "overall_win_rate": 0.6200676437429538,
+      "rolling_win_rate_50ep_final": 0.52,
+      "rolling_win_rate_200ep_final": 0.595,
+      "reading": "health signal only — does NOT judge whether ROLE fixed 4v4; final checkpoint is what gets judged"
+    }
+  },
+
+  "EVALUATION_AUTHORIZED": {
+    "instrument": "experiments/eval_specialist_crossover_scaled.py",
+    "label": "RULE_ROLE_4V4",
+    "n": 64,
+    "seed_lo": 19200001,
+    "seed_hi": 19200064,
+    "seed_class": "exploratory",
+    "comparator_A": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+    "comparator_A_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "treatment_B": "final of THIS role-conditioning run only (no checkpoint selection)",
+    "pole_b_genome": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+    "estimands": {
+      "delta_A": "V(pi_A3, A) - V(B_ROLE_final, A)",
+      "delta_B": "V(B_ROLE_final, B) - V(pi_A3, B)"
+    },
+    "reading_rule": "exploratory evidence vs clean B_t500k screen (delta_B = -0.046875 on that protocol); NOT confirmatory PASS; no 6v6 port until 4v4 crossover is interpreted",
+    "no_additional_PPO": true,
+    "no_checkpoint_selection": true,
+    "lanes_sealed_from_GETFLAG": true
+  },
+
+  "NOT_CLAIMED": [
+    "that ROLE fixed 4v4",
+    "any confirmatory specialization pass",
+    "credit to GETFLAG preservation",
+    "authorization to port to 6v6"
+  ]
+}
