@@ -1,8 +1,10 @@
 {
   "record_id": "B_GETFLAG_PRESERVE_CROSSOVER_PAUSED",
-  "status": "PAUSED",
+  "status": "SUPERSEDED_BY_UNPAUSE",
+  "superseded_by": "B_GETFLAG_PRESERVE_CROSSOVER_UNPAUSED.json",
   "utc": "2026-09-17T20:45:00Z",
-  "authority": "PI, 2026-09-17: pause GETFLAG specialization crossover; do not invalidate or alter the branch.",
+  "unpaused_utc": "2026-09-18T04:51:00Z",
+  "authority": "PI, 2026-09-17: pause GETFLAG specialization crossover; do not invalidate or alter the branch. Unpaused 2026-09-18 by explicit PI request.",
   "supersedes_sequencing_in": "4V4_RESCUE_TREE_AFTER_ROLE.json step 1 (was 'run GETFLAG crossover now') — crossover deferred; assignment diagnostic moves ahead.",
 
   "BOXED_STATUS": "GETFLAG = MANIPULATION CONFIRMED / OUTCOME UNEVALUATED",
@@ -48,5 +50,11 @@
     "do_not_spend_gpu_now": true
   },
 
-  "isolation_rule": "Do not combine ASSIGNMENT (or ROLE) with GETFLAG. GETFLAG stays parked as a clean independent arm so a later crossover can attribute movement to one intervention."
+  "isolation_rule": "Do not combine ASSIGNMENT (or ROLE) with GETFLAG. GETFLAG stays parked as a clean independent arm so a later crossover can attribute movement to one intervention.",
+
+  "board_position_after_assignment_miss": {
+    "utc": "2026-09-18T04:49:00Z",
+    "note": "ROLE and Assignment-v1 both closed as NOT SPECIALIZED. GETFLAG remains the cleanest remaining independent experiment (manipulation confirmed; Delta_B still UNKNOWN). Still PAUSED until explicitly unpaused — do not auto-launch.",
+    "assignment_reading": "ASSIGNMENT_V1_4V4_READING.json"
+  }
 }

@@ -1,46 +1,56 @@
 {
   "record_id": "4V4_REPAIR_BOARD_20260917",
   "status": "FROZEN_BOARD",
-  "utc": "2026-09-17T20:41:00Z",
-  "authority": "PI, 2026-09-17",
+  "utc": "2026-09-18T11:31:00Z",
+  "authority": "PI board; GETFLAG outcome sealed 2026-09-18; credit diagnostic authorized",
+  "amends": "GETFLAG closed by GETFLAG_PRESERVE_4V4_READING.json; contingency 4V4_POST_GETFLAG_DECISION_TREE activated",
 
   "board": {
     "ROLE": {
       "status": "FINISHED",
       "verdict": "NOT SPECIALIZED / NO DEMONSTRATED RECOVERY",
       "reading": "RULE_ROLE_4V4_READING.json",
-      "promote_to_6v6": false,
-      "additional_gpu": false
-    },
-    "GETFLAG": {
-      "status": "PAUSED",
-      "boxed": "MANIPULATION CONFIRMED / OUTCOME UNEVALUATED",
-      "pause_record": "B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json",
-      "manipulation": "B_GETFLAG_PRESERVE_MANIPULATION_RESULT.json",
-      "delta_B": "UNKNOWN",
-      "resume_later": "frozen n=64 specialization crossover only; no retune",
-      "additional_gpu_now": false
+      "promote_to_6v6": false
     },
     "ASSIGNMENT": {
-      "status": "DIAGNOSTIC_PASS__V1_TRAIN_AUTHORIZED",
-      "diagnostic_result": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_RESULT.json",
-      "diagnostic_reading": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_READING.json",
-      "train_spec": "ASSIGNMENT_CONDITIONING_V1_SPEC.json",
-      "gates": {"G1": 1.0, "G2": "9/9", "G3": true},
-      "next": "Implement+launch Assignment-v1 200k B train (seed 19400001), then crossover 19500001-64",
-      "forbidden": [
-        "combine ASSIGNMENT + GETFLAG",
-        "resume GETFLAG crossover as part of this work",
-        "6v6 before 4v4 Assignment crossover"
-      ]
+      "status": "FINISHED",
+      "verdict": "NOT SPECIALIZED / NO DEMONSTRATED RECOVERY",
+      "diagnostic": "PASS — information ambiguity real",
+      "reading": "ASSIGNMENT_V1_4V4_READING.json",
+      "delta_A": 0.125,
+      "delta_B": -0.015625,
+      "promote_to_6v6": false,
+      "assignment_v2": false
+    },
+    "GETFLAG": {
+      "status": "FINISHED",
+      "boxed": "MANIPULATION CONFIRMED / SPECIALIZATION NOT DEMONSTRATED",
+      "reading": "GETFLAG_PRESERVE_4V4_READING.json",
+      "integrity": "GETFLAG_PRESERVE_4V4_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+      "delta_A": -0.046875,
+      "delta_B": 0.015625,
+      "unpause_record": "B_GETFLAG_PRESERVE_CROSSOVER_UNPAUSED.json"
+    },
+    "POLE_B_CREDIT_DIAGNOSTIC": {
+      "status": "AUTHORIZED_IN_PROGRESS",
+      "authorized_by": "4V4_POST_GETFLAG_DECISION_TREE.json",
+      "question": "When useful-vs-B behavior occurs, does PPO receive an advantage signal that favors it?",
+      "not": ["Assignment-v2", "blind retrain", "Assignment+GETFLAG stack", "4v4 doomed"]
     }
   },
 
-  "isolation": "ROLE finished alone. GETFLAG parked alone. ASSIGNMENT diagnostic alone. No stacked treatments.",
+  "isolation": "ROLE, ASSIGNMENT, GETFLAG each finished alone. Credit diagnostic is measurement-only.",
 
-  "does_not_cancel": [
-    "A_FREEZE_RULE.json",
-    "B_GETFLAG_PRESERVE_SPEC.json (branch intact)",
-    "RULE_BASED_ROLE_CONDITIONING_SPEC.json (historical; arm closed by reading)"
-  ]
+  "forbidden_now": [
+    "port Assignment-v1 to 6v6",
+    "Assignment-v2 without credit-diagnostic-derived question",
+    "combine Assignment + GETFLAG without interaction evidence",
+    "another intuition-based 200k PPO repair before the credit diagnostic RESULT"
+  ],
+
+  "contingency_if_getflag_fails": {
+    "record": "4V4_POST_GETFLAG_DECISION_TREE.json",
+    "status": "ACTIVATED",
+    "next": "Pole-B reward/advantage/credit diagnostic"
+  }
 }

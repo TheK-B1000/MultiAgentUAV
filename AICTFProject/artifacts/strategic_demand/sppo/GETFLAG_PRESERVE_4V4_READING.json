@@ -1,0 +1,63 @@
+{
+  "record_id": "GETFLAG_PRESERVE_4V4_READING",
+  "status": "READING_FROZEN_POST_AUDIT",
+  "utc": "2026-09-18T11:31:00Z",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "governed_by": "B_GETFLAG_PRESERVE_SPEC.json",
+  "rests_on": [
+    "B_GETFLAG_PRESERVE_MANIPULATION_RESULT.json",
+    "B_GETFLAG_PRESERVE_CROSSOVER_UNPAUSED.json",
+    "GETFLAG_PRESERVE_4V4_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+    "getflag_preserve_4v4_specialist_crossover_eval_rows.csv"
+  ],
+
+  "VERDICT": "MANIPULATION CONFIRMED / SPECIALIZATION NOT DEMONSTRATED. GETFLAG preservation almost completely removed the diagnosed GET_FLAG→GO_TO substitution, but the frozen n=64 specialization crossover did not recover required opponent-conditioned specialization. Integrity flagged on delta_A (reversal); no formal RESULT verdict was emitted.",
+
+  "MANIPULATION": {
+    "metric": "P(student argmax=GO_TO | carrying=False AND B_better argmax=GET_FLAG)",
+    "baseline_Bfinal": 0.1905381317146023,
+    "after_preserve": 0.0012525894878836056,
+    "manipulated": true
+  },
+
+  "PRIMARY_GATE": {
+    "cell_win_rates": {
+      "pi_A_PoleA": 0.71875,
+      "pi_A_PoleB": 0.640625,
+      "pi_B_getflag_PoleA": 0.765625,
+      "pi_B_getflag_PoleB": 0.65625
+    },
+    "delta_A": {"mean": -0.046875, "lcb95": -0.1875, "ucb95": 0.09375, "passes": false},
+    "delta_B": {"mean": 0.015625, "lcb95": -0.109375, "ucb95": 0.140625, "passes_lcb95": false},
+    "joint_gate": "FAIL",
+    "integrity_path": "FLAGGED on delta_A tie/reversal; do NOT override to manufacture a RESULT"
+  },
+
+  "READING_vs_Bt500k_SCREEN": {
+    "delta_B_Bt500k_screen": -0.046875,
+    "delta_B_GETFLAG": 0.015625,
+    "note": "Point estimate moved positive vs the clean B_t500k screen, but LCB95 still crosses zero and delta_A reversed. Do NOT call this a demonstrated recovery or a confirmed improvement without a pre-specified paired contrast that this arm did not claim."
+  },
+
+  "LOCALIZATION": {
+    "what_this_shows": "B-specific GET_FLAG→GO_TO drift was a real, controllable mechanism, but controlling it was individually insufficient for 4v4 Pole-B specialization recovery under this arm.",
+    "knocked_down_with_prior_arms": [
+      "ROLE: binary role identity — no recovery",
+      "Assignment-v1: assignment info resolving 9/9 ambiguities — diagnostic PASS, training no recovery",
+      "GETFLAG: behavioral preservation — manipulation PASS, specialization outcome FAIL"
+    ]
+  },
+
+  "FORBIDDEN": [
+    "call promising / specialization repair / KILL THIS BRANCH from manipulation alone",
+    "override integrity flag",
+    "combine with Assignment without interaction evidence",
+    "Assignment-v2 or blind 200k retrain as the next step"
+  ],
+
+  "BOARD_NEXT": {
+    "authorized_by": "4V4_POST_GETFLAG_DECISION_TREE.json",
+    "next": "Pole-B reward/advantage/credit diagnostic on matched Pole-B states"
+  }
+}

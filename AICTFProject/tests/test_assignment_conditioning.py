@@ -77,3 +77,25 @@ def test_g1_style_assignment_from_core_does_not_crash():
     feat = assignment_from_core(core, hold, force=True)
     assert feat.shape == (1, 4, 4)
     assert torch.isfinite(feat).all()
+
+
+def test_inference_tensor_obs_preserves_assignment():
+    """Regression: predict() must not drop obs['assignment'] (crossover mid-run crash)."""
+    from rl.custom_ppo.inference_policy import CustomPPOInferencePolicy
+
+    obs_s, act_s = _spaces()
+    model = SharedActorCentralizedCritic(
+        obs_s, act_s, strategy_encoder_enabled=False, latent_k=0,
+        assignment_conditioning_enabled=True,
+    )
+    policy = CustomPPOInferencePolicy(model=model, device=torch.device("cpu"))
+    obs = {
+        "grid": torch.zeros(1, 4, 8, 11, 11).numpy(),
+        "vec": torch.zeros(1, 4, 20).numpy(),
+        "agent_mask": torch.ones(1, 4).numpy(),
+        "mask": torch.ones(1, 16).numpy(),
+        "assignment": torch.zeros(1, 4, 4).numpy(),
+    }
+    obs_t = policy._tensor_obs(obs)
+    assert "assignment" in obs_t
+    assert tuple(obs_t["assignment"].shape) == (1, 4, 4)

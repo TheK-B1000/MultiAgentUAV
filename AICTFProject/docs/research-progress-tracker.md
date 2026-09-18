@@ -16,11 +16,20 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-17 — **Assignment-v1 200k LIVE**
-> (`exploratory_pi_B_specialist_4v4_b3_entity_repair_assignment_v1`,
-> seed 19400001, warm-start B_t500k SHA `d4c0d7ba…`). Logs:
-> `b_assignment_v1.log` / `.err`. After train: crossover
-> `ASSIGNMENT_V1_4V4` seeds `19500001-64`. GETFLAG still PAUSED.
+> **Last updated:** 2026-09-18 — **Pole-B credit/advantage diagnostic LIVE**
+> (spec [`POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json`](../artifacts/strategic_demand/sppo/POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json);
+> seeds `19400001–24`; 5 policies × Pole B). Watch:
+> `pole_b_credit_advantage_diagnostic.log.err`. GETFLAG sealed miss;
+> contingency activated. No repair launched.
+>
+> Prior — **GETFLAG sealed MISS**
+> ([`GETFLAG_PRESERVE_4V4_READING.json`](../artifacts/strategic_demand/sppo/GETFLAG_PRESERVE_4V4_READING.json)):
+> manipulation confirmed, specialization not demonstrated
+> (Δ_A=**−0.046875**, Δ_B=+0.015625 point / LCB≤0; integrity on Δ_A).
+> Contingency **ACTIVATED** → Pole-B credit/advantage diagnostic.
+>
+> Prior 2026-09-17 — Assignment-v1 200k COMPLETE; crossover
+> `ASSIGNMENT_V1_4V4` ran (seeds `19500001-64`).
 >
 > Prior same day — Assignment diagnostic PASS (G1=1.0, G2=9/9, G3=PASS);
 > [`ASSIGNMENT_CONDITIONING_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_CONDITIONING_V1_SPEC.json)

@@ -310,6 +310,10 @@ class CustomPPOInferencePolicy:
                 out[k] = torch.as_tensor(obs[k], dtype=torch.float32, device=self.device)
         if "roles" in obs:
             out["roles"] = torch.as_tensor(obs["roles"], dtype=torch.float32, device=self.device)
+        if "assignment" in obs:
+            out["assignment"] = torch.as_tensor(
+                obs["assignment"], dtype=torch.float32, device=self.device
+            )
         return out
 
     def _global_state_tensor(self, obs: Dict[str, np.ndarray], batch: int) -> torch.Tensor:
@@ -338,6 +342,10 @@ class CustomPPOInferencePolicy:
             elif key == "vec" and arr.ndim == 2:
                 arr = arr[None, ...]
             elif key in {"agent_mask", "mask"} and arr.ndim == 1:
+                arr = arr[None, ...]
+            elif key == "roles" and arr.ndim == 1:
+                arr = arr[None, ...]
+            elif key == "assignment" and arr.ndim == 2:
                 arr = arr[None, ...]
             batched[key] = arr
         return batched

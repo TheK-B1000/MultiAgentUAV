@@ -953,7 +953,19 @@
       "subdivides": null,
       "allocated_utc": "2026-09-17T20:40:00Z",
       "replaces": "19100001-19100064"
+    },
+    {
+      "experiment_id": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC",
+      "purpose": "Pole-B credit/advantage diagnostic: matched seeds across 5 policies on SDS2_B3_LOCKDEF10_2V1 only",
+      "seed_class": "exploratory",
+      "lo": 19400001,
+      "hi": 19400024,
+      "n": 24,
+      "status": "RESERVED",
+      "spec": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T11:34:31Z"
     }
   ],
-  "updated_utc": "2026-09-17T20:40:00Z"
+  "updated_utc": "2026-09-18T11:34:31Z"
 }
