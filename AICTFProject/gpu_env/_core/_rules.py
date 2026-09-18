@@ -9,6 +9,22 @@ import torch
 
 from macro_actions import MacroAction
 
+# Pyquaticus reference-controller constants for MacroAction.DEFEND (V2). Must
+# equal gpu_env.pyquaticus_port.{UPSTREAM_FLAG_KEEPOUT_M,UPSTREAM_CATCH_RADIUS_M,
+# UPSTREAM_DEFENDER_BUFFER_M,defender_radius_from_tag_range} bit-for-bit; a
+# duplicate rather than an import so the shared simulation core does not take a
+# dependency on an experiment-scoped port adapter. Drift is caught by
+# tests/test_pyquaticus_port_contracts.py::test_defend_radius_helper_matches_port_module.
+_PYQ_FLAG_KEEPOUT_M = 3.0
+_PYQ_CATCH_RADIUS_M = 10.0
+_PYQ_DEFENDER_BUFFER_M = 1.0
+
+
+def _pyquaticus_defender_radius_cells(tag_range_cells: float) -> float:
+    return float(tag_range_cells) * (
+        (_PYQ_FLAG_KEEPOUT_M + _PYQ_CATCH_RADIUS_M + _PYQ_DEFENDER_BUFFER_M) / _PYQ_CATCH_RADIUS_M
+    )
+
 
 def _ray_to_boundary_batched(
     px: torch.Tensor, py: torch.Tensor, ux: torch.Tensor, uy: torch.Tensor,
@@ -664,13 +680,36 @@ class _RulesMixin:
 
         defend_flag = macro == MacroAction.DEFEND_FLAG
         defend_outward = macro == MacroAction.DEFEND_OUTWARD
-        if bool(torch.any(defend_flag).item()) or bool(torch.any(defend_outward).item()):
+        defend_unified = macro == MacroAction.DEFEND
+        if (
+            bool(torch.any(defend_flag).item())
+            or bool(torch.any(defend_outward).item())
+            or bool(torch.any(defend_unified).item())
+        ):
             own_flag_now = side_t["own_flag"]
+            outward_tx, outward_ty = self._defend_outward_target(side_t, own_flag_now)
             tx = torch.where(defend_flag, own_flag_now[:, None, 0], tx)
             ty = torch.where(defend_flag, own_flag_now[:, None, 1], ty)
-            outward_tx, outward_ty = self._defend_outward_target(side_t, own_flag_now)
             tx = torch.where(defend_outward, outward_tx, tx)
             ty = torch.where(defend_outward, outward_ty, ty)
+
+            if bool(torch.any(defend_unified).item()):
+                # V2: one committed macro, target re-derived from live state each
+                # tick. See DEFEND_SEMANTIC_COMMITMENT_V2_SPEC.json -- this is a
+                # Pyquaticus reference-controller adapter, not a proposed general
+                # PPO action primitive.
+                own_x, own_y = side_t["own_x"], side_t["own_y"]
+                away_x = own_x - own_flag_now[:, None, 0]
+                away_y = own_y - own_flag_now[:, None, 1]
+                dist = torch.sqrt(away_x * away_x + away_y * away_y)
+                radius = _pyquaticus_defender_radius_cells(float(self.cfg.tag_range_cells))
+                # Match true_motion's boundary convention exactly: distance > R
+                # is INWARD; distance <= R (inclusive of exactly R) is OUTWARD.
+                inward = dist > radius
+                unified_tx = torch.where(inward, own_flag_now[:, None, 0].expand_as(outward_tx), outward_tx)
+                unified_ty = torch.where(inward, own_flag_now[:, None, 1].expand_as(outward_ty), outward_ty)
+                tx = torch.where(defend_unified, unified_tx, tx)
+                ty = torch.where(defend_unified, unified_ty, ty)
 
         tx = torch.where(own_carrying, own_flag_home[:, None, 0], tx)
         ty = torch.where(own_carrying, own_flag_home[:, None, 1], ty)

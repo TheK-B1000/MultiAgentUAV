@@ -164,6 +164,34 @@ def _fixtures() -> dict[str, tuple[PortState, torch.Tensor, int]]:
     }
 
 
+def _v2_extra_fixtures() -> dict[str, Any]:
+    """DEFEND_SEMANTIC_COMMITMENT_V2's anchor fixtures. Additions only -- the
+    original _fixtures() (including G3/G4) are never modified.
+
+    A 16-tick "stable outward" anchor is not constructed: DEFEND_OUTWARD's own
+    target is a ray toward the arena boundary, so distance from the flag is
+    monotonically non-decreasing under it. Starting anywhere inside the
+    3.5-cell radius, the agent crosses back outside within roughly
+    (R - d0) / (0.5 * max_speed_cps * dt) <= 3.5 / 0.545 ~= 6.4 ticks -- well
+    inside a 16-tick horizon at every valid starting distance, including
+    d0 = 0. No fixture can hold this branch stable for the full horizon; that
+    is a property of the reference controller, not a fixture-construction
+    gap. The decisive G3/G4 fixtures already exercise real outward segments,
+    and outward-branch resolution correctness is established at the single
+    tick level by tests/test_pyquaticus_port_contracts.py.
+    """
+    # 8.712 = 0.5 * 2.2 cps * 0.495 dt * 16 ticks: max possible closing
+    # distance under DEFEND_INWARD across the full horizon. 14 cells clears
+    # 3.5 (radius) + 8.712 with a >1.7-cell margin for every agent below.
+    return {
+        "V2_ANCHOR_STABLE_INWARD": (
+            _state(positions=((16.0, 10.0), (16.0, 5.0), (16.0, 15.0), (15.0, 10.0))),
+            roles_tensor([Role.DEFEND] * 4),
+            0,
+        ),
+    }
+
+
 def _core() -> BatchedCTFCore:
     cfg = GPUFieldConfig(
         n_envs=1,
@@ -337,11 +365,13 @@ def _candidate_by_label(
     *,
     repair_defend: bool = False,
     repair_home_legality: bool = False,
+    unified_defend: bool = False,
 ) -> ProjectionCandidate:
     motion = true_motion(state, roles)
     candidates = projection_candidates(
         state, motion, agent_index, waypoints,
         repair_defend=repair_defend, repair_home_legality=repair_home_legality,
+        unified_defend=unified_defend,
     )
     exact = [candidate for candidate in candidates if candidate.label == label]
     if exact:
@@ -371,6 +401,7 @@ def _probe_candidate(
     *,
     repair_defend: bool = False,
     repair_home_legality: bool = False,
+    unified_defend: bool = False,
 ) -> dict[str, Any]:
     i = int(agent_index)
     waypoints = core._macro_targets
@@ -402,6 +433,8 @@ def _probe_candidate(
     branch_while_committed: list[str] = []
     interface_targets: list[list[float]] = []
     true_targets: list[list[float]] = []
+    true_agent_positions: list[list[float]] = []
+    proj_agent_positions: list[list[float]] = []
 
     for _ in range(HORIZON):
         true_positions = torch.stack([true_x[0], true_y[0]], dim=1)
@@ -420,6 +453,7 @@ def _probe_candidate(
                 initial_candidate.label,
                 repair_defend=repair_defend,
                 repair_home_legality=repair_home_legality,
+                unified_defend=unified_defend,
             )
             tick_tensor = core._macro_commit_ticks(
                 torch.tensor([[committed.macro]], dtype=torch.int64)
@@ -452,6 +486,8 @@ def _probe_candidate(
         branch_while_committed.append(proj_oracle.branches[i])
         interface_targets.append(projected_target.tolist())
         true_targets.append(proj_oracle.targets[i].tolist())
+        true_agent_positions.append(true_positions[i].tolist())
+        proj_agent_positions.append(proj_positions[i].tolist())
 
         true_target_batch = true_positions.clone().reshape(1, n_agents, 2)
         true_target_batch[0, i] = true_step.targets[i]
@@ -508,6 +544,8 @@ def _probe_candidate(
             "projected_effective_targets": interface_targets,
             "position_error_cells": trajectory_errors,
             "radial_sign_match": radial_sign_matches,
+            "true_agent_position": true_agent_positions,
+            "proj_agent_position": proj_agent_positions,
         },
     }
 
@@ -529,19 +567,26 @@ def _projection_gate(
     *,
     repair_defend: bool = False,
     repair_home_legality: bool = False,
+    unified_defend: bool = False,
+    extra_fixtures: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     cases: dict[str, Any] = {}
     all_cases_pass = True
-    for name, (state, roles, agent_index) in _fixtures().items():
+    fixtures = dict(_fixtures())
+    if extra_fixtures:
+        fixtures.update(extra_fixtures)
+    for name, (state, roles, agent_index) in fixtures.items():
         motion = true_motion(state, roles)
         candidates = projection_candidates(
             state, motion, agent_index, core._macro_targets,
             repair_defend=repair_defend, repair_home_legality=repair_home_legality,
+            unified_defend=unified_defend,
         )
         records = [
             _probe_candidate(
                 core, state, roles, agent_index, candidate,
                 repair_defend=repair_defend, repair_home_legality=repair_home_legality,
+                unified_defend=unified_defend,
             )
             for candidate in candidates
         ]
@@ -555,6 +600,7 @@ def _projection_gate(
             "semantic_branch": motion.branches[agent_index],
             "agent_index": agent_index,
             "true_target_initial": motion.targets[agent_index].tolist(),
+            "own_flag_pos": state.own_flag_pos.tolist(),
             "candidates": records,
             "pass": case_pass,
             "selected_candidate_if_global_gate_passes": passing[0]["label"] if passing else None,
@@ -608,11 +654,64 @@ def _subgate_summary(projection: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _v2_mechanical_attribution(projection: dict[str, Any]) -> dict[str, Any]:
+    """GATES.G6_DIRECTION_radial_sign.MECHANICAL_ATTRIBUTION_REQUIRED, computed
+    directly from the recorded per-tick trace -- never narrated.
+
+    For each case/candidate: identify the ticks where the TRUE oracle's own
+    branch changed (own_flag_pos as reference, radius DEFENDER_RADIUS_CELLS),
+    the target error at those ticks, and for every tick with a radial-sign
+    disagreement, whether the true and projected arms sat on opposite sides
+    of the radius (EXPLAINED) or the same side (UNEXPLAINED).
+    """
+    report: dict[str, Any] = {}
+    for case_name, case in projection["cases"].items():
+        case_report = {}
+        flag_x, flag_y = case["own_flag_pos"]
+        for record in case["candidates"]:
+            trace = record["trace"]
+            true_pos = trace.get("true_agent_position")
+            proj_pos = trace.get("proj_agent_position")
+            if not true_pos or not proj_pos:
+                continue
+            true_targets = trace["true_targets"]
+            radial_match = trace["radial_sign_match"]
+            true_dist = [math.hypot(p[0] - flag_x, p[1] - flag_y) for p in true_pos]
+            proj_dist = [math.hypot(p[0] - flag_x, p[1] - flag_y) for p in proj_pos]
+            true_branch = ["INWARD" if d > DEFENDER_RADIUS_CELLS else "OUTWARD" for d in true_dist]
+            flips = [t for t in range(1, len(true_branch)) if true_branch[t] != true_branch[t - 1]]
+            target_error_at_flips = {
+                t: math.hypot(
+                    trace["projected_effective_targets"][t][0] - true_targets[t][0],
+                    trace["projected_effective_targets"][t][1] - true_targets[t][1],
+                )
+                for t in flips
+            }
+            explained, unexplained = [], []
+            for t, matched in enumerate(radial_match):
+                if matched:
+                    continue
+                true_inside = true_dist[t] <= DEFENDER_RADIUS_CELLS
+                proj_inside = proj_dist[t] <= DEFENDER_RADIUS_CELLS
+                (explained if true_inside != proj_inside else unexplained).append(t)
+            case_report[record["label"]] = {
+                "branch_flip_ticks": flips,
+                "target_error_at_flip_ticks": target_error_at_flips,
+                "radial_disagreement_ticks_total": int(sum(1 for m in radial_match if not m)),
+                "radial_disagreement_explained_opposite_side": explained,
+                "radial_disagreement_UNEXPLAINED_same_side": unexplained,
+            }
+        report[case_name] = case_report
+    return report
+
+
 def build_result(
     upstream_root: Path,
     *,
     repair_defend: bool = False,
     repair_home_legality: bool = False,
+    unified_defend: bool = False,
+    extra_fixtures: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if torch.cuda.is_initialized():
         raise RuntimeError("CUDA was initialized; this milestone is CPU-only")
@@ -623,6 +722,7 @@ def build_result(
     native = _native_gates(core)
     projection = _projection_gate(
         core, repair_defend=repair_defend, repair_home_legality=repair_home_legality,
+        unified_defend=unified_defend, extra_fixtures=extra_fixtures,
     )
     native_pass = all(bool(value["pass"]) for value in native.values())
     clean_seal = bool(provenance["all_match"] and native_pass and projection["pass"])
@@ -642,6 +742,7 @@ def build_result(
         "status": "PASS_CLEAN_CONTRACT_SEAL" if clean_seal else "FAIL_TEAM_EVALUATION_BLOCKED",
         "repair_defend": bool(repair_defend),
         "repair_home_legality": bool(repair_home_legality),
+        "unified_defend": bool(unified_defend),
         "utc": _now(),
         "device": "cpu",
         "gpu_used": False,
@@ -761,6 +862,119 @@ def _c4_orthogonality(results: dict[str, dict[str, Any]]) -> dict[str, Any]:
     return {"pass": all(checks.values()), "checks": checks}
 
 
+V2_SPEC = ROOT / "artifacts/strategic_demand/sppo/DEFEND_SEMANTIC_COMMITMENT_V2_SPEC.json"
+V2_RESULT_DIR = ROOT / "artifacts/strategic_demand/sppo"
+
+
+def _main_v2(upstream_root: Path) -> int:
+    protected = [
+        DEFAULT_OUT,
+        ROOT / "artifacts/strategic_demand/sppo/PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json",
+        ROOT / "artifacts/strategic_demand/sppo/PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_UNREPRESENTABLE_RESULT.json",
+        ROOT / "artifacts/strategic_demand/sppo/PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json",
+        ROOT / "artifacts/strategic_demand/sppo/DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_CONTRACT_RESULT.json",
+        ROOT / "artifacts/strategic_demand/sppo/HOME_LEGALITY_CONFIRMED_INTERFACE_REPAIR.json",
+    ]
+    protected_before = {p.name: (_sha256(p) if p.is_file() else None) for p in protected}
+
+    extra = _v2_extra_fixtures()
+    off_result = build_result(upstream_root, unified_defend=False, extra_fixtures=extra)
+    on_result = build_result(upstream_root, unified_defend=True, extra_fixtures=extra)
+
+    off_path = V2_RESULT_DIR / "DEFEND_SEMANTIC_COMMITMENT_V2_UNIFIED_OFF_RESULT.json"
+    on_path = V2_RESULT_DIR / "DEFEND_SEMANTIC_COMMITMENT_V2_UNIFIED_ON_RESULT.json"
+    off_path.write_text(json.dumps(off_result, indent=2) + "\n", encoding="utf-8")
+    on_path.write_text(json.dumps(on_result, indent=2) + "\n", encoding="utf-8")
+    print(f"UNIFIED_OFF: G6={off_result['overall']['projected_G6_pass']} -> {off_path.name}")
+    print(f"UNIFIED_ON:  G6={on_result['overall']['projected_G6_pass']} -> {on_path.name}")
+
+    protected_after = {p.name: (_sha256(p) if p.is_file() else None) for p in protected}
+    c0_pass = protected_before == protected_after
+    if not c0_pass:
+        raise SystemExit(f"REFUSING: a protected artifact changed during the run: {protected_before} -> {protected_after}")
+
+    # C2: off must reproduce the sealed frozen result exactly on the ORIGINAL
+    # seven fixtures (the anchor is additional and has no sealed counterpart).
+    sealed = json.loads(DEFAULT_OUT.read_text(encoding="utf-8"))
+    c2_mismatches: list[str] = []
+    for case_name, case in sealed["G6_PROJECTED_REPRESENTABILITY"]["cases"].items():
+        new_case = off_result["G6_PROJECTED_REPRESENTABILITY"]["cases"][case_name]
+        for old_c, new_c in zip(case["candidates"], new_case["candidates"]):
+            if old_c["label"] != new_c["label"]:
+                c2_mismatches.append(f"{case_name}: label {old_c['label']} != {new_c['label']}")
+                continue
+            for key, old_v in old_c["metrics"].items():
+                new_v = new_c["metrics"][key]
+                if isinstance(old_v, float):
+                    if abs(old_v - float(new_v)) > FLOAT_TOL:
+                        c2_mismatches.append(f"{case_name}/{old_c['label']}/{key}: {old_v} != {new_v}")
+                elif old_v != new_v:
+                    c2_mismatches.append(f"{case_name}/{old_c['label']}/{key}: {old_v} != {new_v}")
+    c2 = {"pass": not c2_mismatches, "n_mismatches": len(c2_mismatches), "mismatches_sample": c2_mismatches[:10]}
+
+    # C4 orthogonality: unified_defend must not touch any non-DEFEND branch.
+    off_sub, on_sub = off_result["G6_SUBGATES"], on_result["G6_SUBGATES"]
+    non_defend_fails_match = all(
+        {f for f in off_sub[k]["fails"] if "DEFEND" not in f and "G3_" not in f and "G4_" not in f}
+        == {f for f in on_sub[k]["fails"] if "DEFEND" not in f and "G3_" not in f and "G4_" not in f}
+        for k in ("G6_TARGET", "G6_LEGALITY", "G6_DIRECTION")
+    )
+    c4 = {"pass": non_defend_fails_match, "non_defend_fails_unchanged": non_defend_fails_match}
+
+    attribution = _v2_mechanical_attribution(on_result["G6_PROJECTED_REPRESENTABILITY"])
+
+    decisive_fixtures = ["G3_DEFEND_OUTSIDE", "G4_DEFEND_INSIDE", "V2_ANCHOR_STABLE_INWARD"]
+    decisive_target_pass = all(
+        any(
+            c["label"] == "DEFEND_UNIFIED_SEMANTIC_TARGET" and c["hard_checks"]["max_target_error_at_most_2_5_cells"]
+            for c in on_result["G6_PROJECTED_REPRESENTABILITY"]["cases"][fx]["candidates"]
+        )
+        for fx in decisive_fixtures
+    )
+    decisive_direction_pass = all(
+        any(
+            c["label"] == "DEFEND_UNIFIED_SEMANTIC_TARGET" and c["hard_checks"]["first_direction_cosine_at_least_0_99"]
+            for c in on_result["G6_PROJECTED_REPRESENTABILITY"]["cases"][fx]["candidates"]
+        )
+        for fx in decisive_fixtures
+    )
+    representable = bool(decisive_target_pass and decisive_direction_pass and c2["pass"] and c4["pass"])
+
+    contract_result = {
+        "record_id": "DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT",
+        "status": "REPRESENTABLE_ACROSS_TRANSITIONS" if representable else "FALSIFIED_OR_PARTIAL",
+        "utc": _now(),
+        "implements": [str(V2_SPEC.relative_to(ROOT))],
+        "spec_sha256": _sha256(V2_SPEC) if V2_SPEC.is_file() else None,
+        "C0_prior_artifact_protection": {"pass": c0_pass, "sha256": protected_after},
+        "C2_repair_off_equals_sealed_on_original_fixtures": c2,
+        "C4_orthogonality_non_defend_branches_unaffected": c4,
+        "DECISIVE_G6_TARGET_pass_on": decisive_fixtures,
+        "DECISIVE_G6_TARGET_result": decisive_target_pass,
+        "DECISIVE_G6_DIRECTION_first_cosine_result": decisive_direction_pass,
+        "MECHANICAL_RADIAL_SIGN_ATTRIBUTION": attribution,
+        "results": {"unified_off": off_path.name, "unified_on": on_path.name},
+        "REPRESENTABLE_ACROSS_TRANSITIONS": representable,
+        "team_evaluation_unlocked": False,
+        "claim_boundary": (
+            "This establishes only that a single committed DEFEND macro can express "
+            "the frozen external defender semantics across its own branch transitions "
+            "on the tested fixtures. It says nothing about learned specialization, PPO, "
+            "or team payoff, and does not by itself unblock the Pyquaticus team evaluation."
+        ),
+    }
+    contract_out = V2_RESULT_DIR / "DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json"
+    contract_out.write_text(json.dumps(contract_result, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({
+        "status": contract_result["status"],
+        "C2_pass": c2["pass"], "C4_pass": c4["pass"],
+        "decisive_target_pass": decisive_target_pass,
+        "decisive_direction_pass": decisive_direction_pass,
+        "out": str(contract_out),
+    }, indent=2))
+    return 0 if representable else 2
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--upstream-root", type=Path, required=True)
@@ -771,7 +985,14 @@ def main() -> int:
         "--all-combinations", action="store_true",
         help="Run all four repair-flag combinations and freeze the orthogonality contract result.",
     )
+    parser.add_argument(
+        "--v2", action="store_true",
+        help="Run DEFEND_SEMANTIC_COMMITMENT_V2: unified_defend off vs on, plus the mechanical attribution report.",
+    )
     args = parser.parse_args()
+
+    if args.v2:
+        return _main_v2(args.upstream_root)
 
     if not args.all_combinations:
         result = build_result(

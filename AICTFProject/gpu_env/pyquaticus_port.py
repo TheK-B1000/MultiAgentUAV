@@ -274,15 +274,17 @@ def projection_candidates(
     *,
     repair_defend: bool = False,
     repair_home_legality: bool = False,
+    unified_defend: bool = False,
 ) -> tuple[ProjectionCandidate, ...]:
     """Return every pre-frozen adapter candidate for one semantic branch.
 
     ``repair_defend`` and ``repair_home_legality`` implement
-    DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC.json. Both default OFF, and OFF
-    reproduces the sealed PYQUATICUS_PORT_CONTRACT_RESULT.json candidate set
-    exactly -- this function's DEFEND_INWARD/DEFEND_OUTWARD/
-    ATTACK_HOME_TEAMMATE_CARRIER branches are the only place either flag is
-    read; nothing else in this module or its callers changes behavior.
+    DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC.json. ``unified_defend``
+    implements DEFEND_SEMANTIC_COMMITMENT_V2_SPEC.json. All three default OFF,
+    and OFF/OFF/OFF reproduces the sealed PYQUATICUS_PORT_CONTRACT_RESULT.json
+    candidate set exactly -- this function's DEFEND_INWARD/DEFEND_OUTWARD/
+    ATTACK_HOME_TEAMMATE_CARRIER branches are the only place any flag is read;
+    nothing else in this module or its callers changes behavior.
     """
     i = int(agent_index)
     if i < 0 or i >= state.n_agents:
@@ -365,25 +367,36 @@ def projection_candidates(
             structurally_satisfiable=True,
             structural_note="GO_TO success is reachable at the selected waypoint",
         )
-        if not repair_defend:
+        candidates: list[ProjectionCandidate] = []
+        if unified_defend:
+            candidates.append(ProjectionCandidate(
+                label="DEFEND_UNIFIED_SEMANTIC_TARGET",
+                macro=int(MacroAction.DEFEND),
+                target_index=0,
+                structurally_satisfiable=True,
+                structural_note="V2: one committed macro; inward/outward target re-derived from live state every tick, resolved in _build_targets_from_action mirroring true_motion's own branch decision exactly",
+            ))
+        if repair_defend:
+            if branch == SemanticBranch.DEFEND_INWARD:
+                candidates.append(ProjectionCandidate(
+                    label="DEFEND_FLAG_SEMANTIC_TARGET",
+                    macro=int(MacroAction.DEFEND_FLAG),
+                    target_index=0,
+                    structurally_satisfiable=True,
+                    structural_note="REPAIR_A: state-computed target = current own_flag_pos, resolved in _build_targets_from_action exactly as GET_FLAG/GO_HOME are",
+                ))
+            else:
+                candidates.append(ProjectionCandidate(
+                    label="DEFEND_OUTWARD_SEMANTIC_TARGET",
+                    macro=int(MacroAction.DEFEND_OUTWARD),
+                    target_index=0,
+                    structurally_satisfiable=True,
+                    structural_note="REPAIR_A: agent-relative outward ray to the arena boundary, recomputed every tick from own position; not nameable by any fixed coordinate",
+                ))
+        if not candidates:
             return (waypoint_candidate,)
-        if branch == SemanticBranch.DEFEND_INWARD:
-            semantic_candidate = ProjectionCandidate(
-                label="DEFEND_FLAG_SEMANTIC_TARGET",
-                macro=int(MacroAction.DEFEND_FLAG),
-                target_index=0,
-                structurally_satisfiable=True,
-                structural_note="REPAIR_A: state-computed target = current own_flag_pos, resolved in _build_targets_from_action exactly as GET_FLAG/GO_HOME are",
-            )
-        else:
-            semantic_candidate = ProjectionCandidate(
-                label="DEFEND_OUTWARD_SEMANTIC_TARGET",
-                macro=int(MacroAction.DEFEND_OUTWARD),
-                target_index=0,
-                structurally_satisfiable=True,
-                structural_note="REPAIR_A: agent-relative outward ray to the arena boundary, recomputed every tick from own position; not nameable by any fixed coordinate",
-            )
-        return (semantic_candidate, waypoint_candidate)
+        candidates.append(waypoint_candidate)
+        return tuple(candidates)
 
     if branch == SemanticBranch.TAGGED_UPSTREAM_OVERRIDE:
         return (
@@ -430,6 +443,20 @@ def effective_projected_target(
         target = _ray_to_boundary(
             state.positions[i], away_unit, max_x=state.max_x, max_y=state.max_y,
         )
+    elif macro == MacroAction.DEFEND:
+        # V2: recomputed from live state every tick, exactly mirroring
+        # true_motion's own DEFEND_INWARD/DEFEND_OUTWARD branch decision --
+        # including its boundary convention: distance > R is INWARD, distance
+        # <= R (inclusive of exactly R) is OUTWARD.
+        to_flag = state.own_flag_pos - state.positions[i]
+        distance = float(torch.linalg.vector_norm(to_flag))
+        if distance > DEFENDER_RADIUS_CELLS:
+            target = state.own_flag_pos
+        else:
+            away_unit = expected_away_direction(state, i)
+            target = _ray_to_boundary(
+                state.positions[i], away_unit, max_x=state.max_x, max_y=state.max_y,
+            )
     else:
         target = waypoints[int(candidate.target_index)]
 

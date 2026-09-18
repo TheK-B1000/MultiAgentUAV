@@ -14,3 +14,13 @@ class MacroAction(IntEnum):
     # Pyquaticus port contract does), never via the discrete action head.
     DEFEND_FLAG = 5
     DEFEND_OUTWARD = 6
+    # DEFEND_SEMANTIC_COMMITMENT_V2: one committed macro whose inward/outward
+    # target is re-derived from live state each tick, mirroring the frozen
+    # Pyquaticus easy-mode defender exactly (including its standoff radius).
+    # This is a Pyquaticus REFERENCE-CONTROLLER adapter, scoped to reproducing
+    # that specific external behavior for the port contract. It is NOT a
+    # proposal to add a fixed-threshold DEFEND action to the general learned
+    # PPO action vocabulary -- a learned policy should be free to choose its
+    # own defensive standoff distance, which this macro does not allow. See
+    # artifacts/strategic_demand/sppo/DEFEND_SEMANTIC_COMMITMENT_V2_SPEC.json.
+    DEFEND = 7

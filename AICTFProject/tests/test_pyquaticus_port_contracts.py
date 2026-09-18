@@ -484,3 +484,158 @@ def test_repair_flags_do_not_alter_unrelated_branches():
         repair_defend=True, repair_home_legality=True,
     )
     assert off == on
+
+
+# ---------------------------------------------------------------------------
+# DEFEND_SEMANTIC_COMMITMENT_V2: known-answer contracts (Rule 12).
+# unified_defend defaults False everywhere above this line, so nothing above
+# is affected. MacroAction.DEFEND is reachable only via this explicit flag.
+# ---------------------------------------------------------------------------
+
+def test_defend_radius_helper_matches_port_module():
+    from gpu_env._core._rules import _pyquaticus_defender_radius_cells
+    for tag_range in (1.0, 2.5, 4.0, 10.0):
+        assert _pyquaticus_defender_radius_cells(tag_range) == pytest.approx(
+            defender_radius_from_tag_range(tag_range)
+        )
+    # the live core's default tag_range_cells must reproduce the analytical
+    # module's DEFENDER_RADIUS_CELLS constant, since effective_projected_target
+    # (analytical) and the live engine must threshold at the same radius
+    core = _live_core()
+    assert _pyquaticus_defender_radius_cells(float(core.cfg.tag_range_cells)) == pytest.approx(
+        DEFENDER_RADIUS_CELLS
+    )
+
+
+def test_unified_defend_matches_inward_target_when_outside_radius_live_engine():
+    core = _live_core()
+    core.blue_x[0] = torch.tensor([9.0, 0.0, 0.0, 0.0])  # 7 cells out, radius 3.5
+    core.blue_y[0] = torch.tensor([10.0, 0.0, 0.0, 0.0])
+    core.blue_flag_pos[0] = torch.tensor([2.0, 10.0])
+    core.blue_flag_home[0] = torch.tensor([2.0, 10.0])
+    macros = torch.full((1, 4), int(MacroAction.GO_TO), dtype=torch.int64)
+    macros[0, 0] = int(MacroAction.DEFEND)
+    targets = torch.zeros((1, 4), dtype=torch.int64)
+    tx, ty = core._build_targets_from_action(macros, targets, side="blue")
+    torch.testing.assert_close(torch.stack([tx[0, 0], ty[0, 0]]), torch.tensor([2.0, 10.0]))
+
+
+def test_unified_defend_matches_outward_target_when_inside_radius_live_engine():
+    core = _live_core()
+    core.blue_x[0] = torch.tensor([4.0, 0.0, 0.0, 0.0])  # 2 cells in, radius 3.5
+    core.blue_y[0] = torch.tensor([10.0, 0.0, 0.0, 0.0])
+    core.blue_flag_pos[0] = torch.tensor([2.0, 10.0])
+    core.blue_flag_home[0] = torch.tensor([2.0, 10.0])
+    macros = torch.full((1, 4), int(MacroAction.GO_TO), dtype=torch.int64)
+    macros[0, 0] = int(MacroAction.DEFEND)
+    targets = torch.zeros((1, 4), dtype=torch.int64)
+    tx, ty = core._build_targets_from_action(macros, targets, side="blue")
+    away_unit = _unit(torch.tensor([4.0, 10.0]) - torch.tensor([2.0, 10.0]))
+    max_x = float(max(0, core.cols - 1))
+    max_y = float(max(0, core.rows - 1))
+    expected = _ray_to_boundary(torch.tensor([4.0, 10.0]), away_unit, max_x=max_x, max_y=max_y)
+    torch.testing.assert_close(torch.stack([tx[0, 0], ty[0, 0]]), expected)
+
+
+def test_unified_defend_boundary_convention_exactly_at_radius_is_outward():
+    """true_motion: distance > R is INWARD; distance <= R (inclusive) is
+    OUTWARD. The unified macro must match this exactly at the boundary."""
+    core = _live_core()
+    radius = DEFENDER_RADIUS_CELLS
+    core.blue_x[0] = torch.tensor([2.0 + radius, 0.0, 0.0, 0.0])  # exactly R away
+    core.blue_y[0] = torch.tensor([10.0, 0.0, 0.0, 0.0])
+    core.blue_flag_pos[0] = torch.tensor([2.0, 10.0])
+    core.blue_flag_home[0] = torch.tensor([2.0, 10.0])
+    macros = torch.full((1, 4), int(MacroAction.GO_TO), dtype=torch.int64)
+    macros[0, 0] = int(MacroAction.DEFEND)
+    targets = torch.zeros((1, 4), dtype=torch.int64)
+    tx, ty = core._build_targets_from_action(macros, targets, side="blue")
+    # OUTWARD at exactly R means the target must NOT equal own_flag_pos
+    assert not (abs(float(tx[0, 0]) - 2.0) < 1e-6 and abs(float(ty[0, 0]) - 10.0) < 1e-6)
+
+
+def test_unified_defend_still_obeys_carrying_override_live_engine():
+    core = _live_core()
+    core.blue_x[0] = torch.tensor([9.0, 0.0, 0.0, 0.0])
+    core.blue_y[0] = torch.tensor([10.0, 0.0, 0.0, 0.0])
+    core.blue_flag_pos[0] = torch.tensor([4.0, 10.0])
+    core.blue_flag_home[0] = torch.tensor([2.0, 10.0])
+    core.blue_carrying[0] = torch.tensor([True, False, False, False])
+    macros = torch.full((1, 4), int(MacroAction.GO_TO), dtype=torch.int64)
+    macros[0, 0] = int(MacroAction.DEFEND)
+    targets = torch.zeros((1, 4), dtype=torch.int64)
+    tx, ty = core._build_targets_from_action(macros, targets, side="blue")
+    torch.testing.assert_close(torch.stack([tx[0, 0], ty[0, 0]]), torch.tensor([2.0, 10.0]))
+
+
+@pytest.mark.parametrize(
+    "branch_positions",
+    [
+        ((10.0, 10.0), (10.0, 5.0), (10.0, 15.0), (9.0, 10.0)),  # DEFEND_INWARD
+        ((4.0, 10.0), (2.0, 12.0), (2.0, 8.0), (5.5, 10.0)),      # DEFEND_OUTWARD
+    ],
+)
+def test_unified_defend_candidate_offered_for_both_branches_same_label(branch_positions):
+    """The whole point of V2: ONE label/macro spans both native branches, so a
+    committed candidate never needs the branch-flip fallback V1 required."""
+    state = _state(positions=branch_positions, own_flag_pos=(4.0, 10.0))
+    motion = true_motion(state, roles_tensor([Role.DEFEND] * 4))
+    candidates = projection_candidates(state, motion, 0, _waypoints(), unified_defend=True)
+    labels = [c.label for c in candidates]
+    assert "DEFEND_UNIFIED_SEMANTIC_TARGET" in labels
+    unified = next(c for c in candidates if c.label == "DEFEND_UNIFIED_SEMANTIC_TARGET")
+    assert unified.macro == int(MacroAction.DEFEND)
+
+
+def test_unified_defend_composes_with_repair_defend_and_home_legality():
+    """Orthogonality: unified_defend must not remove or alter the V1 or home
+    candidates when both flags are combined."""
+    state = _state(
+        positions=((10.0, 10.0), (10.0, 5.0), (10.0, 15.0), (9.0, 10.0)),
+        own_flag_pos=(4.0, 10.0),
+    )
+    motion = true_motion(state, roles_tensor([Role.DEFEND] * 4))
+    solo = {c.label for c in projection_candidates(state, motion, 0, _waypoints(), repair_defend=True)}
+    combined = {
+        c.label for c in projection_candidates(
+            state, motion, 0, _waypoints(), repair_defend=True, unified_defend=True,
+        )
+    }
+    assert combined == solo | {"DEFEND_UNIFIED_SEMANTIC_TARGET"}
+
+
+def test_effective_projected_target_matches_live_engine_for_unified_defend_across_branches():
+    """The decisive C3 check: analytical mirror vs live engine, exact match,
+    at fixtures stable-inward, stable-outward, and (this is the point) the
+    original boundary-crossing G3/G4 fixtures where the branch actually flips
+    mid-probe. Uses the raw resolver directly per tick, not the 16-tick probe,
+    to isolate resolution-parity from the commit-horizon trajectory question."""
+    core = _live_core()
+    fixtures = {
+        "stable_inward": ((12.0, 10.0), (12.0, 5.0), (12.0, 15.0), (11.0, 10.0)),
+        "stable_outward": ((3.0, 10.0), (2.0, 11.0), (2.0, 9.0), (3.5, 10.0)),
+        "G3_boundary": ((10.0, 10.0), (10.0, 5.0), (10.0, 15.0), (9.0, 10.0)),
+        "G4_boundary": ((4.0, 10.0), (2.0, 12.0), (2.0, 8.0), (5.5, 10.0)),
+    }
+    for name, positions in fixtures.items():
+        state = _state(positions=positions, own_flag_pos=(4.0, 10.0))
+        core.blue_x[0] = state.positions[:, 0]
+        core.blue_y[0] = state.positions[:, 1]
+        core.blue_flag_pos[0] = state.own_flag_pos
+        core.blue_flag_home[0] = state.own_flag_home
+        core.red_flag_pos[0] = state.enemy_flag_pos
+        motion = true_motion(state, roles_tensor([Role.DEFEND] * 4))
+        candidates = projection_candidates(state, motion, 0, core._macro_targets, unified_defend=True)
+        candidate = next(c for c in candidates if c.label == "DEFEND_UNIFIED_SEMANTIC_TARGET")
+        macros = torch.full((1, 4), int(MacroAction.GO_TO), dtype=torch.int64)
+        targets = torch.zeros((1, 4), dtype=torch.int64)
+        macros[0, 0] = candidate.macro
+        targets[0, 0] = candidate.target_index
+        tx, ty = core._build_targets_from_action(macros, targets, side="blue")
+        tx, ty, _, _ = core._redirect_tagged_to_home(tx, ty, tx.clone(), ty.clone())
+        actual = torch.stack([tx[0, 0], ty[0, 0]])
+        expected = effective_projected_target(state, candidate, 0, core._macro_targets)
+        torch.testing.assert_close(actual, expected, msg=f"mismatch at fixture {name!r}")
+        # and it must equal the TRUE oracle's own target for this same state --
+        # the entire predicted-0.000 hypothesis in one assertion
+        torch.testing.assert_close(actual, motion.targets[0], msg=f"diverges from oracle at fixture {name!r}")
