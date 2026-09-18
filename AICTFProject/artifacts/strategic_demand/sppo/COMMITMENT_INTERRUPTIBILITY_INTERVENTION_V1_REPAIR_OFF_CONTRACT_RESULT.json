@@ -1,0 +1,89 @@
+{
+  "record_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_REPAIR_OFF_CONTRACT_RESULT",
+  "status": "FROZEN_CONTRACT_RESULT",
+  "utc": "2026-09-18T15:48:01Z",
+  "implements": [
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json"
+  ],
+  "classification": "DIAGNOSTIC",
+  "gates": {
+    "G0_PRIOR_ARTIFACT_PROTECTION": {
+      "pass": true,
+      "sha256": {
+        "ACTION_INTERFACE_DECOMP_SPEC.json": "0caadbc63ebb60f3fe66a9a6bf6295ecbae2a78cc0feeb948f5b5a18aab4905f",
+        "ACTION_INTERFACE_DECOMP_SEALED_READING.json": "94e55c3bc34ca38eb3de4a051bf2b7ccacae0abfd9c606c7808edd36f3c170d3",
+        "PROJECTION_DIVERGENCE_TRACE_RESULT.json": "d44a6a889d2fec7dab93c9013c626f608d4c222b99842c0367f6f5e8a0b16014",
+        "REPAIRED_GO_TO_H1_PROJECTED_SPEC.json": "eb7118978a849538a8e5a2c8be9ff5933564a076b2d7b0d1c7385268fa469a75",
+        "PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json": "4f6fcae6d3f3e07d4a6e2dde5a3bbcac1898603592cddaec311b2b1f5c588d5f",
+        "PYQUATICUS_PORT_CONTRACT_RESULT.json": "d24ecdc72044741c52bf5e1ec52694679fffb36b98593b5aa11465ac4d4cc891",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json": "59cbfb6e997d5fd76b6273614b94ce305e30b0b101b234c819916489e9528035",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_TRACE_MANIFEST.json": "fe452fbea6319bbafb6f101c25e8250c20eed83434e9b521aaf2bedc6e59adf5",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json": "04ec5c95e1b9df8848d874752d61ef4a7f45557daca3b67c93cf2b9994358fac",
+        "action_interface_scale_diagnostic_agent_tick_rows.csv": "c0f20f34035951a1f53ddd5e95384df5691c9bc1d5eab61758d51b857c5ae3f8",
+        "action_interface_scale_diagnostic_episode_rows.csv": "1e2771b6be6313a6001455d4c2680e0abfdc69ae32d57485fe5a33862f9d6423",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_RESULT.json": "66e07883c6b63b15f1b374cd2f4a97e266d047e27a15661743962f7685faf8eb",
+        "action_interface_scale_diagnostic_mechanism_amendment_v1_episode_rows.csv": "9c2b017ff2dd906c5760e6d670a043e12f36d8676e3528df8d4f25a889935752"
+      }
+    },
+    "G1_SOURCE_INTENT": {
+      "pass": true,
+      "shape": [
+        2,
+        2
+      ]
+    },
+    "G2_I0_FIDELITY": {
+      "pass": true,
+      "max_abs_error": 0.0
+    },
+    "G3_I1_ISOLATION": {
+      "pass": true,
+      "probe_index": 34
+    },
+    "G4_I2_ISOLATION": {
+      "pass": true,
+      "boundaries": [
+        0,
+        4,
+        8
+      ]
+    },
+    "G5_I3_PRODUCTION_PARITY": {
+      "pass": true,
+      "macro_ticks": [
+        4,
+        3,
+        4,
+        2,
+        4
+      ]
+    },
+    "G6_SCALE_NEUTRAL_INTEGRITY": {
+      "pass": true,
+      "N2_error": 2.0071225288382926,
+      "N4_error": 2.0071225288382926
+    },
+    "G7_OUTCOME_BLIND_SCHEMA": {
+      "pass": true,
+      "forbidden_intersection": []
+    },
+    "G8_TRACE_COMPLETENESS": {
+      "pass": true,
+      "synthetic_counts": {
+        "I0_CONTINUOUS_ORACLE": 8,
+        "I1_W50_NO_COMMIT": 8,
+        "I2_W50_CURRENT_COMMIT": 8,
+        "I2R_W50_INTERRUPTIBLE_COMMIT": 8,
+        "I3_FULL_CURRENT_MACRO": 8,
+        "I3R_FULL_MACRO_INTERRUPTIBLE": 8
+      },
+      "synthetic_trace_hash": "ed41083ab9db302ce4047996ab887ba915e083db8b231e6919bed4c7dc1b66e8",
+      "live_recheck_required": true
+    }
+  },
+  "overall_pass": true,
+  "source_episodes_unlocked": true,
+  "production_interface_modified": false,
+  "claim_boundary": "Contracts validate execution paths only. They contain no team outcome evidence."
+}

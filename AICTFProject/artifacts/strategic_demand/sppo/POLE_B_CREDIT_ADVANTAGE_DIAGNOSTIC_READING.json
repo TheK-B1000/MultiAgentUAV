@@ -1,0 +1,54 @@
+{
+  "record_id": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_READING",
+  "status": "READING_FROZEN",
+  "utc": "2026-09-18T14:35:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "reads": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_RESULT.json",
+  "implements": [
+    "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json",
+    "4V4_POST_GETFLAG_DECISION_TREE.json"
+  ],
+
+  "BOXED": {
+    "CREDIT_SIGNAL_ANOMALY_PRESENT": true,
+    "FAILURE_LOCALIZING": false,
+    "CREDIT_CORRECTION_TRAINING_JUSTIFIED": false
+  },
+
+  "DESCRIPTIVE_PATTERN": {
+    "G_diff_definition": "E[A|useful_B] - E[A|idle_retreat]",
+    "G_diff_all_policies_negative": true,
+    "per_policy_G_diff": {
+      "B_t500k": -1.0396120501487336,
+      "B_final": -0.6108556884879173,
+      "GETFLAG": -1.6775465209434928,
+      "Assignment_v1": -1.2223507103199542,
+      "A3": -2.5395969987236144
+    },
+    "critical_counterexample": "A3 (successful frozen reference) has the MOST negative G_diff (-2.54). Therefore G_diff<0 does not localize the 4v4 B-specialization failure."
+  },
+
+  "SUPPORTED_CONCLUSION": "Useful-B behavior is associated with systematically lower team-scalar GAE advantage than idle/retreat behavior across all evaluated policies. However, because the successful frozen A3 reference exhibits the strongest negative contrast, this statistic does not localize the 4v4 B-specialization failure. The pattern may reflect reward/critic construction, action-bucket conditioning, state visitation, or another property shared by successful and unsuccessful policies.",
+
+  "ALSO_NOTED": {
+    "flag_progress_advantage_corr": "near zero for all policies — this particular advantage signal is not cleanly tracking immediate flag progress; does NOT establish that it prevented B specialization",
+    "GETFLAG_behavioral": "GET_FLAG mass 0.41→0.68 and Pole-B win 0.75 on this n=24 diagnostic confirms manipulation/retention succeeded — keep separate from specialization recovery (already sealed FAIL in GETFLAG_PRESERVE_4V4_READING.json)"
+  },
+
+  "FORBIDDEN_READINGS": [
+    "bad-signal localized to B failure",
+    "credit/reward repair authorized",
+    "fix something even more pronounced in A3",
+    "specialization recovery from GETFLAG win rate on n=24"
+  ],
+
+  "BRANCH_STATUS": "CREDIT BRANCH CLOSED FOR NOW — NO CREDIT-CORRECTION TRAINING",
+
+  "BOARD_NEXT": {
+    "next": "ACTION_INTERFACE_SCALE_DIAGNOSTIC (frozen SPEC; requires BREACH×scale J_k interaction before blaming an action-interface component)",
+    "spec": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "integrity_amendment": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json",
+    "why": "This credit diagnostic found a weird-looking learning signal; it did not catch a failure-localizing culprit. The action-interface scale diagnostic has the discriminator this one lacked."
+  }
+}

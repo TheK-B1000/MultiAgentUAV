@@ -1,0 +1,141 @@
+{
+  "record_id": "PYQUATICUS_G6_SUBGATE_DECOMPOSITION",
+  "record_type": "READING_DECOMPOSITION",
+  "status": "FROZEN_DECOMPOSITION",
+  "utc": "2026-09-18T18:10:00Z",
+  "reads": "PYQUATICUS_PORT_CONTRACT_RESULT.json#G6_PROJECTED_REPRESENTABILITY",
+  "companion": "PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_UNREPRESENTABLE_RESULT.json",
+
+  "PRESERVATION_RULE": "PYQUATICUS_PORT_CONTRACT_RESULT.json is unchanged and unreinterpreted. G6_PROJECTED_REPRESENTABILITY remains FAIL, and the aggregate verdict FAIL_TEAM_EVALUATION_BLOCKED remains in force. This record does not convert any failure into a pass. It reads the per-check data the original gate already recorded and separates four independent questions that the single boolean had collapsed.",
+
+  "WHY_THIS_DECOMPOSITION_EXISTS": "A single G6 boolean states 'the action interface cannot represent Pyquaticus semantics'. That statement is true in aggregate and materially misleading in detail: it would license redesigning ATTACK, which the same data shows is already target-exact at 0.000 cells. Three structurally different engineering problems were sharing one label.",
+
+  "SUBGATES": {
+    "G6_TARGET": {
+      "question": "Can the interface name the intended semantic target?",
+      "metric": "maximum_target_error_cells",
+      "threshold": "<= 2.5 cells",
+      "inherited_unchanged": true
+    },
+    "G6_LEGALITY": {
+      "question": "Is the intended semantic action legally selectable in that state?",
+      "metric": "structurally_satisfiable",
+      "threshold": "true",
+      "inherited_unchanged": true
+    },
+    "G6_DIRECTION": {
+      "question": "Does execution move in the intended direction, initially and sustained?",
+      "metrics": ["first_direction_cosine", "radial_sign_agreement_fraction", "minimum_direction_cosine"],
+      "threshold": "first_direction_cosine >= 0.99 AND radial_sign_agreement_fraction == 1.0",
+      "inherited_unchanged": true
+    },
+    "G6_TRAJECTORY": {
+      "question": "Does the resulting motion stay close to the native trajectory over the frozen 16-tick horizon?",
+      "metric": "trajectory_rmse_cells",
+      "threshold": "<= 2.5 cells",
+      "inherited_unchanged": true,
+      "reclassification_note": "Reported as its own quantity. A trajectory-fidelity failure is a cross-simulator dynamics disagreement and is NOT evidence that the action vocabulary lacks a word. The 2.5-cell threshold is NOT relaxed here; its interpretation is narrowed."
+    }
+  },
+
+  "PER_CANDIDATE_CLASSIFICATION": [
+    {
+      "case": "G1_ATTACK_NO_CARRIER", "candidate": "GET_FLAG", "original_pass": false,
+      "G6_TARGET": "PASS (0.000)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "PASS (cos_first 1.0, cos_min 1.0, radial 1.000)", "G6_TRAJECTORY": "FAIL (3.553)",
+      "reading": "Target-exact and directionally perfect. Dynamics-only failure."
+    },
+    {
+      "case": "G1_ATTACK_NO_CARRIER", "candidate": "GO_TO_ENEMY_FLAG_WAYPOINT", "original_pass": false,
+      "G6_TARGET": "PASS (2.076)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "FAIL (cos_first 0.9992, cos_min -0.9689, radial 0.750)", "G6_TRAJECTORY": "FAIL (4.187)",
+      "reading": "Waypoint substitution inverts direction despite an acceptable target."
+    },
+    {
+      "case": "G2_ATTACK_SELF_CARRIER", "candidate": "GO_HOME_SELF_CARRIER", "original_pass": true,
+      "G6_TARGET": "PASS (0.000)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "PASS (1.0/1.0/1.000)", "G6_TRAJECTORY": "PASS (0.368)",
+      "reading": "Fully clean on all four."
+    },
+    {
+      "case": "G2_ATTACK_SELF_CARRIER", "candidate": "GO_TO_HOME_WAYPOINT_SELF_CARRIER", "original_pass": true,
+      "G6_TARGET": "PASS (0.000)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "PASS (1.0/1.0/1.000)", "G6_TRAJECTORY": "PASS (0.368)",
+      "reading": "Clean. Note the waypoint pathway does NOT invert here, because home coincides with a waypoint exactly."
+    },
+    {
+      "case": "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER", "candidate": "GO_HOME_NONCARRIER", "original_pass": false,
+      "G6_TARGET": "PASS (0.000)", "G6_LEGALITY": "FAIL (structurally_satisfiable=false)", "G6_DIRECTION": "PASS (1.0/1.0/1.000)", "G6_TRAJECTORY": "PASS (1.313)",
+      "reading": "THREE OF FOUR SUB-GATES PASS. The sole defect is a precondition: a non-carrier cannot legally select GO_HOME. The behavior it would produce is exactly correct."
+    },
+    {
+      "case": "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER", "candidate": "GO_TO_HOME_WAYPOINT_NONCARRIER", "original_pass": false,
+      "G6_TARGET": "PASS (2.076)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "FAIL (cos_first 0.9889, cos_min -0.8887, radial 0.438)", "G6_TRAJECTORY": "PASS (2.400)",
+      "reading": "The legal waypoint alternative to the illegal-but-correct macro inverts direction on 56 percent of ticks. Worst radial agreement in the suite."
+    },
+    {
+      "case": "G3_DEFEND_OUTSIDE", "candidate": "GO_TO_DEFENDER_SEMANTIC_TARGET", "original_pass": false,
+      "G6_TARGET": "FAIL (17.009)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "FAIL (cos_first 0.9981, cos_min -0.9469, radial 0.562)", "G6_TRAJECTORY": "PASS (2.188)",
+      "reading": "THE DECISIVE CASE. A 17-cell target error coexists with a PASSING trajectory RMSE. Trajectory fidelity cannot substitute for semantic target fidelity."
+    },
+    {
+      "case": "G4_DEFEND_INSIDE", "candidate": "GO_TO_DEFENDER_SEMANTIC_TARGET", "original_pass": false,
+      "G6_TARGET": "FAIL (18.343)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "FAIL (cos_first 0.9993, cos_min -0.9999, radial 0.625)", "G6_TRAJECTORY": "FAIL (4.596)",
+      "reading": "Worst case in the suite. cos_min of -0.9999 is an almost exact reversal of intent."
+    },
+    {
+      "case": "G5_TAGGED", "candidate": "TAGGED_INTERFACE_IGNORED", "original_pass": true,
+      "G6_TARGET": "PASS (0.000)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "PASS", "G6_TRAJECTORY": "PASS (0.000)",
+      "reading": "VACUOUS. Passes because the upstream override bypasses the action interface entirely."
+    },
+    {
+      "case": "G5_DEAD_LOCAL_ADAPTATION", "candidate": "DEAD_INTERFACE_IGNORED", "original_pass": true,
+      "G6_TARGET": "PASS (0.000)", "G6_LEGALITY": "PASS", "G6_DIRECTION": "PASS", "G6_TRAJECTORY": "PASS (0.000)",
+      "reading": "VACUOUS, same reason. Neither G5 case carries information about interface adequacy."
+    }
+  ],
+
+  "SUBGATE_SUMMARY": {
+    "G6_TARGET": {
+      "fails": ["G3_DEFEND_OUTSIDE (17.009)", "G4_DEFEND_INSIDE (18.343)"],
+      "passes": 8,
+      "statement": "Target representability failure is ENTIRELY concentrated in DEFEND. Every non-DEFEND candidate names its target within threshold, and five of them name it exactly (0.000)."
+    },
+    "G6_LEGALITY": {
+      "fails": ["G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER / GO_HOME_NONCARRIER"],
+      "passes": 9,
+      "statement": "Exactly one legality defect in the entire suite: a non-carrier cannot select GO_HOME. The same semantic branch passes completely when the agent is the carrier."
+    },
+    "G6_DIRECTION": {
+      "fails": [
+        "GO_TO_ENEMY_FLAG_WAYPOINT (radial 0.750)",
+        "GO_TO_HOME_WAYPOINT_NONCARRIER (radial 0.438)",
+        "G3 GO_TO_DEFENDER_SEMANTIC_TARGET (radial 0.562)",
+        "G4 GO_TO_DEFENDER_SEMANTIC_TARGET (radial 0.625)"
+      ],
+      "passes": 6,
+      "statement": "PERFECT SEPARATION: every failure is a GO_TO waypoint substitution, and every semantic macro (GET_FLAG, GO_HOME) scores 1.000 on all three direction metrics. The waypoint pathway is the direction-inverting component. Semantic macros never invert.",
+      "critical_nuance": "Initial direction is NOT the problem. first_direction_cosine is >= 0.9889 in all ten candidates and >= 0.99 in eight. What collapses is SUSTAINED radial sign agreement (0.438-0.750). A one-shot direction check at tick 0 would have missed this failure mode entirely; it is only visible by tracking across the horizon.",
+      "one_exception_worth_noting": "GO_TO_HOME_WAYPOINT_SELF_CARRIER does not invert (radial 1.000), because home coincides exactly with a waypoint. Waypoint projection is harmless when the target happens to BE a waypoint, and pathological otherwise."
+    },
+    "G6_TRAJECTORY": {
+      "fails": ["G1 GET_FLAG (3.553)", "G1 GO_TO_ENEMY_FLAG_WAYPOINT (4.187)", "G4 DEFEND (4.596)"],
+      "passes": 7,
+      "statement": "Independent of target correctness in BOTH directions: GET_FLAG fails trajectory with a perfect 0.000 target, and G3 DEFEND passes trajectory with a 17-cell target error. These two facts together prove the sub-gates are genuinely independent and that neither can substitute for the other.",
+      "horizon_caveat": "The 16-tick horizon systematically favors slow-moving roles. A defender does not travel far enough in 16 ticks for a wrong target to express itself positionally. Lengthening the horizon would make DEFEND look worse, not better, so the current horizon understates the DEFEND defect."
+    }
+  },
+
+  "THE_THREE_ENGINEERING_PROBLEMS_NOW_SEPARATED": {
+    "1_vocabulary": "DEFEND semantic target is not nameable. Fix = a new primitive. Scope: G3, G4.",
+    "2_legality": "GO_HOME is precondition-locked to carriers. Fix = a precondition change. Scope: G2 non-carrier.",
+    "3_dynamics": "Native Pyquaticus and this simulator integrate motion differently. Fix = out of scope for a vocabulary repair; report separately and do not relax the threshold. Scope: G1 GET_FLAG.",
+    "plus_cross_cutting": "Waypoint substitution inverts sustained direction whenever the true target is not itself a waypoint. This is why the new DEFEND primitive must NOT be built on the waypoint pathway."
+  },
+
+  "WHAT_THIS_DOES_NOT_CHANGE": [
+    "G6_PROJECTED_REPRESENTABILITY remains FAIL",
+    "PYQUATICUS_PORT_CONTRACT_RESULT.json status remains FAIL_TEAM_EVALUATION_BLOCKED",
+    "team evaluation remains blocked",
+    "no threshold is relaxed",
+    "no training, GPU, or seed allocation is authorized"
+  ],
+
+  "authorizes": "drafting a successor spec scoped to the vocabulary and legality defects only"
+}

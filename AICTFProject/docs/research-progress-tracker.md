@@ -16,11 +16,62 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-18 — **Pole-B credit/advantage diagnostic LIVE**
-> (spec [`POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json`](../artifacts/strategic_demand/sppo/POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json);
-> seeds `19400001–24`; 5 policies × Pole B). Watch:
-> `pole_b_credit_advantage_diagnostic.log.err`. GETFLAG sealed miss;
-> contingency activated. No repair launched.
+> **Last updated:** 2026-09-18 — **COMMITMENT MECHANISM SUPPORT PASS / REPAIR SPEC NEXT**
+> The CPU-only surgical probe passed all contracts, including G6 outcome-blind
+> schema, over 64 source traces and seeds `19600001–16`:
+> [`ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json`](../artifacts/strategic_demand/sppo/ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json).
+> In 4v4 BREACH, stale-switch burden is `0.49` versus `0.32` in 2v2, with
+> paired scale contrast `+0.167502` `[+0.084054,+0.251855]`. Blocked-switch
+> burden is `0.54` versus `0.37`, contrast `+0.171654`
+> `[+0.115528,+0.233837]`. Both clear the frozen mechanism gate. Decision-lag
+> support was unavailable for one seed pair, but it was not needed because the
+> stale and blocked gates passed. Commitment is now a **mechanistically
+> supported intervention target**, not yet a demonstrated 4v4 fix. Freeze the
+> smallest commitment-only repair and validate its stale/blocked reduction
+> before any PPO or team-outcome run. Credit branch closed:
+> [`POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_READING.json`](../artifacts/strategic_demand/sppo/POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_READING.json)
+> (anomaly present / not failure-localizing / no credit-correction training).
+> Spec: [`ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json`](../artifacts/strategic_demand/sppo/ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json).
+> Board: [`4V4_REPAIR_BOARD_20260917.json`](../artifacts/strategic_demand/sppo/4V4_REPAIR_BOARD_20260917.json).
+>
+> Prior — Pole-B credit diagnostic CLOSED (A3 counterexample on \(G_{\mathrm{diff}}\)).
+> Action-interface scale diagnostic SPEC was frozen with no execution until
+> contracts; contracts passed and the 64-trace run completed. A mechanism-
+> support replay is the only authorized follow-up before any intervention.
+>
+> Prior same day - Pyquaticus behavioral-role port
+> **G1-G5 TRUE PASS / G6 PROJECTED FAIL / TEAM EVALUATION BLOCKED**
+> ([`PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json)).
+> Official upstream `main` is pinned at
+> `72b50e067ab311929390ecd4e59131452be15c6d`; BaseAttacker and
+> BaseDefender `mode="easy"` only; Heuristic_CTF_Agent excluded. TRUE_NATIVE
+> preserves the global-state contract and direct physical targets. PROJECTED
+> failed its frozen outcome-blind representability contracts, so no adapter was
+> frozen. Result:
+> [`PYQUATICUS_PORT_CONTRACT_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_PORT_CONTRACT_RESULT.json).
+> Provenance and G1-G5 native semantics passed. G6 failed in the no-carrier
+> attack, non-carrier friendly-carrier, defender-outside, and defender-inside
+> cases. Exact GET_FLAG targeting still exceeded the 2.5-cell trajectory-RMSE
+> ceiling because the macro interface cannot express the upstream 0.5-speed
+> intent. In the friendly-carrier/non-carrier case, GO_HOME was structurally
+> unsatisfiable while GO_TO failed direction and temporal-motion checks. This is
+> **ACTION-INTERFACE DISTORTION**, not an assignment result. The planned first
+> assignment rung remains episode-static 2A/2D with
+> CLOSEST_DEFENDS, FARTHEST_DEFENDS, and FIXED_IDENTITY. **No implementation,
+> team evaluation, training, seed allocation, or old-branch merge beyond the
+> completed CPU contract milestone is authorized. No GPU was used.**
+>
+> Prior same day - Pole-B credit/advantage diagnostic **COMPLETE**
+> ([`POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_RESULT.json`](../artifacts/strategic_demand/sppo/POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_RESULT.json)).
+> Additive useful-minus-idle advantage contrasts were negative for all five
+> policies: B_t500k `-1.040`, B_final `-0.611`, GETFLAG `-1.678`,
+> Assignment-v1 `-1.222`, A3 `-2.540`. Because successful frozen A3 is the
+> most negative row, this diagnostic does **not** localize simple credit
+> misalignment as the 4v4 failure mechanism. The preregistered ratio CI is
+> invalid because its implementation clamps negative denominators with
+> `maximum(denominator, 1e-9)`; raw means and additive differences are retained,
+> and an explicit analysis-integrity amendment is still required. No PPO repair
+> is authorized from this result.
 >
 > Prior — **GETFLAG sealed MISS**
 > ([`GETFLAG_PRESERVE_4V4_READING.json`](../artifacts/strategic_demand/sppo/GETFLAG_PRESERVE_4V4_READING.json)):
@@ -28,8 +79,13 @@ It is **not** the source of truth for:
 > (Δ_A=**−0.046875**, Δ_B=+0.015625 point / LCB≤0; integrity on Δ_A).
 > Contingency **ACTIVATED** → Pole-B credit/advantage diagnostic.
 >
-> Prior 2026-09-17 — Assignment-v1 200k COMPLETE; crossover
-> `ASSIGNMENT_V1_4V4` ran (seeds `19500001-64`).
+> Prior 2026-09-17 - Assignment-v1 200k COMPLETE; crossover reading
+> [`ASSIGNMENT_V1_4V4_READING.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_V1_4V4_READING.json)
+> is **NOT SPECIALIZED / NO DEMONSTRATED RECOVERY**. Delta_A=`+0.125`
+> `[-0.03125,+0.28125]`; Delta_B=`-0.015625`
+> `[-0.140625,+0.109375]`; joint gate FAIL. The privileged assignment signal
+> passed its manipulation contracts but was insufficient to recover 4v4
+> specialization. No Assignment-v2, 6v6 promotion, or GETFLAG combination.
 >
 > Prior same day — Assignment diagnostic PASS (G1=1.0, G2=9/9, G3=PASS);
 > [`ASSIGNMENT_CONDITIONING_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_CONDITIONING_V1_SPEC.json)

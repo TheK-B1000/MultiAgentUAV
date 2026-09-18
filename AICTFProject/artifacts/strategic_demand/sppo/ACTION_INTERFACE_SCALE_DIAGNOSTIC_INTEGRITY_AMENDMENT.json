@@ -1,0 +1,40 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT",
+  "status": "FROZEN_PRE_EXECUTION_AMENDMENT",
+  "utc": "2026-09-18T14:32:00Z",
+  "amends": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+  "reason": "The implementation preflight called governing_certification(2) before any diagnostic episode and found that STRATEGIC_DEMAND_2v2_CERTIFICATION.json does not exist. The frozen spec therefore overstates the available 2v2 provenance when it requires Rule-14 certification at both scales.",
+  "preservation_rule": "The original frozen spec remains unchanged. This amendment narrows the provenance and claim boundary without changing I0-I3, the metrics, seeds, analysis, or decision gate.",
+  "opponent_contract": {
+    "2v2": {
+      "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+      "resolver": "experiments.pole_attestation.resolve_pole_genome('B', 2, None)",
+      "expected": "canonical OP7 with no overlay and min_alive_for_defender=2",
+      "required_evidence": [
+        "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json is PASS 7/7",
+        "resolved genome has base_opponent=OP7 and an empty overlay",
+        "live resolved profile has min_alive_for_defender=2, defender_zone_frac=0.05, threat_radius=12.0",
+        "experiments.train_specialist_scale.assert_live_pole_matches_team_size passes"
+      ],
+      "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD"
+    },
+    "4v4": {
+      "label": "CERTIFIED_POLE_B3_3",
+      "resolver": "experiments.pole_attestation.resolve_pole_genome('B', 4, pole_b2_candidates/B3-3_lockdef10_2v1.json)",
+      "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "required_evidence": "assert_resolved_matches_certification and live profile attestation both pass"
+    }
+  },
+  "claim_boundary": "The diagnostic may report a scale-conditioned interaction between the historical canonical 2v2 control and the certified 4v4 benchmark. It may not call this a comparison between two currently Rule-14-certified poles or a pure causal effect of team size.",
+  "unchanged": [
+    "CPU only and outcome blind",
+    "GUARD and BREACH source intents",
+    "I0 continuous oracle",
+    "I1 W50 without commitment",
+    "I2 W50 plus current GO_TO commitment",
+    "I3 full current macro execution",
+    "J_k BREACH-by-scale decision gate",
+    "16 automatically allocated exploratory seeds after contracts pass",
+    "no PPO, GPU, production macro edits, or Pyquaticus repair"
+  ]
+}

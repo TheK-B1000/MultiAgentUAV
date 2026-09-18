@@ -1,0 +1,68 @@
+{
+  "record_id": "SEED_REGISTRY_COLLISION_19500001",
+  "record_type": "BOOKKEEPING_COLLISION_DISCLOSURE",
+  "utc": "2026-09-18T15:32:00Z",
+  "rule": "Rule 9 — three seed classes, never overlapping",
+  "purpose": "Record transparently that seeds 19500001-19500016 were consumed by two different experiments. This disclosure does not retroactively reserve anything and does not repair the overlap.",
+
+  "the_collision": {
+    "range_in_conflict": "19500001-19500016",
+    "party_1": {
+      "experiment": "ASSIGNMENT_V1_4V4 specialist crossover eval",
+      "range_used": "19500001-19500064",
+      "n": 64,
+      "seed_class": "exploratory",
+      "declared_in": "ASSIGNMENT_CONDITIONING_V1_SPEC.json (EVALUATION_after.seeds)",
+      "spec_frozen_utc": "2026-09-17T21:06:30Z",
+      "consumed_utc": "2026-09-18T00:47:26Z to 2026-09-18T03:26:16Z",
+      "registered_in_SEED_REGISTRY": false
+    },
+    "party_2": {
+      "experiment": "ACTION_INTERFACE_SCALE_DIAGNOSTIC",
+      "range_used": "19500001-19500016",
+      "n": 16,
+      "seed_class": "exploratory",
+      "declared_in": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json (SAMPLING)",
+      "allocated_utc": "2026-09-18T14:41:46Z",
+      "consumed_utc": "2026-09-18T14:42:16Z",
+      "registered_in_SEED_REGISTRY": true,
+      "reused_by": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1 (same block, deliberate, per that amendment's SAMPLING clause)"
+    }
+  },
+
+  "root_cause": "The Assignment-v1 crossover froze its seed range in its own spec but was never entered into artifacts/SEED_REGISTRY.json. The diagnostic then called seed_registry.next_free(), which correctly reported 19500001 as the lowest free block start, because the registry contained no record of the crossover's range. The registry answered honestly from what it knew. The defect is the missing registration, not the allocation.",
+
+  "attribution": {
+    "diagnostic_followed_the_rule": true,
+    "diagnostic_note": "ACTION_INTERFACE_SCALE_DIAGNOSTIC used the sanctioned allocation path with no manual --lo override, exactly as its spec required. It is not at fault and its allocation record stands.",
+    "gap": "A frozen spec declaring a seed range is not the same act as reserving it. Nothing in the launch path for eval_specialist_crossover_scaled.py requires a registry entry, so --seed-base/--n-seeds can consume a range the registry never sees."
+  },
+
+  "why_this_was_not_fixed_by_allocating": "seed_registry.allocate() refuses on overlap, and it should. Registering 19500001-19500064 to the crossover now would either be refused or, if forced, would fabricate a reservation that never happened and would make the registry assert a false history. The user direction was explicit: do not retroactively pretend those crossover seeds were properly reserved. This record is the disclosure instead.",
+
+  "scientific_impact_assessment": {
+    "severity": "bookkeeping",
+    "reasoning": "Both consumers are exploratory-class, and they are different kinds of measurement: the crossover is a policy win-rate evaluation, the diagnostic is an outcome-blind scripted-trace replay that reads no policy, score, reward or win field. Neither pools rows with the other, so no paired analysis is contaminated and no confidence interval is affected.",
+    "what_is_lost": "Independence of the two runs at the level of environment initial conditions for the 16 overlapping seeds. Any future claim that jointly cites both runs must state that they share those initial conditions rather than treating them as independent draws.",
+    "what_is_not_lost": "Neither run's internal validity. Neither result is invalidated by this collision.",
+    "confirmatory_exposure": "none — no sealed_confirmatory block was touched"
+  },
+
+  "resolution_status": "OPEN — disclosed, not repaired",
+  "resolution_options_not_yet_chosen": [
+    "accept the overlap as a disclosed exploratory-on-exploratory collision and leave both results standing (cheapest, and consistent with the impact assessment above)",
+    "retire 19500001-19500064 wholesale so no third experiment can land on it, at the cost of burning 48 never-used seeds",
+    "register the crossover's range with an explicit COLLIDED status if the registry schema is extended to represent a disclosed conflict, which it currently cannot"
+  ],
+  "decision_owner": "PI",
+
+  "preventive_gap_identified": "eval_specialist_crossover_scaled.py consumes --seed-base/--n-seeds without a Rule-9 registry check. train_specialist_scale.py and the diagnostic runners do check. Closing that gap would make this class of collision impossible rather than merely disclosed. Not implemented here — it is a code change outside the scope of the current amendment.",
+
+  "cross_references": [
+    "ASSIGNMENT_V1_4V4_BOARD_POSITION.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1.json",
+    "artifacts/SEED_REGISTRY.json"
+  ],
+
+  "authorizes": "nothing"
+}

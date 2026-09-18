@@ -1,0 +1,2803 @@
+{
+  "record_id": "PYQUATICUS_PORT_CONTRACT_RESULT",
+  "status": "FAIL_TEAM_EVALUATION_BLOCKED",
+  "repair_defend": true,
+  "repair_home_legality": true,
+  "utc": "2026-09-18T16:53:37Z",
+  "device": "cpu",
+  "gpu_used": false,
+  "team_episodes_run": 0,
+  "ppo": false,
+  "question": "Do the provenance-pinned TRUE semantics pass G1-G5, and is every required semantic branch representable through the current action interface under G6?",
+  "spec": {
+    "path": "artifacts\\strategic_demand\\sppo\\PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json",
+    "sha256": "4f6fcae6d3f3e07d4a6e2dde5a3bbcac1898603592cddaec311b2b1f5c588d5f"
+  },
+  "upstream": {
+    "repository": "https://github.com/mit-ll-trusted-autonomy/pyquaticus",
+    "commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+    "mode": "easy",
+    "license": "BSD-3-Clause",
+    "verification": {
+      "root": "C:\\Users\\K-B\\AppData\\Local\\Temp\\pyquaticus_provenance_72b50e0_20260918",
+      "expected_commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+      "observed_commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+      "commit_matches": true,
+      "files": {
+        "LICENSE": {
+          "expected_sha256": "0fdad9afd329ec1eb589fedf9e1a00be1ed641e2ebf31bb837eb9223f168d755",
+          "observed_sha256": "0fdad9afd329ec1eb589fedf9e1a00be1ed641e2ebf31bb837eb9223f168d755",
+          "matches": true
+        },
+        "pyquaticus/base_policies/base_attack.py": {
+          "expected_sha256": "e3a7f6e19dc4231124d927206efbee8fa1248e8cc081598efbc7b2cefcd92568",
+          "observed_sha256": "e3a7f6e19dc4231124d927206efbee8fa1248e8cc081598efbc7b2cefcd92568",
+          "matches": true
+        },
+        "pyquaticus/base_policies/base_defend.py": {
+          "expected_sha256": "8bf5947a1028dccf0b35c0a134926d24a33f832b4d331a99a90b8b114396a75b",
+          "observed_sha256": "8bf5947a1028dccf0b35c0a134926d24a33f832b4d331a99a90b8b114396a75b",
+          "matches": true
+        },
+        "pyquaticus/base_policies/base_policy.py": {
+          "expected_sha256": "d2db01ac77aaa3ed10739c1ed738b3201e731b3672b2b3a19cc38478d3b4a5d9",
+          "observed_sha256": "d2db01ac77aaa3ed10739c1ed738b3201e731b3672b2b3a19cc38478d3b4a5d9",
+          "matches": true
+        },
+        "pyquaticus/envs/pyquaticus.py": {
+          "expected_sha256": "ab87caaf460762d341b4121dd385eaa19bfa315fff56df0029c9aa1c365b57bc",
+          "observed_sha256": "ab87caaf460762d341b4121dd385eaa19bfa315fff56df0029c9aa1c365b57bc",
+          "matches": true
+        },
+        "pyquaticus/config.py": {
+          "expected_sha256": "5c0cb391fb33622df8cff18ee9298f8c76b897c3acc6a8d75f178faf7c7205a4",
+          "observed_sha256": "5c0cb391fb33622df8cff18ee9298f8c76b897c3acc6a8d75f178faf7c7205a4",
+          "matches": true
+        },
+        "pyquaticus/base_policies/README.md": {
+          "expected_sha256": "d26fd9ab42b19ed6ce4cb480b2530edb353b461f05f8c08c9d7babae5f5cde6d",
+          "observed_sha256": "d26fd9ab42b19ed6ce4cb480b2530edb353b461f05f8c08c9d7babae5f5cde6d",
+          "matches": true
+        },
+        "pyproject.toml": {
+          "expected_sha256": "9f54cbb440ee4f357bb01c8e3b82bec91016ecfeea8c4533c39cba72ab1e51a9",
+          "observed_sha256": "9f54cbb440ee4f357bb01c8e3b82bec91016ecfeea8c4533c39cba72ab1e51a9",
+          "matches": true
+        },
+        "pyquaticus/base_policies/base_combined.py": {
+          "expected_sha256": "8259679c0bf69a80647a027e9cc104d88f7776a7031ccb19283b2b8ea1f1e828",
+          "observed_sha256": "8259679c0bf69a80647a027e9cc104d88f7776a7031ccb19283b2b8ea1f1e828",
+          "matches": true
+        }
+      },
+      "all_match": true
+    }
+  },
+  "implementation": {
+    "semantic_module": "gpu_env\\pyquaticus_port.py",
+    "semantic_module_sha256": "efb9bc49c10f546ff7844039269890a2e4c1d7ef813a2b25980dc23393d5db75",
+    "runner": "experiments\\run_pyquaticus_port_contracts.py",
+    "runner_sha256": "db28969ddc1f6bf644d2f55562cdb1b1629812d1da7762c7e897a5b96a4691e1"
+  },
+  "G1_G5_NATIVE": {
+    "G1_ATTACK_NO_CARRIER": {
+      "pass": true,
+      "targets": [
+        [
+          17.0,
+          10.0
+        ],
+        [
+          17.0,
+          10.0
+        ],
+        [
+          17.0,
+          10.0
+        ],
+        [
+          17.0,
+          10.0
+        ]
+      ],
+      "expected": [
+        17.0,
+        10.0
+      ]
+    },
+    "G2_ATTACK_FRIENDLY_CARRIER": {
+      "pass": true,
+      "targets": [
+        [
+          2.0,
+          10.0
+        ],
+        [
+          2.0,
+          10.0
+        ],
+        [
+          2.0,
+          10.0
+        ],
+        [
+          2.0,
+          10.0
+        ]
+      ],
+      "branches": [
+        "ATTACK_HOME_SELF_CARRIER",
+        "ATTACK_HOME_TEAMMATE_CARRIER",
+        "ATTACK_HOME_TEAMMATE_CARRIER",
+        "ATTACK_HOME_TEAMMATE_CARRIER"
+      ],
+      "expected": [
+        2.0,
+        10.0
+      ]
+    },
+    "G3_DEFEND_OUTSIDE": {
+      "pass": true,
+      "targets": [
+        [
+          2.0,
+          10.0
+        ],
+        [
+          2.0,
+          10.0
+        ],
+        [
+          2.0,
+          10.0
+        ],
+        [
+          2.0,
+          10.0
+        ]
+      ],
+      "expected": [
+        2.0,
+        10.0
+      ],
+      "radius_cells": 3.5
+    },
+    "G4_DEFEND_INSIDE": {
+      "pass": true,
+      "targets": [
+        [
+          19.0,
+          10.0
+        ],
+        [
+          2.0,
+          19.0
+        ],
+        [
+          2.0,
+          0.0
+        ],
+        [
+          19.0,
+          10.0
+        ]
+      ],
+      "direction_cosines": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "boundary_case_distance_cells": 3.5
+    },
+    "G5_RESET_TAG": {
+      "pass": true,
+      "tagged_target": [
+        2.0,
+        10.0
+      ],
+      "tagged_speed_fraction": 1.0,
+      "dead_local_target": [
+        6.0,
+        5.0
+      ],
+      "dead_local_speed_fraction": 0.0,
+      "dead_semantics_source": "LOCAL_ADAPTATION_NO_UPSTREAM_ALIVE_DEAD_AXIS",
+      "reset_clears_tagged_carrying_and_revives": true
+    }
+  },
+  "G6_PROJECTED_REPRESENTABILITY": {
+    "gate_id": "G6_PROJECTED_REPRESENTABILITY",
+    "pass": false,
+    "horizon_decision_ticks": 16,
+    "thresholds": {
+      "first_direction_cosine_min": 0.99,
+      "radial_sign_agreement_required": 1.0,
+      "maximum_target_error_cells": 2.5,
+      "trajectory_rmse_cells": 2.5
+    },
+    "cases": {
+      "G1_ATTACK_NO_CARRIER": {
+        "semantic_branch": "ATTACK_ENEMY_FLAG",
+        "agent_index": 0,
+        "true_target_initial": [
+          17.0,
+          10.0
+        ],
+        "candidates": [
+          {
+            "label": "GET_FLAG",
+            "macro": "GET_FLAG",
+            "target_index_initial": 0,
+            "structural_note": "GET_FLAG success is reachable by flag acquisition",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": 1.0,
+              "radial_sign_agreement_fraction": 1.0,
+              "maximum_target_error_cells": 0.0,
+              "mean_target_error_cells": 0.0,
+              "trajectory_rmse_cells": 3.552551788074609,
+              "maximum_position_error_cells": 5.236917495727539,
+              "semantic_branches_seen": [
+                "ATTACK_ENEMY_FLAG"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": true,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": false
+            },
+            "pass": false,
+            "trace": {
+              "true_targets": [
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.43560028076171875,
+                0.980100154876709,
+                1.5246000289916992,
+                2.0690999031066895,
+                2.6135997772216797,
+                3.1580991744995117,
+                3.7025985717773438,
+                4.247097969055176,
+                4.791597366333008,
+                5.236917495727539,
+                5.192188262939453,
+                4.826425552368164,
+                4.363340377807617,
+                3.855924606323242,
+                3.3283157348632812
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          },
+          {
+            "label": "GO_TO_ENEMY_FLAG_WAYPOINT",
+            "macro": "GO_TO",
+            "target_index_initial": 45,
+            "structural_note": "GO_TO success is reachable at the selected waypoint",
+            "metrics": {
+              "first_direction_cosine": 0.9992135763168335,
+              "minimum_direction_cosine": -0.968944251537323,
+              "radial_sign_agreement_fraction": 0.75,
+              "maximum_target_error_cells": 2.0757267475128174,
+              "mean_target_error_cells": 2.0757267475128174,
+              "trajectory_rmse_cells": 4.187099299271039,
+              "maximum_position_error_cells": 6.246732234954834,
+              "semantic_branches_seen": [
+                "ATTACK_ENEMY_FLAG"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": false,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": false
+            },
+            "pass": false,
+            "trace": {
+              "true_targets": [
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ],
+                [
+                  17.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ]
+              ],
+              "position_error_cells": [
+                0.019434934481978416,
+                0.43833738565444946,
+                0.9833376407623291,
+                1.528591275215149,
+                2.0738985538482666,
+                2.6192259788513184,
+                3.164562702178955,
+                3.709904670715332,
+                4.255250453948975,
+                4.800597667694092,
+                5.345947742462158,
+                5.891299247741699,
+                6.246732234954834,
+                6.113267421722412,
+                5.757323265075684,
+                5.3003363609313965
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false
+              ]
+            }
+          }
+        ],
+        "pass": false,
+        "selected_candidate_if_global_gate_passes": null
+      },
+      "G2_ATTACK_SELF_CARRIER": {
+        "semantic_branch": "ATTACK_HOME_SELF_CARRIER",
+        "agent_index": 0,
+        "true_target_initial": [
+          2.0,
+          10.0
+        ],
+        "candidates": [
+          {
+            "label": "GO_HOME_SELF_CARRIER",
+            "macro": "GO_HOME",
+            "target_index_initial": 0,
+            "structural_note": "GO_HOME success is reachable by this carrier's capture",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": 1.0,
+              "radial_sign_agreement_fraction": 1.0,
+              "maximum_target_error_cells": 0.0,
+              "mean_target_error_cells": 0.0,
+              "trajectory_rmse_cells": 0.368223481691763,
+              "maximum_position_error_cells": 0.7335100173950195,
+              "semantic_branches_seen": [
+                "ATTACK_HOME_SELF_CARRIER"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": true,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": true,
+            "trace": {
+              "true_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.43560028076171875,
+                0.7335100173950195,
+                0.7235283851623535,
+                0.6129636764526367,
+                0.4854466915130615,
+                0.371213436126709,
+                0.2783174514770508,
+                0.20626592636108398,
+                0.15180468559265137,
+                0.11124873161315918,
+                0.0813145637512207,
+                0.059340715408325195,
+                0.04326677322387695,
+                0.03153824806213379,
+                0.02300083637237549
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          },
+          {
+            "label": "GO_TO_HOME_WAYPOINT_SELF_CARRIER",
+            "macro": "GO_TO",
+            "target_index_initial": 5,
+            "structural_note": "movement is overridden home while carrying; GO_TO completion remains interface-dependent",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": 1.0,
+              "radial_sign_agreement_fraction": 1.0,
+              "maximum_target_error_cells": 0.0,
+              "mean_target_error_cells": 0.0,
+              "trajectory_rmse_cells": 0.368223481691763,
+              "maximum_position_error_cells": 0.7335100173950195,
+              "semantic_branches_seen": [
+                "ATTACK_HOME_SELF_CARRIER"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": true,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": true,
+            "trace": {
+              "true_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.43560028076171875,
+                0.7335100173950195,
+                0.7235283851623535,
+                0.6129636764526367,
+                0.4854466915130615,
+                0.371213436126709,
+                0.2783174514770508,
+                0.20626592636108398,
+                0.15180468559265137,
+                0.11124873161315918,
+                0.0813145637512207,
+                0.059340715408325195,
+                0.04326677322387695,
+                0.03153824806213379,
+                0.02300083637237549
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          }
+        ],
+        "pass": true,
+        "selected_candidate_if_global_gate_passes": "GO_TO_HOME_WAYPOINT_SELF_CARRIER"
+      },
+      "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER": {
+        "semantic_branch": "ATTACK_HOME_TEAMMATE_CARRIER",
+        "agent_index": 1,
+        "true_target_initial": [
+          2.0,
+          10.0
+        ],
+        "candidates": [
+          {
+            "label": "GO_HOME_NONCARRIER",
+            "macro": "GO_HOME",
+            "target_index_initial": 0,
+            "structural_note": "REPAIR_B: the engine never blocks selecting GO_HOME for a non-carrier -- _advance_blue_macros accepts any macro id unconditionally. The prior False declaration reflected only that GO_HOME's own capture-success flag (blue_cap_agents, gpu_env/_core/_step.py) cannot fire for a non-carrier. This repair recognizes that capture-eligibility is the wrong satisfiability criterion for an escort assignment, whose correctness is target/direction/trajectory fidelity -- already exact -- not a capture event that was never this agent's to trigger. GO_HOME's target resolution is untouched.",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": 0.9999998807907104,
+              "radial_sign_agreement_fraction": 1.0,
+              "maximum_target_error_cells": 0.0,
+              "mean_target_error_cells": 0.0,
+              "trajectory_rmse_cells": 1.3125333715305143,
+              "maximum_position_error_cells": 2.4317216873168945,
+              "semantic_branches_seen": [
+                "ATTACK_HOME_TEAMMATE_CARRIER"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": true,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": true,
+            "trace": {
+              "true_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.435599684715271,
+                0.9800995588302612,
+                1.5245994329452515,
+                2.069099187850952,
+                2.4317216873168945,
+                2.3042938709259033,
+                1.9458924531936646,
+                1.4861600399017334,
+                1.1008586883544922,
+                0.8099439144134521,
+                0.5934427380561829,
+                0.4337029457092285,
+                0.316458523273468,
+                0.230682834982872,
+                0.1680556684732437
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          },
+          {
+            "label": "GO_TO_HOME_WAYPOINT_NONCARRIER",
+            "macro": "GO_TO",
+            "target_index_initial": 5,
+            "structural_note": "GO_TO success is reachable at the selected home waypoint",
+            "metrics": {
+              "first_direction_cosine": 0.9889050722122192,
+              "minimum_direction_cosine": -0.8886597752571106,
+              "radial_sign_agreement_fraction": 0.4375,
+              "maximum_target_error_cells": 2.0757267475128174,
+              "mean_target_error_cells": 2.0757267475128174,
+              "trajectory_rmse_cells": 2.400433740964656,
+              "maximum_position_error_cells": 3.4088544845581055,
+              "semantic_branches_seen": [
+                "ATTACK_HOME_TEAMMATE_CARRIER"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": false,
+              "radial_sign_matches_every_tick": false,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": false,
+            "trace": {
+              "true_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ]
+              ],
+              "position_error_cells": [
+                0.07299872487783432,
+                0.47275397181510925,
+                1.0248240232467651,
+                1.5799705982208252,
+                2.135796546936035,
+                2.691880464553833,
+                3.2480900287628174,
+                3.4088544845581055,
+                3.2048428058624268,
+                2.9519925117492676,
+                2.7347285747528076,
+                2.5630228519439697,
+                2.4327962398529053,
+                2.336136817932129,
+                2.2652056217193604,
+                2.213458776473999
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                false
+              ]
+            }
+          }
+        ],
+        "pass": true,
+        "selected_candidate_if_global_gate_passes": "GO_HOME_NONCARRIER"
+      },
+      "G3_DEFEND_OUTSIDE": {
+        "semantic_branch": "DEFEND_INWARD",
+        "agent_index": 0,
+        "true_target_initial": [
+          2.0,
+          10.0
+        ],
+        "candidates": [
+          {
+            "label": "DEFEND_FLAG_SEMANTIC_TARGET",
+            "macro": "DEFEND_FLAG",
+            "target_index_initial": 0,
+            "structural_note": "REPAIR_A: state-computed target = current own_flag_pos, resolved in _build_targets_from_action exactly as GET_FLAG/GO_HOME are",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": -1.0,
+              "radial_sign_agreement_fraction": 0.5,
+              "maximum_target_error_cells": 17.9313907623291,
+              "mean_target_error_cells": 5.443256616592407,
+              "trajectory_rmse_cells": 2.345305838158638,
+              "maximum_position_error_cells": 3.997684955596924,
+              "semantic_branches_seen": [
+                "DEFEND_INWARD",
+                "DEFEND_OUTWARD"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": false,
+              "max_target_error_at_most_2_5_cells": false,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": false,
+            "trace": {
+              "true_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  15.703924179077148
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  11.613964080810547
+                ],
+                [
+                  19.0,
+                  11.613959312438965
+                ],
+                [
+                  19.0,
+                  11.613950729370117
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  15.703924179077148
+                ],
+                [
+                  19.0,
+                  15.703924179077148
+                ],
+                [
+                  19.0,
+                  15.703924179077148
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.43560028076171875,
+                0.9801006317138672,
+                1.5246005058288574,
+                1.549035668373108,
+                1.5024075508117676,
+                2.7071003913879395,
+                3.8948137760162354,
+                3.997684955596924,
+                2.8473660945892334,
+                1.595069169998169,
+                1.1181145906448364,
+                1.9004039764404297,
+                2.7442221641540527,
+                3.110710620880127,
+                2.9454503059387207
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                false,
+                true,
+                false,
+                true,
+                false,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+              ]
+            }
+          },
+          {
+            "label": "GO_TO_DEFENDER_SEMANTIC_TARGET",
+            "macro": "GO_TO",
+            "target_index_initial": 5,
+            "structural_note": "GO_TO success is reachable at the selected waypoint",
+            "metrics": {
+              "first_direction_cosine": 0.9981002807617188,
+              "minimum_direction_cosine": -0.9469021558761597,
+              "radial_sign_agreement_fraction": 0.5625,
+              "maximum_target_error_cells": 17.009075164794922,
+              "mean_target_error_cells": 7.486076474189758,
+              "trajectory_rmse_cells": 2.1878608779302806,
+              "maximum_position_error_cells": 3.8502042293548584,
+              "semantic_branches_seen": [
+                "DEFEND_INWARD",
+                "DEFEND_OUTWARD"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": false,
+              "max_target_error_at_most_2_5_cells": false,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": false,
+            "trace": {
+              "true_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  11.137625694274902
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  11.09044361114502
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ]
+              ],
+              "position_error_cells": [
+                0.030206749215722084,
+                0.44218283891677856,
+                0.9879014492034912,
+                1.5342228412628174,
+                1.6713169813156128,
+                1.611133337020874,
+                2.6290104389190674,
+                3.824380874633789,
+                3.8502042293548584,
+                2.7016611099243164,
+                1.6223100423812866,
+                1.411712408065796,
+                1.1892268657684326,
+                1.1245920658111572,
+                2.110541820526123,
+                3.50052547454834
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                false,
+                false,
+                true,
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false
+              ]
+            }
+          }
+        ],
+        "pass": false,
+        "selected_candidate_if_global_gate_passes": null
+      },
+      "G4_DEFEND_INSIDE": {
+        "semantic_branch": "DEFEND_OUTWARD",
+        "agent_index": 0,
+        "true_target_initial": [
+          19.0,
+          10.0
+        ],
+        "candidates": [
+          {
+            "label": "DEFEND_OUTWARD_SEMANTIC_TARGET",
+            "macro": "DEFEND_OUTWARD",
+            "target_index_initial": 0,
+            "structural_note": "REPAIR_A: agent-relative outward ray to the arena boundary, recomputed every tick from own position; not nameable by any fixed coordinate",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": -1.0,
+              "radial_sign_agreement_fraction": 0.625,
+              "maximum_target_error_cells": 17.119508743286133,
+              "mean_target_error_cells": 3.2024385929107666,
+              "trajectory_rmse_cells": 3.4141107343662735,
+              "maximum_position_error_cells": 5.800744533538818,
+              "semantic_branches_seen": [
+                "DEFEND_INWARD",
+                "DEFEND_OUTWARD"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": false,
+              "max_target_error_at_most_2_5_cells": false,
+              "trajectory_rmse_at_most_2_5_cells": false
+            },
+            "pass": false,
+            "trace": {
+              "true_targets": [
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  5.181034564971924
+                ],
+                [
+                  19.0,
+                  12.019308090209961
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  5.181034564971924
+                ],
+                [
+                  19.0,
+                  12.019308090209961
+                ],
+                [
+                  19.0,
+                  12.019303321838379
+                ],
+                [
+                  19.0,
+                  12.01930046081543
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.43560028076171875,
+                0.980100154876709,
+                1.7080703973770142,
+                1.758630394935608,
+                1.0243529081344604,
+                0.647087574005127,
+                1.1405410766601562,
+                2.741623878479004,
+                3.5602738857269287,
+                4.596282958984375,
+                5.608051776885986,
+                5.800744533538818,
+                5.205446720123291,
+                4.675535202026367,
+                4.603791236877441
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                true,
+                true,
+                true,
+                false
+              ]
+            }
+          },
+          {
+            "label": "GO_TO_DEFENDER_SEMANTIC_TARGET",
+            "macro": "GO_TO",
+            "target_index_initial": 45,
+            "structural_note": "GO_TO success is reachable at the selected waypoint",
+            "metrics": {
+              "first_direction_cosine": 0.9993148446083069,
+              "minimum_direction_cosine": -0.9998680949211121,
+              "radial_sign_agreement_fraction": 0.625,
+              "maximum_target_error_cells": 18.342758178710938,
+              "mean_target_error_cells": 5.040199398994446,
+              "trajectory_rmse_cells": 4.595737372573884,
+              "maximum_position_error_cells": 7.0005784034729,
+              "semantic_branches_seen": [
+                "DEFEND_INWARD",
+                "DEFEND_OUTWARD"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": false,
+              "max_target_error_at_most_2_5_cells": false,
+              "trajectory_rmse_at_most_2_5_cells": false
+            },
+            "pass": false,
+            "trace": {
+              "true_targets": [
+                [
+                  19.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  10.123847961425781
+                ],
+                [
+                  19.0,
+                  10.266641616821289
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  19.0,
+                  17.806411743164062
+                ],
+                [
+                  11.12911605834961,
+                  19.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  19.0,
+                  16.88888931274414
+                ],
+                [
+                  19.0,
+                  16.88888931274414
+                ],
+                [
+                  19.0,
+                  16.88888931274414
+                ],
+                [
+                  19.0,
+                  16.88888931274414
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ],
+                [
+                  0.0,
+                  10.55555534362793
+                ]
+              ],
+              "position_error_cells": [
+                0.018141038715839386,
+                0.4379863142967224,
+                0.9829217195510864,
+                1.7397775650024414,
+                2.730865001678467,
+                2.9446372985839844,
+                2.763084650039673,
+                3.0345423221588135,
+                4.658771991729736,
+                5.486303806304932,
+                6.288885593414307,
+                7.0005784034729,
+                6.900407314300537,
+                6.400897979736328,
+                6.045581340789795,
+                5.939535140991211
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                false,
+                true,
+                false,
+                false,
+                false,
+                false,
+                true,
+                true,
+                false
+              ]
+            }
+          }
+        ],
+        "pass": false,
+        "selected_candidate_if_global_gate_passes": null
+      },
+      "G5_TAGGED": {
+        "semantic_branch": "TAGGED_UPSTREAM_OVERRIDE",
+        "agent_index": 0,
+        "true_target_initial": [
+          2.0,
+          10.0
+        ],
+        "candidates": [
+          {
+            "label": "TAGGED_INTERFACE_IGNORED",
+            "macro": "GO_TO",
+            "target_index_initial": 5,
+            "structural_note": "environment tagged override controls motion, independent of macro",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": 1.0,
+              "radial_sign_agreement_fraction": 1.0,
+              "maximum_target_error_cells": 0.0,
+              "mean_target_error_cells": 0.0,
+              "trajectory_rmse_cells": 0.0,
+              "maximum_position_error_cells": 0.0,
+              "semantic_branches_seen": [
+                "TAGGED_UPSTREAM_OVERRIDE"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": true,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": true,
+            "trace": {
+              "true_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ],
+                [
+                  2.0,
+                  10.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          }
+        ],
+        "pass": true,
+        "selected_candidate_if_global_gate_passes": "TAGGED_INTERFACE_IGNORED"
+      },
+      "G5_DEAD_LOCAL_ADAPTATION": {
+        "semantic_branch": "DEAD_LOCAL_ADAPTATION",
+        "agent_index": 1,
+        "true_target_initial": [
+          6.0,
+          5.0
+        ],
+        "candidates": [
+          {
+            "label": "DEAD_INTERFACE_IGNORED",
+            "macro": "GO_TO",
+            "target_index_initial": 12,
+            "structural_note": "dead local adaptation suppresses motion, independent of macro",
+            "metrics": {
+              "first_direction_cosine": 1.0,
+              "minimum_direction_cosine": 1.0,
+              "radial_sign_agreement_fraction": 1.0,
+              "maximum_target_error_cells": 0.0,
+              "mean_target_error_cells": 0.0,
+              "trajectory_rmse_cells": 0.0,
+              "maximum_position_error_cells": 0.0,
+              "semantic_branches_seen": [
+                "DEAD_LOCAL_ADAPTATION"
+              ]
+            },
+            "hard_checks": {
+              "structurally_satisfiable": true,
+              "first_direction_cosine_at_least_0_99": true,
+              "radial_sign_matches_every_tick": true,
+              "max_target_error_at_most_2_5_cells": true,
+              "trajectory_rmse_at_most_2_5_cells": true
+            },
+            "pass": true,
+            "trace": {
+              "true_targets": [
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ]
+              ],
+              "projected_effective_targets": [
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ],
+                [
+                  6.0,
+                  5.0
+                ]
+              ],
+              "position_error_cells": [
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "radial_sign_match": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          }
+        ],
+        "pass": true,
+        "selected_candidate_if_global_gate_passes": "DEAD_INTERFACE_IGNORED"
+      }
+    },
+    "adapter_freeze_status": "UNREPRESENTABLE_TEAM_EVALUATION_BLOCKED"
+  },
+  "G6_SUBGATES": {
+    "per_candidate": [
+      {
+        "case": "G1_ATTACK_NO_CARRIER",
+        "label": "GET_FLAG",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": true,
+        "G6_TRAJECTORY": false
+      },
+      {
+        "case": "G1_ATTACK_NO_CARRIER",
+        "label": "GO_TO_ENEMY_FLAG_WAYPOINT",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": false,
+        "G6_TRAJECTORY": false
+      },
+      {
+        "case": "G2_ATTACK_SELF_CARRIER",
+        "label": "GO_HOME_SELF_CARRIER",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": true,
+        "G6_TRAJECTORY": true
+      },
+      {
+        "case": "G2_ATTACK_SELF_CARRIER",
+        "label": "GO_TO_HOME_WAYPOINT_SELF_CARRIER",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": true,
+        "G6_TRAJECTORY": true
+      },
+      {
+        "case": "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER",
+        "label": "GO_HOME_NONCARRIER",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": true,
+        "G6_TRAJECTORY": true
+      },
+      {
+        "case": "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER",
+        "label": "GO_TO_HOME_WAYPOINT_NONCARRIER",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": false,
+        "G6_TRAJECTORY": true
+      },
+      {
+        "case": "G3_DEFEND_OUTSIDE",
+        "label": "DEFEND_FLAG_SEMANTIC_TARGET",
+        "G6_TARGET": false,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": false,
+        "G6_TRAJECTORY": true
+      },
+      {
+        "case": "G3_DEFEND_OUTSIDE",
+        "label": "GO_TO_DEFENDER_SEMANTIC_TARGET",
+        "G6_TARGET": false,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": false,
+        "G6_TRAJECTORY": true
+      },
+      {
+        "case": "G4_DEFEND_INSIDE",
+        "label": "DEFEND_OUTWARD_SEMANTIC_TARGET",
+        "G6_TARGET": false,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": false,
+        "G6_TRAJECTORY": false
+      },
+      {
+        "case": "G4_DEFEND_INSIDE",
+        "label": "GO_TO_DEFENDER_SEMANTIC_TARGET",
+        "G6_TARGET": false,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": false,
+        "G6_TRAJECTORY": false
+      },
+      {
+        "case": "G5_TAGGED",
+        "label": "TAGGED_INTERFACE_IGNORED",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": true,
+        "G6_TRAJECTORY": true
+      },
+      {
+        "case": "G5_DEAD_LOCAL_ADAPTATION",
+        "label": "DEAD_INTERFACE_IGNORED",
+        "G6_TARGET": true,
+        "G6_LEGALITY": true,
+        "G6_DIRECTION": true,
+        "G6_TRAJECTORY": true
+      }
+    ],
+    "G6_TARGET": {
+      "fails": [
+        "G3_DEFEND_OUTSIDE/DEFEND_FLAG_SEMANTIC_TARGET",
+        "G3_DEFEND_OUTSIDE/GO_TO_DEFENDER_SEMANTIC_TARGET",
+        "G4_DEFEND_INSIDE/DEFEND_OUTWARD_SEMANTIC_TARGET",
+        "G4_DEFEND_INSIDE/GO_TO_DEFENDER_SEMANTIC_TARGET"
+      ]
+    },
+    "G6_LEGALITY": {
+      "fails": []
+    },
+    "G6_DIRECTION": {
+      "fails": [
+        "G1_ATTACK_NO_CARRIER/GO_TO_ENEMY_FLAG_WAYPOINT",
+        "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER/GO_TO_HOME_WAYPOINT_NONCARRIER",
+        "G3_DEFEND_OUTSIDE/DEFEND_FLAG_SEMANTIC_TARGET",
+        "G3_DEFEND_OUTSIDE/GO_TO_DEFENDER_SEMANTIC_TARGET",
+        "G4_DEFEND_INSIDE/DEFEND_OUTWARD_SEMANTIC_TARGET",
+        "G4_DEFEND_INSIDE/GO_TO_DEFENDER_SEMANTIC_TARGET"
+      ]
+    },
+    "G6_TRAJECTORY": {
+      "fails": [
+        "G1_ATTACK_NO_CARRIER/GET_FLAG",
+        "G1_ATTACK_NO_CARRIER/GO_TO_ENEMY_FLAG_WAYPOINT",
+        "G4_DEFEND_INSIDE/DEFEND_OUTWARD_SEMANTIC_TARGET",
+        "G4_DEFEND_INSIDE/GO_TO_DEFENDER_SEMANTIC_TARGET"
+      ],
+      "note": "reported, never gating -- a cross-simulator dynamics disagreement, not a vocabulary defect"
+    }
+  },
+  "overall": {
+    "provenance_pass": true,
+    "native_G1_G5_pass": true,
+    "projected_G6_pass": false,
+    "clean_contract_seal": false,
+    "team_evaluation_unlocked": false
+  },
+  "failure_localization": "ACTION_INTERFACE_DISTORTION",
+  "decision": "STOP_NO_TEAM_EVALUATION",
+  "claim_boundary": "No outcome here concerns PPO, learned roles, team payoff, or assignment effects."
+}

@@ -965,7 +965,87 @@
       "spec": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-18T11:34:31Z"
+    },
+    {
+      "experiment_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC",
+      "purpose": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC 16 exploratory seeds",
+      "seed_class": "exploratory",
+      "lo": 19500001,
+      "hi": 19500016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T14:41:46Z",
+      "spent_utc": "2026-09-18T15:26:25Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T15:26:25Z",
+          "note": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1 completed with verdict ONE_B_RELEVANT_SCALE_BINDER_CANDIDATE"
+        }
+      ]
+    },
+    {
+      "experiment_id": "ACTION_INTERFACE_COMMITMENT_MECHANISM",
+      "purpose": "CPU-only surgical mechanism probe for stale commitment and decision lag after frozen quantitative localization",
+      "seed_class": "exploratory",
+      "lo": 19600001,
+      "hi": 19600016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/ACTION_INTERFACE_COMMITMENT_MECHANISM_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T15:16:59Z",
+      "spent_utc": "2026-09-18T15:47:24Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T15:47:24Z",
+          "note": "CPU mechanism probe completed; 64 traces, stale/blocked mechanism-support PASS; no outcome evaluation"
+        }
+      ]
+    },
+    {
+      "experiment_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+      "purpose": "Outcome-blind I0-I3 action-interface scale diagnostic",
+      "seed_class": "exploratory",
+      "lo": 19700001,
+      "hi": 19700016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "artifacts\\strategic_demand\\sppo\\ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T15:48:01Z",
+      "spent_utc": "2026-09-18T16:27:20Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T16:02:21Z",
+          "note": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_REPAIR_OFF completed with verdict LEGACY_EQUIVALENCE_RUN"
+        },
+        {
+          "utc": "2026-09-18T16:27:20Z",
+          "note": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1 completed with verdict MANIPULATION_INSUFFICIENT"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-18T11:34:31Z"
+  "updated_utc": "2026-09-18T16:27:20Z",
+  "unregistered_usage": [
+    {
+      "experiment_id": "ASSIGNMENT_V1_4V4",
+      "lo": 19500001,
+      "hi": 19500064,
+      "n": 64,
+      "seed_class": "exploratory",
+      "declared_in": "artifacts/strategic_demand/sppo/ASSIGNMENT_CONDITIONING_V1_SPEC.json (EVALUATION_after.seeds)",
+      "spec_frozen_utc": "2026-09-17T21:06:30Z",
+      "consumed_utc": "2026-09-18T00:47:26Z/2026-09-18T03:26:16Z",
+      "registered": false,
+      "status": "DISCLOSED_NOT_RESERVED",
+      "collides_with": "ACTION_INTERFACE_SCALE_DIAGNOSTIC 19500001..19500016",
+      "note": "NOT a reservation. This range was consumed without ever being entered in 'blocks', so next_free() legitimately returned 19500001 to ACTION_INTERFACE_SCALE_DIAGNOSTIC on 2026-09-18. The diagnostic followed Rule 9 correctly; the defect is the missing registration here. Recorded under a separate key rather than appended to 'blocks' so that audit() is not fed a reservation that never happened. Full disclosure: artifacts/strategic_demand/sppo/SEED_REGISTRY_COLLISION_19500001.json",
+      "resolution": "OPEN - PI decision",
+      "disclosed_utc": "2026-09-18T15:35:00Z"
+    }
+  ],
+  "unregistered_usage_key_meaning": "Seed ranges known to have been spent but never reserved. These are disclosures, not allocations: they confer no claim on the range and are deliberately excluded from blocks so check_block/allocate/audit continue to operate on real reservations only. A range listed here is already dirty - do not assign it to a new experiment."
 }

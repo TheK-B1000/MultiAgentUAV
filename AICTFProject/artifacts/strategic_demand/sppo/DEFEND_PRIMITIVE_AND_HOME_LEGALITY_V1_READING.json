@@ -1,0 +1,76 @@
+{
+  "record_id": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_READING",
+  "record_type": "READING",
+  "utc": "2026-09-18T19:20:00Z",
+  "reads": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_CONTRACT_RESULT.json",
+  "governed_by": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC.json",
+
+  "HEADLINE": "PARTIAL, per the frozen decision rule. Repair B (home legality) is a clean, fully-orthogonal PASS. Repair A (DEFEND primitive) is proven exact in isolation but does NOT clear G6_TARGET at the G3/G4 fixtures, because execution revealed those fixtures place the agent close enough to the defender-radius boundary that the NATIVE oracle itself oscillates between DEFEND_INWARD and DEFEND_OUTWARD within the 16-tick horizon. REPRESENTABILITY_RESTORED = false. Team evaluation stays blocked.",
+
+  "VERDICT_PER_FROZEN_DECISION_RULE": "PARTIAL",
+  "REPRESENTABILITY_RESTORED": false,
+
+  "SUCCESS_CONDITIONS": {
+    "G6_TARGET_G3_DEFEND_OUTSIDE": "FAIL",
+    "G6_TARGET_G4_DEFEND_INSIDE": "FAIL",
+    "G6_LEGALITY_G2_NONCARRIER_HOME": "PASS"
+  },
+
+  "C2_REPAIR_OFF_EQUALS_FROZEN": {
+    "result": "PASS",
+    "detail": "Zero mismatches across every metric in every case/candidate, checked against the sealed PYQUATICUS_PORT_CONTRACT_RESULT.json before the full sweep ran. Sealed file's sha256 verified unchanged both before and after (d24ecdc7...). This was checked as an exact numeric comparison, not merely a status-field match, per the standing rule that a comparison producing zero real matches must not be reported as a pass."
+  },
+
+  "C4_ORTHOGONALITY": {
+    "result": "5 of 6 checks PASS",
+    "passing": [
+      "A_does_not_touch_legality",
+      "B_fixes_home_legality",
+      "B_does_not_touch_target",
+      "both_fix_both (legality)",
+      "attack_to_flag_unaffected_everywhere"
+    ],
+    "failing": ["A_fixes_G3_G4_target"],
+    "reading": "Repair B is unambiguously clean: verified independent of Repair A's state (DEFEND-off/HOME-on shows the identical single legality fix with zero change to G6_TARGET's fail list), fixes exactly its one target defect, and touches nothing else. Repair A's shortfall is also independent of B (DEFEND-on/HOME-off shows the identical G3/G4 target failure), so the two repairs do not interact -- Repair A simply does not achieve its goal at these specific fixtures, for a reason found only by executing it."
+  },
+
+  "WHY_REPAIR_A_DID_NOT_CLEAR_THE_GATE": {
+    "not_a_vocabulary_defect": "The new DEFEND_FLAG and DEFEND_OUTWARD macros are proven exact in isolation: 4 dedicated pytest known-answer tests (test_defend_flag_macro_targets_current_own_flag_pos_not_home_live_engine, test_defend_outward_macro_matches_scalar_ray_to_boundary_live_engine, test_defend_outward_zero_vector_uses_heading_fallback_live_engine, test_effective_projected_target_matches_live_engine_for_repaired_defend) all pass, each checking a single-tick, no-commitment target resolution against the live production engine bit-for-bit. The primitive itself is correct.",
+    "the_actual_cause": "Native oracle oscillation at the defender_radius boundary (3.5 cells). The G3/G4 fixtures place the defender agent close enough to that boundary that, as it moves under its own DEFEND_INWARD pull, it crosses inside the radius, DEFEND_OUTWARD then pushes it back out, and the branch can flip again -- within the SAME 16-tick decision horizon this contract already uses. Any macro that HOLDS a target across ticks (a commitment, which every macro in this interface has -- the new ones inherited the default go_to horizon) necessarily lags a flipping oracle by up to its commit horizon. During that lag the true target has jumped roughly 17 cells (flag position to the far boundary), which dominates a MAX-based error metric even though the primitive matches the true target exactly during the majority of ticks.",
+    "per_tick_evidence_G3_DEFEND_FLAG_SEMANTIC_TARGET": "err=0.0 at ticks 0-5, 8-12 (10 of 16 ticks exact); err=17.93 at ticks 6-7 only, immediately after a branch flip the committed candidate had not yet re-resolved.",
+    "per_tick_evidence_G4_DEFEND_OUTWARD_SEMANTIC_TARGET": "err=0.0 at ticks 0-2, 4-9, 12-15 (13 of 16 ticks exact); err=17.0-17.12 at ticks 3 and 10-11 only, at the same kind of transition.",
+    "this_is_not_new_to_the_repair": "The LEGACY GO_TO_DEFENDER_SEMANTIC_TARGET waypoint candidate shows the identical semantic_branches_seen=[DEFEND_INWARD, DEFEND_OUTWARD] flip in the ORIGINAL SEALED run (verified directly against PYQUATICUS_PORT_CONTRACT_RESULT.json). The oscillation is a property of the fixtures and the native controller, present before this repair existed. It was always partially responsible for the sealed 17.0/18.3-cell numbers; this repair did not introduce it and does not make it worse."
+  },
+
+  "CORRECTION_TO_THE_FROZEN_SPEC_S_OWN_CLAIM": {
+    "what_the_spec_said": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC.json#EXECUTION_PATH_INSPECTION_THAT_SHAPED_THIS_SPEC.consequence_2 stated: 'The 17.009-cell G3 error is therefore substantially a candidate-set artifact and must not be cited as proof that own_flag_pos is unnameable,' attributing the error primarily to GO_HOME never being offered as a DEFEND_INWARD candidate.",
+    "what_execution_showed": "That attribution is not the dominant driver and should be corrected on the record now rather than quietly left standing. Offering the exact-matching DEFEND_FLAG primitive (which is what a correctly-offered GO_HOME-equivalent candidate would have been) still produces a 17.93-cell maximum error at G3, because the oscillation problem is orthogonal to which candidate is offered. own_flag_pos WAS nameable, exactly, and the error persisted anyway.",
+    "why_this_matters": "This project's standing discipline is to diagnose the reference before touching a threshold or a claim. The original diagnosis was incomplete; this reading is the correction, made as soon as execution evidence contradicted it, per that same discipline.",
+    "preservation": "The frozen spec text itself is left unedited, as amendments in this project convention do. This reading is the correction record."
+  },
+
+  "A_THIRD_KIND_OF_PROBLEM_NOW_VISIBLE": {
+    "statement": "PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json separated vocabulary, legality, and dynamics. Execution surfaces a fourth, distinct from all three: reference instability at a state-dependent branch boundary. Neither a missing word (vocabulary), an illegal selection (legality), nor a cross-simulator dynamics mismatch (trajectory) -- the NATIVE oracle's own instantaneous answer is not stable near this particular geometric threshold, and no committed executor, old or new, can track an oracle that has not settled.",
+    "scope_of_this_finding": "Confined to the exact G3/G4 fixtures as constructed (specific starting positions relative to a 3.5-cell radius). It says nothing about whether this oscillation is common, rare, or edge-case-only across the broader state space the 4v4 DEFEND role would actually occupy during play.",
+    "interaction_with_prior_work_noted_not_conflated": "This is a temporal-commitment-lag-against-a-changing-intent mechanism, structurally the same SHAPE as what COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1 targeted in the CTF action-interface commitment line. But it occurs in an entirely different system (the Pyquaticus port's scripted reference oracle, not the trained-policy action interface), on a different question (is DEFEND nameable at all, not does interruptibility reduce a measured mechanism), and involves no PPO or trained policy. The two must not be cited as the same finding; they are two independent instances of a general pattern (holding a target across ticks lags a target that can move), worth remembering as a pattern but not as one result."
+  },
+
+  "WHAT_THIS_DOES_NOT_AUTHORIZE": {
+    "per_frozen_DECISION_RULE_PARTIAL_branch": "'Some primary conditions pass. Report exactly which, change nothing else, and stop. Do not enlarge the repair to chase the remainder within this spec.'",
+    "explicitly_not_done_here": [
+      "did not make the new DEFEND macros interruptible or shorten their commit horizon to chase the oscillation",
+      "did not modify or relocate the G3/G4 fixtures to avoid the boundary",
+      "did not relax the 2.5-cell target threshold",
+      "did not attempt any other change to recover a PASS within this spec"
+    ],
+    "team_evaluation": "REMAINS BLOCKED. PYQUATICUS_PORT_CONTRACT_RESULT.json is untouched and still FAIL_TEAM_EVALUATION_BLOCKED. This spec's own REPRESENTABILITY_RESTORED is false, so its SEQUENCING_LOCK step 5 does not fire."
+  },
+
+  "WHAT_IS_NOW_ESTABLISHED_AND_USABLE": {
+    "home_legality_repair": "Clean and complete. GO_HOME_NONCARRIER now correctly declares structurally_satisfiable=True behind repair_home_legality, with zero change to its target/direction/trajectory behavior (all three were already passing) and zero change to any other branch. This piece could be frozen and carried forward on its own if a future spec wants it, independent of whatever happens with DEFEND.",
+    "defend_primitive_machinery": "Correct and reusable. Two new MacroAction values (DEFEND_FLAG=5, DEFEND_OUTWARD=6) resolved in gpu_env/_core/_rules.py::_build_targets_from_action exactly as GET_FLAG/GO_HOME are, unreachable by any existing policy (n_macros stays 5 everywhere in production; verified no code derives n_macros from len(MacroAction)). 19 new pytest tests, all passing, all existing 14 pre-repair tests unaffected. The machinery is sound; only these two specific fixtures fail to exercise it cleanly.",
+    "possible_next_step_not_decided_here": "A successor spec could test DEFEND representability on fixtures placed clearly inside or outside the radius (not near it), isolating the vocabulary question from the boundary-oscillation question the current fixtures happen to entangle. Whether that is worth doing, and whether the oscillation itself deserves its own investigation, is a PI decision."
+  },
+
+  "authorizes": "nothing beyond what DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC.json already authorized"
+}

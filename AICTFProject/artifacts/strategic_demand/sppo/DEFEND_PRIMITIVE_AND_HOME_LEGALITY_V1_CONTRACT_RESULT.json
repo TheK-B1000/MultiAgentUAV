@@ -1,0 +1,55 @@
+{
+  "record_id": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_CONTRACT_RESULT",
+  "status": "PARTIAL_OR_REGRESSION",
+  "utc": "2026-09-18T16:53:37Z",
+  "implements": [
+    "artifacts\\strategic_demand\\sppo\\DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC.json"
+  ],
+  "spec_sha256": "70556e871bcba6e2a475d9c0677627986a5b3f768c5d623f650f737b94affde3",
+  "C0_prior_artifact_protection": {
+    "pass": true,
+    "sha256": {
+      "PYQUATICUS_PORT_CONTRACT_RESULT.json": "d24ecdc72044741c52bf5e1ec52694679fffb36b98593b5aa11465ac4d4cc891",
+      "PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json": "350f40cc148fc15ab130d5eb83de7450274ad3c8283c5c835cd554a0035ded3a",
+      "PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_UNREPRESENTABLE_RESULT.json": "b97791d35db3b234e6f56e72a76a25f003d48350682bce8a8a1032951d49b8e4",
+      "PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json": "4f6fcae6d3f3e07d4a6e2dde5a3bbcac1898603592cddaec311b2b1f5c588d5f"
+    }
+  },
+  "combinations_run": [
+    "DEFEND_OFF_HOME_OFF",
+    "DEFEND_ON_HOME_OFF",
+    "DEFEND_OFF_HOME_ON",
+    "DEFEND_ON_HOME_ON"
+  ],
+  "per_combination_results": {
+    "DEFEND_OFF_HOME_OFF": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_DEFEND_OFF_HOME_OFF_RESULT.json",
+    "DEFEND_ON_HOME_OFF": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_DEFEND_ON_HOME_OFF_RESULT.json",
+    "DEFEND_OFF_HOME_ON": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_DEFEND_OFF_HOME_ON_RESULT.json",
+    "DEFEND_ON_HOME_ON": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_DEFEND_ON_HOME_ON_RESULT.json"
+  },
+  "C2_repair_off_equals_frozen": {
+    "pass": true,
+    "n_mismatches": 0,
+    "mismatches_sample": [],
+    "reference": "artifacts\\strategic_demand\\sppo\\PYQUATICUS_PORT_CONTRACT_RESULT.json"
+  },
+  "C4_orthogonality": {
+    "pass": false,
+    "checks": {
+      "A_fixes_G3_G4_target": false,
+      "A_does_not_touch_legality": true,
+      "B_fixes_home_legality": true,
+      "B_does_not_touch_target": true,
+      "both_fix_both": true,
+      "attack_to_flag_unaffected_everywhere": true
+    }
+  },
+  "SUCCESS_CONDITIONS": {
+    "G6_TARGET_G3_DEFEND_OUTSIDE": false,
+    "G6_TARGET_G4_DEFEND_INSIDE": false,
+    "G6_LEGALITY_G2_NONCARRIER_HOME": true
+  },
+  "REPRESENTABILITY_RESTORED": false,
+  "team_evaluation_unlocked": false,
+  "claim_boundary": "This establishes only that the repaired interface can express the frozen external DEFEND semantics and the non-carrier home legality. It does not establish learned specialization, PPO outcomes, or team payoff."
+}

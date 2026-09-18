@@ -1,0 +1,395 @@
+{
+  "record_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_REPAIR_OFF_RESULT",
+  "utc": "2026-09-18T16:02:21Z",
+  "implements": [
+    "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_SPEC.json",
+    "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_IMPLEMENTATION_AMENDMENT.json",
+    "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_REPAIR_OFF_CONTRACT_RESULT.json"
+  ],
+  "classification": "OUTCOME_BLIND_MANIPULATION_CHECK",
+  "outcome_blind": true,
+  "repair_enabled": false,
+  "operating_point": {
+    "theta_degrees": 45.0,
+    "k_consecutive_ticks": 2
+  },
+  "n_seeds": 16,
+  "n_source_traces": 64,
+  "primary_cell": "4v4_BREACH",
+  "PRIMARY_GATE": {
+    "blocked_switch_fraction": {
+      "summary": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 16
+      },
+      "point_min": 0.5,
+      "lcb95_min": 0.25,
+      "pass": false
+    },
+    "p95_decision_lag_ticks": {
+      "summary": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 15
+      },
+      "point_min": 0.5,
+      "lcb95_min": 0.25,
+      "pass": false
+    }
+  },
+  "SECONDARY": {
+    "stale_target_fraction": {
+      "summary": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 16
+      },
+      "point_min": 0.3,
+      "pass": false
+    },
+    "mean_decision_lag_ticks": {
+      "summary": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 16
+      },
+      "point_min": 0.3,
+      "pass": false
+    }
+  },
+  "PERSISTENCE_GUARD": {
+    "G_P1_non_firing_ticks_bit_identical": {
+      "discharged_by": "construction plus the REPAIR_OFF run",
+      "detail": "R only zeroes the commit counter for firing agents; every other statement is the shared legacy code path, so a non-firing tick executes identical code. Trajectory-level comparison is impossible after the first interruption and is therefore not claimed.",
+      "pass": null
+    },
+    "G_P2_interruption_rate_ceiling": {
+      "value": 0.0,
+      "ceiling": 0.4,
+      "pass": true
+    },
+    "G_P3_run_length_floor": {
+      "value": 1.0,
+      "floor": 0.7,
+      "pass": true
+    },
+    "G_P4_no_total_recovery": {
+      "value": 0.0,
+      "ceiling": 0.95,
+      "pass": true
+    }
+  },
+  "cells": {
+    "2v2_GUARD": {
+      "rho": {
+        "blocked_switch_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "p95_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 15
+        },
+        "stale_target_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "mean_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        }
+      },
+      "raw": {
+        "blocked_switch_fraction": {
+          "I1_W50_NO_COMMIT": 0.8255380283189159,
+          "I2_W50_CURRENT_COMMIT": 0.9086266843168818,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.9086266843168818,
+          "I3_FULL_CURRENT_MACRO": 0.8397365875030349,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.8397365875030349
+        },
+        "p95_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 5.095312499999999,
+          "I2_W50_CURRENT_COMMIT": 5.6734374999999995,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 5.6734374999999995,
+          "I3_FULL_CURRENT_MACRO": 5.30625,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 5.30625
+        },
+        "stale_target_fraction": {
+          "I1_W50_NO_COMMIT": 0.0,
+          "I2_W50_CURRENT_COMMIT": 0.5018229166666667,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.5018229166666667,
+          "I3_FULL_CURRENT_MACRO": 0.3169270833333333,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.3169270833333333
+        },
+        "mean_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 3.1909909496004127,
+          "I2_W50_CURRENT_COMMIT": 3.7159050105596156,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 3.7159050105596156,
+          "I3_FULL_CURRENT_MACRO": 3.5400795929806783,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 3.5400795929806783
+        }
+      },
+      "interruption_rate_I2R": 0.0,
+      "mean_commit_run_length": {
+        "I2": 4.0,
+        "I2R": 4.0
+      },
+      "run_length_ratio": 1.0
+    },
+    "2v2_BREACH": {
+      "rho": {
+        "blocked_switch_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "p95_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 9
+        },
+        "stale_target_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "mean_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        }
+      },
+      "raw": {
+        "blocked_switch_fraction": {
+          "I1_W50_NO_COMMIT": 0.7042497697493078,
+          "I2_W50_CURRENT_COMMIT": 0.8424856081777834,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.8424856081777834,
+          "I3_FULL_CURRENT_MACRO": 0.8476326316774359,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.8476326316774359
+        },
+        "p95_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 9.1484375,
+          "I2_W50_CURRENT_COMMIT": 9.2390625,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 9.2390625,
+          "I3_FULL_CURRENT_MACRO": 9.2609375,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 9.2609375
+        },
+        "stale_target_fraction": {
+          "I1_W50_NO_COMMIT": 0.0,
+          "I2_W50_CURRENT_COMMIT": 0.39361979166666666,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.39361979166666666,
+          "I3_FULL_CURRENT_MACRO": 0.11953124999999999,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.11953124999999999
+        },
+        "mean_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 3.53951535741485,
+          "I2_W50_CURRENT_COMMIT": 4.720070585320682,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 4.720070585320682,
+          "I3_FULL_CURRENT_MACRO": 4.824419010322523,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 4.824419010322523
+        }
+      },
+      "interruption_rate_I2R": 0.0,
+      "mean_commit_run_length": {
+        "I2": 4.0,
+        "I2R": 4.0
+      },
+      "run_length_ratio": 1.0
+    },
+    "4v4_GUARD": {
+      "rho": {
+        "blocked_switch_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "p95_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "stale_target_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "mean_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        }
+      },
+      "raw": {
+        "blocked_switch_fraction": {
+          "I1_W50_NO_COMMIT": 0.7524077129213566,
+          "I2_W50_CURRENT_COMMIT": 0.8581360848061168,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.8581360848061168,
+          "I3_FULL_CURRENT_MACRO": 0.8361267102550837,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.8361267102550837
+        },
+        "p95_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 5.320312499999999,
+          "I2_W50_CURRENT_COMMIT": 6.436718749999999,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 6.436718749999999,
+          "I3_FULL_CURRENT_MACRO": 6.2164062499999995,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 6.2164062499999995
+        },
+        "stale_target_fraction": {
+          "I1_W50_NO_COMMIT": 0.0,
+          "I2_W50_CURRENT_COMMIT": 0.5167317708333334,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.5167317708333334,
+          "I3_FULL_CURRENT_MACRO": 0.3169270833333333,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.3169270833333333
+        },
+        "mean_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 2.7317901272996385,
+          "I2_W50_CURRENT_COMMIT": 3.37140826487581,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 3.37140826487581,
+          "I3_FULL_CURRENT_MACRO": 3.4121931217321313,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 3.4121931217321313
+        }
+      },
+      "interruption_rate_I2R": 0.0,
+      "mean_commit_run_length": {
+        "I2": 4.0,
+        "I2R": 4.0
+      },
+      "run_length_ratio": 1.0
+    },
+    "4v4_BREACH": {
+      "rho": {
+        "blocked_switch_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "p95_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 15
+        },
+        "stale_target_fraction": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        },
+        "mean_decision_lag_ticks": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 16
+        }
+      },
+      "raw": {
+        "blocked_switch_fraction": {
+          "I1_W50_NO_COMMIT": 0.6874934725922746,
+          "I2_W50_CURRENT_COMMIT": 0.8191635865625115,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.8191635865625115,
+          "I3_FULL_CURRENT_MACRO": 0.8096238334694499,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.8096238334694499
+        },
+        "p95_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 2.030468749999999,
+          "I2_W50_CURRENT_COMMIT": 3.1453124999999984,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 3.1453124999999984,
+          "I3_FULL_CURRENT_MACRO": 3.0164062499999984,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 3.0164062499999984
+        },
+        "stale_target_fraction": {
+          "I1_W50_NO_COMMIT": 0.0,
+          "I2_W50_CURRENT_COMMIT": 0.5389322916666667,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.5389322916666667,
+          "I3_FULL_CURRENT_MACRO": 0.39296875,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.39296875
+        },
+        "mean_decision_lag_ticks": {
+          "I1_W50_NO_COMMIT": 0.3526945371419139,
+          "I2_W50_CURRENT_COMMIT": 0.5537983075665256,
+          "I2R_W50_INTERRUPTIBLE_COMMIT": 0.5537983075665256,
+          "I3_FULL_CURRENT_MACRO": 0.5398529852827227,
+          "I3R_FULL_MACRO_INTERRUPTIBLE": 0.5398529852827227
+        }
+      },
+      "interruption_rate_I2R": 0.0,
+      "mean_commit_run_length": {
+        "I2": 4.0,
+        "I2R": 4.0
+      },
+      "run_length_ratio": 1.0
+    }
+  },
+  "VERDICT": "LEGACY_EQUIVALENCE_RUN",
+  "NEXT": "Contract run only. R never fired, so every rho is 0 by construction and no manipulation verdict is expressed or implied.",
+  "claim_boundary": "Outcome-blind manipulation check on scripted traces. It shows only whether the localized commitment mechanism is movable. It is not a win-rate result, not a causal claim about 4v4 specialization, and not training authorization.",
+  "PPO": "OFF",
+  "GPU": "OFF",
+  "CONTRACTS": {
+    "G_L1a_legacy_arms_unchanged": {
+      "status": "LEGACY_ARMS_UNCHANGED",
+      "comparable": true,
+      "n_compared": 0,
+      "max_abs_delta_by_field": {
+        "E_v": 0.0,
+        "E_x_rmse_cells": 0.0,
+        "blocked_switch_fraction": 0.0,
+        "stale_target_fraction": 0.0,
+        "mean_decision_lag_ticks": 0.0,
+        "p95_decision_lag_ticks": 0.0,
+        "switch_requests": 0.0,
+        "semantic_execution_fraction": 0.0,
+        "forced_home_carrying_fraction": 0.0
+      },
+      "max_abs_delta": 0.0,
+      "pass": true,
+      "reference": "action_interface_scale_diagnostic_mechanism_amendment_v1_episode_rows.csv"
+    },
+    "G_L1b_repair_off_equals_legacy": {
+      "status": "REPAIR_OFF_EQUALS_LEGACY",
+      "n_compared": 128,
+      "max_abs_delta": 0.0,
+      "offenders_sample": [],
+      "pass": true
+    }
+  },
+  "seed_allocation": {
+    "experiment_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+    "purpose": "Outcome-blind I0-I3 action-interface scale diagnostic",
+    "seed_class": "exploratory",
+    "lo": 19700001,
+    "hi": 19700016,
+    "n": 16,
+    "status": "RESERVED",
+    "spec": "artifacts\\strategic_demand\\sppo\\ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "subdivides": null,
+    "allocated_utc": "2026-09-18T15:48:01Z"
+  },
+  "artifacts": {
+    "trace_manifest": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_REPAIR_OFF_TRACE_MANIFEST.json",
+    "agent_tick_rows": "commitment_interruptibility_intervention_v1_repair_off_agent_tick_rows.csv",
+    "episode_rows": "commitment_interruptibility_intervention_v1_repair_off_episode_rows.csv"
+  }
+}

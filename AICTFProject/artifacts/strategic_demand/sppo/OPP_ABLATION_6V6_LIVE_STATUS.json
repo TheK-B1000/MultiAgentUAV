@@ -1,0 +1,24 @@
+{
+  "label": "OPP_ABLATION_6V6",
+  "pid": 50548,
+  "device": "cuda",
+  "completed": 84,
+  "total": 384,
+  "frac": 0.2188,
+  "current": {
+    "policy": "pi_A",
+    "pole": "A",
+    "condition": "RANDOM_OPP",
+    "seed": 17400020
+  },
+  "latest_cell_result": null,
+  "started_utc": null,
+  "elapsed_s": 4073.8,
+  "eta_s": 14549.3,
+  "sec_per_ep": 48.5,
+  "checkpoint_sha256": {
+    "pi_A": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82",
+    "pi_B": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4"
+  },
+  "heartbeat_utc": "2026-09-12T23:37:11Z"
+}

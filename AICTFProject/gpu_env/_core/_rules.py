@@ -8,6 +8,28 @@ import numpy as np
 import torch
 
 from macro_actions import MacroAction
+
+
+def _ray_to_boundary_batched(
+    px: torch.Tensor, py: torch.Tensor, ux: torch.Tensor, uy: torch.Tensor,
+    *, max_x: float, max_y: float, eps: float = 1e-8,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Vectorized form of gpu_env.pyquaticus_port._ray_to_boundary.
+
+    Per axis, at most one candidate applies (positive-direction OR
+    negative-direction, never both -- matching the reference's if/elif), and
+    only non-negative candidates are eligible. A zero direction on an axis
+    contributes no candidate on that axis. If neither axis contributes a
+    candidate, the ray is degenerate and the origin is returned unchanged.
+    """
+    inf = torch.full_like(px, float("inf"))
+    cx = torch.where(ux > eps, (max_x - px) / ux, torch.where(ux < -eps, (0.0 - px) / ux, inf))
+    cy = torch.where(uy > eps, (max_y - py) / uy, torch.where(uy < -eps, (0.0 - py) / uy, inf))
+    cx = torch.where(cx >= 0.0, cx, inf)
+    cy = torch.where(cy >= 0.0, cy, inf)
+    t = torch.minimum(cx, cy)
+    t = torch.where(torch.isfinite(t), t, torch.zeros_like(t))
+    return px + ux * t, py + uy * t
 from rl.global_state import build_global_state_batch
 from game_manager import (
     get_grab_score_delta,
@@ -639,9 +661,43 @@ class _RulesMixin:
         ty = torch.where(get_flag, enemy_flag[:, None, 1], ty)
         tx = torch.where(go_home, own_flag_home[:, None, 0], tx)
         ty = torch.where(go_home, own_flag_home[:, None, 1], ty)
+
+        defend_flag = macro == MacroAction.DEFEND_FLAG
+        defend_outward = macro == MacroAction.DEFEND_OUTWARD
+        if bool(torch.any(defend_flag).item()) or bool(torch.any(defend_outward).item()):
+            own_flag_now = side_t["own_flag"]
+            tx = torch.where(defend_flag, own_flag_now[:, None, 0], tx)
+            ty = torch.where(defend_flag, own_flag_now[:, None, 1], ty)
+            outward_tx, outward_ty = self._defend_outward_target(side_t, own_flag_now)
+            tx = torch.where(defend_outward, outward_tx, tx)
+            ty = torch.where(defend_outward, outward_ty, ty)
+
         tx = torch.where(own_carrying, own_flag_home[:, None, 0], tx)
         ty = torch.where(own_carrying, own_flag_home[:, None, 1], ty)
         return tx, ty
+
+    def _defend_outward_target(
+        self, side_t: Dict[str, torch.Tensor], own_flag_now: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Agent-relative outward ray to the arena boundary, mirroring
+        gpu_env.pyquaticus_port.true_motion's DEFEND_OUTWARD branch and
+        _ray_to_boundary exactly, vectorized over (env, agent).
+
+        Recomputed every tick from each agent's own instantaneous position,
+        because that is the native semantic: no fixed coordinate can name it.
+        """
+        own_x, own_y = side_t["own_x"], side_t["own_y"]
+        own_heading = side_t["own_heading"]
+        away_x = own_x - own_flag_now[:, None, 0]
+        away_y = own_y - own_flag_now[:, None, 1]
+        away_norm = torch.sqrt(away_x * away_x + away_y * away_y)
+        degenerate = away_norm <= 1e-8
+        safe_norm = torch.clamp(away_norm, min=1e-8)
+        ux = torch.where(degenerate, torch.cos(own_heading), away_x / safe_norm)
+        uy = torch.where(degenerate, torch.sin(own_heading), away_y / safe_norm)
+        max_x = float(max(0, self.cols - 1))
+        max_y = float(max(0, self.rows - 1))
+        return _ray_to_boundary_batched(own_x, own_y, ux, uy, max_x=max_x, max_y=max_y)
 
     def _redirect_tagged_to_home(
         self,

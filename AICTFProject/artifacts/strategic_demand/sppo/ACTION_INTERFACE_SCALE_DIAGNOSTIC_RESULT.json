@@ -1,0 +1,77 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC",
+  "utc": "2026-09-18T14:56:54Z",
+  "n_seeds": 16,
+  "seeds": [
+    19500001,
+    19500002,
+    19500003,
+    19500004,
+    19500005,
+    19500006,
+    19500007,
+    19500008,
+    19500009,
+    19500010,
+    19500011,
+    19500012,
+    19500013,
+    19500014,
+    19500015,
+    19500016
+  ],
+  "components": {
+    "C_spatial[2v2,GUARD]": 0.061296,
+    "C_spatial[2v2,BREACH]": 0.061491,
+    "C_spatial[4v4,GUARD]": 0.05221,
+    "C_spatial[4v4,BREACH]": 0.093812,
+    "C_commit[2v2,GUARD]": 0.055287,
+    "C_commit[2v2,BREACH]": 0.087863,
+    "C_commit[4v4,GUARD]": 0.063984,
+    "C_commit[4v4,BREACH]": 0.177072,
+    "C_macro_residual[2v2,GUARD]": -0.019038,
+    "C_macro_residual[2v2,BREACH]": -0.029203,
+    "C_macro_residual[4v4,GUARD]": -0.021954,
+    "C_macro_residual[4v4,BREACH]": -0.038132
+  },
+  "S_k": {
+    "C_spatial": {
+      "mean": 0.011618,
+      "lcb95": -0.016861,
+      "ucb95": 0.038554,
+      "n": 16
+    },
+    "C_commit": {
+      "mean": 0.048953,
+      "lcb95": 0.032405,
+      "ucb95": 0.066174,
+      "n": 16
+    },
+    "C_macro_residual": {
+      "mean": -0.005922,
+      "lcb95": -0.020336,
+      "ucb95": 0.009033,
+      "n": 16
+    }
+  },
+  "J_k": {
+    "C_spatial": {
+      "mean": 0.041407,
+      "lcb95": 0.005055,
+      "ucb95": 0.079425,
+      "n": 16
+    },
+    "C_commit": {
+      "mean": 0.080512,
+      "lcb95": 0.040689,
+      "ucb95": 0.118008,
+      "n": 16
+    },
+    "C_macro_residual": {
+      "mean": -0.006013,
+      "lcb95": -0.034734,
+      "ucb95": 0.022205,
+      "n": 16
+    }
+  }
+}

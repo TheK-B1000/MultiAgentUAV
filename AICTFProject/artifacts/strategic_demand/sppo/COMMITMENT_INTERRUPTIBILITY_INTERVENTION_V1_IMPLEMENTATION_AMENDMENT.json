@@ -1,0 +1,41 @@
+{
+  "record_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_IMPLEMENTATION_AMENDMENT",
+  "status": "FROZEN_PRE_EXECUTION_AMENDMENT",
+  "utc": "2026-09-18T16:40:00Z",
+  "amends": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_SPEC.json",
+  "reason": "Implementation preflight found three points the frozen spec underdetermined. Each is resolved here BEFORE any seed is spent, so no decision is made after seeing results.",
+  "preservation_rule": "The frozen spec is unchanged. This amendment narrows implementation detail only. It does not alter the operating point, the thresholds, the decision rule, the arms, the seeds or the metrics.",
+
+  "A_R1_GENERALIZATION_FOR_I3R": {
+    "spec_text": "R1: the nearest-W50 index of the CURRENT desired target differs from the committed target index.",
+    "problem": "That is well defined for I2R, where every commitment is a GO_TO to a W50 waypoint. On the full macro path a commitment may be a semantic macro (GET_FLAG, GO_HOME, GRAB_MINE, PLACE_MINE) whose target index is not a waypoint, so a W50 index comparison is meaningless.",
+    "resolution": "R1 is implemented as: the (macro, target_idx) action the production adapter requests THIS tick differs from the currently committed (macro, target_idx).",
+    "faithfulness": "For I2R the macro is always GO_TO, so this reduces exactly and identically to the frozen W50-index test. For I3R it is the direct generalization of 'target identity changed' to an action vocabulary that has non-waypoint members.",
+    "what_it_is_not": "It is not a loosening. Requiring an action-identity change is strictly stronger than requiring a bearing change alone, which is why R2 remains a separate conjunct."
+  },
+
+  "B_R2_REFERENCE_FRAME": {
+    "problem": "The spec says 'the angle between the current desired bearing and the committed effective bearing' without fixing the origin the bearings are measured from. The diagnostic's own direction_error metric measures the desired vector from the SOURCE trace position and the effective vector from the arm's own position.",
+    "resolution": "R2 measures BOTH bearings from the arm's own current position: desired = raw_scripted_target - arm_position, committed = committed_effective_target - arm_position.",
+    "rationale": "R is a production commitment rule, not a measurement. An implementable rule may use only what the agent has: its own position and the target it is pursuing. Using the source trace's position would give the intervention privileged information that no deployed policy could have, and would make the rule unimplementable outside this harness.",
+    "consequence": "R2's angle and the diagnostic's reported direction_error are close but not identical quantities. The manipulation metrics are unchanged and continue to be reported on the frozen diagnostic definitions. R is evaluated on the implementable frame."
+  },
+
+  "C_G_P1_DISCHARGE_METHOD": {
+    "spec_text": "G_P1: on every tick where R does not fire, I2R's committed macro, committed target index and commit-ticks-left must equal I2's exactly.",
+    "problem": "As a trajectory-level comparison this is unsatisfiable by construction. Once R fires even once, I2R and I2 occupy different positions, so their subsequent per-tick commitments are not comparable and inequality is expected rather than a defect. Testing it that way would fail a correct implementation.",
+    "resolution": "G_P1 is discharged by two things instead: (1) by construction — the R block only zeroes the commit counter for firing agents and every other statement is the shared legacy code path, so a non-firing tick executes identical code; the arms are implemented as one branch parameterised by R, not as two copies; and (2) executably, by the REPAIR_OFF run, in which R never fires and I2R must equal I2 and I3R must equal I3 bit-identically across all cells and seeds.",
+    "status_reported": "G_P1 is reported with pass=null and an explicit discharge note, never as a silent pass.",
+    "additional_regression_guard": "Because the R arms were added by editing the shared runner, the run also re-verifies that I1, I2 and I3 still reproduce the mechanism-amendment run exactly (contract G_L1a). That catches a refactor that changed a legacy arm while adding the new ones."
+  },
+
+  "UNCHANGED": [
+    "operating point theta=45 degrees, k=2 consecutive ticks",
+    "primary gates rho >= 0.50 with LCB95 > 0.25 on blocked_switch_fraction and p95_decision_lag_ticks",
+    "secondary bars rho >= 0.30 with LCB95 > 0 on stale_target_fraction and mean_decision_lag_ticks",
+    "persistence guards G_P2 0.40 ceiling, G_P3 0.70 run-length floor, G_P4 rho_stale <= 0.95",
+    "six arms, four cells, 16 exploratory seeds from a fresh block",
+    "CPU only, outcome blind, PPO and GPU off",
+    "the decision rule and every verdict label"
+  ]
+}

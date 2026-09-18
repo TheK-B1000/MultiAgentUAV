@@ -1,0 +1,51 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_READING",
+  "status": "READING_FROZEN_WITH_MECHANISM_SUPPORT_GATE_OPEN",
+  "utc": "2026-09-18T15:05:00Z",
+  "implements": [
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json"
+  ],
+  "execution": {
+    "contracts": "PASS",
+    "source_traces": 64,
+    "episode_arm_rows": 256,
+    "agent_rows": 768,
+    "ticks_per_trace": 240,
+    "seeds": [19500001, 19500016],
+    "device": "cpu",
+    "outcome_blind": true,
+    "ppo": "OFF",
+    "gpu": "OFF",
+    "production_interface_modified": false
+  },
+  "provenance_boundary": "The 2v2 arm is the historical canonical Pole-B control because no current Rule-14 2v2 certification record exists. The 4v4 arm is the certified B3-3 Pole-B benchmark. This is a scale-conditioned benchmark comparison, not a pure causal team-size intervention.",
+  "results": {
+    "C_spatial": {
+      "four_v_four_breach_burden": 0.093812,
+      "J_k": {"mean": 0.041407, "lcb95": 0.005055, "ucb95": 0.079425},
+      "reading": "BREACH-by-scale interaction clears zero, but the frozen 0.10 materiality threshold is not met. No spatial candidate."
+    },
+    "C_commit": {
+      "four_v_four_breach_burden": 0.177072,
+      "J_k": {"mean": 0.080512, "lcb95": 0.040689, "ucb95": 0.118008},
+      "reading": "Core BREACH-by-scale and materiality gates pass. Commitment is a B-relevant scale-interaction candidate, not an established repair mechanism."
+    },
+    "C_macro_residual": {
+      "four_v_four_breach_burden": -0.038132,
+      "J_k": {"mean": -0.006013, "lcb95": -0.034734, "ucb95": 0.022205},
+      "reading": "No BREACH-specific scale localization. Residual macro execution is demoted as the next B explanation."
+    }
+  },
+  "integrity_limit": "The completed compact episode/tick artifacts contain E_v and E_x, but not the frozen mechanism-support telemetry for stale-target occupancy, decision lag, semantic execution events, forced-home substitution, tagged redirect, or macro early termination. Therefore the commitment result cannot yet earn a repair spec.",
+  "VERDICT": "COMMITMENT_BREACH_SCALE_CANDIDATE_PENDING_MECHANISM_SUPPORT",
+  "NOT_ESTABLISHED": [
+    "action interface as the root cause",
+    "commitment as a causal repair",
+    "any PPO learnability result",
+    "any team outcome or crossover result"
+  ],
+  "NEXT": "Run only the outcome-blind mechanism-support replay required by the frozen spec, preserving the same 16 seeds and source traces if recoverable. If commitment support passes, freeze a separate commitment intervention. If it fails, close the action-interface branch. Do not modify macros or launch PPO before that gate."
+}

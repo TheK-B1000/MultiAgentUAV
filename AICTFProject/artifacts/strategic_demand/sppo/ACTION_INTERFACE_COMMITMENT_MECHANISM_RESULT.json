@@ -1,0 +1,776 @@
+{
+  "record_id": "ACTION_INTERFACE_COMMITMENT_MECHANISM",
+  "utc": "2026-09-18T15:42:53Z",
+  "device": "cpu",
+  "gpu_used": false,
+  "n_seeds": 16,
+  "seeds": [
+    19600001,
+    19600002,
+    19600003,
+    19600004,
+    19600005,
+    19600006,
+    19600007,
+    19600008,
+    19600009,
+    19600010,
+    19600011,
+    19600012,
+    19600013,
+    19600014,
+    19600015,
+    19600016
+  ],
+  "arms": [
+    "I1_W50_NO_COMMIT",
+    "I2_W50_CURRENT_COMMIT"
+  ],
+  "manifest": [
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600001,
+      "trace_hash": "bbe35d044b3707fff5e401f900b0b7b085dfb498298c191493d1ea16f2043b78",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600001,
+      "trace_hash": "744ea97b9370669deb62b0911fa282403b4f25c72bb6f2dff95e809f5ce732a8",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600001,
+      "trace_hash": "b8458a4176e8583a62e18df7317e43f905731ac11f0a5981e010d1d5b306d0a6",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600001,
+      "trace_hash": "17d9e942e505193aff3e592b39a7216cb90a4b57c9748b74068dadf0000b1db3",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600002,
+      "trace_hash": "ce005fb883f8e793868cd40d0f2a755fc97d2b10b473548ab0da750891e92a43",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600002,
+      "trace_hash": "4628e79d2480b645b281355eae626cd410e0743c879cc1991b09a9e5d0907b9e",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600002,
+      "trace_hash": "c5d9fbe9a20a7614ffe18a578458234c31a52017752d55df46550a1bc3db0b34",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600002,
+      "trace_hash": "47fe1cd9741c2e7e6874674428591b872338a0c9cb6d1ef244df70e97ddcc676",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600003,
+      "trace_hash": "2bc1d10c85f59cef9f2ea13fd2d41f65a9cf222e7c19d8ab26e4ecac2ebebbbf",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600003,
+      "trace_hash": "bab211acb36d9a3511d253543d0a9e0a4a95b6367e7163edaba8798d9dc87d2d",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600003,
+      "trace_hash": "2407d1332c800116a388476a06c941cb177e8e7b6b547bd31ea4e432e16155e7",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600003,
+      "trace_hash": "9b912c35ecea9a013dae83350223937e8f42b704968a0be9b1845897cbea51ec",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600004,
+      "trace_hash": "ce6c55e55adda0c000fdbe11a28143bc5d3b9707d620d85cf0fd64d7c8bf4240",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600004,
+      "trace_hash": "0044a479522028bdd850fceafa92037e2f6c4bc4de554db4c39fadafa214c848",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600004,
+      "trace_hash": "e4c329fb2ab16b18623ae1967cf10cf0f2064326f9c654131a1290acb7c24dc6",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600004,
+      "trace_hash": "6553ae3287fc0dd71fabc6bea436d264b29ab01ff808a19274d56b548372a4b2",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600005,
+      "trace_hash": "75de0feaef1d4cb8ce5fb3e851e27acdfbbc1bce53778401d75cc1627d33f1fe",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600005,
+      "trace_hash": "e6141741349b442c02c45ce0693f85aaf3645e7c0e6412cf0e693383b97f9340",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600005,
+      "trace_hash": "ce12957635bc64cf341f89d1e8ca8e0683234c2d327ee0a17b1a4bd81102f324",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600005,
+      "trace_hash": "cef5c96de1396fbb2d47b236531c4a251e3e320cba6cb043c067b437f817bd60",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600006,
+      "trace_hash": "e3f4238af579cabd1779ead3b4450ba376f390433da06faf45c3c6e5da3f471b",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600006,
+      "trace_hash": "f32dc561f2f80d4c7d7924c5fd0f7972111050ecdfa17ceb36a24dbe9af73fde",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600006,
+      "trace_hash": "486c84b649be655a09fbfcedb69a70e5f1134606c366bfe17b749127695d059b",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600006,
+      "trace_hash": "5c85a74891c33574cf428b8038af922dffe0649eb2cdb92edaf81456a5c2a015",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600007,
+      "trace_hash": "427be02798f63c9995cb834ae9e312208d12631966a86f5895ea7ee46a8b324d",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600007,
+      "trace_hash": "a2055030faa6a3c12fdebabc4baed0a771de62bdcdcbc3d0772c355fdbc7fb4f",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600007,
+      "trace_hash": "b5ebfd939f57a758c2bea7a2c5036a851335b3e1872131c2b534d2a039a0cf46",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600007,
+      "trace_hash": "b73020b9a2573e36e6ed0f80936e14d5947b556b563280865fd200c32eb49d47",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600008,
+      "trace_hash": "9b174d8789739d1e7ce5013e89a24094f137fc9cf106bbd5724b6000e6c4bbfb",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600008,
+      "trace_hash": "e0a850863719da3606e2a1ea3b146834581eb31e61f2b2742708191bb7b9a17a",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600008,
+      "trace_hash": "e0ca5137edee6fc86966c5f490a1278d3a8d378e70f08470dd2dee7f0b2be88d",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600008,
+      "trace_hash": "5c3d0c30f06705399820be84b55baf2307ea9c6929d4114f76489b8ad4fca073",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600009,
+      "trace_hash": "1009d8e18d220d559910413a7a7cbc9755eca2ce4626061145fa92919f5c711c",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600009,
+      "trace_hash": "dce8a95cd8e30118848fc4c62b38437ce41679720e3da4066989c0a98a71e8c7",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600009,
+      "trace_hash": "f36bf570005ac97d8f1f580c62812682c9ab224c727b197b4e31bb43602d02b2",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600009,
+      "trace_hash": "1364c23ffa6be50c91d394beec33a4a1b3c971b49c755ed308e36514cb914ef9",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600010,
+      "trace_hash": "c96f88015f1acfbe9f6be5a787f0f2708d88937a89df2296de2aec46069327e4",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600010,
+      "trace_hash": "f458a7719a4836db794bdfd9c852b162dfabf7e12d722c22e96bd4c7feddce9e",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600010,
+      "trace_hash": "ccfb2a164a4244eb2ddc13c24f157524f226254ee16f490a1b21e6eecb9d15fb",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600010,
+      "trace_hash": "6d11b2650fd38ffb4657b531df28f0779e89c9251ae146ace99b0f18f88d2258",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600011,
+      "trace_hash": "86e754406c44927759f0a3b54630ba6ff2a3e24e6e0494ef6200a0ce222299c8",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600011,
+      "trace_hash": "4d21c91091d61d216d3a3edfd980cf8686a13df573c093e59d6e826d5ec4997c",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600011,
+      "trace_hash": "a6091a83fa4936b923a58ea69d84617215724c073892b30f3fb380329a51716d",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600011,
+      "trace_hash": "e3ea05cd48355d09342037f009b07dacedc0ad2025a9d9fe90708e82610d0b05",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600012,
+      "trace_hash": "bfb9b55268a66da8348984dd759ce096857ad890882ec275742a785a32b242e2",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600012,
+      "trace_hash": "5f2d8d23af0ee8ceb44962338f72c29350a491bb316b5879a9063c5246ecc857",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600012,
+      "trace_hash": "52ba6c2d248d9c9e7077aac2c58f3d7254634801e93a3403a0643ba9bebe0e40",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600012,
+      "trace_hash": "24bd7e2792706a27f1ebf11389b77535d246772fba1600dbb1a82bde5bcf2b58",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600013,
+      "trace_hash": "b3a8a013a0d39e4477943cbc97c835454a9a02bd50a0f028d5963da4f630d46d",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600013,
+      "trace_hash": "4fa1a701c660bdf99a40d00fb99e8551875b106f281c3ee91c9d0f2ce6e131a8",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600013,
+      "trace_hash": "a79270ff03695cf1e968e9631b3a2887eac6e8ba79d131336b3557c99618a7aa",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600013,
+      "trace_hash": "588f189c97ca85059736ab09452eb01ec201b154adcea885f120125b8508a0ab",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600014,
+      "trace_hash": "8cce08abd527ac0be97b1e11aabb3bc0a63e87308c9dd68134f47223fb23156d",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600014,
+      "trace_hash": "b7a1dca0be88d961e1a112bea9721f73393bcfccd0e7292967472da889a8e5be",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600014,
+      "trace_hash": "299f4e94292664bc080f709a15a54fa0dbd85a9f40632c227c8a7a437ce37116",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600014,
+      "trace_hash": "687c8783db755a95f7fbd715fba7b316b788db884e714f1ebb9b0354fc812cca",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600015,
+      "trace_hash": "f5af0005964558c8b0ee9636566e713f52d1129bdd0340717c96c178247ff9d3",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600015,
+      "trace_hash": "fd9391b52ce8ba55d2f702fde410ebfc12a34327b9120360b0a8b402c75373bc",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600015,
+      "trace_hash": "123a23f55e6001fcd485daaf8e706be8bc903d6eaabf94cddd7e91b5c0a1e95d",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600015,
+      "trace_hash": "edd402992fade2ec698a36fbc4e0856e46baf07059598a87579e7573397f870e",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19600016,
+      "trace_hash": "6e9492c64037d8a89e32dcc7327543427bac8963596a600a447e19f057e6c9df",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19600016,
+      "trace_hash": "9a67fd1d239cdda484611ff1af33d01f7669a3a6f5d78b82449c7bb14a8c109c",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19600016,
+      "trace_hash": "e7a651040fc83d8a8666f7e1ac25c0e10aba730474ce85de4ce75990a1832af6",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19600016,
+      "trace_hash": "73ed22e76a849d745398370f144fb2697875c18f65172baf5393dc94e8e08e44",
+      "n_ticks": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    }
+  ],
+  "support_contrasts": {
+    "stale_scale_BREACH": {
+      "mean": 0.167502,
+      "lcb95": 0.084054,
+      "ucb95": 0.251855,
+      "n": 16
+    },
+    "blocked_scale_BREACH": {
+      "mean": 0.171654,
+      "lcb95": 0.115528,
+      "ucb95": 0.233837,
+      "n": 16
+    },
+    "lag_scale_BREACH": {
+      "mean": null,
+      "lcb95": null,
+      "ucb95": null,
+      "n": 0,
+      "unavailable": true,
+      "missing_seed_pairs": 1
+    },
+    "style_scale_stale": {
+      "mean": 0.018797,
+      "lcb95": -0.062991,
+      "ucb95": 0.101708,
+      "n": 16
+    }
+  },
+  "event_totals": {
+    "I1_W50_NO_COMMIT": {
+      "switch_requests": 19714,
+      "blocked_switches": 0,
+      "stale_switches": 0
+    },
+    "I2_W50_CURRENT_COMMIT": {
+      "switch_requests": 19714,
+      "blocked_switches": 8459,
+      "stale_switches": 7866
+    }
+  },
+  "mechanism_support_gate": "PENDING_READING"
+}

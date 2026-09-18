@@ -1,0 +1,144 @@
+{
+  "record_id": "DEFEND_SEMANTIC_COMMITMENT_V2_SPEC",
+  "status": "FROZEN_DESIGN_NO_EXECUTION",
+  "utc": "2026-09-18T20:05:00Z",
+  "classification": "OUTCOME_BLIND_INTERFACE_REPAIR_CONTRACT",
+  "confirmatory": false,
+  "supersedes_scope_of": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC.json Repair A only (Repair B is confirmed and closed in HOME_LEGALITY_CONFIRMED_INTERFACE_REPAIR.json)",
+  "authorized_by": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_READING.json",
+
+  "RESEARCH_QUESTION": "Can a single committed DEFEND semantic macro, whose inward/outward branch is recomputed from live state every tick, represent the native state-dependent Pyquaticus defender across its branch transitions -- without abandoning temporal commitment, without changing any other macro, and without touching the speed interface?",
+
+  "WHAT_V1_ACTUALLY_FALSIFIED": {
+    "v1_hypothesis": "DEFEND is unrepresentable because the vocabulary has no word for its target.",
+    "v1_outcome": "PARTIAL. The individual DEFEND targets ARE representable: DEFEND_FLAG and DEFEND_OUTWARD each resolved exactly (0.000 cells) on 10-13 of 16 ticks and in 4 single-tick known-answer tests against the live engine.",
+    "what_actually_failed": "The committed executor could not track the oracle's branch changes. The native defender oscillates across the defender radius within the 16-tick horizon; a macro committed to INWARD-or-OUTWARD holds a stale target for up to its commit horizon after each flip, and the true target jumps roughly 17 cells across a flip.",
+    "the_corrected_target_of_repair": "Not the vocabulary of DEFEND targets. The granularity of the committed intent."
+  },
+
+  "THE_PRIMITIVE": {
+    "name": "MacroAction.DEFEND",
+    "enum_value": 7,
+    "why_not_reuse_5_or_6": "DEFEND_FLAG=5 and DEFEND_OUTWARD=6 stay in place, inert, so the V1 result remains reproducible from its own artifacts. This project does not mutate the referents of sealed results.",
+    "semantics": "T_DEFEND(s_t) = outward_ray(s_t) if d_flag(s_t) < R else own_flag_pos(s_t), recomputed from the agent's instantaneous state on every tick, mirroring gpu_env/pyquaticus_port.py::true_motion's DEFEND branch exactly, including its zero-vector heading fallback.",
+    "radius_R": {
+      "value": "defender_radius_from_tag_range(cfg.tag_range_cells), NOT a hard-coded 3.5",
+      "reason": "3.5 is the value that derivation yields at the default tag_range_cells=2.5. Hard-coding it would silently desynchronize the macro from any environment configured with a different tag range."
+    },
+    "resolution_site": "gpu_env/_core/_rules.py::_build_targets_from_action, one additional branch, in the same manner as GET_FLAG and GO_HOME and alongside the existing DEFEND_FLAG/DEFEND_OUTWARD branches.",
+    "reachability": "n_macros stays 5 in every production config, so no policy action head can select this macro. It is reachable only by a caller building a macro-id tensor directly, as the port contract does."
+  },
+
+  "COMMITMENT_IS_DELIBERATELY_UNCHANGED": {
+    "statement": "The macro stays committed. DEFEND holds for its normal commit horizon exactly like every other macro; only the target the macro resolves to follows live state.",
+    "explicitly_not_this_experiment": [
+      "not h=1",
+      "not global interruptibility",
+      "not a change to any commit horizon",
+      "not a re-run of COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1, which is closed as MANIPULATION_INSUFFICIENT and is a different system and question"
+    ],
+    "the_distinction_being_tested": "committed intent with state-derived resolution, versus committed resolution. GET_FLAG already works this way: the action names an intent, the environment resolves where that means right now."
+  },
+
+  "PREDICTION_STATED_BEFORE_EXECUTION": {
+    "mechanism": "In experiments/run_pyquaticus_port_contracts.py::_probe_candidate, both the oracle (true_motion(proj_state, roles)) and the interface target (effective_projected_target(proj_state, ...)) are evaluated at the SAME proj_state. If the DEFEND macro's resolution is the same function of state as the oracle's DEFEND branch, the two are equal by construction.",
+    "predicted_G6_TARGET": "exactly 0.000 cells at every tick, on every fixture, including across branch transitions, regardless of commitment.",
+    "predicted_G6_DIRECTION_first_cosine": "exactly 1.0.",
+    "predicted_G6_TRAJECTORY": "STILL FAILS on some fixtures. The projected arm integrates at the full speed cap while the true arm integrates at EASY_SPEED_FRACTION=0.5. That is the known Mode-2 dynamics gap and is explicitly out of scope here.",
+    "predicted_radial_sign": "may still disagree on some ticks near the radius. Because the two arms diverge in position (speed gap above), they can sit on opposite sides of R at the same tick and therefore pursue genuinely opposite intents. This is a dynamics consequence, not a vocabulary failure.",
+    "falsification": "If G6_TARGET is NOT ~0 across the boundary-crossing fixtures, the unified-DEFEND hypothesis is wrong and this spec is falsified. That is the decisive outcome this experiment exists to produce."
+  },
+
+  "FIXTURES": {
+    "anchor_stable_inward": {
+      "construction": "defender placed clearly OUTSIDE R with margin, such that no tick of the horizon crosses inside",
+      "role": "known-answer anchor: target must equal own_flag_pos at every tick",
+      "must_report": "the observed min distance to the flag across the horizon, to prove the fixture stayed stable rather than assuming it"
+    },
+    "anchor_stable_outward": {
+      "construction": "defender placed clearly INSIDE R with margin, such that no tick of the horizon crosses outside",
+      "role": "known-answer anchor: target must equal the outward ray at every tick",
+      "must_report": "the observed max distance to the flag across the horizon"
+    },
+    "decisive_boundary_crossing": {
+      "construction": "the ORIGINAL frozen G3_DEFEND_OUTSIDE and G4_DEFEND_INSIDE fixtures, unchanged",
+      "role": "THE decisive test. These are the fixtures V1 failed. They are retained precisely because real DEFEND behavior crosses this boundary; relocating them would answer an easier question than the one that matters.",
+      "must_report": "the tick indices at which the oracle branch flips, and the target error at each of those ticks specifically"
+    },
+    "fixture_rule": "The two anchors are additions. No existing fixture is moved, retuned, or removed."
+  },
+
+  "GATES": {
+    "DECISIVE_G6_TARGET": {
+      "threshold": "<= 2.5 cells maximum across the horizon, on all four fixtures including both boundary-crossing ones",
+      "gating": true,
+      "note": "predicted 0.000; anything above 2.5 falsifies the hypothesis"
+    },
+    "G6_DIRECTION_first_cosine": {"threshold": ">= 0.99", "gating": true},
+    "G6_LEGALITY": {"threshold": "true", "gating": true, "note": "trivially satisfied; DEFEND has no capture-completion precondition"},
+    "G6_DIRECTION_radial_sign": {
+      "gating": false,
+      "reported": true,
+      "MECHANICAL_ATTRIBUTION_REQUIRED": "For every tick where radial sign disagrees, record whether the true arm and the projected arm were on OPPOSITE sides of R at that tick (d_true < R XOR d_proj < R). If every disagreeing tick has opposite-side arms, the disagreement is attributed to arm divergence. If ANY disagreeing tick has both arms on the SAME side, that is unexplained and must be reported as such, not absorbed. This attribution is mechanical and computed, never narrative."
+    },
+    "G6_TRAJECTORY": {
+      "gating": false,
+      "reported": true,
+      "note": "cross-simulator dynamics. The 2.5-cell threshold is NOT relaxed and NOT gated. A trajectory failure alongside a target pass is an expected, legitimate outcome."
+    }
+  },
+
+  "CONTRACTS": {
+    "C0_PRIOR_ARTIFACT_PROTECTION": "PYQUATICUS_PORT_CONTRACT_RESULT.json, PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json, PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_UNREPRESENTABLE_RESULT.json, PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json and all V1 result artifacts are read-only. Digests recorded before and re-verified after; any change is a stop condition.",
+    "C1_UPSTREAM_PROVENANCE": "Re-verify pinned commit 72b50e067ab311929390ecd4e59131452be15c6d and all nine file hashes before any measurement.",
+    "C2_REPAIR_OFF_EQUALS_SEALED": "With the V2 flag off, reproduce the sealed PYQUATICUS_PORT_CONTRACT_RESULT.json G6 metrics with zero mismatches, compared numerically field by field -- not by status string. A comparison that finds zero rows to compare is a FAILURE, never a pass.",
+    "C3_RESOLUTION_PARITY": "The analytical mirror (effective_projected_target) and the live engine (_build_targets_from_action) must agree bit-for-bit for the DEFEND macro on fixtures spanning: clearly inward, clearly outward, exactly at R, and the degenerate agent-on-flag heading-fallback case.",
+    "C4_ORTHOGONALITY": "Enabling V2 must not change any ATTACK, self-carrier, tagged, dead, or home-legality result. All existing tests must pass unchanged.",
+    "C5_OUTCOME_BLIND_SCHEMA": "No score, win, reward, return, value or advantage field may be written or printed.",
+    "FAILURE_RULE": "Any failed contract stops execution and emits a CONTRACT_RESULT with FAIL."
+  },
+
+  "DESIGN_CONSEQUENCE_DISCLOSED": {
+    "statement": "This is a larger semantic commitment than V1's two primitives were, and the PI should weigh it explicitly rather than have it arrive silently.",
+    "detail": "GET_FLAG and GO_HOME embed only ENTITY REFERENCES -- the enemy flag, own home. A DEFEND macro additionally embeds a BEHAVIORAL THRESHOLD: the standoff radius R at which the intent reverses. That is a piece of defender policy living inside the action interface, not merely a named location.",
+    "defense": "The macro still names an intent and lets the environment resolve where that means now, which is the existing semantic-macro pattern. The policy retains the choice of WHETHER to defend.",
+    "residual_risk": "If R is ever wrong for our environment, every use of the macro is subtly wrong, and a policy using DEFEND cannot express a different standoff distance. Deriving R from cfg.tag_range_cells mitigates desynchronization but does not make the choice neutral.",
+    "status": "flagged for PI judgment, not resolved by this spec"
+  },
+
+  "DECISION_RULE": {
+    "REPRESENTABLE_ACROSS_TRANSITIONS": "All gating gates pass on all four fixtures, all contracts pass. DEFEND semantic intent is representable across state transitions. This unlocks WRITING the Pyquaticus team-evaluation spec; it does not launch it.",
+    "FALSIFIED": "G6_TARGET exceeds threshold on a boundary-crossing fixture. The unified-DEFEND hypothesis is wrong. Report and stop; do not enlarge the repair inside this spec.",
+    "PARTIAL": "Anchors pass but a boundary-crossing fixture does not, or vice versa. Report exactly which, change nothing else, stop.",
+    "CONTRACT_FAILURE": "Any contract failed. No verdict is issued.",
+    "claim_ceiling": "Passing establishes only that the repaired interface can express the frozen external DEFEND semantics across its own branch transitions. It establishes nothing about learned specialization, PPO, team payoff, or the 4v4 B failure. The historical aggregate G6 remains FAIL and V1 remains PARTIAL; this earns its own separate result."
+  },
+
+  "SCOPE": {
+    "device": "cpu_only",
+    "PPO": "OFF", "GPU": "OFF", "training": "OFF", "team_evaluation": "OFF",
+    "seeds": "none -- deterministic fixtures, not a sampled experiment. No seed allocation is requested or permitted.",
+    "estimated_cost": "minutes, CPU"
+  },
+
+  "EXPLICITLY_OUT_OF_SCOPE": [
+    "the speed interface and EASY_SPEED_FRACTION (the Mode-2 dynamics gap)",
+    "any change to commit horizons or interruptibility",
+    "ATTACK-to-flag, already exact",
+    "waypoint or W50 redesign",
+    "relocating or retuning the original G3/G4 fixtures",
+    "unblocking the Pyquaticus team evaluation, which needs its own freeze"
+  ],
+
+  "SEQUENCING_LOCK": [
+    "1. This paper-only freeze",
+    "2. Implement MacroAction.DEFEND=7 and its resolution behind a default-OFF flag",
+    "3. Add the two anchor fixtures; leave G3/G4 unchanged",
+    "4. Run C0-C5 and the gate suite on CPU",
+    "5. Freeze DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json",
+    "6. Only on REPRESENTABLE_ACROSS_TRANSITIONS, write the separate Pyquaticus team-evaluation spec",
+    "7. Team evaluation never launches automatically from this record"
+  ],
+
+  "authorizes": "implementation and CPU contract execution only"
+}

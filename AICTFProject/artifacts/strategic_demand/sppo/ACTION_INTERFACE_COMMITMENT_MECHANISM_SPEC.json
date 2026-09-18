@@ -1,0 +1,114 @@
+{
+  "record_id": "ACTION_INTERFACE_COMMITMENT_MECHANISM_SPEC",
+  "status": "FROZEN_BEFORE_EXECUTION",
+  "utc": "2026-09-18T15:12:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "classification": "EXPLORATORY_MECHANISTIC_DIAGNOSTIC",
+  "research_question": "Does the I1-to-I2 commitment cost arise from the hypothesized mechanism in which a desired target change occurs while the previous GO_TO target remains committed, causing stale execution and delayed adoption, with the effect concentrated in 4v4 BREACH?",
+  "prior_result": {
+    "source": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_READING.json",
+    "C_commit_J_k": {"mean": 0.080512, "lcb95": 0.040689, "ucb95": 0.118008},
+    "C_commit_4v4_BREACH_burden": 0.177072,
+    "status": "quantitative_candidate_only",
+    "repair_authorized": false
+  },
+  "scope": {
+    "device": "cpu_only",
+    "scales": [2, 4],
+    "styles": {"GUARD": "BLUE_ONE_DEFENDER_V2", "BREACH": "BLUE_BOTH_ATTACK_V2"},
+    "opponent": "Use the same historical canonical 2v2 Pole-B control and certified 4v4 B3-3 Pole-B benchmark as the prior scale diagnostic. This remains a scale-conditioned comparison, not a pure causal N intervention.",
+    "map": "map_a",
+    "horizon_ticks": 240,
+    "outcome_blind": true,
+    "not_in_scope": [
+      "I0, I3, spatial quantization re-estimation, or another broad four-arm decomposition",
+      "win, score, reward, return, crossover, or team outcome",
+      "PPO, BC, GPU, production macro edits, or repair training",
+      "GETFLAG, Assignment-v1, ROLE, Pyquaticus, or credit branches"
+    ]
+  },
+  "arms": {
+    "I1_W50_NO_COMMIT": "Nearest production W50 target refreshed every tick; no commitment hold.",
+    "I2_W50_CURRENT_COMMIT": "Same W50 request stream, accepted at production GO_TO boundaries and held for macro_commit_go_to_ticks=4."
+  },
+  "event_definition": {
+    "desired_request": "At each tick, compute the nearest W50 request for the current native scripted target. A switch request occurs when the requested W50 index changes, or the native desired bearing changes by at least 15 degrees, or the native target endpoint moves by at least 1.0 cell.",
+    "blocked_switch": "A switch request occurs while I2 commit_ticks_left > 0 and the requested W50 index differs from the committed W50 index.",
+    "stale_switch": "A blocked switch for which the effective I2 target bearing differs from the current native desired bearing by at least 15 degrees.",
+    "adopted": "The effective I2 target bearing is within 15 degrees of the current native desired bearing, or the requested W50 target is the committed W50 target.",
+    "decision_lag_ticks": "Number of ticks from a blocked request until adoption. Censor at the next request, trace end, agent death, or tag. Report censored fraction.",
+    "boundary": "A tick at which the production GO_TO commitment clock is zero before the request is applied. The frozen expected boundary schedule for a fresh stream is 0,4,8,...",
+    "semantic_context": "Record raw target, requested W50 index, committed index, commitment clock, target jump, bearing change, carrying/tagged state, and whether the request was blocked. No semantic macro outcome is evaluated in this probe."
+  },
+  "measurements": {
+    "per_agent_tick": [
+      "native_target_x", "native_target_y", "requested_w50_idx", "committed_w50_idx",
+      "commit_ticks_left_before", "decision_boundary", "target_jump_cells",
+      "bearing_change_degrees", "switch_request", "blocked_switch", "stale_switch",
+      "adopted", "decision_lag_ticks", "lag_censored", "alive", "carrying", "tagged"
+    ],
+    "per_episode": [
+      "switch_requests", "blocked_switch_fraction", "stale_switch_fraction",
+      "mean_decision_lag_ticks", "p95_decision_lag_ticks", "censored_switch_fraction",
+      "mean_bearing_change_degrees", "mean_target_jump_cells"
+    ],
+    "forbidden_fields": ["blue_score", "red_score", "win", "reward", "return", "value", "advantage"]
+  },
+  "primary_analysis": {
+    "unit": "seed",
+    "bootstrap": {"method": "paired percentile bootstrap", "n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+    "support_contrasts": {
+      "stale_scale_BREACH": "stale_switch_fraction[4v4,BREACH] - stale_switch_fraction[2v2,BREACH]",
+      "blocked_scale_BREACH": "blocked_switch_fraction[4v4,BREACH] - blocked_switch_fraction[2v2,BREACH]",
+      "lag_scale_BREACH": "mean_decision_lag_ticks[4v4,BREACH] - mean_decision_lag_ticks[2v2,BREACH]",
+      "style_scale_stale": "(stale[4v4,BREACH]-stale[4v4,GUARD]) - (stale[2v2,BREACH]-stale[2v2,GUARD])"
+    },
+    "association_with_prior_cost": "Report paired seed-level association between each support quantity and the prior per-seed C_commit cost where the source rows are available. Association is diagnostic only, not a causal estimate."
+  },
+  "mechanism_support_gate": {
+    "PASS": "At least one of stale_scale_BREACH or blocked_scale_BREACH has LCB95 > 0 and a 4v4 BREACH point estimate >= 0.01, or lag_scale_BREACH has LCB95 > 0 and a 4v4 BREACH point estimate >= 0.5 tick. The winning quantity must have nonzero event counts and the event-path contract must pass.",
+    "FAIL": "No support quantity clears its frozen threshold, event counts are zero/degenerate, or any execution-path contract fails.",
+    "interpretation_if_PASS": "Commitment graduates from quantitative candidate to mechanistically supported intervention target. This authorizes a separate smallest-intervention repair spec, not training.",
+    "interpretation_if_FAIL": "Reject commitment as unsupported by the hypothesized stale-action mechanism. Do not change commitment or launch PPO from this probe.",
+    "no_repair_selection": "This probe cannot choose h=1, h=0, selective refresh, or any macro change. That requires a new frozen intervention spec after PASS."
+  },
+  "contracts_before_any_source_episode": {
+    "G0_PRIOR_ARTIFACT_PROTECTION": "Hashes the prior scale spec, amendment, contract result, result, and reading; refuses interpretation if any changes.",
+    "G1_REQUEST_EXTRACTION": "Known target streams produce the expected W50 requests, target jump, and 15-degree bearing event flags.",
+    "G2_BOUNDARY_SCHEDULE": "A fresh I2 stream accepts requests exactly at 0,4,8,... and retains the prior committed index between boundaries.",
+    "G3_BLOCKED_SWITCH": "An alternating request stream during a held commitment emits blocked_switch=1 and stale_switch=1 until adoption.",
+    "G4_ADOPTION_LAG": "Known-answer stream reports exact lag and censor behavior, including a request adopted at the next boundary.",
+    "G5_CONTEXT_SPLITS": "Carrying, tagged, dead/reset rows are recorded and excluded or stratified exactly as frozen; no silent event dropping.",
+    "G6_OUTCOME_BLIND_SCHEMA": "CSV/result schemas reject all forbidden outcome and learning fields.",
+    "G7_TRACE_COMPLETENESS": "Each source trace has 240 ticks, each arm has matching rows, and trace hashes agree within a paired source trace.",
+    "G8_PRIOR_RUN_SEPARATION": "The new probe uses a fresh Rule-9 exploratory block and never overwrites prior scale artifacts.",
+    "failure": "Any contract failure stops the run and emits a FAIL contract artifact. No source episodes or seed allocation are authorized."
+  },
+  "sampling": {
+    "n_seeds": 16,
+    "seed_class": "exploratory",
+    "allocation": "After contracts pass, allocate the next free 16-seed exploratory block under experiment id ACTION_INTERFACE_COMMITMENT_MECHANISM. No manual seed start is permitted.",
+    "pairing": "Same seed list across scales, styles, and I1/I2; seed is the bootstrap unit."
+  },
+  "outputs": {
+    "contract_result": "ACTION_INTERFACE_COMMITMENT_MECHANISM_CONTRACT_RESULT.json",
+    "agent_tick_rows": "action_interface_commitment_mechanism_agent_tick_rows.csv",
+    "episode_rows": "action_interface_commitment_mechanism_episode_rows.csv",
+    "result": "ACTION_INTERFACE_COMMITMENT_MECHANISM_RESULT.json",
+    "reading": "ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json",
+    "run_lock": "ACTION_INTERFACE_COMMITMENT_MECHANISM.run.lock",
+    "refuse_if_result_exists": true
+  },
+  "isolation": {
+    "production_macros": "read_only",
+    "PPO": "OFF",
+    "GPU": "OFF",
+    "GETFLAG": "OFF",
+    "Assignment_v1": "OFF",
+    "ROLE": "OFF",
+    "Pyquaticus": "OFF",
+    "credit_correction": "OFF"
+  },
+  "authorized_next_milestone": "Implement the event-instrumented I1/I2 replay and G0-G8 contracts. Run contracts, allocate fresh exploratory seeds, then run the CPU probe. Do not implement a repair in this milestone."
+}

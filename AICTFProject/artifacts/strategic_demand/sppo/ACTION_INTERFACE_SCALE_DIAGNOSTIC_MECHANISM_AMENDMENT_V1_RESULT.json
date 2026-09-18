@@ -1,0 +1,390 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_RESULT",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-18T15:26:23Z",
+  "implements": [
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_CONTRACT_RESULT.json"
+  ],
+  "classification": "SPEC_CONFORMANCE_RERUN",
+  "outcome_blind": true,
+  "n_seeds": 16,
+  "n_source_traces": 64,
+  "n_episode_arm_rows": 256,
+  "components": {
+    "C_spatial": {
+      "cells": {
+        "2v2_GUARD": {
+          "mean": 0.22037839507279022,
+          "lcb95": 0.20806154741879473,
+          "ucb95": 0.23469875965528852,
+          "n": 16
+        },
+        "2v2_BREACH": {
+          "mean": 0.41568973428016986,
+          "lcb95": 0.350936986214433,
+          "ucb95": 0.48126821687683186,
+          "n": 16
+        },
+        "4v4_GUARD": {
+          "mean": 0.40034745144535433,
+          "lcb95": 0.3905267202171779,
+          "ucb95": 0.4098508855728053,
+          "n": 16
+        },
+        "4v4_BREACH": {
+          "mean": 0.6459983043005555,
+          "lcb95": 0.5795082217034794,
+          "ucb95": 0.7082919738820588,
+          "n": 16
+        }
+      },
+      "S_k_scale_interaction": {
+        "mean": 0.20513881319647487,
+        "lcb95": 0.1633772524532536,
+        "ucb95": 0.2438211908808582,
+        "n": 16
+      },
+      "J_k_BREACH_by_scale_interaction": {
+        "mean": 0.050339513647821625,
+        "lcb95": -0.03170580744581739,
+        "ucb95": 0.12657458501450178,
+        "n": 16
+      },
+      "material_4v4_BREACH_threshold": 0.1,
+      "material_4v4_BREACH_pass": true,
+      "mechanism_support": {
+        "name": "W50_endpoint_error_increment",
+        "summary": {
+          "mean": 1.664431648978929,
+          "lcb95": 1.6289489475453032,
+          "ucb95": 1.7089796200334597,
+          "n": 16
+        },
+        "pass": true
+      },
+      "B_RELEVANT_SCALE_BINDER_CANDIDATE": false
+    },
+    "C_commit": {
+      "cells": {
+        "2v2_GUARD": {
+          "mean": 0.05120564667189195,
+          "lcb95": 0.04257510865578,
+          "ucb95": 0.06044869843955389,
+          "n": 16
+        },
+        "2v2_BREACH": {
+          "mean": 0.09841185647978049,
+          "lcb95": 0.06955493775084248,
+          "ucb95": 0.12711637165299902,
+          "n": 16
+        },
+        "4v4_GUARD": {
+          "mean": 0.07037973357833667,
+          "lcb95": 0.06019629314027143,
+          "ucb95": 0.08063137273337057,
+          "n": 16
+        },
+        "4v4_BREACH": {
+          "mean": 0.19253339633841982,
+          "lcb95": 0.15923017638493847,
+          "ucb95": 0.22185453687084672,
+          "n": 16
+        }
+      },
+      "S_k_scale_interaction": {
+        "mean": 0.05664781338254203,
+        "lcb95": 0.042790535825588706,
+        "ucb95": 0.07130756517567663,
+        "n": 16
+      },
+      "J_k_BREACH_by_scale_interaction": {
+        "mean": 0.0749474529521946,
+        "lcb95": 0.04756303915257859,
+        "ucb95": 0.10184471163522632,
+        "n": 16
+      },
+      "material_4v4_BREACH_threshold": 0.1,
+      "material_4v4_BREACH_pass": true,
+      "mechanism_support": {
+        "name": "stale_target_fraction_increment",
+        "summary": {
+          "mean": 0.5549479166666667,
+          "lcb95": 0.5092447916666667,
+          "ucb95": 0.5987630208333333,
+          "n": 16
+        },
+        "pass": true
+      },
+      "B_RELEVANT_SCALE_BINDER_CANDIDATE": true
+    },
+    "C_macro_residual": {
+      "cells": {
+        "2v2_GUARD": {
+          "mean": -0.028994663391494573,
+          "lcb95": -0.03785879250241996,
+          "ucb95": -0.020751626698138036,
+          "n": 16
+        },
+        "2v2_BREACH": {
+          "mean": -0.03939036693951126,
+          "lcb95": -0.06502559702653489,
+          "ucb95": -0.014118588517545489,
+          "n": 16
+        },
+        "4v4_GUARD": {
+          "mean": -0.028627462238062243,
+          "lcb95": -0.041669164107513056,
+          "ucb95": -0.016061672229966153,
+          "n": 16
+        },
+        "4v4_BREACH": {
+          "mean": -0.07513788807682908,
+          "lcb95": -0.1025570684518075,
+          "ucb95": -0.04522541094054849,
+          "n": 16
+        }
+      },
+      "S_k_scale_interaction": {
+        "mean": -0.01769015999194274,
+        "lcb95": -0.0337156356892221,
+        "ucb95": 0.00043967492259386695,
+        "n": 16
+      },
+      "J_k_BREACH_by_scale_interaction": {
+        "mean": -0.03611472229075015,
+        "lcb95": -0.06836010533263374,
+        "ucb95": 0.0004381595835630368,
+        "n": 16
+      },
+      "material_4v4_BREACH_threshold": 0.1,
+      "material_4v4_BREACH_pass": false,
+      "mechanism_support": {
+        "name": "named_macro_execution_event_burden",
+        "summary": {
+          "mean": 1.4758788842542145,
+          "lcb95": 1.3907528475894912,
+          "ucb95": 1.5632105607131543,
+          "n": 16
+        },
+        "pass": true
+      },
+      "B_RELEVANT_SCALE_BINDER_CANDIDATE": false
+    }
+  },
+  "localized_candidates": [
+    "C_commit"
+  ],
+  "general_scale_costs_without_B_localization": [
+    "C_spatial"
+  ],
+  "VERDICT": "ONE_B_RELEVANT_SCALE_BINDER_CANDIDATE",
+  "NEXT": "Freeze a separate outcome-blind component intervention. No training is authorized.",
+  "post_run_integrity": {
+    "G0_prior_artifacts_unchanged": true,
+    "G8_trace_matrix_complete": true,
+    "protected_sha256_after": {
+      "ACTION_INTERFACE_DECOMP_SPEC.json": "0caadbc63ebb60f3fe66a9a6bf6295ecbae2a78cc0feeb948f5b5a18aab4905f",
+      "ACTION_INTERFACE_DECOMP_SEALED_READING.json": "94e55c3bc34ca38eb3de4a051bf2b7ccacae0abfd9c606c7808edd36f3c170d3",
+      "PROJECTION_DIVERGENCE_TRACE_RESULT.json": "d44a6a889d2fec7dab93c9013c626f608d4c222b99842c0367f6f5e8a0b16014",
+      "REPAIRED_GO_TO_H1_PROJECTED_SPEC.json": "eb7118978a849538a8e5a2c8be9ff5933564a076b2d7b0d1c7385268fa469a75",
+      "PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json": "4f6fcae6d3f3e07d4a6e2dde5a3bbcac1898603592cddaec311b2b1f5c588d5f",
+      "PYQUATICUS_PORT_CONTRACT_RESULT.json": "d24ecdc72044741c52bf5e1ec52694679fffb36b98593b5aa11465ac4d4cc891",
+      "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json": "59cbfb6e997d5fd76b6273614b94ce305e30b0b101b234c819916489e9528035",
+      "ACTION_INTERFACE_SCALE_DIAGNOSTIC_TRACE_MANIFEST.json": "fe452fbea6319bbafb6f101c25e8250c20eed83434e9b521aaf2bedc6e59adf5",
+      "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json": "04ec5c95e1b9df8848d874752d61ef4a7f45557daca3b67c93cf2b9994358fac",
+      "action_interface_scale_diagnostic_agent_tick_rows.csv": "c0f20f34035951a1f53ddd5e95384df5691c9bc1d5eab61758d51b857c5ae3f8",
+      "action_interface_scale_diagnostic_episode_rows.csv": "1e2771b6be6313a6001455d4c2680e0abfdc69ae32d57485fe5a33862f9d6423"
+    }
+  },
+  "claim_boundary": "Scale-conditioned historical 2v2 canonical control versus certified 4v4 Pole B. Not a pure causal effect of N, not an outcome result, and not evidence that PPO can learn a repair.",
+  "production_interface_modified": false,
+  "PPO": "OFF",
+  "GPU": "OFF",
+  "seed_allocation": {
+    "experiment_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC",
+    "purpose": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC 16 exploratory seeds",
+    "seed_class": "exploratory",
+    "lo": 19500001,
+    "hi": 19500016,
+    "n": 16,
+    "status": "RESERVED",
+    "spec": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "subdivides": null,
+    "allocated_utc": "2026-09-18T14:41:46Z"
+  },
+  "artifacts": {
+    "trace_manifest": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_TRACE_MANIFEST.json",
+    "agent_tick_rows": "action_interface_scale_diagnostic_mechanism_amendment_v1_agent_tick_rows.csv",
+    "episode_rows": "action_interface_scale_diagnostic_mechanism_amendment_v1_episode_rows.csv"
+  },
+  "SANITY_CHECKS": {
+    "S2_OBSERVATIONAL_EQUIVALENCE": {
+      "status": "IMPLEMENTATION_DIVERGENCE",
+      "comparable": true,
+      "n_compared": 256,
+      "n_missing_in_sealed": 0,
+      "missing_keys_sample": [],
+      "max_abs_E_v_difference": 0.666839,
+      "mean_abs_E_v_difference": 0.1443671714790734,
+      "tolerance": 1e-09,
+      "reading": "Sealed and conformant emitters disagree on E_v. Reportable implementation divergence: neither run is invalidated by this check alone."
+    },
+    "S1_MACRO_RESIDUAL_SIGN": {
+      "partitions": {
+        "2v2_GUARD": {
+          "a_identical_effective_target": {
+            "agent_ticks": 352,
+            "tick_share": 0.061971830985915494,
+            "mean_E_v_tick_I2": 0.8420173753829757,
+            "mean_E_v_tick_I3": 0.6788416825935036,
+            "mean_delta_I3_minus_I2": -0.16317569278947208,
+            "contribution_to_C_macro_residual": -0.010112296454558833
+          },
+          "b_forced_home_carrying": {
+            "agent_ticks": 60,
+            "tick_share": 0.01056338028169014,
+            "mean_E_v_tick_I2": 0.6813446215340925,
+            "mean_E_v_tick_I3": 1.130236035400293,
+            "mean_delta_I3_minus_I2": 0.44889141386620046,
+            "contribution_to_C_macro_residual": 0.00474181070985423
+          },
+          "d_semantic_macro_target": {
+            "agent_ticks": 4970,
+            "tick_share": 0.875,
+            "mean_E_v_tick_I2": 0.20826162290095288,
+            "mean_E_v_tick_I3": 0.17304242432775233,
+            "mean_delta_I3_minus_I2": -0.03521919857320055,
+            "contribution_to_C_macro_residual": -0.03081679875155048
+          },
+          "e_commit_horizon_residual": {
+            "agent_ticks": 298,
+            "tick_share": 0.052464788732394366,
+            "mean_E_v_tick_I2": 0.8096327355824212,
+            "mean_E_v_tick_I3": 0.7694121056433351,
+            "mean_delta_I3_minus_I2": -0.04022062993908615,
+            "contribution_to_C_macro_residual": -0.0021101668524379706
+          }
+        },
+        "2v2_BREACH": {
+          "a_identical_effective_target": {
+            "agent_ticks": 68,
+            "tick_share": 0.013608164898939363,
+            "mean_E_v_tick_I2": 0.6492177444241805,
+            "mean_E_v_tick_I3": 0.6737563363292418,
+            "mean_delta_I3_minus_I2": 0.024538591905061358,
+            "contribution_to_C_macro_residual": 0.0003339252050318536
+          },
+          "b_forced_home_carrying": {
+            "agent_ticks": 1283,
+            "tick_share": 0.2567540524314589,
+            "mean_E_v_tick_I2": 0.8858748167030424,
+            "mean_E_v_tick_I3": 0.8496022646503605,
+            "mean_delta_I3_minus_I2": -0.03627255205268187,
+            "contribution_to_C_macro_residual": -0.009313124731557102
+          },
+          "d_semantic_macro_target": {
+            "agent_ticks": 3528,
+            "tick_share": 0.7060236141685011,
+            "mean_E_v_tick_I2": 0.4116357644753942,
+            "mean_E_v_tick_I3": 0.3562204620104363,
+            "mean_delta_I3_minus_I2": -0.055415302464957905,
+            "contribution_to_C_macro_residual": -0.03912451212655023
+          },
+          "e_commit_horizon_residual": {
+            "agent_ticks": 118,
+            "tick_share": 0.02361416850110066,
+            "mean_E_v_tick_I2": 0.9885095590350729,
+            "mean_E_v_tick_I3": 1.0041752436719102,
+            "mean_delta_I3_minus_I2": 0.015665684636837374,
+            "contribution_to_C_macro_residual": 0.0003699321166993816
+          }
+        },
+        "4v4_GUARD": {
+          "a_identical_effective_target": {
+            "agent_ticks": 1211,
+            "tick_share": 0.10651772363444455,
+            "mean_E_v_tick_I2": 0.823321697298531,
+            "mean_E_v_tick_I3": 0.7621484132563441,
+            "mean_delta_I3_minus_I2": -0.061173284042186915,
+            "contribution_to_C_macro_residual": -0.006516038963417042
+          },
+          "b_forced_home_carrying": {
+            "agent_ticks": 132,
+            "tick_share": 0.011610519834638051,
+            "mean_E_v_tick_I2": 0.8419525857584338,
+            "mean_E_v_tick_I3": 0.9753039193178743,
+            "mean_delta_I3_minus_I2": 0.1333513335594405,
+            "contribution_to_C_macro_residual": 0.0015482783032673187
+          },
+          "d_semantic_macro_target": {
+            "agent_ticks": 9036,
+            "tick_share": 0.7947928577711321,
+            "mean_E_v_tick_I2": 0.42759073621188276,
+            "mean_E_v_tick_I3": 0.38915744366630395,
+            "mean_delta_I3_minus_I2": -0.03843329254557881,
+            "contribution_to_C_macro_residual": -0.030546506415854532
+          },
+          "e_commit_horizon_residual": {
+            "agent_ticks": 990,
+            "tick_share": 0.08707889875978538,
+            "mean_E_v_tick_I2": 0.9314630929665981,
+            "mean_E_v_tick_I3": 0.8964875370883378,
+            "mean_delta_I3_minus_I2": -0.03497555587826029,
+            "contribution_to_C_macro_residual": -0.003045632889390244
+          }
+        },
+        "4v4_BREACH": {
+          "a_identical_effective_target": {
+            "agent_ticks": 805,
+            "tick_share": 0.06262154803578374,
+            "mean_E_v_tick_I2": 0.8546501724763247,
+            "mean_E_v_tick_I3": 0.8487327895822889,
+            "mean_delta_I3_minus_I2": -0.005917382894035761,
+            "contribution_to_C_macro_residual": -0.0003705556771449854
+          },
+          "b_forced_home_carrying": {
+            "agent_ticks": 2722,
+            "tick_share": 0.2117464021781408,
+            "mean_E_v_tick_I2": 1.123849433910876,
+            "mean_E_v_tick_I3": 1.053149583583679,
+            "mean_delta_I3_minus_I2": -0.07069985032719694,
+            "contribution_to_C_macro_residual": -0.014970438941317004
+          },
+          "d_semantic_macro_target": {
+            "agent_ticks": 7950,
+            "tick_share": 0.6184364060676779,
+            "mean_E_v_tick_I2": 0.7734376307454426,
+            "mean_E_v_tick_I3": 0.6751724997762318,
+            "mean_delta_I3_minus_I2": -0.09826513096921075,
+            "contribution_to_C_macro_residual": -0.06077073443836837
+          },
+          "e_commit_horizon_residual": {
+            "agent_ticks": 1378,
+            "tick_share": 0.10719564371839752,
+            "mean_E_v_tick_I2": 0.9367566131440968,
+            "mean_E_v_tick_I3": 0.8581185520830342,
+            "mean_delta_I3_minus_I2": -0.07863806106106253,
+            "contribution_to_C_macro_residual": -0.008429657576207247
+          }
+        }
+      },
+      "primary_cell": "4v4_BREACH",
+      "negative_contribution_total": -0.0845413866330376,
+      "negative_from_identical_target_partition": -0.0003705556771449854,
+      "negative_from_named_production_events": -0.07574117337968538,
+      "VERDICT": "ATTRIBUTED_TO_NAMED_PRODUCTION_EVENTS",
+      "reading_rule": "SUSPECT_ACCOUNTING means the two arms command the same effective target yet report different error, which is an arm or accounting defect rather than a physical compensation. This probe changes no threshold or decision."
+    }
+  },
+  "sealed_outputs_unchanged": true,
+  "sealed_outputs_sha256": {
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json": "59cbfb6e997d5fd76b6273614b94ce305e30b0b101b234c819916489e9528035",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_TRACE_MANIFEST.json": "fe452fbea6319bbafb6f101c25e8250c20eed83434e9b521aaf2bedc6e59adf5",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json": "04ec5c95e1b9df8848d874752d61ef4a7f45557daca3b67c93cf2b9994358fac",
+    "action_interface_scale_diagnostic_agent_tick_rows.csv": "c0f20f34035951a1f53ddd5e95384df5691c9bc1d5eab61758d51b857c5ae3f8",
+    "action_interface_scale_diagnostic_episode_rows.csv": "1e2771b6be6313a6001455d4c2680e0abfdc69ae32d57485fe5a33862f9d6423"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "record_id": "ASSIGNMENT_V1_4V4_BOARD_POSITION",
+  "record_type": "BOOKKEEPING_BOARD_POSITION",
+  "utc": "2026-09-18T15:30:00Z",
+  "purpose": "Record the correct board position for the ASSIGNMENT_V1_4V4 crossover. This is bookkeeping, not a verdict, and it alters no scientific result.",
+
+  "seal_state": "NOT_SEALED",
+  "verdict": "PENDING_ROW_LEVEL_INTEGRITY_AUDIT",
+  "explicitly_not": "FAILED",
+  "why_not_failed": "The runner itself raised the standing tie/reversal condition and refused to produce a verdict-bearing result. delta_B = -0.015625 is exactly -1/64, a single-seed difference at n=64: a null-scale point estimate, not a measured reversal. Calling this arm 'failed' would assert a directional finding the evidence does not carry. The joint numerical gate is not met; that is a different and weaker statement.",
+
+  "run": {
+    "label": "ASSIGNMENT_V1_4V4",
+    "spec": "ASSIGNMENT_CONDITIONING_V1_SPEC.json",
+    "spec_status_at_launch": "FROZEN_BEFORE_ANY_TRAINING",
+    "arm": "EXPLORATORY",
+    "confirmatory": false,
+    "instrument": "experiments/eval_specialist_crossover_scaled.py",
+    "team_size": 4,
+    "completed_utc": "2026-09-18T03:26:16Z",
+    "n_seeds": 64,
+    "seeds": "19500001-19500064",
+    "seeds_shared_across_policies_and_poles": true,
+    "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+    "rows": "assignment_v1_4v4_specialist_crossover_eval_rows.csv",
+    "n_rows": 256
+  },
+
+  "preflight_that_did_pass": {
+    "pole_A_attestation": "PASS against STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json (hash 4194fe4715069fc9)",
+    "pole_B_attestation": "PASS against the same record (hash ee1cab774896886b)",
+    "checkpoint_behavioral_equivalence": "PASS twice, including the assignment-warmstart z-any==source check (mean_kl=0, max_kl=0, argmax_diff=0)",
+    "note": "Rule 14 provenance is clean for this run. The pending item is row-level integrity, not opponent provenance."
+  },
+
+  "point_estimates": {
+    "delta_A": 0.125,
+    "delta_B": -0.015625,
+    "estimand_delta_A": "V(pi_A3,A) - V(B_ASSIGN,A)",
+    "estimand_delta_B": "V(B_ASSIGN,B) - V(pi_A3,B)"
+  },
+
+  "raw_cells_win_rate": {
+    "pi_A_on_pole_A": 0.7969,
+    "pi_A_on_pole_B": 0.6719,
+    "pi_B_assign_on_pole_A": 0.6719,
+    "pi_B_assign_on_pole_B": 0.6562
+  },
+
+  "gate_status": {
+    "frozen_gate": "delta_A_spec > 0 and LCB95 > 0; delta_B_spec symmetric",
+    "delta_A": "point estimate positive; interval not reported in a verdict-bearing artifact because the run did not reach seal",
+    "delta_B": "point estimate negative at one-seed scale; gate not met",
+    "joint_numerical_gate": "NOT MET",
+    "standing_rule_invoked": "exact tie or reversal on either arm requires a row-level integrity audit, written before its rows are read",
+    "triggering_record": "ASSIGNMENT_V1_4V4_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json"
+  },
+
+  "audit_not_yet_performed": {
+    "state": "The row-level integrity audit has NOT been run.",
+    "ordering_constraint": "The standing rule requires the audit to be written before its rows are read. No one may inspect assignment_v1_4v4_specialist_crossover_eval_rows.csv and then compose an audit around what was seen.",
+    "consequence": "Until that audit is written and passes, ASSIGNMENT_V1_4V4 carries no verdict and must not be cited as evidence for or against assignment conditioning."
+  },
+
+  "reading_that_is_currently_supported": "Assignment-v1 did not produce a Pole-B specialist. pi_A remains the stronger policy on both poles (0.7969 / 0.6719) while the assignment-conditioned policy is mid-range on both including its own (0.6719 / 0.6562). This is the same one-generalist-plus-one-weaker-policy shape seen in the corrected entity-repair crossover and the pre-repair EXPLORATORY_4V4 pattern. It is weaker evidence than the corrected entity-repair crossover, which produced a confirmed reversal (delta_B = -0.156, entire interval negative); this run produces a null, not a reversal.",
+
+  "provenance_nit": {
+    "observation": "ASSIGNMENT_V1_4V4_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json cites 'ASSIGNMENT_CONDITIONING_V1_SPEC.json#EVALUATION.tie_or_reversal'. That spec has no EVALUATION key; its evaluation block is named EVALUATION_after and contains no tie_or_reversal clause. The rule the runner applied is the program-wide standing rule, stated in CCP_S2_SPEC.json and elsewhere.",
+    "severity": "citation accuracy only; the rule was applied correctly and the flag is valid",
+    "related_standing_lesson": "when a frozen record cites a location, it must cite the object actually opened"
+  },
+
+  "seed_bookkeeping_cross_reference": "SEED_REGISTRY_COLLISION_19500001.json",
+
+  "authorizes": "nothing"
+}

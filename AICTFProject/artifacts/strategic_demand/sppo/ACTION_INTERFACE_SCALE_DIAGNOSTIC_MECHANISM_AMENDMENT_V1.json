@@ -1,0 +1,152 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1",
+  "status": "FROZEN_DESIGN_NO_EXECUTION",
+  "utc": "2026-09-18T15:20:00Z",
+  "amends": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+  "also_reads": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "classification": "SPEC_CONFORMANCE_RERUN",
+
+  "WHAT_THIS_IS_NOT": [
+    "not a new hypothesis",
+    "not a threshold change",
+    "not a seed expansion",
+    "not a repair experiment",
+    "not a re-interpretation of the sealed quantitative result",
+    "not an opportunity to add attractive new metrics"
+  ],
+
+  "PURPOSE": "The sealed ACTION_INTERFACE_SCALE_DIAGNOSTIC run produced valid E_v component estimates but did not emit the mechanism instrumentation that the frozen spec explicitly required. This amendment recovers exactly those pre-specified measurements, on the same seeds, scales, styles, arms, environment configuration, and deterministic replay, under a new record ID. Its sole purpose is spec conformance.",
+
+  "NON_CONFORMANCE_BEING_REPAIRED": {
+    "sealed_result_sha256": "59cbfb6e997d5fd76b6273614b94ce305e30b0b101b234c819916489e9528035",
+    "sealed_episode_rows_sha256": "1e2771b6be6313a6001455d4c2680e0abfdc69ae32d57485fe5a33862f9d6423",
+    "sealed_agent_tick_rows_sha256": "c0f20f34035951a1f53ddd5e95384df5691c9bc1d5eab61758d51b857c5ae3f8",
+    "sealed_trace_manifest_sha256": "fe452fbea6319bbafb6f101c25e8250c20eed83434e9b521aaf2bedc6e59adf5",
+    "emitting_runner": "experiments/eval_action_interface_scale_diagnostic.py",
+    "emitting_runner_sha256": "cf30724ed3a69ff733292c8515c83b5ffecec8f47763e8f6a9077603296a6def",
+    "findings": [
+      "MEASUREMENTS.switch_event was specified (blocked_switch, stale_target_tick, decision_lag_ticks, censored fraction) and was not emitted in any artifact.",
+      "MEASUREMENTS.target_error was specified (effective-target endpoint distance, desired-versus-effective direction angle) and was not emitted.",
+      "MEASUREMENTS.macro_residual_attribution was specified (committed macro/target identity, commit counter and boundary flag, carrying forced-home substitution, tagged redirect, macro termination, effective speed-cap and target difference from I2) and was not emitted.",
+      "PRIMARY_ANALYSIS.reporting requires a point estimate and 95 percent interval for every C_k, S_k, and J_k. The sealed result reports intervals for S_k and J_k only; the twelve C_k cells carry point estimates with no intervals.",
+      "MEASUREMENTS.trajectory_error specified E_x p50/p90/p95/max. Only E_x_rmse was emitted.",
+      "DECISION_RULE.B_RELEVANT_SCALE_BINDER_CANDIDATE therefore could not be evaluated for any component, because its third condition is component-specific mechanism support.",
+      "The emitting runner truncated its own in-memory payload to (record_id, utc, n_seeds, seeds, components, S_k, J_k) at serialization time. The mechanism quantities were never computed, not merely dropped."
+    ],
+    "artifact_ordering_note": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json on disk carries utc 2026-09-18T15:00:01Z, later than the sealed result at 14:56:54Z. The emitting runner requires a PASS contract result before --promote, so a pre-run contract artifact did exist; the on-disk copy is a later regeneration that overwrote it. The pre-run contract evidence is therefore not recoverable from the file itself. This amendment writes its own contract result under its own record ID and does not touch the sealed one."
+  },
+
+  "PRESERVATION_RULE": "The original frozen spec, its integrity amendment, and every sealed output of the original run remain unchanged and unreinterpreted. FROZEN_OUTPUTS.refuse_if_result_exists=true is respected: this amendment writes only to its own record ID. Any attempt to overwrite a sealed path is a stop condition.",
+
+  "UNCHANGED_FROM_ORIGINAL_SPEC": [
+    "16 seeds, the already-reserved exploratory block 19500001-19500016, reused exactly; no new seed is allocated or spent",
+    "scales 2 and 4; styles GUARD (BLUE_ONE_DEFENDER_V2) and BREACH (BLUE_BOTH_ATTACK_V2)",
+    "arms I0_CONTINUOUS_ORACLE, I1_W50_NO_COMMIT, I2_W50_CURRENT_COMMIT, I3_FULL_CURRENT_MACRO",
+    "opponent contract per the integrity amendment: historical canonical Pole-B control at 2v2, certified B3-3 at 4v4",
+    "map_a, horizon 240 ticks, domain randomization off, CPU only, outcome blind",
+    "E_v as primary error, defined and aggregated identically (live ticks, agent then episode)",
+    "C_spatial = E_v(I1)-E_v(I0), C_commit = E_v(I2)-E_v(I1), C_macro_residual = E_v(I3)-E_v(I2)",
+    "S_k and J_k definitions",
+    "paired percentile bootstrap over seeds, n_boot 20000, alpha 0.05, rng_seed 7, resampling unit = seed, no p-values",
+    "MATERIAL_BURDEN threshold 0.10",
+    "the DECISION_RULE in full, including every verdict label",
+    "the forbidden outcome/learning column set",
+    "ISOLATION: PPO off, GPU off, GETFLAG off, Assignment-v1 off, ROLE off, production macro semantics unmodified"
+  ],
+
+  "REQUIRED_ADDITIONS": {
+    "note": "These are the originally specified measurements and nothing else. No new metric is introduced by this amendment.",
+    "target_error": [
+      "target_endpoint_error_cells: effective-target endpoint distance from the I0 effective target",
+      "direction_error_degrees: angle between desired (I0) and effective bearing"
+    ],
+    "switch_event": [
+      "switch_request per the frozen definition: I0 desired bearing changes by at least 15 degrees or desired target moves by at least 1.0 cell",
+      "blocked_switch: a request not adopted on its request tick",
+      "stale_target_tick: executing a previously accepted target whose effective bearing differs from current desired bearing by at least 15 degrees",
+      "decision_lag_ticks: ticks from request to adoption, censored at next request or trace end",
+      "censored_switch_fraction: the censored fraction, reported explicitly"
+    ],
+    "macro_residual_attribution": [
+      "committed_macro and committed_target_idx",
+      "commit_ticks_left and decision_boundary flag",
+      "forced_home_carrying flag",
+      "tagged_redirect flag",
+      "adapted_category (macro semantic class actually selected)",
+      "macro_early_end_fraction (termination transition)",
+      "speed_cap_cps (effective speed-cap, for difference from I2)",
+      "effective_target_x / effective_target_y (for effective-target difference from I2)"
+    ],
+    "audit_support": [
+      "raw_target_x / raw_target_y (desired, pre-projection)",
+      "position_x / position_y, velocity_x / velocity_y",
+      "alive, carrying, tagged, eligible_motion, environment_reset",
+      "per-tick velocity_error_norm and position_error_cells"
+    ],
+    "interval_conformance": "Point estimate and frozen 95 percent bootstrap interval for every C_k (all twelve scale x style cells), every S_k, and every J_k. Same bootstrap rule, unchanged."
+  },
+
+  "SANITY_CHECKS": {
+    "S1_MACRO_RESIDUAL_SIGN": {
+      "observation": "C_macro_residual is negative in all four cells of the sealed result (2v2 GUARD -0.019038, 2v2 BREACH -0.029203, 4v4 GUARD -0.021954, 4v4 BREACH -0.038132), i.e. I3 shows lower velocity error than I2.",
+      "position": "A negative residual is not automatically erroneous. I3 can physically compensate for distortion introduced at I2, for example when a carrier forced-home substitution or a tagged redirect steers the effective target back toward the oracle bearing. The sign must nevertheless be established from execution traces rather than assumed.",
+      "procedure": "On paired (scale, style, seed, tick, agent) keys, partition 4v4 BREACH agent-ticks by I3 execution state and report, for each partition, the tick share and the mean velocity_error_norm under I2 and under I3: (a) I3 effective target equal to I2 effective target within tolerance, (b) forced_home_carrying, (c) tagged_redirect, (d) adapted_category outside WAYPOINT/ORACLE, (e) residual ticks differing only by macro-specific commit horizon. Report the same partition for the other three cells.",
+      "reading_rule": "If the negative contribution concentrates in named production execution events (b, c, d) the sign is real and attributed. If it concentrates in partition (a), where the two arms command the same effective target, the sign indicates an arm or accounting defect and the macro-residual component must be marked SUSPECT_ACCOUNTING pending repair. This check reports; it does not change any threshold or decision rule."
+    },
+    "S2_OBSERVATIONAL_EQUIVALENCE": {
+      "requirement": "The added instrumentation is observational only and must not change trajectories.",
+      "procedure": "Compare this run's per-cell E_v against the sealed episode rows for all 256 (scale, style, seed, arm) keys and report max and mean absolute difference. Compare the source-trace identity per (scale, style, seed).",
+      "known_limit": "The sealed run and this run use different runner implementations, and their trace-hash digests are computed over different payload definitions, so digest equality is not a meaningful comparison and is not asserted. Numerical E_v agreement is the operative check.",
+      "reading_rule": "Agreement within 1e-9 means the instrumentation is observational and the sealed quantitative result is independently reproduced. A larger difference is a reportable finding about implementation divergence and must be surfaced in the result, not silently absorbed. It does not by itself invalidate either run."
+    }
+  },
+
+  "DECISION_RULE": "Inherited verbatim from ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json. Explicitly restated because it is the point of this amendment: B_RELEVANT_SCALE_BINDER_CANDIDATE requires LCB95(J_k) > 0 AND C_k[4v4,BREACH] >= 0.10 AND the component-specific mechanism support condition. Commitment does not become a repair target merely because its scale contrast is the strongest of the three. Mechanism support is a necessary condition, not a tiebreaker.",
+
+  "MECHANISM_SUPPORT_REQUIREMENTS": "Inherited verbatim. spatial: C_spatial must be accompanied by W50 endpoint or direction error. commitment: C_commit must be accompanied by excess blocked-switch fraction, stale-target occupancy, or decision lag in I2 relative to I1. macro_residual: C_macro_residual must be accompanied by a named production execution event, otherwise UNLOCALIZED_RESIDUAL.",
+
+  "CORRECTED_SPATIAL_READING_CARRIED_FORWARD": {
+    "statement": "From the sealed run, spatial discretization has neither materiality (C_spatial[4v4,BREACH] = 0.093812 < 0.10) nor a positive lower bound on its scale interaction (S_spatial LCB95 = -0.016861). It must not be described as an established general interface cost from this diagnostic.",
+    "status": "reading correction only; no number changes"
+  },
+
+  "OUTPUTS": {
+    "spec": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1.json",
+    "contract_result": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_CONTRACT_RESULT.json",
+    "trace_manifest": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_TRACE_MANIFEST.json",
+    "agent_tick_rows": "action_interface_scale_diagnostic_mechanism_amendment_v1_agent_tick_rows.csv",
+    "episode_rows": "action_interface_scale_diagnostic_mechanism_amendment_v1_episode_rows.csv",
+    "result": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_RESULT.json",
+    "run_lock": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1.run.lock",
+    "refuse_if_result_exists": true,
+    "sealed_paths_are_read_only": [
+      "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json",
+      "ACTION_INTERFACE_SCALE_DIAGNOSTIC_TRACE_MANIFEST.json",
+      "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json",
+      "action_interface_scale_diagnostic_agent_tick_rows.csv",
+      "action_interface_scale_diagnostic_episode_rows.csv"
+    ]
+  },
+
+  "CONTRACT_GATES": "G0-G8 inherited unchanged from the original spec and re-executed before any source episode, plus G0_rule11 and the AMENDMENT_2v2_POLE provenance gate. G0_PRIOR_ARTIFACT_PROTECTION is extended to cover the five sealed paths above: their sha256 values are recorded before the run and re-verified after it, and any change is a stop condition.",
+
+  "SAMPLING": {
+    "n_seeds": 16,
+    "seed_class": "exploratory",
+    "block": "19500001-19500016",
+    "allocation_rule": "Reuse the block already reserved to experiment_id ACTION_INTERFACE_SCALE_DIAGNOSTIC. Do not call next_free. Do not expand. The block moves RESERVED -> SPENT on completion of this run, which is the first run to consume it under a conformant emitter."
+  },
+
+  "NOT_AUTHORIZED": [
+    "PPO, BC, continuation, or fresh specialist training",
+    "GPU use",
+    "modifying production macro semantics or the action interface",
+    "changing any threshold, seed count, bootstrap rule, or decision label",
+    "declaring a repair authorized from this run",
+    "reinterpreting or overwriting the sealed quantitative result"
+  ],
+
+  "AUTHORIZED_NEXT_MILESTONE": "Run the conformant emitter on the reserved block and report. Whatever the mechanism-support outcome, the next step is a reading record, not a repair."
+}
