@@ -16,7 +16,129 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-18 — **COMMITMENT MECHANISM SUPPORT PASS / REPAIR SPEC NEXT**
+> **Last updated:** 2026-09-18 — **ASYMMETRIC B-TRIGGER SUCCESSOR FROZEN; SYMMETRIC SELECTOR PATH CLOSED**
+> Pole A is the already-good guardrail; Pole B is the repair target. The
+> symmetric online-calibration RESULT stands historically
+> ([`COMPOSITION_SELECTOR_ONLINE_CALIBRATION_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ONLINE_CALIBRATION_RESULT.json);
+> held-out tick error ~37%, dominant-composition accuracy 65.6%), sealed by
+> [`COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING.json).
+> The n≈300 dual positive-gain outcome sizing is **not authorized**. The
+> two-feature amendment is **SUSPENDED**. Successor:
+> [`COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json)
+> — default `2A/2D`, trigger `4A/0D` only under a conservative B-like
+> threshold; calibrate by max A FP tick rate ≤ 0.10 then maximize B detection;
+> outcome gates = B improvement required + A regression UCB95 ≤ 0.10. No
+> outcome seeds until asymmetric calibration PASS. PPO/GPU/6v6 still off.
+> The asymmetric calibration has now completed:
+> [`COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_CALIBRATION_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_CALIBRATION_RESULT.json).
+> The frozen grid selected `W=20`, hysteresis `0.0`, dwell `4`, threshold `0.0`.
+> Held-out metrics were A false-positive tick rate `0.0`, B true-positive tick
+> rate `0.0`, A switches/episode `0.0`, B switches/episode `0.0`, A episodes
+> with any trigger `0.0`, and B episodes with dominant `4A/0D` `0.0`.
+> The A guardrail passed, but the frozen B dominant-composition requirement
+> (`>=0.50`) failed. Decision: **NO_CONSERVATIVE_B_TRIGGER**. No outcome seeds
+> were spent or authorized.
+>
+> Prior — **PYQUATICUS 4v4 TARGETED ROLE-COMPOSITION CONFIRMATION COMPLETE**
+> Follow-up — **ORACLE REGIME-CONDITIONED COMPOSITION EVALUATION COMPLETE**.
+> The frozen three-arm test ran all 384 CPU episodes on paired seeds
+> `20100001–20100064`: oracle dispatch (`A -> 2A/2D`, `B -> 4A/0D`), fixed
+> `2A/2D`, and fixed `4A/0D`. Result:
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json).
+> Oracle parity passed exactly with zero mismatches. The oracle matched the
+> selected fixed composition: Pole A win rate `0.703125` versus fixed `4A/0D`
+> `0.53125`, and Pole B win rate `0.734375` versus fixed `2A/2D` `0.125`.
+> The paired win-rate gains were positive (`A +0.171875 [0,0.34375]`,
+> `B +0.609375 [0.484375,0.734375]`). The B-side gate passed, while the
+> A-side lower confidence bound was exactly `0`, so the frozen strict gate
+> requiring both LCBs to be greater than zero failed.
+> Supporting score-difference intervals were positive, but they do not replace
+> the frozen win-rate gate. The decision is **NO_ORACLE_COMPOSITION_CONFIRMATION**.
+> An analysis-integrity amendment corrected the B-side wrong-control lookup
+> from matched `4A/0D` to frozen wrong `2A/2D`, using the retained rows without
+> rerunning episodes or changing the rule. The pre-amendment artifact is
+> preserved as
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT_PREAMENDMENT_BUGGY.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT_PREAMENDMENT_BUGGY.json).
+> This demonstrates exact dispatch and descriptive improvement over the wrong
+> fixed composition in these samples, but it does not establish selector
+> sufficiency. The seed block is marked SPENT. No PPO, learned selector, or 6v6
+> promotion is authorized from this result alone.
+>
+> Follow-up — **ORACLE REGIME-CONDITIONED COMPOSITION TEST FROZEN / PREFLIGHT PASS**.
+> The frozen spec
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json)
+> defines three paired CPU arms: `ORACLE_REGIME` maps Pole A to `2A/2D` and
+> Pole B to `4A/0D`, alongside fixed `2A/2D` and fixed `4A/0D` controls.
+> Preflight passed the upstream provenance, V2 semantic status, prior-result
+> boundary, certified poles, macro projections, and oracle dispatch checks:
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_PREFLIGHT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_PREFLIGHT.json).
+> The fresh exploratory block `20100001–20100064` is only the next available
+> range; it has not been allocated or spent. The 384-episode CPU evaluation
+> requires explicit follow-up authorization. PPO, GPU, and 6v6 remain off.
+>
+> Follow-up — **TARGETED ROLE-COMPOSITION CONFIRMATION COMPLETE**. The frozen
+> confirmation artifact
+> [`PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json)
+> compared only `4A/0D` with `2A/2D` on both certified poles using paired
+> fresh seeds `20000001–20000064` (256 CPU episodes; PPO/GPU/training off).
+> The result is
+> [`PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT.json).
+> Pole B improved by `Delta_B = +0.6875` `[+0.5625,+0.8125]`, from win rate
+> `0.109375` to `0.796875`. Pole A moved in the opposite direction,
+> `Delta_A = -0.3125` `[-0.46875,-0.140625]`, from `0.75` to `0.4375`.
+> The paired cross-pole interaction was positive, `Delta_B - Delta_A = +1.0`
+> `[+0.796875,+1.203125]`, but the preregistered full confirmation gate also
+> required `Delta_A UCB95 >= 0`; that condition failed. The frozen decision is
+> **B_COMPOSITION_EFFECT_ONLY**, not `REGIME_COMPOSITION_CONFIRMATION_PASS`.
+> This strengthens the Pole-B attack-heavy composition clue but does not show
+> that one composition rule solves both poles. The seed block is marked SPENT.
+> No PPO launch, composition-selector implementation, or 6v6 promotion is
+> authorized from this descriptive scripted result alone.
+>
+> V2 unified-DEFEND contracts passed the semantic subgate: exact target parity
+> and near-perfect direction parity across inward/outward state transitions.
+> The historical aggregate G6 remains false because it includes obsolete
+> waypoint candidates and the known cross-dynamics speed/trajectory mismatch;
+> it is not silently rewritten.
+>
+> The authorized follow-up was frozen in
+> [`PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json).
+> CPU preflight passed with both certified opponent poles, the evaluation-only
+> `n_macros=8` direct reference path, the unified `DEFEND=7` adapter, and all
+> three deterministic 2A/2D assignment mappings. The paired block
+> `19800001–19800064` was then spent across 2 poles × 3 assignments × 64
+> episodes (384 episodes; PPO/GPU/training off). Results:
+> [`PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json),
+> episode rows [`PYQUATICUS_4V4_TEAM_EVALUATION_EPISODES.csv`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_EPISODES.csv),
+> and mapping audit [`PYQUATICUS_4V4_TEAM_EVALUATION_MAPPING_AUDIT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_MAPPING_AUDIT.json).
+> Pole-A Blue win rates were `0.625–0.6875`; Pole-B rates were `0.046875–0.125`.
+> Every paired assignment contrast interval included zero, so the frozen
+> decision is **NO_DEMONSTRATED_ASSIGNMENT_EFFECT**. This does not show that
+> explicit roles are useless; it shows no assignment effect under this exact
+> scripted family, opponent pair, and local dynamics. No 6v6 promotion, PPO
+> design, or macro change is authorized from this result alone.
+>
+> Follow-up — **ROLE COMPOSITION SWEEP COMPLETE**. The frozen CPU-only
+> sweep [`PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json)
+> tested `4A/0D`, `3A/1D`, `2A/2D`, `1A/3D`, and `0A/4D` under one fixed
+> identity ordering, both poles, and fresh paired seeds `19900001–19900064`.
+> All 640 episodes completed with PPO/GPU/training off. Result:
+> [`PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json).
+> Pole B is strongly composition-sensitive: `4A/0D` wins `0.765625`
+> `[0.65625,0.859375]` and `3A/1D` wins `0.53125` `[0.40625,0.65625]`,
+> versus the fresh `2A/2D` baseline `0.125` `[0.046875,0.21875]`.
+> `1A/3D` and `0A/4D` are `0.0` on B. Pole A instead peaks around
+> `2A/2D` (`0.640625`) and sharply rejects the defensive-heavy arms:
+> `1A/3D` `0.296875` and `0A/4D` `0.015625`.
+> The preregistered conservative label is **COMPOSITION_DESCRIPTIVE_SIGNAL**,
+> not the stricter `REGIME_DEPENDENT_COMPOSITION_SIGNAL`, because the A-side
+> `4A/0D` versus `2A/2D` win-rate interval still includes zero. The practical
+> finding is nevertheless clear: **Pole B requires an attack-heavy
+> composition under these scripted semantics, while identity assignment was
+> not the lever.** This is a composition clue, not a learned-policy repair;
+> no PPO launch or 6v6 promotion is authorized yet.
+>
+> Prior status — **COMMITMENT MECHANISM SUPPORT PASS / REPAIR SPEC NEXT**
 > The CPU-only surgical probe passed all contracts, including G6 outcome-blind
 > schema, over 64 source traces and seeds `19600001–16`:
 > [`ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json`](../artifacts/strategic_demand/sppo/ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json).

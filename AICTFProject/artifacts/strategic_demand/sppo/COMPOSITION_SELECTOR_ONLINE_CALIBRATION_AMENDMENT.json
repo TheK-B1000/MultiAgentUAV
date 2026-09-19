@@ -1,0 +1,74 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_ONLINE_CALIBRATION_AMENDMENT",
+  "status": "FROZEN_PROCEDURE_NO_ONLINE_NUMBERS_YET",
+  "utc": "2026-09-18T22:10:00Z",
+  "amends": "PYQUATICUS_4V4_STATE_CONDITIONED_COMPOSITION_SELECTOR_V1_SPEC.json#PHASE_2_DERIVATION_PROCEDURE",
+
+  "WHAT_IS_LOCKED_TODAY_DESCRIPTIVE_ONLY": {
+    "selected_observable": "count of live red agents within 4.0 cells of blue's own flag",
+    "selection_criterion": "lowest pooled misclassification rate (minimize-pooled-misclassification, exhaustive scan) among four radii tested {4,6,8,10} on full-episode means, 16 seeds/pole",
+    "full_episode_calibration_boundary": 0.60625,
+    "full_episode_in_sample_error": "5/32 = 0.15625",
+    "status_of_these_numbers": "DESCRIPTIVE. They establish that pressure-within-4-cells is the right observable. They are NOT the online selector's threshold. A full-episode-average statistic and any bounded trailing-window statistic are different random variables; carrying 0.60625 forward to a windowed feature without re-deriving it on that same statistic would be exactly the kind of unvalidated threshold this project's discipline exists to prevent.",
+    "artifact": "COMPOSITION_SELECTOR_FEATURE_DERIVATION_TRACE.json, composition_selector_feature_derivation_raw_rows.csv"
+  },
+
+  "WHAT_REMAINS_A_CALIBRATION_QUANTITY_NOT_FROZEN": [
+    "trailing window length W",
+    "the per-tick decision threshold (re-derived separately for each candidate W on the windowed statistic itself)",
+    "hysteresis band width",
+    "minimum dwell duration",
+    "outcome-arm sample size n"
+  ],
+
+  "PROCEDURE": {
+    "stage_A_calibration_grid_outcome_blind": {
+      "data": "the SAME 32 episodes already collected (16 seeds/pole, smoke family 99900101-99900116, fixed composition 2A_2D, both poles) -- reused as calibration data, not new evidence, no registry interaction",
+      "per_tick_feature": "recompute the radius=4.0 pressure count at every tick (not just the episode mean) for all 32 episodes",
+      "windowed_statistic": "for window W, at tick t: mean of the per-tick feature over ticks max(0, t-W+1) .. t. No fallback branch: when t < W-1, this is simply the mean over the available history 0..t, per the no-forced-default requirement below.",
+      "window_grid": "W in {20, 40, 60, 80} ticks",
+      "per_window_threshold": "for EACH W, independently re-run the exact same minimize-pooled-misclassification scan used for the radius selection, but pooled over every (episode, tick) pair's windowed value in the calibration set -- never inherit 0.60625",
+      "hysteresis_grid": "band half-width m in {0.0, 0.05, 0.10, 0.15}, applied symmetrically around that window's own re-derived threshold (upper = threshold + m, lower = threshold - m; composition holds between the two bounds)",
+      "dwell_grid": "minimum ticks between switches d in {4, 10, 20, 40}. d=4 is not arbitrary: it equals macro_commit_go_to_ticks, the existing production commitment horizon, included specifically so the tie-break can prefer tying dwell to a timescale the system already has a reason for, per the alternative the PI proposed, rather than a freestanding convention.",
+      "no_forced_default": "eliminated as a judgment call. There is no separate fallback composition for an unfilled window; the mean-over-available-history value is used from tick 0 onward and classified by the same rule as every other tick."
+    },
+    "stage_B_frozen_tie_break_declared_before_the_grid_is_scored": {
+      "primary": "minimum PER-TICK pooled misclassification rate on the calibration set, computed identically to the radius-selection criterion",
+      "tie_band": "any (W, threshold, m, d) configuration whose error is within 0.02 (2 percentage points) of the grid minimum is considered tied",
+      "secondary_within_tie_band": "minimum mean number of composition switches per episode on the calibration set (the chatter rate)",
+      "tertiary_if_still_tied": "prefer d = 4 (the macro-commit-horizon-aligned dwell) over any other value; if still tied, prefer the smallest W",
+      "rule": "This ordering is fixed now. It is not reweighted after seeing the grid."
+    },
+    "stage_C_held_out_validation": {
+      "data": "a FRESH, disjoint smoke block never used in stage A -- seeds 99900201-99900216, 16/pole, same fixed composition 2A_2D, same poles",
+      "procedure": "apply the ONE configuration selected by stage B, exactly as frozen, to the held-out episodes. No re-fitting, no threshold adjustment.",
+      "reported": [
+        "held-out per-tick classification error",
+        "held-out mean switches per episode",
+        "held-out fraction of episodes with at least one switch",
+        "held-out per-episode dominant-composition accuracy (the composition the rule spends the most ticks in, compared to the true pole)"
+      ],
+      "why_a_separate_block": "stage A's numbers are calibration-set performance and will optimistically overfit the grid choice. Held-out performance is the honest estimate this project needs before sizing an outcome experiment."
+    },
+    "stage_D_revised_outcome_n": {
+      "not_computed_here": "n is deliberately NOT frozen in this amendment.",
+      "method_once_held_out_error_is_known": "expected_selector_gain ≈ (1 - e_held_out) * oracle_gain, where oracle_gain is the already-measured PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json contrast per pole. This is an approximation (it assumes a wrong-composition tick performs like the wrong FIXED arm, which is not exactly true for a within-episode switcher, only for a per-episode dominant-composition classifier) and will be stated as such, not as an exact power calculation.",
+      "consequence_flagged_now": "the oracle-only projection already gave n ~= 192-256 for a comfortable Pole-A margin at the full oracle effect size. Any e_held_out > 0 shrinks the usable effect and therefore inflates the required n above that floor. The exact number is deferred, not guessed."
+    }
+  },
+
+  "OUTCOME_BLIND_ENFORCEMENT": "No score, win, reward, return, or draw field is read, computed, printed, or serialized anywhere in stages A-C. Only the declared feature, the true pole label (used solely to score classification error, never as a selector input), tick index, and switch counts are touched.",
+
+  "SEED_ACCOUNTING": {
+    "calibration_seeds_99900101_99900116": "smoke family, already spent for radius selection, reused here for window/hysteresis/dwell calibration -- not new evidence, no registry entry",
+    "holdout_seeds_99900201_99900216": "smoke family, freshly spent for this amendment's stage C, no registry entry",
+    "note": "smoke-family seeds (99900000-99999999) are exempt from Rule-9 registry allocation per experiments/seed_registry.py; none of this touches the exploratory or confirmatory pools"
+  },
+
+  "NOT_AUTHORIZED": [
+    "any outcome episode",
+    "reading score/win/reward/return in stages A-C",
+    "re-scoring the tie-break after seeing the grid",
+    "reusing the held-out block for anything other than the one frozen configuration's validation"
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "record_id": "PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC",
+  "status": "FROZEN_BEFORE_SEED_ALLOCATION",
+  "utc": "2026-09-18T20:00:00Z",
+  "classification": "SCRIPTED_TEAM_EXPLORATORY. ORACLE REGIME-CONDITIONED COMPOSITION. PPO OFF.",
+  "confirmatory": false,
+  "authorized_by": "user_direction_current_turn",
+  "research_question": "Can an oracle regime-conditioned composition selector, using the same pinned Pyquaticus ATTACK and DEFEND controllers, produce the desired cross-regime structure more reliably than either fixed composition?",
+  "scientific_delta": "Add one frozen oracle dispatch rule, Pole A to 2A/2D and Pole B to 4A/0D, while retaining both fixed-composition controls. No controller, adapter, opponent, environment, or identity-order change is permitted.",
+  "claim_boundary": "This tests whether regime-conditioned scripted composition is sufficient to exploit the observed sign reversal in this project's 4v4 CTF dynamics. It does not establish learned selector sufficiency, causal PPO recovery, native Pyquaticus performance, or 6v6 transfer.",
+  "prerequisites": {
+    "upstream_commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+    "validated_semantic_gate": "artifacts/strategic_demand/sppo/DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json",
+    "validated_semantic_status": "REPRESENTABLE_ACROSS_TRANSITIONS",
+    "prior_confirmation_result": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT.json",
+    "prior_confirmation_status": "COMPLETE",
+    "prior_confirmation_label": "B_COMPOSITION_EFFECT_ONLY",
+    "adapter_contract": {
+      "attack_no_carrier": "GET_FLAG macro",
+      "attack_any_friendly_carrier": "GO_HOME macro with the already-validated non-carrier home-legality branch",
+      "defend": "unified DEFEND macro id 7 with live target re-derivation",
+      "evaluation_only_n_macros": 8
+    }
+  },
+  "execution": {
+    "device": "cpu",
+    "gpu": false,
+    "ppo": false,
+    "training": false,
+    "team_size": "4v4",
+    "map_set": "train",
+    "map_layout": "map_a",
+    "rules_profile": "OURS",
+    "aquaticus_profile": true,
+    "max_decision_steps": 240,
+    "own_flag_home_required_to_score": true,
+    "speed_caveat": "Pyquaticus easy-mode speed intent is retained, but physical integration uses this project's dynamics. Native Pyquaticus performance is not claimed.",
+    "seed_block": {
+      "base": 20100001,
+      "n": 64,
+      "last": 20100064,
+      "paired_across_arms_poles": true,
+      "allocation": "PENDING_SEED_REGISTRY_ALLOCATION",
+      "purpose": "PYQUATICUS_4V4_ORACLE_COMPOSITION"
+    }
+  },
+  "arms": {
+    "ORACLE_REGIME": {
+      "rule": "Pole A -> 2A/2D; Pole B -> 4A/0D",
+      "pole_A_composition": "2A_2D",
+      "pole_B_composition": "4A_0D"
+    },
+    "FIXED_2A2D": {
+      "rule": "2A/2D on both poles",
+      "composition": "2A_2D"
+    },
+    "FIXED_4A0D": {
+      "rule": "4A/0D on both poles",
+      "composition": "4A_0D"
+    }
+  },
+  "canonical_assignment": {
+    "rule": "FIXED_IDENTITY_PREFIX_DEFENDERS",
+    "stable_identity_order": [0, 1, 2, 3],
+    "no_reassignment": true,
+    "role_ids": {
+      "ATTACK": 0,
+      "DEFEND": 1
+    }
+  },
+  "opponent_poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {"min_alive_for_defender": 4},
+      "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.A"
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {"lock_defender": 10, "enable_2v1": true, "min_alive_for_defender": 4},
+      "genome": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+      "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.B"
+    }
+  },
+  "cells": {
+    "definition": "2 opponent poles x 3 composition arms = 6 paired cells",
+    "episodes": "6 x 64 = 384",
+    "only_arm_delta": "ORACLE_REGIME dispatch versus FIXED_2A2D and FIXED_4A0D controls",
+    "same_seed_across_arms_and_poles": true
+  },
+  "estimands_and_decision_rules": {
+    "primary_contrasts": {
+      "A_oracle_gain_over_wrong_fixed": "win_A(ORACLE_REGIME) - win_A(FIXED_4A0D)",
+      "B_oracle_gain_over_wrong_fixed": "win_B(ORACLE_REGIME) - win_B(FIXED_2A2D)",
+      "A_oracle_vs_matched": "win_A(ORACLE_REGIME) - win_A(FIXED_2A2D)",
+      "B_oracle_vs_matched": "win_B(ORACLE_REGIME) - win_B(FIXED_4A0D)"
+    },
+    "paired_unit": "seed, with the same seed used in every arm and both poles",
+    "interval": "95% deterministic bootstrap over the 64 paired seeds; NUM_BOOT=20000",
+    "oracle_parity_contract": "For Pole A, ORACLE_REGIME must be bit-identical to FIXED_2A2D on outcome and frozen telemetry fields. For Pole B, ORACLE_REGIME must be bit-identical to FIXED_4A0D on the same fields.",
+    "primary_gate": "ORACLE_COMPOSITION_PASS iff oracle parity passes, A_oracle_gain_over_wrong_fixed LCB95 > 0, and B_oracle_gain_over_wrong_fixed LCB95 > 0.",
+    "supporting_metrics": "Cell win rate, score difference, draw rate, episode length, role telemetry, and all four paired contrasts are reported.",
+    "failure_label": "NO_ORACLE_COMPOSITION_CONFIRMATION",
+    "multiplicity": "This is one preregistered scripted selector test. It does not authorize PPO, learned architecture selection, or 6v6 by a nominal interval alone."
+  },
+  "isolation": {
+    "held_identical": [
+      "Pyquaticus-derived semantic functions and provenance",
+      "GET_FLAG, GO_HOME, and unified DEFEND adapter",
+      "evaluation-only n_macros=8 path",
+      "Pole A and Pole B certified opponent definitions",
+      "map, rules, horizon, speed intent, telemetry, statistics, and seed values",
+      "fixed prefix identity order within every composition"
+    ],
+    "only_changed_factor": "composition dispatch arm",
+    "forbidden": [
+      "PPO or training",
+      "GETFLAG preservation",
+      "Assignment-v1 conditioning",
+      "old ROLE bit",
+      "Heuristic_CTF_Agent",
+      "dynamic role switching within an episode",
+      "outcome-selected adapter or opponent",
+      "production macro changes",
+      "6v6 execution before 4v4 interpretation"
+    ]
+  },
+  "artifacts": {
+    "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json",
+    "preflight": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_PREFLIGHT.json",
+    "episode_csv": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_EPISODES.csv",
+    "mapping_audit": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_MAPPING_AUDIT.json",
+    "result": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json"
+  },
+  "sequencing_lock": [
+    "1. Validate this frozen spec and run CPU preflight only.",
+    "2. Allocate exactly 20100001-20100064 after explicit evaluation authorization.",
+    "3. Run the six paired CPU cells.",
+    "4. Freeze and interpret the oracle result before proposing a learned selector, PPO, or 6v6."
+  ],
+  "authorization_boundary": {
+    "authorized_now": "Freeze the spec and implement/run CPU preflight only.",
+    "requires_explicit_followup": "Seed allocation and 384-episode evaluation.",
+    "not_authorized": "PPO, GPU, production-interface changes, or 6v6."
+  }
+}

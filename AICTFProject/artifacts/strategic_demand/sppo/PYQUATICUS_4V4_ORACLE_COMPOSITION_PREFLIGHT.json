@@ -1,0 +1,79 @@
+{
+  "record_id": "PYQUATICUS_4V4_ORACLE_COMPOSITION_PREFLIGHT",
+  "status": "PASS",
+  "utc": "2026-09-18T19:49:07Z",
+  "implements": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json",
+  "spec_sha256": "00ac04ba972c3aa71eea530e69c2f025c6cb8e90e59ab8dd811323186b55c6e6",
+  "semantic_result_sha256": "a2dcaa2fec4130a773917eba3d60af0fadaa266a8f8ebe45317249edca7d53cf",
+  "prior_result_sha256": "6f3bdb4556c6bd899d877e838b7b33e38a22b5b4ec733f663f878f325bd0f894",
+  "checks": {
+    "spec_status": "FROZEN_BEFORE_SEED_ALLOCATION",
+    "upstream_commit": true,
+    "semantic_status": true,
+    "prior_result_complete": true,
+    "prior_result_label": true,
+    "n_macros_eval": true,
+    "poles": true,
+    "arms": true,
+    "seed_block_shape": true,
+    "sweep_compositions_available": true,
+    "oracle_mapping": true,
+    "opponent_and_oracle_action_preflight": true
+  },
+  "pole_checks": {
+    "A": {
+      "pass": true,
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "live_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "macros_by_arm": {
+        "ORACLE_REGIME": [
+          7,
+          7,
+          2,
+          2
+        ],
+        "FIXED_2A2D": [
+          7,
+          7,
+          2,
+          2
+        ],
+        "FIXED_4A0D": [
+          2,
+          2,
+          2,
+          2
+        ]
+      },
+      "blue_scripted": false
+    },
+    "B": {
+      "pass": true,
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "macros_by_arm": {
+        "ORACLE_REGIME": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "FIXED_2A2D": [
+          7,
+          7,
+          2,
+          2
+        ],
+        "FIXED_4A0D": [
+          2,
+          2,
+          2,
+          2
+        ]
+      },
+      "blue_scripted": false
+    }
+  },
+  "episodes_run": 0,
+  "seed_allocation": "not performed by preflight"
+}

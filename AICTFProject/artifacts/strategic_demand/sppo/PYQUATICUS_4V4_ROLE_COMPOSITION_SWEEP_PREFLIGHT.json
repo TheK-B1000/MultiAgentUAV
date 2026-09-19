@@ -1,0 +1,98 @@
+{
+  "record_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_PREFLIGHT",
+  "status": "PASS",
+  "utc": "2026-09-18T18:22:48Z",
+  "implements": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json",
+  "spec_sha256": "500dba661f73bd3af7426a58534565e4d84bec0c13dbdf34e20ccc0f6a70e286",
+  "checks": {
+    "spec_status": "FROZEN_BEFORE_SEED_ALLOCATION",
+    "upstream_commit": true,
+    "n_macros_eval": true,
+    "composition_names": true,
+    "composition_counts": true,
+    "baseline_is_2a2d": true,
+    "v2_status": true,
+    "synthetic_compositions": true,
+    "opponent_and_action_preflight": true
+  },
+  "pole_checks": {
+    "A": {
+      "pass": true,
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "live_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "macros_by_composition": {
+        "4A_0D": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "3A_1D": [
+          7,
+          2,
+          2,
+          2
+        ],
+        "2A_2D": [
+          7,
+          7,
+          2,
+          2
+        ],
+        "1A_3D": [
+          7,
+          7,
+          7,
+          2
+        ],
+        "0A_4D": [
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      "blue_scripted": false
+    },
+    "B": {
+      "pass": true,
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "macros_by_composition": {
+        "4A_0D": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "3A_1D": [
+          7,
+          2,
+          2,
+          2
+        ],
+        "2A_2D": [
+          7,
+          7,
+          2,
+          2
+        ],
+        "1A_3D": [
+          7,
+          7,
+          7,
+          2
+        ],
+        "0A_4D": [
+          7,
+          7,
+          7,
+          7
+        ]
+      },
+      "blue_scripted": false
+    }
+  },
+  "episodes_run": 0,
+  "seed_allocation": "not performed by preflight"
+}

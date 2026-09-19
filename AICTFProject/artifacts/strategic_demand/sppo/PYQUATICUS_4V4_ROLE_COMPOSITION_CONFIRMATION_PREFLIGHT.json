@@ -1,0 +1,68 @@
+{
+  "record_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_PREFLIGHT",
+  "status": "PASS",
+  "utc": "2026-09-18T19:20:46Z",
+  "implements": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json",
+  "spec_sha256": "ad877d1332329e40de9aabfd1ca5ba9080bea3cae212f29112543b44e6f75efe",
+  "prior_result_sha256": "5487c62b350185c35078076a2b57d3ff365b475c07e3200c0a4f6aa1830f93c2",
+  "semantic_result_sha256": "a2dcaa2fec4130a773917eba3d60af0fadaa266a8f8ebe45317249edca7d53cf",
+  "checks": {
+    "spec_status": "FROZEN_BEFORE_SEED_ALLOCATION",
+    "upstream_commit": true,
+    "semantic_status": true,
+    "prior_result_complete": true,
+    "prior_result_label": true,
+    "n_macros_eval": true,
+    "poles": true,
+    "compositions": true,
+    "seed_block_shape": true,
+    "baseline_is_2a2d": true,
+    "composition_counts": true,
+    "frozen_role_fixture": true,
+    "opponent_and_action_preflight": true
+  },
+  "pole_checks": {
+    "A": {
+      "pass": true,
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "live_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "macros_by_composition": {
+        "4A_0D": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "2A_2D": [
+          7,
+          7,
+          2,
+          2
+        ]
+      },
+      "blue_scripted": false
+    },
+    "B": {
+      "pass": true,
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "macros_by_composition": {
+        "4A_0D": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "2A_2D": [
+          7,
+          7,
+          2,
+          2
+        ]
+      },
+      "blue_scripted": false
+    }
+  },
+  "episodes_run": 0,
+  "seed_allocation": "not performed by preflight"
+}

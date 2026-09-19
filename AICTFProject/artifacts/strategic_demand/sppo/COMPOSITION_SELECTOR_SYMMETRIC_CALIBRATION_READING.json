@@ -1,0 +1,32 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING",
+  "status": "SEALED",
+  "utc": "2026-09-18T21:15:00Z",
+  "implements": [
+    "artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ONLINE_CALIBRATION_AMENDMENT.json",
+    "artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ONLINE_CALIBRATION_RESULT.json",
+    "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_STATE_CONDITIONED_COMPOSITION_SELECTOR_V1_SPEC.json"
+  ],
+  "what_was_tested": "A symmetric single-feature online classifier of GUARD-like vs BREACH-like pressure (pooled misclassification, equal cost on both error types), with window/hysteresis/dwell selected by the frozen tie-break.",
+  "selected_config_frozen_as_historical": {
+    "window": 80,
+    "hysteresis": 0.1,
+    "dwell": 40,
+    "threshold": 0.8881944444444444,
+    "held_out_per_tick_error": 0.3716145833333333,
+    "held_out_dominant_composition_accuracy": 0.65625,
+    "held_out_mean_switches_per_episode": 0.6875
+  },
+  "finding": "The full-episode pressure mean separates poles well; a causal trailing window recovers only a weak online signal. Symmetric tick-level error near 37% is therefore expected under this feature, not a failed procedure. The flat calibration surface (50/64 configs inside the 0.02 tie band) is diagnostic that window/hysteresis/dwell are not the bottleneck.",
+  "decision": {
+    "do_not_run": "the revised n≈300 dual positive-gain outcome experiment implied by shrinking both-pole oracle gains by (1-e)",
+    "reason": "That sizing solves the wrong engineering objective. Pole A is already good under fixed 2A/2D and is the integrity/preservation control. Pole B is the repair target. Demanding Delta_A>0 and Delta_B>0, or spending hundreds of seeds to prove a positive A gain for a weak symmetric classifier, is misaligned with the board.",
+    "keep_frozen": "the symmetric calibration RESULT stands as what it tested; it is not rewritten into an asymmetric claim"
+  },
+  "supersession": {
+    "V1_SUCCESS_GATE_dual_positive_gain": "RETIRED_FOR_SUCCESSOR_WORK — remains historically valid for the V1 SPEC as written, but no further outcome seed may be spent under that gate",
+    "COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT": "SUSPENDED — its kill rule still optimizes symmetric dominant-composition accuracy toward a dual-gain / large-n outcome. That objective is superseded by the asymmetric B-trigger successor before any two-feature pass is executed",
+    "successor": "COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json"
+  },
+  "claim_boundary": "This reading does not authorize PPO, GPU, 6v6, a learned selector, or any outcome episode. It only closes the symmetric-classifier path and points successor work at an A-preserving B-trigger."
+}

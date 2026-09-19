@@ -1,0 +1,228 @@
+{
+  "record_id": "PYQUATICUS_4V4_TEAM_EVALUATION_SPEC",
+  "status": "FROZEN_BEFORE_SEED_ALLOCATION",
+  "utc": "2026-09-18T17:40:00Z",
+  "classification": "SCRIPTED_TEAM_EXPLORATORY. EXTERNAL CONTROLLER SEMANTICS. PPO OFF.",
+  "confirmatory": false,
+  "authorized_by": "user_authorization_current_turn",
+  "research_question": "When pinned Pyquaticus easy-mode ATTACK and DEFEND semantics are executed through the validated semantic adapter in this project's CTF dynamics, do deterministic 2A/2D agent-to-role assignments produce different team behavior or outcomes in 4v4?",
+  "scientific_delta": "Add no learned policy, reward change, preset, or production PPO action vocabulary. Execute fixed external-controller semantics and vary only the episode-static mapping from the four Blue agent identities to two ATTACK and two DEFEND roles.",
+  "claim_boundary": "This experiment tests Pyquaticus-derived behavioral roles in this project's CTF dynamics. It does not reproduce native Pyquaticus performance, establish learned roles, explain PPO failure causally, or authorize 6v6 by itself.",
+  "prerequisites": {
+    "upstream_provenance": {
+      "repository": "https://github.com/mit-ll-trusted-autonomy/pyquaticus",
+      "commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+      "mode": "easy",
+      "license": "BSD-3-Clause",
+      "source_hashes": "gpu_env/pyquaticus_port.py::UPSTREAM_SHA256",
+      "heuristic_ctf_agent": "EXCLUDED"
+    },
+    "semantic_contracts": {
+      "native_g1_g5": "artifacts/strategic_demand/sppo/PYQUATICUS_PORT_CONTRACT_RESULT.json",
+      "unified_defend_v2": "artifacts/strategic_demand/sppo/DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json",
+      "unified_defend_status": "REPRESENTABLE_ACROSS_TRANSITIONS",
+      "unified_defend_target_parity": true,
+      "unified_defend_direction_parity": true,
+      "home_legality_branch": "artifacts/strategic_demand/sppo/DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_CONTRACT_RESULT.json#SUCCESS_CONDITIONS.G6_LEGALITY_G2_NONCARRIER_HOME",
+      "old_aggregate_g6": "retained historical FAIL; not used as the team-evaluation gate because it mixes obsolete waypoint candidates and cross-dynamics trajectory mismatch"
+    },
+    "gate_for_team_eval": "The team adapter may use only the two narrow, pre-existing semantic branches above: unified DEFEND and non-carrier GO_HOME legality. No outcome data may alter this adapter."
+  },
+  "execution": {
+    "device": "cpu",
+    "gpu": false,
+    "ppo": false,
+    "training": false,
+    "episodes": 64,
+    "paired_seeds": true,
+    "seed_block": {
+      "base": 19800001,
+      "n": 64,
+      "last": 19800064,
+      "allocation": "PENDING_SEED_REGISTRY_ALLOCATION",
+      "purpose": "PYQUATICUS_4V4_TEAM_EVALUATION"
+    },
+    "environment": {
+      "team_size": "4v4",
+      "map_set": "train",
+      "map_layout": "map_a",
+      "rules_profile": "OURS",
+      "aquaticus_profile": true,
+      "max_decision_steps": 240,
+      "own_flag_home_required_to_score": true,
+      "ruleset_source": "experiments/strategic_demand_searcher.py::RULESET",
+      "evaluation_only_n_macros": 8,
+      "evaluation_only_macro_reason": "MacroAction.DEFEND=7 is a direct scripted reference-controller action. Production PPO configurations remain n_macros=5 and are not changed.",
+      "initialization": "Reset once per seed; compute the assignment from the reset state before the first Blue action."
+    },
+    "speed_caveat": "Pyquaticus easy-mode normalized speed intent is retained at 0.5 for alive, untagged agents, but integration uses this project's speed, collision, tag, flag, and macro dynamics. Native Pyquaticus trajectory or performance equivalence is not claimed."
+  },
+  "role_semantics": {
+    "source": "gpu_env/pyquaticus_port.py::true_motion",
+    "attack": {
+      "no_friendly_carrier": {
+        "semantic_target": "current enemy flag",
+        "adapter": {
+          "macro": "GET_FLAG",
+          "target_index": 0
+        }
+      },
+      "any_friendly_carrier": {
+        "semantic_target": "own flag home for every ATTACK agent, including non-carriers",
+        "adapter": {
+          "macro": "GO_HOME",
+          "target_index": 0,
+          "non_carrier_home_legality": true
+        }
+      }
+    },
+    "defend": {
+      "semantic_target": "unified V2 DEFEND target, inward when distance to current own flag is greater than 3.5 cells and outward otherwise",
+      "adapter": {
+        "macro": "DEFEND",
+        "macro_id": 7,
+        "target_index": 0,
+        "unified_defend": true,
+        "live_target_rederivation": true
+      }
+    },
+    "tagged_and_dead": "Use the pinned environment-level tagged override and the named local dead-agent adaptation. Neither event changes the episode-static role assignment."
+  },
+  "assignment_arms": {
+    "role_count": {
+      "attack": 2,
+      "defend": 2
+    },
+    "assignment_time": "once at reset",
+    "persistence": "hold for the complete episode; tags, deaths, respawns, and score events never trigger reassignment",
+    "distance": "Euclidean distance from reset position to own flag home",
+    "tie_break": "lower stable agent index",
+    "arms": {
+      "FIXED_IDENTITY": {
+        "defenders": [0, 1],
+        "attackers": [2, 3]
+      },
+      "CLOSEST_DEFENDS": {
+        "defenders": "two smallest (distance_to_home, stable_agent_index) tuples",
+        "attackers": "remaining two"
+      },
+      "FARTHEST_DEFENDS": {
+        "defenders": "two smallest (-distance_to_home, stable_agent_index) tuples",
+        "attackers": "remaining two"
+      }
+    },
+    "mapping_contract": "Every seed must report the concrete mapping before outcomes. If every arm maps identically on every paired seed, stop and classify the assignment comparison as non-informative."
+  },
+  "opponent_arms": {
+    "poles": {
+      "A": {
+        "base": "OP6",
+        "overlay": {
+          "min_alive_for_defender": 4
+        },
+        "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.A"
+      },
+      "B": {
+        "base": "OP7",
+        "overlay": {
+          "lock_defender": 10,
+          "enable_2v1": true,
+          "min_alive_for_defender": 4
+        },
+        "genome": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+        "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.B"
+      }
+    },
+    "same_across_assignment_arms": true,
+    "opponent_selection_rule": "Pinned before seed allocation from the existing B3-3 certified pole pair. No opponent, overlay, or genome selection after observing team outcomes."
+  },
+  "cells": {
+    "definition": "2 opponent poles x 3 assignment arms = 6 paired cells",
+    "execution_interface": "PROJECTED only, with the frozen ATTACK mappings and unified DEFEND macro above",
+    "same_seed_within_cell_comparisons": true,
+    "cross_interface_comparison": false
+  },
+  "telemetry": {
+    "episode_fields": [
+      "seed",
+      "pole",
+      "assignment_arm",
+      "defender_ids",
+      "attacker_ids",
+      "blue_score",
+      "red_score",
+      "blue_win",
+      "draw",
+      "steps",
+      "blue_flag_captures",
+      "red_flag_captures",
+      "blue_alive_end",
+      "red_alive_end"
+    ],
+    "behavior_fields": [
+      "role_action_counts",
+      "role_target_branch_counts",
+      "role_switch_count",
+      "tag_count_by_role",
+      "carrier_home_branch_count",
+      "defend_inward_count",
+      "defend_outward_count"
+    ],
+    "mapping_audit": "concrete role mapping and mapping equality matrix for every paired seed"
+  },
+  "estimands_and_interpretation": {
+    "primary": "Per pole and assignment arm, report paired-seed Blue win rate, score difference, draw rate, episode length, and role telemetry with 95% paired bootstrap intervals over seeds.",
+    "assignment_effect": "For each pole, report all three pairwise assignment contrasts for win rate and score difference. The contrast table is the primary assignment-effect output; no adapter or opponent is selected from it.",
+    "regime_differentiation": "Report within-assignment paired B-minus-A outcome and behavior contrasts descriptively, with intervals. This is not a new strategic-demand certification gate.",
+    "multiplicity": "Six primary assignment-effect pairwise contrasts per metric are exploratory; label intervals as descriptive and do not convert one nominal interval exclusion into a PPO or causal claim.",
+    "decision_labels": {
+      "all_assignment_contrasts_include_zero": "NO_DEMONSTRATED_ASSIGNMENT_EFFECT",
+      "at_least_one_assignment_contrast_excludes_zero": "ASSIGNMENT_EFFECT_DESCRIPTIVE_SIGNAL",
+      "all_arms_have_identical_mappings": "NON_INFORMATIVE_ASSIGNMENT_COMPARISON",
+      "execution_or_adapter_contract_breaks": "TEAM_EVALUATION_INVALID"
+    },
+    "claim_ceiling": "Even a descriptive assignment signal means only that fixed scripted role allocation mattered under this setup. It does not show PPO can learn the assignment or that the allocation repairs 4v4."
+  },
+  "isolation": {
+    "held_identical": [
+      "Pyquaticus-derived semantic implementation and provenance",
+      "projected ATTACK and unified DEFEND adapter",
+      "opponent pole and overlay within each pole",
+      "environment, map, rules, horizon, and speed intent",
+      "paired seed values",
+      "telemetry and statistics code"
+    ],
+    "only_assignment_delta": "agent identity to ATTACK/DEFEND mapping",
+    "forbidden": [
+      "PPO",
+      "GETFLAG preservation",
+      "Assignment-v1 conditioning",
+      "old ROLE bit",
+      "Heuristic_CTF_Agent",
+      "dynamic role switching",
+      "6v6 before 4v4 interpretation",
+      "outcome-driven adapter or opponent changes",
+      "production interface or PPO config changes"
+    ]
+  },
+  "artifacts": {
+    "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json",
+    "seed_registry_entry": "PYQUATICUS_4V4_TEAM_EVALUATION",
+    "preflight": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_PREFLIGHT.json",
+    "episode_csv": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_EPISODES.csv",
+    "result": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json",
+    "mapping_audit": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_MAPPING_AUDIT.json"
+  },
+  "sequencing_lock": [
+    "1. Freeze this artifact and validate its JSON and source hashes.",
+    "2. Allocate only the pinned 19800001-19800064 seed block.",
+    "3. Run CPU preflight: adapter branch, n_macros=8 evaluation-only path, role counts, mapping fixtures, opponent attestation, and no PPO/training flags.",
+    "4. If preflight passes, run the six paired 4v4 scripted cells.",
+    "5. Freeze result and interpret 4v4 before any 6v6 promotion proposal."
+  ],
+  "authorization_boundary": {
+    "authorized_now": "Freeze this 4v4 team-evaluation spec and implement/run its CPU preflight.",
+    "requires_preflight_pass": "Seed allocation and team episodes.",
+    "not_authorized": "PPO training, GPU execution, production macro changes, or 6v6 evaluation."
+  }
+}

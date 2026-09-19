@@ -1026,9 +1026,85 @@
           "note": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1 completed with verdict MANIPULATION_INSUFFICIENT"
         }
       ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_TEAM_EVALUATION",
+      "purpose": "Pyquaticus-derived scripted 4v4 2A2D assignment evaluation",
+      "seed_class": "exploratory",
+      "lo": 19800001,
+      "hi": 19800064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T17:37:22Z",
+      "spent_utc": "2026-09-18T18:08:14Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T18:08:14Z",
+          "note": "384 scripted 4v4 episodes complete; result artifacts PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json and EPISODES.csv"
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP",
+      "purpose": "Pyquaticus-derived 4v4 role composition sweep",
+      "seed_class": "exploratory",
+      "lo": 19900001,
+      "hi": 19900064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T18:22:58Z",
+      "spent_utc": "2026-09-18T19:12:59Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T19:12:59Z",
+          "note": "640 scripted 4v4 composition episodes complete; result artifacts PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json and EPISODES.csv"
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION",
+      "purpose": "Targeted Pyquaticus 4v4 4A0D vs 2A2D cross-pole confirmation",
+      "seed_class": "exploratory",
+      "lo": 20000001,
+      "hi": 20000064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts\\strategic_demand\\sppo\\PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T19:20:56Z",
+      "spent_utc": "2026-09-18T19:40:42Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T19:40:42Z",
+          "note": "256 scripted confirmation episodes complete; result B_COMPOSITION_EFFECT_ONLY; no PPO or 6v6."
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_ORACLE_COMPOSITION",
+      "purpose": "Pyquaticus 4v4 oracle regime-conditioned composition evaluation",
+      "seed_class": "exploratory",
+      "lo": 20100001,
+      "hi": 20100064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts\\strategic_demand\\sppo\\PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T19:50:50Z",
+      "spent_utc": "2026-09-18T20:19:50Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T20:19:50Z",
+          "note": "384 scripted oracle evaluation episodes complete; result NO_ORACLE_COMPOSITION_CONFIRMATION; no PPO or 6v6."
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-18T16:27:20Z",
+  "updated_utc": "2026-09-18T20:19:50Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

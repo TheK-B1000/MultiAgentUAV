@@ -1,0 +1,5573 @@
+{
+  "record_id": "PYQUATICUS_4V4_ORACLE_COMPOSITION_MAPPING_AUDIT",
+  "rows": [
+    {
+      "seed": 20100001,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100002,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100003,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100004,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100005,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100006,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100007,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100008,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100009,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100010,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100011,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100012,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100013,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100014,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100015,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100016,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100017,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100018,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100019,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100020,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100021,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100022,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100023,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100024,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100025,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100026,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100027,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100028,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100029,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100030,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100031,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100032,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100033,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100034,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100035,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100036,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100037,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100038,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100039,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100040,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100041,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100042,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100043,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100044,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100045,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100046,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100047,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100048,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100049,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100050,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100051,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100052,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100053,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100054,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100055,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100056,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100057,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100058,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100059,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100060,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100061,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100062,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100063,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100064,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100001,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100002,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100003,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100004,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100005,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100006,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100007,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100008,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100009,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100010,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100011,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100012,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100013,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100014,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100015,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100016,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100017,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100018,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100019,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100020,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100021,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100022,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100023,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100024,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100025,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100026,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100027,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100028,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100029,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100030,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100031,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100032,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100033,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100034,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100035,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100036,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100037,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100038,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100039,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100040,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100041,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100042,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100043,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100044,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100045,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100046,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100047,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100048,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100049,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100050,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100051,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100052,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100053,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100054,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100055,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100056,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100057,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100058,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100059,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100060,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100061,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100062,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100063,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100064,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100001,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100002,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100003,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100004,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100005,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100006,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100007,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100008,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100009,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100010,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100011,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100012,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100013,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100014,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100015,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100016,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100017,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100018,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100019,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100020,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100021,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100022,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100023,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100024,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100025,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100026,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100027,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100028,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100029,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100030,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100031,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100032,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100033,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100034,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100035,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100036,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100037,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100038,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100039,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100040,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100041,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100042,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100043,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100044,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100045,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100046,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100047,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100048,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100049,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100050,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100051,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100052,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100053,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100054,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100055,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100056,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100057,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100058,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100059,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100060,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100061,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100062,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100063,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100064,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100001,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100002,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100003,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100004,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100005,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100006,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100007,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100008,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100009,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100010,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100011,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100012,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100013,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100014,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100015,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100016,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100017,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100018,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100019,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100020,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100021,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100022,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100023,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100024,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100025,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100026,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100027,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100028,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100029,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100030,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100031,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100032,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100033,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100034,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100035,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100036,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100037,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100038,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100039,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100040,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100041,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100042,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100043,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100044,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100045,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100046,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100047,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100048,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100049,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100050,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100051,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100052,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100053,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100054,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100055,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100056,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100057,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100058,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100059,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100060,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100061,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100062,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100063,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100064,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "ORACLE_REGIME",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100001,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100002,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100003,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100004,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100005,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100006,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100007,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100008,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100009,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100010,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100011,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100012,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100013,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100014,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100015,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100016,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100017,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100018,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100019,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100020,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100021,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100022,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100023,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100024,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100025,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100026,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100027,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100028,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100029,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100030,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100031,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100032,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100033,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100034,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100035,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100036,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100037,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100038,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100039,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100040,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100041,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100042,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100043,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100044,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100045,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100046,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100047,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100048,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100049,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100050,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100051,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100052,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100053,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100054,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100055,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100056,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100057,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100058,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100059,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100060,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100061,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100062,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100063,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100064,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ],
+      "arm": "FIXED_2A2D",
+      "effective_composition": "2A_2D"
+    },
+    {
+      "seed": 20100001,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100002,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100003,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100004,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100005,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100006,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100007,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100008,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100009,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100010,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100011,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100012,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100013,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100014,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100015,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100016,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100017,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100018,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100019,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100020,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100021,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100022,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100023,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100024,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100025,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100026,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100027,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100028,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100029,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100030,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100031,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100032,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100033,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100034,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100035,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100036,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100037,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100038,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100039,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100040,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100041,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100042,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100043,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100044,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100045,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100046,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100047,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100048,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100049,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100050,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100051,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100052,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100053,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100054,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100055,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100056,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100057,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100058,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100059,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100060,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100061,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100062,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100063,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    },
+    {
+      "seed": 20100064,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "arm": "FIXED_4A0D",
+      "effective_composition": "4A_0D"
+    }
+  ]
+}
