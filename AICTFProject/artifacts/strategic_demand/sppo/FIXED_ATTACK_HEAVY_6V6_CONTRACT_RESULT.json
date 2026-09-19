@@ -1,0 +1,83 @@
+{
+  "record_id": "FIXED_ATTACK_HEAVY_6V6_CONTRACT_RESULT",
+  "utc": "2026-09-19T17:23:45Z",
+  "implements": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json",
+  "selection": {
+    "selected": "5A_1D",
+    "A_argmax": "4A_2D",
+    "B_argmax": "6A_0D",
+    "intersection": [
+      "5A_1D",
+      "6A_0D"
+    ],
+    "worst_pole_win_rate": {
+      "5A_1D": 0.8125,
+      "6A_0D": 0.75
+    },
+    "mean_across_poles_win_rate": {
+      "5A_1D": 0.8203125,
+      "6A_0D": 0.8203125
+    }
+  },
+  "n_checks": 9,
+  "n_gating": 9,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "name": "C1_SELECTION_REPRODUCES_FROM_THE_SEALED_SWEEP",
+      "gating": true,
+      "passed": true,
+      "detail": "sweep status='SEALED', audit passed=True; re-derived selected='5A_1D' A_argmax='4A_2D' B_argmax='6A_0D' intersection=['5A_1D', '6A_0D'] worst-pole={'5A_1D': 0.8125, '6A_0D': 0.75} mean-across={'5A_1D': 0.8203125, '6A_0D': 0.8203125}; frozen values agree: True"
+    },
+    {
+      "name": "C4_ROLE_MAPPING",
+      "gating": true,
+      "passed": true,
+      "detail": "two arms mapped under identity-prefix at n=6; mismatches: none"
+    },
+    {
+      "name": "C2_POLES_RESOLVE_AS_CERTIFIED",
+      "gating": true,
+      "passed": true,
+      "detail": "live agent counts {'A': [6, 6], 'B': [6, 6]}; disagreements with STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json: none"
+    },
+    {
+      "name": "C3_PARITY_ANCHOR_AGAINST_THE_SEALED_SWEEP",
+      "gating": true,
+      "passed": true,
+      "detail": "12 spent-sweep-seed episodes re-run through this executor's runner and compared on 12 fields; disagreements: none; win rate on the subset 5/12 (non-degenerate, so terminal scoring is not reading reset state); arm-identity invariant violations on those rows: none"
+    },
+    {
+      "name": "C5_NO_PPO_REACHABLE",
+      "gating": true,
+      "passed": true,
+      "detail": "imported PPO/trainer modules: none"
+    },
+    {
+      "name": "C6_SEED_BLOCK_OWNED_AND_UNSPENT",
+      "gating": true,
+      "passed": true,
+      "detail": "already registered to FIXED_ATTACK_HEAVY_6V6_CONFIRMATION_V1 (status RESERVED) -- same block, no conflict; registry status = RESERVED"
+    },
+    {
+      "name": "C7_AUDIT_PLAN_SEALS_A_REGISTERED_BLOCK",
+      "gating": true,
+      "passed": true,
+      "detail": "real AuditPlan with owner on 768 synthetic rows: passed=True (13 gating, 0 failed); negative control without the owner fails exactly ['seed_class']"
+    },
+    {
+      "name": "C8_EXECUTOR_CONSTANTS_EQUAL_THE_SPEC",
+      "gating": true,
+      "passed": true,
+      "detail": "tau 0.1 block 20600001+192 arms ['3A_3D', '5A_1D'] baseline 3A_3D bootstrap 20000/7/0.05 vs spec"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only. No confirmatory episode was run and no seed was spent. C3 reuses already-spent sweep seeds for deterministic parity only."
+}

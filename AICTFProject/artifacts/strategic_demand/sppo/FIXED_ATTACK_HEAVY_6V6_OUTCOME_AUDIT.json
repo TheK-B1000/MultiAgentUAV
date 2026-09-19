@@ -1,0 +1,176 @@
+{
+  "record": "audit of FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json",
+  "audit_utc": "2026-09-19T20:08:30Z",
+  "git_sha": "dd8542ada53b3acd1fa0408664be88bd8fa4c56a",
+  "passed": true,
+  "n_checks": 15,
+  "n_gating": 13,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 768,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_SPEND'",
+      "spec": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json",
+      "sha256": "84a5b568cfb640711f15f7a3496435444d4e2c83356dd6331842b7a3bbd7bce3",
+      "status": "FROZEN_BEFORE_SEED_SPEND"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_EPISODES.csv (73091 bytes)",
+      "sha256": "2eebf16f719fa32acb2120c91bc4790567a74ef71ad85a5f6684d6e09de81a26"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "768 rows, expected 768",
+      "found": 768,
+      "expected": 768
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 20600001..20600192 (n=192)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::blue_win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "blue_win takes values [0, 1]",
+      "field": "blue_win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "binary::draw",
+      "gating": true,
+      "result": "PASS",
+      "detail": "draw takes values [0, 1]",
+      "field": "draw",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "derived::blue_win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "blue_win == blue_win == int(blue_score > red_score): 0 disagreement(s) in 768 rows",
+      "field": "blue_win",
+      "definition": "blue_win == int(blue_score > red_score)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "derived::draw",
+      "gating": true,
+      "result": "PASS",
+      "detail": "draw == draw == int(blue_score == red_score): 0 disagreement(s) in 768 rows",
+      "field": "draw",
+      "definition": "draw == int(blue_score == red_score)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "claim::B_gain_selected_minus_baseline_pole_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.6875,
+        "lcb95": 0.614583,
+        "ucb95": 0.760417,
+        "n": 192
+      },
+      "rederived": {
+        "mean": 0.6875,
+        "lcb95": 0.614583333,
+        "ucb95": 0.760416667
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 3.33333e-07,
+        "ucb95": 3.33333e-07
+      }
+    },
+    {
+      "name": "claim::A_harm_baseline_minus_selected_pole_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.125,
+        "lcb95": -0.208333,
+        "ucb95": -0.041667,
+        "n": 192
+      },
+      "rederived": {
+        "mean": -0.125,
+        "lcb95": -0.208333333,
+        "ucb95": -0.041666667
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 3.33333e-07,
+        "ucb95": 3.33333e-07
+      }
+    },
+    {
+      "name": "split_half::B_gain_selected_minus_baseline_pole_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.6458 | second half +0.7292",
+      "first_half": 0.645833,
+      "second_half": 0.729167,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::A_harm_baseline_minus_selected_pole_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1354 | second half -0.1146",
+      "first_half": -0.135417,
+      "second_half": -0.114583,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to FIXED_ATTACK_HEAVY_6V6_CONFIRMATION_V1 (status RESERVED) -- same block, no conflict",
+      "seed_class": "sealed_confirmatory",
+      "experiment_id": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATION_V1"
+    }
+  ]
+}

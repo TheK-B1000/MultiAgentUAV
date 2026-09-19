@@ -1,0 +1,118 @@
+{
+  "record_id": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT",
+  "implements": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json",
+  "utc": "2026-09-19T20:08:30Z",
+  "poles": [
+    "A",
+    "B"
+  ],
+  "arms": [
+    "3A_3D",
+    "5A_1D"
+  ],
+  "baseline": "3A_3D",
+  "selected": "5A_1D",
+  "seed_block": {
+    "base": 20600001,
+    "last": 20600192,
+    "n": 192,
+    "class": "sealed_confirmatory"
+  },
+  "contracts": {
+    "path": "FIXED_ATTACK_HEAVY_6V6_CONTRACT_RESULT.json",
+    "decision": "CONTRACTS_PASS",
+    "n_gating": 9,
+    "n_failed": 0
+  },
+  "primary_gates": {
+    "B_gain_selected_minus_baseline_on_pole_B": {
+      "mean": 0.6875,
+      "lcb95": 0.614583,
+      "ucb95": 0.760417,
+      "n": 192
+    },
+    "B_gate_LCB95>0": true,
+    "A_harm_baseline_minus_selected_on_pole_A": {
+      "mean": -0.125,
+      "lcb95": -0.208333,
+      "ucb95": -0.041667,
+      "n": 192
+    },
+    "tau_A_harm": 0.1,
+    "A_gate_UCB95<=tau": true
+  },
+  "interpretation": {
+    "promotion": true,
+    "routing_reopen_licensed": false,
+    "note": null,
+    "label": "FIXED_ATTACK_HEAVY_6V6_CONFIRMED",
+    "arm_identity_violations": [],
+    "label_is_quotable_only_if_the_record_status_is_SEALED": true
+  },
+  "discordant_pairs": {
+    "B_selected_vs_baseline": {
+      "left_win_right_not": 136,
+      "right_win_left_not": 4,
+      "discordant_fraction": 0.7292
+    },
+    "A_baseline_vs_selected": {
+      "left_win_right_not": 21,
+      "right_win_left_not": 45,
+      "discordant_fraction": 0.3438
+    },
+    "note": "The A gate's power depends on discordance. At about 40% discordant seeds, UCB95 <= 0.10 requires the true harm to be slightly negative, so a failure is weak evidence of harm."
+  },
+  "win_rates": {
+    "A": {
+      "3A_3D": 0.729167,
+      "5A_1D": 0.854167
+    },
+    "B": {
+      "3A_3D": 0.067708,
+      "5A_1D": 0.755208
+    }
+  },
+  "score_margin_blue_minus_red": {
+    "A": {
+      "3A_3D": 1.4479,
+      "5A_1D": 2.1042
+    },
+    "B": {
+      "3A_3D": -0.1042,
+      "5A_1D": 1.5052
+    }
+  },
+  "descriptive_not_gating": {
+    "not_measured_here": "Whether per-pole routing could add value beyond the selected composition. Only the two arms were run; the exploratory sweep is the only evidence on that.",
+    "comparison_to_exploratory_sweep_not_a_test": {
+      "sweep_B_selected_minus_baseline": {
+        "mean": 0.71875,
+        "lcb95": 0.59375,
+        "ucb95": 0.84375,
+        "n": 64
+      },
+      "sweep_A_selected_minus_baseline": {
+        "mean": 0.078125,
+        "lcb95": -0.078125,
+        "ucb95": 0.234375,
+        "n": 64
+      },
+      "confirmatory_B": 0.6875,
+      "confirmatory_A_selected_minus_baseline": 0.125
+    }
+  },
+  "DECISION": "FIXED_ATTACK_HEAVY_6V6_CONFIRMED",
+  "FROZEN_CLAIM_BOUNDARY_POLE_B": "The 6v6 composition runs use the certified 6v6 pole pair. Pole B is canonical SDS_PARENT_OP7, not the 4v4 B3-3 SDS2_B3_LOCKDEF10_2V1 construction. Therefore cross-scale differences cannot be attributed solely to team size.",
+  "claim_boundary": "Two certified 6v6 poles, fixed scripted composition, PPO off, n=128 paired seeds. Does not authorize a router, PPO, or any statement about other opponents.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-19T20:08:30Z",
+  "git_sha": "dd8542ada53b3acd1fa0408664be88bd8fa4c56a",
+  "AUDIT": {
+    "path": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_AUDIT.json",
+    "passed": true,
+    "n_checks": 15,
+    "n_gating": 13,
+    "failed_checks": [],
+    "rows_sha256": "2eebf16f719fa32acb2120c91bc4790567a74ef71ad85a5f6684d6e09de81a26"
+  }
+}

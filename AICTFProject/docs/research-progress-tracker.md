@@ -16,7 +16,43 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-19 — **6v6 COMPOSITION SWEEP SEALED (exploratory): B CLEARLY ATTACK-HEAVY, A A TIED PLATEAU; A FIXED ATTACK-HEAVY COMPOSITION IS TIED WITH THE BEST ON BOTH POLES.**
+> **Last updated:** 2026-09-19 — **6v6 FIXED 5A/1D vs 3A/3D CONFIRMED (SEALED, n=192, fresh seeds): B +0.69, AND A IMPROVED +0.125.**
+> The pre-registered confirmation
+> ([`FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json`](../artifacts/strategic_demand/sppo/FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json);
+> two arms, both certified 6v6 poles, block `20600001-20600192`, 768 episodes,
+> PPO off, no router) returned **`FIXED_ATTACK_HEAVY_6V6_CONFIRMED`** on a
+> **`SEALED`** record: 13/13 audit checks, 9/9 contracts, no arm-identity
+> violations. The composition was chosen by a mechanical maximin rule from the
+> sealed sweep before any fresh seed, and re-derived by contract C1. Result:
+> [`..._OUTCOME_RESULT.json`](../artifacts/strategic_demand/sppo/FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json),
+> reading: [`..._OUTCOME_READING.json`](../artifacts/strategic_demand/sppo/FIXED_ATTACK_HEAVY_6V6_OUTCOME_READING.json).
+>
+> **Gates (unchanged):** Pole-B gain `WR_B(5A1D) - WR_B(3A3D) = +0.6875
+> [+0.6146, +0.7604]` (**PASS**; 136 seeds won by 5A/1D only, 4 the reverse).
+> Pole-A harm `-0.125 [-0.2083, -0.0417]` against `tau 0.10` (**PASS**; the
+> harm is *negative* with the whole interval below zero, so 5A/1D beat the
+> balanced baseline on A by `+0.125`; 45 seeds to 21, 34% discordant). Win
+> rates: B `5A1D 0.755 / 3A3D 0.068`; A `5A1D 0.854 / 3A3D 0.729`. Both halves
+> agree on both poles. The refined A-failure interpretation was never
+> exercised.
+>
+> **Correction to the sweep's Pole-A reading:** the sweep called Pole A a
+> plateau with no distinguishable winner. On fresh seeds 5A/1D is *better* than
+> 3A/3D on A with an interval excluding zero (sweep: `+0.078 [-0.078, +0.234]`,
+> same sign, underpowered at n=64). Whether A distinguishes among attack-heavy
+> compositions was not tested; only two arms ran.
+>
+> **Not established:** that routing could not add value beyond 5A/1D (per-pole
+> compositions not run; sweep headroom on B `+0.078 [-0.031, +0.203]`);
+> anything about learned specialization. This is a *scripted* confirmation.
+> The learned-specialist failure (`Delta_A = Delta_B = +0.0078`) and the
+> hypothesis that learned policies already play attack-heavy on B remain
+> untested. Cross-scale statements are descriptive only: 6v6 Pole B is
+> canonical `SDS_PARENT_OP7`, not the 4v4 B3-3 construction, and the
+> size-normalized defender gate also differs. **Next step is a PI decision;
+> nothing further is started.** PPO remains off.
+>
+> Prior — 2026-09-19 — **6v6 COMPOSITION SWEEP SEALED (exploratory): B CLEARLY ATTACK-HEAVY, A A TIED PLATEAU; A FIXED ATTACK-HEAVY COMPOSITION IS TIED WITH THE BEST ON BOTH POLES.**
 > The frozen 6v6 sweep
 > ([`PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json);
 > 7 compositions x 2 certified 6v6 poles, block `20500001-20500064`, 896

@@ -1159,9 +1159,28 @@
           "note": "sealed SEALED; COMPOSITION_DESCRIPTIVE_SIGNAL"
         }
       ]
+    },
+    {
+      "experiment_id": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATION_V1",
+      "purpose": "6v6 fixed 5A_1D vs 3A_3D confirmation, two certified poles, paired, PPO off, n=192",
+      "seed_class": "sealed_confirmatory",
+      "lo": 20600001,
+      "hi": 20600192,
+      "n": 192,
+      "status": "SPENT",
+      "spec": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T17:20:30Z",
+      "spent_utc": "2026-09-19T20:08:30Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T20:08:30Z",
+          "note": "sealed SEALED; FIXED_ATTACK_HEAVY_6V6_CONFIRMED"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-19T15:08:47Z",
+  "updated_utc": "2026-09-19T20:08:30Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
