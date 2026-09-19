@@ -1,0 +1,89 @@
+{
+  "record_id": "ROUTED_COMPOSITION_OUTCOME_RESULT",
+  "implements": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+  "utc": "2026-09-19T06:36:03Z",
+  "arms": [
+    "STATE_B_TRIGGER",
+    "FIXED_2A2D",
+    "FIXED_4A0D"
+  ],
+  "poles": [
+    "A",
+    "B"
+  ],
+  "seed_block": {
+    "base": 20200001,
+    "last": 20200064,
+    "n": 64,
+    "class": "sealed_confirmatory"
+  },
+  "router_operating_point": {
+    "statistic": "D_t = P_blue(4.0) - P_red(4.0)",
+    "window": 40,
+    "hysteresis": 0.2,
+    "dwell": 10,
+    "threshold": -0.8333333333333334,
+    "retuned": false
+  },
+  "contracts": {
+    "path": "ROUTED_COMPOSITION_OUTCOME_CONTRACT_RESULT.json",
+    "decision": "CONTRACTS_PASS",
+    "n_gating": 12,
+    "n_failed": 0
+  },
+  "primary_gates": {
+    "B_improvement_paired_STATE_minus_FIXED_2A2D_on_pole_B": {
+      "mean": 0.671875,
+      "lcb95": 0.515625,
+      "ucb95": 0.8125,
+      "n": 64
+    },
+    "B_gate_LCB95>0": true,
+    "A_harm_paired_FIXED_2A2D_minus_STATE_on_pole_A": {
+      "mean": 0.171875,
+      "lcb95": 0.046875,
+      "ucb95": 0.296875,
+      "n": 64
+    },
+    "tau_A_harm": 0.1,
+    "A_gate_UCB95<=tau": false
+  },
+  "win_rates": {
+    "A_STATE_B_TRIGGER": 0.515625,
+    "A_FIXED_2A2D": 0.6875,
+    "A_FIXED_4A0D": 0.421875,
+    "B_STATE_B_TRIGGER": 0.875,
+    "B_FIXED_2A2D": 0.203125,
+    "B_FIXED_4A0D": 0.65625
+  },
+  "descriptive_not_gating": {
+    "FIXED_4A0D_is_reference_only": true,
+    "B_ceiling_4A0D_minus_2A2D": 0.453125,
+    "A_floor_2A2D_minus_4A0D": 0.265625,
+    "B_capture_fraction": 1.482759,
+    "A_damage_avoided_fraction": 0.352941,
+    "ratio_caveat": "Ratios of noisy estimates; quote with the numerator and denominator intervals, never alone.",
+    "router_telemetry": {
+      "A_router_tick_fraction_4A0D": 0.109375,
+      "B_router_tick_fraction_4A0D": 0.767383,
+      "A_router_switches_per_episode": 1.515625,
+      "B_router_switches_per_episode": 1.8125
+    }
+  },
+  "router_calibration_caveat_context_only": "The router's held-out Pole-A one-sided episode UCB95 was 0.1026, marginally above the 0.10 calibration limit (P(true A_FP <= 0.10) about 0.937). Promisingly conservative, not proven safe. Context only; not a gate here and it does not rewrite the V2 router verdict.",
+  "DECISION": "B_GAIN_WITH_EXCESS_A_HARM",
+  "claim_boundary": "Two frozen opponents, 4v4, PPO off, n=64 paired seeds. Does not authorize PPO, learned coordination, or 6v6.",
+  "status": "AUDIT_FAILED",
+  "sealed_utc": "2026-09-19T06:36:03Z",
+  "git_sha": "1f4cac7f7153f3b48b5a1efd84ada088284f1830",
+  "AUDIT": {
+    "path": "ROUTED_COMPOSITION_OUTCOME_AUDIT.json",
+    "passed": false,
+    "n_checks": 15,
+    "n_gating": 13,
+    "failed_checks": [
+      "seed_class"
+    ],
+    "rows_sha256": "eb60164fdd5ca8ca13cdb6fb7adb708e7275a975ab841cbc6e6aa3bbe7a6ce4f"
+  }
+}

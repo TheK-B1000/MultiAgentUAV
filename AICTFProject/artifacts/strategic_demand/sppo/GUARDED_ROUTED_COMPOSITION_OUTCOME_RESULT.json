@@ -1,0 +1,163 @@
+{
+  "record_id": "GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT",
+  "implements": "GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json",
+  "utc": "2026-09-19T10:03:22Z",
+  "arms": [
+    "STATE_GUARDED",
+    "FIXED_2A2D",
+    "FIXED_4A0D"
+  ],
+  "poles": [
+    "A",
+    "B"
+  ],
+  "seed_block": {
+    "base": 20300001,
+    "last": 20300128,
+    "n": 128,
+    "class": "sealed_confirmatory"
+  },
+  "router_operating_point": {
+    "statistic": "D_t = P_blue(4.0) - P_red(4.0)",
+    "window": 40,
+    "hysteresis": 0.2,
+    "dwell": 10,
+    "threshold": -0.8333333333333334,
+    "retuned": false
+  },
+  "guard": {
+    "rule": "no departure from 2A/2D until a full evidence window",
+    "first_allowed_tick": 39,
+    "invariant_violations": []
+  },
+  "contracts": {
+    "path": "GUARDED_ROUTED_COMPOSITION_OUTCOME_CONTRACT_RESULT.json",
+    "decision": "CONTRACTS_PASS",
+    "n_gating": 15,
+    "n_failed": 0
+  },
+  "primary_gates": {
+    "B_improvement_paired_STATE_GUARDED_minus_FIXED_2A2D_on_pole_B": {
+      "mean": 0.609375,
+      "lcb95": 0.523438,
+      "ucb95": 0.695312,
+      "n": 128
+    },
+    "B_gate_LCB95>0": true,
+    "A_harm_paired_FIXED_2A2D_minus_STATE_GUARDED_on_pole_A": {
+      "mean": 0.015625,
+      "lcb95": -0.015625,
+      "ucb95": 0.046875,
+      "n": 128
+    },
+    "tau_A_harm": 0.1,
+    "A_gate_UCB95<=tau": true
+  },
+  "discordant_pairs": {
+    "B_STATE_GUARDED_vs_FIXED_2A2D": {
+      "left_win_right_not": 79,
+      "right_win_left_not": 1,
+      "net": 78
+    },
+    "A_FIXED_2A2D_vs_STATE_GUARDED": {
+      "left_win_right_not": 3,
+      "right_win_left_not": 1,
+      "net": 2
+    },
+    "note": "left_win_right_not counts seeds won by the left arm and not the right. The percentile bootstrap is lenient when discordant pairs are very few; read the interval alongside these counts."
+  },
+  "win_rates": {
+    "A_STATE_GUARDED": 0.726562,
+    "A_FIXED_2A2D": 0.742188,
+    "A_FIXED_4A0D": 0.546875,
+    "B_STATE_GUARDED": 0.757812,
+    "B_FIXED_2A2D": 0.148438,
+    "B_FIXED_4A0D": 0.6875
+  },
+  "score_margin_blue_minus_red": {
+    "A_STATE_GUARDED": 1.375,
+    "A_FIXED_2A2D": 1.4141,
+    "A_FIXED_4A0D": 0.6641,
+    "B_STATE_GUARDED": 1.9062,
+    "B_FIXED_2A2D": -0.6641,
+    "B_FIXED_4A0D": 2.25
+  },
+  "descriptive_not_gating": {
+    "FIXED_4A0D_is_reference_only": true,
+    "capture": {
+      "B_capture": {
+        "numerator": {
+          "mean": 0.609375,
+          "lcb95": 0.523438,
+          "ucb95": 0.695312,
+          "n": 128
+        },
+        "denominator": {
+          "mean": 0.539062,
+          "lcb95": 0.4375,
+          "ucb95": 0.632812,
+          "n": 128
+        },
+        "ratio_of_means": 1.1304
+      },
+      "A_damage_avoided": {
+        "numerator": {
+          "mean": 0.179688,
+          "lcb95": 0.054688,
+          "ucb95": 0.304688,
+          "n": 128
+        },
+        "denominator": {
+          "mean": 0.195312,
+          "lcb95": 0.078125,
+          "ucb95": 0.3125,
+          "n": 128
+        },
+        "ratio_of_means": 0.92
+      },
+      "note": "A ratio is reported only when its denominator interval excludes zero."
+    },
+    "router_telemetry": {
+      "A": {
+        "tick_fraction_in_4A0D": 0.022461,
+        "episodes_with_any_trigger": 28,
+        "switches_per_episode": 0.421875,
+        "first_onset_mean": 124.29,
+        "first_onset_min": 39,
+        "episodes_with_a_blocked_departure": 77,
+        "blocked_then_triggered_later": 19,
+        "blocked_and_never_triggered": 58
+      },
+      "B": {
+        "tick_fraction_in_4A0D": 0.714258,
+        "episodes_with_any_trigger": 125,
+        "switches_per_episode": 1.164062,
+        "first_onset_mean": 51.52,
+        "first_onset_min": 39,
+        "episodes_with_a_blocked_departure": 88,
+        "blocked_then_triggered_later": 85,
+        "blocked_and_never_triggered": 3
+      }
+    },
+    "comparison_to_sizing_not_a_test": {
+      "sizing_A_harm_guarded": 0.0,
+      "sizing_B_gain_guarded": 0.625,
+      "confirmatory_A_harm": 0.015625,
+      "confirmatory_B_gain": 0.609375,
+      "note": "Sizing was descriptive planning evidence on the block that revealed the mechanism. This comparison changes no label."
+    }
+  },
+  "DECISION": "GUARDED_ROUTED_COMPOSITION_CONFIRMED",
+  "claim_boundary": "Two frozen opponents, 4v4, PPO off, n=128 paired seeds. Does not authorize PPO, learned coordination, or 6v6.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-19T10:03:22Z",
+  "git_sha": "1f4cac7f7153f3b48b5a1efd84ada088284f1830",
+  "AUDIT": {
+    "path": "GUARDED_ROUTED_COMPOSITION_OUTCOME_AUDIT.json",
+    "passed": true,
+    "n_checks": 15,
+    "n_gating": 13,
+    "failed_checks": [],
+    "rows_sha256": "44f5ac5a2086ed410eef32c6df6e12db47f8e7019f17607f538e32b105dd4405"
+  }
+}

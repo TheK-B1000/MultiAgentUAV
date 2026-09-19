@@ -1102,9 +1102,47 @@
           "note": "384 scripted oracle evaluation episodes complete; result NO_ORACLE_COMPOSITION_CONFIRMATION; no PPO or 6v6."
         }
       ]
+    },
+    {
+      "experiment_id": "ROUTED_COMPOSITION_OUTCOME_V1",
+      "purpose": "routed composition outcome, three arms, paired, 4v4, PPO off",
+      "seed_class": "sealed_confirmatory",
+      "lo": 20200001,
+      "hi": 20200064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T05:31:53Z",
+      "spent_utc": "2026-09-19T06:36:03Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T06:36:03Z",
+          "note": "sealed AUDIT_FAILED; B_GAIN_WITH_EXCESS_A_HARM"
+        }
+      ]
+    },
+    {
+      "experiment_id": "GUARDED_ROUTED_COMPOSITION_OUTCOME_V1",
+      "purpose": "guarded routed composition confirmatory outcome, three arms, paired, 4v4, PPO off, n=128",
+      "seed_class": "sealed_confirmatory",
+      "lo": 20300001,
+      "hi": 20300128,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T07:56:45Z",
+      "spent_utc": "2026-09-19T10:03:22Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T10:03:22Z",
+          "note": "sealed SEALED; GUARDED_ROUTED_COMPOSITION_CONFIRMED"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-18T20:19:50Z",
+  "updated_utc": "2026-09-19T10:03:22Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
