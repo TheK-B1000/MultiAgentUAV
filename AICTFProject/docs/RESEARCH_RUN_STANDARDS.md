@@ -388,9 +388,33 @@ loudly. Each would have silently corrupted a result:
   `eval_track_hold_6v6.py`). Retrofitting either means restarting a run, so the
   live trajectory run is **grandfathered** and finishes as-is. It is the last one.
 - 14 `UNCLASSIFIED` blocks in the seed registry, pending human classification.
-- Rules 7–9 are infrastructure only so far: **no evaluator has been migrated onto
-  `seal()` yet.** The next experiment to run is the first that must use it, and
-  until one does, the gate is proven by its tests rather than by use.
+- ~~Rules 7–9 are infrastructure only so far: **no evaluator has been migrated onto
+  `seal()` yet.**~~ **CLOSED 2026-09-19.** `experiments/run_routed_composition_outcome.py`
+  is the first evaluator to seal through `run_state.seal()`, and migrating it
+  immediately earned the entry its keep: the run reached **`AUDIT_FAILED`** on a
+  single gating check, `seed_class`, because `run_audit` called
+  `seed_registry.check_block()` **without an `experiment_id`** and therefore read the
+  run's *own* Rule-9 reservation as forbidden reuse. **Rules 7 and 9 were mutually
+  unsatisfiable in practice** — Rule 9 requires allocating the block *before*
+  spending seeds, so every compliant run would have failed its own seal. None of
+  the 14 existing tests registered a block and then audited under its own name, so
+  the gate's own test suite could not see it. This is exactly what "proven by use
+  rather than by tests" was meant to catch.
+  **Fix:** `AuditPlan.experiment_id`, threaded into the `seed_class` check;
+  `seed_registry.py` needed no change, since `check_block` already auto-allowed only
+  an exact same-experiment, same-range match. **5 regression tests** added
+  (`tests/test_run_state_sealing.py`, now 19), including one proving an owner still
+  cannot silently widen its own allocation. The failure was in the safe direction:
+  it refused to seal a good record rather than sealing a bad one. The terminal
+  `AUDIT_FAILED` record was preserved, not overwritten — see
+  [`ROUTED_COMPOSITION_OUTCOME_AUDIT_CORRECTION.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_OUTCOME_AUDIT_CORRECTION.json).
+  **Confirmed in use (2026-09-19):** the next run,
+  [`GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json`](../artifacts/strategic_demand/sppo/GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json),
+  went `RUNNING -> COMPLETE -> AUDITED -> SEALED` with 13/13 gating checks and
+  `seed_class` passing under `AuditPlan.experiment_id`. Its contract stage dry-ran
+  the *real* audit plan against the already-registered block, with a negative
+  control (owner omitted must fail exactly `seed_class`); the previous run's
+  pre-launch dry-run had passed vacuously because it ran before registration.
 - Rule 13 is not yet wired into the older evaluators (`eval_opponent_ablation_6v6.py`
   and earlier all use a bare `.run.lock` file with no PID/identity check). The
   projected-teacher oracle is the first to need it, since it was the one that

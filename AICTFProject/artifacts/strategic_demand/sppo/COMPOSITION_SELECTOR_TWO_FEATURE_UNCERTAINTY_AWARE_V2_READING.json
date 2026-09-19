@@ -1,0 +1,111 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_READING",
+  "status": "COMPLETE",
+  "utc": "2026-09-19T00:00:00Z",
+  "reads": "COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_RESULT.json",
+  "under": "COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_SPEC.json",
+
+  "DECISION": {
+    "label": "CONSERVATIVE_B_TRIGGER_CALIBRATED_V2",
+    "both_frozen_held_out_gates_passed": {
+      "held_out_A_FP_tick_rate": 0.06744791666666666,
+      "operational_limit": 0.10,
+      "held_out_B_fraction_episodes_dominant_4A0D": 0.9375,
+      "B_bar": 0.50
+    },
+    "operating_point": {
+      "statistic": "D_t = P_blue(r=4.0) - P_red(r=4.0)",
+      "window": 40,
+      "hysteresis": 0.2,
+      "dwell": 10,
+      "threshold": -0.8333333333333334,
+      "default_composition": "2A_2D",
+      "triggered_composition": "4A_0D",
+      "trigger_rule": "to 4A_0D when the trailing-40 mean of D_t falls below threshold-0.2; back to 2A_2D when it rises above threshold+0.2; both subject to a 10-tick dwell minimum; 2A_2D at episode start"
+    },
+    "held_out_block": "99900501-99900516, both poles, 32 episodes, fresh, scored exactly once",
+    "outcome_seeds": "None spent. None authorized by this record."
+  },
+
+  "THE_REPAIR_WORKED_AND_IT_IS_MEASURABLE": {
+    "what_changed": "Only the eligibility rule: point-estimate A_FP <= 0.10 became episode-level UCB95(A_FP) <= 0.10. The statistic, grid, dwell, hysteresis, windows, threshold rule, tie-break order, state machine and the held-out pass rule were all unchanged and imported rather than re-declared.",
+    "eligibility_became_strictly_stricter": "3137 of 9380 configurations eligible under UCB95, against 3773 under the V1 point rule. Every UCB-eligible config is point-eligible; the converse fails.",
+    "the_boundary_hugging_is_gone": {
+      "V1_selected_point_A_FP": 0.09635416666666667,
+      "V1_margin_below_cap": 0.0036,
+      "V2_selected_point_A_FP": 0.06510416666666667,
+      "V2_margin_below_cap": 0.034895833333333334,
+      "V2_binding_quantity": "UCB95 = 0.09869791666666666 -- the bound, not the point estimate, is what now sits against the cap. That is the rule doing exactly what it was written to do."
+    },
+    "generalization_tightened_by_almost_an_order_of_magnitude": {
+      "V1_calibration_to_holdout_A_FP_drift": "+0.0156 (0.09635 -> 0.11198), which crossed the cap",
+      "V2_calibration_to_holdout_A_FP_drift": "+0.0023 (0.06510 -> 0.06745), which did not",
+      "reading": "The V1 failure is now positively explained rather than merely hypothesized: with margin restored, the same statistic on a fresh block reproduced its calibration behaviour closely."
+    },
+    "the_margin_was_derived_not_chosen": "The selected configuration's point A_FP landed at 0.065 -- near the 0.05 raw cap the PI declined to hand-pick -- but it got there from the principle 'calibration must show the true rate lies below the operational limit', not from reading the frontier. The margin is an output of the rule, not an input chosen after seeing where the good region was.",
+    "price_paid": "Calibration B_TP fell from 0.783 (V1 selection) to 0.711 (V2 selection); held-out B_TP is 0.6567708333333333. Conservatism cost roughly 0.07 of B tick-level detection and cost nothing in B dominance, which rose to 0.9375 held-out."
+  },
+
+  "HONEST_CAVEAT_THE_EVIDENCE_IS_95_PERCENT_ON_CALIBRATION_AND_ABOUT_94_ON_HELD_OUT": {
+    "fact": "Applying the SAME uncertainty-aware standard to the held-out block itself gives a one-sided episode-level UCB95 of 0.1026, which is marginally ABOVE the 0.10 operational limit. The held-out bootstrap puts P(true A_FP <= 0.10) at about 0.937.",
+    "why_this_does_not_change_the_decision": "The held-out gate is a POINT rule, frozen before execution and deliberately kept identical to the prior experiment so the two runs are comparable. The PI's instruction was explicit: the bootstrap makes calibration selection conservative and does not quietly redefine what the operational gate means. Re-reading the held-out block under the calibration-side standard after seeing the result would be exactly the post-hoc move this whole freeze was written to avoid.",
+    "what_it_does_mean": "The claim supported is 'the selected router's Pole-A false-positive rate is estimated at 0.067 with 16 held-out episodes, and the evidence places it below the 0.10 limit with roughly 94% confidence' -- NOT 'proven safe'. Anyone quoting this result should quote 0.067 with that interval, not 0.067 alone.",
+    "held_out_A_per_episode": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.041667, 0.0625, 0.066667, 0.070833, 0.0875, 0.104167, 0.170833, 0.220833, 0.254167],
+    "shape_of_that_distribution": "7 of 16 Pole-A episodes never triggered at all; the mean is carried by a 3-episode tail (0.171, 0.221, 0.254). The A-side risk is concentrated in a minority of episodes rather than spread evenly, which is the pattern a dwell-based trigger would be expected to produce.",
+    "how_to_close_it_if_it_matters": "More held-out episodes, not a different knob. n=16 is what makes the interval this wide."
+  },
+
+  "B_SIDE_DETAIL": {
+    "held_out_B_dominance": 0.9375,
+    "held_out_B_TP_tick_rate": 0.6567708333333333,
+    "held_out_B_per_episode_TP": [0.183333, 0.516667, 0.529167, 0.566667, 0.620833, 0.633333, 0.645833, 0.695833, 0.7, 0.704167, 0.704167, 0.716667, 0.75, 0.770833, 0.845833, 0.925],
+    "reading": "15 of 16 Pole-B episodes spend more than half their ticks in 4A_0D; one episode at 0.183 is the single non-dominant case. B detection was never the binding constraint in any of the three selector runs."
+  },
+
+  "WHAT_THIS_DOES_AND_DOES_NOT_ESTABLISH": {
+    "establishes": "A handcrafted two-feature threshold-plus-dwell selector CAN route conservatively between the two compositions: it detects Pole B on 15 of 16 fresh episodes while keeping the Pole-A false-positive tick rate at 0.067 against a 0.10 operational limit, on a block it had never seen.",
+    "does_not_establish": [
+      "any win-rate result -- this record is outcome-blind and no outcome episode was run",
+      "that routing this way IMPROVES Pole B or PRESERVES Pole A in play; the composition effect is established only under oracle regime labels (PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT: Delta_B=+0.6875, Delta_A=-0.3125)",
+      "anything about PPO, learned coordination, 6v6, or opponents other than these two frozen poles at 4v4",
+      "that the operating point is safe with high confidence -- see the caveat block; the evidence is about 94%, not 99%"
+    ],
+    "the_V1_sealed_negative_still_stands": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json#DECISION remains NO_CONSERVATIVE_B_TRIGGER_TWO_FEATURE. It was not rewritten. It is now correctly readable as a falsification of the point-estimate selection rule at this calibration size, not of the routing architecture."
+  },
+
+  "DISCLOSED_LIMITATION_CALIBRATION_REUSE": {
+    "fact": "Calibration block 99900101-116 informed selection twice: once under the V1 point rule and once under this V2 UCB rule. This was disclosed in the freeze before execution, not discovered after.",
+    "consequence": "Calibration-side numbers here are not independent evidence and inflate calibration-side optimism slightly.",
+    "what_protects_the_inference": "The held-out block 99900501-516 is fresh, was seen by neither selection pass, and was scored exactly once under an unchanged rule."
+  },
+
+  "INTEGRITY": {
+    "determinism_gate": "calibration P_blue reproduced the sealed derivation trace at 0.0 absolute error",
+    "r_red_consistency_gate": "re-derivation returned the frozen 4.0",
+    "direction_gate": "pooled windowed D_t mean A +0.5661 vs B -1.1992; convention held and was verified before scoring",
+    "episode_pooling_gate": "mean of per-episode A rates equalled the pooled A tick rate exactly for every one of the 9380 configurations (all episodes are 240 ticks)",
+    "independent_csv_rederivation": "all six held-out statistics recomputed from the persisted per-tick CSV by a second implementation sharing no code path with the scoring pass; 6/6 exact",
+    "bootstrap_reproducibility": "one common-random-number index matrix, n_boot 20000, seed 20260919, drawn once and reused across all configurations; the whole scan is reproducible from the seed",
+    "bootstrap_correctness": "tests/test_two_feature_asymmetric_b_trigger.py proves the batched counts-matrix bound equals direct per-config gather-and-resample to 1e-12, that the bound never falls below the point estimate, and that UCB eligibility is strictly stricter than the V1 point rule",
+    "v1_artifact_protection": "the V2 run writes its per-tick rows to composition_selector_two_feature_v2_raw_ticks.csv; the sealed V1 rows file is never overwritten, and a path collision aborts",
+    "outcome_blind": "no score, win, reward, return or draw was read, computed, printed or serialized"
+  },
+
+  "SEED_ACCOUNTING_AFTER_THIS_RUN": {
+    "99900101-99900116": "calibration, used by V1 and V2 selection",
+    "99900201-99900216": "SPENT (symmetric branch)",
+    "99900301-99900316": "SPENT (V1 two-feature held-out)",
+    "99900401-99900416": "SPENT (single-feature asymmetric held-out)",
+    "99900501-99900516": "SPENT (this record's held-out block)",
+    "next_free_smoke_pair": "99900601-99900616"
+  },
+
+  "NEXT_STEP_NOT_AUTHORIZED_BY_THIS_RECORD": {
+    "sequence_the_spec_names_on_PASS": "Under COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC: (1) contracts C1-C6, (2) outcome arms STATE_B_TRIGGER / FIXED_2A2D / FIXED_4A0D at n=64, cpu, PPO off, with B improvement LCB95 > 0 required and A harm UCB95 <= tau_A_harm = 0.10, (3) only then the regime-conditioned composition controller.",
+    "why_it_needs_a_fresh_PI_go_ahead": "That step spends real outcome seeds and is the first non-outcome-blind work in this branch. C6 (asymmetric calibration PASS sealed before seed allocation) is now satisfied by this record, but seed allocation itself is a PI decision.",
+    "operating_point_is_frozen": "If the outcome arms run, they run at W=40, hysteresis=0.2, dwell=10, threshold=-0.8333333333333334 exactly. No retuning at any downstream step, per the freeze.",
+    "the_no_second_reselection_clause_is_satisfied": "One calibration pass, one held-out scoring, terminal. Nothing further was selected or spent."
+  },
+
+  "claim_boundary": "Calibration only. No outcome episode was run. This PASS earns the frozen outcome step; it does not establish any win-rate result."
+}

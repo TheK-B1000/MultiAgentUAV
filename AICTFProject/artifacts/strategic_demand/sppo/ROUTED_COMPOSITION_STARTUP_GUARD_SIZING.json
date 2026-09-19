@@ -1,0 +1,109 @@
+{
+  "record_id": "ROUTED_COMPOSITION_STARTUP_GUARD_SIZING",
+  "label": "DESCRIPTIVE SIZING ONLY",
+  "implements": "ROUTED_COMPOSITION_STARTUP_GUARD_V1_SPEC.json",
+  "NOT_EVIDENCE": "DESCRIPTIVE SIZING ONLY. Same 64 seeds that revealed the tick-0 defect. The guard rule was not fitted -- it has no tunable parameter -- but the MECHANISM it targets was identified on these episodes, so these numbers are optimistic by an unknown amount. Planning estimate, not a prediction, not evidence.",
+  "declares_no_pass_fail": true,
+  "no_new_seeds": "re-simulation of the already-spent block 20200001-20200064",
+  "no_knob_varied": "exactly one guard simulated; no alternative guard length compared",
+  "controls": {
+    "subclass_equivalence": {
+      "episodes": 128,
+      "ticks": 30720,
+      "mismatches": 0,
+      "detail": "GuardedRouter(guard=False) reproduces OnlineRouter exactly on real traces"
+    },
+    "unguarded_baseline_determinism": "verified by ROUTED_COMPOSITION_SWITCH_SAFETY_CONTRAST, which re-simulated both poles unguarded and gated every episode against the sealed rows",
+    "fixed_arms": "read from the sealed rows, not re-simulated"
+  },
+  "S1_pole_A_harm": {
+    "unguarded": {
+      "mean": 0.171875,
+      "lcb95": 0.046875,
+      "ucb95": 0.296875,
+      "n": 64
+    },
+    "guarded": {
+      "mean": 0.0,
+      "lcb95": 0.0,
+      "ucb95": 0.0,
+      "n": 64
+    },
+    "guarded_minus_unguarded_win_rate_on_A": {
+      "mean": 0.171875,
+      "lcb95": 0.046875,
+      "ucb95": 0.296875,
+      "n": 64
+    },
+    "frozen_tolerance_for_reference_only": 0.1
+  },
+  "S2_pole_B_gain": {
+    "unguarded": {
+      "mean": 0.671875,
+      "lcb95": 0.515625,
+      "ucb95": 0.8125,
+      "n": 64
+    },
+    "guarded": {
+      "mean": 0.625,
+      "lcb95": 0.5,
+      "ucb95": 0.75,
+      "n": 64
+    },
+    "guarded_minus_unguarded_win_rate_on_B": {
+      "mean": -0.046875,
+      "lcb95": -0.15625,
+      "ucb95": 0.0625,
+      "n": 64
+    }
+  },
+  "win_rates": {
+    "A": {
+      "FIXED_2A2D": 0.6875,
+      "FIXED_4A0D": 0.421875,
+      "STATE_unguarded": 0.515625,
+      "STATE_guarded": 0.6875
+    },
+    "B": {
+      "FIXED_2A2D": 0.203125,
+      "FIXED_4A0D": 0.65625,
+      "STATE_unguarded": 0.875,
+      "STATE_guarded": 0.828125
+    }
+  },
+  "S3_occupancy_and_timing": {
+    "A": {
+      "guarded_tick_fraction_4A0D": 0.008919,
+      "guarded_episodes_with_any_trigger": 7,
+      "guarded_switches_per_episode": 0.1875,
+      "guarded_first_onset_mean": 146.14,
+      "guarded_first_onset_min": 39,
+      "episodes_with_a_blocked_departure": 35,
+      "blocked_then_triggered_later": 3,
+      "blocked_and_never_triggered": 32
+    },
+    "B": {
+      "guarded_tick_fraction_4A0D": 0.671875,
+      "guarded_episodes_with_any_trigger": 62,
+      "guarded_switches_per_episode": 1.171875,
+      "guarded_first_onset_mean": 52.34,
+      "guarded_first_onset_min": 39,
+      "episodes_with_a_blocked_departure": 49,
+      "blocked_then_triggered_later": 47,
+      "blocked_and_never_triggered": 2
+    }
+  },
+  "S4_does_later_switching_compensate": {
+    "A": {
+      "episodes_whose_first_departure_was_blocked": 35,
+      "of_those_triggered_later": 3,
+      "of_those_never_triggered": 32
+    },
+    "B": {
+      "episodes_whose_first_departure_was_blocked": 49,
+      "of_those_triggered_later": 47,
+      "of_those_never_triggered": 2
+    }
+  },
+  "claim_boundary": "Planning estimate on one already-spent block. The guard's outcome claim requires a fresh sealed_confirmatory block under the unchanged gates."
+}

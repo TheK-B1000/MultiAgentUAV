@@ -337,6 +337,57 @@ following hold.
 * Telemetry-only diagnostics (e.g. `actor_z_jsd`, `argmax_disagree`)
   without a downstream WR or return effect.
 
+### 5.6 Offline calibration does not bound closed-loop harm
+
+**An offline false-positive *rate* calibrated on fixed-policy trajectories is
+not a bound on the outcome harm that controller will cause when it acts.**
+Established empirically by the routed-composition chain, 2026-09-19.
+
+A scripted composition router was calibrated offline on fixed `2A/2D`
+traces under a frozen Pole-A false-positive **tick-rate** budget of `0.10`,
+and passed a fresh held-out block at `0.0674`
+([`COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_RESULT.json)).
+In closed loop it cost `+0.1719` Pole-A win rate, `UCB95 +0.2969`, against a
+frozen tolerance of `0.10`
+([`ROUTED_COMPOSITION_OUTCOME_RESULT.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_OUTCOME_RESULT.json),
+`B_GAIN_WITH_EXCESS_A_HARM`). The spec's own linear projection from tick
+exposure predicted `~0.03`; observed harm was about **6x** that.
+
+Two distinct defects produced the gap, and both generalize:
+
+1. **A rate is blind to *when*.** Two false-positive bursts of equal
+   duration score identically at tick level and can have radically
+   different outcome consequences. Here `82%` of the harm came from
+   episodes whose first trigger fired at **tick 0**
+   ([`ROUTED_COMPOSITION_A_HARM_LOCALIZATION.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_A_HARM_LOCALIZATION.json)),
+   while every exposure measure — burst length, burst count, total and
+   fractional ticks in the triggered composition — failed to separate
+   harmful from harmless episodes (all intervals spanned zero).
+2. **Offline scoring cannot see the intervention.** On a fixed-policy
+   trace an early false positive costs a few mislabelled ticks. In the
+   loop the same tick commits the team to a composition, and the
+   controller's own switching changes the state it subsequently reads.
+
+**Required practice.**
+
+* A tick-level or step-level false-positive budget is a *screening*
+  criterion. It earns an outcome experiment; it never substitutes for one,
+  and its linear extrapolation to outcome harm must not be quoted as a
+  prediction.
+* When a controller can act at `t = 0`, state explicitly how much evidence
+  its statistic holds at that instant. A trailing-window statistic holds
+  **one sample** on the first tick; if the decision rule exempts the first
+  action from its own dwell or persistence requirement, the controller can
+  commit on one sample while appearing to use `W`.
+* Check whether the cold-start value of the statistic is informative at
+  all. Here spawn geometry made the feature negative on **both** poles at
+  `t = 0` — no red has reached the defended flag yet while reds are still
+  near their own — so the first tick carried close to zero regime
+  information by construction.
+* Prefer calibration criteria that are sensitive to decision timing, or
+  add an explicit evidence-accrual precondition, rather than tightening the
+  rate.
+
 ---
 
 ## 6. MI / separability protocol

@@ -16,7 +16,194 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-18 — **ASYMMETRIC B-TRIGGER SUCCESSOR FROZEN; SYMMETRIC SELECTOR PATH CLOSED**
+> **Last updated:** 2026-09-19 — **GUARDED ROUTED COMPOSITION CONFIRMED (SEALED, n=128, fresh seeds).**
+> The pre-registered confirmatory run of the full-window startup guard
+> (`GUARDED_ROUTED_COMPOSITION_OUTCOME_V1`, block `20300001-20300128`, 768
+> episodes, PPO off, spec
+> [`GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json`](../artifacts/strategic_demand/sppo/GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json))
+> returned **`GUARDED_ROUTED_COMPOSITION_CONFIRMED`** on a **`SEALED`** record:
+> 13 of 13 gating audit checks passed, 15 of 15 contracts passed, guard
+> invariant held (0 violations, earliest first departure tick 39 on both
+> poles). This is the first sealed record through `run_state.seal()` and it
+> validates the owner-aware `seed_class` fix in use. Result:
+> [`..._OUTCOME_RESULT.json`](../artifacts/strategic_demand/sppo/GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json),
+> reading: [`..._OUTCOME_READING.json`](../artifacts/strategic_demand/sppo/GUARDED_ROUTED_COMPOSITION_OUTCOME_READING.json).
+>
+> **Gates (unchanged from the unguarded run):** Pole-B gain
+> `+0.6094 [+0.5234, +0.6953]`, LCB above zero (**PASS**; 79 seeds won by the
+> guarded router and not by 2A/2D, 1 the reverse). Pole-A harm
+> `+0.0156 [-0.0156, +0.0469]` against `tau_A_harm = 0.10` (**PASS**; 3 harm
+> flips, 1 gain flip). Win rates: B `guarded 0.758 / 2A2D 0.148 / 4A0D 0.688`;
+> A `guarded 0.727 / 2A2D 0.742 / 4A0D 0.547`.
+>
+> **Sizing agreed closely** (A harm `0 -> +0.016`, B gain `+0.625 -> +0.609`),
+> so the optimism disclosed in advance turned out small on these metrics. The
+> Pole-A trigger rate did double on fresh seeds (28/128 against 7/64), the
+> pessimistic case in the planning table, and harm stayed small.
+>
+> **What it does not show:** the guardrail is preserved largely because the
+> router acts on Pole A only 2.2% of ticks (never in 100 of 128 episodes),
+> which is not evidence of *safe switching* on A. Only two opponents, both of
+> which shaped the selector, so external validity is untested. No PPO, no
+> learned coordination, no 6v6. The unguarded router's verdict is unchanged:
+> `B_GAIN_WITH_EXCESS_A_HARM` on an `AUDIT_FAILED` record. **Next step is a PI
+> decision; nothing further is started.** Router and guard stay frozen.
+>
+> Prior — 2026-09-19 — **ROUTED OUTCOME: `B_GAIN_WITH_EXCESS_A_HARM` ON AN `AUDIT_FAILED` RECORD. HARM LOCALIZED TO TICK-0 SWITCHING. STARTUP GUARD FROZEN AND SIZED; CONFIRMATORY FREEZE AWAITS PI.** *(the open confirmatory decision below is now resolved by the entry above)*
+> The calibration-side "RESOLVED POSITIVE" entry below is **superseded**: the
+> router passed its held-out calibration and then failed its outcome guardrail.
+>
+> **Outcome run** (`ROUTED_COMPOSITION_OUTCOME_V1`, block `20200001-20200064`,
+> 384 episodes, PPO off, three arms, paired): Pole-B gain
+> `WR_B(STATE) - WR_B(2A2D) = +0.6719 [+0.5156, +0.8125]` (**PASS**), Pole-A
+> harm `+0.1719 [+0.0469, +0.2969]` against `tau_A_harm = 0.10` (**FAIL**,
+> harm's LCB above zero). Label **`B_GAIN_WITH_EXCESS_A_HARM`**, not a
+> promotion. Win rates: B `STATE 0.875 / 2A2D 0.203 / 4A0D 0.656`; A
+> `STATE 0.516 / 2A2D 0.688 / 4A0D 0.422`. The router beat fixed 4A/0D on B
+> (`+0.2188 [+0.0938, +0.3438]`, post-hoc). The record is
+> **`AUDIT_FAILED`**, not sealed: `run_state.py` called `check_block()` without
+> an `experiment_id` and read the run's own Rule-9 reservation as reuse. The
+> other 12 gating checks passed and both claims re-derive at `0.00e+00`. The
+> terminal record is preserved untouched; fix, 5 regression tests and a replay
+> (13/13) are in
+> [`ROUTED_COMPOSITION_OUTCOME_AUDIT_CORRECTION.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_OUTCOME_AUDIT_CORRECTION.json).
+> Rules 7 and 9 had been mutually unsatisfiable in practice
+> ([`RESEARCH_RUN_STANDARDS.md`](RESEARCH_RUN_STANDARDS.md)).
+>
+> **Why the calibration safety proxy failed** (protocol
+> [§5.6](experiment-and-evaluation-protocol.md)): the spec projected harm from
+> tick exposure at about `0.03`; observed harm was `0.172`, about 6x. Harm sits
+> entirely in triggered episodes, and **82% of it in the 27 episodes whose first
+> trigger fires at tick 0**
+> ([`..._A_HARM_LOCALIZATION.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_A_HARM_LOCALIZATION.json)).
+> Every exposure measure failed to separate harmful episodes. At tick 0 the
+> window holds one sample and the dwell sentinel exempts the first switch, and
+> `D_0` is **bit-identical across poles on 64/64 seeds**
+> ([`..._SWITCH_SAFETY_CONTRAST.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_SWITCH_SAFETY_CONTRAST.json)),
+> so a tick-0 decision carries zero regime information. Pass 2 found no
+> state-based separator (home pressure and `red_alive` are constant across
+> harmful and other switches) and B's bursts are 4x longer than A's, ruling out
+> a state veto and a burst cap. Pass 1 localized the harm to early
+> first-departure timing; Pass 2 independently established the tick-0 evidence
+> is regime-free but did **not** reproduce the per-switch onset contrast.
+>
+> **Startup guard**
+> ([`..._STARTUP_GUARD_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_STARTUP_GUARD_V1_SPEC.json),
+> frozen before sizing): no departure from 2A/2D until the selector holds a full
+> evidence window. Regime-blind by construction (reads only buffer length) and
+> inert from tick 39 onward. **Descriptive sizing, same spent block, NOT
+> evidence** ([reading](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_STARTUP_GUARD_SIZING_READING.json)):
+> Pole-A harm `+0.172 -> 0` (0 win flips of 64), Pole-B gain `+0.672 -> +0.625`
+> (about 93% retained; paired B cost `-0.047 [-0.156, +0.063]`, spans zero).
+> Blocked first departures re-fire on B 47 of 49 and on A 3 of 35, so the
+> discrimination comes from the router's own statistic once given valid
+> evidence, not from the guard. Optimistic by an unknown amount: the mechanism
+> was found on these seeds.
+>
+> **Open, PI decision:** the predeclared "continue" condition is met on its
+> face, but no confirmatory experiment is frozen and no seed is allocated. The
+> sizing reading carries planning arithmetic for `n` (n=64 vs 128; the A gate
+> is a UCB gate and is lenient when discordant pairs are few). Router
+> operating point stays frozen. PPO / GPU / 6v6 remain off.
+>
+> Prior, **superseded** — 2026-09-19 — **CONSERVATIVE B-TRIGGER CALIBRATED (V2). HANDCRAFTED-SELECTOR BRANCH RESOLVED POSITIVE.**
+> The PI authorized one final selector attempt (Option B) with an
+> uncertainty-aware eligibility rule, frozen in
+> [`COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_SPEC.json).
+> **One thing changed:** eligibility became `UCB95_episode(A_FP) <= 0.10`
+> (bootstrap over *episodes*, n=16, not over autocorrelated ticks) instead of
+> the point estimate. Statistic, grid, dwell, hysteresis, windows, threshold
+> rule, tie-break order and state machine were imported unchanged, and the
+> **held-out pass rule was deliberately left as the same point rule** so the
+> two runs stay comparable. Result:
+> [`..._V2_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_RESULT.json),
+> reading: [`..._V2_READING.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_READING.json).
+>
+> **Decision: `CONSERVATIVE_B_TRIGGER_CALIBRATED_V2`.** Both frozen held-out
+> gates passed on the fresh block `99900501-516`: Pole-A false-positive tick
+> rate `0.0674` against the `0.10` operational limit, and Pole-B dominant
+> composition `0.9375` against the `0.50` bar. Operating point, now frozen:
+> `D_t = P_blue(4.0) - P_red(4.0)`, `W=40`, hysteresis `0.2`, dwell `10`,
+> threshold `-0.8333333333333334`, default `2A/2D`, triggered `4A/0D`.
+>
+> **The repair is measurable.** Eligibility became strictly stricter (3137 of
+> 9380 vs 3773 under the point rule). Boundary-hugging is gone: V1's selected
+> config sat at point `A_FP = 0.0964` (margin `0.0036`); V2's sits at `0.0651`
+> (margin `0.0349`), with the *bound* (`0.0987`) against the cap instead.
+> Calibration→held-out A drift fell from `+0.0156` (which crossed the cap) to
+> `+0.0023` (which did not). The margin was **derived from the principle, not
+> chosen off the frontier** — no raw cap like 0.05 was ever picked. Cost:
+> calibration B_TP `0.783 → 0.711`; held-out B dominance *rose* to `0.9375`.
+>
+> **Honest caveat, recorded in the reading:** applying the same uncertainty
+> standard to the held-out block gives a one-sided `UCB95` of `0.1026`, just
+> *above* `0.10` — the evidence places the true A rate under the limit with
+> roughly **94%** confidence, not "proven safe". The held-out gate is a point
+> rule by design and is not reinterpreted. Quote `0.067` with that interval,
+> never alone. 7 of 16 Pole-A episodes never triggered; the mean is carried by
+> a 3-episode tail. Closing that gap needs more episodes, not another knob.
+>
+> **Disclosed:** calibration block `99900101-116` informed selection twice
+> (V1 point rule, V2 UCB rule), stated in the freeze before execution.
+> Calibration-side numbers are not independent evidence; the fresh held-out
+> block is. The V1 sealed negative
+> ([`..._ASYMMETRIC_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json))
+> stands unrewritten and is now correctly readable as a falsification of the
+> *point-estimate selection rule*, not of the routing architecture.
+>
+> **Next, NOT authorized by any agent:** contracts C1–C6 then the outcome arms
+> (`STATE_B_TRIGGER` / `FIXED_2A2D` / `FIXED_4A0D`, n=64, cpu, PPO off, B
+> improvement LCB95 > 0, A harm UCB95 ≤ `tau_A_harm = 0.10`) under
+> [`COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json).
+> That is the first non-outcome-blind work in this branch and needs a fresh PI
+> go-ahead. Next free smoke pair `99900601-616`. PPO / GPU / 6v6 remain off.
+>
+> Prior — 2026-09-19 — **TWO-FEATURE SELECTOR REVIVAL: FROZEN GATE FAILED, BUT A SAFE NONZERO REGION EXISTS**
+> The two-feature amendment was revived under the asymmetric criterion by
+> [`COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_REVIVAL_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_REVIVAL_SPEC.json),
+> which is the "later freeze" the asymmetric spec required. Exactly one thing
+> changed: the online statistic became `D_t = P_blue(4.0) - P_red(r_red*)`.
+> The `A_FP <= 0.10` budget, the `B >= 0.50` dominance bar, the dwell grid, the
+> window/hysteresis grid, the tie-break order and the state machine were
+> inherited verbatim (imported, not re-implemented). Result:
+> [`COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json),
+> reading: [`COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_READING.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_READING.json).
+>
+> **Decision: `NO_CONSERVATIVE_B_TRIGGER_TWO_FEATURE`** — held-out Pole-A
+> false-positive tick rate `0.11197916666666667` exceeds the frozen `0.10` cap.
+> The cap was not relaxed. The B side passed decisively and was never binding
+> (held-out B dominant-composition `0.875` against the `0.50` bar, B TP tick
+> rate `0.8122395833333333`). No outcome seeds spent or authorized.
+>
+> **The failure mode is the opposite of the single-feature run and the
+> predeclared FAIL narrative is retracted as factually wrong for this run.**
+> Single feature: 816 configs inside the A budget, every one with `B_TP = 0.0`
+> — the budget was satisfiable only by a never-firing selector, flat to a cap
+> of `0.14`. Two features: 3773 configs inside the budget, best `B_TP = 0.783`
+> with B dominance `0.9375` on calibration, and at a cap of **exactly `0.00`**
+> the best config still reaches `B_TP = 0.3466`; at `0.02` it reaches `0.5437`
+> with B dominance `0.6875` — above the B bar at one fifth of the A budget.
+> A safe nonzero region exists. What failed is the **selection rule**: "maximize
+> `B_TP` subject to `A_FP <= 0.10`" hugs the constraint boundary by
+> construction, and it picked a config whose calibration `A_FP` was `0.0964`
+> — 96.4% of the budget, margin `0.0036`. Every frontier number above is
+> calibration-side and **not** held-out-verified.
+>
+> **Feature fact worth keeping:** `r_red* = 4.0`, and `P_red(4.0)` separates the
+> poles *perfectly* on full-episode means (A `0.5138`, B `1.5687`, pooled
+> misclassification `0.0`) against `P_blue(4.0)`'s `0.15625`. The feature added
+> second is the stronger regime discriminator.
+>
+> **Open PI decision** (see the reading's `THE_OPEN_DECISION_FOR_THE_PI`): the
+> run landed between the two preregistered branches — a safe region appeared,
+> but the point the frozen rule produced from it failed confirmation for a
+> procedural reason unrelated to the feature or the architecture. Option A:
+> honour the terminal clause and stop hand-tuned selector work. Option B: one
+> margin-aware re-selection under a fresh freeze and a fresh held-out block
+> (`99900501-516`; `99900301-316` is now SPENT). **Not decided by any agent.**
+> PPO / GPU / 6v6 remain off.
+>
+> Prior — 2026-09-18 — **ASYMMETRIC B-TRIGGER SUCCESSOR FROZEN; SYMMETRIC SELECTOR PATH CLOSED**
 > Pole A is the already-good guardrail; Pole B is the repair target. The
 > symmetric online-calibration RESULT stands historically
 > ([`COMPOSITION_SELECTOR_ONLINE_CALIBRATION_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ONLINE_CALIBRATION_RESULT.json);

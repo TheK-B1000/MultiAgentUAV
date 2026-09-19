@@ -1,0 +1,217 @@
+{
+  "record_id": "ROUTED_COMPOSITION_A_HARM_LOCALIZATION",
+  "classification": "DIAGNOSTIC. Post-hoc. Descriptive. Gates nothing.",
+  "reads": "ROUTED_COMPOSITION_OUTCOME_EPISODES.csv (block 20200001-20200064)",
+  "does_not_change": "ROUTED_COMPOSITION_OUTCOME_RESULT.json remains AUDIT_FAILED and its verdict remains B_GAIN_WITH_EXCESS_A_HARM. Nothing here is a gate.",
+  "no_new_seeds": "Pole-A STATE_B_TRIGGER episodes of the already-spent block were re-simulated deterministically to recover per-tick traces.",
+  "no_knob_searched": "No threshold, window, hysteresis or dwell was varied.",
+  "questions_declared_before_the_numbers": [
+    "Q1 when do the Pole-A router triggers occur",
+    "Q2 how long do the 4A_0D bursts last",
+    "Q3 what game state precedes a trigger",
+    "Q4 are losses concentrated in episodes with early / long / particular 4A_0D excursions"
+  ],
+  "determinism_gate": {
+    "episodes": 64,
+    "drift": 0,
+    "fields_compared": [
+      "blue_score",
+      "red_score",
+      "blue_win",
+      "steps",
+      "role_switch_count"
+    ],
+    "detail": "every re-simulated episode reproduces the sealed row exactly"
+  },
+  "cohort": {
+    "pole_A_episodes": 64,
+    "episodes_with_any_trigger": 39,
+    "episodes_never_triggered": 25,
+    "untriggered_are_bit_identical_to_FIXED_2A2D": "verified in ROUTED_COMPOSITION_OUTCOME_READING",
+    "discordant_losses_2A2D_win_STATE_lose": 14,
+    "discordant_gains_2A2D_lose_STATE_win": 3
+  },
+  "Q1_trigger_timing": {
+    "n_bursts_total": 49,
+    "onset_tick": {
+      "mean": 21.73,
+      "median": 0.0,
+      "min": 0,
+      "max": 234,
+      "deciles": [
+        0.0,
+        0.0,
+        0.0,
+        20.0,
+        76.8
+      ]
+    },
+    "fraction_of_bursts_starting_in_first_40_ticks": 0.8571
+  },
+  "Q2_burst_length": {
+    "length_ticks": {
+      "mean": 34.29,
+      "median": 28.0,
+      "min": 6,
+      "max": 98,
+      "deciles": [
+        10.0,
+        12.0,
+        28.0,
+        53.0,
+        67.2
+      ]
+    },
+    "bursts_per_triggered_episode": 1.256,
+    "fraction_of_bursts_running_to_episode_end": 0.0204
+  },
+  "Q3_state_preceding_a_trigger": {
+    "n_onsets": 49,
+    "score_diff_blue_minus_red": {
+      "mean": 0.061,
+      "fraction_while_ahead": 0.0612,
+      "fraction_while_level": 0.9184,
+      "fraction_while_behind": 0.0204
+    },
+    "fraction_while_carrying": 0.0612,
+    "mean_red_alive": 4.0,
+    "mean_blue_alive": 4.0,
+    "mean_blue_tagged": 0.265
+  },
+  "Q4_are_losses_concentrated_in_particular_excursions": {
+    "comparison": "discordant-loss episodes vs all other triggered episodes",
+    "contrasts": [
+      {
+        "metric": "first_onset",
+        "loss_mean": 0.2857,
+        "other_mean": 27.28,
+        "difference": -26.9943,
+        "ci95": [
+          -52.6171,
+          -6.3941
+        ],
+        "n_loss": 14,
+        "n_other": 25
+      },
+      {
+        "metric": "longest_burst",
+        "loss_mean": 35.6429,
+        "other_mean": 41.16,
+        "difference": -5.5171,
+        "ci95": [
+          -21.4032,
+          10.8633
+        ],
+        "n_loss": 14,
+        "n_other": 25
+      },
+      {
+        "metric": "mean_burst",
+        "loss_mean": 33.3214,
+        "other_mean": 37.86,
+        "difference": -4.5386,
+        "ci95": [
+          -19.4318,
+          11.2304
+        ],
+        "n_loss": 14,
+        "n_other": 25
+      },
+      {
+        "metric": "ticks_in_4A0D",
+        "loss_mean": 39.7857,
+        "other_mean": 44.92,
+        "difference": -5.1343,
+        "ci95": [
+          -22.7201,
+          12.2089
+        ],
+        "n_loss": 14,
+        "n_other": 25
+      },
+      {
+        "metric": "fraction_in_4A0D",
+        "loss_mean": 0.1658,
+        "other_mean": 0.1872,
+        "difference": -0.0214,
+        "ci95": [
+          -0.0947,
+          0.0509
+        ],
+        "n_loss": 14,
+        "n_other": 25
+      },
+      {
+        "metric": "n_bursts",
+        "loss_mean": 1.2857,
+        "other_mean": 1.24,
+        "difference": 0.0457,
+        "ci95": [
+          -0.24,
+          0.34
+        ],
+        "n_loss": 14,
+        "n_other": 25
+      }
+    ],
+    "multiplicity_disclosed": "6 descriptive contrasts on n_loss=14 vs n_other=25. Intervals are unadjusted and the loss group is small; treat any separation as a lead, never as a finding."
+  },
+  "claim_boundary": "Descriptive localization on one already-spent block, one pole, one frozen router. Generates hypotheses about WHERE the Pole-A cost sits. Establishes no mechanism and authorizes no change.",
+  "ADDENDUM_TICK0_DECOMPOSITION": {
+    "added": "same pass, same traces; decomposition computed after reading Q1-Q4, labelled as such",
+    "finding": "The Pole-A harm is concentrated almost entirely in episodes whose FIRST trigger occurs at tick 0.",
+    "decomposition_of_the_+0.171875_A_harm": {
+      "first_trigger_at_tick_0": {
+        "n": 27,
+        "WR_FIXED_2A2D": 0.667,
+        "WR_STATE": 0.333,
+        "paired_diff": -0.3333,
+        "discordant_losses": 12,
+        "discordant_gains": 3,
+        "contribution_to_A_harm": 0.1406
+      },
+      "first_trigger_after_tick_0": {
+        "n": 12,
+        "WR_FIXED_2A2D": 0.917,
+        "WR_STATE": 0.75,
+        "paired_diff": -0.1667,
+        "discordant_losses": 2,
+        "discordant_gains": 0,
+        "contribution_to_A_harm": 0.0312
+      },
+      "never_triggered": {
+        "n": 25,
+        "WR_FIXED_2A2D": 0.6,
+        "WR_STATE": 0.6,
+        "paired_diff": 0.0,
+        "discordant_losses": 0,
+        "discordant_gains": 0,
+        "contribution_to_A_harm": 0.0
+      }
+    },
+    "share_of_total_harm_from_tick_0_triggers": "0.1406 / 0.171875 = 81.8%",
+    "discordant_losses_by_onset": {
+      "tick_0": 12,
+      "after_tick_0": 2,
+      "never": 0
+    },
+    "MECHANISM": {
+      "statement": "At tick 0 the trailing window holds exactly ONE sample, so the windowed statistic equals the raw D_0, and the dwell sentinel (last_switch = -10000) exempts the first switch from any waiting requirement. The router can therefore commit to 4A_0D on a single tick of evidence.",
+      "verified": "windowed value at tick 0 equals raw D_0 in 64/64 Pole-A episodes",
+      "why_D_0_looks_B_like_on_pole_A": "D_0 over the 64 Pole-A episodes has mean -1.312, min -3, max 0, against a trigger bound of -1.0333, so 27 of 64 Pole-A episodes are below the bound at tick 0. At spawn no red has reached Blue's flag (P_blue = 0) while reds are still near their own home (P_red > 0), so D_0 is negative on BOTH poles by construction of the spawn layout. Tick 0 therefore carries little or no regime information.",
+      "this_is_the_same_behaviour_C3_verified_as_correct": "The contract stage confirmed the tick-0 exemption is the frozen state machine's intended behaviour, and it is: the offline reference that produced the sealed V2 calibration does the same thing. Correct-by-design and harmful are not in conflict here -- calibration scored the router OFFLINE on fixed-2A/2D traces, where an early false trigger costs a few mislabelled ticks; in the loop it commits the team to zero defenders from the first tick.",
+      "why_the_calibration_could_not_see_it": "The A false-positive TICK rate is blind to WHEN the ticks occur. A tick-0 burst and a tick-120 burst of equal length score identically, so the calibration criterion could not distinguish a decision made on one sample from one made on forty."
+    },
+    "WHAT_THIS_RULES_OUT": {
+      "exposure_magnitude": "Burst length, mean burst, ticks in 4A_0D, fraction in 4A_0D and burst count ALL show intervals spanning zero between loss and other-triggered episodes. The harm is not explained by how much 4A_0D exposure an episode had.",
+      "implication": "Raising the threshold, lengthening dwell or shrinking the window attacks frequency and total exposure. The evidence says the problem is WHEN the first switch happens, not how often or how long."
+    },
+    "COUNTERFACTUAL_NOT_A_PROPOSAL": {
+      "note": "Stated to size the mechanism, NOT to nominate a fix. Any entry guard must be frozen with its rule declared in advance and tested on fresh held-out seeds, and must be checked on Pole B as well.",
+      "pole_A_episodes_whose_only_burst_starts_at_tick_0": 20,
+      "of_those_discordant_losses": 9,
+      "caveat": "Removing a trigger does not simply restore the FIXED_2A2D outcome for that episode in general; it does for these, because an untriggered STATE episode is bit-identical to FIXED_2A2D by determinism, which is verified 25/25. But an entry guard would also change WHICH later switches occur, so the counterfactual is indicative, not a predicted effect size."
+    },
+    "OPEN_AND_NOT_ANSWERED_BY_THIS_PASS": "Whether Pole B also triggers at tick 0, and what an entry guard would cost in B gain. If D_0 is negative at spawn on both poles, an entry guard is a genuine safety rule rather than a disguised A/B detector. Addressed by ROUTED_COMPOSITION_SWITCH_SAFETY_CONTRAST."
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_READING",
+  "status": "COMPLETE",
+  "utc": "2026-09-19T00:00:00Z",
+  "reads": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json",
+  "under": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_REVIVAL_SPEC.json",
+
+  "FROZEN_DECISION_STANDS": {
+    "decision": "NO_CONSERVATIVE_B_TRIGGER_TWO_FEATURE",
+    "why": "held-out A false-positive tick rate 0.11197916666666667 exceeds the frozen cap 0.10",
+    "not_relaxed": "The 0.10 cap is not relaxed, reinterpreted, or replaced by a confidence bound. The frozen rule is a point comparison and the point failed.",
+    "b_side_for_the_record": "The B-side gate passed decisively and was never the binding constraint: held-out B dominant-composition 0.875 against a 0.50 bar, held-out B true-positive tick rate 0.8122395833333333.",
+    "outcome_seeds": "None spent. None authorized."
+  },
+
+  "THE_PREDECLARED_FAIL_NARRATIVE_IS_FACTUALLY_WRONG_FOR_THIS_RUN": {
+    "what_the_freeze_predeclared": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_REVIVAL_SPEC.json#PREDECLARED_DECISION.FAIL_consequence asserts that a FAIL means the two-feature contrast 'does not expose a safe nonzero operating region' and that this 'falsifies threshold-plus-dwell-on-a-handcrafted-statistic as the routing architecture at this budget'.",
+    "what_actually_happened": "That sentence was written expecting the single-feature failure mode to repeat. It did not. A safe nonzero operating region is present and large. The FAIL narrative must NOT be quoted as this run's finding.",
+    "this_is_not_a_post_hoc_rescue": "The decision label is unchanged and the gate is unchanged. Only the explanatory sentence attached to FAIL is retracted, because it makes a claim the data contradicts. Reporting the predeclared prose over the observed mechanism would be a false negative finding."
+  },
+
+  "WHAT_THE_TWO_FEATURE_CONTRAST_ACTUALLY_DID": {
+    "single_feature_baseline": "P_blue alone: of 7000 grid rows, 816 satisfied A_FP <= 0.10 and every one had B_TP = 0.0. The frontier was flat at max_B_TP = 0.0 for every cap up to 0.14. The A-side budget was satisfiable only by a never-firing selector.",
+    "two_feature": "D_t = P_blue(4.0) - P_red(4.0): of 9380 grid rows, 3773 satisfied A_FP <= 0.10, and the best of those reached B_TP = 0.7825520833333334 with B dominant-composition 0.9375 on calibration. degenerate_no_fire = false.",
+    "frontier_at_zero_A_false_positives": "At a cap of EXACTLY 0.00 A false-positive ticks, 484 configurations survive and the best reaches B_TP = 0.3466 (calibration). At a cap of 0.02 the best reaches B_TP = 0.5437 with B dominant-composition 0.6875 -- already above the frozen 0.50 B bar, at one fifth of the A budget.",
+    "reading": "The second feature changed the trade-off qualitatively, not incrementally. The question the PI posed -- 'can the second feature reshape the trade-off enough that the selector fires meaningfully on Pole B while keeping A false positives inside the frozen budget' -- is answered YES on calibration and was not answered on held-out, because the frozen selection rule did not pick a point in that region.",
+    "caveat_load_bearing": "Every frontier number above is CALIBRATION-side. None of it is held-out-verified. The one configuration that was scored held-out is the one the frozen rule selected, and it failed."
+  },
+
+  "WHY_THE_SELECTED_POINT_FAILED": {
+    "mechanism": "The frozen selection rule is 'retain configs with A_FP <= 0.10, then MAXIMIZE B_TP among survivors'. Maximizing the objective against an inequality constraint drives the choice onto the constraint boundary by construction.",
+    "evidence": "The selected configuration (W=120, hysteresis=0.0, dwell=4, threshold=-0.7166666666666667) had a calibration A_FP of 0.09635416666666667 -- 96.4% of the entire budget, a margin of 0.0036. The held-out A_FP came in at 0.11197916666666667.",
+    "diagnosis": "This is a selection-procedure defect, not a feature defect and not an architecture falsification. A rule with no safety margin against a noisy constraint estimate fails the constraint out of sample roughly half the time. The two-feature statistic was never the thing that broke.",
+    "the_same_rule_did_not_expose_this_on_the_single_feature_run": "There the constraint region was empty of firing configurations, so the boundary-hugging property had nothing to hug and never showed itself."
+  },
+
+  "DESCRIPTIVE_ONLY_NON_GATING": {
+    "held_out_A_FP_episode_level_spread": "n=16 Pole-A episodes; per-episode A_FP mean 0.1120, median 0.1000, min 0.0000, max 0.3583; episode-level bootstrap 95% CI [0.0721, 0.1581]; the frozen cap 0.10 lies inside that interval.",
+    "held_out_B_TP_episode_level_spread": "n=16 Pole-B episodes; per-episode B_TP mean 0.8122, min 0.3958; 14 of 16 above 0.68.",
+    "explicitly_not_a_pass": "The interval containing 0.10 does NOT convert the FAIL into a pass, and is not offered as grounds to do so. The frozen gate is a point rule. This is recorded only so the size of the miss is legible: the miss is 0.012 in tick rate, inside sampling noise at n=16 episodes, not a blowout.",
+    "ticks_are_not_independent": "Tick-level rates are strongly autocorrelated within an episode. The effective sample size for the A_FP constraint is 16 episodes, not 3840 ticks. Any future A_FP budget check should be specified at the episode level for this reason."
+  },
+
+  "FEATURE_FACTS_WORTH_KEEPING": {
+    "r_red_star": 4.0,
+    "r_red_selection": "Pooled full-episode misclassification was 0.0 at r_red = 4.0, 6.0 and 8.0, and 0.0625 at 10.0. The tie among 4/6/8 resolved to the smallest radius.",
+    "the_second_feature_is_the_stronger_discriminator": "P_red(4.0) separates the two poles PERFECTLY on full-episode means (A 0.5138, B 1.5687, pooled misclassification 0.0), against P_blue(4.0)'s 0.15625. The feature that was added turned out to be a better regime discriminator than the feature the whole branch had been built on.",
+    "direction_gate": "The predeclared sign convention held and was verified before scoring: pooled windowed D_t mean A +0.5661 vs B -1.1992.",
+    "determinism_gate": "Re-collected calibration P_blue reproduced the sealed derivation trace to 0.0 absolute error (A 1.0799479166666668, B 0.36953125)."
+  },
+
+  "INTEGRITY": {
+    "independent_csv_rederivation": "All six held-out decision statistics were recomputed from the persisted per-tick CSV by a second implementation sharing no code path with the scoring pass. 6/6 exact.",
+    "negative_control_for_that_check": "tests/test_two_feature_asymmetric_b_trigger.py::test_csv_rederivation_detects_corruption proves the re-derivation can fail on corrupted rows, so '6/6 exact' is not a check that compared nothing.",
+    "known_answer_anchor": "tests/test_two_feature_asymmetric_b_trigger.py::test_min_misclass_reproduces_sealed_r_blue_derivation proves the r_red selection criterion reproduces the sealed r_blue derivation exactly (threshold 0.60625, pooled error 0.15625).",
+    "outcome_blind": "No score, win, reward, return or draw field was read, computed, printed or serialized at any step."
+  },
+
+  "SEED_ACCOUNTING_AFTER_THIS_RUN": {
+    "99900101-99900116": "calibration, reused, still calibration-only",
+    "99900301-99900316": "SPENT as this branch's held-out block. It has now selected against, and may not be reused to score a second configuration.",
+    "99900201-99900216": "spent by the symmetric branch",
+    "99900401-99900416": "spent by the single-feature asymmetric branch",
+    "next_free_smoke_pair": "99900501-99900516 (unused as of this record)"
+  },
+
+  "WHAT_IS_NOT_AUTHORIZED_BY_THIS_READING": [
+    "re-scoring 99900301-316 under any second configuration -- the block is spent",
+    "adopting any frontier configuration as an operating point; every frontier number is calibration-side and unverified",
+    "relaxing or re-expressing the 0.10 A_FP cap as a confidence bound",
+    "proceeding to contracts C1-C6 or any outcome arm; the calibration gate did not pass",
+    "a third feature, a learned combination, PPO, GPU or 6v6"
+  ],
+
+  "THE_OPEN_DECISION_FOR_THE_PI": {
+    "statement": "The PI's branch rule was: safe nonzero region appears -> freeze the operating point and confirm; no safe region appears -> stop hand-tuned selector work because threshold+dwell is the wrong architecture. This run landed between those branches and neither is a clean fit.",
+    "the_tension": "A safe nonzero region DID appear (branch 1's trigger), but the operating point the frozen rule produced from it FAILED held-out confirmation (branch 1's exit condition), for a reason that has nothing to do with the feature or the architecture (branch 2's premise is therefore unsupported).",
+    "option_A_honour_the_terminal_clause": "Treat the frozen FAIL as terminal and stop hand-tuned selector work. Cost: closes a branch on a procedural defect while the evidence says the mechanism works, and discards a statistic (P_red) that separates the poles perfectly.",
+    "option_B_one_margin_aware_reselection": "A fresh freeze whose selection rule targets a MARGIN against the A_FP cap instead of maximizing B_TP at the boundary -- for example, select the max-B_TP configuration subject to A_FP <= 0.05, or specify the constraint at the episode level with a one-sided bound. Fresh held-out block 99900501-516. This is a fix to the selection rule, not a new knob on the selector, and it is one shot.",
+    "why_this_is_a_PI_call_and_not_an_agent_call": "The PI's standing direction was to stop tuning knobs. Option B is defensible as repairing a procedural defect rather than tuning, but that judgement belongs to the PI. No agent should make it by inference, and nothing in this reading may be read as having made it.",
+    "what_the_agent_did_not_do": "No configuration was re-selected, no held-out block was re-scored, no gate was relaxed, and no further episode was collected after the frozen pass completed."
+  },
+
+  "claim_boundary": "Calibration only. No outcome episode was run in this branch. Nothing here establishes any win-rate result, and the composition effect itself remains established only under oracle regime labels."
+}

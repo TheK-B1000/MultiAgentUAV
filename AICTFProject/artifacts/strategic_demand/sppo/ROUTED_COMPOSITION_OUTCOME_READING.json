@@ -1,0 +1,138 @@
+{
+  "record_id": "ROUTED_COMPOSITION_OUTCOME_READING",
+  "utc": "2026-09-19T00:00:00Z",
+  "reads": "ROUTED_COMPOSITION_OUTCOME_RESULT.json",
+  "under": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+
+  "RECORD_STATUS_QUOTE_THIS_WITH_EVERY_NUMBER_BELOW": {
+    "run_state": "AUDIT_FAILED",
+    "this_is_NOT_a_sealed_result": true,
+    "computed_decision_label": "B_GAIN_WITH_EXCESS_A_HARM",
+    "gating_checks": "12 of 13 passed, 1 failed",
+    "the_one_failure": "seed_class",
+    "terminal_by_design": "experiments/run_state.py makes AUDIT_FAILED terminal. The record is preserved untouched and was not edited, re-run, or overwritten."
+  },
+
+  "WHY_THE_AUDIT_FAILED_AND_WHAT_THAT_DOES_AND_DOES_NOT_MEAN": {
+    "cause": "experiments/run_state.py:373 calls check_block(min(want), max(want), plan.seed_class) WITHOUT an experiment_id, so the audit sees this run's own Rule-9 registry reservation (ROUTED_COMPOSITION_OUTCOME_V1, 20200001..20200064) as a foreign overlap. check_block already accepts experiment_id; the audit never passes it, and AuditPlan has no field to carry it.",
+    "consequence_beyond_this_run": "Any experiment that follows Rule 9 (allocate the block BEFORE spending seeds) will fail its own seal. This is the first run to go through seal(), and it exposed the defect. It is a latent defect in the shared integrity gate, not in this experiment.",
+    "why_my_pre_launch_checks_missed_it": "The synthetic dry-run of run_audit passed because the seed block was NOT yet allocated in the registry at that point, so the overlap never arose. I had read the audit's claim-derivation logic but not its seed_class branch. C11 passed experiment_id correctly, so the contract stage could not see it either.",
+    "what_it_does_not_mean": "The other 12 gating checks passed: spec_frozen, rows_present, row_count (384), cell_seed_block_exact (6 cells, 0 offending), no_duplicate_seeds, pairing_valid, binary blue_win and draw, derived blue_win and draw (0 disagreements in 384 rows), and BOTH primary claims re-derived from the persisted rows at 0.00e+00 absolute difference. The failure is a registry self-overlap, not a data-integrity finding.",
+    "what_it_does_mean": "The record is AUDIT_FAILED and must be quoted as such. The re-derivation agreeing exactly is strong evidence the numbers are internally consistent; it is not the same thing as a sealed record.",
+    "sanctioned_path_not_taken_by_this_agent": "The state machine's own message says to freeze the failed state and start a NEW label rather than overwrite a recorded outcome. That means fixing the audit to pass experiment_id (with tests) and re-auditing the SAME persisted rows under a new label: no new episodes, no new seeds. That edits shared integrity infrastructure after the verdict is known, so it is left as a PI decision."
+  },
+
+  "PRIMARY_GATES_RECOMPUTED_FROM_PERSISTED_ROWS": {
+    "seed_block": "20200001-20200064, sealed_confirmatory, n=64 paired seeds, 384 episodes",
+    "B_gate": {
+      "quantity": "WR_B(STATE_B_TRIGGER) - WR_B(FIXED_2A2D), paired by seed",
+      "mean": 0.671875, "lcb95": 0.515625, "ucb95": 0.8125,
+      "required": "LCB95 > 0",
+      "result": "PASS",
+      "split_half": "first half +0.6562, second half +0.6875"
+    },
+    "A_gate": {
+      "quantity": "WR_A(FIXED_2A2D) - WR_A(STATE_B_TRIGGER), paired by seed",
+      "mean": 0.171875, "lcb95": 0.046875, "ucb95": 0.296875,
+      "required": "UCB95 <= 0.10 (tau_A_harm)",
+      "result": "FAIL",
+      "split_half": "first half +0.1875, second half +0.1562"
+    },
+    "win_rates": {
+      "A": {"STATE_B_TRIGGER": 0.515625, "FIXED_2A2D": 0.6875, "FIXED_4A0D": 0.421875},
+      "B": {"STATE_B_TRIGGER": 0.875, "FIXED_2A2D": 0.203125, "FIXED_4A0D": 0.65625}
+    },
+    "score_margin_blue_minus_red": {
+      "A": {"STATE_B_TRIGGER": 1.047, "FIXED_2A2D": 1.281, "FIXED_4A0D": 0.484},
+      "B": {"STATE_B_TRIGGER": 2.453, "FIXED_2A2D": -0.531, "FIXED_4A0D": 2.078}
+    },
+    "computed_label": "B_GAIN_WITH_EXCESS_A_HARM",
+    "frozen_meaning": "The router helps B but breaks the Pole-A guardrail. Not a promotion.",
+    "not_underpowered": "The spec said to report underpowered preservation if A is merely noisy at n=64. It is not merely noisy: the harm's LCB95 is +0.047, so the interval excludes zero. The router is demonstrably harmful to Pole A, not just unproven safe. Both split halves agree in sign and size."
+  },
+
+  "INTEGRITY_CHECKED_INDEPENDENTLY_OF_THE_AUDIT": {
+    "check": "STATE_B_TRIGGER episodes whose router never triggered must equal FIXED_2A2D exactly, if the arms differ only in the composition sequence.",
+    "result": "Pole A: 25 untriggered STATE episodes, 25 of 25 bit-identical to FIXED_2A2D on blue_score, red_score, steps and blue_win.",
+    "limit_stated": "Pole B had ZERO untriggered episodes (64 of 64 triggered), so this check verifies nothing about Pole B. The Pole-B arm identity rests on C5 (pinned-vs-fixed parity) and C8 (anchor to the sealed oracle rows) from the contract stage.",
+    "derivation_cross_check": "Ticks in 4A_0D were recovered from the CSV as (attack_ticks - 2*steps)/2. The resulting tick fractions (A 0.1094, B 0.7674) match the executor's independently recorded telemetry (A 0.109375, B 0.767383)."
+  },
+
+  "ROUTER_TELEMETRY_PRE_DECLARED_DESCRIPTIVE": {
+    "A": {"tick_fraction_in_4A0D": 0.109375, "episodes_with_any_trigger": "39/64", "switches_per_episode": 1.515625, "mean_ticks_in_4A0D_given_triggered": 43.1},
+    "B": {"tick_fraction_in_4A0D": 0.767383, "episodes_with_any_trigger": "64/64", "switches_per_episode": 1.8125, "mean_ticks_in_4A0D_given_triggered": 184.2}
+  },
+
+  "CAPTURE_FRACTIONS_PRE_DECLARED_DESCRIPTIVE_NOT_GATING": {
+    "B_capture": {
+      "definition": "(WR_B(STATE) - WR_B(2A2D)) / (WR_B(4A0D) - WR_B(2A2D))",
+      "numerator": {"mean": 0.6719, "ci95": [0.5156, 0.8125]},
+      "denominator": {"mean": 0.4531, "ci95": [0.2812, 0.6094]},
+      "ratio_of_means": 1.483,
+      "reading": "The denominator interval excludes zero, so the ratio is reportable under the spec's rule. It exceeds 1: on Pole B the router did better than fixed 4A/0D, so 4A/0D is not a ceiling and 'fraction captured' is the wrong frame for B."
+    },
+    "A_damage_avoided": {
+      "definition": "(WR_A(STATE) - WR_A(4A0D)) / (WR_A(2A2D) - WR_A(4A0D))",
+      "numerator": {"mean": 0.0938, "ci95": [-0.0781, 0.2656]},
+      "denominator": {"mean": 0.2656, "ci95": [0.0781, 0.4375]},
+      "ratio_of_means": 0.353,
+      "reading": "Reportable (denominator excludes zero) but very imprecise: the numerator interval spans zero, so this ratio is a rough magnitude, not a measured quantity. Roughly a third of the full 4A/0D damage was avoided, i.e. about two thirds was still incurred."
+    }
+  },
+
+  "POST_HOC_DESCRIPTIVE_NOT_PRE_REGISTERED": {
+    "note": "Everything in this block was computed AFTER seeing the gate result. None of it gates anything, none of it changes the label, and it is a small fixed set rather than an open search.",
+    "router_beats_fixed_4A0D_on_B": {
+      "STATE_minus_FIXED_4A0D_on_B": {"mean": 0.2188, "ci95": [0.0938, 0.3438]},
+      "reading": "Interval excludes zero. Time-varying composition did better on Pole B than either constant composition. Single post-hoc contrast at n=64, one block: a lead, not a finding."
+    },
+    "harm_is_entirely_in_triggered_episodes": {
+      "pole_A": {
+        "triggered_episodes": {"n": 39, "WR_2A2D": 0.744, "WR_STATE": 0.462, "net_paired_contribution": -0.1719},
+        "untriggered_episodes": {"n": 25, "WR_2A2D": 0.600, "WR_STATE": 0.600, "net_paired_contribution": 0.0},
+        "discordant_pairs": {"2A2D_win_and_STATE_not": 14, "STATE_win_and_2A2D_not": 3, "net": -11}
+      },
+      "reading": "The whole +0.172 harm sits in the 39 episodes where the router fired. The untriggered episodes contribute exactly zero, by determinism. The router fired disproportionately in episodes where fixed 2A/2D already wins 74% of the time, so it fired where there was most to lose. Unexplained; not interpreted further."
+    },
+    "the_calibration_safety_proxy_did_not_predict_outcome_harm": {
+      "v1_spec_justification_quoted": "COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json justified the 0.10 A false-positive TICK budget as: 'rough linear exposure ~0.03 win rate if harm scaled by exposure, well below that measured full switch cost.'",
+      "linear_prediction": "closed-loop A tick fraction 0.1094 x full-time 4A/0D damage in this block 0.2656 = 0.029",
+      "observed_harm": 0.172,
+      "ratio": "about 6x the linear prediction",
+      "even_at_the_calibration_tick_rate": "At the held-out calibration rate of 0.0674 the linear prediction is 0.018, so the miss is not explained by the closed-loop rate being higher.",
+      "reading": "Harm is strongly superlinear in tick exposure: about 43 ticks (18% of an episode) in 4A/0D inside a triggered episode cost roughly as much win rate as spending the whole episode there. The premise that a tick-level false-positive budget bounds outcome harm is contradicted. The mechanism is NOT established by this run."
+    },
+    "open_loop_vs_closed_loop_exposure": {
+      "calibration_open_loop_on_fixed_2A2D_traces": {"A_FP_tick_rate": 0.0674, "B_TP_tick_rate": 0.6568},
+      "this_run_router_acting": {"A_tick_fraction": 0.1094, "B_tick_fraction": 0.7674},
+      "reading": "Exposure was higher on both poles once the router actually acted. This is consistent with the router's own switching changing the state it reads (calibration traces came from a fixed 2A/2D team), but it is equally consistent with sampling: 0.0674 came from 16 Pole-A episodes and its own held-out bootstrap interval was [0.031, 0.110], which contains 0.1094. This run cannot separate the two, and it does not need to for the label."
+    }
+  },
+
+  "WHAT_THIS_ESTABLISHES_AND_DOES_NOT": {
+    "establishes": [
+      "A scripted two-feature router captured a very large Pole-B gain (+0.672, LCB95 +0.516) at n=64 paired seeds, consistent across both halves.",
+      "The same router demonstrably harms Pole A (+0.172, LCB95 +0.047, UCB95 +0.297), beyond the frozen 0.10 tolerance, consistently across both halves.",
+      "The calibration-side safety criterion (a false-positive tick-rate budget) did not bound outcome-level harm."
+    ],
+    "does_not_establish": [
+      "a sealed result: the record is AUDIT_FAILED",
+      "why a short 4A/0D exposure is so costly on Pole A: switching cost, timing of the trigger, and attack-heavy composition at those moments are all still open",
+      "that the harm generalizes beyond these two frozen opponents at 4v4",
+      "any claim about PPO, learned coordination, or 6v6"
+    ]
+  },
+
+  "OPEN_DECISIONS_FOR_THE_PI_NONE_AUTHORIZED": {
+    "1_seal_the_record": "Fix run_state.py so the seed_class audit passes the run's own experiment_id (with a test that a Rule-9-compliant run can seal), then re-audit the persisted rows under a NEW label. No new episodes, no new seeds; the deterministic bootstrap seed means the claims should re-derive identically. Needs a go-ahead because it edits shared integrity infrastructure after the verdict is known. The original AUDIT_FAILED record stays as it is.",
+    "2_no_router_retuning": "Consistent with the frozen spec and with the PI's standing direction: the operating point stays frozen. A retune of the threshold or hysteresis now would be exactly the outcome-driven tuning the selector freeze was written to prevent.",
+    "3_where_the_harm_comes_from": "Whether the Pole-A cost comes from the switch itself, from its timing, or from the attack-heavy composition at those moments decides whether the next move is a transition fix or a different coordination mechanism. That would need its own pre-registered diagnostic on a fresh block; nothing further was run here."
+  },
+
+  "SEED_ACCOUNTING": {
+    "20200001-20200064": "SPENT (registry status SPENT, spent_utc 2026-09-19T06:36:03Z, note records AUDIT_FAILED)",
+    "99900601-99900616": "unallocated smoke pair, unused"
+  },
+
+  "claim_boundary": "Two frozen opponents, 4v4, PPO off, n=64 paired seeds, AUDIT_FAILED record. Does not authorize PPO, learned coordination, or 6v6."
+}

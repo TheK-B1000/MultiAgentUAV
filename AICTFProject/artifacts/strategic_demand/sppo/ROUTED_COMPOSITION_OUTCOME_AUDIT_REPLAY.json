@@ -1,0 +1,165 @@
+{
+  "record_id": "ROUTED_COMPOSITION_OUTCOME_AUDIT_REPLAY",
+  "note": "replay only; writes nothing to the original record",
+  "passed": true,
+  "n_gating": 13,
+  "n_failed": 0,
+  "git_sha": "1f4cac7f7153f3b48b5a1efd84ada088284f1830",
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_ALLOCATION'",
+      "spec": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+      "sha256": "e24de92ae55ee2250029780105cfc7a0fed284e21ab1da778be159c84f2325a5",
+      "status": "FROZEN_BEFORE_SEED_ALLOCATION"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "ROUTED_COMPOSITION_OUTCOME_EPISODES.csv (65940 bytes)",
+      "sha256": "eb60164fdd5ca8ca13cdb6fb7adb708e7275a975ab841cbc6e6aa3bbe7a6ce4f"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "384 rows, expected 384",
+      "found": 384,
+      "expected": 384
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "6 cells; 0 with a seed set != frozen block 20200001..20200064 (n=64)",
+      "n_cells": 6,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::blue_win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "blue_win takes values [0, 1]",
+      "field": "blue_win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "binary::draw",
+      "gating": true,
+      "result": "PASS",
+      "detail": "draw takes values [0, 1]",
+      "field": "draw",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "derived::blue_win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "blue_win == blue_win == int(blue_score > red_score): 0 disagreement(s) in 384 rows",
+      "field": "blue_win",
+      "definition": "blue_win == int(blue_score > red_score)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "derived::draw",
+      "gating": true,
+      "result": "PASS",
+      "detail": "draw == draw == int(blue_score == red_score): 0 disagreement(s) in 384 rows",
+      "field": "draw",
+      "definition": "draw == int(blue_score == red_score)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "claim::B_improvement_STATE_minus_FIXED_2A2D_pole_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.671875,
+        "lcb95": 0.515625,
+        "ucb95": 0.8125,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.671875,
+        "lcb95": 0.515625,
+        "ucb95": 0.8125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::A_harm_FIXED_2A2D_minus_STATE_pole_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.171875,
+        "lcb95": 0.046875,
+        "ucb95": 0.296875,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.171875,
+        "lcb95": 0.046875,
+        "ucb95": 0.296875
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::B_improvement_STATE_minus_FIXED_2A2D_pole_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.6562 | second half +0.6875",
+      "first_half": 0.65625,
+      "second_half": 0.6875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::A_harm_FIXED_2A2D_minus_STATE_pole_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.1875 | second half +0.1562",
+      "first_half": 0.1875,
+      "second_half": 0.15625,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to ROUTED_COMPOSITION_OUTCOME_V1 (status SPENT) -- same block, no conflict",
+      "seed_class": "sealed_confirmatory",
+      "experiment_id": "ROUTED_COMPOSITION_OUTCOME_V1"
+    }
+  ]
+}

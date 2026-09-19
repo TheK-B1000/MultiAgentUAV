@@ -1,0 +1,79 @@
+{
+  "record_id": "ROUTED_COMPOSITION_OUTCOME_AUDIT_CORRECTION",
+  "utc": "2026-09-19T00:00:00Z",
+  "status": "COMPLETE",
+  "authorized_by": "PI direction 2026-09-19: preserve the terminal AUDIT_FAILED record exactly, write a separate audit-correction/replay artifact, fix the auditor for future runs so it distinguishes same-experiment ownership from foreign reuse, and add a regression test for that case.",
+
+  "WHAT_IS_AND_IS_NOT_CHANGED_BY_THIS_RECORD": {
+    "ROUTED_COMPOSITION_OUTCOME_RESULT.json": "UNTOUCHED. Still status AUDIT_FAILED. Not edited, not re-run, not overwritten.",
+    "ROUTED_COMPOSITION_OUTCOME_AUDIT.json": "UNTOUCHED. Still records the seed_class failure.",
+    "ROUTED_COMPOSITION_OUTCOME_RUN_STATE.json": "UNTOUCHED. History remains RUNNING -> COMPLETE -> AUDIT_FAILED, terminal.",
+    "ROUTED_COMPOSITION_OUTCOME_EPISODES.csv": "UNTOUCHED. No episode was re-run and no seed was spent by this record.",
+    "the_scientific_verdict": "UNCHANGED. The routed strategy fails the frozen joint gate on its own merits, independent of this bookkeeping defect. See THE_VERDICT_DOES_NOT_DEPEND_ON_THIS_DEFECT below."
+  },
+
+  "THE_DEFECT": {
+    "symptom": "The first run ever to call experiments/run_state.py::seal reached AUDIT_FAILED on a single gating check, seed_class: 'block 20200001..20200064 OVERLAPS 1 registered block(s): ROUTED_COMPOSITION_OUTCOME_V1 20200001..20200064 [sealed_confirmatory/RESERVED]'.",
+    "diagnosis": "The overlapping block WAS the run's own Rule-9 reservation. run_audit called seed_registry.check_block(lo, hi, seed_class) with no experiment_id, so the auditor had no way to know who owned the block and read the run's own record as foreign reuse.",
+    "scope": "Latent and general, not specific to this experiment. Rule 9 requires allocating the block BEFORE spending seeds, so by audit time every compliant run has its own reservation on record. Every Rule-9-abiding run would have failed its own seal the same way. Rules 7 and 9 were mutually unsatisfiable in practice until now.",
+    "why_it_survived_until_now": "Rules 7-9 were infrastructure only; docs/RESEARCH_RUN_STANDARDS.md recorded that no evaluator had yet been migrated onto seal(). The gate was proven by its tests rather than by use, and none of the 14 existing tests registered a block and then audited it under its own name.",
+    "why_pre_launch_checking_did_not_catch_it": "A synthetic dry-run of run_audit was executed before launch and passed, but at that moment the seed block had not yet been allocated, so no overlap existed. The contract stage's C11 called check_block WITH experiment_id and correctly passed. The defect lives only on the path where allocation has happened and the auditor is not told the owner -- a state that first exists after the outcome loop begins.",
+    "severity_note": "This is a false-negative on a bookkeeping check, the safe direction for an integrity gate to fail. It refused to seal a good record; it did not seal a bad one."
+  },
+
+  "THE_FIX": {
+    "file": "experiments/run_state.py",
+    "change_1": "AuditPlan gains an optional field experiment_id: str | None = None -- the registry owner of the seed block.",
+    "change_2": "The seed_class check now calls check_block(min(want), max(want), plan.seed_class, experiment_id=plan.experiment_id) and records the owner in the check data.",
+    "no_change_needed_in_seed_registry": "experiments/seed_registry.py::check_block ALREADY implements the required semantics and already accepted an experiment_id. It auto-allows only an exact same-experiment, same-range match and routes everything else through the normal overlap check. Its source comments document a previously-fixed bug in exactly this area. Nothing in the registry was modified.",
+    "why_this_cannot_become_a_bypass": "Ownership is not a skip. A same-named request for a DIFFERENT range -- wider, shifted or partially overlapping -- falls through to the ordinary overlap check, so a run cannot silently expand its own allocation by re-auditing with a wider block instead of going through allocate(). Omitting experiment_id preserves the old strict behaviour exactly, so existing callers are unaffected.",
+    "semantics_now_enforced": {
+      "same experiment owns the identical block": "ALLOWED",
+      "different experiment owns an overlapping block": "FAIL",
+      "same experiment, different range": "FAIL",
+      "no owner declared, overlapping block": "FAIL"
+    }
+  },
+
+  "REGRESSION_TESTS_ADDED": {
+    "file": "tests/test_run_state_sealing.py",
+    "count": 5,
+    "suite_total_after": "19 passed (14 pre-existing, unchanged)",
+    "isolation": "All five monkeypatch seed_registry.load onto a synthetic registry, so they never read or write artifacts/SEED_REGISTRY.json.",
+    "tests": [
+      "test_audit_accepts_a_block_the_run_itself_registered -- the defect itself; this case used to FAIL",
+      "test_audit_still_rejects_a_block_owned_by_another_experiment -- the guard must keep biting; owner-awareness is not a bypass",
+      "test_audit_rejects_an_unowned_block_that_overlaps -- omitting the owner keeps the old strict behaviour",
+      "test_owner_cannot_silently_widen_its_own_allocation -- a run that spent more seeds than it reserved still fails under its own name",
+      "test_seed_class_check_is_gating_and_records_the_owner -- the check stays gating and the owner is recorded in the audit data"
+    ]
+  },
+
+  "REPLAY_EVIDENCE": {
+    "artifact": "ROUTED_COMPOSITION_OUTCOME_AUDIT_REPLAY.json",
+    "what_was_done": "run_audit was re-executed against the SAME persisted ROUTED_COMPOSITION_OUTCOME_EPISODES.csv with an otherwise identical plan, adding only experiment_id. No episode was re-run. No seed was spent. Nothing was written to the original result, audit or run-state files.",
+    "outcome": "passed = true, 13 of 13 gating checks, 0 failed.",
+    "seed_class_now_reads": "already registered to ROUTED_COMPOSITION_OUTCOME_V1 (status SPENT) -- same block, no conflict",
+    "claims_re_derived_from_the_rows": {
+      "B_improvement_STATE_minus_FIXED_2A2D_pole_B": {"mean": 0.671875, "lcb95": 0.515625, "ucb95": 0.8125, "max_abs_diff_vs_recorded": 0.0},
+      "A_harm_FIXED_2A2D_minus_STATE_pole_A": {"mean": 0.171875, "lcb95": 0.046875, "ucb95": 0.296875, "max_abs_diff_vs_recorded": 0.0}
+    },
+    "what_the_replay_is": "Evidence that the single failure was the bookkeeping defect and nothing else, and that the recorded statistics are exactly re-derivable from the persisted rows.",
+    "what_the_replay_is_NOT": "It is NOT a seal. It did not transition the run state, and AUDIT_FAILED is terminal by design. ROUTED_COMPOSITION_OUTCOME must continue to be quoted as AUDIT_FAILED.",
+    "if_a_sealed_record_is_wanted": "run_state.py's own message prescribes the route: freeze the failed state and re-audit the SAME rows under a NEW label rather than overwrite a recorded outcome. That is a PI decision and was not taken here."
+  },
+
+  "THE_VERDICT_DOES_NOT_DEPEND_ON_THIS_DEFECT": {
+    "statement": "Even with the seed audit passing, the routed strategy fails the frozen scientific joint gate.",
+    "B_gate": "WR_B(STATE) - WR_B(2A2D) = +0.671875, LCB95 +0.515625 > 0 -- PASS, decisively.",
+    "A_gate": "WR_A(2A2D) - WR_A(STATE) = +0.171875, UCB95 +0.296875 > tau_A_harm 0.10 -- FAIL, by a substantial margin.",
+    "label": "B_GAIN_WITH_EXCESS_A_HARM -- the router helps B but breaks the Pole-A guardrail. Not a promotion.",
+    "not_merely_underpowered": "The A harm's LCB95 is +0.046875, so the interval excludes zero: the router is demonstrably harmful to Pole A, not just unproven safe. Both split halves agree in sign and magnitude (+0.1875 / +0.1562).",
+    "no_retuning_follows_from_this": "The operating point stays frozen. Retuning a threshold now, after seeing outcome numbers, is exactly the outcome-driven tuning the selector freezes were written to prevent."
+  },
+
+  "DOCS_TO_UPDATE": {
+    "docs/RESEARCH_RUN_STANDARDS.md": "The 'Remaining open gaps' entry stating that no evaluator has been migrated onto seal() is now out of date: ROUTED_COMPOSITION_OUTCOME is the first, and migrating it immediately exposed a defect that made Rules 7 and 9 mutually unsatisfiable. That is the entry's own stated purpose -- proving the gate by use rather than by tests -- and it is worth recording as such.",
+    "owner": "docs/RESEARCH_RUN_STANDARDS.md owns this topic; this record only points at it."
+  }
+}

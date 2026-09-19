@@ -1,0 +1,374 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_FRONTIER_DIAGNOSTIC",
+  "purpose": "DESCRIPTIVE ONLY; changes no frozen decision and may not be used to pick an operating point.",
+  "eligibility_statistic": "episode-level bootstrap UCB95 of Pole-A false-positive rate",
+  "frozen_cap_unaffected": 0.1,
+  "n_grid_rows": 9380,
+  "frontier_UCB95_cap_vs_max_B_TP": [
+    {
+      "UCB95_cap": 0.0,
+      "n_eligible": 484,
+      "max_B_TP": 0.34661458333333334,
+      "B_fraction_episodes_dominant_4A0D": 0.0625,
+      "point_A_FP_of_that_config": 0.0,
+      "config": {
+        "window": 20,
+        "hysteresis": 0.2,
+        "dwell": 40,
+        "threshold": -1.8
+      }
+    },
+    {
+      "UCB95_cap": 0.02,
+      "n_eligible": 771,
+      "max_B_TP": 0.42994791666666665,
+      "B_fraction_episodes_dominant_4A0D": 0.3125,
+      "point_A_FP_of_that_config": 0.01171875,
+      "config": {
+        "window": 20,
+        "hysteresis": 0.2,
+        "dwell": 4,
+        "threshold": -1.45
+      }
+    },
+    {
+      "UCB95_cap": 0.04,
+      "n_eligible": 1384,
+      "max_B_TP": 0.54375,
+      "B_fraction_episodes_dominant_4A0D": 0.6875,
+      "point_A_FP_of_that_config": 0.019270833333333334,
+      "config": {
+        "window": 40,
+        "hysteresis": 0.05,
+        "dwell": 4,
+        "threshold": -1.175
+      }
+    },
+    {
+      "UCB95_cap": 0.06,
+      "n_eligible": 2107,
+      "max_B_TP": 0.66171875,
+      "B_fraction_episodes_dominant_4A0D": 0.8125,
+      "point_A_FP_of_that_config": 0.034895833333333334,
+      "config": {
+        "window": 40,
+        "hysteresis": 0.15,
+        "dwell": 10,
+        "threshold": -0.95
+      }
+    },
+    {
+      "UCB95_cap": 0.08,
+      "n_eligible": 2465,
+      "max_B_TP": 0.6830729166666667,
+      "B_fraction_episodes_dominant_4A0D": 0.875,
+      "point_A_FP_of_that_config": 0.054427083333333334,
+      "config": {
+        "window": 40,
+        "hysteresis": 0.0,
+        "dwell": 4,
+        "threshold": -0.925
+      }
+    },
+    {
+      "UCB95_cap": 0.1,
+      "n_eligible": 3137,
+      "max_B_TP": 0.7114583333333333,
+      "B_fraction_episodes_dominant_4A0D": 0.875,
+      "point_A_FP_of_that_config": 0.06510416666666667,
+      "config": {
+        "window": 40,
+        "hysteresis": 0.2,
+        "dwell": 10,
+        "threshold": -0.8333333333333334
+      }
+    },
+    {
+      "UCB95_cap": 0.12,
+      "n_eligible": 3508,
+      "max_B_TP": 0.7453125,
+      "B_fraction_episodes_dominant_4A0D": 0.8125,
+      "point_A_FP_of_that_config": 0.07578125,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 4,
+        "threshold": -0.8131461864406782
+      }
+    },
+    {
+      "UCB95_cap": 0.14,
+      "n_eligible": 3739,
+      "max_B_TP": 0.7713541666666667,
+      "B_fraction_episodes_dominant_4A0D": 0.875,
+      "point_A_FP_of_that_config": 0.08880208333333334,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 4,
+        "threshold": -0.75
+      }
+    },
+    {
+      "UCB95_cap": 0.16,
+      "n_eligible": 3918,
+      "max_B_TP": 0.8111979166666666,
+      "B_fraction_episodes_dominant_4A0D": 0.9375,
+      "point_A_FP_of_that_config": 0.10755208333333334,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 10,
+        "threshold": -0.6666666666666666
+      }
+    },
+    {
+      "UCB95_cap": 0.18,
+      "n_eligible": 4123,
+      "max_B_TP": 0.8388020833333333,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.1265625,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.05,
+        "dwell": 10,
+        "threshold": -0.6111111111111112
+      }
+    },
+    {
+      "UCB95_cap": 0.2,
+      "n_eligible": 4329,
+      "max_B_TP": 0.8583333333333333,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.14166666666666666,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 4,
+        "threshold": -0.5555555555555556
+      }
+    },
+    {
+      "UCB95_cap": 0.22,
+      "n_eligible": 4500,
+      "max_B_TP": 0.87265625,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.16223958333333333,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.05,
+        "dwell": 20,
+        "threshold": -0.5555555555555556
+      }
+    },
+    {
+      "UCB95_cap": 0.24,
+      "n_eligible": 4632,
+      "max_B_TP": 0.88203125,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.1765625,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.05,
+        "dwell": 20,
+        "threshold": -0.5166666666666667
+      }
+    },
+    {
+      "UCB95_cap": 0.26,
+      "n_eligible": 4758,
+      "max_B_TP": 0.8932291666666666,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.19739583333333333,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.1,
+        "dwell": 40,
+        "threshold": -0.5555555555555556
+      }
+    },
+    {
+      "UCB95_cap": 0.28,
+      "n_eligible": 4873,
+      "max_B_TP": 0.8947916666666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.22369791666666666,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.1,
+        "dwell": 40,
+        "threshold": -0.5333333333333333
+      }
+    },
+    {
+      "UCB95_cap": 0.3,
+      "n_eligible": 4989,
+      "max_B_TP": 0.8955729166666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.23020833333333332,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.1,
+        "dwell": 40,
+        "threshold": -0.5
+      }
+    },
+    {
+      "UCB95_cap": 0.32,
+      "n_eligible": 5066,
+      "max_B_TP": 0.8979166666666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.23880208333333333,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 20,
+        "threshold": -0.45454545454545453
+      }
+    },
+    {
+      "UCB95_cap": 0.34,
+      "n_eligible": 5147,
+      "max_B_TP": 0.8979166666666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.23880208333333333,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 20,
+        "threshold": -0.45454545454545453
+      }
+    },
+    {
+      "UCB95_cap": 0.36,
+      "n_eligible": 5257,
+      "max_B_TP": 0.9041666666666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.2703125,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 20,
+        "threshold": -0.43956043956043955
+      }
+    },
+    {
+      "UCB95_cap": 0.38,
+      "n_eligible": 5363,
+      "max_B_TP": 0.9065104166666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.296875,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 20,
+        "threshold": -0.4
+      }
+    },
+    {
+      "UCB95_cap": 0.4,
+      "n_eligible": 5511,
+      "max_B_TP": 0.9125,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.31171875,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 20,
+        "threshold": -0.36090000000000044
+      }
+    },
+    {
+      "UCB95_cap": 0.42,
+      "n_eligible": 5618,
+      "max_B_TP": 0.9125,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.31171875,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 20,
+        "threshold": -0.36090000000000044
+      }
+    },
+    {
+      "UCB95_cap": 0.44,
+      "n_eligible": 5734,
+      "max_B_TP": 0.91640625,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.346875,
+      "config": {
+        "window": 80,
+        "hysteresis": 0.15,
+        "dwell": 40,
+        "threshold": -0.2875
+      }
+    },
+    {
+      "UCB95_cap": 0.46,
+      "n_eligible": 5855,
+      "max_B_TP": 0.9171875,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.36302083333333335,
+      "config": {
+        "window": 80,
+        "hysteresis": 0.15,
+        "dwell": 40,
+        "threshold": -0.2625
+      }
+    },
+    {
+      "UCB95_cap": 0.48,
+      "n_eligible": 5946,
+      "max_B_TP": 0.9192708333333334,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.36015625,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.0,
+        "dwell": 20,
+        "threshold": -0.31666666666666665
+      }
+    },
+    {
+      "UCB95_cap": 0.5,
+      "n_eligible": 6055,
+      "max_B_TP": 0.9268229166666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.38515625,
+      "config": {
+        "window": 120,
+        "hysteresis": 0.05,
+        "dwell": 20,
+        "threshold": -0.2538040600176515
+      }
+    },
+    {
+      "UCB95_cap": 0.52,
+      "n_eligible": 6182,
+      "max_B_TP": 0.9385416666666667,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.39114583333333336,
+      "config": {
+        "window": 80,
+        "hysteresis": 0.2,
+        "dwell": 40,
+        "threshold": -0.22580645161290322
+      }
+    },
+    {
+      "UCB95_cap": 0.54,
+      "n_eligible": 6269,
+      "max_B_TP": 0.9390625,
+      "B_fraction_episodes_dominant_4A0D": 1.0,
+      "point_A_FP_of_that_config": 0.42109375,
+      "config": {
+        "window": 60,
+        "hysteresis": 0.15,
+        "dwell": 40,
+        "threshold": -0.15
+      }
+    }
+  ],
+  "comparable_point_estimate_record": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_FRONTIER_DIAGNOSTIC.json"
+}
