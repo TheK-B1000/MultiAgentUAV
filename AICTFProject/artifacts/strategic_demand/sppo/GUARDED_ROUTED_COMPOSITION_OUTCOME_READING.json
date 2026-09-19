@@ -1,0 +1,90 @@
+{
+  "record_id": "GUARDED_ROUTED_COMPOSITION_OUTCOME_READING",
+  "utc": "2026-09-19T00:00:00Z",
+  "reads": "GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json",
+  "under": "GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json",
+
+  "RECORD_STATUS": {
+    "run_state": "SEALED",
+    "state_history": ["RUNNING", "COMPLETE", "AUDITED", "SEALED"],
+    "audit": "13 of 13 gating checks passed, including seed_class under the owner-aware fix. This is the first SEALED record in the repository and the first to pass through run_state.seal() end to end.",
+    "DECISION": "GUARDED_ROUTED_COMPOSITION_CONFIRMED",
+    "registry": "GUARDED_ROUTED_COMPOSITION_OUTCOME_V1 is SPENT",
+    "guard_invariant": "0 violations. The earliest first departure was tick 39 on both poles, so the guard held on every guarded episode."
+  },
+
+  "PRIMARY_GATES_PREREGISTERED_UNCHANGED": {
+    "seed_block": "20300001-20300128, fresh sealed_confirmatory, n=128 paired seeds, 768 episodes, PPO off",
+    "B_gate": {
+      "quantity": "WR_B(STATE_GUARDED) - WR_B(FIXED_2A2D)", "mean": 0.609375, "lcb95": 0.523438, "ucb95": 0.695312,
+      "required": "LCB95 > 0", "result": "PASS", "split_half": "first half +0.6250, second half +0.5938",
+      "discordant_pairs": "79 seeds won by the guarded router and not by 2A/2D, 1 the other way (net +78 of 128)"
+    },
+    "A_gate": {
+      "quantity": "WR_A(FIXED_2A2D) - WR_A(STATE_GUARDED)", "mean": 0.015625, "lcb95": -0.015625, "ucb95": 0.046875,
+      "required": "UCB95 <= 0.10", "result": "PASS", "split_half": "first half +0.0312, second half +0.0000",
+      "discordant_pairs": "3 seeds where 2A/2D won and the guarded router did not, 1 the other way (net 2 of 128)",
+      "note_on_the_known_gate_property": "Unlike sizing, the interval is not degenerate here: there are 4 discordant pairs, so the bootstrap has something to resample. The bound is 0.047 against a tolerance of 0.10."
+    },
+    "win_rates": {
+      "A": {"FIXED_2A2D": 0.742188, "STATE_GUARDED": 0.726562, "FIXED_4A0D": 0.546875},
+      "B": {"FIXED_2A2D": 0.148438, "STATE_GUARDED": 0.757812, "FIXED_4A0D": 0.6875}
+    },
+    "score_margin_blue_minus_red": {
+      "A": {"FIXED_2A2D": 1.4141, "STATE_GUARDED": 1.375, "FIXED_4A0D": 0.6641},
+      "B": {"FIXED_2A2D": -0.6641, "STATE_GUARDED": 1.9062, "FIXED_4A0D": 2.25}
+    }
+  },
+
+  "AGREEMENT_WITH_SIZING_STATED_PLAINLY": {
+    "sizing_was_optimistic_by_an_unknown_amount": "Stated in the freeze before any seed was spent.",
+    "comparison_not_a_test": {"A_harm": {"sizing": 0.0, "confirmatory": 0.015625}, "B_gain": {"sizing": 0.625, "confirmatory": 0.609375}},
+    "reading": "The confirmatory run agrees closely with the sizing on both quantities. On these two metrics the optimism turned out to be small. The run was free to disagree and did not.",
+    "one_thing_that_did_change_and_did_not_matter": "The Pole-A trigger rate on fresh seeds was 28 of 128 episodes (22%) against 7 of 64 (11%) in sizing, which is the 'trigger rate doubles' case from the sizing reading's planning table. The pessimistic version of that scenario projected a 33% chance of passing the A gate at n=128. Harm stayed small anyway."
+  },
+
+  "DESCRIPTIVE_NOT_GATING": {
+    "router_telemetry_STATE_GUARDED": {
+      "A": {"tick_fraction_in_4A0D": 0.0225, "episodes_with_any_trigger": "28/128", "switches_per_episode": 0.4219,
+            "first_onset_mean": 124.29, "first_onset_min": 39,
+            "episodes_with_a_blocked_departure": 77, "blocked_then_triggered_later": 19, "blocked_and_never_triggered": 58},
+      "B": {"tick_fraction_in_4A0D": 0.7143, "episodes_with_any_trigger": "125/128", "switches_per_episode": 1.1641,
+            "first_onset_mean": 51.52, "first_onset_min": 39,
+            "episodes_with_a_blocked_departure": 88, "blocked_then_triggered_later": 85, "blocked_and_never_triggered": 3}
+    },
+    "blocked_departure_refire_rate": "Pole A 19 of 77 (24.7%) against Pole B 85 of 88 (96.6%). In sizing the A rate was 3 of 35 (8.6%). The A re-fire rate is higher on fresh seeds; the discrimination between poles still holds by a wide margin.",
+    "capture_against_FIXED_4A0D": {
+      "B_capture": {"numerator": {"mean": 0.6094, "ci95": [0.5234, 0.6953]}, "denominator": {"mean": 0.5391, "ci95": [0.4375, 0.6328]}, "ratio_of_means": 1.13,
+                    "reading": "Roughly all of the fixed-4A/0D Pole-B benefit at the point estimate. The numerator and denominator intervals overlap, so this does not show the router exceeds fixed 4A/0D on fresh seeds."},
+      "A_damage_avoided": {"numerator": {"mean": 0.1797, "ci95": [0.0547, 0.3047]}, "denominator": {"mean": 0.1953, "ci95": [0.0781, 0.3125]}, "ratio_of_means": 0.92,
+                           "reading": "About 92% of the fixed-4A/0D Pole-A damage was avoided at the point estimate; imprecise."}
+    },
+    "score_margin_on_B": "The guarded router's B margin (+1.91) is below fixed 4A/0D (+2.25) even though its B win rate is higher (0.758 against 0.688). Descriptive only."
+  },
+
+  "POST_HOC_OBSERVATION_LABELLED_AS_SUCH": {
+    "late_trigger_harm_on_A": "28 Pole-A episodes triggered, all after the window filled. Among them 3 harm flips and 1 gain flip, so about 11% harm flips, against about 36% (14 of 39) among the triggered episodes of the unguarded run, where most first triggers were at tick 0.",
+    "reading": "Consistent with the localized mechanism, that harm came from the cold-start decision and not from 4A/0D exposure as such. Small counts, noticed after the result, not a separate test."
+  },
+
+  "WHAT_THIS_ESTABLISHES": [
+    "On fresh, pre-registered, sealed seeds at n=128 with PPO off, the routed controller with the full-window startup guard improves Pole-B win rate by +0.609 (LCB95 +0.523) and keeps the Pole-A harm inside the frozen tolerance (+0.016, UCB95 +0.047 against 0.10).",
+    "The tick-0 cold-start defect was sufficient to explain the excess Pole-A harm of the unguarded router: removing it, with no change to the router's operating point, removed the excess harm.",
+    "The guard is regime-blind by construction and blocked more first departures on Pole B (88 episodes) than on Pole A (77), so the result does not rest on a hidden pole detector."
+  ],
+
+  "WHAT_THIS_DOES_NOT_ESTABLISH": [
+    "That the controller switches safely on Pole A. The guarded router acts on Pole A only 2.2% of ticks and never on 100 of 128 episodes, so the guardrail is preserved largely by inactivity. That is what the frozen gate asks for; it is not evidence about safe switching.",
+    "Any generalization beyond these two frozen opponents at 4v4. The statistic D_t was derived from the documented behaviour of exactly these two poles, so regime-conditioned composition is demonstrated for two regimes, both of which shaped the selector.",
+    "Anything about PPO, learned coordination or 6v6.",
+    "That the unguarded router's earlier verdict changes. ROUTED_COMPOSITION_OUTCOME_RESULT.json remains AUDIT_FAILED with B_GAIN_WITH_EXCESS_A_HARM. This record concerns the guarded router only."
+  ],
+
+  "OPEN_AND_NOT_AUTHORIZED_BY_THIS_RECORD": {
+    "biggest_external_validity_gap": "Only two opponent regimes, both of which informed the selector. Whether the same router and guard transfer to a held-out opponent is untested.",
+    "not_started": ["held-out opponent regimes", "learned coordination or PPO", "6v6", "any retuning of the router or guard"],
+    "note": "Which of these is next is a PI decision."
+  },
+
+  "claim_boundary": "Two frozen opponents, 4v4, PPO off, n=128 paired seeds, SEALED record. Does not authorize PPO, learned coordination, or 6v6, and does not generalize beyond these poles."
+}
