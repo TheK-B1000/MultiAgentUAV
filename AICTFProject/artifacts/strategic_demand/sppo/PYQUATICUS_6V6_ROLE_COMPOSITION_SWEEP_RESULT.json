@@ -1,0 +1,353 @@
+{
+  "record_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_RESULT",
+  "implements": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+  "utc": "2026-09-19T15:08:47Z",
+  "team_size": 6,
+  "poles": [
+    "A",
+    "B"
+  ],
+  "compositions": [
+    "6A_0D",
+    "5A_1D",
+    "4A_2D",
+    "3A_3D",
+    "2A_4D",
+    "1A_5D",
+    "0A_6D"
+  ],
+  "baseline": "3A_3D",
+  "seed_block": {
+    "base": 20500001,
+    "last": 20500064,
+    "n": 64,
+    "class": "exploratory"
+  },
+  "contracts": {
+    "path": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_CONTRACT_RESULT.json",
+    "decision": "CONTRACTS_PASS",
+    "n_gating": 9,
+    "n_failed": 0
+  },
+  "PRIMARY_DELIVERABLE_per_pole_argmax": {
+    "A": {
+      "argmax_composition": "4A_2D",
+      "argmax_win_rate": 0.84375,
+      "tied_at_argmax": null,
+      "runner_up": "5A_1D",
+      "runner_up_win_rate": 0.828125,
+      "argmax_minus_runner_up": {
+        "mean": 0.015625,
+        "lcb95": -0.109375,
+        "ucb95": 0.140625,
+        "n": 64
+      },
+      "argmax_minus_baseline": {
+        "mean": 0.09375,
+        "lcb95": -0.046875,
+        "ucb95": 0.234375,
+        "n": 64
+      },
+      "ranking": [
+        {
+          "composition": "4A_2D",
+          "win_rate": 0.84375
+        },
+        {
+          "composition": "5A_1D",
+          "win_rate": 0.828125
+        },
+        {
+          "composition": "6A_0D",
+          "win_rate": 0.75
+        },
+        {
+          "composition": "3A_3D",
+          "win_rate": 0.75
+        },
+        {
+          "composition": "2A_4D",
+          "win_rate": 0.59375
+        },
+        {
+          "composition": "1A_5D",
+          "win_rate": 0.234375
+        },
+        {
+          "composition": "0A_6D",
+          "win_rate": 0.0
+        }
+      ]
+    },
+    "B": {
+      "argmax_composition": "6A_0D",
+      "argmax_win_rate": 0.890625,
+      "tied_at_argmax": null,
+      "runner_up": "5A_1D",
+      "runner_up_win_rate": 0.8125,
+      "argmax_minus_runner_up": {
+        "mean": 0.078125,
+        "lcb95": -0.03125,
+        "ucb95": 0.203125,
+        "n": 64
+      },
+      "argmax_minus_baseline": {
+        "mean": 0.796875,
+        "lcb95": 0.6875,
+        "ucb95": 0.890625,
+        "n": 64
+      },
+      "ranking": [
+        {
+          "composition": "6A_0D",
+          "win_rate": 0.890625
+        },
+        {
+          "composition": "5A_1D",
+          "win_rate": 0.8125
+        },
+        {
+          "composition": "4A_2D",
+          "win_rate": 0.359375
+        },
+        {
+          "composition": "3A_3D",
+          "win_rate": 0.09375
+        },
+        {
+          "composition": "2A_4D",
+          "win_rate": 0.015625
+        },
+        {
+          "composition": "1A_5D",
+          "win_rate": 0.0
+        },
+        {
+          "composition": "0A_6D",
+          "win_rate": 0.0
+        }
+      ]
+    }
+  },
+  "win_rates": {
+    "A": {
+      "6A_0D": 0.75,
+      "5A_1D": 0.828125,
+      "4A_2D": 0.84375,
+      "3A_3D": 0.75,
+      "2A_4D": 0.59375,
+      "1A_5D": 0.234375,
+      "0A_6D": 0.0
+    },
+    "B": {
+      "6A_0D": 0.890625,
+      "5A_1D": 0.8125,
+      "4A_2D": 0.359375,
+      "3A_3D": 0.09375,
+      "2A_4D": 0.015625,
+      "1A_5D": 0.0,
+      "0A_6D": 0.0
+    }
+  },
+  "score_margin_blue_minus_red": {
+    "A": {
+      "6A_0D": 0.8125,
+      "5A_1D": 2.1094,
+      "4A_2D": 1.8906,
+      "3A_3D": 1.6719,
+      "2A_4D": 0.8125,
+      "1A_5D": -0.4375,
+      "0A_6D": -2.7031
+    },
+    "B": {
+      "6A_0D": 2.375,
+      "5A_1D": 1.7969,
+      "4A_2D": 0.4219,
+      "3A_3D": 0.0156,
+      "2A_4D": -0.5156,
+      "1A_5D": -1.4688,
+      "0A_6D": -3.3906
+    }
+  },
+  "composition_contrasts_vs_baseline": {
+    "A": {
+      "6A_0D": {
+        "mean": 0.0,
+        "lcb95": -0.140625,
+        "ucb95": 0.140625,
+        "n": 64
+      },
+      "5A_1D": {
+        "mean": 0.078125,
+        "lcb95": -0.078125,
+        "ucb95": 0.234375,
+        "n": 64
+      },
+      "4A_2D": {
+        "mean": 0.09375,
+        "lcb95": -0.046875,
+        "ucb95": 0.234375,
+        "n": 64
+      },
+      "2A_4D": {
+        "mean": -0.15625,
+        "lcb95": -0.328125,
+        "ucb95": 0.015625,
+        "n": 64
+      },
+      "1A_5D": {
+        "mean": -0.515625,
+        "lcb95": -0.65625,
+        "ucb95": -0.375,
+        "n": 64
+      },
+      "0A_6D": {
+        "mean": -0.75,
+        "lcb95": -0.859375,
+        "ucb95": -0.640625,
+        "n": 64
+      }
+    },
+    "B": {
+      "6A_0D": {
+        "mean": 0.796875,
+        "lcb95": 0.6875,
+        "ucb95": 0.890625,
+        "n": 64
+      },
+      "5A_1D": {
+        "mean": 0.71875,
+        "lcb95": 0.59375,
+        "ucb95": 0.84375,
+        "n": 64
+      },
+      "4A_2D": {
+        "mean": 0.265625,
+        "lcb95": 0.125,
+        "ucb95": 0.40625,
+        "n": 64
+      },
+      "2A_4D": {
+        "mean": -0.078125,
+        "lcb95": -0.15625,
+        "ucb95": 0.0,
+        "n": 64
+      },
+      "1A_5D": {
+        "mean": -0.09375,
+        "lcb95": -0.171875,
+        "ucb95": -0.03125,
+        "n": 64
+      },
+      "0A_6D": {
+        "mean": -0.09375,
+        "lcb95": -0.171875,
+        "ucb95": -0.03125,
+        "n": 64
+      }
+    }
+  },
+  "regime_B_minus_A_contrasts": {
+    "6A_0D": {
+      "mean": 0.140625,
+      "lcb95": 0.0,
+      "ucb95": 0.28125,
+      "n": 64
+    },
+    "5A_1D": {
+      "mean": -0.015625,
+      "lcb95": -0.15625,
+      "ucb95": 0.125,
+      "n": 64
+    },
+    "4A_2D": {
+      "mean": -0.484375,
+      "lcb95": -0.625,
+      "ucb95": -0.328125,
+      "n": 64
+    },
+    "3A_3D": {
+      "mean": -0.65625,
+      "lcb95": -0.78125,
+      "ucb95": -0.53125,
+      "n": 64
+    },
+    "2A_4D": {
+      "mean": -0.578125,
+      "lcb95": -0.703125,
+      "ucb95": -0.453125,
+      "n": 64
+    },
+    "1A_5D": {
+      "mean": -0.234375,
+      "lcb95": -0.34375,
+      "ucb95": -0.140625,
+      "n": 64
+    },
+    "0A_6D": {
+      "mean": 0.0,
+      "lcb95": 0.0,
+      "ucb95": 0.0,
+      "n": 64
+    }
+  },
+  "regime_gate_details": [
+    {
+      "composition": "6A_0D",
+      "A_excludes_zero": false,
+      "B_excludes_zero": true,
+      "opposite_sign": true
+    },
+    {
+      "composition": "5A_1D",
+      "A_excludes_zero": false,
+      "B_excludes_zero": true,
+      "opposite_sign": false
+    },
+    {
+      "composition": "4A_2D",
+      "A_excludes_zero": false,
+      "B_excludes_zero": true,
+      "opposite_sign": false
+    },
+    {
+      "composition": "2A_4D",
+      "A_excludes_zero": false,
+      "B_excludes_zero": false,
+      "opposite_sign": false
+    },
+    {
+      "composition": "1A_5D",
+      "A_excludes_zero": true,
+      "B_excludes_zero": true,
+      "opposite_sign": false
+    },
+    {
+      "composition": "0A_6D",
+      "A_excludes_zero": true,
+      "B_excludes_zero": true,
+      "opposite_sign": false
+    }
+  ],
+  "decision_label": "COMPOSITION_DESCRIPTIVE_SIGNAL",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "procedure": "paired percentile bootstrap over seeds"
+  },
+  "FROZEN_CLAIM_BOUNDARY_POLE_B": "The 6v6 composition sweep uses the certified 6v6 pole pair. Pole B is canonical SDS_PARENT_OP7, not the 4v4 B3-3 SDS2_B3_LOCKDEF10_2V1 construction. Therefore cross-scale differences cannot be attributed solely to team size. If 6v6 prefers a different composition than 4v4, that could be team size, opponent construction, or their interaction.",
+  "multiplicity": "7 compositions x 2 poles, unadjusted intervals, exploratory. A nominal interval exclusion does not authorize a router, a confirmation or PPO.",
+  "claim_boundary": "Fixed scripted role composition at 6v6 under the certified poles. Does not establish learned roles, authorize a 6v6 router or PPO, or transfer the 4v4 router's confirmed result to 6v6.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-19T15:08:47Z",
+  "git_sha": "67b63fe3d8efff378f08816d37647552f45f545d",
+  "AUDIT": {
+    "path": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_AUDIT.json",
+    "passed": true,
+    "n_checks": 35,
+    "n_gating": 23,
+    "failed_checks": [],
+    "rows_sha256": "7e77aff41eabfab58d743f65d806047f7c33b9ee16193bc2f6acc623a2d651ff"
+  }
+}

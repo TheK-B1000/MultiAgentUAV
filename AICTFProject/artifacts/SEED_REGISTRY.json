@@ -1148,13 +1148,20 @@
       "lo": 20500001,
       "hi": 20500064,
       "n": 64,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-19T12:04:58Z"
+      "allocated_utc": "2026-09-19T12:04:58Z",
+      "spent_utc": "2026-09-19T15:08:47Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T15:08:47Z",
+          "note": "sealed SEALED; COMPOSITION_DESCRIPTIVE_SIGNAL"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-19T12:04:58Z",
+  "updated_utc": "2026-09-19T15:08:47Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

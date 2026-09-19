@@ -16,7 +16,39 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-19 — **GUARDED ROUTED COMPOSITION CONFIRMED (SEALED, n=128, fresh seeds).**
+> **Last updated:** 2026-09-19 — **6v6 COMPOSITION SWEEP SEALED (exploratory): B CLEARLY ATTACK-HEAVY, A A TIED PLATEAU; A FIXED ATTACK-HEAVY COMPOSITION IS TIED WITH THE BEST ON BOTH POLES.**
+> The frozen 6v6 sweep
+> ([`PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json);
+> 7 compositions x 2 certified 6v6 poles, block `20500001-20500064`, 896
+> episodes, PPO off) is **`SEALED`** (23/23 audit checks, 9/9 contracts incl.
+> 480 live 4v4 ticks of adapter parity at n=4) with label
+> **`COMPOSITION_DESCRIPTIVE_SIGNAL`**. Result:
+> [`..._SWEEP_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_RESULT.json),
+> reading: [`..._SWEEP_READING.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_READING.json).
+>
+> **Per-pole argmax (the frozen deliverable):** A `4A_2D` (0.844), B `6A_0D`
+> (0.891). **Pole B** has a clear, monotone attack-heavy landscape: `6A_0D 0.891`
+> and `5A_1D 0.812` (tied) far above `4A_2D 0.359` and the balanced baseline
+> `3A_3D 0.094`; attack-heavy beats the baseline by `+0.80 / +0.72`, intervals
+> clear of zero, stable across seed halves. **Pole A** has no distinguishable
+> winner: `4A_2D` is tied with `5A_1D`, `6A_0D` and `3A_3D` (indistinguishable
+> set 3 of 6), a plateau across 3-6 attackers (0-3 defenders) that falls
+> off at 4 defenders (`2A_4D` 0.594) and collapses at `1A_5D` / `0A_6D`; Pole-A
+> contrasts flip sign between seed halves. B is more
+> attack-heavy than A (0 vs 2 defenders), the 4v4 direction.
+>
+> **Bearing on the predeclared branch:** the compositions statistically as good
+> as each pole's best, intersected, are **`6A_0D` and `5A_1D`**, so a single fixed
+> attack-heavy composition is tied with the per-pole best on both poles. The
+> 4v4 router exists because all-attack hurt Pole A; at 6v6 that trade-off is not
+> visible. By the letter of the branch a clear B-heavy pattern licenses a routed
+> freeze, but a router's added value over a fixed `5A_1D` is undemonstrated and
+> small on point estimates (upward-biased). **Which reading governs is a PI
+> decision; nothing further is started.** Cross-scale statements carry the
+> frozen clause: 6v6 Pole B is canonical `SDS_PARENT_OP7`, not the 4v4 B3-3
+> construction, so differences cannot be attributed to team size alone.
+>
+> Prior — 2026-09-19 — **GUARDED ROUTED COMPOSITION CONFIRMED (SEALED, n=128, fresh seeds).**
 > The pre-registered confirmatory run of the full-window startup guard
 > (`GUARDED_ROUTED_COMPOSITION_OUTCOME_V1`, block `20300001-20300128`, 768
 > episodes, PPO off, spec

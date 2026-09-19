@@ -1,6 +1,6 @@
 {
   "label": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP",
-  "state": "RUNNING",
+  "state": "SEALED",
   "history": [
     {
       "state": "RUNNING",
@@ -11,13 +11,33 @@
       "git_sha": "14911db2f4ea814e34294cf50d17634fc28ed886",
       "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
       "n_episodes": 896
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-19T15:08:47Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-19T15:08:47Z",
+      "audit": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_AUDIT.json",
+      "n_checks": 35
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-19T15:08:47Z",
+      "result": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_RESULT.json"
     }
   ],
-  "updated_utc": "2026-09-19T12:04:58Z",
+  "updated_utc": "2026-09-19T15:08:47Z",
   "pid": 37092,
   "host": "DESKTOP-9MUFES4",
   "python": "3.12.4",
   "git_sha": "14911db2f4ea814e34294cf50d17634fc28ed886",
   "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
-  "n_episodes": 896
+  "n_episodes": 896,
+  "reason": "all episodes written",
+  "audit": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_AUDIT.json",
+  "n_checks": 35,
+  "result": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_RESULT.json"
 }

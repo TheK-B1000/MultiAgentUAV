@@ -1,0 +1,118 @@
+{
+  "record_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_READING",
+  "utc": "2026-09-19T00:00:00Z",
+  "reads": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_RESULT.json",
+  "under": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+  "supplementary_contrasts_declared_in": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_ANALYSIS_ADDENDUM.json (written before any outcome was read)",
+
+  "RECORD_STATUS": {
+    "run_state": "SEALED", "state_history": ["RUNNING", "COMPLETE", "AUDITED", "SEALED"],
+    "audit": "23 of 23 gating checks passed, seed_class passing under the owner-aware fix",
+    "sealed_label": "COMPOSITION_DESCRIPTIVE_SIGNAL",
+    "seed_block": "20500001-20500064, exploratory, n=64 paired seeds, 896 episodes, PPO off, SPENT",
+    "classification": "EXPLORATORY. Nothing here is confirmatory."
+  },
+
+  "FROZEN_CLAIM_BOUNDARY_QUOTE_WITH_ANY_CROSS_SCALE_SENTENCE": "The 6v6 composition sweep uses the certified 6v6 pole pair. Pole B is canonical SDS_PARENT_OP7, not the 4v4 B3-3 SDS2_B3_LOCKDEF10_2V1 construction. Therefore cross-scale differences cannot be attributed solely to team size.",
+
+  "PROVENANCE_NOTE": {
+    "what_happened": "A commit by the PI's Cursor session (67b63fe3, 08:39) landed while the sweep was live. It wired tqdm_iter into four 4v4 scripts and the 6v6 executor and committed the 6v6 package, and its message says 'for next runs'.",
+    "verified_cosmetic": "In the four 4v4 scripts the diff touches only progress-bar loop drivers and removes per-episode print lines; _make_env, _action_for_roles, _telemetry_for_tick and run_episode are unchanged, so the C2b parity anchor still holds. In the 6v6 executor the main loop became a flattened pending list in the same pole-composition-seed order with the same skip-if-recorded logic and the same run_episode call.",
+    "what_ran": "The live process had already loaded the pre-tqdm executor, which was uncommitted when the run started (RunState git_sha 14911db2). The sealed record was written at 67b63fe3. The code that ran is semantically identical to the committed executor and differs only by the progress wrapper.",
+    "no_action_needed": "Recorded for provenance. Nothing was reverted."
+  },
+
+  "LAYER_1_ARGMAX_PER_POLE": {
+    "pole_A": {"argmax": "4A_2D", "win_rate": 0.84375, "defenders": 2},
+    "pole_B": {"argmax": "6A_0D", "win_rate": 0.890625, "defenders": 0},
+    "full_ranking": {
+      "A": {"4A_2D": 0.84375, "5A_1D": 0.828125, "6A_0D": 0.75, "3A_3D": 0.75, "2A_4D": 0.59375, "1A_5D": 0.234375, "0A_6D": 0.0},
+      "B": {"6A_0D": 0.890625, "5A_1D": 0.8125, "4A_2D": 0.359375, "3A_3D": 0.09375, "2A_4D": 0.015625, "1A_5D": 0.0, "0A_6D": 0.0}
+    },
+    "argmax_upward_bias": "An argmax over 7 noisy cells is partly the luckiest cell. Neither argmax win rate is quoted without its runner-up contrast and indistinguishable set below."
+  },
+
+  "LAYER_2_ARGMAX_VS_RUNNER_UP_AND_THE_INDISTINGUISHABLE_SETS": {
+    "pole_A": {
+      "argmax_minus_runner_up_5A_1D": {"mean": 0.0156, "ci95": [-0.1094, 0.1406], "reading": "INCLUDES ZERO: effectively tied"},
+      "S1_adjacent": {"vs_5A_1D": {"mean": 0.0156, "ci95": [-0.1094, 0.1406]}, "vs_3A_3D": {"mean": 0.0938, "ci95": [-0.0469, 0.2344]}},
+      "S2_third_ranked": "6A_0D and 3A_3D tie at 0.75 for third; both shown, both +0.0938 [-0.0469, +0.2344], both include zero",
+      "S3_indistinguishable_from_argmax": ["6A_0D", "5A_1D", "3A_3D"],
+      "S3_size": "3 of 6",
+      "reading": "Pole A has NO distinguishable winner. 4A_2D is tied with 5A_1D, 6A_0D and 3A_3D. Pole A is a plateau from 3 to 6 attackers (0.75 to 0.84) that falls off at 2A_4D (0.594) and collapses at 1A_5D and 0A_6D."
+    },
+    "pole_B": {
+      "argmax_minus_runner_up_5A_1D": {"mean": 0.0781, "ci95": [-0.0312, 0.2031], "reading": "INCLUDES ZERO: effectively tied"},
+      "S1_adjacent": {"vs_5A_1D": {"mean": 0.0781, "ci95": [-0.0312, 0.2031]}},
+      "S2_third_ranked": {"vs_4A_2D": {"mean": 0.5312, "ci95": [0.375, 0.6719], "reading": "SEPARATES"}},
+      "S3_indistinguishable_from_argmax": ["5A_1D"],
+      "S3_size": "1 of 6",
+      "reading": "Pole B has a clear TOP PAIR, 6A_0D and 5A_1D, which are tied with each other and separate cleanly from everything else. The landscape is monotone: fewer defenders is better, with a sharp break between 5A_1D (0.81) and 4A_2D (0.36)."
+    }
+  },
+
+  "LAYER_3_SHAPE_AND_THE_PREDECLARED_DIRECTION_QUESTION": {
+    "B_more_attack_heavy_than_A": true,
+    "detail": "Pole B's argmax has 0 defenders and Pole A's has 2, which meets the addendum's predeclared definition and matches the 4v4 direction.",
+    "but_the_A_side_is_weak": "Pole A's argmax is tied with three others, so 'A's argmax has 2 defenders' is not a distinguishable fact. What is distinguishable on A is only that 0A_6D, 1A_5D and (marginally) 2A_4D are worse.",
+    "argmax_membership": {"A_argmax_4A_2D_in_B_best_set": false, "B_argmax_6A_0D_in_A_best_set": true},
+    "sealed_contrasts_vs_3A_3D": {
+      "pole_A": {"6A_0D": [0.0, -0.141, 0.141], "5A_1D": [0.0781, -0.078, 0.234], "4A_2D": [0.0938, -0.047, 0.234], "2A_4D": [-0.1562, -0.328, 0.016], "1A_5D": [-0.5156, -0.656, -0.375], "0A_6D": [-0.75, -0.859, -0.641]},
+      "pole_B": {"6A_0D": [0.7969, 0.688, 0.891], "5A_1D": [0.7188, 0.594, 0.844], "4A_2D": [0.2656, 0.125, 0.406], "2A_4D": [-0.0781, -0.156, 0.0], "1A_5D": [-0.0938, -0.172, -0.031], "0A_6D": [-0.0938, -0.172, -0.031]},
+      "format": "[mean, lcb95, ucb95]",
+      "reading": "On Pole B, every attack-heavy composition separates from the balanced 3A_3D baseline, by up to +0.80. On Pole A, no attack-heavy composition separates from it. The A-side evidence that composition matters is only in the defence-heavy direction."
+    },
+    "sealed_regime_signal_check": "Not met. The only composition with opposite signs, 6A_0D, has an A mean of exactly 0.0, which the sign test scores as 'not greater than zero', and its A interval includes zero. That 'opposite_sign: true' entry is a zero-mean artifact, not an A-side effect."
+  },
+
+  "THE_WRINKLE_THAT_BEARS_ON_THE_PREDECLARED_BRANCH": {
+    "finding": "The compositions statistically as good as each pole's best, intersected across poles, are 6A_0D and 5A_1D. A single fixed attack-heavy composition is indistinguishable from the per-pole argmax on BOTH poles.",
+    "point_estimates_of_what_routing_could_add_over_a_fixed_5A_1D": {
+      "pole_A_4A_2D_over_5A_1D": {"mean": 0.0156, "ci95": [-0.1094, 0.1406]},
+      "pole_B_6A_0D_over_5A_1D": {"mean": 0.0781, "ci95": [-0.0312, 0.2031]},
+      "both_upward_biased": "Each argmax was selected on the same data it is being compared on, so both gains are overstated. Both intervals include zero.",
+      "fixed_5A_1D_win_rates": {"A": 0.828125, "B": 0.8125},
+      "fixed_6A_0D_win_rates": {"A": 0.75, "B": 0.890625},
+      "mean_across_poles": "5A_1D 0.8203 and 6A_0D 0.8203, an exact tie; the per-pole-argmax pair averages 0.8672. That 0.047 is upward-biased and not separated from noise."
+    },
+    "score_margin_descriptive_no_intervals": {
+      "A": {"6A_0D": 0.8125, "5A_1D": 2.1094, "4A_2D": 1.8906, "3A_3D": 1.6719},
+      "B": {"6A_0D": 2.375, "5A_1D": 1.7969, "4A_2D": 0.4219, "3A_3D": 0.0156},
+      "reading": "On Pole A, 6A_0D wins about as often as 3A_3D but by far less (0.81 against 1.67), while 5A_1D has the best A margin (2.11) and a top-two win rate. On the point estimates 5A_1D is the more robust single composition and 6A_0D pays for all-out attack on margin. No paired margin intervals were computed."
+    },
+    "why_this_matters": "The 4v4 router exists because a fixed all-attack composition HURT Pole A (4A_0D cost A win rate) while helping B. At 6v6 under these certified poles that trade-off is not visible: an attack-heavy fixed composition costs A nothing detectable. That is a difference between the two scales' results, and it carries the frozen Pole-B clause: it could be team size, opponent construction, or their interaction.",
+    "what_this_does_and_does_not_say_about_the_branch": {
+      "the_letter_of_the_predeclared_branch": "A clear B-heavy composition pattern is present, so by the letter of the branch a 6v6 routed-composition freeze is licensed.",
+      "the_substantive_concern": "A router presupposes that per-regime best compositions differ enough to be worth switching between. Here a fixed composition is tied with the best on both poles, so the router's incremental value over that fixed composition is small on the point estimates and undemonstrated on the intervals.",
+      "the_addendum_flat_branch_facts": "Pole A's argmax does not separate from the 3A_3D baseline, which the spec names as evidence for the flat branch; Pole B's does, decisively. Neither argmax separates from its runner-up.",
+      "the_judgement_is_the_PIs": "Which reading governs is a PI decision. This record states the facts and does not choose."
+    }
+  },
+
+  "WHAT_IS_ESTABLISHED": [
+    "On the certified 6v6 Pole B, composition is a large lever: the balanced 3A_3D wins 9% of episodes, while 6A_0D and 5A_1D win 89% and 81%. The attack-heavy advantage over the baseline is +0.80 and +0.72, both intervals well clear of zero, consistent across both seed halves.",
+    "On the certified 6v6 Pole A, composition matters only at the defence-heavy end: 1A_5D and 0A_6D are clearly worse than the baseline, and among 3 to 6 attackers nothing is distinguishable at n=64.",
+    "A single fixed 5A_1D or 6A_0D is statistically indistinguishable from the per-pole best on both poles."
+  ],
+  "WHAT_IS_NOT_ESTABLISHED": [
+    "That any composition is the winner on Pole A. The argmax is tied with three others.",
+    "That routing between compositions would beat a fixed 5A_1D at 6v6. It is undemonstrated and, on the point estimates, small.",
+    "Any attribution of a 4v4-versus-6v6 difference to team size. The frozen boundary forbids it: Pole B differs in construction across the two scales.",
+    "Anything about learned coordination, PPO, or the guarded router transferring to 6v6."
+  ],
+
+  "SPLIT_HALF_AUDIT_NOTES": {
+    "pole_A_unstable": "The audit flagged sign flips between seed halves for A 6A_0D and A 5A_1D against 3A_3D (6A_0D -0.094 then +0.094; 5A_1D -0.063 then +0.219). Pole-A contrasts against the baseline are noisy and should not be read finely.",
+    "pole_B_stable": "All Pole-B contrasts against the baseline keep their sign and rough size across both halves (6A_0D +0.750 then +0.844)."
+  },
+
+  "OPEN_DECISIONS_FOR_THE_PI_NONE_STARTED": {
+    "note": "The frozen spec authorizes the sweep only. Nothing below is started.",
+    "option_1_fixed_composition_confirmation": "Freeze a fresh-seed 6v6 test of ONE fixed attack-heavy composition against the 3A_3D baseline on both certified poles, with the B-improvement and A-harm gates used at 4v4. It tests what the data actually supports and is cheap. The composition must be chosen by a mechanical rule declared in advance. 5A_1D and 6A_0D tie exactly on mean win rate across poles (0.8203); worst-pole win rate breaks the tie toward 5A_1D (0.8125 against 0.75), and a maximin rule is one natural choice.",
+    "option_2_routed_experiment": "Freeze a 6v6 routed-composition experiment as the branch's letter allows. Its comparator must be the best fixed composition, not the 3A_3D baseline, and the plausible gain is small, so it would be hard to detect.",
+    "option_3_stop_the_composition_line_at_6v6": "Record the attack-heavy prior and use it as the target structure for learned coordination, on the reading that composition at 6v6 under these poles is 'send almost everyone to attack'.",
+    "not_offered": "Raising n to resolve Pole A, or adding compositions. The frozen branch forbids both."
+  },
+
+  "claim_boundary": "Fixed scripted role composition at 6v6 under the certified 6v6 poles, n=64 paired seeds, exploratory, SEALED. Does not authorize a router, a confirmation or PPO."
+}
