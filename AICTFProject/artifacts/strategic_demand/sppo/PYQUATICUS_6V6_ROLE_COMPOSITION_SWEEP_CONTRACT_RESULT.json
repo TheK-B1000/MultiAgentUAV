@@ -1,0 +1,77 @@
+{
+  "record_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_CONTRACT_RESULT",
+  "utc": "2026-09-19T12:04:44Z",
+  "implements": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+  "team_size": 6,
+  "compositions": [
+    "6A_0D",
+    "5A_1D",
+    "4A_2D",
+    "3A_3D",
+    "2A_4D",
+    "1A_5D",
+    "0A_6D"
+  ],
+  "baseline": "3A_3D",
+  "n_checks": 9,
+  "n_gating": 9,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_ALLOCATION'"
+    },
+    {
+      "name": "C2a_ROLE_MAPPING_PARITY_AT_N4",
+      "gating": true,
+      "passed": true,
+      "detail": "5 4v4 compositions compared against the frozen helper; mismatches: none"
+    },
+    {
+      "name": "C2b_ACTION_ADAPTER_PARITY_AT_N4",
+      "gating": true,
+      "passed": true,
+      "detail": "480 live 4v4 ticks compared array-for-array; mismatches: none; a friendly-carrier tick was exercised: True (so the GO_HOME branch is covered, not just GET_FLAG/DEFEND)"
+    },
+    {
+      "name": "C4_COMPOSITION_COVERS_THE_TEAM",
+      "gating": true,
+      "passed": true,
+      "detail": "7 compositions, identity-prefix rule verified at n=6; offenders: none"
+    },
+    {
+      "name": "C1_TEAM_SIZE_IS_REALLY_SIX",
+      "gating": true,
+      "passed": true,
+      "detail": "live core agent counts read back from the constructed env: {'A': [6, 6], 'B': [6, 6]}"
+    },
+    {
+      "name": "C3_POLE_RESOLVES_AS_CERTIFIED",
+      "gating": true,
+      "passed": true,
+      "detail": "both poles checked against STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json on the fields it records; disagreements: none"
+    },
+    {
+      "name": "C5_ACTION_VOCABULARY",
+      "gating": true,
+      "passed": true,
+      "detail": "max emitted macro id across all 7 compositions = 7 < n_macros 8"
+    },
+    {
+      "name": "C7_NO_PPO_REACHABLE",
+      "gating": true,
+      "passed": true,
+      "detail": "imported PPO/trainer modules: none"
+    },
+    {
+      "name": "C8_SEED_BLOCK_FREE_OR_OURS",
+      "gating": true,
+      "passed": true,
+      "detail": "block 20500001..20500064 (exploratory, n=64) is free"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only. No sweep episode was run and no seed was allocated. C2b reuses spent 4v4 seed 20100001 for deterministic parity only."
+}

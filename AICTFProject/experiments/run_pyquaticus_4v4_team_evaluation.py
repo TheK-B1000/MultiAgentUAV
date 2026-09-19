@@ -21,6 +21,8 @@ from typing import Iterable
 import numpy as np
 import torch
 
+from experiments.tqdm_loop import tqdm_iter
+
 ROOT = Path(__file__).resolve().parents[1]
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
 SPEC_PATH = SD / "PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json"
@@ -354,18 +356,21 @@ def run_evaluation(workers: int = 1) -> dict:
     rows: list[dict] = []
     mappings: list[dict] = []
     if int(workers) <= 1:
-        completed = ((job, run_episode(*job)) for job in jobs)
-        for job, (row, mapping) in completed:
-            print(f"[{_now()}] pole={job[0]} arm={job[1]} seed={job[2]}", flush=True)
+        for job in tqdm_iter(jobs, desc="4v4 team evaluation", total=len(jobs), unit="ep"):
+            row, mapping = run_episode(*job)
             rows.append(row)
             mappings.append(mapping)
     else:
         with ProcessPoolExecutor(max_workers=int(workers)) as pool:
             futures = {pool.submit(run_episode, *job): job for job in jobs}
-            for future in as_completed(futures):
+            for future in tqdm_iter(
+                as_completed(futures),
+                desc="4v4 team evaluation",
+                total=len(futures),
+                unit="ep",
+            ):
                 job = futures[future]
                 row, mapping = future.result()
-                print(f"[{_now()}] complete pole={job[0]} arm={job[1]} seed={job[2]}", flush=True)
                 rows.append(row)
                 mappings.append(mapping)
         rows.sort(key=lambda row: (row["pole"], row["assignment_arm"], row["seed"]))

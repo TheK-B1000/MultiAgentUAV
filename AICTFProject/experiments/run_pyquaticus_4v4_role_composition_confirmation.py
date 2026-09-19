@@ -24,6 +24,7 @@ from experiments.run_pyquaticus_4v4_role_composition_sweep import (
     _telemetry_for_tick,
     composition_roles,
 )
+from experiments.tqdm_loop import tqdm_iter
 
 ROOT = Path(__file__).resolve().parents[1]
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
@@ -231,10 +232,14 @@ def run_evaluation(workers: int = 4) -> dict:
     mappings: list[dict] = []
     with ProcessPoolExecutor(max_workers=int(workers)) as pool:
         futures = {pool.submit(run_episode, *job): job for job in jobs}
-        for future in as_completed(futures):
+        for future in tqdm_iter(
+            as_completed(futures),
+            desc="4v4 role-composition confirmation",
+            total=len(futures),
+            unit="ep",
+        ):
             job = futures[future]
             row, mapping = future.result()
-            print(f"[{_now()}] complete pole={job[0]} composition={job[1]} seed={job[2]}", flush=True)
             rows.append(row)
             mappings.append(mapping)
     rows.sort(key=lambda row: (row["pole"], COMPOSITIONS.index(row["composition"]), row["seed"]))

@@ -1,0 +1,183 @@
+{
+  "record_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC",
+  "status": "FROZEN_BEFORE_SEED_ALLOCATION",
+  "utc": "2026-09-19T00:00:00Z",
+  "classification": "SCRIPTED_TEAM_EXPLORATORY. ROLE-COMPOSITION SWEEP AT 6v6. PPO OFF. GPU OFF. CPU ONLY.",
+  "confirmatory": false,
+  "authorized_by": "PI direction 2026-09-19: held-out opponent validation is parked as optional later robustness work. Main line is 4v4 confirmed -> 6v6. Derive the 6v6 composition strategy first; adapt the guarded router only afterwards.",
+  "RESEARCH_QUESTION": "At 6v6, under the certified A and B opponent poles, does changing the fixed team composition from 6A/0D through 0A/6D produce pole-dependent outcome differences, and which composition does each pole prefer?",
+  "WHY_THIS_AND_NOT_THE_ROUTER_YET": "The 4v4 router routes between 2A/2D and 4A/0D because the 4v4 sweep showed those are the per-pole preferred compositions. The analogous 6v6 pair is unknown and cannot be guessed: defender counts do not scale by proportion in this environment, and the defender-assignment machinery changes with team size. The router is adapted only after this sweep names the compositions it should route between.",
+  "DIRECT_ANALOGUE": "Mirrors PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json in structure, estimands, decision labels and telemetry, so the two scales are directly comparable. Deviations are listed explicitly below rather than left implicit.",
+  "POLE_DEFINITIONS_AND_THE_ONE_REAL_DISCREPANCY": {
+    "source": "artifacts/6v6_results/specs/STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json (status FROZEN_RESULT, seeds 13000001 n=64 paired)",
+    "pole_A_6v6": {
+      "base": "OP6",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "defender_zone_frac": 0.35,
+      "threat_radius": 0.0
+    },
+    "pole_B_6v6": {
+      "base": "OP7",
+      "overlay": {
+        "min_alive_for_defender": 6
+      },
+      "defender_zone_frac": 0.05,
+      "threat_radius": 12.0,
+      "lock_defender": 28,
+      "enable_2v1": false
+    },
+    "certification_result": "delta_A mean +0.265625 LCB95 +0.09375; delta_B mean +0.625 LCB95 +0.484375; gate LCB95(delta_A) > 0 AND LCB95(delta_B) > 0 -- both pass.",
+    "THE_DISCREPANCY_POLE_B_IS_NOT_THE_SAME_ACROSS_SCALES": {
+      "4v4_pole_B": "OP7 plus the B3-3 CANDIDATE genome SDS2_B3_LOCKDEF10_2V1 -- overlay lock_defender=10, enable_2v1=true, min_alive_for_defender=4",
+      "6v6_pole_B": "canonical OP7 with size normalization only -- lock_defender=28, enable_2v1=false, min_alive_for_defender=6",
+      "verified_live": "resolve_pole_genome('B', 6) returns genome_id SDS_PARENT_OP7 with overlay {min_alive_for_defender: 6}; the live resolved profile reads lock_defender=28, enable_2v1=False.",
+      "consequence": "'the same A/B regimes' is NOT literally true across scales. The 6v6 Pole B is a weaker-locked, non-2v1 fortress relative to the 4v4 Pole B. Any statement that a 6v6 composition result 'reproduces' or 'fails to reproduce' the 4v4 one is confounded by this difference and must say so.",
+      "why_the_certified_poles_are_used_anyway": "They are the only 6v6 poles with a frozen certification, and that certification passes both gates. Porting B3-3 to 6v6 would create an uncertified pole and would require its own certification run first -- a larger, separate piece of work.",
+      "alternative_if_the_PI_prefers_scale_matched_poles": "Certify a 6v6 B3-3-equivalent pole first, then run this sweep against it. That is the only way to make the two scales' Pole B comparable, and it must be chosen now rather than after seeing results."
+    }
+  },
+  "COMPOSITIONS": {
+    "rule": "exhaustive over defender count, mirroring the 4v4 sweep's exhaustive five",
+    "set": [
+      "6A_0D",
+      "5A_1D",
+      "4A_2D",
+      "3A_3D",
+      "2A_4D",
+      "1A_5D",
+      "0A_6D"
+    ],
+    "count": 7,
+    "baseline": "3A_3D -- the balanced composition, the 6v6 analogue of the 4v4 baseline 2A_2D. Declared now, before any episode.",
+    "canonical_assignment": "FIXED_IDENTITY_PREFIX_DEFENDERS, unchanged from 4v4: for defender count D, stable ids 0..D-1 are DEFEND and the rest ATTACK, computed once at reset and held for the episode. No reassignment.",
+    "no_subset_chosen": "All seven are run. Selecting 'sensible' counts would be agent discretion over the very quantity the sweep exists to measure."
+  },
+  "EXECUTION": {
+    "team_size": "6v6",
+    "device": "cpu",
+    "gpu": false,
+    "ppo": false,
+    "training": false,
+    "map_set": "train",
+    "map_layout": "map_a",
+    "rules_profile": "OURS",
+    "aquaticus_profile": true,
+    "max_decision_steps": 240,
+    "own_flag_home_required_to_score": true,
+    "evaluation_only_n_macros": 8,
+    "adapter_contract": "unchanged from 4v4: ATTACK with no friendly carrier -> GET_FLAG; ATTACK with any friendly carrier -> GO_HOME; DEFEND -> unified macro id 7 with live target re-derivation",
+    "seed_block_proposed": {
+      "base": 20500001,
+      "last": 20500064,
+      "n": 64,
+      "class": "exploratory",
+      "verified_free_at_draft_time": true
+    },
+    "why_20500001_and_not_20400001": "20400001 and 20400007 were touched by 4v4 prototyping during the parked held-out design. Those were different-opponent 4v4 episodes and no held-out outcome was read, but a block that has never been touched costs nothing and keeps 'fresh' unambiguous.",
+    "cells": "2 poles x 7 compositions = 14 paired cells; 14 x 64 = 896 episodes",
+    "measured_cost": "12.7 s per 6v6 episode on this machine (prototyped on smoke seed 99900611, both poles, 3A_3D). 896 episodes is about 3.2 hours serial.",
+    "same_seed_across_poles_and_compositions": true,
+    "why_n_64": "Mirrors the 4v4 sweep exactly, which is what makes the two scales comparable. See the power disclosure below for what n=64 can and cannot resolve."
+  },
+  "PREDECLARED_ESTIMANDS_AND_DECISION_RULES": {
+    "primary_per_cell": "Blue win rate, score difference, draw rate, episode length and role telemetry, with 95% paired-seed bootstrap intervals.",
+    "composition_effect": "For each pole, compare every non-3A/3D composition against the frozen 3A/3D baseline on win rate and score difference, paired by seed.",
+    "regime_effect": "Paired B-minus-A contrasts for every composition. Descriptive regime contrasts, not a new strategic-demand certification.",
+    "regime_composition_signal": "A conservative descriptive signal requires a non-baseline composition whose win-rate contrast versus 3A/3D has OPPOSITE SIGNS on Pole A and Pole B, with BOTH pole-specific intervals excluding zero. Otherwise report no demonstrated regime-dependent composition signal.",
+    "labels": {
+      "no_signal": "NO_DEMONSTRATED_COMPOSITION_EFFECT",
+      "composition_signal": "COMPOSITION_DESCRIPTIVE_SIGNAL",
+      "regime_signal": "REGIME_DEPENDENT_COMPOSITION_SIGNAL"
+    },
+    "DERIVATION_DELIVERABLE_THE_ACTUAL_POINT_OF_THIS_SWEEP": {
+      "quantity": "for each pole, the argmax composition by win rate, reported with its paired contrast against the runner-up composition and against the 3A/3D baseline",
+      "why_this_is_the_deliverable": "The next step needs to know WHICH two compositions a 6v6 router would switch between. That is an argmax, and it is answerable at n=64 even where the strong label is not. It is declared here so it cannot be presented later as a post-hoc reframing of a weak result.",
+      "not_a_gate": "The argmax is descriptive. It does not authorize a router, a confirmation, or 6v6 PPO by itself.",
+      "frozen_statement": "For each certified 6v6 pole, identify the empirically best-performing ATTACK/DEFEND composition among all seven compositions, with paired uncertainty reported for contrasts against the 3A/3D baseline and against relevant neighbouring and top compositions."
+    },
+    "multiplicity": "All contrasts are exploratory. 7 compositions x 2 poles with unadjusted intervals. A nominal interval exclusion does not authorize PPO, architecture selection or a router by itself."
+  },
+  "POWER_DISCLOSURE_STATED_BEFORE_THE_RUN": {
+    "what_happened_at_4v4": "The 4v4 sweep returned COMPOSITION_DESCRIPTIVE_SIGNAL, not the stronger REGIME_DEPENDENT_COMPOSITION_SIGNAL. Its regime_gate_details show 4A_0D and 3A_1D both had opposite signs with the B interval excluding zero, and the A interval NOT excluding zero in either case. The A side was the binding constraint.",
+    "why": "The 4v4 Pole-A contrast was small: 4A_0D minus 2A_2D had a paired mean of -0.0938 with 13 positive and 19 negative discordant pairs out of 64.",
+    "planning_arithmetic": "Resampling that observed 4v4 paired vector to larger n gives a probability the A interval excludes zero of about 0.20 at n=64, 0.34 at n=128, 0.47 at n=192 and 0.61 at n=256. For the smaller 3A_1D contrast (-0.0312) it stays below 0.16 even at n=256.",
+    "honest_consequence": "If the 6v6 Pole-A effect is the same size as the 4v4 one, the strong REGIME_DEPENDENT_COMPOSITION_SIGNAL label is unlikely at n=64 and is not reliably reachable at any practical n. n=256 would cost 7 x 2 x 256 = 3584 episodes, about 12.6 hours, for roughly a 61 percent chance on one contrast.",
+    "this_is_planning_arithmetic_not_a_prediction": "It assumes the 6v6 Pole-A effect matches the 4v4 one, which is unknown and is part of what the sweep measures. The 6v6 effect could be larger, in which case n=64 resolves it.",
+    "recommendation": "Run at n=64 and expect the descriptive label. The derivation deliverable above -- the per-pole argmax -- is what the next step actually consumes, and the B-side contrasts were decisive at n=64 at 4v4. Raising n to chase the strong label buys a coin flip on one contrast for four times the compute.",
+    "if_the_PI_wants_the_strong_label": "It must be chosen now, before any seed is spent, and the honest expectation is roughly even odds at n=256."
+  },
+  "CONTRACTS_BEFORE_ANY_EPISODE": {
+    "all_gating": true,
+    "C1_TEAM_SIZE_IS_REALLY_SIX": "Construct the env and read the actual observation shape back, per experiments/team_size.py. A silently-wrong team size does not crash; it runs the wrong experiment.",
+    "C2_GENERALIZED_HELPERS_MATCH_THE_4V4_ONES_AT_N4": "composition_roles_n and action_for_roles_n must reproduce the frozen 4v4 composition_roles and _action_for_roles EXACTLY for every 4v4 composition. This is the parity check that keeps the two scales comparable; a generalized helper that differs at n=4 would make every cross-scale statement wrong.",
+    "C3_POLE_RESOLVES_AS_CERTIFIED": "For both poles the LIVE resolved behaviour-tree profile must equal the 6v6 certification's recorded fields on every field it names (min_alive_for_defender, defender_zone_frac, threat_radius). Assert the runtime object, not the requested key.",
+    "C4_COMPOSITION_COVERS_THE_TEAM": "For every composition, attacker count plus defender count equals 6 and the identity prefix rule holds.",
+    "C5_ACTION_VOCABULARY": "every emitted macro id is below the evaluation-only n_macros=8.",
+    "C6_TERMINAL_SCORING_NOT_RESET_STATE": "scores read from info['episode_result'] at the instant done fires, never from core after auto-reset.",
+    "C7_NO_PPO_REACHABLE": "no PPO, trainer or optimizer module imported.",
+    "C8_SEED_BLOCK_OWNED": "the block is registered to this experiment, exact range, RESERVED, checked with experiment_id.",
+    "on_failure": "CONTRACT_FAILURE, stop, no seed spent. Diagnose against the frozen reference before editing anything."
+  },
+  "SEALING": {
+    "rule_7": "This sweep is exploratory, not confirmatory, but it produces outcome rows, so it seals via experiments/run_state.py::seal with AuditPlan.experiment_id supplied.",
+    "audit_expectations": {
+      "expected_rows": 896,
+      "expected_seeds": "20500001-20500064",
+      "group_by": [
+        "pole",
+        "composition"
+      ],
+      "binary_fields": [
+        "blue_win",
+        "draw"
+      ]
+    }
+  },
+  "ISOLATION": {
+    "only_changed_factor": "number of ATTACK versus DEFEND roles under the frozen identity ordering, at team size 6",
+    "held_identical_from_4v4": [
+      "the Pyquaticus-derived semantic functions",
+      "the GET_FLAG / GO_HOME / unified DEFEND adapter",
+      "the evaluation-only n_macros=8 path",
+      "map, rules, horizon, speed intent, telemetry and statistics",
+      "paired seed values across cells"
+    ],
+    "forbidden": [
+      "PPO or training",
+      "GPU",
+      "dynamic role switching",
+      "the guarded router (it is not run in this sweep)",
+      "adapter or opponent selection from outcomes",
+      "production macro changes",
+      "adapting the router before this sweep is interpreted"
+    ]
+  },
+  "SEQUENCING_LOCK": [
+    "1. PI approves this draft; status becomes FROZEN_BEFORE_SEED_ALLOCATION.",
+    "2. Run contracts only. No seed spent.",
+    "3. Allocate the block after contracts pass.",
+    "4. Run the 14 paired CPU cells and seal.",
+    "5. Interpret before proposing a 6v6 router, a 6v6 confirmation, or any PPO."
+  ],
+  "claim_ceiling": "This tests fixed scripted role composition at 6v6 in this project's CTF dynamics, under the certified 6v6 poles. It does not reproduce native Pyquaticus performance, establish learned roles, identify a causal PPO repair, authorize a 6v6 router, or transfer the 4v4 router's confirmed result to 6v6. Cross-scale comparison is additionally confounded by the Pole-B discrepancy recorded above.",
+  "PI_DECISIONS_FROZEN_2026_09_19": {
+    "poles": "Certified 6v6 pole pair. Do NOT certify a 6v6 B3-3 equivalent first -- that is another branch with its own compute and design choices, and it is not worth spending before we learn whether composition is even useful at 6v6. If a clean scale-controlled comparison is needed later, the matched B3-3-style pole is certified then.",
+    "n": "n=64. The strong regime label is not what we need now, and buying it with 128/192/256 seeds risks hours to resolve a small A-side contrast that is not required to determine the preferred composition.",
+    "primary_deliverable": "per-pole argmax composition",
+    "strong_regime_label": "secondary, reported if it happens, never chased with compute",
+    "seed_block": "20500001-20500064, subject to the registry confirming it free immediately before reservation"
+  },
+  "FROZEN_CLAIM_BOUNDARY_POLE_B": {
+    "verbatim": "The 6v6 composition sweep uses the certified 6v6 pole pair. Pole B is canonical SDS_PARENT_OP7, not the 4v4 B3-3 SDS2_B3_LOCKDEF10_2V1 construction. Therefore cross-scale differences cannot be attributed solely to team size.",
+    "attribution_rule": "If 6v6 prefers a different composition than 4v4, we do NOT say 'scaling from 4 to 6 caused the change.' It could be team size, opponent construction, or their interaction. Any reading that attributes a cross-scale difference to team size alone is out of bounds for this record.",
+    "applies_to": "every cross-scale sentence in the result, the reading, the tracker entry and any downstream record that cites this sweep"
+  },
+  "PREDECLARED_NEXT_STEP_BRANCH": {
+    "clear_pattern": "If the sweep shows a clear B-heavy composition pattern again, that is enough to design the 6v6 guarded composition strategy. Designing it is a SEPARATE freeze; this record does not authorize it.",
+    "flat_or_chaotic": "If composition is flat or chaotic at 6v6, STOP and reconsider before building another router. Do not proceed to a 6v6 router, do not raise n to rescue a flat result, and do not search compositions outside the seven.",
+    "operationalizing_flat_or_chaotic": "Reported, not gated: whether each pole's argmax beats the 3A/3D baseline with an interval excluding zero, and whether the argmax beats its runner-up. A pole whose argmax does not separate from the baseline is evidence for the flat branch. The judgement is the PI's.",
+    "authorized_by_this_record": "the sweep only"
+  }
+}

@@ -1,0 +1,213 @@
+{
+  "record_id": "HELDOUT_REGIME_GENERALIZATION_V1_SPEC",
+  "status": "DRAFT_HELD_OUT_SET_UNDECIDED",
+  "utc": "2026-09-19T00:00:00Z",
+  "classification": "SCRIPTED MULTI-OPPONENT PAIRED OUTCOME EXPERIMENT. PPO OFF. GPU OFF. CPU ONLY.",
+  "confirmatory": true,
+  "not_yet_frozen": "This record is a DRAFT. No seed block is reserved and no episode may be run until the PI approves and the status is changed to FROZEN_BEFORE_SEED_SPEND. It is written before any held-out outcome data exists.",
+  "RESEARCH_QUESTION": "Without changing the frozen router, guard, threshold, window, dwell or compositions, does guarded regime-conditioned composition retain useful behaviour on opponent regimes that played no role in constructing D_t or selecting its operating point?",
+  "WHAT_IS_FROZEN_AND_UNTOUCHED": {
+    "statistic": "D_t = P_blue_t(r=4.0) - P_red_t(r=4.0)",
+    "window": 40,
+    "hysteresis": 0.2,
+    "dwell": 10,
+    "threshold": -0.8333333333333334,
+    "guard": "no departure from 2A/2D until the trailing buffer holds W samples (first allowed tick 39)",
+    "compositions": "default 2A_2D, triggered 4A_0D",
+    "implementation": "GuardedRouter from experiments/size_routed_startup_guard.py, the class confirmed in GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json. Not re-implemented, not re-parameterised.",
+    "no_tuning_on_the_new_opponents": "Nothing is fitted, selected or adjusted using any held-out opponent. The router is transplanted as is.",
+    "ppo": false,
+    "gpu": false,
+    "training": false
+  },
+  "HELD_OUT_OPPONENT_SELECTION_RULE_APPLIED_BEFORE_ANY_OUTCOME_EXISTS": {
+    "rule": "[NEEDS RESTATEMENT] 'Every canonical opponent in the registry that is not the base of a construction pole' yields 8 opponents, not 6.",
+    "construction_poles_excluded": {
+      "OP6": "base of pole A",
+      "OP7": "base of pole B"
+    },
+    "resulting_held_out_set": "PENDING -- withdrawn; see CORRECTION_BEFORE_FREEZE. The drafted six were not the output of a rule.",
+    "why_this_rule": "It is exhaustive over the registry and leaves no discretion. No opponent was chosen, ranked or dropped by anyone, and no outcome data exists for any of them under this router.",
+    "construction": "Canonical profiles, UNMODIFIED, no genome overlay. This is the zero-intervention choice: any overlay would be a design decision made by the agent. See the disclosed asymmetry below.",
+    "spent_or_seen_data": "None of these six opponents contributed to deriving D_t, selecting r_blue or r_red, choosing the operating point, or designing the guard."
+  },
+  "PREDECLARED_CATEGORIZATION_AND_PREDICTION": {
+    "declared_before_any_held_out_episode": true,
+    "variable": "defender_zone_frac",
+    "why_this_variable_and_not_another": "It is the documented asymmetry the second feature was built to read. COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT.json#WHY_A_SECOND_FEATURE_AND_NOT_MORE_TUNING cites 'OP7+B3-3's tight fortress occupancy on RED'S OWN FLAG (defender_zone_frac 0.05 vs OP6's 0.35)' as the mechanism P_red measures. The categorization variable is therefore inherited from the frozen feature rationale, not chosen now.",
+    "threshold": "the midpoint of the two construction poles, (0.35 + 0.05) / 2 = 0.20",
+    "categories": {
+      "A_like_defender_zone_frac_above_0.20": {
+        "OP5": 0.25,
+        "OP9": 0.22
+      },
+      "B_like_defender_zone_frac_below_0.20": {
+        "OP8": 0.18,
+        "OP10": 0.12,
+        "OP11": 0.16,
+        "OP12": 0.14
+      }
+    },
+    "falsifiable_prediction": "On A-like opponents the guarded router should mostly remain in 2A/2D (low trigger occupancy). On B-like opponents it should mostly trigger 4A/0D (high trigger occupancy). Reported as trigger occupancy per opponent and compared against this prediction.",
+    "this_prediction_is_descriptive_and_does_not_gate": "The primary gates below are categorization-free. The prediction is scored as a stated-in-advance mechanistic check, and a miss is reported as a miss rather than reinterpreted."
+  },
+  "DISCLOSED_LIMITATION_THE_HELD_OUT_SET_IS_INTERIOR_TO_THE_TWO_POLES": {
+    "fact": "[WITHDRAWN -- see CORRECTION_BEFORE_FREEZE] On the documented mechanism's own parameters, all six held-out opponents lie BETWEEN the two construction poles, not beyond them.",
+    "defender_zone_frac": "construction poles 0.35 (A) and 0.05 (B); held-out range 0.12 to 0.25",
+    "threat_radius": "construction poles 0.0 (A) and 12.0 (B); held-out range 8.0 to 11.0",
+    "consequence": "[WITHDRAWN] The registry contains C6A and C6B, which lie outside the construction span. The interior-only limitation applies only to OP5 and OP8-OP12.",
+    "what_a_pass_would_and_would_not_mean": "A pass would show the router is not overfitted to two exact opponents and works across the interior of the regime space it spans. It would NOT establish a general coordination principle for arbitrary opponents. That claim would need regimes outside the span, which do not currently exist in the registry and would have to be constructed -- and constructing them is itself a design act that needs its own freeze.",
+    "stated_before_the_experiment": "This limitation is recorded now so a pass cannot later be read as more than it is."
+  },
+  "DISCLOSED_ASYMMETRY_DEFENDER_GATE": {
+    "fact": "Both construction poles carry a size-normalized defender gate (min_alive_for_defender = 4 at 4v4, per SIZE_NORMALIZED_POLE_SEMANTICS). The six held-out opponents use their canonical gates, which are all 2.",
+    "why_left_as_is": "The normalization exists to preserve the recorded INTENT of a frozen genome overlay across team sizes. Canonical opponents have no such overlay and no such intent; their gate is part of their canonical definition. Applying the normalization to them would be an intervention by the agent on the held-out set, which is exactly what this experiment must avoid.",
+    "consequence": "Held-out opponents deploy their defender under a weaker aliveness condition than the construction poles do. This is a real difference between the held-out and construction conditions and is reported, not hidden.",
+    "alternative_the_PI_may_prefer": "Run the held-out opponents WITH the same size normalization, making the defender gate comparable at the cost of modifying canonical profiles. If the PI prefers this, it must be chosen now, before any held-out episode."
+  },
+  "ARMS_AND_DESIGN": {
+    "arms": [
+      "STATE_GUARDED",
+      "FIXED_2A2D",
+      "FIXED_4A0D"
+    ],
+    "every_arm_on_every_opponent_on_every_seed": true,
+    "seed_block_proposed": {
+      "base": 20400001,
+      "last": 20400064,
+      "n": 64,
+      "class": "sealed_confirmatory",
+      "verified_free_at_draft_time": true
+    },
+    "episodes": "6 opponents x 3 arms x 64 seeds = 1152 episodes, about 3.3 hours serial on CPU",
+    "why_the_same_64_seeds_across_opponents": "Paired within (opponent, seed), exactly as the confirmatory run paired within (pole, seed). Sharing the seed set across opponents also holds map and spawn variation fixed when comparing opponents.",
+    "why_n_64_and_not_128": "The per-opponent question is whether the router is badly wrong on any regime, which n=64 paired resolves. Spending 128 per opponent would cost about 6.6 hours for precision the per-opponent decision does not need. The PI may raise it; it must be fixed before any seed is spent.",
+    "device": "cpu",
+    "team_size": "4v4",
+    "horizon": 240,
+    "PI_DECISIONS_RECORDED_2026_09_19": {
+      "defender_gate": "APPROVED: canonical opponents unmodified; min_alive_for_defender is NOT normalized. The difference is part of the held-out definition and is stated in the interpretation. If the router fails specifically because of that parameter, that is a follow-up sensitivity experiment under a new freeze, not run here.",
+      "n_per_opponent": "APPROVED: 128 paired seeds per opponent, because G1 is demanding and per-opponent intervals at n=64 would be chunky.",
+      "seed_block": "APPROVED: fresh contiguous 20400001-20400128, reserved under the held-out experiment id before any episode runs; if any part is occupied, use next_free(128). Verified free in the registry; see seed_hygiene_disclosure for the in-block prototyping caveat.",
+      "episodes": "N_opponents x 3 arms x 128 seeds. 2304 for six opponents, 3072 for eight. About 10 seconds per episode measured in prototyping."
+    }
+  },
+  "PRIMARY_GATES_CATEGORIZATION_FREE": {
+    "why_categorization_free": "The gates must not depend on anyone's A-like / B-like labels. They compare the router against the fixed compositions directly.",
+    "G1_no_harm_on_any_held_out_opponent": {
+      "quantity": "for each opponent o, regret(o) = max( WR(FIXED_2A2D, o), WR(FIXED_4A0D, o) ) - WR(STATE_GUARDED, o), paired by seed",
+      "required": "UCB95( regret(o) ) <= 0.10 for EVERY one of the six opponents",
+      "tau": 0.1,
+      "why_this_tau": "Inherited unchanged from tau_A_harm in the 4v4 confirmatory gates. Not re-chosen.",
+      "known_bias_disclosed": "max() over two noisy estimates is upward biased, so regret is biased UPWARD, i.e. AGAINST the router. The gate is therefore conservative. The two underlying paired contrasts (router minus 2A2D, router minus 4A0D) are unbiased and are reported per opponent alongside it."
+    },
+    "G2_routing_beats_committing": {
+      "quantity": "WR(STATE_GUARDED) - WR(best single fixed composition), pooled over all six held-out opponents and all seeds, paired by (opponent, seed)",
+      "best_single_fixed_composition": "whichever of FIXED_2A2D / FIXED_4A0D has the higher POOLED win rate across the six held-out opponents; a frozen rule, computed from the fixed arms only",
+      "required": "LCB95 > 0",
+      "meaning": "Regime-conditioning must beat committing to one composition for all six unseen regimes. If a single fixed composition is as good, the router earns nothing here.",
+      "known_bias_disclosed": "Also biased against the router, for the same max() reason."
+    },
+    "bootstrap": {
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "interval": "percentile",
+      "resampling_unit": "seed within opponent for per-opponent quantities; (opponent, seed) pair for pooled quantities"
+    }
+  },
+  "PREDECLARED_TERMINAL_LABELS": {
+    "HELDOUT_REGIME_GENERALIZATION_CONFIRMED": "G1 holds on all six opponents AND G2 passes.",
+    "HELDOUT_PARTIAL_GENERALIZATION": "G2 passes but G1 fails on at least one opponent. The failing opponents are named in the result. Routing is useful on average but harmful on a specific unseen regime; that is not a general principle.",
+    "HELDOUT_NO_GENERALIZATION": "G2 fails. Regime-conditioning does not beat committing to one composition on unseen regimes.",
+    "GUARD_INVARIANT_VIOLATED": "Takes precedence over all three. Any STATE_GUARDED episode with a first departure before tick 39 invalidates the run as a test of the guard.",
+    "after_any_non_confirming_result": "STOP and report. No retuning of the router, the guard, the threshold or the compositions on held-out data, and no re-analysis of this block to reach a different label. A failure here is information about the generality of the mechanism, which is the point of running it."
+  },
+  "DESCRIPTIVE_NOT_GATING": [
+    "per-opponent win rates for all three arms, and score margins",
+    "per-opponent router telemetry: trigger occupancy, episodes with any trigger, switches per episode, first-onset distribution, blocked departures",
+    "the predeclared A-like / B-like prediction scored against observed trigger occupancy",
+    "per-opponent paired contrasts router minus 2A2D and router minus 4A0D, both unbiased",
+    "the two construction poles are NOT re-run here; comparisons to them use the sealed confirmatory record"
+  ],
+  "CONTRACTS_BEFORE_ANY_EPISODE": {
+    "C_PARITY_NEW_OPPONENT_PATH": "Constructing the two CONSTRUCTION poles through the new arbitrary-opponent environment builder must reproduce the existing _make_env path bit-for-bit on spent seeds, for all three arms. This is the critical one: the held-out runner needs a generalized builder, and a builder that differs from the validated one would make every held-out number incomparable to the sealed 4v4 result.",
+    "C_OPPONENT_RESOLVES_AS_DECLARED": "For each of the six held-out opponents, the LIVE resolved behaviour-tree profile must equal the canonical profile for that key on every field. Same fail-closed principle as pole attestation: assert the runtime object, not the requested key.",
+    "C_GUARD_HOLDS": "No STATE_GUARDED departure before tick 39, on fixtures and on real traces.",
+    "C_ROUTER_UNCHANGED": "The executor's router constants equal the sealed V2 selected_config exactly, and GuardedRouter(guard=False) still reproduces the frozen OnlineRouter.",
+    "C_ARMS_DIFFER_ONLY_IN_COMPOSITION": "Pinned guarded runner reproduces the fixed runner field by field, per opponent.",
+    "C_KNOWN_ANSWER": "FIXED_2A2D on spent oracle seeds still reproduces the sealed oracle rows exactly.",
+    "C_NO_PPO_REACHABLE": true,
+    "C_SEED_BLOCK_OWNED": "the block is registered to this experiment, exact range, RESERVED",
+    "C_AUDIT_PLAN_SEALS": "the real AuditPlan passes on synthetic rows of the exact shape AFTER the block is registered, with a negative control omitting the owner that must fail exactly seed_class",
+    "on_failure": "CONTRACT_FAILURE, stop, no seed spent. Diagnose against the frozen reference before editing anything; never modify the router or guard to satisfy a test."
+  },
+  "SEALING": {
+    "rule_7": "must seal via experiments/run_state.py::seal with AuditPlan.experiment_id supplied",
+    "audit_expectations": {
+      "expected_rows": 1152,
+      "expected_seeds": "20400001-20400064",
+      "group_by": [
+        "opponent",
+        "arm"
+      ],
+      "binary_fields": [
+        "blue_win",
+        "draw"
+      ]
+    }
+  },
+  "NOT_AUTHORIZED": [
+    "any change to the router, guard, threshold, window, dwell, radii or compositions",
+    "tuning anything on a held-out opponent",
+    "adding, dropping or reordering held-out opponents after seeing any outcome",
+    "changing the categorization variable or threshold after seeing any outcome",
+    "changing the gates, tau or n after any seed is spent",
+    "PPO, training, GPU, 6v6",
+    "hand-writing a status string into the RESULT"
+  ],
+  "claim_ceiling": "A pass would establish that the guarded router transfers across the interior of the regime space spanned by its two construction opponents, at 4v4, PPO off, n=64 paired seeds per opponent. It would not establish a general coordination principle, would not authorize PPO or 6v6, and would not license any claim about regimes outside that span.",
+  "CORRECTION_BEFORE_FREEZE": {
+    "status": "OPEN -- the held-out set is NOT decided. Nothing is frozen, no seed block is reserved, no held-out episode has been run.",
+    "what_was_wrong": "This draft called its six-opponent set 'exhaustive over the registry' and asserted that 'no canonical opponent in the registry is more extreme than the construction poles on either parameter'. Both statements were false. The set was built from a hard-coded key list (OP5..OP12) and the registry was never enumerated.",
+    "what_the_registry_actually_contains": {
+      "source": "gpu_env/_core/_bt_profiles.py::_CANONICAL_TO_LEVEL (10 entries)",
+      "entries": [
+        "OP5",
+        "OP6",
+        "OP7",
+        "OP8",
+        "OP9",
+        "OP10",
+        "OP11",
+        "OP12",
+        "C6A",
+        "C6B"
+      ],
+      "permanent_board": "experiments/run_g0_v2_seed.py::OPPONENTS = OP6..OP12 (7 entries). OP5, C6A and C6B are registry members that are NOT on the permanent board.",
+      "the_six_drafted_here_match_neither_rule": "OP5 + OP8..OP12 is neither 'registry minus construction poles' (8 opponents, adds C6A and C6B) nor 'permanent board minus construction poles' (5 opponents, drops OP5). It came from a hand-typed list, not from a rule."
+    },
+    "the_C6_fixtures": {
+      "documented_purpose": "_bt_profiles.py: 'C6 experimental fixtures ... NOT part of the permanent board ... Separated along the defensive-allocation axis the admitted OP6-OP12 mixture does not span: every existing profile sets enable_defender=True with min_alive_for_defender 2-3, so none ever abandons its own half.'",
+      "C6A_PUNISH_EXPOSURE": {
+        "enable_defender": false,
+        "min_alive_for_defender": 99,
+        "defender_zone_frac": 0.05,
+        "threat_radius": 4.0,
+        "counter_always": true,
+        "note": "abandons its own half to race for an uncovered flag; defender_zone_frac is INERT because the defender is disabled, so a defender_zone_frac categorization would label it B-like on a variable that does nothing for it"
+      },
+      "C6B_PUNISH_PASSIVITY": {
+        "enable_defender": true,
+        "min_alive_for_defender": 2,
+        "defender_zone_frac": 0.08,
+        "threat_radius": 13.0,
+        "note": "threat_radius 13.0 exceeds the B construction pole's 12.0, so C6B lies OUTSIDE the construction span on a documented mechanism parameter"
+      },
+      "consequence_for_the_claim_boundary": "The registry DOES contain regimes outside the span of the construction poles, so the drafted limitation 'this tests interpolation only and cannot test extrapolation' was wrong as stated. It holds for OP5 and OP8..OP12; it does not hold for C6A and C6B."
+    },
+    "feasibility_verified": "The generic environment builder constructs and runs all of OP5, OP8-OP12, C6A and C6B at 4v4 and resolves each to its canonical profile on every field (assert_opponent_resolved). It reproduces the validated _make_env path IDENTICALLY on both construction poles and both compositions. The adaptive opponents OP8, OP11 and OP12 are deterministic across repeated same-seed runs in one process.",
+    "seed_hygiene_disclosure": "Prototyping used seeds 20400001 (all eight canonical opponents plus OP6/OP7, FIXED_2A_2D, steps and completion printed only) and 20400007 (OP8, OP11, OP12, FIXED_2A_2D, run twice). Both lie inside the approved block. Outcome values for held-out opponents were masked before reading and were not inspected. Prototyping should have used the smoke family; C6A/C6B feasibility was subsequently checked on smoke seed 99900601.",
+    "decision_required_from_PI": "Which held-out set the exhaustive rule is to yield. See the report for the options."
+  }
+}

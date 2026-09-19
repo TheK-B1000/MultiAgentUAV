@@ -1140,9 +1140,21 @@
           "note": "sealed SEALED; GUARDED_ROUTED_COMPOSITION_CONFIRMED"
         }
       ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP",
+      "purpose": "6v6 role-composition sweep, 7 compositions x 2 certified poles, paired, PPO off",
+      "seed_class": "exploratory",
+      "lo": 20500001,
+      "hi": 20500064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T12:04:58Z"
     }
   ],
-  "updated_utc": "2026-09-19T10:03:22Z",
+  "updated_utc": "2026-09-19T12:04:58Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

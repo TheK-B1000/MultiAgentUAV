@@ -1,0 +1,23 @@
+{
+  "label": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP",
+  "state": "RUNNING",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-19T12:04:58Z",
+      "pid": 37092,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "14911db2f4ea814e34294cf50d17634fc28ed886",
+      "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+      "n_episodes": 896
+    }
+  ],
+  "updated_utc": "2026-09-19T12:04:58Z",
+  "pid": 37092,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "14911db2f4ea814e34294cf50d17634fc28ed886",
+  "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+  "n_episodes": 896
+}
