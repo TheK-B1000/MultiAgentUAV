@@ -185,6 +185,7 @@ class AuditPlan:
     rng_seed: int = 7
     tolerance: float = 1e-6                     # sealed values are rounded to 6 dp
     seed_class: str | None = None               # "sealed_confirmatory" | "exploratory" | "smoke"
+    experiment_id: str | None = None            # registry owner of the seed block, if any
 
 
 class CheckResult(NamedTuple):
@@ -370,8 +371,17 @@ def run_audit(plan: AuditPlan) -> dict:
     if plan.seed_class is not None:
         try:
             from experiments.seed_registry import check_block          # noqa: PLC0415
-            ok, msg = check_block(min(want), max(want), plan.seed_class)
-            add("seed_class", True, ok, msg, seed_class=plan.seed_class)
+            # experiment_id is load-bearing, not decorative. Rule 9 says allocate
+            # the block BEFORE spending seeds, so by audit time a compliant run
+            # has its own reservation on record. Without an owner, check_block
+            # sees that reservation as a foreign overlap and every Rule-9-abiding
+            # run fails its own seal. check_block auto-allows ONLY an exact
+            # same-experiment, same-range match, so passing the owner cannot wave
+            # through a shifted or widened block.
+            ok, msg = check_block(min(want), max(want), plan.seed_class,
+                                  experiment_id=plan.experiment_id)
+            add("seed_class", True, ok, msg, seed_class=plan.seed_class,
+                experiment_id=plan.experiment_id)
         except ImportError:
             add("seed_class", False, True,
                 f"declared {plan.seed_class!r}; registry not available to verify",

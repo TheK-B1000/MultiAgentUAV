@@ -264,3 +264,97 @@ def test_split_half_is_reported_but_never_gates(bed):
     assert sh["gating"] is False and sh["sign_flip"] is True
     assert audit["passed"], "a split-half sign flip must not block sealing"
     assert "SIGN FLIP" in sh["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Rule 9 / Rule 7 interaction: the audit must know who OWNS the seed block.
+#
+# Regression for a real defect found by the first run ever to call seal():
+# run_audit called check_block() without an experiment_id, so a run that had
+# followed Rule 9 (allocate the block BEFORE spending seeds) saw its OWN
+# reservation reported as a foreign overlap and failed its own seal. Every
+# Rule-9-compliant run would have hit this.
+# ---------------------------------------------------------------------------
+
+def _seed_class_check(plan):
+    return next(c for c in run_audit(plan)["checks"] if c["name"] == "seed_class")
+
+
+def _registry_with(monkeypatch, blocks):
+    """Point seed_registry.load at a synthetic registry, so these tests never
+    touch artifacts/SEED_REGISTRY.json."""
+    from experiments import seed_registry as sr
+    monkeypatch.setattr(sr, "load", lambda: {"blocks": blocks})
+
+
+@pytest.fixture()
+def owned_bed(tmp_path, monkeypatch):
+    """A block registered in the EXPLORATORY range, owned by MINE."""
+    rows = _rows()
+    csv_path = tmp_path / "rows.csv"
+    _write(csv_path, rows)
+    lo, hi = min(SEEDS), max(SEEDS)
+    _registry_with(monkeypatch, [{"experiment_id": "MINE", "lo": lo, "hi": hi,
+                                  "seed_class": "exploratory", "status": "RESERVED",
+                                  "subdivides": None}])
+    return tmp_path, csv_path, lo, hi
+
+
+def test_audit_accepts_a_block_the_run_itself_registered(owned_bed):
+    """The defect: this used to FAIL, because the run's own Rule-9 reservation
+    looked like someone else's block."""
+    tmp_path, csv_path, _lo, _hi = owned_bed
+    plan = _plan(tmp_path, csv_path)
+    plan = AuditPlan(**{**plan.__dict__, "seed_class": "exploratory",
+                        "experiment_id": "MINE"})
+    check = _seed_class_check(plan)
+    assert check["result"] == "PASS", check["detail"]
+    assert "already registered to MINE" in check["detail"]
+
+
+def test_audit_still_rejects_a_block_owned_by_another_experiment(owned_bed):
+    """The guard must keep biting: owner-awareness is not a bypass."""
+    tmp_path, csv_path, _lo, _hi = owned_bed
+    plan = _plan(tmp_path, csv_path)
+    plan = AuditPlan(**{**plan.__dict__, "seed_class": "exploratory",
+                        "experiment_id": "SOMEONE_ELSE"})
+    check = _seed_class_check(plan)
+    assert check["result"] == "FAIL"
+    assert "OVERLAPS" in check["detail"]
+
+
+def test_audit_rejects_an_unowned_block_that_overlaps(owned_bed):
+    """Omitting experiment_id keeps the old, strict behaviour -- so existing
+    callers that never allocated a block are unaffected by this change."""
+    tmp_path, csv_path, _lo, _hi = owned_bed
+    plan = _plan(tmp_path, csv_path)
+    plan = AuditPlan(**{**plan.__dict__, "seed_class": "exploratory"})
+    assert _seed_class_check(plan)["result"] == "FAIL"
+
+
+def test_owner_cannot_silently_widen_its_own_allocation(tmp_path, monkeypatch):
+    """check_block auto-allows ONLY an exact same-range match. A run that spent
+    MORE seeds than it reserved must still fail, even under its own name."""
+    rows = _rows()
+    csv_path = tmp_path / "rows.csv"
+    _write(csv_path, rows)
+    # registered block is narrower than the seeds actually present in the rows
+    _registry_with(monkeypatch, [{"experiment_id": "MINE", "lo": min(SEEDS),
+                                  "hi": max(SEEDS) - 4, "seed_class": "exploratory",
+                                  "status": "RESERVED", "subdivides": None}])
+    plan = _plan(tmp_path, csv_path)
+    plan = AuditPlan(**{**plan.__dict__, "seed_class": "exploratory",
+                        "experiment_id": "MINE"})
+    check = _seed_class_check(plan)
+    assert check["result"] == "FAIL", "a widened self-allocation must not be waved through"
+    assert "OVERLAPS" in check["detail"]
+
+
+def test_seed_class_check_is_gating_and_records_the_owner(owned_bed):
+    tmp_path, csv_path, _lo, _hi = owned_bed
+    plan = _plan(tmp_path, csv_path)
+    plan = AuditPlan(**{**plan.__dict__, "seed_class": "exploratory",
+                        "experiment_id": "MINE"})
+    check = _seed_class_check(plan)
+    assert check["gating"] is True
+    assert check["experiment_id"] == "MINE"
