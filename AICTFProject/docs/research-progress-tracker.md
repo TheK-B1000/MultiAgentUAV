@@ -16,7 +16,45 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-20 — **LEARNED-COMPOSITION PROBE, STAGE 2 SEALED: BOTH pi_A AND pi_B OPEN FAR MORE ATTACK-HEAVY THAN THE WINNING SCRIPTED 5A/1D STRUCTURE, AND pi_B IS SIGNIFICANTLY MORE SO THAN pi_A.**
+> **Last updated:** 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE: MECHANISM FROZEN AND CONTRACT-VERIFIED (7/7); DECISION THRESHOLDS PROPOSED, NOT YET PI-CONFIRMED; NO SEED SPENT.**
+> Follow-up to the Stage 2 finding below: PI direction 2026-09-20 (no PPO yet) asked to
+> freeze a rollout-time test of whether forcing exactly one real defender onto the frozen
+> `pi_A`/`pi_B` checkpoints changes their outcomes. Spec:
+> [`DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json`](../artifacts/strategic_demand/sppo/DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json).
+>
+> **A first design (write `MacroAction.DEFEND=7` directly into `blue_commit_macro`,
+> bypassing the discrete action head) crashes CUDA at n_macros=5**: the observation's
+> action-mask builder (`gpu_env/_core/_observations.py::_build_action_mask`) scatters
+> `commit_macro` into a one-hot dimension sized `cfg.n_macros`, and index 7 has no
+> representation in a 5-wide mask. The frozen mechanism instead patches one layer
+> downstream, at `_build_targets_from_action`'s continuous `(tx, ty)` OUTPUT (a per-instance
+> monkey-patch, `experiments.probe_learned_composition.install_forced_defend_target`): the
+> real, untouched target-resolution code is called twice per tick, once for the agent's own
+> (always small, always-valid) committed macro and once more with a synthetic all-DEFEND
+> macro tensor purely to read the DEFEND target, splicing only that value in. `commit_macro`
+> itself is never written, so the action-mask and the (DEFEND-blind) reward bookkeeping are
+> undisturbed.
+>
+> **Contracts 7/7 PASS**, including a real equivalence run: the injection reproduces a
+> natural scripted DEFEND's full trajectory (position, alive, tagged, carrying, intent,
+> outcome) bit-for-bit, at both n_macros=5 and n_macros=8, across 4 (pole, non-trivial
+> defender-id) cells. Rotation (`seed % 6`) is exactly uniform (16/16/16/16/16/16) over the
+> freshly reserved, disjoint seed block `20900001-20900096` (96 = 16x6, unspent). Checkpoint
+> hashes match the pinned values.
+>
+> **Design frozen, not yet run:** `pi_A`/`pi_B` x Pole A/B x {native, +1 defender} x 96
+> paired seeds = 768 FULL episodes (not truncated -- Stage 2's 20-tick truncation reads
+> win/margin as ~always 0-0 that early, so an outcome question needs full episodes).
+>
+> **Open, PI decision — decision thresholds proposed but not frozen:** primary metric
+> = paired win-rate delta (native vs +1-defender), same "Delta" convention as
+> everywhere else in this line. Proposed: *improves* = delta > 0, CI excludes zero;
+> *transferable scaffold* = all 4 cells improve; *B disproportionate* = pi_B improves AND
+> the difference-of-deltas CI excludes zero on >=1 pole; *closes the intervention* = no
+> resolved improvement anywhere, or any resolved harm. The `run` stage is deliberately
+> unwritten until these are confirmed and the PI explicitly authorizes spending the block.
+>
+> Prior — 2026-09-20 — **LEARNED-COMPOSITION PROBE, STAGE 2 SEALED: BOTH pi_A AND pi_B OPEN FAR MORE ATTACK-HEAVY THAN THE WINNING SCRIPTED 5A/1D STRUCTURE, AND pi_B IS SIGNIFICANTLY MORE SO THAN pi_A.**
 > PI direction 2026-09-20 authorized Stage 2 as a dual-instrument diagnostic with no further
 > instrument selection: both confirmed survivors (position `[5,15)`, intent `[0,10)`) used as
 > co-equal, separately-reported measurements, no averaging, no post-hoc instrument choice, the dead
