@@ -16,7 +16,47 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE: MECHANISM FROZEN AND CONTRACT-VERIFIED (7/7); DECISION THRESHOLDS PROPOSED, NOT YET PI-CONFIRMED; NO SEED SPENT.**
+> **Last updated:** 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE SEALED: `ONE_DEFENDER_HARM_ONLY`. FORCING ONE REAL DEFENDER NEVER HELPS, AND RESOLVED-HARMS pi_A AND pi_B ON POLE B SPECIFICALLY.**
+> PI confirmed the decision rules (per-cell resolved improvement/harm via LCB95/UCB95, a
+> per-pole interaction test for B-disproportionate support, and two non-gating secondary
+> diagnostics -- crossover-under-condition and its paired change from native) and authorized
+> the run: 768 full episodes, `pi_A`/`pi_B` x Pole A/B x {native, +1 defender} x 96 paired
+> seeds `20900001-20900096`, cuda, deterministic. **Sealed, 18/18 gating checks, independent
+> re-derivation of the interaction/paired-change quantities exact (max diff 0.0), read-only
+> guarantee held.**
+>
+> **No cell shows a resolved improvement.** Two of four resolve HARM, both on Pole B:
+> `pi_A@B` `-0.177 [-0.260,-0.104]`, `pi_B@B` `-0.094 [-0.156,-0.042]`. Pole A is unresolved
+> for both policies (`pi_A@A +0.031 [-0.063,+0.125]`, `pi_B@A -0.010 [-0.094,+0.073]`). The
+> per-pole interaction `I_r` is unresolved on both poles (`I_B +0.083 [-0.010,+0.177]` comes
+> closest but does not clear the bar), so `B_DISPROPORTIONATE_ONE_DEFENDER_SUPPORT` is
+> `false` on both poles and `TRANSFERABLE_ONE_DEFENDER_SCAFFOLD` is `false`. **Verdict:
+> `ONE_DEFENDER_HARM_ONLY`** (>=1 resolved harm, zero resolved improvements anywhere).
+>
+> **Split-half check (report-only, non-gating) strengthens the harm reading**: the two
+> resolved-harm cells (`pi_A@B`, `pi_B@B`) show NO sign flip between the first and second
+> half of the seed block; three unresolved quantities (`delta_pi_A_A`, `delta_pi_B_A`,
+> `crossover_B_plus1D`) DO flip sign between halves, consistent with those being genuinely
+> noisy/near-zero rather than a hidden signal being averaged away.
+>
+> **Secondary diagnostics (non-gating):** the native-condition specialist crossover on fresh
+> seeds is small and unresolved on both poles (`Delta_A_native -0.052 [-0.135,+0.021]`,
+> `Delta_B_native -0.010 [-0.031,0.000]`), consistent with the original SHARE0 near-zero
+> crossover finding. Under +1D, `Delta_B_plus1D` shifts to `+0.073 [-0.021,+0.167]` (still
+> unresolved) -- the paired change `C_B = I_B` exactly (an algebraic identity, confirmed by
+> the independent re-derivation), so this is not new information beyond the interaction test.
+>
+> **Bottom line:** the missing defender is not merely correlated with the near-zero
+> `pi_A`/`pi_B` crossover -- forcing one in causally HURTS both policies on Pole B and helps
+> neither policy on either pole. The scripted 6v6 composition result (5A/1D beats 3A/3D) does
+> **not** transfer causally to these frozen checkpoints via a naive rollout-time defender
+> injection. Per the frozen spec's own launch conditions (no PPO, no extra arm, no mid-run
+> inspection, no top-up), this experiment is complete; full numbers in
+> [`DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json`](../artifacts/strategic_demand/sppo/DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json).
+> Whether/how to follow up (e.g. a training-time constraint, or investigating why Pole B
+> specifically is harmed) is an open PI decision; nothing further is started.
+>
+> Prior — 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE: MECHANISM FROZEN AND CONTRACT-VERIFIED (7/7); DECISION THRESHOLDS PROPOSED, NOT YET PI-CONFIRMED; NO SEED SPENT.**
 > Follow-up to the Stage 2 finding below: PI direction 2026-09-20 (no PPO yet) asked to
 > freeze a rollout-time test of whether forcing exactly one real defender onto the frozen
 > `pi_A`/`pi_B` checkpoints changes their outcomes. Spec:

@@ -1,7 +1,8 @@
 {
   "record_id": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC",
-  "status": "FROZEN_MECHANISM_PENDING_THRESHOLD_CONFIRMATION",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
   "utc": "2026-09-20T00:00:00Z",
+  "amendment_2026_09_20": "PI confirmed and refined the decision thresholds below (go-ahead: 'Freeze those analysis rules, write the run stage, and launch the 768 episodes'). DECISION_THRESHOLDS_PROPOSED_PENDING_PI_CONFIRMATION and PRIMARY_OUTCOME_PROPOSED_PENDING_PI_CONFIRMATION are SUPERSEDED by DECISION_RULES_FROZEN and SECONDARY_DIAGNOSTIC_ENDPOINTS_FROZEN below and are left in place only as the record of what was proposed. No seed was spent before this amendment.",
   "reads": ["LEARNED_COMPOSITION_PROBE_RESULT.json", "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json"],
   "classification": "OBSERVATIONAL -> ONE CAUSAL INTERVENTION. No training, no checkpoint write, no parameter change. The intervention is entirely at rollout time: one agent's resolved movement target is overridden; the loaded network's weights, and the other five agents' actions, are untouched.",
   "confirmatory": false,
@@ -77,8 +78,54 @@
     "no_training": "install_forced_defend_target touches only per-instance Python attributes of a fresh env's core object; nothing persists across episodes, nothing touches a checkpoint file or a parameter tensor"
   },
 
+  "DECISION_RULES_FROZEN": {
+    "per_cell_effect": "Delta_{p,r} = WR(p,r,plus_one_defender) - WR(p,r,native), paired by seed (p in {pi_A,pi_B}, r in {A,B}). Four cells.",
+    "resolved_improvement": "LCB95(Delta_{p,r}) > 0",
+    "resolved_harm": "UCB95(Delta_{p,r}) < 0",
+    "otherwise": "unresolved",
+    "transferable_scaffold": "TRANSFERABLE_ONE_DEFENDER_SCAFFOLD iff all four Delta_{p,r} resolve positive. Unchanged from the original proposal; the PI confirmed it as appropriately strong.",
+    "interaction_per_pole": "I_r = Delta_{pi_B,r} - Delta_{pi_A,r}, computed per-seed as [win(pi_B,r,plus1D,s)-win(pi_B,r,native,s)] - [win(pi_A,r,plus1D,s)-win(pi_A,r,native,s)], then bootstrapped over seeds.",
+    "b_disproportionate_support": "B_DISPROPORTIONATE_ONE_DEFENDER_SUPPORT iff, on the SAME pole r: LCB95(Delta_{pi_B,r}) > 0 AND LCB95(I_r) > 0, for at least one r in {A,B}. Explicitly per-pole (not e.g. B improving on Pole A while the interaction only separates on Pole B) to avoid a mismatched-pole false positive. May co-occur with TRANSFERABLE; reported as a separate boolean regardless of which label is the terminal headline.",
+    "integrity_precedence": "Integrity/audit failure (sealed status != SEALED) takes precedence over every scientific label below. A non-SEALED result reports no scientific verdict as certified."
+  },
+
+  "SECONDARY_DIAGNOSTIC_ENDPOINTS_FROZEN": {
+    "status": "Diagnostic only. Does NOT gate the primary causal test or the terminal labels below. Frozen before seed spending because this experiment answers it for free and it speaks directly to why the intervention was proposed.",
+    "crossover_under_condition": {
+      "Delta_A_native": "WR(pi_A,A,native) - WR(pi_B,A,native), paired by seed",
+      "Delta_A_plus1D": "WR(pi_A,A,plus_one_defender) - WR(pi_B,A,plus_one_defender), paired by seed",
+      "Delta_B_native": "WR(pi_B,B,native) - WR(pi_A,B,native), paired by seed",
+      "Delta_B_plus1D": "WR(pi_B,B,plus_one_defender) - WR(pi_A,B,plus_one_defender), paired by seed",
+      "convention": "same sign convention as the original SHARE0 crossover record (Delta_A = home specialist minus away specialist on Pole A; Delta_B likewise on Pole B), recomputed fresh on THIS spec's own seeds -- never reusing SHARE0's spent 13680001-128 block."
+    },
+    "paired_change_from_native_crossover": {
+      "C_A": "Delta_A_plus1D - Delta_A_native, computed per-seed then bootstrapped (a paired difference of two already-paired differences)",
+      "C_B": "Delta_B_plus1D - Delta_B_native, computed per-seed then bootstrapped",
+      "purpose": "Distinguishes 'the defender just raises everyone's win rate' from 'the defender changes the specialization structure itself'."
+    },
+    "independent_re_derivation": "I_A, I_B, C_A, and C_B are each computed by two independently-coded implementations (one vectorised, one a plain per-seed loop sharing no code path with it) from the same sealed rows; disagreement aborts before sealing. The four primary Delta_{p,r} and the four crossover deltas above are, in addition, registered as formal audit Claims (rs.AuditPlan.claims) and independently re-derived by the audit itself from the rows on disk."
+  },
+
+  "TERMINAL_SCIENTIFIC_OUTCOMES_FROZEN": {
+    "precedence_order_for_the_single_headline_VERDICT": [
+      "AUDIT_FAILED (sealed status != SEALED) -- overrides everything below",
+      "TRANSFERABLE_ONE_DEFENDER_SCAFFOLD",
+      "B_DISPROPORTIONATE_ONE_DEFENDER_SUPPORT",
+      "MIXED_ONE_DEFENDER_EFFECT",
+      "NO_RESOLVED_ONE_DEFENDER_BENEFIT",
+      "ONE_DEFENDER_HARM_ONLY"
+    ],
+    "1_TRANSFERABLE_ONE_DEFENDER_SCAFFOLD": "All four Delta_{p,r} resolve positive.",
+    "2_B_DISPROPORTIONATE_ONE_DEFENDER_SUPPORT": "Not (1), but the b_disproportionate_support condition holds on at least one pole. Whether C_B or Delta_B_plus1D also improves is reported alongside but not required for this label.",
+    "3_MIXED_ONE_DEFENDER_EFFECT": "At least one resolved improvement AND at least one resolved harm, OR at least one resolved improvement exists but neither (1) nor (2) is satisfied and there is no resolved harm (benefits are policy/pole-specific without clearing the stronger labels). Example: three cells resolve positive and one resolves harm -- this falsifies a universal scaffold but does not license 'the defender mechanism is irrelevant'; it is conditional, and is reported as MIXED, not as harm-only or as no-benefit.",
+    "4_NO_RESOLVED_ONE_DEFENDER_BENEFIT": "No cell resolves improvement and no cell resolves harm (all four unresolved).",
+    "5_ONE_DEFENDER_HARM_ONLY": "At least one resolved harm and zero resolved improvements anywhere.",
+    "always_reported_regardless_of_headline": "the 4 per-cell resolved/harm/unresolved flags, the per-pole b_disproportionate_support boolean, TRANSFERABLE boolean, and all four secondary diagnostic endpoints with their intervals -- so a MIXED or B_DISPROPORTIONATE headline never hides which specific cells drove it."
+  },
+
   "NOT_AUTHORIZED_BY_THIS_SPEC": [
-    "spending any seed from the fresh block until the contracts above pass AND the decision thresholds are confirmed by the PI",
+    "spending any seed from the fresh block unless the mechanism contracts pass (they did, 2026-09-20, 7/7) -- the decision rules are now frozen (see DECISION_RULES_FROZEN) and the PI authorized the run 2026-09-20",
+    "a second arm, a mid-run inspection, or a top-up of the seed block -- the PI's go-ahead was explicit: 768 episodes, no PPO, no extra arm, no mid-run inspection, no top-up",
     "any PPO run, any training-time defender constraint -- this spec is entirely rollout-time",
     "sending raw macro id 7 through the discrete action array at n_macros=5 (the rejected, crashing approach)",
     "reimplementing DEFEND's target math anywhere outside the one already-validated call to _build_targets_from_action",

@@ -1,0 +1,128 @@
+{
+  "record_id": "DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT",
+  "implements": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
+  "utc": "2026-09-20T17:37:31Z",
+  "device": "cuda",
+  "seed_block": {
+    "base": 20900001,
+    "n": 96,
+    "class": "exploratory"
+  },
+  "PER_CELL_DELTA": {
+    "pi_A_A": {
+      "mean": 0.03125,
+      "lcb95": -0.0625,
+      "ucb95": 0.125,
+      "n": 96,
+      "resolved_improvement": false,
+      "resolved_harm": false
+    },
+    "pi_A_B": {
+      "mean": -0.177083,
+      "lcb95": -0.260417,
+      "ucb95": -0.104167,
+      "n": 96,
+      "resolved_improvement": false,
+      "resolved_harm": true
+    },
+    "pi_B_A": {
+      "mean": -0.010417,
+      "lcb95": -0.09375,
+      "ucb95": 0.072917,
+      "n": 96,
+      "resolved_improvement": false,
+      "resolved_harm": false
+    },
+    "pi_B_B": {
+      "mean": -0.09375,
+      "lcb95": -0.15625,
+      "ucb95": -0.041667,
+      "n": 96,
+      "resolved_improvement": false,
+      "resolved_harm": true
+    }
+  },
+  "INTERACTION_PER_POLE_I_r": {
+    "A": {
+      "mean": -0.041667,
+      "lcb95": -0.145833,
+      "ucb95": 0.0625,
+      "n": 96
+    },
+    "B": {
+      "mean": 0.083333,
+      "lcb95": -0.010417,
+      "ucb95": 0.177083,
+      "n": 96
+    }
+  },
+  "TRANSFERABLE_ONE_DEFENDER_SCAFFOLD": false,
+  "B_DISPROPORTIONATE_SUPPORT_BY_POLE": {
+    "A": false,
+    "B": false
+  },
+  "B_DISPROPORTIONATE_ONE_DEFENDER_SUPPORT": false,
+  "SECONDARY_DIAGNOSTIC_NOT_GATING": {
+    "crossover_under_condition": {
+      "Delta_A_native": {
+        "mean": -0.052083,
+        "lcb95": -0.135417,
+        "ucb95": 0.020833,
+        "n": 96
+      },
+      "Delta_A_plus1D": {
+        "mean": -0.010417,
+        "lcb95": -0.083333,
+        "ucb95": 0.0625,
+        "n": 96
+      },
+      "Delta_B_native": {
+        "mean": -0.010417,
+        "lcb95": -0.03125,
+        "ucb95": 0.0,
+        "n": 96
+      },
+      "Delta_B_plus1D": {
+        "mean": 0.072917,
+        "lcb95": -0.020833,
+        "ucb95": 0.166667,
+        "n": 96
+      }
+    },
+    "paired_change_from_native_crossover": {
+      "C_A": {
+        "mean": 0.041667,
+        "lcb95": -0.0625,
+        "ucb95": 0.145833,
+        "n": 96
+      },
+      "C_B": {
+        "mean": 0.083333,
+        "lcb95": -0.010417,
+        "ucb95": 0.177083,
+        "n": 96
+      }
+    }
+  },
+  "SCIENTIFIC_VERDICT": "ONE_DEFENDER_HARM_ONLY",
+  "independent_rederivation_I_C": {
+    "max_abs_diff": 0.0,
+    "seeds": 96
+  },
+  "read_only_guarantee": {
+    "param_digest_equal_before_after": true,
+    "checkpoint_sha256_matches_pinned": true
+  },
+  "claim_boundary": "768 full episodes, frozen checkpoints, rollout-time intervention only, fresh seeds 20900001-20900096 spent for the first time by this spec. SCIENTIFIC_VERDICT is certified ONLY if this record's own status below is SEALED -- integrity/audit failure takes precedence over every scientific label, per the frozen spec.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-20T17:37:32Z",
+  "git_sha": "1faa60d8eb23e1c956d726399a03470c8b4fac02",
+  "AUDIT": {
+    "path": "DEFENDER_INJECTION_CAUSAL_BRIDGE_AUDIT.json",
+    "passed": true,
+    "n_checks": 26,
+    "n_gating": 18,
+    "failed_checks": [],
+    "rows_sha256": "2d0619f3d55d45087b6984bd800f19ce980520bc3cf33cc291fd15fc2ef89a98"
+  }
+}

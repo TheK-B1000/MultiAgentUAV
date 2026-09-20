@@ -1243,13 +1243,20 @@
       "lo": 20900001,
       "hi": 20900096,
       "n": 96,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-20T07:59:34Z"
+      "allocated_utc": "2026-09-20T07:59:34Z",
+      "spent_utc": "2026-09-20T17:37:32Z",
+      "notes": [
+        {
+          "utc": "2026-09-20T17:37:32Z",
+          "note": "sealed SEALED; verdict=ONE_DEFENDER_HARM_ONLY"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-20T07:59:34Z",
+  "updated_utc": "2026-09-20T17:37:32Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
