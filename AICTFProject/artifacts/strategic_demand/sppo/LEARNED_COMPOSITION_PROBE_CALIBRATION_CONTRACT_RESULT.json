@@ -1,0 +1,48 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_CALIBRATION_CONTRACT_RESULT",
+  "utc": "2026-09-19T21:55:55Z",
+  "implements": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+  "n_checks": 6,
+  "n_gating": 6,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "name": "C1_EXECUTOR_CONSTANTS_EQUAL_THE_SPEC",
+      "gating": true,
+      "passed": true,
+      "detail": "R_pos 4.5 windows (0, 10)/(5, 15) T 20 R_intent 4.5 rule 0.9/+-1"
+    },
+    {
+      "name": "C2_TRUNCATION_EQUALS_THE_FIRST_TICKS_OF_A_FULL_RUN_ON_CUDA",
+      "gating": true,
+      "passed": true,
+      "detail": "3A_3D/PREFIX/A: True; 5A_1D/SUFFIX/B: True"
+    },
+    {
+      "name": "C3_SUFFIX_ASSIGNMENT_IS_LIVE",
+      "gating": true,
+      "passed": true,
+      "detail": "true_defend recorded on a live episode: [False, False, False, False, True, True]"
+    },
+    {
+      "name": "C4_SEED_BLOCKS_OWNED_AND_UNSPENT",
+      "gating": true,
+      "passed": true,
+      "detail": "calibration: already registered to LEARNED_COMPOSITION_PROBE_CALIBRATION (status RESERVED) -- same block, no conflict; registry status = RESERVED | probe: already registered to LEARNED_COMPOSITION_PROBE (status RESERVED) -- same block, no conflict; registry status = RESERVED"
+    },
+    {
+      "name": "C5_AUDIT_PLAN_SEALS_A_REGISTERED_BLOCK",
+      "gating": true,
+      "passed": true,
+      "detail": "real AuditPlan with owner on 384 rows: passed=True (7 gating, 0 failed); negative control without the owner fails exactly ['seed_class']"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only. No calibration episode was scored and no seed was spent. C2/C3 use disposable smoke seeds."
+}

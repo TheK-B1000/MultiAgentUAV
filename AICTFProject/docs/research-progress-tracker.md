@@ -16,7 +16,103 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-19 — **6v6 FIXED 5A/1D vs 3A/3D CONFIRMED (SEALED, n=192, fresh seeds): B +0.69, AND A IMPROVED +0.125.**
+> **Last updated:** 2026-09-20 — **LEARNED-COMPOSITION PROBE, STAGE 2 SEALED: BOTH pi_A AND pi_B OPEN FAR MORE ATTACK-HEAVY THAN THE WINNING SCRIPTED 5A/1D STRUCTURE, AND pi_B IS SIGNIFICANTLY MORE SO THAN pi_A.**
+> PI direction 2026-09-20 authorized Stage 2 as a dual-instrument diagnostic with no further
+> instrument selection: both confirmed survivors (position `[5,15)`, intent `[0,10)`) used as
+> co-equal, separately-reported measurements, no averaging, no post-hoc instrument choice, the dead
+> primary excluded even as a sanity check, the D_hat inversion using ONLY the original sealed
+> calibration's class means (sha256-pinned, never refit on confirmatory or Stage-2 data). Spec:
+> [`LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json).
+>
+> **Sealed** (`LEARNED_COMPOSITION_PROBE_RESULT.json`, 512 learned-policy episodes, `pi_A`/`pi_B` x
+> Pole A/B x 128 paired seeds `20700101-20700228`, cuda, deterministic, 7/7 audit, independent
+> re-derivation exact; read-only guarantee held: parameter digests and checkpoint sha256 unchanged
+> before/after; a real 16-episode parity check against the spent SHARE0 crossover record passed exactly
+> before any probe-block seed was spent):
+>
+> - **Concordance holds in all 4 (policy, pole) cells** -- position and intent instruments agree
+>   (`attack_heavy`, D_hat <= 1.5) everywhere, so per the frozen interpretation rule a role-composition
+>   claim is licensed for every cell.
+> - **Neither policy resembles the confirmed 5A/1D reference (D=1).** Mean |D_hat - 1| is 0.82-1.00
+>   across cells -- both read far closer to a fully-committed 6A/0D opening than to the composition that
+>   actually beat balanced play in the scripted world.
+> - **pi_B is significantly MORE attack-committed than pi_A, not closer to the target** -- the paired
+>   contrast D_hat(pi_B) - D_hat(pi_A) is negative with a CI excluding zero in all 4 instrument x pole
+>   combinations (position: -0.12 both poles; intent: -0.03 both poles). pi_B's intent-window reading is
+>   EXACTLY 0.0 with a [0,0] CI in both poles -- zero of 256 episodes ever showed a home-directed agent
+>   in that window.
+> - **Interpretation (not itself a further gated claim):** composition does not explain the near-zero
+>   `pi_A`/`pi_B` crossover delta because neither policy plays anything resembling the discovered
+>   winning structure to begin with -- both are near-unconditional full-attack in the opening, and the
+>   one real, concordant difference between them runs away from, not toward, the scripted target.
+>
+> Full per-cell bootstrap intervals, the paired contrasts, and the concordance table are in the sealed
+> result. This closes the opening-composition read of `pi_A`/`pi_B`; any further step (e.g. a
+> coordination intervention, or reading sustained-episode behaviour) needs its own PI-frozen spec.
+>
+> Prior — 2026-09-20 — **LEARNED-COMPOSITION PROBE, CONFIRMATORY CALIBRATION SEALED: `BOTH_CONFIRMED`. NO LEARNED POLICY HAS BEEN READ.**
+> PI direction 2026-09-20 chose Option B from `LEARNED_COMPOSITION_PROBE_CALIBRATION_READING.json`:
+> re-validate the two pre-declared calibration survivors on a fresh, never-before-spent seed block
+> before treating either as a real instrument. Spec:
+> [`LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json)
+> (amends the V1 spec; unchanged kill rule, unchanged R_pos/R_intent/windows/tolerance/bar).
+>
+> **Sealed** (`..._CONFIRMATORY_CALIBRATION_RESULT.json`, 384 fresh truncated scripted episodes, seeds
+> `20800001-20800016`, cuda, 7/7 audit, independent re-derivation exact, contracts 6/6 including a
+> mechanical check that the two candidates are exactly the two the original calibration recorded as
+> passing): **both candidates independently clear the identical V1+V2+V3 rule (recovery >= 0.90, +-1
+> defender) on both poles, on seeds that had no part in selecting them.**
+>
+> - Position, ticks `[5,15)`, R=4.5: pole A `V2 0.991 / V3 0.988`, pole B `V2 0.991 / V3 0.963` ->
+>   `pole_valid` true on both.
+> - Resolved-target intent, ticks `[0,10)`, R=4.5: pole A `V2 1.000 / V3 1.000`, pole B `V2 0.991 /
+>   V3 1.000` -> `pole_valid` true on both.
+> - FYI, not gating: the original dead primary (position `[0,10)`) was re-scored on this fresh block too,
+>   as a sanity check, and reproduces its earlier failure (`V2 0.875 / V3 0.80-0.85` vs `0.90`,
+>   `pole_valid` false on both) -- consistent with the original verdict, not reopened.
+>
+> **What this does and does not authorize:** per the amendment spec, this verdict gates only which
+> instrument(s) a Stage-2 spec addendum is permitted to declare; it does not itself authorize Stage 2 to
+> run. No learned-policy checkpoint has been loaded and no learned telemetry has been read under this
+> probe line. **Open, PI decision:** whether to now declare and freeze a Stage-2 addendum that reads
+> `pi_A`/`pi_B` on the already-reserved seed block `20700101-20700228` (RESERVED, unspent) using BOTH
+> confirmed instruments as convergent measurements, per the original spec's read-only guarantees
+> (checkpoint hash pinning, parameter-digest equality, `torch.no_grad()`, eval mode, no optimizer).
+>
+> Prior — 2026-09-19 — **LEARNED-COMPOSITION PROBE, STAGE 1 SEALED: THE FROZEN PRIMARY INSTRUMENT IS `NOT_VALID`; STAGE 2 REFUSED. TWO PRE-DECLARED ALTERNATIVES PASS ON THE SAME DATA. NO LEARNED POLICY HAS BEEN READ.**
+> Read-only probe of the existing learned 6v6 specialists (`final_pi_A/B_specialist_6v6`,
+> sha256-pinned to the record behind `Delta_A = Delta_B = +0.0078`; spec
+> [`LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json)).
+> Because learned policies cannot select `DEFEND` (production `n_macros` is 5), their
+> role has to be inferred by an instrument calibrated on scripted ground truth.
+> **Whole-episode position-near-home failed its known-answer calibration**
+> (scripted attackers sit near home 67-77% of the time; tagged agents walk home and
+> the adapter sends all attackers home when any teammate carries; at R=6 scripted
+> 6A_0D reads 0.70-0.82 defend-like after tick 100, essentially the same as 0A_6D).
+> **Whole-episode resolved-target intent failed its
+> pre-declared criterion** (76% / 67% within +-1 against 0.90). Neither was rescued.
+>
+> **Sealed calibration** (`..._CALIBRATION_RESULT.json`, 384 truncated scripted
+> episodes, fresh seeds `20700001-016`, cuda, 7/7 audit, independent re-derivation
+> exact): the frozen primary (position, `R=4.5`, ticks `[0,10)`) fails, V2 `0.786`
+> and V3 `0.81 / 0.80` against `0.90`, because the class means are evenly spaced
+> (~0.09) but within-class SD is 0.10-0.12. The prototype's 95% was
+> selection-inflated exactly as warned (fresh exact recovery 35%). **Stage 2 is
+> refused; no learned telemetry was read.**
+>
+> **But two readings declared in the same spec before the run pass the identical
+> rule**: position over ticks `[5,15)` (V2 `1.00 / 0.98`, V3 `0.99 / 0.99`) and the
+> resolved-target intent reading over `[0,10)` (V2 `1.00 / 1.00`, V3 `1.00 / 1.00`,
+> exact recovery ~87%). The cross-assignment control (defenders on the last ids)
+> passes, so the id-geometry confound is not the cause. They gate nothing under the
+> frozen rule, and promoting one now would select it for having passed on the data
+> that validated it. **Open, PI decision** (see
+> [`..._CALIBRATION_READING.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_PROBE_CALIBRATION_READING.json)):
+> stop here, or amend so BOTH survivors are re-validated on a fresh calibration block
+> (~32 min) before any learned reading. Nothing further is started. Training and
+> PPO remain off.
+>
+> Prior — 2026-09-19 — **6v6 FIXED 5A/1D vs 3A/3D CONFIRMED (SEALED, n=192, fresh seeds): B +0.69, AND A IMPROVED +0.125.**
 > The pre-registered confirmation
 > ([`FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json`](../artifacts/strategic_demand/sppo/FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json);
 > two arms, both certified 6v6 poles, block `20600001-20600192`, 768 episodes,

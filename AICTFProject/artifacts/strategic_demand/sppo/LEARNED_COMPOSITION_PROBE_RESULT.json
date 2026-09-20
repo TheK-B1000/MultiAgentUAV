@@ -1,0 +1,274 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_RESULT",
+  "implements": "LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json",
+  "utc": "2026-09-20T07:37:02Z",
+  "device": "cuda",
+  "seed_block": {
+    "base": 20700101,
+    "n": 128,
+    "class": "exploratory"
+  },
+  "calibration_mapping_source": "LEARNED_COMPOSITION_PROBE_CALIBRATION_RESULT.json",
+  "calibration_mapping_source_sha256": "7961f885eb1d3fc703fe5ee4dc064dc8daf9f4540dca63b15051a41be16b18a5",
+  "POSITION_ALT_WINDOW_5_15": {
+    "pi_A": {
+      "A": {
+        "mean": {
+          "mean": 0.187331,
+          "lcb95": 0.141816,
+          "ucb95": 0.237277,
+          "n": 128
+        },
+        "median": {
+          "value": 0.042913,
+          "lcb95": 0.008236,
+          "ucb95": 0.126138,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 0.820249,
+          "lcb95": 0.774735,
+          "ucb95": 0.862454,
+          "n": 128
+        },
+        "n": 128
+      },
+      "B": {
+        "mean": {
+          "mean": 0.164606,
+          "lcb95": 0.124409,
+          "ucb95": 0.207887,
+          "n": 128
+        },
+        "median": {
+          "value": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.088044,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 0.8357,
+          "lcb95": 0.792625,
+          "ucb95": 0.875771,
+          "n": 128
+        },
+        "n": 128
+      }
+    },
+    "pi_B": {
+      "A": {
+        "mean": {
+          "mean": 0.066452,
+          "lcb95": 0.048487,
+          "ucb95": 0.085978,
+          "n": 128
+        },
+        "median": {
+          "value": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.022107,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 0.933548,
+          "lcb95": 0.914022,
+          "ucb95": 0.951513,
+          "n": 128
+        },
+        "n": 128
+      },
+      "B": {
+        "mean": {
+          "mean": 0.048945,
+          "lcb95": 0.034446,
+          "ucb95": 0.065359,
+          "n": 128
+        },
+        "median": {
+          "value": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 0.951055,
+          "lcb95": 0.934641,
+          "ucb95": 0.965554,
+          "n": 128
+        },
+        "n": 128
+      }
+    }
+  },
+  "INTENT_OPENING_WINDOW_0_10": {
+    "pi_A": {
+      "A": {
+        "mean": {
+          "mean": 0.035644,
+          "lcb95": 0.01481,
+          "ucb95": 0.060525,
+          "n": 128
+        },
+        "median": {
+          "value": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 0.964356,
+          "lcb95": 0.939475,
+          "ucb95": 0.98519,
+          "n": 128
+        },
+        "n": 128
+      },
+      "B": {
+        "mean": {
+          "mean": 0.027691,
+          "lcb95": 0.005901,
+          "ucb95": 0.05735,
+          "n": 128
+        },
+        "median": {
+          "value": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 0.976661,
+          "lcb95": 0.954306,
+          "ucb95": 0.994099,
+          "n": 128
+        },
+        "n": 128
+      }
+    },
+    "pi_B": {
+      "A": {
+        "mean": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 128
+        },
+        "median": {
+          "value": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 1.0,
+          "lcb95": 1.0,
+          "ucb95": 1.0,
+          "n": 128
+        },
+        "n": 128
+      },
+      "B": {
+        "mean": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 128
+        },
+        "median": {
+          "value": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 128
+        },
+        "prop_attack_heavy_D_le_1_5": 1.0,
+        "dist_from_5A1D_target_abs_D_minus_1": {
+          "mean": 1.0,
+          "lcb95": 1.0,
+          "ucb95": 1.0,
+          "n": 128
+        },
+        "n": 128
+      }
+    }
+  },
+  "PAIRED_CONTRAST_PI_B_MINUS_PI_A": {
+    "POSITION_ALT_WINDOW_5_15": {
+      "A": {
+        "mean": -0.120879,
+        "lcb95": -0.171149,
+        "ucb95": -0.074942,
+        "n": 128
+      },
+      "B": {
+        "mean": -0.115661,
+        "lcb95": -0.157729,
+        "ucb95": -0.076392,
+        "n": 128
+      }
+    },
+    "INTENT_OPENING_WINDOW_0_10": {
+      "A": {
+        "mean": -0.035644,
+        "lcb95": -0.060525,
+        "ucb95": -0.01481,
+        "n": 128
+      },
+      "B": {
+        "mean": -0.027691,
+        "lcb95": -0.05735,
+        "ucb95": -0.005901,
+        "n": 128
+      }
+    }
+  },
+  "INSTRUMENT_CONCORDANCE_DESCRIPTIVE_NOT_GATING": {
+    "pi_A_A": {
+      "position_band": "attack_heavy",
+      "intent_band": "attack_heavy",
+      "agree": true
+    },
+    "pi_A_B": {
+      "position_band": "attack_heavy",
+      "intent_band": "attack_heavy",
+      "agree": true
+    },
+    "pi_B_A": {
+      "position_band": "attack_heavy",
+      "intent_band": "attack_heavy",
+      "agree": true
+    },
+    "pi_B_B": {
+      "position_band": "attack_heavy",
+      "intent_band": "attack_heavy",
+      "agree": true
+    }
+  },
+  "read_only_guarantee": {
+    "param_digest_equal_before_after": true,
+    "checkpoint_sha256_matches_pinned": true
+  },
+  "independent_reference_check": {
+    "max_abs_diff": 0.0,
+    "episodes": 512
+  },
+  "traces_sha256": "580826121785808e37494a27b1f38617c26edcd8b0b78b755f93efe2334307a3",
+  "claim_boundary": "Observational, scripted-role-calibrated, opening window only (ticks 0-15 across the two instruments). A learned role-composition claim is licensed only where INSTRUMENT_CONCORDANCE_DESCRIPTIVE_NOT_GATING reports agree=true for that (policy, pole) cell; otherwise the reading is instrument-dependent / inconclusive for that cell.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-20T07:37:07Z",
+  "git_sha": "c539bdf02c4a09b33870c63ea40fae84a2f5636e",
+  "AUDIT": {
+    "path": "LEARNED_COMPOSITION_PROBE_AUDIT.json",
+    "passed": true,
+    "n_checks": 7,
+    "n_gating": 7,
+    "failed_checks": [],
+    "rows_sha256": "160370aa0f88fab4b7821dff4a2665b154b23712ba5607cd84cd350f90d06471"
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-20T00:00:00Z",
+  "amends": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json (supersedes its STAGE_2_LEARNED_PROBE_DECLARED_NOW_RUNS_ONLY_IF_STAGE_1_IS_VALID gate condition, which named the primary window and can never fire, since the primary sealed INSTRUMENT_NOT_VALID as a final result)",
+  "reads": ["LEARNED_COMPOSITION_PROBE_CALIBRATION_RESULT.json", "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_RESULT.json"],
+  "classification": "DIAGNOSTIC. READ-ONLY. NO TRAINING, NO PARAMETER CHANGE, NO OUTCOME-BASED SELECTION.",
+  "confirmatory": false,
+
+  "authorized_by": "PI direction 2026-09-20: authorize Stage 2, frozen as a dual-instrument diagnostic with no further instrument selection. Both confirmed survivors (position [5,15), intent [0,10)) are used as co-equal, separately-reported measurements: no averaging, no reweighting, no post-hoc choice of whichever tells the cleaner story. The dead primary window [0,10) position instrument is NOT used, not even as a sanity check -- its job finished at the confirmatory stage. The calibration mapping used to invert a reading into a defender count is the ORIGINAL sealed calibration (20700001-20700016); the confirmatory block (20800001-20800016) proved the ruler generalizes and does not get to reshape it -- no mapping is refit on Stage-2 or confirmatory data.",
+
+  "GATE_CONDITION": {
+    "rule": "This spec may run only if LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_RESULT.json is SEALED with a non-empty CONFIRMED_INSTRUMENTS list.",
+    "observed": "Sealed 2026-09-20, VERDICT BOTH_CONFIRMED, CONFIRMED_INSTRUMENTS = [position_alt_window_5_15, intent_opening_window_0_10]. Both go forward; this spec does not choose between them."
+  },
+
+  "INSTRUMENTS_USED": {
+    "position_alt_window_5_15": "experiments.probe_learned_composition.instrument(trace, R_pos=4.5), mean over ticks [5,15). Unmodified code path, unmodified parameters.",
+    "intent_opening_window_0_10": "experiments.probe_learned_composition.intent_instrument(trace, R_intent=4.5), mean over ticks [0,10). Unmodified code path, unmodified parameters.",
+    "not_used": "share_pos_open (position, ticks [0,10)) -- sealed INSTRUMENT_NOT_VALID on 2026-09-19 and reconfirmed not valid on fresh seeds on 2026-09-20 (FYI_PRIMARY_POSITION_OPEN_NOT_GATING). Excluded entirely from Stage 2, including as a reported diagnostic. No third instrument of any kind is introduced."
+  },
+
+  "CALIBRATION_MAPPING_FROZEN": {
+    "source": "LEARNED_COMPOSITION_PROBE_CALIBRATION_RESULT.json (sealed 2026-09-19T22:21:39Z, seed block 20700001-20700016)",
+    "source_sha256": "7961f885eb1d3fc703fe5ee4dc064dc8daf9f4540dca63b15051a41be16b18a5",
+    "fields_used": {
+      "position_alt_window_5_15": "STABILITY_position_alt_window.{A,B}.class_means_prefix",
+      "intent_opening_window_0_10": "SECONDARY_intent_opening_pre_declared_not_required.{A,B}.class_means_prefix"
+    },
+    "not_used_as_mapping_source": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_RESULT.json. Its class_means_prefix values are read ONLY by the contracts stage, to verify they are consistent with (not a replacement for) the original mapping; they are never used to compute a learned episode's D_hat.",
+    "inversion": "experiments.run_learned_composition_probe.d_hat_from(value, means): piecewise-linear interpolation of the frozen class means, clipped to [0, 6]. Per-pole means (Pole A reading uses Pole A's frozen means; Pole B uses Pole B's).",
+    "verified_by_contracts": "the contracts stage re-hashes the source file and refuses if it has changed since sealing."
+  },
+
+  "DESIGN": {
+    "policies": ["pi_A", "pi_B"],
+    "poles": ["A", "B"],
+    "seed_block": {"base": 20700101, "n": 128, "class": "exploratory", "already_reserved": true},
+    "pairing": "The SAME 128 seed values are used for every (policy, pole) cell, so pi_A and pi_B are paired by seed within each pole.",
+    "n_episodes": 512,
+    "truncate_at_tick": 20,
+    "truncation_justification": "Unchanged from Stage 1: a run stopped at tick 20 is bit-identical to the first 20 ticks of a full run (contract C2, original spec), verified again here for the LEARNED env by the parity check below. Both instruments read only ticks [0,15), so 20 ticks is already the minimal established-safe truncation; no new, untested truncation length is introduced.",
+    "device": "cuda",
+    "action": "deterministic (policy.predict(..., deterministic=True)), matching the recorded SHARE0 evaluation exactly."
+  },
+
+  "READ_ONLY_GUARANTEE": {
+    "checkpoint_files": "sha256 of both checkpoints verified against TARGET_POLICIES_PINNED (LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json) before and after the run",
+    "parameters": "a digest of every parameter tensor of both loaded policies is equal before and after the run",
+    "no_optimizer": "no optimizer attribute exists on either loaded policy and the models are in eval mode",
+    "no_grad": "the whole run executes under torch.no_grad()",
+    "why_not_a_module_check": "loading a checkpoint imports rl.custom_ppo.trainer and ppo_updater, so 'no PPO module imported' cannot be asserted; the guarantee is behavioural, as in the original spec"
+  },
+
+  "PARITY_REQUIRED_BEFORE_ANY_EPISODE_OF_THE_512_RUNS": {
+    "seeds": [13680001, 13680002, 13680003, 13680004],
+    "rule": "16 FULL learned episodes (both policies, both poles, these 4 spent SHARE0 seeds) must reproduce the recorded (blue, red, win, margin) in share0_6v6_teacher_specialist_crossover_eval_rows.csv EXACTLY on cuda, and the first 20 ticks of each must equal a truncated (max_ticks=20) run of the same episode. Parity only; no new evidence, no registry interaction; these seeds are already spent and are not drawn from the 20700101-20700228 block."
+  },
+
+  "PREREGISTERED_OUTPUTS_PER_INSTRUMENT_POLICY_AND_POLE": [
+    "the inferred defender-count distribution D_hat over the 128 episodes (piecewise-linear inversion of the frozen calibration mean for that pole)",
+    "mean and median D_hat, each with a bootstrap interval over seeds",
+    "proportion of episodes classified attack-heavy, D_hat <= 1.5 (the band declared in the original spec, unchanged)",
+    "the paired seedwise contrast D_hat(pi_B) - D_hat(pi_A), per pole, with a bootstrap interval",
+    "mean |D_hat - 1|, the distance from the confirmed scripted reference composition 5A/1D (D=1), with a bootstrap interval"
+  ],
+
+  "INSTRUMENT_AGREEMENT_REPORTED_SEPARATELY_NEVER_AVERAGED": {
+    "rule": "Every quantity above is computed once for position_alt_window_5_15 and once for intent_opening_window_0_10, and reported side by side. No combined score, no mean-of-instruments, no weighting of one by the other is computed anywhere in this spec.",
+    "descriptive_concordance_check": "For each (policy, pole): does the band of mean D_hat (attack_heavy / intermediate / balanced_or_defence_heavy, thresholds 1.5 / 2.5, unchanged from the original spec) agree between the two instruments? This is descriptive bookkeeping to apply the interpretation rule below; it is not itself a statistic and gates nothing."
+  },
+
+  "INTERPRETATION_RULE_FROZEN_BEFORE_ANY_LEARNED_READING": {
+    "rule": "A learned role-composition claim is made ONLY when the position and intent instruments agree qualitatively (same band, or the same direction and a comparable magnitude for a contrast). If they disagree, the finding is INSTRUMENT_DEPENDENT / INCONCLUSIVE for that cell -- not a license to report whichever instrument matches the preferred story.",
+    "not_authorized": "choosing one instrument's number for a headline claim after seeing both; averaging the two D_hat values to manufacture agreement; a third instrument invented to break a disagreement."
+  },
+
+  "NOT_AUTHORIZED": [
+    "refitting or adjusting the calibration mapping using confirmatory-block or Stage-2 data",
+    "using the dead primary-window position instrument for any purpose",
+    "any training, checkpoint write, or forced-composition intervention on a learned team",
+    "reading a later phase of a learned episode (sustained composition) -- ticks beyond the truncation are not recorded",
+    "causal claims: this remains observational. It reports what the existing learned policies' openings resemble in scripted-equivalent units, not why, and not what a forced composition would do"
+  ],
+
+  "claim_boundary": "Scripted-role glasses: the instrument is calibrated on scripted roles. A learned policy that moves in ways scripted agents never do is read through that calibration. Observational only. Opening window only (ticks 0-15 across the two instruments). No claim about sustained role composition, and no causal claim about why pi_A and pi_B's crossover deltas were near zero.",
+  "claim_ceiling": "At most: whether pi_A and pi_B's opening allocation, expressed in scripted-equivalent defender units and read through two independently-confirmed instruments, resembles the scripted 5A/1D structure that beat the balanced 3A/3D -- and whether the two policies differ from each other -- reported per instrument, with a claim made only where the instruments agree."
+}

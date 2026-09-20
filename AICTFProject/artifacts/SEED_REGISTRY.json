@@ -1178,9 +1178,78 @@
           "note": "sealed SEALED; FIXED_ATTACK_HEAVY_6V6_CONFIRMED"
         }
       ]
+    },
+    {
+      "experiment_id": "LEARNED_COMPOSITION_PROBE_CALIBRATION",
+      "purpose": "scripted opening-composition calibration, cuda, 384 truncated episodes, PPO off, read-only",
+      "seed_class": "exploratory",
+      "lo": 20700001,
+      "hi": 20700016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T21:54:07Z",
+      "spent_utc": "2026-09-19T22:21:39Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T22:21:39Z",
+          "note": "sealed SEALED; INSTRUMENT_NOT_VALID"
+        }
+      ]
+    },
+    {
+      "experiment_id": "LEARNED_COMPOSITION_PROBE",
+      "purpose": "learned pi_A/pi_B opening-composition probe, 512 truncated episodes, read-only",
+      "seed_class": "exploratory",
+      "lo": 20700101,
+      "hi": 20700228,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T21:54:07Z",
+      "spent_utc": "2026-09-20T07:37:07Z",
+      "notes": [
+        {
+          "utc": "2026-09-20T07:37:07Z",
+          "note": "sealed SEALED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION",
+      "purpose": "fresh re-validation of the two pre-declared calibration survivors (position alt-window, intent opening-window) under the unchanged kill rule",
+      "seed_class": "exploratory",
+      "lo": 20800001,
+      "hi": 20800016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-20T06:04:00Z",
+      "spent_utc": "2026-09-20T06:30:41Z",
+      "notes": [
+        {
+          "utc": "2026-09-20T06:30:41Z",
+          "note": "sealed SEALED; BOTH_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "DEFENDER_INJECTION_CAUSAL_BRIDGE",
+      "purpose": "one-defender causal bridge on frozen pi_A/pi_B checkpoints, native vs plus-one-defender, paired by seed, full episodes, PPO off",
+      "seed_class": "exploratory",
+      "lo": 20900001,
+      "hi": 20900096,
+      "n": 96,
+      "status": "RESERVED",
+      "spec": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-20T07:59:34Z"
     }
   ],
-  "updated_utc": "2026-09-19T20:08:30Z",
+  "updated_utc": "2026-09-20T07:59:34Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

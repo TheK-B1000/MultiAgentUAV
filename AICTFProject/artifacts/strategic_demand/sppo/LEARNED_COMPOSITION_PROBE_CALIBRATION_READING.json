@@ -1,0 +1,79 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_CALIBRATION_READING",
+  "utc": "2026-09-19T00:00:00Z",
+  "reads": "LEARNED_COMPOSITION_PROBE_CALIBRATION_RESULT.json",
+  "under": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+
+  "RECORD_STATUS": {
+    "run_state": "SEALED", "audit": "7 of 7 gating checks passed", "contracts": "6 of 6 passed before any episode",
+    "independent_re_derivation": "every reading of all 384 episodes re-derived from the saved traces by a loop implementation sharing no code path with the vectorised one: max |diff| 0.0",
+    "seed_block": "20700001-20700016, exploratory, fresh, cuda, 384 truncated scripted episodes, SPENT",
+    "FROZEN_VERDICT": "INSTRUMENT_NOT_VALID",
+    "stage_2": "REFUSED by the frozen rule. It was not run. No learned-policy telemetry has been read."
+  },
+
+  "THE_FROZEN_PRIMARY_INSTRUMENT_FAILED": {
+    "instrument": "position within R=4.5 of own flag home, mean over ticks [0,10)",
+    "V1_monotone": {"A": true, "B": true},
+    "V2_leave_one_out_within_1": {"A": 0.786, "B": 0.786, "bar": 0.90, "exact": {"A": 0.348, "B": 0.366}},
+    "V3_cross_assignment_within_1": {"A": 0.812, "B": 0.800, "bar": 0.90, "exact": {"A": 0.275, "B": 0.250}},
+    "pole_valid": {"A": false, "B": false},
+    "why": "The class means are monotone and evenly spaced (about 0.09 per defender) but the within-class standard deviation is 0.10 to 0.12, larger than the spacing, so neighbouring compositions overlap and the +-1 rule is met only about 80% of the time. The dynamic range is also compressed: true 6A/0D reads 0.25 and true 0A/6D reads 0.76. The per-tick table in PER_TICK_SHAPE_VERIFIED_ON_THE_SEALED_TRACES shows why.",
+    "the_prototype_number_was_selection_inflated_as_disclosed": "The prototype scan gave 95% exact recovery at this setting on 42 episodes. The spec warned that a 36-combination scan on 42 episodes is optimistic by construction. On fresh seeds and a different device the exact recovery is 35%. The warning was right and the frozen parameters were a poor choice.",
+    "consequence": "As frozen, the probe's primary instrument is not valid. No retuning and no re-run on these seeds."
+  },
+
+  "PER_TICK_SHAPE_VERIFIED_ON_THE_SEALED_TRACES": {
+    "status": "POST-HOC DIAGNOSTIC of the already-sealed traces, using the frozen R=4.5 definition. It explains the failure. It selects nothing and adopts nothing.",
+    "pole_A_mean_defend_like_share_by_tick_PREFIX_n16_each": {
+      "tick":  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+      "6A_0D": [0.49, 0.50, 0.50, 0.41, 0.30, 0.20, 0.09, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.04, 0.24, 0.37, 0.49, 0.56, 0.58, 0.62],
+      "5A_1D": [0.49, 0.50, 0.52, 0.46, 0.38, 0.31, 0.25, 0.20, 0.23, 0.28, 0.31, 0.31, 0.31, 0.31, 0.46, 0.55, 0.58, 0.70, 0.69, 0.75],
+      "3A_3D": [0.49, 0.50, 0.55, 0.49, 0.55, 0.54, 0.53, 0.53, 0.56, 0.66, 0.75, 0.73, 0.76, 0.77, 0.77, 0.83, 0.83, 0.92, 0.91, 0.89],
+      "1A_5D": [0.49, 0.53, 0.59, 0.57, 0.69, 0.74, 0.76, 0.81, 0.86, 0.92, 0.97, 0.96, 0.96, 0.95, 0.94, 0.94, 0.94, 0.87, 0.89, 0.85],
+      "0A_6D": [0.49, 0.54, 0.60, 0.65, 0.77, 0.85, 0.94, 0.92, 0.89, 0.93, 0.94, 0.96, 0.97, 0.97, 0.95, 0.93, 0.92, 0.89, 0.92, 0.91]
+    },
+    "pole_B": "Same shape. Late ticks differ from pole A by up to about 0.1 (for example 6A_0D at tick 13: 0.14 on B against 0.04 on A).",
+    "what_it_shows": [
+      "Ticks 0 to 2 are uninformative: every composition reads 0.49 to 0.50 at tick 0 and the classes have barely moved apart by tick 2. About half of all agents start within 4.5 cells of home whatever their role.",
+      "The classes separate over ticks 3 to 7. Scripted attackers (6A_0D) fall to exactly 0.00 by tick 7 and hold there through tick 12, while all-defender teams (0A_6D) reach about 0.94 by tick 6. The primary window [0,10) therefore averages roughly three uninformative ticks and a separation transient into every reading, which compresses the range to 0.25 to 0.76 and leaves the classes about 0.09 apart against a within-class SD of 0.10 to 0.12.",
+      "The rebound begins inside the first 20 ticks. 6A_0D climbs from 0.00 at tick 12 to 0.62 at tick 19 as attackers return home. This is the whole-episode failure mechanism (returns, untagging, carrier-triggered GO_HOME) appearing early, and it is why no whole-episode position reading works."
+    ],
+    "consequence_for_the_alt_window": "[5,15) sits mostly on the separated plateau (ticks 7 to 12) but its last two ticks (13, 14) already catch the start of the rebound, so it is not a perfectly clean window either. That is descriptive. It is NOT a licence to move the window.",
+    "NOT_ADOPTED": "A tighter window such as [7,13) is visible from this table and is exactly the retuning after seeing the result that the frozen rule forbids. Under option B below the windows stay [5,15) for position and [0,10) for intent, as declared before any seed was spent. A window chosen from this table would need its own freeze and fresh seeds."
+  },
+
+  "WHAT_ELSE_THE_SAME_SEALED_DATA_SHOWS_PREDECLARED_BUT_NOT_GATING": {
+    "important_framing": "Both readings below were declared in the frozen spec BEFORE the calibration ran, and scored with the identical rule. The spec labelled them 'a stability check, never substituted for the primary' and 'not required for validity, gates nothing'. They gate nothing under the frozen rule.",
+    "position_alt_window_5_to_15": {
+      "V2_within_1": {"A": 1.000, "B": 0.982}, "V3_within_1": {"A": 0.988, "B": 0.988},
+      "exact_V2": {"A": 0.688, "B": 0.625}, "exact_V3": {"A": 0.600, "B": 0.550},
+      "class_means_A": [0.056, 0.297, 0.479, 0.660, 0.813, 0.887, 0.930],
+      "would_pass_the_frozen_rule": true
+    },
+    "intent_opening_window_0_to_10": {
+      "V2_within_1": {"A": 1.000, "B": 1.000}, "V3_within_1": {"A": 1.000, "B": 1.000},
+      "exact_V2": {"A": 0.875, "B": 0.866}, "exact_V3": {"A": 0.775, "B": 0.725},
+      "class_means_A": [0.000, 0.132, 0.250, 0.359, 0.465, 0.585, 0.675],
+      "would_pass_the_frozen_rule": true,
+      "note": "The strongest reading: monotone, near-linear (about 0.11 per defender), and the noise is small enough that exact recovery is about 87%. It is the resolved-target instrument that failed as a WHOLE-EPISODE detector, now passing in the opening window. R_T = 4.5 was declared before any intent data were read and never scanned."
+    },
+    "the_id_geometry_confound_is_not_the_problem": "V3, the cross-assignment control, is 0.99 to 1.00 for both alternatives. An instrument calibrated with defenders on ids 0..D-1 recovers a team whose defenders sit on the last D ids, so the alternatives are not merely measuring which agent ids spawn near home. The primary's V3 failure (0.80 to 0.81) is the same noise as its V2 failure (0.79), not a specific id effect.",
+    "likely_reason_the_alternatives_work": "SUPPORTED by the per-tick table: [5,15) begins after the roles have separated, whereas [0,10) includes ticks 0 to 2 that carry no role information and the separation transient (tagging and carriers begin to show only at ticks 13 to 14, so [5,15) is not fully clean). NOT TESTED: why the intent reading is cleaner. The plausible reading is that it sees where each agent is being sent and so does not wait for the physics to catch up, but no intent per-tick table was examined."
+  },
+
+  "WHY_THIS_DOES_NOT_AUTOMATICALLY_LICENSE_STAGE_2": {
+    "the_frozen_rule": "Primary fails, so Stage 2 refuses. The spec also says a different instrument needs its own freeze and fresh seeds.",
+    "selection_problem": "Three readings were scored on one calibration set and two passed. Promoting either one now, on the strength of having passed, would make its validity numbers optimistic: it was selected for passing. The passes are not marginal (0.98 to 1.00), which makes chance an unlikely explanation, but the clean answer is to validate the chosen reading on FRESH seeds.",
+    "this_is_a_change_to_a_frozen_decision_rule": "Substituting a pre-declared alternative for the primary changes what the spec froze. That is the PI's decision, not mine."
+  },
+
+  "OPEN_DECISIONS_FOR_THE_PI_NOTHING_STARTED": {
+    "option_A_stop_here": "Accept INSTRUMENT_NOT_VALID as frozen. The finding is that the specific frozen opening-allocation instrument cannot be read reliably, and no learned reading is taken.",
+    "option_B_amend_and_revalidate_on_fresh_seeds_recommended": "Amend the spec so that BOTH pre-declared survivors (intent over [0,10) and position over [5,15)) go forward as the stage-2 instruments, each required to pass the UNCHANGED kill rule on a FRESH calibration block (384 more truncated scripted episodes, about 32 minutes, on a newly reserved block). Stage 2 then proceeds with every reading that passes and refuses if none does. This takes both survivors forward rather than choosing one after the fact, and it costs about half an hour.",
+    "why_B_over_promoting_now": "It is the only version in which the validity claim for the chosen reading is not selected on the data that established it.",
+    "what_B_does_not_do": "It does not change R_T, the windows, the tolerance or the 0.90 bar, and it does not authorize any whole-episode detector."
+  },
+
+  "claim_boundary": "Scripted roles only, opening window only, cuda, fresh seeds. No learned policy was read."
+}

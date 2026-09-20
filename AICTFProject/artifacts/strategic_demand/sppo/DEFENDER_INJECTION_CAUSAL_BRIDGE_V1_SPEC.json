@@ -1,0 +1,92 @@
+{
+  "record_id": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC",
+  "status": "FROZEN_MECHANISM_PENDING_THRESHOLD_CONFIRMATION",
+  "utc": "2026-09-20T00:00:00Z",
+  "reads": ["LEARNED_COMPOSITION_PROBE_RESULT.json", "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json"],
+  "classification": "OBSERVATIONAL -> ONE CAUSAL INTERVENTION. No training, no checkpoint write, no parameter change. The intervention is entirely at rollout time: one agent's resolved movement target is overridden; the loaded network's weights, and the other five agents' actions, are untouched.",
+  "confirmatory": false,
+
+  "authorized_by": "PI direction 2026-09-20, following LEARNED_COMPOSITION_PROBE_RESULT.json (both pi_A and pi_B open far more attack-heavy than the confirmed 5A/1D scripted reference, closer to full-commit 6A/0D, pi_B measurably more so than pi_A): 'Do not launch PPO yet... freeze a one-defender causal bridge experiment on the existing learned checkpoints... Before training anything, take the frozen learned checkpoints and ask: what happens if we give them exactly one real defender? No PPO. For each pi_A and pi_B, on both poles, compare native learned policy against same learned policy + exactly one semantic DEFEND agent. The five remaining agents are untouched... rotate the overridden defender deterministically across agent IDs by seed... do not send macro 7 into the five-macro environment... inject the validated DEFEND behavior at the resolved-target/control layer and contract-test it against the scripted DEFEND reference.'",
+
+  "RESEARCH_QUESTION": "Does giving the existing pi_A/pi_B checkpoints exactly one forced real defender (agents 5v6, policy-driven) change episode outcomes relative to the native (0-defender) rollout, on each certified pole -- and if so, does it help pi_B disproportionately, consistent with a missing defender role explaining part of the near-zero pi_A/pi_B crossover delta (+0.0078)?",
+
+  "WHAT_THIS_CAN_AND_CANNOT_TELL_US": {
+    "can": "Whether adding one policy-external forced defender changes win rate / margin for the existing frozen checkpoints, per policy, per pole, on fresh seeds.",
+    "cannot": [
+      "whether training WITH a defender constraint would produce a better policy (that is a PPO question, explicitly deferred)",
+      "why the five remaining (untouched) agents would or would not adapt their own behavior around a forced teammate -- they cannot adapt within a single frozen rollout; only a training-time constraint could test that",
+      "anything about the SCRIPTED 5A/1D-vs-6A/0D question itself: the exploratory sweep found 5A/1D and 6A/0D close enough to tie on mean performance, with 5A/1D winning only the mechanical maximin tie-break, and that comparison has never been freshly confirmed. This spec does not confirm or depend on 5A/1D beating 6A/0D; it tests whether ADDING a defender to the LEARNED checkpoints helps THEM, which is a different question answerable on its own terms"
+    ]
+  },
+
+  "MECHANISM_FROZEN": {
+    "problem": "A learned policy's action head has n_macros=5 (GO_TO, GRAB_MINE, GET_FLAG, PLACE_MINE, GO_HOME) and can never emit MacroAction.DEFEND=7. The env's decode (torch.remainder(raw_macro, cfg.n_macros)) applies unconditionally to any integer that reaches it, so raw macro 7 aliases to 2 (GET_FLAG) at n_macros=5. Widening the env to n_macros=8 is not an option: that changes the observation's macro-mask size, which the checkpoint was trained against, and would corrupt every agent's inference, not just the overridden one.",
+    "rejected_approach": "Writing macro id 7 directly into blue_commit_macro (bypassing the decode) is WRONG at n_macros=5: gpu_env/_core/_observations.py::_build_action_mask does `macro_mask.scatter_(2, commit_macro.unsqueeze(-1), 1.0)` into a dimension sized cfg.n_macros. A one-hot over 5 slots cannot represent index 7; this crashes CUDA (device-side assert, index out of bounds) on the very next tick, deterministically, because a permanently-committed agent hits this branch unconditionally. Confirmed by direct reproduction during scoping.",
+    "frozen_mechanism": "experiments.probe_learned_composition.install_forced_defend_target(core, agent_id): a per-core-instance monkey-patch of the bound method core._build_targets_from_action (gpu_env/_core/_rules.py), which resolves a macro id to a continuous (tx, ty) target -- a representation with no n_macros-sized constraint at all. Every call still runs the real, untouched implementation first for the agent's own (small, always-valid) committed macro, then calls that SAME real implementation a second time with a synthetic macro tensor that reads DEFEND for the overridden agent only -- exactly the read-only, no-core-mutation pattern experiments.probe_learned_composition.resolved_intent() already uses -- purely to read what DEFEND's live-state target would be, and splices only that agent's slice into the real (tx, ty). DEFEND's target math (gpu_env/_core/_rules.py::_build_targets_from_action, the V2 unified inward/outward branch) is never reimplemented or duplicated. commit_macro itself is never written for the overridden agent, so the action-mask scatter, and the action_success/action_failed_punishment reward bookkeeping (which does not enumerate DEFEND -- see gpu_env/_core/_step.py lines ~348-352), see only its real, small, always-valid committed macro (whatever the policy or the scripted composition legitimately requested). Verified exhaustively that blue_commit_macro is read in exactly three places in the engine (the action mask, the reward bookkeeping above, and movement resolution itself, which is equality-based on the macro value with no indexing constraint), so leaving it untouched has no other effect.",
+    "eff_macro_telemetry_note": "The recorded per-tick eff_macro field for the overridden agent is overwritten to DEFEND=7 for human-readable trace fidelity; this is cosmetic only and does not feed back into the engine (see resolved_intent()'s own docstring: it is read-only telemetry)."
+  },
+
+  "CONTRACT_TEST_AGAINST_THE_SCRIPTED_DEFEND_REFERENCE": {
+    "fixture": "experiments.probe_learned_composition.run_scripted_episode_with_forced_override: a scripted composition (5A_1D, defender NOT at id 0, to avoid the trivial case) where the designated agent is fed a non-DEFEND raw macro (GO_TO) but has install_forced_defend_target applied.",
+    "compared_against": "experiments.probe_learned_composition.run_scripted_episode on the IDENTICAL composition/seed/pole, where the designated agent is fed the real raw DEFEND macro through the normal n_macros=8 scripted path (action_for_roles_n) -- the actual ground truth this whole 6v6 experimental line has used throughout.",
+    "equality_checked_on": ["pos", "alive", "tagged", "carrying", "intent", "true_defend", "(blue, red, win, margin)"],
+    "matrix": "both poles x 2 non-trivial defender ids x n_macros in {5, 8} for the injected side (n_macros=8 for the untouched reference side always, since that is the real scripted-DEFEND ground truth) x a full episode (no truncation)",
+    "known_and_accepted_difference": "eff_macro differs by construction (7 vs whatever safe raw macro was actually fed) and is excluded from the equality check; it is cosmetically overwritten to DEFEND=7 in the actual causal-bridge runner (see above) but the contract fixture itself does not do this, to keep the fixture and the real mechanism visibly distinct.",
+    "pass_condition": "zero mismatches across every listed field, every cell of the matrix.",
+    "status_2026_09_20": "PASSED during scoping on a representative cell (Pole A, 5A_1D, defender id 3, 40 ticks, n_macros in {5,8}): pos/alive/tagged/carrying/intent/true_defend/(blue,red,win,margin) all exactly equal. The full matrix above is re-verified by this spec's own contracts stage before any causal seed is spent."
+  },
+
+  "DEFENDER_ID_ROTATION": {
+    "rule": "experiments.probe_learned_composition.defender_id_for_seed(seed) = seed % 6.",
+    "why": "Avoids a fixed override id (e.g. always agent 0), which would reintroduce the spawn-slot confound the confirmatory calibration spent 384 fresh episodes ruling out for the READING instruments. This is unrelated to that instrument, but the same discipline applies: do not let a fixed id be a hidden variable.",
+    "coverage": "Exact uniform coverage of ids 0-5 requires a seed block whose length is a multiple of 6; see FRESH_SEED_BLOCK.",
+    "same_id_across_policy_and_arm_at_a_given_seed": "At seed s, the SAME agent id (s % 6) is overridden for pi_A and for pi_B, and is the only difference between the native and +1-defender arms at that seed -- everything else about the seed (map, spawn geometry, opponent) is identical, which is what makes the native-vs-treated comparison a clean paired contrast."
+  },
+
+  "DESIGN": {
+    "policies": ["pi_A", "pi_B"],
+    "poles": ["A", "B"],
+    "arms": ["native", "plus_one_defender"],
+    "fresh_seed_block": {"base": 20900001, "n": 96, "class": "exploratory", "divisible_by_6": true,
+                         "not_reused": "disjoint from every prior block in this line (20700001-016, 20700101-228, 20800001-016) and from SHARE0's 13680001-128 -- a genuinely fresh paired comparison needs both arms drawn together from seeds that have never informed any decision in this line before"},
+    "n_episodes": "2 policies x 2 poles x 2 arms x 96 seeds = 768 FULL episodes (not truncated: this is an outcome/win-rate question, not an opening-window question, so the truncation used throughout LEARNED_COMPOSITION_PROBE does not apply here)",
+    "device": "cuda",
+    "action": "deterministic (policy.predict(..., deterministic=True)), matching every prior stage in this line",
+    "why_full_episodes_not_truncated": "LEARNED_COMPOSITION_PROBE's own truncated (20-tick) rows show win/margin are essentially always (0,0) that early -- these games take far longer than 20 ticks to resolve a score. A win-rate causal read requires the actual episode outcome."
+  },
+
+  "PRIMARY_OUTCOME_PROPOSED_PENDING_PI_CONFIRMATION": {
+    "metric": "paired win-rate delta per (policy, pole): mean(win | plus_one_defender) - mean(win | native), paired by seed, with a bootstrap 95% interval -- the same 'Delta' currency used everywhere else in this research line (Delta_A, Delta_B, the Pole-A/Pole-B gain/harm gates).",
+    "secondary_metric": "paired margin delta per (policy, pole), same pairing, same interval convention.",
+    "why_proposed_not_frozen": "The PI's decision tree ('improves', 'disproportionately', 'meaningful crossover advantage', 'does nothing or hurts') is stated qualitatively. This spec proposes the standard win-rate-delta operationalization already used throughout this project rather than silently choosing thresholds unasked; it does not invent a new metric family."
+  },
+
+  "DECISION_THRESHOLDS_PROPOSED_PENDING_PI_CONFIRMATION": {
+    "improves_a_cell": "win-rate delta > 0 with its 95% CI excluding zero (the same significance convention used by every gate in this research line: a resolved effect, not a point estimate).",
+    "transferable_scaffold": "improves_a_cell holds in all 4 (policy, pole) cells. Interpretation: hold one defender fixed and investigate what the five attackers need to do differently between regimes; this result alone does not localize A/B specialization.",
+    "b_disproportionate": "pi_B's win-rate delta is a resolved improvement AND the difference-of-deltas (pi_B's delta minus pi_A's delta) has a 95% CI excluding zero, on at least one pole. Interpretation: loss of the defender role is part of the learned B failure; a one-defender coordination constraint becomes justified for a FUTURE training-time experiment (still not run here).",
+    "closes_the_intervention": "no cell shows a resolved improvement, or any resolved effect is a resolved HARM (delta < 0, CI excluding zero). Interpretation: the scripted composition result does not transfer causally to the learned checkpoints; close the role-count intervention without a PPO run.",
+    "note": "these are DEFAULT operationalizations of the PI's qualitative decision tree, not yet confirmed. The contracts stage below verifies only the MECHANISM (injection correctness, rotation, checkpoint identity, fresh seed block); it does not require these thresholds and will pass or fail independently of them."
+  },
+
+  "READ_ONLY_GUARANTEE": {
+    "checkpoint_files": "sha256 of both checkpoints verified against TARGET_POLICIES_PINNED (LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json) before and after the run",
+    "parameters": "a digest of every parameter tensor of both loaded policies equal before and after the run",
+    "no_optimizer": "no optimizer attribute on either loaded policy; models in eval mode",
+    "no_grad": "the whole run executes under torch.no_grad()",
+    "no_training": "install_forced_defend_target touches only per-instance Python attributes of a fresh env's core object; nothing persists across episodes, nothing touches a checkpoint file or a parameter tensor"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "spending any seed from the fresh block until the contracts above pass AND the decision thresholds are confirmed by the PI",
+    "any PPO run, any training-time defender constraint -- this spec is entirely rollout-time",
+    "sending raw macro id 7 through the discrete action array at n_macros=5 (the rejected, crashing approach)",
+    "reimplementing DEFEND's target math anywhere outside the one already-validated call to _build_targets_from_action",
+    "a fixed override agent id",
+    "using the truncated 20-tick episode format for this outcome question",
+    "interpreting a per-cell result without its confidence interval, or citing 0.0/1.0 win rates without sample counts as decisive"
+  ],
+
+  "claim_boundary": "Frozen checkpoints only, rollout-time intervention only, fresh seeds not yet spent. Observational about the untouched five agents (they cannot adapt within a single rollout); causal only about the one question this design can answer: does forcing one real defender change THIS checkpoint's outcome.",
+  "claim_ceiling": "At most: whether pi_A and pi_B's win rate / margin, on each certified pole, changes when exactly one agent is given a real, policy-external defensive target -- and whether any such change is disproportionate between pi_A and pi_B. Not a statement about what a retrained policy would do, and not a statement about whether the five untouched agents would benefit from adapting to a defending teammate."
+}

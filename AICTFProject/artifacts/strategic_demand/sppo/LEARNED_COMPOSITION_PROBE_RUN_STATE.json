@@ -1,0 +1,43 @@
+{
+  "label": "LEARNED_COMPOSITION_PROBE",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-20T06:59:20Z",
+      "pid": 35656,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "c539bdf02c4a09b33870c63ea40fae84a2f5636e",
+      "spec": "LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json",
+      "n_episodes": 512
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-20T07:37:07Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-20T07:37:07Z",
+      "audit": "LEARNED_COMPOSITION_PROBE_AUDIT.json",
+      "n_checks": 7
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-20T07:37:07Z",
+      "result": "LEARNED_COMPOSITION_PROBE_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-20T07:37:07Z",
+  "pid": 35656,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "c539bdf02c4a09b33870c63ea40fae84a2f5636e",
+  "spec": "LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json",
+  "n_episodes": 512,
+  "reason": "all episodes written",
+  "audit": "LEARNED_COMPOSITION_PROBE_AUDIT.json",
+  "n_checks": 7,
+  "result": "LEARNED_COMPOSITION_PROBE_RESULT.json"
+}
