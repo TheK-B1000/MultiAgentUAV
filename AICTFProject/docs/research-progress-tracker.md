@@ -16,7 +16,46 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-21 — **ONE-DEFENDER GOAL-VOLUME CONFIRMATION SEALED: `OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED` (fresh sealed_confirmatory seeds 21000001-21000096, 20/20 gating checks, independent re-derivation exact). THE POLE-A GAIN AND POLE-B LOSS IN GOAL PRODUCTION REPLICATE. WORDED "OPPONENT-CONDITIONED ACROSS THE TWO CERTIFIED 6v6 POLES"; IT DOES NOT SEPARATE THAT FROM COMPRESSION TOWARD A COMMON GOAL LEVEL.**
+> **Last updated:** 2026-09-21 — **4v4 SCAFFOLDED-A CROSSOVER BRIDGE SEALED: `SCAFFOLDED_CROSSOVER_CONFIRMED` (fresh sealed_confirmatory seeds 21100001-21100128, 30/30 gating checks, run from the pre-run commit `ef5ee95f`). IMPOSING 2A/2D ON `pi_A` RECOVERS THE A/B PAYOFF SEPARATION AGAINST THE EXISTING `pi_B`. THIS IS A SCAFFOLDED-CONTROLLER RESULT, NOT A LEARNED CROSSOVER.**
+> Spec [`SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json),
+> committed together with the runner, the seed reservation and the passing 12/12 contract record (including
+> exact reproduction of 16 sealed episodes) before any seed in the block was touched; the sealed result's
+> own `git_sha` field is that commit. Arms on both certified 4v4 poles (Pole B the B3-3 genome, never
+> canonical OP7), the same 128 paired seeds, 768 full episodes, deterministic, PPO off: native `pi_A3`;
+> `A'` = `pi_A3` with two of the four agents' resolved targets forced to DEFEND's (pair rotated over the six
+> agent pairs by seed); native corrected `pi_B3`. Motivation: every earlier 4v4 learned repair passed
+> `Delta_A` and failed `Delta_B` because `pi_A3` is a strong generalist (0.74 on Pole B).
+>
+> | win rate | Pole A | Pole B |
+> |---|---|---|
+> | native `pi_A` | 0.813 | 0.625 |
+> | `A'` = `pi_A` + 2D | 0.719 | 0.133 |
+> | native `pi_B` | 0.367 | 0.492 |
+>
+> **Primary gate:** `Delta_A'` = `WR(A',A) - WR(pi_B,A)` = **+0.352 [+0.234, +0.461]**; `Delta_B'` =
+> `WR(pi_B,B) - WR(A',B)` = **+0.359 [+0.250, +0.469]**; both lower bounds above zero, so the frozen label is
+> `SCAFFOLDED_CROSSOVER_CONFIRMED`. **Mechanism diagnostics (not gates):** `I_A` = -0.094 [-0.203, +0.016]
+> (A's win rate on its own pole is roughly preserved), `I_B` = -0.492 [-0.594, -0.391] (A's competence on Pole
+> B is suppressed) -- the pattern the design hoped for. The native crossover on the fresh block reproduces the
+> earlier failure (`Delta_A` +0.445 [+0.336, +0.547], `Delta_B` -0.133 [-0.242, -0.023]; sealed baseline
+> +0.273 / -0.156), so the fresh block is not unusual. No sign flip between split halves in any of the 18
+> re-derived claims.
+>
+> **Descriptive, non-gating:** Blue goals `Delta_A'` +1.18, `Delta_B'` +0.59, `I_A` +0.63 [+0.38, +0.86],
+> `I_B` -1.23 [-1.48, -0.98]; margin `Delta_A'` +0.82, `Delta_B'` +1.16, `I_A` +0.16 [-0.10, +0.42], `I_B`
+> -2.07. From the cell means (Red goals = Blue goals - margin), `A'` concedes far more than native `pi_A`: about
+> 0.09 -> 0.55 Red goals per episode on Pole A and 0.01 -> 0.84 on Pole B.
+>
+> **What this establishes:** imposing the balanced 2A/2D structure on `pi_A` is sufficient to recover the 4v4
+> A/B payoff separation against the existing `pi_B`, at the scaffolded-controller level. **What it does not:**
+> `pi_B` is still weak (0.367 on Pole A, 0.492 on its own Pole B, below one half); the separation is created by
+> weakening A on B, not by B becoming a strong specialist. `A'`'s payoffs resemble the scripted 2A/2D records
+> (about 0.11-0.15 on Pole B, 0.74-0.75 on Pole A) but that is a resemblance across different seed blocks and
+> attackers, not a test. It is not a fully learned crossover and must not be reported as one. Per the frozen
+> branch rules nothing further is run from this experiment; PPO to internalize the structure into `pi_A`,
+> removal of the scaffold, and any fully learned crossover are a separate decision, not started.
+>
+> Prior — 2026-09-21 — **ONE-DEFENDER GOAL-VOLUME CONFIRMATION SEALED: `OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED` (fresh sealed_confirmatory seeds 21000001-21000096, 20/20 gating checks, independent re-derivation exact). THE POLE-A GAIN AND POLE-B LOSS IN GOAL PRODUCTION REPLICATE. WORDED "OPPONENT-CONDITIONED ACROSS THE TWO CERTIFIED 6v6 POLES"; IT DOES NOT SEPARATE THAT FROM COMPRESSION TOWARD A COMMON GOAL LEVEL.**
 > Spec [`ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json)
 > (frozen before any seed was spent; result and audit beside it). The hypothesis was generated post hoc
 > from the exploratory records on seeds 20900001-096, which contribute nothing here. Same injection

@@ -1,0 +1,43 @@
+{
+  "label": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-21T21:02:44Z",
+      "pid": 50224,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "ef5ee95f978475bb6297d7a74fdc74d31414181a",
+      "spec": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json",
+      "n_episodes": 768
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-21T21:02:45Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-21T21:02:45Z",
+      "audit": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_AUDIT.json",
+      "n_checks": 48
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-21T21:02:45Z",
+      "result": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-21T21:02:45Z",
+  "pid": 50224,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "ef5ee95f978475bb6297d7a74fdc74d31414181a",
+  "spec": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json",
+  "n_episodes": 768,
+  "reason": "all episodes written",
+  "audit": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_AUDIT.json",
+  "n_checks": 48,
+  "result": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_RESULT.json"
+}

@@ -1281,13 +1281,20 @@
       "lo": 21100001,
       "hi": 21100128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-21T17:12:13Z"
+      "allocated_utc": "2026-09-21T17:12:13Z",
+      "spent_utc": "2026-09-21T21:02:45Z",
+      "notes": [
+        {
+          "utc": "2026-09-21T21:02:45Z",
+          "note": "sealed SEALED; SCAFFOLDED_CROSSOVER_CONFIRMED"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-21T17:12:13Z",
+  "updated_utc": "2026-09-21T21:02:45Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
