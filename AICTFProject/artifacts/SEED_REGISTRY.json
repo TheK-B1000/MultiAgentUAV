@@ -1273,9 +1273,21 @@
           "note": "sealed SEALED; OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED"
         }
       ]
+    },
+    {
+      "experiment_id": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4",
+      "purpose": "4v4 causal bridge: native pi_A vs scaffolded A-prime (pi_A + 2 injected defenders) vs pi_B, both certified poles, frozen learned specialists, PPO off",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21100001,
+      "hi": 21100128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-21T17:12:13Z"
     }
   ],
-  "updated_utc": "2026-09-21T16:07:50Z",
+  "updated_utc": "2026-09-21T17:12:13Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
