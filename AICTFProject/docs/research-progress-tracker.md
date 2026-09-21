@@ -91,6 +91,43 @@ It is **not** the source of truth for:
 > cannot separate the readings. A third opponent (none is certified for 6v6 in the repository) or a
 > design that varies the native goal level is the discrimination experiment; none is started.
 >
+> **Third-opponent inventory (read-only, 2026-09-21; nothing was run, no seed touched).** Against the
+> three conditions set by the PI: **(c) fails for every candidate on existing evidence** -- no record in
+> the repository scores `pi_A`, `pi_B`, or any 6v6 learned policy against an opponent other than Pole A or
+> B (`artifacts/6v6_results/robustness/` is empty and the export manifest is marked incomplete; the
+> specialists were trained only against their own pole; other-opponent tests use 2-4 agents). **(a) and
+> (b) are plausible but unverified:** the opponents are a canonical registry `OP5`-`OP12` of documented
+> strategic niches built through the same shared code path as the poles (`canonical_parent` plus the
+> size-normalized defender gate, which resolves `min_alive_for_defender=6` for `OP8`/`OP10`); `OP5` is NOT
+> eligible (the genome path rejects it as an illegal dispatch key); `OP11`/`OP12` are `adaptive_enabled`,
+> so they would adapt to the injected defender and confound the manipulation; nothing in the repository has
+> ever instantiated any of them at 6v6, and none has a certification record or config hash. Eligible,
+> non-adaptive candidates: `OP8` (escort), `OP9` (split-lane feint), `OP10` (aggressive interceptor). By the
+> PI's rule as stated no opponent currently qualifies. Two design points for the decision: a cheap
+> native-only measurement (~96 episodes on disposable smoke seeds, ~30 min sharded) would supply (a) and
+> (c); and selecting for a middle native level alone is an asymmetric test (compression predicts change
+> ~0 there, so a clearly non-zero change refutes compression but ~0 does not confirm it), whereas a
+> candidate that DISSOCIATES native level from opponent identity discriminates in both directions.
+> Open PI decision: run that small measurement, or freeze the claim as it stands.
+>
+> **Resolved (PI, 2026-09-21): the third-opponent detour is deferred, not pursued now.** The confirmed
+> result stands as worded (an opponent-dependent goal-volume response across the two certified 6v6
+> poles; no claim about why). Main line: 4v4 coordination known -> learned repair -> crossover, then 6v6
+> A/B coordination effect known -> learned repair -> crossover. Third-opponent work is an
+> external-validity / mechanism follow-up if the paper needs it. **Corrections to the inventory above,
+> for whoever revisits it:** `OP8`-`OP10` are not part of the certified A/B methodology and were proposed
+> only by elimination (genome-path-legal, non-adaptive). But they are not new to the repo: the 2v2
+> Strategic Demand Searcher lists `OP6, OP8-OP12` as legal A-pole bases against the fixed `OP7` anchor
+> (`experiments/sds_genome.py`; search archives under `artifacts/strategic_demand/searcher*/`, NOT read
+> here), and the 4v4 draft `HELDOUT_REGIME_GENERALIZATION_V1_SPEC.json` (status
+> `DRAFT_HELD_OUT_SET_UNDECIDED`) already names `OP5` and `OP8`-`OP12` as held-out opponents. That draft
+> (i) categorizes by `defender_zone_frac` at the pole midpoint 0.20 (A-like: `OP5`, `OP9`; B-like: `OP8`,
+> `OP10`, `OP11`, `OP12`), which supersedes the ad hoc structural ordering above; (ii) records a PI
+> decision to run canonical opponents UNMODIFIED with no size-normalized defender gate, so the
+> size-normalization applied to `OP8`/`OP10` in the inventory departs from project precedent; and (iii)
+> notes the registry also contains `C6A`/`C6B`, which lie outside the pole span and were not examined.
+> Read that spec and the searcher archives first if this is ever revived.
+>
 > Prior — 2026-09-21 — **EXPLORATORY ONE-DEFENDER FAILURE LOCALIZATION DONE (DIAGNOSTIC, NON-GATING, NO VERDICT COMPUTED): THE POLE-B HARM LOCALIZES TO CARRIER CONVERSION AFTER ACQUISITION. TWO CAVEATS QUALIFY HOW THE SEALED CAUSAL RESULT SHOULD BE READ.**
 > Spec [`EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json),
 > result `..._RESULT.json` and `..._ROWS.csv` beside it. The sealed causal rows held only outcomes
