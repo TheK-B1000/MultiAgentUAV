@@ -1,0 +1,60 @@
+{
+  "record_id": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_CONTRACT_RESULT",
+  "utc": "2026-09-21T12:17:56Z",
+  "implements": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json",
+  "n_checks": 8,
+  "n_gating": 8,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "name": "C1_MECHANISM_SOURCE_EQUALS_THE_PIN",
+      "gating": true,
+      "passed": true,
+      "detail": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb vs pinned 0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb"
+    },
+    {
+      "name": "C2_INJECTION_STILL_MATCHES_SCRIPTED_DEFEND_EXACTLY",
+      "gating": true,
+      "passed": true,
+      "detail": "2/2 fresh (pole, id) cells exact at n_macros 5 and 8 (pos/alive/tagged/carrying/intent/true_defend/outcome)"
+    },
+    {
+      "name": "C3_ROTATION_EXACTLY_UNIFORM_OVER_THE_BLOCK",
+      "gating": true,
+      "passed": true,
+      "detail": "counts per agent id: {0: 16, 1: 16, 2: 16, 3: 16, 4: 16, 5: 16}"
+    },
+    {
+      "name": "C4_CHECKPOINTS_MATCH_THE_PINNED_HASHES",
+      "gating": true,
+      "passed": true,
+      "detail": "{'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'} vs pinned {'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'}"
+    },
+    {
+      "name": "C5_BLOCK_RESERVED_AS_SEALED_CONFIRMATORY_UNSPENT_AND_DISJOINT",
+      "gating": true,
+      "passed": true,
+      "detail": "already registered to ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION (status RESERVED) -- same block, no conflict; registry status=RESERVED class=sealed_confirmatory; disjoint from [(13680001, 13680128), (20700001, 20700016), (20700101, 20700228), (20800001, 20800016), (20900001, 20900096)]: True"
+    },
+    {
+      "name": "C6_REAL_RUNNER_NEVER_WRITES_A_RAW_MACRO_OR_COMMIT_TENSOR",
+      "gating": true,
+      "passed": true,
+      "detail": "the runner only calls install_forced_defend_target(); it touches no action array or commit_* tensor"
+    },
+    {
+      "name": "C7_TERMINAL_RULE_RETURNS_THE_FROZEN_LABEL_ON_SYNTHETIC_CASES",
+      "gating": true,
+      "passed": true,
+      "detail": "7/7 synthetic cases return the frozen label"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only. No seed from 21000001-21000096 was spent."
+}

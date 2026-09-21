@@ -1,0 +1,43 @@
+{
+  "label": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-21T16:07:50Z",
+      "pid": 4248,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "92a6b95d9b059e6cecb977d73838a586f438f912",
+      "spec": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json",
+      "n_episodes": 768
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-21T16:07:50Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-21T16:07:50Z",
+      "audit": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_AUDIT.json",
+      "n_checks": 28
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-21T16:07:50Z",
+      "result": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-21T16:07:50Z",
+  "pid": 4248,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "92a6b95d9b059e6cecb977d73838a586f438f912",
+  "spec": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json",
+  "n_episodes": 768,
+  "reason": "all episodes written",
+  "audit": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_AUDIT.json",
+  "n_checks": 28,
+  "result": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_RESULT.json"
+}

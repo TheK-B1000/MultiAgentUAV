@@ -1254,9 +1254,28 @@
           "note": "sealed SEALED; verdict=ONE_DEFENDER_HARM_ONLY"
         }
       ]
+    },
+    {
+      "experiment_id": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION",
+      "purpose": "fresh-seed confirmation of the native vs plus-one-defender goal-volume interaction J across the two certified 6v6 poles, frozen learned pi_A/pi_B, PPO off",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21000001,
+      "hi": 21000096,
+      "n": 96,
+      "status": "SPENT",
+      "spec": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-21T12:11:12Z",
+      "spent_utc": "2026-09-21T16:07:50Z",
+      "notes": [
+        {
+          "utc": "2026-09-21T16:07:50Z",
+          "note": "sealed SEALED; OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-20T17:37:32Z",
+  "updated_utc": "2026-09-21T16:07:50Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

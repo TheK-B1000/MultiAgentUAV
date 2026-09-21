@@ -16,7 +16,43 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-21 — **EXPLORATORY ONE-DEFENDER FAILURE LOCALIZATION DONE (DIAGNOSTIC, NON-GATING, NO VERDICT COMPUTED): THE POLE-B HARM LOCALIZES TO CARRIER CONVERSION AFTER ACQUISITION. TWO CAVEATS QUALIFY HOW THE SEALED CAUSAL RESULT SHOULD BE READ.**
+> **Last updated:** 2026-09-21 — **ONE-DEFENDER GOAL-VOLUME CONFIRMATION SEALED: `OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED` (fresh sealed_confirmatory seeds 21000001-21000096, 20/20 gating checks, independent re-derivation exact). THE POLE-A GAIN AND POLE-B LOSS IN GOAL PRODUCTION REPLICATE. WORDED "OPPONENT-CONDITIONED ACROSS THE TWO CERTIFIED 6v6 POLES"; IT DOES NOT SEPARATE THAT FROM COMPRESSION TOWARD A COMMON GOAL LEVEL.**
+> Spec [`ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json)
+> (frozen before any seed was spent; result and audit beside it). The hypothesis was generated post hoc
+> from the exploratory records on seeds 20900001-096, which contribute nothing here. Same injection
+> mechanism as the causal bridge (source sha256 pinned and re-verified), 768 full episodes, Blue goals
+> per episode the sole primary endpoint, margin a consistency check only, contracts 8/8 before the
+> run, no interim outcome inspection. Primary criterion: `LCB95(J_p) > 0` for both learned policies,
+> `J_p = dG_{p,A} - dG_{p,B}`.
+>
+> | | native -> +1D mean Blue goals | +1D - native, paired, mean [95% CI] |
+> |---|---|---|
+> | `pi_A` Pole A | 1.21 -> 2.14 | **+0.93 [+0.66, +1.19]** |
+> | `pi_A` Pole B | 2.47 -> 1.85 | **-0.61 [-0.89, -0.34]** |
+> | `pi_B` Pole A | 1.07 -> 1.99 | **+0.92 [+0.67, +1.16]** |
+> | `pi_B` Pole B | 2.24 -> 1.95 | **-0.29 [-0.55, -0.03]** |
+> | **J, `pi_A`** | | **+1.54 [+1.16, +1.93]** |
+> | **J, `pi_B`** | | **+1.21 [+0.88, +1.54]** |
+>
+> Both J lower bounds exceed zero, and all four cell point estimates reproduce the frozen signs, so the
+> frozen label is `OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED`. (All four cell intervals also
+> exclude zero, though the frozen rules did not require that; `pi_B` Pole B is the narrow one, upper
+> bound -0.03.) Margin agrees (cells +0.90, -0.68, +0.93, -0.34; J +1.57 [+1.20, +1.95] and +1.27
+> [+0.94, +1.60]) and is not a second vote. The split-half check shows no sign flip in any of the eight
+> re-derived claims. The exploratory estimates did not shrink on fresh seeds (exploratory J was +1.35 for
+> both policies), so no winner's-curse signature is visible.
+>
+> **What this establishes:** a replicated differential response of Blue goal production to a forced
+> defender between the two certified 6v6 opponents. **What it does not:** it says nothing about win
+> probability (the sealed win-rate endpoint and its `ONE_DEFENDER_HARM_ONLY` label are untouched); no
+> mechanism; no "regime" law; and per the frozen guard it does not distinguish opponent-specific
+> strategic sensitivity from regression/compression toward a common goal level. That last caveat is
+> not hypothetical: natively the four cells span 1.07-2.47 goals, while under +1D all four land between
+> 1.85 and 2.14 -- the fresh block reproduces the convergence seen in the exploratory data. Two poles
+> cannot separate the readings. A third opponent (none is certified for 6v6 in the repository) or a
+> design that varies the native goal level is the discrimination experiment; none is started.
+>
+> Prior — 2026-09-21 — **EXPLORATORY ONE-DEFENDER FAILURE LOCALIZATION DONE (DIAGNOSTIC, NON-GATING, NO VERDICT COMPUTED): THE POLE-B HARM LOCALIZES TO CARRIER CONVERSION AFTER ACQUISITION. TWO CAVEATS QUALIFY HOW THE SEALED CAUSAL RESULT SHOULD BE READ.**
 > Spec [`EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json),
 > result `..._RESULT.json` and `..._ROWS.csv` beside it. The sealed causal rows held only outcomes
 > (no per-tick telemetry), so the exact 768 sealed cells were replayed (same seeds, sha-pinned

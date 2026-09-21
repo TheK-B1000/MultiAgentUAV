@@ -1,0 +1,141 @@
+{
+  "record_id": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_RESULT",
+  "implements": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json",
+  "utc": "2026-09-21T16:07:50Z",
+  "device": "cuda",
+  "seed_block": {
+    "base": 21000001,
+    "n": 96,
+    "class": "sealed_confirmatory"
+  },
+  "PRIMARY_J_PER_POLICY_BLUE_GOALS": {
+    "pi_A": {
+      "mean": 1.541667,
+      "lcb95": 1.15625,
+      "ucb95": 1.927083,
+      "n": 96,
+      "lcb95_above_zero": true
+    },
+    "pi_B": {
+      "mean": 1.208333,
+      "lcb95": 0.875,
+      "ucb95": 1.541667,
+      "n": 96,
+      "lcb95_above_zero": true
+    }
+  },
+  "SECONDARY_FOUR_SIGNS_REPRODUCED_POINT_ESTIMATES": {
+    "pi_A_poleA": true,
+    "pi_A_poleB": true,
+    "pi_B_poleA": true,
+    "pi_B_poleB": true
+  },
+  "PER_CELL_DELTA_G": {
+    "pi_A_poleA": {
+      "native_mean": 1.208333,
+      "plus_one_defender_mean": 2.135417,
+      "mean": 0.927083,
+      "lcb95": 0.65625,
+      "ucb95": 1.1875,
+      "n": 96
+    },
+    "pi_A_poleB": {
+      "native_mean": 2.46875,
+      "plus_one_defender_mean": 1.854167,
+      "mean": -0.614583,
+      "lcb95": -0.885417,
+      "ucb95": -0.34375,
+      "n": 96
+    },
+    "pi_B_poleA": {
+      "native_mean": 1.072917,
+      "plus_one_defender_mean": 1.989583,
+      "mean": 0.916667,
+      "lcb95": 0.666667,
+      "ucb95": 1.15625,
+      "n": 96
+    },
+    "pi_B_poleB": {
+      "native_mean": 2.239583,
+      "plus_one_defender_mean": 1.947917,
+      "mean": -0.291667,
+      "lcb95": -0.552083,
+      "ucb95": -0.03125,
+      "n": 96
+    }
+  },
+  "MARGIN_CONSISTENCY_CHECK_NOT_A_SECOND_VOTE": {
+    "per_cell": {
+      "pi_A_poleA": {
+        "native_mean": 1.177083,
+        "plus_one_defender_mean": 2.072917,
+        "mean": 0.895833,
+        "lcb95": 0.635417,
+        "ucb95": 1.15625,
+        "n": 96
+      },
+      "pi_A_poleB": {
+        "native_mean": 2.458333,
+        "plus_one_defender_mean": 1.78125,
+        "mean": -0.677083,
+        "lcb95": -0.947917,
+        "ucb95": -0.395833,
+        "n": 96
+      },
+      "pi_B_poleA": {
+        "native_mean": 1.020833,
+        "plus_one_defender_mean": 1.947917,
+        "mean": 0.927083,
+        "lcb95": 0.677083,
+        "ucb95": 1.166667,
+        "n": 96
+      },
+      "pi_B_poleB": {
+        "native_mean": 2.21875,
+        "plus_one_defender_mean": 1.875,
+        "mean": -0.34375,
+        "lcb95": -0.604167,
+        "ucb95": -0.083333,
+        "n": 96
+      }
+    },
+    "J_per_policy": {
+      "pi_A": {
+        "mean": 1.572917,
+        "lcb95": 1.197917,
+        "ucb95": 1.947917,
+        "n": 96
+      },
+      "pi_B": {
+        "mean": 1.270833,
+        "lcb95": 0.9375,
+        "ucb95": 1.604167,
+        "n": 96
+      }
+    }
+  },
+  "TERMINAL_OUTCOME": "OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED",
+  "independent_rederivation_J": {
+    "max_abs_diff": 0.0,
+    "seeds": 96
+  },
+  "interpretation_guard": "A positive J establishes differential intervention response between the two certified opponents. It does not distinguish opponent-specific strategic sensitivity from regression/compression toward a common goal-production level.",
+  "wording": "opponent-conditioned across the two certified 6v6 poles",
+  "provenance": {
+    "spec_sha256": "df8e401e4473f0f154ed7f9dd19074a22730842bd1589076990b41bc732b51c9",
+    "script_sha256": "a38e4898bf1e1291286fb4fe4df75778043aa9d96dd77a8a9ac44cf33733a1b4",
+    "mechanism_source_sha256": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb"
+  },
+  "claim_boundary": "Two frozen learned checkpoints, two certified 6v6 opponents, rollout-time intervention, fresh sealed_confirmatory seeds. TERMINAL_OUTCOME is certified ONLY if this record's own status is SEALED; integrity/audit failure takes precedence over every label. A positive J establishes differential intervention response between the two certified opponents. It does not distinguish opponent-specific strategic sensitivity from regression/compression toward a common goal-production level.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-21T16:07:50Z",
+  "git_sha": "92a6b95d9b059e6cecb977d73838a586f438f912",
+  "AUDIT": {
+    "path": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_AUDIT.json",
+    "passed": true,
+    "n_checks": 28,
+    "n_gating": 20,
+    "failed_checks": [],
+    "rows_sha256": "734aed439fad3ec7ce55a5e6c6f83f8b49b848d0e2eabad2382da94d0c9613f1"
+  }
+}
