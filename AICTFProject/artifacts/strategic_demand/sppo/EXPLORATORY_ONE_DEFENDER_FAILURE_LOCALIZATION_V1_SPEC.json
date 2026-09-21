@@ -1,0 +1,62 @@
+{
+  "record_id": "EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC",
+  "status": "FROZEN_BEFORE_ANALYSIS",
+  "utc": "2026-09-20T00:00:00Z",
+  "reads": "DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json (SEALED, ONE_DEFENDER_HARM_ONLY)",
+  "classification": "DIAGNOSTIC. EXPLORATORY. NON-GATING. Gates nothing, reopens no causal question, spends no seed. Not a confirmatory record; no automated verdict label is computed.",
+  "confirmatory": false,
+
+  "authorized_by": "PI direction 2026-09-20: the causal bridge is closed (ONE_DEFENDER_HARM_ONLY, no further seeds/arms/defender counts/routing on that experiment). Start a strictly exploratory failure-localization pass on the ALREADY-GENERATED 768 episodes to ask why scripted 5A/1D works while learned-policy +1D hurts, concentrated on Pole B (where both resolved harms occurred), with Pole A carried as a non-gating contrast.",
+
+  "WHY_A_REPLAY_IS_NEEDED_FIRST": {
+    "checked_before_writing_this_spec": "DEFENDER_INJECTION_CAUSAL_BRIDGE_ROWS.csv (the sealed causal record) contains exactly: policy, pole, arm, seed, defender_id, steps, blue, red, win, margin. No per-tick telemetry was saved -- the causal experiment only needed outcomes, matching the SHARE0 precedent of rows-only (no trace) storage for an outcome-only question.",
+    "what_this_means": "None of the four mechanism families in this spec are answerable from the sealed rows alone. They require re-executing the exact same 768 (policy, pole, arm, seed) cells to capture the full per-tick trace (pos, alive, tagged, carrying, red_carrying, intent, eff_macro, action) that run_learned_episode / run_learned_episode_with_forced_defender already compute internally but the causal run discarded after extracting the final outcome.",
+    "why_this_is_not_a_new_seed_or_new_evidence": "Same seeds (20900001-20900096, already SPENT), same checkpoints (sha256-pinned, unchanged), same deterministic code paths, same arms. This is a replay for ADDITIONAL DESCRIPTIVE TELEMETRY about episodes whose OUTCOME is already sealed and fixed, in the same sense every 'parity' check elsewhere in this research line reuses already-spent seeds for read-only verification ('no new evidence, no registry interaction'). The replayed (blue, red, win, margin, steps) for all 768 cells must equal the sealed causal record exactly -- this is checked and hard-aborts on any mismatch -- so this pass cannot silently drift into a second, different measurement of the causal question.",
+    "no_new_instrumentation": "Every field used below already exists in experiments.probe_learned_composition._snap() / TRACE_KEYS. Nothing new is added to the engine or the trace schema. Fields that are NOT already captured (opponent tag/alive status, a native per-tick score event flag, enemy-flag position) are listed as explicit gaps below rather than added."
+  },
+
+  "KNOWN_GAPS_DISCLOSED_UP_FRONT": {
+    "no_opponent_tag_or_alive_capture": "red_tagged / red_alive are not read by _snap(). 'Home-side tags or protection metrics' (blue tagging red) cannot be measured; only red's CARRYING activity (whether red is holding blue's flag) is available as a defensive-benefit proxy.",
+    "no_native_per_tick_score_event": "core's per-tick blue_cap_agents/red_cap_agents flags (the engine's own scoring-event signal) are internal to _step.py and not exposed. 'Time to score' is NOT computed. Instead, a carry-RUN is classified by how it ends, using only already-captured fields: ends while tagged or not-alive = 'tag-caught'; ends any other way = 'clean release' (a labelled PROXY for a likely capture, not the engine's own ground truth -- the macro vocabulary has no voluntary flag-drop action, so by elimination a clean release is either a score or the episode ending under the carrier, but it is reported as a proxy, not asserted as a score count).",
+    "no_enemy_flag_position": "_snap() captures the OWN flag's position/home, not the enemy's, so no distance-to-enemy-flag 'progress' metric is computed. Offensive opportunity is measured by carry starts and carry timing only, not by spatial approach."
+  },
+
+  "DESIGN": {
+    "source_episodes": "the exact 768 (policy, pole, arm, seed) cells already sealed in DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json / _ROWS.csv, replayed via the SAME functions (run_learned_episode, run_learned_episode_with_forced_defender), full episodes, deterministic, cuda.",
+    "parity_gate": "for every one of the 768 cells, replayed (blue, red, win, margin, steps) must equal the sealed row exactly. Any mismatch hard-aborts before any metric is reported.",
+    "primary_localization_target": "Pole B (both resolved harms: pi_A -0.177, pi_B -0.094).",
+    "non_gating_contrast": "Pole A (unresolved in the causal test). Reported alongside to help distinguish a Pole-B-specific mechanism from a generic side effect of the injection; does not redefine or gate the primary question."
+  },
+
+  "MECHANISM_FAMILIES_AND_METRICS_FROZEN": {
+    "1_offensive_opportunity": ["time_to_first_carry (all 6 agents; censored at episode length if never)",
+                                "time_to_first_carry_excl_defender (same, excluding the overridden agent id, both arms, to isolate the other five)",
+                                "n_carry_starts (all 6)", "n_carry_starts_excl_defender"],
+    "2_carrier_conversion": ["total_carry_ticks (all 6)", "total_carry_ticks_excl_defender",
+                             "n_carry_clean_release (proxy for likely capture; see KNOWN_GAPS)",
+                             "n_carry_tag_caught (carrier tagged or killed before release)",
+                             "final_blue_score (copied from the sealed row, cross-reference only, not recomputed as new evidence)"],
+    "3_defensive_benefit": ["red_carrying_ticks (opponent holding blue's flag)", "n_red_carry_starts",
+                            "final_red_score (copied from the sealed row, cross-reference only)"],
+    "4_attrition_disruption": ["tagged_ticks_total (all 6)", "tagged_fraction (tagged_ticks_total / (6 x steps))",
+                               "first_tag_tick (censored at episode length if never)",
+                               "mean_active_count (mean per-tick count of alive & not-tagged agents)"]
+  },
+
+  "REPORTING_RULE_FROZEN": {
+    "comparison": "+1_defender minus native, paired by seed, computed separately for pi_A and pi_B, separately for Pole A and Pole B -- 4 (policy, pole) cells x every metric above.",
+    "statistics": "point difference (mean) and a paired bootstrap 95% interval, reported descriptively. No resolved/unresolved labeling, no significance-based metric selection, no automated 'winning mechanism' label, no verdict field.",
+    "interpretation": "left to the reader, applying the PI's own modest, mechanical mapping (offense drops & defense flat -> lost offensive capacity; defense improves but conversion drops more -> unfavorable trade-off; opportunities flat & conversion collapses -> coordination disruption after acquisition; nothing separates cleanly -> MECHANISM_UNLOCALIZED) OUTSIDE this sealed record, not computed inside it."
+  },
+
+  "NOT_AUTHORIZED": [
+    "any new seed", "any PPO run", "any alternative defender count", "any routing mechanism",
+    "reopening or re-scoring DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json's sealed verdict",
+    "an automated mechanism-selection label inside this record",
+    "post-hoc metric selection after seeing which one 'looks cleanest'",
+    "adding new engine instrumentation beyond what _snap()/TRACE_KEYS already capture"
+  ],
+
+  "claim_boundary": "Descriptive only. Same 768 episodes as the sealed causal result, parity-verified. No new causal claim, no new outcome claim -- outcomes are read from the already-sealed record, not re-measured as evidence here.",
+  "claim_ceiling": "At most: which of the four mechanism families' descriptive signatures are present on Pole B (and, non-gating, on Pole A) alongside the already-sealed -0.177 / -0.094 harms. Not a demonstration of which mechanism CAUSES the harm -- that would need its own targeted intervention, not observational replay telemetry."
+}

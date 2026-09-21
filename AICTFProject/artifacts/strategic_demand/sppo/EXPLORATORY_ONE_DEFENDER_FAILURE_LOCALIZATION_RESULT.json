@@ -1,0 +1,366 @@
+{
+  "record_id": "EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_RESULT",
+  "implements": "EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json",
+  "utc": "2026-09-21T05:43:02Z",
+  "classification": "DIAGNOSTIC. EXPLORATORY. NON-GATING. Not sealed via the formal audit pipeline used for confirmatory records in this line; the integrity guarantee here is the parity check below, not an AuditPlan.",
+  "n_episodes_replayed": 768,
+  "n_mismatches": 0,
+  "primary_target": "Pole B",
+  "non_gating_contrast": "Pole A",
+  "COMPARISON_PLUS1D_MINUS_NATIVE_PAIRED_BY_SEED": {
+    "A": {
+      "pi_A": {
+        "time_to_first_carry": {
+          "mean": 1.96875,
+          "lcb95": 0.8125,
+          "ucb95": 3.197917,
+          "n": 96
+        },
+        "time_to_first_carry_excl_defender": {
+          "mean": -6.104167,
+          "lcb95": -15.0,
+          "ucb95": 0.75,
+          "n": 96
+        },
+        "n_carry_starts": {
+          "mean": 1.604167,
+          "lcb95": 1.104167,
+          "ucb95": 2.114583,
+          "n": 96
+        },
+        "n_carry_starts_excl_defender": {
+          "mean": 2.145833,
+          "lcb95": 1.65625,
+          "ucb95": 2.635417,
+          "n": 96
+        },
+        "total_carry_ticks": {
+          "mean": -69.604167,
+          "lcb95": -85.479427,
+          "ucb95": -53.71849,
+          "n": 96
+        },
+        "total_carry_ticks_excl_defender": {
+          "mean": -30.21875,
+          "lcb95": -51.282031,
+          "ucb95": -8.739063,
+          "n": 96
+        },
+        "n_carry_clean_release": {
+          "mean": 0.34375,
+          "lcb95": 0.135417,
+          "ucb95": 0.541667,
+          "n": 96
+        },
+        "n_carry_tag_caught": {
+          "mean": 1.260417,
+          "lcb95": 0.84375,
+          "ucb95": 1.697917,
+          "n": 96
+        },
+        "red_carrying_ticks": {
+          "mean": -80.885417,
+          "lcb95": -100.96901,
+          "ucb95": -60.78125,
+          "n": 96
+        },
+        "n_red_carry_starts": {
+          "mean": -0.333333,
+          "lcb95": -0.5625,
+          "ucb95": -0.114583,
+          "n": 96
+        },
+        "tagged_ticks_total": {
+          "mean": 58.15625,
+          "lcb95": 46.010156,
+          "ucb95": 70.177083,
+          "n": 96
+        },
+        "tagged_fraction": {
+          "mean": 0.083572,
+          "lcb95": 0.070992,
+          "ucb95": 0.096254,
+          "n": 96
+        },
+        "first_tag_tick": {
+          "mean": 0.427083,
+          "lcb95": 0.010417,
+          "ucb95": 0.895833,
+          "n": 96
+        },
+        "mean_active_count": {
+          "mean": -0.50143,
+          "lcb95": -0.577521,
+          "ucb95": -0.425951,
+          "n": 96
+        }
+      },
+      "pi_B": {
+        "time_to_first_carry": {
+          "mean": 0.979167,
+          "lcb95": 0.53125,
+          "ucb95": 1.510417,
+          "n": 96
+        },
+        "time_to_first_carry_excl_defender": {
+          "mean": -3.833333,
+          "lcb95": -9.3125,
+          "ucb95": -0.572917,
+          "n": 96
+        },
+        "n_carry_starts": {
+          "mean": 1.395833,
+          "lcb95": 0.885417,
+          "ucb95": 1.916667,
+          "n": 96
+        },
+        "n_carry_starts_excl_defender": {
+          "mean": 2.052083,
+          "lcb95": 1.572656,
+          "ucb95": 2.552083,
+          "n": 96
+        },
+        "total_carry_ticks": {
+          "mean": -74.520833,
+          "lcb95": -90.666927,
+          "ucb95": -58.489583,
+          "n": 96
+        },
+        "total_carry_ticks_excl_defender": {
+          "mean": -36.84375,
+          "lcb95": -57.479167,
+          "ucb95": -15.603906,
+          "n": 96
+        },
+        "n_carry_clean_release": {
+          "mean": 0.447917,
+          "lcb95": 0.291667,
+          "ucb95": 0.604167,
+          "n": 96
+        },
+        "n_carry_tag_caught": {
+          "mean": 0.947917,
+          "lcb95": 0.510417,
+          "ucb95": 1.385417,
+          "n": 96
+        },
+        "red_carrying_ticks": {
+          "mean": -89.0,
+          "lcb95": -108.62526,
+          "ucb95": -69.354167,
+          "n": 96
+        },
+        "n_red_carry_starts": {
+          "mean": -0.291667,
+          "lcb95": -0.447917,
+          "ucb95": -0.135417,
+          "n": 96
+        },
+        "tagged_ticks_total": {
+          "mean": 63.916667,
+          "lcb95": 51.989323,
+          "ucb95": 75.489844,
+          "n": 96
+        },
+        "tagged_fraction": {
+          "mean": 0.092665,
+          "lcb95": 0.079097,
+          "ucb95": 0.105523,
+          "n": 96
+        },
+        "first_tag_tick": {
+          "mean": 0.1875,
+          "lcb95": 0.0625,
+          "ucb95": 0.322917,
+          "n": 96
+        },
+        "mean_active_count": {
+          "mean": -0.55599,
+          "lcb95": -0.633136,
+          "ucb95": -0.474581,
+          "n": 96
+        }
+      }
+    },
+    "B": {
+      "pi_A": {
+        "time_to_first_carry": {
+          "mean": 3.135417,
+          "lcb95": 1.520833,
+          "ucb95": 4.90625,
+          "n": 96
+        },
+        "time_to_first_carry_excl_defender": {
+          "mean": 0.5,
+          "lcb95": -1.760417,
+          "ucb95": 2.6875,
+          "n": 96
+        },
+        "n_carry_starts": {
+          "mean": 2.354167,
+          "lcb95": 1.583333,
+          "ucb95": 3.104167,
+          "n": 96
+        },
+        "n_carry_starts_excl_defender": {
+          "mean": 3.21875,
+          "lcb95": 2.5,
+          "ucb95": 3.927083,
+          "n": 96
+        },
+        "total_carry_ticks": {
+          "mean": -48.822917,
+          "lcb95": -64.146094,
+          "ucb95": -33.28099,
+          "n": 96
+        },
+        "total_carry_ticks_excl_defender": {
+          "mean": -35.614583,
+          "lcb95": -51.177083,
+          "ucb95": -20.24974,
+          "n": 96
+        },
+        "n_carry_clean_release": {
+          "mean": -0.34375,
+          "lcb95": -0.520833,
+          "ucb95": -0.177083,
+          "n": 96
+        },
+        "n_carry_tag_caught": {
+          "mean": 3.104167,
+          "lcb95": 2.260417,
+          "ucb95": 3.947917,
+          "n": 96
+        },
+        "red_carrying_ticks": {
+          "mean": -48.125,
+          "lcb95": -66.552344,
+          "ucb95": -29.770833,
+          "n": 96
+        },
+        "n_red_carry_starts": {
+          "mean": -0.114583,
+          "lcb95": -0.3125,
+          "ucb95": 0.083333,
+          "n": 96
+        },
+        "tagged_ticks_total": {
+          "mean": 180.09375,
+          "lcb95": 146.427083,
+          "ucb95": 213.166667,
+          "n": 96
+        },
+        "tagged_fraction": {
+          "mean": 0.078277,
+          "lcb95": 0.05485,
+          "ucb95": 0.10235,
+          "n": 96
+        },
+        "first_tag_tick": {
+          "mean": 0.572917,
+          "lcb95": 0.229167,
+          "ucb95": 0.989583,
+          "n": 96
+        },
+        "mean_active_count": {
+          "mean": -0.46966,
+          "lcb95": -0.614099,
+          "ucb95": -0.329098,
+          "n": 96
+        }
+      },
+      "pi_B": {
+        "time_to_first_carry": {
+          "mean": 1.958333,
+          "lcb95": 1.135417,
+          "ucb95": 2.885417,
+          "n": 96
+        },
+        "time_to_first_carry_excl_defender": {
+          "mean": -2.677083,
+          "lcb95": -8.270833,
+          "ucb95": 0.979167,
+          "n": 96
+        },
+        "n_carry_starts": {
+          "mean": 2.427083,
+          "lcb95": 1.75,
+          "ucb95": 3.104167,
+          "n": 96
+        },
+        "n_carry_starts_excl_defender": {
+          "mean": 3.135417,
+          "lcb95": 2.489583,
+          "ucb95": 3.78125,
+          "n": 96
+        },
+        "total_carry_ticks": {
+          "mean": -39.427083,
+          "lcb95": -55.395833,
+          "ucb95": -23.71875,
+          "n": 96
+        },
+        "total_carry_ticks_excl_defender": {
+          "mean": -24.96875,
+          "lcb95": -42.333594,
+          "ucb95": -7.875,
+          "n": 96
+        },
+        "n_carry_clean_release": {
+          "mean": -0.1875,
+          "lcb95": -0.354167,
+          "ucb95": -0.03125,
+          "n": 96
+        },
+        "n_carry_tag_caught": {
+          "mean": 3.0,
+          "lcb95": 2.260417,
+          "ucb95": 3.75026,
+          "n": 96
+        },
+        "red_carrying_ticks": {
+          "mean": -40.677083,
+          "lcb95": -59.270833,
+          "ucb95": -22.479167,
+          "n": 96
+        },
+        "n_red_carry_starts": {
+          "mean": -0.09375,
+          "lcb95": -0.270833,
+          "ucb95": 0.083333,
+          "n": 96
+        },
+        "tagged_ticks_total": {
+          "mean": 191.072917,
+          "lcb95": 159.947656,
+          "ucb95": 222.282292,
+          "n": 96
+        },
+        "tagged_fraction": {
+          "mean": 0.07682,
+          "lcb95": 0.054318,
+          "ucb95": 0.099693,
+          "n": 96
+        },
+        "first_tag_tick": {
+          "mean": 0.229167,
+          "lcb95": 0.104167,
+          "ucb95": 0.375,
+          "n": 96
+        },
+        "mean_active_count": {
+          "mean": -0.46092,
+          "lcb95": -0.598158,
+          "ucb95": -0.325909,
+          "n": 96
+        }
+      }
+    }
+  },
+  "known_gaps": {
+    "no_opponent_tag_or_alive_capture": "red_tagged / red_alive are not read by _snap(). 'Home-side tags or protection metrics' (blue tagging red) cannot be measured; only red's CARRYING activity (whether red is holding blue's flag) is available as a defensive-benefit proxy.",
+    "no_native_per_tick_score_event": "core's per-tick blue_cap_agents/red_cap_agents flags (the engine's own scoring-event signal) are internal to _step.py and not exposed. 'Time to score' is NOT computed. Instead, a carry-RUN is classified by how it ends, using only already-captured fields: ends while tagged or not-alive = 'tag-caught'; ends any other way = 'clean release' (a labelled PROXY for a likely capture, not the engine's own ground truth -- the macro vocabulary has no voluntary flag-drop action, so by elimination a clean release is either a score or the episode ending under the carrier, but it is reported as a proxy, not asserted as a score count).",
+    "no_enemy_flag_position": "_snap() captures the OWN flag's position/home, not the enemy's, so no distance-to-enemy-flag 'progress' metric is computed. Offensive opportunity is measured by carry starts and carry timing only, not by spatial approach."
+  },
+  "claim_boundary": "Descriptive only. No verdict, no significance-based selection, no automated mechanism label. Interpretation is left to the reader applying the PI's own modest mapping outside this record. Does not reopen or re-score DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json."
+}

@@ -16,7 +16,86 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE SEALED: `ONE_DEFENDER_HARM_ONLY`. FORCING ONE REAL DEFENDER NEVER HELPS, AND RESOLVED-HARMS pi_A AND pi_B ON POLE B SPECIFICALLY.**
+> **Last updated:** 2026-09-21 — **EXPLORATORY ONE-DEFENDER FAILURE LOCALIZATION DONE (DIAGNOSTIC, NON-GATING, NO VERDICT COMPUTED): THE POLE-B HARM LOCALIZES TO CARRIER CONVERSION AFTER ACQUISITION. TWO CAVEATS QUALIFY HOW THE SEALED CAUSAL RESULT SHOULD BE READ.**
+> Spec [`EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json),
+> result `..._RESULT.json` and `..._ROWS.csv` beside it. The sealed causal rows held only outcomes
+> (no per-tick telemetry), so the exact 768 sealed cells were replayed (same seeds, sha-pinned
+> checkpoints, same code paths, deterministic; no new seed). **Parity 768/768 exact** against the
+> sealed causal record, checked per episode as written and again at merge; the merge refuses to run
+> unless all 768 cells are present. The first attempt (serial) was lost at 260/768 to a Windows
+> Update reboot because it had no resume file; the rerun is 6 resumable shards.
+>
+> **Pole B (primary), both policies, +1D minus native, paired by seed:** offensive opportunity is
+> NOT reduced (carry starts +2.4 all six agents, +3.1/+3.2 for the five non-overridden agents; first
+> carry ~2-3 ticks later). Conversion after acquisition collapses: total carry time -49/-39 ticks,
+> carriers tagged-while-carrying roughly double (`pi_A` 3.1 -> 6.2, `pi_B` 2.4 -> 5.4), clean
+> releases -0.34/-0.19. Defense does improve on the frozen proxy (opponent carry time 62 -> 14 and
+> 67 -> 26 ticks) but buys nothing: red scores ~0.01-0.02 goals/episode natively and is never ahead
+> in any Pole-B episode under +1D. The +1D non-wins on Pole B are 0-0 timeouts (13/96, 10/96), i.e.
+> blue fails to convert, not red wins. Attrition: tagged fraction +0.08, active agents -0.47.
+> **Pole A (non-gating contrast):** the attrition (+0.08-0.09 tagged fraction, -0.5 active agents) and
+> defensive-proxy (opponent carry time -81/-89) signatures are present there too, so they are generic
+> side effects of the injection, not the Pole-B mechanism. What differs is conversion direction:
+> clean releases go UP at Pole A (+0.34/+0.45) and DOWN at Pole B, and tag-while-carrying rises far
+> less (+1.3/+0.9 vs +3.1/+3.0). Read against the PI's mapping this is closest to "opportunities
+> stay similar, conversion collapses"; it does not separate "lost screening from the removed
+> attacker" from "disrupted learned coordination" -- that needs a targeted intervention, not more
+> telemetry. Full 14-metric x 4-cell table with paired bootstrap intervals is in the RESULT.
+>
+> **Instrument check:** "clean release" is a proxy for a capture and structurally cannot see an
+> episode's terminal capture (the trace is recorded pre-step and stops at `done`). Accounting for
+> that, clean releases + terminal captures reproduces the sealed mean blue score in every cell
+> checked (e.g. `pi_A`@B native 1.74 + 0.60 = 2.34; +1D 1.40 + 0.36 = 1.76), which supports the proxy.
+>
+> **Caveat 1 -- Pole B is a ceiling pole.** Native `pi_A` won 96/96 and `pi_B` 95/96 on Pole B, so
+> that pole could never show a benefit; its "harm" is a drop from perfect. The sealed causal test
+> could only have detected a benefit on Pole A (native 0.83/0.885), where it was INCONCLUSIVE
+> (`+0.031 [-0.063,+0.125]`, `-0.010 [-0.094,+0.073]`), not negative. "One defender does not help"
+> is therefore trivially true at the ceiling pole and unresolved at the other; "falsified" overstates
+> it, and the sealed label `ONE_DEFENDER_HARM_ONLY` should be read as a statement about that
+> frozen metric on these seeds, not as closing the role-count hypothesis.
+> **Caveat 2 -- the frozen win metric saturates at one goal.** On Pole A native, 90/96 and 92/96
+> episodes run the full 240 ticks at ~1.1 goals/episode; under +1D that falls to 49/96 and 47/96
+> with mean blue score 1.20 -> 1.97 and 1.04 -> 1.97, while win rate stays flat (win only needs one
+> goal). The frozen rules did not include a goal-volume or margin endpoint (the superseded proposal
+> listed margin as secondary; it was never computed), so a tiny post-hoc DESCRIPTIVE addendum was
+> frozen BEFORE computation and run on the sealed rows (no simulation; rows sha256 bound to the sealed
+> audit; margin verified = blue - red on all 768 rows): see the addendum block below.
+>
+> **DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM** ([spec](../artifacts/strategic_demand/sppo/DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM_SPEC.json),
+> result beside it; POST-HOC motivation, non-gating, no pass/fail, no terminal label; it does not
+> replace the sealed win-rate verdict). Paired by seed over the same 96 seeds, +1D minus native,
+> mean [95% CI], native -> +1D means:
+>
+> | cell | Blue goals / episode | score margin |
+> |---|---|---|
+> | `pi_A` Pole A | 1.20 -> 1.97, **+0.77 [+0.49, +1.05]** | +0.77 [+0.49, +1.05] |
+> | `pi_B` Pole A | 1.04 -> 1.97, **+0.93 [+0.68, +1.18]** | +0.95 [+0.71, +1.20] |
+> | `pi_A` Pole B | 2.34 -> 1.76, **-0.58 [-0.87, -0.30]** | -0.64 [-0.93, -0.34] |
+> | `pi_B` Pole B | 2.33 -> 1.91, **-0.43 [-0.69, -0.17]** | -0.44 [-0.70, -0.18] |
+>
+> The Pole-A goal-volume increase survives the paired analysis in both policies on both endpoints
+> (intervals exclude zero) while win rate was unresolved: the binary win endpoint was hiding a real
+> change in goal production there. It is consistent with the localization (clean releases +0.34/+0.45
+> plus ~+0.5 more terminal captures per episode ~ the measured +0.8 goals). Pole B goal production
+> falls, in line with its win-rate harm. What this does NOT establish: that +1D raises the
+> probability of winning; a mechanism; "efficiency" (goals per tick or per carry were not measured --
+> episodes are also shorter, 233 -> 180 ticks on `pi_A` Pole A, but that was not a frozen endpoint);
+> or any confirmatory claim. Goals are capped at 3 by the score limit, so Pole B (native ~2.3) had
+> little room to rise and Pole A (native ~1.1) had a lot. Any confirmatory version needs a fresh
+> seed block and goal volume / margin frozen as an endpoint in advance; none is started.
+>
+> **CORRECTION NOTE (2026-09-21; supersedes the interpretation, not the record).** The earlier
+> `ONE_DEFENDER_HARM_ONLY` label remains correct under its frozen binary win-rate criterion, and
+> commit `e0a16c17` is left exactly as it is. The broader interpretation that the causal bridge
+> "falsifies the defender-count hypothesis" is superseded: Pole B was ceiling-limited for benefit
+> detection (native 96/96 and 95/96 wins), and Pole A effects were unresolved by win rate. The
+> exploratory localization indicates the Pole-B harm arises primarily from impaired carrier
+> conversion after acquisition (carry starts rise, tagged-while-carrying roughly doubles, clean
+> releases fall) despite improved defense, and the goal-volume addendum shows +1D raised goal
+> production on Pole A. Net: the role-count question is open, not closed.
+>
+> Prior — 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE SEALED: `ONE_DEFENDER_HARM_ONLY`. FORCING ONE REAL DEFENDER NEVER HELPS, AND RESOLVED-HARMS pi_A AND pi_B ON POLE B SPECIFICALLY.**
 > PI confirmed the decision rules (per-cell resolved improvement/harm via LCB95/UCB95, a
 > per-pole interaction test for B-disproportionate support, and two non-gating secondary
 > diagnostics -- crossover-under-condition and its paired change from native) and authorized
