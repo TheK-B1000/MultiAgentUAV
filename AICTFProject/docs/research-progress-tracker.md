@@ -16,7 +16,65 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-21 — **4v4 SCAFFOLDED-A CROSSOVER BRIDGE SEALED: `SCAFFOLDED_CROSSOVER_CONFIRMED` (fresh sealed_confirmatory seeds 21100001-21100128, 30/30 gating checks, run from the pre-run commit `ef5ee95f`). IMPOSING 2A/2D ON `pi_A` RECOVERS THE A/B PAYOFF SEPARATION AGAINST THE EXISTING `pi_B`. THIS IS A SCAFFOLDED-CONTROLLER RESULT, NOT A LEARNED CROSSOVER.**
+> **Last updated:** 2026-09-21 (later) — **4v4 SCAFFOLD-TO-NATIVE REPRESENTABILITY AUDIT COMPLETE: frozen label `NOT_REPRESENTABLE_VOCABULARY` on a valid audit, driven entirely by the DIRECTION sub-gate; TARGET and TRAJECTORY both pass at high coverage. READ-ONLY DIAGNOSTIC: no PPO, no new seed, `pi_B` not loaded. The label authorizes nothing.**
+> Spec [`SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json)
+> (amendment trail A1-A5 from the PI review), runner `experiments/audit_scaffold_to_native_representability_4v4.py` and the passing
+> 17/17 contract record were committed together as `59bb5073` before the replay started. The replay re-ran the 256 sealed A' cells
+> (block 21100001-128, registry entry untouched and byte-identical, no outcome inference drawn); every cell reproduced its sealed row
+> and the `pi_A` parameter digest was unchanged. Question: could native `pi_A`'s existing 4v4 interface (5 macros, a 50-waypoint grid,
+> the real action mask, real commit lengths) have produced the defender targets the scaffold injected? Witness set = legal `GO_TO`
+> waypoints only (no semantic macro used as a steering primitive); G6 thresholds unchanged (2.5 cells / cos 0.99 / 16 ticks); PASS iff
+> episode-clustered LCB95 >= 0.90 (this audit's own pre-declared level). Result
+> [`..._RESULT.json`](../artifacts/strategic_demand/sppo/SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_RESULT.json), per-cell
+> [`..._CELLS.csv`](../artifacts/strategic_demand/sppo/SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_CELLS.csv).
+>
+> | gate (unit) | Pole A | Pole B |
+> |---|---|---|
+> | TARGET (ACTIVE tick: some legal waypoint within 2.5 cells of the DEFEND target) | 0.981 [0.979, 0.983] PASS | 0.984 [0.982, 0.985] PASS |
+> | DIRECTION (ACTIVE tick: existence over legal waypoints of one aimed within 8 deg; TARGET-satisfying preferred) | **0.375 [0.343, 0.409] FAIL** | **0.281 [0.255, 0.308] FAIL** |
+> | TRAJECTORY, native commit (16-tick window, RMSE <= 2.5 vs the isolated DEFEND path) | 0.964 [0.959, 0.969] PASS | 0.965 [0.961, 0.969] PASS |
+> | TRAJECTORY, interruptible (commit 1; localization diagnostic) | 0.995 [0.993, 0.997] PASS | 0.995 [0.994, 0.997] PASS |
+>
+> Units: 48,068 / 56,576 ACTIVE ticks and 17,781 / 23,702 windows (A / B). Tagged ticks (14.7% / 7.9%) are excluded because the env forces
+> them home regardless of macro. Legality violations 0, runtime-parameter mismatches 0, independent re-derivation clean.
+>
+> **Reading.** The interface can name the DEFEND target to within 2.5 cells on ~98% of ticks and, with hindsight, reproduce the
+> defender's position PATH within 2.5 cells RMSE on ~96% of 16-tick windows under its real 4-tick commit lock (99.5% if interruptible,
+> so the commit lock is a minor factor; 99.0% / 99.7% on the interaction-free windows). It cannot, with a coarse waypoint grid,
+> reproduce the per-tick HEADING toward the DEFEND target on most ticks. Those are different questions; the frozen precedence made the
+> per-tick heading decisive, hence the label. **Representability is not learnability:** the path-oracle is greedy and sees the reference
+> future, so TRAJECTORY says the path CAN be expressed, not that PPO WILL find it, and a NOT_REPRESENTABLE label is not a proof of impossibility.
+>
+> **Frozen-gate limitation that only became visible on the population (author's miss):** the inherited G6 `direction_cosine` returns -1
+> when the desired vector is zero and the candidate's is not. The defender is exactly at its DEFEND target on 18.1% / 23.0% of ACTIVE
+> ticks, and within 1.5 cells of it on 39% / 49% (OUTWARD ticks, target = a boundary point; the own flag is 2 cells from the west wall).
+> **Exploratory sensitivity (post hoc, same recorded states, does NOT replace the frozen verdict):** excluding exactly-zero ticks the frozen gate is
+> 0.458 / 0.365 and pure existence over any legal waypoint is 0.681 / 0.596 -- still below 0.90, so the DIRECTION failure is not just that
+> convention. Other measured drivers: OUTWARD ticks with the target < 1.5 cells away pass 0.4% / 0.3%; INWARD ticks with the flag at home
+> pass 27.6% / 26.5% under the TARGET-satisfying-preferred rule (only waypoint idx 5, behind the flag, is within 2.5 cells) but 90.8% / 89.9% under pure
+> existence; the own flag is away from home on 55% / 40% of INWARD ticks. Independent re-check of the pipeline's DIRECTION flags with the
+> unchanged `direction_cosine`: 425/425 sampled ticks identical.
+>
+> **Other diagnostics (non-gating):** the exact semantic macro for INWARD, `GO_HOME`, is masked for a no-payload defender on 47% / 62% of
+> INWARD ticks (legal substitution costs 0.43 / 0.44 cells on average; admitting every legal macro would change TARGET by 0.000 because
+> GO_HOME is legal on only 101 / 562 ACTIVE ticks). G6-style committed-candidate comparator, all four checks jointly: 0.05% / 0.04% (the
+> old flip-tracking failure, visible on real states). Isolated-vs-live position RMSE 0.66 / 0.58 cells (the live step's 0.5-cell
+> avoid-collision shove; every one-step miss verified to have a neighbour in shove reach). **Open discrepancy, carried not edited:**
+> `HOME_LEGALITY_CONFIRMED_INTERFACE_REPAIR.json` says the engine never blocks `GO_HOME` for a non-carrier -- true of the engine decode,
+> false of the policy-facing mask that `pi_A` actually sees.
+>
+> **Narrow reading of the frozen result (PI wording, adopted as the record's summary):** under the preregistered representability
+> criteria, the existing GO_TO vocabulary fails because it cannot reproduce scaffold-relative instantaneous direction at the required
+> 90% coverage. Target and short-horizon trajectory representability remain high. **Whether instantaneous direction is behaviorally
+> necessary for crossover is unresolved.** "DIRECTION fails" is established; "DIRECTION is necessary" is not, and the stronger claim
+> "GO_TO cannot express the behavior needed for crossover" is NOT established by this audit. The frozen label stays exactly as computed.
+>
+> **Routing per the frozen rule:** PPO stays parked; the pre-declared repair question is the minimum primitive that names the desired
+> defender target. That routing is a recommendation the label carries by pre-declaration; because necessity is unresolved, no new
+> primitive (e.g. a learned-selectable DEFEND) is proposed on the strength of this audit alone. Any re-scoring with a different DIRECTION
+> definition, or an env-level test with a native-legal defender controller, is a NEW pre-registered analysis, not a relabeling of this one.
+>
+> **Earlier 2026-09-21:** **4v4 SCAFFOLDED-A CROSSOVER BRIDGE SEALED: `SCAFFOLDED_CROSSOVER_CONFIRMED` (fresh sealed_confirmatory seeds 21100001-21100128, 30/30 gating checks, run from the pre-run commit `ef5ee95f`). IMPOSING 2A/2D ON `pi_A` RECOVERS THE A/B PAYOFF SEPARATION AGAINST THE EXISTING `pi_B`. THIS IS A SCAFFOLDED-CONTROLLER RESULT, NOT A LEARNED CROSSOVER.**
 > Spec [`SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json),
 > committed together with the runner, the seed reservation and the passing 12/12 contract record (including
 > exact reproduction of 16 sealed episodes) before any seed in the block was touched; the sealed result's
