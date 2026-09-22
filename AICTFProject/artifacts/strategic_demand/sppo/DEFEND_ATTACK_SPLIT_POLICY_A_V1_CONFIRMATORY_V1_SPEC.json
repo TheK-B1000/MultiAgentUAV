@@ -1,0 +1,67 @@
+{
+  "record_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-22T20:00:00Z",
+  "classification": "CONFIRMATORY read of an already-frozen, already-trained composite policy. No training, no gradient step, no architecture change of any kind occurs in this record. Not latent-strategy work.",
+  "authorized_by": "PI, 2026-09-22, following the sealed DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC 200k run + n=64 exploratory eval (commit 9dccb4d6): 'Do not touch the trained policies. Seal them. Correct the delta-sign wording. Run a fresh confirmatory crossover evaluation... Do not train further right now.'",
+  "IMPLEMENTS": "artifacts/strategic_demand/sppo/DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json#EVALUATION_after_training_not_during",
+  "CANONICAL_DELTA_CONVENTION_locked": {
+    "correction": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json and its predecessor DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json both quoted an estimand for delta_B (V(pi_new,B)-V(pi_B,B)) that reads the SAME underlying quantity with the OPPOSITE sign from this program's own long-established crossover definition -- the one experiments/eval_specialist_crossover_scaled.py has implemented, unchanged, since the 2v2 specialist baseline. That inherited wording is retired for this and all future records in this line. It was never a different measurement, only a sign flip of the same number; no prior sealed numeric result is invalidated by this correction.",
+    "canonical_definition": {
+      "delta_A": "V(pi_A, A) - V(pi_B, A)",
+      "delta_B": "V(pi_B, B) - V(pi_A, B)",
+      "crossover_confirmed_iff": "mean(delta_A) > 0 AND LCB95(delta_A) > 0 AND mean(delta_B) > 0 AND LCB95(delta_B) > 0",
+      "reading": "delta_A > 0 means pi_A beats pi_B on Pole A (pi_A's own specialty). delta_B > 0 means pi_B beats pi_A on Pole B (pi_B's own specialty). BOTH positive is the crossover signature: each specialist dominates its own pole and is weaker on the other's -- this is the DESIRED pattern, not a defect. A specialist that is ALSO strong on the opposing pole is a generalist, not evidence of successful specialization, and was the original failure mode this whole research line exists to move away from."
+    },
+    "applies_to": "this record and all future DEFEND_ATTACK_SPLIT_POLICY_A_V1-lineage records. Does not retroactively edit the frozen text of DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json or DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json themselves -- those files stay as originally frozen, per this program's own discipline against rewriting frozen specs; this record is the correction of record going forward."
+  },
+  "EXPLORATORY_RESULT_BEING_CONFIRMED": {
+    "record": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "seeds": "21700001-21700064 (n=64, exploratory)",
+    "delta_A": "+0.1875 [+0.0156, +0.3594]",
+    "delta_B": "+0.4375 [+0.2969, +0.5781]",
+    "both_pass_under_canonical_convention": true
+  },
+  "FROZEN_ASSETS_locked": {
+    "pi_A_frozen_attack": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+      "role": "ATTACK-role agent slots, unchanged, no gradient ever applied"
+    },
+    "pi_D_trained_defend": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_a4_split_attack_defend_v1/ckpts/final_pi_A_specialist_4v4_a4_split_attack_defend_v1.zip",
+      "sha256": "b538cdf4ba5d2c5d2834c2307285b7bef6f8ab7232e5471798bd52e42d734f2c",
+      "role": "DEFEND-role agent slots, the exact 200k-step checkpoint the exploratory eval scored -- NOT retrained, NOT modified, NOT further fine-tuned in any way before or during this confirmatory pass"
+    },
+    "pi_B_comparator": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12",
+      "role": "unchanged frozen comparator, identical to the exploratory pass"
+    },
+    "splice_mechanism": "identical to training and the exploratory eval: rl.custom_ppo.split_attack_defend.splice_actions, role-gated by the fixed_for_episode CLOSEST_DEFENDS allocator, deterministic=True, no teacher, no N', no scaffold injection of any kind (EXECUTION_BOUNDARY_locked in the parent spec, unchanged)."
+  },
+  "EVALUATION": {
+    "instrument": "experiments/eval_specialist_crossover_scaled.py --frozen-attack-path (added for DEFEND_ATTACK_SPLIT_POLICY_A_V1's own exploratory pass, reused unchanged here)",
+    "n": 128,
+    "seed_class": "sealed_confirmatory",
+    "seed_block_proposed": {"lo": 21800001, "hi": 21800128},
+    "fresh_seeds_required": "the confirmatory block MUST NOT overlap the exploratory block (21700001-21700064) or the training seed (21600001) -- a fresh, independent draw is the entire point of a confirmatory replication.",
+    "gate": "PASS iff mean(delta_A)>0 AND LCB95(delta_A)>0 AND mean(delta_B)>0 AND LCB95(delta_B)>0, per CANONICAL_DELTA_CONVENTION_locked above -- identical bootstrap procedure (n_boot=20000, alpha=0.05, rng_seed=7) already implemented in the eval script, unchanged."
+  },
+  "CONTRACTS_before_seed_spend": [
+    "C0 spec frozen",
+    "C1 all three checkpoints (pi_A_frozen_attack, pi_D_trained_defend, pi_B_comparator) equal their pins exactly",
+    "C2 proposed seed block (21800001-21800128) does not overlap the exploratory block (21700001-21700064) or the training seed (21600001)",
+    "C3 read-only fence: this spec authorizes spending a seed for evaluation only -- no training call, no optimizer step, no checkpoint write anywhere in the evaluation path (structural: the composite splice path is deterministic=True inference-only, already contracted by DEFEND_ATTACK_SPLIT_POLICY_A_V1's own C8/C10)"
+  ],
+  "EXPLICITLY_FORBIDDEN": [
+    "retraining, fine-tuning, or otherwise modifying pi_D in this pass or as a reaction to this pass's result",
+    "changing the splice mechanism, the role allocator, or any evaluation parameter from what the exploratory pass already used",
+    "reusing the exploratory or training seeds for this confirmatory draw",
+    "treating a PASS here as license to scale to 6v6 or to a larger training budget without a fresh PI decision",
+    "rewriting the frozen text of DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json or DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json -- this record is the correction of record, not an edit to either"
+  ],
+  "claim_boundary": "A confirmatory replication, on fresh matched seeds at n=128, of the already-sealed n=64 exploratory crossover result for the exact same frozen composite checkpoint. A PASS here, under the corrected canonical delta convention, would be the first confirmatory learned-4v4-crossover result in this program's history. It does not itself authorize any further training, scaling, or architecture work -- that remains a separate PI decision."
+}

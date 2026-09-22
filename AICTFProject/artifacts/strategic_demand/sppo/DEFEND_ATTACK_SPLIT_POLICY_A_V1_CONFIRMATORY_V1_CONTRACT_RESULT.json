@@ -1,0 +1,35 @@
+{
+  "record_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_CONTRACT_RESULT",
+  "implements": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC.json",
+  "utc": "2026-09-22T19:48:53Z",
+  "DECISION": "CONTRACTS_PASS",
+  "spec_sha256": "fd62260b368aaccb408c9ef9b31291fc14185b50c22d4538671a8141a879b7c4",
+  "script_sha256": "43dc9425e31fb141ce06e643e864a347483dd11ce1ff27d961e58d5742468dda",
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN",
+      "pass": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "check": "C1_ALL_THREE_CHECKPOINTS_EQUAL_PINS",
+      "pass": true,
+      "detail": "pi_A_frozen_attack: exists=True matches_pin=True; pi_D_trained_defend: exists=True matches_pin=True; pi_B_comparator: exists=True matches_pin=True"
+    },
+    {
+      "check": "C2_SEED_BLOCK_IS_FRESH_NO_OVERLAP",
+      "pass": true,
+      "detail": "proposed=[21800001,21800128] exploratory=[21700001,21700064] training=21600001 overlaps_exploratory=False overlaps_training=False"
+    },
+    {
+      "check": "C2b_SEED_REGISTRY_CONFIRMS_BLOCK_IS_FREE",
+      "pass": true,
+      "detail": "block 21800001..21800128 (sealed_confirmatory, n=128) is free"
+    },
+    {
+      "check": "C3_CONTRACTS_ARE_READ_ONLY",
+      "pass": true,
+      "detail": "no training/checkpoint-writing call in this script's own source"
+    }
+  ]
+}
