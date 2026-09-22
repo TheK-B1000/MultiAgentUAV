@@ -83,6 +83,17 @@ def main() -> int:
                          "existing RULE_BASED_ROLE_CONDITIONING evaluation behavior "
                          "unchanged. See DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json "
                          "EXECUTION_BOUNDARY_locked.")
+    ap.add_argument("--frozen-attack-path", default="",
+                    help="path to a frozen (non-role-conditioned) checkpoint used for "
+                         "ATTACK-role agent slots when evaluating a split-policy pi_A "
+                         "(DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json). --pi-a-path is then "
+                         "the DEFEND-trained pi_D; the two models are spliced by role every "
+                         "tick, exactly as at training time (rl.custom_ppo.split_attack_defend"
+                         ".splice_actions, deterministic=True, no teacher, no N'). Requires "
+                         "--role-fixed-for-episode and a role-conditioned --pi-a-path. "
+                         "Default empty = ordinary single-policy evaluation, unchanged.")
+    ap.add_argument("--frozen-attack-path-sha256", default="",
+                    help="expected sha256 of --frozen-attack-path (fail-closed on mismatch)")
     args = ap.parse_args()
 
     N = int(args.team_size)
@@ -109,6 +120,22 @@ def main() -> int:
         paths[name] = ck
     if OUT.is_file() or ROWS_CSV.is_file() or PREAUDIT_FLAG.is_file():
         raise SystemExit(f"REFUSING: an output for label {label!r} already exists; one-shot")
+
+    frozen_attack_path_str = str(args.frozen_attack_path or "")
+    frozen_attack_ckpt_path: Path | None = None
+    if frozen_attack_path_str:
+        if not args.role_fixed_for_episode:
+            raise SystemExit("REFUSING: --frozen-attack-path requires --role-fixed-for-episode")
+        frozen_attack_ckpt_path = Path(frozen_attack_path_str)
+        if not frozen_attack_ckpt_path.is_file():
+            raise SystemExit(f"REFUSING: frozen attack checkpoint missing: {frozen_attack_ckpt_path}")
+        expected_fap = str(args.frozen_attack_path_sha256 or "").lower()
+        actual_fap = _sha(frozen_attack_ckpt_path)
+        if expected_fap and actual_fap != expected_fap:
+            raise SystemExit(
+                f"REFUSING: frozen attack checkpoint hash mismatch for {frozen_attack_ckpt_path}: "
+                f"{actual_fap} != {expected_fap}"
+            )
 
     import torch
     from experiments.opponent_spec import (
@@ -157,6 +184,10 @@ def main() -> int:
     print(f"  spec       {spec_path.name}  [{spec.get('status')}]  arm={spec.get('arm', 'n/a')}")
     print(f"  pi_A       {paths['pi_A']}  sha {_sha(paths['pi_A'])[:12]}...")
     print(f"  pi_B       {paths['pi_B']}  sha {_sha(paths['pi_B'])[:12]}...")
+    if frozen_attack_ckpt_path is not None:
+        print(f"  pi_A is a SPLIT POLICY: DEFEND slots -> pi_A path above (pi_D); "
+              f"ATTACK slots -> frozen_attack_path={frozen_attack_ckpt_path}  "
+              f"sha {_sha(frozen_attack_ckpt_path)[:12]}...")
     print(f"  seeds      {seeds[0]}..{seeds[-1]} (n={len(seeds)}), SHARED across policies and poles")
     print(f"  poles      A: OP6+{dict(pole_A_genome(N).overlay or {})}   "
           f"B: OP7+{dict(pole_b_resolved.overlay or {})}")
@@ -175,6 +206,26 @@ def main() -> int:
     for n, pol in policies.items():
         if getattr(pol.model, "uses_latent_strategy", False):
             raise SystemExit(f"REFUSING: {n} is latent-conditioned; specialists must be single-strategy")
+
+    frozen_attack_policy = None
+    if frozen_attack_ckpt_path is not None:
+        if not bool(getattr(policies["pi_A"].model, "role_conditioning_enabled", False)):
+            raise SystemExit(
+                "REFUSING: --frozen-attack-path requires --pi-a-path to be role-conditioned "
+                "(it is pi_D, the DEFEND-trained half of the split policy)"
+            )
+        frozen_attack_policy = load_custom_ppo_policy(
+            str(frozen_attack_ckpt_path), obs_space, act_space, device=device
+        )
+        if bool(getattr(frozen_attack_policy.model, "uses_latent_strategy", False)):
+            raise SystemExit("REFUSING: --frozen-attack-path model must be a non-latent specialist")
+        if bool(getattr(frozen_attack_policy.model, "role_conditioning_enabled", False)):
+            raise SystemExit(
+                "REFUSING: --frozen-attack-path model must NOT be role-conditioned -- it plays "
+                "its own native behavior for whichever slots CLOSEST_DEFENDS assigns to ATTACK"
+            )
+        if tuple(frozen_attack_policy.model.action_dims) != tuple(policies["pi_A"].model.action_dims):
+            raise SystemExit("REFUSING: --frozen-attack-path action space differs from pi_A")
 
     # Rule-role policies require obs['roles'] at predict time (fail-closed in
     # CustomPPOInferencePolicy). Inject the same geometric RoleHoldState path
@@ -200,7 +251,26 @@ def main() -> int:
         out["assignment"] = feat.detach().cpu().numpy().astype(np.float32)
         return out
 
-    def run_cell(policy, pole: str, seed: int) -> dict:
+    def _composite_predict(trained_policy, attack_policy, obs) -> np.ndarray:
+        """DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: splice trained pi_D's own
+        DEFEND-slot actions with the frozen pi_A's ATTACK-slot actions -- the
+        SAME pure splice function used at training time
+        (rl.custom_ppo.split_attack_defend.splice_actions), applied here with
+        deterministic=True and no teacher/N' of any kind."""
+        from rl.custom_ppo.split_attack_defend import splice_actions
+
+        trained_action, _ = trained_policy.predict(obs, deterministic=True)
+        attack_action, _ = attack_policy.predict(obs, deterministic=True)
+        n_agents = int(trained_policy.model.n_agents)
+        heads_per_agent = int(trained_policy.model.heads_per_agent)
+        trained_t = torch.as_tensor(np.asarray(trained_action), dtype=torch.long).reshape(1, -1)
+        attack_t = torch.as_tensor(np.asarray(attack_action), dtype=torch.long).reshape(1, -1)
+        roles_t = torch.as_tensor(np.asarray(obs["roles"]), dtype=torch.float32).reshape(1, n_agents)
+        is_defend = roles_t < 0.5
+        exec_t = splice_actions(trained_t, attack_t, is_defend, heads_per_agent)
+        return exec_t.reshape(-1).numpy().astype(np.int64)
+
+    def run_cell(policy, pole: str, seed: int, *, attack_policy=None) -> dict:
         env = R2.build_env(device, seed)
         core = env.core
         role_hold = None
@@ -251,7 +321,10 @@ def main() -> int:
                                  f"min_alive_for_defender={got_val}, expected {N}")
             terminal = None
             for _ in range(R2.MAX_STEPS):
-                action, _ = policy.predict(obs, deterministic=True)
+                if attack_policy is not None:
+                    action = _composite_predict(policy, attack_policy, obs)
+                else:
+                    action, _ = policy.predict(obs, deterministic=True)
                 env.step_async(action)
                 obs, _r, done, info = env.step_wait()
                 obs["global_state"] = env.state()
@@ -302,8 +375,9 @@ def main() -> int:
     bar = tqdm_iter(cells, desc=f"{label} crossover", unit="ep")
     for name, pole, seed in bar:
         set_postfix(bar, f"{name}@Pole{pole} seed={seed}")
+        cell_attack_policy = frozen_attack_policy if name == "pi_A" else None
         rows.append({"policy": name, "pole": pole, "seed": seed,
-                     **run_cell(policies[name], pole, seed)})
+                     **run_cell(policies[name], pole, seed, attack_policy=cell_attack_policy)})
         if seed == seeds[-1]:
             wr = np.mean([r["win"] for r in rows if r["policy"] == name and r["pole"] == pole])
             print(f"  {name:5s} on Pole {pole}: win rate {wr:.4f}", flush=True)
@@ -365,6 +439,11 @@ def main() -> int:
             "live_config_hash", "hashes_match")} for p in ("A", "B")},
         "PRIMARY_GATE": {"delta_A": delta_a, "delta_B": delta_b, "passes": gate_passes},
         "checkpoints": {n: _sha(paths[n]) for n in POLICIES},
+        "split_policy_pi_A": (
+            {"pi_D_path": str(paths["pi_A"]), "frozen_attack_path": str(frozen_attack_ckpt_path),
+             "frozen_attack_sha256": _sha(frozen_attack_ckpt_path)}
+            if frozen_attack_ckpt_path is not None else None
+        ),
         "bootstrap": {"procedure": "paired percentile bootstrap over evaluation seeds",
                       "samples": N_BOOT, "alpha": ALPHA, "rng_seed": BOOTSTRAP_SEED},
         "no_model_selection_occurred": True, "total_episodes": len(rows),
