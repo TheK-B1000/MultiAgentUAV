@@ -997,6 +997,34 @@ class PPOConfig:
     defend_teacher_decay_end_step: int = 150_000
     defend_teacher_cadence: int = 4
 
+    # --- Split attack/defend policy (DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC) ---
+    # See artifacts/strategic_demand/sppo/DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json.
+    # Two physically separate networks instead of one shared role-conditioned
+    # model: a frozen, unmodified copy of the original pi_A checkpoint
+    # produces actions for whichever agent slots CLOSEST_DEFENDS assigns to
+    # ATTACK this episode (no optimizer, no gradient path of any kind, ever);
+    # the trainable model (role-conditioned, same architecture as
+    # DEFEND_TEACHER_ROLE_CONDITIONING_A_V1) produces actions for the DEFEND
+    # slots. The frozen model's actions are spliced into the executed action
+    # tensor before env.step -- never "overwritten after the fact" -- so
+    # every stored (action, log_prob) pair in the buffer always corresponds
+    # to the policy that actually produced it. The trainable model's own
+    # main PPO actor loss and entropy bonus are gated to DEFEND-role agent
+    # slots only (see rl.custom_ppo.update.minibatch_updater); its value
+    # loss remains team-level and ungated, since a single centralized
+    # critic already estimates V(s) independent of which network produced
+    # which action. Requires role_conditioning_enabled=True and
+    # role_fixed_for_episode=True. Default OFF = structurally absent: no
+    # frozen model loaded, no splicing, no per-agent loss path taken --
+    # bit-for-bit identical to DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 with
+    # this flag omitted. Mutually exclusive with sibling_sep_lambda,
+    # role_pres_lambda, and getflag_preserve_lambda, matching the same
+    # SINGLE_AXIS discipline as defend_teacher_lambda; compatible with (in
+    # fact, intended to be used together with) defend_teacher_lambda > 0.
+    split_attack_defend_enabled: bool = False
+    split_attack_defend_frozen_ckpt: str = ""
+    split_attack_defend_frozen_ckpt_sha256: str = ""
+
     # --- Assignment conditioning v1 (ASSIGNMENT_CONDITIONING_V1_SPEC) ---
     # Privileged GUARD_DISTRIBUTED_V2 z_i (4-d per agent) on actor; critic gets
     # flattened team assignment (N*4). Mutually exclusive with role conditioning.

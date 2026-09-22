@@ -111,6 +111,13 @@ class RolloutStepRecorder:
             entity_items["obs_defend_teacher_waypoint"] = torch.as_tensor(
                 obs["defend_teacher_waypoint"], dtype=torch.long, device=device
             )
+        if bool(getattr(self.trainer.cfg, "split_attack_defend_enabled", False)):
+            if frame.defend_log_probs_t is None:
+                raise ValueError(
+                    "split_attack_defend_enabled=True but StepFrame.defend_log_probs_t is None "
+                    "-- the collector must compute it every step this flag is on"
+                )
+            entity_items["defend_log_probs"] = frame.defend_log_probs_t
         return dict(
             obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
             obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),

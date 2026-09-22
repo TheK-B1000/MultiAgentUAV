@@ -8,6 +8,7 @@ from typing import Any
 import torch
 
 from rl.custom_ppo.return_normalization import _normalize_value_targets
+from rl.custom_ppo.split_attack_defend import defend_gated_sum
 from rl.custom_ppo.trainer_optimizers import (
     collect_actor_optimizer_parameters,
     collect_actor_parameters,
@@ -185,6 +186,7 @@ class MinibatchUpdater:
 
         message_symbols = batch.get("message_symbols")
         message_boundary_mask = batch.get("message_boundary_mask")
+        split_attack_defend = bool(getattr(cfg, "split_attack_defend_enabled", False))
         values_norm, action_log_prob, entropy, aux = model.evaluate_actions(
             obs_batch,
             batch["global_state"],
@@ -194,8 +196,26 @@ class MinibatchUpdater:
             router_context=batch.get("router_context"),
             message_symbols=message_symbols,
             message_boundary_mask=message_boundary_mask,
+            return_per_agent=split_attack_defend,
             **entity_kwargs,
         )
+        if split_attack_defend:
+            # DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: the trainable model's main
+            # PPO actor loss and entropy bonus are gated to DEFEND-role agent
+            # slots only -- ATTACK-slot log-prob/entropy is discarded here,
+            # never backpropagated, because those executed actions came from
+            # the physically separate frozen model, not this one. Value loss
+            # is untouched below (team-level, ungated), consistent with a
+            # single centralized critic that does not care which policy
+            # produced which action.
+            if "obs_roles" not in batch:
+                raise KeyError(
+                    "split_attack_defend_enabled=True requires obs_roles in the rollout buffer "
+                    "(role_conditioning_enabled=True is a FAIL-CLOSED precondition)"
+                )
+            is_defend = batch["obs_roles"] < 0.5
+            action_log_prob = defend_gated_sum(aux["log_prob_per_agent"], is_defend)
+            entropy = defend_gated_sum(aux["entropy_per_agent"], is_defend)
         if hparams.use_latent_strategy and "strategy_logits" in aux:
             masked_strategy_logits = apply_router_allowed_latent_mask(
                 aux["strategy_logits"],
@@ -396,9 +416,18 @@ class MinibatchUpdater:
 
         # Message PPO is boundary-only: held symbols persist in obs transport for
         # comm_interval_steps, but log-probs are stored/evaluated only on send rows.
+        if split_attack_defend:
+            if "defend_log_probs" not in batch:
+                raise KeyError(
+                    "split_attack_defend_enabled=True requires defend_log_probs in the "
+                    "rollout buffer (collector must compute it every step this flag is on)"
+                )
+            old_action_log_prob = batch["defend_log_probs"]
+        else:
+            old_action_log_prob = batch["log_probs"]
         log_prob, old_log_probs = combine_action_and_message_log_probs(
             action_log_prob=action_log_prob,
-            old_action_log_prob=batch["log_probs"],
+            old_action_log_prob=old_action_log_prob,
             message_log_prob=message_log_prob,
             old_message_log_prob=batch.get("message_log_probs"),
         )

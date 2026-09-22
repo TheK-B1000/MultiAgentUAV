@@ -77,6 +77,7 @@ from rl.custom_ppo.return_normalization import (
 )
 from rl.custom_ppo.rollout.action_selection import tensor_obs_dict
 from rl.custom_ppo.rollout.bootstrap import global_state_rows_from_step_infos
+from rl.custom_ppo.split_attack_defend import defend_gated_sum, splice_actions
 from rl.custom_ppo.rollout.buffer_writer import RolloutStepRecorder, StepFrame
 from rl.custom_ppo.contract_specialists import contract_specialist_reward
 from rl.custom_ppo.rollout.episode_tracker import episode_scores_from_info
@@ -261,6 +262,58 @@ class RolloutCollector:
         obs = self._augment_obs_with_assignment(obs, force=force, advance_age=advance_age)
         return self._augment_obs_with_defend_teacher(obs)
 
+    def _split_attack_defend_frozen_model(self):
+        """DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: the frozen pi_A used for
+        ATTACK-role agent slots. Attached by
+        rl.training.orchestrator._maybe_attach_split_attack_defend before the
+        first rollout step; read at USE time, never cached at construction
+        (same seam discipline as every other runner in this trainer)."""
+        model = getattr(self.runtime, "split_attack_defend_frozen_model", None)
+        if model is None:
+            raise RuntimeError(
+                "split_attack_defend_enabled=True but runtime.split_attack_defend_frozen_model "
+                "is not attached -- _maybe_attach_split_attack_defend must run before the first "
+                "rollout step."
+            )
+        return model
+
+    def _splice_split_attack_defend_actions(
+        self,
+        obs_t: Dict[str, torch.Tensor],
+        context_state: torch.Tensor,
+        actions_t: torch.Tensor,
+        log_prob_per_agent: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Splice the trainable model's own DEFEND-slot actions with the
+        frozen model's ATTACK-slot actions BEFORE env.step -- never
+        overwritten after the fact, so every stored (action, log_prob) pair
+        always corresponds to the policy that actually produced it -- and
+        reduce the trainable model's per-agent log-prob to the DEFEND-only
+        scalar the split PPO loss trains on."""
+        frozen_model = self._split_attack_defend_frozen_model()
+        frozen_entity_kwargs: Dict[str, torch.Tensor] = {}
+        if getattr(frozen_model, "entity_encoder", None) is not None:
+            frozen_entity_kwargs = dict(
+                teammates=obs_t["teammates"], teammates_valid=obs_t["teammates_valid"],
+                enemies=obs_t["enemies"], enemies_valid=obs_t["enemies_valid"],
+            )
+        with torch.no_grad():
+            frozen_actions_t, *_ = frozen_model.act(
+                obs_t, context_state, z_idx=None, **frozen_entity_kwargs
+            )
+        roles_t = obs_t["roles"]
+        n_agents = int(self.model.n_agents)
+        if roles_t.dim() != 2 or int(roles_t.shape[1]) != n_agents:
+            raise ValueError(
+                f"split_attack_defend requires obs['roles'] shape (B, {n_agents}), "
+                f"got {tuple(roles_t.shape)}"
+            )
+        is_defend = roles_t < 0.5  # ROLE_DEFEND == 0, ROLE_ATTACK == 1
+        heads_per_agent = int(self.model.heads_per_agent)
+        actions_exec = splice_actions(actions_t, frozen_actions_t, is_defend, heads_per_agent)
+        defend_log_prob = defend_gated_sum(log_prob_per_agent, is_defend)
+        return actions_exec, defend_log_prob
+
     def on_sb3_rollout_env_step(self) -> None:
         p = self.runtime._sb3_rollout_pbar
         if p is None:
@@ -307,6 +360,8 @@ class RolloutCollector:
                 tuple(obs["defend_teacher_waypoint"].shape[1:]),
                 dtype=torch.long,
             )
+        if bool(getattr(cfg, "split_attack_defend_enabled", False)):
+            buffer.register_field("defend_log_probs")
         buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
@@ -854,9 +909,19 @@ class RolloutCollector:
                 entity_act_kwargs["roles"] = obs_t["roles"]
             if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
                 entity_act_kwargs["assignment"] = obs_t["assignment"]
-            actions_t, values_norm_t, log_probs_t, _ = self.model.act(
-                obs_t, context_state, z_idx=z_t, **entity_act_kwargs
-            )
+            split_attack_defend = bool(getattr(self.cfg, "split_attack_defend_enabled", False))
+            defend_log_probs_t: Optional[torch.Tensor] = None
+            if split_attack_defend:
+                actions_t, values_norm_t, log_probs_t, _entropy_t, per_agent_aux = self.model.act(
+                    obs_t, context_state, z_idx=z_t, return_per_agent=True, **entity_act_kwargs
+                )
+                actions_t, defend_log_probs_t = self._splice_split_attack_defend_actions(
+                    obs_t, context_state, actions_t, per_agent_aux["log_prob_per_agent"],
+                )
+            else:
+                actions_t, values_norm_t, log_probs_t, _ = self.model.act(
+                    obs_t, context_state, z_idx=z_t, **entity_act_kwargs
+                )
             values_t = _denormalize_values(runtime, values_norm_t)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
@@ -1089,6 +1154,7 @@ class RolloutCollector:
             attack_defense_ratio_bucket=adb,
             blue_ahead=blue_ahead_t,
             message_aux=message_aux,
+            defend_log_probs_t=defend_log_probs_t,
         )
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():

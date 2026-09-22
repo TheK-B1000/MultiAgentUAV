@@ -1,0 +1,131 @@
+{
+  "record_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-22T15:30:00Z",
+  "classification": "DIAGNOSTIC / EXPLORATORY. Not PAPER-FAITHFUL. Not a confirmatory crossover pass. Not latent-strategy work.",
+  "authorized_by": "PI, 2026-09-22, following the sealed DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC 200k run + n=64 eval (EXPLORATORY NEGATIVE, commit f54c0ac9): training win rate collapsed from ~0.56 to ~0.00 while the shared-network teacher loss was active, and only partially recovered (0.006->0.333) once lambda decayed to 0, without returning to baseline by 200k steps. PI diagnosis: catastrophic interference from training ATTACK and DEFEND behavior inside the SAME shared network parameters -- 'No teacher loss on ATTACK does not mean ATTACK is protected... the update appears to have overwritten the strong generalist behavior.' PI-directed fix: physically separate the two roles into two networks rather than retuning lambda on the same shared architecture ('I would NOT just lower lambda yet. That would be guessing.').",
+  "SUPERSEDES": {
+    "record": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json",
+    "verbatim_rule_being_superseded": "A single role-conditioned network (role bit concatenated into the actor) plays BOTH ATTACK and DEFEND, supervised by a DEFEND-gated auxiliary N'-teacher loss layered on top of the ordinary (ungated) main PPO loss.",
+    "exception_fired": "PI, 2026-09-22: the shared-network design is retired for the ATTACK/DEFEND split going forward -- the DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 sealed run and its negative result remain the record of exactly why. This spec does not delete or invalidate that record; it supersedes the shared-network ARCHITECTURE for this specific research line only."
+  },
+  "THE_HYPOTHESIS": "Does physically separating ATTACK (a frozen, unmodified copy of the original pi_A) from DEFEND (a separately trained network, warm-started from the same pi_A checkpoint, supervised by the already-validated N' teacher plus ordinary PPO reward) avoid the shared-parameter interference that collapsed the single-network attempt? This is the first question in the sequence; a positive result licenses evaluating the resulting composite team, and a negative result would indicate role-conditioned PPO is destructive under this allocator/training regime independent of network sharing -- neither outcome is assumed here.",
+  "ARCHITECTURE_locked": {
+    "diagram": "CLOSEST_DEFENDS(state) -> {r_i=ATTACK: pi_A_frozen(o_i), r_i=DEFEND: pi_D(o_i, r_i)}",
+    "pi_A_frozen": "the pinned, unmodified pi_A checkpoint (WARM_START_locked below), loaded as a second, independent SharedActorCentralizedCritic instance, role_conditioning_enabled=False (plays its own native behavior, unaware roles exist). requires_grad_(False) on every parameter immediately after loading; .eval() mode; NEVER added to any optimizer's param_groups; NEVER appears in any loss term of any kind. Used ONLY to produce the executed action for whichever agent slots CLOSEST_DEFENDS assigns to ATTACK this episode.",
+    "pi_D": "a trainable SharedActorCentralizedCritic, role_conditioning_enabled=True (same architecture DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 used), warm-started from the SAME pi_A checkpoint via the existing zero-init role-column expansion. Used to produce the executed action for whichever agent slots CLOSEST_DEFENDS assigns to DEFEND this episode. Its own forward pass still computes outputs for ALL agent slots each tick (the model architecture has no partial-team inference path); only its DEFEND-slot outputs are ever executed or trained.",
+    "allocator": "CLOSEST_DEFENDS, unchanged from DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 / CLOSEST_DEFENDS_SCREEN_4V4: k=N/2 living agents closest to own_flag_home, role_fixed_for_episode=True (assigned exactly once per episode, never reassigned on death/revival)."
+  },
+  "SPLICE_MECHANISM_locked": {
+    "when": "every rollout-collection tick, BEFORE env.step -- never as a post-hoc overwrite of an already-committed action.",
+    "how": "pi_D.act(obs, return_per_agent=True) and pi_A_frozen.act(obs) (under torch.no_grad()) are both computed on the SAME observation batch. The executed action tensor is built by torch.where over a role-broadcast mask: DEFEND-role agent slots take pi_D's own proposed action verbatim (never overridden), ATTACK-role agent slots take pi_A_frozen's proposed action. This executed (spliced) tensor -- not pi_D's raw unspliced proposal -- is what is passed to env.step_async AND what is stored as the buffer's actions field, so every stored (action, log_prob) pair always corresponds to the policy that actually produced it.",
+    "log_prob_provenance": "pi_D's per-agent log-prob decomposition (SharedActorCentralizedCritic._log_prob_entropy_per_agent, new in this spec) is evaluated against pi_D's OWN proposed action tensor. Because DEFEND-slot actions are never overridden, this is automatically valid against the executed action for those slots. The DEFEND-role-gated sum of this per-agent log-prob (rl.custom_ppo.rollout.collector.RolloutCollector._splice_split_attack_defend_actions) is stored as the new buffer field defend_log_probs; pi_D's log-prob for ATTACK slots (which would be measuring 'how likely would pi_D have produced pi_A_frozen's action', a meaningless quantity for PPO's ratio) is computed but never stored or used anywhere.",
+    "not_done": "actions are never generated by one policy alone and then partially overwritten by another after the fact -- overwriting after log-probs/values were already computed against the pre-overwrite action would store a (action, log_prob) pair that does not correspond to the same policy, exactly the failure mode the PI flagged."
+  },
+  "LOSS_locked": {
+    "main_ppo_actor_loss_and_entropy": "gated to DEFEND-role agent slots only (rl.custom_ppo.update.minibatch_updater, new in this spec): model.evaluate_actions(..., return_per_agent=True) yields per-agent log-prob/entropy; both are reduced to a scalar by summing ONLY the DEFEND-role agents' contribution (obs_roles < 0.5, the buffered per-step role mask), replacing the previously-joint (all-agent) scalar fed into ppo_policy_loss and the entropy bonus. ATTACK-slot log-prob/entropy is computed (the forward pass cannot avoid it) but discarded, never backpropagated.",
+    "value_loss": "UNCHANGED, team-level, ungated. A single centralized critic V(s) estimates expected team reward independent of which network produced which action; this is unaffected by the split and requires no restructuring (confirmed by code reconnaissance before implementation).",
+    "teacher_loss": "rl.custom_ppo.defend_teacher.py, REUSED UNCHANGED. Its existing DEFEND-role + decision-eligible + alive gate already scopes it correctly to exactly the agent slots pi_D is responsible for; per the PI, 'No ATTACK masking gymnastics are needed anymore because the attacker network is physically separate and immutable.'",
+    "lambda_schedule": "REUSED UNCHANGED from DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC's LAMBDA_SCHEDULE_locked (flat 0.1 for [0,50000), linear decay to 0.0 over [50000,150000], flat 0.0 for [150000,200000]). Per the PI: the fix is architectural, not a smaller lambda on the same broken setup -- 'I would NOT just lower lambda yet. That would be guessing.' The first split-policy attempt reuses the exact schedule already implemented and tested, changing exactly one axis (network sharing) at a time."
+  },
+  "WARM_START_locked": {
+    "checkpoint": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "used_for_both": "pi_A_frozen loads this checkpoint directly (role_conditioning_enabled=False, no expansion). pi_D warm-starts from the SAME checkpoint via the existing zero-init role-column expansion mechanism (role_conditioning_enabled=True) -- the identical warm-start DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 used and already verified (C6/C7, max_logit_diff=0.0, argmax_diff=0, fresh Adam survives migration). Both networks start IDENTICAL to native pi_A at step 0; only pi_D's parameters then diverge under training.",
+    "warm_start_reset_progress": true
+  },
+  "EXECUTION_BOUNDARY_locked": {
+    "training_time": "pi_A_frozen and pi_D both run every tick; pi_A_frozen's forward pass is training-only infrastructure (never trained, never touched by any optimizer) but IS part of the live team's behavior during rollout collection.",
+    "at_evaluation": "NO N' controller, NO teacher loss. The greedy CLOSEST_DEFENDS allocator (fixed_for_episode) + the frozen pi_A (ATTACK slots) + pi_D's own final trained checkpoint (DEFEND slots) compose the evaluated team. This is the ruthless endpoint: pi_D's own learned behavior, under the allocator and alongside the untouched original attacker, is what gets scored."
+  },
+  "TRAINING": {
+    "policy": "A (pi_D, warm-started from pi_A)",
+    "team_size": 4,
+    "role_conditioning_enabled": true,
+    "role_fixed_for_episode": true,
+    "split_attack_defend_enabled": true,
+    "split_attack_defend_frozen_ckpt": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+    "defend_teacher_lambda_schedule": "see LOSS_locked.lambda_schedule (reused unchanged)",
+    "defend_teacher_cadence": 4,
+    "getflag_preservation": false,
+    "sibling_sep": false,
+    "role_pres": false,
+    "total_timesteps": 200000,
+    "device": "cuda",
+    "run_label_suffix": "_a4_split_attack_defend_v1",
+    "warm_start": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "warm_start_reset_progress": true,
+    "seed_class": "exploratory (single seed; reserved via seed_registry before the first GPU step, exactly like every prior seed in this line)",
+    "launcher": "experiments/train_specialist_scale.py --split-attack-defend-enabled --split-attack-defend-frozen-ckpt <pinned pi_A ckpt>"
+  },
+  "SINGLE_AXIS_v1": {
+    "change_only": "network sharing: ATTACK and DEFEND now live in two physically separate networks (one frozen, one trained) instead of one shared role-conditioned network. Everything else -- allocator, role-fixed-for-episode semantics, teacher formula, teacher cadence, lambda schedule, opponent, total timesteps, warm-start source -- is reused unchanged from DEFEND_TEACHER_ROLE_CONDITIONING_A_V1.",
+    "held_fixed": [
+      "pi_B (frozen corrected checkpoint, sha256 021342c84bbe3aa3..., untouched)",
+      "both certified poles, unchanged",
+      "no GETFLAG preservation / sibling-separation / role-preservation losses",
+      "no new action vocabulary",
+      "no 1,000,000-step budget for this first attempt",
+      "N' teacher formula, cadence, and lambda schedule, byte-identical to DEFEND_TEACHER_ROLE_CONDITIONING_A_V1"
+    ]
+  },
+  "CONTRACTS_before_training": [
+    "C0 spec frozen",
+    "C1 pi_A checkpoint (used for BOTH pi_A_frozen and pi_D's warm-start) equals its pin",
+    "C2 fixed_for_episode role hold semantics (reused unchanged from DEFEND_TEACHER_ROLE_CONDITIONING_A_V1, already contracted)",
+    "C3 teacher parity: N'-port bit-identical to the sealed controller (reused unchanged, already contracted)",
+    "C4 teacher loss gating: DEFEND-role + decision-eligible + alive only (reused unchanged, already contracted)",
+    "C5 lambda schedule exact boundary values (reused unchanged, already contracted)",
+    "C6 warm-start t0 equivalence for pi_D: pi_D,t0(.|o,r=0)=pi_D,t0(.|o,r=1)=pi_A(.|o) exactly (reused mechanism, already contracted)",
+    "C7 fresh optimizer / global_step / RNG identity after the architecture migration (reused mechanism, already contracted)",
+    "C8 pi_A_frozen NEVER receives gradient: parameters bit-identical before and after both rollout collection AND a full PPO update step (new -- the central contract of this spec)",
+    "C9 main PPO actor loss and entropy bonus are DEFEND-role-gated only: verified via the per-agent log-prob decomposition (sums to the joint value; act() and evaluate_actions() agree) and via C8's own empirical confirmation that pi_A_frozen's exclusion from the gate produces zero gradient in practice",
+    "C10 no post-hoc overwrite: the executed action tensor is built by torch.where BEFORE env.step, and the buffer's stored actions/defend_log_probs correspond to the policy that actually produced the executed action (structural: verified by reading the collector's own splice ordering, not by output inspection alone)",
+    "C11 mutual exclusion: getflag_preserve_lambda, sibling_sep_lambda, role_pres_lambda all exactly 0/disabled for this run; split_attack_defend guarded both directions against SAPPO/EXP2/sibling/role_pres/getflag runners",
+    "C12 structurally absent when disabled: split_attack_defend_enabled=False reproduces DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 bit-for-bit (no frozen model loaded, no splicing, no per-agent loss path taken)",
+    "C13 read-only-adjacent fence: contracts themselves consume no training step and write no checkpoint"
+  ],
+  "EVALUATION_after_training_not_during": {
+    "do_not_eval_until_training_writes_final_ckpt": true,
+    "instrument": "experiments/eval_specialist_crossover_scaled.py, extended if needed for a two-model (frozen ATTACK + trained DEFEND) evaluated team; role allocator (fixed_for_episode CLOSEST_DEFENDS) ACTIVE; no teacher, no N'.",
+    "comparator_B": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+    },
+    "n": 64,
+    "seed_class": "exploratory",
+    "reading_rule_exploratory": "point-estimate evidence on whether the split-policy composite team (frozen pi_A ATTACK + trained pi_D DEFEND) moves toward the scaffold's own signature relative to frozen pi_B -- NOT a confirmatory pass. A separate, larger reserved block is required before any confirmatory claim.",
+    "narrow_claim_if_promising": "physically separating ATTACK and DEFEND into two networks avoided the catastrophic interference the shared-network attempt showed, in this first 200k exploratory run -- NOT that the composite team is proven competitive, NOT that 6v6 is addressed, NOT a license to scale to 1M steps without a fresh decision."
+  },
+  "EXPLICITLY_FORBIDDEN": [
+    "a 1,000,000-step run as the first attempt of this architecture",
+    "any confirmatory specialization claim from this first 200k run",
+    "any change to pi_B, either certified pole, or any sealed prior record in this line",
+    "combining this arm with GETFLAG preservation, sibling-separation, or role-preservation losses",
+    "retuning the teacher lambda schedule, cadence, or formula in this same run as a substitute for the architectural fix -- that is exactly the guess the PI explicitly declined to make",
+    "letting pi_A_frozen's parameters be touched by any optimizer, ever, for any reason",
+    "evaluating before training writes its final checkpoint",
+    "reserving or spending the training or evaluation seed before contracts pass",
+    "porting to 6v6 before this 4v4 attempt is interpreted",
+    "claiming PAPER-FAITHFUL, Summer-faithful, or any latent-strategy relevance -- this program does not use the latent z system"
+  ],
+  "KNOWN_LIMITATION_ACKNOWLEDGED": "pi_D still processes the full 4-agent observation batch every tick (the model architecture has no partial-team inference path), including ATTACK-role slots whose output is discarded and never trained -- wasted compute, not a correctness issue, but a known inefficiency versus a purpose-built 2-agent defender network. This spec does not attempt that optimization; if the split-policy approach succeeds, a leaner pi_D architecture is a separate, later design question.",
+  "NEXT_AFTER_THIS_FREEZE": [
+    "1. This SPEC freeze (this record)",
+    "2. Implementation: per-agent log-prob/entropy decomposition (SharedActorCentralizedCritic._log_prob_entropy_per_agent, additive/opt-in on act()/evaluate_actions()); collector-level action splicing + defend_log_probs buffer field; minibatch-updater DEFEND-gated main PPO loss; orchestrator _maybe_attach_split_attack_defend; CLI flags",
+    "3. New unit tests (guard/isolation, mirroring the DEFEND_TEACHER precedent) + an end-to-end integration test proving pi_A_frozen's parameters are bit-identical before/after a real rollout+update cycle",
+    "4. Executable contracts (C0-C13 above) must pass before any GPU step",
+    "5. Reserve the training seed and the post-training evaluation block via seed_registry",
+    "6. 200k exploratory training run",
+    "7. Exploratory evaluation (n=64, both poles, frozen pi_B comparator)",
+    "8. PI decision: scale to a confirmatory run, adjust the design, or close the branch -- not auto-launched by this spec"
+  ],
+  "claim_boundary": "A design freeze for the first split-policy (frozen pi_A ATTACK + trained pi_D DEFEND) training experiment in this program. It authorizes preparing implementation and contracts; it does NOT authorize spending any seed or GPU training step until those contracts pass."
+}

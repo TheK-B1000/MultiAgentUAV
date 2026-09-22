@@ -1500,7 +1500,8 @@ class SharedActorCentralizedCritic(nn.Module):
             yield Categorical(logits=logits[:, offset : offset + dim])
             offset += dim
 
-    def _log_prob_entropy(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _log_prob_entropy_per_head(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Per-head (not summed) log-prob/entropy, each shape (B, len(action_dims))."""
         actions = actions.long()
         log_probs = []
         entropies = []
@@ -1508,7 +1509,23 @@ class SharedActorCentralizedCritic(nn.Module):
             action = _validate_indices(actions[:, col], int(dist.logits.shape[1]), f"actions[:, {col}]")
             log_probs.append(dist.log_prob(action))
             entropies.append(dist.entropy())
-        return torch.stack(log_probs, dim=0).sum(dim=0), torch.stack(entropies, dim=0).sum(dim=0)
+        return torch.stack(log_probs, dim=1), torch.stack(entropies, dim=1)
+
+    def _log_prob_entropy(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        log_probs, entropies = self._log_prob_entropy_per_head(logits, actions)
+        return log_probs.sum(dim=1), entropies.sum(dim=1)
+
+    def _log_prob_entropy_per_agent(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Per-agent (heads_per_agent summed within each agent) log-prob/entropy,
+        each shape (B, n_agents). Used by role-gated training paths (e.g.
+        split-attack-defend) that must credit only a subset of agent slots
+        instead of the whole team's joint action -- see
+        DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json."""
+        log_probs, entropies = self._log_prob_entropy_per_head(logits, actions)
+        batch = log_probs.shape[0]
+        log_probs_pa = log_probs.view(batch, self.n_agents, self.heads_per_agent).sum(dim=-1)
+        entropies_pa = entropies.view(batch, self.n_agents, self.heads_per_agent).sum(dim=-1)
+        return log_probs_pa, entropies_pa
 
     def act(
         self,
@@ -1523,12 +1540,18 @@ class SharedActorCentralizedCritic(nn.Module):
         enemies_valid: Optional[torch.Tensor] = None,
         roles: Optional[torch.Tensor] = None,
         assignment: Optional[torch.Tensor] = None,
+        return_per_agent: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Sample or greedily select actions and return values/log-probs/entropy.
 
         Entity / role kwargs are optional (default ``None``); the legacy call
         path is unchanged when they are omitted. See ``_encode_local_obs`` for
         the fail-closed contract when the corresponding flags are enabled.
+
+        ``return_per_agent=True`` appends a 5th dict element
+        (``{"log_prob_per_agent": (B,n_agents), "entropy_per_agent": (B,n_agents)}``)
+        to the returned tuple; omitted (default) it is the plain 4-tuple every
+        existing caller already expects -- purely additive, no call site changes.
         """
         if self.uses_latent_strategy and z_idx is None:
             raise ValueError("Sample and provide z_idx before calling act() when latent strategy is enabled.")
@@ -1551,7 +1574,12 @@ class SharedActorCentralizedCritic(nn.Module):
         values = self.values(
             global_state, z_idx=z_idx, team_roles=roles, team_assignment=assignment
         )
-        return action_tensor, values, log_prob, entropy
+        if not return_per_agent:
+            return action_tensor, values, log_prob, entropy
+        log_prob_pa, entropy_pa = self._log_prob_entropy_per_agent(logits, action_tensor)
+        return action_tensor, values, log_prob, entropy, {
+            "log_prob_per_agent": log_prob_pa, "entropy_per_agent": entropy_pa,
+        }
 
     def evaluate_actions(
         self,
@@ -1570,11 +1598,16 @@ class SharedActorCentralizedCritic(nn.Module):
         enemies_valid: Optional[torch.Tensor] = None,
         roles: Optional[torch.Tensor] = None,
         assignment: Optional[torch.Tensor] = None,
+        return_per_agent: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
         """Evaluate fixed actions under the current policy.
 
         Entity / role kwargs are optional (default ``None``); the legacy call
         path is unchanged when they are omitted.
+
+        ``return_per_agent=True`` additionally populates
+        ``aux["log_prob_per_agent"]``/``aux["entropy_per_agent"]`` (each
+        shape (B,n_agents)) -- see ``act()``'s docstring for the rationale.
         """
         logits = self._mask_logits(
             self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
@@ -1587,6 +1620,10 @@ class SharedActorCentralizedCritic(nn.Module):
             global_state, z_idx=z_idx, team_roles=roles, team_assignment=assignment
         )
         aux: dict[str, torch.Tensor] = {}
+        if return_per_agent:
+            log_prob_pa, entropy_pa = self._log_prob_entropy_per_agent(logits, actions)
+            aux["log_prob_per_agent"] = log_prob_pa
+            aux["entropy_per_agent"] = entropy_pa
         if self.communication_enabled and message_symbols is not None and message_boundary_mask is not None:
             msg_log_prob, msg_entropy = self._evaluate_messages(
                 obs,

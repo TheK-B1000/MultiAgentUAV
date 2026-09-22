@@ -34,6 +34,7 @@ class StepFrame:
     attack_defense_ratio_bucket: Optional[torch.Tensor] = None
     blue_ahead: Optional[torch.Tensor] = None
     message_aux: Optional[Dict[str, torch.Tensor]] = None
+    defend_log_probs_t: Optional[torch.Tensor] = None
 
 
 __all__ = ["StepFrame"]

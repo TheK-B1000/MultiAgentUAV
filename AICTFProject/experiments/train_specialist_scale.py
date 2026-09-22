@@ -305,6 +305,20 @@ def main() -> int:
                          "for v1; ONE run, ONE schedule)")
     ap.add_argument("--defend-teacher-cadence", type=int, default=4,
                     help="PPO-actor-minibatch cadence for the teacher update (frozen at 4)")
+    ap.add_argument("--split-attack-defend-enabled", action="store_true",
+                    help="two physically separate networks instead of one shared "
+                         "role-conditioned model: a frozen, unmodified pi_A checkpoint "
+                         "produces actions for ATTACK-role agent slots (no optimizer, no "
+                         "gradient path, ever); the trainable model produces actions for "
+                         "DEFEND-role slots, with its main PPO actor loss and entropy bonus "
+                         "gated to DEFEND slots only. Requires role-conditioning-enabled and "
+                         "role-fixed-for-episode. See "
+                         "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json.")
+    ap.add_argument("--split-attack-defend-frozen-ckpt", default="",
+                    help="path to the frozen pi_A checkpoint used for ATTACK-role slots")
+    ap.add_argument("--split-attack-defend-frozen-ckpt-sha256", default="",
+                    help="expected sha256 of --split-attack-defend-frozen-ckpt "
+                         "(fail-closed on mismatch)")
     ap.add_argument("--assignment-conditioning-enabled", action="store_true",
                     help="concat privileged GUARD_DISTRIBUTED_V2 z_i (4-d) into the actor "
                          "(ASSIGNMENT_CONDITIONING_V1_SPEC). Requires entity repair. "
@@ -590,6 +604,9 @@ def main() -> int:
     cfg.defend_teacher_decay_start_step = int(args.defend_teacher_decay_start_step)
     cfg.defend_teacher_decay_end_step = int(args.defend_teacher_decay_end_step)
     cfg.defend_teacher_cadence = int(args.defend_teacher_cadence)
+    cfg.split_attack_defend_enabled = bool(args.split_attack_defend_enabled)
+    cfg.split_attack_defend_frozen_ckpt = str(args.split_attack_defend_frozen_ckpt)
+    cfg.split_attack_defend_frozen_ckpt_sha256 = str(args.split_attack_defend_frozen_ckpt_sha256)
     cfg.assignment_conditioning_enabled = bool(args.assignment_conditioning_enabled)
     cfg.assignment_hold_ticks = int(args.assignment_hold_ticks)
     if cfg.role_conditioning_enabled and cfg.assignment_conditioning_enabled:
@@ -665,6 +682,44 @@ def main() -> int:
                 "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC authorizes "
                 "training pi_A only for this experiment; got --policy "
                 f"{policy}"
+            )
+
+    if cfg.split_attack_defend_enabled:
+        if not cfg.role_conditioning_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: --split-attack-defend-enabled requires "
+                "--role-conditioning-enabled"
+            )
+        if not cfg.role_fixed_for_episode:
+            raise SystemExit(
+                "FAIL-CLOSED: --split-attack-defend-enabled requires "
+                "--role-fixed-for-episode (the ATTACK/DEFEND slot assignment must not "
+                "change mid-episode)"
+            )
+        if not cfg.split_attack_defend_frozen_ckpt:
+            raise SystemExit(
+                "FAIL-CLOSED: --split-attack-defend-enabled requires "
+                "--split-attack-defend-frozen-ckpt"
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: split_attack_defend cannot coexist with GETFLAG "
+                "preservation (SINGLE_AXIS discipline)"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: split_attack_defend cannot coexist with sibling-sep "
+                "(SINGLE_AXIS discipline)"
+            )
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: split_attack_defend cannot coexist with role-pres MSE "
+                "loss (SINGLE_AXIS discipline)"
+            )
+        if policy != "A":
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC authorizes training "
+                f"pi_A only for this experiment; got --policy {policy}"
             )
 
     if cfg.assignment_conditioning_enabled:
@@ -800,6 +855,11 @@ def main() -> int:
               f"decay=[{cfg.defend_teacher_decay_start_step},{cfg.defend_teacher_decay_end_step}]  "
               f"cadence={cfg.defend_teacher_cadence}  "
               f"(CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND decision-eligible only)")
+    if bool(getattr(cfg, "split_attack_defend_enabled", False)):
+        print(f"  split_attack_defend enabled  "
+              f"frozen_ckpt={cfg.split_attack_defend_frozen_ckpt}  "
+              f"(ATTACK slots -> frozen pi_A, no gradient; DEFEND slots -> trainable "
+              f"model, main PPO actor loss/entropy DEFEND-gated)")
     if bool(getattr(cfg, "assignment_conditioning_enabled", False)):
         print(f"  assignment_conditioning enabled  H_a={cfg.assignment_hold_ticks}  "
               f"(pi(a|o,z_i); GUARD_DISTRIBUTED_V2; no GETFLAG / no ROLE bit)")
