@@ -122,6 +122,7 @@ class RoleHoldState:
         n_agents: int,
         *,
         hold_ticks: int = 8,
+        fixed_for_episode: bool = False,
         device: str | torch.device = "cpu",
     ) -> None:
         self.n_envs = int(n_envs)
@@ -129,6 +130,7 @@ class RoleHoldState:
         self.hold_ticks = int(hold_ticks)
         if self.hold_ticks < 1:
             raise ValueError(f"hold_ticks must be >= 1, got {self.hold_ticks}")
+        self.fixed_for_episode = bool(fixed_for_episode)
         self.device = torch.device(device)
         self.roles = torch.zeros(
             (self.n_envs, self.n_agents), dtype=torch.float32, device=self.device
@@ -138,6 +140,17 @@ class RoleHoldState:
         )
         self.age = torch.zeros(self.n_envs, dtype=torch.long, device=self.device)
         self.prev_alive: Optional[torch.Tensor] = None
+        # DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC ROLE_ASSIGNMENT_locked:
+        # only meaningful when fixed_for_episode=True. Set exclusively by
+        # reset_envs() and consumed by the very next update(), independent of
+        # the `force` kwarg and of `changed`/`expired` below -- the collector
+        # calls update(force=True) at the top of EVERY rollout-collection
+        # cycle (collector.py's per-collect() privileged-conditioning
+        # refresh), not only at genuine episode boundaries, so `force` is not
+        # a safe proxy for "an episode just reset". Starts all-True so the
+        # first update() of a fresh RoleHoldState performs its initial
+        # assignment.
+        self._pending_reassign = torch.ones(self.n_envs, dtype=torch.bool, device=self.device)
 
     def reset_envs(self, env_mask: torch.Tensor) -> None:
         """Force reassignment on next update for the selected envs (episode starts)."""
@@ -147,6 +160,8 @@ class RoleHoldState:
             # Clear prev so living-set check also fires.
             self.prev_alive = self.prev_alive.clone()
             self.prev_alive[m] = False
+        self._pending_reassign = self._pending_reassign.clone()
+        self._pending_reassign[m] = True
 
     def update(
         self,
@@ -173,12 +188,19 @@ class RoleHoldState:
                 f"expected pos ({self.n_envs}, {self.n_agents}), got {tuple(pos_x.shape)}"
             )
 
-        changed = living_set_changed(self.prev_alive, alive)
-        expired = self.age >= self.hold_ticks
-        if force:
-            need = torch.ones(self.n_envs, dtype=torch.bool, device=self.device)
+        if self.fixed_for_episode:
+            # role_hold_ticks is provably inert in this mode: neither
+            # death/revival (`changed`) nor tick-age expiry (`expired`) nor
+            # the caller-supplied `force` kwarg may trigger reassignment --
+            # only a pending reset_envs() call may. See __init__ docstring.
+            need = self._pending_reassign
         else:
-            need = changed | expired
+            changed = living_set_changed(self.prev_alive, alive)
+            expired = self.age >= self.hold_ticks
+            if force:
+                need = torch.ones(self.n_envs, dtype=torch.bool, device=self.device)
+            else:
+                need = changed | expired
 
         if bool(need.any().item()):
             new_roles, new_d = assign_roles_from_geometry(pos_x, pos_y, home_xy, alive)
@@ -189,6 +211,9 @@ class RoleHoldState:
             # Refresh distances for smoke / diagnostics without changing roles.
             _, cur_d = assign_roles_from_geometry(pos_x, pos_y, home_xy, alive)
             self.distances = cur_d
+
+        if self.fixed_for_episode:
+            self._pending_reassign = torch.zeros_like(self._pending_reassign)
 
         if advance_age:
             self.age = self.age + 1

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 from rl.custom_ppo.return_normalization import _update_strategy_return_stats
-from rl.custom_ppo.schedules import resolve_latent_lam_h
+from rl.custom_ppo.schedules import resolve_defend_teacher_lambda, resolve_latent_lam_h
 from rl.custom_ppo.update.actor_intervention import ActorInterventionEvidenceUpdater
 from rl.custom_ppo.update.entropy_objectives import EntropyObjective
 from rl.custom_ppo.update.minibatch_updater import (
@@ -123,6 +123,9 @@ class PPOUpdater:
     def compute_latent_lam_h(self, global_step: float, total_timesteps: int) -> float:
         return resolve_latent_lam_h(self.cfg, global_step=global_step, total_timesteps=total_timesteps)
 
+    def compute_defend_teacher_lambda(self, global_step: float) -> float:
+        return resolve_defend_teacher_lambda(self.cfg, global_step=global_step)
+
     def _anchor_runner(self):
         """Read the rehearsal runner at USE time, never cached at construction."""
         return getattr(self.runtime, "sappo_anchor_runner", None)
@@ -142,6 +145,16 @@ class PPOUpdater:
     def _exp2_teacher_runner(self):
         """Read the EXP2 runner at use time; attachment occurs after loading."""
         return getattr(self.runtime, "exp2_teacher_compression_runner", None)
+
+    def _defend_teacher_runner(self):
+        """Read the DEFEND-teacher runner at USE time; attachment occurs after loading.
+
+        Same seam as every other runner here: this updater is built before
+        the orchestrator attaches runtime.defend_teacher_runner, so caching
+        at construction would capture None and the teacher pathway would
+        never fire.
+        """
+        return getattr(self.runtime, "defend_teacher_runner", None)
 
     def _oracle_rehearsal_runner(self):
         """Read the oracle-gated rehearsal runner at USE time, never cached.
@@ -245,6 +258,30 @@ class PPOUpdater:
                 f"(cadence 1:{runner.cadence})."
             )
 
+    @staticmethod
+    def _assert_defend_teacher_cadence(runner) -> None:
+        """ABORT if the DEFEND-teacher cadence is not actually happening.
+
+        Mirrors _assert_exp2_teacher_cadence's pattern (per
+        DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC NEXT_AFTER_THIS_FREEZE
+        step 2): a broken seam must die in the first few minibatches rather
+        than be discovered after a 200k run that silently reproduced plain
+        role-conditioned PPO. Note: the count still advances even during the
+        lambda=0 teacher-free consolidation phase (_step increments
+        n_teacher_updates before checking lambda) -- what this assertion
+        pins is that the cadence gate itself fires, not that a nonzero
+        gradient is produced.
+        """
+        n_ppo = int(runner.n_ppo_actor_minibatches)
+        n_teacher = int(runner.n_teacher_updates)
+        expected = n_ppo // int(runner.cadence)
+        if n_teacher != expected:
+            raise RuntimeError(
+                f"DEFEND-teacher cadence violated: {n_teacher} teacher updates "
+                f"after {n_ppo} PPO actor minibatches, expected {expected} "
+                f"(cadence 1:{runner.cadence})."
+            )
+
 
     def update(
         self,
@@ -297,6 +334,15 @@ class PPOUpdater:
         latent_lam_h = self.compute_latent_lam_h(step, latent_schedule_total)
         curr_sep_coef = resolve_separation_coef(self, step=step)
         curr_adapter_scale = resolve_adapter_scale(self, step=step)
+
+        defend_teacher_runner = self._defend_teacher_runner()
+        if defend_teacher_runner is not None:
+            # DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC LAMBDA_SCHEDULE_locked:
+            # a per-step schedule, unlike the fixed-at-construction lambdas of
+            # sibling_sep / role_pres / getflag_preserve, so it is resolved
+            # once per update() here and reassigned onto the runner before
+            # the minibatch loop runs.
+            defend_teacher_runner.lambda_teacher = self.compute_defend_teacher_lambda(step)
 
         repertoire_param_snapshot = None
         frozen_repertoire_snapshot = None
@@ -467,6 +513,20 @@ class PPOUpdater:
                         )
                     getflag_runner.note_ppo_minibatch(batch)
                     accumulator.record_minibatch(getflag_runner.telemetry())
+                if defend_teacher_runner is not None:
+                    if (
+                        sibling_runner is not None
+                        or role_runner is not None
+                        or getflag_runner is not None
+                    ):
+                        raise RuntimeError(
+                            "DEFEND-teacher imitation cannot share a run with "
+                            "sibling separation, role preservation, or GET_FLAG "
+                            "preservation (SINGLE_AXIS_v1 held_fixed)"
+                        )
+                    defend_teacher_runner.note_ppo_minibatch(batch)
+                    self._assert_defend_teacher_cadence(defend_teacher_runner)
+                    accumulator.record_minibatch(defend_teacher_runner.telemetry())
                 if exp2_runner is not None:
                     # Pass the actual completed PPO minibatch so teacher logits
                     # are evaluated on the student's on-policy states and z.

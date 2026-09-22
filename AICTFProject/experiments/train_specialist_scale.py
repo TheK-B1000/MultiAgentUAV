@@ -282,6 +282,29 @@ def main() -> int:
     ap.add_argument("--role-hold-ticks", type=int, default=8,
                     help="H_r decision-tick hold for role assignment (frozen exploratory "
                          "value is 8; not a screen)")
+    ap.add_argument("--role-fixed-for-episode", action="store_true",
+                    help="assign roles exactly once per episode and never reassign "
+                         "(including on death/revival), instead of the periodic "
+                         "role-hold-ticks reassignment. Ignores --role-hold-ticks. See "
+                         "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json ROLE_ASSIGNMENT_locked.")
+    ap.add_argument("--defend-teacher-lambda", type=float, default=0.0,
+                    help="peak/start coefficient for the DEFEND-only N'-teacher imitation "
+                         "loss. 0 = OFF (structurally absent). Decays to "
+                         "--defend-teacher-lambda-end over "
+                         "[--defend-teacher-decay-start-step, --defend-teacher-decay-end-step]. "
+                         "Requires --role-conditioning-enabled. See "
+                         "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json.")
+    ap.add_argument("--defend-teacher-lambda-end", type=float, default=0.0,
+                    help="lambda value after the decay window (frozen at 0.0 for v1: "
+                         "teacher-free consolidation before evaluation)")
+    ap.add_argument("--defend-teacher-decay-start-step", type=int, default=50_000,
+                    help="global step at which the lambda decay begins (frozen at 50000 "
+                         "for v1; ONE run, ONE schedule)")
+    ap.add_argument("--defend-teacher-decay-end-step", type=int, default=150_000,
+                    help="global step at which the lambda decay ends (frozen at 150000 "
+                         "for v1; ONE run, ONE schedule)")
+    ap.add_argument("--defend-teacher-cadence", type=int, default=4,
+                    help="PPO-actor-minibatch cadence for the teacher update (frozen at 4)")
     ap.add_argument("--assignment-conditioning-enabled", action="store_true",
                     help="concat privileged GUARD_DISTRIBUTED_V2 z_i (4-d) into the actor "
                          "(ASSIGNMENT_CONDITIONING_V1_SPEC). Requires entity repair. "
@@ -561,6 +584,12 @@ def main() -> int:
 
     cfg.role_conditioning_enabled = bool(args.role_conditioning_enabled)
     cfg.role_hold_ticks = int(args.role_hold_ticks)
+    cfg.role_fixed_for_episode = bool(args.role_fixed_for_episode)
+    cfg.defend_teacher_lambda = float(args.defend_teacher_lambda)
+    cfg.defend_teacher_lambda_end = float(args.defend_teacher_lambda_end)
+    cfg.defend_teacher_decay_start_step = int(args.defend_teacher_decay_start_step)
+    cfg.defend_teacher_decay_end_step = int(args.defend_teacher_decay_end_step)
+    cfg.defend_teacher_cadence = int(args.defend_teacher_cadence)
     cfg.assignment_conditioning_enabled = bool(args.assignment_conditioning_enabled)
     cfg.assignment_hold_ticks = int(args.assignment_hold_ticks)
     if cfg.role_conditioning_enabled and cfg.assignment_conditioning_enabled:
@@ -590,6 +619,52 @@ def main() -> int:
             raise SystemExit(
                 "FAIL-CLOSED: role conditioning v1 requires --entity-repair-enabled "
                 "(clean B_t500k entity-repair architecture)"
+            )
+
+    if cfg.defend_teacher_lambda > 0.0:
+        if not cfg.role_conditioning_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: --defend-teacher-lambda > 0 requires --role-conditioning-enabled "
+                "(DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC TEACHER_locked.applies_to)"
+            )
+        if not cfg.role_fixed_for_episode:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC requires "
+                "--role-fixed-for-episode for v1 (role reassignment on death is a "
+                "deliberate, explicit departure never exercised by the sealed screen)"
+            )
+        if (
+            cfg.defend_teacher_lambda_end != 0.0
+            or cfg.defend_teacher_decay_start_step != 50_000
+            or cfg.defend_teacher_decay_end_step != 150_000
+            or cfg.defend_teacher_cadence != 4
+        ):
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC "
+                "LAMBDA_SCHEDULE_locked freezes lambda_end=0.0, decay=[50000,150000], "
+                "cadence=4 for the exploratory arm (ONE run, ONE schedule -- not a "
+                "screen). Amend the SPEC before changing this."
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND-teacher imitation cannot coexist with GETFLAG "
+                "preservation (SINGLE_AXIS_v1)"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND-teacher imitation cannot coexist with sibling-sep "
+                "(SINGLE_AXIS_v1)"
+            )
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND-teacher imitation cannot coexist with role-pres MSE "
+                "loss (SINGLE_AXIS_v1)"
+            )
+        if policy != "A":
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC authorizes "
+                "training pi_A only for this experiment; got --policy "
+                f"{policy}"
             )
 
     if cfg.assignment_conditioning_enabled:
@@ -717,7 +792,14 @@ def main() -> int:
              f"warm_start={getattr(cfg, 'load_path', None) or '(none -- fresh init)'}")
     if bool(getattr(cfg, "role_conditioning_enabled", False)):
         print(f"  role_conditioning enabled  H_r={cfg.role_hold_ticks}  "
+              f"fixed_for_episode={cfg.role_fixed_for_episode}  "
               f"(pi(a|o,r); no GETFLAG / no macro hard-code)")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  defend_teacher   lambda_peak={cfg.defend_teacher_lambda}  "
+              f"lambda_end={cfg.defend_teacher_lambda_end}  "
+              f"decay=[{cfg.defend_teacher_decay_start_step},{cfg.defend_teacher_decay_end_step}]  "
+              f"cadence={cfg.defend_teacher_cadence}  "
+              f"(CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND decision-eligible only)")
     if bool(getattr(cfg, "assignment_conditioning_enabled", False)):
         print(f"  assignment_conditioning enabled  H_a={cfg.assignment_hold_ticks}  "
               f"(pi(a|o,z_i); GUARD_DISTRIBUTED_V2; no GETFLAG / no ROLE bit)")

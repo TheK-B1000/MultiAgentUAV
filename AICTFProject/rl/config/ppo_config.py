@@ -961,6 +961,41 @@ class PPOConfig:
     # H_r is frozen at 8 for the exploratory arm (not a screen).
     role_conditioning_enabled: bool = False
     role_hold_ticks: int = 8
+    # DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC ROLE_ASSIGNMENT_locked: when
+    # True, RoleHoldState assigns roles exactly once per episode (on the tick
+    # immediately following an env reset) and never reassigns again for the
+    # rest of the episode, regardless of death/revival or elapsed ticks.
+    # role_hold_ticks is ignored (provably inert) when this is True -- the two
+    # are mutually exclusive by construction inside RoleHoldState.update(),
+    # not by an assertion someone could forget. Default False = existing
+    # role_hold_ticks-based periodic-reassignment behavior is unchanged.
+    role_fixed_for_episode: bool = False
+
+    # --- DEFEND-only teacher imitation (DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC) ---
+    # See artifacts/strategic_demand/sppo/DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json.
+    # Gated CE(macro_logits, GO_TO) + CE(waypoint_logits, w_N') on DEFEND-role,
+    # decision-eligible agents only, where w_N' is the training-time physics
+    # port of experiments/run_goto_only_defend_substitution_4v4.py's own
+    # sealed N' controller (Engine.path_oracle over the real core's batched
+    # DEFEND physics -- no separate reimplementation). Requires
+    # role_conditioning_enabled=True. Default OFF = structurally absent: no
+    # runner constructed, no forward/backward/optimizer step, and (per C9)
+    # forcing defend_teacher_lambda to 0 for an otherwise-identical run
+    # reproduces plain role-conditioned PPO bit-for-bit.
+    # defend_teacher_lambda is the SCHEDULE PEAK/START value (<=0.0 disables
+    # the runner entirely); it linearly decays to defend_teacher_lambda_end
+    # over [defend_teacher_decay_start_step, defend_teacher_decay_end_step]
+    # via rl.custom_ppo.schedules.resolve_defend_teacher_lambda, resolved
+    # once per PPO update from global_step (mirrors resolve_latent_lam_h).
+    # The three step/lambda-end fields are frozen at their v1 spec values for
+    # the exploratory arm (not a screen) -- "ONE run, ONE schedule."
+    # Mutually exclusive with sibling_sep_lambda, role_pres_lambda, and
+    # getflag_preserve_lambda (all must be 0 / disabled for this run).
+    defend_teacher_lambda: float = 0.0
+    defend_teacher_lambda_end: float = 0.0
+    defend_teacher_decay_start_step: int = 50_000
+    defend_teacher_decay_end_step: int = 150_000
+    defend_teacher_cadence: int = 4
 
     # --- Assignment conditioning v1 (ASSIGNMENT_CONDITIONING_V1_SPEC) ---
     # Privileged GUARD_DISTRIBUTED_V2 z_i (4-d per agent) on actor; critic gets

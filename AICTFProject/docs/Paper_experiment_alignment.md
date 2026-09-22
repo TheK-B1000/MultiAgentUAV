@@ -424,6 +424,46 @@ episode-router usage-balance coefficient. The audit banner prints
 
 ## 7. Changelog
 
+- **DEFEND-teacher role-conditioned pi_A training (diagnostic/exploratory,
+  default OFF, not latent-strategy):** Implementation for
+  `artifacts/strategic_demand/sppo/DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json`.
+  Added `RoleHoldState.fixed_for_episode` (assign roles exactly once per
+  episode, never reassign on death/revival or tick-age expiry; wired through
+  a dedicated `_pending_reassign` buffer set only by `reset_envs()`, not the
+  collector's per-`collect()` `force=True` call). Added `PPOConfig` fields
+  `role_fixed_for_episode` (default False) and `defend_teacher_{lambda,
+  lambda_end,decay_start_step,decay_end_step,cadence}` (default off /
+  frozen-schedule values), plus `rl.custom_ppo.schedules.resolve_defend_teacher_lambda`
+  (a `linear_anneal` wrapper). Added `rl/custom_ppo/defend_teacher.py`: a
+  batched-GPU port of `experiments/run_goto_only_defend_substitution_4v4.py`'s
+  sealed N' controller (calls the real `core._defend_outward_target` /
+  `core._integrate_side` directly rather than reimplementing DEFEND physics
+  or the integrator -- parity by construction) producing the teacher
+  waypoint target, a gated `CE(macro,GO_TO)+CE(waypoint,w_N')` loss on
+  DEFEND-role decision-eligible agents only, and `DefendTeacherRunner`
+  (mirrors `GetflagPreserveRunner`'s separate zero_grad/backward/step
+  discipline, but with a mutable schedule-driven `lambda_teacher` and a
+  strict cadence assertion mirroring `_assert_exp2_teacher_cadence`). Wired
+  into the collector (new `obs_defend_teacher_waypoint` buffer field,
+  captured from training-only-privileged `core` state at rollout-collection
+  time, not reconstructable from a shuffled PPO minibatch), the PPO update
+  loop, the orchestrator (`_maybe_attach_defend_teacher`, mutually exclusive
+  with sibling-sep/role-pres/getflag-preserve), and
+  `experiments/train_specialist_scale.py` CLI flags with FAIL-CLOSED schedule
+  and mutual-exclusion checks. `PAPER-FAITHFUL`/`Summer-faithful` labels do
+  not apply; this program does not use the latent `z` system. Regenerated
+  `tests/preset_snapshots.json` (541→549 entries). The snapshot had not been
+  regenerated since before commit `ada16664` (Assignment-v1), so the diff
+  against every pre-existing entry carries eleven additive-default fields,
+  not six: this change's own `role_fixed_for_episode` and the five
+  `defend_teacher_*` fields, plus five fields from the already-landed
+  role-/assignment-conditioning work (`role_conditioning_enabled`,
+  `role_hold_ticks`, `assignment_conditioning_enabled`,
+  `assignment_hold_ticks`, `assignment_feature_dim`) that this regeneration
+  is the first to capture. The 8 additional preset entries beyond the
+  previous 541 were likewise registered by earlier commits and are appearing
+  in the snapshot for the first time here. No pre-existing field *value*,
+  alias, or paper-faithful objective changed.
 - **B-only GET_FLAG preservation (diagnostic, default OFF):** Added
   `PPOConfig.getflag_preserve_{lambda,ckpt,ckpt_sha256,cadence}` (all default
   off / empty) for a gated non-carrying GET_FLAG *macro* NLL, not full-action

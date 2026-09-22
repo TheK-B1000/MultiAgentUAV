@@ -1330,9 +1330,33 @@
           "note": "descriptive screen complete; pattern_match=True"
         }
       ]
+    },
+    {
+      "experiment_id": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_TRAINING",
+      "purpose": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC: 200k role-conditioned pi_A training seed, single seed",
+      "seed_class": "exploratory",
+      "lo": 21400001,
+      "hi": 21400001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T11:23:30Z"
+    },
+    {
+      "experiment_id": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_EVAL",
+      "purpose": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC: post-training exploratory evaluation block, n=64, both poles vs frozen pi_B comparator",
+      "seed_class": "exploratory",
+      "lo": 21500001,
+      "hi": 21500064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T11:23:34Z"
     }
   ],
-  "updated_utc": "2026-09-22T07:43:05Z",
+  "updated_utc": "2026-09-22T11:23:34Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

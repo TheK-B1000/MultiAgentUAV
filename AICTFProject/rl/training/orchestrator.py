@@ -301,6 +301,7 @@ def orchestrate_training_run(
         _maybe_attach_sibling_separation(cfg, trainer)
         _maybe_attach_role_preservation(cfg, trainer)
         _maybe_attach_getflag_preservation(cfg, trainer)
+        _maybe_attach_defend_teacher(cfg, trainer)
         _maybe_attach_sppo_ranking(cfg, trainer)
 
         # Runtime-observer seam. Callers attach auditors to the live trainer here,
@@ -573,6 +574,8 @@ def _maybe_attach_sibling_separation(cfg, trainer) -> None:
         raise RuntimeError("sibling separation cannot coexist with SAPPO anchor")
     if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
         raise RuntimeError("sibling separation cannot coexist with EXP2 teacher compression")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("sibling separation cannot coexist with DEFEND-teacher imitation")
 
     ckpt_path = Path(ckpt)
     if not ckpt_path.is_file():
@@ -656,6 +659,8 @@ def _maybe_attach_role_preservation(cfg, trainer) -> None:
         raise RuntimeError("role preservation cannot coexist with EXP2 teacher compression")
     if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
         raise RuntimeError("role preservation cannot coexist with GET_FLAG preservation")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("role preservation cannot coexist with DEFEND-teacher imitation")
 
     from rl.custom_ppo.role_preservation import RolePresRunner, load_role_targets
 
@@ -703,6 +708,8 @@ def _maybe_attach_getflag_preservation(cfg, trainer) -> None:
         raise RuntimeError("GET_FLAG preservation cannot coexist with SAPPO anchor")
     if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
         raise RuntimeError("GET_FLAG preservation cannot coexist with EXP2 teacher compression")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with DEFEND-teacher imitation")
 
     ckpt_path = Path(ckpt)
     if not ckpt_path.is_file():
@@ -744,6 +751,56 @@ def _maybe_attach_getflag_preservation(cfg, trainer) -> None:
         f"D=NLL(GET_FLAG) on gated agent-heads only (not full-action JSD/KL) "
         f"lambda={runner.lambda_preserve} cadence=1:{runner.cadence} "
         f"anchor={ckpt_path.name} sha={actual[:12]}..."
+    )
+
+
+def _maybe_attach_defend_teacher(cfg, trainer) -> None:
+    """Attach the DEFEND-only N'-teacher imitation runner, or attach nothing.
+
+    See artifacts/strategic_demand/sppo/DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json.
+    lambda<=0 = structurally absent (no runner). Unlike sibling_sep /
+    role_pres / getflag_preserve, there is no frozen anchor checkpoint to
+    load: the teacher target is a physics-rule computation
+    (rl.custom_ppo.defend_teacher.compute_defend_teacher_waypoints), captured
+    at rollout-collection time into the buffer. The runner's lambda is a
+    per-step schedule (LAMBDA_SCHEDULE_locked), reassigned every PPO
+    update() by PPOUpdater.compute_defend_teacher_lambda -- the value passed
+    here is only the schedule's peak/start value.
+    """
+    lam = float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0)
+    if lam <= 0.0:
+        return
+    if not bool(getattr(cfg, "role_conditioning_enabled", False)):
+        raise RuntimeError(
+            "defend_teacher_lambda > 0 requires role_conditioning_enabled=True "
+            "(TEACHER_locked.applies_to)"
+        )
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with EXP2 teacher compression")
+    if getattr(trainer, "sibling_sep_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with sibling_sep_runner")
+    if getattr(trainer, "role_pres_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with role_pres_runner")
+    if getattr(trainer, "getflag_preserve_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with getflag_preserve_runner")
+
+    from rl.custom_ppo.defend_teacher import DefendTeacherRunner
+
+    runner = DefendTeacherRunner(
+        trainer.model,
+        trainer.optimizer,
+        lambda_teacher=lam,
+        cadence=int(getattr(cfg, "defend_teacher_cadence", 4)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+    )
+    trainer.defend_teacher_runner = runner
+    print(
+        f"[DEFEND-TEACHER] N'-port DEFEND imitation ATTACHED: "
+        f"D=CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND-role decision-eligible "
+        f"agent-ticks only lambda_peak={runner.lambda_teacher} "
+        f"cadence=1:{runner.cadence}"
     )
 
 

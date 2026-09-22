@@ -193,6 +193,7 @@ class RolloutCollector:
                 int(self.env.num_envs),
                 int(self.model.n_agents),
                 hold_ticks=int(getattr(self.cfg, "role_hold_ticks", 8) or 8),
+                fixed_for_episode=bool(getattr(self.cfg, "role_fixed_for_episode", False)),
                 device=self.device,
             )
             self._role_hold = hold
@@ -227,11 +228,38 @@ class RolloutCollector:
         out["assignment"] = assignment.detach().cpu().numpy().astype(np.float32)
         return out
 
+    def _augment_obs_with_defend_teacher(
+        self, obs: Dict[str, np.ndarray]
+    ) -> Dict[str, np.ndarray]:
+        """Attach the N'-port teacher waypoint target when ``defend_teacher_lambda > 0``.
+
+        DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC TEACHER_locked: computed
+        during rollout collection from the live, training-only-privileged
+        ``core`` state (exact own position, own flag position) -- this state
+        is not reconstructable from a shuffled PPO minibatch's ``obs_vec``
+        (clamped/lossy flag offset) or ``global_state`` (team-aggregate
+        only), so it must be captured here and threaded through the buffer.
+        """
+        if float(getattr(self.cfg, "defend_teacher_lambda", 0.0) or 0.0) <= 0.0:
+            return obs
+        if not bool(getattr(self.model, "role_conditioning_enabled", False)):
+            raise RuntimeError(
+                "defend_teacher_lambda > 0 requires role_conditioning_enabled=True "
+                "(DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC TEACHER_locked.applies_to)"
+            )
+        from rl.custom_ppo.defend_teacher import compute_defend_teacher_waypoints
+
+        waypoint = compute_defend_teacher_waypoints(self.env.core)
+        out = dict(obs)
+        out["defend_teacher_waypoint"] = waypoint.detach().cpu().numpy().astype(np.int64)
+        return out
+
     def _augment_obs_with_privileged_conditioning(
         self, obs: Dict[str, np.ndarray], *, force: bool = False, advance_age: bool = True
     ) -> Dict[str, np.ndarray]:
         obs = self._augment_obs_with_roles(obs, force=force, advance_age=advance_age)
-        return self._augment_obs_with_assignment(obs, force=force, advance_age=advance_age)
+        obs = self._augment_obs_with_assignment(obs, force=force, advance_age=advance_age)
+        return self._augment_obs_with_defend_teacher(obs)
 
     def on_sb3_rollout_env_step(self) -> None:
         p = self.runtime._sb3_rollout_pbar
@@ -273,6 +301,12 @@ class RolloutCollector:
             buffer.register_field("obs_roles", tuple(obs["roles"].shape[1:]))
         if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
             buffer.register_field("obs_assignment", tuple(obs["assignment"].shape[1:]))
+        if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+            buffer.register_field(
+                "obs_defend_teacher_waypoint",
+                tuple(obs["defend_teacher_waypoint"].shape[1:]),
+                dtype=torch.long,
+            )
         buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")

@@ -107,6 +107,10 @@ class RolloutStepRecorder:
             entity_items["obs_assignment"] = torch.as_tensor(
                 obs["assignment"], dtype=torch.float32, device=device
             )
+        if float(getattr(self.trainer.cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+            entity_items["obs_defend_teacher_waypoint"] = torch.as_tensor(
+                obs["defend_teacher_waypoint"], dtype=torch.long, device=device
+            )
         return dict(
             obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
             obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),
