@@ -1,0 +1,14 @@
+{
+  "record": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-22T15:00:54Z",
+  "implements": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_A"
+  ],
+  "point_estimates": {
+    "delta_A": -0.453125,
+    "delta_B": 0.53125
+  },
+  "rule": "requires a row-level integrity audit before any verdict-bearing result. Raw rows: defend_teacher_role_conditioning_a_v1_specialist_crossover_eval_rows.csv."
+}

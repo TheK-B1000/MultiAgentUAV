@@ -76,6 +76,13 @@ def main() -> int:
                          "canonical pole_B_genome(N). Without this, an evaluation of "
                          "specialists trained against a redesigned Pole B would silently "
                          "score them against the OLD, different Pole B.")
+    ap.add_argument("--role-fixed-for-episode", action="store_true",
+                    help="assign roles exactly once per episode (RoleHoldState."
+                         "fixed_for_episode) instead of the periodic H_r=8 hold, for a "
+                         "role-conditioned policy under evaluation. Default off preserves "
+                         "existing RULE_BASED_ROLE_CONDITIONING evaluation behavior "
+                         "unchanged. See DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json "
+                         "EXECUTION_BOUNDARY_locked.")
     args = ap.parse_args()
 
     N = int(args.team_size)
@@ -206,6 +213,7 @@ def main() -> int:
             role_hold = RoleHoldState(
                 int(env.num_envs), int(policy.model.n_agents),
                 hold_ticks=hold_ticks, device=device,
+                fixed_for_episode=bool(args.role_fixed_for_episode),
             )
         if bool(getattr(policy.model, "assignment_conditioning_enabled", False)):
             hold_ticks = int(getattr(policy.model, "assignment_hold_ticks", 0) or 0)
@@ -344,6 +352,7 @@ def main() -> int:
         "arm": spec.get("arm", "n/a"), "confirmatory": bool(spec.get("confirmatory", False)),
         "implements": f"{spec_path.name}#EVALUATION",
         "team_size": N, "device": device,
+        "role_fixed_for_episode": bool(args.role_fixed_for_episode),
         "seeds": {"block": [seeds[0], seeds[-1]], "n": len(seeds), "shared_across_policies": True},
         "poles": {p: {"base": BASE_KEY[p],
                       "overlay": dict((pole_A_genome(N) if p == "A" else pole_b_resolved).overlay or {}),
