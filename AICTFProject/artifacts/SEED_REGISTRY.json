@@ -1319,13 +1319,20 @@
       "lo": 21300001,
       "hi": 21300064,
       "n": 64,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "CLOSEST_DEFENDS_SCREEN_4V4_V1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-22T04:56:45Z"
+      "allocated_utc": "2026-09-22T04:56:45Z",
+      "spent_utc": "2026-09-22T07:43:05Z",
+      "notes": [
+        {
+          "utc": "2026-09-22T07:43:05Z",
+          "note": "descriptive screen complete; pattern_match=True"
+        }
+      ]
     }
   ],
-  "updated_utc": "2026-09-22T06:32:20Z",
+  "updated_utc": "2026-09-22T07:43:05Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

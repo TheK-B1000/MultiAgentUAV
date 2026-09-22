@@ -1,0 +1,206 @@
+{
+  "record_id": "CLOSEST_DEFENDS_SCREEN_4V4_RESULT",
+  "implements": "CLOSEST_DEFENDS_SCREEN_4V4_V1_SPEC.json",
+  "utc": "2026-09-22T07:43:05Z",
+  "device": "cuda",
+  "classification": "DESCRIPTIVE / EXPLORATORY -- no confirmatory label, no LCB95 gate",
+  "seed_block": {
+    "base": 21300001,
+    "n": 64,
+    "class": "exploratory"
+  },
+  "WIN_RATE_CONTRASTS_point_estimates_and_bootstrap_CI": {
+    "Delta_A_closest": {
+      "mean": 0.265625,
+      "lcb95": 0.125,
+      "ucb95": 0.40625,
+      "n": 64
+    },
+    "Delta_B_closest": {
+      "mean": 0.421875,
+      "lcb95": 0.296875,
+      "ucb95": 0.546875,
+      "n": 64
+    },
+    "I_A": {
+      "mean": 0.0,
+      "lcb95": -0.140625,
+      "ucb95": 0.140625,
+      "n": 64
+    },
+    "I_B": {
+      "mean": -0.625,
+      "lcb95": -0.734375,
+      "ucb95": -0.5,
+      "n": 64
+    },
+    "native_Delta_A": {
+      "mean": 0.265625,
+      "lcb95": 0.109375,
+      "ucb95": 0.40625,
+      "n": 64
+    },
+    "native_Delta_B": {
+      "mean": -0.203125,
+      "lcb95": -0.359375,
+      "ucb95": -0.046875,
+      "n": 64
+    }
+  },
+  "DESCRIPTIVE_BLUE_GOALS_CONTRASTS": {
+    "Delta_A_closest": {
+      "mean": 1.359375,
+      "lcb95": 1.03125,
+      "ucb95": 1.671875,
+      "n": 64
+    },
+    "Delta_B_closest": {
+      "mean": 0.875,
+      "lcb95": 0.609375,
+      "ucb95": 1.15625,
+      "n": 64
+    },
+    "I_A": {
+      "mean": 1.125,
+      "lcb95": 0.828125,
+      "ucb95": 1.40625,
+      "n": 64
+    },
+    "I_B": {
+      "mean": -1.515625,
+      "lcb95": -1.84375,
+      "ucb95": -1.1875,
+      "n": 64
+    },
+    "native_Delta_A": {
+      "mean": 0.234375,
+      "lcb95": -0.03125,
+      "ucb95": 0.484375,
+      "n": 64
+    },
+    "native_Delta_B": {
+      "mean": -0.640625,
+      "lcb95": -1.0625,
+      "ucb95": -0.21875,
+      "n": 64
+    }
+  },
+  "DESCRIPTIVE_MARGIN_CONTRASTS": {
+    "Delta_A_closest": {
+      "mean": 0.921875,
+      "lcb95": 0.53125,
+      "ucb95": 1.3125,
+      "n": 64
+    },
+    "Delta_B_closest": {
+      "mean": 1.515625,
+      "lcb95": 1.171875,
+      "ucb95": 1.875,
+      "n": 64
+    },
+    "I_A": {
+      "mean": 0.609375,
+      "lcb95": 0.265625,
+      "ucb95": 0.953125,
+      "n": 64
+    },
+    "I_B": {
+      "mean": -2.296875,
+      "lcb95": -2.65625,
+      "ucb95": -1.9375,
+      "n": 64
+    },
+    "native_Delta_A": {
+      "mean": 0.3125,
+      "lcb95": 0.03125,
+      "ucb95": 0.578125,
+      "n": 64
+    },
+    "native_Delta_B": {
+      "mean": -0.78125,
+      "lcb95": -1.21875,
+      "ucb95": -0.34375,
+      "n": 64
+    }
+  },
+  "CELL_MEANS": {
+    "pi_A_poleA": {
+      "win": 0.78125,
+      "blue": 1.046875,
+      "margin": 0.9375
+    },
+    "pi_A_poleB": {
+      "win": 0.671875,
+      "blue": 1.6875,
+      "margin": 1.640625
+    },
+    "A_closest_poleA": {
+      "win": 0.78125,
+      "blue": 2.171875,
+      "margin": 1.546875
+    },
+    "A_closest_poleB": {
+      "win": 0.046875,
+      "blue": 0.171875,
+      "margin": -0.65625
+    },
+    "pi_B_poleA": {
+      "win": 0.515625,
+      "blue": 0.8125,
+      "margin": 0.625
+    },
+    "pi_B_poleB": {
+      "win": 0.46875,
+      "blue": 1.046875,
+      "margin": 0.859375
+    }
+  },
+  "PAIRS_SELECTED_BY_A_CLOSEST": {
+    "0-1": 8,
+    "0-2": 16,
+    "0-3": 8,
+    "1-0": 10,
+    "1-2": 14,
+    "1-3": 8,
+    "2-0": 14,
+    "2-1": 14,
+    "2-3": 6,
+    "3-0": 4,
+    "3-1": 4,
+    "3-2": 22
+  },
+  "sealed_bridge_reference_n128_seed_rotated_pair": {
+    "Delta_A_prime": {
+      "mean": 0.351562,
+      "lcb95": 0.234375,
+      "ucb95": 0.460938
+    },
+    "Delta_B_prime": {
+      "mean": 0.359375,
+      "lcb95": 0.25,
+      "ucb95": 0.46875
+    },
+    "I_A": {
+      "mean": -0.09375,
+      "lcb95": -0.203125,
+      "ucb95": 0.015625
+    },
+    "I_B": {
+      "mean": -0.492188,
+      "lcb95": -0.59375,
+      "ucb95": -0.390625
+    }
+  },
+  "PATTERN_MATCH_point_estimate_only_not_a_significance_claim": {
+    "rule": "Delta_A_closest_mean > 0 AND Delta_B_closest_mean > 0 AND I_B_mean < 0 (the sealed bridge's own defining pattern)",
+    "result": true
+  },
+  "interpretation_guard": "A_closest is pi_A with an externally imposed, state-dependent defender assignment (closest-to-home at t=0), not a learned assignment. This is a DESCRIPTIVE screen, not a confirmatory claim: no LCB95 gate, no terminal pass/fail label. It answers whether the pair-selection RULE matters, not whether PPO can learn to select or execute it.",
+  "provenance": {
+    "spec_sha256": "acba8c349b5d91bb185d0af7c0a976a7675192873d09984d9e32c6aff3c1e7b5",
+    "script_sha256": "c5d08a2a5406168c5546c925efbc403480f4a5690f9ec913ec7746f2d0d9f4c4",
+    "mechanism_source_sha256": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb",
+    "rows_sha256": "95050c31067d27a625d9a14a28b63a39d09bed30e66ea57ecbb6c446fec7e114"
+  },
+  "claim_boundary": "Descriptive comparison only, on the frozen 4v4 learned specialists, fresh exploratory seeds. Not a confirmatory crossover claim; no LCB95 gate is applied. A_closest is pi_A with an externally imposed, state-dependent defender assignment (closest-to-home at t=0), not a learned assignment. This is a DESCRIPTIVE screen, not a confirmatory claim: no LCB95 gate, no terminal pass/fail label. It answers whether the pair-selection RULE matters, not whether PPO can learn to select or execute it."
+}

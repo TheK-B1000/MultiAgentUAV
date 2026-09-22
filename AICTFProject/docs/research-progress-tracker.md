@@ -16,7 +16,45 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-22 — **`GOTO_ONLY_DEFEND_SUBSTITUTION_4V4` SEALED: `GOTO_ONLY_CROSSOVER_CONFIRMED`, with two caveats attached
+> **Last updated:** 2026-09-22 (later) — **`CLOSEST_DEFENDS_SCREEN_4V4` COMPLETE: `pattern_match = true`. Both load-bearing pieces
+> of the target 4v4 training architecture now have empirical support: GO_TO is sufficient enough (`GOTO_ONLY_DEFEND_SUBSTITUTION_4V4`,
+> below) and a fixed distance-based greedy allocator preserves the useful 2A/2D effect (this experiment). Research question shifts
+> from "can this architecture work?" to "can PPO learn competent role-conditioned behavior under this fixed allocator?"**
+>
+> `CLOSEST_DEFENDS_SCREEN_4V4` was an EXPLORATORY DESCRIPTIVE screen, not a confirmatory crossover test -- no LCB95 gate, no
+> terminal pass/fail label, by design. It reproduced the sealed scaffold bridge's signature with `pattern_match: true`: Delta_A and
+> Delta_B were positive, I_B was strongly negative, Pole A performance was preserved, and all six possible defender pairs were
+> selected across seeds. Pre-run package (spec, runner, 13/13 contract record, seed reservation) committed as `f4f4ac6f` before any
+> seed in the fresh exploratory block 21300001-21300064 was touched; one self-referential contract bug (a banned-string check
+> matching its own declaration, not a real call site) was found and fixed before that freeze. 64 fresh exploratory seeds x 2 poles
+> x 3 arms = 384 episodes, all recorded and analyzed cleanly (two shards needed one retry after an unrelated GPU-contention crash
+> from launching alongside `GOTO_ONLY_DEFEND_SUBSTITUTION_4V4`'s still-running shards; no data was lost, only redone).
+>
+> Mechanism: `A_closest` = `pi_A` + the two ACTIVE agents closest to `own_flag_home` at the first decision tick (state-dependent,
+> fixed for the whole episode) forced to DEFEND via the SAME mechanism as the sealed `A'` -- the only variable changed is the
+> pair-selection rule, from seed rotation to distance-to-home.
+>
+> | | sealed bridge (seed-rotated pair) | `CLOSEST_DEFENDS` (distance-to-home pair) |
+> |---|---|---|
+> | Delta_A' | +0.352 [+0.234, +0.461] | +0.266 [+0.125, +0.406] |
+> | Delta_B' | +0.359 [+0.250, +0.469] | **+0.422** [+0.297, +0.547] |
+> | I_A (A's own-pole win rate) | -0.094 [-0.203, +0.016] | **0.000** [-0.141, +0.141] -- exact tie with native `pi_A` |
+> | I_B (A's Pole-B competence) | -0.492 [-0.594, -0.391] | **-0.625** [-0.734, -0.500] |
+>
+> Cell means: `A_closest` wins Pole A exactly as often as native `pi_A` (0.781 = 0.781) while collapsing to 0.047 on Pole B (even
+> lower than the bridge's `A'` at 0.133). Blue-goal and margin currencies move the same direction with equal or larger magnitude.
+> Diagnostic: all 6 possible unordered agent-pairs were selected across the 64 seeds (12-30 occurrences each), confirming the rule
+> is genuinely state-dependent, not degenerate. Point estimates only -- n=64, no confirmatory claim -- but the direction and
+> magnitude are unambiguous and consistent across win rate, goals, and margin.
+>
+> **What this does and does not support.** Supports using a fixed distance-based greedy allocator as the role-assignment layer:
+> `greedy_role_allocator(N, k_D)` with `k_D(4)=2`, closest-to-base -> DEFEND, computed once per episode, kept active at evaluation.
+> Does NOT itself authorize PPO or any training -- that remains the next, separate PI decision. Says nothing about `pi_B`, a dynamic
+> per-tick reassignment variant (explicitly out of scope here), or any team size other than 4v4. Per the PI: after this commit, stop
+> running diagnostic screens and move to the actual training architecture -- `CLOSEST_DEFENDS` allocator -> ATTACK/DEFEND role label
+> -> role-conditioned PPO, allocator kept at evaluation -- rather than a further vocabulary or allocation-rule test.
+>
+> **Earlier 2026-09-22 — `GOTO_ONLY_DEFEND_SUBSTITUTION_4V4` SEALED: `GOTO_ONLY_CROSSOVER_CONFIRMED`, with two caveats attached
 > beside the headline, not buried later: Pole A crossover is confirmed but THIN (LCB95 = +0.016), and `N'` did NOT satisfy the
 > predeclared path-fidelity gate on Pole A, so faithful scaffold-path reproduction is NOT claimed. Strongest supported conclusion:
 > instantaneous heading fidelity is not necessary for 4v4 crossover -- a GO_TO-only defender with substantially worse heading
@@ -1482,9 +1520,20 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
 
-### PROPOSED — GO_TO-only env-level DEFEND substitution test (2026-09-21) — NOT FROZEN
+### RESOLVED — GO_TO-only env-level DEFEND substitution test + CLOSEST_DEFENDS screen (2026-09-21/22)
 
-**Status:** PROPOSED only. No seed block allocated, no code written, nothing launched. Not a preset (no `PPOConfig`, preset, actor,
+**Status: COMPLETE.** Both experiments this item proposed are sealed; see the "Last updated" entries above for full results
+(`GOTO_ONLY_DEFEND_SUBSTITUTION_4V4` -> `GOTO_ONLY_CROSSOVER_CONFIRMED` with caveats, commits `541e9bab`/`9d14717d`;
+`CLOSEST_DEFENDS_SCREEN_4V4` -> `pattern_match: true`, commit `f4f4ac6f`). The original proposal text below is kept for the
+design trail (three PI-approved defaults, the interpretation tree, the fences) rather than rewritten; nothing past this note
+is still open. **Next step per the PI: stop running diagnostic screens; move to the training architecture** -- `CLOSEST_DEFENDS`
+allocator -> ATTACK/DEFEND role label -> role-conditioned PPO, allocator kept at evaluation. That is a PPO/training change and
+is NOT authorized by this entry; it requires its own pre-change checklist per AGENTS.md before any code is written.
+
+<details>
+<summary>Original proposal text (2026-09-21, kept for the design trail)</summary>
+
+**Status (at proposal time):** PROPOSED only. No seed block allocated, no code written, nothing launched. Not a preset (no `PPOConfig`, preset, actor,
 critic or loss change), so no Proposed Preset Review applies. Follows from the frozen representability audit (`f2e051de`).
 
 **Question.** Is instantaneous DEFEND heading *necessary* for the scaffold's crossover effect, or does GO_TO-only defense -- the coarse
@@ -1546,8 +1595,10 @@ scaffold's defenders are chosen by seed rotation, not by state, so a state-depen
 test; and a prior teacher-distillation attempt failed a Compression Crossover (see memory) and GUARD's assignment machinery needs
 information absent from the student observation.
 
-**Next:** freeze spec -> contract-test -> commit the pre-run package (spec, runner, seed reservation, passing contract record) ->
-reserve the fresh seed block -> await the PI's launch go (the run spends the confirmatory block once).
+**Next (at proposal time):** freeze spec -> contract-test -> commit the pre-run package (spec, runner, seed reservation, passing
+contract record) -> reserve the fresh seed block -> await the PI's launch go (the run spends the confirmatory block once).
+
+</details>
 
 ### C2 fresh confirmation — `C2_REJECTED` (2026-08-06)
 
