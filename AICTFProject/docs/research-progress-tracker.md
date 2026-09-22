@@ -16,7 +16,56 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-21 (later) — **4v4 SCAFFOLD-TO-NATIVE REPRESENTABILITY AUDIT COMPLETE: frozen label `NOT_REPRESENTABLE_VOCABULARY` on a valid audit, driven entirely by the DIRECTION sub-gate; TARGET and TRAJECTORY both pass at high coverage. READ-ONLY DIAGNOSTIC: no PPO, no new seed, `pi_B` not loaded. The label authorizes nothing.**
+> **Last updated:** 2026-09-22 — **`GOTO_ONLY_DEFEND_SUBSTITUTION_4V4` SEALED: `GOTO_ONLY_CROSSOVER_CONFIRMED`, with two caveats attached
+> beside the headline, not buried later: Pole A crossover is confirmed but THIN (LCB95 = +0.016), and `N'` did NOT satisfy the
+> predeclared path-fidelity gate on Pole A, so faithful scaffold-path reproduction is NOT claimed. Strongest supported conclusion:
+> instantaneous heading fidelity is not necessary for 4v4 crossover -- a GO_TO-only defender with substantially worse heading
+> agreement than the scaffold still preserved crossover. Clean next implication: we do not need a new DEFEND primitive before
+> training. This is the last diagnostic in this line per its own frozen commitment -- no further metric exploration, no re-run.**
+>
+> Pre-run package (spec, runner, 15/15 contract record, seed reservation) committed as `541e9bab` before any seed in block
+> 21200001-21200128 was touched; two real contract bugs were found and fixed before that freeze (`GPUCTFVecEnv.step_wait()`
+> auto-resets core buffers on episode end, so 7 apparent boundary/commit-state mismatches were reading next-episode buffers, not
+> violating the commit lock; a wording self-test checked for "necessary" against text that correctly said "necessity"). Result
+> sealed 2026-09-22 (0/48 gating checks failed, 1024/1024 rows, attestation clean: 256 `N'` cells, 85,861 verified boundary
+> events, 396 correctly excluded as unverifiable at episode-end resets).
+>
+> `N'` = `pi_A` + a causal, oracle-informed controller restricted to the native `(GO_TO, legal waypoint)` surface on the same two
+> agents the sealed scaffold `A'` force-injects DEFEND onto; no PPO, no new vocabulary, `pi_B` untouched.
+>
+> | primary win-rate contrast | mean | LCB95 | UCB95 |
+> |---|---|---|---|
+> | Delta_A_N (`N'` vs `pi_B`, Pole A) | +0.141 | **+0.016** | +0.258 |
+> | Delta_B_N (`pi_B` vs `N'`, Pole B) | +0.438 | +0.336 | +0.539 |
+>
+> Both lower bounds clear zero -> `GOTO_ONLY_CROSSOVER_CONFIRMED` by the frozen precedence. **Frozen interpretation text, verbatim:**
+> "Instantaneous DIRECTION is not necessary for crossover: a defender restricted to native (GO_TO, legal waypoint) actions, which
+> removes per-tick heading fidelity relative to the scaffold, preserved the crossover. This does not mean the DIRECTION metric was
+> wrong; it measured a real mismatch that was not behaviorally necessary for the endpoint. `N'` also did not meet the pre-declared
+> in-env path criterion, so it is not claimed to reproduce the scaffold's path."
+>
+> **Why the path-fidelity caveat fired (`check_pass_n=False`):** the interaction-free manipulation gate (RMSE <= 2.5 cells,
+> LCB95 >= 0.90, same population definition as the representability audit) passed clearly on Pole B (0.980) but came back
+> BORDERLINE on Pole A (0.883 [0.834, 0.923] -- LCB just under 0.90). The positive control `A'` passed comfortably on both poles
+> (0.948 / 0.962), so the instrument itself is not in question; `N'`'s own path simply did not clear the bar on Pole A.
+>
+> **Direction was robustly, not marginally, manipulated:** realized per-tick heading agreement dropped from `A'`'s 0.42 / 0.29 to
+> `N'`'s 0.19 / 0.11 (Pole A / B); the paired `A'` minus `N'` contrast is clearly positive on both poles (LCB95 0.207 and 0.148,
+> n=128 pairs each) -- a large, unambiguous gap, licensing the "not necessary" statement rather than the weaker "no statement made"
+> branch of the frozen tree.
+>
+> **Other honesty notes (non-gating):** the automated split-half check flagged a sign flip on a purely descriptive margin contrast
+> (`N'` minus `A'` on Pole A: +0.047 -> -0.016 between halves) -- does not touch the primary win-rate gate, but is consistent with
+> Pole A being the noisier axis in this comparison, alongside its thin primary margin.
+>
+> **What this does and does not authorize.** Per the frozen `POST_RUN_COMMITMENT_FROZEN`: this experiment is the LAST diagnostic
+> in the vocabulary-necessity line -- no further metric exploration, no second manipulation-check definition, no re-run of this
+> question, regardless of the caveats above. It licenses moving to a training decision (teacher-guided PPO warm-started from
+> `pi_A`, see the PROPOSED item below and [[teacher-guided-ppo-successor-plan]] in memory) without first building a new DEFEND
+> primitive. It does NOT itself authorize PPO -- that remains a separate PI decision -- and it says nothing about `pi_B`, 6v6, or
+> whether PPO will actually learn the behavior the greedy oracle can merely express.
+>
+> **Earlier 2026-09-21 (later) — 4v4 SCAFFOLD-TO-NATIVE REPRESENTABILITY AUDIT COMPLETE: frozen label `NOT_REPRESENTABLE_VOCABULARY` on a valid audit, driven entirely by the DIRECTION sub-gate; TARGET and TRAJECTORY both pass at high coverage. READ-ONLY DIAGNOSTIC: no PPO, no new seed, `pi_B` not loaded. The label authorizes nothing.**
 > Spec [`SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json)
 > (amendment trail A1-A5 from the PI review), runner `experiments/audit_scaffold_to_native_representability_4v4.py` and the passing
 > 17/17 contract record were committed together as `59bb5073` before the replay started. The replay re-ran the 256 sealed A' cells

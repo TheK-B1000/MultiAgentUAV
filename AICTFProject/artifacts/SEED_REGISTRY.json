@@ -1300,10 +1300,17 @@
       "lo": 21200001,
       "hi": 21200128,
       "n": 128,
-      "status": "RESERVED",
+      "status": "SPENT",
       "spec": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_V1_SPEC.json",
       "subdivides": null,
-      "allocated_utc": "2026-09-22T00:13:37Z"
+      "allocated_utc": "2026-09-22T00:13:37Z",
+      "spent_utc": "2026-09-22T06:32:20Z",
+      "notes": [
+        {
+          "utc": "2026-09-22T06:32:20Z",
+          "note": "sealed SEALED; GOTO_ONLY_CROSSOVER_CONFIRMED"
+        }
+      ]
     },
     {
       "experiment_id": "CLOSEST_DEFENDS_SCREEN_4V4",
@@ -1318,7 +1325,7 @@
       "allocated_utc": "2026-09-22T04:56:45Z"
     }
   ],
-  "updated_utc": "2026-09-22T04:56:45Z",
+  "updated_utc": "2026-09-22T06:32:20Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

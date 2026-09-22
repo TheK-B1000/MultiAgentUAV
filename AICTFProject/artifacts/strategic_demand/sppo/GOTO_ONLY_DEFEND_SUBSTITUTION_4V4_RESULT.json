@@ -1,0 +1,448 @@
+{
+  "record_id": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_RESULT",
+  "implements": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_V1_SPEC.json",
+  "utc": "2026-09-22T06:32:19Z",
+  "device": "cuda",
+  "seed_block": {
+    "base": 21200001,
+    "n": 128,
+    "class": "sealed_confirmatory"
+  },
+  "PRIMARY_WIN_RATE_CONTRASTS": {
+    "Delta_A_N": {
+      "mean": 0.140625,
+      "lcb95": 0.015625,
+      "ucb95": 0.257812,
+      "n": 128,
+      "lcb95_above_zero": true
+    },
+    "Delta_B_N": {
+      "mean": 0.4375,
+      "lcb95": 0.335938,
+      "ucb95": 0.539062,
+      "n": 128,
+      "lcb95_above_zero": true
+    }
+  },
+  "SCAFFOLD_KNOWN_CROSSOVER_REPRODUCTION_win_rate": {
+    "Delta_A_Aprime": {
+      "mean": 0.09375,
+      "lcb95": -0.015625,
+      "ucb95": 0.203125,
+      "n": 128
+    },
+    "Delta_B_Aprime": {
+      "mean": 0.382812,
+      "lcb95": 0.28125,
+      "ucb95": 0.484375,
+      "n": 128
+    }
+  },
+  "MECHANISM_DIAGNOSTICS_NOT_GATES_win_rate": {
+    "I_A_Aprime": {
+      "mean": -0.195312,
+      "lcb95": -0.296875,
+      "ucb95": -0.09375,
+      "n": 128
+    },
+    "I_B_Aprime": {
+      "mean": -0.492188,
+      "lcb95": -0.59375,
+      "ucb95": -0.390625,
+      "n": 128
+    },
+    "I_A_N": {
+      "mean": -0.148438,
+      "lcb95": -0.257812,
+      "ucb95": -0.039062,
+      "n": 128
+    },
+    "I_B_N": {
+      "mean": -0.546875,
+      "lcb95": -0.648438,
+      "ucb95": -0.445312,
+      "n": 128
+    },
+    "N_minus_Aprime_A": {
+      "mean": 0.046875,
+      "lcb95": -0.0625,
+      "ucb95": 0.15625,
+      "n": 128
+    },
+    "N_minus_Aprime_B": {
+      "mean": -0.054688,
+      "lcb95": -0.132812,
+      "ucb95": 0.015625,
+      "n": 128
+    }
+  },
+  "NATIVE_CROSSOVER_ON_THE_FRESH_BLOCK_DESCRIPTIVE_win_rate": {
+    "native_Delta_A": {
+      "mean": 0.289062,
+      "lcb95": 0.1875,
+      "ucb95": 0.382812,
+      "n": 128
+    },
+    "native_Delta_B": {
+      "mean": -0.109375,
+      "lcb95": -0.210938,
+      "ucb95": -0.007812,
+      "n": 128
+    }
+  },
+  "DESCRIPTIVE_BLUE_GOALS_CONTRASTS": {
+    "Delta_A_N": {
+      "mean": 0.851562,
+      "lcb95": 0.585938,
+      "ucb95": 1.109375,
+      "n": 128
+    },
+    "Delta_B_N": {
+      "mean": 0.875,
+      "lcb95": 0.679688,
+      "ucb95": 1.078125,
+      "n": 128
+    },
+    "Delta_A_Aprime": {
+      "mean": 0.671875,
+      "lcb95": 0.421875,
+      "ucb95": 0.914062,
+      "n": 128
+    },
+    "Delta_B_Aprime": {
+      "mean": 0.742188,
+      "lcb95": 0.539062,
+      "ucb95": 0.953125,
+      "n": 128
+    },
+    "I_A_Aprime": {
+      "mean": 0.546875,
+      "lcb95": 0.3125,
+      "ucb95": 0.773438,
+      "n": 128
+    },
+    "I_B_Aprime": {
+      "mean": -1.257812,
+      "lcb95": -1.515625,
+      "ucb95": -1.007812,
+      "n": 128
+    },
+    "I_A_N": {
+      "mean": 0.726562,
+      "lcb95": 0.484375,
+      "ucb95": 0.960938,
+      "n": 128
+    },
+    "I_B_N": {
+      "mean": -1.390625,
+      "lcb95": -1.640625,
+      "ucb95": -1.140625,
+      "n": 128
+    },
+    "N_minus_Aprime_A": {
+      "mean": 0.179688,
+      "lcb95": -0.101562,
+      "ucb95": 0.460938,
+      "n": 128
+    },
+    "N_minus_Aprime_B": {
+      "mean": -0.132812,
+      "lcb95": -0.25,
+      "ucb95": -0.015625,
+      "n": 128
+    },
+    "native_Delta_A": {
+      "mean": 0.125,
+      "lcb95": -0.085938,
+      "ucb95": 0.335938,
+      "n": 128
+    },
+    "native_Delta_B": {
+      "mean": -0.515625,
+      "lcb95": -0.757812,
+      "ucb95": -0.265625,
+      "n": 128
+    }
+  },
+  "DESCRIPTIVE_MARGIN_CONTRASTS": {
+    "Delta_A_N": {
+      "mean": 0.429688,
+      "lcb95": 0.140625,
+      "ucb95": 0.710938,
+      "n": 128
+    },
+    "Delta_B_N": {
+      "mean": 1.5625,
+      "lcb95": 1.296875,
+      "ucb95": 1.820508,
+      "n": 128
+    },
+    "Delta_A_Aprime": {
+      "mean": 0.414062,
+      "lcb95": 0.15625,
+      "ucb95": 0.664062,
+      "n": 128
+    },
+    "Delta_B_Aprime": {
+      "mean": 1.335938,
+      "lcb95": 1.07793,
+      "ucb95": 1.601562,
+      "n": 128
+    },
+    "I_A_Aprime": {
+      "mean": 0.140625,
+      "lcb95": -0.09375,
+      "ucb95": 0.367188,
+      "n": 128
+    },
+    "I_B_Aprime": {
+      "mean": -2.0625,
+      "lcb95": -2.34375,
+      "ucb95": -1.78125,
+      "n": 128
+    },
+    "I_A_N": {
+      "mean": 0.15625,
+      "lcb95": -0.101562,
+      "ucb95": 0.414062,
+      "n": 128
+    },
+    "I_B_N": {
+      "mean": -2.289062,
+      "lcb95": -2.554688,
+      "ucb95": -2.015625,
+      "n": 128
+    },
+    "N_minus_Aprime_A": {
+      "mean": 0.015625,
+      "lcb95": -0.273438,
+      "ucb95": 0.304688,
+      "n": 128
+    },
+    "N_minus_Aprime_B": {
+      "mean": -0.226562,
+      "lcb95": -0.421875,
+      "ucb95": -0.03125,
+      "n": 128
+    },
+    "native_Delta_A": {
+      "mean": 0.273438,
+      "lcb95": 0.070312,
+      "ucb95": 0.46875,
+      "n": 128
+    },
+    "native_Delta_B": {
+      "mean": -0.726562,
+      "lcb95": -0.984375,
+      "ucb95": -0.460938,
+      "n": 128
+    }
+  },
+  "CELL_MEANS": {
+    "pi_A_poleA": {
+      "win": 0.8125,
+      "blue": 1.078125,
+      "margin": 1.023438
+    },
+    "pi_A_poleB": {
+      "win": 0.632812,
+      "blue": 1.609375,
+      "margin": 1.578125
+    },
+    "A_prime_poleA": {
+      "win": 0.617188,
+      "blue": 1.625,
+      "margin": 1.164062
+    },
+    "A_prime_poleB": {
+      "win": 0.140625,
+      "blue": 0.351562,
+      "margin": -0.484375
+    },
+    "N_prime_poleA": {
+      "win": 0.664062,
+      "blue": 1.804688,
+      "margin": 1.179688
+    },
+    "N_prime_poleB": {
+      "win": 0.085938,
+      "blue": 0.21875,
+      "margin": -0.710938
+    },
+    "pi_B_poleA": {
+      "win": 0.523438,
+      "blue": 0.953125,
+      "margin": 0.75
+    },
+    "pi_B_poleB": {
+      "win": 0.523438,
+      "blue": 1.09375,
+      "margin": 0.851562
+    }
+  },
+  "IN_ENV_PATH_CHECK": {
+    "criterion": "GATING: interaction-free-window live path vs isolated DEFEND reference, RMSE <= 2.5, coverage LCB95 >= 0.9 per pole (the audit's own robustness definition; excludes the live avoid-collision-shove confound, not a threshold change). Full-population rate reported as a non-gating diagnostic.",
+    "csv_sha256": "f2b9d754543426c0ea6cb1c239b93cdb109d61eb762c6933c17bb03dd781101c",
+    "path_check": {
+      "A_prime": {
+        "A": {
+          "rate": 0.9475806451612904,
+          "lcb95": 0.9111960316971706,
+          "ucb95": 0.976680623902846,
+          "windows": 496,
+          "episodes": 128
+        },
+        "B": {
+          "rate": 0.9615384615384616,
+          "lcb95": 0.9376554437958555,
+          "ucb95": 0.9827594448473659,
+          "windows": 468,
+          "episodes": 128
+        }
+      },
+      "N_prime": {
+        "A": {
+          "rate": 0.8830715532286213,
+          "lcb95": 0.8343682124757078,
+          "ucb95": 0.9232224600202127,
+          "windows": 573,
+          "episodes": 128
+        },
+        "B": {
+          "rate": 0.9795918367346939,
+          "lcb95": 0.9658698909514692,
+          "ucb95": 0.9897785970977008,
+          "windows": 735,
+          "episodes": 128
+        }
+      }
+    },
+    "path_check_status": {
+      "A_prime": {
+        "A": "PASS",
+        "B": "PASS"
+      },
+      "N_prime": {
+        "A": "BORDERLINE",
+        "B": "PASS"
+      }
+    },
+    "path_check_full_population_diagnostic": {
+      "A_prime": {
+        "A": {
+          "rate": 0.8828983298406046,
+          "lcb95": 0.8699485831388782,
+          "ucb95": 0.8952961003386157,
+          "windows": 15747
+        },
+        "B": {
+          "rate": 0.9002914238134888,
+          "lcb95": 0.8920003055385389,
+          "ucb95": 0.9084046431314746,
+          "windows": 24020
+        }
+      },
+      "N_prime": {
+        "A": {
+          "rate": 0.6488000439343182,
+          "lcb95": 0.6236145228096723,
+          "ucb95": 0.6741260384615982,
+          "windows": 18209
+        },
+        "B": {
+          "rate": 0.7039043017456359,
+          "lcb95": 0.6811558424656606,
+          "ucb95": 0.7267844934948527,
+          "windows": 25664
+        }
+      }
+    }
+  },
+  "HEADING_DIAGNOSTIC": {
+    "realized_heading_agreement": {
+      "A_prime": {
+        "A": {
+          "rate": 0.4236302339346836,
+          "lcb95": 0.3964062335480859,
+          "ucb95": 0.4515721654364023,
+          "ticks": 38857
+        },
+        "B": {
+          "rate": 0.2873942978605425,
+          "lcb95": 0.26850478512488446,
+          "ucb95": 0.3069730174754597,
+          "ticks": 43282
+        }
+      },
+      "N_prime": {
+        "A": {
+          "rate": 0.19227039361095266,
+          "lcb95": 0.17429991113200996,
+          "ucb95": 0.21048225706673043,
+          "ticks": 35060
+        },
+        "B": {
+          "rate": 0.11249701599427071,
+          "lcb95": 0.10146697379362206,
+          "ucb95": 0.1250468773287342,
+          "ticks": 33512
+        }
+      }
+    },
+    "paired_A_prime_minus_N_prime": {
+      "A": {
+        "mean": 0.239738,
+        "lcb95": 0.207425,
+        "ucb95": 0.271961,
+        "n": 128,
+        "n_pairs_used": 128
+      },
+      "B": {
+        "mean": 0.171788,
+        "lcb95": 0.148317,
+        "ucb95": 0.195212,
+        "n": 128,
+        "n_pairs_used": 128
+      }
+    }
+  },
+  "DECISION_INPUTS": {
+    "integrity_ok": true,
+    "delta_a_lcb": 0.015625,
+    "delta_b_lcb": 0.335938,
+    "instrument_valid": true,
+    "check_pass_n": false,
+    "direction_manipulated": true
+  },
+  "N_PRIME_ATTESTATION": {
+    "n_cells": 256,
+    "all_native_surface": true,
+    "n_emitted_total": 116584,
+    "n_boundary_total": 85861,
+    "n_controller_calls_total": 76536,
+    "n_boundary_unverifiable_at_episode_end_total": 396
+  },
+  "TERMINAL_OUTCOME": "GOTO_ONLY_CROSSOVER_CONFIRMED",
+  "INTERPRETATION": "Instantaneous DIRECTION is not necessary for crossover: a defender restricted to native (GO_TO, legal waypoint) actions, which removes per-tick heading fidelity relative to the scaffold, preserved the crossover. This does not mean the DIRECTION metric was wrong; it measured a real mismatch that was not behaviorally necessary for the endpoint. N' also did not meet the pre-declared in-env path criterion, so it is not claimed to reproduce the scaffold's path.",
+  "interpretation_guard": "N' is an oracle-informed GO_TO controller: it uses the DEFEND teacher law as information to choose waypoints, so a positive result says the native vocabulary suffices for the crossover effect, NOT that PPO will find that behavior. Neither outcome authorizes PPO.",
+  "provenance": {
+    "spec_sha256": "a01e468e2977bb0cde50b1d819b8e2b2167dadf556cb90f021caf68734000d8f",
+    "script_sha256": "10cc4608c7180a554c905a805bf2f02299ad502d8733a9b4bfe1d8b60f1edcb5",
+    "audit_script_sha256": "a34ba0906da4cdc0168dd074c757248411ef62116c2ed38684b690e823798571",
+    "scaffold_runner_sha256": "e6288f15fbe9dd67d13517c5641dbe8a5c144eb84790f5ead0dd3a24d536ff1c",
+    "mechanism_source_sha256": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb",
+    "pole_b_genome_sha256": "99c17cadcb4e0cbccdad02847d3997b2c4d59a2c945ceba2fc5eedb8c5ad5f26"
+  },
+  "claim_boundary": "Two frozen 4v4 learned specialists, the two certified 4v4 poles, fresh sealed_confirmatory seeds. TERMINAL_OUTCOME is certified ONLY if this record's own status is SEALED; integrity/audit failure takes precedence over every label. N' is an oracle-informed GO_TO controller: it uses the DEFEND teacher law as information to choose waypoints, so a positive result says the native vocabulary suffices for the crossover effect, NOT that PPO will find that behavior. Neither outcome authorizes PPO.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-22T06:32:20Z",
+  "git_sha": "f4f4ac6f6001dc121828e7e4221f62bfa6d5382c",
+  "AUDIT": {
+    "path": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_AUDIT.json",
+    "passed": true,
+    "n_checks": 84,
+    "n_gating": 48,
+    "failed_checks": [],
+    "rows_sha256": "20615e6d4af379d90afd7da691e3dd4e1c3f9d9318ed909a0e1284cdcfef9d7c"
+  }
+}
