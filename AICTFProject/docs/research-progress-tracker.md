@@ -1433,6 +1433,73 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
 
+### PROPOSED — GO_TO-only env-level DEFEND substitution test (2026-09-21) — NOT FROZEN
+
+**Status:** PROPOSED only. No seed block allocated, no code written, nothing launched. Not a preset (no `PPOConfig`, preset, actor,
+critic or loss change), so no Proposed Preset Review applies. Follows from the frozen representability audit (`f2e051de`).
+
+**Question.** Is instantaneous DEFEND heading *necessary* for the scaffold's crossover effect, or does GO_TO-only defense -- the coarse
+native vocabulary, made to behave as much like the scaffold's defenders as GO_TO permits -- preserve it? The audit shows DIRECTION fails
+while TARGET (~98%) and native-commit TRAJECTORY (~96%) pass; it never tested necessity. This experiment intervenes on exactly that
+ambiguity, which correlation between low DIRECTION and a non-crossing learned policy cannot do.
+
+**Hierarchy.** forced 2A/2D scaffold `A'` (known crossover, sealed) -> GO_TO-only approximation of 2A/2D `N'` (?).
+
+**Design as proposed -- every choice below is the author's default, for the PI to veto before freeze:**
+
+* Fresh `sealed_confirmatory` block; both certified 4v4 poles (Pole B = the B3-3 genome, never canonical OP7); the same pair rotation
+  (`PAIRS[seed % 6]`). Arms: native `pi_A`, `A'` (the unchanged target-injection scaffold), `N'`, native `pi_B`; n = 128 paired seeds
+  -> 1,024 episodes (~5 h on 6 shards). `A'` and `pi_B` are re-run on the fresh seeds so `N'` vs `A'` is paired.
+* `N'`: the same two agents per episode as in `A'` are driven by a controller whose ONLY outputs are native actions (macro `GO_TO` plus
+  a legal waypoint index), fed through the real action interface and taking effect at native commit boundaries. No
+  `install_forced_defend_target`, no resolved-target override, no new macro (`n_macros` stays 5), PPO off.
+* Controller = a CAUSAL version of the audit's greedy path-oracle: at each commit boundary it recomputes the isolated DEFEND rollout
+  from the agent's CURRENT live state (a function of state only, no future information) and commits the legal `GO_TO` waypoint whose
+  commit-horizon path best matches it. It uses the teacher law as information, so this tests interface capacity in the env, not learnability.
+* Manipulation check (controller-quality gate): in the env, `N'`'s defender path must meet the audit's TRAJECTORY criterion against the
+  isolated DEFEND reference (RMSE <= 2.5 cells, coverage >= 0.90 per pole) before a crossover failure may be read as vocabulary necessity.
+* Primary: crossover on `N'`: LCB95(WR(N',A) - WR(pi_B,A)) > 0 AND LCB95(WR(pi_B,B) - WR(N',B)) > 0 (paired percentile bootstrap,
+  20000 resamples, rng seed 7, as in the bridge). Reported, non-gating: `N'` vs `A'` paired contrasts per pole (how much of the
+  scaffold's suppression of A on B is retained), Blue goals, margin.
+
+**Informative outcomes (pre-stated).** (1) GO_TO-only still crosses over and the manipulation check passes -> DIRECTION was not necessary
+for this question; the audit's routing was conservative; no DEFEND macro is needed; proceed toward teaching `pi_A` with the existing
+vocabulary. (2) GO_TO-only loses crossover with the manipulation check passing -> something absent from the coarse reproduction
+matters; DIRECTION becomes a strong candidate and a learned-selectable DEFEND primitive test becomes justified rather than speculative.
+(3) The manipulation check fails -> `INCONCLUSIVE_CONTROLLER`: fix the controller before concluding anything; never read as "DIRECTION necessary".
+
+**Fences (as for the bridge).** No PPO; no new vocabulary; native and `A'` arms unchanged; contracts before any seed is spent (including
+exact reproduction of sealed episodes through the new runner for the unchanged arms, and a legal-action contract that every `N'` action
+is `(GO_TO, legal idx)`); commit the frozen pre-run package before launch; no interim outcome reading; no top-up. Interpretation guard:
+`N'` is an oracle-informed GO_TO controller, NOT a learned policy; a positive result says the vocabulary suffices for the effect, not that PPO will find it.
+
+**Choices APPROVED by the PI (2026-09-21):** (1) 4 arms x n=128 (a paired contemporary baseline beats a smaller run); (2) the causal
+path-oracle as the `N'` controller (a ring-hold rule would add a second question, "was the controller good enough?"); (3) the
+manipulation-check level unchanged at 2.5 cells / 0.90 coverage, never loosened after outcomes.
+
+**Guardrails added at approval.** The interpretation tree is frozen explicitly (`N'` crossover -> "instantaneous DIRECTION is not
+necessary for crossover", which does NOT mean the DIRECTION metric was wrong; `N'` loses crossover with TRAJECTORY < 0.90 ->
+`INCONCLUSIVE_CONTROLLER` and no claim about direction or vocabulary; `N'` loses crossover with TRAJECTORY >= 0.90 -> "high path
+fidelity under native GO_TO was insufficient to preserve crossover, strengthening evidence that behavior omitted by the GO_TO
+approximation, including instantaneous directional control, may be causally important", NOT "DIRECTION proven necessary", because `N'`
+could still differ from `A'` in another unmeasured way; it would authorize the next directional/interface experiment only). The
+controller and analysis must be outcome-blind and deterministic given state/seed, and `N'` carries a per-episode attestation that every
+emitted action is on the existing native `(GO_TO, legal waypoint)` surface -- no hidden helper, no direct target injection, no scaffold
+action through a side door. Author's additions, flagged for veto at freeze: an `A'` positive control for the in-env trajectory
+instrument, and a paired heading-agreement diagnostic showing `N'` actually removes per-tick heading fidelity relative to `A'`
+(otherwise the crossover result carries no statement about DIRECTION).
+
+**Conditional successor (PI plan, NOT authorized; gated on this experiment showing GO_TO suffices):** teacher-guided PPO warm-started
+from `pi_A` (`L = L_PPO + lambda L_teacher`, lambda annealed 1.0 -> 0.5 -> 0.2 -> 0), an auxiliary ATTACK/DEFEND role head, DAgger-style
+on-policy teacher queries, training-only defend shaping annealed to zero, forced roles decayed in stages, and the success criterion that
+native `pi_A` ALONE passes crossover with no forced defenders, no scaffold, no teacher at evaluation. Flags for that freeze: the
+scaffold's defenders are chosen by seed rotation, not by state, so a state-dependent teacher assignment would need its own bridge
+test; and a prior teacher-distillation attempt failed a Compression Crossover (see memory) and GUARD's assignment machinery needs
+information absent from the student observation.
+
+**Next:** freeze spec -> contract-test -> commit the pre-run package (spec, runner, seed reservation, passing contract record) ->
+reserve the fresh seed block -> await the PI's launch go (the run spends the confirmatory block once).
+
 ### C2 fresh confirmation — `C2_REJECTED` (2026-08-06)
 
 **Candidate:** `none_forward_frac` (fraction of decisions during carrying

@@ -1292,9 +1292,21 @@
           "note": "sealed SEALED; SCAFFOLDED_CROSSOVER_CONFIRMED"
         }
       ]
+    },
+    {
+      "experiment_id": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4",
+      "purpose": "4v4 env-level necessity test: is instantaneous DEFEND heading necessary for the scaffold's 2A/2D crossover, or does a defender restricted to native (GO_TO, legal waypoint) actions preserve it? Manipulation-gated on interaction-free window path fidelity vs the isolated DEFEND reference. No PPO, no new vocabulary. Last diagnostic before a training decision.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21200001,
+      "hi": 21200128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T00:13:37Z"
     }
   ],
-  "updated_utc": "2026-09-21T21:02:45Z",
+  "updated_utc": "2026-09-22T00:13:37Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
