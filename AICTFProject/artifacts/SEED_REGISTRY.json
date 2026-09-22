@@ -1354,9 +1354,33 @@
       "spec": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-22T11:23:34Z"
+    },
+    {
+      "experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_TRAINING",
+      "purpose": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: 200k split-policy (frozen pi_A ATTACK + trained pi_D DEFEND) training seed, single seed",
+      "seed_class": "exploratory",
+      "lo": 21600001,
+      "hi": 21600001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T15:41:39Z"
+    },
+    {
+      "experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_EVAL",
+      "purpose": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: post-training exploratory evaluation block, n=64, both poles vs frozen pi_B comparator",
+      "seed_class": "exploratory",
+      "lo": 21700001,
+      "hi": 21700064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T15:41:39Z"
     }
   ],
-  "updated_utc": "2026-09-22T11:23:34Z",
+  "updated_utc": "2026-09-22T15:41:39Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
