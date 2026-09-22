@@ -1,0 +1,75 @@
+{
+  "record_id": "CLOSEST_DEFENDS_SCREEN_4V4_CONTRACT_RESULT",
+  "implements": "CLOSEST_DEFENDS_SCREEN_4V4_V1_SPEC.json",
+  "utc": "2026-09-22T05:34:29Z",
+  "DECISION": "CONTRACTS_PASS",
+  "spec_sha256": "acba8c349b5d91bb185d0af7c0a976a7675192873d09984d9e32c6aff3c1e7b5",
+  "script_sha256": "c5d08a2a5406168c5546c925efbc403480f4a5690f9ec913ec7746f2d0d9f4c4",
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN",
+      "pass": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "check": "C1_SEALED_INPUTS_EQUAL_THEIR_PINS",
+      "pass": true,
+      "detail": "all 5 pinned inputs equal their pins"
+    },
+    {
+      "check": "C2_CHECKPOINTS_EQUAL_THE_PINNED_HASHES",
+      "pass": true,
+      "detail": "{'pi_A': '94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478', 'pi_B': '021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12'} vs pinned {'pi_A': '94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478', 'pi_B': '021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12'}"
+    },
+    {
+      "check": "C3_BOTH_POLES_ATTESTED_AND_POLE_B_IS_THE_CERTIFIED_B3_3_GENOME",
+      "pass": true,
+      "detail": "attested ['A', 'B']; Pole B genome file B3-3_lockdef10_2v1.json"
+    },
+    {
+      "check": "C4_BLOCK_RESERVED_EXPLORATORY_UNSPENT_AND_DISJOINT",
+      "pass": true,
+      "detail": "already registered to CLOSEST_DEFENDS_SCREEN_4V4 (status RESERVED) -- same block, no conflict; registry status=RESERVED class=exploratory"
+    },
+    {
+      "check": "C5_PAIR_SELECTION_MATCHES_INDEPENDENT_BRUTE_FORCE",
+      "pass": true,
+      "detail": "421/421 eligible synthetic states (of 500 drawn) matched an independent argsort recomputation exactly"
+    },
+    {
+      "check": "C6_SPAWN_GEOMETRY_NON_DEGENERATE_ON_ALL_REAL_CELLS",
+      "pass": true,
+      "detail": "gap between 2nd/3rd-closest agent across all 128 (seed,pole) cells: min 0.1124, median 1.3032"
+    },
+    {
+      "check": "C7_NATIVE_ARM_HARNESS_REPRODUCES_A_KNOWN_SEALED_BRIDGE_ROW",
+      "pass": true,
+      "detail": "4/4 (arm,pole) cells at seed 21100001 equal their sealed bridge row"
+    },
+    {
+      "check": "C8_A_CLOSEST_IS_DETERMINISTIC_AND_STATE_DEPENDENT",
+      "pass": true,
+      "detail": "rerun of (A, 21300001) identical: True; 2 distinct pairs across the first 4 seeds: [(0, 2), (1, 3)]"
+    },
+    {
+      "check": "C8b_POLICY_PARAMETERS_UNCHANGED_BY_CONTRACT_EPISODES",
+      "pass": true,
+      "detail": "parameter digests equal before/after"
+    },
+    {
+      "check": "C9_NO_SEED_TABLE_SIDE_DOOR",
+      "pass": true,
+      "detail": "run_closest_episode never calls pair_for_seed/PAIRS[...]"
+    },
+    {
+      "check": "C10_PATTERN_MATCH_SELFTEST",
+      "pass": true,
+      "detail": "5/5 synthetic cases"
+    },
+    {
+      "check": "C11_READ_ONLY_FENCE",
+      "pass": true,
+      "detail": "no training/optimizer call in the source"
+    }
+  ]
+}

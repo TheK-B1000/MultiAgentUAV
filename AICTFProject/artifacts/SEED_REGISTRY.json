@@ -1304,9 +1304,21 @@
       "spec": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-22T00:13:37Z"
+    },
+    {
+      "experiment_id": "CLOSEST_DEFENDS_SCREEN_4V4",
+      "purpose": "4v4 exploratory screen (descriptive, no confirmatory label): does forcing DEFEND onto the two ACTIVE agents closest to own flag at t=0 (fixed-at-episode-start, state-dependent) reproduce the sealed scaffold bridge's crossover pattern, or does the seed-rotated pair choice matter more than headcount?",
+      "seed_class": "exploratory",
+      "lo": 21300001,
+      "hi": 21300064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "CLOSEST_DEFENDS_SCREEN_4V4_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T04:56:45Z"
     }
   ],
-  "updated_utc": "2026-09-22T00:13:37Z",
+  "updated_utc": "2026-09-22T04:56:45Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",
