@@ -1,0 +1,82 @@
+{
+  "utc": "2026-09-23T22:37:11Z",
+  "stage": "foundation",
+  "record_id": "SCHOOL_PC_6V6_PREFLIGHT_RESULT",
+  "framing": "same algorithmic recipe, scale-specific configuration",
+  "scale_specific": {
+    "N": 6,
+    "k": 1,
+    "composition": "5A/1D"
+  },
+  "method_unchanged": [
+    "mature A/B specialists",
+    "frozen pi_A on ATTACK",
+    "pi_D warm-started from pi_A",
+    "200k split PPO",
+    "same N' defender-teacher schedule as 4v4",
+    "CLOSEST_DEFENDS",
+    "Delta_A/Delta_B LCB95 gate"
+  ],
+  "passed": true,
+  "n_checks": 11,
+  "n_pass": 11,
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN_FOR_SCHOOL_PC",
+      "pass": true,
+      "detail": "status='FROZEN_FOR_SCHOOL_PC'"
+    },
+    {
+      "check": "C0b_TEACHER_LOSS_IS_4V4_N_PRIME",
+      "pass": true,
+      "detail": "loss=\"CE(macro, GO_TO) + CE(waypoint, w_N')\""
+    },
+    {
+      "check": "C0c_TEACHER_SCHEDULE_IDENTICAL",
+      "pass": true,
+      "detail": "CLI={'defend_teacher_lambda': 0.1, 'defend_teacher_lambda_end': 0.0, 'defend_teacher_decay_start_step': 50000, 'defend_teacher_decay_end_step': 150000, 'defend_teacher_cadence': 4}"
+    },
+    {
+      "check": "C0d_SCALE_SPECIFIC_K_IS_1_NOT_N_OVER_2",
+      "pass": true,
+      "detail": "split step locks CLOSEST_DEFENDS(k=1), fixed_for_episode"
+    },
+    {
+      "check": "C0e_NO_TEACHER_RETUNE_FORBIDDEN",
+      "pass": true,
+      "detail": "forbidden list includes teacher retune"
+    },
+    {
+      "check": "C1_BASE_PI_A_HASH",
+      "pass": true,
+      "detail": "path=artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip sha_ok=True"
+    },
+    {
+      "check": "C1b_BASE_PI_B_HASH",
+      "pass": true,
+      "detail": "path=artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip sha_ok=True"
+    },
+    {
+      "check": "C2_REPAIR_A_DRY_RUN",
+      "pass": true,
+      "detail": "  WARM START from final_pi_A_specialist_6v6.zip [entity_repair_enabled=True] (weight init only: global_step resets to 0; fresh run/label; metrics start fresh; total_timesteps = 1,000,000 is this run's OWN fresh budget) | SPECIALIST_SCALE  pi_A  6v6   [PRODUCTION] |   seed             22500001 |   total timesteps  1,000,000 |   checkpoint dir   K:\\MultiAgentUAV\\AICTFProject\\artifacts\\scale_6v6_specialists\\pi_A_specialist_6v6_c2_entity_repair\\ckpts |   entity_repair    enabled  hidden_dim=32  warm"
+    },
+    {
+      "check": "C2b_REPAIR_B_DRY_RUN",
+      "pass": true,
+      "detail": "  WARM START from final_pi_B_specialist_6v6.zip [entity_repair_enabled=True] (weight init only: global_step resets to 0; fresh run/label; metrics start fresh; total_timesteps = 1,000,000 is this run's OWN fresh budget) | SPECIALIST_SCALE  pi_B  6v6   [PRODUCTION] |   seed             22500002 |   total timesteps  1,000,000 |   checkpoint dir   K:\\MultiAgentUAV\\AICTFProject\\artifacts\\scale_6v6_specialists\\pi_B_specialist_6v6_c2_entity_repair\\ckpts |   entity_repair    enabled  hidden_dim=32  warm"
+    },
+    {
+      "check": "C3_N_PRIME_TEACHER_MECHANISMS",
+      "pass": true,
+      "detail": ".............                                                            [100%] | 13 passed, 19 deselected in 4.18s"
+    },
+    {
+      "check": "C4_T0_EQUIVALENCE_AND_FROZEN_ATTACK_NEVER_IN_OPTIMIZER",
+      "pass": true,
+      "detail": ".....                                                                    [100%] | 5 passed, 20 deselected in 7.82s"
+    }
+  ],
+  "ready_for_long_school_pc_run": true,
+  "ready_for_split_200k": false
+}

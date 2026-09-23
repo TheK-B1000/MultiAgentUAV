@@ -1,0 +1,694 @@
+{
+  "record_id": "CLOSEST_SPLIT_VIABILITY_6V6_25000",
+  "classification": "NON-CLAIM viability screen. n=16. Not a crossover result.",
+  "step": 25000,
+  "checkpoint": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_6v6_specialists\\exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1\\ckpts\\ckpt_exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1_25000.zip",
+  "frozen_attack_sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82",
+  "seeds": [
+    22300001,
+    22300002,
+    22300003,
+    22300004,
+    22300005,
+    22300006,
+    22300007,
+    22300008,
+    22300009,
+    22300010,
+    22300011,
+    22300012,
+    22300013,
+    22300014,
+    22300015,
+    22300016
+  ],
+  "CELL_WIN_RATES": {
+    "k1_poleA": 0.8125,
+    "k1_poleB": 1.0,
+    "k3_poleA": 0.875,
+    "k3_poleB": 1.0
+  },
+  "WIN_RATE_CONTRASTS_nonclaim": {
+    "Delta_A": {
+      "mean": -0.0625,
+      "lcb95": -0.25,
+      "ucb95": 0.125,
+      "n": 16
+    },
+    "Delta_B": {
+      "mean": 0.0,
+      "lcb95": 0.0,
+      "ucb95": 0.0,
+      "n": 16
+    }
+  },
+  "decision": "unclear",
+  "both_compositions_destroyed": false,
+  "reading_rule": {
+    "promising": "Delta_B>0, Delta_A>-0.25, neither composition dead on both poles",
+    "obvious_collapse": "k=1 win rate < 0.25 on both poles",
+    "unclear": "otherwise; continue to 50k once, then stop on this PC"
+  },
+  "rows": [
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300001,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300001,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300001,
+      "blue": 2,
+      "red": 0,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300001,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300002,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300002,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300002,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300002,
+      "blue": 3,
+      "red": 1,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300003,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300003,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300003,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300003,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300004,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300004,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300004,
+      "blue": 2,
+      "red": 0,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300004,
+      "blue": 2,
+      "red": 0,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300005,
+      "blue": 2,
+      "red": 1,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300005,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300005,
+      "blue": 2,
+      "red": 0,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300005,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300006,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300006,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300006,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300006,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300007,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300007,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300007,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300007,
+      "blue": 3,
+      "red": 1,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300008,
+      "blue": 1,
+      "red": 2,
+      "win": 0,
+      "margin": -1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300008,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300008,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300008,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300009,
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300009,
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300009,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300009,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300010,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300010,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300010,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300010,
+      "blue": 3,
+      "red": 1,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300011,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300011,
+      "blue": 0,
+      "red": 0,
+      "win": 0,
+      "margin": 0
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300011,
+      "blue": 3,
+      "red": 1,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300011,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300012,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300012,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300012,
+      "blue": 3,
+      "red": 1,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300012,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300013,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300013,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300013,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300013,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300014,
+      "blue": 1,
+      "red": 1,
+      "win": 0,
+      "margin": 0
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300014,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300014,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300014,
+      "blue": 2,
+      "red": 0,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300015,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300015,
+      "blue": 2,
+      "red": 0,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300015,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300015,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "A",
+      "seed": 22300016,
+      "blue": 2,
+      "red": 0,
+      "win": 1,
+      "margin": 2
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "A",
+      "seed": 22300016,
+      "blue": 1,
+      "red": 0,
+      "win": 1,
+      "margin": 1
+    },
+    {
+      "arm": "k1",
+      "k": 1,
+      "pole": "B",
+      "seed": 22300016,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    },
+    {
+      "arm": "k3",
+      "k": 3,
+      "pole": "B",
+      "seed": 22300016,
+      "blue": 3,
+      "red": 0,
+      "win": 1,
+      "margin": 3
+    }
+  ]
+}

@@ -1,15 +1,15 @@
 {
   "record": "train_specialist_scale run manifest",
-  "utc": "2026-09-23T14:45:33Z",
+  "utc": "2026-09-23T19:10:02Z",
   "smoke_non_scientific": false,
   "team_size": 6,
   "policy": "A",
   "pole_base": "OP6",
   "seed": 22200001,
   "device": "cuda",
-  "git_sha": "892da3213939832599196b430d7217ed9f61b932",
+  "git_sha": "af8f76c2e12e18999ba1d63629afec9e20920149",
   "git_dirty": true,
-  "total_timesteps": 25000,
+  "total_timesteps": 50000,
   "certification_verdict": "CERTIFIED",
   "certification_record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
   "CERTIFIED_OPPONENT": "<canonical>",
@@ -69,7 +69,7 @@
     "inherits_getflag_ckpt": false,
     "optimizer_state_inherited": false
   },
-  "warm_start_from": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
-  "resume_from": "artifacts\\scale_6v6_specialists\\pi_A_specialist_6v6\\ckpts\\final_pi_A_specialist_6v6.zip",
+  "warm_start_from": null,
+  "resume_from": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_6v6_specialists\\exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1\\ckpts\\ckpt_exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1_25000.zip",
   "implements_spec": "RULE_BASED_ROLE_CONDITIONING_SPEC.json"
 }

@@ -59,5 +59,6 @@
     "claiming PAPER-FAITHFUL or latent-strategy relevance"
   ],
 
-  "claim_boundary": "Exploratory 200k internalization of DEFEND-slot behavior under CLOSEST_DEFENDS k in {1,3}, frozen pre-entity 6v6 pi_A on ATTACK slots. Does not by itself establish learned 6v6 separation."
+  "claim_boundary": "Exploratory 200k internalization of DEFEND-slot behavior under CLOSEST_DEFENDS k in {1,3}, frozen pre-entity 6v6 pi_A on ATTACK slots. Does not by itself establish learned 6v6 separation.",
+  "POST_HOC_LABEL_2026-09-23": "6v6 composition/viability diagnostic, not the final 6v6 closure architecture. Locked closure path (2026-09-23): mature entity-repair pi_A/pi_B, freeze pi_A on ATTACK, warm-start pi_D from that pi_A, 200k defender adaptation, CLOSEST_DEFENDS(k=1), then composite A vs frozen pi_B with the same Delta_A/Delta_B LCB95 gate as 4v4. k=1 is frozen from the sealed scripted confirmation. This k=1 vs k=3 run does not mutate that architecture. The existing pre-entity-repair 6v6 pair is not the foundation."
 }

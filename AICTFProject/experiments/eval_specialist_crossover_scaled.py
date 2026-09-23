@@ -94,6 +94,9 @@ def main() -> int:
                          "Default empty = ordinary single-policy evaluation, unchanged.")
     ap.add_argument("--frozen-attack-path-sha256", default="",
                     help="expected sha256 of --frozen-attack-path (fail-closed on mismatch)")
+    ap.add_argument("--role-k-defend", type=int, default=0,
+                    help="explicit CLOSEST_DEFENDS defender count. 0 = default role_k(N)=N/2. "
+                         "6v6 locked closure uses 1 (5A/1D). Passed to RoleHoldState.k_defend.")
     args = ap.parse_args()
 
     N = int(args.team_size)
@@ -280,10 +283,12 @@ def main() -> int:
             if hold_ticks < 1:
                 # Checkpoints may only store the enable bit; SPEC locks H_r=8.
                 hold_ticks = 8
+            k_defend = int(getattr(args, "role_k_defend", 0) or 0)
             role_hold = RoleHoldState(
                 int(env.num_envs), int(policy.model.n_agents),
                 hold_ticks=hold_ticks, device=device,
                 fixed_for_episode=bool(args.role_fixed_for_episode),
+                k_defend=(k_defend if k_defend > 0 else None),
             )
         if bool(getattr(policy.model, "assignment_conditioning_enabled", False)):
             hold_ticks = int(getattr(policy.model, "assignment_hold_ticks", 0) or 0)

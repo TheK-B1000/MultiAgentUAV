@@ -1,16 +1,16 @@
 {
-  "utc_timestamp": "2026-09-23T14:45:33.555128Z",
+  "utc_timestamp": "2026-09-23T19:10:02.611903Z",
   "run_tag": "exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1",
   "seed": 22200001,
-  "total_timesteps": 25000,
+  "total_timesteps": 50000,
   "checkpoint_dir": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_6v6_specialists\\exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1\\ckpts",
   "episode_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_6v6_specialists\\exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1\\episode_rows.csv",
   "metrics_csv_path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_6v6_specialists\\exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1\\metrics.csv",
   "cli_preset": null,
   "tag_telemetry_enabled": true,
   "formal_run": true,
-  "git_sha": "892da3213939832599196b430d7217ed9f61b932",
-  "git_describe": "refactor-complete-661-g892da321-dirty",
+  "git_sha": "af8f76c2e12e18999ba1d63629afec9e20920149",
+  "git_describe": "refactor-complete-662-gaf8f76c2-dirty",
   "git_root": "K:\\MultiAgentUAV",
   "git_error": null,
   "r1_protocol": {
@@ -19,7 +19,7 @@
     "policy": "A",
     "policy_label": "exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1",
     "seed": 22200001,
-    "terminal_budget_steps": 25000,
+    "terminal_budget_steps": 50000,
     "scored_checkpoint": "final_exploratory_pi_A_specialist_6v6_closest_split_defend_6v6_v1.zip",
     "checkpoint_rule": "Only the terminal-budget checkpoint is scored. Periodic checkpoints are diagnostics and may not be cherry-picked.",
     "opponent_distribution": {
@@ -89,7 +89,7 @@
     "benchmark": "artifacts\\strategic_demand\\REPERTOIRE_LADDER_FROZEN.json",
     "seed_audits": "artifacts\\strategic_demand\\R_LADDER_BLOCK_AUDITS.json",
     "parent": "experiments.run_g0_v5_long.build_config",
-    "parent_resolved_config_sha256": "7c7c04ce3c1d97645fc3a4a518704461ad52c9e7d672075786b1117cb78191a2",
+    "parent_resolved_config_sha256": "26d237a31761cd39d57e31ff021dbb99dd9f121e9657f9e8dcfe404acffc40b7",
     "resolved_config_diff": {
       "checkpoint_dir": {
         "g0_v5": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\g0_v5_long\\g0_v5_long_seed3200001\\ckpts",
@@ -135,7 +135,7 @@
       },
       "total_timesteps": {
         "g0_v5": 1000000,
-        "r1": 25000
+        "r1": 50000
       }
     },
     "allowed_diff_fields": [

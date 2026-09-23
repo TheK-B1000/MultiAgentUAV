@@ -47,5 +47,16 @@
     "reusing seeds 21700001-21700064, 21800001-21800128, or 21600001 (the 4v4 split-policy lineage's seeds) -- this record uses only its own fresh 21900001-21900002 block"
   ],
   "NEXT_after_training": "Run experiments/eval_specialist_crossover_scaled.py --team-size 6 on the fresh entity-repair pair at a modest exploratory n (e.g. n=64), matching the first diagnostic step of the 4v4 line, to check whether entity-repair alone establishes a base crossover signal at 6v6 before any DEFEND-teacher or split-policy work is attempted on top of it.",
-  "claim_boundary": "This record establishes only whether the entity-repair fix, applied to the existing 6v6 R1-repertoire pair via warm start, changes the near-zero specialization signature the pair showed in the pre-existing SHARE0 diagnostic. It does not itself constitute a 6v6 split-policy port, and does not authorize any DEFEND-teacher or split-attack-defend training at 6v6 without a separate PI-reviewed spec, mirroring the exact staged sequence already used at 4v4 (entity-repair pair first, crossover checked, THEN DEFEND-teacher/split-policy layered on top)."
+  "claim_boundary": "This record establishes only whether the entity-repair fix, applied to the existing 6v6 R1-repertoire pair via warm start, changes the near-zero specialization signature the pair showed in the pre-existing SHARE0 diagnostic. It does not itself constitute a 6v6 split-policy port, and does not authorize any DEFEND-teacher or split-attack-defend training at 6v6 without a separate PI-reviewed spec, mirroring the exact staged sequence already used at 4v4 (entity-repair pair first, crossover checked, THEN DEFEND-teacher/split-policy layered on top).",
+  "POST_HOC_2026-09-23": "Reauthorized as the 6v6 foundation, not as an architecture experiment. The 2026-09-22 c1 launch was aborted at ~1.7k/1,000,000 steps; seeds 21900001-21900002 are RETIRED; no usable checkpoint. Finish means relaunch this same recipe to 1M from final_pi_A/B_specialist_6v6.zip with FRESH seeds (not resume). After both finals are frozen, the locked next steps are clone repaired pi_A to pi_D, train pi_D 200k under CLOSEST_DEFENDS(k=1), then the sealed Delta_A/Delta_B gate against repaired pi_B. A base-pair crossover check does not block that split. k=1 is already frozen from the sealed scripted composition evidence.",
+  "RELAUNCH_V2_2026-09-23": {
+    "status": "STOPPED_MOVE_TO_SCHOOL_PC",
+    "seed_block": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V2_TRAINING",
+    "seeds": {"policy_A": 22500001, "policy_B": 22500002},
+    "run_label_suffix": "_c2_entity_repair",
+    "home_stopped_at_steps": "~1584/1000000",
+    "school_owner": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+    "orchestrator": "experiments/run_school_pc_6v6_locked_pipeline.ps1",
+    "note": "Home c2 aborted by PI redirect to school PC full chain. Reuse seeds 22500001/22500002 there (no usable home checkpoint). Do not resume home partial."
+  }
 }

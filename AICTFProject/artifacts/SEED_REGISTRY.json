@@ -1483,9 +1483,57 @@
       "spec": "artifacts/strategic_demand/sppo/CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-23T14:45:16Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V2_TRAINING",
+      "purpose": "fresh-seed 1M entity-repair 6v6 pi_A/pi_B relaunch from final_pi_A/B_specialist_6v6 (c1 aborted at ~1.7k; seeds 21900001-002 RETIRED)",
+      "seed_class": "exploratory",
+      "lo": 22500001,
+      "hi": 22500002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T21:43:06Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_SPLIT_DEFEND_K1_V1_TRAINING",
+      "purpose": "6v6 200k CLOSEST_DEFENDS(k=1) split after entity-repair foundation (school PC locked pipeline)",
+      "seed_class": "exploratory",
+      "lo": 22600001,
+      "hi": 22600001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T22:08:24Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_SPLIT_CROSSOVER_EXPLORATORY_V1",
+      "purpose": "6v6 exploratory crossover after k=1 split (school PC)",
+      "seed_class": "exploratory",
+      "lo": 22700001,
+      "hi": 22700064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T22:08:24Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_SPLIT_CROSSOVER_CONFIRMATORY_V1",
+      "purpose": "6v6 confirmatory crossover if exploratory passes (school PC); do not spend until exploratory PASS",
+      "seed_class": "sealed_confirmatory",
+      "lo": 22800001,
+      "hi": 22800128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T22:08:24Z"
     }
   ],
-  "updated_utc": "2026-09-23T14:45:16Z",
+  "updated_utc": "2026-09-23T22:08:24Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

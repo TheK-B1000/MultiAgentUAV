@@ -16,7 +16,34 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-23 — **Fully Shared Strategy-Conditioned plumbing READY
+> **Last updated:** 2026-09-23 (school PC locked) — **Same algorithmic recipe, scale-specific configuration.**
+> Framing: preserve the same learning architecture across scales; use the role composition
+> independently established for each team size (`4v4: N=4,k=2` / `6v6: N=6,k=1`). Not
+> “designed 6v6 so it can pass.” Method unchanged: mature A/B, frozen ATTACK `π_A`, `π_D` from
+> `π_A`, 200k + identical N′ teacher, `CLOSEST_DEFENDS`, same `Δ_A`/`Δ_B` LCB95 gate.
+> **Fail-closed preflight required before the long grind:**
+> `python experiments/run_school_pc_6v6_preflight.py --stage foundation` (then `--stage split`
+> after repair seals). Attests teacher/split/k=1/hashes + t0 equivalence + frozen ATTACK never
+> in optimizer. Orchestrator refuses to grind if preflight FAILs.
+> Spec: [`SCHOOL_PC_6V6_LOCKED_PIPELINE.json`](../artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json)
+> School-PC how-to: [`experiments/SCHOOL_PC_6V6_README.md`](../experiments/SCHOOL_PC_6V6_README.md)
+> Home c2 STOPPED. School owns the chain. Crossover PASS remains empirical.
+>
+> ---
+>
+> Prior — 2026-09-23 — **6v6 closure criterion is the 4v4 recipe, not SDS observability.**
+> Finish line: `CLOSEST_DEFENDS(k)` + frozen ATTACK + learned `π_D`, then the same sealed
+> crossover gate (`Δ_A>0`, `Δ_B>0`, both LCB95>0). `V3_STRATEGIC_DEMAND_NOT_VALIDATED`
+> stays a separate negative observability experiment
+> ([`HUMAN_DECISION_REQUIRED_OBSERVABILITY.md`](../artifacts/strategic_demand/HUMAN_DECISION_REQUIRED_OBSERVABILITY.md),
+> [`CONFIRMATION_SDS_G1_4_RESULT.json`](../artifacts/strategic_demand/CONFIRMATION_SDS_G1_4_RESULT.json)).
+> It is not rewritten as a PASS, and it is not a gate on this closure path.
+> Scale story: 2v2 crossover PASS; 4v4 heuristic allocation + learned strategy crossover PASS;
+> 6v6 the same gate, still open.
+>
+> ---
+>
+> Prior — 2026-09-23 — **Fully Shared Strategy-Conditioned plumbing READY
 > (train still deferred).** Implementation landed under the frozen SPECs:
 > `rl/custom_ppo/fully_shared_z.py`, `experiments/train_fully_shared_strategy_conditioned.py`
 > (`--authorize-launch` required for non-smoke), `experiments/eval_fully_shared_z_crossover_scaled.py`
@@ -56,6 +83,15 @@ It is **not** the source of truth for:
 > Prior — 2026-09-23 — This PC is a **25k viability test** only, not the 200k run. After the checkpoint, an n=16 k=1 vs k=3
 > screen on both poles decides: promising → full 200k on the other PC; unclear → 50k here and screen again; obvious
 > collapse → stop.
+>
+> The 25k viability screen is complete:
+> [`CLOSEST_SPLIT_VIABILITY_6V6_25000.json`](../artifacts/strategic_demand/sppo/CLOSEST_SPLIT_VIABILITY_6V6_25000.json).
+> Cell win rates were `k=1`: Pole A `0.8125`, Pole B `1.0`; `k=3`: Pole A
+> `0.875`, Pole B `1.0`. Paired contrasts were `Delta_A=-0.0625`
+> `[-0.25,+0.125]` and `Delta_B=0.0` `[0,0]`. Neither composition collapsed,
+> but the B improvement criterion was not met. Frozen ladder decision:
+> **UNCLEAR**, so the one-time 50k continuation is the only remaining
+> viability step; this is not a crossover result or 200k authorization.
 >
 > ---
 >
