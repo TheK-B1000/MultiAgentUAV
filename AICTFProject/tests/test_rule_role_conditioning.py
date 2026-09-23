@@ -388,3 +388,42 @@ def test_isolation_manifest_fields_forbid_getflag_on_role_arm():
     cfg.getflag_preserve_lambda = 0.0
     assert cfg.getflag_preserve_lambda == 0.0
     assert bool(cfg.role_conditioning_enabled) is True
+
+
+def test_explicit_k_overrides_half_for_6v6_compositions():
+    """Default stays N/2. Explicit k=1 and k=3 are the 5A/1D and 3A/3D rules."""
+    N = 6
+    pos_x = torch.arange(1, N + 1, dtype=torch.float32).unsqueeze(0)
+    pos_y = torch.zeros(1, N)
+    alive = torch.ones(1, N, dtype=torch.bool)
+    home = _home()
+    default, _ = assign_roles_from_geometry(pos_x, pos_y, home, alive)
+    k3, _ = assign_roles_from_geometry(pos_x, pos_y, home, alive, k=3)
+    k1, _ = assign_roles_from_geometry(pos_x, pos_y, home, alive, k=1)
+    assert torch.equal(default, k3)
+    assert int((k1 == ROLE_DEFEND).sum()) == 1
+    assert int((k3 == ROLE_DEFEND).sum()) == 3
+    assert k1[0, 0].item() == ROLE_DEFEND
+    assert torch.equal(k1[0, 1:], torch.ones(5))
+
+
+def test_k_choices_resample_on_episode_reset_only():
+    g = torch.Generator()
+    g.manual_seed(0)
+    hold = RoleHoldState(
+        8, 6, hold_ticks=8, fixed_for_episode=True, device="cpu",
+        k_choices=(1, 3), generator=g,
+    )
+    seen = set(int(k) for k in hold.k_per_env.tolist())
+    assert seen <= {1, 3}
+    frozen = hold.k_per_env.clone()
+    pos_x = torch.arange(1, 7, dtype=torch.float32).unsqueeze(0).expand(8, 6).contiguous()
+    pos_y = torch.zeros(8, 6)
+    alive = torch.ones(8, 6, dtype=torch.bool)
+    hold.update(pos_x, pos_y, _home(B=8), alive)
+    assert torch.equal(hold.k_per_env, frozen)
+    hold.reset_envs(torch.tensor([True, False, False, False, False, False, False, False]))
+    # env 0 may or may not change value, but the vector is allowed to change only there
+    assert torch.equal(hold.k_per_env[1:], frozen[1:])
+    assert int(hold.k_per_env[0].item()) in (1, 3)
+

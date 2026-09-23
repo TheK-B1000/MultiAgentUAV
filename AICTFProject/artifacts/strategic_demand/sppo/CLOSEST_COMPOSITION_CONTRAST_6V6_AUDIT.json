@@ -1,0 +1,175 @@
+{
+  "record": "audit of CLOSEST_COMPOSITION_CONTRAST_6V6_RESULT.json",
+  "audit_utc": "2026-09-23T14:29:13Z",
+  "git_sha": "892da3213939832599196b430d7217ed9f61b932",
+  "passed": true,
+  "n_checks": 14,
+  "n_gating": 11,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 256,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_SPEND'",
+      "spec": "CLOSEST_COMPOSITION_CONTRAST_6V6_V1_SPEC.json",
+      "sha256": "b1f545f535e6d5ef4b8b8b7e1856648a60f283288152b3ecf750afad76bfa81f",
+      "status": "FROZEN_BEFORE_SEED_SPEND"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "CLOSEST_COMPOSITION_CONTRAST_6V6_ROWS.csv (27100 bytes)",
+      "sha256": "d3062c9c6bc0b00afeecf7ac316a2cce4c3b30c7729de7cd028ed47eed768459"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "256 rows, expected 256",
+      "found": 256,
+      "expected": 256
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 22100001..22100064 (n=64)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "claim::Delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.59375,
+        "lcb95": 0.453125,
+        "ucb95": 0.71875
+      },
+      "rederived": {
+        "mean": 0.59375,
+        "lcb95": 0.453125,
+        "ucb95": 0.71875
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::Delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.109375,
+        "lcb95": -0.03125,
+        "ucb95": 0.25
+      },
+      "rederived": {
+        "mean": 0.109375,
+        "lcb95": -0.03125,
+        "ucb95": 0.25
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::H_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.109375,
+        "lcb95": -0.25,
+        "ucb95": 0.03125
+      },
+      "rederived": {
+        "mean": -0.109375,
+        "lcb95": -0.25,
+        "ucb95": 0.03125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::Delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.6250 | second half +0.5625",
+      "first_half": 0.625,
+      "second_half": 0.5625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::Delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.0938 | second half +0.1250",
+      "first_half": 0.09375,
+      "second_half": 0.125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::H_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0938 | second half -0.1250",
+      "first_half": -0.09375,
+      "second_half": -0.125,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to CLOSEST_COMPOSITION_CONTRAST_6V6 (status RESERVED) -- same block, no conflict",
+      "seed_class": "exploratory",
+      "experiment_id": "CLOSEST_COMPOSITION_CONTRAST_6V6"
+    }
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "record_id": "FULLY_SHARED_STRATEGY_CONDITIONED_6V6_V1_SPEC",
+  "status": "FROZEN_CONTINGENT_BEFORE_ANY_TRAINING",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-23T16:45:00Z",
+  "classification": "DIAGNOSTIC / EXPLORATORY sharing-axis baseline at 6v6. CONTINGENT on (1) 4v4 fully-shared arm being interpreted and (2) the separated CLOSEST_SPLIT / heuristic+learned 6v6 line sealing its composition. Not PAPER-FAITHFUL. Not a license to train now.",
+  "authorized_by": "PI, 2026-09-23: finish the scaled Fully Shared Strategy-Conditioned baseline for later run. 6v6 uses the same sharing-axis port; strategic composition (k) is pinned to whatever the separated system ultimately seals — do not invent a new allocator.",
+
+  "PARENT": "FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json",
+  "RESEARCH_QUESTION": "Same single-axis question as the 4v4 parent, at team_size=6: with CLOSEST_DEFENDS held identical to the sealed separated 6v6 system, does one shared pi_phi(a|o,z) still pass forced-z crossover, or does parameter sharing erase specialization?",
+
+  "CONTINGENCY_gates_before_launch": [
+    "G1: FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1 exploratory RESULT exists and has been PI-interpreted (PASS or FAIL both inform whether 6v6 shared is worth the spend)",
+    "G2: Separated 6v6 heuristic+learned line has a sealed composition protocol (currently targeted: CLOSEST_DEFENDS with k in {1,3} under CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1 after viability -> 200k -> screen). Do not launch shared-6v6 against a composition the separated arm has not sealed.",
+    "G3: This PC is not mid-viability / collapse-watch for the separated 6v6 job",
+    "G4: Fresh PI launch authorization after G1–G3"
+  ],
+
+  "ARCHITECTURE_locked": {
+    "inherits_from_parent": "single SharedActorCentralizedCritic; latent_k=2; concat z; no q_phi; no split_attack_defend; role bit r from CLOSEST_DEFENDS is an input; all parameters shared across roles and z",
+    "diagram": "z_A -> CLOSEST_DEFENDS(k_A) -> pi_phi(a|o,z_A,r); z_B -> CLOSEST_DEFENDS(k_B) -> pi_phi(a|o,z_B,r)  [SAME network]",
+    "k_composition_PIN_DEFERRED": {
+      "rule": "k_A and k_B MUST equal the sealed separated 6v6 strategic composition pair. Tentative pending seal: k_A=1 (5A/1D) and k_B=3 (3A/3D), matching CLOSEST_COMPOSITION_CONTRAST_6V6 / CLOSEST_SPLIT training mixture.",
+      "do_not_hardcode_until": "separated CLOSEST_SPLIT (or its confirmatory successor) seals which composition pair is the comparison object",
+      "forbidden": "choosing a different k pair for the shared arm than the separated comparator — that would confound sharing with composition"
+    },
+    "warm_start_tentative": {
+      "note": "Pin at launch to the same frozen 6v6 ATTACK base the separated arm used (currently CLOSEST_SPLIT pins pre-entity pi_A_specialist_6v6 sha256 8ac6a41c...). Do not silently switch to entity-repair or 4v4 N' teacher bases.",
+      "path_placeholder": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+      "sha256_placeholder": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82"
+    }
+  },
+
+  "ROLE_ALLOCATION_locked": {
+    "allocator": "CLOSEST_DEFENDS",
+    "role_fixed_for_episode": true,
+    "identity_with_separated": "exact same protocol as the sealed separated 6v6 comparator — including which k maps to which strategy pole",
+    "z_to_k_mapping_tentative": {
+      "z_A": "k_D = 1",
+      "z_B": "k_D = 3",
+      "status": "TENTATIVE until G2 seals; rewrite mapping only by freezing an amendment record, not by silent edit"
+    }
+  },
+
+  "TRAINING_locked": {
+    "do_not_launch_until": "CONTINGENCY_gates_before_launch all true",
+    "team_size": 6,
+    "total_timesteps": 200000,
+    "device": "cuda",
+    "z_schedule": "episode-static Uniform{z_A,z_B}",
+    "k_schedule": "deterministic function of z (not an independent random draw): z selects the sealed composition",
+    "opponent_matching": "z_A -> Pole A; z_B -> Pole B",
+    "split_attack_defend_enabled": false,
+    "defend_teacher_lambda": 0.0,
+    "run_label_suffix": "_fully_shared_z_6v6_v1",
+    "seed_class": "exploratory",
+    "seed_proposed_placeholder": 22700001,
+    "note": "Reserve via seed_registry only at authorized launch; placeholders must be re-checked for collisions."
+  },
+
+  "EVALUATION_after_training_not_during": {
+    "instrument": "same forced-z crossover matrix as parent, under CLOSEST_DEFENDS with the sealed (k_A, k_B) mapping",
+    "matrix": ["V(z_A,A)", "V(z_B,A)", "V(z_A,B)", "V(z_B,B)"],
+    "deltas": {
+      "delta_A": "V(z_A,A) - V(z_B,A)",
+      "delta_B": "V(z_B,B) - V(z_A,B)",
+      "gate": "joint LCB95 > 0 on both"
+    },
+    "bootstrap": {"samples": 20000, "alpha": 0.05, "rng_seed": 7},
+    "exploratory_n": 64,
+    "confirmatory_n_later": 128,
+    "seal": "run_state.seal(); one-shot"
+  },
+
+  "CONTRACTS_before_any_seed_spend": [
+    "C0 SPEC frozen + G1–G4 contingency gates documented as passed in the launch amendment / run_manifest",
+    "C1–C3 inherited from 4v4 parent (z reaches net; single param set; no hidden separate ATTACK/DEFEND nets)",
+    "C4 CLOSEST_DEFENDS + (k_A,k_B) identical to sealed separated 6v6 comparator",
+    "C5 forced z_A/z_B at eval; no router",
+    "C6 training occupancy of both z in (0.25, 0.75)",
+    "C7 pole matching + k(z) mapping pinned",
+    "C8 disjoint seeds from separated 6v6 train/eval blocks and from 4v4 fully-shared blocks",
+    "C9 warm-start sha matches the separated ATTACK base pin at launch",
+    "C10 RESULT via run_state.seal()"
+  ],
+
+  "EXPLICITLY_FORBIDDEN": [
+    "launching before G1–G4",
+    "choosing a k pair different from the sealed separated comparator",
+    "rebuilding CLOSEST_DEFENDS or adding a learned allocator",
+    "using the failed RUNG1_6V6 Share-Encoder checkpoint or protocol as a substitute for this CD-held sharing-axis arm",
+    "claiming PAPER-FAITHFUL",
+    "auto-starting from CLOSEST_SPLIT viability without PI clearance"
+  ],
+
+  "IMPLEMENTATION_STATUS": {
+    "utc": "2026-09-23T17:00:00Z",
+    "plumbing": "READY via shared 4v4 train/eval entrypoints (team-size flag)",
+    "training_authorized": false,
+    "note": "Same train/eval scripts as 4v4; k(z) mapping and warm-start pin remain CONTINGENT on G1–G4. Non-smoke 6v6 launch is fail-closed in the trainer until contingency is cleared."
+  },
+
+  "claim_boundary": "Contingent design freeze for the 6v6 Fully Shared Strategy-Conditioned sharing-axis port. Pins the scientific contrast and forbids allocator drift; defers k pins, warm-start confirmation, and seed reservation until the separated 6v6 composition seals and the 4v4 shared arm is interpreted. Does not authorize training."
+}

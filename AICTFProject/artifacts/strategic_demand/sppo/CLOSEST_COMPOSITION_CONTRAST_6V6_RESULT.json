@@ -1,0 +1,116 @@
+{
+  "record_id": "CLOSEST_COMPOSITION_CONTRAST_6V6_RESULT",
+  "implements": "CLOSEST_COMPOSITION_CONTRAST_6V6_V1_SPEC.json",
+  "device": "cpu",
+  "classification": "DESCRIPTIVE / EXPLORATORY -- no confirmatory label, no LCB95 gate",
+  "seed_block": {
+    "base": 22100001,
+    "n": 64,
+    "class": "exploratory"
+  },
+  "WIN_RATE_CONTRASTS_point_estimates_and_bootstrap_CI": {
+    "Delta_B": {
+      "mean": 0.59375,
+      "lcb95": 0.453125,
+      "ucb95": 0.71875,
+      "n": 64
+    },
+    "Delta_A": {
+      "mean": 0.109375,
+      "lcb95": -0.03125,
+      "ucb95": 0.25,
+      "n": 64
+    },
+    "H_A": {
+      "mean": -0.109375,
+      "lcb95": -0.25,
+      "ucb95": 0.03125,
+      "n": 64
+    }
+  },
+  "DESCRIPTIVE_BLUE_GOALS_CONTRASTS": {
+    "Delta_B": {
+      "mean": 1.328125,
+      "lcb95": 1.0,
+      "ucb95": 1.6875,
+      "n": 64
+    },
+    "Delta_A": {
+      "mean": 0.109375,
+      "lcb95": -0.390625,
+      "ucb95": 0.625,
+      "n": 64
+    },
+    "H_A": {
+      "mean": -0.109375,
+      "lcb95": -0.625,
+      "ucb95": 0.390625,
+      "n": 64
+    }
+  },
+  "DESCRIPTIVE_MARGIN_CONTRASTS": {
+    "Delta_B": {
+      "mean": 1.359375,
+      "lcb95": 1.03125,
+      "ucb95": 1.71875,
+      "n": 64
+    },
+    "Delta_A": {
+      "mean": 0.609375,
+      "lcb95": 0.125,
+      "ucb95": 1.109375,
+      "n": 64
+    },
+    "H_A": {
+      "mean": -0.609375,
+      "lcb95": -1.109375,
+      "ucb95": -0.125,
+      "n": 64
+    }
+  },
+  "CELL_MEANS": {
+    "5A_1D_closest_poleA": {
+      "win": 0.828125,
+      "blue_score": 2.0625,
+      "margin": 1.984375
+    },
+    "5A_1D_closest_poleB": {
+      "win": 0.75,
+      "blue_score": 1.53125,
+      "margin": 1.421875
+    },
+    "3A_3D_closest_poleA": {
+      "win": 0.71875,
+      "blue_score": 1.953125,
+      "margin": 1.375
+    },
+    "3A_3D_closest_poleB": {
+      "win": 0.15625,
+      "blue_score": 0.203125,
+      "margin": 0.0625
+    }
+  },
+  "PRIOR_FIXED_IDENTITY_CONFIRMATORY_POINTER": {
+    "record": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json",
+    "status": "SEALED",
+    "label": null
+  },
+  "PATTERN_MATCH_point_estimate_only_not_a_significance_claim": {
+    "rule": "Delta_B_mean > 0 AND Delta_A_mean > 0",
+    "result": true
+  },
+  "interpretation_guard": "Both arms are SCRIPTED role macros with CLOSEST_DEFENDS assignment at t=0, not learned policies and not FIXED_IDENTITY. DESCRIPTIVE screen: no LCB95 gate, no terminal CONFIRMED label. Answers whether the sealed 5A/1D vs 3A/3D composition contrast survives geometry assignment; does not authorize pi_D.",
+  "claim_boundary": "Descriptive comparison only: scripted 5A/1D vs 3A/3D under CLOSEST_DEFENDS assignment on fresh exploratory seeds. Not confirmatory; not a learned claim; does not authorize pi_D. Both arms are SCRIPTED role macros with CLOSEST_DEFENDS assignment at t=0, not learned policies and not FIXED_IDENTITY. DESCRIPTIVE screen: no LCB95 gate, no terminal CONFIRMED label. Answers whether the sealed 5A/1D vs 3A/3D composition contrast survives geometry assignment; does not authorize pi_D.",
+  "frozen_next_step_rule": "pattern_match=TRUE -> PI gate on confirmatory n / heuristic+learned bridge; pattern_match=FALSE -> stop assignment-trick rescue of old 6v6 objects; escalate. Never auto-start pi_D from this record.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-23T14:29:14Z",
+  "git_sha": "892da3213939832599196b430d7217ed9f61b932",
+  "AUDIT": {
+    "path": "CLOSEST_COMPOSITION_CONTRAST_6V6_AUDIT.json",
+    "passed": true,
+    "n_checks": 14,
+    "n_gating": 11,
+    "failed_checks": [],
+    "rows_sha256": "d3062c9c6bc0b00afeecf7ac316a2cce4c3b30c7729de7cd028ed47eed768459"
+  }
+}

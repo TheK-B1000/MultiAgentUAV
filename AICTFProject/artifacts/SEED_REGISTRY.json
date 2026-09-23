@@ -1378,9 +1378,114 @@
       "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json",
       "subdivides": null,
       "allocated_utc": "2026-09-22T15:41:39Z"
+    },
+    {
+      "experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL",
+      "purpose": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC: fresh matched-seed confirmatory replication of the sealed n=64 exploratory crossover result, exact same frozen composite checkpoint, no retraining",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21800001,
+      "hi": 21800128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T19:49:11Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_TRAINING",
+      "purpose": "6v6 entity-repair base pair (pi_A, pi_B), warm-started from existing R1-repertoire 6v6 checkpoints",
+      "seed_class": "exploratory",
+      "lo": 21900001,
+      "hi": 21900002,
+      "n": 2,
+      "status": "RETIRED",
+      "spec": "artifacts/strategic_demand/sppo/SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T20:03:58Z",
+      "retired_utc": "2026-09-22T20:16:40Z",
+      "notes": [
+        {
+          "utc": "2026-09-22T20:16:40Z",
+          "note": "Aborted by PI redirect 2026-09-22 at ~1.7k/1,000,000 steps each (both A and B). Compute-feasibility abort, not a scientific result -- essentially nothing was spent. Superseded by a cheap scaffold-screen-first approach (frozen existing pi_A_specialist_6v6 + scripted GO_TO-only defender, 5A/1D, n=64) mirroring how the 4v4 architecture was actually validated (CLOSEST_DEFENDS screen before any PPO training), rather than repairing the base 6v6 pair first."
+        }
+      ]
+    },
+    {
+      "experiment_id": "CLOSEST_DEFENDS_SCREEN_6V6",
+      "purpose": "6v6 closest-to-home k=1 forced-defender screen (5A/1D) on existing frozen pi_A/pi_B",
+      "seed_class": "exploratory",
+      "lo": 22000001,
+      "hi": 22000064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_DEFENDS_SCREEN_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T20:22:21Z",
+      "spent_utc": "2026-09-23T13:02:04Z",
+      "notes": [
+        {
+          "utc": "2026-09-23T13:02:04Z",
+          "note": "descriptive screen complete; pattern_match=False"
+        }
+      ]
+    },
+    {
+      "experiment_id": "CLOSEST_COMPOSITION_CONTRAST_6V6",
+      "purpose": "geometry-assigned scripted 5A/1D vs 3A/3D (CLOSEST_DEFENDS)",
+      "seed_class": "exploratory",
+      "lo": 22100001,
+      "hi": 22100064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_COMPOSITION_CONTRAST_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T13:14:00Z",
+      "spent_utc": "2026-09-23T14:29:14Z",
+      "notes": [
+        {
+          "utc": "2026-09-23T14:29:14Z",
+          "note": "descriptive screen complete; pattern_match=True"
+        }
+      ]
+    },
+    {
+      "experiment_id": "CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1",
+      "purpose": "6v6 learned DEFEND internalization under CLOSEST_DEFENDS k in {1,3}",
+      "seed_class": "exploratory",
+      "lo": 22200001,
+      "hi": 22200001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T14:35:53Z"
+    },
+    {
+      "experiment_id": "CLOSEST_SPLIT_COLLAPSE_WATCH_6V6",
+      "purpose": "non-claim n=8 k=1 vs k=3 collapse watches at 50k/100k/150k",
+      "seed_class": "exploratory",
+      "lo": 22300001,
+      "hi": 22300024,
+      "n": 24,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T14:40:56Z"
+    },
+    {
+      "experiment_id": "CLOSEST_SPLIT_VIABILITY_6V6_50K",
+      "purpose": "n=16 k=1 vs k=3 screen only if the 25k viability screen is unclear",
+      "seed_class": "exploratory",
+      "lo": 22400001,
+      "hi": 22400016,
+      "n": 16,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T14:45:16Z"
     }
   ],
-  "updated_utc": "2026-09-22T15:41:39Z",
+  "updated_utc": "2026-09-23T14:45:16Z",
   "unregistered_usage": [
     {
       "experiment_id": "ASSIGNMENT_V1_4V4",

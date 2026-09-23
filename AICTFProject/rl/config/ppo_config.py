@@ -970,6 +970,18 @@ class PPOConfig:
     # not by an assertion someone could forget. Default False = existing
     # role_hold_ticks-based periodic-reassignment behavior is unchanged.
     role_fixed_for_episode: bool = False
+    # 0 => locked default role_k(N)=N/2. A positive value is an explicit
+    # CLOSEST_DEFENDS defender count (6v6 composition contrast uses 1 or 3).
+    # Mutually exclusive with role_k_defend_choices.
+    role_k_defend: int = 0
+    # Comma-separated episode-start mixture, e.g. "1,3". Empty => unused.
+    # Sampled once per episode inside RoleHoldState when fixed_for_episode.
+    role_k_defend_choices: str = ""
+    # 6v6 pre-entity-repair specialists cannot take the 4v4 entity-repair
+    # role-conditioning gate. Default False keeps that gate. Set True only
+    # for a frozen spec that warm-starts the existing non-entity checkpoint
+    # and does not enable the 4v4 N' teacher.
+    role_conditioning_allow_pre_entity_base: bool = False
 
     # --- DEFEND-only teacher imitation (DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC) ---
     # See artifacts/strategic_demand/sppo/DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json.
@@ -1031,6 +1043,17 @@ class PPOConfig:
     assignment_conditioning_enabled: bool = False
     assignment_hold_ticks: int = 8
     assignment_feature_dim: int = 4
+
+    # --- Fully shared strategy-conditioned baseline (sharing axis) ---
+    # FULLY_SHARED_STRATEGY_CONDITIONED_*_SPEC: one SharedActorCentralizedCritic
+    # pi_phi(a|o,z) under CLOSEST_DEFENDS role bits. No split_attack_defend, no
+    # q_phi router. z is episode-static via latent_assignment_mode=static_env
+    # (or forced at eval). Default OFF = structurally absent.
+    fully_shared_z_conditioned_enabled: bool = False
+    # When True with static_env, env i's opponent is OP6 iff forced z_i==0 else
+    # OP7 (pole-matched specialty experience). Requires even n_envs and a
+    # half/half forced_latent_env_ids split.
+    fully_shared_z_pole_match: bool = False
 
 
 __all__ = ["PPOConfig", "TrainMode"]

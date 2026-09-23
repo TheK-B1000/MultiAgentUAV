@@ -20,6 +20,22 @@ ROLE_DEFEND = 0
 ROLE_ATTACK = 1
 
 
+def role_k_kwargs_from_cfg(cfg) -> dict:
+    """Optional RoleHoldState k override. Empty dict keeps k=N/2."""
+    raw = str(getattr(cfg, "role_k_defend_choices", "") or "").strip()
+    k_fixed = int(getattr(cfg, "role_k_defend", 0) or 0)
+    if raw and k_fixed:
+        raise ValueError("role_k_defend and role_k_defend_choices are mutually exclusive")
+    if raw:
+        choices = tuple(int(x.strip()) for x in raw.split(",") if x.strip())
+        g = torch.Generator()
+        g.manual_seed(int(getattr(cfg, "seed", 0) or 0))
+        return {"k_choices": choices, "generator": g}
+    if k_fixed:
+        return {"k_defend": k_fixed}
+    return {}
+
+
 def role_k(n_agents: int) -> int:
     n = int(n_agents)
     if n < 1:
@@ -59,8 +75,14 @@ def assign_roles_from_geometry(
     pos_y: torch.Tensor,
     home_xy: torch.Tensor,
     alive: torch.Tensor,
+    k: int | torch.Tensor | None = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Deterministic geometric roles for a batch of teams.
+
+    ``k`` is the number of closest living agents assigned DEFEND.
+    Default ``None`` is the locked ``role_k(N) = N/2`` rule. An explicit
+    int or per-env ``(B,)`` tensor is the opt-in used by the 6v6
+    5A/1D vs 3A/3D contrast (k in {1, 3}); it does not change the default.
 
     Returns
     -------
@@ -73,7 +95,18 @@ def assign_roles_from_geometry(
     if alive.shape != pos_x.shape:
         raise ValueError(f"alive shape {tuple(alive.shape)} != pos {tuple(pos_x.shape)}")
     B, N = pos_x.shape
-    k = role_k(N)
+    if k is None:
+        k_row = torch.full((B,), role_k(N), dtype=torch.long, device=pos_x.device)
+    elif isinstance(k, int):
+        if k < 1 or k > N:
+            raise ValueError(f"k must be in [1, {N}], got {k}")
+        k_row = torch.full((B,), int(k), dtype=torch.long, device=pos_x.device)
+    else:
+        k_row = k.to(device=pos_x.device, dtype=torch.long).reshape(-1)
+        if int(k_row.shape[0]) != B:
+            raise ValueError(f"k must have shape ({B},), got {tuple(k_row.shape)}")
+        if int(k_row.min()) < 1 or int(k_row.max()) > N:
+            raise ValueError(f"k entries must be in [1, {N}], got {k_row.tolist()}")
     d = distances_to_home(pos_x, pos_y, home_xy)
     roles = torch.zeros((B, N), dtype=torch.float32, device=pos_x.device)
 
@@ -88,7 +121,7 @@ def assign_roles_from_geometry(
     ranked = torch.gather(order_by_idx, 1, order_by_d)  # (B, N) agent ids closest→farthest
 
     n_alive = alive.sum(dim=1)
-    k_eff = torch.minimum(n_alive, torch.full_like(n_alive, k))
+    k_eff = torch.minimum(n_alive, k_row.to(dtype=n_alive.dtype))
 
     # Default living agents to ATTACK; promote the closest k_eff to DEFEND.
     roles = roles.masked_fill(alive, float(ROLE_ATTACK))
@@ -124,6 +157,9 @@ class RoleHoldState:
         hold_ticks: int = 8,
         fixed_for_episode: bool = False,
         device: str | torch.device = "cpu",
+        k_defend: int | None = None,
+        k_choices: tuple[int, ...] | None = None,
+        generator: torch.Generator | None = None,
     ) -> None:
         self.n_envs = int(n_envs)
         self.n_agents = int(n_agents)
@@ -132,6 +168,21 @@ class RoleHoldState:
             raise ValueError(f"hold_ticks must be >= 1, got {self.hold_ticks}")
         self.fixed_for_episode = bool(fixed_for_episode)
         self.device = torch.device(device)
+        if k_defend is not None and k_choices:
+            raise ValueError("k_defend and k_choices are mutually exclusive")
+        if k_defend is not None and not (1 <= int(k_defend) <= self.n_agents):
+            raise ValueError(f"k_defend must be in [1, {self.n_agents}], got {k_defend}")
+        if k_choices:
+            bad = [k for k in k_choices if not (1 <= int(k) <= self.n_agents)]
+            if bad:
+                raise ValueError(f"k_choices entries must be in [1, {self.n_agents}], got {bad}")
+        self.k_defend = None if k_defend is None else int(k_defend)
+        self.k_choices = tuple(int(k) for k in k_choices) if k_choices else None
+        self._gen = generator
+        default_k = role_k(self.n_agents) if self.k_defend is None else self.k_defend
+        self.k_per_env = torch.full((self.n_envs,), default_k, dtype=torch.long, device=self.device)
+        if self.k_choices:
+            self._resample_k(torch.ones(self.n_envs, dtype=torch.bool, device=self.device))
         self.roles = torch.zeros(
             (self.n_envs, self.n_agents), dtype=torch.float32, device=self.device
         )
@@ -152,6 +203,20 @@ class RoleHoldState:
         # assignment.
         self._pending_reassign = torch.ones(self.n_envs, dtype=torch.bool, device=self.device)
 
+    def _resample_k(self, env_mask: torch.Tensor) -> None:
+        """Draw a fresh k for the masked envs from k_choices (episode start)."""
+        if not self.k_choices:
+            return
+        m = env_mask.bool().to(self.device)
+        n = int(m.sum().item())
+        if n <= 0:
+            return
+        choices = torch.tensor(self.k_choices, dtype=torch.long)
+        draws = torch.randint(0, len(self.k_choices), (n,), generator=self._gen)
+        picked = choices[draws].to(self.device)
+        self.k_per_env = self.k_per_env.clone()
+        self.k_per_env[m] = picked
+
     def reset_envs(self, env_mask: torch.Tensor) -> None:
         """Force reassignment on next update for the selected envs (episode starts)."""
         m = env_mask.bool().to(self.device)
@@ -162,6 +227,7 @@ class RoleHoldState:
             self.prev_alive[m] = False
         self._pending_reassign = self._pending_reassign.clone()
         self._pending_reassign[m] = True
+        self._resample_k(m)
 
     def update(
         self,
@@ -203,13 +269,17 @@ class RoleHoldState:
                 need = changed | expired
 
         if bool(need.any().item()):
-            new_roles, new_d = assign_roles_from_geometry(pos_x, pos_y, home_xy, alive)
+            new_roles, new_d = assign_roles_from_geometry(
+                pos_x, pos_y, home_xy, alive, k=self.k_per_env
+            )
             self.roles = torch.where(need.unsqueeze(1), new_roles, self.roles)
             self.distances = torch.where(need.unsqueeze(1), new_d, self.distances)
             self.age = torch.where(need, torch.zeros_like(self.age), self.age)
         else:
             # Refresh distances for smoke / diagnostics without changing roles.
-            _, cur_d = assign_roles_from_geometry(pos_x, pos_y, home_xy, alive)
+            _, cur_d = assign_roles_from_geometry(
+                pos_x, pos_y, home_xy, alive, k=self.k_per_env
+            )
             self.distances = cur_d
 
         if self.fixed_for_episode:

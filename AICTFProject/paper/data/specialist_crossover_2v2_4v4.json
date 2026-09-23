@@ -1,0 +1,27 @@
+{
+  "stem": "fig_specialist_crossover_2v2_4v4",
+  "role": "absolute_crossover_2v2_PASS_vs_4v4_scaffold_PASS",
+  "n": {
+    "2v2": 128,
+    "4v4": 128
+  },
+  "win_rate_pct": {
+    "2v2_Share-0": {
+      "home_A_poleA": 71.88,
+      "home_B_poleA": 42.97,
+      "home_A_poleB": 35.16,
+      "home_B_poleB": 60.94
+    },
+    "4v4_A_prime_vs_pi_B": {
+      "home_A_poleA": 71.88,
+      "home_B_poleA": 36.72,
+      "home_A_poleB": 13.28,
+      "home_B_poleB": 49.22
+    }
+  },
+  "gates": {
+    "2v2": "PASS",
+    "4v4": "PASS* (scaffolded controller)"
+  },
+  "note": "Native 4v4 specialist FAIL omitted; panel (b) arms are A' and pi_B only."
+}

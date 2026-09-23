@@ -282,6 +282,16 @@ def main() -> int:
     ap.add_argument("--role-hold-ticks", type=int, default=8,
                     help="H_r decision-tick hold for role assignment (frozen exploratory "
                          "value is 8; not a screen)")
+    ap.add_argument("--role-k-defend", type=int, default=0,
+                    help="explicit CLOSEST_DEFENDS defender count. 0 keeps k=N/2. "
+                         "Mutually exclusive with --role-k-defend-choices.")
+    ap.add_argument("--role-k-defend-choices", default="",
+                    help="comma-separated episode-start k mixture, e.g. 1,3. "
+                         "Empty keeps k=N/2. Requires --role-fixed-for-episode.")
+    ap.add_argument("--role-conditioning-allow-pre-entity-base", action="store_true",
+                    help="allow role conditioning without --entity-repair-enabled. "
+                         "Only for a frozen spec that warm-starts a pre-entity-repair "
+                         "checkpoint and keeps the N' teacher off.")
     ap.add_argument("--role-fixed-for-episode", action="store_true",
                     help="assign roles exactly once per episode and never reassign "
                          "(including on death/revival), instead of the periodic "
@@ -599,6 +609,9 @@ def main() -> int:
     cfg.role_conditioning_enabled = bool(args.role_conditioning_enabled)
     cfg.role_hold_ticks = int(args.role_hold_ticks)
     cfg.role_fixed_for_episode = bool(args.role_fixed_for_episode)
+    cfg.role_k_defend = int(args.role_k_defend)
+    cfg.role_k_defend_choices = str(args.role_k_defend_choices or "")
+    cfg.role_conditioning_allow_pre_entity_base = bool(args.role_conditioning_allow_pre_entity_base)
     cfg.defend_teacher_lambda = float(args.defend_teacher_lambda)
     cfg.defend_teacher_lambda_end = float(args.defend_teacher_lambda_end)
     cfg.defend_teacher_decay_start_step = int(args.defend_teacher_decay_start_step)
@@ -632,10 +645,42 @@ def main() -> int:
             raise SystemExit(
                 "FAIL-CLOSED: role conditioning cannot coexist with role-pres MSE loss"
             )
-        if not cfg.entity_repair_enabled:
+        if not cfg.entity_repair_enabled and not cfg.role_conditioning_allow_pre_entity_base:
             raise SystemExit(
                 "FAIL-CLOSED: role conditioning v1 requires --entity-repair-enabled "
-                "(clean B_t500k entity-repair architecture)"
+                "(clean B_t500k entity-repair architecture), unless "
+                "--role-conditioning-allow-pre-entity-base is set by a frozen spec "
+                "that warm-starts a pre-entity checkpoint"
+            )
+        if cfg.role_conditioning_allow_pre_entity_base and cfg.entity_repair_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: --role-conditioning-allow-pre-entity-base is the "
+                "pre-entity path; do not also pass --entity-repair-enabled"
+            )
+        if cfg.role_conditioning_allow_pre_entity_base and float(cfg.defend_teacher_lambda) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: the 4v4 N' teacher is not authorized on the pre-entity "
+                "base. This path is PPO internalization of DEFEND slots only."
+            )
+        if cfg.role_conditioning_allow_pre_entity_base:
+            if not cfg.split_attack_defend_enabled:
+                raise SystemExit(
+                    "FAIL-CLOSED: pre-entity role conditioning is only authorized "
+                    "together with --split-attack-defend-enabled"
+                )
+            if cfg.role_k_defend_choices.strip() != "1,3":
+                raise SystemExit(
+                    "FAIL-CLOSED: pre-entity 6v6 internalization freezes "
+                    "--role-k-defend-choices 1,3 (5A/1D and 3A/3D)"
+                )
+        if cfg.role_k_defend and cfg.role_k_defend_choices.strip():
+            raise SystemExit(
+                "FAIL-CLOSED: --role-k-defend and --role-k-defend-choices are mutually exclusive"
+            )
+        if cfg.role_k_defend_choices.strip() and not cfg.role_fixed_for_episode:
+            raise SystemExit(
+                "FAIL-CLOSED: --role-k-defend-choices requires --role-fixed-for-episode "
+                "(k is drawn once at episode start)"
             )
 
     if cfg.defend_teacher_lambda > 0.0:
@@ -848,6 +893,9 @@ def main() -> int:
     if bool(getattr(cfg, "role_conditioning_enabled", False)):
         print(f"  role_conditioning enabled  H_r={cfg.role_hold_ticks}  "
               f"fixed_for_episode={cfg.role_fixed_for_episode}  "
+              f"k_defend={cfg.role_k_defend or 'N/2'}  "
+              f"k_choices={cfg.role_k_defend_choices or '(none)'}  "
+              f"pre_entity_base={cfg.role_conditioning_allow_pre_entity_base}  "
               f"(pi(a|o,r); no GETFLAG / no macro hard-code)")
     if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
         print(f"  defend_teacher   lambda_peak={cfg.defend_teacher_lambda}  "
@@ -999,6 +1047,17 @@ def main() -> int:
     # and asserts the live opponent. Omitting that hook would train a "specialist" against a
     # bare opponent with NO pole overlay -- the exact failure this wrapper exists to prevent.
     from functools import partial
+
+    # This PC runs a short viability budget (25k, then 50k only if the
+    # 25k screen is unclear). The full 200k job is for the other PC.
+    if (
+        str(getattr(cfg, "role_k_defend_choices", "") or "").strip() == "1,3"
+        and bool(getattr(cfg, "role_conditioning_allow_pre_entity_base", False))
+    ):
+        budget = int(cfg.total_timesteps)
+        cfg.periodic_checkpoint_steps = 25_000 if budget <= 50_000 else 50_000
+        print(f"  periodic_checkpoint_steps={cfg.periodic_checkpoint_steps} "
+              f"(viability budget {budget})", flush=True)
 
     print("  starting specialist PPO ...", flush=True)
     R.orchestrate_training_run(

@@ -16,7 +16,102 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-22 (later) — **`CLOSEST_DEFENDS_SCREEN_4V4` COMPLETE: `pattern_match = true`. Both load-bearing pieces
+> **Last updated:** 2026-09-23 — **Fully Shared Strategy-Conditioned plumbing READY
+> (train still deferred).** Implementation landed under the frozen SPECs:
+> `rl/custom_ppo/fully_shared_z.py`, `experiments/train_fully_shared_strategy_conditioned.py`
+> (`--authorize-launch` required for non-smoke), `experiments/eval_fully_shared_z_crossover_scaled.py`
+> (forced-z + CLOSEST_DEFENDS + `run_state.seal`), `tests/test_fully_shared_z_conditioned.py`
+> (13 passed). **Do not launch** while `CLOSEST_SPLIT` 6v6 viability owns the GPU.
+> Seed reservation + 200k train + n=64 eval wait on C11 clear / other PC.
+>
+> ---
+>
+> Prior — 2026-09-23 — **Fully Shared Strategy-Conditioned baseline SPECs frozen
+> (queue only; no train on this PC).** Sharing-axis port under identical `CLOSEST_DEFENDS`:
+> [`FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json)
+> (primary vs sealed separated 4v4 PASS) and contingent
+> [`FULLY_SHARED_STRATEGY_CONDITIONED_6V6_V1_SPEC.json`](../artifacts/strategic_demand/sppo/FULLY_SHARED_STRATEGY_CONDITIONED_6V6_V1_SPEC.json)
+> (k pins deferred to sealed separated 6v6 composition). Single network `π_φ(a|o,z)`, no
+> router, forced-z crossover, same Δ/LCB95/seal machinery. **Do not launch while
+> `CLOSEST_SPLIT` 6v6 viability owns the GPU.** Implementation remaining is listed in the
+> 4v4 SPEC; this is freeze-only.
+>
+> ---
+>
+> Prior — 2026-09-23 — **4v4 = DONE** under the frozen closure rule
+> (*heuristic role allocation + learned strategy* → confirmatory crossover PASS).
+> Evidence already on disk: `DEFEND_ATTACK_SPLIT_POLICY_A_V1` trained `pi_D` under
+> `CLOSEST_DEFENDS` (allocator on during training; frozen `pi_A` on ATTACK slots), then
+> [`DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json`](../artifacts/strategic_demand/sppo/DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json)
+> sealed **joint gate PASS** on fresh n=128 (seeds 21800001–128):
+> Δ_A = +0.156 [+0.039, +0.273], Δ_B = +0.406 [+0.297, +0.508]. Practical paper status
+> matches 2v2. **Do not train another 4v4 closure run.** All attention goes to 6v6
+> (current closest-split viability in flight).
+>
+> **FROZEN 4v4 CLOSURE RULE (PI):** confirmatory crossover PASS under *strategy learned,
+> role assignment heuristic* closes 4v4. Heuristic assignment alone does not keep the lane open.
+>
+> ---
+>
+> Prior — 2026-09-23 — This PC is a **25k viability test** only, not the 200k run. After the checkpoint, an n=16 k=1 vs k=3
+> screen on both poles decides: promising → full 200k on the other PC; unclear → 50k here and screen again; obvious
+> collapse → stop.
+>
+> ---
+>
+> Prior — 2026-09-23 (later) — **`CLOSEST_COMPOSITION_CONTRAST_6V6` SEALED: `pattern_match = true`. Geometry-assigned
+> scripted 5A/1D vs 3A/3D recreates the sealed FIXED_IDENTITY composition signature. Do not auto-train `pi_D`; PI gate on
+> confirmatory n / heuristic+learned bridge.**
+>
+> Sealed
+> [`CLOSEST_COMPOSITION_CONTRAST_6V6_RESULT.json`](../artifacts/strategic_demand/sppo/CLOSEST_COMPOSITION_CONTRAST_6V6_RESULT.json)
+> (block `22100001-064`, 256 episodes, scripted macros, `CLOSEST_DEFENDS` `k_D=1` vs `k_D=3`):
+>
+> | contrast | mean | LCB95 | UCB95 |
+> |---|---|---|---|
+> | Delta_B (5A/1D − 3A/3D, Pole B) | **+0.594** | +0.453 | +0.719 |
+> | Delta_A (5A/1D − 3A/3D, Pole A) | **+0.109** | −0.031 | +0.250 |
+>
+> Cell WR: Pole B `0.75` vs `0.16`; Pole A `0.83` vs `0.72`. Matches the direction of
+> `FIXED_ATTACK_HEAVY_6V6_CONFIRMED` (identity assignment; B +0.69, A +0.125 at n=192). Point estimates only at n=64 —
+> not a confirmatory label. **Reading:** the successful asymmetric compositions survive heuristic role assignment; the
+> prior failure was specifically “add one defender to generalist `pi_A` vs unchanged `pi_B`,” not “5A/1D vs 3A/3D under
+> CLOSEST_DEFENDS.” Next is a PI decision (confirmatory n, or strategy-learned + heuristic allocation bridge) — still no
+> auto-`pi_D`.
+>
+> ---
+>
+> Prior — 2026-09-23 — **`CLOSEST_DEFENDS_SCREEN_6V6` SEALED: `pattern_match = false`. Closest-to-home fixed 5A/1D on
+> frozen `pi_A` is safer than seed-rotated +1D, but it is not enough to create 6v6 crossover. Do not train `pi_D` from that
+> scaffold. Next targeted test: geometry-assigned scripted 5A/1D vs 3A/3D (`CLOSEST_COMPOSITION_CONTRAST_6V6`), not a k-sweep
+> and not `pi_D`.**
+>
+> Sealed result
+> [`CLOSEST_DEFENDS_SCREEN_6V6_RESULT.json`](../artifacts/strategic_demand/sppo/CLOSEST_DEFENDS_SCREEN_6V6_RESULT.json)
+> (block `22000001-064`, 384 episodes, frozen existing 6v6 specialists, `k_D=1`):
+>
+> | contrast | mean | LCB95 | UCB95 |
+> |---|---|---|---|
+> | Delta_A_closest (`A_closest` vs `pi_B`, Pole A) | **-0.016** | -0.141 | +0.109 |
+> | Delta_B_closest (`pi_B` vs `A_closest`, Pole B) | +0.094 | +0.016 | +0.188 |
+> | I_B (`A_closest` vs native `pi_A`, Pole B) | **-0.078** | -0.172 | +0.016 |
+>
+> Cell means: `A_closest` 0.86/0.88 vs native `pi_A` 0.89/0.95 (Poles A/B). Selection rule mattered relative to
+> `DEFENDER_INJECTION_CAUSAL_BRIDGE` (`ONE_DEFENDER_HARM_ONLY`, Pole-B resolved harm much harsher). But Pole A stays a
+> near-tie / slight loss vs generalist `pi_B`, so the composite does not recreate crossover. **Frozen branch rule:** do
+> not auto-start 6v6 `pi_D` training from this scaffold — there is not enough causal evidence a learned one-defender
+> policy would solve it.
+>
+> **Recorded reading (PI, 2026-09-23):** closest-to-home selection removes much of the prior +1D harm but does not produce
+> 6v6 crossover when only the A-side composition is changed. Next experiment is **not** random `k=2`/`k=3` on learned
+> specialists; it is the geometry-assigned version of the sealed scripted contrast that *did* separate
+> (`FIXED_ATTACK_HEAVY_6V6_CONFIRMED`: 5A/1D vs 3A/3D): `CLOSEST_COMPOSITION_CONTRAST_6V6` — scripted macros, `CLOSEST_DEFENDS`
+> `k_D=1` vs `k_D=3`, exploratory `n=64`, block `22100001-064`. If that recreates the signature, bridge is
+> strategy-learned + role-assignment heuristic. If it fails, stop rescuing old 6v6 checkpoints with allocation tricks.
+>
+> ---
+>
+> Prior — 2026-09-22 (later) — **`CLOSEST_DEFENDS_SCREEN_4V4` COMPLETE: `pattern_match = true`. Both load-bearing pieces
 > of the target 4v4 training architecture now have empirical support: GO_TO is sufficient enough (`GOTO_ONLY_DEFEND_SUBSTITUTION_4V4`,
 > below) and a fixed distance-based greedy allocator preserves the useful 2A/2D effect (this experiment). Research question shifts
 > from "can this architecture work?" to "can PPO learn competent role-conditioned behavior under this fixed allocator?"**

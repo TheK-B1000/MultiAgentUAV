@@ -1,0 +1,51 @@
+{
+  "record": "4v4 scaffold role allocation (position-near-home, exploratory)",
+  "r_home": 4.5,
+  "seeds": [
+    21100001,
+    21100002,
+    21100003,
+    21100004,
+    21100005,
+    21100006,
+    21100007,
+    21100008,
+    21100009,
+    21100010,
+    21100011,
+    21100012,
+    21100013,
+    21100014,
+    21100015,
+    21100016
+  ],
+  "instrument": "ACTIVE & not carrying & dist(own flag home) <= r_home => defender-like; else ACTIVE => attacker-like. A' also has two forced DEFEND targets.",
+  "per_condition_means": {
+    "A_prime_poleA": {
+      "num_defenders": 1.884397908240647,
+      "num_attackers": 1.330394759015841,
+      "attack_defense_ratio": 0.9514711742360409,
+      "n_episodes": 16
+    },
+    "A_prime_poleB": {
+      "num_defenders": 2.1140625,
+      "num_attackers": 0.9195312499999999,
+      "attack_defense_ratio": 0.6212239583333334,
+      "n_episodes": 16
+    },
+    "pi_B_poleA": {
+      "num_defenders": 1.6744991987179487,
+      "num_attackers": 1.9530849358974358,
+      "attack_defense_ratio": 1.485493456196581,
+      "n_episodes": 16
+    },
+    "pi_B_poleB": {
+      "num_defenders": 1.5057722571942445,
+      "num_attackers": 1.7752828986810552,
+      "attack_defense_ratio": 1.407466526778577,
+      "n_episodes": 16
+    }
+  },
+  "note": "Descriptive companion; not a specialization gate. Coarse telemetry can be pole-driven.",
+  "claim_guard": "A' is pi_A with an externally imposed defender structure. A scaffolded crossover is a causal bridge showing what the balanced structure does to the payoff separation; it is not a fully learned crossover and must not be reported as one."
+}

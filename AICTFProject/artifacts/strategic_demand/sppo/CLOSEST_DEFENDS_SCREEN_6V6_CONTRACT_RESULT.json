@@ -1,0 +1,60 @@
+{
+  "record_id": "CLOSEST_DEFENDS_SCREEN_6V6_CONTRACT_RESULT",
+  "implements": "CLOSEST_DEFENDS_SCREEN_6V6_V1_SPEC.json",
+  "utc": "2026-09-22T20:44:18Z",
+  "DECISION": "CONTRACTS_PASS",
+  "spec_sha256": "66bbd98b99f57becfa63b8cb1128a9851ab316b98f72f509284829c55448e64c",
+  "script_sha256": "6e4a24dd86c7c43293eb7b875b742ded625d3eb13b83abcd89924fe579e75146",
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN",
+      "pass": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "check": "C1_CHECKPOINTS_MATCH_THE_PINNED_HASHES",
+      "pass": true,
+      "detail": "{'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'} vs pinned {'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'}"
+    },
+    {
+      "check": "C2_SEED_BLOCK_RESERVED_EXPLORATORY_UNSPENT",
+      "pass": true,
+      "detail": "already registered to CLOSEST_DEFENDS_SCREEN_6V6 (status RESERVED) -- same block, no conflict; registry status=RESERVED"
+    },
+    {
+      "check": "C3_CLOSEST_SELECTION_MATCHES_INDEPENDENT_BRUTE_FORCE",
+      "pass": true,
+      "detail": "495/495 eligible synthetic states (of 500 drawn) matched an independent argsort recomputation"
+    },
+    {
+      "check": "C4_SPAWN_GEOMETRY_NON_DEGENERATE_ON_ALL_REAL_CELLS",
+      "pass": true,
+      "detail": "gap between 1st/2nd-closest agent across all 128 (seed,pole) cells: min 0.0176, median 0.9688"
+    },
+    {
+      "check": "C5_A_CLOSEST_IS_DETERMINISTIC_AND_STATE_DEPENDENT",
+      "pass": true,
+      "detail": "rerun of (A, 22000001) identical defender_id/outcome: True; 3 distinct ids across the first 4 seeds: [1, 3, 4]"
+    },
+    {
+      "check": "C5b_POLICY_PARAMETERS_UNCHANGED_BY_CONTRACT_EPISODES",
+      "pass": true,
+      "detail": "parameter digests equal before/after"
+    },
+    {
+      "check": "C6_NO_SEED_TABLE_SIDE_DOOR",
+      "pass": true,
+      "detail": "closest_defend_id never calls a seed-to-id helper or a seed-modulo lookup"
+    },
+    {
+      "check": "C7_READ_ONLY_FENCE",
+      "pass": true,
+      "detail": "no training/optimizer call in the source"
+    },
+    {
+      "check": "C8_PATTERN_MATCH_SELFTEST",
+      "pass": true,
+      "detail": "5/5 synthetic cases"
+    }
+  ]
+}

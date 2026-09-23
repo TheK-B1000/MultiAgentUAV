@@ -186,7 +186,11 @@ class RolloutCollector:
         """Attach geometric roles when ``role_conditioning_enabled`` (fail-closed)."""
         if not bool(getattr(self.model, "role_conditioning_enabled", False)):
             return obs
-        from rl.custom_ppo.rule_role_assignment import RoleHoldState, roles_from_core
+        from rl.custom_ppo.rule_role_assignment import (
+            RoleHoldState,
+            role_k_kwargs_from_cfg,
+            roles_from_core,
+        )
 
         hold = getattr(self, "_role_hold", None)
         if hold is None:
@@ -196,6 +200,7 @@ class RolloutCollector:
                 hold_ticks=int(getattr(self.cfg, "role_hold_ticks", 8) or 8),
                 fixed_for_episode=bool(getattr(self.cfg, "role_fixed_for_episode", False)),
                 device=self.device,
+                **role_k_kwargs_from_cfg(self.cfg),
             )
             self._role_hold = hold
         roles = roles_from_core(self.env.core, hold, force=force, advance_age=advance_age)

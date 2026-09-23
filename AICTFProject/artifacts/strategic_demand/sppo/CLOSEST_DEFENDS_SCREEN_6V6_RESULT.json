@@ -1,0 +1,192 @@
+{
+  "record_id": "CLOSEST_DEFENDS_SCREEN_6V6_RESULT",
+  "implements": "CLOSEST_DEFENDS_SCREEN_6V6_V1_SPEC.json",
+  "device": "cuda",
+  "classification": "DESCRIPTIVE / EXPLORATORY -- no confirmatory label, no LCB95 gate",
+  "seed_block": {
+    "base": 22000001,
+    "n": 64,
+    "class": "exploratory"
+  },
+  "WIN_RATE_CONTRASTS_point_estimates_and_bootstrap_CI": {
+    "Delta_A_closest": {
+      "mean": -0.015625,
+      "lcb95": -0.140625,
+      "ucb95": 0.109375,
+      "n": 64
+    },
+    "Delta_B_closest": {
+      "mean": 0.09375,
+      "lcb95": 0.015625,
+      "ucb95": 0.1875,
+      "n": 64
+    },
+    "I_A": {
+      "mean": -0.03125,
+      "lcb95": -0.15625,
+      "ucb95": 0.09375,
+      "n": 64
+    },
+    "I_B": {
+      "mean": -0.078125,
+      "lcb95": -0.171875,
+      "ucb95": 0.015625,
+      "n": 64
+    },
+    "native_Delta_A": {
+      "mean": 0.015625,
+      "lcb95": -0.078125,
+      "ucb95": 0.125,
+      "n": 64
+    },
+    "native_Delta_B": {
+      "mean": 0.015625,
+      "lcb95": 0.0,
+      "ucb95": 0.046875,
+      "n": 64
+    }
+  },
+  "DESCRIPTIVE_BLUE_GOALS_CONTRASTS": {
+    "Delta_A_closest": {
+      "mean": 1.015625,
+      "lcb95": 0.703125,
+      "ucb95": 1.3125,
+      "n": 64
+    },
+    "Delta_B_closest": {
+      "mean": 0.390625,
+      "lcb95": 0.0625,
+      "ucb95": 0.703125,
+      "n": 64
+    },
+    "I_A": {
+      "mean": 0.828125,
+      "lcb95": 0.484375,
+      "ucb95": 1.15625,
+      "n": 64
+    },
+    "I_B": {
+      "mean": -0.390625,
+      "lcb95": -0.703125,
+      "ucb95": -0.078125,
+      "n": 64
+    },
+    "native_Delta_A": {
+      "mean": 0.1875,
+      "lcb95": 0.03125,
+      "ucb95": 0.359375,
+      "n": 64
+    },
+    "native_Delta_B": {
+      "mean": 0.0,
+      "lcb95": -0.265625,
+      "ucb95": 0.265625,
+      "n": 64
+    }
+  },
+  "DESCRIPTIVE_MARGIN_CONTRASTS": {
+    "Delta_A_closest": {
+      "mean": 1.015625,
+      "lcb95": 0.703125,
+      "ucb95": 1.328125,
+      "n": 64
+    },
+    "Delta_B_closest": {
+      "mean": 0.4375,
+      "lcb95": 0.109375,
+      "ucb95": 0.765625,
+      "n": 64
+    },
+    "I_A": {
+      "mean": 0.8125,
+      "lcb95": 0.484375,
+      "ucb95": 1.140625,
+      "n": 64
+    },
+    "I_B": {
+      "mean": -0.46875,
+      "lcb95": -0.78125,
+      "ucb95": -0.15625,
+      "n": 64
+    },
+    "native_Delta_A": {
+      "mean": 0.203125,
+      "lcb95": 0.046875,
+      "ucb95": 0.375,
+      "n": 64
+    },
+    "native_Delta_B": {
+      "mean": -0.03125,
+      "lcb95": -0.296875,
+      "ucb95": 0.234375,
+      "n": 64
+    }
+  },
+  "CELL_MEANS": {
+    "pi_A_poleA": {
+      "win": 0.890625,
+      "blue": 1.15625,
+      "margin": 1.125
+    },
+    "pi_A_poleB": {
+      "win": 0.953125,
+      "blue": 2.390625,
+      "margin": 2.375
+    },
+    "A_closest_poleA": {
+      "win": 0.859375,
+      "blue": 1.984375,
+      "margin": 1.9375
+    },
+    "A_closest_poleB": {
+      "win": 0.875,
+      "blue": 2.0,
+      "margin": 1.90625
+    },
+    "pi_B_poleA": {
+      "win": 0.875,
+      "blue": 0.96875,
+      "margin": 0.921875
+    },
+    "pi_B_poleB": {
+      "win": 0.96875,
+      "blue": 2.390625,
+      "margin": 2.34375
+    }
+  },
+  "PRIOR_SEED_ROTATED_RESULT_FOR_COMPARISON_DEFENDER_INJECTION_CAUSAL_BRIDGE": {
+    "pi_A_B": {
+      "mean": -0.177083,
+      "lcb95": -0.260417,
+      "ucb95": -0.104167,
+      "n": 96,
+      "resolved_improvement": false,
+      "resolved_harm": true
+    },
+    "pi_B_B": {
+      "mean": -0.09375,
+      "lcb95": -0.15625,
+      "ucb95": -0.041667,
+      "n": 96,
+      "resolved_improvement": false,
+      "resolved_harm": true
+    }
+  },
+  "PATTERN_MATCH_point_estimate_only_not_a_significance_claim": {
+    "rule": "Delta_A_closest_mean > 0 AND Delta_B_closest_mean > 0 AND I_B_mean < 0",
+    "result": false
+  },
+  "interpretation_guard": "A_closest is pi_A with an externally imposed, state-dependent single-defender assignment (closest-to-home ACTIVE agent at t=0), not a learned assignment. DESCRIPTIVE screen, not a confirmatory claim: no LCB95 gate, no terminal pass/fail label. Answers whether the pair-selection RULE (closest-to-home vs the already-sealed seed-rotated DEFENDER_INJECTION_CAUSAL_BRIDGE) changes the outcome, not whether PPO can learn to select or execute it.",
+  "claim_boundary": "Descriptive comparison only, on the frozen existing 6v6 learned specialists, fresh exploratory seeds, k=1 closest-to-home defender injection. Not a confirmatory crossover claim; no LCB95 gate. A_closest is pi_A with an externally imposed, state-dependent single-defender assignment (closest-to-home ACTIVE agent at t=0), not a learned assignment. DESCRIPTIVE screen, not a confirmatory claim: no LCB95 gate, no terminal pass/fail label. Answers whether the pair-selection RULE (closest-to-home vs the already-sealed seed-rotated DEFENDER_INJECTION_CAUSAL_BRIDGE) changes the outcome, not whether PPO can learn to select or execute it.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-23T13:02:04Z",
+  "git_sha": "892da3213939832599196b430d7217ed9f61b932",
+  "AUDIT": {
+    "path": "CLOSEST_DEFENDS_SCREEN_6V6_AUDIT.json",
+    "passed": true,
+    "n_checks": 22,
+    "n_gating": 16,
+    "failed_checks": [],
+    "rows_sha256": "74b1d0a8f150195c15205c4cff57fca000a1ae3d2e529debdf8bd7da254ae3e0"
+  }
+}
