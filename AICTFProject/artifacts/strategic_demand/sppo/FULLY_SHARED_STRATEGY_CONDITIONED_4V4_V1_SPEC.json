@@ -167,5 +167,12 @@
     "varied": "parameter sharing only"
   },
 
-  "claim_boundary": "Design freeze for the 4v4 Fully Shared Strategy-Conditioned sharing-axis baseline under the exact CLOSEST_DEFENDS protocol that closed the separated system. Authorizes implementation and contracts later; does NOT authorize seed spend or GPU training until C11 clears and contracts pass."
+  "claim_boundary": "Design freeze for the 4v4 Fully Shared Strategy-Conditioned sharing-axis baseline under the exact CLOSEST_DEFENDS protocol that closed the separated system. Authorizes implementation and contracts later; does NOT authorize seed spend or GPU training until C11 clears and contracts pass.",
+
+  "SUITE_PARENT_AMENDMENT_2026_09_24": {
+    "parent": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json",
+    "status_change": "This record remains the CLOSEST_DEFENDS plumbing/contracts child for the 4v4 Fully Shared+z suite arm. It is no longer the sole definition of the fully shared baseline.",
+    "required_by_suite": "Fully Shared+z must exist at 2v2/4v4/6v6 under the suite's sharing-family identity (same teachers/states/objective/budget vs Share-Encoder where distillation is used). A 4v4-only PPO one-off is insufficient.",
+    "train_still_deferred": true
+  }
 }

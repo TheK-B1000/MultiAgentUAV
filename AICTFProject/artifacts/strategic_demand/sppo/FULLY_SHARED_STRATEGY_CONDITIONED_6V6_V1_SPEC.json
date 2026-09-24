@@ -101,5 +101,11 @@
     "note": "Same train/eval scripts as 4v4; k(z) mapping and warm-start pin remain CONTINGENT on G1–G4. Non-smoke 6v6 launch is fail-closed in the trainer until contingency is cleared."
   },
 
-  "claim_boundary": "Contingent design freeze for the 6v6 Fully Shared Strategy-Conditioned sharing-axis port. Pins the scientific contrast and forbids allocator drift; defers k pins, warm-start confirmation, and seed reservation until the separated 6v6 composition seals and the 4v4 shared arm is interpreted. Does not authorize training."
+  "claim_boundary": "Contingent design freeze for the 6v6 Fully Shared Strategy-Conditioned sharing-axis port. Pins the scientific contrast and forbids allocator drift; defers k pins, warm-start confirmation, and seed reservation until the separated 6v6 composition seals and the 4v4 shared arm is interpreted. Does not authorize training.",
+
+  "SUITE_PARENT_AMENDMENT_2026_09_24": {
+    "parent": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json",
+    "status_change": "Plumbing/contracts child for the 6v6 Fully Shared+z suite arm under CLOSEST_DEFENDS(k=1). Not a complete cross-scale baseline by itself.",
+    "train_still_deferred": true
+  }
 }

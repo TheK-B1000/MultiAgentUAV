@@ -1,12 +1,26 @@
-# Results handoff — 2v2 + 6v6
+# Results handoff
 
 All numbers below are read directly from sealed artifacts by
 `paper/figures/harvest_results_data.py`. Nothing is retyped by hand.
-Re-run that script to refresh `data/RESULTS_DATA_2v2_6v6.json` after any new
-evaluation seals.
+Re-run that script to refresh harvest JSONs after any new evaluation seals.
 
-**6v6 Share-Encoder crossover and Share-0 teacher diagnostic are both sealed
-(FAIL). Robustness remains reserved/unspent.**
+## Paper scale narrative — LOCKED 2026-09-23
+
+```text
+2v2 → 4v4 → repaired 6v6
+```
+
+| Piece | Final paper status |
+|-------|--------------------|
+| 2v2 specialists + sharing ladder | **Include** |
+| 4v4 split crossover PASS | **Include** |
+| Old 6v6 Share-0 / Share-Encoder compression | **Exclude** (archive only) |
+| Repaired/mature 6v6 split (school PC) | **Include once sealed** — sole 6v6 main-story result |
+| Fully shared strategy-conditioned baseline | **Run after 6v6, then include** |
+
+**Archived (not for final 6v6 narrative):** Share-Encoder crossover and Share-0
+teacher diagnostic are sealed FAIL on disk; do not typeset them as the paper’s
+6v6 result. Robustness under that path remains reserved/unspent.
 
 ---
 
@@ -160,9 +174,17 @@ Student cells: z0@A=0.8672, z0@B=0.9531, z1@A=0.8359, z1@B=0.9922.
 | `fig_trajectory_strip_2v2` / `fig_qualitative_latent_2v2` | qualitative |
 | `fig_role_allocation_2v2` / `fig_latent_behavior_2v2` | exploratory telemetry |
 
-## 10. Excluded
+## 10. Narrative vs archive
 
-4v4 is excluded from Results per your direction. Its sealed records are intact on
-disk and unaffected: C2/B2-1 crossover FAIL, vanilla B3-3 crossover FAIL,
-role-preservation crossover wrote an INTEGRITY_REQUIRED flag (Δ_A reversal,
-0.6328 − 0.8281 = −0.1953) at 18:33Z.
+**In the final paper:** 2v2 depth ladder; cross-scale suite
+(Generalist / Fully Shared+\(z\) / Share-Encoder / Separated) at 2v2–4v4–6v6
+once built under
+[`CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json`](../../artifacts/strategic_demand/sppo/CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json);
+4v4 split confirmatory PASS
+(`DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_…`); repaired 6v6 Separated
+once sealed; then Fully Shared+\(z\) and Share-Encoder under the same
+`CLOSEST_DEFENDS` locks.
+
+**Archived / not main-story 6v6:** old Share-0 / Share-Encoder compression path
+(FAIL; no `CLOSEST_DEFENDS`). Earlier exploratory 4v4 FAIL/INTEGRITY records remain on disk for
+provenance and are not the 4v4 closure claim.

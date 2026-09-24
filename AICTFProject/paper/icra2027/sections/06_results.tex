@@ -1,16 +1,21 @@
 \section{Results}
 \label{sec:results}
 %======================================================================
-% CROSS-SCALE RESULTS: 2v2 and 6v6 are reported as ONE argument, organised by
-% question, not as two standalone scale reports.
+% PAPER SCALE NARRATIVE -- LOCKED 2026-09-23 (PI):
+%   2v2 --> 4v4 --> repaired 6v6
 %
-% 4v4 is deliberately EXCLUDED from this section (PI direction 2026-09-11).
+% INCLUDE:
+%   - 2v2 specialists + sharing ladder (+ generalist context as already drafted)
+%   - 4v4 split crossover PASS (CLOSEST_DEFENDS + frozen ATTACK + learned pi_D)
+%   - repaired/mature 6v6 split once school-PC pipeline seals (ONLY 6v6 main-story result)
+%   - fully shared strategy-conditioned baseline AFTER repaired 6v6 (then include)
 %
-% PENDING (one slot only): the 6v6 sealed crossover Delta_A / Delta_B in
-% Sec.~\ref{sec:results-scale}. Search this file for "PENDING-6V6" -- it is the
-% only number not yet sealed. Fill from
-%   artifacts/strategic_demand/sppo/RUNG1_6V6_CROSSOVER_EVAL_RESULT.json
-% (or ..._INTEGRITY_REQUIRED.json if a tie/reversal is flagged).
+% EXCLUDE from final narrative (keep artifacts for provenance only):
+%   - old 6v6 Share-0 / Share-Encoder compression / Rung-1 distillation crossover
+%     (sealed FAIL on disk; do not typeset as the paper's 6v6 result)
+%
+% Reverses draft note of 2026-09-11 that excluded 4v4 from this section.
+% PENDING: repaired 6v6 sealed Delta_A / Delta_B (search PENDING-REPAIRED-6V6).
 %======================================================================
 
 \subsection{Evaluation protocol}
@@ -331,21 +336,15 @@ parameter reduction---and evaluate it against the same criterion on a fresh
 $128$-seed block, with $z_0$ and $z_1$ dispatched from one checkpoint
 (Fig.~\ref{fig:crossscale}c).
 
-% ---------------------------------------------------------------- PENDING-6V6
-% The sealed 6v6 crossover evaluation is the only number in this section that is
-% not yet available. Evaluation launched 2026-09-11T18:33Z on seeds
-% 13640001..13640128 (512 episodes, ~62 s/ep). On completion, replace the
-% placeholder below with the sealed values from
-%   artifacts/strategic_demand/sppo/RUNG1_6V6_CROSSOVER_EVAL_RESULT.json
-%     -> PRIMARY_GATE.delta_A {mean, lcb95, ucb95}
-%     -> PRIMARY_GATE.delta_B {mean, lcb95, ucb95}
-%     -> PRIMARY_GATE.passes
-% If RUNG1_6V6_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json is written instead, a tie or
-% reversal was flagged and a row-level audit is required BEFORE any sentence here
-% is written.
+% ---------------------------------------------------------------- PENDING-REPAIRED-6V6
+% LOCKED 2026-09-23: the paper's only 6v6 main-story result is the repaired/mature
+% split (school-PC pipeline: entity-repair A/B -> freeze ATTACK -> pi_D +200k + N'
+% teacher -> CLOSEST_DEFENDS(k=1) -> sealed crossover). Do NOT fill this slot from
+% RUNG1_6V6_CROSSOVER_EVAL_RESULT.json / old Share-Encoder compression (EXCLUDED).
+% After school-PC seals, typeset Delta_A / Delta_B from that confirmatory artifact.
 % ----------------------------------------------------------------------------
 \noindent
-\textbf{[PENDING-6V6 --- sealed crossover in progress; do not typeset.]}
+\textbf{[PENDING-REPAIRED-6V6 --- school-PC mature split not yet sealed; do not typeset.]}
 \[
 \Delta_A = \texttt{<pending>},
 \qquad
@@ -353,15 +352,16 @@ $128$-seed block, with $z_0$ and $z_1$ dispatched from one checkpoint
 \]
 
 \noindent
-The interpretation is pre-committed and does not depend on the outcome. If the
-criterion is satisfied, the same shared-perception compression that preserved
-complementary specialization with two agents also preserves it with six, and the
-$48\%$ deployment saving transfers to a materially harder coordination problem.
-If it is not satisfied, the compression result is scale-bounded: the location of
-the sharing boundary established at $2$v$2$ does not by itself license deployment
-at larger team sizes, and the boundary must be re-established per scale. Either
-outcome is reported against the same criterion, and no rung beyond shared
-perception is evaluated at $6$v$6$ in this work.
+The interpretation is pre-committed and does not depend on the outcome. This
+$6$v$6$ measurement uses the same algorithmic recipe as the sealed $4$v$4$ split
+(mature specialists, frozen ATTACK, learned defender under heuristic role
+allocation), with scale-specific composition $k{=}1$. If the criterion is
+satisfied, complementary specialization under that recipe transfers from four to
+six agents. If it is not, the split result is scale-bounded under an
+apples-to-apples foundation and must be reported as such. Either outcome is
+scored against the same $\Delta_A$/$\Delta_B$ gate used at $2$v$2$ and $4$v$4$.
+Legacy $6$v$6$ Share-0 / Share-Encoder compression evaluations are archived and
+are not part of this narrative.
 
 %----------------------------------------------------------------------
 \subsection{What the latent modes actually do}

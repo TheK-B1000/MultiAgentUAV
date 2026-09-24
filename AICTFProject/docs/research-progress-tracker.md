@@ -16,18 +16,80 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-09-23 (school PC locked) — **Same algorithmic recipe, scale-specific configuration.**
-> Framing: preserve the same learning architecture across scales; use the role composition
-> independently established for each team size (`4v4: N=4,k=2` / `6v6: N=6,k=1`). Not
-> “designed 6v6 so it can pass.” Method unchanged: mature A/B, frozen ATTACK `π_A`, `π_D` from
-> `π_A`, 200k + identical N′ teacher, `CLOSEST_DEFENDS`, same `Δ_A`/`Δ_B` LCB95 gate.
-> **Fail-closed preflight required before the long grind:**
-> `python experiments/run_school_pc_6v6_preflight.py --stage foundation` (then `--stage split`
-> after repair seals). Attests teacher/split/k=1/hashes + t0 equivalence + frozen ATTACK never
-> in optimizer. Orchestrator refuses to grind if preflight FAILs.
-> Spec: [`SCHOOL_PC_6V6_LOCKED_PIPELINE.json`](../artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json)
-> School-PC how-to: [`experiments/SCHOOL_PC_6V6_README.md`](../experiments/SCHOOL_PC_6V6_README.md)
-> Home c2 STOPPED. School owns the chain. Crossover PASS remains empirical.
+> Prior — 2026-09-24 — **2v2 Fully Shared+\(z\) distilled student FROZEN.**
+> Holdout agree \(0.965/0.988\), unique actor params \(3{,}456{,}599\), sha256
+> `4aebecd8…`. Record:
+> `artifacts/strategic_demand/sppo/suite_sharing/2v2/fully_shared_z/STUDENT_FROZEN.json`.
+> Next suite step still: collect `SUITE_DISTILLATION_4V4` under CD \(k=2\).
+>
+> ---
+>
+> Prior — 2026-09-24 — **Suite fairness rule confirmed in ops.** Distillation
+> arms fail-closed until matched state sets exist. Inventory:
+> 2v2 Separated/Share-Encoder/Generalist available, Fully Shared+\(z\) training
+> (unique actor params \(3{,}456{,}599\)); 4v4 Separated sealed, both sharing arms
+> blocked on CD \(k=2\) dataset; 6v6 Separated critical path, sharing arms blocked.
+> Next collectable dataset: `SUITE_DISTILLATION_4V4` under `CLOSEST_DEFENDS(k=2)`
+> from the sealed mature split; 6v6 collection waits on Separated seal then \(k=1\).
+>
+> ---
+>
+> Prior — 2026-09-24 — **Suite distillation implementation started (do not wait
+> on the 6v6 seal for the code).** `experiments/run_suite_sharing_distillation.py`
+> + `rl/suite_fully_shared_distill.py`. **2v2 Share-Encoder reused** (sealed Rung-1).
+> **2v2 Fully Shared+\(z\)** preflight 7/7; 20-epoch distillation launched on CPU
+> (GPU was occupied). **4v4/6v6 both arms fail-closed** until
+> `SUITE_DISTILLATION_{4,6}V{4,6}_DATASET.json` exists under `CLOSEST_DEFENDS`.
+>
+> ---
+>
+> **Last updated:** 2026-09-24 (cross-scale baseline suite FROZEN) —
+> **Suite:** [`CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json`](../artifacts/strategic_demand/sppo/CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json)
+> — same four arms at 2v2/4v4/6v6 (Generalist / Fully Shared+\(z\) / Share-Encoder /
+> Separated), distillation identity for the sharing family, allocator fairness
+> (`4v4: CLOSEST_DEFENDS k=2` / `6v6: k=1`; 2v2 natural). **Do not train suite arms
+> now.** Critical path remains sealing repaired 6v6 Separated; then prioritize
+> standardized Fully Shared+\(z\) at all three scales, then Share-Encoder under the
+> same locks. Depth ladder (Backbone/Macro) stays **2v2-only**. Prior one-off
+> fully-shared PPO SPECs are plumbing children under this suite, not complete
+> baselines by themselves.
+>
+> **Final paper scale story:** `2v2 → 4v4 → repaired 6v6`, then suite curves.
+>
+> | Piece | Final paper status |
+> |-------|--------------------|
+> | 2v2 specialists + sharing ladder (depth) | **Include** |
+> | 4v4 split crossover PASS | **Include** |
+> | Old 6v6 Share-0 / Share-Encoder (no CLOSEST_DEFENDS) | **Exclude** from suite/narrative |
+> | Repaired/mature 6v6 Separated | **Include once sealed** — critical path |
+> | Cross-scale suite (4 arms × 3 scales) | **Frozen design; build after 6v6 seal** |
+>
+> Compute path unchanged: same algorithmic recipe, scale-specific config
+> (`4v4: N=4,k=2` / `6v6: N=6,k=1`). Mature A/B → frozen ATTACK `π_A` → `π_D` +200k +
+> identical N′ teacher → `CLOSEST_DEFENDS` → same `Δ_A`/`Δ_B` LCB95 gate.
+> School PC: [`SCHOOL_PC_6V6_LOCKED_PIPELINE.json`](../artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json),
+> [`experiments/SCHOOL_PC_6V6_README.md`](../experiments/SCHOOL_PC_6V6_README.md).
+> Fail-closed preflight before grind. Home c2 STOPPED.
+>
+> ---
+>
+> Prior — 2026-09-23 (paper scale narrative LOCKED) —
+> **Final paper scale story:** `2v2 → 4v4 → repaired 6v6`.
+>
+> | Piece | Final paper status |
+> |-------|--------------------|
+> | 2v2 specialists + sharing ladder | **Include** |
+> | 4v4 split crossover PASS | **Include** (reverses 2026-09-11 “exclude 4v4” draft note) |
+> | Old 6v6 Share-0 / Share-Encoder compression results | **Exclude** from narrative (archive/provenance only) |
+> | Repaired/mature 6v6 split (school-PC pipeline) | **Include once sealed** — only 6v6 result in the main story |
+> | Fully shared strategy-conditioned baseline | **Run after 6v6, then include** |
+>
+> Compute path unchanged: same algorithmic recipe, scale-specific config
+> (`4v4: N=4,k=2` / `6v6: N=6,k=1`). Mature A/B → frozen ATTACK `π_A` → `π_D` +200k +
+> identical N′ teacher → `CLOSEST_DEFENDS` → same `Δ_A`/`Δ_B` LCB95 gate.
+> School PC: [`SCHOOL_PC_6V6_LOCKED_PIPELINE.json`](../artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json),
+> [`experiments/SCHOOL_PC_6V6_README.md`](../experiments/SCHOOL_PC_6V6_README.md).
+> Fail-closed preflight before grind. Home c2 STOPPED.
 >
 > ---
 >

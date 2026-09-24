@@ -311,6 +311,22 @@ and no strategy-code mechanism. PPO's role here is only to produce behavioral
 experts with demonstrated complementary payoff specialization; it is not the
 claimed algorithmic novelty. These experts are the teachers for distillation and
 the verbatim actors behind Share-0.
+The complete policy-network architecture used for the experts is a non-recurrent
+decentralized actor with weights shared across blue agents.
+Each local observation comprises a $7{\times}20{\times}20$ channels-first grid and a
+$20$-dimensional scalar feature vector.
+A three-layer CNN encoder (channels $32\!\to\!64\!\to\!64$, $3{\times}3$ kernels,
+stride~$1$, padding~$1$, ReLU after each convolution) followed by a linear
+projection yields a $128$-dimensional visual feature; concatenating the scalar
+vector produces a $148$-dimensional local representation.
+A feedforward MLP body of two fully connected layers ($256$--$256$, ReLU) maps
+this representation to a linear action head of width~$55$, partitioned into a
+$5$-way macro-action head and a $50$-way target-selection head matching
+$\mathrm{MultiDiscrete}([5,50])$ per agent.
+There is no recurrent state and no strategy embedding at the expert stage.
+Each sealed specialist branch has $3{,}473{,}592$ parameters, so the two-expert
+Share-0 deployment occupies $6{,}947{,}184$ unique parameters; the count is
+invariant to team size because actor weights are shared across agents.
 
 \textbf{Generalist baseline.}
 We also evaluate $\pi_G$, a single policy trained on the mixed opponent
@@ -324,18 +340,42 @@ Treating $\pi_A$ and $\pi_B$ as behavioral experts rather than as the final
 shared controller, we transfer their behaviors into one strategy-conditioned
 policy $\pi_\theta(a\mid o,z)$ by supervised distillation, with
 $z_0$ meaning ``behave like the A expert'' and $z_1$ meaning ``behave like the
-B expert.'' Both experts are queried on the \emph{same} stored states, so
-differences between conditioned outputs are attributable to expert strategies
-rather than different state visitation distributions
-($s\!\sim\!d_{\pi_A}$ vs.\ $s\!\sim\!d_{\pi_B}$).
+B expert.''
+
+A central design choice is that both experts are queried on the
+\emph{same observation states}. Let
+\[
+\mathcal{D}
+=
+\{o_n\}_{n=1}^{N}
+\]
+denote a fixed distillation dataset collected from a balanced mixture of the
+two experts' natural-deployment rollouts: half the episodes roll frozen
+$\pi_A$ against Regime~A and half roll frozen $\pi_B$ against Regime~B
+(equal episode counts; deterministic expert actions). Every visited
+decision-eligible observation ($d_t^i=1$) is retained.
+For every $o_n\in\mathcal{D}$, both experts are evaluated,
+yielding the paired teacher targets
+\[
+q_{n,A}^{(h)}
+=
+\pi_A^{(h)}(\cdot\mid o_n),
+\qquad
+q_{n,B}^{(h)}
+=
+\pi_B^{(h)}(\cdot\mid o_n).
+\]
+Thus, differences between the two supervision signals arise from the expert
+policies rather than from different state distributions
+($o\!\sim\!d_{\pi_A}$ vs.\ $o\!\sim\!d_{\pi_B}$).
 
 The distillation objective is
 \[
 \mathcal{L}_{\mathrm{distill}}
 =
-\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_A(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_0)\right)
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_A(\cdot\mid o)\,\|\,\pi_\theta(\cdot\mid o,z_0)\right)
 +
-\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_B(\cdot\mid s)\,\|\,\pi_\theta(\cdot\mid s,z_1)\right),
+\tfrac{1}{2}D_{\mathrm{KL}}\!\left(\pi_B(\cdot\mid o)\,\|\,\pi_\theta(\cdot\mid o,z_1)\right),
 \]
 evaluated per action head over masked distributions and averaged over
 decision-eligible heads only ($d_t^i=1$). Only actor parameters are optimized;
@@ -422,6 +462,15 @@ by reduced per-strategy capacity. Module tying is verified by object identity
 and unique-parameter arithmetic (sealed counts appear with specialization results
 in Table~\ref{tab:sharing-results}). A mixed-$z$ minibatch gives each shared module
 gradient from both strategies in the same step.
+All sharing conditions use the same distillation dataset and optimization
+objective.
+The remaining training hyperparameters are Adam with learning rate $3{\times}10^{-4}$,
+minibatch size~$256$, $20$ fixed epochs, no weight decay, global gradient-norm
+clipping at~$1.0$, and fresh random initialization of each distilled student
+(fixed seeds; no warm-start from the expert weights).
+There is no early stopping and no checkpoint selection; the terminal weights
+are the sole artifact.
+Critics are excluded from the optimizer and verified immobile.
 
 \paragraph{Share-0 (structural control).}
 Share-0 installs $\pi_A$ and $\pi_B$ behind a strategy-code dispatch wrapper with
@@ -429,6 +478,30 @@ zero shared parameters, verified bit-exact against both experts on the
 evaluation device. It establishes that the dispatch-and-evaluate path can
 express specialization when no parameters are shared and when no distillation
 has occurred.
+
+\paragraph{Fully shared conditional baseline.}
+This reference tests whether explicit conditioning alone is sufficient to
+represent the opponent-specific strategies, or whether retaining
+strategy-specific submodules provides additional representational benefit.
+Its architecture is a single decentralized actor $\pi_\phi(a\mid o,z)$ of the
+experts' own class (same $7{\times}20{\times}20$ CNN encoder projecting to $128$
+features and the same $256$--$256$ ReLU MLP body and width-$55$ action head),
+with \emph{all} modules shared across strategies.
+Strategy identity enters only through a learned embedding
+($d_z{=}16$) concatenated to the local features
+(local width $148\!\to\!164$); there is no FiLM, no private per-$z$ trunk, and no
+mode-specific action head.
+Capacity matching keeps that single shared stack at specialist scale
+($3{,}456{,}599$ unique actor parameters for the sealed $2$v$2$ Fully Shared+$z$
+student; about half the two-expert Share-0 footprint and comparable to
+Share-Encoder's unique count), so the comparison isolates sharing structure
+rather than a deliberately shrunk network.
+Across team sizes this arm is one cell of a frozen four-arm suite
+(Generalist / Fully Shared+$z$ / Share-Encoder / Separated) under matched
+teachers, states, objective, and budget for the sharing family; at $4$v$4$/$6$v$6$
+the allocator is held fixed ($\mathrm{CLOSEST\_DEFENDS}$ with $k{=}2$ / $k{=}1$).
+The detailed Share-Encoder$\rightarrow$Backbone$\rightarrow$Macro ladder remains the
+depth ablation at $2$v$2$ only.
 
 \subsection{Matched-seed paired evaluation}
 \label{sec:matched}
