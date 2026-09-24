@@ -89,14 +89,26 @@ Get-Content artifacts\strategic_demand\sppo\school_pc_6v6_crossover_exploratory.
 
 ## Where results are saved
 
+**Send this folder to your professor:** `AICTFProject/6v6/`
+
+The pipeline copies models, seals, crossover JSON, and logs there as stages finish.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1
+```
+
+That writes `6v6/6v6_handoff_<date>.zip`. See `6v6/README.md` for the folder layout.
+
+Canonical training trees (full metrics / periodic ckpts) also remain under:
+
 | What | Path |
 |------|------|
-| Logs, seals, overall bar | `artifacts/strategic_demand/sppo/` |
+| Logs / seals (sppo) | `artifacts/strategic_demand/sppo/` |
 | Repaired π_A | `artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/` |
 | Repaired π_B | `artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/` |
 | Split π_D | `artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/` |
-| Exploratory result | `artifacts/strategic_demand/EXPLORATORY_6V6_SPLIT_K1_SPECIALIST_CROSSOVER_EVAL_RESULT.json` |
-| Done marker | `artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_PIPELINE_DONE.json` |
+
+No paper charts are produced by this run.
 
 ---
 

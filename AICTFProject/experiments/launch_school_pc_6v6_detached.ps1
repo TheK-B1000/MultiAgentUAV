@@ -45,6 +45,7 @@ $p = Start-Process -FilePath $Py -ArgumentList $argList -WorkingDirectory $Root 
 Set-Content -Path $pidFile -Value $p.Id -Encoding ascii
 Write-Host "DETACHED school_pc_6v6 pid=$($p.Id)"
 Write-Host "overall bar:  Get-Content '$err' -Wait -Tail 5"
+Write-Host "handoff dir:  $(Join-Path $Root '6v6')  (models+results — zip with experiments/pack_6v6_handoff.ps1)"
 Write-Host "stage A bar:  Get-Content '$((Join-Path $LogDir 'school_pc_6v6_repair_A.err'))' -Wait -Tail 3"
 Write-Host "heartbeat:    $((Join-Path $LogDir 'school_pc_6v6_OVERALL_PROGRESS.json'))"
 Write-Host "pid file:     $pidFile"

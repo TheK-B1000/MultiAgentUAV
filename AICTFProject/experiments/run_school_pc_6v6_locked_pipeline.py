@@ -2,22 +2,19 @@
 
 Per-stage PPO/eval bars go to ``school_pc_6v6_<tag>.err`` (ASCII-safe for
 ``Get-Content -Wait``). An **overall** bar on this process's stderr tracks
-weighted pipeline progress (1M A + 1M B + 200k split + 64 eval cells) so you
-can see when the whole chain finishes.
+weighted pipeline progress (1M A + 1M B + 200k split + 256 eval cells).
 
-Launch detached (leave overnight)::
+Portable handoff (models + results + seals + logs) is kept under::
+
+    AICTFProject/6v6/
+
+Zip that folder for your professor::
+
+    powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1
+
+Launch detached::
 
     powershell -ExecutionPolicy Bypass -File experiments/launch_school_pc_6v6_detached.ps1
-
-Watch::
-
-    Get-Content artifacts/strategic_demand/sppo/school_pc_6v6_OVERALL.err -Wait -Tail 5
-    Get-Content artifacts/strategic_demand/sppo/school_pc_6v6_repair_A.err -Wait -Tail 3
-
-Artifacts::
-
-    checkpoints under artifacts/scale_6v6_specialists/...
-    seals/logs under artifacts/strategic_demand/sppo/
 """
 from __future__ import annotations
 
@@ -25,6 +22,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -39,6 +37,7 @@ if str(ROOT) not in sys.path:
 from experiments.tqdm_loop import tqdm_iter  # noqa: E402
 
 SD = ROOT / "artifacts" / "strategic_demand" / "sppo"
+HANDOFF = ROOT / "6v6"
 SPEC_PATH = SD / "SCHOOL_PC_6V6_LOCKED_PIPELINE.json"
 PY = ROOT / ".venv" / "Scripts" / "python.exe"
 if not PY.is_file():
@@ -59,11 +58,8 @@ PI_D = (
     "ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip"
 )
 
-# Weighted units for the overall bar (≈ env-steps + eval cells).
 WEIGHT_REPAIR = 1_000_000
 WEIGHT_SPLIT = 200_000
-WEIGHT_EVAL = 64  # 2 policies × 2 poles × 16 is wrong; eval is 2×2×64 = 256 cells
-# eval_specialist_crossover_scaled: POLICIES × poles × n_seeds
 WEIGHT_EVAL_CELLS = 2 * 2 * 64  # 256
 
 
@@ -79,27 +75,78 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _write_seal(name: str, rel: str) -> str:
+def _handoff_dirs() -> dict[str, Path]:
+    dirs = {
+        "root": HANDOFF,
+        "models": HANDOFF / "models",
+        "results": HANDOFF / "results",
+        "seals": HANDOFF / "seals",
+        "progress": HANDOFF / "progress",
+        "logs": HANDOFF / "logs",
+    }
+    for p in dirs.values():
+        p.mkdir(parents=True, exist_ok=True)
+    return dirs
+
+
+def _handoff_update_manifest(**fields: Any) -> None:
+    path = HANDOFF / "MANIFEST.json"
+    doc: dict[str, Any] = {}
+    if path.is_file():
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            doc = {}
+    doc.setdefault("record", "6v6_school_handoff")
+    doc["utc_updated"] = _now()
+    doc.update(fields)
+    path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+
+
+def _handoff_copy(src: Path, dest: Path) -> None:
+    if not src.is_file():
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src, dest)
+    print(f"HANDOFF copy {src.name} -> {dest.relative_to(ROOT)}", flush=True)
+
+
+def _write_seal(name: str, rel: str, *, handoff_seal_name: str | None = None) -> str:
     path = ROOT / rel
     if not path.is_file():
         raise SystemExit(f"missing checkpoint for seal: {path}")
     digest = _sha256(path)
-    out = SD / name
-    out.write_text(
-        json.dumps(
-            {
-                "utc": _now(),
-                "path": rel.replace("\\", "/"),
-                "sha256": digest,
-                "bytes": path.stat().st_size,
-            },
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
+    payload = {
+        "utc": _now(),
+        "path": rel.replace("\\", "/"),
+        "sha256": digest,
+        "bytes": path.stat().st_size,
+    }
+    (SD / name).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    _handoff_dirs()
+    seal_name = handoff_seal_name or name
+    (HANDOFF / "seals" / seal_name).write_text(
+        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
     )
     print(f"SEAL {name} sha256={digest}", flush=True)
     return digest
+
+
+def _handoff_model(rel: str, short_name: str) -> None:
+    src = ROOT / rel
+    dest = HANDOFF / "models" / short_name
+    _handoff_copy(src, dest)
+    if dest.is_file():
+        _handoff_update_manifest(
+            **{
+                f"model_{short_name}": {
+                    "handoff": f"6v6/models/{short_name}",
+                    "source": rel.replace("\\", "/"),
+                    "sha256": _sha256(dest),
+                    "bytes": dest.stat().st_size,
+                }
+            }
+        )
 
 
 def _read_global_step(metrics_csv: Path) -> int:
@@ -130,15 +177,18 @@ def _heartbeat(phase: str, overall_done: int, overall_total: int, detail: str) -
         "frac": (overall_done / overall_total) if overall_total else 0.0,
         "detail": detail,
     }
-    (SD / "school_pc_6v6_OVERALL_PROGRESS.json").write_text(
-        json.dumps(payload, indent=2) + "\n", encoding="utf-8"
-    )
+    text = json.dumps(payload, indent=2) + "\n"
+    (SD / "school_pc_6v6_OVERALL_PROGRESS.json").write_text(text, encoding="utf-8")
+    _handoff_dirs()
+    (HANDOFF / "progress" / "OVERALL_PROGRESS.json").write_text(text, encoding="utf-8")
     line = (
         f"[{payload['utc']}] phase={phase} "
         f"overall={overall_done}/{overall_total} "
         f"({100.0 * payload['frac']:.2f}%) {detail}\n"
     )
     with (SD / "school_pc_6v6_OVERALL_PROGRESS.log").open("a", encoding="utf-8") as fh:
+        fh.write(line)
+    with (HANDOFF / "progress" / "OVERALL_PROGRESS.log").open("a", encoding="utf-8") as fh:
         fh.write(line)
 
 
@@ -148,6 +198,10 @@ def _run_preflight(stage: str) -> None:
     proc = subprocess.run(cmd, cwd=str(ROOT))
     if proc.returncode != 0:
         raise SystemExit(f"preflight {stage} FAIL — refusing grind")
+    _handoff_copy(
+        SD / "SCHOOL_PC_6V6_PREFLIGHT_RESULT.json",
+        HANDOFF / "seals" / "PREFLIGHT_RESULT.json",
+    )
 
 
 def _run_stage(
@@ -160,8 +214,8 @@ def _run_stage(
     overall_total: int,
     overall_bar: Any,
 ) -> None:
-    """Launch one child; its tqdm is on *.err. Drive overall bar from metrics."""
     SD.mkdir(parents=True, exist_ok=True)
+    _handoff_dirs()
     log = SD / f"school_pc_6v6_{tag}.log"
     err = SD / f"school_pc_6v6_{tag}.err"
     print(f"=== {tag} ===", flush=True)
@@ -188,8 +242,15 @@ def _run_stage(
             delta = overall_now - int(overall_bar.n)
             if delta > 0:
                 overall_bar.update(min(delta, overall_total - int(overall_bar.n)))
-            if step != last_report and (step - last_report >= max(1, weight // 200) or rc is not None):
-                _heartbeat(tag, min(overall_now, overall_total), overall_total, f"stage_step={step}/{weight}")
+            if step != last_report and (
+                step - last_report >= max(1, weight // 200) or rc is not None
+            ):
+                _heartbeat(
+                    tag,
+                    min(overall_now, overall_total),
+                    overall_total,
+                    f"stage_step={step}/{weight}",
+                )
                 last_report = step
             if rc is not None:
                 break
@@ -207,29 +268,37 @@ def _run_stage(
         print(tail, file=sys.stderr, flush=True)
         raise SystemExit(f"{tag} failed exit={proc.returncode}")
 
-    # Snap overall bar to end of this stage's weight.
     target = min(overall_base + weight, overall_total)
     delta = target - int(overall_bar.n)
     if delta > 0:
         overall_bar.update(delta)
     _heartbeat(tag, target, overall_total, "stage_complete")
+    _handoff_copy(err, HANDOFF / "logs" / f"{tag}.err")
+    _handoff_copy(log, HANDOFF / "logs" / f"{tag}.log")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--skip-repair", action="store_true")
     ap.add_argument("--skip-split", action="store_true")
-    ap.add_argument("--skip-preflight", action="store_true",
-                    help="dangerous; only for resume after a verified PASS")
+    ap.add_argument(
+        "--skip-preflight",
+        action="store_true",
+        help="dangerous; only for resume after a verified PASS",
+    )
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
     SD.mkdir(parents=True, exist_ok=True)
-    # Fresh overall stderr log for this session (tqdm + heartbeats).
-    overall_err = SD / "school_pc_6v6_OVERALL.err"
-    # Tee-ish: keep writing progress file; tqdm uses real stderr.
-    print(f"overall tqdm + heartbeats also mirrored to {overall_err}", flush=True)
+    _handoff_dirs()
+    print(f"overall tqdm -> {SD / 'school_pc_6v6_OVERALL.err'}", flush=True)
+    print(f"handoff folder: {HANDOFF}", flush=True)
     print(f"started utc={_now()}", flush=True)
+    _handoff_update_manifest(
+        status="RUNNING",
+        handoff_root="6v6",
+        note="Professor: zip this folder with experiments/pack_6v6_handoff.ps1",
+    )
 
     if args.dry_run:
         print("dry-run only; not launching", flush=True)
@@ -246,7 +315,6 @@ def main() -> int:
     weights.append(("crossover_exploratory", WEIGHT_EVAL_CELLS))
     overall_total = sum(w for _, w in weights)
 
-    # Fake iterable so tqdm_iter owns the bar; we update manually via .update.
     overall_bar = tqdm_iter(
         range(overall_total),
         desc="school_pc_6v6_OVERALL",
@@ -254,7 +322,6 @@ def main() -> int:
         unit="unit",
         leave=True,
     )
-    # Do not iterate the range — we drive updates ourselves.
     overall_bar.n = 0
     overall_bar.refresh()
 
@@ -282,7 +349,12 @@ def main() -> int:
                 overall_total=overall_total,
                 overall_bar=overall_bar,
             )
-            _write_seal("SCHOOL_PC_6V6_PI_A_REPAIR_SEAL.json", A_REPAIR)
+            _write_seal(
+                "SCHOOL_PC_6V6_PI_A_REPAIR_SEAL.json",
+                A_REPAIR,
+                handoff_seal_name="PI_A_REPAIR_SEAL.json",
+            )
+            _handoff_model(A_REPAIR, "final_pi_A_repair.zip")
             overall_base += WEIGHT_REPAIR
 
             _run_stage(
@@ -304,11 +376,26 @@ def main() -> int:
                 overall_total=overall_total,
                 overall_bar=overall_bar,
             )
-            _write_seal("SCHOOL_PC_6V6_PI_B_REPAIR_SEAL.json", B_REPAIR)
+            _write_seal(
+                "SCHOOL_PC_6V6_PI_B_REPAIR_SEAL.json",
+                B_REPAIR,
+                handoff_seal_name="PI_B_REPAIR_SEAL.json",
+            )
+            _handoff_model(B_REPAIR, "final_pi_B_repair.zip")
             overall_base += WEIGHT_REPAIR
         else:
-            a_sha = _write_seal("SCHOOL_PC_6V6_PI_A_REPAIR_SEAL.json", A_REPAIR)
-            _write_seal("SCHOOL_PC_6V6_PI_B_REPAIR_SEAL.json", B_REPAIR)
+            a_sha = _write_seal(
+                "SCHOOL_PC_6V6_PI_A_REPAIR_SEAL.json",
+                A_REPAIR,
+                handoff_seal_name="PI_A_REPAIR_SEAL.json",
+            )
+            _write_seal(
+                "SCHOOL_PC_6V6_PI_B_REPAIR_SEAL.json",
+                B_REPAIR,
+                handoff_seal_name="PI_B_REPAIR_SEAL.json",
+            )
+            _handoff_model(A_REPAIR, "final_pi_A_repair.zip")
+            _handoff_model(B_REPAIR, "final_pi_B_repair.zip")
 
         a_sha = a_sha or _sha256(ROOT / A_REPAIR)
 
@@ -345,12 +432,21 @@ def main() -> int:
                 overall_total=overall_total,
                 overall_bar=overall_bar,
             )
-            _write_seal("SCHOOL_PC_6V6_SPLIT_K1_SEAL.json", PI_D)
+            _write_seal(
+                "SCHOOL_PC_6V6_SPLIT_K1_SEAL.json",
+                PI_D,
+                handoff_seal_name="SPLIT_K1_SEAL.json",
+            )
+            _handoff_model(PI_D, "final_pi_D_split.zip")
             overall_base += WEIGHT_SPLIT
         else:
-            _write_seal("SCHOOL_PC_6V6_SPLIT_K1_SEAL.json", PI_D)
+            _write_seal(
+                "SCHOOL_PC_6V6_SPLIT_K1_SEAL.json",
+                PI_D,
+                handoff_seal_name="SPLIT_K1_SEAL.json",
+            )
+            _handoff_model(PI_D, "final_pi_D_split.zip")
 
-        # Eval: child has its own tqdm_iter bar on *.err; overall counts cells at end.
         _run_stage(
             "crossover_exploratory",
             [
@@ -372,34 +468,51 @@ def main() -> int:
             overall_total=overall_total,
             overall_bar=overall_bar,
         )
+        _handoff_copy(
+            SD / "EXPLORATORY_6V6_SPLIT_K1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+            HANDOFF / "results" / "exploratory_crossover_RESULT.json",
+        )
+        _handoff_copy(
+            SD / "exploratory_6v6_split_k1_specialist_crossover_eval_rows.csv",
+            HANDOFF / "results" / "exploratory_crossover_rows.csv",
+        )
     finally:
         try:
             overall_bar.close()
         except Exception:
             pass
 
+    _handoff_copy(SD / "school_pc_6v6_OVERALL.err", HANDOFF / "logs" / "OVERALL.err")
+    _handoff_copy(SD / "school_pc_6v6_OVERALL.log", HANDOFF / "logs" / "OVERALL.log")
+
     done = {
         "utc": _now(),
         "status": "FINISHED_THROUGH_EXPLORATORY_EVAL",
         "overall_total_units": overall_total,
-        "seals": {
-            "A": "SCHOOL_PC_6V6_PI_A_REPAIR_SEAL.json",
-            "B": "SCHOOL_PC_6V6_PI_B_REPAIR_SEAL.json",
-            "split": "SCHOOL_PC_6V6_SPLIT_K1_SEAL.json",
-        },
+        "handoff": "6v6",
+        "pack_command": (
+            "powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1"
+        ),
         "checkpoints": {"A_repair": A_REPAIR, "B_repair": B_REPAIR, "pi_D": PI_D},
-        "logs_dir": str(SD),
         "note": (
-            "If exploratory PASS (Delta_A>0, Delta_B>0, both LCB95>0), launch confirmatory "
-            "manually with seed-base 22800001 n=128 label CONFIRMATORY_6V6_SPLIT_K1. "
-            "Do not auto-spend confirmatory."
+            "If exploratory PASS, run confirmatory manually (seed-base 22800001, n=128). "
+            "Zip 6v6/ for the professor."
         ),
     }
     (SD / "SCHOOL_PC_6V6_PIPELINE_DONE.json").write_text(
         json.dumps(done, indent=2) + "\n", encoding="utf-8"
     )
+    (HANDOFF / "seals" / "PIPELINE_DONE.json").write_text(
+        json.dumps(done, indent=2) + "\n", encoding="utf-8"
+    )
+    _handoff_update_manifest(status="FINISHED_THROUGH_EXPLORATORY_EVAL", done=done)
     _heartbeat("DONE", overall_total, overall_total, "exploratory eval finished")
     print(json.dumps(done, indent=2), flush=True)
+    print(f"\nSEND FOLDER: {HANDOFF}", flush=True)
+    print(
+        "PACK: powershell -ExecutionPolicy Bypass -File experiments/pack_6v6_handoff.ps1",
+        flush=True,
+    )
     return 0
 
 
