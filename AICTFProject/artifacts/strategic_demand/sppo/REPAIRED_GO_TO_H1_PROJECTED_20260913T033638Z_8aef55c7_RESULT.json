@@ -1,0 +1,96 @@
+{
+  "record": "REPAIRED_GO_TO_H1_PROJECTED closed-loop action-interface test",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-13T03:36:38Z",
+  "run_id": "20260913T033638Z_8aef55c7",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "study_class": "MECHANISTIC_FOLLOW_UP",
+  "implements": [
+    "REPAIRED_GO_TO_H1_PROJECTED_SPEC.json"
+  ],
+  "config_signature": {
+    "device": "cpu",
+    "go_to_horizon": 1,
+    "n_seeds": 24,
+    "scales": [
+      4
+    ],
+    "seed_lo": 17600001
+  },
+  "elapsed_s": 2800.5,
+  "results": {
+    "4v4": {
+      "GUARD@A": {
+        "V_original": 0.7083,
+        "V_projected": 0.75,
+        "L_paired_original_minus_projected": {
+          "mean": -0.041667,
+          "lcb95": -0.208333,
+          "ucb95": 0.125,
+          "n": 24
+        }
+      },
+      "GUARD@B": {
+        "V_original": 0.0417,
+        "V_projected": 0.125,
+        "L_paired_original_minus_projected": {
+          "mean": -0.083333,
+          "lcb95": -0.208333,
+          "ucb95": 0.0,
+          "n": 24
+        }
+      },
+      "BREACH@A": {
+        "V_original": 0.2917,
+        "V_projected": 0.75,
+        "L_paired_original_minus_projected": {
+          "mean": -0.458333,
+          "lcb95": -0.708333,
+          "ucb95": -0.208333,
+          "n": 24
+        }
+      },
+      "BREACH@B": {
+        "V_original": 0.6667,
+        "V_projected": 0.7917,
+        "L_paired_original_minus_projected": {
+          "mean": -0.125,
+          "lcb95": -0.333333,
+          "ucb95": 0.083333,
+          "n": 24
+        }
+      },
+      "delta_ORIGINAL": {
+        "delta_A": {
+          "mean": 0.416667,
+          "lcb95": 0.166667,
+          "ucb95": 0.666667,
+          "n": 24
+        },
+        "delta_B": {
+          "mean": 0.625,
+          "lcb95": 0.416667,
+          "ucb95": 0.791667,
+          "n": 24
+        }
+      },
+      "gate_ORIGINAL": true,
+      "delta_PROJECTED": {
+        "delta_A": {
+          "mean": 0.0,
+          "lcb95": -0.25,
+          "ucb95": 0.25,
+          "n": 24
+        },
+        "delta_B": {
+          "mean": 0.666667,
+          "lcb95": 0.458333,
+          "ucb95": 0.833333,
+          "n": 24
+        }
+      },
+      "gate_PROJECTED": false
+    }
+  }
+}

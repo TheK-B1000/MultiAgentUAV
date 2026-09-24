@@ -1,0 +1,118 @@
+{
+  "record": "B3_CKPT_TRAJECTORY_4V4 checkpoint-over-time crossover trajectory",
+  "status": "FROZEN_RESULT",
+  "one_shot": true,
+  "utc": "2026-09-12T22:28:51Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC.json",
+  "WHAT_THIS_IS": "diagnostic trajectory of the specialization margin across training steps for the B3-3 vanilla pair",
+  "WHAT_THIS_IS_NOT": "NOT a checkpoint-selection procedure. No intermediate checkpoint may be promoted into a confirmatory result on the basis of this scan. The sealed terminal FAIL (CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json) stands unreinterpreted.",
+  "terminal_point_caveat": "the 1,000,000-step point here is measured on block 17300001-024 at n=24 and is NOT comparable to the sealed terminal number measured on 16700001-128 at n=128",
+  "seeds": {
+    "block": [
+      17300001,
+      17300024
+    ],
+    "n": 24,
+    "shared_across_all_points": true
+  },
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "trajectory": {
+    "200000": {
+      "cells": {
+        "pi_A@A": 0.7917,
+        "pi_B@A": 0.875,
+        "pi_A@B": 0.75,
+        "pi_B@B": 0.6667
+      },
+      "delta_A": {
+        "mean": -0.083333,
+        "lcb95": -0.25,
+        "ucb95": 0.083333
+      },
+      "delta_B": {
+        "mean": -0.083333,
+        "lcb95": -0.333333,
+        "ucb95": 0.166667
+      }
+    },
+    "400000": {
+      "cells": {
+        "pi_A@A": 0.625,
+        "pi_B@A": 0.5,
+        "pi_A@B": 0.75,
+        "pi_B@B": 0.6667
+      },
+      "delta_A": {
+        "mean": 0.125,
+        "lcb95": -0.125,
+        "ucb95": 0.375
+      },
+      "delta_B": {
+        "mean": -0.083333,
+        "lcb95": -0.25,
+        "ucb95": 0.083333
+      }
+    },
+    "600000": {
+      "cells": {
+        "pi_A@A": 0.75,
+        "pi_B@A": 0.6667,
+        "pi_A@B": 0.6667,
+        "pi_B@B": 0.7083
+      },
+      "delta_A": {
+        "mean": 0.083333,
+        "lcb95": -0.166667,
+        "ucb95": 0.333333
+      },
+      "delta_B": {
+        "mean": 0.041667,
+        "lcb95": -0.208333,
+        "ucb95": 0.291667
+      }
+    },
+    "800000": {
+      "cells": {
+        "pi_A@A": 0.5417,
+        "pi_B@A": 0.6667,
+        "pi_A@B": 0.6667,
+        "pi_B@B": 0.75
+      },
+      "delta_A": {
+        "mean": -0.125,
+        "lcb95": -0.375,
+        "ucb95": 0.125
+      },
+      "delta_B": {
+        "mean": 0.083333,
+        "lcb95": -0.125,
+        "ucb95": 0.291667
+      }
+    },
+    "1000000": {
+      "cells": {
+        "pi_A@A": 0.5417,
+        "pi_B@A": 0.6667,
+        "pi_A@B": 0.7083,
+        "pi_B@B": 0.7083
+      },
+      "delta_A": {
+        "mean": -0.125,
+        "lcb95": -0.375,
+        "ucb95": 0.125
+      },
+      "delta_B": {
+        "mean": 0.0,
+        "lcb95": -0.208333,
+        "ucb95": 0.208333
+      }
+    }
+  },
+  "total_episodes": 480
+}

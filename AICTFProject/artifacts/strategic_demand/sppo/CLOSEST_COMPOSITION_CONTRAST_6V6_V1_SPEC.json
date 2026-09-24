@@ -1,0 +1,76 @@
+{
+  "record_id": "CLOSEST_COMPOSITION_CONTRAST_6V6_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-23T13:20:00Z",
+  "classification": "DESCRIPTIVE / EXPLORATORY screen. SCRIPTED role macros (ATTACK=GET_FLAG/GO_HOME, DEFEND=DEFEND), PPO off, GPU off, CPU only. No learned-checkpoint overlay, no pi_D training. Geometry (CLOSEST_DEFENDS) replaces FIXED_IDENTITY_PREFIX for the exact sealed 5A/1D vs 3A/3D contrast.",
+  "authorized_by": "PI, 2026-09-23, after CLOSEST_DEFENDS_SCREEN_6V6 sealed pattern_match=false: closest-to-home fixed 5A/1D on frozen pi_A is safer than seed-rotated +1D (Pole-B I_B ~ -0.078 vs prior ONE_DEFENDER_HARM) but does not create 6v6 crossover (Delta_A=-0.016). Do NOT train pi_D from that scaffold. Next targeted test is geometry-assigned 5A/1D vs 3A/3D, not k-sweep and not pi_D.",
+
+  "RESEARCH_QUESTION": "Can the previously successful asymmetric strategic compositions (scripted 5A/1D vs 3A/3D, FIXED_ATTACK_HEAVY_6V6_CONFIRMED) survive when role assignment is done by CLOSEST_DEFENDS geometry rather than fixed agent-identity prefixes?",
+
+  "WHY_NOT_ANOTHER_LEARNED_SCAFFOLD_OR_K_SWEEP": {
+    "just_failed": "CLOSEST_DEFENDS_SCREEN_6V6 asked whether adding one closest-to-home defender on frozen pi_A beats unchanged generalist pi_B. Answer: no (pattern_match=false). That is a different question from whether the sealed scripted composition contrast itself is assignment-rule robust.",
+    "stronger_prior": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json (SEALED, n=192): scripted 5A/1D vs 3A/3D under FIXED_IDENTITY_PREFIX produced B gain +0.6875 [+0.6146,+0.7604] and A improvement +0.125 [-0.2083,-0.0417] as harm of 3A/3D vs 5A/1D (i.e. 5A/1D better on both poles). That contrast is the load-bearing 6v6 composition clue.",
+    "forbidden_now": ["train pi_D from the failed closest-1-on-pi_A scaffold", "blind k=2/k=3 sweeps on learned specialists", "resume SCALE_6V6_ENTITY_REPAIR 1M base-pair retrain"]
+  },
+
+  "MECHANISM": {
+    "env_and_actions": "experiments.run_pyquaticus_6v6_role_composition_sweep.make_env_n / action_for_roles_n / _telemetry_for_tick -- identical scripted macros as the sealed sweep and FIXED_ATTACK_HEAVY confirmation",
+    "ONLY_change_vs_FIXED_ATTACK_HEAVY": "Role vectors are assigned by CLOSEST_DEFENDS at t=0 (k_D=1 for 5A_1D, k_D=3 for 3A_3D) among ACTIVE agents (alive & ~tagged & ~carrying), Euclidean distance to own_flag_home, ties broken by lower agent index; roles FIXED for the episode. FIXED_IDENTITY_PREFIX (defenders = lowest agent indices) is NOT used as an arm.",
+    "not_used": "install_forced_defend_target, any learned pi_A/pi_B checkpoint, any PPO path"
+  },
+
+  "DESIGN": {
+    "arms": ["5A_1D_closest", "3A_3D_closest"],
+    "arm_semantics": {
+      "5A_1D_closest": "k_D=1 closest-to-home ACTIVE agents DEFEND; remaining 5 ATTACK",
+      "3A_3D_closest": "k_D=3 closest-to-home ACTIVE agents DEFEND; remaining 3 ATTACK"
+    },
+    "poles": ["A", "B"],
+    "seed_block": {
+      "base": 22100001,
+      "n": 64,
+      "class": "exploratory",
+      "not_reused": "disjoint from FIXED_ATTACK_HEAVY 20600001-192, composition sweep 20500001-064, CLOSEST_DEFENDS_SCREEN_6V6 22000001-064, and every other registered block (seed_registry-enforced)"
+    },
+    "n_episodes": "64 seeds x 2 poles x 2 arms = 256 full episodes",
+    "device": "cpu",
+    "ppo": false,
+    "gpu": false,
+    "horizon": 240
+  },
+
+  "CONTRASTS_win_rate_paired_by_seed": {
+    "Delta_B": "WR(5A_1D_closest, Pole B) - WR(3A_3D_closest, Pole B) -- does attack-heavy still beat balanced on B under geometry assignment",
+    "Delta_A": "WR(5A_1D_closest, Pole A) - WR(3A_3D_closest, Pole A) -- does attack-heavy still beat (or at least not lose to) balanced on A",
+    "H_A": "WR(3A_3D_closest, Pole A) - WR(5A_1D_closest, Pole A) -- FIXED_ATTACK_HEAVY-style A-harm currency (negative H_A means 5A/1D better on A)"
+  },
+
+  "PATTERN_MATCH_DECISION_RULE": {
+    "rule": "Delta_B_mean > 0 AND Delta_A_mean > 0 -- point-estimate recreation of the sealed FIXED_IDENTITY 5A/1D-beats-3A/3D-on-both-poles signature",
+    "classification": "DESCRIPTIVE / EXPLORATORY -- bootstrap CIs reported (n_boot=20000, alpha=0.05, rng_seed=7) but this is not a confirmatory LCB95 gate and must not be labeled FIXED_ATTACK_HEAVY_6V6_CONFIRMED. A pattern_match=TRUE result licenses a PI decision about confirmatory n and about whether heuristic composition + learned behaviors is the next bridge; it does not authorize pi_D training by itself. A pattern_match=FALSE result, under this frozen reading, is evidence that assignment-rule rescue of the old scripted contrast failed and that the old 6v6 learned policies (not just FIXED_IDENTITY) are the bottleneck -- escalate; do not auto-train pi_D."
+  },
+
+  "CONTRACTS_before_seed_spend": [
+    "C0 spec frozen",
+    "C1 seed block 22100001-22100064 reserved, exploratory, disjoint",
+    "C2 closest_roles(k) matches independent brute-force on >=400 synthetic eligible states for k in {1,3}",
+    "C3 spawn geometry non-degenerate for k=1 (1st vs 2nd) and k=3 (3rd vs 4th) on all 128 real (seed,pole) cells",
+    "C4 selection deterministic and state-dependent (not a hidden fixed-id table)",
+    "C5 action macros identical to sealed sweep action_for_roles_n (no new vocabulary)",
+    "C6 no seed-table side door; no install_forced_defend_target; no .learn/optimizer",
+    "C7 pattern-match self-test on synthetic cases",
+    "C8 FIXED_IDENTITY parity smoke: importing composition_roles_n still yields prefix defenders (regression fence; not an arm of this screen)"
+  ],
+
+  "EXPLICITLY_FORBIDDEN": [
+    "any PPO / training / checkpoint write",
+    "treating pattern_match=TRUE as confirmatory crossover or as license to train pi_D without a further PI gate",
+    "adding k=2 or other compositions in this record",
+    "reusing FIXED_ATTACK_HEAVY or CLOSEST_DEFENDS_SCREEN_6V6 seeds",
+    "overlaying forced DEFEND onto learned specialists in this record"
+  ],
+
+  "claim_boundary": "Descriptive test of whether CLOSEST_DEFENDS assignment preserves the sealed scripted 5A/1D vs 3A/3D outcome signature on fresh exploratory seeds. Not a learned-specialization claim, not a confirmatory gate, not authorization to train pi_D."
+}

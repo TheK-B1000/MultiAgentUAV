@@ -1,0 +1,3418 @@
+{
+  "record": "4v4 specialist behavior diagnostic",
+  "status": "DIAGNOSTIC_NOT_A_GATE",
+  "utc": "2026-09-10T19:27:19Z",
+  "implements": "4V4_EXPLORATORY_AS_DIAGNOSTIC_PROTOCOL.json#MEASUREMENT_CATEGORIES",
+  "seeds_reused_from": "that track's own already-spent sealed crossover block (16700001+), deliberately, no new seed spent",
+  "seed_base": 16700001,
+  "pole_b_source": "CANDIDATE_OVERRIDE:SDS2_B3_LOCKDEF10_2V1 from artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+  "n_seeds_diagnosed_per_cell": 32,
+  "checkpoints": {
+    "pi_A": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip",
+    "pi_B": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip"
+  },
+  "summary": {
+    "pi_A@A": {
+      "n_episodes": 32,
+      "mean_own_half_frac_per_agent": [
+        0.8492093373493975,
+        0.8443602535140561,
+        0.8350103539156626,
+        0.8279822414658635
+      ],
+      "mean_n_intruders": 0.2669772841365462,
+      "max_n_intruders_seen": 4,
+      "distinct_response_frac": 0.37885443955083115,
+      "defensive_spread_mean": 2.0334059919924212,
+      "carrier_support_dist_mean": 1.9361781828583364,
+      "mean_first_flag_pressure_tick": 12.9375
+    },
+    "pi_A@B": {
+      "n_episodes": 32,
+      "mean_own_half_frac_per_agent": [
+        0.7535272841976448,
+        0.7531623894698937,
+        0.7553432487329116,
+        0.7564067885131969
+      ],
+      "mean_n_intruders": 0.47634484208776673,
+      "max_n_intruders_seen": 3,
+      "distinct_response_frac": 0.33573234926093537,
+      "defensive_spread_mean": 2.0056763578457244,
+      "carrier_support_dist_mean": 2.381881597906729,
+      "mean_first_flag_pressure_tick": 14.21875
+    },
+    "pi_B@A": {
+      "n_episodes": 32,
+      "mean_own_half_frac_per_agent": [
+        0.7601553475163649,
+        0.7588826450391479,
+        0.7684654669650878,
+        0.766656739346682
+      ],
+      "mean_n_intruders": 0.32163980273713255,
+      "max_n_intruders_seen": 4,
+      "distinct_response_frac": 0.3801852866404368,
+      "defensive_spread_mean": 2.0441395175285284,
+      "carrier_support_dist_mean": 2.198737741804265,
+      "mean_first_flag_pressure_tick": 12.8125
+    },
+    "pi_B@B": {
+      "n_episodes": 32,
+      "mean_own_half_frac_per_agent": [
+        0.7156196840571676,
+        0.732415438587845,
+        0.7293464992294005,
+        0.7239450526791107
+      ],
+      "mean_n_intruders": 0.45685542997391626,
+      "max_n_intruders_seen": 4,
+      "distinct_response_frac": 0.33487928118613514,
+      "defensive_spread_mean": 1.95656035522243,
+      "carrier_support_dist_mean": 2.5227761157678836,
+      "mean_first_flag_pressure_tick": 14.40625
+    }
+  },
+  "raw_per_episode": {
+    "pi_A": {
+      "A": [
+        {
+          "own_half_frac": [
+            0.7791666666666667,
+            0.8,
+            0.8333333333333334,
+            0.7708333333333334
+          ],
+          "time_past_midfield": [
+            0.22083333333333333,
+            0.2,
+            0.16666666666666666,
+            0.22916666666666666
+          ],
+          "mean_n_intruders": 0.42916666666666664,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3235294117647059,
+          "distinct_total_ticks": 34,
+          "defensive_spread_mean": 2.012227601572579,
+          "carrier_support_dist_mean": 1.7154680637849702,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 1,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.925,
+            0.875,
+            0.8958333333333334,
+            0.9375
+          ],
+          "time_past_midfield": [
+            0.075,
+            0.125,
+            0.10416666666666667,
+            0.0625
+          ],
+          "mean_n_intruders": 0.225,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.1875,
+          "distinct_total_ticks": 16,
+          "defensive_spread_mean": 1.938055654366811,
+          "carrier_support_dist_mean": 1.6376839594863286,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8416666666666667,
+            0.9375,
+            0.9166666666666666,
+            0.8875
+          ],
+          "time_past_midfield": [
+            0.15833333333333333,
+            0.0625,
+            0.08333333333333333,
+            0.1125
+          ],
+          "mean_n_intruders": 0.3,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.36,
+          "distinct_total_ticks": 25,
+          "defensive_spread_mean": 1.9835960685679344,
+          "carrier_support_dist_mean": 1.6856365382810619,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.6746987951807228,
+            0.5903614457831325,
+            0.4578313253012048,
+            0.5662650602409639
+          ],
+          "time_past_midfield": [
+            0.3253012048192771,
+            0.40963855421686746,
+            0.5421686746987951,
+            0.43373493975903615
+          ],
+          "mean_n_intruders": 0.7349397590361446,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.21428571428571427,
+          "distinct_total_ticks": 14,
+          "defensive_spread_mean": 1.9280699674160249,
+          "carrier_support_dist_mean": 2.02621653303504,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 83,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.8875,
+            0.8458333333333333,
+            0.8875,
+            0.7791666666666667
+          ],
+          "time_past_midfield": [
+            0.1125,
+            0.15416666666666667,
+            0.1125,
+            0.22083333333333333
+          ],
+          "mean_n_intruders": 0.3,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2222222222222222,
+          "distinct_total_ticks": 18,
+          "defensive_spread_mean": 2.194858136786718,
+          "carrier_support_dist_mean": 2.059899614273923,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.7541666666666667,
+            0.7166666666666667,
+            0.7041666666666667,
+            0.7
+          ],
+          "time_past_midfield": [
+            0.24583333333333332,
+            0.2833333333333333,
+            0.29583333333333334,
+            0.3
+          ],
+          "mean_n_intruders": 0.4125,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.8421052631578947,
+          "distinct_total_ticks": 19,
+          "defensive_spread_mean": 1.807674199621254,
+          "carrier_support_dist_mean": 2.273023703405934,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8041666666666667,
+            0.8333333333333334,
+            0.9125,
+            0.8333333333333334
+          ],
+          "time_past_midfield": [
+            0.19583333333333333,
+            0.16666666666666666,
+            0.0875,
+            0.16666666666666666
+          ],
+          "mean_n_intruders": 0.225,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.1,
+          "distinct_total_ticks": 10,
+          "defensive_spread_mean": 2.0959545052328776,
+          "carrier_support_dist_mean": 1.759077039092638,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.7541666666666667,
+            0.6833333333333333,
+            0.7208333333333333,
+            0.7166666666666667
+          ],
+          "time_past_midfield": [
+            0.24583333333333332,
+            0.31666666666666665,
+            0.2791666666666667,
+            0.2833333333333333
+          ],
+          "mean_n_intruders": 0.65,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.21153846153846154,
+          "distinct_total_ticks": 52,
+          "defensive_spread_mean": 1.7271199312474992,
+          "carrier_support_dist_mean": 1.957548656105216,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 1,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8,
+            0.8458333333333333,
+            0.8916666666666667,
+            0.7791666666666667
+          ],
+          "time_past_midfield": [
+            0.2,
+            0.15416666666666667,
+            0.10833333333333334,
+            0.22083333333333333
+          ],
+          "mean_n_intruders": 0.275,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.21052631578947367,
+          "distinct_total_ticks": 19,
+          "defensive_spread_mean": 1.8713106748160966,
+          "carrier_support_dist_mean": 1.9957494419813155,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.9166666666666666,
+            0.8791666666666667,
+            0.8541666666666666,
+            0.8541666666666666
+          ],
+          "time_past_midfield": [
+            0.08333333333333333,
+            0.12083333333333333,
+            0.14583333333333334,
+            0.14583333333333334
+          ],
+          "mean_n_intruders": 0.19583333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.7777777777777778,
+          "distinct_total_ticks": 18,
+          "defensive_spread_mean": 1.9752945450887287,
+          "carrier_support_dist_mean": 1.766197215606816,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8708333333333333,
+            0.85,
+            0.8333333333333334,
+            0.8666666666666667
+          ],
+          "time_past_midfield": [
+            0.12916666666666668,
+            0.15,
+            0.16666666666666666,
+            0.13333333333333333
+          ],
+          "mean_n_intruders": 0.25,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.875,
+          "distinct_total_ticks": 16,
+          "defensive_spread_mean": 2.1723890169611515,
+          "carrier_support_dist_mean": 1.8428630281258098,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.875,
+            0.9333333333333333,
+            0.75,
+            0.8333333333333334
+          ],
+          "time_past_midfield": [
+            0.125,
+            0.06666666666666667,
+            0.25,
+            0.16666666666666666
+          ],
+          "mean_n_intruders": 0.3625,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3548387096774194,
+          "distinct_total_ticks": 31,
+          "defensive_spread_mean": 2.1792454655584135,
+          "carrier_support_dist_mean": 2.4458270783059333,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.8333333333333334,
+            0.8041666666666667,
+            0.7958333333333333,
+            0.7791666666666667
+          ],
+          "time_past_midfield": [
+            0.16666666666666666,
+            0.19583333333333333,
+            0.20416666666666666,
+            0.22083333333333333
+          ],
+          "mean_n_intruders": 0.30416666666666664,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.4375,
+          "distinct_total_ticks": 16,
+          "defensive_spread_mean": 2.130122107181823,
+          "carrier_support_dist_mean": 1.7340551706460805,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.925,
+            0.8666666666666667,
+            0.85,
+            0.8708333333333333
+          ],
+          "time_past_midfield": [
+            0.075,
+            0.13333333333333333,
+            0.15,
+            0.12916666666666668
+          ],
+          "mean_n_intruders": 0.125,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 6,
+          "defensive_spread_mean": 2.3275090942185046,
+          "carrier_support_dist_mean": 1.8341932107486996,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.9166666666666666,
+            0.8416666666666667,
+            0.8625,
+            0.9208333333333333
+          ],
+          "time_past_midfield": [
+            0.08333333333333333,
+            0.15833333333333333,
+            0.1375,
+            0.07916666666666666
+          ],
+          "mean_n_intruders": 0.15,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 5,
+          "defensive_spread_mean": 1.8809386499618228,
+          "carrier_support_dist_mean": 1.698124996035598,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8375,
+            0.8833333333333333,
+            0.8833333333333333,
+            0.8083333333333333
+          ],
+          "time_past_midfield": [
+            0.1625,
+            0.11666666666666667,
+            0.11666666666666667,
+            0.19166666666666668
+          ],
+          "mean_n_intruders": 0.16666666666666666,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 10,
+          "defensive_spread_mean": 2.1830951692321885,
+          "carrier_support_dist_mean": 2.2295246751240962,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8791666666666667,
+            0.8625,
+            0.8875,
+            0.8791666666666667
+          ],
+          "time_past_midfield": [
+            0.12083333333333333,
+            0.1375,
+            0.1125,
+            0.12083333333333333
+          ],
+          "mean_n_intruders": 0.1625,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.8333333333333334,
+          "distinct_total_ticks": 6,
+          "defensive_spread_mean": 2.047559777525968,
+          "carrier_support_dist_mean": 1.7031443701817257,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9,
+            0.8833333333333333,
+            0.8625,
+            0.8916666666666667
+          ],
+          "time_past_midfield": [
+            0.1,
+            0.11666666666666667,
+            0.1375,
+            0.10833333333333334
+          ],
+          "mean_n_intruders": 0.12916666666666668,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 3,
+          "defensive_spread_mean": 2.077880237389494,
+          "carrier_support_dist_mean": 2.024910015435446,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8708333333333333,
+            0.8791666666666667,
+            0.8458333333333333,
+            0.85
+          ],
+          "time_past_midfield": [
+            0.12916666666666668,
+            0.12083333333333333,
+            0.15416666666666667,
+            0.15
+          ],
+          "mean_n_intruders": 0.15833333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.8571428571428571,
+          "distinct_total_ticks": 7,
+          "defensive_spread_mean": 2.093892909194294,
+          "carrier_support_dist_mean": 1.8284168296738674,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.8791666666666667,
+            0.8958333333333334,
+            0.9083333333333333,
+            0.8791666666666667
+          ],
+          "time_past_midfield": [
+            0.12083333333333333,
+            0.10416666666666667,
+            0.09166666666666666,
+            0.12083333333333333
+          ],
+          "mean_n_intruders": 0.1625,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.4,
+          "distinct_total_ticks": 10,
+          "defensive_spread_mean": 2.1836969521602345,
+          "carrier_support_dist_mean": 1.8414305739656642,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9375,
+            0.9125,
+            0.8958333333333334,
+            0.7916666666666666
+          ],
+          "time_past_midfield": [
+            0.0625,
+            0.0875,
+            0.10416666666666667,
+            0.20833333333333334
+          ],
+          "mean_n_intruders": 0.2875,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.13636363636363635,
+          "distinct_total_ticks": 22,
+          "defensive_spread_mean": 2.1405353977211883,
+          "carrier_support_dist_mean": 1.9692371304001288,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.7208333333333333,
+            0.6958333333333333,
+            0.6666666666666666,
+            0.7333333333333333
+          ],
+          "time_past_midfield": [
+            0.2791666666666667,
+            0.30416666666666664,
+            0.3333333333333333,
+            0.26666666666666666
+          ],
+          "mean_n_intruders": 0.31666666666666665,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2222222222222222,
+          "distinct_total_ticks": 18,
+          "defensive_spread_mean": 1.9943444389922946,
+          "carrier_support_dist_mean": 2.2328593372898613,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.8333333333333334,
+            0.8166666666666667,
+            0.8416666666666667,
+            0.825
+          ],
+          "time_past_midfield": [
+            0.16666666666666666,
+            0.18333333333333332,
+            0.15833333333333333,
+            0.175
+          ],
+          "mean_n_intruders": 0.2625,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.15,
+          "distinct_total_ticks": 20,
+          "defensive_spread_mean": 2.0832802691071284,
+          "carrier_support_dist_mean": 1.76871174400629,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9708333333333333,
+            0.9416666666666667,
+            0.8583333333333333,
+            0.825
+          ],
+          "time_past_midfield": [
+            0.029166666666666667,
+            0.058333333333333334,
+            0.14166666666666666,
+            0.175
+          ],
+          "mean_n_intruders": 0.20833333333333334,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.6,
+          "distinct_total_ticks": 15,
+          "defensive_spread_mean": 2.0784993956231665,
+          "carrier_support_dist_mean": 1.9253337047111367,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.7666666666666667,
+            0.8375,
+            0.8291666666666667,
+            0.7791666666666667
+          ],
+          "time_past_midfield": [
+            0.23333333333333334,
+            0.1625,
+            0.17083333333333334,
+            0.22083333333333333
+          ],
+          "mean_n_intruders": 0.37083333333333335,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.625,
+          "distinct_total_ticks": 24,
+          "defensive_spread_mean": 1.809798843837811,
+          "carrier_support_dist_mean": 2.244208003365019,
+          "first_flag_pressure_tick": 16,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 1,
+          "margin": -1
+        },
+        {
+          "own_half_frac": [
+            0.8,
+            0.8958333333333334,
+            0.8708333333333333,
+            0.8166666666666667
+          ],
+          "time_past_midfield": [
+            0.2,
+            0.10416666666666667,
+            0.12916666666666668,
+            0.18333333333333332
+          ],
+          "mean_n_intruders": 0.275,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3157894736842105,
+          "distinct_total_ticks": 19,
+          "defensive_spread_mean": 2.040164371423943,
+          "carrier_support_dist_mean": 1.7647313682489025,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9,
+            0.7916666666666666,
+            0.8833333333333333,
+            0.9208333333333333
+          ],
+          "time_past_midfield": [
+            0.1,
+            0.20833333333333334,
+            0.11666666666666667,
+            0.07916666666666666
+          ],
+          "mean_n_intruders": 0.16666666666666666,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 10,
+          "defensive_spread_mean": 2.3404875472510533,
+          "carrier_support_dist_mean": 2.344230020436171,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8875,
+            0.9,
+            0.9041666666666667,
+            0.8625
+          ],
+          "time_past_midfield": [
+            0.1125,
+            0.1,
+            0.09583333333333334,
+            0.1375
+          ],
+          "mean_n_intruders": 0.2625,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.4,
+          "distinct_total_ticks": 20,
+          "defensive_spread_mean": 2.1227520714635433,
+          "carrier_support_dist_mean": 1.9356031039586434,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8708333333333333,
+            0.8875,
+            0.8541666666666666,
+            0.8958333333333334
+          ],
+          "time_past_midfield": [
+            0.12916666666666668,
+            0.1125,
+            0.14583333333333334,
+            0.10416666666666667
+          ],
+          "mean_n_intruders": 0.12083333333333333,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.6,
+          "distinct_total_ticks": 5,
+          "defensive_spread_mean": 1.7778365859702296,
+          "carrier_support_dist_mean": 2.013958773788462,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9041666666666667,
+            0.9166666666666666,
+            0.8916666666666667,
+            0.9125
+          ],
+          "time_past_midfield": [
+            0.09583333333333334,
+            0.08333333333333333,
+            0.10833333333333334,
+            0.0875
+          ],
+          "mean_n_intruders": 0.1625,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.16666666666666666,
+          "distinct_total_ticks": 18,
+          "defensive_spread_mean": 2.0342126738556607,
+          "carrier_support_dist_mean": 1.737934592523073,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.775,
+            0.8125,
+            0.825,
+            0.8541666666666666
+          ],
+          "time_past_midfield": [
+            0.225,
+            0.1875,
+            0.175,
+            0.14583333333333334
+          ],
+          "mean_n_intruders": 0.175,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 9,
+          "defensive_spread_mean": 1.89884090630007,
+          "carrier_support_dist_mean": 2.1547602648976483,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.8833333333333333,
+            0.9041666666666667,
+            0.8458333333333333,
+            0.875
+          ],
+          "time_past_midfield": [
+            0.11666666666666667,
+            0.09583333333333334,
+            0.15416666666666667,
+            0.125
+          ],
+          "mean_n_intruders": 0.21666666666666667,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.1,
+          "distinct_total_ticks": 20,
+          "defensive_spread_mean": 1.9377485781109758,
+          "carrier_support_dist_mean": 1.8071430945452653,
+          "first_flag_pressure_tick": 10,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        }
+      ],
+      "B": [
+        {
+          "own_half_frac": [
+            0.5921052631578947,
+            0.6973684210526315,
+            0.6513157894736842,
+            0.6052631578947368
+          ],
+          "time_past_midfield": [
+            0.40789473684210525,
+            0.3026315789473684,
+            0.34868421052631576,
+            0.39473684210526316
+          ],
+          "mean_n_intruders": 0.4473684210526316,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2727272727272727,
+          "distinct_total_ticks": 11,
+          "defensive_spread_mean": 1.7660589535884998,
+          "carrier_support_dist_mean": 2.693946528693904,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 152,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.9458333333333333,
+            0.925,
+            0.975,
+            0.9875
+          ],
+          "time_past_midfield": [
+            0.05416666666666667,
+            0.075,
+            0.025,
+            0.0125
+          ],
+          "mean_n_intruders": 0.6083333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.29411764705882354,
+          "distinct_total_ticks": 17,
+          "defensive_spread_mean": 1.908110364135039,
+          "carrier_support_dist_mean": 1.808839779593346,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.5566037735849056,
+            0.6509433962264151,
+            0.6698113207547169,
+            0.5566037735849056
+          ],
+          "time_past_midfield": [
+            0.44339622641509435,
+            0.3490566037735849,
+            0.330188679245283,
+            0.44339622641509435
+          ],
+          "mean_n_intruders": 0.2830188679245283,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.5,
+          "distinct_total_ticks": 2,
+          "defensive_spread_mean": 1.9066847102982658,
+          "carrier_support_dist_mean": 2.675629084640079,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 106,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5471698113207547,
+            0.6415094339622641,
+            0.5707547169811321,
+            0.6084905660377359
+          ],
+          "time_past_midfield": [
+            0.4528301886792453,
+            0.3584905660377358,
+            0.42924528301886794,
+            0.3915094339622642
+          ],
+          "mean_n_intruders": 0.21226415094339623,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 3,
+          "defensive_spread_mean": 1.6848944519695483,
+          "carrier_support_dist_mean": 3.302677308811861,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 212,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.8875,
+            0.875,
+            0.9125,
+            0.9458333333333333
+          ],
+          "time_past_midfield": [
+            0.1125,
+            0.125,
+            0.0875,
+            0.05416666666666667
+          ],
+          "mean_n_intruders": 0.5291666666666667,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.5625,
+          "distinct_total_ticks": 16,
+          "defensive_spread_mean": 2.365699851460624,
+          "carrier_support_dist_mean": 1.9381055074982938,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9416666666666667,
+            0.9916666666666667,
+            0.975,
+            0.9166666666666666
+          ],
+          "time_past_midfield": [
+            0.058333333333333334,
+            0.008333333333333333,
+            0.025,
+            0.08333333333333333
+          ],
+          "mean_n_intruders": 0.575,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.42105263157894735,
+          "distinct_total_ticks": 19,
+          "defensive_spread_mean": 1.9831364127382574,
+          "carrier_support_dist_mean": 1.8103984880552417,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9041666666666667,
+            0.9333333333333333,
+            0.9375,
+            0.8708333333333333
+          ],
+          "time_past_midfield": [
+            0.09583333333333334,
+            0.06666666666666667,
+            0.0625,
+            0.12916666666666668
+          ],
+          "mean_n_intruders": 0.6083333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.3076923076923077,
+          "distinct_total_ticks": 26,
+          "defensive_spread_mean": 2.2104124541365944,
+          "carrier_support_dist_mean": 1.9109863601790533,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9125,
+            0.8291666666666667,
+            0.9208333333333333,
+            0.9333333333333333
+          ],
+          "time_past_midfield": [
+            0.0875,
+            0.17083333333333334,
+            0.07916666666666666,
+            0.06666666666666667
+          ],
+          "mean_n_intruders": 0.675,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.30952380952380953,
+          "distinct_total_ticks": 42,
+          "defensive_spread_mean": 2.392500392721789,
+          "carrier_support_dist_mean": 1.938133225462953,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.95,
+            0.9333333333333333,
+            0.8458333333333333,
+            0.8541666666666666
+          ],
+          "time_past_midfield": [
+            0.05,
+            0.06666666666666667,
+            0.15416666666666667,
+            0.14583333333333334
+          ],
+          "mean_n_intruders": 0.725,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3695652173913043,
+          "distinct_total_ticks": 46,
+          "defensive_spread_mean": 2.402894279294544,
+          "carrier_support_dist_mean": 2.069539915935128,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.5798816568047337,
+            0.5384615384615384,
+            0.5857988165680473,
+            0.5857988165680473
+          ],
+          "time_past_midfield": [
+            0.42011834319526625,
+            0.46153846153846156,
+            0.41420118343195267,
+            0.41420118343195267
+          ],
+          "mean_n_intruders": 0.5976331360946746,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 30,
+          "defensive_spread_mean": 1.5110655588294388,
+          "carrier_support_dist_mean": 1.8006442560339875,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 169,
+          "win": 1,
+          "blue": 3,
+          "red": 1,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.6346153846153846,
+            0.5865384615384616,
+            0.5865384615384616,
+            0.6153846153846154
+          ],
+          "time_past_midfield": [
+            0.36538461538461536,
+            0.41346153846153844,
+            0.41346153846153844,
+            0.38461538461538464
+          ],
+          "mean_n_intruders": 0.38461538461538464,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.14285714285714285,
+          "distinct_total_ticks": 7,
+          "defensive_spread_mean": 1.873155746289662,
+          "carrier_support_dist_mean": 1.8319967246573905,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 104,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.9083333333333333,
+            0.9208333333333333,
+            0.9125,
+            0.95
+          ],
+          "time_past_midfield": [
+            0.09166666666666666,
+            0.07916666666666666,
+            0.0875,
+            0.05
+          ],
+          "mean_n_intruders": 0.5916666666666667,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.35714285714285715,
+          "distinct_total_ticks": 28,
+          "defensive_spread_mean": 2.277368640848275,
+          "carrier_support_dist_mean": 2.164848299619789,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.5958333333333333,
+            0.625,
+            0.6166666666666667,
+            0.6041666666666666
+          ],
+          "time_past_midfield": [
+            0.4041666666666667,
+            0.375,
+            0.38333333333333336,
+            0.3958333333333333
+          ],
+          "mean_n_intruders": 0.18333333333333332,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 5,
+          "defensive_spread_mean": 1.6345494416757271,
+          "carrier_support_dist_mean": 2.8710759622710094,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.9416666666666667,
+            0.9458333333333333,
+            0.8833333333333333,
+            0.9625
+          ],
+          "time_past_midfield": [
+            0.058333333333333334,
+            0.05416666666666667,
+            0.11666666666666667,
+            0.0375
+          ],
+          "mean_n_intruders": 0.5083333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.26666666666666666,
+          "distinct_total_ticks": 15,
+          "defensive_spread_mean": 2.066122233106735,
+          "carrier_support_dist_mean": 2.018818632629183,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.680672268907563,
+            0.6050420168067226,
+            0.5714285714285714,
+            0.5714285714285714
+          ],
+          "time_past_midfield": [
+            0.31932773109243695,
+            0.3949579831932773,
+            0.42857142857142855,
+            0.42857142857142855
+          ],
+          "mean_n_intruders": 0.5714285714285714,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.47058823529411764,
+          "distinct_total_ticks": 17,
+          "defensive_spread_mean": 1.8824652289406638,
+          "carrier_support_dist_mean": 2.4004814755916595,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 119,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.8708333333333333,
+            0.9083333333333333,
+            0.85,
+            0.8166666666666667
+          ],
+          "time_past_midfield": [
+            0.12916666666666668,
+            0.09166666666666666,
+            0.15,
+            0.18333333333333332
+          ],
+          "mean_n_intruders": 0.5458333333333333,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3103448275862069,
+          "distinct_total_ticks": 29,
+          "defensive_spread_mean": 2.279526990679552,
+          "carrier_support_dist_mean": 2.196900825477341,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.9125,
+            0.9291666666666667,
+            0.9291666666666667,
+            0.8541666666666666
+          ],
+          "time_past_midfield": [
+            0.0875,
+            0.07083333333333333,
+            0.07083333333333333,
+            0.14583333333333334
+          ],
+          "mean_n_intruders": 0.5541666666666667,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 21,
+          "defensive_spread_mean": 2.372644923235241,
+          "carrier_support_dist_mean": 1.8747127280993896,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9333333333333333,
+            0.9458333333333333,
+            0.9416666666666667,
+            0.8875
+          ],
+          "time_past_midfield": [
+            0.06666666666666667,
+            0.05416666666666667,
+            0.058333333333333334,
+            0.1125
+          ],
+          "mean_n_intruders": 0.5041666666666667,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.05555555555555555,
+          "distinct_total_ticks": 18,
+          "defensive_spread_mean": 2.116201366345256,
+          "carrier_support_dist_mean": 2.2671449510380626,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.8916666666666667,
+            0.8833333333333333,
+            0.9208333333333333,
+            0.9166666666666666
+          ],
+          "time_past_midfield": [
+            0.10833333333333334,
+            0.11666666666666667,
+            0.07916666666666666,
+            0.08333333333333333
+          ],
+          "mean_n_intruders": 0.5583333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.6,
+          "distinct_total_ticks": 15,
+          "defensive_spread_mean": 2.144799240379252,
+          "carrier_support_dist_mean": 2.0492027180172254,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.5083333333333333,
+            0.5708333333333333,
+            0.6166666666666667,
+            0.5916666666666667
+          ],
+          "time_past_midfield": [
+            0.49166666666666664,
+            0.42916666666666664,
+            0.38333333333333336,
+            0.4083333333333333
+          ],
+          "mean_n_intruders": 0.375,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.23809523809523808,
+          "distinct_total_ticks": 21,
+          "defensive_spread_mean": 1.6116100249971663,
+          "carrier_support_dist_mean": 3.1741523978610835,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 1,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.6166666666666667,
+            0.5875,
+            0.625,
+            0.6166666666666667
+          ],
+          "time_past_midfield": [
+            0.38333333333333336,
+            0.4125,
+            0.375,
+            0.38333333333333336
+          ],
+          "mean_n_intruders": 0.14166666666666666,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.6666666666666666,
+          "distinct_total_ticks": 3,
+          "defensive_spread_mean": 1.732693373244636,
+          "carrier_support_dist_mean": 3.4479569225084212,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.7416666666666667,
+            0.7208333333333333,
+            0.775,
+            0.7375
+          ],
+          "time_past_midfield": [
+            0.25833333333333336,
+            0.2791666666666667,
+            0.225,
+            0.2625
+          ],
+          "mean_n_intruders": 0.4125,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.35714285714285715,
+          "distinct_total_ticks": 14,
+          "defensive_spread_mean": 2.14161502122879,
+          "carrier_support_dist_mean": 2.7720787816477896,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8416666666666667,
+            0.8541666666666666,
+            0.9375,
+            0.875
+          ],
+          "time_past_midfield": [
+            0.15833333333333333,
+            0.14583333333333334,
+            0.0625,
+            0.125
+          ],
+          "mean_n_intruders": 0.6083333333333333,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.13043478260869565,
+          "distinct_total_ticks": 23,
+          "defensive_spread_mean": 2.4880638445308634,
+          "carrier_support_dist_mean": 2.007229222315494,
+          "first_flag_pressure_tick": 24,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.95,
+            0.9166666666666666,
+            0.8791666666666667,
+            0.9416666666666667
+          ],
+          "time_past_midfield": [
+            0.05,
+            0.08333333333333333,
+            0.12083333333333333,
+            0.058333333333333334
+          ],
+          "mean_n_intruders": 0.5958333333333333,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2222222222222222,
+          "distinct_total_ticks": 18,
+          "defensive_spread_mean": 2.336689348500144,
+          "carrier_support_dist_mean": 2.281560581112117,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.5185185185185185,
+            0.6203703703703703,
+            0.5277777777777778,
+            0.6851851851851852
+          ],
+          "time_past_midfield": [
+            0.48148148148148145,
+            0.37962962962962965,
+            0.4722222222222222,
+            0.3148148148148148
+          ],
+          "mean_n_intruders": 0.28703703703703703,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2857142857142857,
+          "distinct_total_ticks": 7,
+          "defensive_spread_mean": 2.1208359602838756,
+          "carrier_support_dist_mean": 1.7541640517188282,
+          "first_flag_pressure_tick": 16,
+          "episode_ticks": 108,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5714285714285714,
+            0.5782312925170068,
+            0.6530612244897959,
+            0.6054421768707483
+          ],
+          "time_past_midfield": [
+            0.42857142857142855,
+            0.4217687074829932,
+            0.3469387755102041,
+            0.3945578231292517
+          ],
+          "mean_n_intruders": 0.4217687074829932,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2222222222222222,
+          "distinct_total_ticks": 9,
+          "defensive_spread_mean": 1.5050839367012183,
+          "carrier_support_dist_mean": 2.6939957290887833,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 147,
+          "win": 1,
+          "blue": 3,
+          "red": 1,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.6791044776119403,
+            0.6343283582089553,
+            0.5223880597014925,
+            0.6268656716417911
+          ],
+          "time_past_midfield": [
+            0.3208955223880597,
+            0.3656716417910448,
+            0.47761194029850745,
+            0.373134328358209
+          ],
+          "mean_n_intruders": 0.582089552238806,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.25,
+          "distinct_total_ticks": 20,
+          "defensive_spread_mean": 1.7571213227510452,
+          "carrier_support_dist_mean": 2.7048373955946703,
+          "first_flag_pressure_tick": 24,
+          "episode_ticks": 134,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.6019900497512438,
+            0.582089552238806,
+            0.6119402985074627,
+            0.6268656716417911
+          ],
+          "time_past_midfield": [
+            0.39800995024875624,
+            0.417910447761194,
+            0.3880597014925373,
+            0.373134328358209
+          ],
+          "mean_n_intruders": 0.31840796019900497,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 1.0,
+          "distinct_total_ticks": 2,
+          "defensive_spread_mean": 1.7797284874805184,
+          "carrier_support_dist_mean": 3.008589118213977,
+          "first_flag_pressure_tick": 16,
+          "episode_ticks": 201,
+          "win": 1,
+          "blue": 3,
+          "red": 1,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.6545454545454545,
+            0.5409090909090909,
+            0.5863636363636363,
+            0.5909090909090909
+          ],
+          "time_past_midfield": [
+            0.34545454545454546,
+            0.4590909090909091,
+            0.41363636363636364,
+            0.4090909090909091
+          ],
+          "mean_n_intruders": 0.3409090909090909,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.5714285714285714,
+          "distinct_total_ticks": 21,
+          "defensive_spread_mean": 1.6828481725284032,
+          "carrier_support_dist_mean": 2.7729799902101733,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 220,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.7087378640776699,
+            0.7087378640776699,
+            0.6601941747572816,
+            0.7184466019417476
+          ],
+          "time_past_midfield": [
+            0.2912621359223301,
+            0.2912621359223301,
+            0.33980582524271846,
+            0.2815533980582524
+          ],
+          "mean_n_intruders": 0.5242718446601942,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.14285714285714285,
+          "distinct_total_ticks": 7,
+          "defensive_spread_mean": 1.9352714935707491,
+          "carrier_support_dist_mean": 2.7801136440700955,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 103,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.8833333333333333,
+            0.8541666666666666,
+            0.9083333333333333,
+            0.9458333333333333
+          ],
+          "time_past_midfield": [
+            0.11666666666666667,
+            0.14583333333333334,
+            0.09166666666666666,
+            0.05416666666666667
+          ],
+          "mean_n_intruders": 0.55,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.2727272727272727,
+          "distinct_total_ticks": 22,
+          "defensive_spread_mean": 2.681093378384226,
+          "carrier_support_dist_mean": 2.4696284061984013,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.65,
+            0.5666666666666667,
+            0.6111111111111112,
+            0.6
+          ],
+          "time_past_midfield": [
+            0.35,
+            0.43333333333333335,
+            0.3888888888888889,
+            0.4
+          ],
+          "mean_n_intruders": 0.4222222222222222,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.07692307692307693,
+          "distinct_total_ticks": 13,
+          "defensive_spread_mean": 1.630697846188581,
+          "carrier_support_dist_mean": 2.7288421201705932,
+          "first_flag_pressure_tick": 27,
+          "episode_ticks": 180,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        }
+      ]
+    },
+    "pi_B": {
+      "A": [
+        {
+          "own_half_frac": [
+            0.6326530612244898,
+            0.7346938775510204,
+            0.7551020408163265,
+            0.673469387755102
+          ],
+          "time_past_midfield": [
+            0.3673469387755102,
+            0.2653061224489796,
+            0.24489795918367346,
+            0.32653061224489793
+          ],
+          "mean_n_intruders": 0.5510204081632653,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.23529411764705882,
+          "distinct_total_ticks": 17,
+          "defensive_spread_mean": 2.075088106095791,
+          "carrier_support_dist_mean": 2.6786621468407765,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 98,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.8125,
+            0.8,
+            0.7416666666666667,
+            0.7708333333333334
+          ],
+          "time_past_midfield": [
+            0.1875,
+            0.2,
+            0.25833333333333336,
+            0.22916666666666666
+          ],
+          "mean_n_intruders": 0.3958333333333333,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.41379310344827586,
+          "distinct_total_ticks": 29,
+          "defensive_spread_mean": 1.9050818920725643,
+          "carrier_support_dist_mean": 1.6865211753029898,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.7916666666666666,
+            0.7708333333333334,
+            0.8541666666666666,
+            0.8
+          ],
+          "time_past_midfield": [
+            0.20833333333333334,
+            0.22916666666666666,
+            0.14583333333333334,
+            0.2
+          ],
+          "mean_n_intruders": 0.23333333333333334,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3076923076923077,
+          "distinct_total_ticks": 13,
+          "defensive_spread_mean": 2.0653788749523425,
+          "carrier_support_dist_mean": 1.892827131518043,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.75,
+            0.75,
+            0.7791666666666667,
+            0.8166666666666667
+          ],
+          "time_past_midfield": [
+            0.25,
+            0.25,
+            0.22083333333333333,
+            0.18333333333333332
+          ],
+          "mean_n_intruders": 0.2791666666666667,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.8,
+          "distinct_total_ticks": 5,
+          "defensive_spread_mean": 2.0900542352297533,
+          "carrier_support_dist_mean": 1.9238328887316996,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.75,
+            0.7,
+            0.7958333333333333,
+            0.8083333333333333
+          ],
+          "time_past_midfield": [
+            0.25,
+            0.3,
+            0.20416666666666666,
+            0.19166666666666668
+          ],
+          "mean_n_intruders": 0.375,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.7142857142857143,
+          "distinct_total_ticks": 14,
+          "defensive_spread_mean": 2.1802466069779745,
+          "carrier_support_dist_mean": 2.074231304108778,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.9041666666666667,
+            0.8291666666666667,
+            0.825,
+            0.8208333333333333
+          ],
+          "time_past_midfield": [
+            0.09583333333333334,
+            0.17083333333333334,
+            0.175,
+            0.17916666666666667
+          ],
+          "mean_n_intruders": 0.25833333333333336,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 20,
+          "defensive_spread_mean": 1.9853338335516266,
+          "carrier_support_dist_mean": 1.7778670830184249,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.775,
+            0.85,
+            0.8333333333333334,
+            0.85
+          ],
+          "time_past_midfield": [
+            0.225,
+            0.15,
+            0.16666666666666666,
+            0.15
+          ],
+          "mean_n_intruders": 0.24583333333333332,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.6666666666666666,
+          "distinct_total_ticks": 12,
+          "defensive_spread_mean": 2.000299605174302,
+          "carrier_support_dist_mean": 1.9512071804061455,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.6583333333333333,
+            0.7291666666666666,
+            0.6166666666666667,
+            0.6125
+          ],
+          "time_past_midfield": [
+            0.3416666666666667,
+            0.2708333333333333,
+            0.38333333333333336,
+            0.3875
+          ],
+          "mean_n_intruders": 0.45416666666666666,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.4166666666666667,
+          "distinct_total_ticks": 24,
+          "defensive_spread_mean": 1.8479076544339743,
+          "carrier_support_dist_mean": 2.4408322198957695,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 1,
+          "red": 1,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.7208333333333333,
+            0.8208333333333333,
+            0.7125,
+            0.8041666666666667
+          ],
+          "time_past_midfield": [
+            0.2791666666666667,
+            0.17916666666666667,
+            0.2875,
+            0.19583333333333333
+          ],
+          "mean_n_intruders": 0.225,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.2222222222222222,
+          "distinct_total_ticks": 9,
+          "defensive_spread_mean": 2.0483487119277317,
+          "carrier_support_dist_mean": 2.264597201347351,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.7708333333333334,
+            0.8708333333333333,
+            0.8333333333333334,
+            0.875
+          ],
+          "time_past_midfield": [
+            0.22916666666666666,
+            0.12916666666666668,
+            0.16666666666666666,
+            0.125
+          ],
+          "mean_n_intruders": 0.16666666666666666,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.6666666666666666,
+          "distinct_total_ticks": 9,
+          "defensive_spread_mean": 2.1201747270034894,
+          "carrier_support_dist_mean": 1.9409164641753283,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.9208333333333333,
+            0.8083333333333333,
+            0.8125,
+            0.7833333333333333
+          ],
+          "time_past_midfield": [
+            0.07916666666666666,
+            0.19166666666666668,
+            0.1875,
+            0.21666666666666667
+          ],
+          "mean_n_intruders": 0.30416666666666664,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.42857142857142855,
+          "distinct_total_ticks": 14,
+          "defensive_spread_mean": 2.1903644103070965,
+          "carrier_support_dist_mean": 2.1999027237296103,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.7541666666666667,
+            0.7625,
+            0.775,
+            0.7333333333333333
+          ],
+          "time_past_midfield": [
+            0.24583333333333332,
+            0.2375,
+            0.225,
+            0.26666666666666666
+          ],
+          "mean_n_intruders": 0.5,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.46511627906976744,
+          "distinct_total_ticks": 43,
+          "defensive_spread_mean": 1.9422596327855552,
+          "carrier_support_dist_mean": 2.4406980447195195,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.6958333333333333,
+            0.5791666666666667,
+            0.7625,
+            0.85
+          ],
+          "time_past_midfield": [
+            0.30416666666666664,
+            0.42083333333333334,
+            0.2375,
+            0.15
+          ],
+          "mean_n_intruders": 0.42916666666666664,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.5454545454545454,
+          "distinct_total_ticks": 33,
+          "defensive_spread_mean": 2.2243173932344718,
+          "carrier_support_dist_mean": 2.115760724092352,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 1,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8416666666666667,
+            0.8291666666666667,
+            0.75,
+            0.8458333333333333
+          ],
+          "time_past_midfield": [
+            0.15833333333333333,
+            0.17083333333333334,
+            0.25,
+            0.15416666666666667
+          ],
+          "mean_n_intruders": 0.20833333333333334,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.14285714285714285,
+          "distinct_total_ticks": 7,
+          "defensive_spread_mean": 2.1328798711567183,
+          "carrier_support_dist_mean": 2.1560774111243153,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.8416666666666667,
+            0.6833333333333333,
+            0.8208333333333333,
+            0.8583333333333333
+          ],
+          "time_past_midfield": [
+            0.15833333333333333,
+            0.31666666666666665,
+            0.17916666666666667,
+            0.14166666666666666
+          ],
+          "mean_n_intruders": 0.20833333333333334,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 9,
+          "defensive_spread_mean": 2.156815198605711,
+          "carrier_support_dist_mean": 2.0961198162792916,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.7541666666666667,
+            0.7416666666666667,
+            0.7791666666666667,
+            0.7625
+          ],
+          "time_past_midfield": [
+            0.24583333333333332,
+            0.25833333333333336,
+            0.22083333333333333,
+            0.2375
+          ],
+          "mean_n_intruders": 0.2125,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.0,
+          "distinct_total_ticks": 4,
+          "defensive_spread_mean": 1.9799953804296606,
+          "carrier_support_dist_mean": 1.7590510540574953,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8583333333333333,
+            0.8625,
+            0.825,
+            0.9166666666666666
+          ],
+          "time_past_midfield": [
+            0.14166666666666666,
+            0.1375,
+            0.175,
+            0.08333333333333333
+          ],
+          "mean_n_intruders": 0.30416666666666664,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 21,
+          "defensive_spread_mean": 2.032109196980794,
+          "carrier_support_dist_mean": 1.5085314951592208,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.5566037735849056,
+            0.5471698113207547,
+            0.6792452830188679,
+            0.6226415094339622
+          ],
+          "time_past_midfield": [
+            0.44339622641509435,
+            0.4528301886792453,
+            0.32075471698113206,
+            0.37735849056603776
+          ],
+          "mean_n_intruders": 0.5849056603773585,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.08333333333333333,
+          "distinct_total_ticks": 12,
+          "defensive_spread_mean": 1.4996330639818212,
+          "carrier_support_dist_mean": 2.630191732198,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 106,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.7375,
+            0.9041666666666667,
+            0.8625,
+            0.8083333333333333
+          ],
+          "time_past_midfield": [
+            0.2625,
+            0.09583333333333334,
+            0.1375,
+            0.19166666666666668
+          ],
+          "mean_n_intruders": 0.1625,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.375,
+          "distinct_total_ticks": 8,
+          "defensive_spread_mean": 2.2818732196013833,
+          "carrier_support_dist_mean": 2.139770308181868,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.7375,
+            0.6625,
+            0.7041666666666667,
+            0.7625
+          ],
+          "time_past_midfield": [
+            0.2625,
+            0.3375,
+            0.29583333333333334,
+            0.2375
+          ],
+          "mean_n_intruders": 0.22083333333333333,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.25,
+          "distinct_total_ticks": 12,
+          "defensive_spread_mean": 2.1128395275802028,
+          "carrier_support_dist_mean": 1.9660165959633655,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.85,
+            0.875,
+            0.7666666666666667,
+            0.7791666666666667
+          ],
+          "time_past_midfield": [
+            0.15,
+            0.125,
+            0.23333333333333334,
+            0.22083333333333333
+          ],
+          "mean_n_intruders": 0.2875,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.3888888888888889,
+          "distinct_total_ticks": 18,
+          "defensive_spread_mean": 2.009937760104304,
+          "carrier_support_dist_mean": 2.033251114773984,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.5875,
+            0.5333333333333333,
+            0.5375,
+            0.575
+          ],
+          "time_past_midfield": [
+            0.4125,
+            0.4666666666666667,
+            0.4625,
+            0.425
+          ],
+          "mean_n_intruders": 0.1625,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.0,
+          "distinct_total_ticks": 4,
+          "defensive_spread_mean": 1.7591775764779347,
+          "carrier_support_dist_mean": 4.630027838051319,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.6291666666666667,
+            0.7416666666666667,
+            0.7666666666666667,
+            0.6625
+          ],
+          "time_past_midfield": [
+            0.37083333333333335,
+            0.25833333333333336,
+            0.23333333333333334,
+            0.3375
+          ],
+          "mean_n_intruders": 0.325,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 12,
+          "defensive_spread_mean": 2.3315799832344055,
+          "carrier_support_dist_mean": 2.7547901691928987,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8,
+            0.7041666666666667,
+            0.8375,
+            0.725
+          ],
+          "time_past_midfield": [
+            0.2,
+            0.29583333333333334,
+            0.1625,
+            0.275
+          ],
+          "mean_n_intruders": 0.22916666666666666,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.42857142857142855,
+          "distinct_total_ticks": 14,
+          "defensive_spread_mean": 2.1654142863371155,
+          "carrier_support_dist_mean": 2.1561123707133873,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8833333333333333,
+            0.8333333333333334,
+            0.75,
+            0.6916666666666667
+          ],
+          "time_past_midfield": [
+            0.11666666666666667,
+            0.16666666666666666,
+            0.25,
+            0.30833333333333335
+          ],
+          "mean_n_intruders": 0.2833333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.7368421052631579,
+          "distinct_total_ticks": 19,
+          "defensive_spread_mean": 2.3165773319022005,
+          "carrier_support_dist_mean": 2.673444079479786,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.7125,
+            0.7125,
+            0.7791666666666667,
+            0.725
+          ],
+          "time_past_midfield": [
+            0.2875,
+            0.2875,
+            0.22083333333333333,
+            0.275
+          ],
+          "mean_n_intruders": 0.475,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.3103448275862069,
+          "distinct_total_ticks": 29,
+          "defensive_spread_mean": 1.8866208387812988,
+          "carrier_support_dist_mean": 2.1974089586595347,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.9,
+            0.7625,
+            0.7416666666666667,
+            0.8583333333333333
+          ],
+          "time_past_midfield": [
+            0.1,
+            0.2375,
+            0.25833333333333336,
+            0.14166666666666666
+          ],
+          "mean_n_intruders": 0.25833333333333336,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.6666666666666666,
+          "distinct_total_ticks": 15,
+          "defensive_spread_mean": 2.1433639992028475,
+          "carrier_support_dist_mean": 2.095798425961539,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.7958333333333333,
+            0.8458333333333333,
+            0.8291666666666667,
+            0.75
+          ],
+          "time_past_midfield": [
+            0.20416666666666666,
+            0.15416666666666667,
+            0.17083333333333334,
+            0.25
+          ],
+          "mean_n_intruders": 0.4041666666666667,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.08695652173913043,
+          "distinct_total_ticks": 23,
+          "defensive_spread_mean": 1.9073742017442106,
+          "carrier_support_dist_mean": 1.822826986565538,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.7625,
+            0.7375,
+            0.7791666666666667,
+            0.7666666666666667
+          ],
+          "time_past_midfield": [
+            0.2375,
+            0.2625,
+            0.22083333333333333,
+            0.23333333333333334
+          ],
+          "mean_n_intruders": 0.4375,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.3157894736842105,
+          "distinct_total_ticks": 38,
+          "defensive_spread_mean": 1.8807228730168453,
+          "carrier_support_dist_mean": 1.7779987734591889,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 1,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.7375,
+            0.825,
+            0.775,
+            0.8166666666666667
+          ],
+          "time_past_midfield": [
+            0.2625,
+            0.175,
+            0.225,
+            0.18333333333333332
+          ],
+          "mean_n_intruders": 0.2791666666666667,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.11764705882352941,
+          "distinct_total_ticks": 17,
+          "defensive_spread_mean": 2.013429746031761,
+          "carrier_support_dist_mean": 1.901412392078444,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8166666666666667,
+            0.7916666666666666,
+            0.875,
+            0.8291666666666667
+          ],
+          "time_past_midfield": [
+            0.18333333333333332,
+            0.20833333333333334,
+            0.125,
+            0.17083333333333334
+          ],
+          "mean_n_intruders": 0.19583333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.6153846153846154,
+          "distinct_total_ticks": 13,
+          "defensive_spread_mean": 2.339792601859316,
+          "carrier_support_dist_mean": 2.0652982973637273,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.5857142857142857,
+            0.6857142857142857,
+            0.6357142857142857,
+            0.5785714285714286
+          ],
+          "time_past_midfield": [
+            0.4142857142857143,
+            0.3142857142857143,
+            0.36428571428571427,
+            0.42142857142857143
+          ],
+          "mean_n_intruders": 0.6357142857142857,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.5652173913043478,
+          "distinct_total_ticks": 23,
+          "defensive_spread_mean": 1.7874722201377153,
+          "carrier_support_dist_mean": 2.6076236305867924,
+          "first_flag_pressure_tick": 10,
+          "episode_ticks": 140,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        }
+      ],
+      "B": [
+        {
+          "own_half_frac": [
+            0.6708333333333333,
+            0.7833333333333333,
+            0.7625,
+            0.7375
+          ],
+          "time_past_midfield": [
+            0.32916666666666666,
+            0.21666666666666667,
+            0.2375,
+            0.2625
+          ],
+          "mean_n_intruders": 0.4125,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 10,
+          "defensive_spread_mean": 1.9378357506874535,
+          "carrier_support_dist_mean": 2.0788607119567812,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.9208333333333333,
+            0.9333333333333333,
+            0.8083333333333333,
+            0.8291666666666667
+          ],
+          "time_past_midfield": [
+            0.07916666666666666,
+            0.06666666666666667,
+            0.19166666666666668,
+            0.17083333333333334
+          ],
+          "mean_n_intruders": 0.5541666666666667,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3076923076923077,
+          "distinct_total_ticks": 13,
+          "defensive_spread_mean": 2.267129304925952,
+          "carrier_support_dist_mean": 1.8563625488133557,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.618421052631579,
+            0.6710526315789473,
+            0.5789473684210527,
+            0.6447368421052632
+          ],
+          "time_past_midfield": [
+            0.3815789473684211,
+            0.32894736842105265,
+            0.42105263157894735,
+            0.35526315789473684
+          ],
+          "mean_n_intruders": 0.47368421052631576,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.2,
+          "distinct_total_ticks": 20,
+          "defensive_spread_mean": 1.6848186570355015,
+          "carrier_support_dist_mean": 2.5688064181804657,
+          "first_flag_pressure_tick": 16,
+          "episode_ticks": 152,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.6744186046511628,
+            0.6666666666666666,
+            0.627906976744186,
+            0.6124031007751938
+          ],
+          "time_past_midfield": [
+            0.32558139534883723,
+            0.3333333333333333,
+            0.37209302325581395,
+            0.3875968992248062
+          ],
+          "mean_n_intruders": 0.3798449612403101,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.16666666666666666,
+          "distinct_total_ticks": 6,
+          "defensive_spread_mean": 1.8984056616822877,
+          "carrier_support_dist_mean": 2.273712393972609,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 129,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5811965811965812,
+            0.6410256410256411,
+            0.6666666666666666,
+            0.6239316239316239
+          ],
+          "time_past_midfield": [
+            0.4188034188034188,
+            0.358974358974359,
+            0.3333333333333333,
+            0.37606837606837606
+          ],
+          "mean_n_intruders": 0.7350427350427351,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.5,
+          "distinct_total_ticks": 12,
+          "defensive_spread_mean": 1.9204948821238108,
+          "carrier_support_dist_mean": 2.3265273680492324,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 117,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5390070921985816,
+            0.6595744680851063,
+            0.7021276595744681,
+            0.6950354609929078
+          ],
+          "time_past_midfield": [
+            0.46099290780141844,
+            0.3404255319148936,
+            0.2978723404255319,
+            0.3049645390070922
+          ],
+          "mean_n_intruders": 0.3120567375886525,
+          "max_n_intruders": 4,
+          "distinct_response_frac": 0.18181818181818182,
+          "distinct_total_ticks": 11,
+          "defensive_spread_mean": 2.029929343700409,
+          "carrier_support_dist_mean": 2.924022123521688,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 141,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.7166666666666667,
+            0.7,
+            0.6666666666666666,
+            0.7375
+          ],
+          "time_past_midfield": [
+            0.2833333333333333,
+            0.3,
+            0.3333333333333333,
+            0.2625
+          ],
+          "mean_n_intruders": 0.525,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.4642857142857143,
+          "distinct_total_ticks": 28,
+          "defensive_spread_mean": 1.848900649364632,
+          "carrier_support_dist_mean": 2.3800632867120926,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.9,
+            0.9208333333333333,
+            0.9333333333333333,
+            0.8083333333333333
+          ],
+          "time_past_midfield": [
+            0.1,
+            0.07916666666666666,
+            0.06666666666666667,
+            0.19166666666666668
+          ],
+          "mean_n_intruders": 0.5625,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.23529411764705882,
+          "distinct_total_ticks": 17,
+          "defensive_spread_mean": 2.072383885085583,
+          "carrier_support_dist_mean": 1.8308642494181793,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.975,
+            0.9333333333333333,
+            0.8541666666666666,
+            0.8333333333333334
+          ],
+          "time_past_midfield": [
+            0.025,
+            0.06666666666666667,
+            0.14583333333333334,
+            0.16666666666666666
+          ],
+          "mean_n_intruders": 0.6458333333333334,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.23333333333333334,
+          "distinct_total_ticks": 30,
+          "defensive_spread_mean": 2.2101876973050887,
+          "carrier_support_dist_mean": 1.5800092986463445,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.6381578947368421,
+            0.631578947368421,
+            0.5986842105263158,
+            0.6381578947368421
+          ],
+          "time_past_midfield": [
+            0.3618421052631579,
+            0.3684210526315789,
+            0.40131578947368424,
+            0.3618421052631579
+          ],
+          "mean_n_intruders": 0.39473684210526316,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.1111111111111111,
+          "distinct_total_ticks": 9,
+          "defensive_spread_mean": 1.8450313835663903,
+          "carrier_support_dist_mean": 4.122634530067444,
+          "first_flag_pressure_tick": 15,
+          "episode_ticks": 152,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5666666666666667,
+            0.6476190476190476,
+            0.5571428571428572,
+            0.5190476190476191
+          ],
+          "time_past_midfield": [
+            0.43333333333333335,
+            0.3523809523809524,
+            0.44285714285714284,
+            0.48095238095238096
+          ],
+          "mean_n_intruders": 0.16666666666666666,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 1.0,
+          "distinct_total_ticks": 1,
+          "defensive_spread_mean": 1.7847108964650136,
+          "carrier_support_dist_mean": 3.0764155823450823,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 210,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5408805031446541,
+            0.6289308176100629,
+            0.6666666666666666,
+            0.6163522012578616
+          ],
+          "time_past_midfield": [
+            0.4591194968553459,
+            0.3710691823899371,
+            0.3333333333333333,
+            0.3836477987421384
+          ],
+          "mean_n_intruders": 0.4528301886792453,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 15,
+          "defensive_spread_mean": 1.6641367087068484,
+          "carrier_support_dist_mean": 2.254339101466727,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 159,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5921052631578947,
+            0.543859649122807,
+            0.6754385964912281,
+            0.618421052631579
+          ],
+          "time_past_midfield": [
+            0.40789473684210525,
+            0.45614035087719296,
+            0.32456140350877194,
+            0.3815789473684211
+          ],
+          "mean_n_intruders": 0.25,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.3076923076923077,
+          "distinct_total_ticks": 13,
+          "defensive_spread_mean": 1.9038235892852147,
+          "carrier_support_dist_mean": 2.609049149921962,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 228,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.6024844720496895,
+            0.7267080745341615,
+            0.5652173913043478,
+            0.577639751552795
+          ],
+          "time_past_midfield": [
+            0.39751552795031053,
+            0.2732919254658385,
+            0.43478260869565216,
+            0.422360248447205
+          ],
+          "mean_n_intruders": 0.2795031055900621,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.0,
+          "distinct_total_ticks": 10,
+          "defensive_spread_mean": 1.912518940973973,
+          "carrier_support_dist_mean": 2.9862844149271646,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 161,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5616438356164384,
+            0.6164383561643836,
+            0.7054794520547946,
+            0.5958904109589042
+          ],
+          "time_past_midfield": [
+            0.4383561643835616,
+            0.3835616438356164,
+            0.2945205479452055,
+            0.4041095890410959
+          ],
+          "mean_n_intruders": 0.3835616438356164,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.5,
+          "distinct_total_ticks": 12,
+          "defensive_spread_mean": 1.9029614039089369,
+          "carrier_support_dist_mean": 2.823809117741055,
+          "first_flag_pressure_tick": 16,
+          "episode_ticks": 146,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5918367346938775,
+            0.6581632653061225,
+            0.6173469387755102,
+            0.673469387755102
+          ],
+          "time_past_midfield": [
+            0.40816326530612246,
+            0.34183673469387754,
+            0.3826530612244898,
+            0.32653061224489793
+          ],
+          "mean_n_intruders": 0.25,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.75,
+          "distinct_total_ticks": 4,
+          "defensive_spread_mean": 1.86659880173512,
+          "carrier_support_dist_mean": 3.7780682573131488,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 196,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.5660377358490566,
+            0.5534591194968553,
+            0.6415094339622641,
+            0.6540880503144654
+          ],
+          "time_past_midfield": [
+            0.4339622641509434,
+            0.44654088050314467,
+            0.3584905660377358,
+            0.34591194968553457
+          ],
+          "mean_n_intruders": 0.5157232704402516,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.1,
+          "distinct_total_ticks": 10,
+          "defensive_spread_mean": 2.024377691133,
+          "carrier_support_dist_mean": 2.0247698608709843,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 159,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.9125,
+            0.9416666666666667,
+            0.9375,
+            0.8916666666666667
+          ],
+          "time_past_midfield": [
+            0.0875,
+            0.058333333333333334,
+            0.0625,
+            0.10833333333333334
+          ],
+          "mean_n_intruders": 0.6541666666666667,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.13636363636363635,
+          "distinct_total_ticks": 22,
+          "defensive_spread_mean": 2.0116614890500966,
+          "carrier_support_dist_mean": 1.692345141172409,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.6926406926406926,
+            0.5930735930735931,
+            0.6103896103896104,
+            0.6493506493506493
+          ],
+          "time_past_midfield": [
+            0.30735930735930733,
+            0.4069264069264069,
+            0.38961038961038963,
+            0.35064935064935066
+          ],
+          "mean_n_intruders": 0.2554112554112554,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.5454545454545454,
+          "distinct_total_ticks": 11,
+          "defensive_spread_mean": 1.945502461256268,
+          "carrier_support_dist_mean": 3.090753473341465,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 231,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.9,
+            0.8666666666666667,
+            0.9416666666666667,
+            0.9833333333333333
+          ],
+          "time_past_midfield": [
+            0.1,
+            0.13333333333333333,
+            0.058333333333333334,
+            0.016666666666666666
+          ],
+          "mean_n_intruders": 0.65,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.4375,
+          "distinct_total_ticks": 16,
+          "defensive_spread_mean": 2.0862233833289046,
+          "carrier_support_dist_mean": 1.8962753325437023,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.6125,
+            0.6208333333333333,
+            0.6208333333333333,
+            0.5625
+          ],
+          "time_past_midfield": [
+            0.3875,
+            0.37916666666666665,
+            0.37916666666666665,
+            0.4375
+          ],
+          "mean_n_intruders": 0.22916666666666666,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.0,
+          "distinct_total_ticks": 7,
+          "defensive_spread_mean": 1.8522693997621535,
+          "carrier_support_dist_mean": 2.929650080509675,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 1,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.6907216494845361,
+            0.6288659793814433,
+            0.6391752577319587,
+            0.5257731958762887
+          ],
+          "time_past_midfield": [
+            0.30927835051546393,
+            0.3711340206185567,
+            0.36082474226804123,
+            0.4742268041237113
+          ],
+          "mean_n_intruders": 0.5567010309278351,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.26666666666666666,
+          "distinct_total_ticks": 15,
+          "defensive_spread_mean": 1.7265007012076192,
+          "carrier_support_dist_mean": 2.9255496085958277,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 97,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.8875,
+            0.8958333333333334,
+            0.9375,
+            0.9333333333333333
+          ],
+          "time_past_midfield": [
+            0.1125,
+            0.10416666666666667,
+            0.0625,
+            0.06666666666666667
+          ],
+          "mean_n_intruders": 0.5208333333333334,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.19047619047619047,
+          "distinct_total_ticks": 21,
+          "defensive_spread_mean": 2.205581917252603,
+          "carrier_support_dist_mean": 1.7349888646156988,
+          "first_flag_pressure_tick": 24,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.8458333333333333,
+            0.7208333333333333,
+            0.8083333333333333,
+            0.7958333333333333
+          ],
+          "time_past_midfield": [
+            0.15416666666666667,
+            0.2791666666666667,
+            0.19166666666666668,
+            0.20416666666666666
+          ],
+          "mean_n_intruders": 0.6708333333333333,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.2962962962962963,
+          "distinct_total_ticks": 27,
+          "defensive_spread_mean": 2.039820728236682,
+          "carrier_support_dist_mean": 1.886049932146326,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 2,
+          "red": 0,
+          "margin": 2
+        },
+        {
+          "own_half_frac": [
+            0.5916666666666667,
+            0.7,
+            0.725,
+            0.7333333333333333
+          ],
+          "time_past_midfield": [
+            0.4083333333333333,
+            0.3,
+            0.275,
+            0.26666666666666666
+          ],
+          "mean_n_intruders": 0.49583333333333335,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.631578947368421,
+          "distinct_total_ticks": 19,
+          "defensive_spread_mean": 1.9998620714417739,
+          "carrier_support_dist_mean": 1.6645021272393374,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.8916666666666667,
+            0.9375,
+            0.9583333333333334,
+            0.9291666666666667
+          ],
+          "time_past_midfield": [
+            0.10833333333333334,
+            0.0625,
+            0.041666666666666664,
+            0.07083333333333333
+          ],
+          "mean_n_intruders": 0.6166666666666667,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.35714285714285715,
+          "distinct_total_ticks": 14,
+          "defensive_spread_mean": 2.036901876459951,
+          "carrier_support_dist_mean": 1.7622952278455097,
+          "first_flag_pressure_tick": 13,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.6083333333333333,
+            0.6125,
+            0.6583333333333333,
+            0.6541666666666667
+          ],
+          "time_past_midfield": [
+            0.39166666666666666,
+            0.3875,
+            0.3416666666666667,
+            0.3458333333333333
+          ],
+          "mean_n_intruders": 0.23333333333333334,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.16666666666666666,
+          "distinct_total_ticks": 12,
+          "defensive_spread_mean": 1.9021150124378694,
+          "carrier_support_dist_mean": 5.96186598004966,
+          "first_flag_pressure_tick": 33,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.6311111111111111,
+            0.6577777777777778,
+            0.5822222222222222,
+            0.6844444444444444
+          ],
+          "time_past_midfield": [
+            0.3688888888888889,
+            0.3422222222222222,
+            0.4177777777777778,
+            0.31555555555555553
+          ],
+          "mean_n_intruders": 0.21777777777777776,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.3333333333333333,
+          "distinct_total_ticks": 6,
+          "defensive_spread_mean": 1.8519780020964773,
+          "carrier_support_dist_mean": 3.3847572494436196,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 225,
+          "win": 1,
+          "blue": 3,
+          "red": 0,
+          "margin": 3
+        },
+        {
+          "own_half_frac": [
+            0.9125,
+            0.9416666666666667,
+            0.9208333333333333,
+            0.9708333333333333
+          ],
+          "time_past_midfield": [
+            0.0875,
+            0.058333333333333334,
+            0.07916666666666666,
+            0.029166666666666667
+          ],
+          "mean_n_intruders": 0.7291666666666666,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.41379310344827586,
+          "distinct_total_ticks": 29,
+          "defensive_spread_mean": 2.148119328016973,
+          "carrier_support_dist_mean": 1.8331271345085567,
+          "first_flag_pressure_tick": 14,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.6333333333333333,
+            0.6,
+            0.5583333333333333,
+            0.6
+          ],
+          "time_past_midfield": [
+            0.36666666666666664,
+            0.4,
+            0.44166666666666665,
+            0.4
+          ],
+          "mean_n_intruders": 0.15416666666666667,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.5,
+          "distinct_total_ticks": 6,
+          "defensive_spread_mean": 1.7956580728599705,
+          "carrier_support_dist_mean": 2.904072003117923,
+          "first_flag_pressure_tick": 12,
+          "episode_ticks": 240,
+          "win": 1,
+          "blue": 1,
+          "red": 0,
+          "margin": 1
+        },
+        {
+          "own_half_frac": [
+            0.95,
+            0.8958333333333334,
+            0.9541666666666667,
+            0.9458333333333333
+          ],
+          "time_past_midfield": [
+            0.05,
+            0.10416666666666667,
+            0.04583333333333333,
+            0.05416666666666667
+          ],
+          "mean_n_intruders": 0.6333333333333333,
+          "max_n_intruders": 2,
+          "distinct_response_frac": 0.4583333333333333,
+          "distinct_total_ticks": 24,
+          "defensive_spread_mean": 2.0717568752558333,
+          "carrier_support_dist_mean": 1.555931802381549,
+          "first_flag_pressure_tick": 11,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        },
+        {
+          "own_half_frac": [
+            0.8833333333333333,
+            0.9083333333333333,
+            0.8583333333333333,
+            0.8916666666666667
+          ],
+          "time_past_midfield": [
+            0.11666666666666667,
+            0.09166666666666666,
+            0.14166666666666666,
+            0.10833333333333334
+          ],
+          "mean_n_intruders": 0.7083333333333334,
+          "max_n_intruders": 3,
+          "distinct_response_frac": 0.391304347826087,
+          "distinct_total_ticks": 23,
+          "defensive_spread_mean": 2.161734800769369,
+          "carrier_support_dist_mean": 2.0120733331367013,
+          "first_flag_pressure_tick": 26,
+          "episode_ticks": 240,
+          "win": 0,
+          "blue": 0,
+          "red": 0,
+          "margin": 0
+        }
+      ]
+    }
+  }
+}

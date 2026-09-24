@@ -138,9 +138,13 @@ def score_cell(model, pole: str, *, device: str, n: int) -> list[dict]:
     """One (policy, pole) cell across the paired seed block."""
     base_key = POLES[pole]
     genomes = {"OP6": pole_A_genome()} if pole == "A" else {}
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
+
     rows = []
-    for i in range(n):
+    bar = tqdm_iter(range(n), desc=f"sappo {pole}", unit="ep")
+    for i in bar:
         seed = SEED_BASE + i
+        set_postfix(bar, f"seed={seed}")
         env = build_env(device, seed)
         core = env.core
         try:

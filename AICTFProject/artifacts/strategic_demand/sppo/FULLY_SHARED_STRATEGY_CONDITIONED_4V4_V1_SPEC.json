@@ -1,0 +1,178 @@
+{
+  "record_id": "FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-23T16:45:00Z",
+  "classification": "DIAGNOSTIC / EXPLORATORY sharing-axis baseline. Not PAPER-FAITHFUL. Not a confirmatory crossover. Not a new role-allocation system. Not a license to train on this PC while CLOSEST_SPLIT 6v6 viability is in flight.",
+  "authorized_by": "PI, 2026-09-23: finish the scaled Fully Shared Strategy-Conditioned baseline so it can run later. Core 2v2 machinery already exists; what remains is the scaled 4v4/6v6 version under the exact same heuristic allocator as the separated system. Allocator fixed, only parameter sharing changes.",
+
+  "RESEARCH_QUESTION": "With CLOSEST_DEFENDS held byte-identical to the sealed separated 4v4 composite, does a single shared network pi_phi(a | o, z) that is forced to experience both strategy conditions still pass the joint crossover gate — or does parameter sharing erase specialization even when explicit strategy information z is provided?",
+
+  "WHY_THIS_EXISTS": {
+    "separated_comparator_already_sealed": {
+      "record": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "architecture": "CLOSEST_DEFENDS(k=2) -> {ATTACK: pi_A_frozen, DEFEND: pi_D}",
+      "gate": "PASS n=128, Delta_A +0.156 [+0.039,+0.273], Delta_B +0.406 [+0.297,+0.508]",
+      "reading": "physically separated strategy/role networks under heuristic allocation close 4v4"
+    },
+    "scientific_contrast": "Fully shared pi_phi(a|o,z)  vs  Separated learned strategy networks, with the SAME CLOSEST_DEFENDS allocator in both. If separated PASSes and fully-shared forced-z FAILs, that is direct evidence that explicit strategy information alone is insufficient and parameter sharing itself is erasing specialization.",
+    "not_a_rediscovery_of": [
+      "CLOSEST_DEFENDS (already sealed at 4v4 screen + used by DEFEND_ATTACK_SPLIT)",
+      "forced-z crossover / Delta_A / Delta_B / LCB95 / run_state.seal (already exist)",
+      "2v2 Share-Encoder / Rung-1 latent conditioning (exists; this is the scale port under CD)",
+      "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 shared-network role bit without z (already failed; this arm adds explicit strategy z and evaluates forced-z crossover, not a retune of that failed teacher run)"
+    ],
+    "not_the_failed_6v6_RUNG1": "RUNG1_6V6 Share-Encoder crossover FAIL did not use CLOSEST_DEFENDS. This arm deliberately holds the allocator that made the separated 4v4 composite PASS, changing only the sharing architecture."
+  },
+
+  "SINGLE_AXIS_locked": {
+    "change_only": "parameter sharing: one SharedActorCentralizedCritic plays every agent under every role and every forced strategy z. No second ATTACK/DEFEND network. No split_attack_defend splice.",
+    "held_fixed_vs_separated_PASS": [
+      "CLOSEST_DEFENDS allocator (k = N/2 = 2 living agents closest to own_flag_home)",
+      "role_fixed_for_episode = true",
+      "certified Pole A / Pole B overlays and config hashes",
+      "canonical Delta convention: Delta_A = V(z_A,A)-V(z_B,A), Delta_B = V(z_B,B)-V(z_A,B); PASS iff both means > 0 and both LCB95 > 0",
+      "bootstrap: n_boot=20000, alpha=0.05, rng_seed=7",
+      "matched-seed discipline across the 2x2 forced-z matrix",
+      "entity-repair warm-start base for the shared network (same pi_A checkpoint family as the separated ATTACK freeze)"
+    ]
+  },
+
+  "ARCHITECTURE_locked": {
+    "diagram": "each episode: z ~ Uniform{z_A, z_B} (episode-static, forced — never inferred by a router); CLOSEST_DEFENDS(k=2) -> role bits r_i; every agent i executes the SAME network pi_phi(a_i | o_i, z, r_i)",
+    "policy_form": "pi_phi(a | o, z) with the CLOSEST_DEFENDS role bit r concatenated as the allocator interface (identical role channel the separated pi_D already uses). r is an INPUT, not a separate parameter set. There is exactly one Actor parameter tensor set for ATTACK and DEFEND and for both z.",
+    "latent_k": 2,
+    "latent_actor_conditioning": "concat (paper-faithful concat path; no FiLM, no per-z action heads, no private branches)",
+    "router": "ABSENT. No q_phi. No learned allocator. z is scheduled at training time and forced at evaluation time.",
+    "split_attack_defend_enabled": false,
+    "no_hidden_separate_nets": "Forbidden: loading a second SharedActorCentralizedCritic, splice_actions, frozen ATTACK copy, or any per-role module whose parameters are not shared with the single pi_phi.",
+    "warm_start": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+      "expansion": "zero-init expand for role column AND for z embedding / critic z one-hot so t0 behavior matches native pi_A when z and r are neutralized under the existing warm-start contracts"
+    }
+  },
+
+  "ROLE_ALLOCATION_locked": {
+    "allocator": "CLOSEST_DEFENDS",
+    "k": 2,
+    "rule": "k living agents closest to own_flag_home at the first decision tick; roles held for the whole episode",
+    "identity_with_separated": "byte-identical protocol to DEFEND_ATTACK_SPLIT_POLICY_A_V1 / CLOSEST_DEFENDS_SCREEN_4V4. This arm does not invent, retune, or learn an allocator.",
+    "why_role_bit_still_present": "Without feeding r into pi_phi, CLOSEST_DEFENDS would not affect individual actions when both strategies use the same k=2. The allocator must remain causally live for the sharing-axis comparison; the change is that both roles share parameters rather than routing to separate networks."
+  },
+
+  "TRAINING_locked": {
+    "do_not_launch_on_this_pc_while": "CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1 25k viability / collapse-watch is in flight. This SPEC freezes design only.",
+    "policy_label": "fully_shared_z_conditioned_4v4_v1",
+    "team_size": 4,
+    "total_timesteps": 200000,
+    "device": "cuda",
+    "role_conditioning_enabled": true,
+    "role_fixed_for_episode": true,
+    "use_latent_strategy": true,
+    "latent_k": 2,
+    "fixed_latent_strategy": true,
+    "z_schedule": "episode-static Uniform{0,1}; both strategy conditions MUST appear in the training distribution so the shared net cannot collapse to a single unconditional policy",
+    "opponent_matching": "z_A episodes train against certified Pole A; z_B episodes train against certified Pole B. Matched so each forced mode sees its specialty opponent.",
+    "split_attack_defend_enabled": false,
+    "defend_teacher_lambda": 0.0,
+    "entity_repair_enabled": true,
+    "no_q_phi_gradient_channels": true,
+    "run_label_suffix": "_fully_shared_z_4v4_v1",
+    "seed_class": "exploratory",
+    "seed_proposed": 22500001,
+    "launcher_sketch": "experiments/train_specialist_scale.py (extended) --team-size 4 --role-conditioning-enabled --fixed-latent-k 2 --fixed-latent-episode-schedule uniform --pole-match-z --no-split-attack-defend --warm-start <pinned pi_A>",
+    "note_on_teacher": "Separated PASS used an N' DEFEND teacher on pi_D only. This sharing-axis first attempt deliberately sets defend_teacher_lambda=0 so the only architectural difference vs a naive shared role-conditioned net is the forced strategy z plus dual-pole matched training. Retuning a teacher on this arm is a separate PI decision, not this freeze."
+  },
+
+  "EVALUATION_after_training_not_during": {
+    "do_not_eval_until_final_ckpt": true,
+    "instrument": "forced-z crossover under CLOSEST_DEFENDS — adapt experiments/eval_rung1_crossover_scaled.py (or a thin wrapper) so role_conditioning_enabled=True and CLOSEST_DEFENDS(k=2) is active; force z_A and z_B separately; NO router, NO learned z",
+    "matrix": {
+      "cells": ["V(z_A, A)", "V(z_B, A)", "V(z_A, B)", "V(z_B, B)"],
+      "delta_A": "V(z_A, A) - V(z_B, A)",
+      "delta_B": "V(z_B, B) - V(z_A, B)",
+      "gate": "PASS iff mean(Delta_A)>0 AND LCB95(Delta_A)>0 AND mean(Delta_B)>0 AND LCB95(Delta_B)>0"
+    },
+    "bootstrap": {"samples": 20000, "alpha": 0.05, "rng_seed": 7},
+    "poles": "identical certified Pole A / Pole B as DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1",
+    "exploratory": {
+      "n": 64,
+      "seed_class": "exploratory",
+      "seed_block_proposed": {"lo": 22510001, "hi": 22510064}
+    },
+    "confirmatory_later_if_exploratory_promising": {
+      "n": 128,
+      "seed_class": "sealed_confirmatory",
+      "seed_block_proposed": {"lo": 22600001, "hi": 22600128},
+      "requires": "fresh PI authorization after exploratory RESULT exists; not auto-launched by this SPEC"
+    },
+    "seal": "final RESULT must go through run_state.seal(); one-shot outputs; no model selection across checkpoints"
+  },
+
+  "CONTRACTS_before_any_seed_spend": [
+    "C0 this SPEC status starts with FROZEN and is on disk before any train/eval seed is reserved for this arm",
+    "C1 z reaches the actor: LatentConditionedActor / SharedActorCentralizedCritic receives the scheduled or forced z_idx every forward; ablating z changes logits (max abs logit delta > 0 under a fixed obs batch)",
+    "C2 single parameter set: exactly one actor module; split_attack_defend_enabled=False; no second SharedActorCentralizedCritic loaded for ATTACK",
+    "C3 no hidden per-role networks: no per-z private action heads, no latent_population_birth_per_z_action_heads, no FiLM/deep-branch forks that instantiate separate ATTACK/DEFEND weights",
+    "C4 CLOSEST_DEFENDS identical to separated: same k=2, same closest-to-own_flag_home rule, role_fixed_for_episode=True; contract against the separated composite's allocator call path",
+    "C5 forced z at eval: fixed_latent_strategy_id honored; q_phi never sampled; eval path cannot choose z",
+    "C6 training sees both z: occupancy of z_A and z_B over a short rollout window each in (0.25, 0.75) under Uniform schedule",
+    "C7 pole matching: z_A episodes use Pole A opponent; z_B episodes use Pole B opponent",
+    "C8 same seeds/poles/metrics: exploratory and confirmatory blocks disjoint from training seed and from DEFEND_ATTACK_SPLIT blocks (216/217/218); certified pole hashes match confirmatory separated RESULT",
+    "C9 warm-start pin: shared-net warm-start sha256 equals 94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "C10 sealing: RESULT written only via run_state.seal(); ROWS csv + RESULT json one-shot",
+    "C11 no training authorization while 6v6 closest-split viability owns this GPU — freeze-only until PI clears the queue"
+  ],
+
+  "IMPLEMENTATION_STATUS": {
+    "utc": "2026-09-23T17:00:00Z",
+    "plumbing": "READY",
+    "training_authorized": false,
+    "modules": {
+      "config": "rl/config/ppo_config.py::fully_shared_z_conditioned_enabled / fully_shared_z_pole_match",
+      "locks": "rl/custom_ppo/fully_shared_z.py",
+      "train": "experiments/train_fully_shared_strategy_conditioned.py (--authorize-launch required for non-smoke)",
+      "eval": "experiments/eval_fully_shared_z_crossover_scaled.py (forced-z + CLOSEST_DEFENDS + run_state.seal)",
+      "tests": "tests/test_fully_shared_z_conditioned.py"
+    },
+    "launch_when_cleared": [
+      "1. C11: CLOSEST_SPLIT 6v6 viability no longer owns this GPU (or use other PC)",
+      "2. Reserve seeds via seed_registry (train 22500001; exploratory eval 22510001-064)",
+      "3. python experiments/train_fully_shared_strategy_conditioned.py --team-size 4 --seed 22500001 --authorize-launch --device cuda --spec artifacts/strategic_demand/sppo/FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json",
+      "4. After final ckpt: python experiments/eval_fully_shared_z_crossover_scaled.py --team-size 4 --checkpoint <final.zip> --spec <same> --seed-base 22510001 --n-seeds 64 --label FULLY_SHARED_Z_4V4_V1_EXPLORATORY --device cuda"
+    ]
+  },
+
+  "IMPLEMENTATION_REMAINING_not_built_by_this_freeze": [
+    "SEED RESERVATION + TRAINING + EVAL — deferred until C11 clears; plumbing above is ready"
+  ],
+
+  "EXPLICITLY_FORBIDDEN": [
+    "launching training or evaluation on this PC while CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1 viability / collapse-watch is the active GPU job",
+    "building a new learned allocator or changing CLOSEST_DEFENDS",
+    "reintroducing split_attack_defend / frozen ATTACK splice into this arm",
+    "training a q_phi router or letting the network choose z at eval",
+    "claiming PAPER-FAITHFUL / Summer-faithful / plan-faithful",
+    "treating a FAIL here as a reason to retrain the already-sealed separated 4v4 PASS composite",
+    "spending confirmatory seeds before an exploratory RESULT exists and PI authorizes",
+    "porting to 6v6 before this 4v4 sharing-axis result is interpreted (see companion SPEC)"
+  ],
+
+  "COMPARISON_TABLE_target": {
+    "arm_separated": "DEFEND_ATTACK_SPLIT composite under CLOSEST_DEFENDS k=2 — sealed confirmatory PASS",
+    "arm_fully_shared": "this SPEC — pi_phi(a|o,z) under CLOSEST_DEFENDS k=2 — forced-z crossover",
+    "held_constant": "allocator, poles, Delta/LCB95 gate, matched seeds, seal machinery",
+    "varied": "parameter sharing only"
+  },
+
+  "claim_boundary": "Design freeze for the 4v4 Fully Shared Strategy-Conditioned sharing-axis baseline under the exact CLOSEST_DEFENDS protocol that closed the separated system. Authorizes implementation and contracts later; does NOT authorize seed spend or GPU training until C11 clears and contracts pass.",
+
+  "SUITE_PARENT_AMENDMENT_2026_09_24": {
+    "parent": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json",
+    "status_change": "This record remains the CLOSEST_DEFENDS plumbing/contracts child for the 4v4 Fully Shared+z suite arm. It is no longer the sole definition of the fully shared baseline.",
+    "required_by_suite": "Fully Shared+z must exist at 2v2/4v4/6v6 under the suite's sharing-family identity (same teachers/states/objective/budget vs Share-Encoder where distillation is used). A 4v4-only PPO one-off is insufficient.",
+    "train_still_deferred": true
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "record_id": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_RUN",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-10T02:00:00Z",
+  "implements": "diagnostic follow-up to CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json, per PI direction 2026-09-10",
+
+  "AUTHORITY": "PI, 2026-09-10, on the sealed n=128 B3-3 result (delta_A=+0.0469[-0.0703,+0.1562], delta_B=+0.0156[-0.0781,+0.1094], both correctly signed, neither confirmed): 'Do not close 4v4... Run a bounded exploratory batch on the same frozen B3 specialists. Do not treat it as a continuation of the confirmatory gate or combine it with the sealed n=128 result to claim PASS. Use it to estimate the four absolute crossover cells more precisely and diagnose why Delta_B is small... Report the exploratory effect sizes and CIs separately. No B4 redesign or retraining yet.'",
+
+  "WHY_A_PLAIN_LARGER_n_CONFIRMATORY_ATTEMPT_WAS_REJECTED": "a prospective power analysis on the sealed n=128 per-seed paired differences showed the required n to reach 80% power, anchored on the observed point estimate, is ~1511 for delta_A (11.8x) and ~10118 for delta_B (79x) -- not achievable before the ICRA deadline, and extremely sensitive to which part of the current CI is assumed true (delta_B's required n ranges from ~206 at UCB95 to ~10118 at the point estimate). Rather than pick an arbitrary intermediate n and dress it up as power-justified, this record instead reframes the next step as DIAGNOSTIC: decompose the four absolute cells at a larger, bounded sample to understand WHY delta_B is small, not to chase significance on delta_B itself.",
+
+  "PURPOSE": "Estimate V(pi_A,A), V(pi_B,A), V(pi_A,B), V(pi_B,B) at higher precision than the sealed n=128 run, to distinguish between competing explanations for delta_B's small magnitude: (a) pi_B3 is not strong enough against Pole B3-3, (b) pi_A3 is ALSO fairly strong against Pole B3-3 (i.e. B3-3 does not sufficiently punish the wrong specialist), or (c) Pole B3-3 produces high-variance/low-information matches for both policies.",
+
+  "NO_RETRAINING_NO_CHECKPOINT_SELECTION_NO_OPPONENT_CHANGE": "reuses the EXACT SAME frozen checkpoints already used in the sealed confirmatory result: pi_A3=artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip (sha 011fbc0b4346...), pi_B3=artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip (sha 57d354e10c56...), against the SAME B3-3 candidate genome (pole_b2_candidates/B3-3_lockdef10_2v1.json). Nothing here trains anything, selects among checkpoints, or changes the opponent construction.",
+
+  "SEEDS": {
+    "block": [16800001, 16800256],
+    "n": 256,
+    "disjointness_verified": "grep for 16800001/16800256 against every JSON under artifacts/: zero hits at freeze time. Disjoint from the sealed confirmatory block (16700001-16700128) and every other spent block in the project.",
+    "shared_across_policies_and_poles": true
+  },
+
+  "OUTPUT_LABEL": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC",
+  "OUTPUT_FILES_MUST_NOT_COLLIDE_WITH": "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json and confirmatory_b3_3_4v4_specialist_crossover_eval_rows.csv remain untouched, one-shot, frozen exactly as sealed.",
+
+  "EXPLICIT_PROHIBITIONS": [
+    "MUST NOT pool or concatenate this batch's rows with the sealed n=128 rows to compute a combined larger-n delta_A/delta_B and claim PASS/FAIL against the confirmatory gate.",
+    "MUST NOT relabel this batch's own gate outcome (if computed) as a confirmatory verdict -- arm=EXPLORATORY, confirmatory=false, reported separately.",
+    "MUST NOT use this batch to select a 'better' checkpoint or opponent construction -- it evaluates the ALREADY-FROZEN pi_A3/pi_B3/B3-3 combination only.",
+    "MUST NOT be used to justify a B4 redesign attempt by itself -- that remains a separate, future PI decision if this diagnostic reveals something actionable."
+  ],
+
+  "PLANNED_ANALYSIS": "report the four absolute win rates with their own percentile-bootstrap CIs (n_boot=20000, alpha=0.05, rng_seed=7, same protocol) at n=256, and this batch's own delta_A/delta_B point estimates and CIs purely as description (explicitly not a gate verdict). Compare V(pi_A,B) vs V(pi_B,B) directly to see whether pi_A is nearly as strong as pi_B against Pole B (explanation b) or clearly weaker (supports explanation a or c), and compare this batch's per-cell variance to the sealed batch's to check for a high-noise signature (explanation c).",
+
+  "TIME_ESTIMATE": "4 cells x 256 seeds = 1024 episodes. At the sealed run's observed pace (512 episodes in ~7h18m, ~0.855 min/episode), expect roughly 14-15h.",
+
+  "SEQUENCE": "freeze this spec (done) -> dry-run verify (checkpoints present, live pole resolves at N=4 for both poles, spec frozen) -> run for real on 16800001-16800256 -> independently audit row integrity + bootstrap recompute exactly as done for the sealed result -> report the four absolute cells and diagnostic reading separately from CONFIRMATORY_B3_3_4V4 -> PI decides whether anything actionable follows (B4, or closing 4v4, or something else)."
+}

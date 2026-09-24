@@ -1,0 +1,54 @@
+{
+  "record_id": "DEFENDER_INJECTION_CAUSAL_BRIDGE_CONTRACT_RESULT",
+  "utc": "2026-09-20T08:08:25Z",
+  "implements": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
+  "n_checks": 7,
+  "n_gating": 7,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_MECHANISM_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_MECHANISM_PENDING_THRESHOLD_CONFIRMATION'"
+    },
+    {
+      "name": "C0b_THRESHOLDS_EXPLICITLY_NOT_YET_CONFIRMED",
+      "gating": true,
+      "passed": true,
+      "detail": "decision thresholds are proposed, not frozen -- contracts below verify mechanism only, and this check exists so that fact cannot silently disappear from the record"
+    },
+    {
+      "name": "C1_INJECTION_MATCHES_SCRIPTED_DEFEND_REFERENCE_EXACTLY",
+      "gating": true,
+      "passed": true,
+      "detail": "4/4 cells exact (pos/alive/tagged/carrying/intent/true_defend/outcome)"
+    },
+    {
+      "name": "C2_ROTATION_IS_EXACTLY_UNIFORM_OVER_THE_RESERVED_BLOCK",
+      "gating": true,
+      "passed": true,
+      "detail": "counts per agent id: {0: 16, 1: 16, 2: 16, 3: 16, 4: 16, 5: 16}"
+    },
+    {
+      "name": "C3_CHECKPOINTS_MATCH_THE_PINNED_HASHES",
+      "gating": true,
+      "passed": true,
+      "detail": "{'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'} vs pinned {'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'}"
+    },
+    {
+      "name": "C4_SEED_BLOCK_OWNED_UNSPENT_AND_DISJOINT_FROM_EVERY_PRIOR_BLOCK",
+      "gating": true,
+      "passed": true,
+      "detail": "already registered to DEFENDER_INJECTION_CAUSAL_BRIDGE (status RESERVED) -- same block, no conflict; registry status = RESERVED; disjoint from [(20700001, 20700016), (20700101, 20700228), (20800001, 20800016), (13680001, 13680128)]: True"
+    },
+    {
+      "name": "C5_REAL_RUNNER_NEVER_WRITES_A_RAW_MACRO_OR_COMMIT_TENSOR",
+      "gating": true,
+      "passed": true,
+      "detail": "run_learned_episode_with_forced_defender only calls install_forced_defend_target(); it does not touch the action array or any commit_* tensor directly"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Mechanism contracts only. No seed from 20900001-20900096 was spent. The decision thresholds are not verified here (see spec: proposed, not frozen)."
+}

@@ -1,0 +1,111 @@
+{
+  "record_id": "ROUTED_COMPOSITION_OUTCOME_CONTRACT_RESULT",
+  "utc": "2026-09-19T05:30:40Z",
+  "implements": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+  "router_operating_point": {
+    "statistic": "D_t = P_blue(4.0) - P_red(4.0)",
+    "window": 40,
+    "hysteresis": 0.2,
+    "dwell": 10,
+    "threshold": -0.8333333333333334
+  },
+  "n_checks": 12,
+  "n_gating": 12,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_ALLOCATION'"
+    },
+    {
+      "name": "C6_CALIBRATION_PASS_SEALED",
+      "gating": true,
+      "passed": true,
+      "detail": "V2 DECISION='CONSERVATIVE_B_TRIGGER_CALIBRATED_V2'; selected={W:40, m:0.2, d:10, thr:-0.8333333333333334}; executor={W:40, m:0.2, d:10, thr:-0.8333333333333334}"
+    },
+    {
+      "name": "C1_NO_REGIME_LEAK",
+      "gating": true,
+      "passed": true,
+      "detail": "identical feature sequence -> identical composition sequence (True); router update() parameters = ['d_value']",
+      "n_ticks": 240
+    },
+    {
+      "name": "C2_DEFAULT_IS_2A2D",
+      "gating": true,
+      "passed": true,
+      "detail": "tick0 composition = 2A_2D; never triggers on high-D evidence (sum=0)"
+    },
+    {
+      "name": "C3_FORCED_B_EVIDENCE_TRIGGERS_AND_DWELL_SPACES_SWITCHES",
+      "gating": true,
+      "passed": true,
+      "detail": "strong-B fixture at the production window: 240/240 ticks triggered, first trigger online=0 offline=0 (tick 0 is correct -- dwell exempts the first switch by design); dwell-spacing fixture at window=1: 20 inter-switch gaps, min=10 >= dwell 10, online==offline=True",
+      "min_switch_gap": 10,
+      "n_switch_gaps": 20
+    },
+    {
+      "name": "C4_FORCED_A_EVIDENCE_RELEASES",
+      "gating": true,
+      "passed": true,
+      "detail": "triggered then released: last tick state = 0, ticks triggered = 137/240"
+    },
+    {
+      "name": "C7_ONLINE_OFFLINE_ROUTER_EQUIVALENCE",
+      "gating": true,
+      "passed": true,
+      "detail": "32 held-out episodes, 7680 ticks compared, mismatches: none",
+      "n_episodes": 32,
+      "n_ticks": 7680
+    },
+    {
+      "name": "C5_CONTROL_PARITY",
+      "gating": true,
+      "passed": true,
+      "detail": "4 pinned-vs-fixed episode comparisons, field-by-field; disagreements: none",
+      "n_comparisons": 4
+    },
+    {
+      "name": "C8_KNOWN_ANSWER_MEASUREMENT_PARITY",
+      "gating": true,
+      "passed": true,
+      "detail": "16 episodes re-run against sealed oracle FIXED_2A2D rows; disagreements: none",
+      "n_compared": 16
+    },
+    {
+      "name": "C9_TERMINAL_SCORING_NOT_RESET_STATE",
+      "gating": true,
+      "passed": true,
+      "detail": "win rate on the parity subset = 5/16 -- non-degenerate, which post-auto-reset zeroed scores could not produce, and exact-matched above"
+    },
+    {
+      "name": "C10_NO_PPO_REACHABLE",
+      "gating": true,
+      "passed": true,
+      "detail": "imported PPO/trainer modules: none"
+    },
+    {
+      "name": "C11_OUTCOME_SEED_BLOCK_FREE",
+      "gating": true,
+      "passed": true,
+      "detail": "block 20200001..20200064 (sealed_confirmatory, n=64) is free"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "contract_amendment_disclosed": {
+    "what_happened": "The first execution of this contract stage returned CONTRACT_FAILURE on C3, which asserted that the router's FIRST trigger must be delayed to tick >= dwell. No outcome seed was allocated or spent.",
+    "diagnosis": "The assertion was wrong; the router was right. The frozen state machine seeds last_switch = -10000 so the first switch is exempt from dwell, and the offline reference that produced the sealed V2 calibration triggers at tick 0 on the same fixture. Verified directly against experiments/calibrate_asymmetric_b_trigger.py::run_state_machine before any edit. Dwell is a minimum spacing BETWEEN switches.",
+    "resolution": "C3 was replaced by a strictly stronger contract: strong-B evidence must trigger, the online first-trigger tick must equal the offline reference's, the full sequences must be identical, and on a fixture that wants to switch more often than dwell allows, no two switches may be closer than dwell in either implementation. The router was NOT modified; changing it would have changed the calibrated operating point and invalidated the V2 held-out result.",
+    "second_failure_also_disclosed": {
+      "what_happened": "The rewritten C3 failed again on its second execution, reporting 0 inter-switch gaps. Again no outcome seed was allocated or spent.",
+      "diagnosis": "The dwell-spacing FIXTURE was at fault, not the router and not the assertion. A 2-tick raw oscillation is smoothed by the production W=40 trailing mean to exactly 0.0, which never re-crosses the trigger bound, so the fixture produced a single switch and could not exercise dwell at all. Verified by printing the post-warmup windowed range (0.0000 .. 0.0000).",
+      "resolution": "Dwell spacing is a property of the state machine, so it is now driven at the level of the windowed statistic (window=1, so the fed values ARE that statistic) at the real threshold / hysteresis / dwell. Both implementations are compared on a sequence that genuinely wants to switch more often than dwell permits, and the contract additionally requires at least 4 gaps so it cannot pass vacuously on a fixture that produces none."
+    },
+    "superseded_record": "the two earlier ROUTED_COMPOSITION_OUTCOME_CONTRACT_RESULT.json writes, overwritten by this one"
+  },
+  "smoke_block_used": null,
+  "smoke_note": "No fresh smoke episodes were required: C5 and C8 exercise the full episode path on already-spent oracle seeds, and C7 replays persisted calibration rows. 99900601-616 remains unallocated.",
+  "claim_boundary": "Contracts only. No outcome seed was allocated or spent by this stage."
+}

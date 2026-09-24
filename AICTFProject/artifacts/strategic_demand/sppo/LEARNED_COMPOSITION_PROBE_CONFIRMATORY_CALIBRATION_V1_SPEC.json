@@ -1,0 +1,81 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-20T00:00:00Z",
+  "amends": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+  "reads": "LEARNED_COMPOSITION_PROBE_CALIBRATION_RESULT.json and LEARNED_COMPOSITION_PROBE_CALIBRATION_READING.json",
+  "classification": "DIAGNOSTIC. READ-ONLY. NO TRAINING, NO PARAMETER CHANGE, NO OUTCOME-BASED SELECTION. Gates nothing beyond which instrument, if any, Stage 2 is later allowed to use.",
+  "confirmatory": false,
+
+  "authorized_by": "PI direction 2026-09-20: Option B from LEARNED_COMPOSITION_PROBE_CALIBRATION_READING.json.OPEN_DECISIONS_FOR_THE_PI_NOTHING_STARTED. Amend the spec so that BOTH pre-declared survivors (position over [5,15) and resolved-target intent over [0,10)) go forward as candidate stage-2 instruments, each re-validated on a FRESH calibration block under the UNCHANGED kill rule, before any learned-policy telemetry is read. Stage 2 proceeds only with whichever instrument(s) pass here, and refuses if none does.",
+
+  "WHY_A_NEW_SEED_BLOCK_IS_REQUIRED": {
+    "selection_problem": "The sealed calibration (seed block 20700001-20700016, SPENT) scored three readings and two passed. The two survivors were CHOSEN because they passed on that data, so re-reporting their numbers from the same block would be validity-by-selection, not a test.",
+    "rule": "A reading promoted after seeing which readings passed must be checked again on seeds that had no part in choosing it. The seed block below is newly reserved and was not used, and could not have been used, to select these two instruments.",
+    "not_reused": "20700001-20700016 (SPENT, informed the selection) and 20700101-20700228 (RESERVED for the Stage-2 learned probe, a different purpose) are both excluded by construction; the block below does not overlap either."
+  },
+
+  "WHAT_THIS_SPEC_DOES_NOT_CHANGE": {
+    "frozen_unchanged_from_the_original_spec": [
+      "R_pos = 4.5", "R_intent = 4.5",
+      "window_primary = [0, 10) (still not gating here -- its own calibration already sealed INSTRUMENT_NOT_VALID and that verdict is not reopened)",
+      "window_alt = [5, 15)",
+      "truncate_at_tick = 20",
+      "the 7 compositions and the PREFIX/SUFFIX id-geometry design",
+      "the V1/V2/V3 kill rule and its bar: min_recovery = 0.90, tolerance_defenders = 1",
+      "device = cuda",
+      "the instrument code paths themselves (rl-free; experiments.probe_learned_composition.instrument and .intent_instrument, unmodified)"
+    ],
+    "not_authorized_by_this_spec": [
+      "reopening or re-running the original primary-window verdict (it stays INSTRUMENT_NOT_VALID, SPENT, final)",
+      "any retuning of R_pos, R_intent, the windows, or the tolerance",
+      "a third instrument or any whole-episode detector",
+      "reading any learned-policy checkpoint or telemetry -- that is a further, separate stage, gated on THIS spec's verdict, and requires its own declaration of exactly which confirmed instrument(s) it uses before it is coded",
+      "re-running this confirmatory calibration on the same seeds after a failure"
+    ]
+  },
+
+  "WHAT_THIS_SPEC_DOES_CHANGE": {
+    "candidate_stage_2_instruments": {
+      "position_alt_window_5_15": "P.instrument(trace, R_pos=4.5) averaged over ticks [5,15), i.e. the field already recorded as share_pos_alt.",
+      "intent_opening_window_0_10": "P.intent_instrument(trace, R_intent=4.5) averaged over ticks [0,10), i.e. the field already recorded as share_int_open."
+    },
+    "each_evaluated_independently": "The unchanged V1/V2/V3 kill rule is applied separately to share_pos_alt and to share_int_open, each on EACH pole, on the fresh block below. An instrument is CONFIRMED only if it is pole_valid on BOTH poles under its own rule. The two instruments do not need to agree; either, both, or neither may be confirmed."
+  },
+
+  "CANDIDATES_MATCH_THE_SEALED_READING_EXACTLY": {
+    "check": "Both candidates above are exactly the two readings recorded as valid: true in LEARNED_COMPOSITION_PROBE_CALIBRATION_RESULT.json (STABILITY_position_alt_window and SECONDARY_intent_opening_pre_declared_not_required). No candidate is introduced that was not already declared, scored, and passing in the sealed calibration. This is verified mechanically by the contracts stage (C2 below), not asserted here."
+  },
+
+  "FRESH_SEED_BLOCK": {
+    "base": 20800001, "n": 16, "class": "exploratory", "device": "cuda",
+    "design": "Identical cell design to the original calibration: 7 compositions x 2 poles, PREFIX for all 7 plus SUFFIX for 1..5 defenders (12 cells per pole), 16 seeds per cell = 384 truncated (20-tick) scripted episodes.",
+    "estimated_wall_time": "about 32 minutes, matching the original calibration's observed rate on the same hardware and cell count.",
+    "reservation": "Reserved via the Rule-9 seed registry CLI under experiment_id LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION, referencing this spec, before any episode of this block runs."
+  },
+
+  "VALIDITY_KILL_RULE_UNCHANGED": {
+    "predeclared": true,
+    "min_recovery": 0.90,
+    "tolerance_defenders": 1,
+    "V1_monotone": "The PREFIX class means rise strictly with the true defender count, 6A_0D through 0A_6D.",
+    "V2_leave_one_out": "Each PREFIX episode is read against class means recomputed WITHOUT that episode; nearest class within +-1 defender in at least 90% of episodes.",
+    "V3_cross_assignment": "Each SUFFIX episode is read against the PREFIX-built calibration; nearest class within +-1 defender of the truth in at least 90% of episodes.",
+    "pole_valid": "V1 and V2 and V3 all hold on that pole, for that instrument's reading.",
+    "applies_independently_to": ["position_alt_window_5_15", "intent_opening_window_0_10"],
+    "no_retuning_after_the_result": "If either or both fail, R_pos, R_intent, the windows and the tolerance are not adjusted, and this block is not re-run."
+  },
+
+  "CONFIRMATORY_VERDICT_RULE": {
+    "BOTH_CONFIRMED": "position_alt_window_5_15 and intent_opening_window_0_10 are each pole_valid on both poles. Stage 2, when separately declared, may use either or both.",
+    "POSITION_ALT_WINDOW_5_15_ONLY_CONFIRMED": "Only the position-alt-window instrument is pole_valid on both poles.",
+    "INTENT_OPENING_WINDOW_0_10_ONLY_CONFIRMED": "Only the intent-opening-window instrument is pole_valid on both poles.",
+    "NONE_CONFIRMED": "Neither instrument is pole_valid on both poles. The finding becomes: even the two pre-declared survivors of the first calibration do not reliably recover the scripted opening composition out of the sample that selected them. Stage 2 is refused for every instrument tried so far, and no learned-policy telemetry is read.",
+    "gates_only": "which instrument key(s), if any, a SEPARATE future Stage-2 spec addendum is permitted to declare. It does not itself authorize Stage 2 to run."
+  },
+
+  "INDEPENDENT_RE_DERIVATION": "As in the original calibration: every per-episode reading is re-derived from the saved traces by experiments.probe_learned_composition.instrument_reference and .intent_instrument_reference, which share no vectorised code path with the recording implementation. Disagreement aborts the run before sealing.",
+
+  "claim_boundary": "Scripted roles only, opening window only, cuda, a fresh seed block spent for the first time by this spec. No learned policy is read by this spec.",
+  "claim_ceiling": "At most: whether the two pre-declared survivor instruments, chosen after seeing the original calibration, also recover the scripted ground truth on seeds that had no part in choosing them. Not a statement about learned behaviour, and not itself an authorization to read learned-policy telemetry."
+}

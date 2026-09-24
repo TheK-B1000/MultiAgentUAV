@@ -1,0 +1,40 @@
+{
+  "probe_id": "DEFEND_TEACHER_ROLE_WARMSTART_CONTRACT_PROBE_A",
+  "parent_ckpt": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+  "parent_ckpt_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+  "actor_in_base": 148,
+  "actor_in_role": 149,
+  "role_column_nnz": 0,
+  "contract": "W_role,t0=[W_piA | 0] => pi(r=0)=pi(r=1)=pi_A  (C6)",
+  "max_logit_diff": 0.0,
+  "argmax_diff_total": 0,
+  "pairs": {
+    "r0_vs_r1": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "r0_vs_piA": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "r1_vs_piA": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "rmix_vs_piA": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "value_r0_vs_piA": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    },
+    "value_r1_vs_piA": {
+      "max_abs_diff": 0.0,
+      "argmax_diff": 0
+    }
+  },
+  "fresh_optimizer_survives_migration": true,
+  "fresh_optimizer_detail": "fresh Adam step succeeded; role-column magnitude after one step = 0.000000",
+  "pass": true
+}

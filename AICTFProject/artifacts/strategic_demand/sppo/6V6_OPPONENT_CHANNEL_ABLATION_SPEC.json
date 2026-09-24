@@ -1,0 +1,126 @@
+{
+  "record_id": "6V6_OPPONENT_CHANNEL_ABLATION_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "claim_scope": "exploratory_mechanism_diagnostic",
+  "utc": "2026-09-12T15:20:00Z",
+
+  "AUTHORITY": "PI 2026-09-12: 'Draft the opponent-channel ablation next. That is now the highest-value mechanism test... the stale-track result does not prove the policy ignores opponent position. It only shows that replacing current opponent positions with their t=0 positions did not produce a detectable absolute win-rate loss on these exploratory blocks. The clean next test is to destroy the opponent-position information rather than merely aging it.'",
+
+  "PURPOSE": "Determine whether the frozen 6v6 specialists materially depend on opponent-position information at inference time.",
+
+  "MOTIVATED_BY_NOT_CONCLUDED_FROM": "6V6_TRACK_HOLD_DOSE_PILOT_V1 and 6V6_TRACK_HOLD_SEVERE_EXTENSION. Those showed no detectable absolute win-rate loss when opponent tracks were frozen at t=0, including at K=6 where z1 flipped 0 of 60 degraded episodes. That is suggestive but does NOT establish opponent-agnosticism: stale-at-t0 positions may remain accurate enough over these episode lengths, and the matchup may be winnable from geometry/flag state alone. This spec exists precisely because that inference was not licensed.",
+
+  "SCOPE": {
+    "is": "exploratory mechanism diagnostic only",
+    "is_not": ["specialization certification", "architecture selection", "checkpoint selection",
+               "evidence that the policy is globally opponent-agnostic outside the tested observation channels and environment"]
+  },
+
+  "WHERE_OPPONENT_POSITION_ACTUALLY_ENTERS_THE_POLICY": {
+    "audited": "gpu_env/_core/_observations.py read in full",
+    "path_1_grid": "_build_grid_obs channel 2 -- _scatter_points(grid[:,i], 2, ex, ey, elive). Written through an alive/visibility mask; the grid is pre-zeroed, so elive=False leaves channel 2 empty. This IS the schema's native representation of 'no enemy information' (it is what sensor dropout / out-of-range already produce).",
+    "path_2_vec": "_build_vec_obs feature 11 -- 'nearest enemy distance normalized to [0,1]', computed from enemy_x/enemy_y. NOTE: feature 11 does not consult enemy_alive at all; it mins over all enemy slots regardless of alive status.",
+    "no_other_path": "every other vec feature is own-team, flag, mine, pickup, time, agent-id or score. _build_action_mask was previously audited and reads no enemy field, so action legality is unaffected.",
+    "global_state_checked_and_excluded": {
+      "finding": "build_global_state_batch (rl/global_state.py) DOES carry opponent information -- it reads core.red_x/red_y and derives red mean/std and carrier_enemy_nearest_dist features. If the actor consumed it, ablating grid+vec alone would leak and produce a spurious null.",
+      "why_it_does_not_leak": "rl/custom_ppo/policy.py::act() selects actions from self.policy_logits(obs, z_idx) masked by obs['mask']; global_state is used on the following line ONLY for self.values(...), the critic. The value head does not influence behaviour at inference.",
+      "conclusion": "at inference the opponent-information surface reaching the ACTION is exactly grid channel 2 and vec feature 11. The ablation is therefore complete for a win-rate outcome, and global_state is deliberately left untouched.",
+      "caveat_if_ever_reused": "this argument holds for inference-time action selection only. Any training-time use of this hook would also have to address the critic's global-state channel."
+    },
+    "enemy_flag_deliberately_NOT_ablated": "features 4-5 use enemy_flag, which is the objective's location, not an opponent agent position. Ablating it would confound 'opponent awareness' with 'objective awareness'. Scope decision, recorded."
+  },
+
+  "WHAT_NEUTRAL_MEANS_AND_WHY_NOT_ZERO": {
+    "critical": "Naive 'set the opponent features to zero' would set vec feature 11 to 0.0, which in this schema means AN ENEMY IS AT ZERO DISTANCE -- maximally alarming, the opposite of absent. That would inject a large spurious effect and invalidate the experiment.",
+    "schema_convention_for_absent_objects": "features 16 (nearest pickup) and 17 (nearest friendly mine) set distance to max_dist, normalising to 1.0, when the object mask is inactive.",
+    "therefore_ZERO_OPP_is": {
+      "grid_channel_2": "empty (elive forced False) -- the schema's own 'no enemy observed' encoding",
+      "vec_feature_11": "1.0 (max normalised distance) -- matching the schema's absent-object convention"
+    }
+  },
+
+  "CONDITIONS": {
+    "FULL": "untouched observations",
+    "ZERO_OPP": "opponent-position information removed as defined above (grid channel 2 empty; vec feature 11 = 1.0). No other field altered.",
+    "RANDOM_OPP": "enemy_x/enemy_y replaced with uniform-random VALID map positions, refreshed at every observation, then the normal pipeline computes channel 2 and feature 11 from them. Randomisation is in-support by construction because it is drawn within map bounds and passed through the unmodified builders.",
+    "RANDOM_OPP_ONE_SET_PER_OBSERVATION_CYCLE": {
+      "decision_frozen_before_running": "ONE synthetic opponent set is drawn per observation cycle and BOTH the grid scatter (channel 2) and the nearest-enemy distance (vec 11) are derived from that same set.",
+      "why": "_build_grid_obs and _build_vec_obs each call _side_tensors independently. Drawing fresh randoms per call would have scattered the grid at one set of positions while computing nearest-enemy distance from a DIFFERENT set -- the two channels would describe different worlds and the condition would be uninterpretable.",
+      "implementation": "the draw is cached and the cache is cleared at the start of each get_obs_tensors call, so 'refreshed at every observation' holds while intra-observation consistency is guaranteed",
+      "verified_by_self_test": "the differential self-test recomputes nearest-enemy distance from the cached synthetic positions and asserts it reproduces vec[11] to 1e-5; a mismatch fails closed"
+    },
+    "PERMUTE_OPP_DROPPED": {
+      "status": "NOT RUN -- provably vacuous in this observation schema",
+      "proof": "channel 2 is written by _scatter_points (a set scatter, order-invariant) and feature 11 is a min over enemy slots (symmetric). The observation contains no per-opponent identity anywhere. Permuting opponent identities therefore cannot change a single input value. Running it would spend seeds to measure an identity guaranteed by construction.",
+      "note": "this also means the policy CANNOT condition on opponent identity, only on the set of opponent positions -- itself a fact worth recording"
+    }
+  },
+
+  "INTEGRITY_REQUIREMENTS": {
+    "observation_side_only": "world truth, rewards, termination, legality masks, mines, flags and all non-opponent features unchanged",
+    "hook_gating": "the substitution is raised ONLY inside _build_grid_obs and _build_vec_obs. _side_tensors is also called by _mines.py and _rules.py; a blanket patch would corrupt mine mechanics and win determination, as established during the track-hold implementation.",
+    "must_not_touch_env_rng": "the env's native sensor model (rt_sensor_dropout_prob) draws from the env RNG via torch.rand(generator=self._rng). Using it would desync ablated episodes from FULL and destroy pairing. RANDOM_OPP therefore uses a SEPARATE numpy Generator seeded deterministically per (seed, condition), leaving the env RNG stream untouched.",
+    "same_code_path_for_all_policies": true,
+    "self_test_required": "before any pilot seed, verify that between FULL and each ablated condition ONLY the intended fields differ: grid channel 2 and vec feature 11 change, every other grid channel and every other vec feature are bit-identical, and core.red_x/red_y (world truth) are untouched."
+  },
+
+  "POLICIES": {
+    "primary": ["frozen 6v6 pi_A specialist", "frozen 6v6 pi_B specialist"],
+    "why_specialists_first": "the acquisition failure occurs BEFORE distillation. If pi_A and pi_B themselves barely react to destroying opponent-position information, that is directly relevant to why 6v6 strategy acquisition failed.",
+    "secondary_optional": "Share-Encoder z0/z1 -- deferred, not run under this spec",
+    "pi_A": {"path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+             "sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82"},
+    "pi_B": {"path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip",
+             "sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4"}
+  },
+
+  "SEEDS": {
+    "block": [17400001, 17400032],
+    "n": 32,
+    "disposable": true,
+    "shared_across_all_conditions_and_cells": true,
+    "why_shared": "FULL, ZERO_OPP and RANDOM_OPP must be paired within seed so L is a within-episode contrast, not a different episode draw",
+    "disjointness_verified": "grep for 17400001/17400032 across artifacts/**/*.json at freeze time: ZERO hits"
+  },
+
+  "DESIGN": {
+    "full_2x2": "both policies x both poles, so the complete payoff matrix is measured under each condition",
+    "cells": "2 policies x 2 poles x 3 conditions x 32 seeds = 384 episodes",
+    "estimated_runtime": "~5-6 h at the observed 6v6 pace, subject to machine load",
+    "outcomes_per_policy_on_its_intended_regime": ["V_full", "V_zero", "V_random",
+      "L_zero = V_full - V_zero", "L_random = V_full - V_random", "outcome flip count"],
+    "cross_regime_also_reported": "opponent information may matter more off-regime",
+    "delta_caveat": "delta_A/delta_B computable from the 2x2 under each condition are DESCRIPTIVE ONLY and are not a specialization claim under any condition"
+  },
+
+  "POWER_DISCLOSED_BEFORE_RUNNING": "n=32 is a first mechanism screen sized to detect GROSS dependence (a drop of roughly 0.2 or more). It cannot resolve small effects. A null here is evidence against strong dependence, not proof of none.",
+
+  "PRECOMMITTED_INTERPRETATION": {
+    "A_zero_and_random_both_cause_large_loss": "the policy materially uses opponent-position information",
+    "B_zero_small_loss_random_large_loss": "the policy tolerates missing opponent information but is disrupted by misleading opponent information",
+    "C_both_little_or_no_directional_loss": "consistent with weak dependence on opponent-position channels IN THE TESTED SETTING. Do NOT claim the policy is fully opponent-agnostic -- other observation channels may encode opponent consequences indirectly (e.g. own-agent tagging, score, flag state).",
+    "D_strong_flips_but_near_zero_aggregate_loss": "opponent information affects trajectories but not directionally enough to move aggregate win rate on this exploratory block"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "extending n or adding conditions after viewing the result",
+    "any specialization or certification claim",
+    "architecture or checkpoint selection",
+    "retraining of any kind -- any training intervention motivated by this diagnostic requires its own new frozen spec",
+    "reuse of block 17400001-032 for any other purpose"
+  ],
+
+  "OUTPUT_LABEL": "OPP_ABLATION_6V6",
+  "outputs": {"result": "OPP_ABLATION_6V6_RESULT.json", "rows": "opp_ablation_6v6_rows.csv"},
+
+  "SEQUENCE": [
+    "1. Freeze this spec (done, before any episode)",
+    "2. Implement the ablation hook + differential self-test",
+    "3. Dry-run: self-test proves only channel 2 and vec[11] differ, world truth untouched",
+    "4. Run 384 episodes on 17400001-032",
+    "5. Report per policy/pole/condition with paired CIs and flip counts; branch per PRECOMMITTED_INTERPRETATION",
+    "6. Any training intervention gets a new frozen spec"
+  ]
+}

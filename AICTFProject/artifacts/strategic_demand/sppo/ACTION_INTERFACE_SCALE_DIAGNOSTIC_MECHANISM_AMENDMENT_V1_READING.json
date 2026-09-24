@@ -1,0 +1,110 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_READING",
+  "record_type": "READING",
+  "utc": "2026-09-18T15:40:00Z",
+  "reads": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_RESULT.json",
+  "governed_by": [
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1.json"
+  ],
+  "purpose": "State the qualified position. The runner emitted a clean verdict; sanity check S2 did not gate that verdict, and the qualification below is load-bearing.",
+
+  "HEADLINE": "Commitment satisfies all three frozen conditions and is the one B-relevant scale-binder candidate. The finding is robust to a material implementation divergence discovered by S2, because C_commit is invariant to the baseline that diverged. Spatial is NOT readable from either run. Repair remains unauthorized by the spec's own COMMITMENT_NEXT clause.",
+
+  "COMMITMENT_RESULT": {
+    "verdict": "B_RELEVANT_SCALE_BINDER_CANDIDATE",
+    "condition_1_statistical": "LCB95(J_commit) = +0.0476 > 0 (mean +0.0749, UCB +0.1018)",
+    "condition_2_materiality": "C_commit[4v4,BREACH] = 0.1925 [0.1592, 0.2219] >= 0.10",
+    "condition_3_mechanism_support": "PASS — stale_target_fraction increment I2 over I1 = +0.5549 [+0.5092, +0.5988]",
+    "robustness_to_S2": {
+      "sealed_J_commit": "+0.0805 [+0.0407, +0.1180]",
+      "amendment_J_commit": "+0.0749 [+0.0476, +0.1018]",
+      "sealed_material_cell": 0.177072,
+      "amendment_material_cell": 0.192533,
+      "why_robust": "C_commit = E_v(I2) - E_v(I1). Both arms are measured against the same per-run baseline, so the baseline offset that S2 exposed cancels exactly. Two independent implementations with different baselines agree on the commitment component. This is the strongest form of support this diagnostic can produce."
+    }
+  },
+
+  "MECHANISM_SUPPORT_DETAIL_4v4_BREACH": {
+    "stale_target_fraction": {"I1": 0.0000, "I2": 0.5549, "I3": 0.4320},
+    "blocked_switch_fraction": {"I1": 0.6877, "I2": 0.8233, "I3": 0.8211},
+    "mean_decision_lag_ticks": {"I1": 0.260, "I2": 0.442, "I3": 0.433},
+    "p95_decision_lag_ticks": {"I1": 1.306, "I2": 2.620, "I3": 2.568},
+    "censored_switch_fraction": {"I1": 0.6700, "I2": 0.7978, "I3": 0.8007},
+    "switch_requests_per_episode": 674.3,
+    "IMPORTANT_CAVEAT": "The stale-target signal is partly structural. I1 refreshes its target every tick and therefore cannot ever be executing a previously accepted target, so its stale fraction is 0.0000 by construction and the increment is close to tautological. The spec accepts any one of three support signals, and the other two are NOT structural: I1 does exhibit blocked switches (0.688) and decision lag (0.260 mean, 1.306 p95), and I2 exceeds it on both (0.823, and 0.442 / 2.620). Mechanism support should be read off blocked-switch excess and lag, not off the stale fraction.",
+    "high_censoring_note": "Censored switch fraction is high in every arm (0.67-0.80) because the switch-request rate is high relative to adoption. Lag means are therefore conditioned on the uncensored minority and should not be read as typical response times."
+  },
+
+  "S1_MACRO_RESIDUAL_SIGN": {
+    "question": "Is C_macro_residual < 0 in all four cells real, or an arm/accounting defect?",
+    "verdict": "ATTRIBUTED_TO_NAMED_PRODUCTION_EVENTS — the sign is real",
+    "evidence_4v4_BREACH": {
+      "total_negative_contribution": -0.084541,
+      "from_identical_effective_target_partition": -0.000371,
+      "from_named_production_events": -0.075741,
+      "partitions": {
+        "a_identical_effective_target": {"tick_share": 0.0626, "delta_I3_minus_I2": -0.0059},
+        "b_forced_home_carrying": {"tick_share": 0.2117, "delta_I3_minus_I2": -0.0707},
+        "d_semantic_macro_target": {"tick_share": 0.6184, "delta_I3_minus_I2": -0.0983},
+        "e_commit_horizon_residual": {"tick_share": 0.1072, "delta_I3_minus_I2": -0.0786}
+      }
+    },
+    "reading": "Where I3 and I2 command the same effective target the two arms agree to within -0.006 on 6.3 percent of ticks, contributing -0.00037. The negative residual is concentrated in semantic macro targeting (61.8 percent of ticks) and carrier forced-home substitution (21.2 percent). Full macro execution genuinely steers closer to the oracle bearing than a held W50 waypoint does. This is physical compensation, not an accounting error.",
+    "note": "No tagged_redirect ticks appeared in the 4v4 BREACH partition.",
+    "consequence": "C_macro_residual is not UNLOCALIZED_RESIDUAL, but it is also not a burden: it is negative, so it fails materiality and is not a repair target. It remains excluded."
+  },
+
+  "S2_OBSERVATIONAL_EQUIVALENCE": {
+    "verdict": "FAILED — IMPLEMENTATION_DIVERGENCE",
+    "max_abs_E_v_difference": 0.666839,
+    "mean_abs_E_v_difference": 0.144367,
+    "tolerance": 1e-9,
+    "n_compared": 256,
+    "ROOT_CAUSE_IDENTIFIED": {
+      "mean_E_v_by_arm_sealed": {"I0": 0.394750, "I1": 0.461952, "I2": 0.558004, "I3": 0.530922},
+      "mean_E_v_by_arm_amendment": {"I0": 0.000000, "I1": 0.420603, "I2": 0.523736, "I3": 0.480699},
+      "finding": "The two emitters use different reference velocities. The frozen spec defines E_v as 'per-agent per-tick norm of shadow velocity minus I0 velocity', which makes E_v(I0) identically zero. The amendment emitter satisfies that definition exactly (0.000000). The sealed emitter measured every arm against the native scripted trace's finite-difference velocity instead, leaving a 0.3948 residual on I0 — 39 percent of max speed.",
+      "which_is_spec_correct": "The amendment, on the literal text of MEASUREMENTS.primary_error.",
+      "but": "The amendment's baseline is self-referential: E_v(I0)=0 holds by construction, so the amendment cannot detect I0 infidelity at all. Its G2 gate checks integration determinism (same inputs reproduce same outputs), not fidelity of the I0 replay to the native path, which is what the spec's G2 actually demands."
+    },
+    "NEW_INTEGRITY_ITEM": {
+      "statement": "Neither run carries a live check that I0 tracks the native scripted path.",
+      "sealed_run": "Its G2 did implement the spec's fidelity check and reported I0_shadow_E_v = 1.5466e-07 against a 1e-5 tolerance — but on a deterministic contract fixture. Its own live traces show an I0 residual of 0.3948. The fixture did not represent live conditions, so a passing G2 coexists with a large live residual.",
+      "amendment_run": "Cannot measure the residual at all, by construction.",
+      "severity": "HIGH for any I0-referenced quantity",
+      "resolution": "OPEN"
+    },
+    "WHAT_THIS_INVALIDATES": {
+      "C_spatial": "NOT READABLE FROM EITHER RUN. C_spatial = E_v(I1) - E_v(I0) is the only component that references the diverging baseline, and it differs by roughly 6x: sealed 4v4 BREACH 0.0938 versus amendment 0.6460; S_spatial LCB95 -0.0169 versus +0.1634. The two runs disagree on whether spatial is even a general interface cost. Neither reading may be cited until live I0 fidelity is established.",
+      "C_commit": "UNAFFECTED — baseline-invariant, and reproduced across both implementations.",
+      "C_macro_residual": "Baseline-invariant in form (I3 - I2). Sealed -0.0381 versus amendment -0.0751 at 4v4 BREACH: same sign, looser agreement than C_commit. Sign conclusion stands; magnitude should not be quoted precisely."
+    },
+    "SUPERSEDES": "The 'corrected spatial reading' carried into ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1.json is itself now contested. That reading (no materiality, no positive S lower bound) was derived from the sealed numbers. The amendment's numbers say the opposite on both counts. The correct current position is neither: spatial is unreadable pending the I0 fidelity item."
+  },
+
+  "VERDICT_STATUS_CAVEAT": {
+    "what_the_result_says": "status FROZEN_RESULT, VERDICT ONE_B_RELEVANT_SCALE_BINDER_CANDIDATE",
+    "why_that_is_incomplete": "S2 is a reporting check, not a gating one. It recorded IMPLEMENTATION_DIVERGENCE in the same artifact but did not downgrade the status. A reader taking the status field alone would miss that one of the three components is unreadable.",
+    "correct_position": "The commitment verdict stands on its own merits and is strengthened by cross-implementation agreement. The run as a whole is NOT clean: it carries an unresolved I0 fidelity item and an unreadable spatial component.",
+    "note": "The frozen result is left unedited. This reading is the qualification."
+  },
+
+  "WHAT_IS_NOW_AUTHORIZED": {
+    "repair": "NOT AUTHORIZED",
+    "controlling_clause": "DECISION_RULE.COMMITMENT_NEXT: 'Only a B-relevant commitment result may motivate a fresh paper-only commitment intervention spec. It does not itself authorize fresh B training, especially because the prior h=1 repair failed.'",
+    "authorized_next_step": "A paper-only commitment intervention spec, frozen before any execution. The prior REPAIRED_GO_TO_H1 result — changing macro_commit_go_to_ticks from 4 to 1 did not restore specialization — remains standing evidence that the obvious horizon knob is not the answer, and any new spec must say why it differs.",
+    "also_open_before_that": "The I0 fidelity item should be closed first if any spatial claim is wanted. It is not a blocker for the commitment line."
+  },
+
+  "BOARD_POSITION": {
+    "assignment_v1": "crossover finished, delta_A +0.125, delta_B -0.015625, joint numerical gate not met, verdict pending row-level integrity audit — see ASSIGNMENT_V1_4V4_BOARD_POSITION.json",
+    "action_interface_quantitative": "commitment component sealed and reproduced; spatial component unreadable; macro residual negative and attributed",
+    "action_interface_mechanism": "recovered and conformant as of this run",
+    "action_interface_repair": "NOT AUTHORIZED",
+    "next_experiment": "none authorized; next artifact is a paper-only commitment intervention spec"
+  },
+
+  "authorizes": "nothing"
+}

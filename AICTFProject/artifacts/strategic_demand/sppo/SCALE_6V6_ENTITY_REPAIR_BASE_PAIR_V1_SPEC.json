@@ -1,0 +1,62 @@
+{
+  "record_id": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-22T20:03:00Z",
+  "classification": "Prerequisite base-specialist training. NOT latent-strategy work, NOT DEFEND_ATTACK_SPLIT_POLICY work, NOT DEFEND_TEACHER work -- this record only trains an entity-repair 6v6 pi_A/pi_B pair to replace the two existing pre-entity-repair 6v6 specialists as the base the 4v4-derived DEFEND-teacher/split-policy architecture would eventually build on. No CLOSEST_DEFENDS, no role-conditioning, no DEFEND-teacher, no split-attack-defend flag is enabled anywhere in this record.",
+  "authorized_by": "PI, 2026-09-22: 'Move to 6v6... The larger 4v4 evaluation is validation, not another prerequisite to progress. Best workflow: freeze 4v4 exactly as-is, then start 6v6, and if you have spare GPUs, let the n=128 4v4 confirmation run in parallel without blocking 6v6.' This record is the first concrete step of that instruction.",
+  "SCIENTIFIC_DELTA_plain_english": "The two existing 6v6 pole checkpoints (pi_A_specialist_6v6, pi_B_specialist_6v6, both from experiments/run_r1_repertoire_training.py::build_r1_config, trained 2026-09-08/09, seed 7610001/7620001, BEFORE entity-repair existed in this codebase -- entity-repair landed 2026-09-13 in commit bd7e9fcb) already show essentially no learned specialization crossover: the sealed SHARE0_6V6_TEACHER diagnostic (n=128, SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json) measured delta_A=+0.0078 [lcb95 -0.0703] FAIL and delta_B=+0.0078 [lcb95 -0.0234] FAIL under the canonical crossover convention. This is the same near-zero-specialization signature entity-repair was built to fix at 4v4 (see docs 4v4 scaffold-to-native representability audit: NOT_REPRESENTABLE_VOCABULARY via DIRECTION only, fixed by observation-side entity repair). This record applies the SAME, already-validated fix to the 6v6 pair, warm-started from the existing checkpoints (not from scratch), mirroring exactly how the 4v4 entity-repair pair (pi_A_specialist_4v4_b3_entity_repair, pi_B_specialist_4v4_b3_entity_repair_corrected) was itself warm-started from the plain pre-entity-repair pi_A/B_specialist_4v4_b3 checkpoints of the same lineage (run_r1_repertoire_training.py::build_r1_config).",
+  "CANONICAL_PARENT": {
+    "recipe": "experiments/train_specialist_scale.py (same script, same entity_repair_enabled/entity_hidden_dim mechanism used for the 4v4 entity-repair pair)",
+    "warm_start_source_A": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+    "warm_start_source_B": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip",
+    "reference_4v4_analog": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ (warm-started from pi_A_specialist_4v4_b3), artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ (warm-started from pi_B_specialist_4v4_b3)"
+  },
+  "CERTIFICATION_GOVERNING": {
+    "record": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
+    "verdict": "CERTIFIED",
+    "pole_A": "canonical OP6, overlay={min_alive_for_defender:6}, no genome override",
+    "pole_B": "canonical OP7 (SDS_PARENT_OP7), overlay={min_alive_for_defender:6}, no genome override -- confirmed by --dry-run attestation, unlike 4v4 Pole B which requires --pole-b-genome-json B3-3_lockdef10_2v1.json",
+    "dry_run_attestations": "both policy A and policy B --dry-run passed CROSS-POLICY PARITY and LIVE POLE ATTESTATION checks against this certification record on 2026-09-22 before this spec was frozen"
+  },
+  "RESOLVED_CONFIG": {
+    "team_size": 6,
+    "entity_repair_enabled": true,
+    "entity_hidden_dim": 32,
+    "total_timesteps": 1000000,
+    "device": "cuda",
+    "role_conditioning_enabled": false,
+    "split_attack_defend_enabled": false,
+    "defend_teacher_lambda": 0.0,
+    "assignment_conditioning_enabled": false,
+    "run_label_suffix": "_c1_entity_repair",
+    "policy_A": {"seed": 21900001, "load_path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip"},
+    "policy_B": {"seed": 21900002, "load_path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip"}
+  },
+  "CONTRACTS_before_seed_spend": [
+    "C0: --dry-run for policy A resolves CERTIFIED, CROSS-POLICY PARITY PASS, LIVE POLE ATTESTATION PASS -- verified 2026-09-22",
+    "C1: --dry-run for policy B resolves CERTIFIED, CROSS-POLICY PARITY PASS, LIVE POLE ATTESTATION PASS, no genome override required -- verified 2026-09-22",
+    "C2: seed block 21900001-21900002 is the registry's own 'next free exploratory' suggestion (experiments/seed_registry.py next 2 --class exploratory), reserved via allocate before either run starts",
+    "C3: GPU/CPU headroom checked before launch -- GPU 7% util / 2.7GB of 12.2GB used, 16 logical cores, no other training process running besides the already-running DEFEND_ATTACK_SPLIT_POLICY_A_V1 confirmatory eval (task bydg10opz)"
+  ],
+  "EXPLICITLY_FORBIDDEN": [
+    "enabling role-conditioning, DEFEND-teacher, split-attack-defend, or assignment-conditioning in this record -- this is base-pair training only",
+    "treating a PASS or FAIL on the post-training crossover check as license to skip straight to a 6v6 split-policy architecture without a fresh PI decision",
+    "retraining, fine-tuning, or otherwise touching any 4v4 checkpoint (pi_A_frozen_attack, pi_D_trained_defend, pi_B_comparator) as part of this record",
+    "reusing seeds 21700001-21700064, 21800001-21800128, or 21600001 (the 4v4 split-policy lineage's seeds) -- this record uses only its own fresh 21900001-21900002 block"
+  ],
+  "NEXT_after_training": "Run experiments/eval_specialist_crossover_scaled.py --team-size 6 on the fresh entity-repair pair at a modest exploratory n (e.g. n=64), matching the first diagnostic step of the 4v4 line, to check whether entity-repair alone establishes a base crossover signal at 6v6 before any DEFEND-teacher or split-policy work is attempted on top of it.",
+  "claim_boundary": "This record establishes only whether the entity-repair fix, applied to the existing 6v6 R1-repertoire pair via warm start, changes the near-zero specialization signature the pair showed in the pre-existing SHARE0 diagnostic. It does not itself constitute a 6v6 split-policy port, and does not authorize any DEFEND-teacher or split-attack-defend training at 6v6 without a separate PI-reviewed spec, mirroring the exact staged sequence already used at 4v4 (entity-repair pair first, crossover checked, THEN DEFEND-teacher/split-policy layered on top).",
+  "POST_HOC_2026-09-23": "Reauthorized as the 6v6 foundation, not as an architecture experiment. The 2026-09-22 c1 launch was aborted at ~1.7k/1,000,000 steps; seeds 21900001-21900002 are RETIRED; no usable checkpoint. Finish means relaunch this same recipe to 1M from final_pi_A/B_specialist_6v6.zip with FRESH seeds (not resume). After both finals are frozen, the locked next steps are clone repaired pi_A to pi_D, train pi_D 200k under CLOSEST_DEFENDS(k=1), then the sealed Delta_A/Delta_B gate against repaired pi_B. A base-pair crossover check does not block that split. k=1 is already frozen from the sealed scripted composition evidence.",
+  "RELAUNCH_V2_2026-09-23": {
+    "status": "STOPPED_MOVE_TO_SCHOOL_PC",
+    "seed_block": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V2_TRAINING",
+    "seeds": {"policy_A": 22500001, "policy_B": 22500002},
+    "run_label_suffix": "_c2_entity_repair",
+    "home_stopped_at_steps": "~1584/1000000",
+    "school_owner": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+    "orchestrator": "experiments/run_school_pc_6v6_locked_pipeline.ps1",
+    "note": "Home c2 aborted by PI redirect to school PC full chain. Reuse seeds 22500001/22500002 there (no usable home checkpoint). Do not resume home partial."
+  }
+}

@@ -1,0 +1,134 @@
+{
+  "record_id": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "classification": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-18T11:35:00Z",
+  "authority": "4V4_POST_GETFLAG_DECISION_TREE.json steps 2-3 (GETFLAG crossover failed; integrity on delta_A / delta_B point only)",
+
+  "THE_QUESTION": "On matched Pole-B episodes (same seeds across policies), when a policy takes strategically useful B-side behavior, does PPO's own centralized critic assign a learning signal (GAE advantage under that policy's checkpoint) that systematically favors that behavior over idle/retreat alternatives?",
+
+  "WHY_NOW": {
+    "eliminated": [
+      "ROLE conditioning: no specialization recovery",
+      "Assignment-v1: diagnostic PASS on z_i, training no recovery",
+      "GETFLAG-preserve: manipulation confirmed, crossover did not move delta_B meaningfully"
+    ],
+    "not_next": [
+      "Assignment-v2",
+      "blind B retrain",
+      "Assignment + GETFLAG stack without interaction evidence",
+      "any training repair launched from this diagnostic script"
+    ]
+  },
+
+  "ENVIRONMENT": {
+    "team_size": 4,
+    "pole": "B only",
+    "pole_b_genome_json": "pole_b2_candidates/B3-3_lockdef10_2v1.json",
+    "seam": "experiments.eval_pole_b_behavioral_diagnosis._build_env (same as eval_specialist_crossover_scaled / r2_learned_crossover AGENTS=4)",
+    "device_preferred": "cuda",
+    "device_smoke_ok": "cpu"
+  },
+
+  "POLICIES": [
+    {
+      "label": "B_t500k",
+      "role": "mechanical B_better screen checkpoint",
+      "ckpt": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip"
+    },
+    {
+      "label": "B_final",
+      "role": "entity-repair corrected terminal B",
+      "ckpt": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip"
+    },
+    {
+      "label": "GETFLAG",
+      "role": "GETFLAG-preserve continuation final",
+      "ckpt": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_B_specialist_4v4_b3_entity_repair_getflag_preserve/ckpts/final_exploratory_pi_B_specialist_4v4_b3_entity_repair_getflag_preserve.zip"
+    },
+    {
+      "label": "Assignment_v1",
+      "role": "assignment-conditioning continuation final",
+      "ckpt": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_B_specialist_4v4_b3_entity_repair_assignment_v1/ckpts/final_exploratory_pi_B_specialist_4v4_b3_entity_repair_assignment_v1.zip"
+    },
+    {
+      "label": "A3",
+      "role": "frozen pi_A3 comparator (handles Pole B well)",
+      "ckpt": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip"
+    }
+  ],
+
+  "PROTOCOL": {
+    "matched_seeds_across_all_policies": true,
+    "n_episodes_per_policy": 24,
+    "seed_class": "exploratory",
+    "seed_block_note": "allocated via Rule 9 seed_registry immediately before launch (script reads SEED_LO/N_SEEDS constants)",
+    "rollout_mode": "on-policy deterministic student; each policy rolls its own trajectory on the same seed list",
+    "horizon": "R2.MAX_STEPS (240)"
+  },
+
+  "MEASURED_QUANTITIES": {
+    "per_agent_step_rows": [
+      "policy", "seed", "t", "agent_i",
+      "macro", "target", "macro_bucket",
+      "team_reward", "reward_sparse", "reward_offense", "reward_pbrs", "reward_team", "reward_failure", "reward_terminal",
+      "value_pre_step", "advantage_team", "return_team",
+      "carrying", "near_enemy_flag", "near_own_flag", "pressured",
+      "mean_d_enemy_flag", "flag_progress_delta",
+      "privileged_zi_key",
+      "blue_score", "red_score"
+    ],
+    "aggregates_per_policy": [
+      "mean_episode_return", "win_rate_pole_B",
+      "macro_fraction", "action_histogram_by_macro_bucket",
+      "E_advantage_given_bucket",
+      "corr_advantage_flag_progress_delta",
+      "G_signal_useful_vs_idle_retreat",
+      "G_retention_get_flag_mass_vs_B_t500k"
+    ],
+    "macro_buckets": {
+      "GET_FLAG_like": "macro == GET_FLAG (2)",
+      "GO_TO_like": "macro == GO_TO (0) and not near_own_flag",
+      "GUARD_like": "near_own_flag and macro in {GO_TO, GRAB_MINE, PLACE_MINE}",
+      "OTHER": "GO_HOME and remaining"
+    },
+    "strategically_useful_B": "agent not carrying AND (macro GET_FLAG OR (macro GO_TO and flag_progress_delta > 0 on that agent))",
+    "idle_retreat_B": "agent not carrying AND (macro GO_HOME OR (macro GO_TO and flag_progress_delta <= 0))",
+    "privileged_zi": "assign_guard_v2_responsibilities + zi_discrete_key from rl.custom_ppo.guard_assignment — analysis only, not fed to policies except Assignment_v1 uses training-time AssignmentHoldState on obs"
+  },
+
+  "DIAGNOSTIC_GATES_reading_not_specialization_pass_fail": {
+    "G_signal": "mean(advantage | useful_B) vs mean(advantage | idle_retreat); report difference, ratio, bootstrap 95% CI on ratio (episode-clustered resample of step means)",
+    "G_retention": "GET_FLAG_like macro mass: B_t500k vs B_final vs GETFLAG (and Assignment_v1 for context)"
+  },
+
+  "ADVANTAGE_CONTRACT": {
+    "critic": "each policy's own SharedActorCentralizedCritic V(s) with checkpoint return_norm denormalization",
+    "reward": "team step reward from vec env (same scalar broadcast to all agent rows)",
+    "gae": "rl.ppo_core.compute_gae with gamma/gae_lambda from checkpoint cfg when present else 0.99/0.95",
+    "caveat": "centralized scalar advantage per timestep — identical on all four agent rows; not per-agent counterfactual credit"
+  },
+
+  "FORBIDDEN": [
+    "claiming specialization recovery or crossover pass from this run",
+    "retuning reward weights or launching any training repair from this script",
+    "using this RESULT to justify Assignment-v2 without a new written experimental question"
+  ],
+
+  "OUTPUTS_one_shot": {
+    "result_json": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_RESULT.json",
+    "step_rows_csv": "pole_b_credit_advantage_diagnostic_step_rows.csv",
+    "episode_rows_csv": "pole_b_credit_advantage_diagnostic_episode_rows.csv",
+    "refuse_if_exists": true
+  },
+
+  "COMPLIANCE": {
+    "rule_1_telemetry": "tqdm_iter per policy over seeds (stderr)",
+    "rule_3_frozen_spec": "this file before episodes",
+    "rule_9_seed_registry": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC block reserved before non-dry-run",
+    "rule_13_run_lock": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC.run.lock",
+    "rule_14_pole_attestation": "Pole B attested before episodes"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "record_id": "RULE_ROLE_BRANCH_ISOLATION_ATTESTATION",
+  "status": "ATTESTED",
+  "utc": "2026-09-17T16:00:00Z",
+  "boxed_contract": {
+    "parent": "B_t500k",
+    "GETFLAG_loss": "OFF",
+    "role": "ON"
+  },
+  "plain_english": "parent=B_t500k, GETFLAG loss=OFF, role=ON — own seed/run identity; no optimizer state inherited from B500k or GETFLAG-preserve.",
+  "live_run": {
+    "run_tag": "exploratory_pi_B_specialist_4v4_b3_entity_repair_rule_role_cond",
+    "seed": 19100001,
+    "total_timesteps": 200000,
+    "pid_lock": 26956,
+    "device": "cuda",
+    "role_conditioning_enabled": true,
+    "role_hold_ticks": 8,
+    "entity_repair_enabled": true,
+    "getflag_preserve_lambda": 0.0,
+    "getflag_preserve_ckpt": "",
+    "warm_start_reset_progress": true,
+    "load_path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+    "parent_sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+    "log_evidence": [
+      "Linear in_features expansion: latent_actor.body.0.weight 148->149 (new columns zero-initialized)",
+      "Linear in_features expansion: critic.net.0.weight 34->38 (new columns zero-initialized)",
+      "Skipping checkpoint optimizer state: warm_start_reset_progress / reset_progress=True (weight init only; fresh optimizer)",
+      "reset_progress=True ... fresh global_step=0 and keeps its own cfg.seed-derived RNG state"
+    ]
+  },
+  "not_inherited_from": [
+    "B_t500k optimizer / scheduler / global_step / rollout buffers",
+    "B_GETFLAG_PRESERVE weights, optimizer, seed, run_tag, or loss channel"
+  ],
+  "prior_attempt": {
+    "record": "RULE_ROLE_ATTEMPT_1_INVALID_INFRA_WARMSTART.json",
+    "scientific_trial": false
+  },
+  "warmstart_probe": {
+    "record": "RULE_ROLE_WARMSTART_CONTRACT_PROBE.json",
+    "pass": true,
+    "max_logit_diff": 0.0,
+    "argmax_diff_total": 0,
+    "role_column_nnz": 0
+  },
+  "unit_contracts": "tests/test_rule_role_conditioning.py — 17 passed"
+}

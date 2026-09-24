@@ -1,0 +1,3135 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_TRACE_MANIFEST",
+  "status": "COMPLETE",
+  "utc": "2026-09-18T16:27:20Z",
+  "seed_allocation": {
+    "experiment_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+    "purpose": "Outcome-blind I0-I3 action-interface scale diagnostic",
+    "seed_class": "exploratory",
+    "lo": 19700001,
+    "hi": 19700016,
+    "n": 16,
+    "status": "SPENT",
+    "spec": "artifacts\\strategic_demand\\sppo\\ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+    "subdivides": null,
+    "allocated_utc": "2026-09-18T15:48:01Z",
+    "spent_utc": "2026-09-18T16:02:21Z",
+    "notes": [
+      {
+        "utc": "2026-09-18T16:02:21Z",
+        "note": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_REPAIR_OFF completed with verdict LEGACY_EQUIVALENCE_RUN"
+      }
+    ]
+  },
+  "traces": [
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700001,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "2c45b2aae4ea62069e7e38486a1234efc25ce6537e4b78f514d90a716dfc2726",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700002,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "e30f25a87f4c2c36c52b810b281fabb01392e4b0a4181ea63b8b717e66a57fe8",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700003,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "8b3e8477f2db16122a6a67338f6f0fc1e4a91385ea3698d297a900081c911eed",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700004,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "0ab87998fecd6091cc00518166c5b8dbdfe576b213a9213e983d09e0b16c5630",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700005,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "c185da55e70976ccd254065def0c55df5135b48f16b8df08bd931ffe8ad16b13",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700006,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "831d7a541edb8ac9b69a367a8b1b2d1fc56660e4c6631d4b8a588c06196800d5",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700007,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "2f8d9c524a8a8ebc5dd210552100612a457dea739b61c478e1c35e155e2d4945",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700008,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "25c990af61ddbfa4dd04e6537bd8c47b27c8c6c8c3281a217d32c90f663760ba",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700009,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "989efd26a1d010b6dee2af49dbc718ea9264e0a683c80679dba8549f06142e10",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700010,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "fb30fc0e2088daf55f101c487d09fd1c297e8958a81f1db932280911154fc202",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700011,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "cbd62d9ede95c62e090d18a6cf47ab81c92274d7b187d06738b971759b13673c",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700012,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "d8bd1ae4722d193f8bef31d41843e8fbc9a1881e6a73a43f032e959622673536",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700013,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "75bed9cb0433ab17e858decf672a8ec5869fc34c3dd35e2fd533a21f37a40123",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700014,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "ea7c87fa7eb13e8d3eda59d77d8f4e0dfd3e8b8fe8346d416dcf1369b5c1e49d",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700015,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "e0c591ba3dee822c1b7d640c15bde23b5322a213ed168c85475e7f060431aed8",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "GUARD",
+      "seed": 19700016,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "96e18aa01fc9fef8a5a2a2ce06f9537d1335031764ec89e44ee3d5fe1609da72",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700001,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "e73c7b73cb4eb6baab469b7a0fca2c4d985f79beae8a8b959c99896b10083b02",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700002,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "84aafa23d6278446fbae1b9941779415eb8a65d00a7c214d897ee61376c1fc89",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700003,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "d7f477e0382626d623cdafbe3ee286d0822ddea689fc58057e2b31014d585191",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700004,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "3b59ef521e856bf82f2a351ac0e211a8f7225931d5f8fd4508bd9cc9444726e9",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700005,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "7fea87ee2c5dcb520054ddc91eeafcb4ef0c8ab350441397901eb73462e3944c",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700006,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "664ee1d0a6b34ecbfd00ed6f50ad6eb9e2a3fbc2ffee652a349c4fd9148af55d",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700007,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "fdaf423c76d8e99c11aee003237d01d13b4ba7351bb03e9131753a0b917b1705",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700008,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "575f3055abebd3e09cd25121771695460384928178bd9a648c86762e840631f5",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700009,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "75df3a3a0ab3bf7c3069f5f37da3b34dd70ad1812cb7a19a498aa12c64d0d3db",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700010,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "1e6b6ab84230607858f4050267d5e7d3031dfa0d45837c03b6abd31392303668",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700011,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "150e68b237d564bc96b989558141ed15aee85cc18fe16132d53f59172fb1f009",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700012,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "868e7d7f837835a279512bd86a6f9c8f11e7b868d5ea10938e9d46cccb277f95",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700013,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "7dbea02a8cf810177cc1083b93dd0ef600bfd39ee6c82e880a6b08ed40f5bbcb",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700014,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "bcb6b3f4761305de88448ab5b2ca3fb71ed5a7b1337dc59d1b549536d9f37d72",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700015,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "a068b369114e6f3d62873bf15485137db636d9319a2b8489593333ca1ec10e2c",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "2v2",
+      "style": "BREACH",
+      "seed": 19700016,
+      "ticks": 240,
+      "agents": 2,
+      "trace_hash": "4ddcec5930d2e20e21a5ad6f0ea51a8a28f4ca39c50a03e8edd5d5dab4ec22a7",
+      "tick_rows": 2880,
+      "expected_tick_rows": 2880,
+      "pole_evidence": {
+        "label": "HISTORICAL_CANONICAL_POLE_B_CONTROL",
+        "formal_rule14_certification": "UNAVAILABLE_MISSING_RECORD",
+        "regression_guard": "SIZE_NORMALIZED_POLES_REGRESSION_GUARD.json",
+        "regression_guard_sha256": "d19efa4a2fdfcceb92f0b9908b652628785d0000a214d0f55f415dd3c91db75c",
+        "genome_id": "SDS_PARENT_OP7",
+        "base_opponent": "OP7",
+        "overlay": {},
+        "live": {
+          "policy": "B",
+          "base_key": "OP7",
+          "expected_overlay": {},
+          "live_min_alive_for_defender": 2,
+          "observed_profile": {
+            "min_alive_for_defender": 2,
+            "defender_zone_frac": 0.05000000074505806,
+            "threat_radius": 12.0
+          }
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700001,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "2daca7f5e3ee8820a6a981105ec5828e46271eb4a6d1dec95e729342851d5c93",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700002,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "fac03fa98d2e286fc8082aa39e8ddea84714c4526b86927f9c247adc73a435a4",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700003,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "997e6b26cbb040dbf55e0547387c4a92d7c66e32ce4d5680347c8e645b7f2bef",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700004,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "844111f4003784df224c17f172303790250e71555c29684b2452360d6435c90b",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700005,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "357a16b467a6f96cb985ab3653635b88eba9287079f78a8cf4d2119b6b04cf7b",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700006,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "cca7eabe4569843c8a96204e8bb3d7c8db44f3a56ccebe80d47c8c03fc8622bc",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700007,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "cdaa464c45ed7c03a5bf2cc879375546e98fa36ee4ed2e3f858d895331f07aa5",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700008,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "69a38341864ed1e0ddb5aebd048d2572d5289b19dd6e468dd89f68560cbe8ae7",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700009,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "69cbe7fba4a7c2af0fe22c92a270eeba189cd2dd39ed4afccaf4593e0e0d8da8",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700010,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "979cdc74f3db50fe21823f579fe70da42b6960702ec33fc759e26ec3a53cd7ea",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700011,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "2eb6248bde56829eb28a56a91793938d9730babfa7477c48ccd7f321e93efd67",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700012,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "44098c1dd65a0dd63c6903a945c8a3d70a9d0b74f58e0205d7ddffc00affee9e",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700013,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "5b3e92afd494d39e6538a895e13b8ff9099ae34b650371ad304d4dc605bb1073",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700014,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "7225d1b6d190c8fed36434ae6c9c6f1e7c558efd66af609de37d41064f9b5133",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700015,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "4ae4711d7d40a14b05d1db4cb3e5c40ff2cb2a00e8b2c9aeee9fac6429d550e3",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "GUARD",
+      "seed": 19700016,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "fd2dc9ede0381e275f663e4b8d760849ff6ac3c870f73590e44fa4d8854494eb",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700001,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "8e073172ffe64fe7a511650b29acd6502b6cc60fbe5ab5b99b7447c4ee629cad",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700002,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "b0a77f5132be5d9912a573680c8ef1afecae82d59e374f1c0c99239626ba3623",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700003,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "8bb6bd7612c0a1849ba28f717291d11314c6c9223c695c5b0a030880b5e95ac4",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700004,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "00c25f0e98c5b710e8689293e6576038b9fa91d110ae9e376e37f2a4137db11b",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700005,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "57e6ea0141138894f0b6d3b703ebf329b27f5e10a77c18a247f50b42c8a79bc1",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700006,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "d6c15836cd777e7ac0f110ffdaf09ee2bba0895cfbe656f57fe8e61dea733a93",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700007,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "e57633c7664dd5338982a981c8e4f542ede46a917641dc986648e0e069676dd3",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700008,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "8fa4f1677ab49d94a66b03bc31710782b86d9d5c7b0e592ce749c745fcb36016",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700009,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "0a299d3ebdc1c2bebfbe1e92a93d083f352082193dba9c51d7367a58d420b051",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700010,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "6ca866077bb0a6ee21d225f5c31f28f6880b687733840ce5cd9ebe117bb1e2a0",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700011,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "0e563f293854a18692e514213129e7775fb07eb66da61be7e6e775436e4ae342",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700012,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "984d87e8a26fcda38a10514d2094189968be2ae2a64538315afb4b5fa2784bbc",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700013,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "379080277b927d7f0e4bfc1bfdc5d104563ca2f48ec92663c90b2a90dcd92797",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700014,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "823c661de801f89c32542ba5ab9aef3836dea6d879cf444e08ae9936782781a7",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700015,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "649c1694caeb3e84889d9772df4d35c8946eb550e05b0fa4277b036b1ac40bfa",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    },
+    {
+      "scale": "4v4",
+      "style": "BREACH",
+      "seed": 19700016,
+      "ticks": 240,
+      "agents": 4,
+      "trace_hash": "c1a1615c188947d3a60fabccaa54e3831e1160781ff33c43c4ad21982c6c6999",
+      "tick_rows": 5760,
+      "expected_tick_rows": 5760,
+      "pole_evidence": {
+        "label": "CERTIFIED_POLE_B3_3",
+        "governing_verdict": "CERTIFIED",
+        "governing_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+        "attestation": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "pre_gpu_field_equality"
+        },
+        "live": {
+          "certification_record": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+          "certification_verdict": "CERTIFIED",
+          "policy": "B",
+          "team_size": 4,
+          "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+          "certified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "live_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10,
+            "min_alive_for_defender": 4
+          },
+          "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+          "hashes_match": true,
+          "stage": "live_pole_attestation",
+          "live_verified_overlay": {
+            "enable_2v1": true,
+            "lock_defender": 10.0,
+            "min_alive_for_defender": 4.0
+          },
+          "unresolvable_keys": [],
+          "context": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+          "live_attestation_passed": true
+        }
+      }
+    }
+  ],
+  "tick_rows_sha256": "5237088579cc6d8729ac84e895a2cd93d55c08001b7e9b41a1bbd8015ccb62da",
+  "episode_rows_sha256": "6aa4aded634157f60338d698249d698510c052b593d82c84df268812d48a5f91",
+  "runner_sha256": "c3c866091c546dcfdb1b7d69faab1ee2573a93d8b3b2b44952cb979003930cce",
+  "spec_sha256": "12f078df657fb609c2daae7123b6c45f81627150b274dc0d91c92e6618541ad5",
+  "amendment_sha256": "35e03bd80e1f05fd3d3d9cf1a04e9ad4c04e0c2c523e16e2e568b133ef8c11d2"
+}

@@ -1,0 +1,185 @@
+{
+  "record_id": "CROSS_SCALE_BASELINE_SUITE_V1_SPEC",
+  "status": "FROZEN_DESIGN_ONLY",
+  "utc": "2026-09-24T04:00:00Z",
+  "classification": "EXPERIMENTAL PROTOCOL / DIAGNOSTIC suite. Not PAPER-FAITHFUL method. Not a license to train. Not a new PPO variant.",
+  "authorized_by": "PI, 2026-09-24: freeze a cross-scale baseline suite with the same comparison axes at 2v2/4v4/6v6, allowing scale-specific config such as k. Do not keep adding one-off baselines that only make sense at one scale.",
+
+  "RESEARCH_QUESTION": "How much parameter sharing can be introduced before closed-loop specialization disappears, as team size scales from 2v2 to 4v4 to 6v6?",
+
+  "PRINCIPLE": {
+    "same_experimental_question": true,
+    "scale_specific_configuration_allowed": true,
+    "example": "CLOSEST_DEFENDS k=2 at 4v4 and k=1 at 6v6; 2v2 keeps the natural two-agent expert setup without artificially inventing the larger-team role split",
+    "forbidden": "mechanically forcing every implementation detail identical across scales when that would change the scientific question"
+  },
+
+  "FOUR_ARMS_locked": {
+    "A_generalist": {
+      "label": "Generalist",
+      "policy": "pi_G(a|o)",
+      "tests": "No explicit specialization / no strategy code"
+    },
+    "B_fully_shared_z": {
+      "label": "Fully shared + strategy ID",
+      "policy": "pi_phi(a|o,z)",
+      "tests": "Can one shared network hold both strategies if told which one?",
+      "architecture_locks": [
+        "single SharedActorCentralizedCritic (or equivalent single actor parameter set)",
+        "latent_k=2",
+        "latent_actor_conditioning=concat (d_z=16)",
+        "NO private per-z trunks, NO mode-specific action heads, NO FiLM",
+        "NO router / q_phi at eval; z forced or dispatched"
+      ]
+    },
+    "C_partial_share": {
+      "label": "Partial sharing (representative)",
+      "policy": "Share-Encoder only",
+      "tests": "Does retaining strategy-specific capacity help?",
+      "architecture_locks": [
+        "shared CNN observation encoder only",
+        "private MLP body + action heads per z (specialist-capacity branches)",
+        "do NOT carry Share-Backbone or Share-Macro into 4v4/6v6 as suite arms"
+      ],
+      "why_only_encoder": "compact cross-scale plot; deeper ladder remains a 2v2-only ablation"
+    },
+    "D_no_share": {
+      "label": "No sharing / separated",
+      "policy": "scale-specific upper reference",
+      "tests": "Upper reference for preserving specialization",
+      "at_2v2": "Share-0 bit-exact z-dispatch of verbatim experts pi_A, pi_B (or the two independent specialists under the same forced-z matrix)",
+      "at_4v4": "DEFEND_ATTACK_SPLIT composite under CLOSEST_DEFENDS(k=2): frozen ATTACK pi_A + learned DEFEND pi_D",
+      "at_6v6": "same recipe as sealed 4v4 split, with CLOSEST_DEFENDS(k=1), once the school-PC repaired/mature composite seals"
+    }
+  },
+
+  "SCALES": ["2v2", "4v4", "6v6"],
+
+  "SHARING_FAMILY_IDENTITY_locked": {
+    "why": "isolates sharing structure as the only scientific variable among B/C/D (and between C and B)",
+    "ideal_experiment": "same teachers + same states + same objective + same budget + different sharing structure",
+    "applies_to": ["B_fully_shared_z", "C_partial_share"],
+    "D_exception": "No-share / separated may be constructed (Share-0 dispatch) or trained as independent specialists / split composite; it is the zero-sharing reference, not a distilled student of the same recipe",
+    "A_exception": "Generalist is unconditional pi_G(a|o); not strategy-conditioned distillation",
+    "distillation_recipe_when_used": {
+      "loss": "0.5*KL(pi_A(.|o) || pi(.|o,z0)) + 0.5*KL(pi_B(.|o) || pi(.|o,z1))",
+      "decision_eligible_only": true,
+      "schedule_reference": "20 epochs, batch 256, Adam lr 3e-4, grad-norm clip 1.0, no weight decay, no early stopping, terminal weights only (TEACHER_DISTILLATION_SPEC / SHARING_LADDER_SPEC)",
+      "states": "balanced mixture of natural-deployment expert rollouts at that scale; both teachers queried on every stored o"
+    },
+    "family_axis": "No Share -> Partial Share (Share-Encoder) -> Fully Shared + z"
+  },
+
+  "ALLOCATOR_FAIRNESS_locked": {
+    "rule": "At 4v4 and 6v6, role assignment must NOT be a hidden variable across the suite arms that participate in the sharing comparison",
+    "4v4": "CLOSEST_DEFENDS(k=2) held identical for Separated, Share-Encoder, and Fully Shared+z",
+    "6v6": "CLOSEST_DEFENDS(k=1) held identical for Separated, Share-Encoder, and Fully Shared+z",
+    "2v2": "natural expert setup; do not artificially invent the larger-team CLOSEST_DEFENDS role structure",
+    "reviewer_claim_blocked": "Maybe the fully shared model lost because it used a different role allocator"
+  },
+
+  "EVALUATION_locked": {
+    "primary_cells": ["V(z0 or z_A, Pole A)", "V(z1 or z_B, Pole A)", "V(z0 or z_A, Pole B)", "V(z1 or z_B, Pole B)"],
+    "Delta_A": "V(matched_A, A) - V(matched_B, A)",
+    "Delta_B": "V(matched_B, B) - V(matched_A, B)",
+    "gate_reference": "mean(Delta)>0 and LCB95(Delta)>0 on both regimes (same program gate); suite plots report means + CIs even when a cell fails",
+    "bootstrap": {"n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+    "matched_seeds_within_scale": true,
+    "compact_survived_metric_optional": "min(Delta_A, Delta_B) for plots; always also report the two deltas",
+    "secondary_plots": [
+      "parameter count vs specialization",
+      "imitation / distillation fidelity vs specialization",
+      "win rate by regime",
+      "sharing percentage vs crossover"
+    ],
+    "cross_scale_figure": "x in {2v2,4v4,6v6}; four curves/bars = Generalist, Fully Shared+z, Share-Encoder, Separated"
+  },
+
+  "DEPTH_VS_BREADTH": {
+    "breadth": "this suite: four arms x three scales",
+    "depth_2v2_only": "existing Share-0 -> Share-Encoder -> Share-Backbone -> Share-Macro ladder remains the deep ablation at 2v2",
+    "do_not": "rebuild Backbone/Macro at 4v4 or 6v6 as suite requirements"
+  },
+
+  "RELATION_TO_PRIOR_ONE_OFF_SPECS": {
+    "FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC": "SUPERSEDED_AS_SUITE_PARENT by this record. Remains useful as CLOSEST_DEFENDS plumbing/contracts for the 4v4 Fully Shared+z arm, but must not be treated as a complete cross-scale baseline by itself.",
+    "FULLY_SHARED_STRATEGY_CONDITIONED_6V6_V1_SPEC": "same: plumbing child under this suite; contingent on sealed separated 6v6 and on suite identity (allocator + comparable training recipe).",
+    "important_change": "Fully Shared+z is NOT only a 4v4/6v6 PPO experiment. The suite requires a standardized arm evaluable at all three scales under the sharing-family identity above.",
+    "old_RUNG1_6V6_Share_Encoder": "EXCLUDED from this suite narrative (archive/provenance only): it did not use CLOSEST_DEFENDS. A suite Share-Encoder at 6v6 must be rebuilt under k=1 CLOSEST_DEFENDS if/when authorized."
+  },
+
+  "INVENTORY_at_freeze": {
+    "2v2": {
+      "Generalist": "AVAILABLE (r1_pi_G / PI_G_EVAL)",
+      "Fully_Shared_z_distilled": "MISSING — prioritize after mature 6v6 seals",
+      "Share_Encoder": "AVAILABLE (RUNG1_STUDENT_FROZEN + matched ladder eval)",
+      "Separated_Share0": "AVAILABLE (Share-0 / specialist dispatch)"
+    },
+    "4v4": {
+      "Generalist": "MISSING under suite locks (no sealed pi_G under CLOSEST_DEFENDS narrative)",
+      "Fully_Shared_z": "PLUMBING READY for PPO CLOSEST_DEFENDS path; TRAIN DEFERRED; distilled identity under suite NOT YET BUILT",
+      "Share_Encoder_under_CLOSEST_DEFENDS": "MISSING",
+      "Separated": "AVAILABLE (DEFEND_ATTACK_SPLIT confirmatory PASS)"
+    },
+    "6v6": {
+      "Generalist": "MISSING under suite locks",
+      "Fully_Shared_z": "PLUMBING SPEC contingent; TRAIN NOT AUTHORIZED",
+      "Share_Encoder_under_CLOSEST_DEFENDS": "MISSING (old RUNG1_6V6 excluded)",
+      "Separated": "IN FLIGHT / pending seal (school-PC repaired split pipeline)"
+    }
+  },
+
+  "INVENTORY_AMENDMENT_2026_09_24": {
+    "utc": "2026-09-24T04:20:00Z",
+    "fairness_rule": "same teachers + same states + same objective + same budget; only sharing structure changes. Distillation arms FAIL-CLOSED until the matched state set exists.",
+    "2v2": {
+      "Separated": "AVAILABLE",
+      "Share_Encoder": "SEALED (reuse RUNG1)",
+      "Fully_Shared_z": "FROZEN_STUDENT (agree 0.965/0.988; unique actor params 3456599; sha256 4aebecd8…)",
+      "Generalist": "AVAILABLE"
+    },
+    "4v4": {
+      "Separated": "SEALED PASS (DEFEND_ATTACK_SPLIT confirmatory)",
+      "Fully_Shared_z": "BLOCKED on SUITE_DISTILLATION_4V4_DATASET under CLOSEST_DEFENDS(k=2)",
+      "Share_Encoder": "BLOCKED on that same state set",
+      "Generalist": "STILL TO FILL"
+    },
+    "6v6": {
+      "Separated": "CRITICAL PATH (seal first)",
+      "Fully_Shared_z": "BLOCKED",
+      "Share_Encoder": "BLOCKED",
+      "Generalist": "STILL TO FILL"
+    },
+    "next_dataset_4v4": "Collect SUITE_DISTILLATION_4V4_DATASET from the sealed mature split system under CLOSEST_DEFENDS(k=2). Both Fully Shared+z and Share-Encoder consume that ONE frozen manifest.",
+    "next_dataset_6v6": "Wait until repaired mature Separated seals, then collect under CLOSEST_DEFENDS(k=1).",
+    "param_count_wording": "Report 3,456,599 as unique actor parameters of the Fully Shared+z student (not the sealed Share-0 branch total that includes the small critic)."
+  },
+
+  "PRIORITY_SEQUENCE_locked": [
+    "1. Seal repaired/mature 6v6 Separated (CLOSEST_DEFENDS k=1) — critical path for scale closure; does not block 2v2 Fully Shared+z training or 4v4 dataset collection design",
+    "2. Finish/freeze 2v2 Fully Shared+z distilled student (in flight)",
+    "3. Collect SUITE_DISTILLATION_4V4_DATASET under CLOSEST_DEFENDS(k=2) from the sealed mature split system; then distill Fully Shared+z and Share-Encoder on that same dataset",
+    "4. After 6v6 Separated seals: collect SUITE_DISTILLATION_6V6_DATASET under CLOSEST_DEFENDS(k=1); distill both sharing arms on that same dataset",
+    "5. Fill Generalist cells as needed for the four-curve plot",
+    "6. Assemble cross-scale Delta_A / Delta_B figure pack"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": [
+    "any training or sealed eval seed spend",
+    "launching Fully Shared PPO on this PC while CLOSEST_SPLIT / school-PC 6v6 owns the GPU",
+    "rebuilding the full 2v2 Backbone/Macro ladder at 4v4 or 6v6",
+    "claiming PAPER-FAITHFUL / Summer-faithful for this suite",
+    "reinterpreting old RUNG1_6V6 FAIL as a suite Share-Encoder cell",
+    "changing CLOSEST_DEFENDS k pins or inventing a new allocator"
+  ],
+
+  "PROPOSED_PRESET_REVIEW": {
+    "scientific_delta_plain_english": "Freeze one four-arm x three-scale comparison suite so Fully Shared+z, Share-Encoder, Separated, and Generalist are evaluated under the same axes, with distillation identity for the sharing family and allocator held fixed at 4v4/6v6.",
+    "canonical_parent": "SHARING_LADDER_SPEC + FULLY_SHARED_STRATEGY_CONDITIONED_*_SPEC plumbing + sealed DEFEND_ATTACK_SPLIT 4v4",
+    "classification": "DIAGNOSTIC / EXPERIMENTAL PROTOCOL",
+    "paper_faithful": false,
+    "why_new_record_required": "Prior fully-shared SPECs were one-off 4v4/6v6 PPO ports; they do not define the cross-scale suite or the distilled Fully Shared+z arm at 2v2."
+  },
+
+  "claim_boundary": "Design freeze only. Authorizes future implementation SPECs and contracts under this suite; does not authorize GPU training or seed reservation until Separated 6v6 is sealed and a follow-on launch SPEC is written."
+}

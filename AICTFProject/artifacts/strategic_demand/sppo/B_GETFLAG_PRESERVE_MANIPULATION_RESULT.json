@@ -1,0 +1,58 @@
+{
+  "record": "B_GETFLAG_PRESERVE_MANIPULATION matched-state GET_FLAG\u2192GO_TO drift manipulation check",
+  "status": "COMPLETE_DIAGNOSTIC",
+  "utc": "2026-09-17T15:51:52Z",
+  "device": "cuda",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "implements": "B_GETFLAG_PRESERVE_SPEC.json",
+  "question": "Did the intervention actually reduce the non-carrying GET_FLAG\u2192GO_TO drift?",
+  "driver": {
+    "label": "Bfinal_driver",
+    "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+  },
+  "student": {
+    "label": "NEW",
+    "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\exploratory_scale_4v4_specialists\\exploratory_pi_B_specialist_4v4_b3_entity_repair_getflag_preserve\\ckpts\\final_exploratory_pi_B_specialist_4v4_b3_entity_repair_getflag_preserve.zip",
+    "sha256": "c8b5636346cc6504793c01facb68c24a727b2445727bea8389401718af644220"
+  },
+  "B_better": {
+    "label": "B_t500k",
+    "sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a"
+  },
+  "seeds": {
+    "block": [
+      18900001,
+      18900048
+    ],
+    "n": 48,
+    "subdivides": "STATE_CONDITIONED_DIAGNOSIS"
+  },
+  "contracts": {
+    "K1_driver_is_sealed_Bfinal": true,
+    "K2_better_is_sealed_Bt500k": true,
+    "K3_pole_attested": true,
+    "K4_student_ckpt_exists": true,
+    "K5_baseline_csv_present": true,
+    "K6_counterfactual_query_deterministic": true
+  },
+  "metric": "among agent-steps with carrying=False AND B_better argmax=GET_FLAG, P(student argmax=GO_TO)",
+  "baseline_Bfinal": {
+    "n_eligible": 20757,
+    "n_goto": 3955,
+    "rate": 0.1905381317146023
+  },
+  "new_continuation": {
+    "n_eligible": 20757,
+    "n_goto": 26,
+    "rate": 0.0012525894878836056
+  },
+  "delta_new_minus_baseline": -0.1892855422267187,
+  "manipulated": true,
+  "kill_table_axis": "drift_manipulated",
+  "NOT_A_CLAIM": [
+    "any \u0394_B result \u2014 that is the separate crossover eval",
+    "causation of specialization \u2014 only whether the diagnosed drift moved",
+    "confirmatory status"
+  ]
+}

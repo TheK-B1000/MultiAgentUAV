@@ -1,0 +1,43 @@
+{
+  "label": "CLOSEST_DEFENDS_SCREEN_6V6",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-23T13:02:04Z",
+      "pid": 40988,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "892da3213939832599196b430d7217ed9f61b932",
+      "spec": "CLOSEST_DEFENDS_SCREEN_6V6_V1_SPEC.json",
+      "n_episodes": 384
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-23T13:02:04Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-23T13:02:04Z",
+      "audit": "CLOSEST_DEFENDS_SCREEN_6V6_AUDIT.json",
+      "n_checks": 22
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-23T13:02:04Z",
+      "result": "CLOSEST_DEFENDS_SCREEN_6V6_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-23T13:02:04Z",
+  "pid": 40988,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "892da3213939832599196b430d7217ed9f61b932",
+  "spec": "CLOSEST_DEFENDS_SCREEN_6V6_V1_SPEC.json",
+  "n_episodes": 384,
+  "reason": "all episodes written",
+  "audit": "CLOSEST_DEFENDS_SCREEN_6V6_AUDIT.json",
+  "n_checks": 22,
+  "result": "CLOSEST_DEFENDS_SCREEN_6V6_RESULT.json"
+}

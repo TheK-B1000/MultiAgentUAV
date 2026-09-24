@@ -69,7 +69,14 @@ BASE_KEY = {"A": "OP6", "B": "OP7"}
 #: defect), 4v4 was rebuilt on a new Pole-B2 (4V4_CONFIRMATORY_REDESIGN_C2_SPEC.json) and
 #: properly powered (n=192, matching this Pole-A genome's own 2v2 precedent) rather than the
 #: n=64 every prior 4v4 attempt used. Both older records are retained unmodified.
+#: POLE_B3_3_N192 supersedes CONFIRMATORY_REDESIGN_N192 at 4v4: the C2/B2-1 construction
+#: certified cleanly (scripted probe) but its own learned-specialist crossover eval FAILED
+#: (CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json). B3-3 is a NEW pole
+#: construction (coordinated 2v1 flanking) selected specifically because it also cleared a
+#: learned-contestability screen B2-1 lacked (4V4_POLE_B3_DIFFICULTY_SCREEN.json). Both older
+#: certification records are retained unmodified; only which one GATES production changes.
 _CERT_PRECEDENCE = (
+    "STRATEGIC_DEMAND_{n}v{n}_POLE_B3_3_N192_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_CONFIRMATORY_REDESIGN_N192_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_GUARD_DISTRIBUTED_V2_CERTIFICATION.json",
     "STRATEGIC_DEMAND_{n}v{n}_CERTIFICATION.json",
@@ -129,8 +136,16 @@ def assert_live_pole_matches_team_size(env, policy: str, n: int) -> dict:
     return detail
 
 
-def _verify_live_pole(cfg, policy: str, n: int) -> dict:
-    """Build a throwaway env, install the pole overlay, and assert the LIVE profile."""
+def _verify_live_pole(cfg, policy: str, n: int, *, resolved_genome=None,
+                      pole_attestation: dict | None = None, is_smoke: bool = False) -> dict:
+    """Build a throwaway env, install the pole overlay, and assert the LIVE profile.
+
+    ``resolved_genome`` MUST be the genome this run will actually train against.
+    Installing the canonical genome here regardless of an override -- which this
+    function used to do -- attests an opponent the run never sees, which is how a
+    Pole-B candidate override could pass a "LIVE POLE CHECK: PASS" banner while
+    training against canonical OP7 (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json).
+    """
     from experiments.opponent_spec import (install_keyed_opponent_overlays, pole_A_genome,
                                            pole_B_genome)
     from rl.training.env_factory import build_training_env
@@ -142,11 +157,23 @@ def _verify_live_pole(cfg, policy: str, n: int) -> dict:
         core = env.core
         core._bt_profile_override = None
         core._sds_opening_hold_steps = 0
-        genomes = {"OP6": pole_A_genome(n)} if policy == "A" else {}
-        if n != 2:
-            genomes["OP7"] = pole_B_genome(n)
+        # The pole under test uses the RESOLVED genome; the other pole keeps its
+        # canonical definition (it is not what this specialist trains against).
+        if policy == "A":
+            genomes = {"OP6": resolved_genome if resolved_genome is not None else pole_A_genome(n)}
+            if n != 2:
+                genomes["OP7"] = pole_B_genome(n)
+        else:
+            genomes = {"OP6": pole_A_genome(n)} if n == 2 else {}
+            genomes["OP7"] = resolved_genome if resolved_genome is not None else pole_B_genome(n)
         install_keyed_opponent_overlays(core, genomes)
         detail = assert_live_pole_matches_team_size(env, policy, n)
+        if pole_attestation is not None:
+            from experiments.pole_attestation import attest_live_pole
+            detail["pole_attestation"] = attest_live_pole(
+                core, policy, n, pole_attestation,
+                context=f"pre-training zero-step attestation ({n}v{n} pole {policy})",
+                is_smoke=is_smoke)
         detail["installed_overlay_keys"] = sorted(genomes)
         detail["grid_agent_dim"] = int(env.observation_space.spaces["grid"].shape[0])
         if detail["grid_agent_dim"] != n:
@@ -199,6 +226,119 @@ def main() -> int:
                          "-- otherwise the run would silently train against the OLD, "
                          "uncertified canonical Pole B while the certification banner claims "
                          "CERTIFIED.")
+    ap.add_argument("--run-label-suffix", default="",
+                    help="appended verbatim to the artifact label/checkpoint directory (e.g. "
+                         "'_b3'), so a NEW pole-redesign track never collides with an older "
+                         "track's already-sealed checkpoints at the same team size. Discovered "
+                         "as a real gap when the B3 track's first dry-run hit the C2 track's "
+                         "still-present pi_A_specialist_4v4/pi_B_specialist_4v4 directories "
+                         "('already holds N checkpoint(s); refusing to overwrite'). Those "
+                         "checkpoints are referenced by frozen records "
+                         "(CONFIRMATORY_REDESIGN_C2_PI_{A2,B2}_FROZEN.json) and must never be "
+                         "renamed or overwritten -- a NEW track takes a new label instead. "
+                         "Empty by default so every existing invocation is unaffected.")
+    ap.add_argument("--sibling-sep-lambda", type=float, default=0.0,
+                    help="specialization-preserving sibling separation coefficient. 0 = OFF "
+                         "(structurally absent). See 4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json.")
+    ap.add_argument("--sibling-ckpt", default="",
+                    help="path to frozen opposite-pole specialist zip used as stop-grad sibling")
+    ap.add_argument("--sibling-ckpt-sha256", default="",
+                    help="optional expected sha256 of --sibling-ckpt (fail-closed on mismatch)")
+    ap.add_argument("--sibling-sep-dataset", default="",
+                    help="path to disagreement NPZ or directory containing disagreement_rows.npz")
+    ap.add_argument("--role-pres-lambda", type=float, default=0.0,
+                    help="role-preservation coefficient. 0 = OFF (structurally absent). "
+                         "See 4V4_B3_ROLE_PRESERVATION_SPEC.json.")
+    ap.add_argument("--role-pres-targets", default="",
+                    help="path to frozen role_targets.json from collect_role_targets_4v4_b3.py")
+    ap.add_argument("--role-pres-style", default="",
+                    help="GUARD or BREACH — which frozen target this specialist should match")
+    ap.add_argument("--getflag-preserve-lambda", type=float, default=0.0,
+                    help="non-carrying GET_FLAG macro-preservation coefficient. 0 = OFF "
+                         "(structurally absent). See B_GETFLAG_PRESERVE_SPEC.json.")
+    ap.add_argument("--getflag-preserve-ckpt", default="",
+                    help="frozen B_better zip used as stop-grad GET_FLAG anchor")
+    ap.add_argument("--getflag-preserve-ckpt-sha256", default="",
+                    help="expected sha256 of --getflag-preserve-ckpt (fail-closed on mismatch)")
+    ap.add_argument("--resume", default="",
+                    help="resume from an existing checkpoint zip in this run's ckpt dir "
+                         "(crash recovery). Sets load_path, appends metrics, and allows "
+                         "the pre-existing zip set that a fresh launch would refuse.")
+    ap.add_argument("--entity-repair-enabled", action="store_true",
+                    help="add EntityResidualEncoder: a bias-free, zero-init residual over "
+                         "exact teammate/enemy geometry (rl/custom_ppo/entity_residual.py). "
+                         "Actor observation only -- the critic is never touched. Combine with "
+                         "--load-path pointing at a pre-repair checkpoint for a warm start "
+                         "that is behaviourally identical at step 0 (proven in "
+                         "tests/test_entity_repair_production_api.py).")
+    ap.add_argument("--entity-hidden-dim", type=int, default=32,
+                    help="hidden width of the per-entity encoder MLPs (default 32, matching "
+                         "the validated BC_REPRESENTATION_SMOKE architecture)")
+    ap.add_argument("--role-conditioning-enabled", action="store_true",
+                    help="concat geometric N/2 DEFEND/ATTACK bit into the actor "
+                         "(RULE_BASED_ROLE_CONDITIONING_SPEC). Requires entity repair for "
+                         "the clean B_t500k warm-start path. Mutually exclusive with "
+                         "GETFLAG preserve / sibling-sep / role-pres losses.")
+    ap.add_argument("--role-hold-ticks", type=int, default=8,
+                    help="H_r decision-tick hold for role assignment (frozen exploratory "
+                         "value is 8; not a screen)")
+    ap.add_argument("--role-k-defend", type=int, default=0,
+                    help="explicit CLOSEST_DEFENDS defender count. 0 keeps k=N/2. "
+                         "Mutually exclusive with --role-k-defend-choices.")
+    ap.add_argument("--role-k-defend-choices", default="",
+                    help="comma-separated episode-start k mixture, e.g. 1,3. "
+                         "Empty keeps k=N/2. Requires --role-fixed-for-episode.")
+    ap.add_argument("--role-conditioning-allow-pre-entity-base", action="store_true",
+                    help="allow role conditioning without --entity-repair-enabled. "
+                         "Only for a frozen spec that warm-starts a pre-entity-repair "
+                         "checkpoint and keeps the N' teacher off.")
+    ap.add_argument("--role-fixed-for-episode", action="store_true",
+                    help="assign roles exactly once per episode and never reassign "
+                         "(including on death/revival), instead of the periodic "
+                         "role-hold-ticks reassignment. Ignores --role-hold-ticks. See "
+                         "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json ROLE_ASSIGNMENT_locked.")
+    ap.add_argument("--defend-teacher-lambda", type=float, default=0.0,
+                    help="peak/start coefficient for the DEFEND-only N'-teacher imitation "
+                         "loss. 0 = OFF (structurally absent). Decays to "
+                         "--defend-teacher-lambda-end over "
+                         "[--defend-teacher-decay-start-step, --defend-teacher-decay-end-step]. "
+                         "Requires --role-conditioning-enabled. See "
+                         "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json.")
+    ap.add_argument("--defend-teacher-lambda-end", type=float, default=0.0,
+                    help="lambda value after the decay window (frozen at 0.0 for v1: "
+                         "teacher-free consolidation before evaluation)")
+    ap.add_argument("--defend-teacher-decay-start-step", type=int, default=50_000,
+                    help="global step at which the lambda decay begins (frozen at 50000 "
+                         "for v1; ONE run, ONE schedule)")
+    ap.add_argument("--defend-teacher-decay-end-step", type=int, default=150_000,
+                    help="global step at which the lambda decay ends (frozen at 150000 "
+                         "for v1; ONE run, ONE schedule)")
+    ap.add_argument("--defend-teacher-cadence", type=int, default=4,
+                    help="PPO-actor-minibatch cadence for the teacher update (frozen at 4)")
+    ap.add_argument("--split-attack-defend-enabled", action="store_true",
+                    help="two physically separate networks instead of one shared "
+                         "role-conditioned model: a frozen, unmodified pi_A checkpoint "
+                         "produces actions for ATTACK-role agent slots (no optimizer, no "
+                         "gradient path, ever); the trainable model produces actions for "
+                         "DEFEND-role slots, with its main PPO actor loss and entropy bonus "
+                         "gated to DEFEND slots only. Requires role-conditioning-enabled and "
+                         "role-fixed-for-episode. See "
+                         "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json.")
+    ap.add_argument("--split-attack-defend-frozen-ckpt", default="",
+                    help="path to the frozen pi_A checkpoint used for ATTACK-role slots")
+    ap.add_argument("--split-attack-defend-frozen-ckpt-sha256", default="",
+                    help="expected sha256 of --split-attack-defend-frozen-ckpt "
+                         "(fail-closed on mismatch)")
+    ap.add_argument("--assignment-conditioning-enabled", action="store_true",
+                    help="concat privileged GUARD_DISTRIBUTED_V2 z_i (4-d) into the actor "
+                         "(ASSIGNMENT_CONDITIONING_V1_SPEC). Requires entity repair. "
+                         "Mutually exclusive with role / GETFLAG / sibling-sep / role-pres.")
+    ap.add_argument("--assignment-hold-ticks", type=int, default=8,
+                    help="H_a decision-tick hold for assignment (frozen at 8 for v1)")
+    ap.add_argument("--load-path", default="",
+                    help="warm-start from this checkpoint (e.g. the sealed B3-3 specialist) "
+                         "before applying --entity-repair-enabled. Distinct from --resume, "
+                         "which is for crash recovery of THIS run.")
     args = ap.parse_args()
 
     n, policy, seed = int(args.team_size), args.policy, int(args.seed)
@@ -220,13 +360,20 @@ def main() -> int:
                              "the certification gate")
         declared = (exploratory.get("TRAINING", {}).get("seeds") or {})
         key = f"pi_{policy}_{n}v{n}"
-        if key not in declared:
+        tr_block = exploratory.get("TRAINING") or {}
+        prereg_seed = declared.get(key)
+        if prereg_seed is None and tr_block.get("policy") == policy and int(
+            tr_block.get("team_size", -1)
+        ) == n and "seed" in tr_block:
+            prereg_seed = int(tr_block["seed"])
+        if prereg_seed is None:
             raise SystemExit(f"FAIL-CLOSED: exploratory spec does not preregister {key}; it "
-                             f"declares {sorted(declared)}. This spec does not cover this "
+                             f"declares seeds={sorted(declared)} and TRAINING.seed="
+                             f"{tr_block.get('seed')!r}. This spec does not cover this "
                              f"team size / policy.")
-        if not is_smoke and int(declared[key]) != seed:
+        if not is_smoke and int(prereg_seed) != seed:
             raise SystemExit(f"FAIL-CLOSED: exploratory spec preregisters seed "
-                             f"{declared[key]} for {key}, but --seed={seed}. A production "
+                             f"{prereg_seed} for {key}, but --seed={seed}. A production "
                              f"exploratory run must use the preregistered seed exactly.")
 
     # ---- confirmatory redesign: one named policy may start before the OTHER pole's own -----
@@ -296,29 +443,31 @@ def main() -> int:
               f"later passes.")
         print("!" * 78, flush=True)
 
-    # ---- Pole B genome source: fail closed if the GOVERNING certification is itself a -----
-    # confirmatory-redesign record. That record certified a SPECIFIC candidate genome, not
-    # canonical OP7; training "policy B" via the default pole_B_genome(N) would silently
-    # answer a different, uncertified question while the banner above still says CERTIFIED.
-    pole_b_override = None
-    if policy == "B":
-        if args.pole_b_genome_json:
-            pbp = Path(args.pole_b_genome_json)
-            if not pbp.is_file():
-                raise SystemExit(f"FAIL-CLOSED: --pole-b-genome-json not found: {pbp}")
-            from experiments.sds_genome import SDSGenome
-            from experiments.opponent_spec import _with_full_team_defender_gate
-            pole_b_override = _with_full_team_defender_gate(
-                SDSGenome.from_dict(json.loads(pbp.read_text(encoding="utf-8"))), n)
-            print(f"  Pole B SOURCE  candidate genome {pole_b_override.genome_id!r} from "
-                  f"{pbp.name} (NOT canonical pole_B_genome({n}))", flush=True)
-        elif not is_smoke and "CONFIRMATORY_REDESIGN" in cert_path.name:
-            raise SystemExit(
-                f"FAIL-CLOSED: the governing certification for {n}v{n} is a confirmatory-"
-                f"redesign record ({cert_path.name}), which certified a SPECIFIC Pole-B "
-                f"candidate genome, not canonical OP7. --policy B requires "
-                f"--pole-b-genome-json naming that candidate, or this run would silently "
-                f"train against the wrong, uncertified Pole B.")
+    # ---- CERTIFICATION IS THE SOURCE OF TRUTH for which opponent this run trains against.
+    # The resolved pole is compared FIELD BY FIELD and BY HASH against the governing
+    # certification record, before any environment is built and before any GPU work.
+    #
+    # This replaces a filename-substring heuristic ("CONFIRMATORY_REDESIGN" in cert_path.name)
+    # that let pi_B3 train against canonical OP7 while being evaluated against the certified
+    # B3-3 candidate -- ~17.5 GPU-hours answering the wrong experiment. See
+    # PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json. A filename cannot carry a scientific
+    # guarantee; the record can.
+    from experiments.pole_attestation import (
+        assert_resolved_matches_certification, cross_policy_parity,
+        format_attestation_banner, resolve_pole_genome,
+    )
+
+    parity = cross_policy_parity(n, cert_path)
+    print(f"  CROSS-POLICY PARITY ({cert_path.name}) -- the two poles of this study are NOT symmetric:")
+    for line in parity["lines"]:
+        print(line)
+
+    resolved_genome = resolve_pole_genome(policy, n, args.pole_b_genome_json)
+    pole_attestation = assert_resolved_matches_certification(
+        policy, n, cert_path, resolved_genome, is_smoke=is_smoke)
+    print(format_attestation_banner(pole_attestation), flush=True)
+
+    pole_b_override = resolved_genome if (policy == "B" and args.pole_b_genome_json) else None
 
     try:
         import torch
@@ -340,8 +489,9 @@ def main() -> int:
     if args.total_timesteps is not None:
         spec["steps"] = int(args.total_timesteps)
     _prefix = "exploratory_" if exploratory is not None else ""
-    spec["label"] = (f"{_prefix}smoke_pi_{policy}_specialist_{n}v{n}" if is_smoke
-                     else f"{_prefix}pi_{policy}_specialist_{n}v{n}")
+    _suffix = str(args.run_label_suffix or "")
+    spec["label"] = (f"{_prefix}smoke_pi_{policy}_specialist_{n}v{n}{_suffix}" if is_smoke
+                     else f"{_prefix}pi_{policy}_specialist_{n}v{n}{_suffix}")
     R.POLICIES[policy] = spec
 
     cfg, contract = R.build_r1_config(policy)
@@ -357,22 +507,361 @@ def main() -> int:
         cfg.formal_run = False
         cfg.periodic_checkpoint_steps = max(1, int(cfg.total_timesteps) // 2)
 
+    sep_lam = float(args.sibling_sep_lambda or 0.0)
+    if sep_lam > 0.0:
+        if not args.sibling_ckpt or not args.sibling_sep_dataset:
+            raise SystemExit(
+                "FAIL-CLOSED: --sibling-sep-lambda > 0 requires --sibling-ckpt and "
+                "--sibling-sep-dataset"
+            )
+        cfg.sibling_sep_lambda = sep_lam
+        cfg.sibling_sep_ckpt = str(args.sibling_ckpt)
+        cfg.sibling_sep_ckpt_sha256 = str(args.sibling_ckpt_sha256 or "")
+        cfg.sibling_sep_dataset = str(args.sibling_sep_dataset)
+        # Frozen SPEC defaults.
+        cfg.sibling_sep_cadence = 4
+        cfg.sibling_sep_batch_size = 64
+        # Pin expected hashes for the vanilla B3 siblings when not overridden.
+        if not cfg.sibling_sep_ckpt_sha256:
+            _known = {
+                "final_pi_A_specialist_4v4_b3.zip":
+                    "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0",
+                "final_pi_B_specialist_4v4_b3.zip":
+                    "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+            }
+            cfg.sibling_sep_ckpt_sha256 = _known.get(Path(cfg.sibling_sep_ckpt).name, "")
+    elif args.sibling_ckpt or args.sibling_sep_dataset:
+        raise SystemExit(
+            "FAIL-CLOSED: sibling ckpt/dataset provided but --sibling-sep-lambda is 0; "
+            "refusing a silently disabled intervention"
+        )
+
+    role_lam = float(args.role_pres_lambda or 0.0)
+    if role_lam > 0.0:
+        if sep_lam > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: role preservation and sibling separation are mutually "
+                "exclusive (JSD SPEC is RETIRED_UNUSED)"
+            )
+        if not args.role_pres_targets or not args.role_pres_style:
+            raise SystemExit(
+                "FAIL-CLOSED: --role-pres-lambda > 0 requires --role-pres-targets and "
+                "--role-pres-style"
+            )
+        style = str(args.role_pres_style).upper()
+        if style not in ("GUARD", "BREACH"):
+            raise SystemExit(f"FAIL-CLOSED: --role-pres-style must be GUARD or BREACH, got {style!r}")
+        expected = "GUARD" if policy == "A" else "BREACH"
+        if style != expected:
+            raise SystemExit(
+                f"FAIL-CLOSED: policy {policy} must use style {expected}, got {style}"
+            )
+        if not Path(args.role_pres_targets).is_file():
+            raise SystemExit(f"FAIL-CLOSED: role targets missing: {args.role_pres_targets}")
+        cfg.role_pres_lambda = role_lam
+        cfg.role_pres_targets = str(args.role_pres_targets)
+        cfg.role_pres_style = style
+        cfg.role_pres_cadence = 4
+        cfg.role_pres_temperature = 0.5
+    elif args.role_pres_targets or args.role_pres_style:
+        raise SystemExit(
+            "FAIL-CLOSED: role targets/style provided but --role-pres-lambda is 0; "
+            "refusing a silently disabled intervention"
+        )
+
+    gf_lam = float(args.getflag_preserve_lambda or 0.0)
+    if gf_lam > 0.0:
+        if not args.getflag_preserve_ckpt:
+            raise SystemExit(
+                "FAIL-CLOSED: --getflag-preserve-lambda > 0 requires --getflag-preserve-ckpt"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: GET_FLAG preservation cannot coexist with sibling-sep")
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: GET_FLAG preservation cannot coexist with role-pres")
+        cfg.getflag_preserve_lambda = gf_lam
+        cfg.getflag_preserve_ckpt = str(args.getflag_preserve_ckpt)
+        cfg.getflag_preserve_ckpt_sha256 = str(args.getflag_preserve_ckpt_sha256 or "")
+        cfg.getflag_preserve_cadence = 4
+        if not cfg.getflag_preserve_ckpt_sha256:
+            raise SystemExit(
+                "FAIL-CLOSED: --getflag-preserve-ckpt-sha256 is required when the "
+                "preservation loss is on (anchor identity must be pinned, not assumed)"
+            )
+    elif args.getflag_preserve_ckpt or args.getflag_preserve_ckpt_sha256:
+        raise SystemExit(
+            "FAIL-CLOSED: GET_FLAG-preserve ckpt/sha provided but "
+            "--getflag-preserve-lambda is 0; refusing a silently disabled intervention"
+        )
+
     if int(getattr(cfg, "max_blue_agents", -1)) != n:
         raise SystemExit(f"FAIL-CLOSED: cfg.max_blue_agents={getattr(cfg,'max_blue_agents',None)} "
                          f"!= team size {n}; AGENTS propagation did not reach build_r1_config")
 
+    # G0-V5 / R1 parents set enable_progress_bar=False for historical probes.
+    # Specialist production launches always need a durable redirected bar
+    # (stderr heartbeats for Get-Content -Wait on *.log.err).
+    cfg.enable_progress_bar = True
+
+    cfg.entity_repair_enabled = bool(args.entity_repair_enabled)
+    cfg.entity_hidden_dim = int(args.entity_hidden_dim)
+
+    cfg.role_conditioning_enabled = bool(args.role_conditioning_enabled)
+    cfg.role_hold_ticks = int(args.role_hold_ticks)
+    cfg.role_fixed_for_episode = bool(args.role_fixed_for_episode)
+    cfg.role_k_defend = int(args.role_k_defend)
+    cfg.role_k_defend_choices = str(args.role_k_defend_choices or "")
+    cfg.role_conditioning_allow_pre_entity_base = bool(args.role_conditioning_allow_pre_entity_base)
+    cfg.defend_teacher_lambda = float(args.defend_teacher_lambda)
+    cfg.defend_teacher_lambda_end = float(args.defend_teacher_lambda_end)
+    cfg.defend_teacher_decay_start_step = int(args.defend_teacher_decay_start_step)
+    cfg.defend_teacher_decay_end_step = int(args.defend_teacher_decay_end_step)
+    cfg.defend_teacher_cadence = int(args.defend_teacher_cadence)
+    cfg.split_attack_defend_enabled = bool(args.split_attack_defend_enabled)
+    cfg.split_attack_defend_frozen_ckpt = str(args.split_attack_defend_frozen_ckpt)
+    cfg.split_attack_defend_frozen_ckpt_sha256 = str(args.split_attack_defend_frozen_ckpt_sha256)
+    cfg.assignment_conditioning_enabled = bool(args.assignment_conditioning_enabled)
+    cfg.assignment_hold_ticks = int(args.assignment_hold_ticks)
+    if cfg.role_conditioning_enabled and cfg.assignment_conditioning_enabled:
+        raise SystemExit(
+            "FAIL-CLOSED: role conditioning and assignment conditioning cannot coexist "
+            "(ASSIGNMENT_CONDITIONING_V1_SPEC / RULE_BASED_ROLE_CONDITIONING_SPEC)"
+        )
+    if cfg.role_conditioning_enabled:
+        if cfg.role_hold_ticks != 8:
+            raise SystemExit(
+                f"FAIL-CLOSED: RULE_BASED_ROLE_CONDITIONING_SPEC freezes H_r=8; "
+                f"got --role-hold-ticks={cfg.role_hold_ticks}. Amend the SPEC before "
+                f"changing this."
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: role conditioning cannot coexist with GETFLAG preservation "
+                "(SINGLE_AXIS_v1)"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: role conditioning cannot coexist with sibling-sep")
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: role conditioning cannot coexist with role-pres MSE loss"
+            )
+        if not cfg.entity_repair_enabled and not cfg.role_conditioning_allow_pre_entity_base:
+            raise SystemExit(
+                "FAIL-CLOSED: role conditioning v1 requires --entity-repair-enabled "
+                "(clean B_t500k entity-repair architecture), unless "
+                "--role-conditioning-allow-pre-entity-base is set by a frozen spec "
+                "that warm-starts a pre-entity checkpoint"
+            )
+        if cfg.role_conditioning_allow_pre_entity_base and cfg.entity_repair_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: --role-conditioning-allow-pre-entity-base is the "
+                "pre-entity path; do not also pass --entity-repair-enabled"
+            )
+        if cfg.role_conditioning_allow_pre_entity_base and float(cfg.defend_teacher_lambda) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: the 4v4 N' teacher is not authorized on the pre-entity "
+                "base. This path is PPO internalization of DEFEND slots only."
+            )
+        if cfg.role_conditioning_allow_pre_entity_base:
+            if not cfg.split_attack_defend_enabled:
+                raise SystemExit(
+                    "FAIL-CLOSED: pre-entity role conditioning is only authorized "
+                    "together with --split-attack-defend-enabled"
+                )
+            if cfg.role_k_defend_choices.strip() != "1,3":
+                raise SystemExit(
+                    "FAIL-CLOSED: pre-entity 6v6 internalization freezes "
+                    "--role-k-defend-choices 1,3 (5A/1D and 3A/3D)"
+                )
+        if cfg.role_k_defend and cfg.role_k_defend_choices.strip():
+            raise SystemExit(
+                "FAIL-CLOSED: --role-k-defend and --role-k-defend-choices are mutually exclusive"
+            )
+        if cfg.role_k_defend_choices.strip() and not cfg.role_fixed_for_episode:
+            raise SystemExit(
+                "FAIL-CLOSED: --role-k-defend-choices requires --role-fixed-for-episode "
+                "(k is drawn once at episode start)"
+            )
+
+    if cfg.defend_teacher_lambda > 0.0:
+        if not cfg.role_conditioning_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: --defend-teacher-lambda > 0 requires --role-conditioning-enabled "
+                "(DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC TEACHER_locked.applies_to)"
+            )
+        if not cfg.role_fixed_for_episode:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC requires "
+                "--role-fixed-for-episode for v1 (role reassignment on death is a "
+                "deliberate, explicit departure never exercised by the sealed screen)"
+            )
+        if (
+            cfg.defend_teacher_lambda_end != 0.0
+            or cfg.defend_teacher_decay_start_step != 50_000
+            or cfg.defend_teacher_decay_end_step != 150_000
+            or cfg.defend_teacher_cadence != 4
+        ):
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC "
+                "LAMBDA_SCHEDULE_locked freezes lambda_end=0.0, decay=[50000,150000], "
+                "cadence=4 for the exploratory arm (ONE run, ONE schedule -- not a "
+                "screen). Amend the SPEC before changing this."
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND-teacher imitation cannot coexist with GETFLAG "
+                "preservation (SINGLE_AXIS_v1)"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND-teacher imitation cannot coexist with sibling-sep "
+                "(SINGLE_AXIS_v1)"
+            )
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND-teacher imitation cannot coexist with role-pres MSE "
+                "loss (SINGLE_AXIS_v1)"
+            )
+        if policy != "A":
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC authorizes "
+                "training pi_A only for this experiment; got --policy "
+                f"{policy}"
+            )
+
+    if cfg.split_attack_defend_enabled:
+        if not cfg.role_conditioning_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: --split-attack-defend-enabled requires "
+                "--role-conditioning-enabled"
+            )
+        if not cfg.role_fixed_for_episode:
+            raise SystemExit(
+                "FAIL-CLOSED: --split-attack-defend-enabled requires "
+                "--role-fixed-for-episode (the ATTACK/DEFEND slot assignment must not "
+                "change mid-episode)"
+            )
+        if not cfg.split_attack_defend_frozen_ckpt:
+            raise SystemExit(
+                "FAIL-CLOSED: --split-attack-defend-enabled requires "
+                "--split-attack-defend-frozen-ckpt"
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: split_attack_defend cannot coexist with GETFLAG "
+                "preservation (SINGLE_AXIS discipline)"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: split_attack_defend cannot coexist with sibling-sep "
+                "(SINGLE_AXIS discipline)"
+            )
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: split_attack_defend cannot coexist with role-pres MSE "
+                "loss (SINGLE_AXIS discipline)"
+            )
+        if policy != "A":
+            raise SystemExit(
+                "FAIL-CLOSED: DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC authorizes training "
+                f"pi_A only for this experiment; got --policy {policy}"
+            )
+
+    if cfg.assignment_conditioning_enabled:
+        if cfg.assignment_hold_ticks != 8:
+            raise SystemExit(
+                f"FAIL-CLOSED: ASSIGNMENT_CONDITIONING_V1_SPEC freezes H_a=8; "
+                f"got --assignment-hold-ticks={cfg.assignment_hold_ticks}. Amend the SPEC "
+                f"before changing this."
+            )
+        if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: assignment conditioning cannot coexist with GETFLAG preservation"
+            )
+        if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit("FAIL-CLOSED: assignment conditioning cannot coexist with sibling-sep")
+        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+            raise SystemExit(
+                "FAIL-CLOSED: assignment conditioning cannot coexist with role-pres MSE loss"
+            )
+        if cfg.role_conditioning_enabled:
+            raise SystemExit("FAIL-CLOSED: assignment conditioning cannot coexist with role bit")
+        if not cfg.entity_repair_enabled:
+            raise SystemExit(
+                "FAIL-CLOSED: assignment conditioning v1 requires --entity-repair-enabled "
+                "(ASSIGNMENT_CONDITIONING_V1_SPEC)"
+            )
+
     ck = Path(cfg.checkpoint_dir)
-    existing = sorted(ck.glob("*.zip")) if ck.is_dir() else []
-    if existing:
-        raise SystemExit(f"FAIL-CLOSED: {ck} already holds {len(existing)} checkpoint(s); "
-                         f"refusing to overwrite. Choose another seed or move them aside.")
+    resume_path = str(args.resume or "").strip()
+    load_path_arg = str(args.load_path or "").strip()
+    if resume_path and load_path_arg:
+        raise SystemExit(
+            "FAIL-CLOSED: --resume and --load-path are mutually exclusive -- --resume is "
+            "crash recovery of THIS run's own checkpoint dir; --load-path is a warm start "
+            "from a DIFFERENT, already-completed checkpoint (e.g. the sealed B3-3 "
+            "specialist for the entity-repair run)."
+        )
+    if load_path_arg:
+        lp = Path(load_path_arg)
+        if not lp.is_file():
+            raise SystemExit(f"FAIL-CLOSED: --load-path not found: {lp}")
+        # Deliberately NOT constrained to this run's own checkpoint dir (unlike
+        # --resume): warm-starting from a DIFFERENT completed run is the point.
+        cfg.load_path = str(lp)
+        # --load-path is WEIGHT INITIALIZATION, not run continuation: global_step
+        # starts at 0 and total_timesteps below is THIS run's own fresh budget,
+        # not extended by whatever the loaded checkpoint had already trained
+        # (see PPOConfig.warm_start_reset_progress). Optimizer/RNG/return-norm
+        # state also start fresh for the same reason -- a warm start is
+        # "initialize weights from X", never "continue X's run".
+        cfg.warm_start_reset_progress = True
+        if cfg.entity_repair_enabled:
+            # entity_encoder is a NEW module the old checkpoint's optimizer state
+            # never had params for. warm_start_reset_progress=True already forces
+            # a fresh optimizer for every --load-path use (see loader.py); this
+            # flag is kept for explicitness and matches its own error message if
+            # ever inspected independently of reset_progress.
+            cfg.allow_active_actor_module_migration = True
+            print(f"  allow_active_actor_module_migration=True (entity_encoder is new "
+                 f"vs. the loaded checkpoint's optimizer state; model weights still "
+                 f"load via the normal compat path)")
+        print(f"  WARM START from {lp.name}"
+             f"{' [entity_repair_enabled=True]' if cfg.entity_repair_enabled else ''} "
+             f"(weight init only: global_step resets to 0; fresh run/label; "
+             f"metrics start fresh; total_timesteps = {int(cfg.total_timesteps):,} "
+             f"is this run's OWN fresh budget)")
+    elif resume_path:
+        rp = Path(resume_path)
+        if not rp.is_file():
+            raise SystemExit(f"FAIL-CLOSED: --resume not found: {rp}")
+        # Must live under this run's checkpoint dir (no silent cross-run warm-start).
+        try:
+            rp.resolve().relative_to(ck.resolve())
+        except ValueError:
+            raise SystemExit(
+                f"FAIL-CLOSED: --resume {rp} is not under this run's checkpoint dir {ck}"
+            )
+        cfg.load_path = str(rp)
+        cfg.fresh_metrics_csv = False
+        print(f"  RESUME from {rp.name} (metrics will append; total_timesteps stays "
+              f"{int(cfg.total_timesteps):,})")
+    else:
+        existing = sorted(ck.glob("*.zip")) if ck.is_dir() else []
+        if existing:
+            raise SystemExit(
+                f"FAIL-CLOSED: {ck} already holds {len(existing)} checkpoint(s); "
+                f"refusing to overwrite. Choose another seed, move them aside, or "
+                f"pass --resume <ckpt.zip> for crash recovery."
+            )
 
     sha, dirty = _git_sha(), _git_dirty()
     print("=" * 78)
     print(f"SPECIALIST_SCALE  pi_{policy}  {n}v{n}   "
           f"{'[SMOKE - NON-SCIENTIFIC]' if is_smoke else '[PRODUCTION]'}"
           f"{'  [EXPLORATORY ARM - NOT CONFIRMATORY]' if exploratory is not None else ''}"
-          f"{'  [CONFIRMATORY REDESIGN - PENDING JOINT CERT]' if redesign is not None else ''}")
+          f"{'  [CONFIRMATORY REDESIGN - PENDING JOINT CERT]' if redesign is not None else ''}"
+          f"{'  [RESUME]' if resume_path else ''}")
     print("=" * 78)
     print(f"  utc              {_now()}")
     print(f"  git sha          {sha}{'  (DIRTY)' if dirty else ''}")
@@ -382,19 +871,64 @@ def main() -> int:
     print(f"  seed             {seed}")
     print(f"  device           {cfg.device}")
     print(f"  total timesteps  {int(cfg.total_timesteps):,}")
+    if resume_path:
+        print(f"  resume           {cfg.load_path}")
     print(f"  opponent pool    {getattr(cfg, 'opponent_pool', None)}  "
           f"fixed={getattr(cfg, 'fixed_opponent_tag', None)}")
     print(f"  max_blue_agents  {cfg.max_blue_agents}")
     print(f"  checkpoint dir   {cfg.checkpoint_dir}")
+    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  sibling_sep      lambda={cfg.sibling_sep_lambda}  "
+              f"ckpt={cfg.sibling_sep_ckpt}  dataset={cfg.sibling_sep_dataset}")
+    if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  role_pres        lambda={cfg.role_pres_lambda}  "
+              f"style={cfg.role_pres_style}  targets={cfg.role_pres_targets}")
+    if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  getflag_preserve lambda={cfg.getflag_preserve_lambda}  "
+              f"anchor={cfg.getflag_preserve_ckpt}  "
+              f"sha={str(cfg.getflag_preserve_ckpt_sha256)[:12]}...")
+    if bool(getattr(cfg, "entity_repair_enabled", False)):
+        print(f"  entity_repair    enabled  hidden_dim={cfg.entity_hidden_dim}  "
+             f"warm_start={getattr(cfg, 'load_path', None) or '(none -- fresh init)'}")
+    if bool(getattr(cfg, "role_conditioning_enabled", False)):
+        print(f"  role_conditioning enabled  H_r={cfg.role_hold_ticks}  "
+              f"fixed_for_episode={cfg.role_fixed_for_episode}  "
+              f"k_defend={cfg.role_k_defend or 'N/2'}  "
+              f"k_choices={cfg.role_k_defend_choices or '(none)'}  "
+              f"pre_entity_base={cfg.role_conditioning_allow_pre_entity_base}  "
+              f"(pi(a|o,r); no GETFLAG / no macro hard-code)")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        print(f"  defend_teacher   lambda_peak={cfg.defend_teacher_lambda}  "
+              f"lambda_end={cfg.defend_teacher_lambda_end}  "
+              f"decay=[{cfg.defend_teacher_decay_start_step},{cfg.defend_teacher_decay_end_step}]  "
+              f"cadence={cfg.defend_teacher_cadence}  "
+              f"(CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND decision-eligible only)")
+    if bool(getattr(cfg, "split_attack_defend_enabled", False)):
+        print(f"  split_attack_defend enabled  "
+              f"frozen_ckpt={cfg.split_attack_defend_frozen_ckpt}  "
+              f"(ATTACK slots -> frozen pi_A, no gradient; DEFEND slots -> trainable "
+              f"model, main PPO actor loss/entropy DEFEND-gated)")
+    if bool(getattr(cfg, "assignment_conditioning_enabled", False)):
+        print(f"  assignment_conditioning enabled  H_a={cfg.assignment_hold_ticks}  "
+              f"(pi(a|o,z_i); GUARD_DISTRIBUTED_V2; no GETFLAG / no ROLE bit)")
     print("=" * 78, flush=True)
 
     # FAIL CLOSED on the LIVE resolved pole, before any step. Builds a throwaway env,
     # installs the same overlay the R1 seam installs, and reads the behaviour tree's own
     # resolved tensors -- the only authority that cannot be fooled by an unapplied override.
-    live = _verify_live_pole(cfg, policy, n)
+    live = _verify_live_pole(cfg, policy, n, resolved_genome=resolved_genome,
+                             pole_attestation=pole_attestation, is_smoke=is_smoke)
     print("  LIVE POLE CHECK: PASS")
     for k, v in live.items():
+        if k == "pole_attestation":
+            continue
         print(f"    {k}: {v}")
+    live_att = live.get("pole_attestation")
+    if live_att is not None:
+        print("  LIVE POLE ATTESTATION vs CERTIFICATION:")
+        print(format_attestation_banner(live_att))
+        print(f"    live_verified_overlay: {live_att.get('live_verified_overlay')}")
+        pole_attestation = live_att
 
     if args.dry_run:
         # A dry run starts nothing, so it must leave nothing behind. Writing the manifest
@@ -412,6 +946,18 @@ def main() -> int:
         "git_sha": sha, "git_dirty": dirty,
         "total_timesteps": int(cfg.total_timesteps),
         "certification_verdict": verdict,
+        "certification_record": cert_path.name,
+        # Certified vs live opponent identity + hashes, so train/eval agreement is
+        # AUDITABLE after the fact instead of assumed. See pole_attestation.py.
+        "CERTIFIED_OPPONENT": pole_attestation["certified_genome_id"],
+        "LIVE_OPPONENT": pole_attestation["live_genome_id"],
+        "certified_overlay": pole_attestation["certified_overlay"],
+        "live_overlay": pole_attestation["live_overlay"],
+        "certified_config_hash": pole_attestation["certified_config_hash"],
+        "live_config_hash": pole_attestation["live_config_hash"],
+        "pole_config_hashes_match": bool(pole_attestation["hashes_match"]),
+        "live_pole_attestation_passed": bool(pole_attestation.get("live_attestation_passed", False)),
+        "cross_policy_parity": parity,
         "checkpoint_dir": cfg.checkpoint_dir,
         "recipe_inherited_from": "experiments/run_r1_repertoire_training.py::build_r1_config",
         "pole_b_source": (f"CANDIDATE_OVERRIDE:{pole_b_override.genome_id}"
@@ -427,6 +973,72 @@ def main() -> int:
                                        if redesign is not None else None),
         "distillation_started_by_this_script": False,
         "evaluation_started_by_this_script": False,
+        "sibling_sep_lambda": float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0),
+        "sibling_sep_ckpt": str(getattr(cfg, "sibling_sep_ckpt", "") or ""),
+        "sibling_sep_dataset": str(getattr(cfg, "sibling_sep_dataset", "") or ""),
+        "role_pres_lambda": float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0),
+        "role_pres_targets": str(getattr(cfg, "role_pres_targets", "") or ""),
+        "role_pres_style": str(getattr(cfg, "role_pres_style", "") or ""),
+        "getflag_preserve_lambda": float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0),
+        "getflag_preserve_ckpt": str(getattr(cfg, "getflag_preserve_ckpt", "") or ""),
+        "getflag_preserve_ckpt_sha256": str(getattr(cfg, "getflag_preserve_ckpt_sha256", "") or ""),
+        "getflag_preservation": bool(float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0),
+        "entity_repair_enabled": bool(getattr(cfg, "entity_repair_enabled", False)),
+        "entity_hidden_dim": int(getattr(cfg, "entity_hidden_dim", 32)),
+        "role_conditioning_enabled": bool(getattr(cfg, "role_conditioning_enabled", False)),
+        "role_hold_ticks": int(getattr(cfg, "role_hold_ticks", 8)),
+        "assignment_conditioning_enabled": bool(
+            getattr(cfg, "assignment_conditioning_enabled", False)
+        ),
+        "assignment_hold_ticks": int(getattr(cfg, "assignment_hold_ticks", 8)),
+        "branch_isolation": (
+            {
+                "parent": "B_t500k",
+                "parent_sha256_prefix": "d4c0d7ba2477",
+                "getflag_preservation": False,
+                "role_conditioning": True,
+                "assignment_conditioning": False,
+                "inherits_getflag_ckpt": False,
+                "optimizer_state_inherited": False,
+            }
+            if bool(getattr(cfg, "role_conditioning_enabled", False))
+            else (
+                {
+                    "parent": "B_t500k",
+                    "parent_sha256_prefix": "d4c0d7ba2477",
+                    "getflag_preservation": False,
+                    "role_conditioning": False,
+                    "assignment_conditioning": True,
+                    "inherits_getflag_ckpt": False,
+                    "optimizer_state_inherited": False,
+                }
+                if bool(getattr(cfg, "assignment_conditioning_enabled", False))
+                else None
+            )
+        ),
+        "warm_start_from": (str(load_path_arg) if load_path_arg else None),
+        "resume_from": (str(cfg.load_path) if getattr(cfg, "load_path", None) else None),
+        "implements_spec": (
+            "RULE_BASED_ROLE_CONDITIONING_SPEC.json"
+            if bool(getattr(cfg, "role_conditioning_enabled", False))
+            else (
+                "ASSIGNMENT_CONDITIONING_V1_SPEC.json"
+                if bool(getattr(cfg, "assignment_conditioning_enabled", False))
+                else (
+                    "B_GETFLAG_PRESERVE_SPEC.json"
+                    if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0
+                    else (
+                        "4V4_B3_ROLE_PRESERVATION_SPEC.json"
+                        if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0
+                        else (
+                            "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
+                            if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0
+                            else None
+                        )
+                    )
+                )
+            )
+        ),
     }, indent=2), encoding="utf-8")
 
     # R.run_policy(policy) rebuilds its own config from build_r1_config and would discard the
@@ -435,6 +1047,17 @@ def main() -> int:
     # and asserts the live opponent. Omitting that hook would train a "specialist" against a
     # bare opponent with NO pole overlay -- the exact failure this wrapper exists to prevent.
     from functools import partial
+
+    # This PC runs a short viability budget (25k, then 50k only if the
+    # 25k screen is unclear). The full 200k job is for the other PC.
+    if (
+        str(getattr(cfg, "role_k_defend_choices", "") or "").strip() == "1,3"
+        and bool(getattr(cfg, "role_conditioning_allow_pre_entity_base", False))
+    ):
+        budget = int(cfg.total_timesteps)
+        cfg.periodic_checkpoint_steps = 25_000 if budget <= 50_000 else 50_000
+        print(f"  periodic_checkpoint_steps={cfg.periodic_checkpoint_steps} "
+              f"(viability budget {budget})", flush=True)
 
     print("  starting specialist PPO ...", flush=True)
     R.orchestrate_training_run(

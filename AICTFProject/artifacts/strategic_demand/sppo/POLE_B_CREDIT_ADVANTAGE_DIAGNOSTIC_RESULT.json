@@ -1,0 +1,230 @@
+{
+  "record": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC Pole-B credit/advantage diagnostic",
+  "status": "COMPLETE_DIAGNOSTIC",
+  "utc": "2026-09-18T12:58:08Z",
+  "device": "cuda",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json",
+  "decision_tree": "4V4_POST_GETFLAG_DECISION_TREE.json steps 2-3",
+  "question": "On matched Pole-B episodes (same seeds across policies), when a policy takes strategically useful B-side behavior, does PPO's own centralized critic assign a learning signal (GAE advantage under that policy's checkpoint) that systematically favors that behavior over idle/retreat alternatives?",
+  "seeds": {
+    "block": [
+      19400001,
+      19400024
+    ],
+    "n": 24,
+    "shared_across_policies": true
+  },
+  "checkpoints_sha256_prefix": {
+    "B_t500k": "d4c0d7ba2477",
+    "B_final": "021342c84bbe",
+    "GETFLAG": "c8b5636346cc",
+    "Assignment_v1": "2d9fe4670265",
+    "A3": "94dde69d091a"
+  },
+  "contracts": {
+    "K1_five_distinct_checkpoints": true,
+    "K2_all_entity_encoder": true,
+    "K3_pole_attested": true,
+    "K4_assignment_v1_has_assignment_hold": true
+  },
+  "pole_attestation": {
+    "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+    "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+    "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+    "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+    "hashes_match": true
+  },
+  "summaries": {
+    "B_t500k": {
+      "mean_episode_return": -17.590506381423136,
+      "win_rate_pole_B": 0.5833333333333334,
+      "n_episodes": 24,
+      "n_agent_steps": 22060,
+      "macro_fraction": {
+        "GET_FLAG": 0.49088848594741613,
+        "GO_HOME": 0.059791477787851315,
+        "GO_TO": 0.3657298277425204,
+        "GUARD": 0.07955575702629193,
+        "OTHER": 0.004034451495920218
+      },
+      "E_advantage_given_bucket": {
+        "GET_FLAG": -4.659175964864603,
+        "GO_HOME": -1.414260938527787,
+        "GO_TO": -3.22390953168212,
+        "GUARD": -5.773200196946873,
+        "OTHER": -4.0828090670068615
+      },
+      "corr_advantage_flag_progress_delta": -0.039765319520433946,
+      "G_signal": {
+        "mean_adv_useful_B": -4.644822497722498,
+        "mean_adv_idle_retreat_B": -3.6052104475737647,
+        "difference": -1.0396120501487336,
+        "ratio_useful_over_idle": 1.288363762744661,
+        "n_useful_steps": 14252,
+        "n_idle_steps": 5309,
+        "ratio_ci95": {
+          "mean": -4192916372.7990985,
+          "lcb95": -5287592667.132349,
+          "ucb95": -3043073787.798561
+        }
+      }
+    },
+    "B_final": {
+      "mean_episode_return": -14.309207450428707,
+      "win_rate_pole_B": 0.375,
+      "n_episodes": 24,
+      "n_agent_steps": 22456,
+      "macro_fraction": {
+        "GET_FLAG": 0.4106697541859637,
+        "GO_HOME": 0.014250089063056644,
+        "GO_TO": 0.4711435696473103,
+        "GUARD": 0.09992874955468471,
+        "OTHER": 0.004007837548984681
+      },
+      "E_advantage_given_bucket": {
+        "GET_FLAG": -3.802992348862926,
+        "GO_HOME": -0.22021156535483896,
+        "GO_TO": -2.278751448750723,
+        "GUARD": -5.162739241450906,
+        "OTHER": -3.0277999807563094
+      },
+      "corr_advantage_flag_progress_delta": -0.035677705849337264,
+      "G_signal": {
+        "mean_adv_useful_B": -3.7469060040978244,
+        "mean_adv_idle_retreat_B": -3.136050315609907,
+        "difference": -0.6108556884879173,
+        "ratio_useful_over_idle": 1.1947850407397296,
+        "n_useful_steps": 13302,
+        "n_idle_steps": 6502,
+        "ratio_ci95": {
+          "mean": -3274992666.317916,
+          "lcb95": -4491979730.328594,
+          "ucb95": -2084346169.9425395
+        }
+      }
+    },
+    "GETFLAG": {
+      "mean_episode_return": -8.476512769627638,
+      "win_rate_pole_B": 0.75,
+      "n_episodes": 24,
+      "n_agent_steps": 16532,
+      "macro_fraction": {
+        "GET_FLAG": 0.6843092184853617,
+        "GO_HOME": 0.08426082748608758,
+        "GO_TO": 0.2095330268570046,
+        "GUARD": 0.019356399709654006,
+        "OTHER": 0.0025405274618920883
+      },
+      "E_advantage_given_bucket": {
+        "GET_FLAG": -2.5325189395911822,
+        "GO_HOME": -1.244904206239345,
+        "GO_TO": -0.8279137426495818,
+        "GUARD": -3.3218688578810545,
+        "OTHER": -2.5000217766279267
+      },
+      "corr_advantage_flag_progress_delta": -0.04508914256437536,
+      "G_signal": {
+        "mean_adv_useful_B": -2.4946451656974937,
+        "mean_adv_idle_retreat_B": -0.817098644754001,
+        "difference": -1.6775465209434928,
+        "ratio_useful_over_idle": 3.0530526292190117,
+        "n_useful_steps": 12092,
+        "n_idle_steps": 1708,
+        "ratio_ci95": {
+          "mean": -2394462158.6679883,
+          "lcb95": -3142714502.161866,
+          "ucb95": -1669905390.122207
+        }
+      }
+    },
+    "Assignment_v1": {
+      "mean_episode_return": -10.971248271933291,
+      "win_rate_pole_B": 0.625,
+      "n_episodes": 24,
+      "n_agent_steps": 20112,
+      "macro_fraction": {
+        "GET_FLAG": 0.5297832140015911,
+        "GO_HOME": 0.06727326968973747,
+        "GO_TO": 0.34307875894988066,
+        "GUARD": 0.05628480509148767,
+        "OTHER": 0.003579952267303103
+      },
+      "E_advantage_given_bucket": {
+        "GET_FLAG": -3.3026052033588122,
+        "GO_HOME": -1.1921761250997571,
+        "GO_TO": -1.4074829378780787,
+        "GUARD": -4.619241199091689,
+        "OTHER": -3.2921595713899783
+      },
+      "corr_advantage_flag_progress_delta": -0.04300296463133862,
+      "G_signal": {
+        "mean_adv_useful_B": -3.2040468319401145,
+        "mean_adv_idle_retreat_B": -1.9816961216201603,
+        "difference": -1.2223507103199542,
+        "ratio_useful_over_idle": 1.61682045848715,
+        "n_useful_steps": 13068,
+        "n_idle_steps": 4303,
+        "ratio_ci95": {
+          "mean": -2845950236.424035,
+          "lcb95": -3841003013.4424663,
+          "ucb95": -1837455564.96895
+        }
+      }
+    },
+    "A3": {
+      "mean_episode_return": -8.519652982460684,
+      "win_rate_pole_B": 0.5,
+      "n_episodes": 24,
+      "n_agent_steps": 19320,
+      "macro_fraction": {
+        "GET_FLAG": 0.6187370600414078,
+        "GO_HOME": 0.05553830227743271,
+        "GO_TO": 0.3093685300207039,
+        "GUARD": 0.013354037267080746,
+        "OTHER": 0.003002070393374741
+      },
+      "E_advantage_given_bucket": {
+        "GET_FLAG": -2.9881588718219323,
+        "GO_HOME": -1.7524051677664778,
+        "GO_TO": -0.320372913584287,
+        "GUARD": -5.097723889345115,
+        "OTHER": -2.313518104111326
+      },
+      "corr_advantage_flag_progress_delta": -0.04169833058155522,
+      "G_signal": {
+        "mean_adv_useful_B": -2.8719651429638673,
+        "mean_adv_idle_retreat_B": -0.3323681442402526,
+        "difference": -2.5395969987236144,
+        "ratio_useful_over_idle": 8.640915781892335,
+        "n_useful_steps": 12911,
+        "n_idle_steps": 2837,
+        "ratio_ci95": {
+          "mean": -2666309628.6738625,
+          "lcb95": -3793517209.4046793,
+          "ucb95": -1582786520.142387
+        }
+      }
+    }
+  },
+  "G_retention": {
+    "GET_FLAG_mass": {
+      "B_t500k": 0.49088848594741613,
+      "B_final": 0.4106697541859637,
+      "GETFLAG": 0.6843092184853617,
+      "Assignment_v1": 0.5297832140015911
+    }
+  },
+  "advantage_caveats": {
+    "critic": "each policy's own SharedActorCentralizedCritic V(s) with checkpoint return_norm denormalization",
+    "reward": "team step reward from vec env (same scalar broadcast to all agent rows)",
+    "gae": "rl.ppo_core.compute_gae with gamma/gae_lambda from checkpoint cfg when present else 0.99/0.95",
+    "caveat": "centralized scalar advantage per timestep \u2014 identical on all four agent rows; not per-agent counterfactual credit"
+  },
+  "NOT_A_CLAIM": [
+    "claiming specialization recovery or crossover pass from this run",
+    "retuning reward weights or launching any training repair from this script",
+    "using this RESULT to justify Assignment-v2 without a new written experimental question"
+  ]
+}

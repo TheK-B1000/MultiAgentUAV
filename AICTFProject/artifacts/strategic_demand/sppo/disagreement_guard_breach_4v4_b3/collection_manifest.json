@@ -1,0 +1,13 @@
+{
+  "record": "4v4 B3 GUARD/BREACH disagreement dataset",
+  "utc": "2026-09-10T18:48:23Z",
+  "run_id": "dec13d6389d7",
+  "implements": "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json",
+  "seed_base": 16810001,
+  "n_episodes": 64,
+  "n_disagreement_rows": 8614,
+  "npz": "artifacts/strategic_demand/sppo/disagreement_guard_breach_4v4_b3/disagreement_rows.npz",
+  "GUARD": "BLUE_ONE_DEFENDER_V2",
+  "BREACH": "BLUE_BOTH_ATTACK_V2",
+  "pole_b_genome_json": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json"
+}

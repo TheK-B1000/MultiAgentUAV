@@ -1,0 +1,112 @@
+{
+  "record_id": "4V4_B3_SPECIALIZATION_PRESERVING_SPEC",
+  "status": "RETIRED_UNUSED",
+  "RETIRED_BY": "4V4_B3_SPECIALIZATION_PRESERVING_RETIRED_UNUSED.json — PI 2026-09-10 after blue-side capture: do not launch. Seeds 16900001/17000001/17200001-128 never spent; reassigned to role-preservation SPEC.",
+  "HELD_BY": "4V4_B3_SPECIALIZATION_PRESERVING_HOLD.json (historical; hold resolved by FORK_DECISION → RETIRED_UNUSED)",
+  "LAUNCH_GATE_AMENDMENT": "4V4_B3_SPECIALIZATION_PRESERVING_HOLD.json#SPEC_CONTRADICTION_AMENDED -- the original authority line deferred behavior capture as 'not a launch gate'. That clause is SUPERSEDED: blue-side closed-loop capture is now a launch gate. Intervention text below (lambda/JSD/mask/seeds/checkpoint rule) is NOT rewritten. Launch is held until the capture fork is chosen; then either execute exactly as written or RETIRE UNUSED.",
+  "arm": "CONFIRMATORY_LEARNING_SIDE",
+  "confirmatory": true,
+  "utc": "2026-09-10T18:30:00Z",
+  "authority": "PI 2026-09-10: do not touch B3-3; change only one learning axis. Disagreement-masked sibling separation with stop-grad sibling. Matrix→SPEC→train→one-shot sealed crossover. [ORIGINAL, SUPERSEDED FOR LAUNCH-GATE ONLY:] Behavior capture deferred (not a launch gate) under time pressure; sealed + exploratory cells already support homogenization. SEE LAUNCH_GATE_AMENDMENT.",
+
+  "HYPOTHESIS": "Does disagreement-masked sibling separation prevent vanilla PPO's 4v4 cross-regime homogenization while preserving own-regime performance?",
+
+  "FRAMING": "Vanilla PPO optimizes only own-regime return, so cross-regime generalization is unconstrained. At 4v4, both specialists can converge toward a broadly competent policy family. This intervention preserves own-regime PPO while adding a prospectively frozen separation term on matched strategy-disagreement states, discouraging collapse of the two specialist action distributions. It does NOT punish competence itself.",
+
+  "ENVIRONMENT_HELD_FIXED": {
+    "poles": "identical to sealed B3 track",
+    "Pole_A": "pole_A_genome(4) / OP6 + {min_alive_for_defender: 4}",
+    "Pole_B": "B3-3_lockdef10_2v1.json (SDS2_B3_LOCKDEF10_2V1): OP7 + {lock_defender: 10, enable_2v1: true, min_alive_for_defender: 4}",
+    "certification": "STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json CERTIFIED — demand not reopened"
+  },
+
+  "VANILLA_BASELINE_HELD_FIXED": {
+    "pi_A3": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip",
+    "pi_A3_sha256": "011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0",
+    "pi_B3": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip",
+    "pi_B3_sha256": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+    "crossover": "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json FAIL — FROZEN, not pooled, not reopened"
+  },
+
+  "AMENDED_BY": "4V4_B3_SPECIALIZATION_PRESERVING_DIVERGENCE_AMENDMENT.json (divergence: hand-rolled clipped KL -> in-repo bounded JSD; frozen before any training seed was spent)",
+
+  "SINGLE_AXIS_INTERVENTION": {
+    "objective": "L_i = L_PPO,i + lambda * L_sep,i",
+    "L_sep": "SUPERSEDED by DIVERGENCE_AMENDMENT: now -JSD(pi_i(.|o), stopgrad(pi_sib(.|o))) via in-repo jsd_per_head over PPO-identical masked heads, averaged over decision-eligible agent-heads. JSD is bounded by ln 2, so no clip term exists. Original text: mean over disagreement-support states of -KL(pi_i || stopgrad(pi_sib)) with per-head KL clipped at 2.0 nats.",
+    "lambda": 0.05,
+    "cadence": "1 sibling-sep optimizer step per 4 completed PPO actor minibatches (SAPPO-style separate zero_grad/backward/step; never shares backward with PPO)",
+    "sibling_source": "stationary stop-grad opposite-pole VANILLA B3 final: π_A_sep uses π_B3; π_B_sep uses π_A3",
+    "why_vanilla_sibling": "stationary reference; avoids two-policy divergence arms race on rung 1; tests repulsion from the homogenized other-regime solution already observed",
+    "disagreement_mask_m": {
+      "definition": "m(o)=1 iff projected scripted GUARD (BLUE_ONE_DEFENDER_V2) and BREACH (BLUE_BOTH_ATTACK_V2) discrete actions disagree on at least one decision-eligible agent",
+      "projection": "identical to SAPPO demo projection (nearest of _macro_targets waypoint + GO_TO/GO_HOME)",
+      "decision_eligible": "blue_commit_ticks_left <= 0",
+      "operationalization": "offline frozen disagreement dataset — only m=1 states are stored, so L_sep is applied exactly on the prospectively defined support",
+      "dataset_path": "artifacts/strategic_demand/sppo/disagreement_guard_breach_4v4_b3/",
+      "collection_seeds": [16810001, 16810064],
+      "collection_episodes": 64,
+      "poles_for_collection": "32 episodes on Pole A + 32 on Pole B3 (same B3-3 genome), interleaved"
+    },
+    "PPO_backbone": "run_r1_repertoire_training.py::build_r1_config UNCHANGED except sibling-sep attach fields",
+    "budget": "1,000,000 steps, terminal checkpoint only"
+  },
+
+  "CHECKPOINT_RULE": {
+    "rung_1": "TERMINAL final zip after 1M steps — identical selection rule to vanilla B3. No model selection on sealed or dev seeds.",
+    "dev_block_reserved_not_for_selection": [17100001, 17100064],
+    "why": "isolates the L_sep axis; specialization-margin checkpointing is a SEPARATE future rung if this fails"
+  },
+
+  "SEEDS": {
+    "pi_A_sep_4v4": 16900001,
+    "pi_B_sep_4v4": 17000001,
+    "disagreement_collection": [16810001, 16810064],
+    "dev_diagnostic_reserved": [17100001, 17100064],
+    "sealed_crossover": [17200001, 17200128],
+    "disjointness_verified": "grep of 16810001/16900001/17000001/17100001/17200001 against artifacts/ at freeze time: zero hits"
+  },
+
+  "RUN_LABEL_SUFFIX": "_b3_sep",
+
+  "LAUNCH_COMMANDS": {
+    "collect_disagreement": "python experiments/collect_guard_breach_disagreement_4v4.py --team-size 4 --seed-base 16810001 --n-episodes 64 --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json --out-dir artifacts/strategic_demand/sppo/disagreement_guard_breach_4v4_b3 --device cpu",
+    "pi_A_sep": "python experiments/train_specialist_scale.py --team-size 4 --policy A --seed 16900001 --device cuda --run-label-suffix _b3_sep --sibling-sep-lambda 0.05 --sibling-ckpt artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip --sibling-sep-dataset artifacts/strategic_demand/sppo/disagreement_guard_breach_4v4_b3",
+    "pi_B_sep": "python experiments/train_specialist_scale.py --team-size 4 --policy B --seed 17000001 --device cuda --run-label-suffix _b3_sep --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json --sibling-sep-lambda 0.05 --sibling-ckpt artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip --sibling-sep-dataset artifacts/strategic_demand/sppo/disagreement_guard_breach_4v4_b3"
+  },
+
+  "SEALED_CROSSOVER": {
+    "seed_block": [17200001, 17200128],
+    "n": 128,
+    "tool": "experiments/eval_specialist_crossover_scaled.py",
+    "gate": "PASS iff delta_A = V(pi_A_sep,A)-V(pi_B_sep,A) > 0 with LCB95>0 AND delta_B = V(pi_B_sep,B)-V(pi_A_sep,B) > 0 with LCB95>0",
+    "bootstrap": "n_boot=20000, alpha=0.05, rng_seed=7",
+    "label": "CONFIRMATORY_B3_3_4V4_SEP_SPECIALIST_CROSSOVER",
+    "comparator": "vanilla B3 FAIL is context only; this is a fresh one-shot gate on sep specialists"
+  },
+
+  "SEQUENCE": [
+    "1. Freeze this SPEC (done)",
+    "2. Implement sibling-sep attach path + disagreement collector (fail-closed when λ=0 / paths empty)",
+    "3. Collect frozen disagreement dataset on seeds 16810001..64 (CPU OK; may overlap diagnostic)",
+    "4. Wait for exploratory diagnostic GPU to free; do NOT kill sealed diagnostic",
+    "5. Dry-run both launch commands",
+    "6. Train pi_A_sep then pi_B_sep to terminal 1M",
+    "7. One-shot sealed crossover on 17200001..128",
+    "8. If FAIL: next prospectively frozen rung (not λ fishing) — earlier-freeze OR role-conditioned OR specialization-margin checkpointing"
+  ],
+
+  "EXPLICIT_PROHIBITIONS": [
+    "any change to B3-3 / Pole B genome",
+    "enlarging confirmatory n on vanilla B3 specialists",
+    "pooling exploratory diagnostic rows with sealed FAIL",
+    "λ search / reporting-the-winner across λ values",
+    "using sealed crossover seeds 17200001..128 for checkpoint selection or tuning",
+    "distilling sep or vanilla specialists into shared latent before crossover PASS",
+    "reusing vanilla π_A3/π_B3 as the evaluated pair for this gate"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD_UNTIL_DRY_RUN": [
+    "spending training seeds 16900001 / 17000001",
+    "spending sealed crossover seeds 17200001..128"
+  ]
+}

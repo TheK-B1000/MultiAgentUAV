@@ -1,0 +1,127 @@
+{
+  "record_id": "PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_UNREPRESENTABLE_RESULT",
+  "record_type": "SEQUENCED_RESULT",
+  "utc": "2026-09-18T17:45:00Z",
+  "discharges": "PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json#SEQUENCING_LOCK step 5 ('Freeze PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_ADAPTER_FREEZE.json or an UNREPRESENTABLE result')",
+  "reads": "PYQUATICUS_PORT_CONTRACT_RESULT.json",
+  "branch_taken": "UNREPRESENTABLE",
+  "localization_tree_branch": "TRUE_NATIVE_passes_PROJECTED_fails — 'The existing action interface cannot represent at least one required external-controller semantic branch under the frozen candidate set.'",
+
+  "HEADLINE": "G1-G5 native semantics all PASS; G6 projected representability FAILS. But the G6 failure is not one failure. It decomposes into three structurally different modes with different fixes, and one of the three is not a representation problem at all. ATTACK's flag-seeking target is already EXACTLY representable (0.000 cells target error). The genuine vocabulary gap is DEFEND, at 17-18 cells of target error against a 2.5-cell threshold.",
+
+  "PROVENANCE": {
+    "upstream": "github.com/mit-ll-trusted-autonomy/pyquaticus @ 72b50e067ab311929390ecd4e59131452be15c6d, mode=easy, BSD-3-Clause",
+    "all_file_hashes_match": true,
+    "native_gates_G1_G5": "PASS",
+    "projected_gate_G6": "FAIL",
+    "horizon_decision_ticks": 16,
+    "thresholds": {
+      "first_direction_cosine_min": 0.99,
+      "radial_sign_agreement_required": 1.0,
+      "maximum_target_error_cells": 2.5,
+      "trajectory_rmse_cells": 2.5
+    }
+  },
+
+  "MODE_1_GENUINE_VOCABULARY_GAP_DEFEND": {
+    "severity": "PRIMARY — this is the real unrepresentability finding",
+    "cases": {
+      "G3_DEFEND_OUTSIDE": {
+        "branch": "DEFEND_INWARD",
+        "only_candidate": "GO_TO_DEFENDER_SEMANTIC_TARGET",
+        "maximum_target_error_cells": 17.009,
+        "radial_sign_agreement_fraction": 0.562,
+        "first_direction_cosine": 0.9981,
+        "minimum_direction_cosine": -0.9469,
+        "trajectory_rmse_cells": 2.188,
+        "failed_checks": ["radial_sign_matches_every_tick", "max_target_error_at_most_2_5_cells"]
+      },
+      "G4_DEFEND_INSIDE": {
+        "branch": "DEFEND_OUTWARD",
+        "only_candidate": "GO_TO_DEFENDER_SEMANTIC_TARGET",
+        "maximum_target_error_cells": 18.343,
+        "radial_sign_agreement_fraction": 0.625,
+        "first_direction_cosine": 0.9993,
+        "minimum_direction_cosine": -0.9999,
+        "trajectory_rmse_cells": 4.596,
+        "failed_checks": ["radial_sign_matches_every_tick", "max_target_error_at_most_2_5_cells", "trajectory_rmse_at_most_2_5_cells"]
+      }
+    },
+    "reading": "Target error of 17-18 cells against a 2.5-cell threshold is roughly 7x over, not a marginal miss. Both DEFEND branches had exactly ONE candidate proposed, and it is a waypoint substitution rather than a semantic macro, because the current five-macro vocabulary contains no word for the defender's semantic target. This is the one place where the phrase 'the interface cannot represent this' is literally true.",
+    "horizon_caveat": "G3's trajectory RMSE (2.188) actually PASSES within the 16-tick horizon even while its target is 17 cells wrong, because the defender does not travel far in 16 ticks. The 16-tick horizon therefore UNDERSTATES how badly DEFEND diverges. A longer horizon would make this mode look worse, not better.",
+    "convergence_with_independent_evidence": "This is the action-side counterpart of an already-recorded observation-side finding: the scripted GUARD teacher's multi-defender assignment machinery is dead code at N=2, activates at N>=4, and requires information the student observation cannot supply (docs/SCRIPTED_CONTROLLER_AUDIT_GUARD_BREACH.md). DEFEND is now independently shown to be broken on BOTH sides — the agent cannot see what it needs to decide, and cannot say what it decides. Two separate lines of evidence, same role."
+  },
+
+  "MODE_2_NOT_A_REPRESENTATION_PROBLEM_ATTACK": {
+    "severity": "RECLASSIFY — should not be counted as unrepresentability",
+    "case": "G1_ATTACK_NO_CARRIER",
+    "candidate": "GET_FLAG",
+    "maximum_target_error_cells": 0.0,
+    "mean_target_error_cells": 0.0,
+    "first_direction_cosine": 1.0,
+    "minimum_direction_cosine": 1.0,
+    "radial_sign_agreement_fraction": 1.0,
+    "trajectory_rmse_cells": 3.553,
+    "maximum_position_error_cells": 5.237,
+    "failed_checks": ["trajectory_rmse_at_most_2_5_cells"],
+    "reading": "The GET_FLAG macro names the true ATTACK target EXACTLY — zero target error, perfect directional cosine at every tick, perfect radial sign agreement. The only failing check is trajectory RMSE. That is a body-dynamics disagreement between two simulators integrating motion differently, not evidence that the action vocabulary lacks a word for 'attack the enemy flag'. Designing a new action representation for ATTACK-to-flag would be solving a problem this evidence says we do not have.",
+    "implication": "The 'smallest sufficient action representation' question should largely EXCLUDE the attack-to-flag branch. It is already sufficient."
+  },
+
+  "MODE_3_STRUCTURAL_GATING_NOT_VOCABULARY": {
+    "severity": "RECLASSIFY — a precondition problem, not a naming problem",
+    "case": "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER",
+    "candidate": "GO_HOME_NONCARRIER",
+    "maximum_target_error_cells": 0.0,
+    "first_direction_cosine": 1.0,
+    "minimum_direction_cosine": 1.0,
+    "radial_sign_agreement_fraction": 1.0,
+    "trajectory_rmse_cells": 1.313,
+    "failed_checks": ["structurally_satisfiable"],
+    "reading": "Every behavioral metric passes — exact target, perfect direction, and a trajectory RMSE of 1.313 that is comfortably inside the 2.5 threshold. The sole failure is that a non-carrying agent cannot legally select GO_HOME under the current macro preconditions. The action would produce exactly the right behavior if it could be chosen. That is a gating fix, not a vocabulary fix, and it is far cheaper than either of the other two modes.",
+    "contrast": "The SAME semantic branch PASSES completely when the agent IS the carrier (G2_ATTACK_SELF_CARRIER, both candidates, trajectory RMSE 0.368). The difference between pass and fail here is purely the carrier precondition."
+  },
+
+  "CROSS_CUTTING_WAYPOINT_PATHOLOGY": {
+    "finding": "Every GO_TO_*_WAYPOINT candidate in the entire G6 suite exhibits direction reversal.",
+    "evidence": {
+      "GO_TO_ENEMY_FLAG_WAYPOINT": {"minimum_direction_cosine": -0.9689, "radial_sign_agreement": 0.750},
+      "GO_TO_HOME_WAYPOINT_NONCARRIER": {"minimum_direction_cosine": -0.8887, "radial_sign_agreement": 0.438, "first_direction_cosine": 0.9889},
+      "G3_GO_TO_DEFENDER_SEMANTIC_TARGET": {"minimum_direction_cosine": -0.9469, "radial_sign_agreement": 0.562},
+      "G4_GO_TO_DEFENDER_SEMANTIC_TARGET": {"minimum_direction_cosine": -0.9999, "radial_sign_agreement": 0.625}
+    },
+    "reading": "A minimum direction cosine near -1.0 means that at some tick the projected action points almost exactly OPPOSITE the true intent. Radial sign agreement of 0.44-0.75 means the projection moves the agent the wrong way radially between a quarter and a half of the time. The waypoint pathway does not merely approximate the intent, it periodically inverts it.",
+    "why_this_matters_now": "C_spatial was just declared unreadable from the scale diagnostic because the two emitters disagreed on the E_v baseline (see ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_READING.json). This G6 evidence reaches the same conclusion about waypoint projection by a completely independent route, and is EPISTEMICALLY STRONGER: the true target here is known exactly by construction rather than inferred from a contested baseline. The spatial pathology is real even though our estimate of its E_v magnitude is not currently readable."
+  },
+
+  "WHAT_PASSES_AND_WHY": {
+    "G2_ATTACK_SELF_CARRIER": "both candidates pass; trajectory RMSE 0.368, exact target",
+    "G5_TAGGED": "passes trivially — the upstream override bypasses the action interface entirely (all metrics exactly 0.0)",
+    "G5_DEAD_LOCAL_ADAPTATION": "passes trivially for the same reason",
+    "caution": "The two G5 passes carry no information about interface adequacy. They pass BECAUSE the interface is not consulted. They must not be cited as evidence that the interface is partly sufficient."
+  },
+
+  "GATE_DESIGN_OBSERVATION": {
+    "observation": "G6 currently collapses four distinct properties into one pass/fail: target representability, directional fidelity, radial sign agreement, and trajectory fidelity. The three modes above are only visible because the per-check breakdown was retained.",
+    "consequence": "A single G6 boolean would have reported 'the action interface cannot represent Pyquaticus semantics', which is materially misleading: it would have licensed redesigning ATTACK, which the same data shows is already exact.",
+    "proposed_direction": "A successor gate should SPLIT these into separately-reported sub-gates rather than relax any of them. This is a strictly stricter and more informative structure, not a loosening. Explicitly: the 2.5-cell trajectory-RMSE threshold should NOT be relaxed to make Mode 2 pass. The honest resolution is to stop calling a cross-simulator dynamics disagreement a representability failure, while continuing to report it as its own measured quantity.",
+    "standing_rule_invoked": "Diagnose the reference before touching a threshold. Every prior instance in this project where a failing assertion was examined honestly ended with a stricter test, not a looser one."
+  },
+
+  "SHARPENED_SUCCESSOR_QUESTION": {
+    "as_originally_posed": "What is the smallest action representation needed to faithfully execute the already-frozen Pyquaticus ATTACK/DEFEND semantics?",
+    "as_the_evidence_reshapes_it": "What is the smallest addition to the action vocabulary that makes the DEFEND semantic target representable, given that (a) ATTACK-to-flag is already exact, (b) the carrier-home branch needs a precondition change rather than a new word, and (c) the waypoint pathway actively inverts intent and should not be the substrate for the new primitive?",
+    "why_this_is_narrower": "Three of the six G6 cases need no new representation at all. Scoping the successor spec to DEFEND plus one precondition fix is both cheaper and more likely to produce an interpretable result than a general interface redesign.",
+    "status": "PROPOSED, NOT FROZEN — requires PI approval before any successor spec is written"
+  },
+
+  "WHAT_IS_NOW_AUTHORIZED": {
+    "team_evaluation": "REMAINS BLOCKED. PYQUATICUS_PORT_CONTRACT_RESULT.json status is FAIL_TEAM_EVALUATION_BLOCKED and this record does not unblock it. Per SEQUENCING_LOCK, team evaluation requires a passing projection gate first.",
+    "training": "NOT AUTHORIZED",
+    "GPU": "NOT AUTHORIZED",
+    "new_seed_allocation": "NOT AUTHORIZED",
+    "authorized": "Nothing new. This record discharges a frozen sequencing obligation and states the decomposition. The successor spec is proposed, not frozen."
+  },
+
+  "authorizes": "nothing"
+}

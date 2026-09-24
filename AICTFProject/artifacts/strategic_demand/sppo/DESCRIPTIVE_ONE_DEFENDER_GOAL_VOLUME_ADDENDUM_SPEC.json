@@ -1,0 +1,53 @@
+{
+  "record_id": "DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM_SPEC",
+  "status": "FROZEN_BEFORE_COMPUTATION",
+  "utc": "2026-09-21T00:00:00Z",
+  "reads": "DEFENDER_INJECTION_CAUSAL_BRIDGE_ROWS.csv (the sealed causal rows, unchanged)",
+  "classification": "DESCRIPTIVE ADDENDUM. NON-GATING. NO PASS/FAIL. NO TERMINAL LABEL. Does not replace, re-score, or amend the sealed win-rate verdict (ONE_DEFENDER_HARM_ONLY), which remains correct under its frozen binary-win criterion.",
+  "confirmatory": false,
+
+  "authorized_by": "PI direction 2026-09-21: run a tiny goal-volume addendum on the sealed rows. Predeclare only the paired Blue-goal difference and the paired margin difference, all four policy x pole cells, the same 96 paired seeds, no new simulation; report native and +1D means beside the intervals so magnitudes are interpretable; no gate, no new terminal label, no replacement of the sealed verdict.",
+
+  "POST_HOC_MOTIVATION_DISCLOSED": {
+    "statement": "This addendum exists because the exploratory failure-localization pass exposed two things about the sealed causal result: (1) Pole B was saturated natively (pi_A won 96/96, pi_B 95/96), so it had almost no room to show a benefit; (2) on Pole A the mean Blue score appeared to rise under +1D (pi_A 1.20 -> 1.97, pi_B 1.04 -> 1.97) while win rate stayed flat, because the frozen binary win endpoint stops registering once Blue has scored a single goal. The motivation is therefore post-hoc, and is labelled as such.",
+    "what_was_already_seen_before_this_freeze": "The localization output displayed, for each of the four cells, the per-arm MEAN Blue score, MEAN Red score, mean episode length, and the count of episodes that ran the full 240 ticks. So the direction and rough size of the Blue-goal point difference was known. What had NOT been computed before this freeze: any paired bootstrap interval for the Blue-goal difference, and the margin endpoint at all."
+  },
+
+  "SOURCE": {
+    "rows": "DEFENDER_INJECTION_CAUSAL_BRIDGE_ROWS.csv, columns policy, pole, arm, seed, defender_id, steps, blue, red, win, margin. No simulation of any kind is run by this addendum.",
+    "bound_to_the_sealed_record_by": "sha256 of the rows file must equal AUDIT.rows_sha256 in DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json, and that result's status must be SEALED. Any mismatch aborts before anything is reported."
+  },
+
+  "ENDPOINTS_FROZEN": {
+    "cells": "pi_A and pi_B x Pole A and Pole B = 4 cells; the same 96 paired seeds (20900001-20900096) in every cell and both arms.",
+    "delta_G": "Delta G = G_Blue(+1D) - G_Blue(native), per seed: (blue goals in the +1D episode) - (blue goals in the native episode at the same seed); then averaged over the 96 seeds.",
+    "delta_M": "Delta M = (B - R)(+1D) - (B - R)(native), per seed, using each episode's final score margin; then averaged over the 96 seeds. Margin is verified to equal blue - red on every row before use.",
+    "statistics": "paired bootstrap 95% interval over seeds, the same routine and settings as every other record in this line (experiments.run_routed_composition_outcome._bootstrap: 20000 resamples, alpha 0.05, rng seed 7).",
+    "also_reported": "the native mean and the +1D mean of Blue goals and of margin for each cell, so the magnitude of each difference is interpretable."
+  },
+
+  "MEASUREMENT_STRUCTURE_DISCLOSED": {
+    "goals_are_capped": "The environment ends an episode when either team reaches the score limit (3), so Blue goals per episode lie in {0,1,2,3} and margin in [-3, 3]. A cell whose native mean is already near 3 has little room to rise; a 240-tick timeout with fewer than 3 goals is the other way an episode ends.",
+    "episode_length_is_not_held_fixed": "Episodes end early when a team reaches the cap, so arms can differ in length. Goals per EPISODE is what is compared, as the sealed win endpoint also compared per episode; this is not a per-tick rate.",
+    "no_defender_slot_adjustment": "Goals are team totals; nothing is attributed to or excluded for the overridden agent."
+  },
+
+  "INTERPRETATION_RULE_FROZEN": {
+    "rule": "Report each cell's two paired differences with their intervals, and the native and +1D means. Nothing further is computed: no resolved/unresolved flag, no threshold, no cell ranking, no composite, no terminal label.",
+    "what_a_result_can_say": "Whether Blue goal production and score margin differ between the arms on the same paired seeds, and by how much, in each of the four cells.",
+    "what_it_cannot_say": [
+      "that +1D raises the probability of winning (the sealed win-rate endpoint is the endpoint for that, and it stands as sealed)",
+      "that the sealed verdict should change",
+      "why goal volume differs (mechanism needs a targeted intervention; the localization pass is descriptive only)",
+      "anything about a confirmatory claim: this is post-hoc and exploratory"
+    ]
+  },
+
+  "NOT_AUTHORIZED": [
+    "any new simulation or seed",
+    "any pass/fail gate or terminal label based on the result",
+    "replacing or re-scoring the sealed ONE_DEFENDER_HARM_ONLY verdict",
+    "adding endpoints after seeing the result (the two above are the whole addendum)",
+    "editing or amending any sealed artifact or prior commit; the correction trail is a later record, not a rewrite"
+  ]
+}

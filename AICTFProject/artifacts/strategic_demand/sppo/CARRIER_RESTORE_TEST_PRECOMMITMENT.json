@@ -1,0 +1,37 @@
+{
+  "record_id": "CARRIER_RESTORE_TEST_PRECOMMITMENT",
+  "status": "FROZEN_BEFORE_RESULT",
+  "utc": "2026-09-13T05:15:00Z",
+  "gates": "CARRIER_RESTORE_TEST launched 2026-09-13T04:57Z; this precommitment written while the run is in progress and BEFORE any cell result was read. Row count at time of writing: 9/288, no delta_A computable.",
+  "primary_quantity": "delta_A = V(GUARD@A) - V(BREACH@A), computed PER ARM. NOT whether CARRIER_RESTORED improves win rate.",
+  "why_contrast_not_value": "The h=1 repair already showed an arm can raise absolute value (BREACH@A 0.292 -> 0.750) while destroying the contrast (delta_A 0.417 -> 0.000). Value alone is not the target; specialization is.",
+  "PRECOMMITTED_INTERPRETATION": [
+    {
+      "outcome": "4v4 PROJECTED flat but CARRIER_RESTORED recovers positive delta_A, while 2v2 changes little",
+      "reading": "carrier representation is a genuine SCALE-SPECIFIC action-side binder",
+      "next": "repair carrier representation in the student action interface, then re-test 4v4"
+    },
+    {
+      "outcome": "both 2v2 and 4v4 improve similarly",
+      "reading": "carrier evasion is generally useful but does NOT explain the 2->4 break by itself",
+      "next": "keep as a general improvement; return to the observation/assignment side for the scaling explanation"
+    },
+    {
+      "outcome": "BREACH moves strongly but delta_A stays flat",
+      "reading": "carrier behaviour affects VALUE but is not sufficient to restore SPECIALIZATION",
+      "next": "carrier axis demoted from binder to contributor; look for a further unmodeled action divergence or move to observation side"
+    },
+    {
+      "outcome": "CARRIER_RESTORED does little",
+      "reading": "hypothesis DEMOTED",
+      "next": "return to the observation/assignment side (TEST_0 defect) or search for another unmodeled action divergence"
+    }
+  ],
+  "anchor_status": "all passed pre-launch: (1) non-carrier bit-identical to PROJECTED; (2) carrier-at-home unchanged; (3) carrier-with-evasive-target PRESERVED, with the EXECUTED position verified to be the evasive point and verified NOT to be home. Anchor 3 is the decisive one: it proves the intervention touches runtime behaviour, not just an intermediate tensor.",
+  "what_this_cannot_claim": [
+    "anything about PPO learnability -- no policy is trained",
+    "that the observation/assignment defect proved by TEST_0 is resolved; it is untouched",
+    "a confirmatory or sealed status; this is a mechanistic diagnostic"
+  ],
+  "hypothesis_status_at_freeze": "CANDIDATE, NOT ESTABLISHED"
+}

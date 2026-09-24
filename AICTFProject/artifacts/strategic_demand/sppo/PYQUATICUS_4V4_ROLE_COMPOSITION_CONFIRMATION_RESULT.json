@@ -1,0 +1,203 @@
+{
+  "record_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT",
+  "status": "COMPLETE",
+  "utc": "2026-09-18T19:40:31Z",
+  "implements": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json",
+  "spec_sha256": "ad877d1332329e40de9aabfd1ca5ba9080bea3cae212f29112543b44e6f75efe",
+  "preflight_sha256": "a390d592ca1c57db1b1391ad3117cd7c1bc4b3a733ba92822b5bc6a5f74bc04b",
+  "n_rows": 256,
+  "summaries": {
+    "A/4A_0D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.4375,
+        "lcb95": 0.3125,
+        "ucb95": 0.5625,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.5,
+        "lcb95": 0.3125,
+        "ucb95": 0.6875,
+        "n": 64
+      },
+      "draw_rate": 0.546875,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 0.0,
+      "mean_defend_outward_count": 0.0
+    },
+    "A/2A_2D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.75,
+        "lcb95": 0.640625,
+        "ucb95": 0.859375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 1.421875,
+        "lcb95": 1.109375,
+        "ucb95": 1.75,
+        "n": 64
+      },
+      "draw_rate": 0.203125,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 281.09375,
+      "mean_defend_outward_count": 198.90625
+    },
+    "B/4A_0D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.796875,
+        "lcb95": 0.6875,
+        "ucb95": 0.890625,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 2.78125,
+        "lcb95": 2.265625,
+        "ucb95": 3.3125,
+        "n": 64
+      },
+      "draw_rate": 0.203125,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 0.0,
+      "mean_defend_outward_count": 0.0
+    },
+    "B/2A_2D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.109375,
+        "lcb95": 0.046875,
+        "ucb95": 0.1875,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.53125,
+        "lcb95": -0.765625,
+        "ucb95": -0.3125,
+        "n": 64
+      },
+      "draw_rate": 0.40625,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 202.59375,
+      "mean_defend_outward_count": 277.40625
+    }
+  },
+  "delta_by_pole": {
+    "A": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": -0.3125,
+        "lcb95": -0.46875,
+        "ucb95": -0.140625,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.921875,
+        "lcb95": -1.28125,
+        "ucb95": -0.5625,
+        "n": 64
+      }
+    },
+    "B": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.6875,
+        "lcb95": 0.5625,
+        "ucb95": 0.8125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 3.3125,
+        "lcb95": 2.765625,
+        "ucb95": 3.875,
+        "n": 64
+      }
+    }
+  },
+  "interaction": {
+    "definition": "Delta_B - Delta_A",
+    "paired_seed_values": [
+      2,
+      1,
+      2,
+      2,
+      0,
+      1,
+      1,
+      2,
+      0,
+      1,
+      0,
+      0,
+      1,
+      1,
+      1,
+      0,
+      1,
+      2,
+      0,
+      1,
+      2,
+      0,
+      2,
+      1,
+      0,
+      2,
+      0,
+      2,
+      2,
+      2,
+      2,
+      1,
+      0,
+      0,
+      1,
+      2,
+      0,
+      0,
+      1,
+      2,
+      1,
+      2,
+      2,
+      0,
+      1,
+      2,
+      0,
+      0,
+      2,
+      2,
+      0,
+      -1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      2,
+      1,
+      2,
+      0,
+      1,
+      0,
+      1
+    ],
+    "blue_win_rate": {
+      "mean": 1.0,
+      "lcb95": 0.796875,
+      "ucb95": 1.203125,
+      "n": 64
+    }
+  },
+  "decision_gate_details": {
+    "interaction_lcb95_gt_zero": true,
+    "delta_B_lcb95_gt_zero": true,
+    "delta_A_ucb95_ge_zero": false
+  },
+  "decision_label": "B_COMPOSITION_EFFECT_ONLY",
+  "claim_boundary": "This is a targeted descriptive confirmation of a scripted role-composition signal in this project's 4v4 CTF dynamics. It does not reproduce native Pyquaticus performance, establish learned roles, identify a causal PPO repair, authorize PPO, or authorize 6v6.",
+  "six_v_six": "NOT_RUN",
+  "ppo": "OFF"
+}

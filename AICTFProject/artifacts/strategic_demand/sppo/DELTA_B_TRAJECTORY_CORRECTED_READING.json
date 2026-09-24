@@ -1,0 +1,80 @@
+{
+  "record_id": "DELTA_B_TRAJECTORY_CORRECTED_READING",
+  "status": "READING_FROZEN",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-15T13:15:00Z",
+  "rests_on": "DELTA_B_TRAJECTORY_CORRECTED_RESULT.json (all 6 contracts + Rule 14 live attestation passed; replication gate COMPATIBLE: fresh delta_B(final)=-0.109 vs corrected-crossover -0.156, both well inside [-0.40,+0.05])",
+  "governed_by": "DELTA_B_TRAJECTORY_CORRECTED_SPEC.json#PRECOMMITTED_DECISION_TREE",
+
+  "HEADLINE": "PEAK_THEN_DECLINE fires, confirmed. Corrected pi_B3 DID acquire the Pole-B specialization -- decisively, at t=100k -- and then lost it over the remaining 900k steps of training. This is not 'B cannot learn the regime'; it is 'B learned it and then something eroded it'.",
+
+  "THE_FULL_CURVE": {
+    "t0_warmstart": {"mean": 0.0156, "lcb95": -0.1094, "ucb95": 0.1406},
+    "t100k":  {"mean": 0.1719, "lcb95": 0.0625, "ucb95": 0.2813, "note": "PASSES mean>0 AND LCB95>0 in isolation -- a genuinely significant positive delta_B"},
+    "t200k":  {"mean": 0.0,     "lcb95": -0.1406, "ucb95": 0.1406},
+    "t300k":  {"mean": -0.0938, "lcb95": -0.25,   "ucb95": 0.0625},
+    "t400k":  {"mean": -0.0625, "lcb95": -0.2031, "ucb95": 0.0781},
+    "t500k":  {"mean": 0.0625,  "lcb95": -0.0938, "ucb95": 0.2188},
+    "t600k":  {"mean": 0.0,     "lcb95": -0.1406, "ucb95": 0.1563},
+    "t700k":  {"mean": -0.1094, "lcb95": -0.2656, "ucb95": 0.0625},
+    "t800k":  {"mean": -0.2344, "lcb95": -0.4063, "ucb95": -0.0625, "note": "confirmed negative (UCB95<0) -- the trough"},
+    "t900k":  {"mean": -0.1719, "lcb95": -0.3125, "ucb95": -0.0313, "note": "confirmed negative"},
+    "tfinal": {"mean": -0.1094, "lcb95": -0.2656, "ucb95": 0.0469}
+  },
+
+  "PRIMARY_ESTIMATES": {
+    "slope": {"mean": -0.2809, "lcb95": -0.4143, "ucb95": -0.1513, "units": "delta_B per 1M steps",
+             "reading": "a statistically confirmed OVERALL DECLINE (entire interval negative) across the ten post-warm-start points, but this is a straight-line fit through a genuinely wobbly curve -- not a claim that erosion is monotone or steady."},
+    "peak_minus_final": {"peak": "t100k", "mean": 0.2813, "lcb95": 0.1406, "ucb95": 0.4219,
+                         "reading": "CONFIRMED: t100k beats the final checkpoint by a wide, entirely-positive margin. This is the estimand that fires PEAK_THEN_DECLINE."},
+    "endpoint_final_minus_100k": {"mean": -0.2813, "lcb95": -0.4219, "ucb95": -0.1406,
+                                  "reading": "the mirror image of peak_minus_final, reported for transparency -- same finding stated the other direction."}
+  },
+
+  "BRANCH_FIRED": {
+    "branch": "PEAK_THEN_DECLINE",
+    "condition_check": "argmax over interior points = t100k, which is < tfinal (0.1M < 1.001M): TRUE. LCB95(delta_B(t100k) - delta_B(tfinal)) = +0.1406 > 0: TRUE. Both conditions met.",
+    "precedence_note": "this branch takes precedence over STUCK by the spec's own precedence rule. The slope IS negative enough that STUCK's raw condition (UCB95(slope)<=0) is also technically satisfied, but STUCK's prescribed action -- move to a B-specific coordination/mechanism repair -- would be the WRONG call here: the mechanism demonstrably worked at t100k. Acting on STUCK instead of PEAK_THEN_DECLINE would have wasted the finding.",
+    "reading": "a better Pole-B specialist already exists among the nine checkpoints already paid for. The failure is late-training erosion, not an inability to learn the regime.",
+    "NOT_the_finding": "this is NOT evidence that Pole B needs a different coordination mechanism, an assignment signal, or a representation change. The current architecture and recipe DID produce the specialization -- briefly."
+  },
+
+  "SELECTION_BIAS_RULE_now_actively_binding": {
+    "text_from_spec": "NO checkpoint selected here may be claimed to make 4v4 pass, however good it looks. Any candidate MUST be re-evaluated under the full joint crossover on a FRESH CONFIRMATORY block, against BOTH poles, before any pass/fail claim.",
+    "why_this_matters_concretely_here": "t100k was identified as the best of 11 evaluated points. Even though it independently clears LCB95>0, that clearance is partly a product of having looked at 11 candidates and picked the winner -- the true effect size at t100k is likely somewhat smaller than the naive +0.172 point estimate. The number that will actually decide whether t100k is real is a FRESH bootstrap on FRESH seeds, not this one.",
+    "what_must_happen_before_any_pass_claim": "a full joint crossover (pi_A3 vs pi_B3@t100k, BOTH Pole A and Pole B, both deltas) on a fresh confirmatory seed block, exactly the protocol the sealed and corrected crossovers already used."
+  },
+
+  "CONSISTENCY_CHECK_t0_across_two_independent_seed_blocks": {
+    "this_run_seeds_18400001_18400064": {"mean": 0.0156, "lcb95": -0.1094, "ucb95": 0.1406},
+    "prior_run_seeds_18100001_18100064": {"mean": 0.03125, "lcb95": -0.09375, "ucb95": 0.15625},
+    "reading": "both intervals overlap almost completely. These are two independent draws of the identical construct (same t0 checkpoint, same frozen pi_A3, same attested Pole B) on disjoint seed blocks -- ordinary sampling variation, not a discrepancy. This is a free consistency check, not a requirement of the frozen spec, and it passes."
+  },
+
+  "WHAT_THE_SHAPE_SUGGESTS_stated_as_hypothesis_not_finding": {
+    "observation": "the curve is not a clean monotone decline. It has a sharp early peak (t100k), returns to near-zero by t200k, wanders through several noisy points (t300k-t700k, none individually significant), drops to a confirmed trough at t800k-t900k, then partially recovers by tfinal.",
+    "candidate_mechanisms_not_yet_distinguished": [
+      "catastrophic forgetting / policy drift: PPO continuing to optimize the shared reward objective erodes an early, narrow behavioral solution that happened to specialize, without any pressure to preserve it",
+      "an unstable specialization equilibrium: the specialized behavior is not a fixed point of the training dynamics -- the policy can pass through it but reward gradients pull it elsewhere",
+      "reward-shaping pressure unrelated to specialization pulling the policy toward a different, more generically-rewarded behavior that happens to be weaker specifically against Pole B"
+    ],
+    "this_reading_does_not_adjudicate_between_them": "distinguishing these requires behavioral inspection (what does t100k's policy actually do differently from tfinal's on Pole B?), not another aggregate win-rate measurement."
+  },
+
+  "PRECOMMITTED_NEXT_STEPS_in_order": [
+    "1. CONFIRMATORY VALIDATION of t100k: full joint crossover (pi_A3 vs pi_B3@t100k, both poles) on a fresh confirmatory seed block. This is required before t100k may be treated as anything more than a promising exploratory signal, per the selection-bias rule above.",
+    "2. IF t100k's joint gate passes: this becomes the candidate checkpoint. The research question shifts to WHY continued training erodes it -- a tractable, well-precedented class of problem (entropy floor, LR schedule, early stopping, KL-anchoring to the peak) rather than a representation or coordination redesign.",
+    "3. IF t100k's joint gate does NOT pass on fresh seeds: the peak was itself partly a seed-block artifact inflated by selection, and the investigation returns to the STUCK reading -- but only then, not before."
+  ],
+
+  "WHAT_THIS_READING_MAY_NOT_BE_USED_TO_CLAIM": [
+    "that t100k makes 4v4 pass -- not yet validated on fresh seeds against both poles",
+    "that continued training is definitively harmful in general -- only that it eroded THIS particular early solution",
+    "a mechanism for the erosion -- three candidates are named, none distinguished",
+    "anything about Pole A or about 6v6/2v2",
+    "any confirmatory status for this run itself -- exploratory seeds, n=64, diagnostic arm"
+  ],
+
+  "NOT_YET_AUTHORIZED": "the confirmatory validation of t100k (step 1 above) requires a fresh confirmatory seed block and is not yet authorized."
+}

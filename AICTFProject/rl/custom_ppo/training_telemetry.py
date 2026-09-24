@@ -725,9 +725,11 @@ class TrainingTelemetry:
         Composes three independent diagnostic prints, each gated on its own
         condition:
 
-        * The big ``[PPO|diag]`` line (+ optional ``[Switch Near]``
-          follow-up for latent runs) — only when ``row`` is non-empty,
-          i.e. when ``write_update_metrics`` actually wrote a row.
+        * The big ``[PPO|diag]`` line — always when ``row`` is non-empty.
+          Latent / ``q_phi`` / ``z_*`` fields append only when
+          ``hparams.use_latent_strategy`` (plus optional ``[Switch Near]`` /
+          ``[Z Slices]`` follow-ups for those runs). Non-latent specialist
+          jobs print the core ``ev`` / ``v_loss`` / ``shape/out`` fields only.
         * ``[PPO|return_norm]`` — when ``hparams.normalize_returns``.
         * ``[PPO|custom]`` verbose line — when ``cfg.verbose_training``.
 
@@ -738,19 +740,30 @@ class TrainingTelemetry:
         runtime = self.runtime
         hparams = self.hparams
         if row:
-            z_wr_parts: list[str] = []
-            z_occ_parts: list[str] = []
-            if hparams.use_latent_strategy:
+            # Core PPO line always. Latent / q_phi fields only when the run
+            # actually uses a latent strategy -- otherwise they are structural
+            # zeros that look like collapse on specialist / non-latent jobs.
+            core = (
+                f"[PPO|diag] steps={runtime.global_step} "
+                f"ev={row['explained_variance']:.3f} "
+                f"v_loss={row['value_loss']:.3f} "
+                f"shape/out={row['reward_shaping_mean']:.3f}/{row['reward_outcome_mean']:.3f}"
+            )
+            episode_credit_on = bool(getattr(self.cfg, "latent_episode_strategy_ppo", False))
+            arc_credit_on = bool(getattr(self.cfg, "latent_arc_credit_enabled", False))
+            if not hparams.use_latent_strategy:
+                print(core)
+            else:
+                z_wr_parts: list[str] = []
+                z_occ_parts: list[str] = []
                 for i in range(hparams.latent_k):
                     wr = row.get(f"episode_z_{i}_win_rate", "")
                     occ = row.get(f"strategy_occupancy_{i}", "")
                     z_wr_parts.append("-" if wr == "" else f"{float(wr):.3f}")
                     z_occ_parts.append("-" if occ == "" else f"{float(occ):.3f}")
-            z_entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
-            z_entropy_frac = float(row.get("strategy_entropy_frac", 0.0) or 0.0)
-            z_wr_spread = float(row.get("strategy_wr_spread", 0.0) or 0.0)
-            opp_suffix = ""
-            if hparams.use_latent_strategy:
+                z_entropy = float(row.get("strategy_entropy", 0.0) or 0.0)
+                z_entropy_frac = float(row.get("strategy_entropy_frac", 0.0) or 0.0)
+                z_wr_spread = float(row.get("strategy_wr_spread", 0.0) or 0.0)
                 mi_z_o = float(row.get("latent_mi_z_opponent_nats", 0.0) or 0.0)
                 mi_z_p = float(row.get("latent_mi_z_phase_nats", 0.0) or 0.0)
                 mi_z_y = float(row.get("latent_mi_z_outcome_nats", 0.0) or 0.0)
@@ -777,84 +790,79 @@ class TrainingTelemetry:
                     f"MI_z_flag={mi_z_f:.4f} MI_z_outcome={mi_z_y:.4f} | "
                     + " ".join(opp_diag_bits)
                 )
-            # Active q_phi credit path selection for the printed diag line.
-            #
-            # There are THREE mutually-relevant code paths that can deliver
-            # gradient to q_phi, and only one is "live" for any given
-            # preset. Picking the wrong one for the print makes the diag
-            # line print structural zeros and looks like q_phi is dead
-            # when it is actually learning:
-            #
-            #   * Per-step strategy-PPO (legacy v1/v2): active when
-            #     ``latent_strategy_ppo_coef > 0``. Writes
-            #     ``strategy_grad_norm`` / ``strategy_policy_loss`` /
-            #     ``strategy_ratio_std`` into the CSV.
-            #
-            #   * Episode-credit PPO (v3 episode_credit family): active
-            #     when ``latent_episode_strategy_ppo=True``. Writes
-            #     ``episode_credit_grad_norm`` /
-            #     ``latent_episode_pg_loss`` /
-            #     ``latent_episode_ratio_std``.
-            #
-            #   * Arc-credit PPO (v3i19+ / v4i1 / v4i3): active when
-            #     ``latent_arc_credit_enabled=True``. The router-only
-            #     grad (excluding the V(s,z) baseline head) lives at
-            #     ``q_phi_strategy_encoder_grad_norm`` -- this is the
-            #     "is z being trained?" signal. The combined
-            #     ``q_phi_grad_norm`` is dominated by the baseline value
-            #     head early in training and is NOT a good router gauge.
-            #     Policy loss / clip stats live at
-            #     ``latent_arc_policy_loss`` / ``latent_arc_clipfrac``.
-            #
-            # Priority for the print: episode_credit > arc_credit >
-            # per-step strategy_ppo. If multiple were on at once (no
-            # current preset does this) the print picks the highest-
-            # priority one; the CSV always has every field.
-            episode_credit_on = bool(getattr(self.cfg, "latent_episode_strategy_ppo", False))
-            arc_credit_on = bool(getattr(self.cfg, "latent_arc_credit_enabled", False))
-            if episode_credit_on:
-                qphi_field_label = "qphi_grad_main"
-                z_activity_field_label = "z_ratio"
-                qphi_grad_val = float(row.get("episode_credit_grad_norm", 0.0) or 0.0)
-                z_pi_val = float(row.get("latent_episode_pg_loss", 0.0) or 0.0)
-                z_activity_val = float(row.get("latent_episode_ratio_std", 0.0) or 0.0)
-            elif arc_credit_on:
-                # Router-only grad -- the value-head portion is the baseline,
-                # not the routing policy, so combining them masks router
-                # starvation behind a noisy baseline loss.
-                qphi_field_label = "qphi_grad_arc_router"
-                # Arc-credit does not store a ratio_std; clip fraction is
-                # the PPO-activity gauge that is actually written for this
-                # path, and we relabel so the printed name matches the
-                # printed value's semantics (clip fraction != ratio std).
-                z_activity_field_label = "z_clipfrac"
-                qphi_grad_val = float(
-                    row.get("q_phi_strategy_encoder_grad_norm", 0.0) or 0.0
+                # Active q_phi credit path selection for the printed diag line.
+                #
+                # There are THREE mutually-relevant code paths that can deliver
+                # gradient to q_phi, and only one is "live" for any given
+                # preset. Picking the wrong one for the print makes the diag
+                # line print structural zeros and looks like q_phi is dead
+                # when it is actually learning:
+                #
+                #   * Per-step strategy-PPO (legacy v1/v2): active when
+                #     ``latent_strategy_ppo_coef > 0``. Writes
+                #     ``strategy_grad_norm`` / ``strategy_policy_loss`` /
+                #     ``strategy_ratio_std`` into the CSV.
+                #
+                #   * Episode-credit PPO (v3 episode_credit family): active
+                #     when ``latent_episode_strategy_ppo=True``. Writes
+                #     ``episode_credit_grad_norm`` /
+                #     ``latent_episode_pg_loss`` /
+                #     ``latent_episode_ratio_std``.
+                #
+                #   * Arc-credit PPO (v3i19+ / v4i1 / v4i3): active when
+                #     ``latent_arc_credit_enabled=True``. The router-only
+                #     grad (excluding the V(s,z) baseline head) lives at
+                #     ``q_phi_strategy_encoder_grad_norm`` -- this is the
+                #     "is z being trained?" signal. The combined
+                #     ``q_phi_grad_norm`` is dominated by the baseline value
+                #     head early in training and is NOT a good router gauge.
+                #     Policy loss / clip stats live at
+                #     ``latent_arc_policy_loss`` / ``latent_arc_clipfrac``.
+                #
+                # Priority for the print: episode_credit > arc_credit >
+                # per-step strategy_ppo. If multiple were on at once (no
+                # current preset does this) the print picks the highest-
+                # priority one; the CSV always has every field.
+                if episode_credit_on:
+                    qphi_field_label = "qphi_grad_main"
+                    z_activity_field_label = "z_ratio"
+                    qphi_grad_val = float(row.get("episode_credit_grad_norm", 0.0) or 0.0)
+                    z_pi_val = float(row.get("latent_episode_pg_loss", 0.0) or 0.0)
+                    z_activity_val = float(row.get("latent_episode_ratio_std", 0.0) or 0.0)
+                elif arc_credit_on:
+                    # Router-only grad -- the value-head portion is the baseline,
+                    # not the routing policy, so combining them masks router
+                    # starvation behind a noisy baseline loss.
+                    qphi_field_label = "qphi_grad_arc_router"
+                    # Arc-credit does not store a ratio_std; clip fraction is
+                    # the PPO-activity gauge that is actually written for this
+                    # path, and we relabel so the printed name matches the
+                    # printed value's semantics (clip fraction != ratio std).
+                    z_activity_field_label = "z_clipfrac"
+                    qphi_grad_val = float(
+                        row.get("q_phi_strategy_encoder_grad_norm", 0.0) or 0.0
+                    )
+                    z_pi_val = float(row.get("latent_arc_policy_loss", 0.0) or 0.0)
+                    z_activity_val = float(row.get("latent_arc_clipfrac", 0.0) or 0.0)
+                else:
+                    qphi_field_label = "qphi_grad"
+                    z_activity_field_label = "z_ratio"
+                    qphi_grad_val = float(row.get("strategy_grad_norm", 0.0) or 0.0)
+                    z_pi_val = float(row.get("strategy_policy_loss", 0.0) or 0.0)
+                    z_activity_val = float(row.get("strategy_ratio_std", 0.0) or 0.0)
+                print(
+                    f"{core} "
+                    f"{qphi_field_label}={qphi_grad_val:.8f} "
+                    f"lamH={row.get('latent_lam_h', 0.0):.6f} "
+                    f"zH={z_entropy:.3f}({z_entropy_frac:.2f}) "
+                    f"z_wr_spread={z_wr_spread:.3f} "
+                    f"z_aux_ret={float(row.get('strategy_aux_return_loss', row.get('strategy_q_loss', 0.0))):.3f} "
+                    f"z_pi={z_pi_val:.3f} "
+                    f"{z_activity_field_label}={z_activity_val:.3f} "
+                    f"z_occ=[{','.join(z_occ_parts)}] "
+                    f"z_wr=[{','.join(z_wr_parts)}]"
+                    f"{opp_suffix}"
                 )
-                z_pi_val = float(row.get("latent_arc_policy_loss", 0.0) or 0.0)
-                z_activity_val = float(row.get("latent_arc_clipfrac", 0.0) or 0.0)
-            else:
-                qphi_field_label = "qphi_grad"
-                z_activity_field_label = "z_ratio"
-                qphi_grad_val = float(row.get("strategy_grad_norm", 0.0) or 0.0)
-                z_pi_val = float(row.get("strategy_policy_loss", 0.0) or 0.0)
-                z_activity_val = float(row.get("strategy_ratio_std", 0.0) or 0.0)
-            print(
-                f"[PPO|diag] steps={runtime.global_step} "
-                f"ev={row['explained_variance']:.3f} "
-                f"v_loss={row['value_loss']:.3f} "
-                f"shape/out={row['reward_shaping_mean']:.3f}/{row['reward_outcome_mean']:.3f} "
-                f"{qphi_field_label}={qphi_grad_val:.8f} "
-                f"lamH={row.get('latent_lam_h', 0.0):.6f} "
-                f"zH={z_entropy:.3f}({z_entropy_frac:.2f}) "
-                f"z_wr_spread={z_wr_spread:.3f} "
-                f"z_aux_ret={float(row.get('strategy_aux_return_loss', row.get('strategy_q_loss', 0.0))):.3f} "
-                f"z_pi={z_pi_val:.3f} "
-                f"{z_activity_field_label}={z_activity_val:.3f} "
-                f"z_occ=[{','.join(z_occ_parts)}] "
-                f"z_wr=[{','.join(z_wr_parts)}]"
-                f"{opp_suffix}"
-            )
             if hparams.use_latent_strategy:
                 sw_cap = float(row.get("latent_switch_near_capture_frac", 0.0) or 0.0)
                 sw_kill = float(row.get("latent_switch_near_kill_frac", 0.0) or 0.0)

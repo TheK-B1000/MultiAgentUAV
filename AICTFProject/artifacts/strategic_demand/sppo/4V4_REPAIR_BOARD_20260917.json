@@ -1,0 +1,53 @@
+{
+  "record_id": "4V4_REPAIR_BOARD_20260917",
+  "status": "FROZEN_BOARD",
+  "utc": "2026-09-18T15:50:00Z",
+  "authority": "PI; credit branch closed; commitment mechanism support passed; repair spec next",
+
+  "board": {
+    "ROLE": {
+      "status": "FINISHED",
+      "verdict": "NOT SPECIALIZED / NO DEMONSTRATED RECOVERY",
+      "reading": "RULE_ROLE_4V4_READING.json"
+    },
+    "ASSIGNMENT": {
+      "status": "FINISHED",
+      "verdict": "NOT SPECIALIZED / NO DEMONSTRATED RECOVERY",
+      "reading": "ASSIGNMENT_V1_4V4_READING.json"
+    },
+    "GETFLAG": {
+      "status": "FINISHED",
+      "boxed": "MANIPULATION CONFIRMED / SPECIALIZATION NOT DEMONSTRATED",
+      "reading": "GETFLAG_PRESERVE_4V4_READING.json"
+    },
+    "POLE_B_CREDIT_DIAGNOSTIC": {
+      "status": "FINISHED_CLOSED",
+      "boxed": "CREDIT SIGNAL ANOMALY PRESENT / NOT FAILURE-LOCALIZING / NO CREDIT-CORRECTION TRAINING JUSTIFIED",
+      "reading": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_READING.json",
+      "result": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_RESULT.json",
+      "critical_note": "A3 has the most negative G_diff; do not treat G_diff<0 as B-failure localization"
+    },
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC": {
+      "status": "FINISHED / COMMITMENT MECHANISM SUPPORTED; REPAIR SPEC NEXT",
+      "spec": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+      "integrity_amendment": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json",
+      "contracts": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json PASS",
+      "seeds": "19500001-19500016",
+      "discriminator": "BREACH × scale interaction J_k required before blaming an interface component",
+      "result": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json",
+      "reading": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_READING.json",
+      "summary": "C_commit J_k=+0.080512 [LCB95 +0.040689] and 4v4 BREACH burden=0.177072 pass the core localization/materiality gates. C_spatial burden=0.093812 misses the 0.10 materiality threshold; C_macro_residual J_k=-0.006013 is not localized.",
+      "mechanism_probe": "ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json",
+      "mechanism_summary": "G6 PASS. In 4v4 BREACH stale-switch burden=0.49 vs 2v2=0.32; paired contrast +0.167502 [+0.084054,+0.251855]. Blocked-switch burden=0.54 vs 0.37; paired contrast +0.171654 [+0.115528,+0.233837].",
+      "limitation": "This supports the stale-commitment mechanism but is not a team outcome or crossover result. Freeze and validate the smallest commitment-only repair before PPO or outcome evaluation.",
+      "logs": ["action_interface_scale_diagnostic.log", "action_interface_scale_diagnostic.log.err"]
+    }
+  },
+
+  "forbidden_now": [
+    "credit-correction training from G_diff<0",
+    "Assignment-v2 / Assignment+GETFLAG stack without new evidence",
+    "blind 200k PPO repair",
+    "claim action abstraction explains 2→4 failure from general S_k without J_k gate"
+  ]
+}

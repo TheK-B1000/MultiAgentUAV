@@ -1,0 +1,40 @@
+{
+  "record_id": "CONFIRMATORY_B3_3_4V4_INDEPENDENT_AUDIT",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-10T01:45:00Z",
+  "audits": "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+
+  "ROW_LEVEL_INTEGRITY": {
+    "rows_csv": "confirmatory_b3_3_4v4_specialist_crossover_eval_rows.csv",
+    "total_rows": 512,
+    "check": "all 4 groups (pi_A/A, pi_A/B, pi_B/A, pi_B/B) independently verified: exactly 128 rows each, 128 UNIQUE seeds each, seed set EXACTLY {16700001..16700128} in every group, win values strictly binary, win == (blue>red) and margin == blue-red for all 512 rows with zero disagreements.",
+    "checkpoint_shas": "pi_A=011fbc0b4346... pi_B=57d354e10c56... -- EXACT MATCH to both the pre-flight dry-run and the run_manifest.json sha recorded at the end of each training run. Same checkpoints throughout, confirmed not substituted."
+  },
+
+  "POINT_ESTIMATE_RECOMPUTE": {
+    "win_rates": {"piA_on_A": 0.7188, "piA_on_B": 0.6719, "piB_on_A": 0.6719, "piB_on_B": 0.6875},
+    "delta_A": 0.046875, "delta_B": 0.015625,
+    "match": "exact match to CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json#PRIMARY_GATE"
+  },
+
+  "BOOTSTRAP_RECOMPUTE": {
+    "method": "independently reimplemented with the SAME RNG (np.random.default_rng(7).integers(0,128,size=(20000,128))) applied to the paired per-seed difference array, matching experiments/eval_hog_psp_v3.py::_mean_ci exactly",
+    "delta_A": {"mean": 0.046875, "lcb95": -0.0703125, "ucb95": 0.15625},
+    "delta_B": {"mean": 0.015625, "lcb95": -0.078125, "ucb95": 0.109375},
+    "match": "BYTE-IDENTICAL to the frozen record's PRIMARY_GATE values",
+    "note": "a first recompute pass using np.random.RandomState (legacy MT19937) instead of default_rng (PCG64) produced a close but NOT byte-identical lcb95 for delta_A (-0.0625 vs -0.0703125) -- normal Monte Carlo tail variance between two DIFFERENT generators seeded the same way, not an error. Re-run with the correct generator API to get the true independent check; recorded here so the discrepancy is not mistaken for a red flag on re-reading this audit."
+  },
+
+  "SPLIT_HALF_SIGN_CONSISTENCY": {
+    "method": "seeds 16700001-16700064 vs 16700065-16700128, unresampled point estimates",
+    "delta_A": {"first_half": 0.0, "second_half": 0.09375},
+    "delta_B": {"first_half": 0.03125, "second_half": 0.0},
+    "reading": "no sign flip in either half for either delta -- both halves are non-negative on both axes, consistent with the pooled positive-but-small point estimate. No evidence of an ordering artifact or a result driven by one half of the seed block."
+  },
+
+  "PREAUDIT_FLAG_NOT_TRIGGERED": "correctly so: the tool's tie/reversal trigger fires only when a delta MEAN is <= 0. Both delta_A (+0.046875) and delta_B (+0.015625) are strictly positive, so the eval wrote directly to the verdict-bearing FROZEN_RESULT rather than a PREAUDIT flag. This is NOT a tie or a reversal -- it is a correctly-signed but underpowered result.",
+
+  "COMPARISON_TO_THE_C2_TRACK": "Qualitatively different from CONFIRMATORY_REDESIGN_C2_4V4's result. C2 (B2-1 pole): delta_A=-0.0781, delta_B=-0.0156 -- BOTH deltas negative (wrong sign on both axes, though neither CI confirmed a true reversal). B3-3: delta_A=+0.0469, delta_B=+0.0156 -- BOTH deltas correctly signed, but neither clears its 95% CI at n=128 (delta_A lcb95=-0.070, delta_B lcb95=-0.078). B3-3 is a genuine improvement in mechanism (right direction on both poles) but still an underpowered null, not a confirmed crossover.",
+
+  "VERDICT": "Row integrity clean, point estimates and bootstrap CIs independently confirmed byte-identical, no sign-flip or ordering artifact. GATE: FAIL stands as a verified, honest result -- not a data or code defect. Whether to attempt a further Pole-B redesign or close 4v4 on this result is a scope/resource decision for the PI, not a data-integrity question; this audit's job is only to confirm the FAIL is real."
+}

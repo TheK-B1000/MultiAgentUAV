@@ -1,0 +1,133 @@
+{
+  "record_id": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-19T00:00:00Z",
+  "classification": "DIAGNOSTIC. READ-ONLY. NO TRAINING, NO PARAMETER CHANGE, NO OUTCOME-BASED SELECTION. GATES NOTHING.",
+  "confirmatory": false,
+  "authorized_by": "PI direction 2026-09-19: run the read-only probe of the existing learned 6v6 checkpoints. Then, after the scripted known-answer calibration: keep the failure of the whole-episode position instrument; test the resolved-target instrument once; if it is not valid across the episode, freeze the narrower opening-only probe and do not invent a third whole-episode role detector. No learned-policy reading until an instrument earns validity.",
+
+  "RESEARCH_QUESTION": "What effective composition do the existing learned 6v6 specialists pi_A and pi_B express in the OPENING of an episode, on each certified pole, and does it resemble the scripted 5A/1D structure that beat the balanced 3A/3D?",
+
+  "WHAT_THIS_CAN_AND_CANNOT_TELL_US": {
+    "can": "How many of the six agents hold near home during the first 10 ticks, calibrated against scripted teams whose true composition is known, and whether pi_A and pi_B differ in that opening allocation.",
+    "cannot": [
+      "sustained role composition after the opening: no instrument earned validity there",
+      "whether a learned agent 'defends' at all: learned policies cannot select the DEFEND macro (production n_macros is 5), so a learned defender can only stand near home",
+      "why the learned specialists failed to differentiate (Delta_A = Delta_B = +0.0078)",
+      "anything causal: this is observational. Forcing a composition on a learned team is a different experiment"
+    ],
+    "scripted_role_glasses": "The instrument is validated on SCRIPTED roles. A learned policy that moves in ways scripted agents never do is read through scripted-role glasses."
+  },
+
+  "TARGET_POLICIES_PINNED": {
+    "pi_A": {"path": "artifacts/6v6_results/specialists/final_pi_A_specialist_6v6.zip", "sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82"},
+    "pi_B": {"path": "artifacts/6v6_results/specialists/final_pi_B_specialist_6v6.zip", "sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4"},
+    "provenance": "Both hashes equal those cited by SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json, the record with Delta_A = Delta_B = +0.0078125 (cells pi_A@A 0.8438, pi_A@B 0.9531, pi_B@A 0.8359, pi_B@B 0.9609, seeds 13680001-13680128, cuda). These are the policies behind that number.",
+    "not_included": "The RUNG1 distilled student (z-conditioned, requires forced-z handling)."
+  },
+
+  "INSTRUMENT_HISTORY_KEPT_AS_FINDINGS": {
+    "whole_episode_position_near_own_flag": {
+      "result": "FAILED its known-answer calibration. Scripted 42-episode prototype, cpu, disposable smoke seeds.",
+      "evidence": "True scripted ATTACKERS spend most of their time near home (median distance 1.25 cells, 67% of ticks within 6 cells; even active free attackers 77%). Per-agent-episode features separate poorly (AUC 0.50 to 0.70). By tick window at R=6, scripted 6A_0D reads about 0.70 to 0.82 defend-like share after tick 100, essentially the same as 0A_6D.",
+      "cause": "In this game tagged agents walk home to untag, and the adapter sends every attacker home whenever any teammate carries, so every composition cycles through the home region. The field is 20x20 with flags 15 cells apart at 1.1 cells per tick, so a trip is about 14 ticks.",
+      "not_rescued": "Kept as a failure."
+    },
+    "resolved_target_intent": {
+      "result": "FAILED its pre-declared criterion. One reading, R_T = 4.5 declared before the intent data were read, no scan.",
+      "evidence": "Primary estimator (ticks with no friendly carrier): within +-1 defender in 76% (A) and 67% (B) of scripted episodes against the 90% bar; class means not monotone. Carrier-present slice 0.67 (A) and 0.22 (B); tagged-present slice 0.52 (A) and 0.43 (B).",
+      "shape_of_the_failure": "The reading tracks true composition for 0 to 3 defenders (A: 0.06, 0.18, 0.34, 0.43; B: 0.08, 0.22, 0.45, 0.57) then saturates and REVERSES: all-defender teams read 0.48 and 0.43, below 2A_4D.",
+      "not_rescued": "A scope-limited version ('D <= 1 versus not') would probably pass, but proposing it after seeing this data is the rescue the PI ruled out. It is NOT adopted. If wanted it needs its own freeze and must be tested on fresh data. The intent readings are still recorded in the sealed calibration so that option costs nothing."
+    },
+    "selection_bias_disclosed": "The opening-window parameters below came from scanning 36 radius-and-window combinations on 42 scripted episodes, so the prototype recovery numbers (95% exact at R=4.5 over ticks [0,10)) are optimistic by construction. The sealed calibration below, on fresh seeds and a different device, is the real test."
+  },
+
+  "INSTRUMENT_FROZEN": {
+    "name": "opening allocation by position",
+    "definition": "An agent is ACTIVE when alive and not tagged. An active agent is DEFEND-LIKE when it is not carrying and lies within R_pos of its own flag's HOME position. The reading is the per-episode mean over the window of (defend-like agents / active agents).",
+    "R_pos": 4.5,
+    "window_primary": [0, 10],
+    "window_alt": [5, 15],
+    "window_alt_status": "A declared stability check, not a second choice. It is reported beside the primary and never substituted for it.",
+    "truncate_at_tick": 20,
+    "truncation_justification": "Only the first 15 ticks are read. A run stopped at tick 20 is bit-identical to the first 20 ticks of a full run (verified on cpu, and by contract C2 on cuda), so truncation is exact and about 10x cheaper.",
+    "R_intent": 4.5,
+    "secondary_intent_reading": "The pre-declared resolved-target reading (home-directed intent share over the primary window) is recorded and scored with the same rule. It is NOT required for validity and gates nothing.",
+    "reads_only": "positions and status flags (and, for the secondary reading, the env's resolved target). It never sees a role, a policy, or an outcome."
+  },
+
+  "STAGE_1_SCRIPTED_CALIBRATION_ON_FRESH_SEEDS_ON_CUDA": {
+    "seed_block": {"base": 20700001, "n": 16, "class": "exploratory"},
+    "device": "cuda",
+    "cells": "7 compositions x 2 poles, with defenders placed BOTH as the first D agent ids (PREFIX, the assignment every prior sweep used) and as the last D ids (SUFFIX) for 1 to 5 defenders. 12 cells per pole, 16 seeds each, 384 episodes, each run 20 ticks.",
+    "why_two_assignments": "Agents 2 and 3 spawn INSIDE the 4.5 radius (agent 3 always, agent 2 mostly), so at tick 0 they read as home-holding whatever their role. PREFIX puts defenders on ids 0..D-1, so the calibration curve mixes role with spawn slot. SUFFIX asks for the same composition with different spawn geometry, which lets the calibration be tested for that confound directly.",
+    "sealing": "run_state.seal with AuditPlan.experiment_id. The verdict is computed from the sealed rows and every reading is independently re-derived from the saved traces by a loop implementation sharing no code path with the vectorised one; disagreement aborts."
+  },
+
+  "VALIDITY_KILL_RULE": {
+    "predeclared": true,
+    "min_recovery": 0.90,
+    "tolerance_defenders": 1,
+    "applies_to": "the PRIMARY position reading, on EACH pole",
+    "V1_monotone": "The PREFIX class means rise strictly with the true defender count, 6A_0D through 0A_6D.",
+    "V2_leave_one_out": "Each PREFIX episode is read against class means recomputed WITHOUT that episode. Its nearest class must lie within +-1 defender of the truth in at least 90% of episodes.",
+    "V3_cross_assignment": "Each SUFFIX episode is read against the PREFIX-built calibration. Its nearest class must lie within +-1 defender of the truth in at least 90% of episodes. This is the id-geometry control.",
+    "pole_valid": "V1 and V2 and V3 all hold on that pole.",
+    "VERDICT_INSTRUMENT_VALID_OPENING": "pole_valid on BOTH poles.",
+    "VERDICT_INSTRUMENT_NOT_VALID": "Otherwise. Stage 2 REFUSES TO RUN. The finding becomes 'even the opening allocation cannot be read reliably in this environment', and no learned reading is taken.",
+    "no_retuning_after_the_result": "R_pos, the windows and the tolerance are frozen. If the sealed calibration fails, they are not adjusted and the calibration is not re-run on the same seeds. A different instrument would need its own freeze and fresh seeds."
+  },
+
+  "STAGE_2_LEARNED_PROBE_DECLARED_NOW_RUNS_ONLY_IF_STAGE_1_IS_VALID": {
+    "no_learned_reading_before_the_verdict": "The stage-2 code path is not run, and no learned-policy telemetry is examined, until Stage 1 has sealed as INSTRUMENT_VALID_OPENING.",
+    "seed_block": {"base": 20700101, "n": 128, "class": "exploratory"},
+    "episodes": "pi_A and pi_B x Pole A and Pole B x 128 seeds = 512, each run 20 ticks, deterministic actions, on cuda.",
+    "readings_per_policy_and_pole": [
+      "mean opening defend-like share with a bootstrap interval over seeds",
+      "the scripted-equivalent defender count D_hat, by inverting the sealed calibration curve for that pole (piecewise-linear, clipped to [0, 6])",
+      "the nearest scripted composition, per episode and summarised",
+      "the difference from the 5A/1D and 3A/3D calibration means",
+      "which agent ids hold near home (descriptive)",
+      "the opening macro mix from the env's committed macros (descriptive)"
+    ],
+    "pi_A_versus_pi_B": "Paired by seed, per pole: the difference in mean opening share with a bootstrap interval. This answers whether the two specialists differ in opening allocation.",
+    "bands_declared_before_any_learned_reading": {
+      "attack_heavy": "D_hat <= 1.5",
+      "intermediate": "1.5 < D_hat < 2.5",
+      "balanced_or_defence_heavy": "D_hat >= 2.5",
+      "rationale": "1.5 is the midpoint between 5A/1D and 4A/2D, the two compositions either side of the sharp Pole-B break in the scripted sweep (0.81 to 0.36). 2.5 is the midpoint between 4A/2D and 3A/3D. Descriptive labels only; no gate."
+    },
+    "the_interpretation_this_supports": {
+      "if_pi_B_opens_attack_heavy": "Opening allocation alone does not explain pi_B's lack of specialization. It says nothing about later behaviour.",
+      "if_pi_B_opens_balanced": "pi_B does not open the way the winning scripted structure does. That is a concrete observation about the opening, not a demonstrated cause of the failed specialization.",
+      "if_pi_A_and_pi_B_open_alike": "Their openings are indistinguishable on this instrument, which is at least consistent with the near-zero crossover deltas."
+    },
+    "read_only_guarantee": {
+      "checkpoint_files": "sha256 of both checkpoints is verified against the pinned values before and after the run",
+      "parameters": "a digest of every parameter tensor of both loaded policies is equal before and after the run",
+      "no_optimizer": "no optimizer attribute exists on either loaded policy and the models are in eval mode",
+      "no_grad": "the whole run executes under torch.no_grad()",
+      "why_not_a_module_check": "Loading a checkpoint imports rl.custom_ppo.trainer and ppo_updater, so 'no PPO module imported' cannot be asserted and would mean nothing. The guarantee is behavioural."
+    },
+    "parity": "Before the probe, 16 FULL learned episodes on spent SHARE0 seeds 13680001-13680004 (both policies, both poles) must reproduce the recorded (blue, red, win, margin) exactly on cuda, and the first 20 ticks of each must equal the truncated run. Parity only; no new evidence, no registry interaction."
+  },
+
+  "ENVIRONMENT_FACTS_ESTABLISHED_DURING_SCOPING": {
+    "map": "map_a is an alias for map_a_open. The learned-eval env and the scripted sweeps use the same map; constructed cores are identical (flag and spawn positions).",
+    "n_macros_is_the_same_game": "n_macros only sizes the observation mask and the action decode. Scripted 6A/0D positions are bit-identical across n_macros 5 and 8 on both poles. Scripted defenders need n_macros=8 because macro 7 in a 5-macro env silently aliases to GET_FLAG (7 mod 5 = 2). Learned policies were trained at n_macros=5.",
+    "device_is_not_bit_equivalent": "cpu and cuda give different trajectories for the same seed (positions diverge by up to 15 cells), which is chaotic float divergence and not a different game. Scripted episodes are 3.6x slower on cuda (47 s against 13 s). The learned records were produced on cuda and reproduce exactly there, so the probe and the final calibration both run on cuda and share no device confound. The free parameters were chosen on cpu prototype data, so the sealed cuda calibration is also an out-of-device test.",
+    "score_limit_differs_from_the_sweeps": "The learned-eval env uses the GPUFieldConfig default score_limit=3, whereas the scripted composition sweeps used score_limit=1000000. Irrelevant inside a 20-tick opening, but it is a real config difference between those two record families and is stated here."
+  },
+
+  "NOT_AUTHORIZED": [
+    "a whole-episode role detector of any kind, built from the prototype data or any other data",
+    "changing R_pos, the windows, the tolerance or the bands after any seed is spent",
+    "reading any learned-policy telemetry before Stage 1 seals as INSTRUMENT_VALID_OPENING",
+    "adopting the scope-limited intent reading, or any coarser criterion, without a new freeze and fresh seeds",
+    "re-running the calibration on the same seeds after a failure",
+    "any training, checkpoint write, or forced-composition intervention on a learned team",
+    "reading a later phase of a learned episode as evidence about sustained role composition"
+  ],
+
+  "claim_ceiling": "At most: a calibrated description of how the existing learned 6v6 specialists allocate the six agents in the first 10 ticks, in scripted-equivalent defender units, on two certified poles. Not a description of sustained behaviour, not a cause of the failed specialization, and not a statement about what the learned agents intend."
+}

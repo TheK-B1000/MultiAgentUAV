@@ -1,0 +1,238 @@
+{
+  "record_id": "ACTION_INTERFACE_COMMITMENT_MECHANISM_CONTRACT_RESULT",
+  "status": "FAIL",
+  "utc": "2026-09-22T15:33:35Z",
+  "device": "cpu",
+  "gpu_used": false,
+  "gates": {
+    "G0_PRIOR_ARTIFACT_PROTECTION": {
+      "pass": true,
+      "missing": [],
+      "protected_sha256": {
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json": "12f078df657fb609c2daae7123b6c45f81627150b274dc0d91c92e6618541ad5",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json": "35e03bd80e1f05fd3d3d9cf1a04e9ad4c04e0c2c523e16e2e568b133ef8c11d2",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json": "8b179b0fc9e416542c83a32ec640db3dc368e6f6a01eadcb89ad86cb1fab2113",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json": "59cbfb6e997d5fd76b6273614b94ce305e30b0b101b234c819916489e9528035",
+        "ACTION_INTERFACE_SCALE_DIAGNOSTIC_READING.json": "215ab2789b58f89ce4f66fef6f5ab96931851288d32b4fc8056dfb0e5ffd0f94"
+      }
+    },
+    "G1_REQUEST_EXTRACTION": {
+      "pass": true,
+      "first": {
+        "requested_w50_idx": 1,
+        "committed_w50_idx": 1,
+        "commit_ticks_left_before": 0,
+        "decision_boundary": 1,
+        "target_jump_cells": 0.0,
+        "bearing_change_degrees": 0.0,
+        "switch_request": 1,
+        "blocked_switch": 0,
+        "stale_switch": 0,
+        "adopted": 1,
+        "decision_lag_ticks": null,
+        "lag_censored": 0,
+        "alive": 1,
+        "carrying": 0,
+        "tagged": 0
+      },
+      "second": {
+        "requested_w50_idx": 2,
+        "committed_w50_idx": 2,
+        "commit_ticks_left_before": 0,
+        "decision_boundary": 1,
+        "target_jump_cells": 2.0,
+        "bearing_change_degrees": 90.0,
+        "switch_request": 1,
+        "blocked_switch": 0,
+        "stale_switch": 0,
+        "adopted": 1,
+        "decision_lag_ticks": null,
+        "lag_censored": 0,
+        "alive": 1,
+        "carrying": 0,
+        "tagged": 0
+      }
+    },
+    "G2_BOUNDARY_SCHEDULE": {
+      "pass": true,
+      "schedule": [
+        [
+          0,
+          1
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ]
+      ]
+    },
+    "G3_BLOCKED_SWITCH": {
+      "pass": true,
+      "rows": [
+        {
+          "requested_w50_idx": 1,
+          "committed_w50_idx": 1,
+          "commit_ticks_left_before": 0,
+          "decision_boundary": 1,
+          "target_jump_cells": 0.0,
+          "bearing_change_degrees": 0.0,
+          "switch_request": 1,
+          "blocked_switch": 0,
+          "stale_switch": 0,
+          "adopted": 1,
+          "decision_lag_ticks": null,
+          "lag_censored": 0,
+          "alive": 1,
+          "carrying": 0,
+          "tagged": 0
+        },
+        {
+          "requested_w50_idx": 2,
+          "committed_w50_idx": 1,
+          "commit_ticks_left_before": 3,
+          "decision_boundary": 0,
+          "target_jump_cells": 1.0,
+          "bearing_change_degrees": 90.0,
+          "switch_request": 1,
+          "blocked_switch": 1,
+          "stale_switch": 1,
+          "adopted": 0,
+          "decision_lag_ticks": null,
+          "lag_censored": 0,
+          "alive": 1,
+          "carrying": 0,
+          "tagged": 0
+        },
+        {
+          "requested_w50_idx": 2,
+          "committed_w50_idx": 1,
+          "commit_ticks_left_before": 2,
+          "decision_boundary": 0,
+          "target_jump_cells": 0.0,
+          "bearing_change_degrees": 0.0,
+          "switch_request": 0,
+          "blocked_switch": 0,
+          "stale_switch": 0,
+          "adopted": 0,
+          "decision_lag_ticks": null,
+          "lag_censored": 0,
+          "alive": 1,
+          "carrying": 0,
+          "tagged": 0
+        },
+        {
+          "requested_w50_idx": 2,
+          "committed_w50_idx": 0,
+          "commit_ticks_left_before": 1,
+          "decision_boundary": 0,
+          "target_jump_cells": 0.0,
+          "bearing_change_degrees": 0.0,
+          "switch_request": 0,
+          "blocked_switch": 0,
+          "stale_switch": 0,
+          "adopted": 0,
+          "decision_lag_ticks": null,
+          "lag_censored": 0,
+          "alive": 1,
+          "carrying": 0,
+          "tagged": 0
+        },
+        {
+          "requested_w50_idx": 2,
+          "committed_w50_idx": 2,
+          "commit_ticks_left_before": 0,
+          "decision_boundary": 1,
+          "target_jump_cells": 0.0,
+          "bearing_change_degrees": 0.0,
+          "switch_request": 0,
+          "blocked_switch": 0,
+          "stale_switch": 0,
+          "adopted": 1,
+          "decision_lag_ticks": 3,
+          "lag_censored": 0,
+          "alive": 1,
+          "carrying": 0,
+          "tagged": 0
+        }
+      ]
+    },
+    "G4_ADOPTION_LAG": {
+      "pass": true,
+      "adoption_row": {
+        "requested_w50_idx": 2,
+        "committed_w50_idx": 2,
+        "commit_ticks_left_before": 0,
+        "decision_boundary": 1,
+        "target_jump_cells": 0.0,
+        "bearing_change_degrees": 0.0,
+        "switch_request": 0,
+        "blocked_switch": 0,
+        "stale_switch": 0,
+        "adopted": 1,
+        "decision_lag_ticks": 3,
+        "lag_censored": 0,
+        "alive": 1,
+        "carrying": 0,
+        "tagged": 0
+      }
+    },
+    "G5_CONTEXT_SPLITS": {
+      "pass": true,
+      "detail": "dead/tagged rows retained and do not create requests"
+    },
+    "G6_OUTCOME_BLIND_SCHEMA": {
+      "pass": true,
+      "detail": "no forbidden fields"
+    },
+    "G7_TRACE_COMPLETENESS": {
+      "pass": true,
+      "horizon": 240,
+      "arms": [
+        "I1_W50_NO_COMMIT",
+        "I2_W50_CURRENT_COMMIT"
+      ]
+    },
+    "G8_PRIOR_RUN_SEPARATION": {
+      "pass": false,
+      "result_exists": true,
+      "run_lock_exists": false
+    }
+  },
+  "overall_pass": false,
+  "spec_sha256": "55756b998d0fb7bf81f1020381f4d089d2b666450153429a905e1a89d2161f26",
+  "protected_sha256": {
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json": "12f078df657fb609c2daae7123b6c45f81627150b274dc0d91c92e6618541ad5",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json": "35e03bd80e1f05fd3d3d9cf1a04e9ad4c04e0c2c523e16e2e568b133ef8c11d2",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json": "8b179b0fc9e416542c83a32ec640db3dc368e6f6a01eadcb89ad86cb1fab2113",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json": "59cbfb6e997d5fd76b6273614b94ce305e30b0b101b234c819916489e9528035",
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_READING.json": "215ab2789b58f89ce4f66fef6f5ab96931851288d32b4fc8056dfb0e5ffd0f94"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "label": "FIXED_ATTACK_HEAVY_6V6_OUTCOME",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-19T17:23:57Z",
+      "pid": 28828,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "dd8542ada53b3acd1fa0408664be88bd8fa4c56a",
+      "spec": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json",
+      "n_episodes": 768
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-19T20:08:30Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-19T20:08:30Z",
+      "audit": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_AUDIT.json",
+      "n_checks": 15
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-19T20:08:30Z",
+      "result": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-19T20:08:30Z",
+  "pid": 28828,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "dd8542ada53b3acd1fa0408664be88bd8fa4c56a",
+  "spec": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json",
+  "n_episodes": 768,
+  "reason": "all episodes written",
+  "audit": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_AUDIT.json",
+  "n_checks": 15,
+  "result": "FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json"
+}

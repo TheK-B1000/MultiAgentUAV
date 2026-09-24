@@ -1,0 +1,168 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_CALIBRATION_RESULT",
+  "implements": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+  "utc": "2026-09-19T22:21:39Z",
+  "device": "cuda",
+  "seed_block": {
+    "base": 20700001,
+    "n": 16,
+    "class": "exploratory"
+  },
+  "instrument": {
+    "R_pos": 4.5,
+    "window_primary": [
+      0,
+      10
+    ],
+    "window_alt": [
+      5,
+      15
+    ],
+    "truncate_at_tick": 20
+  },
+  "kill_rule": {
+    "min_recovery": 0.9,
+    "tolerance_defenders": 1
+  },
+  "PRIMARY_position_opening": {
+    "A": {
+      "class_means_prefix": {
+        "6A_0D": 0.248333,
+        "5A_1D": 0.361771,
+        "4A_2D": 0.450729,
+        "3A_3D": 0.540104,
+        "2A_4D": 0.631875,
+        "1A_5D": 0.696042,
+        "0A_6D": 0.757292
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.7857,
+      "V2_loo_exact": 0.3482,
+      "V3_cross_assignment_within1": 0.8125,
+      "V3_cross_assignment_exact": 0.275,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": false
+    },
+    "B": {
+      "class_means_prefix": {
+        "6A_0D": 0.249063,
+        "5A_1D": 0.367396,
+        "4A_2D": 0.460417,
+        "3A_3D": 0.549687,
+        "2A_4D": 0.631458,
+        "1A_5D": 0.699167,
+        "0A_6D": 0.757292
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.7857,
+      "V2_loo_exact": 0.3661,
+      "V3_cross_assignment_within1": 0.8,
+      "V3_cross_assignment_exact": 0.25,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": false
+    },
+    "valid": false
+  },
+  "SECONDARY_intent_opening_pre_declared_not_required": {
+    "A": {
+      "class_means_prefix": {
+        "6A_0D": 0.0,
+        "5A_1D": 0.131875,
+        "4A_2D": 0.249792,
+        "3A_3D": 0.359271,
+        "2A_4D": 0.465417,
+        "1A_5D": 0.585208,
+        "0A_6D": 0.675
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 1.0,
+      "V2_loo_exact": 0.875,
+      "V3_cross_assignment_within1": 1.0,
+      "V3_cross_assignment_exact": 0.775,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "B": {
+      "class_means_prefix": {
+        "6A_0D": 0.0,
+        "5A_1D": 0.132396,
+        "4A_2D": 0.255417,
+        "3A_3D": 0.367188,
+        "2A_4D": 0.467292,
+        "1A_5D": 0.587917,
+        "0A_6D": 0.675
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 1.0,
+      "V2_loo_exact": 0.8661,
+      "V3_cross_assignment_within1": 1.0,
+      "V3_cross_assignment_exact": 0.725,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "valid": true
+  },
+  "STABILITY_position_alt_window": {
+    "A": {
+      "class_means_prefix": {
+        "6A_0D": 0.056354,
+        "5A_1D": 0.296667,
+        "4A_2D": 0.47875,
+        "3A_3D": 0.659583,
+        "2A_4D": 0.812708,
+        "1A_5D": 0.887292,
+        "0A_6D": 0.930208
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 1.0,
+      "V2_loo_exact": 0.6875,
+      "V3_cross_assignment_within1": 0.9875,
+      "V3_cross_assignment_exact": 0.6,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "B": {
+      "class_means_prefix": {
+        "6A_0D": 0.077917,
+        "5A_1D": 0.319271,
+        "4A_2D": 0.526458,
+        "3A_3D": 0.685833,
+        "2A_4D": 0.784583,
+        "1A_5D": 0.890833,
+        "0A_6D": 0.930208
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.9821,
+      "V2_loo_exact": 0.625,
+      "V3_cross_assignment_within1": 0.9875,
+      "V3_cross_assignment_exact": 0.55,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "valid": true
+  },
+  "VERDICT": "INSTRUMENT_NOT_VALID",
+  "independent_reference_check": {
+    "max_abs_diff": 0.0,
+    "episodes": 384
+  },
+  "traces_sha256": "3dd494c48ca925f6ce3081c39bebf105067e9c0b9f40b2fbc744115e530f0f5b",
+  "claim_boundary": "Validated on SCRIPTED roles only, in the opening window only. Says nothing about sustained composition.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-19T22:21:39Z",
+  "git_sha": "c539bdf02c4a09b33870c63ea40fae84a2f5636e",
+  "AUDIT": {
+    "path": "LEARNED_COMPOSITION_PROBE_CALIBRATION_AUDIT.json",
+    "passed": true,
+    "n_checks": 7,
+    "n_gating": 7,
+    "failed_checks": [],
+    "rows_sha256": "9d88ff52ac8a38092918671a002d1c65a96996300ba17ae00e2f458f7cdeb10c"
+  }
+}

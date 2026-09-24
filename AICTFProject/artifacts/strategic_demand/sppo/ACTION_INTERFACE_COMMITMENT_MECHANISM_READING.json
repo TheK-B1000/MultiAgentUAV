@@ -1,0 +1,73 @@
+{
+  "record_id": "ACTION_INTERFACE_COMMITMENT_MECHANISM_READING",
+  "utc": "2026-09-18T15:50:00Z",
+  "source_result": "ACTION_INTERFACE_COMMITMENT_MECHANISM_RESULT.json",
+  "source_contract": "ACTION_INTERFACE_COMMITMENT_MECHANISM_CONTRACT_RESULT.json",
+  "status": "MECHANISM_SUPPORT_PASS",
+  "device": "cpu",
+  "gpu_used": false,
+  "n_seeds": 16,
+  "seed_block": "19600001-19600016",
+  "contracts": {
+    "overall_pass": true,
+    "g6_outcome_blind_schema": true,
+    "trace_count": 64,
+    "horizon_ticks": 240
+  },
+  "support": {
+    "stale_scale_BREACH": {
+      "mean": 0.167502,
+      "lcb95": 0.084054,
+      "ucb95": 0.251855,
+      "point_4v4_BREACH": 0.49,
+      "point_2v2_BREACH": 0.32,
+      "gate": "PASS"
+    },
+    "blocked_scale_BREACH": {
+      "mean": 0.171654,
+      "lcb95": 0.115528,
+      "ucb95": 0.233837,
+      "point_4v4_BREACH": 0.54,
+      "point_2v2_BREACH": 0.37,
+      "gate": "PASS"
+    },
+    "lag_scale_BREACH": {
+      "mean": null,
+      "lcb95": null,
+      "ucb95": null,
+      "status": "UNAVAILABLE_FOR_ONE_SEED_PAIR",
+      "gate": "NOT_NEEDED"
+    },
+    "style_scale_stale": {
+      "mean": 0.018797,
+      "lcb95": -0.062991,
+      "ucb95": 0.101708,
+      "gate": "NOT_REQUIRED"
+    }
+  },
+  "event_totals": {
+    "I1_W50_NO_COMMIT": {
+      "switch_requests": 19714,
+      "blocked_switches": 0,
+      "stale_switches": 0
+    },
+    "I2_W50_CURRENT_COMMIT": {
+      "switch_requests": 19714,
+      "blocked_switches": 8459,
+      "stale_switches": 7866
+    }
+  },
+  "interpretation": "The hypothesized mechanism is supported: in 4v4 BREACH, desired target changes are frequently blocked by the active four-tick commitment and remain stale relative to the native target. Both stale-switch and blocked-switch scale contrasts have positive 95% lower bounds and clear the frozen point threshold.",
+  "authorization": {
+    "commitment_repair_spec": "AUTHORIZED_TO_FREEZE",
+    "repair_implementation": "NOT_YET_AUTHORIZED",
+    "training": "NOT_AUTHORIZED",
+    "outcome_claim": "NOT_MEASURED_IN_THIS_PROBE"
+  },
+  "next": "Freeze the smallest commitment-only intervention and prove it reduces stale/blocked events with legacy behavior preserved before any fresh PPO or 4v4 outcome evaluation.",
+  "no_claims": [
+    "This is not a crossover or win-rate result.",
+    "This does not prove that commitment repair restores specialization.",
+    "No macro redesign, PPO training, GETFLAG, Assignment, ROLE, Pyquaticus, or credit branch was mixed into the probe."
+  ]
+}

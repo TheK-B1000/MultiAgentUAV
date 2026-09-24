@@ -1,0 +1,127 @@
+{
+  "record_id": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_SPEC",
+  "status": "FROZEN_DESIGN_NO_EXECUTION",
+  "utc": "2026-09-18T18:40:00Z",
+  "classification": "OUTCOME_BLIND_INTERFACE_REPAIR_CONTRACT",
+  "confirmatory": false,
+  "authorized_by": [
+    "PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json",
+    "PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_UNREPRESENTABLE_RESULT.json"
+  ],
+
+  "RESEARCH_QUESTION": "What is the smallest addition to the action vocabulary that makes the native Pyquaticus DEFEND semantic targets representable, and the already-exact non-carrier home behavior legally executable, without altering ATTACK-to-flag, without using the direction-inverting waypoint pathway, and while preserving legacy execution exactly when disabled?",
+
+  "SCIENTIFIC_DELTA": "This is an interface repair validated by executable semantic contracts only. It does not train, does not evaluate team outcomes, does not touch PPO, and does not unblock the Pyquaticus team evaluation by itself.",
+
+  "EXECUTION_PATH_INSPECTION_THAT_SHAPED_THIS_SPEC": {
+    "requirement": "The PI directed that the primitive be chosen after inspecting the execution path, not inferred from the G6 numbers alone. This block records that inspection.",
+    "native_DEFEND_INWARD": "gpu_env/pyquaticus_port.py true_motion(): when distance to own flag > defender_radius, target = state.own_flag_pos (the flag's CURRENT position).",
+    "native_DEFEND_OUTWARD": "when inside the radius, target = _ray_to_boundary(own_position, unit(own_position - own_flag_pos), max_x=19.0, max_y=19.0). Agent-relative and recomputed from instantaneous position.",
+    "existing_macro_target_resolution": "gpu_env/_core/_rules.py _build_targets_from_action(): GET_FLAG -> enemy_flag, GO_HOME -> own_flag_home, carrying override -> own_flag_home, otherwise decode a W50 waypoint index. Semantic macros are ALREADY state-computed each tick; only the GO_TO pathway uses a fixed index.",
+    "consequence_1": "A new state-computed macro is a natural, minimal extension of an existing pattern. It costs one macro value and one branch in _build_targets_from_action. It requires NO continuous action space and NO new action dimension.",
+    "consequence_2": "DEFEND_INWARD's target (own_flag_pos) is NOT the same field as GO_HOME's target (own_flag_home). They coincide only while the own flag sits at home. The G3 fixture is such a case, which is why GO_HOME would have scored 0.000 there had it been offered as a candidate. The 17.009-cell G3 error is therefore substantially a candidate-set artifact and must not be cited as proof that own_flag_pos is unnameable.",
+    "consequence_3": "DEFEND_OUTWARD is genuinely unnameable by any fixed coordinate, because the target is a function of the agent's own instantaneous position. This is the only true vocabulary gap in the entire G6 suite.",
+    "consequence_4": "Because DEFEND_OUTWARD's intent changes continuously with own position, it is precisely the class of intent that temporal commitment holding distorts. The COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1 finding and this finding describe the same mismatch from two directions. This spec does NOT attempt to fix commitment; it notes the interaction as a predicted confound for any later trajectory measurement."
+  },
+
+  "FROZEN_PRIMITIVE_CHOICE": {
+    "chosen": "Two state-computed macros, resolved in _build_targets_from_action in the same manner as GET_FLAG and GO_HOME.",
+    "P1_DEFEND_FLAG": {
+      "semantics": "effective target = own_flag_pos (the own flag's CURRENT position, not its home)",
+      "covers": "DEFEND_INWARD",
+      "why_not_reuse_GO_HOME": "GO_HOME resolves to own_flag_home. It is exact only while the flag is at home and diverges exactly when the flag has been taken, which is the defensively decisive case. Reusing it would encode a repair that silently fails in the situation it exists to handle."
+    },
+    "P2_DEFEND_OUTWARD": {
+      "semantics": "effective target = own_position + k * unit(own_position - own_flag_pos), clipped to the arena bounds, recomputed each tick; k chosen large enough that the clip is what terminates the ray, reproducing _ray_to_boundary",
+      "covers": "DEFEND_OUTWARD",
+      "why_a_direction_and_not_a_coordinate": "The native target is defined as a ray, not a point. Expressing it as a direction recomputed per tick reproduces the semantics exactly; expressing it as any fixed coordinate cannot, because the correct coordinate changes with the agent's own motion."
+    },
+    "alternatives_considered_and_rejected": {
+      "continuous_coordinate_target": "REJECTED. Would require a new continuous action dimension -- a far larger interface change than the evidence justifies, and unnecessary since both native targets are computable from state already available to the resolver.",
+      "additional_waypoints": "REJECTED. G6_DIRECTION shows perfect separation: every waypoint substitution inverts sustained direction (radial agreement 0.438-0.750) while every semantic macro scores 1.000. Building the DEFEND primitive on the waypoint pathway would import the exact pathology this repair exists to avoid.",
+      "separate_heading_plus_magnitude_command": "REJECTED as larger than necessary. The native semantics clip at the boundary, so magnitude carries no additional information."
+    },
+    "not_frozen_here": "The concrete macro identifiers, enum values, and k constant are implementation detail to be fixed during implementation, not pre-committed in this record."
+  },
+
+  "TWO_INDEPENDENTLY_CONTRACTABLE_REPAIRS": {
+    "requirement": "Each repair must be individually disable-able so that it is always known which contract each one fixes.",
+    "REPAIR_A_DEFEND_PRIMITIVE": {
+      "flag": "independent, default OFF",
+      "adds": ["P1_DEFEND_FLAG", "P2_DEFEND_OUTWARD"],
+      "must_fix": ["G6_TARGET for G3_DEFEND_OUTSIDE", "G6_TARGET for G4_DEFEND_INSIDE"],
+      "must_not_touch": "any ATTACK branch, any existing macro's resolution, the waypoint table"
+    },
+    "REPAIR_B_HOME_LEGALITY": {
+      "flag": "independent, default OFF",
+      "changes": "the structural precondition that makes GO_HOME unselectable for a non-carrier",
+      "must_fix": ["G6_LEGALITY for G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER"],
+      "must_not_touch": "GO_HOME's target resolution, which is already correct; this repair changes only selectability",
+      "note": "The behavior GO_HOME_NONCARRIER would produce already passes G6_TARGET (0.000), G6_DIRECTION (1.000) and G6_TRAJECTORY (1.313). Only its legality fails. This repair must not change any of the three passing sub-gates."
+    },
+    "orthogonality_contract": "Enabling A alone must fix only A's listed gates; enabling B alone must fix only B's; enabling both must fix both and introduce no interaction. All four flag combinations are run."
+  },
+
+  "SUCCESS_CONDITIONS": {
+    "primary": [
+      "G6_TARGET(G3_DEFEND_OUTSIDE) = PASS (<= 2.5 cells)",
+      "G6_TARGET(G4_DEFEND_INSIDE) = PASS (<= 2.5 cells)",
+      "G6_LEGALITY(G2_NONCARRIER_HOME) = PASS"
+    ],
+    "invariants_that_must_not_regress": [
+      "ATTACK-to-flag G6_TARGET stays exactly 0.000",
+      "every currently-passing sub-gate in PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json stays passing",
+      "G5_TAGGED and G5_DEAD remain bypassed and untouched",
+      "with both repair flags OFF, every recorded metric equals the frozen PYQUATICUS_PORT_CONTRACT_RESULT.json values exactly"
+    ],
+    "reported_but_NOT_gating": [
+      "G6_TRAJECTORY for every case. Trajectory fidelity is a cross-simulator dynamics property, is not what this repair addresses, and its 2.5-cell threshold is NOT relaxed. A trajectory failure alongside a target pass is a legitimate, expected, and separately-reported outcome.",
+      "G6_DIRECTION for the new primitives. Expected to pass by construction since they are semantic rather than waypoint-based; a direction failure here would indicate an implementation defect and is a stop condition, not a tuning target."
+    ]
+  },
+
+  "DECISION_RULE": {
+    "REPRESENTABILITY_RESTORED": "All three primary conditions pass, every invariant holds, and the orthogonality contract holds. This unlocks writing the Pyquaticus team-evaluation spec; it does not launch it.",
+    "PARTIAL": "Some primary conditions pass. Report exactly which, change nothing else, and stop. Do not enlarge the repair to chase the remainder within this spec.",
+    "REGRESSION": "Any currently-passing sub-gate fails, or repair-OFF diverges from the frozen values. Stop and fix; no verdict is issued.",
+    "claim_ceiling": "Passing every gate in this spec establishes that the action interface can faithfully express the frozen external DEFEND semantics. It establishes NOTHING about learned specialization, PPO, team payoff, or the 4v4 B failure. It removes an interface confound; it does not explain the phenomenon."
+  },
+
+  "CONTRACT_GATES": {
+    "C0_PRIOR_ARTIFACT_PROTECTION": "PYQUATICUS_PORT_CONTRACT_RESULT.json, PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json, PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json and the upstream provenance files are read-only; digests recorded before and re-verified after.",
+    "C1_UPSTREAM_PROVENANCE": "Re-verify the pinned pyquaticus commit 72b50e067ab311929390ecd4e59131452be15c6d and all nine file hashes before any measurement, exactly as the original port contract did.",
+    "C2_REPAIR_OFF_EQUALS_FROZEN": "With both flags OFF, reproduce PYQUATICUS_PORT_CONTRACT_RESULT.json's G6 metrics exactly. This is the executable form of 'legacy preserved'.",
+    "C3_PRIMITIVE_KNOWN_ANSWER": "P1 and P2 each reproduce the native true_motion target on hand-built fixtures, including the DEFEND_OUTWARD boundary-clip case and the flag-stolen case where own_flag_pos differs from own_flag_home.",
+    "C4_ORTHOGONALITY": "All four flag combinations run; each repair fixes only its own listed gates.",
+    "C5_OUTCOME_BLIND_SCHEMA": "No score, win, reward, return, value or advantage column may be written or printed.",
+    "FAILURE_RULE": "Any failed contract stops execution and emits a CONTRACT_RESULT with FAIL. No seed is allocated or spent."
+  },
+
+  "SCOPE": {
+    "device": "cpu_only",
+    "PPO": "OFF", "GPU": "OFF", "training": "OFF", "team_evaluation": "OFF",
+    "seeds": "none required -- the G6 suite is a deterministic fixture set, not a sampled experiment. No seed allocation is requested or permitted.",
+    "estimated_cost": "minutes, CPU"
+  },
+
+  "EXPLICITLY_OUT_OF_SCOPE": [
+    "ATTACK-to-flag representation (already exact at 0.000 cells)",
+    "the trajectory-RMSE dynamics gap (reported, never gated, threshold never relaxed)",
+    "general waypoint or W50 redesign",
+    "commitment or interruptibility changes",
+    "tagged and dead branches (interface is bypassed)",
+    "any PPO, BC, specialist training, or team evaluation",
+    "unblocking PYQUATICUS_PORT_CONTRACT_RESULT.json's FAIL_TEAM_EVALUATION_BLOCKED status, which requires its own separate freeze"
+  ],
+
+  "SEQUENCING_LOCK": [
+    "1. This paper-only freeze",
+    "2. Implement P1, P2 and the legality change behind two independent default-OFF flags",
+    "3. Run C0-C5 contracts on CPU",
+    "4. Freeze DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_CONTRACT_RESULT.json",
+    "5. Only on REPRESENTABILITY_RESTORED, write the separate Pyquaticus team-evaluation spec",
+    "6. Team evaluation never launches automatically from this record"
+  ],
+
+  "authorizes": "implementation and CPU contract execution only"
+}

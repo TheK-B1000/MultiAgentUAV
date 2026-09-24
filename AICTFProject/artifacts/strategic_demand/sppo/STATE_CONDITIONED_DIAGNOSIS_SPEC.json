@@ -1,0 +1,75 @@
+{
+  "record_id": "STATE_CONDITIONED_DIAGNOSIS_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-17T12:30:00Z",
+  "supersedes_routing_via": "B_CHECKPOINT_SCREENING_ROUTING_SUPERSESSION.json",
+
+  "THE_QUESTION": "In which specific, context-defined situations does B_worse systematically replace a decision B_better would make, and is that substitution largely absent in frozen A3?",
+
+  "WHY_NOT_ANOTHER_AGGREGATE_TABLE": "POLE_B_BEHAVIORAL_DIAGNOSIS already established that aggregate macro-fraction shifts (GET_FLAG down, GO_TO up) correlate with the decline but are not state-specific enough to design an intervention against -- A's own macro usage moves substantially too while remaining strong, and B_t300k had B's HIGHEST GET_FLAG fraction while performing worse than B_t200k. The target here is a CONTEXT-CONDITIONED transition (state class S: B_worse does Y where B_better does X), not another global frequency.",
+
+  "MECHANICAL_PAIR_SELECTION_not_chosen_by_intuition": {
+    "why_a_new_rule_was_needed": "B_CHECKPOINT_SCREENING_DECISION_TREE_AMENDMENT.json's existing STATE_CONDITIONED_DIAGNOSIS pair rule ('the best-performing preserved checkpoint... versus the first checkpoint along ITS OWN continuation trajectory...') presupposes a preservation continuation that is NOT being run, per B_CHECKPOINT_SCREENING_ROUTING_SUPERSESSION.json. It does not apply and a new rule is fixed here from data that already exists, before this diagnosis runs.",
+    "rule": "of the three checkpoints already screened against frozen pi_A3 (B_CHECKPOINT_SCREENING_RESULT), rank by delta_B point estimate (the crossover-relative quantity, not standalone win rate -- the screen's own result showed standalone win rate to be actively misleading, since B_t200k had the HIGHEST absolute Pole-B win rate but a negative delta_A). B_better = argmax(delta_B). B_worse = argmin(delta_B).",
+    "resolved_now": {
+      "delta_B_B_t200k": -0.125, "delta_B_B_t500k": -0.047, "delta_B_B_tfinal": -0.203,
+      "B_better": "B_t500k (delta_B=-0.047, least negative)",
+      "B_worse": "B_tfinal (delta_B=-0.203, most negative)",
+      "note_this_is_not_the_intuitive_pair": "the trajectory's standalone-win-rate peak was B_t200k, and B_t200k vs Bfinal would have been the intuitive choice. The mechanical rule picks B_t500k instead, because B_t200k's own crossover delta_B (-0.125) is WORSE than B_t500k's (-0.047) despite B_t200k's higher standalone Pole-B win rate -- exactly the confound this rule exists to avoid re-introducing."
+    }
+  },
+
+  "TERTIARY_REFERENCE": "frozen pi_A3 (tfinal) is queried at every state alongside B_better and B_worse, to test whether a given substitution is 'largely absent in frozen A' as requested -- not part of the better/worse pair, but present at every comparison point.",
+
+  "DESIGN": {
+    "rollout_policy": "B_worse (Bfinal) drives the actual Pole-B trajectory -- its actions determine what states are visited. B_better and A3 are queried COUNTERFACTUALLY at every visited state (same technique already validated in POLE_B_BEHAVIORAL_DIAGNOSIS: single predict() call on the identical obs dict, no rollout, no hidden state -- confirmed safe because none of these three policies use latent strategy conditioning, so predict() is a pure function of the current observation).",
+    "why_B_worse_drives_and_not_B_better": "the question is what B_worse does WRONG in the states it actually reaches. Driving with B_better would show a different, more successful trajectory and never surface the failure states at all.",
+    "per_agent_not_per_team": "unlike the aggregate instrument, EVERY feature below is computed PER AGENT (i in 0..3), because a context bucket like 'carrying' or 'pressured' is a per-agent property -- pooling across agents would wash out exactly the state-class specificity this experiment exists to find.",
+    "seeds": {"n": 48, "class": "exploratory", "block": "fresh, reserved immediately before launch"},
+    "estimated_cost": "~48 episodes x ~40s = ~30 minutes of rollout, plus two counterfactual predict() calls per decision step (B_better, A3) -- cheap, no training, no new checkpoints."
+  },
+
+  "PER_AGENT_CONTEXT_FEATURES_frozen_bucket_definitions": {
+    "carrying_i": "bool, from blue_carrying[i]",
+    "pressured_i": "bool, count of red agents within PRESSURE_RADIUS=3.0 of agent i (identical constant to POLE_B_BEHAVIORAL_DIAGNOSIS) >= 2",
+    "near_enemy_flag_i": "bool, distance from agent i to enemy flag < 4.0 (identical DEFEND_RADIUS constant already used there to define 'attacker')",
+    "near_own_flag_i": "bool, distance from agent i to own flag < 4.0 (identical constant, already used there to define 'defender')",
+    "prev_macro_i": "one of {GET_FLAG, GO_TO, GO_HOME, OTHER} -- B_worse's own commanded macro for agent i on the PREVIOUS decision step (commit-state context), OTHER covers the two mine macros pooled (both are near-zero frequency throughout this investigation)",
+    "why_these_five_and_not_entity_geometry_directly": "teammate/enemy geometry is already captured through pressured_i (a direct function of red positions) and the two flag-proximity features (a direct function of blue/flag positions) -- the same underlying (dx, dy, dist, alive, carrying, tagged) entity features the policy itself consumes, expressed as human-readable context bins rather than raw relative coordinates. A 6th raw-geometry axis was considered and dropped: it would multiply the bucket count without adding a state class distinct from what pressured_i/near_*_flag_i already express.",
+    "bucket_count": "2 x 2 x 2 x 2 x 4 = 64 possible (carrying, pressured, near_enemy, near_own, prev_macro) combinations per agent-step"
+  },
+
+  "OUTCOME_LINKAGE": {
+    "field": "for every agent-step, tag the EPISODE-level outcome once known: won (bool), blue_score, red_score (from the same info['episode_result'] path validated in POLE_B_BEHAVIORAL_DIAGNOSIS, not a live core read post-reset)",
+    "purpose": "correlate disagreement-heavy buckets with worse episode outcomes -- explicitly a correlate, not a causal claim. No intervention is designed from this alone; it narrows where to look next."
+  },
+
+  "REPORTING_RULE_fixed_before_any_data_exists": {
+    "minimum_bucket_count": 30,
+    "rule": "report only (context bucket) combinations with >= 30 agent-steps of B_worse/B_better disagreement observed. Among those, rank by disagreement COUNT (not rate) descending -- count-weighted so the highest-volume, most state-relevant substitutions surface first, rather than a rare bucket with a coincidentally high rate.",
+    "per_reported_bucket": ["disagreement rate (fraction of agent-steps in this bucket where B_worse's macro != B_better's macro)",
+                           "dominant substitution direction (B_worse's macro -> B_better's macro, the single most common pair)",
+                           "A3_agreement_with_B_better: fraction of agent-steps in this bucket where A3's macro matches B_better's rather than B_worse's -- operationalizes 'largely absent in frozen A'",
+                           "mean episode outcome (won rate, mean blue_score) for episodes containing at least one disagreement in this bucket, reported alongside the OVERALL rollout's won rate/blue_score for comparison, not as a controlled contrast"],
+    "why_fixed_now": "choosing which buckets to report after seeing the data, or re-defining 'informative', would reintroduce exactly the selection-after-the-fact problem this whole investigation has been correcting for at every prior stage."
+  },
+
+  "KNOWN_ANSWER_CONTRACTS": [
+    "K1. B_better (B_t500k) and B_worse (B_tfinal) sha256 match the exact checkpoints screened in B_CHECKPOINT_SCREEN_Bt500k/Btfinal (d4c0d7ba2477.../021342c84bbe...).",
+    "K2. Pole B attested against the governing certification (Rule 14) before any episode.",
+    "K3. Counterfactual query determinism: querying B_better on the same state twice yields identical macros (predict() is a pure function of the observation for these non-latent policies).",
+    "K4. Per-agent feature extraction sanity: pressured_i and near_*_flag_i booleans are directly recomputable from blue_x/blue_y/red_x/red_y/flag positions using the SAME formula as POLE_B_BEHAVIORAL_DIAGNOSIS's team-level aggregates (n_pressured, n_attackers, n_defenders) -- summing the per-agent booleans here must reproduce those aggregate counts on a shared sample, checked directly rather than assumed.",
+    "GATE -- all contracts pass before the first episode."
+  ],
+
+  "WHAT_THIS_EXPERIMENT_MAY_NOT_CLAIM": [
+    "causation -- a state-class substitution correlated with worse outcomes is a candidate intervention target, not a proven mechanism",
+    "that the identified bucket(s) are THE explanation -- only that they are the highest-volume disagreements meeting the fixed reporting threshold",
+    "any win-rate or gate result -- n=48, exploratory, diagnostic arm",
+    "anything about 6v6 or 2v2"
+  ],
+
+  "WHAT_HAPPENS_AFTER": "if a specific state-class substitution is identified, the PI's own stated next step governs: design ONE targeted intervention against that specific decision/state class (e.g. a preservation constraint scoped to that bucket, not a global anchor) -- not authorized yet, contingent on this diagnosis's result."
+}

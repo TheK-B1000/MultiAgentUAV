@@ -1,0 +1,32 @@
+{
+  "record_id": "RUNG1_6V6_CROSSOVER_EVAL_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-08T13:12:00Z",
+  "implements": "RUNG1_CONSTRUCTION_6V6_AMENDMENT.json, 6V6_PIPELINE_SEED_ALLOCATION.json#stage_4_crossover_eval",
+
+  "PURPOSE": "the sealed crossover evaluation of the frozen Rung-1-at-6v6 latent policy: does ONE checkpoint dispatched by z express two behaviorally distinct, oppositely-useful strategies at 6v6 -- the scaling test, not a rediscovery of the mechanism.",
+
+  "CHECKPOINT_UNDER_TEST": "RUNG1_6V6_STUDENT_FROZEN.json's TERMINAL_CHECKPOINT -- not yet trained as of this freeze",
+
+  "GATE": {
+    "delta_A": "WR(z0,A) - WR(z1,A)",
+    "delta_B": "WR(z1,B) - WR(z0,B)",
+    "rule": "PASS iff delta_A > 0 AND LCB95(delta_A) > 0 AND delta_B > 0 AND LCB95(delta_B) > 0 -- identical criterion used everywhere in this program",
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7, seed as the resampling unit"
+  },
+
+  "SEEDS": {"block": [13640001, 13640128], "n": 128,
+           "source": "6V6_PIPELINE_SEED_ALLOCATION.json#stage_4_crossover_eval",
+           "pairing": "the SAME 128 seeds shared across all 4 cells (z0@A, z1@A, z0@B, z1@B)"},
+
+  "TOOL": "experiments/eval_rung1_crossover_scaled.py -- a standalone absolute gate, NOT eval_ladder_rung1_matched.py's ladder-relative D_A/D_B comparison against a Rung-0 reference (no Rung-0-at-6v6 exists, and building one would be the sharing-ladder rediscovery this track explicitly skips)",
+
+  "run_command": "python experiments/eval_rung1_crossover_scaled.py --team-size 6 --rung 1 --checkpoint <RUNG1_6V6_STUDENT_FROZEN.json's path> --spec artifacts/strategic_demand/sppo/RUNG1_6V6_CROSSOVER_EVAL_SPEC.json --seed-base 13640001 --n-seeds 128 --label RUNG1_6V6 --device cuda",
+
+  "if_PASS": "6v6 reaches confirmatory crossover parity with 2v2 and 4v4 (C2 track); the checkpoint is frozen and becomes the subject of stage 5 (deployment robustness). No retraining for any noise condition.",
+  "if_FAIL": "per the standing no-second-attempt discipline used throughout this program: this Rung-1-at-6v6 construction does not certify a scaling result. Does not authorize retraining, reselecting a different architecture, or tuning the distillation schedule -- requires PI review before any further 6v6 step.",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["spending 13640001-128 before the Rung-1-at-6v6 checkpoint exists and is frozen", "reuse of this block for any other purpose", "any change to the gate or bootstrap"]
+}

@@ -1,0 +1,74 @@
+{
+  "record_id": "ARM1_TEST0_COUNTEREXAMPLE_READING",
+  "status": "FROZEN_READING",
+  "utc": "2026-09-12T23:35:00Z",
+  "reads": "ARM1_TEST0_COUNTEREXAMPLE_CANONICAL.json -> ARM1_TEST0_COUNTEREXAMPLE_20260912T233223Z_16ddccb9_RESULT.json",
+  "implements_interpretation_of": "ARM1_TEACHER_IDENTIFIABILITY_SPEC.json#TEST_0_OBSERVATION_EQUIVALENCE_COUNTEREXAMPLE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+
+  "THE_RESULT_AS_IT_MUST_BE_STATED": "Under matched probing, no observation-equivalent teacher-action contradictions were found at 2v2, whereas constructive contradictions were found at both 4v4 and 6v6. Because the 6v6 search was capped after 25 counterexamples and all estimates use only three seeds, the experiment supports the PRESENCE of the representability mismatch at both larger scales, not a quantitative monotonic increase from 4v4 to 6v6.",
+
+  "MATCHED_BUDGET": {
+    "n_seeds": 3, "tick_stride": 6, "max_ticks": 240, "device": "cpu",
+    "identical_across_all_three_scales": true,
+    "seed_block": [17600001, 17600003]
+  },
+
+  "NUMBERS": {
+    "2v2": {"n_defenders": 1, "obs_identical_pairs": 74, "counterexamples": 0, "censored": false},
+    "4v4": {"n_defenders": 2, "obs_identical_pairs": 384, "counterexamples": 9, "censored": false},
+    "6v6": {"n_defenders": 3, "obs_identical_pairs": 1020, "counterexamples": 25, "censored": true,
+            "censoring_note": "search stopped at the 25-counterexample cap; 25 is a FLOOR, not the count"}
+  },
+
+  "THE_STRONGEST_DEFENSIBLE_CLAIM": "The observation-to-teacher-action mapping changes QUALITATIVELY at 2 -> 4, because that is where multi-defender assignment becomes real. At 4v4 and 6v6 there are constructive counterexamples; at 2v2 there are none. The 4 -> 6 change is severity/complexity, not a new mechanism.",
+
+  "WHY_THE_2v2_ZERO_IS_LOAD_BEARING": "It is the negative control. At N=2, GUARD has one defender, the assignment loop runs once, and `dd.argmin` ranges over a single element -- there is nothing to flip. The probe finding zero there is what makes the 4v4/6v6 findings trustworthy rather than an artifact of the perturbation method.",
+
+  "VERIFIED_MECHANISM": {
+    "what_was_perturbed": "one DEFENDER's continuous (x,y) within its own 20x20 grid cell. Quantization is round-to-nearest, so e.g. 1.55 and 2.45 both occupy cell 2 -- a ~0.9-cell perturbation, not a numerical epsilon.",
+    "what_stayed_identical": "the COMPLETE per-agent policy input (grid, vec, agent_mask, mask) of a DIFFERENT agent i, verified byte-for-byte on raw bytes, not by hash",
+    "what_changed": "agent i's teacher target, and its projection onto the student's 50-waypoint vocabulary",
+    "worked_example": "seed 17600001 tick 28: defender j=3 moves (1.55,10.0)->(2.45,10.0), both in cell (2,10). Agent i=2's observation is byte-identical. Agent i=2's teacher target flips (3.29,10.94) -> (2.0,10.0), i.e. intercept-a-threat -> hold-at-home. Waypoint q: 15 -> 5.",
+    "every_subject_was_a_defender": "in all recorded counterexamples the subject agent i is itself a defender, tying the contradiction specifically to the defender-to-threat assignment machinery rather than to team size generally"
+  },
+
+  "WHAT_THIS_ESTABLISHES": [
+    "The scripted GUARD teacher's exact policy is NOT a deterministic function of the student's observation at N>=4.",
+    "Therefore behaviour cloning o -> a on the standard observation has an IRREDUCIBLE loss floor at N>=4, and that floor must not be read as network capacity.",
+    "The defect is present at both 4v4 and 6v6, and absent at 2v2."
+  ],
+
+  "WHAT_THIS_DOES_NOT_ESTABLISH": [
+    "That NO adequate student policy exists. This proves NON-IMITABILITY, not INADEQUACY. A student could adopt a self-consistent alternative convention (e.g. 'whoever looks closer in my quantized view takes the threat') and capture much of GUARD's value without ever matching the teacher action-for-action.",
+    "That this is WHY PPO failed at 4v4/6v6. It is a precondition claim about the mapping, not a causal claim about training.",
+    "A quantitative monotonic increase in severity from 4v4 to 6v6 (6v6 is censored at the cap, and n_seeds=3).",
+    "Anything about student decision TIMING -- this probe measures instantaneous observability only; the decision-aligned measurement remains deferred pending a justified teacher->student action adapter."
+  ],
+
+  "NEXT_EXPERIMENT_ARMS_2_AND_3": {
+    "why_still_necessary": "Because TEST_0 establishes non-imitability, not inadequacy, BC loss alone would only measure how much TEACHER BEHAVIOUR is recoverable -- not how much TASK VALUE the interface destroys. Each BC arm therefore needs TWO stages: offline imitation fidelity, then closed-loop evaluation.",
+    "compare": ["imitation fidelity: privileged-observation BC vs standard-observation BC",
+                "closed-loop value: V(pi_privileged) vs V(pi_standard)"],
+    "four_informative_outcomes": {
+      "privileged_clones_and_performs_well_standard_does_neither": "observation interface strongly implicated",
+      "standard_clones_poorly_but_performs_nearly_as_well": "the ambiguity is mostly HARMLESS -- the student implements an alternative coordination convention",
+      "both_clone_well_both_perform_badly_closed_loop": "distribution shift / compounding error, not observation sufficiency",
+      "even_privileged_cannot_clone": "another bottleneck: action representation, capacity for the teacher mapping, or the teacher->student adapter"
+    },
+    "control_arm": "2v2 included as the working reference: expect standard ~ privileged at 2v2. The question is whether privileged > standard at 4v4, in BOTH imitation and closed-loop performance.",
+    "scope": "4v4 primary with 2v2 control. No large 6v6 BC campaign yet."
+  },
+
+  "PROGRAM_SEQUENCE": ["TEST_0 (done)", "Privileged vs Standard BC at 4v4 + 2v2 control",
+                       "minimal interface repair", "4v4 PPO specialists", "6v6 validation"],
+  "SNR_STATUS": "GRAD_SNR_SCALING remains PARKED. Its hypothesis space presumes representability, which is now known to fail at the first failing scale. It does not resume until a repaired interface is shown sufficient.",
+
+  "ARTIFACT_INTEGRITY_INCIDENT": {
+    "what_happened": "a 6v6-only invocation of the probe silently overwrote a combined 2v2/4v4/6v6 record, because the script wrote a fixed RESULT.json filename.",
+    "fix": "outputs are now immutable and run-specific (LABEL_<utc>_<confighash>_RESULT.json, refusing to overwrite an existing run_id). A separate ARM1_TEST0_COUNTEREXAMPLE_CANONICAL.json pointer names the citable run.",
+    "second_bug_found_while_fixing_the_first": "the pointer initially auto-updated to the most recent run, which let a 10-tick smoke run displace the full matched-budget result as canonical. Promotion is now a DELIBERATE ACT requiring --promote; a plain run records itself in history but never changes the canonical pointer.",
+    "canonical_run_id": "20260912T233223Z_16ddccb9"
+  }
+}

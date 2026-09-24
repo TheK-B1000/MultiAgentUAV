@@ -1,0 +1,145 @@
+{
+  "record_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC",
+  "status": "FROZEN_BEFORE_SEED_ALLOCATION",
+  "utc": "2026-09-18T18:15:00Z",
+  "classification": "SCRIPTED_TEAM_EXPLORATORY. ROLE-COMPOSITION SWEEP. PPO OFF.",
+  "confirmatory": false,
+  "authorized_by": "user_direction_current_turn",
+  "research_question": "With the pinned Pyquaticus easy-mode ATTACK and DEFEND semantics unchanged, does changing the 4v4 team composition from 4A/0D through 0A/4D produce pole-dependent behavior or outcome differences?",
+  "scientific_delta": "Change only the number of fixed ATTACK and DEFEND roles. Keep the semantic controllers, opponent poles, environment, action adapter, seed pairing, and telemetry unchanged from the completed 4v4 assignment evaluation.",
+  "claim_boundary": "This tests fixed scripted role composition in this project's CTF dynamics. It does not reproduce native Pyquaticus performance, establish learned roles, identify a causal PPO repair, or authorize 6v6.",
+  "prerequisites": {
+    "upstream_commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+    "semantic_source": "gpu_env/pyquaticus_port.py::true_motion",
+    "validated_semantic_gate": "artifacts/strategic_demand/sppo/DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json",
+    "validated_semantic_status": "REPRESENTABLE_ACROSS_TRANSITIONS",
+    "completed_assignment_reference": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json",
+    "adapter_contract": {
+      "attack_no_carrier": "GET_FLAG macro",
+      "attack_any_friendly_carrier": "GO_HOME macro with the already-validated non-carrier home-legality branch",
+      "defend": "unified DEFEND macro id 7 with live target re-derivation",
+      "evaluation_only_n_macros": 8
+    },
+    "old_aggregate_g6": "retained historical failure; not used as a team-evaluation gate"
+  },
+  "execution": {
+    "device": "cpu",
+    "gpu": false,
+    "ppo": false,
+    "training": false,
+    "team_size": "4v4",
+    "map_set": "train",
+    "map_layout": "map_a",
+    "rules_profile": "OURS",
+    "aquaticus_profile": true,
+    "max_decision_steps": 240,
+    "own_flag_home_required_to_score": true,
+    "speed_caveat": "Pyquaticus easy-mode speed intent is retained, but physical integration uses this project's dynamics. Native Pyquaticus performance is not claimed.",
+    "seed_block": {
+      "base": 19900001,
+      "n": 64,
+      "last": 19900064,
+      "paired_across_compositions_and_poles": true,
+      "allocation": "PENDING_SEED_REGISTRY_ALLOCATION",
+      "purpose": "PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP"
+    }
+  },
+  "canonical_assignment": {
+    "rule": "FIXED_IDENTITY_PREFIX_DEFENDERS",
+    "stable_identity_order": [0, 1, 2, 3],
+    "definition": "For defender count D, stable ids 0 through D-1 are DEFEND and the remaining ids are ATTACK. Compute once at reset and hold for the episode.",
+    "no_reassignment": true,
+    "tie_break": "not applicable; identity order is fixed",
+    "role_ids": {
+      "ATTACK": 0,
+      "DEFEND": 1
+    }
+  },
+  "compositions": {
+    "4A_0D": {"attackers": [0, 1, 2, 3], "defenders": []},
+    "3A_1D": {"attackers": [1, 2, 3], "defenders": [0]},
+    "2A_2D": {"attackers": [2, 3], "defenders": [0, 1]},
+    "1A_3D": {"attackers": [3], "defenders": [0, 1, 2]},
+    "0A_4D": {"attackers": [], "defenders": [0, 1, 2, 3]}
+  },
+  "opponent_poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {"min_alive_for_defender": 4},
+      "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.A"
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {"lock_defender": 10, "enable_2v1": true, "min_alive_for_defender": 4},
+      "genome": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+      "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.B"
+    }
+  },
+  "cells": {
+    "definition": "2 opponent poles x 5 role compositions = 10 paired cells",
+    "episodes": "10 x 64 = 640",
+    "only_cell_delta": "role composition; all identity ordering and semantic controllers remain frozen",
+    "same_seed_across_poles_and_compositions": true
+  },
+  "telemetry": {
+    "episode_fields": [
+      "seed", "pole", "composition", "defender_ids", "attacker_ids",
+      "blue_score", "red_score", "blue_win", "draw", "steps",
+      "blue_alive_end", "red_alive_end", "genome_id", "pole_config_hash"
+    ],
+    "behavior_fields": [
+      "attack_ticks", "defend_ticks", "attack_enemy_flag_branch_count",
+      "carrier_home_branch_count", "defend_inward_count",
+      "defend_outward_count", "tagged_ticks_by_role", "role_switch_count"
+    ]
+  },
+  "estimands_and_decision_rules": {
+    "primary_per_cell": "Blue win rate, score difference, draw rate, episode length, and role telemetry with 95% paired-seed bootstrap intervals.",
+    "composition_effect": "For each pole, compare every non-2A/2D composition against the frozen 2A/2D baseline on win rate and score difference using paired seeds.",
+    "regime_effect": "Report paired B-minus-A contrasts for every composition. These are descriptive regime contrasts, not a new strategic-demand certification.",
+    "regime_composition_signal": "A conservative descriptive signal requires a non-baseline composition whose win-rate contrast versus 2A/2D has opposite signs on Pole A and Pole B and whose two pole-specific intervals both exclude zero. Otherwise report no demonstrated regime-dependent composition signal.",
+    "no_signal_label": "NO_DEMONSTRATED_COMPOSITION_EFFECT",
+    "composition_signal_label": "COMPOSITION_DESCRIPTIVE_SIGNAL",
+    "regime_signal_label": "REGIME_DEPENDENT_COMPOSITION_SIGNAL",
+    "multiplicity": "All contrasts are exploratory. Intervals are descriptive and do not authorize PPO, architecture selection, or 6v6 from a nominal interval exclusion alone."
+  },
+  "isolation": {
+    "held_identical": [
+      "Pyquaticus-derived semantic functions and provenance",
+      "GET_FLAG, GO_HOME, and unified DEFEND adapter",
+      "evaluation-only n_macros=8 path",
+      "Pole A and Pole B certified opponent definitions",
+      "map, rules, horizon, speed intent, telemetry, and statistics",
+      "paired seed values"
+    ],
+    "only_changed_factor": "number of ATTACK versus DEFEND roles under the frozen identity ordering",
+    "forbidden": [
+      "PPO or training",
+      "GETFLAG preservation",
+      "Assignment-v1 conditioning",
+      "old ROLE bit",
+      "Heuristic_CTF_Agent",
+      "dynamic role switching",
+      "adapter or opponent selection from outcomes",
+      "production macro changes",
+      "6v6 execution before 4v4 interpretation"
+    ]
+  },
+  "artifacts": {
+    "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json",
+    "preflight": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_PREFLIGHT.json",
+    "episode_csv": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_EPISODES.csv",
+    "mapping_audit": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_MAPPING_AUDIT.json",
+    "result": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json"
+  },
+  "sequencing_lock": [
+    "1. Validate this frozen spec and run CPU preflight only.",
+    "2. Allocate exactly 19900001-19900064.",
+    "3. Run the ten paired CPU cells.",
+    "4. Freeze and interpret the result before proposing learned role-count selection or 6v6."
+  ],
+  "authorization_boundary": {
+    "authorized_now": "Freeze the spec, implement and run CPU preflight, then run the authorized 4v4 role-composition sweep after preflight passes.",
+    "not_authorized": "PPO, GPU, production-interface changes, or 6v6."
+  }
+}

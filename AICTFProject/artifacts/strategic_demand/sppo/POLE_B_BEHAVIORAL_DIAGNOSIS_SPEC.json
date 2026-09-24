@@ -1,0 +1,90 @@
+{
+  "record_id": "POLE_B_BEHAVIORAL_DIAGNOSIS_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-15T20:40:00Z",
+
+  "THE_QUESTION": "Why does pi_A3 -- trained for Pole A -- handle Pole B better than pi_B3, which was correctly and explicitly trained against Pole B?",
+
+  "WHY_THIS_AND_NOT_ANOTHER_ARCHITECTURE_CHANGE": {
+    "eliminated_so_far": [
+      "wrong Pole-B opponent: found, fixed, B retrained correctly against the attested certified pole -- still fails",
+      "entity geometry repair: did not produce complementary specialists",
+      "more training: the corrected trajectory shows decline, not emerging specialization",
+      "early checkpoint selection: t100k looked like a peak but a fresh confirmatory joint crossover rejected it (delta_A=+0.094 [0.000,0.188] FAIL, delta_B=-0.008 [-0.094,+0.086] FAIL)"
+    ],
+    "the_flashing_arrow": "pi_A3 scores ~0.70-0.74 on Pole B across evaluations. pi_B3_corrected final scores ~0.59 on the pole it trained on. Something pi_A3 does works on Pole B and pi_B3 either never acquires it or loses it.",
+    "why_behavioural_and_not_aggregate": "every measurement so far has been a win rate. Win rates say WHETHER a policy succeeds, never WHAT it does. The next useful thing is not another number of the same kind."
+  },
+
+  "THE_BRIDGE_DESIGN": {
+    "policies": [
+      {"label": "A3", "role": "the policy that unexpectedly handles Pole B well",
+       "ckpt": "pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+       "sha256_prefix": "94dde69d091a"},
+      {"label": "B100k", "role": "the bridge -- early B, competent but undifferentiated",
+       "ckpt": "pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_100000.zip",
+       "sha256_prefix": "4d4b813a5f9a"},
+      {"label": "Bfinal", "role": "the fully-trained B that performs worst on its own pole",
+       "ckpt": "pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+       "sha256_prefix": "021342c84bbe"}
+    ],
+    "why_three_not_two": "A3 vs Bfinal alone says only THAT they differ. Inserting B100k makes it a time machine: a behaviour present in A3 and partially in B100k but absent in Bfinal is a behaviour TRAINING DESTROYED, which is a far more specific repair target than a static difference.",
+    "poles": "BOTH. Pole B is the question, but each policy is also run on Pole A as a within-policy reference -- it is the only way to distinguish 'A3 adapts its behaviour to the pole' from 'A3 does one thing everywhere and that thing happens to work on both'. That distinction directly bears on the standing 'is A3 just a generalist' question and is nearly free here.",
+    "cells": "3 policies x 2 poles = 6 cells",
+    "seeds": {"n": 32, "class": "exploratory", "shared_across_all_six_cells": true,
+              "block": "fresh, reserved immediately before launch"},
+    "total_episodes": 192,
+    "estimated_cost": "~2 GPU-hours. No training.",
+    "why_n32_is_enough": "unlike a win-rate estimate, each episode yields ~240 decision steps x 4 agents ~= 960 agent-step observations. n=32 gives ~30,000 agent-steps per cell, which is ample for comparing BEHAVIOURAL DISTRIBUTIONS. n=32 would be far too few for a win-rate gate and no win-rate claim is made here."
+  },
+
+  "MEASURED_QUANTITIES_all_verified_obtainable_before_freezing": {
+    "verification_note": "every quantity below was confirmed readable from a live Pole-B episode before this spec was frozen. See EXPLICITLY_NOT_MEASURABLE for what was checked and found unavailable.",
+    "action_decode": "action space is MultiDiscrete([5,50] x 4 agents): a[2i] = agent i's macro, a[2i+1] = its target index. MacroAction: GO_TO=0, GRAB_MINE=1, GET_FLAG=2, PLACE_MINE=3, GO_HOME=4.",
+    "role_allocation": "per-step count of agents on each macro; fraction of agent-steps per macro. Distinguishes attack/defend/return posture.",
+    "command_degeneracy": "fraction of steps on which ALL FOUR agents are issued the IDENTICAL (macro, target) pair, and the per-step count of DISTINCT (macro,target) commands. A policy issuing one identical command to four agents is not allocating roles at all. (A spot check of A3's opening state showed exactly this -- all four agents (GET_FLAG, 24) -- which is why it is measured rather than assumed.)",
+    "macro_switch_rate": "per agent, fraction of steps where the macro differs from the previous step. Commitment vs thrash.",
+    "spatial_spread": "mean pairwise blue-blue distance per step, from blue_x/blue_y.",
+    "posture": "per-agent distance to own flag (blue_flag_pos) and to enemy flag (red_flag_pos); count of blue within radius 4.0 of own flag (defenders) and within 4.0 of enemy flag (attackers).",
+    "attrition": "fraction of agent-steps with blue_tagged True; same for red_tagged; blue_alive/red_alive.",
+    "carrier": "fraction of steps with any blue carrying (blue_carrying); mean carry run length; whether a carry run ends in a score (blue_score increment).",
+    "two_v_one_response": "the Pole-B mechanic is enable_2v1 (red doubles up). Per step, for each blue agent count reds within radius 3.0; flag any blue with >=2 reds nearby as PRESSURED; record the distance from a pressured blue to its nearest teammate. Tests whether the policy supports a doubled-up teammate or abandons it.",
+    "outcome_context": "blue_score, red_score at episode end, so behaviour can be read against whether the episode was won."
+  },
+
+  "EXPLICITLY_NOT_MEASURABLE_checked_and_found_unavailable": {
+    "bt_op7_split_primary_blue_idx": "reads -1 throughout a live Pole-B episode under the certified genome -- this OP7 behaviour-tree telemetry does not populate for this configuration. It is therefore NOT part of this spec. Recording it as unavailable rather than silently dropping it, and rather than writing a spec that promises a measurement which would have come back constant.",
+    "consequence": "the 2v1 mechanic is measured from OBSERVED red/blue geometry (two_v_one_response above), not from the behaviour tree's internal bookkeeping."
+  },
+
+  "COUNTERFACTUAL_COMPONENT": {
+    "design": "separately from the on-policy rollouts, replay the STATES visited by Bfinal on Pole B and ask each of A3 and B100k what macro it would have chosen at that identical state.",
+    "what_it_isolates": "on-policy behavioural differences confound POLICY differences with TRAJECTORY differences -- two policies in different situations will act differently for trivial reasons. Matched-state replay removes that: same state, different policy, what changes?",
+    "metrics": "per-agent macro agreement rate between Bfinal and each other policy; the macro each policy substitutes when it disagrees; whether disagreement concentrates in particular situations (pressured agents, carrier present, near own flag).",
+    "limitation_stated_plainly": "the replayed states are drawn from Bfinal's trajectory distribution, so this answers 'what would A3 do in situations Bfinal actually reaches', NOT 'what situations would A3 have created'. Both matter; only the first is measured here."
+  },
+
+  "WHAT_A_USEFUL_RESULT_LOOKS_LIKE": {
+    "the_target_pattern": "a behaviour present in A3, partially present in B100k, and absent in Bfinal, whose disappearance tracks the Pole-B performance decline. That would be a concrete thing to preserve (early stopping on that statistic, an auxiliary loss, a KL anchor) rather than another representation change.",
+    "a_null_is_also_informative": "if the three policies are behaviourally near-identical on Pole B and differ only in outcome, then the difference is not in the macro-level behaviour this instrument can see, and the next probe must go lower (waypoint targets, timing) or elsewhere entirely."
+  },
+
+  "WHAT_THIS_EXPERIMENT_MAY_NOT_CLAIM": [
+    "any win-rate or gate claim -- n=32, exploratory seeds, no delta is computed and none may be quoted",
+    "a causal account -- an observed behavioural difference is a correlate of the performance gap, not proof it causes it. Any candidate behaviour identified here would need its own intervention experiment.",
+    "that a behaviour absent in Bfinal was 'destroyed by training' rather than never acquired -- the B100k bridge makes this distinguishable IN PRINCIPLE but a single intermediate checkpoint is weak evidence for a trajectory claim",
+    "anything about 6v6 or 2v2"
+  ],
+
+  "COMPLIANCE": {
+    "rule_1_telemetry": "tqdm per episode; per-cell summary printed as each cell closes",
+    "rule_2_incremental": "per-step trace rows appended and flushed per episode",
+    "rule_3_frozen_spec": "this document, frozen before any episode, with measurability verified first",
+    "rule_4_preflight": "known-answer contracts + --dry-run",
+    "rule_9_seed_registry": "fresh exploratory block reserved before launch",
+    "rule_13_hardened_lock": "RunLock held for the run",
+    "rule_14_certification_attestation": "both poles attested against the governing certification before any episode"
+  }
+}

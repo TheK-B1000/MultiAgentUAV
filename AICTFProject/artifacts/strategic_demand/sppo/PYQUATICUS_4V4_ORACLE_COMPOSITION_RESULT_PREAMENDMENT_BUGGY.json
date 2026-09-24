@@ -1,0 +1,261 @@
+{
+  "record_id": "PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT",
+  "status": "COMPLETE",
+  "utc": "2026-09-18T20:19:33Z",
+  "implements": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json",
+  "spec_sha256": "00ac04ba972c3aa71eea530e69c2f025c6cb8e90e59ab8dd811323186b55c6e6",
+  "preflight_sha256": "b12731beffc0221d6c466ac10227593d64d3182046feca5c98fca5ca7e40771a",
+  "n_rows": 384,
+  "summaries": {
+    "A/ORACLE_REGIME": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.703125,
+        "lcb95": 0.59375,
+        "ucb95": 0.8125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 1.234375,
+        "lcb95": 0.9375,
+        "ucb95": 1.53125,
+        "n": 64
+      },
+      "draw_rate": 0.25,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 255.96875,
+      "mean_defend_outward_count": 224.03125
+    },
+    "A/FIXED_2A2D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.703125,
+        "lcb95": 0.59375,
+        "ucb95": 0.8125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 1.234375,
+        "lcb95": 0.9375,
+        "ucb95": 1.53125,
+        "n": 64
+      },
+      "draw_rate": 0.25,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 255.96875,
+      "mean_defend_outward_count": 224.03125
+    },
+    "A/FIXED_4A0D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.53125,
+        "lcb95": 0.40625,
+        "ucb95": 0.65625,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.71875,
+        "lcb95": 0.53125,
+        "ucb95": 0.921875,
+        "n": 64
+      },
+      "draw_rate": 0.46875,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 0.0,
+      "mean_defend_outward_count": 0.0
+    },
+    "B/ORACLE_REGIME": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.734375,
+        "lcb95": 0.625,
+        "ucb95": 0.84375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 2.0,
+        "lcb95": 1.5625,
+        "ucb95": 2.437890624999966,
+        "n": 64
+      },
+      "draw_rate": 0.265625,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 0.0,
+      "mean_defend_outward_count": 0.0
+    },
+    "B/FIXED_2A2D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.125,
+        "lcb95": 0.046875,
+        "ucb95": 0.203125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.484375,
+        "lcb95": -0.71875,
+        "ucb95": -0.25,
+        "n": 64
+      },
+      "draw_rate": 0.40625,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 225.75,
+      "mean_defend_outward_count": 254.25
+    },
+    "B/FIXED_4A0D": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.734375,
+        "lcb95": 0.625,
+        "ucb95": 0.84375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 2.0,
+        "lcb95": 1.5625,
+        "ucb95": 2.437890624999966,
+        "n": 64
+      },
+      "draw_rate": 0.265625,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 0.0,
+      "mean_defend_outward_count": 0.0
+    }
+  },
+  "contrasts": {
+    "A/oracle_gain_over_wrong_fixed": {
+      "definition": "ORACLE_REGIME - FIXED_4A0D",
+      "blue_win_rate": {
+        "mean": 0.171875,
+        "lcb95": 0.0,
+        "ucb95": 0.34375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.515625,
+        "lcb95": 0.15625,
+        "ucb95": 0.875,
+        "n": 64
+      }
+    },
+    "A/oracle_vs_2A2D": {
+      "definition": "ORACLE_REGIME - FIXED_2A2D",
+      "blue_win_rate": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 64
+      }
+    },
+    "A/oracle_vs_4A0D": {
+      "definition": "ORACLE_REGIME - FIXED_4A0D",
+      "blue_win_rate": {
+        "mean": 0.171875,
+        "lcb95": 0.0,
+        "ucb95": 0.34375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.515625,
+        "lcb95": 0.15625,
+        "ucb95": 0.875,
+        "n": 64
+      }
+    },
+    "A/fixed_2A2D_minus_fixed_4A0D": {
+      "definition": "FIXED_2A2D - FIXED_4A0D",
+      "blue_win_rate": {
+        "mean": 0.171875,
+        "lcb95": 0.0,
+        "ucb95": 0.34375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.515625,
+        "lcb95": 0.15625,
+        "ucb95": 0.875,
+        "n": 64
+      }
+    },
+    "B/oracle_gain_over_wrong_fixed": {
+      "definition": "ORACLE_REGIME - FIXED_4A0D",
+      "blue_win_rate": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 64
+      }
+    },
+    "B/oracle_vs_2A2D": {
+      "definition": "ORACLE_REGIME - FIXED_2A2D",
+      "blue_win_rate": {
+        "mean": 0.609375,
+        "lcb95": 0.484375,
+        "ucb95": 0.734375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 2.484375,
+        "lcb95": 2.0,
+        "ucb95": 3.0,
+        "n": 64
+      }
+    },
+    "B/oracle_vs_4A0D": {
+      "definition": "ORACLE_REGIME - FIXED_4A0D",
+      "blue_win_rate": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0,
+        "n": 64
+      }
+    },
+    "B/fixed_2A2D_minus_fixed_4A0D": {
+      "definition": "FIXED_2A2D - FIXED_4A0D",
+      "blue_win_rate": {
+        "mean": -0.609375,
+        "lcb95": -0.734375,
+        "ucb95": -0.484375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -2.484375,
+        "lcb95": -3.0,
+        "ucb95": -2.0,
+        "n": 64
+      }
+    }
+  },
+  "oracle_parity": {
+    "pass": true,
+    "n_mismatches": 0,
+    "mismatches": []
+  },
+  "decision_gate_details": {
+    "oracle_parity": true,
+    "A_oracle_gain_over_wrong_fixed_lcb95_gt_zero": false,
+    "B_oracle_gain_over_wrong_fixed_lcb95_gt_zero": false
+  },
+  "decision_label": "NO_ORACLE_COMPOSITION_CONFIRMATION",
+  "claim_boundary": "This tests whether regime-conditioned scripted composition is sufficient to exploit the observed sign reversal in this project's 4v4 CTF dynamics. It does not establish learned selector sufficiency, causal PPO recovery, native Pyquaticus performance, or 6v6 transfer.",
+  "six_v_six": "NOT_RUN",
+  "ppo": "OFF"
+}

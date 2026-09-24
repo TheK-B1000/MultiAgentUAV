@@ -1,0 +1,128 @@
+{
+  "record_id": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-21T00:00:00Z",
+  "classification": "CONFIRMATORY causal bridge. Rollout-time scaffold only: no training, no checkpoint write, no parameter change. This is NOT the final learned-crossover claim.",
+  "confirmatory": true,
+
+  "authorized_by": "PI direction 2026-09-21 ('GO: native A vs scaffolded A-prime vs B, both poles, fresh n=128'): run one decisive bridge experiment on the frozen 4v4 learned specialists, adding native pi_A as a third arm on the same fresh seeds so the effect of the scaffold can be separated from fresh-block variation.",
+
+  "QUESTION": "Does imposing the already-confirmed balanced coordination structure (2 attackers / 2 defenders) on pi_A restore the payoff separation that the learned 4v4 specialists failed to produce?",
+
+  "WHY_THIS_LEVER": {
+    "prior_pattern": "Every earlier 4v4 learned repair passed Delta_A and failed Delta_B (ROLE +0.203 / -0.047; Assignment-v1 +0.125 / -0.016; GETFLAG-preserve -0.047 / +0.016; entity repair +0.273 / -0.156). Those attempts pushed on pi_B.",
+    "baseline_verified_from_the_sealed_rows": {
+      "source": "confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv (sha256 3f9b862448c27aff6cf804c9bbb686d07f2e5173d88be91593fd893febf46025), seeds 18300001-18300128, recomputed 2026-09-21 with the evaluator's own bootstrap",
+      "win_rates": {"pi_A_on_A": 0.8125, "pi_A_on_B": 0.7422, "pi_B_on_A": 0.5391, "pi_B_on_B": 0.5859},
+      "Delta_A": "+0.2734 [+0.1719, +0.3750]", "Delta_B": "-0.1562 [-0.2656, -0.0469]",
+      "note": "matches the earlier memory-only figures to every digit; the previously flagged memory-only row is now verified against the sealed artifact."
+    },
+    "reading": "pi_A is a strong generalist (0.74 on Pole B) and pi_B is weak on both poles. Delta_B = WR(pi_B,B) - WR(pi_A,B) cannot be positive unless pi_A is made worse on B, or pi_B better. The scripted 2A/2D composition wins only about 0.11-0.15 on Pole B, so keeping pi_A balanced when it faces B is the lever this experiment tests, rather than pushing on pi_B again."
+  },
+
+  "ARMS_AND_DESIGN": {
+    "arms": {
+      "pi_A": "native pi_A3 (entity repair), all four agents policy-driven.",
+      "A_prime": "A' = pi_A3 + 2D: the same pi_A3, but exactly two of the four agents have their resolved target forced to MacroAction.DEFEND's live-state target for the whole episode. The other two agents are driven by pi_A3 exactly as in the native arm.",
+      "pi_B": "native pi_B3-corrected, all four agents policy-driven. Never scaffolded."
+    },
+    "poles": ["A", "B"],
+    "pole_meaning": "the certified 4v4 poles under STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json: Pole A = OP6 + frozen overlay (min_alive_for_defender=4, live genome SDS2_A_payoff_INIT_3); Pole B = the B3-3 candidate SDS2_B3_LOCKDEF10_2V1 (lock_defender 10, enable_2v1, min_alive_for_defender 4). Pole B is NEVER canonical OP7.",
+    "fresh_seed_block": {"base": 21100001, "n": 128, "class": "sealed_confirmatory",
+                         "disjoint_from": "every other registered block, including the sealed 4v4 crossover blocks 16700001-128, 17800001-128, 18300001-128 and 18500001-128 and the 6v6 blocks 20900001-096 and 21000001-096"},
+    "n_episodes": "3 arms x 2 poles x 128 seeds = 768 FULL 4v4 episodes, deterministic actions, cuda, torch.no_grad().",
+    "pairing": "the same 128 seed values in every cell and arm, so every contrast below is paired by seed.",
+    "scaffold_identity_rotation": {
+      "pairs": "the six unordered pairs of the four agent slots: (0,1) (0,2) (0,3) (1,2) (1,3) (2,3)",
+      "rule": "pair = PAIRS[seed % 6], the same pair for every arm and pole at a given seed (only the A_prime arm uses it).",
+      "why": "so spawn identity cannot masquerade as structure.",
+      "disclosed_imbalance": "128 is not a multiple of 6, so the six pairs are used 22, 22, 21, 21, 21, 21 times (max minus min = 1). Exactly uniform coverage would need 126 or 132 seeds; n=128 was the PI's choice and is kept."
+    }
+  },
+
+  "MECHANISM": {
+    "statement": "experiments.probe_learned_composition.install_forced_defend_target, applied once per overridden agent. It patches the resolved-target layer (the output of _build_targets_from_action) so the agent takes MacroAction.DEFEND's live-state target, calling the real target resolution a second time; it never writes commit_macro, so the action-mask and the n_macros=5 observation schema are undisturbed. The mechanism is N-agnostic and supports several agents per episode.",
+    "source_pin": {"file": "experiments/probe_learned_composition.py", "sha256": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb",
+                   "note": "byte-identical to the file that ran the 6v6 causal bridge and confirmation; the contracts stage refuses to run if the hash differs."},
+    "two_defender_contract": "before the block is spent, the contracts stage verifies at 4v4 that a two-agent injection reproduces a natural scripted two-defender team bit-for-bit (position, alive, tagged, carrying for all four agents on every tick, and the final outcome), on two different (pole, pair) cells, at n_macros 8 and 5."
+  },
+
+  "ENDPOINTS_FROZEN": {
+    "primary_endpoint": "win rate (the crossover currency used throughout this line).",
+    "primary_contrasts": {
+      "Delta_A_prime": "WR(A', Pole A) - WR(pi_B, Pole A), paired by seed.",
+      "Delta_B_prime": "WR(pi_B, Pole B) - WR(A', Pole B), paired by seed."
+    },
+    "primary_gate": "LCB95(Delta_A_prime) > 0 AND LCB95(Delta_B_prime) > 0.",
+    "statistics": "paired bootstrap 95% interval over seeds; 20000 resamples, alpha 0.05, rng seed 7 (the routine used throughout this line).",
+    "secondary_mechanism_diagnostics_not_gates": {
+      "I_A": "WR(A', Pole A) - WR(pi_A, Pole A): what the scaffold did to A on its own pole.",
+      "I_B": "WR(A', Pole B) - WR(pi_A, Pole B): what the scaffold did to A on the opposing pole.",
+      "hoped_for_pattern": "the scaffold preserves A's competence on Pole A (I_A not clearly negative) while suppressing A's unwanted competence on Pole B (I_B negative). This is an interpretation aid; neither quantity is a pass gate and neither enters the label.",
+      "native_crossover_on_the_fresh_block": "Delta_A = WR(pi_A,A) - WR(pi_B,A) and Delta_B = WR(pi_B,B) - WR(pi_A,B), reported for reference against the sealed 18300001-128 baseline. Descriptive."
+    },
+    "descriptive_also_reported": "for every contrast above, the paired difference in Blue goals per episode and in score margin, and all six cell means. These are non-gating and carry no label; goal volume is included because the frozen win endpoint is insensitive to goal production after a first goal (a limitation found in the 6v6 line)."
+  },
+
+  "TERMINAL_OUTCOMES_FROZEN": {
+    "precedence": ["AUDIT_FAILED (sealed status != SEALED) overrides everything and certifies no label",
+                   "SCAFFOLDED_CROSSOVER_NOT_ESTABLISHED", "SCAFFOLDED_CROSSOVER_CONFIRMED"],
+    "SCAFFOLDED_CROSSOVER_CONFIRMED": "LCB95(Delta_A_prime) > 0 AND LCB95(Delta_B_prime) > 0.",
+    "SCAFFOLDED_CROSSOVER_NOT_ESTABLISHED": "Either lower bound is not above zero. Which side or sides cleared is reported descriptively, not as a separate label.",
+    "always_reported": "both primary contrasts with intervals, I_A and I_B with intervals, the native crossover, the goal and margin counterparts, and all six cell means, whichever label results."
+  },
+
+  "BRANCH_RULES_FROZEN": {
+    "if_NOT_ESTABLISHED": "Close this branch. No 3-1 composition, no defender-horizon tweak, no change of overridden identities, no re-run of the block.",
+    "if_CONFIRMED": "Licenses only the statement below and nothing else: A's balanced coordination, imposed as an external scaffold, is sufficient to recover 4v4 A/B separation at the scaffolded-controller level. PPO to internalize the structure into pi_A, removal of the scaffold, and the fully learned crossover are a separate, later step and are NOT started or authorized here."
+  },
+
+  "INTERPRETATION_GUARD_FROZEN": {
+    "sentence": "A' is pi_A with an externally imposed defender structure. A scaffolded crossover is a causal bridge showing what the balanced structure does to the payoff separation; it is not a fully learned crossover and must not be reported as one."
+  },
+
+  "INTEGRITY_FROZEN": {
+    "checkpoints": {
+      "pi_A": {"path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+               "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"},
+      "pi_B": {"path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+               "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"},
+      "note": "the same two checkpoints, by hash prefix, that the sealed corrected crossover evaluated (its log records sha 94dde69d091a... and 021342c84bbe...)."
+    },
+    "pole_attestation": {
+      "governing_certification": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "pole_b_genome_file": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+      "pole_b_genome_sha256": "99c17cadcb4e0cbccdad02847d3997b2c4d59a2c945ceba2fc5eedb8c5ad5f26",
+      "rule": "both poles are attested before any episode against the governing certification (fields and config hash), through experiments.pole_attestation, with the B3-3 genome file supplied so canonical OP7 can never be scored. Each episode additionally asserts the LIVE opponent batch and the live min_alive_for_defender equals 4, and fails closed otherwise. This is the defect that invalidated an earlier 4v4 experiment (a pi_B trained on canonical OP7 but scored on B3-3)."
+    },
+    "native_path_parity": "the contracts stage replays 16 episodes of the sealed corrected crossover (seeds 18300001-18300004, both policies, both poles) through this experiment's own runner and requires the recorded (blue, red, win, margin) exactly. Parity only; those seeds are spent; no new evidence, no registry interaction.",
+    "policies_are_plain_specialists": "neither loaded policy may be latent-, role-, or assignment-conditioned (fail closed).",
+    "no_training": "no PPO, no optimizer, no parameter change; a parameter digest of both policies is equal before and after every shard.",
+    "no_interim_reading": "progress COUNTS only while the block runs; no outcome is read or printed, no early stopping, no top-up of the block.",
+    "sharding": "sharding across processes with an append-only resume file per shard is an execution detail only: episodes are independent and deterministic, so it cannot change a result. The analysis refuses to run unless all 768 cells are present and is sealed through the formal audit pipeline (rows, checkpoints, seed class, contrast claims re-derived from the rows)."
+  },
+
+  "CONTRACTS_BEFORE_ANY_SEED_IS_SPENT": [
+    "spec frozen", "mechanism source hash equals the pin", "checkpoint hashes equal the pins",
+    "both poles attested against the governing certification with the B3-3 genome; live Pole B genome id is SDS2_B3_LOCKDEF10_2V1 with lock_defender 10, enable_2v1 true, min_alive_for_defender 4",
+    "six-pair rotation covers all six pairs with max minus min <= 1",
+    "the block is reserved to this experiment as sealed_confirmatory, unspent, disjoint from every prior block",
+    "two-defender injection reproduces a scripted two-defender team exactly at 4v4, two (pole, pair) cells, n_macros 8 and 5",
+    "native-path parity with 16 sealed episodes",
+    "the terminal rule, as a pure function, returns the frozen label on synthetic cases (including a lower bound of exactly zero)",
+    "the real runner never writes a raw macro or a commit tensor; the loaded policies are plain specialists"
+  ],
+
+  "NOT_AUTHORIZED": [
+    "any PPO, parameter change, or checkpoint write",
+    "a different composition, defender count, defender horizon, or pair-selection rule than the frozen ones",
+    "reading any outcome before the block completes, stopping early, or topping up the block",
+    "reporting a scaffolded crossover as a fully learned crossover",
+    "canonical OP7 as Pole B",
+    "if the result is NOT_ESTABLISHED: any follow-up variant of this scaffold"
+  ],
+
+  "claim_boundary": "Two frozen 4v4 learned specialists, the two certified 4v4 poles, a rollout-time scaffold on pi_A only, fresh sealed_confirmatory seeds spent for the first time here.",
+  "claim_ceiling": "At most: SCAFFOLDED_CROSSOVER_CONFIRMED -- imposing 2A/2D on pi_A is sufficient to recover 4v4 A/B separation at the scaffolded-controller level. Not a fully learned crossover, not a mechanism beyond I_A and I_B, and not a statement about 6v6."
+}

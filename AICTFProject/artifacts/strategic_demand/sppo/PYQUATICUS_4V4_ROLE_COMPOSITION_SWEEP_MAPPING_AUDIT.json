@@ -1,0 +1,8069 @@
+{
+  "record_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_MAPPING_AUDIT",
+  "rows": [
+    {
+      "seed": 19900001,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "A",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "A",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "A",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "A",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900002,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900003,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900004,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900005,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900006,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900007,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900008,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900009,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900010,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900011,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900012,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900013,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900014,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900015,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900016,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900017,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900018,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900019,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900020,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900021,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900022,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900023,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900024,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900025,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900026,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900027,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900028,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900029,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900030,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900031,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900032,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900033,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900034,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900035,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900036,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900037,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900038,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900039,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900040,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900041,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900042,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900043,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900044,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900045,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900046,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900047,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900048,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900049,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900050,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900051,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900052,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900053,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900054,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900055,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900056,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900057,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900058,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900059,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900060,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900061,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900062,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900063,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900064,
+      "pole": "A",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900001,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "B",
+      "composition": "4A_0D",
+      "defender_ids": [],
+      "attacker_ids": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "B",
+      "composition": "3A_1D",
+      "defender_ids": [
+        0
+      ],
+      "attacker_ids": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "B",
+      "composition": "2A_2D",
+      "defender_ids": [
+        0,
+        1
+      ],
+      "attacker_ids": [
+        2,
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900002,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900003,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900004,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900005,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900006,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900007,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900008,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900009,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900010,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900011,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900012,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900013,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900014,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900015,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900016,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900017,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900018,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900019,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900020,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900021,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900022,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900023,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900024,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900025,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900026,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900027,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900028,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900029,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900030,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900031,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900032,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900033,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900034,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900035,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900036,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900037,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900038,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900039,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900040,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900041,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900042,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900043,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900044,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900045,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900046,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900047,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900048,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900049,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900050,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900051,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900052,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900053,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900054,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900055,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900056,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900057,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900058,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900059,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900060,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900061,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900062,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900063,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900064,
+      "pole": "B",
+      "composition": "1A_3D",
+      "defender_ids": [
+        0,
+        1,
+        2
+      ],
+      "attacker_ids": [
+        3
+      ]
+    },
+    {
+      "seed": 19900001,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900002,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900003,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900004,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900005,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900006,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900007,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900008,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900009,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900010,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900011,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900012,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900013,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900014,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900015,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900016,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900017,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900018,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900019,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900020,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900021,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900022,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900023,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900024,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900025,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900026,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900027,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900028,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900029,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900030,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900031,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900032,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900033,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900034,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900035,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900036,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900037,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900038,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900039,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900040,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900041,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900042,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900043,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900044,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900045,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900046,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900047,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900048,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900049,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900050,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900051,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900052,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900053,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900054,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900055,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900056,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900057,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900058,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900059,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900060,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900061,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900062,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900063,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    },
+    {
+      "seed": 19900064,
+      "pole": "B",
+      "composition": "0A_4D",
+      "defender_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "attacker_ids": []
+    }
+  ]
+}

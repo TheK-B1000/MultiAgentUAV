@@ -1,0 +1,101 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_REVIVAL_SPEC",
+  "status": "FROZEN_BEFORE_EXECUTION",
+  "utc": "2026-09-19T00:00:00Z",
+  "classification": "SCRIPTED_SELECTOR_CALIBRATION. PPO OFF. GPU OFF. OUTCOME-BLIND. NO OUTCOME SEEDS.",
+  "confirmatory": false,
+  "authorized_by": "PI direction 2026-09-19: run the two-feature selector revival under the conservative A-side safety rule, unchanged dwell, no PPO. One last selector experiment; terminal either way.",
+
+  "REVIVAL_BASIS": {
+    "clause_being_exercised": "COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json#supersedes_for_successor_work[2] -- 'COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT.json (suspended; may be revived only by a later freeze that re-authorizes it under an asymmetric criterion)'",
+    "this_record_is_that_later_freeze": true,
+    "also_exercised": "COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json#SELECTOR_SHAPE.feature_family_authorized_now -- 'A second feature is NOT required for this freeze; if used later it must be under a separate amendment that keeps the asymmetric criterion.'",
+    "suspended_amendment_status_after_this_freeze": "COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT.json remains SUSPENDED as written. Its symmetric dominant-composition-accuracy kill rule (>=0.80) is NOT revived and is NOT used here. Only its feature-construction steps 1-3 are revived."
+  },
+
+  "RESEARCH_QUESTION": "Does replacing the single-feature statistic P_blue with the two-feature contrast D_t = P_blue - P_red reshape the A-false-positive / B-detection trade-off enough that the selector fires meaningfully on Pole B while the Pole-A false-positive tick rate stays inside the already-frozen 0.10 budget?",
+
+  "WHAT_THE_SINGLE_FEATURE_RUN_ESTABLISHED": {
+    "source": "COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_CALIBRATION_RESULT.json + COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_FRONTIER_DIAGNOSTIC.json",
+    "result": "NO_CONSERVATIVE_B_TRIGGER",
+    "shape_of_the_failure": "Degenerate, not marginal. Of 7000 grid rows, 816 satisfied A_FP <= 0.10, and every one of those 816 had B_TP = 0.0 -- the constraint was satisfiable only by a selector that never fires. The frontier is flat at max_B_TP = 0.0 for every A_FP cap up to and including 0.14; the first nonzero B detection appears at cap 0.16 (B_TP = 0.133, and still 0 of 16 B episodes dominant-4A_0D). B dominance at the 0.50 pass level first appears near cap 0.30.",
+    "explicit_non_reuse": "This is recorded as context for interpreting the two-feature run. It is NOT treated as a near-miss and confers no partial credit. The single-feature branch failed at its frozen budget by a wide, structural margin."
+  },
+
+  "SINGLE_AXIS_CHANGE": {
+    "changed": "the online statistic fed to the state machine: P_blue_t(r=4.0) becomes D_t = P_blue_t(r=4.0) - P_red_t(r_red_star)",
+    "unchanged_and_inherited_verbatim_from_ASYMMETRIC_B_TRIGGER_V1_SPEC": [
+      "default composition 2A_2D; triggered composition 4A_0D",
+      "max_A_FP_tick_rate = 0.10 (frozen; not retunable, not relaxable)",
+      "calibration_pass_rule: held-out A FP tick rate <= 0.10 AND held-out B dominant-composition = 4A_0D on >= 0.50 of B episodes",
+      "window_W grid {20, 40, 60, 80, 120}",
+      "hysteresis_half_width_m grid {0.0, 0.05, 0.10, 0.15, 0.20}",
+      "dwell_d grid {4, 10, 20, 40} -- dwell behaviour is NOT changed by this freeze",
+      "threshold candidates: percentiles of the pooled calibration windowed statistic, 1% steps",
+      "per-config selection: retain only configs with A_FP <= 0.10; among survivors maximize B_TP; tie-break min mean A switches/episode, then prefer d=4, then smallest W",
+      "state machine shape: default 2A_2D at episode start, trigger below the lower bound, release above the upper bound, both subject to the dwell minimum",
+      "outcome-blind: no score/win/reward/return/draw read, computed, printed or serialized; pole labels used only for FP/TP accounting and never as a selector input",
+      "fixed 2A_2D behaviour during trace collection (the selector is scored offline on traces, it does not act)",
+      "horizon 240, device cpu, n_envs 1, 4v4, poles A = canonical attested parent, B = SDS2_B3_LOCKDEF10_2V1"
+    ]
+  },
+
+  "THE_SECOND_FEATURE": {
+    "definition": "P_red_t = count of live Red agents within radius r_red of Red's OWN flag position (core.red_flag_pos), structurally identical to P_blue mirrored onto Red's home.",
+    "mechanistic_motivation_predeclared": "Carried over from COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT.json#WHY_A_SECOND_FEATURE_AND_NOT_MORE_TUNING: P_blue reads only OP6's dual-lane forward rush on Blue's flag. The unmeasured half of the documented asymmetry is OP7+B3-3's tight fortress occupancy on Red's own flag (defender_zone_frac 0.05 vs OP6's 0.35). The contrast of forward pressure against home occupancy is a more complete read of the same documented mechanism, not a new guess.",
+    "legality": "core.red_flag_pos is exactly as observable as the enemy positions already used for P_blue. gpu_env/_core/_rules.py::_build_targets_from_action already reads the same quantity as side_t['enemy_flag'] to resolve Blue's own GET_FLAG macro. Not privileged state, not a pole label, not a genome field.",
+    "r_blue": "FIXED at 4.0 -- already selected and sealed in COMPOSITION_SELECTOR_FEATURE_DERIVATION_TRACE.json. Not re-opened.",
+    "r_red_selection_rule_predeclared": "r_red_star = argmin over {4.0, 6.0, 8.0, 10.0} of the pooled full-episode misclassification rate between poles, by the identical exhaustive-midpoint-scan criterion used for r_blue. Computed on the SAME 32 calibration episodes (99900101-99900116, both poles). This is the rule the suspended amendment predeclared and it is carried over unchanged; it is deliberately NOT re-derived under the asymmetric criterion, because re-deriving it after seeing the single-feature failure would be post-hoc knob-turning.",
+    "combined_statistic": "D_t = P_blue_t(4.0) - P_red_t(r_red_star)",
+    "sign_convention_predeclared": "D is HIGHER on Pole A (forward pressure, empty home) and LOWER on Pole B (no forward pressure, occupied home). Strong B-like evidence is therefore a LOW windowed D. The state machine triggers to 4A_0D below the lower bound and releases to 2A_2D above the upper bound -- the same direction as the single-feature run. The executor VERIFIES this direction on calibration data and ABORTS if it does not hold; it does not flip the convention to fit.",
+    "not_done": "no 2-D joint classifier, no learned or weighted combination of P_blue and P_red, no third feature. The contrast is the one predeclared combination rule."
+  },
+
+  "SEEDS": {
+    "calibration": "99900101-99900116, both poles, 32 episodes -- REUSED. These are the same episodes the single-feature calibration and the r_blue derivation used. They are deterministic given the seed, so P_red is recoverable by re-simulating them; the executor re-collects rather than assuming a cache, and hard-fails if P_blue does not reproduce the sealed derivation means.",
+    "held_out": "99900301-99900316, both poles, 32 episodes -- FRESH. Predeclared for this branch by COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT.json#SEED_ACCOUNTING before any two-feature number was seen. Disjoint from 99900101-116 (calibration), 99900201-216 (first symmetric held-out block) and 99900401-416 (single-feature asymmetric held-out block).",
+    "registry": "smoke family; no Rule-9 SEED_REGISTRY interaction, per experiments/seed_registry.py",
+    "held_out_is_used_exactly_once": "The held-out block is scored once, for the one configuration the calibration grid selects. It is not used to choose among configurations."
+  },
+
+  "DEGENERATE_SELECTOR_HANDLING": {
+    "problem_observed_in_the_single_feature_run": "The selection rule returned a config with B_TP = 0.0, threshold 0.0 and zero switches on both poles -- a selector that never fires. That row was reported in selected_config as though a real operating point had been chosen. It satisfies the A-side constraint vacuously.",
+    "rule_for_this_run": "If the maximum B_TP among A_FP-constrained survivors is 0.0, the executor reports DECISION = NO_CONSERVATIVE_B_TRIGGER_TWO_FEATURE with degenerate_no_fire = true and does NOT present a selected operating point. A never-firing selector is a failure to find a safe region, not a safe region.",
+    "this_is_a_reporting_correction_not_a_criterion_change": "The pass rule, the A_FP budget and the B dominance bar are untouched."
+  },
+
+  "PREDECLARED_DECISION": {
+    "PASS_label": "TWO_FEATURE_CONSERVATIVE_B_TRIGGER_CALIBRATED",
+    "PASS_condition": "held-out A_FP_tick_rate <= 0.10 AND held-out B_fraction_episodes_dominant_4A0D >= 0.50, with a non-degenerate selected configuration",
+    "PASS_consequence": "Freeze that operating point exactly as selected. Then, in order: (1) run contracts C1-C6 from ASYMMETRIC_B_TRIGGER_V1_SPEC, (2) run the held-out confirmation / outcome arms under that spec's OUTCOME_EXPERIMENT_IF_CALIBRATION_PASSES block at n=64 with tau_A_harm=0.10, (3) only then consider the regime-conditioned composition controller. No retuning of the operating point at any of those steps.",
+    "FAIL_label": "NO_CONSERVATIVE_B_TRIGGER_TWO_FEATURE",
+    "FAIL_condition": "either held-out gate fails, or the selection is degenerate (never fires)",
+    "FAIL_consequence": "TERMINAL for hand-tuned selector work. Stop threshold+dwell router calibration entirely. The finding is: composition is a large lever when the regime label is known (oracle / confirmation), and a legally-observable two-feature contrast built directly from the documented controller asymmetry, scored under a conservative A-side preservation budget, does not expose a safe nonzero operating region. That falsifies threshold-plus-dwell-on-a-handcrafted-statistic as the routing architecture at this budget. Successor work must change the coordination mechanism, not the knobs.",
+    "no_further_tuning_either_way": "This freeze authorizes exactly one two-feature calibration pass."
+  },
+
+  "DESCRIPTIVE_ONLY_OUTPUTS": {
+    "frontier_diagnostic": "The same A_FP-cap-vs-max-B_TP frontier emitted for the single-feature run will be emitted for D_t, so the two are directly comparable and so the distance from the binding constraint is legible. It is DESCRIPTIVE ONLY and changes no frozen decision. It must not be used to pick an operating point, and a favourable frontier at a cap above 0.10 is NOT a pass.",
+    "per_radius_selection_statistics": "The pooled full-episode misclassification rate at each of the four r_red candidates is reported because it IS the selection statistic. The grid is run only at r_red_star. No grid is run at non-selected radii, so no per-radius multiple-comparison door is opened."
+  },
+
+  "INTEGRITY": {
+    "determinism_gate": "Re-collected calibration P_blue full-episode means must reproduce COMPOSITION_SELECTOR_FEATURE_DERIVATION_TRACE.json (A 1.0799479166666668, B 0.36953125) to within 1e-6. Mismatch is a hard abort, not a warning -- absence or drift of the anchor is an error state, never a default.",
+    "independent_rederivation": "Every per-tick P_blue / P_red value is persisted to CSV, and the held-out decision statistics are recomputed from the persisted CSV by a second pass that does not share state with the scoring pass. Disagreement is a hard abort.",
+    "rule_7_note": "experiments/run_state.py::seal is built around binary outcome rows with bootstrap CIs. This record has no outcome rows by construction (outcome-blind), so seal() is not applicable and is deliberately not invoked. The CSV re-derivation above is the integrity mechanism in its place. If this branch ever reaches an outcome arm, that arm MUST use seal().",
+    "direction_gate": "The predeclared sign convention is asserted against calibration data before scoring; violation aborts."
+  },
+
+  "NOT_AUTHORIZED": [
+    "relaxing max_A_FP_tick_rate above 0.10",
+    "changing the dwell grid or dwell semantics",
+    "a third feature, a learned combination, or a weighted combination of P_blue and P_red",
+    "re-deriving r_blue",
+    "re-selecting r_red under a criterion other than the predeclared pooled-misclassification rule",
+    "any outcome / win-rate episode in this record",
+    "reading score, win, reward, return or draw anywhere in this record's steps",
+    "PPO, training, GPU, 6v6",
+    "treating Pole A as a repair target",
+    "re-scoring the held-out block under a second configuration"
+  ]
+}

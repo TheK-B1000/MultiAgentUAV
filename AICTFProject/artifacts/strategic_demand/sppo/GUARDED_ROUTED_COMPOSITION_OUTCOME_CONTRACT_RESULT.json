@@ -1,0 +1,118 @@
+{
+  "record_id": "GUARDED_ROUTED_COMPOSITION_OUTCOME_CONTRACT_RESULT",
+  "utc": "2026-09-19T08:06:19Z",
+  "implements": "GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json",
+  "router_operating_point": {
+    "statistic": "D_t = P_blue(4.0) - P_red(4.0)",
+    "window": 40,
+    "hysteresis": 0.2,
+    "dwell": 10,
+    "threshold": -0.8333333333333334
+  },
+  "guard": {
+    "rule": "no departure from 2A/2D until a full evidence window",
+    "first_allowed_tick": 39
+  },
+  "implementation_pins": {
+    "size_routed_startup_guard.py_sha256": "0fd1462478d6243562c78eec076d2abfc6e629063f2030c76033b9e634bd7ccb",
+    "run_routed_composition_outcome.py_sha256": "e0e7f8f784855806e402333713f3e20fb58bdf51ddbe47852f1983ff1392696e"
+  },
+  "n_checks": 15,
+  "n_gating": 15,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "name": "C6_CALIBRATION_PASS_SEALED",
+      "gating": true,
+      "passed": true,
+      "detail": "V2 DECISION='CONSERVATIVE_B_TRIGGER_CALIBRATED_V2'; selected=W40 m0.2 d10 thr-0.8333333333333334; executor=W40 m0.2 d10 thr-0.8333333333333334"
+    },
+    {
+      "name": "C1_NO_REGIME_LEAK",
+      "gating": true,
+      "passed": true,
+      "detail": "identical features -> identical compositions (True); update() parameters = ['d_value']"
+    },
+    {
+      "name": "C2_DEFAULT_IS_2A2D",
+      "gating": true,
+      "passed": true,
+      "detail": "tick0 composition = 2A_2D; never departs on high-D evidence (sum=0)"
+    },
+    {
+      "name": "C3_GUARD_HOLDS_AND_IS_INERT_AFTER_THE_WINDOW_FILLS",
+      "gating": true,
+      "passed": true,
+      "detail": "strong-B fixture: first departure at tick 39 (guard boundary 39), first blocked at tick 0; 400 random sequences: 253 with an early unguarded departure, 66 with a late one (both >0 so the inert branch is not vacuous), violations: holds=0 inert=0 blocked-after-window=0; 32 real held-out traces: holds=0 inert=0"
+    },
+    {
+      "name": "C4_RELEASE_IS_NEVER_BLOCKED",
+      "gating": true,
+      "passed": true,
+      "detail": "both routers release at tick guarded=77 unguarded=77; sequences identical from tick 39 onward: True"
+    },
+    {
+      "name": "C7_ONLINE_OFFLINE_EQUIVALENCE",
+      "gating": true,
+      "passed": true,
+      "detail": "32 held-out episodes, 7680 ticks; guard-disabled router == offline calibration state machine == frozen OnlineRouter; mismatches: none"
+    },
+    {
+      "name": "C5a_PINNED_GUARDED_RUNNER_EQUALS_FIXED_RUNNER",
+      "gating": true,
+      "passed": true,
+      "detail": "4 pinned-vs-fixed comparisons, field by field; disagreements: none"
+    },
+    {
+      "name": "C5b_GUARD_DISABLED_REPRODUCES_SEALED_UNGUARDED_ROWS",
+      "gating": true,
+      "passed": true,
+      "detail": "8 spent-seed episodes; disagreements: none; guard changes the outcome fields on 6/8 of them, so the comparison is not vacuous"
+    },
+    {
+      "name": "C5c_GUARD_ENABLED_REPRODUCES_SIZING_ROWS",
+      "gating": true,
+      "passed": true,
+      "detail": "8 spent-seed episodes; disagreements: none; this ties the confirmatory runner to the guard that was sized"
+    },
+    {
+      "name": "C8_KNOWN_ANSWER_MEASUREMENT_PARITY",
+      "gating": true,
+      "passed": true,
+      "detail": "16 episodes re-run against sealed oracle FIXED_2A2D rows; disagreements: none"
+    },
+    {
+      "name": "C9_TERMINAL_SCORING_NOT_RESET_STATE",
+      "gating": true,
+      "passed": true,
+      "detail": "win rate on the parity subset = 5/16 (non-degenerate), exact-matched above"
+    },
+    {
+      "name": "C10_NO_PPO_REACHABLE",
+      "gating": true,
+      "passed": true,
+      "detail": "imported PPO/trainer modules: none"
+    },
+    {
+      "name": "C11_OUTCOME_SEED_BLOCK_OWNED_AND_UNSPENT",
+      "gating": true,
+      "passed": true,
+      "detail": "already registered to GUARDED_ROUTED_COMPOSITION_OUTCOME_V1 (status RESERVED) -- same block, no conflict; registry status = RESERVED"
+    },
+    {
+      "name": "C12_AUDIT_PLAN_SEALS_A_REGISTERED_BLOCK",
+      "gating": true,
+      "passed": true,
+      "detail": "real AuditPlan with owner on 768 synthetic rows: passed=True (13 gating, 0 failed); negative control without the owner fails exactly ['seed_class']",
+      "n_gating": 13
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only. No confirmatory episode was run and no seed was spent by this stage. C5/C8 reuse already-spent seeds for deterministic parity only."
+}

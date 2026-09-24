@@ -1,0 +1,131 @@
+{
+  "record": "ACTION_INTERFACE_DECOMP GUARD@A action-interface binder probe",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-13T02:17:38Z",
+  "run_id": "20260913T021738Z_df14ce63",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "ACTION_INTERFACE_DECOMP_SPEC.json",
+  "config_signature": {
+    "device": "cpu",
+    "go_to_horizon": 4,
+    "n_seeds": 24,
+    "scales": [
+      4,
+      2
+    ],
+    "seed_lo": 17600001
+  },
+  "elapsed_s": 2443.0,
+  "pauses": [
+    "Privileged-vs-Standard BC"
+  ],
+  "results": {
+    "4v4": {
+      "ORIGINAL": {
+        "V": 0.7083,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 24
+        }
+      },
+      "SPATIAL_ONLY": {
+        "V": 0.7083,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.0,
+          "lcb95": -0.25,
+          "ucb95": 0.208333,
+          "n": 24
+        }
+      },
+      "COMMIT_ONLY": {
+        "V": 0.0,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.708333,
+          "lcb95": 0.5,
+          "ucb95": 0.875,
+          "n": 24
+        }
+      },
+      "FULL": {
+        "V": 0.5417,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.166667,
+          "lcb95": -0.083333,
+          "ucb95": 0.416667,
+          "n": 24
+        }
+      },
+      "oracle_row_crosscheck": {
+        "ORIGINAL_vs_oracle_ORIGINAL": {
+          "compared": 24,
+          "mismatches": 0
+        },
+        "FULL_vs_oracle_PROJECTED": {
+          "compared": 24,
+          "mismatches": 0
+        }
+      },
+      "reading": {
+        "spatial_frac_of_full_loss": 0.0,
+        "commit_frac_of_full_loss": 4.249989500021,
+        "binder": "COMMIT"
+      }
+    },
+    "2v2": {
+      "ORIGINAL": {
+        "V": 0.75,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 24
+        }
+      },
+      "SPATIAL_ONLY": {
+        "V": 0.5833,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.166667,
+          "lcb95": -0.125,
+          "ucb95": 0.416667,
+          "n": 24
+        }
+      },
+      "COMMIT_ONLY": {
+        "V": 0.0833,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.666667,
+          "lcb95": 0.416667,
+          "ucb95": 0.875,
+          "n": 24
+        }
+      },
+      "FULL": {
+        "V": 0.5417,
+        "L_ORIGINAL_minus_arm": {
+          "mean": 0.208333,
+          "lcb95": -0.041667,
+          "ucb95": 0.416667,
+          "n": 24
+        }
+      },
+      "oracle_row_crosscheck": {
+        "ORIGINAL_vs_oracle_ORIGINAL": {
+          "compared": 24,
+          "mismatches": 0
+        },
+        "FULL_vs_oracle_PROJECTED": {
+          "compared": 24,
+          "mismatches": 0
+        }
+      },
+      "reading": {
+        "spatial_frac_of_full_loss": 0.8000028800046081,
+        "commit_frac_of_full_loss": 3.200006720010752,
+        "binder": "EITHER_FACTOR_SUFFICIENT"
+      }
+    }
+  }
+}

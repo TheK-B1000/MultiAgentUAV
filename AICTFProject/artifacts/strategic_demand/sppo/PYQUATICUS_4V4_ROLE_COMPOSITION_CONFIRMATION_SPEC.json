@@ -1,0 +1,135 @@
+{
+  "record_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC",
+  "status": "FROZEN_BEFORE_SEED_ALLOCATION",
+  "utc": "2026-09-18T18:45:00Z",
+  "classification": "SCRIPTED_TEAM_EXPLORATORY. TARGETED COMPOSITION CONFIRMATION. PPO OFF.",
+  "confirmatory": false,
+  "authorized_by": "user_direction_current_turn",
+  "research_question": "With the pinned Pyquaticus easy-mode ATTACK and DEFEND semantics unchanged, does replacing the fixed 2A/2D composition with 4A/0D produce a larger positive win-rate effect on Pole B than on Pole A?",
+  "scientific_delta": "Change only the fixed team composition between 4A/0D and 2A/2D. Keep semantic controllers, fixed identity ordering, opponent poles, environment, action adapter, paired seed values, and telemetry unchanged.",
+  "claim_boundary": "This is a targeted descriptive confirmation of a scripted role-composition signal in this project's 4v4 CTF dynamics. It does not reproduce native Pyquaticus performance, establish learned roles, identify a causal PPO repair, authorize PPO, or authorize 6v6.",
+  "prerequisites": {
+    "upstream_commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+    "validated_semantic_gate": "artifacts/strategic_demand/sppo/DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json",
+    "validated_semantic_status": "REPRESENTABLE_ACROSS_TRANSITIONS",
+    "prior_composition_spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json",
+    "prior_composition_result": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json",
+    "prior_composition_result_status": "COMPLETE",
+    "prior_composition_label": "COMPOSITION_DESCRIPTIVE_SIGNAL",
+    "adapter_contract": {
+      "attack_no_carrier": "GET_FLAG macro",
+      "attack_any_friendly_carrier": "GO_HOME macro with the already-validated non-carrier home-legality branch",
+      "defend": "unified DEFEND macro id 7 with live target re-derivation",
+      "evaluation_only_n_macros": 8
+    }
+  },
+  "execution": {
+    "device": "cpu",
+    "gpu": false,
+    "ppo": false,
+    "training": false,
+    "team_size": "4v4",
+    "map_set": "train",
+    "map_layout": "map_a",
+    "rules_profile": "OURS",
+    "aquaticus_profile": true,
+    "max_decision_steps": 240,
+    "own_flag_home_required_to_score": true,
+    "speed_caveat": "Pyquaticus easy-mode speed intent is retained, but physical integration uses this project's dynamics. Native Pyquaticus performance is not claimed.",
+    "seed_block": {
+      "base": 20000001,
+      "n": 64,
+      "last": 20000064,
+      "paired_across_compositions_and_poles": true,
+      "allocation": "PENDING_SEED_REGISTRY_ALLOCATION",
+      "purpose": "PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION"
+    }
+  },
+  "canonical_assignment": {
+    "rule": "FIXED_IDENTITY_PREFIX_DEFENDERS",
+    "stable_identity_order": [0, 1, 2, 3],
+    "definition": "Stable ids 0 through D-1 are DEFEND and the remaining ids are ATTACK. Compute once at reset and hold for the episode.",
+    "no_reassignment": true,
+    "role_ids": {
+      "ATTACK": 0,
+      "DEFEND": 1
+    }
+  },
+  "compositions": {
+    "4A_0D": {"attackers": [0, 1, 2, 3], "defenders": []},
+    "2A_2D": {"attackers": [2, 3], "defenders": [0, 1]}
+  },
+  "opponent_poles": {
+    "A": {
+      "base": "OP6",
+      "overlay": {"min_alive_for_defender": 4},
+      "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.A"
+    },
+    "B": {
+      "base": "OP7",
+      "overlay": {"lock_defender": 10, "enable_2v1": true, "min_alive_for_defender": 4},
+      "genome": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+      "source": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json#poles.B"
+    }
+  },
+  "cells": {
+    "definition": "2 opponent poles x 2 role compositions = 4 paired cells",
+    "episodes": "4 x 64 = 256",
+    "only_cell_delta": "4A/0D versus 2A/2D under the frozen identity ordering",
+    "same_seed_across_poles_and_compositions": true
+  },
+  "estimands_and_decision_rules": {
+    "primary_effects": {
+      "delta_B": "paired win-rate contrast win_B(4A/0D) - win_B(2A/2D)",
+      "delta_A": "paired win-rate contrast win_A(4A/0D) - win_A(2A/2D)",
+      "interaction": "paired cross-pole interaction Delta_B - Delta_A"
+    },
+    "paired_unit": "seed, with the same seed used in both compositions and both poles",
+    "interval": "95% deterministic bootstrap over the 64 paired seeds; NUM_BOOT=20000",
+    "supporting_metrics": "Score difference, draw rate, episode length, and role telemetry are reported for each cell and paired score contrasts are reported.",
+    "primary_gate": "REGIME_COMPOSITION_CONFIRMATION_PASS iff interaction LCB95 > 0, Delta_B LCB95 > 0, and Delta_A UCB95 >= 0.",
+    "interpretation": "The gate requires a positive cross-pole composition interaction and a positive Pole-B effect. Pole A is not required to show a positive effect and is reported separately.",
+    "descriptive_fallback": "B_COMPOSITION_EFFECT_ONLY if Delta_B LCB95 > 0 but the primary interaction gate fails.",
+    "failure_label": "NO_TARGETED_COMPOSITION_CONFIRMATION",
+    "multiplicity": "This is one preregistered targeted contrast. Intervals remain descriptive and do not authorize PPO, architecture selection, or 6v6 by themselves."
+  },
+  "isolation": {
+    "held_identical": [
+      "Pyquaticus-derived semantic functions and provenance",
+      "GET_FLAG, GO_HOME, and unified DEFEND adapter",
+      "evaluation-only n_macros=8 path",
+      "Pole A and Pole B certified opponent definitions",
+      "map, rules, horizon, speed intent, telemetry, and statistics",
+      "paired seed values and fixed identity order"
+    ],
+    "only_changed_factor": "number of ATTACK versus DEFEND roles: 4A/0D or 2A/2D",
+    "forbidden": [
+      "PPO or training",
+      "GETFLAG preservation",
+      "Assignment-v1 conditioning",
+      "old ROLE bit",
+      "Heuristic_CTF_Agent",
+      "dynamic role switching",
+      "adapter or opponent selection from outcomes",
+      "production macro changes",
+      "6v6 execution before 4v4 interpretation"
+    ]
+  },
+  "artifacts": {
+    "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json",
+    "preflight": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_PREFLIGHT.json",
+    "episode_csv": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_EPISODES.csv",
+    "mapping_audit": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_MAPPING_AUDIT.json",
+    "result": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT.json"
+  },
+  "sequencing_lock": [
+    "1. Validate this frozen spec and run CPU preflight only.",
+    "2. Allocate exactly 20000001-20000064.",
+    "3. Run the four paired CPU cells.",
+    "4. Freeze and interpret the targeted result before proposing a composition selector, PPO, or 6v6."
+  ],
+  "authorization_boundary": {
+    "authorized_now": "Freeze the spec, implement and run CPU preflight, then run the authorized 4v4 targeted confirmation after preflight passes and the seed block is allocated.",
+    "not_authorized": "PPO, GPU, production-interface changes, or 6v6."
+  }
+}

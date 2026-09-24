@@ -52,6 +52,15 @@ class PPOConfig:
     checkpoint_dir: str = "checkpoints"
     load_path: Optional[str] = None
     allow_active_actor_module_migration: bool = False
+    # True means `load_path` is WEIGHT INITIALIZATION, not run continuation: the
+    # loaded checkpoint's global_step/updates_completed/return-norm stats/PPO
+    # updater RNG state (z_separation_generator)/comm+curriculum state AND
+    # optimizer moments are left at this run's own freshly-constructed values
+    # instead of being overwritten from the checkpoint. Model weights still load
+    # via the normal compat path (with role/entity Linear expansion as needed).
+    # Default False preserves --resume's existing crash-recovery semantics (carry
+    # everything over) for every pre-existing call site.
+    warm_start_reset_progress: bool = False
     run_tag: str = "ppo_latent_2v2"
     enable_metrics_csv: bool = True
     metrics_csv_path: Optional[str] = None
@@ -99,6 +108,34 @@ class PPOConfig:
     sappo_anchor_lambda: float = 0.10
     sappo_anchor_cadence: int = 4
     sappo_anchor_batch_size: int = 64
+
+    # 4v4 specialization-preserving sibling separation (B3 track).
+    # Default OFF = structurally absent (no runner). See
+    # artifacts/strategic_demand/sppo/4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json.
+    sibling_sep_lambda: float = 0.0
+    sibling_sep_ckpt: str = ""
+    sibling_sep_ckpt_sha256: str = ""
+    sibling_sep_dataset: str = ""
+    sibling_sep_cadence: int = 4
+    sibling_sep_batch_size: int = 64
+
+    # 4v4 role preservation (B3 track). Default OFF = structurally absent.
+    # See artifacts/strategic_demand/sppo/4V4_B3_ROLE_PRESERVATION_SPEC.json.
+    # Mutually exclusive with sibling_sep_lambda > 0.
+    role_pres_lambda: float = 0.0
+    role_pres_targets: str = ""
+    role_pres_style: str = ""  # GUARD | BREACH
+    role_pres_cadence: int = 4
+    role_pres_temperature: float = 0.5
+
+    # B-only non-carrying GET_FLAG macro preservation (2026-09-17).
+    # Default OFF = structurally absent. See
+    # artifacts/strategic_demand/sppo/B_GETFLAG_PRESERVE_SPEC.json.
+    # Mutually exclusive with sibling_sep_lambda > 0 and role_pres_lambda > 0.
+    getflag_preserve_lambda: float = 0.0
+    getflag_preserve_ckpt: str = ""
+    getflag_preserve_ckpt_sha256: str = ""
+    getflag_preserve_cadence: int = 4
 
     # EXP2 K=2 supervised repertoire compression. Default OFF means the two
     # frozen teacher checkpoints are never opened and no teacher runner exists.
@@ -903,6 +940,120 @@ class PPOConfig:
     additional_timesteps: int = 0
     # Global step at which the current run/stage started (set on resume).
     checkpoint_run_start_step: int = 0
+
+    # --- 4v4 entity repair (2026-09-13) ---
+    # Adds EntityResidualEncoder (rl/custom_ppo/entity_residual.py): a
+    # bias-free, zero-init residual over exact teammate/enemy geometry, added
+    # to the actor's local_in AFTER the CNN/vec fusion, BEFORE latent_actor.
+    # Bias-free construction + zero-init projection guarantee g(empty,empty)=0
+    # for any weights and g(T,E)=0 at t=0 even with real entities -- proven in
+    # tests/test_entity_residual.py and tests/test_entity_pipeline_end_to_end.py
+    # (including against the real sealed B3-3 checkpoint). Disabled by default
+    # so every existing checkpoint, config, and preset is completely unaffected.
+    # Critic (values()) NEVER receives these -- actor observation geometry only.
+    entity_repair_enabled: bool = False
+    entity_hidden_dim: int = 32
+
+    # --- Rule-based role conditioning (RULE_BASED_ROLE_CONDITIONING_SPEC) ---
+    # Geometric N/2 DEFEND / N/2 ATTACK bit concatenated into the actor after
+    # CNN/vec (+ optional entity residual). Critic receives the length-N team
+    # role vector via CentralizedCritic.extra. Default OFF = structurally absent.
+    # H_r is frozen at 8 for the exploratory arm (not a screen).
+    role_conditioning_enabled: bool = False
+    role_hold_ticks: int = 8
+    # DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC ROLE_ASSIGNMENT_locked: when
+    # True, RoleHoldState assigns roles exactly once per episode (on the tick
+    # immediately following an env reset) and never reassigns again for the
+    # rest of the episode, regardless of death/revival or elapsed ticks.
+    # role_hold_ticks is ignored (provably inert) when this is True -- the two
+    # are mutually exclusive by construction inside RoleHoldState.update(),
+    # not by an assertion someone could forget. Default False = existing
+    # role_hold_ticks-based periodic-reassignment behavior is unchanged.
+    role_fixed_for_episode: bool = False
+    # 0 => locked default role_k(N)=N/2. A positive value is an explicit
+    # CLOSEST_DEFENDS defender count (6v6 composition contrast uses 1 or 3).
+    # Mutually exclusive with role_k_defend_choices.
+    role_k_defend: int = 0
+    # Comma-separated episode-start mixture, e.g. "1,3". Empty => unused.
+    # Sampled once per episode inside RoleHoldState when fixed_for_episode.
+    role_k_defend_choices: str = ""
+    # 6v6 pre-entity-repair specialists cannot take the 4v4 entity-repair
+    # role-conditioning gate. Default False keeps that gate. Set True only
+    # for a frozen spec that warm-starts the existing non-entity checkpoint
+    # and does not enable the 4v4 N' teacher.
+    role_conditioning_allow_pre_entity_base: bool = False
+
+    # --- DEFEND-only teacher imitation (DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC) ---
+    # See artifacts/strategic_demand/sppo/DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json.
+    # Gated CE(macro_logits, GO_TO) + CE(waypoint_logits, w_N') on DEFEND-role,
+    # decision-eligible agents only, where w_N' is the training-time physics
+    # port of experiments/run_goto_only_defend_substitution_4v4.py's own
+    # sealed N' controller (Engine.path_oracle over the real core's batched
+    # DEFEND physics -- no separate reimplementation). Requires
+    # role_conditioning_enabled=True. Default OFF = structurally absent: no
+    # runner constructed, no forward/backward/optimizer step, and (per C9)
+    # forcing defend_teacher_lambda to 0 for an otherwise-identical run
+    # reproduces plain role-conditioned PPO bit-for-bit.
+    # defend_teacher_lambda is the SCHEDULE PEAK/START value (<=0.0 disables
+    # the runner entirely); it linearly decays to defend_teacher_lambda_end
+    # over [defend_teacher_decay_start_step, defend_teacher_decay_end_step]
+    # via rl.custom_ppo.schedules.resolve_defend_teacher_lambda, resolved
+    # once per PPO update from global_step (mirrors resolve_latent_lam_h).
+    # The three step/lambda-end fields are frozen at their v1 spec values for
+    # the exploratory arm (not a screen) -- "ONE run, ONE schedule."
+    # Mutually exclusive with sibling_sep_lambda, role_pres_lambda, and
+    # getflag_preserve_lambda (all must be 0 / disabled for this run).
+    defend_teacher_lambda: float = 0.0
+    defend_teacher_lambda_end: float = 0.0
+    defend_teacher_decay_start_step: int = 50_000
+    defend_teacher_decay_end_step: int = 150_000
+    defend_teacher_cadence: int = 4
+
+    # --- Split attack/defend policy (DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC) ---
+    # See artifacts/strategic_demand/sppo/DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json.
+    # Two physically separate networks instead of one shared role-conditioned
+    # model: a frozen, unmodified copy of the original pi_A checkpoint
+    # produces actions for whichever agent slots CLOSEST_DEFENDS assigns to
+    # ATTACK this episode (no optimizer, no gradient path of any kind, ever);
+    # the trainable model (role-conditioned, same architecture as
+    # DEFEND_TEACHER_ROLE_CONDITIONING_A_V1) produces actions for the DEFEND
+    # slots. The frozen model's actions are spliced into the executed action
+    # tensor before env.step -- never "overwritten after the fact" -- so
+    # every stored (action, log_prob) pair in the buffer always corresponds
+    # to the policy that actually produced it. The trainable model's own
+    # main PPO actor loss and entropy bonus are gated to DEFEND-role agent
+    # slots only (see rl.custom_ppo.update.minibatch_updater); its value
+    # loss remains team-level and ungated, since a single centralized
+    # critic already estimates V(s) independent of which network produced
+    # which action. Requires role_conditioning_enabled=True and
+    # role_fixed_for_episode=True. Default OFF = structurally absent: no
+    # frozen model loaded, no splicing, no per-agent loss path taken --
+    # bit-for-bit identical to DEFEND_TEACHER_ROLE_CONDITIONING_A_V1 with
+    # this flag omitted. Mutually exclusive with sibling_sep_lambda,
+    # role_pres_lambda, and getflag_preserve_lambda, matching the same
+    # SINGLE_AXIS discipline as defend_teacher_lambda; compatible with (in
+    # fact, intended to be used together with) defend_teacher_lambda > 0.
+    split_attack_defend_enabled: bool = False
+    split_attack_defend_frozen_ckpt: str = ""
+    split_attack_defend_frozen_ckpt_sha256: str = ""
+
+    # --- Assignment conditioning v1 (ASSIGNMENT_CONDITIONING_V1_SPEC) ---
+    # Privileged GUARD_DISTRIBUTED_V2 z_i (4-d per agent) on actor; critic gets
+    # flattened team assignment (N*4). Mutually exclusive with role conditioning.
+    assignment_conditioning_enabled: bool = False
+    assignment_hold_ticks: int = 8
+    assignment_feature_dim: int = 4
+
+    # --- Fully shared strategy-conditioned baseline (sharing axis) ---
+    # FULLY_SHARED_STRATEGY_CONDITIONED_*_SPEC: one SharedActorCentralizedCritic
+    # pi_phi(a|o,z) under CLOSEST_DEFENDS role bits. No split_attack_defend, no
+    # q_phi router. z is episode-static via latent_assignment_mode=static_env
+    # (or forced at eval). Default OFF = structurally absent.
+    fully_shared_z_conditioned_enabled: bool = False
+    # When True with static_env, env i's opponent is OP6 iff forced z_i==0 else
+    # OP7 (pole-matched specialty experience). Requires even n_envs and a
+    # half/half forced_latent_env_ids split.
+    fully_shared_z_pole_match: bool = False
 
 
 __all__ = ["PPOConfig", "TrainMode"]

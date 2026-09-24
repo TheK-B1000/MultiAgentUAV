@@ -1,0 +1,130 @@
+{
+  "status": "INVALID_FOR_B_LEARNING_DYNAMICS",
+  "INVALIDATED_BY": "PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json",
+  "INVALIDATION_REASON": "Every point after t0 uses pi_B3 checkpoints trained against canonical Pole B (SDS_PARENT_OP7) while scored against the certified B3-3 candidate (SDS2_B3_LOCKDEF10_2V1). Those points answer a DIFFERENT question -- what happens when a correctly trained B specialist is subsequently trained against the wrong opponent -- and the answer is systematic drift away from the actual Pole-B task. This run CANNOT determine whether additional training on the CORRECT certified Pole B would improve, saturate, or degrade delta_B. The STUCK branch must NOT route the project.",
+  "original_status": "COMPLETE_DIAGNOSTIC",
+  "record": "DELTA_B_TRAJECTORY delta_B across pi_B3 training trajectory",
+  "utc": "2026-09-14T11:23:24Z",
+  "device": "cuda",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "DELTA_B_TRAJECTORY_SPEC.json#ESTIMANDS",
+  "question_answered": "Is pi_B3 still improving against Pole A's specialist with more training, or is it stuck because Pole B needs a different coordination mechanism?",
+  "seeds": {
+    "block": [
+      18100001,
+      18100064
+    ],
+    "n": 64,
+    "shared_across_cells": true
+  },
+  "checkpoints": {
+    "pi_A3_final": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "t0_warmstart": "57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+    "t200k": "44f8de2f2f0898c6904e5f985cc41a5f951a74b6f86fceb18469b427cf042eaa",
+    "t400k": "463740d0ccdd97749eb3c5968b979d84284c5db07a3bed4be087fe773e401267",
+    "t600k": "b34e8760ea7263c7fcb87faccb5ccc19b150270010c31c4d843baa6b1683f3e9",
+    "t800k": "531cd7b9ee2c5a527243efbfefa841afea2a5f0baedcfc681558fe5fe3bedcc4",
+    "t1M": "e6d2e5940fdcf6e6d860c339b810e46d40208dfdfa3ecb330d00d3dc9ff66f8a"
+  },
+  "contracts": {
+    "K1_all_checkpoints_distinct": true,
+    "K2_t1M_matches_sealed_pi_B3": true,
+    "K3_comparator_matches_sealed_pi_A3": true,
+    "K5_entity_encoders_as_expected": true,
+    "K4_live_pole_B_overlay_correct": true,
+    "K6_checkpoints_are_genuinely_different_states": true
+  },
+  "win_rates": {
+    "pi_A3_final": 0.734375,
+    "t0_warmstart": 0.765625,
+    "t200k": 0.609375,
+    "t400k": 0.421875,
+    "t600k": 0.546875,
+    "t800k": 0.359375,
+    "t1M": 0.609375
+  },
+  "delta_B_by_t": {
+    "t0_warmstart": {
+      "mean": 0.03125,
+      "lcb95": -0.09375,
+      "ucb95": 0.15625,
+      "t_millions": null
+    },
+    "t200k": {
+      "mean": -0.125,
+      "lcb95": -0.265625,
+      "ucb95": 0.0,
+      "t_millions": 0.2
+    },
+    "t400k": {
+      "mean": -0.3125,
+      "lcb95": -0.453125,
+      "ucb95": -0.15625,
+      "t_millions": 0.4
+    },
+    "t600k": {
+      "mean": -0.1875,
+      "lcb95": -0.359375,
+      "ucb95": 0.0,
+      "t_millions": 0.6
+    },
+    "t800k": {
+      "mean": -0.375,
+      "lcb95": -0.515625,
+      "ucb95": -0.234375,
+      "t_millions": 0.8
+    },
+    "t1M": {
+      "mean": -0.125,
+      "lcb95": -0.28125,
+      "ucb95": 0.03125,
+      "t_millions": 1.0
+    }
+  },
+  "slope": {
+    "mean": -0.03125000000000003,
+    "lcb95": -0.21875000000000014,
+    "ucb95": 0.15624999999999994,
+    "units": "delta_B per 1,000,000 training steps"
+  },
+  "endpoint_contrast_1M_minus_200k": {
+    "mean": 0.0,
+    "lcb95": -0.15625,
+    "ucb95": 0.15625
+  },
+  "steps_to_zero_millions_optimistic_linear": null,
+  "replication_check": {
+    "delta_B_1M_fresh": -0.125,
+    "sealed_delta_B_1M": -0.0859375,
+    "ok_range": [
+      -0.35,
+      0.15
+    ],
+    "compatible": true
+  },
+  "bootstrap": {
+    "procedure": "paired percentile bootstrap over seeds; slope REFIT on every resample; single shared resample matrix across all estimands",
+    "samples": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7
+  },
+  "total_episodes": 448,
+  "NOT_A_CLAIM": [
+    "any confirmatory status -- exploratory seeds, n=64, diagnostic arm",
+    "anything about Pole A -- the comparator is frozen and its own performance is not under test",
+    "that continued training WOULD succeed -- the extrapolation is used only to rule training out (see above)",
+    "a causal account of WHY B is stuck, if it is stuck -- that is the next diagnostic, not this one",
+    "anything about 6v6 or 2v2"
+  ],
+  "WHAT_SURVIVES": {
+    "delta_B_t0": {
+      "mean": 0.03125,
+      "lcb95": -0.09375,
+      "ucb95": 0.15625,
+      "why_valid": "t0 is the sealed B3-3 pi_B, which WAS trained with --pole-b-genome-json against the certified candidate Pole B, and is scored here against that same certified Pole B. Training and evaluation match. The comparator pi_A3 is clean (Pole A needs no override). This is a genuine measurement: the PRE-repair B specialist was statistically tied with the entity-repaired A specialist on Pole B."
+    }
+  },
+  "REPLICATION_GATE_DOES_NOT_RESCUE_THIS": "The gate compared fresh delta_B(1M)=-0.125 against the sealed -0.0859 and passed. But the sealed endpoint came from the SAME contaminated pi_B3, so agreement confirms the contaminated pipeline is internally reproducible -- NOT that it represents the intended experiment. A replication gate validates measurement stability, never construct validity. General lesson, recorded.",
+  "BRANCH_ROUTING": "SUSPENDED -- no branch of DELTA_B_TRAJECTORY_SPEC.json#PRECOMMITTED_DECISION_TREE may fire."
+}

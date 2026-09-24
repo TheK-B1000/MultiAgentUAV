@@ -1,0 +1,15 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_SEALED_CROSSOVER_TQDM_RESTART",
+  "status": "RESTARTED_BEFORE_RESULT",
+  "utc": "2026-09-11T13:12:00Z",
+  "authority": "PI: restart sealed crossover to add tqdm; ensure training/PPO/crossover/testing loops use tqdm",
+  "prior_launch": {
+    "killed_pids": [15052, 32468],
+    "started_local": "2026-09-11 09:07:27",
+    "elapsed_before_kill_approx_min": 5,
+    "RESULT_ROWS_PREAUDIT_written": false
+  },
+  "seed_block": [17200001, 17200128],
+  "reading": "No sealed RESULT/ROWS/PREAUDIT existed. Restart is the same one-shot arm with tqdm instrumentation, not a second scientific condition. Partial episodes from the aborted first launch are discarded (no artifacts).",
+  "tqdm": "experiments/tqdm_loop.py + eval_specialist_crossover_scaled.py"
+}

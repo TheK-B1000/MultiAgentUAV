@@ -1,0 +1,99 @@
+{
+  "record_id": "ROUTED_COMPOSITION_STARTUP_GUARD_SIZING_READING",
+  "label": "DESCRIPTIVE SIZING ONLY. NOT EVIDENCE. NO PASS/FAIL DECLARED.",
+  "reads": "ROUTED_COMPOSITION_STARTUP_GUARD_SIZING.json",
+  "under": "ROUTED_COMPOSITION_STARTUP_GUARD_V1_SPEC.json",
+  "utc": "2026-09-19T00:00:00Z",
+
+  "OPTIMISM_DISCLOSURE_ATTACHED_TO_EVERY_NUMBER_BELOW": "Same 64 seeds that revealed the tick-0 defect. The guard rule was not fitted (it has no tunable parameter and no alternative guard length was compared), but the MECHANISM it targets was identified on these episodes, so these numbers are optimistic by an unknown, non-estimable amount. Planning estimate, not a prediction. The routed controller's standing verdict remains B_GAIN_WITH_EXCESS_A_HARM on an AUDIT_FAILED record.",
+
+  "RESULTS": {
+    "win_rates_n64_paired_seeds_20200001_20200064": {
+      "A": {"FIXED_2A2D": 0.6875, "FIXED_4A0D": 0.421875, "STATE_unguarded": 0.515625, "STATE_guarded": 0.6875},
+      "B": {"FIXED_2A2D": 0.203125, "FIXED_4A0D": 0.65625, "STATE_unguarded": 0.875, "STATE_guarded": 0.828125}
+    },
+    "S1_pole_A_harm": {
+      "unguarded": {"mean": 0.171875, "ci95": [0.046875, 0.296875]},
+      "guarded": {"mean": 0.0, "bootstrap_ci95_as_emitted": [0.0, 0.0]},
+      "read_the_zero_width_interval_correctly": "Not a claim of certainty. All 64 paired differences are zero, and a percentile bootstrap of an all-zero vector cannot express uncertainty. A simple one-sided 95% upper bound on the per-episode harm-flip probability given 0 flips in 64 is 1 - 0.05^(1/64) = 0.046."
+    },
+    "S2_pole_B_gain": {
+      "unguarded": {"mean": 0.671875, "ci95": [0.515625, 0.8125]},
+      "guarded": {"mean": 0.625, "ci95": [0.5, 0.75]},
+      "guarded_minus_unguarded_on_B": {"mean": -0.046875, "ci95": [-0.15625, 0.0625]},
+      "gain_retained_point_estimate": 0.930,
+      "interval_note": "The paired B cost spans zero: it is consistent with no cost and with a cost up to about 0.16. Discordant B episodes: 8 unguarded-win to guarded-loss, 5 the other way, net -3."
+    },
+    "S3_occupancy_and_first_switch_timing": {
+      "A": {"tick_fraction_4A0D": {"unguarded": 0.109375, "guarded": 0.0089}, "episodes_with_any_trigger": {"unguarded": "39/64", "guarded": "7/64"},
+            "first_onset": {"guarded_mean": 146.14, "guarded_min": 39}},
+      "B": {"tick_fraction_4A0D": {"unguarded": 0.767383, "guarded": 0.6719}, "episodes_with_any_trigger": {"unguarded": "64/64", "guarded": "62/64"},
+            "first_onset": {"guarded_mean": 52.34, "guarded_min": 39}}
+    },
+    "S4_does_later_switching_compensate": {
+      "A": {"episodes_whose_first_departure_was_blocked": 35, "triggered_later": 3, "never_triggered": 32},
+      "B": {"episodes_whose_first_departure_was_blocked": 49, "triggered_later": 47, "never_triggered": 2},
+      "reading": "The delayed-mistake risk raised before sizing did NOT materialize: on A, 32 of 35 blocked episodes never re-fire once the window is full (8.6% re-fire), while on B 47 of 49 do (95.9%). Full-window evidence is informative on Pole A."
+    },
+    "score_margin_blue_minus_red": {
+      "A": {"FIXED_2A2D": 1.281, "FIXED_4A0D": 0.484, "STATE_unguarded": 1.047, "STATE_guarded": 1.281},
+      "B": {"FIXED_2A2D": -0.531, "FIXED_4A0D": 2.078, "STATE_unguarded": 2.453, "STATE_guarded": 2.016}
+    }
+  },
+
+  "WHERE_THE_DISCRIMINATION_COMES_FROM": {
+    "statement": "The regime discrimination in S4 comes from the router's own statistic once it is forced to use valid evidence, not from the guard. The guard reads only the buffer length, a function of the tick index alone, and is regime-blind on both poles by construction. Removing the tick-0 decision let the existing D_t statistic do the sorting: 8.6% re-fire on A against 95.9% on B.",
+    "why_this_matters": "It answers the disguised-detector concern directly. The guard blocked MORE first departures on B (49) than on A (35)."
+  },
+
+  "INTEGRITY_CHECKS": {
+    "subclass_equivalence": "GuardedRouter(guard=False) reproduced the frozen OnlineRouter exactly on real traces: 128 episodes, 30720 ticks, 0 mismatches. The guarded arm therefore differs from the frozen router only by the guard.",
+    "pole_A_restoration_is_real_not_a_bug": "57 of 57 never-switched guarded A episodes are bit-identical to FIXED_2A2D on score, steps and win, as determinism requires. Of the 7 that switched (all after the window filled, 6 to 34 ticks in 4A_0D), 6 reproduce the FIXED_2A2D score line exactly and 1 differs in score (2-0 against 4-2) while winning in both. Win flips against FIXED_2A2D: 0 of 64.",
+    "caveat_on_that_restoration": "Pole A is safe here largely because the guarded router rarely acts on it (57 of 64 episodes never switch). That preserves the guardrail. It is not evidence that the router switches SAFELY on A.",
+    "correction_to_an_earlier_annotation": "An intermediate check attributed the 19 B episodes that match the unguarded run on outcome fields to a first departure at or after tick 39. Pass 2 puts that count at 15. The check compared only score, steps and win, so 4 of the 19 match on outcomes without matching trajectories. The attribution is withdrawn."
+  },
+
+  "HOW_PASS_1_AND_PASS_2_SHOULD_BE_QUOTED": {
+    "pass_1": "Localized the Pole-A harm to early first-departure timing: 82% of it sits in the 27 episodes whose first trigger fires at tick 0, and every exposure measure failed to separate harmful from harmless episodes.",
+    "pass_2": "Independently established that tick-0 selector evidence is regime-free: D_0 is bit-identical across poles on 64 of 64 paired seeds. It did NOT independently reproduce the per-switch onset contrast; its pooled-burst analysis measures a different quantity, and that contrast's interval spans zero.",
+    "do_not_double_count": "The onset evidence rests on pass 1's per-episode first-onset decomposition. Pass 2 supports the mechanism through the feature's regime-freeness, not through a second onset confirmation."
+  },
+
+  "PREDECLARED_BRANCH_APPLIED": {
+    "continue_condition": "Sizing preserves substantial Pole-B gain AND reduces Pole-A harm",
+    "on_its_face": "Met. Pole-A harm falls from +0.172 to 0 (0 win flips), and about 93% of the Pole-B gain is retained with the retained gain's LCB at +0.50.",
+    "stop_condition_not_triggered": "Sizing did not destroy the Pole-B benefit.",
+    "the_judgement_remains_the_PIs": "The freeze declared no numeric cutoff on purpose. This record states that the continue condition is met on its face and does not itself freeze a confirmatory experiment.",
+    "no_alternative_guard_considered": "No shorter, partial or state-based guard was compared, per the freeze."
+  },
+
+  "PLANNING_INPUT_FOR_THE_CONFIRMATORY_SAMPLE_SIZE": {
+    "label": "Planning arithmetic under stated assumptions. Not evidence, not a prediction.",
+    "method": "Per-seed paired Pole-A outcome model: a fraction q of episodes trigger; among triggered, harm flips occur with probability a and gain flips with probability b. Pass probability is the share of 600 simulated datasets whose percentile-bootstrap UCB95 of the paired A harm is <= 0.10, the frozen gate's own definition.",
+    "A_gate_pass_probability": {
+      "sizing_like_late_triggers_harmless__q0.11_a0_b0__true_harm_0.000": {"n64": 1.00, "n96": 1.00, "n128": 1.00, "n192": 1.00},
+      "late_triggers_as_harmful_as_early_ones__q0.11_a0.36_b0.08__true_harm_0.031": {"n64": 0.66, "n96": 0.77, "n128": 0.88, "n192": 0.98},
+      "same_but_trigger_rate_doubles__q0.22__true_harm_0.062": {"n64": 0.25, "n96": 0.27, "n128": 0.33, "n192": 0.45},
+      "worse__q0.22_a0.50_b0.05__true_harm_0.099": {"n64": 0.06, "n96": 0.04, "n128": 0.04, "n192": 0.05},
+      "marginal__true_harm_0.090": {"n64": 0.07, "n96": 0.06, "n128": 0.06, "n192": 0.07}
+    },
+    "B_gate": "Not power-limited: the guarded B gain is +0.625 with an LCB of +0.50.",
+    "what_it_shows": [
+      "If the guard behaves as sizing suggests, n=64 is enough and more seeds buy nothing.",
+      "n matters mainly in the intermediate case where late triggers cause a small but nonzero harm: n=64 passes 66% of the time and n=128 passes 88%.",
+      "If true harm is near the 0.10 tolerance, no reasonable n rescues the gate. That is a property of a UCB gate, and it is the gate working as intended.",
+      "The percentile bootstrap is lenient when discordant pairs are very few, as the zero-width interval above shows. The frozen gate is unchanged; this is stated so the gate's behaviour is not overread."
+    ],
+    "recommendation_for_PI_decision": "n=128 is defensible and costs roughly twice the 65 minutes the 384-episode outcome run took. n=64 (inherited unchanged) is also defensible. The choice is a design parameter to be frozen BEFORE any seed is allocated, with the gates unchanged."
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "freezing or running a confirmatory guard experiment",
+    "allocating any seed",
+    "comparing alternative guard lengths, or any state-based guard",
+    "quoting any sizing number as the guard's effect",
+    "PPO, GPU, 6v6"
+  ],
+
+  "claim_boundary": "Descriptive planning estimate on one already-spent block, two frozen opponents, 4v4, PPO off."
+}

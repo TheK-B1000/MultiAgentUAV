@@ -1,0 +1,41 @@
+{
+  "label": "ROUTED_COMPOSITION_OUTCOME",
+  "state": "AUDIT_FAILED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-19T05:31:53Z",
+      "pid": 41844,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "1f4cac7f7153f3b48b5a1efd84ada088284f1830",
+      "spec": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+      "n_episodes": 384
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-19T06:36:03Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDIT_FAILED",
+      "utc": "2026-09-19T06:36:03Z",
+      "audit": "ROUTED_COMPOSITION_OUTCOME_AUDIT.json",
+      "failed_checks": [
+        "seed_class"
+      ]
+    }
+  ],
+  "updated_utc": "2026-09-19T06:36:03Z",
+  "pid": 41844,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "1f4cac7f7153f3b48b5a1efd84ada088284f1830",
+  "spec": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+  "n_episodes": 384,
+  "reason": "all episodes written",
+  "audit": "ROUTED_COMPOSITION_OUTCOME_AUDIT.json",
+  "failed_checks": [
+    "seed_class"
+  ]
+}

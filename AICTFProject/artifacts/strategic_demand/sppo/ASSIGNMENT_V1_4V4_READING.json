@@ -1,0 +1,72 @@
+{
+  "record_id": "ASSIGNMENT_V1_4V4_READING",
+  "status": "READING_FROZEN_POST_AUDIT",
+  "utc": "2026-09-18T04:49:00Z",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "governed_by": "ASSIGNMENT_CONDITIONING_V1_SPEC.json",
+  "rests_on": [
+    "ASSIGNMENT_INFORMATION_DIAGNOSTIC_RESULT.json",
+    "ASSIGNMENT_INFORMATION_DIAGNOSTIC_READING.json",
+    "ASSIGNMENT_CONDITIONING_V1_SPEC.json",
+    "ASSIGNMENT_V1_4V4_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+    "assignment_v1_4v4_specialist_crossover_eval_rows.csv"
+  ],
+
+  "VERDICT": "NOT SPECIALIZED / NO DEMONSTRATED RECOVERY. The privileged assignment-conditioning signal reproduced the teacher's assignment mechanism and resolved all 9/9 sealed 4v4 assignment ambiguities without action leakage. However, after the frozen 200k B_t500k continuation, the resulting policy did not recover opponent-conditioned specialization: Delta_A=+0.125, while Delta_B=-0.015625. The Pole-B reversal triggered the pre-specified integrity flag, so no formal RESULT verdict was emitted. Thus, resolving the measured defender-assignment ambiguity was insufficient to recover 4v4 Pole-B specialization under Assignment-v1.",
+
+  "PRIMARY_GATE": {
+    "cell_win_rates": {
+      "pi_A_PoleA": 0.796875,
+      "pi_A_PoleB": 0.671875,
+      "pi_B_assign_PoleA": 0.671875,
+      "pi_B_assign_PoleB": 0.65625
+    },
+    "delta_A": {"mean": 0.125, "lcb95": -0.03125, "ucb95": 0.28125, "formula": "V(pi_A,A)-V(B_ASSIGN,A)", "passes_point": true, "passes_lcb95": false},
+    "delta_B": {"mean": -0.015625, "lcb95": -0.140625, "ucb95": 0.109375, "formula": "V(B_ASSIGN,B)-V(pi_A,B)", "passes": false},
+    "joint_gate": "FAIL",
+    "integrity_path": "FLAGGED on delta_B tie/reversal; do NOT override the integrity flag to manufacture a RESULT file"
+  },
+
+  "LOCALIZATION": {
+    "diagnostic_vs_training": "Assignment diagnostic SUCCEEDED (G1=1.0, G2=9/9, G3=PASS). Assignment-v1 TRAINING did NOT recover specialization.",
+    "knocked_down_coordination_ladder": [
+      "binary role identity --ROLE--> no recovery",
+      "explicit assignment information resolving 9/9 ambiguities --Assignment-v1--> no recovery"
+    ],
+    "supported_claim": "missing assignment information is real (diagnostic), but is no longer supported as a sufficient explanation for the 4v4 B failure"
+  },
+
+  "FORBIDDEN_COMPARISON_TO_ROLE": {
+    "role_delta_B": -0.046875,
+    "assignment_delta_B": -0.015625,
+    "descriptive_pp_difference": 3.125,
+    "may_NOT_say": [
+      "almost working",
+      "better than ROLE",
+      "improvement over ROLE"
+    ],
+    "reason": "separate exploratory experiments; no direct statistical comparison establishing an improvement"
+  },
+
+  "PROMOTION": {
+    "to_6v6": false,
+    "assignment_v2": false,
+    "combine_with_getflag": false,
+    "reason": "frozen board: intervention not promoted when joint 4v4 specialization gate fails; do not invent v2 or stack treatments"
+  },
+
+  "FORBIDDEN_FOLLOWUPS_on_this_arm": [
+    "port Assignment-v1 to 6v6",
+    "combine Assignment + GETFLAG in one student",
+    "Assignment-v2 before a new written experimental question",
+    "retune H_a / z encoding after seeing crossover",
+    "override integrity flag to emit a RESULT"
+  ],
+
+  "BOARD_NEXT": {
+    "recommended": "GETFLAG outcome evaluation (already-frozen n=64 specialization crossover) if/when PAUSE is lifted",
+    "boxed_independent_branch": "GETFLAG: manipulation confirmed, outcome unevaluated",
+    "getflag_pause_record": "B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json"
+  }
+}

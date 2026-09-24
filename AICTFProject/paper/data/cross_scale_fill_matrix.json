@@ -1,0 +1,56 @@
+{
+  "record": "Cross-scale results fill matrix (discipline for fig_cross_scale_*)",
+  "rule": "Latent/sharing rows earned only after sealed learned-specialist crossover PASS at that scale.",
+  "scales": {
+    "2v2": {
+      "demand": "VALIDATED (V3_STRATEGIC_DEMAND_VALIDATED)",
+      "pi_G": "FILLED (PI_G_EVAL_RESULT)",
+      "specialists": "FILLED PASS (SPECIALIST_BASELINE_EVAL_RESULT)",
+      "Share-0": "FILLED PASS (RUNG0_LADDER_REFERENCE POOLED_N128)",
+      "Share-Encoder": "FILLED PASS (RUNG1_LADDER_EVAL_RESULT)",
+      "Share-Backbone": "FILLED PASS (RUNG2_LADDER_EVAL_RESULT; detectable D_A loss)",
+      "Share-Macro": "FILLED FAIL (RUNG3_LADDER_EVAL_RESULT; Delta_A LCB=0)"
+    },
+    "3v3": {
+      "demand": "NOT_CERTIFIED (GUARD_DISTRIBUTED_V2_N192; delta_A LCB95=-0.083, delta_B LCB95=+0.495)",
+      "pi_G": "EMPTY (not authorized -- demand gate failed)",
+      "specialists": "EMPTY (not authorized -- demand gate failed)",
+      "Share-0": "WITHHELD",
+      "Share-Encoder": "WITHHELD",
+      "Share-Backbone": "WITHHELD",
+      "Share-Macro": "WITHHELD"
+    },
+    "4v4": {
+      "demand": "CERTIFIED (C2 n192 + B3-3 n192)",
+      "pi_G": "EMPTY (not wired)",
+      "specialists": "C2 sealed FAIL; B3 crossover NOT sealed (pi_B3 in progress)",
+      "Share-0": "WITHHELD",
+      "Share-Encoder": "WITHHELD",
+      "Share-Backbone": "WITHHELD",
+      "Share-Macro": "WITHHELD"
+    },
+    "6v6": {
+      "demand": "CERTIFIED (GUARD_DISTRIBUTED_V2; delta_A +0.266 [+0.094,+0.438], delta_B +0.625 [+0.484,+0.750], n=64)",
+      "pi_G": "EMPTY (not wired; no generalist trained at 6v6)",
+      "specialists": "TRAINED as distillation teachers (pi_A seed 7610001, pi_B seed 7620001, 1M steps each, terminal ckpts frozen). Expert crossover NOT re-certified at 6v6 by design.",
+      "Share-0": "WITHHELD (ladder not rebuilt at 6v6 by design)",
+      "Share-Encoder": "DISTILLED AND FROZEN (RUNG1_6V6_STUDENT_FROZEN.json, sha256 0df6d067...; holdout agree 0.963/0.961; student JSD 0.478 vs teacher 0.484; preflight 8/8 PASS). Sealed crossover eval IN FLIGHT on 13640001-128, launched 2026-09-11T18:33Z, ETA ~03:20Z.",
+      "Share-Backbone": "WITHHELD (not ported -- 2v2 already localized erosion here)",
+      "Share-Macro": "WITHHELD (not ported -- 2v2 already showed criterion failure here)"
+    }
+  },
+  "figures": [
+    "paper/generated/fig_cross_scale_winrate.{png,pdf}",
+    "paper/generated/fig_cross_scale_delta.{png,pdf}"
+  ],
+  "next_unlock": {
+    "3v3": "Demand gate FAILED under size-normalized canonical poles. No specialist training. Further 3v3 work needs a new prospective freeze (not an automatic B3 port).",
+    "4v4": "EXCLUDED from the ICRA Results section by PI direction 2026-09-11. Sealed records remain on disk: C2/B2-1 crossover FAIL, vanilla B3-3 crossover FAIL, role-preservation crossover wrote an INTEGRITY_REQUIRED flag (delta_A reversal) 2026-09-11T18:33Z.",
+    "6v6": "Rung-1 student frozen; sealed crossover eval in flight on 13640001-128. If PASS -> robustness block 13660001-128 unlocks. If FAIL -> scale-bounded reading, no retraining (no-second-attempt discipline)."
+  },
+  "PAPER_SCOPE_2026_09_11": {
+    "results_section": "paper/icra2027/sections/06_results.tex -- restructured as ONE cross-scale argument organised by question (2v2 + 6v6 integrated, not concatenated). 4v4 removed.",
+    "data_packages": ["paper/data/2v2_results_package.json", "paper/data/6v6_results_package.json"],
+    "only_open_slot": "PENDING-6V6 in 06_results.tex (single occurrence) -- the sealed 6v6 crossover Delta_A/Delta_B"
+  }
+}

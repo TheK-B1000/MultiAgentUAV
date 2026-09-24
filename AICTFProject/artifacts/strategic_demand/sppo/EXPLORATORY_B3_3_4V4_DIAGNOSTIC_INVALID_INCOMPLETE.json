@@ -1,0 +1,41 @@
+{
+  "record_id": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE",
+  "status": "FROZEN_AUTHORITATIVE_DISPOSITION",
+  "utc": "2026-09-10T19:20:00Z",
+  "supersedes_for_disposition": [
+    "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SUPERSEDED_NOTE.json",
+    "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_RUN_STATUS_CORRECTION.json"
+  ],
+  "authority": "PI, 2026-09-10: Mark the 16800001..256 exploratory batch as invalid/incomplete, no result produced. Do not let the stale 'subsequently completed' wording survive as the authoritative record.",
+
+  "AUTHORITATIVE_DISPOSITION": {
+    "arm": "EXPLORATORY",
+    "seed_block": [16800001, 16800256],
+    "status": "INVALID_INCOMPLETE",
+    "valid_result_produced": false,
+    "may_be_pooled_with_sealed_n128": false,
+    "may_reinterpret_sealed_B3_PASS_FAIL": false,
+    "may_be_used_for_model_selection_or_lambda_tuning": false,
+    "seeds_permanently_unavailable_for_future_sealed_evaluation": true
+  },
+
+  "WHAT_IS_WRONG_WITH_PRIOR_RECORDS": {
+    "SUPERSEDED_NOTE": "Incorrectly claimed both launches crashed and retired the block as unused.",
+    "RUN_STATUS_CORRECTION": "Correctly measured that PID 4164 was still alive with 3/4 cells logged, but its PI_language prematurely stated the evaluation 'subsequently completed'. That wording must NOT stand as the authoritative disposition: no complete four-cell exploratory result artifact has been accepted, and this batch is marked INVALID_INCOMPLETE regardless of any later process exit.",
+    "why_invalid_even_if_a_process_is_still_alive": "Partial win-rate lines from a collision-exposed exploratory launch are not a result. The sealed n=128 confirmatory FAIL remains the only authoritative 4v4 learned-crossover result. This block is spent (unavailable for future sealed use) but produces no accepted exploratory verdict."
+  },
+
+  "MEASURED_STATE_AT_THIS_RECORD": {
+    "note": "Informational only; does not create a valid result.",
+    "pid_4164_still_alive_at_record_time": true,
+    "cells_logged_in_log_file": {
+      "V(pi_A,A)": 0.7227,
+      "V(pi_A,B)": 0.6641,
+      "V(pi_B,A)": 0.7148
+    },
+    "fourth_cell": "not accepted as part of any valid result artifact",
+    "result_json_accepted": false
+  },
+
+  "RELATIONSHIP_TO_SEALED": "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json (FAIL, n=128, seeds 16700001-16700128) remains the authoritative 4v4 learned-crossover result. Nothing from 16800001-16800256 may be pooled with it or used to reopen it."
+}

@@ -1,0 +1,295 @@
+{
+  "record_id": "ROUTED_COMPOSITION_SWITCH_SAFETY_CONTRAST",
+  "classification": "DIAGNOSTIC. Post-hoc. Descriptive. Gates nothing, authorizes nothing.",
+  "reads": "ROUTED_COMPOSITION_OUTCOME_EPISODES.csv (block 20200001-20200064)",
+  "does_not_change": "ROUTED_COMPOSITION_OUTCOME_RESULT.json remains AUDIT_FAILED with verdict B_GAIN_WITH_EXCESS_A_HARM.",
+  "no_new_seeds": "both poles' STATE episodes of the spent block re-simulated deterministically",
+  "no_knob_searched": "no threshold, window, hysteresis or dwell was varied",
+  "candidate_interlocks_declared_before_the_numbers": {
+    "entry_guard_onset_tick": "PI option 1 (early triggers): how far into the episode the switch happens",
+    "defensive_advantage_score_diff": "PI option 2 (favourable defensive state): blue_score - red_score at the switch",
+    "home_pressure_reds_near_blue_flag": "PI option 2/4 (protected condition / home pressure): P_blue at the switch",
+    "burst_length": "PI option 3 (long bursts): how long the 4A_0D excursion runs",
+    "carrier_state": "PI option 4 (carrier event): whether a blue agent is carrying at the switch",
+    "red_alive_at_switch": "PI option 4 (force balance): live red agents at the switch",
+    "blue_tagged_at_switch": "PI option 4 (own-team disruption): tagged blue agents at the switch"
+  },
+  "determinism_gate": {
+    "episodes": 128,
+    "drift": 0,
+    "fields": [
+      "blue_score",
+      "red_score",
+      "blue_win",
+      "steps",
+      "role_switch_count"
+    ]
+  },
+  "cohort": {
+    "pole_A_switches": 49,
+    "pole_B_switches": 84,
+    "pole_A_triggered_episodes": 39,
+    "pole_A_untriggered_episodes": 25,
+    "pole_A_harmful_switches": 18
+  },
+  "comparison_1_poleA_triggered_vs_untriggered": [
+    {
+      "observable": "mean_windowed",
+      "triggered_mean": 0.6739,
+      "untriggered_mean": 0.5195,
+      "difference": 0.1544,
+      "ci95": [
+        -0.2882,
+        0.5891
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": 0.171,
+      "n_triggered": 39,
+      "n_untriggered": 25
+    },
+    {
+      "observable": "min_windowed",
+      "triggered_mean": -1.9723,
+      "untriggered_mean": -0.9407,
+      "difference": -1.0316,
+      "ci95": [
+        -1.1958,
+        -0.8759
+      ],
+      "separation_excludes_zero": true,
+      "standardized_difference": -2.832,
+      "n_triggered": 39,
+      "n_untriggered": 25
+    },
+    {
+      "observable": "mean_p_blue",
+      "triggered_mean": 1.4631,
+      "untriggered_mean": 1.17,
+      "difference": 0.2931,
+      "ci95": [
+        -0.095,
+        0.677
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": 0.369,
+      "n_triggered": 39,
+      "n_untriggered": 25
+    },
+    {
+      "observable": "baseline_win_rate_FIXED_2A2D",
+      "triggered_mean": 0.7436,
+      "untriggered_mean": 0.6,
+      "difference": 0.1436,
+      "ci95": [
+        -0.0933,
+        0.3805
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": 0.304,
+      "n_triggered": 39,
+      "n_untriggered": 25
+    }
+  ],
+  "comparison_2_poleA_switches_vs_poleB_switches": [
+    {
+      "observable": "entry_guard_onset_tick",
+      "poleA_mean": 21.7347,
+      "poleB_mean": 35.4405,
+      "difference": -13.7058,
+      "ci95": [
+        -29.8198,
+        3.3267
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": -0.288,
+      "n_poleA": 49,
+      "n_poleB": 84
+    },
+    {
+      "observable": "defensive_advantage_score_diff",
+      "poleA_mean": 0.0612,
+      "poleB_mean": 0.0476,
+      "difference": 0.0136,
+      "ci95": [
+        -0.1514,
+        0.1786
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": 0.027,
+      "n_poleA": 49,
+      "n_poleB": 84
+    },
+    {
+      "observable": "home_pressure_reds_near_blue_flag",
+      "poleA_mean": 0.0,
+      "poleB_mean": 0.0238,
+      "difference": -0.0238,
+      "ci95": [
+        -0.0595,
+        0.0
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": -0.22,
+      "n_poleA": 49,
+      "n_poleB": 84
+    },
+    {
+      "observable": "burst_length",
+      "poleA_mean": 34.2857,
+      "poleB_mean": 140.3214,
+      "difference": -106.0357,
+      "ci95": [
+        -125.3897,
+        -86.1105
+      ],
+      "separation_excludes_zero": true,
+      "standardized_difference": -1.67,
+      "n_poleA": 49,
+      "n_poleB": 84
+    },
+    {
+      "observable": "carrier_state",
+      "poleA_mean": 0.0612,
+      "poleB_mean": 0.0476,
+      "difference": 0.0136,
+      "ci95": [
+        -0.0629,
+        0.0986
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": 0.06,
+      "n_poleA": 49,
+      "n_poleB": 84
+    },
+    {
+      "observable": "red_alive_at_switch",
+      "poleA_mean": 4.0,
+      "poleB_mean": 4.0,
+      "difference": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": null,
+      "n_poleA": 49,
+      "n_poleB": 84
+    },
+    {
+      "observable": "blue_tagged_at_switch",
+      "poleA_mean": 0.2653,
+      "poleB_mean": 0.6071,
+      "difference": -0.3418,
+      "ci95": [
+        -0.5731,
+        -0.1088
+      ],
+      "separation_excludes_zero": true,
+      "standardized_difference": -0.497,
+      "n_poleA": 49,
+      "n_poleB": 84
+    }
+  ],
+  "comparison_3_harmful_vs_other_poleA_switches": [
+    {
+      "observable": "entry_guard_onset_tick",
+      "harmful_mean": 9.7222,
+      "other_mean": 28.7097,
+      "difference": -18.9875,
+      "ci95": [
+        -42.8083,
+        3.0509
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": -0.434,
+      "n_harmful": 18,
+      "n_other": 31
+    },
+    {
+      "observable": "defensive_advantage_score_diff",
+      "harmful_mean": 0.0,
+      "other_mean": 0.0968,
+      "difference": -0.0968,
+      "ci95": [
+        -0.2581,
+        0.0323
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": -0.289,
+      "n_harmful": 18,
+      "n_other": 31
+    },
+    {
+      "observable": "home_pressure_reds_near_blue_flag",
+      "harmful_mean": 0.0,
+      "other_mean": 0.0,
+      "difference": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": null,
+      "n_harmful": 18,
+      "n_other": 31
+    },
+    {
+      "observable": "burst_length",
+      "harmful_mean": 30.9444,
+      "other_mean": 36.2258,
+      "difference": -5.2814,
+      "ci95": [
+        -18.9394,
+        8.6453
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": -0.213,
+      "n_harmful": 18,
+      "n_other": 31
+    },
+    {
+      "observable": "carrier_state",
+      "harmful_mean": 0.0,
+      "other_mean": 0.0968,
+      "difference": -0.0968,
+      "ci95": [
+        -0.2258,
+        0.0
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": -0.455,
+      "n_harmful": 18,
+      "n_other": 31
+    },
+    {
+      "observable": "red_alive_at_switch",
+      "harmful_mean": 4.0,
+      "other_mean": 4.0,
+      "difference": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": null,
+      "n_harmful": 18,
+      "n_other": 31
+    },
+    {
+      "observable": "blue_tagged_at_switch",
+      "harmful_mean": 0.2778,
+      "other_mean": 0.2581,
+      "difference": 0.0197,
+      "ci95": [
+        -0.3226,
+        0.3943
+      ],
+      "separation_excludes_zero": false,
+      "standardized_difference": 0.032,
+      "n_harmful": 18,
+      "n_other": 31
+    }
+  ],
+  "MULTIPLICITY_AND_SELECTION_WARNING": "7 observables x 3 comparisons, unadjusted intervals, on one already-spent block. Some will separate by chance. This record deliberately does NOT rank them by outcome, does NOT fit a threshold, and does NOT nominate a guard. Picking the best-separating observable here and then evaluating it on these same rows would be the post-hoc fitting the selector freezes exist to prevent. Any guard must be chosen by the PI, frozen with its threshold declared in advance, and tested on fresh held-out seeds.",
+  "claim_boundary": "Descriptive contrast on one block, one frozen router, two frozen opponents. Generates hypotheses about which safety interlock to consider. Establishes no mechanism."
+}

@@ -1,0 +1,225 @@
+{
+  "record_id": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-22T00:09:29Z",
+  "classification": "CONFIRMATORY env-level necessity test on frozen learned specialists (no training)",
+  "confirmatory": true,
+  "authorized_by": "PI, 2026-09-21: 'APPROVE: 4 arms, n=128, causal path-oracle, 2.5-cell/0.90 manipulation gate. Freeze it, contract-test it, commit the pre-run package, then allocate the fresh seed block.' Confirmed after calibration, 2026-09-21 (later): 'the interaction-free gate is the best move... do not build the multi-agent-aware reference... Run N' once, with the frozen design. No more metric exploration afterward... after N', the project should become an engineering/training problem, not another forensic investigation.' Launching the run is a separate authorization and is NOT given by this record.",
+  "POST_RUN_COMMITMENT_FROZEN": {
+    "rule": "This is the LAST diagnostic before a training decision. No further metric exploration, no re-run, no second manipulation-check definition, no re-litigating the representability audit, regardless of which label comes out.",
+    "if_confirmed": "GO_TO is sufficient -> proceed to the next stage: teacher-guided PPO warm-started from pi_A (see research-progress-tracker.md's recorded, NOT YET FROZEN successor plan). Do not run a further vocabulary test first.",
+    "if_lost_high_fidelity": "the interface reliably carried the teacher's PATH yet crossover was still lost -> move to a richer learned DEFEND/interface route, not more PPO on GO_TO alone. This still does not itself authorize PPO or a new primitive; it is the PI's next design decision.",
+    "if_inconclusive_controller_or_instrument": "the GO_TO controller (or the instrument) did not reliably carry the teacher -> do not spend weeks diagnosing DIRECTION further; the practical reading is the same as a vocabulary limit for planning purposes, but the record must say INCONCLUSIVE, not NOT_REPRESENTABLE -- this experiment does not re-open or amend the frozen audit label."
+  },
+  "QUESTION": "Is instantaneous DEFEND heading NECESSARY for the scaffold's crossover effect, or does a defender restricted to the existing native (GO_TO, legal waypoint) surface -- made to follow the DEFEND path as closely as GO_TO permits -- preserve it?",
+  "WHY_THIS_LEVER": {
+    "the_frozen_audit": "SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4 (commits 59bb5073 / f2e051de), frozen label NOT_REPRESENTABLE_VOCABULARY: TARGET 0.981 / 0.984 PASS; DIRECTION 0.375 / 0.281 FAIL; TRAJECTORY native commit 0.964 / 0.965 PASS; interruptible 0.995 / 0.995 PASS (Pole A / Pole B).",
+    "the_distinction": "DIRECTION FAILS is established. DIRECTION IS NECESSARY is not: the audit measured a per-tick heading mismatch and never tested whether it matters for the endpoint. Correlation (low DIRECTION plus a non-crossing learned policy) cannot separate the two; this experiment intervenes on exactly that ambiguity.",
+    "the_hierarchy": "forced 2A/2D scaffold A' (known crossover, sealed 21100001-128) -> GO_TO-only approximation of 2A/2D N' (?)"
+  },
+  "ARMS_AND_DESIGN": {
+    "arms": {
+      "pi_A": "native pi_A3 (final_pi_A_specialist_4v4_b3_entity_repair)",
+      "A_prime": "the sealed scaffold, UNCHANGED: pi_A3 + two agents' resolved targets forced to DEFEND's live-state target (experiments.probe_learned_composition.install_forced_defend_target, sha256 pinned)",
+      "N_prime": "pi_A3 + the SAME two agents (same pair rotation) whose ACTIONS are replaced by the causal GO_TO-only controller below; no resolved-target override, no new macro, n_macros stays 5, PPO off",
+      "pi_B": "native corrected pi_B3"
+    },
+    "poles": "A = OP6 + frozen overlay (min_alive_for_defender = 4); B = the certified B3-3 genome SDS2_B3_LOCKDEF10_2V1 -- NEVER canonical OP7. Both attested against the governing certification.",
+    "seed_block": {
+      "base": 21200001,
+      "n": 128,
+      "class": "sealed_confirmatory",
+      "id": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4",
+      "range": "21200001-21200128",
+      "spent": "exactly once; never on debugging"
+    },
+    "episodes": "128 seeds x 2 poles x 4 arms = 1024 full episodes, deterministic; A' and pi_B are re-run on the fresh seeds so N' vs A' is paired on one contemporary block",
+    "rotation": "overridden pair = PAIRS[seed % 6] over the six unordered pairs (the same rule as the bridge); the same pair is used for A' and N' on a given seed",
+    "n_rationale": "the paired four-arm design is more valuable than a smaller run (PI): it gives a clean contemporary baseline and lets N' vs A' be read without leaning on older runs"
+  },
+  "CONTROLLER_FROZEN": {
+    "definition": "At each decision tick, for each of the two overridden agents: if the agent's env commit has expired (commit_ticks_left <= 0, i.e. a native commit boundary) and the agent is ACTIVE (alive, not tagged, not carrying), recompute the isolated DEFEND rollout from the agent's CURRENT state with its own flag held at its current position, and choose the legal GO_TO waypoint by the audit's own greedy path-oracle (Engine.path_oracle, first boundary: minimize the mean squared position error over the commit horizon against that rollout, GO_TO commits end early on arrival, ties by lowest index). Emit (GO_TO, waypoint). At every other tick emit the last emitted (GO_TO, waypoint), which the env ignores mid-commit. Tagged/carrying agents keep the env's own home override, exactly as in A'.",
+    "selection_logic": "IDENTICAL CODE to the audit's oracle (experiments/audit_scaffold_to_native_representability_4v4.py::Engine.path_oracle, sha256 pinned); contract C6 checks equality with the audit oracle's first boundary choice on recorded windows",
+    "why_causal": "the reference is recomputed from the current live state at each boundary (a feedback law): it uses no future state, no future flag movement, no recorded track. It is the audit's hindsight oracle made causal.",
+    "inputs": [
+      "alive",
+      "tagged",
+      "carrying",
+      "x",
+      "y",
+      "h",
+      "v",
+      "Fx",
+      "Fy",
+      "cl",
+      "the payload-only legal-action mask bits"
+    ],
+    "not_inputs": "scores, wins, goal counts, opponent state, teammate positions, mines, enemy flag, commit macro/target ids, neighbour distances, seed, RNG. Contract C9 perturbs every non-input field and requires identical decisions.",
+    "outcome_blind_and_deterministic": "a pure function of (own state snapshot, flag position, legal mask); no RNG; the same state and seed give the same actions (contract C10)",
+    "what_it_is_not": "not a learned policy; it uses the DEFEND teacher law as information, so the test is about interface capacity in the env, not learnability"
+  },
+  "ATTESTATION_FROZEN": {
+    "per_episode_counters": "n_emitted, n_native (emitted action is (GO_TO, index legal under the payload-only mask)), n_boundary, n_commit_match (after the step, the env's OWN blue_commit_macro / blue_commit_target equal the emitted action at every boundary), n_controller_calls, scaffold_patched",
+    "requirements": "n_emitted == n_native > 0; n_boundary == n_commit_match; n_controller_calls > 0; scaffold_patched == False -- checked for every one of the 256 N' cells; any failure => AUDIT_INVALID",
+    "no_side_door": "the N' episode function never calls install_forced_defend_target, never sets _forced_defend_targets, never patches or calls _build_targets_from_action, and its ONLY writes to the action array for an overridden agent are (GO_TO, waypoint); checked statically and at runtime (C8)"
+  },
+  "ENDPOINTS_FROZEN": {
+    "primary": "LCB95(WR(N',A) - WR(pi_B,A)) > 0 AND LCB95(WR(pi_B,B) - WR(N',B)) > 0; paired percentile bootstrap, 20000 resamples, alpha 0.05, rng seed 7, paired by seed (the bridge's own instrument)",
+    "reproduction_check": "Delta_A' and Delta_B' on the fresh block reported alongside (the scaffold's known crossover) -- descriptive, no label",
+    "reported_not_gating": "I_A, I_B for A' and for N' (vs native pi_A); N' minus A' paired per pole (how much of the scaffold's suppression of A on B is retained); native crossover on the fresh block; Blue goals and margin for every contrast"
+  },
+  "IN_ENV_PATH_CHECK_FROZEN": {
+    "definition": "for every 16-tick window (start stride 2) in which the overridden agent is ACTIVE at ticks t0..t0+15 and the record at t0+16 exists: RMSE over the 16 LIVE recorded positions after ticks t0..t0+15 versus the ISOLATED DEFEND reference rolled from the recorded state at t0 with the recorded flag track; pass iff RMSE <= 2.5 cells (the audit's TRAJECTORY criterion, unchanged)",
+    "GATING_POPULATION": "interaction-free windows only -- no other live agent within shove reach (avoid_collision_radius + 2*max_speed*dt + 1.0 = 3.928 cells) for the ENTIRE 16-tick window. This is the audit's own pre-declared robustness definition (SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_RESULT.json diagnostics), reused unchanged, not new machinery.",
+    "why_not_the_full_population": "calibration on the sealed audit's own A' cells (the positive-control arm) showed the FULL-population version of this check is BORDERLINE on both poles (0.890 [0.879,0.900] Pole A, 0.901 [0.891,0.910] Pole B -- see cal.json) even for the DEFEND-injected teacher itself. The cause is the live step's 0.5-cell avoid-collision shove (quantified in the audit's contract C9): comparing an isolated reference against LIVE recorded positions inherits that shove, which affects A' and N' identically and has nothing to do with vocabulary. Restricted to interaction-free windows, A' clears 0.90 cleanly on both poles (0.953 / 0.970). PI-approved 2026-09-21: gate on interaction-free windows; do NOT build a multi-agent-aware reference; the 2.5-cell / 0.90-coverage threshold itself is UNCHANGED -- only the eligible window population changed, exactly as the audit itself excluded windows where the agent stopped being ACTIVE.",
+    "coverage": "per arm and pole, on the interaction-free population: pass-rate with an episode-clustered percentile bootstrap (20000, rng 7); PASS iff LCB95 >= 0.90; FAIL iff UCB95 < 0.90; otherwise BORDERLINE (not a PASS)",
+    "N_prime_check": "PASS on both poles (interaction-free population) = the manipulation check is passed",
+    "positive_control": "the same interaction-free check on the A' arm's live paths must PASS on both poles; otherwise the instrument cannot certify even the DEFEND-injected teacher and a failed N' check is uninformative (INCONCLUSIVE_INSTRUMENT). Calibration above already confirms this PASSES for A'.",
+    "full_population_diagnostic": "reported, non-gating, for both A' and N': the raw live-vs-isolated-reference rate over ALL windows (contaminated by the shove). Acknowledged limitation: the interaction-free gate cannot detect a vocabulary effect that appears only when agents are crowded together; the full-population number exists so such a gap would still be visible, without itself flipping the label.",
+    "calibration_on_spent_audit_data": {
+      "population": "interaction-free windows only (no other live agent within shove reach for the full 16-tick window; the audit's own pre-declared robustness definition, reach = avoid_collision_radius + 2*max_speed*dt + 1.0 = 3.928 cells). Threshold unchanged: RMSE <= 2.5 cells, LCB95 >= 0.90.",
+      "A_prime_calibration_on_sealed_audit_cells": {
+        "A": {
+          "rate": 0.9531,
+          "lcb95": 0.9227,
+          "ucb95": 0.9769,
+          "n_windows": 618,
+          "status": "PASS"
+        },
+        "B": {
+          "rate": 0.9704,
+          "lcb95": 0.9499,
+          "ucb95": 0.9867,
+          "n_windows": 608,
+          "status": "PASS"
+        }
+      },
+      "full_population_reported_non_gating": {
+        "A": {
+          "rate": 0.8897,
+          "lcb95": 0.879,
+          "ucb95": 0.9001,
+          "n_windows": 17675,
+          "status": "BORDERLINE"
+        },
+        "B": {
+          "rate": 0.9005,
+          "lcb95": 0.8906,
+          "ucb95": 0.9101,
+          "n_windows": 23490,
+          "status": "BORDERLINE"
+        }
+      },
+      "why_interaction_free_is_primary": "the full-population comparison contrasts an isolated reference against LIVE recorded positions, which inherit the live step's 0.5-cell avoid-collision shove between nearby agents (identified and quantified in the audit's contract C9). That confound affects A' and N' identically and is unrelated to vocabulary; restricting to interaction-free windows removes it while changing no threshold. PI-approved 2026-09-21: 'the interaction-free gate is the best move... do not build the multi-agent-aware reference.'",
+      "acknowledged_limitation": "the interaction-free slice cannot detect a vocabulary effect that only appears when agents are crowded together; the full-population rate is kept as a non-gating diagnostic for transparency, not as a second gate."
+    }
+  },
+  "HEADING_DIAGNOSTIC_FROZEN": {
+    "definition": "on ACTIVE ticks with a non-zero DEFEND vector (|target - position| > 1e-8) and a record at t+1: cosine between the REALIZED displacement (position(t+1) - position(t)) and the direction to the DEFEND target >= 0.99; a zero realized displacement counts as -1 (the audit's direction_cosine convention)",
+    "direction_manipulated": "true iff, on BOTH poles, the LCB95 of the paired per-seed difference (A' agreement rate minus N' agreement rate; bootstrap over seeds, 20000, rng 7) is above zero. It states that N' actually removed per-tick heading fidelity relative to the scaffold, i.e. that the intervention varied the axis under test. It gates the WORDING of a positive result, not the crossover label.",
+    "calibration_on_spent_audit_data": {
+      "purpose": "dynamic range only, not itself gating: how often the DEFEND-injected teacher A' realizes a heading within 8 degrees of its own target, so the later A'-minus-N' contrast has a meaningful ceiling",
+      "A_prime_calibration_on_sealed_audit_cells": {
+        "A": {
+          "rate": 0.3858,
+          "lcb95": 0.3603,
+          "ucb95": 0.4119,
+          "n_ticks": 39191
+        },
+        "B": {
+          "rate": 0.2996,
+          "lcb95": 0.2811,
+          "ucb95": 0.3187,
+          "n_ticks": 43369
+        }
+      }
+    },
+    "why": "N' could still differ from A' in another unmeasured way (PI); a positive result is only stated as 'DIRECTION not necessary' if N' demonstrably differs from A' on heading while matching the path"
+  },
+  "INTERPRETATION_TREE_FROZEN": {
+    "precedence": "AUDIT_INVALID > crossover confirmed > INCONCLUSIVE_INSTRUMENT > INCONCLUSIVE_CONTROLLER > LOST_WITH_HIGH_PATH_FIDELITY",
+    "GOTO_ONLY_CROSSOVER_CONFIRMED": {
+      "rule": "both primary lower bounds strictly above zero",
+      "statement_if_direction_manipulated": "Instantaneous DIRECTION is not necessary for crossover: a defender restricted to native (GO_TO, legal waypoint) actions, which removes per-tick heading fidelity relative to the scaffold, preserved the crossover. This does not mean the DIRECTION metric was wrong; it measured a real mismatch that was not behaviorally necessary for the endpoint.",
+      "statement_if_not": "Crossover survives GO_TO-only defense, but the test did not demonstrably remove per-tick heading fidelity relative to the scaffold (the paired heading-agreement difference A' minus N' was not above zero on both poles); no statement about the necessity of instantaneous DIRECTION is made.",
+      "suffix_if_N_path_check_not_passed": " N' also did not meet the pre-declared in-env path criterion, so it is not claimed to reproduce the scaffold's path."
+    },
+    "INCONCLUSIVE_INSTRUMENT": {
+      "rule": "N' does not cross over AND the A' positive control is not PASS on both poles",
+      "statement": "The in-env path instrument could not certify the DEFEND-injected teacher itself (A' positive control below the pre-declared coverage), so a failed N' path check is uninformative. No claim about direction or vocabulary."
+    },
+    "INCONCLUSIVE_CONTROLLER": {
+      "rule": "N' does not cross over AND the instrument is valid AND the N' path check is not PASS on both poles",
+      "statement": "N' lost crossover but its in-env path did not meet the pre-declared criterion (RMSE <= 2.5 cells, coverage >= 0.90 on each pole). No claim about direction or vocabulary."
+    },
+    "GOTO_ONLY_CROSSOVER_LOST_WITH_HIGH_PATH_FIDELITY": {
+      "rule": "N' does not cross over AND the instrument is valid AND the N' path check is PASS on both poles",
+      "statement": "High path fidelity under native GO_TO was insufficient to preserve crossover, strengthening evidence that behavior omitted by the GO_TO approximation, including instantaneous directional control, may be causally important. This is NOT a finding that DIRECTION is necessary: N' could still differ from A' in another unmeasured way. It authorizes the next directional/interface experiment only; it does not authorize PPO.",
+      "not_claimed": "'DIRECTION proven necessary'"
+    },
+    "AUDIT_INVALID": {
+      "rule": "any completeness, rotation, attestation, checkpoint, or formal-audit failure; overrides every label"
+    },
+    "no_label_authorizes_ppo": "None of these labels authorizes PPO, a new action vocabulary, or a DEFEND macro. A lost crossover with high path fidelity would authorize only the NEXT directional/interface experiment, as a separate PI decision."
+  },
+  "OUTCOME_BLINDNESS_AND_NO_PEEKING": [
+    "the controller cannot see outcomes (pure function of its snapshot and mask); the analysis code, thresholds, statements and labels are frozen in the committed runner before any seed is spent",
+    "shards print progress COUNTS only; no outcome, win rate, path check or heading rate is read while the run is in flight; no top-up, no re-run, no tuning of the controller or the check after the block is touched"
+  ],
+  "INTEGRITY_FROZEN": {
+    "checkpoints": {
+      "pi_A": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      },
+      "pi_B": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      },
+      "note": "the same two checkpoints, by hash prefix, that the sealed corrected crossover evaluated (its log records sha 94dde69d091a... and 021342c84bbe...)."
+    },
+    "pole_attestation": {
+      "governing_certification": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "pole_b_genome_file": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+      "pole_b_genome_sha256": "99c17cadcb4e0cbccdad02847d3997b2c4d59a2c945ceba2fc5eedb8c5ad5f26",
+      "rule": "both poles are attested before any episode against the governing certification (fields and config hash), through experiments.pole_attestation, with the B3-3 genome file supplied so canonical OP7 can never be scored. Each episode additionally asserts the LIVE opponent batch and the live min_alive_for_defender equals 4, and fails closed otherwise. This is the defect that invalidated an earlier 4v4 experiment (a pi_B trained on canonical OP7 but scored on B3-3)."
+    },
+    "sealed_inputs_sha256": {
+      "scaffold_spec": "ac9a1e97f9d56eb7ac6177a398c112587eb12140db08519513d63786affa374f",
+      "scaffold_result": "4846b0c168962b93e7ccba4977381c3d8390da989d4b96127aa884a2a95f29f4",
+      "scaffold_rows": "2188aff0a8a9018491d7926c4079d95247d9354afb16648f461024b6ef02f5dd",
+      "scaffold_runner": "e6288f15fbe9dd67d13517c5641dbe8a5c144eb84790f5ead0dd3a24d536ff1c",
+      "mechanism_source": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb",
+      "audit_spec": "55b9f9943b4d027ab649b463a93d8c349504ebf65a0e512707395f6e6a597d36",
+      "audit_result": "70dd73bb708ee1357ce46f3af20ee013548fefff4a561a2a5ea5794a2aabacd6",
+      "audit_runner": "a34ba0906da4cdc0168dd074c757248411ef62116c2ed38684b690e823798571"
+    },
+    "seed_registry": "block reserved as sealed_confirmatory BEFORE the contracts run and committed with the pre-run package (as for the bridge); contract C14 checks every other registry entry is byte-identical; the block is marked SPENT only by the sealed analysis"
+  },
+  "CONTRACTS_BEFORE_ANY_SEED_IS_SPENT": [
+    "C0 spec frozen",
+    "C1 all pinned inputs equal their pins",
+    "C2 checkpoints equal their pins",
+    "C3 both poles attested (Pole B = the B3-3 genome)",
+    "C4 block reserved / unspent / disjoint and the pair rotation balanced",
+    "C5 the unchanged arms (pi_A, A', pi_B) reproduce the sealed bridge episodes EXACTLY through this runner's code path",
+    "C6 the N' controller's selection equals the audit oracle's first boundary choice on recorded constant-flag windows",
+    "C7 every N' action is on the native surface and the env's own commit state agrees at every boundary",
+    "C8 no side door, static and runtime",
+    "C9 the controller is a pure function of its snapshot and mask (non-input perturbation; offline reproduction of every emitted boundary action)",
+    "C10 N' is deterministic given state and seed",
+    "C11 planted truth: the controller picks the waypoint the DEFEND path is heading for",
+    "C12 interpretation-tree and wording self-tests, incl. that the lost-crossover text withholds 'DIRECTION proven necessary'",
+    "C13 the in-env path check and heading diagnostic plumbing (invariants only; rates not printed)",
+    "C14 read-only fence, policy digests, other registry entries unchanged"
+  ],
+  "NOT_AUTHORIZED": [
+    "PPO or any training; any new macro or action vocabulary (incl. a learned-selectable DEFEND); any change to pi_A, pi_B, the poles, the scaffold or its sealed record",
+    "launching the run before the PI gives that separate go; reading any outcome while it runs; top-up; re-run; tuning the controller or the check after the block is touched",
+    "treating a positive N' result as evidence that PPO will find the behavior, or a negative one as proof that DIRECTION is necessary",
+    "a second manipulation-check definition, a re-run of this experiment, or re-opening/amending the frozen representability audit's own label, after this result seals -- per POST_RUN_COMMITMENT_FROZEN this is the last diagnostic before a training decision"
+  ],
+  "claim_boundary": "Two frozen 4v4 learned specialists, the two certified 4v4 poles, fresh sealed_confirmatory seeds, rollout-time controllers on pi_A only. N' is an oracle-informed GO_TO controller: it uses the DEFEND teacher law as information to choose waypoints, so a positive result says the native vocabulary suffices for the crossover effect, NOT that PPO will find that behavior. Neither outcome authorizes PPO.",
+  "claim_ceiling": "a statement about whether the native GO_TO vocabulary suffices for the scaffold's crossover effect in this environment; nothing about learnability, PPO, pi_B, or 6v6"
+}

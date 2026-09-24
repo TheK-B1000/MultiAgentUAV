@@ -1,0 +1,106 @@
+{
+  "record_id": "4V4_ENTITY_REPAIR_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING_STEP",
+  "utc": "2026-09-13T05:35:00Z",
+  "arm": "CONFIRMATORY_CANDIDATE",
+  "confirmatory": false,
+
+  "QUESTION": "Does giving PPO exact entity geometry (labeled teammate + enemy positions) recover 4v4 opponent-conditioned specialization, when nothing else about the recipe changes?",
+
+  "EVIDENCE_CHAIN_THIS_SPEC_RESTS_ON": [
+    "TEST_0: o1=o2, q(t1)!=q(t2) constructively at N>=4, absent at N=2 (established, unmoved across every re-audit)",
+    "OBSERVATION_LADDER: defender counterexamples 9->0 at +TEAMMATES; enemy counterexamples 10->10 at +TEAMMATES, ->0 only at +TEAMMATES+ENEMIES",
+    "BC_REPRESENTATION_SMOKE: identical architecture (17,751 params) and split; val target-distance BASE=1.545 -> TEAMMATES=1.275 -> BOTH=1.170 cells, monotone exactly as the ladder predicts",
+    "CARRIER_RESTORE_TEST: the competing action-side hypothesis (carrier evasion) was tested and FALSIFIED -- removing the home override makes 4v4 GUARD catastrophically worse (V: 0.708->0.000). Action-side repair is parked; this spec touches observation only."
+  ],
+
+  "THE_INTERVENTION_is_extremely_narrow": {
+    "changes": "observation representation ONLY: add EntityResidualEncoder (rl/custom_ppo/entity_residual.py) computing g(teammates, enemies), added to the existing local_in = concat(cnn_features, vec) before latent_actor.",
+    "held_fixed": [
+      "same 4v4 GUARD/BREACH regimes (pole A, pole B)",
+      "same PPO implementation and hyperparameters",
+      "same reward function",
+      "same action interface (macros, 50-waypoint vocabulary, commit horizons) -- carrier override UNTOUCHED",
+      "same macro commitment horizons",
+      "same training budget (steps) as the sealed B3-3 4v4 baseline",
+      "same evaluation protocol: paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7",
+      "same architecture size where practical -- actor_cnn and latent_actor UNCHANGED, only new entity-encoder parameters added",
+      "same entity encoder design and weights-shape for both pi_A3 and pi_B3 specialists",
+      "fresh preallocated training/evaluation seed blocks, disjoint from all prior blocks"
+    ],
+    "NOT_changed_in_this_run": ["r_i / explicit role-assignment code", "reward shaping",
+                                "macro definitions", "carrier behaviour",
+                                "commit horizons", "arena size", "team size"],
+    "why_so_narrow": "changing observation and action semantics simultaneously would destroy the causal interpretation of the result. This run answers exactly one question."
+  },
+
+  "ARCHITECTURE_CONTRACT": {
+    "module": "rl/custom_ppo/entity_residual.py::EntityResidualEncoder",
+    "fusion_point": "rl/custom_ppo/policy.py::_encode_local_obs -- local_in = local_in_base + g(T,E), verified by reading the code, not assumed",
+    "guarantees_proven_by_test": "tests/test_entity_residual.py, 10/10 passing against the REAL SharedActorCentralizedCritic (not a stand-in network)",
+    "EMPTY_IDENTITY": "g(empty,empty) == 0 EXACTLY for ANY weights (bias-free construction, not merely zero-init) -- verified across 5 independent random weight draws away from initialization",
+    "PERMUTATION_INVARIANCE": "shuffling teammate/enemy entity order leaves g unchanged, including under partial validity masks",
+    "NO_MUTATION": "local_in_base (the CNN/vec path) is bit-identical regardless of entity content; entities are additive, never a side channel into the base encoder",
+    "WARM_START_EQUIVALENCE": "at t=0, policy_logits on the augmented pathway are numerically identical to the base policy's logits even with real (non-empty) entity content present, because the final projection layer's WEIGHT is zero-initialised. This licenses literal warm-start from the sealed 4v4 baseline checkpoint with a PROVEN zero behavioural change at step 0.",
+    "SCALE_INVARIANCE": "shared per-entity encoders + mean pooling over a validity mask -- the identical module runs unchanged at 2v2/4v4/6v6, only K (entity count) differs. No architecture change is needed to port this to 6v6."
+  },
+
+  "WARM_START_PLAN": "pi_A3/pi_B3 initialise actor_cnn and latent_actor from the sealed B3-3 4v4 specialist checkpoints (CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json lineage). EntityResidualEncoder is freshly initialised (zero-init projection). Verified by the WARM_START_EQUIVALENCE anchor: loaded behaviour is provably identical to the pre-repair specialist at step 0, so any divergence observed during training is attributable to the entity pathway learning, not to a discontinuity introduced by the architecture change itself.",
+
+  "SUCCESS_CRITERION_is_the_real_closed_loop_gate_only": {
+    "metric": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0, identical protocol to every prior sealed crossover in this project",
+    "explicitly_NOT_the_criterion": ["training win rate", "BC/imitation accuracy",
+                                     "entity-encoder loss", "any proxy metric"]
+  },
+
+  "PRECOMMITTED_DECISION_TREE": [
+    {
+      "outcome": "BOTH regimes specialize (LCB95(delta_A) > 0 AND LCB95(delta_B) > 0)",
+      "reading": "observation repair SUCCEEDS",
+      "next": "freeze the 4v4 entity representation; port the EXACT SAME architecture (same encoder, same fusion point, same warm-start procedure) to 6v6. No redesign unless 6v6 produces new evidence of a further scaling issue."
+    },
+    {
+      "outcome": "only ONE regime specializes (one delta's LCB95 > 0, the other's does not)",
+      "reading": "partial / asymmetric recovery",
+      "next": "diagnose the FAILED regime specifically -- do not redesign both. Check whether the failing regime's specific assignment pattern (e.g. more simultaneous threats) stresses the entity representation differently."
+    },
+    {
+      "outcome": "NEITHER regime specializes, but training telemetry is healthy (stable losses, no NaNs, normal entropy decay, win rates in a competent contested band)",
+      "reading": "exact geometry was necessary for IMITABILITY (established by BC_REPRESENTATION_SMOKE) but INSUFFICIENT for PPO ACQUISITION",
+      "next": "this licenses the next rung: explicit r_i / role-assignment code, or an assignment-learning auxiliary signal. Do not skip to r_i without this outcome -- that would be changing the intervention after seeing a different failure."
+    },
+    {
+      "outcome": "training itself is unstable or broken (NaNs, collapsed entropy, non-competent terminal win rates, divergence from the warm-started baseline behaviour beyond what the repair could plausibly cause)",
+      "reading": "infrastructure or optimisation problem, NOT evidence about the representation",
+      "next": "infrastructure/optimization audit. Do NOT interpret this as evidence against entity geometry. Re-run only after the audit clears."
+    }
+  ],
+
+  "WHAT_THIS_RUN_MAY_NOT_CLAIM": [
+    "anything about 6v6 before it is separately tested with the same architecture",
+    "that r_i is unnecessary, if the outcome is anything other than full success",
+    "that the action interface is adequate -- CARRIER_RESTORE_TEST already showed it is complex and asymmetric; this run does not touch it",
+    "a sealed/confirmatory result until the crossover eval itself is sealed under Rule 7"
+  ],
+
+  "COMPLIANCE": {
+    "rule_1_telemetry": "tqdm per training run and per eval episode; live status heartbeat",
+    "rule_2_incremental": "metrics.csv / episode_rows.csv append per step/episode, matching the training pipeline's existing convention",
+    "rule_3_frozen_spec": "this document",
+    "rule_4_preflight": "10/10 entity-residual anchors (tests/test_entity_residual.py) plus a warm-start equivalence check against the loaded checkpoint must pass before step 1 of training",
+    "rule_5_resumability": "standard checkpoint-resume convention",
+    "rule_6_live_status": "standard TRAINING_STATUS artifact",
+    "rule_7_audit_gated_seal": "the crossover eval MUST use experiments/run_state.py::seal",
+    "rule_9_seed_registry": "fresh training + eval seed blocks to be reserved via experiments/seed_registry.py before launch, disjoint from all prior blocks including the exploratory ARM1/oracle/ladder block",
+    "rule_10_decision_tree": "PRECOMMITTED_DECISION_TREE above",
+    "rule_12_known_answer_contract": "EMPTY_IDENTITY, PERMUTATION_INVARIANCE, NO_MUTATION, WARM_START_EQUIVALENCE -- all four proven against the real production policy class before this spec was frozen",
+    "rule_13_hardened_lock": "training launcher must use experiments/run_lock.py::RunLock"
+  },
+
+  "REMAINING_ENGINEERING_BEFORE_LAUNCH": {
+    "status": "NOT YET DONE -- disclosed explicitly rather than silently assumed complete",
+    "gap": "the GPU vectorized training env (gpu_env/_core/_observations.py and the rollout pipeline in rl/training/) does not yet emit teammate/enemy entity tensors alongside the existing grid/vec/agent_mask/mask dict during ACTUAL rollout collection. The entity-residual module and its identity guarantees are proven at the POLICY level (given entity tensors, the fusion is correct and safe); the ENV-side plumbing to produce those tensors during real vectorized training has not been built or tested.",
+    "why_this_matters": "launching training before this plumbing exists and is itself anchor-tested would repeat exactly the pattern this project has spent this whole session correcting -- an unverified harness producing a number that looks like a result.",
+    "next_concrete_step": "build and anchor-test the entity-tensor extraction in the vectorized env (relative teammate/enemy positions + alive/carrying/tagged, matching the exact feature definition already validated in eval_bc_representation_smoke.py), wire it into the rollout collector's obs dict, then re-run the warm-start equivalence check end-to-end through the real training step function before spending any GPU seed."
+  }
+}

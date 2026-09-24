@@ -298,6 +298,11 @@ def orchestrate_training_run(
         maybe_configure_periodic_checkpoints(cfg, trainer)
         _maybe_attach_sappo_anchor(cfg, trainer)
         _maybe_attach_exp2_teacher_compression(cfg, trainer)
+        _maybe_attach_sibling_separation(cfg, trainer)
+        _maybe_attach_role_preservation(cfg, trainer)
+        _maybe_attach_getflag_preservation(cfg, trainer)
+        _maybe_attach_defend_teacher(cfg, trainer)
+        _maybe_attach_split_attack_defend(cfg, trainer)
         _maybe_attach_sppo_ranking(cfg, trainer)
 
         # Runtime-observer seam. Callers attach auditors to the live trainer here,
@@ -547,6 +552,347 @@ def _maybe_attach_sppo_ranking(cfg, trainer) -> None:
         f"margin={runner.margin} cadence=1:{runner.cadence} "
         f"qpsi_sha={runner._qpsi_sha[:16]}... pole=TRUE opponent_id "
         f"z_map={runner.z_to_pole}"
+    )
+
+
+def _maybe_attach_sibling_separation(cfg, trainer) -> None:
+    """Attach disagreement-masked sibling separation, or attach nothing.
+
+    λ==0 or empty paths = structurally absent (no runner). Matches SAPPO
+    discipline: separate zero_grad/backward/step on cadence, never shares a
+    backward with PPO.
+    """
+    lam = float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0)
+    ckpt = str(getattr(cfg, "sibling_sep_ckpt", "") or "")
+    dataset = str(getattr(cfg, "sibling_sep_dataset", "") or "")
+    if lam <= 0.0:
+        return
+    if not ckpt or not dataset:
+        raise RuntimeError(
+            "sibling_sep_lambda > 0 requires sibling_sep_ckpt and sibling_sep_dataset"
+        )
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("sibling separation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("sibling separation cannot coexist with EXP2 teacher compression")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("sibling separation cannot coexist with DEFEND-teacher imitation")
+    if bool(getattr(cfg, "split_attack_defend_enabled", False)):
+        raise RuntimeError("sibling separation cannot coexist with split_attack_defend")
+
+    ckpt_path = Path(ckpt)
+    if not ckpt_path.is_file():
+        raise RuntimeError(f"sibling checkpoint missing: {ckpt_path}")
+    expected = str(getattr(cfg, "sibling_sep_ckpt_sha256", "") or "").lower()
+    actual = _sha256(ckpt_path)
+    if expected and actual != expected:
+        raise RuntimeError(
+            f"sibling checkpoint hash mismatch for {ckpt_path}: {actual} != {expected}"
+        )
+
+    ds_path = Path(dataset)
+    if ds_path.is_dir():
+        npz = ds_path / "disagreement_rows.npz"
+    else:
+        npz = ds_path
+    if not npz.is_file():
+        raise RuntimeError(f"sibling disagreement dataset missing: {npz}")
+
+    from rl.custom_ppo.inference import load_custom_ppo_policy
+    from rl.custom_ppo.sibling_separation import DisagreementDataset, SiblingSepRunner
+
+    loaded = load_custom_ppo_policy(
+        str(ckpt_path),
+        trainer.env.observation_space,
+        trainer.env.action_space,
+        device=str(trainer.device),
+    )
+    sibling = loaded.model
+    if bool(getattr(sibling, "uses_latent_strategy", False)):
+        raise RuntimeError("sibling checkpoint must be a non-latent specialist")
+    if tuple(sibling.action_dims) != tuple(trainer.model.action_dims):
+        raise RuntimeError("sibling action space differs from student")
+
+    ds = DisagreementDataset(
+        str(npz),
+        batch_size=int(getattr(cfg, "sibling_sep_batch_size", 64)),
+        seed=int(getattr(cfg, "seed", 7) or 7) + 41_017,
+    )
+    runner = SiblingSepRunner(
+        trainer.model,
+        trainer.optimizer,
+        sibling,
+        ds,
+        lambda_sep=lam,
+        cadence=int(getattr(cfg, "sibling_sep_cadence", 4)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+        device=str(trainer.device),
+    )
+    trainer.sibling_sep_runner = runner
+    print(
+        f"[SIBLING-SEP] disagreement-masked separation ATTACHED: "
+        f"divergence=JSD(in-repo jsd_per_head, bounded ln2) "
+        f"lambda={runner.lambda_sep} cadence=1:{runner.cadence} "
+        f"sibling={ckpt_path.name} "
+        f"dataset_rows={ds.n_rows} sha={actual[:12]}..."
+    )
+
+
+def _maybe_attach_role_preservation(cfg, trainer) -> None:
+    """Attach frozen GUARD/BREACH role preservation, or attach nothing."""
+    lam = float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0)
+    targets_path = str(getattr(cfg, "role_pres_targets", "") or "")
+    style = str(getattr(cfg, "role_pres_style", "") or "")
+    if lam <= 0.0:
+        return
+    if not targets_path or not style:
+        raise RuntimeError(
+            "role_pres_lambda > 0 requires role_pres_targets and role_pres_style"
+        )
+    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError(
+            "role preservation cannot coexist with sibling separation "
+            "(retired JSD intervention)"
+        )
+    if getattr(trainer, "sibling_sep_runner", None) is not None:
+        raise RuntimeError("role preservation cannot coexist with sibling_sep_runner")
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("role preservation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("role preservation cannot coexist with EXP2 teacher compression")
+    if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("role preservation cannot coexist with GET_FLAG preservation")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("role preservation cannot coexist with DEFEND-teacher imitation")
+    if bool(getattr(cfg, "split_attack_defend_enabled", False)):
+        raise RuntimeError("role preservation cannot coexist with split_attack_defend")
+
+    from rl.custom_ppo.role_preservation import RolePresRunner, load_role_targets
+
+    targets = load_role_targets(targets_path, style)
+    runner = RolePresRunner(
+        trainer.model,
+        trainer.optimizer,
+        targets=targets,
+        lambda_role=lam,
+        cadence=int(getattr(cfg, "role_pres_cadence", 4)),
+        temperature=float(getattr(cfg, "role_pres_temperature", 0.5)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+    )
+    trainer.role_pres_runner = runner
+    print(
+        f"[ROLE-PRES] role preservation ATTACHED: "
+        f"style={targets['style']} ({targets['style_id']}) "
+        f"dominant_target={targets['dominant_role']} "
+        f"lambda={runner.lambda_role} cadence=1:{runner.cadence} "
+        f"temperature={runner.temperature} "
+        f"targets={targets_path}"
+    )
+
+
+def _maybe_attach_getflag_preservation(cfg, trainer) -> None:
+    """Attach gated GET_FLAG macro preservation, or attach nothing.
+
+    λ==0 or empty path = structurally absent. Separate zero_grad/backward/step.
+    """
+    lam = float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0)
+    ckpt = str(getattr(cfg, "getflag_preserve_ckpt", "") or "")
+    if lam <= 0.0:
+        return
+    if not ckpt:
+        raise RuntimeError("getflag_preserve_lambda > 0 requires getflag_preserve_ckpt")
+    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with sibling separation")
+    if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with role preservation")
+    if getattr(trainer, "sibling_sep_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with sibling_sep_runner")
+    if getattr(trainer, "role_pres_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with role_pres_runner")
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with EXP2 teacher compression")
+    if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("GET_FLAG preservation cannot coexist with DEFEND-teacher imitation")
+    if bool(getattr(cfg, "split_attack_defend_enabled", False)):
+        raise RuntimeError("GET_FLAG preservation cannot coexist with split_attack_defend")
+
+    ckpt_path = Path(ckpt)
+    if not ckpt_path.is_file():
+        raise RuntimeError(f"GET_FLAG-preservation anchor missing: {ckpt_path}")
+    expected = str(getattr(cfg, "getflag_preserve_ckpt_sha256", "") or "").lower()
+    actual = _sha256(ckpt_path)
+    if expected and actual != expected:
+        raise RuntimeError(
+            f"GET_FLAG-preservation anchor hash mismatch for {ckpt_path}: "
+            f"{actual} != {expected}"
+        )
+
+    from rl.custom_ppo.getflag_preservation import GetflagPreserveRunner
+    from rl.custom_ppo.inference import load_custom_ppo_policy
+
+    loaded = load_custom_ppo_policy(
+        str(ckpt_path),
+        trainer.env.observation_space,
+        trainer.env.action_space,
+        device=str(trainer.device),
+    )
+    anchor = loaded.model
+    if bool(getattr(anchor, "uses_latent_strategy", False)):
+        raise RuntimeError("GET_FLAG-preservation anchor must be a non-latent specialist")
+    if tuple(anchor.action_dims) != tuple(trainer.model.action_dims):
+        raise RuntimeError("GET_FLAG-preservation anchor action space differs from student")
+
+    runner = GetflagPreserveRunner(
+        trainer.model,
+        trainer.optimizer,
+        anchor,
+        lambda_preserve=lam,
+        cadence=int(getattr(cfg, "getflag_preserve_cadence", 4)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+    )
+    trainer.getflag_preserve_runner = runner
+    print(
+        f"[GETFLAG-PRESERVE] non-carrying GET_FLAG macro preservation ATTACHED: "
+        f"D=NLL(GET_FLAG) on gated agent-heads only (not full-action JSD/KL) "
+        f"lambda={runner.lambda_preserve} cadence=1:{runner.cadence} "
+        f"anchor={ckpt_path.name} sha={actual[:12]}..."
+    )
+
+
+def _maybe_attach_defend_teacher(cfg, trainer) -> None:
+    """Attach the DEFEND-only N'-teacher imitation runner, or attach nothing.
+
+    See artifacts/strategic_demand/sppo/DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json.
+    lambda<=0 = structurally absent (no runner). Unlike sibling_sep /
+    role_pres / getflag_preserve, there is no frozen anchor checkpoint to
+    load: the teacher target is a physics-rule computation
+    (rl.custom_ppo.defend_teacher.compute_defend_teacher_waypoints), captured
+    at rollout-collection time into the buffer. The runner's lambda is a
+    per-step schedule (LAMBDA_SCHEDULE_locked), reassigned every PPO
+    update() by PPOUpdater.compute_defend_teacher_lambda -- the value passed
+    here is only the schedule's peak/start value.
+    """
+    lam = float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0)
+    if lam <= 0.0:
+        return
+    if not bool(getattr(cfg, "role_conditioning_enabled", False)):
+        raise RuntimeError(
+            "defend_teacher_lambda > 0 requires role_conditioning_enabled=True "
+            "(TEACHER_locked.applies_to)"
+        )
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with EXP2 teacher compression")
+    if getattr(trainer, "sibling_sep_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with sibling_sep_runner")
+    if getattr(trainer, "role_pres_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with role_pres_runner")
+    if getattr(trainer, "getflag_preserve_runner", None) is not None:
+        raise RuntimeError("DEFEND-teacher imitation cannot coexist with getflag_preserve_runner")
+
+    from rl.custom_ppo.defend_teacher import DefendTeacherRunner
+
+    runner = DefendTeacherRunner(
+        trainer.model,
+        trainer.optimizer,
+        lambda_teacher=lam,
+        cadence=int(getattr(cfg, "defend_teacher_cadence", 4)),
+        max_grad_norm=float(getattr(cfg, "max_grad_norm", 0.5)),
+    )
+    trainer.defend_teacher_runner = runner
+    print(
+        f"[DEFEND-TEACHER] N'-port DEFEND imitation ATTACHED: "
+        f"D=CE(macro,GO_TO)+CE(waypoint,w_N') on DEFEND-role decision-eligible "
+        f"agent-ticks only lambda_peak={runner.lambda_teacher} "
+        f"cadence=1:{runner.cadence}"
+    )
+
+
+def _maybe_attach_split_attack_defend(cfg, trainer) -> None:
+    """Attach the frozen pi_A used for ATTACK-role agent slots, or attach nothing.
+
+    See artifacts/strategic_demand/sppo/DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json.
+    Default OFF = structurally absent: no frozen model loaded, no action
+    splicing in the collector, no per-agent DEFEND-gated loss path taken in
+    the minibatch updater. The frozen model is attached as a raw
+    SharedActorCentralizedCritic (not the CustomPPOInferencePolicy
+    numpy-facing wrapper) so the collector can call ``.act()`` on it
+    directly, batched, under torch.no_grad() every tick -- it never
+    receives an optimizer, never appears in any loss, and its parameters
+    are frozen immediately after loading.
+    """
+    if not bool(getattr(cfg, "split_attack_defend_enabled", False)):
+        return
+    if not bool(getattr(cfg, "role_conditioning_enabled", False)):
+        raise RuntimeError(
+            "split_attack_defend_enabled=True requires role_conditioning_enabled=True"
+        )
+    if not bool(getattr(cfg, "role_fixed_for_episode", False)):
+        raise RuntimeError(
+            "split_attack_defend_enabled=True requires role_fixed_for_episode=True "
+            "(the ATTACK/DEFEND slot assignment must not change mid-episode)"
+        )
+    ckpt = str(getattr(cfg, "split_attack_defend_frozen_ckpt", "") or "")
+    if not ckpt:
+        raise RuntimeError(
+            "split_attack_defend_enabled=True requires split_attack_defend_frozen_ckpt"
+        )
+    if float(getattr(cfg, "sibling_sep_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("split_attack_defend cannot coexist with sibling separation")
+    if float(getattr(cfg, "role_pres_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("split_attack_defend cannot coexist with role preservation")
+    if float(getattr(cfg, "getflag_preserve_lambda", 0.0) or 0.0) > 0.0:
+        raise RuntimeError("split_attack_defend cannot coexist with GET_FLAG preservation")
+    if getattr(trainer, "sappo_anchor_runner", None) is not None:
+        raise RuntimeError("split_attack_defend cannot coexist with SAPPO anchor")
+    if getattr(trainer, "exp2_teacher_compression_runner", None) is not None:
+        raise RuntimeError("split_attack_defend cannot coexist with EXP2 teacher compression")
+    if getattr(trainer, "sibling_sep_runner", None) is not None:
+        raise RuntimeError("split_attack_defend cannot coexist with sibling_sep_runner")
+    if getattr(trainer, "role_pres_runner", None) is not None:
+        raise RuntimeError("split_attack_defend cannot coexist with role_pres_runner")
+    if getattr(trainer, "getflag_preserve_runner", None) is not None:
+        raise RuntimeError("split_attack_defend cannot coexist with getflag_preserve_runner")
+
+    ckpt_path = Path(ckpt)
+    if not ckpt_path.is_file():
+        raise RuntimeError(f"split_attack_defend frozen checkpoint missing: {ckpt_path}")
+    expected = str(getattr(cfg, "split_attack_defend_frozen_ckpt_sha256", "") or "").lower()
+    actual = _sha256(ckpt_path)
+    if expected and actual != expected:
+        raise RuntimeError(
+            f"split_attack_defend frozen checkpoint hash mismatch for {ckpt_path}: "
+            f"{actual} != {expected}"
+        )
+
+    from rl.custom_ppo.inference import load_custom_ppo_policy
+
+    loaded = load_custom_ppo_policy(
+        str(ckpt_path), trainer.env.observation_space, trainer.env.action_space,
+        device=str(trainer.device),
+    )
+    frozen_model = loaded.model
+    if bool(getattr(frozen_model, "uses_latent_strategy", False)):
+        raise RuntimeError("split_attack_defend frozen model must be a non-latent specialist")
+    if bool(getattr(frozen_model, "role_conditioning_enabled", False)):
+        raise RuntimeError(
+            "split_attack_defend frozen model must NOT be role-conditioned -- it always "
+            "plays its own native (unconditioned) behavior for whichever slots "
+            "CLOSEST_DEFENDS assigns to ATTACK"
+        )
+    if tuple(frozen_model.action_dims) != tuple(trainer.model.action_dims):
+        raise RuntimeError("split_attack_defend frozen model action space differs from student")
+    frozen_model.eval()
+    for p in frozen_model.parameters():
+        p.requires_grad_(False)
+    trainer.split_attack_defend_frozen_model = frozen_model
+    print(
+        f"[SPLIT-ATTACK-DEFEND] frozen pi_A ATTACHED for ATTACK-role slots: "
+        f"ckpt={ckpt_path.name} sha={actual[:12]}... "
+        f"(DEFEND slots -> trainable model; main PPO actor loss/entropy DEFEND-gated)"
     )
 
 

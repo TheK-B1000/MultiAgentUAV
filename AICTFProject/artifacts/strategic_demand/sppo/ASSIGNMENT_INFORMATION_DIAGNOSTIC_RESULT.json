@@ -1,0 +1,84 @@
+{
+  "record": "ASSIGNMENT_INFORMATION_DIAGNOSTIC",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-17T21:05:06Z",
+  "implements": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC.json",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "elapsed_s": 102.2,
+  "seeds": [
+    17600001,
+    17600002,
+    17600003
+  ],
+  "G1_TEACHER_ASSIGNMENT_AGREEMENT": {
+    "N4": {
+      "scale": "4v4",
+      "n_eligible_agent_ticks": 480,
+      "n_target_match": 480,
+      "accuracy": 1.0,
+      "mean_target_l2_err": 0.0,
+      "passed": true,
+      "pass_floor": 0.95
+    },
+    "N2_control": {
+      "scale": "2v2",
+      "n_eligible_agent_ticks": 226,
+      "n_target_match": 226,
+      "accuracy": 1.0,
+      "mean_target_l2_err": 0.0,
+      "passed": true,
+      "pass_floor": 0.95
+    }
+  },
+  "G2_RESOLVES_SEALED_AMBIGUITY": {
+    "N4": {
+      "scale": "4v4",
+      "n_test0_pairs": 9,
+      "n_zi_resolved": 9,
+      "passed": true,
+      "control": false,
+      "unresolved_examples": [],
+      "rule": "every o-identical q-differing pair must have differing discrete z_i"
+    },
+    "N2_control": {
+      "scale": "2v2",
+      "n_test0_pairs": 0,
+      "n_zi_resolved": 0,
+      "passed": true,
+      "control": true,
+      "note": "N=2 negative control (assignment inactive)",
+      "unresolved_examples": []
+    }
+  },
+  "G3_NO_ACTION_LEAK": {
+    "passed": true,
+    "static": {
+      "passed": true,
+      "parameter_names": [
+        "own_x",
+        "own_y",
+        "own_alive",
+        "home_xy",
+        "enemy_x",
+        "enemy_y",
+        "enemy_alive",
+        "enemy_tagged",
+        "enemy_flag_xy",
+        "on_our_side",
+        "defense_radius",
+        "midline_fn"
+      ],
+      "forbidden_hits": [],
+      "forbid_kwargs_assert_works": true
+    },
+    "dynamic": {
+      "passed": true,
+      "deterministic_replay": true
+    }
+  },
+  "OVERALL_PASS": true,
+  "AUTHORIZATION": "Assignment Conditioning v1 training AUTHORIZED",
+  "GETFLAG_untouched": true,
+  "no_PPO_in_this_record": true
+}

@@ -1,0 +1,182 @@
+{
+  "record_id": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-22T08:06:02Z",
+  "classification": "DIAGNOSTIC / EXPLORATORY. Not PAPER-FAITHFUL. Not a confirmatory crossover pass. Not latent-strategy work.",
+  "authorized_by": "PI, 2026-09-22, following GOTO_ONLY_DEFEND_SUBSTITUTION_4V4 (sealed GOTO_ONLY_CROSSOVER_CONFIRMED, commits 541e9bab/9d14717d) and CLOSEST_DEFENDS_SCREEN_4V4 (sealed pattern_match=true, commits f4f4ac6f/41575677): 'Go. Move to the 4v4 role-conditioned PPO training design now... authorize the pre-change checklist and frozen-spec draft with those settings.' This is a design/spec freeze only; it does NOT itself authorize spending the training or evaluation seed, which requires its own registry reservation and a passing contract run first.",
+  "SUPERSEDES": {
+    "record": "A_FREEZE_RULE.json",
+    "verbatim_rule_being_superseded": "\u03c0_A is considered operationally solved for the current specialization-repair program. No further A training, tuning, architecture changes, reward changes, or A-specific diagnostics are permitted unless a future B-side intervention demonstrably causes a regression in Delta_A or a required integrity/control check specifically requires A.",
+    "exception_fired": "explicit new PI authorization, 2026-09-22, to train pi_A under role conditioning -- the first A-training experiment in this program. A_FREEZE_RULE.json is NOT deleted or rewritten; this record supersedes it for this one authorized training line only. Every OTHER use of A_FREEZE_RULE (A as frozen comparator/control for Delta_B work) remains in force."
+  },
+  "THE_HYPOTHESIS": "Can warm-started pi_A, under a permanently fixed greedy 2A/2D allocator, learn defender behavior from an N'-teacher signal while retaining its strong attacking behavior? This is the first question in the sequence; it does not presuppose a positive answer authorizes a larger run, and a negative answer does not itself authorize a new action primitive -- that remains a separate PI decision.",
+  "WHY_THIS_LEVER": {
+    "goto_sufficiency": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4: GOTO_ONLY_CROSSOVER_CONFIRMED (Delta_A_N +0.141 [+0.016,+0.258], Delta_B_N +0.438 [+0.336,+0.539]), with caveats (Pole A margin thin; N' path fidelity BORDERLINE on Pole A) -- licenses training on the existing GO_TO vocabulary without a new DEFEND primitive.",
+    "allocator_sufficiency": "CLOSEST_DEFENDS_SCREEN_4V4: pattern_match=true, matching/exceeding the sealed scaffold bridge's own signature (Delta_B' +0.422 vs +0.359; I_B -0.625 vs -0.492; I_A exactly 0.000) using a distance-based, not seed-based, pair rule -- licenses the allocator as the role-assignment layer.",
+    "why_not_plain_role_conditioning_alone": "RULE_BASED_ROLE_CONDITIONING (2026-09-17, policy B, warm-started from B_t500k, geometric role bit into the actor, NO teacher term) moved Delta_B only to roughly the unaided B_t500k screen level (~-0.05) -- a role bit alone did not produce specialization. ASSIGNMENT_CONDITIONING_V1 (also policy B, a richer 4-float privileged GUARD assignment vector) also failed Delta_B (-0.047). Both prior attempts targeted policy B (trying to make B a better Pole-B specialist); this experiment targets policy A (trying to make A voluntarily reproduce the scaffold's validated suppression pattern), a different axis, but the negative result on 'role information alone, no teacher' still motivates adding a supervised teacher term rather than repeating role-conditioning-only.",
+    "why_not_the_scaffold_as_teacher": "the sealed A' scaffold overrides the RESOLVED MOVEMENT TARGET post-hoc (experiments.probe_learned_composition.install_forced_defend_target); it never emits a native (macro, waypoint) action and therefore supplies no label a supervised loss over actor logits can imitate. N' (experiments/run_goto_only_defend_substitution_4v4.py) is the only validated component that emits a genuine native action for a DEFEND-labeled agent, and it already preserved crossover using exactly that action surface."
+  },
+  "ROLE_ASSIGNMENT_locked": {
+    "reused_unchanged": "rl/custom_ppo/rule_role_assignment.py::assign_roles_from_geometry -- k=N/2=2 for 4v4, Euclidean distance to own_flag_home, dead/tagged-out agents excluded from ranking (rank distance = +inf), ties broken by lower agent index. Identical rule to CLOSEST_DEFENDS_SCREEN_4V4's own closest_defends_pair (independently arrived at the same convention).",
+    "NEW_fixed_for_episode_mode": {
+      "why": "the EXISTING RoleHoldState reassigns whenever the living set changes (a defender dies/revives) OR age >= role_hold_ticks (default 8) expires -- periodic reassignment, not what CLOSEST_DEFENDS_SCREEN_4V4 validated. The screen assigned ONCE at the state immediately after env.reset() and NEVER reassigned, including on death (a dead forced agent's target override becomes moot but the identity was never replaced).",
+      "PI_decision_2026-09-22": "do NOT promote a replacement when a defender dies in v1. Do not reuse the existing 8-tick hold-with-death-trigger behavior as-is, because it would silently add an untested dynamic-reassignment variable the sealed screen never exercised.",
+      "mechanism": "add a constructor flag `fixed_for_episode: bool` to RoleHoldState. When True, `update()`'s reassignment condition `need = changed | expired` becomes `need = force_flag_only` (roles are assigned exactly once, on the tick immediately following RoleHoldState.reset_envs(done_t) -- the existing per-env reset hook already called from the collector on every `done` -- and never reassigned again until the NEXT reset_envs call, regardless of death/revival or elapsed ticks).",
+      "PPOConfig_field": "role_fixed_for_episode: bool = False (new field; role_hold_ticks is ignored when this is True, and the two are mutually exclusive by construction, not by an assertion someone could forget)"
+    }
+  },
+  "POLICY_INTERFACE_locked": {
+    "form": "pi_theta(a_i | o_i, r_i) -- reuses role_conditioning_enabled exactly as RULE_BASED_ROLE_CONDITIONING wired it: one bit (0=DEFEND, 1=ATTACK per rl.custom_ppo.rule_role_assignment.ROLE_DEFEND/ROLE_ATTACK) concatenated into agent i's own decentralized actor input pathway. No separate learned role head; the allocator supplies the role, exactly as approved.",
+    "critic_path": "critic receives the full team role vector (length N), unchanged from RULE_BASED_ROLE_CONDITIONING's convention -- the critic is inherently centralized (CTDE) already; this does not touch the decentralized-execution boundary the actor input contract (_assert_input_contracts) enforces.",
+    "action_space": "unchanged native 5-macro / n_targets-waypoint surface. No new macro, no DEFEND primitive -- GOTO_ONLY_DEFEND_SUBSTITUTION_4V4 already established this suffices."
+  },
+  "WARM_START_locked": {
+    "checkpoint": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "why_this_checkpoint": "the SAME certified pi_A checkpoint used throughout the scaffold bridge / representability audit / N' / CLOSEST_DEFENDS lines -- never before used as a warm-start SOURCE for further training (A_FREEZE_RULE barred it).",
+    "mechanism": "identical to RULE_BASED_ROLE_CONDITIONING's own validated warm-start: zero-column expand the actor's first Linear (W'_actor = [W_pi_A | 0] for the new role-bit input column) via _expand_role_conditioning_linears; warm_start_reset_progress=True (fresh optimizer / global_step / RNG identity, no Adam-moment transplant across the width change -- this is the exact seam that crashed RULE_ROLE_ATTEMPT_1_INVALID_INFRA_WARMSTART); TrainerOptimizerBundle.load_checkpoint(allow_architecture_migration=True).",
+    "t0_equivalence_required": "pi_role,t0(a | o, r=0) = pi_role,t0(a | o, r=1) = pi_A(a | o) exactly at every logit, for BOTH role values, before any PPO or teacher gradient is applied -- mirrors RULE_ROLE_WARMSTART_CONTRACT_PROBE's own criterion (max_logit_diff=0.0, argmax_diff=0), re-verified fresh for this A-specific warm start (never assumed from the prior B-side probe)."
+  },
+  "TEACHER_locked": {
+    "source": "experiments/run_goto_only_defend_substitution_4v4.py's own causal controller (controller_select, built on experiments/audit_scaffold_to_native_representability_4v4.py::Engine.path_oracle / rollout_ref) -- NOT the scaffold A'. This is the SAME mechanism that produced the sealed GOTO_ONLY_CROSSOVER_CONFIRMED result; the training-time teacher must be a faithful reimplementation of that exact selection rule, not a new approximation, verified by a parity contract (below).",
+    "applies_to": "DEFEND-role AND decision-eligible agents only (matching getflag_preservation.py::decision_eligible_agents -- a live agent with more than one legal macro action at this tick; a locked/committed tick contributes no gradient).",
+    "does_not_apply_to": "ATTACK-role agents: no teacher term in v1. Preserve pi_A's existing attack behavior; let PPO handle it unconstrained.",
+    "loss": {
+      "formula": "L_teacher = 1[role_i = DEFEND] * 1[decision-eligible_i] * ( CE(macro_logits_i, GO_TO) + CE(waypoint_logits_i, w_N') )",
+      "why_both_heads": "PI, 2026-09-22: supervising only the waypoint head risks the waypoint head learning the correct destination while the macro head still selects something other than GO_TO, which would not reproduce the validated N' behavior. Both heads are supervised jointly.",
+      "w_N_prime": "the single legal GO_TO waypoint index N''s controller selects at this decision boundary, computed identically to controller_select: recompute the isolated DEFEND rollout from the agent's OWN CURRENT state (its own flag held at its current position) and pick the legal waypoint whose commit-horizon path best matches it (greedy, ties by lowest index) -- a pure function of the agent's own state and the legal-action mask, no future information, no opponent information.",
+      "gradient_scope": "actor parameters only, on the gated agent-heads only. Never touches the critic, never shares a backward pass with the PPO surrogate (separate zero_grad/backward/step, same discipline as sibling_sep / role_pres / getflag_preserve).",
+      "cadence": 4,
+      "structurally_absent_when_lambda_0": true
+    }
+  },
+  "LAMBDA_SCHEDULE_locked": {
+    "phases": [
+      {
+        "steps": "0 - 50000",
+        "lambda": 0.1,
+        "note": "flat"
+      },
+      {
+        "steps": "50000 - 150000",
+        "lambda": "linear decay 0.1 -> 0.0",
+        "note": "the only phase where lambda changes"
+      },
+      {
+        "steps": "150000 - 200000",
+        "lambda": 0.0,
+        "note": "teacher-free consolidation before evaluation, per PI: 'gives PPO a genuine teacher-free consolidation period before evaluation'"
+      }
+    ],
+    "boundary_values": {
+      "t=0": 0.1,
+      "t=49999": 0.1,
+      "t=50000": 0.1,
+      "t=100000": 0.05,
+      "t=149999": "~0.0 (linear, just above 0)",
+      "t=150000": 0.0,
+      "t=200000": 0.0
+    },
+    "frozen_before_training": true,
+    "not_a_lambda_screen": "ONE run, ONE schedule, exactly as getflag_preserve_lambda's own precedent ('THIS IS NOT A LAMBDA SCREEN -- one run only'). No retuning after seeing results."
+  },
+  "EXECUTION_BOUNDARY_locked": {
+    "training_time": "the teacher (N''s controller) may read training-only, otherwise-privileged state (exact own position, own flag position) to COMPUTE its label -- it is a training-time supervision signal, not part of any agent's observation.",
+    "actor_input_unchanged": "the actor's own input is exactly the existing decentralized observation plus the one role bit r_i. The teacher label never enters the observation; it only supplies a target for the auxiliary loss.",
+    "at_evaluation": "NO N' controller, NO teacher loss, NO scaffold action injection of any kind. Only the greedy CLOSEST_DEFENDS allocator (fixed_for_episode) remains active, supplying r_i to the trained network's own forward pass. This is the ruthless endpoint the PI specified: the network's own learned behavior, under the allocator, is what gets scored."
+  },
+  "TRAINING": {
+    "policy": "A",
+    "team_size": 4,
+    "pole": "N/A for training itself (training uses the standard OP5/OP6/OP7-style opponent pool as prior A training did; the ROLE-CONDITIONING change is A-side only and does not touch which opponents A trains against)",
+    "role_conditioning_enabled": true,
+    "role_fixed_for_episode": true,
+    "defend_teacher_lambda_schedule": "see LAMBDA_SCHEDULE_locked",
+    "defend_teacher_cadence": 4,
+    "getflag_preservation": false,
+    "sibling_sep": false,
+    "role_pres": false,
+    "total_timesteps": 200000,
+    "device": "cuda",
+    "run_label_suffix": "_a3_role_conditioned_defend_teacher_v1",
+    "warm_start": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "warm_start_reset_progress": true,
+    "seed_proposed": 21400001,
+    "seed_class": "training (single seed; reserved via seed_registry before the first GPU step, exactly like every prior seed in this line)",
+    "launcher": "experiments/train_specialist_scale.py (reused; confirm at implementation time that it does not hardcode policy='B' anywhere in the role-conditioning path -- prior ROLE/Assignment-v1/GETFLAG_PRESERVE launches all targeted B)"
+  },
+  "SINGLE_AXIS_v1": {
+    "change_only": "role-bit conditioning (fixed-for-episode CLOSEST_DEFENDS allocator) + a DEFEND-only, decision-eligible-only, two-head teacher-imitation loss (N' as teacher) on pi_A, decayed to zero before evaluation",
+    "held_fixed": [
+      "pi_B (frozen corrected checkpoint, sha256 021342c84bbe3aa3..., untouched)",
+      "both certified poles, unchanged",
+      "no GETFLAG preservation / sibling-separation / role-preservation losses",
+      "no new action vocabulary",
+      "no 1,000,000-step budget for this first attempt"
+    ]
+  },
+  "CONTRACTS_before_training": [
+    "C0 spec frozen",
+    "C1 pi_A checkpoint equals its pin; A_FREEZE_RULE supersession record present and dated",
+    "C2 fixed_for_episode mode: a synthetic mid-episode defender death does NOT trigger reassignment (role identities unchanged for the rest of the episode); a fresh episode boundary DOES trigger exactly one reassignment; role_hold_ticks is provably inert when role_fixed_for_episode=True",
+    "C3 teacher parity: the batched-GPU training-time teacher selection is bit-identical to N''s own sealed controller_select on a shared set of recorded/synthetic states (this is the single most important new contract -- the training-time teacher must be a faithful port, not a new approximation)",
+    "C4 teacher loss gating: zero gradient contribution for ATTACK-role agents and for any DEFEND-role agent that is not decision-eligible (locked/committed ticks); both heads (macro, waypoint) receive gradient only on gated agent-ticks",
+    "C5 lambda schedule: exact boundary values reproduced at t=0, 49999, 50000, 100000, 149999, 150000, 200000; monotonic non-increasing on [50000,150000]; constant elsewhere",
+    "C6 warm-start t0 equivalence: pi_role,t0(.|o,r=0) = pi_role,t0(.|o,r=1) = pi_A(.|o) exactly (max_logit_diff=0.0, argmax_diff=0), mirroring RULE_ROLE_WARMSTART_CONTRACT_PROBE's own criterion, re-verified fresh for this A-specific expansion",
+    "C7 fresh optimizer / global_step / RNG identity after the architecture migration (no Adam-moment transplant across the width change -- the exact defect that produced RULE_ROLE_ATTEMPT_1_INVALID_INFRA_WARMSTART)",
+    "C8 mutual exclusion: getflag_preserve_lambda, sibling_sep_lambda, role_pres_lambda are all exactly 0 / disabled for this run",
+    "C9 structurally absent: with defend_teacher_lambda forced to 0 for a probe run, the teacher pathway adds no parameters, no forward call, no optimizer step, and reproduces plain role-conditioned PPO bit-for-bit",
+    "C10 read-only-adjacent fence: contracts themselves consume no training step and write no checkpoint"
+  ],
+  "EVALUATION_after_training_not_during": {
+    "do_not_eval_until_training_writes_final_ckpt": true,
+    "instrument": "experiments/eval_specialist_crossover_scaled.py (or an equivalent successor in this line), role allocator (fixed_for_episode CLOSEST_DEFENDS) ACTIVE, no teacher, no N' controller, no scaffold injection",
+    "comparator_B": {
+      "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+    },
+    "n": 64,
+    "seed_class": "exploratory",
+    "seed_block_proposed": {
+      "lo": 21500001,
+      "n": 64
+    },
+    "estimands": {
+      "delta_A": "V(pi_B, A) - V(pi_new_A, A)",
+      "delta_B": "V(pi_new_A, B) - V(pi_B, B)"
+    },
+    "reading_rule_exploratory": "point-estimate evidence on whether the trained role-conditioned pi_A moves toward the scaffold's own signature (Delta_A' > 0, Delta_B' > 0 relative to frozen pi_B) -- NOT a confirmatory pass. A separate, larger reserved block is required before any confirmatory claim, per this program's own established convention.",
+    "narrow_claim_if_promising": "explicit teacher-guided role conditioning moved this 4v4 exploratory A-training attempt toward the scaffold signature -- NOT that the mechanism is proven, NOT that PPO alone (without the teacher) would do the same, NOT that 6v6 is addressed, NOT a license to scale to 1M steps without a fresh decision."
+  },
+  "EXPLICITLY_FORBIDDEN": [
+    "a 1,000,000-step run as the first learning experiment",
+    "any confirmatory specialization claim from this first 200k run",
+    "any change to pi_B, either certified pole, or the sealed scaffold/audit/N'/CLOSEST_DEFENDS records",
+    "combining this arm with GETFLAG preservation, sibling-separation, or role-preservation losses in v1",
+    "role reassignment on death in v1 (role_fixed_for_episode must stay True) -- this is a deliberate, explicit departure from RULE_BASED_ROLE_CONDITIONING's own 8-tick hold, made because that behavior was never validated by the sealed screen",
+    "tuning role_fixed_for_episode's semantics, the teacher formula, the lambda schedule, or the cadence after seeing training or evaluation results",
+    "evaluating before training writes its final checkpoint",
+    "reserving or spending the training or evaluation seed before contracts pass",
+    "porting to 6v6 before this 4v4 attempt is interpreted",
+    "claiming PAPER-FAITHFUL, Summer-faithful, or any latent-strategy relevance -- this program does not use the latent z system"
+  ],
+  "KNOWN_LIMITATION_ACKNOWLEDGED": "The teacher-imitation loss deliberately allows soft supervision toward GO_TO on DEFEND agents -- a departure from RULE_BASED_ROLE_CONDITIONING's own v1 rule ('FORBIDDEN_macro_map: any hard-coded action override from r_i'). That rule governed a DIFFERENT experiment (role bit alone, no teacher); this one exists because role information alone did not move Delta_B in that prior attempt. The departure is deliberate and recorded here, not a silent reinterpretation of the earlier rule.",
+  "NEXT_AFTER_THIS_FREEZE": [
+    "1. This SPEC freeze (this record)",
+    "2. Implementation: RoleHoldState.fixed_for_episode; PPOConfig fields (role_fixed_for_episode, defend_teacher_lambda family, defend_teacher_cadence) with mutual-exclusion guards matching the existing sibling_sep/role_pres/getflag_preserve pattern; a new batched-GPU teacher-selection module ported faithfully from N''s controller; a cadence-4 auxiliary-loss runner + assertion mirroring _assert_exp2_teacher_cadence's pattern",
+    "3. New unit tests (mirroring tests/test_rule_role_conditioning.py's rigor) + the teacher-parity contract against N''s sealed controller",
+    "4. Executable contracts (C0-C10 above) must pass before any GPU step",
+    "5. Reserve the training seed and the post-training evaluation block via seed_registry",
+    "6. 200k exploratory training run",
+    "7. Exploratory evaluation (n=64, both poles, frozen pi_B comparator)",
+    "8. PI decision: scale to a confirmatory run, adjust the design, or close the branch -- not auto-launched by this spec"
+  ],
+  "claim_boundary": "A design freeze for the first pi_A training experiment in this program. It authorizes preparing implementation and contracts; it does NOT authorize spending any seed or GPU training step until those contracts pass."
+}

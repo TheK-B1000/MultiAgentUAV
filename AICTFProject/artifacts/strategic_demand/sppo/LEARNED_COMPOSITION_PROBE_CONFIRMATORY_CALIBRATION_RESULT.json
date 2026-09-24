@@ -1,0 +1,160 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_RESULT",
+  "implements": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json",
+  "utc": "2026-09-20T06:30:41Z",
+  "device": "cuda",
+  "seed_block": {
+    "base": 20800001,
+    "n": 16,
+    "class": "exploratory"
+  },
+  "kill_rule": {
+    "min_recovery": 0.9,
+    "tolerance_defenders": 1
+  },
+  "POSITION_ALT_WINDOW_5_15": {
+    "A": {
+      "class_means_prefix": {
+        "6A_0D": 0.057083,
+        "5A_1D": 0.289792,
+        "4A_2D": 0.493958,
+        "3A_3D": 0.653437,
+        "2A_4D": 0.800312,
+        "1A_5D": 0.864167,
+        "0A_6D": 0.928125
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.9911,
+      "V2_loo_exact": 0.6696,
+      "V3_cross_assignment_within1": 0.9875,
+      "V3_cross_assignment_exact": 0.675,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "B": {
+      "class_means_prefix": {
+        "6A_0D": 0.064896,
+        "5A_1D": 0.293854,
+        "4A_2D": 0.504583,
+        "3A_3D": 0.662083,
+        "2A_4D": 0.807292,
+        "1A_5D": 0.863542,
+        "0A_6D": 0.925
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.9911,
+      "V2_loo_exact": 0.6696,
+      "V3_cross_assignment_within1": 0.9625,
+      "V3_cross_assignment_exact": 0.675,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "valid": true
+  },
+  "INTENT_OPENING_WINDOW_0_10": {
+    "A": {
+      "class_means_prefix": {
+        "6A_0D": 0.0,
+        "5A_1D": 0.131667,
+        "4A_2D": 0.25375,
+        "3A_3D": 0.371146,
+        "2A_4D": 0.487812,
+        "1A_5D": 0.585417,
+        "0A_6D": 0.680208
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 1.0,
+      "V2_loo_exact": 0.8304,
+      "V3_cross_assignment_within1": 1.0,
+      "V3_cross_assignment_exact": 0.7875,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "B": {
+      "class_means_prefix": {
+        "6A_0D": 0.0,
+        "5A_1D": 0.132812,
+        "4A_2D": 0.255417,
+        "3A_3D": 0.3775,
+        "2A_4D": 0.491667,
+        "1A_5D": 0.587083,
+        "0A_6D": 0.680208
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.9911,
+      "V2_loo_exact": 0.8125,
+      "V3_cross_assignment_within1": 1.0,
+      "V3_cross_assignment_exact": 0.8,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": true
+    },
+    "valid": true
+  },
+  "FYI_PRIMARY_POSITION_OPEN_NOT_GATING": {
+    "A": {
+      "class_means_prefix": {
+        "6A_0D": 0.199479,
+        "5A_1D": 0.311562,
+        "4A_2D": 0.422187,
+        "3A_3D": 0.514479,
+        "2A_4D": 0.589167,
+        "1A_5D": 0.657708,
+        "0A_6D": 0.716667
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.875,
+      "V2_loo_exact": 0.4554,
+      "V3_cross_assignment_within1": 0.85,
+      "V3_cross_assignment_exact": 0.35,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": false
+    },
+    "B": {
+      "class_means_prefix": {
+        "6A_0D": 0.199479,
+        "5A_1D": 0.315938,
+        "4A_2D": 0.429583,
+        "3A_3D": 0.522188,
+        "2A_4D": 0.593542,
+        "1A_5D": 0.660833,
+        "0A_6D": 0.716667
+      },
+      "V1_monotone": true,
+      "V2_loo_within1": 0.875,
+      "V2_loo_exact": 0.4464,
+      "V3_cross_assignment_within1": 0.8,
+      "V3_cross_assignment_exact": 0.3125,
+      "n_prefix": 112,
+      "n_suffix": 80,
+      "pole_valid": false
+    },
+    "valid": false
+  },
+  "CONFIRMED_INSTRUMENTS": [
+    "position_alt_window_5_15",
+    "intent_opening_window_0_10"
+  ],
+  "VERDICT": "BOTH_CONFIRMED",
+  "independent_reference_check": {
+    "max_abs_diff": 0.0,
+    "episodes": 384
+  },
+  "traces_sha256": "a81262a118961ead877efb8a9dccc568a4541788bc2fc252353cc12f0b0e56c0",
+  "claim_boundary": "Scripted roles only, opening window only, cuda, seed block spent for the first time by this spec. No learned policy was read. This verdict gates which instrument(s) a future, separately-declared Stage 2 may use; it does not itself authorize Stage 2 to run.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-20T06:30:41Z",
+  "git_sha": "c539bdf02c4a09b33870c63ea40fae84a2f5636e",
+  "AUDIT": {
+    "path": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_AUDIT.json",
+    "passed": true,
+    "n_checks": 7,
+    "n_gating": 7,
+    "failed_checks": [],
+    "rows_sha256": "16ba4e0efe9aef0c49a15fba339ae148cf4b8829a70b2be41f1e19188ae8401b"
+  }
+}

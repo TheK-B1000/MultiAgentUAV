@@ -1,0 +1,39 @@
+{
+  "record_id": "ACTION_INTERFACE_DECOMP_RULE12_ORACLE_CONTRACT_AMENDMENT",
+  "status": "FROZEN_BEFORE_RESULT_INTERPRETATION",
+  "utc": "2026-09-13T01:45:00Z",
+  "amends": "ACTION_INTERFACE_DECOMP_SPEC.json",
+  "authority": "PI: overlapping arms must reproduce the sealed oracle seed-by-seed; disagreement is a harness defect, not a scientific finding. Rule 12 / executed-path discipline.",
+
+  "HARD_CONTRACT": {
+    "rule": "For every seed in 17600001..17600024 and every scale in {2,4}:",
+    "equalities": [
+      "DECOMP.ORIGINAL[scale, GUARD, A, seed] == ORACLE.ORIGINAL[scale, GUARD, A, seed]",
+      "DECOMP.FULL[scale, GUARD, A, seed] == ORACLE.PROJECTED[scale, GUARD, A, seed]"
+    ],
+    "equality_domain": "binary win outcome (and preferably blue/red scores when both rows carry them)",
+    "on_any_mismatch": "STOP. Do not interpret L_S / L_C / L_F or print a binder label. Write INTEGRITY_REQUIRED and audit the harness. The decomposition is not decomposing the oracle we think it is.",
+    "why_this_is_free": "same seed block deliberately reused from PROJECTED_TEACHER_ORACLE"
+  },
+
+  "STUDY_CLASS": {
+    "label": "MECHANISTIC_FOLLOW_UP",
+    "not": "INDEPENDENT_CONFIRMATION",
+    "reason": "Same 24 oracle seeds are reused so ORIGINAL/FULL can be byte-compared to the sealed oracle. Pairing isolates causal components; it does not independently re-establish the oracle's specialization failure."
+  },
+
+  "PRIMARY_REPORT": {
+    "quantities": [
+      "L_S = V(ORIGINAL) - V(SPATIAL_ONLY)",
+      "L_C = V(ORIGINAL) - V(COMMIT_ONLY)",
+      "L_F = V(ORIGINAL) - V(FULL)"
+    ],
+    "with": "paired percentile bootstrap CIs (n_boot=20000, alpha=0.05, rng_seed=7)",
+    "and": "2v2 GUARD@A control comparison",
+    "binder_label": "secondary summary only; do not prefer the label over the three paired losses"
+  },
+
+  "WHILE_RUNNING": ["No Privileged-vs-Standard BC", "No PPO", "No SNR / observation-repair training"],
+
+  "IMPLEMENTATION": "experiments/eval_action_interface_decomp.py fail-closes before writing a binder RESULT; experiments/verify_action_interface_decomp_oracle_contract.py is the post-run / Rule-12 gate that must PASS before any sealed reading is treated as authoritative (covers the live collect process that started before this amendment)."
+}

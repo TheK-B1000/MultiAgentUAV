@@ -1,0 +1,49 @@
+{
+  "record": "Row-level integrity audit (t100k candidate confirmatory crossover, 18500001-18500128)",
+  "status": "FLAGGED_BY_AUTOMATED_CHECK",
+  "utc": "2026-09-15T20:15:00Z",
+  "implements": "4V4_ENTITY_REPAIR_SPEC.json#EVALUATION.tie_or_reversal",
+  "raised_by": "eval_specialist_crossover_scaled.py's own built-in tie/reversal check (delta_B mean <= 0).",
+
+  "context": "this is the precommitted confirmatory test of the candidate selected by DELTA_B_TRAJECTORY_CORRECTED (t100k, exploratory delta_B=+0.172 [+0.063,+0.281], the argmax of 11 evaluated points). Fresh seed block, untouched by the selection, full joint gate on both poles.",
+
+  "raw_cells": {
+    "pi_A3_on_A": 0.8359, "pi_A3_on_B": 0.6953,
+    "pi_B3_t100k_on_A": 0.7422, "pi_B3_t100k_on_B": 0.6875
+  },
+  "point_estimates": {"delta_A": 0.09375, "delta_B": -0.0078125},
+
+  "per_cell_integrity": "all 4 cells: exactly 128 rows each, seeds unique, seed set EXACTLY {18500001..18500128}, win values strictly binary. Win-flag vs (blue>red): 0 disagreements across all 512 rows.",
+  "seed_pairing": "confirmed identical 128-seed set across all 4 cells.",
+
+  "split_half_check": {
+    "first_64_seeds": {"delta_A": 0.1875, "delta_B": 0.0469},
+    "last_64_seeds": {"delta_A": 0.0, "delta_B": -0.0625},
+    "reading": "NEITHER delta is stable across halves. delta_A ranges from 0.19 to 0.00; delta_B changes SIGN (+0.047 to -0.063). This is consistent with both true effects being at or near zero and the halves showing ordinary sampling noise around it -- not a batch artifact, but also not a robust signal in either direction."
+  },
+
+  "bootstrap_recomputation": {
+    "method": "independently recomputed from raw rows, same frozen protocol (n_boot=20000, alpha=0.05, rng_seed=7)",
+    "delta_A": {"mean": 0.0938, "lcb95": 0.0000, "ucb95": 0.1875, "passes": false},
+    "delta_B": {"mean": -0.0078, "lcb95": -0.0938, "ucb95": 0.0859, "passes": false},
+    "note": "delta_A's LCB95 sits AT zero (fails the strict >0 requirement by the thinnest possible margin). delta_B is dead-centered on zero. Neither is a reversal; both are nulls."
+  },
+
+  "classification": "GENUINE NULL. Rows are structurally clean. The exploratory peak did not replicate.",
+
+  "THE_KEY_DIAGNOSTIC_DETAIL": {
+    "observation": "pi_B3@t100k scores 0.7422 on POLE A -- nearly as high as pi_A3 itself (0.8359), and far higher than pi_B3's FINAL checkpoint scored on Pole A in the corrected crossover (0.5391).",
+    "reading": "t100k is not a Pole-B specialist that happens to be fairly evaluated. It is an early-training checkpoint that has not yet DIFFERENTIATED at all -- it performs competently and fairly uniformly against BOTH poles, exactly the 'insufficiently differentiated' failure mode this entire research program studies. Its apparently strong delta_B in the trajectory run was measured against only ONE reference (frozen pi_A3 on Pole B) and never checked against Pole A, so the trajectory could not see that t100k's Pole-B competence came bundled with equal Pole-A competence -- i.e. no specialization gap at all, just general strength that happened to land favourably against a single comparator on a single pole on that particular exploratory seed draw.",
+    "this_is_exactly_the_risk_the_PI_named_before_launch": "'B100k could be excellent on B but accidentally also strong on A, which would shrink delta_A.' Confirmed directly: delta_A fell from the corrected-crossover final-checkpoint's +0.273 to +0.094 specifically because pi_B3@t100k's Pole-A win rate (0.7422) is so much higher than pi_B3_final's (0.5391)."
+  },
+
+  "PRIMARY_GATE": {"delta_A": {"mean": 0.0938, "lcb95": 0.0, "ucb95": 0.1875, "passes": false},
+                   "delta_B": {"mean": -0.0078, "lcb95": -0.0938, "ucb95": 0.0859, "passes": false},
+                   "joint_gate": "FAIL -- neither delta passes"},
+
+  "checkpoints": {
+    "pi_A3": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "pi_B3_t100k": "4d4b813a5f9ac4cad295be6969cd3ab3e7c918326767f049cbd5130d11923160"
+  },
+  "rows_csv": "b3_100k_candidate_crossover_specialist_crossover_eval_rows.csv"
+}

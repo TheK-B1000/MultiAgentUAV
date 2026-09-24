@@ -1,0 +1,97 @@
+{
+  "record_id": "AB_BEHAVIORAL_TRAJECTORY_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-16T12:00:00Z",
+
+  "THE_QUESTION": "Does the GET_FLAG-to-GO_TO drift found in POLE_B_BEHAVIORAL_DIAGNOSIS track performance decline checkpoint-by-checkpoint, and does it happen only to B (B-specific pathology), to both A and B similarly (general PPO/action-interface pathology, B pays a larger price), or does A drift and recover (a phase-of-learning issue rather than a destination)?",
+
+  "WHY_THIS_BEFORE_ANY_INTERVENTION": {
+    "prior_finding": "POLE_B_BEHAVIORAL_DIAGNOSIS found a convergent signature (GET_FLAG down, GO_TO up, attacking/carrying down, switch rate up) across A3/B100k/Bfinal, present on BOTH poles, costing far more win rate on Pole A (0.78->0.53) than Pole B (0.56->0.56 nominal, though score margin collapses). That was 3 points per policy -- enough to see a pattern, not enough to rule out coincidence or place it in time.",
+    "the_three_outcomes_this_experiment_distinguishes": [
+      "ONLY_B_DRIFTS: something about B's training distribution/reward gradients specifically pushes away from direct attack -> B-specific fix",
+      "BOTH_DRIFT_SIMILARLY: a general PPO/action-interface pathology, B pays a larger price -> a general training-recipe fix, not a B-specific or Pole-B-specific one",
+      "A_DRIFTS_THEN_RECOVERS: B may simply be stopped mid-drift, in the wrong phase of learning -> the fix could be as simple as training longer past the trough, or annealing something on a schedule A already completes"
+      ],
+    "why_no_intervention_yet": "rewarding GET_FLAG frequency directly risks macro spam that looks good on this exact metric while breaking strategy elsewhere. Establishing WHERE and WHEN the drift happens, and whether A's own trajectory ever passes through and exits it, is a precondition for designing an intervention that preserves useful direct pursuit rather than maximizing an action count."
+  },
+
+  "DESIGN": {
+    "principle": "each policy is instrumented on ITS OWN pole at every 100k-step checkpoint of its own training, using the IDENTICAL measurement code already validated in POLE_B_BEHAVIORAL_DIAGNOSIS (macro fractions, switch rate, attacker/carrier/spacing/pressure features, and win/score outcome via the info[\"episode_result\"] path, not a live core read after auto-reset).",
+    "why_own_pole_not_both": "the first diagnosis already established Pole-A-reference cells for the THREE endpoint checkpoints (A3, B100k, Bfinal) and found the drift is not pole-specific. Re-running BOTH poles at all 22 new checkpoints would double the cost without adding a new comparison this design needs -- the open question is TIMING (does A ever visit and exit the same drift), not whether the drift generalizes across poles again.",
+    "one_cross_check_kept": "A3's FINAL checkpoint is ALSO evaluated on Pole B, and B3's FINAL checkpoint's Pole-B numbers are taken directly from POLE_B_BEHAVIORAL_DIAGNOSIS_RESULT.json (same checkpoint sha, will be re-verified not re-run) -- these anchor this trajectory to the prior diagnosis's own numbers so the two datasets are checkable against each other, not just juxtaposed by eye.",
+    "trajectory_points_per_policy": "t0 (own sealed pre-repair warm-start anchor) + t100k..t900k (9 points, 100k granularity) + tfinal = 11 points per policy, 22 total cells",
+    "checkpoints": {
+      "A_side": {
+        "t0": "pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip (sealed pre-repair, sha 011fbc0b43460fff...)",
+        "t100k..t900k": "pi_A_specialist_4v4_b3_entity_repair/ckpts/ckpt_pi_A_specialist_4v4_b3_entity_repair_{100000..900000}.zip",
+        "tfinal": "pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip (sha 94dde69d091a..., matches every prior crossover's pi_A3)"
+      },
+      "B_side": {
+        "t0": "pi_B_specialist_4v4_b3/ckpts/final_pi_B_specialist_4v4_b3.zip (sealed pre-repair, sha 57d354e10c56...)",
+        "t100k..t900k": "pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_{100000..900000}.zip",
+        "tfinal": "pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip (sha 021342c84bbe..., matches the corrected crossover's pi_B3)"
+      },
+      "cross_check_cell": "A3's tfinal ALSO evaluated on Pole B (23rd cell), to anchor against POLE_B_BEHAVIORAL_DIAGNOSIS_RESULT.json's A3@PoleB numbers on a FRESH seed block -- if they materially disagree, that is itself informative (seed-block sensitivity) before any trajectory claim is trusted."
+    },
+    "poles": {"A_side_pole": "A (OP6, min_alive_for_defender=4)", "B_side_pole": "B (OP7, SDS2_B3_LOCKDEF10_2V1)",
+              "attestation": "both poles attested against the governing certification under Rule 14 before any episode, exactly as in POLE_B_BEHAVIORAL_DIAGNOSIS."},
+    "seeds": {"n": 32, "class": "exploratory", "shared_across_all_cells_within_each_side": true,
+              "block": "fresh, reserved immediately before launch",
+              "note": "A-side cells and B-side cells use DIFFERENT poles, so seed sharing across sides controls the environment RNG stream but not the opponent -- still valuable for holding map/spawn variation constant, and it is what the prior diagnosis already did across its A-reference and B-primary cells."},
+    "total_episodes": "23 cells x 32 seeds = 736",
+    "estimated_cost": "~6.5-7 GPU-hours at the observed ~30-40s/episode. No training."
+  },
+
+  "MEASURED_QUANTITIES": "identical to POLE_B_BEHAVIORAL_DIAGNOSIS_SPEC.json#MEASURED_QUANTITIES -- role allocation, command degeneracy, macro switch rate, spatial spread, posture (attacker/defender proximity), attrition, carrier fraction, 2v1 pressure/support response, win/score outcome. No new quantity is introduced; the fix (score read from info[\"episode_result\"] at the done instant, never from a live core read after the vec-env's auto-reset) is inherited from the corrected script.",
+
+  "PRIMARY_PLOT_not_a_statistical_test": {
+    "x_axis": "training step t (0, 100k, ..., 900k, final), separately for A and B",
+    "series": ["GET_FLAG fraction", "GO_TO fraction", "macro_switch_rate", "n_attackers", "any_carrying fraction", "won (raw rate, NOT a gate)"],
+    "purpose": "visual/tabular co-registration of WHEN each behavioural quantity moves against WHEN performance moves, for each policy's OWN trajectory. This experiment produces a table and a reading, not a bootstrap CI or a pass/fail gate -- n=32 per point is for behavioural characterization, not for a win-rate claim (matching the precedent already set for this exact quantity size in the first diagnosis)."
+  },
+
+  "PRECOMMITTED_READING_RULES": [
+    {
+      "pattern": "ONLY_B_DRIFTS",
+      "condition": "B's GET_FLAG fraction and win/score decline together over its trajectory; A's GET_FLAG fraction stays roughly flat (or does not co-move with a comparable decline) over ITS trajectory",
+      "reading": "supports a B-specific or Pole-B-specific training pathology",
+      "next": "investigate what differs in B's training conditions specifically (opponent-pool composition, reward realization against Pole B's mechanics, gradient scale) -- NOT a general PPO fix"
+    },
+    {
+      "pattern": "BOTH_DRIFT_SIMILARLY",
+      "condition": "A's trajectory shows a comparable GET_FLAG decline and/or switch-rate increase at a similar point in training, whether or not it costs A as much win rate",
+      "reading": "a general PPO/action-interface pathology present in both runs; B simply pays a larger price for it (plausibly because Pole B's mechanics punish indecision/reduced aggression harder than Pole A's do)",
+      "next": "a general training-recipe intervention (entropy schedule, macro-switch penalty, KL anchoring to an early checkpoint) applied to BOTH future runs, not a Pole-B-specific repair"
+    },
+    {
+      "pattern": "A_DRIFTS_THEN_RECOVERS",
+      "condition": "A's GET_FLAG fraction dips and later returns toward its early value by tfinal, while B's does not recover by its own tfinal",
+      "reading": "B may simply be stopped mid-drift, in the wrong PHASE of learning, not on a different trajectory shape",
+      "next": "the cheapest next experiment becomes continuing B's training further (already-precedented budget increments) rather than any behavioural intervention -- directly reopens the 'more training' branch, but now with a specific mechanistic reason to expect recovery rather than blind continuation"
+    },
+    {
+      "pattern": "NEITHER_TRACKS",
+      "condition": "GET_FLAG fraction and win/score move independently for one or both policies (e.g. GET_FLAG declines but score does not, or vice versa)",
+      "reading": "the macro-usage signature is a correlate of something else, or was itself a 3-point coincidence in the first diagnosis",
+      "next": "do not pursue a GET_FLAG-preserving intervention. Return to the raw win/score trajectory alone (already available from DELTA_B_TRAJECTORY_CORRECTED) as the primary signal and look elsewhere for the mechanism."
+    }
+  ],
+
+  "KNOWN_ANSWER_CONTRACTS": [
+    "K1. All 22 trajectory checkpoints plus the 2 t0 anchors are mutually distinct by sha256 (no duplicate-path artifact producing a fake flat trajectory).",
+    "K2. A-side tfinal sha matches every prior crossover's recorded pi_A3 (94dde69d091a...); B-side tfinal sha matches the corrected crossover's pi_B3 (021342c84bbe...).",
+    "K3. Both poles attested against the governing certification (Rule 14) before any episode.",
+    "K4. Score reading verified via the info['episode_result'] path, not a live core read post-auto-reset -- inherited fix from POLE_B_BEHAVIORAL_DIAGNOSIS, re-asserted here rather than assumed.",
+    "K5. Each entity-enabled checkpoint (all except the two t0 anchors) loads with entity_encoder present; the two t0 anchors load with entity_encoder None.",
+    "GATE: all contracts pass before the first episode."
+  ],
+
+  "WHAT_THIS_EXPERIMENT_MAY_NOT_CLAIM": [
+    "any win-rate or gate result -- n=32 per cell, exploratory seeds, diagnostic arm",
+    "a causal mechanism for the drift, even if timing correlates cleanly -- correlation across a single training run's own checkpoints is not an intervention",
+    "anything about 6v6 or 2v2",
+    "that any one of the four PRECOMMITTED_READING_RULES patterns is exhaustive -- a mixed or ambiguous result will be reported as such, not forced into the nearest category"
+  ]
+}

@@ -1,0 +1,262 @@
+{
+  "record": "POLE_B_BEHAVIORAL_DIAGNOSIS behavioural diagnosis on Pole B (with Pole-A reference)",
+  "status": "COMPLETE_DIAGNOSTIC",
+  "utc": "2026-09-16T06:10:50Z",
+  "device": "cuda",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "POLE_B_BEHAVIORAL_DIAGNOSIS_SPEC.json",
+  "question": "Why does pi_A3 -- trained for Pole A -- handle Pole B better than pi_B3, which was correctly and explicitly trained against Pole B?",
+  "seeds": {
+    "block": [
+      18600001,
+      18600032
+    ],
+    "n": 32,
+    "shared_across_cells": true
+  },
+  "checkpoints": {
+    "A3": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+    "B100k": "4d4b813a5f9ac4cad295be6969cd3ab3e7c918326767f049cbd5130d11923160",
+    "Bfinal": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+  },
+  "contracts": {
+    "K1_three_distinct_checkpoints": true,
+    "K2_all_have_entity_encoder": true,
+    "K3_action_decode_shape": true,
+    "K4_pole_attestations_passed": true
+  },
+  "pole_attestations": {
+    "A": {
+      "certified_genome_id": "<canonical>",
+      "live_genome_id": "SDS2_A_payoff_INIT_3",
+      "certified_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "live_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "hashes_match": true
+    },
+    "B": {
+      "certified_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "live_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "certified_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "hashes_match": true
+    }
+  },
+  "summaries": {
+    "A3@PoleB": {
+      "all_identical_cmd": 0.06440146707899254,
+      "distinct_cmds": 2.787543147071785,
+      "distinct_macros": 1.714449336677167,
+      "n_get_flag": 2.768557532366539,
+      "n_go_home": 0.21628128615316608,
+      "n_go_to": 0.9994808810771894,
+      "n_mine": 0.015680300403106074,
+      "mean_pair_dist": 3.7131633149331895,
+      "n_defenders": 0.6563851349562584,
+      "n_attackers": 2.0832650700665467,
+      "mean_d_own_flag": 9.504406095416837,
+      "mean_d_enemy_flag": 5.064646929449088,
+      "n_tagged": 0.7878898850186,
+      "any_carrying": 0.6059542723524167,
+      "n_pressured": 1.0450496111829053,
+      "mean_support_dist": 2.4296680688951886,
+      "steps": 193.3125,
+      "macro_switch_rate": 0.10605832734265196,
+      "won": 0.6875,
+      "blue_score": 1.75,
+      "red_score": 0.0,
+      "macro_fraction": {
+        "GET_FLAG": 0.6563207242159715,
+        "GO_HOME": 0.05375040413837698,
+        "GO_TO": 0.28612997090203685,
+        "GRAB_MINE": 0.0026268994503718074,
+        "PLACE_MINE": 0.0011720012932428063
+      },
+      "n_agent_steps": 24744
+    },
+    "B100k@PoleB": {
+      "all_identical_cmd": 0.04675753512317278,
+      "distinct_cmds": 3.0226129651656306,
+      "distinct_macros": 1.7824230405156323,
+      "n_get_flag": 2.1624787303468436,
+      "n_go_home": 0.21736455866467053,
+      "n_go_to": 1.5985802590804794,
+      "n_mine": 0.021576451908006222,
+      "mean_pair_dist": 3.998498242643004,
+      "n_defenders": 0.6019367857634328,
+      "n_attackers": 1.872962502436938,
+      "mean_d_own_flag": 9.696243547289706,
+      "mean_d_enemy_flag": 5.3750726753264715,
+      "n_tagged": 0.7713466413646005,
+      "any_carrying": 0.5864015537161795,
+      "n_pressured": 0.9681875852508179,
+      "mean_support_dist": 2.716197245124164,
+      "steps": 211.90625,
+      "macro_switch_rate": 0.14935449559038289,
+      "won": 0.5625,
+      "blue_score": 1.34375,
+      "red_score": 0.0625,
+      "macro_fraction": {
+        "GET_FLAG": 0.519613626308804,
+        "GO_HOME": 0.055117239345229316,
+        "GO_TO": 0.4201813891756378,
+        "GRAB_MINE": 0.0037236395811827165,
+        "PLACE_MINE": 0.0013641055891461436
+      },
+      "n_agent_steps": 27124
+    },
+    "Bfinal@PoleB": {
+      "all_identical_cmd": 0.013593750000000002,
+      "distinct_cmds": 3.283984375,
+      "distinct_macros": 1.7897916666666667,
+      "n_get_flag": 1.7624739583333333,
+      "n_go_home": 0.06208333333333334,
+      "n_go_to": 2.151640625,
+      "n_mine": 0.02380208333333333,
+      "mean_pair_dist": 4.323919974108641,
+      "n_defenders": 0.706171875,
+      "n_attackers": 1.3658333333333332,
+      "mean_d_own_flag": 8.66292006947721,
+      "mean_d_enemy_flag": 6.735723768300376,
+      "n_tagged": 0.8245833333333334,
+      "any_carrying": 0.40109374999999997,
+      "n_pressured": 0.8848958333333334,
+      "mean_support_dist": 3.1440743739434085,
+      "steps": 235.625,
+      "macro_switch_rate": 0.19682837792147415,
+      "won": 0.5625,
+      "blue_score": 0.71875,
+      "red_score": 0.125,
+      "macro_fraction": {
+        "GET_FLAG": 0.44011936339522545,
+        "GO_HOME": 0.015251989389920425,
+        "GO_TO": 0.5386604774535809,
+        "GRAB_MINE": 0.004708222811671088,
+        "PLACE_MINE": 0.001259946949602122
+      },
+      "n_agent_steps": 30160
+    },
+    "A3@PoleA": {
+      "all_identical_cmd": 0.04388020833333334,
+      "distinct_cmds": 2.8654947916666664,
+      "distinct_macros": 1.8381510416666667,
+      "n_get_flag": 2.2940104166666666,
+      "n_go_home": 0.13880208333333333,
+      "n_go_to": 1.5499999999999998,
+      "n_mine": 0.0171875,
+      "mean_pair_dist": 3.5179744969269247,
+      "n_defenders": 0.3240885416666667,
+      "n_attackers": 2.6006510416666666,
+      "mean_d_own_flag": 11.30597805158856,
+      "mean_d_enemy_flag": 3.8029742035161083,
+      "n_tagged": 0.4334635416666667,
+      "any_carrying": 0.7861979166666667,
+      "n_pressured": 0.5080729166666667,
+      "mean_support_dist": 2.4530699779813703,
+      "steps": 240.0,
+      "macro_switch_rate": 0.12535957112970714,
+      "won": 0.75,
+      "blue_score": 0.96875,
+      "red_score": 0.03125,
+      "macro_fraction": {
+        "GET_FLAG": 0.5735026041666667,
+        "GO_HOME": 0.03470052083333333,
+        "GO_TO": 0.3875,
+        "GRAB_MINE": 0.00302734375,
+        "PLACE_MINE": 0.00126953125
+      },
+      "n_agent_steps": 30720
+    },
+    "B100k@PoleA": {
+      "all_identical_cmd": 0.054817708333333326,
+      "distinct_cmds": 2.8701822916666666,
+      "distinct_macros": 1.9196614583333333,
+      "n_get_flag": 1.5748697916666667,
+      "n_go_home": 0.44205729166666663,
+      "n_go_to": 1.9643229166666667,
+      "n_mine": 0.01875,
+      "mean_pair_dist": 3.541766584272813,
+      "n_defenders": 0.31861979166666665,
+      "n_attackers": 2.294140625,
+      "mean_d_own_flag": 11.61239409907721,
+      "mean_d_enemy_flag": 4.098109335033223,
+      "n_tagged": 0.377734375,
+      "any_carrying": 0.7860677083333334,
+      "n_pressured": 0.4231770833333333,
+      "mean_support_dist": 2.713538347192315,
+      "steps": 240.0,
+      "macro_switch_rate": 0.11319952928870293,
+      "won": 0.78125,
+      "blue_score": 0.875,
+      "red_score": 0.0,
+      "macro_fraction": {
+        "GET_FLAG": 0.3937174479166667,
+        "GO_HOME": 0.11051432291666667,
+        "GO_TO": 0.4910807291666667,
+        "GRAB_MINE": 0.003515625,
+        "PLACE_MINE": 0.001171875
+      },
+      "n_agent_steps": 30720
+    },
+    "Bfinal@PoleA": {
+      "all_identical_cmd": 0.03211206896551724,
+      "distinct_cmds": 3.133907419473403,
+      "distinct_macros": 1.6935684183707567,
+      "n_get_flag": 1.4040231973402832,
+      "n_go_home": 0.05800504544239508,
+      "n_go_to": 2.5134582372694467,
+      "n_mine": 0.0245135199478749,
+      "mean_pair_dist": 3.917034544030166,
+      "n_defenders": 0.3464648489708634,
+      "n_attackers": 2.2486537481622566,
+      "mean_d_own_flag": 11.025371241343933,
+      "mean_d_enemy_flag": 4.396537186145627,
+      "n_tagged": 0.3588752589548249,
+      "any_carrying": 0.7591049769446672,
+      "n_pressured": 0.3187749557270783,
+      "mean_support_dist": 3.114505278769329,
+      "steps": 232.21875,
+      "macro_switch_rate": 0.1375796990584065,
+      "won": 0.53125,
+      "blue_score": 0.84375,
+      "red_score": 0.15625,
+      "macro_fraction": {
+        "GET_FLAG": 0.34386354461041585,
+        "GO_HOME": 0.013692638944960301,
+        "GO_TO": 0.6364553895841744,
+        "GRAB_MINE": 0.004810927196877944,
+        "PLACE_MINE": 0.0011774996635715246
+      },
+      "n_agent_steps": 29724
+    }
+  },
+  "counterfactual_replay_on_Bfinal_PoleB_states": {
+    "A3": {
+      "macro_agreement_with_Bfinal": 0.7908271474019088,
+      "n_agent_states": 3772,
+      "top_substitutions": {
+        "GO_TO->GET_FLAG": 688,
+        "GET_FLAG->GO_TO": 57,
+        "GO_TO->GO_HOME": 34,
+        "GO_HOME->GO_TO": 7,
+        "GRAB_MINE->GET_FLAG": 3
+      }
+    },
+    "B100k": {
+      "macro_agreement_with_Bfinal": 0.8152173913043478,
+      "n_agent_states": 3772,
+      "top_substitutions": {
+        "GO_TO->GET_FLAG": 517,
+        "GET_FLAG->GO_TO": 156,
+        "GO_TO->GO_HOME": 22,
+        "GO_HOME->GO_TO": 2
+      }
+    }
+  },
+  "NOT_A_CLAIM": [
+    "any win-rate or gate claim -- n=32, exploratory seeds, no delta is computed and none may be quoted",
+    "a causal account -- an observed behavioural difference is a correlate of the performance gap, not proof it causes it. Any candidate behaviour identified here would need its own intervention experiment.",
+    "that a behaviour absent in Bfinal was 'destroyed by training' rather than never acquired -- the B100k bridge makes this distinguishable IN PRINCIPLE but a single intermediate checkpoint is weak evidence for a trajectory claim",
+    "anything about 6v6 or 2v2"
+  ]
+}

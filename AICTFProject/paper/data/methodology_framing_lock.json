@@ -1,0 +1,17 @@
+{
+  "record": "Methodology framing lock: what is novel vs what PPO did",
+  "status": "LOCKED",
+  "utc": "2026-09-09",
+  "do_not_name_successful_method": "SP-PPO",
+  "successful_method_name": "Opponent-specific PPO expert training followed by strategy-conditioned policy distillation and progressive parameter sharing",
+  "compact_name": "PPO expert distillation into a discrete strategy-conditioned shared policy",
+  "punchy_ICRA": "We use PPO to learn opponent-specific multi-robot experts, distill their behaviors into discrete modes of a shared strategy-conditioned controller, and progressively tie policy modules to identify how representation sharing affects closed-loop strategic specialization.",
+  "roles": {
+    "PPO": "expert-learning engine only (standard opponent-specific multi-agent PPO; not the novelty)",
+    "matched_state_distillation": "creates discrete shared strategy modes z0~pi_A, z1~pi_B",
+    "progressive_sharing": "scientific intervention / independent variable",
+    "closed_loop_crossover": "validation that modes are payoff-relevant"
+  },
+  "SP_PPO_CSC_SPFT": "Attempted PPO modification for retention during continued RL; sealed results did NOT recover specialization. Report as Claim B non-recovery. Do not credit Share-Encoder PASS to SP-PPO.",
+  "why_C_drive_appeared": "Cursor best-of-n / agent worktrees default to C:\\Users\\...\\.cursor\\worktrees\\ even when the repo is on K:. Project artifacts belong on K:\\MultiAgentUAV. Prefer local Shell from K: AICTFProject; avoid cloud/worktree runners when C: is low on space."
+}

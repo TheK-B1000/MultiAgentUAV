@@ -1,0 +1,63 @@
+{
+  "record_id": "STATE_CONDITIONED_DIAGNOSIS_READING",
+  "status": "READING_FROZEN",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-17T13:00:00Z",
+  "rests_on": "STATE_CONDITIONED_DIAGNOSIS_RESULT.json (all 4 contracts passed); a fifth, unplanned check run before this reading, verifying the own_carrying override directly against the real _build_targets_from_action rather than assumed from memory of an earlier finding.",
+
+  "RETRACTION_carrying_buckets_are_execution_irrelevant": {
+    "what_was_reported": "4 buckets with carrying=True showed 'GO_TO -> GO_HOME' as the dominant substitution at 91-100% concentration, with A3_agreement_with_B_better dropping BELOW 0.5 (0.35-0.50) and, in the two highest-volume of these, a much lower touched-episode win rate (0.25-0.26 vs the overall 0.479).",
+    "why_it_does_not_mean_what_it_looks_like": "gpu_env/_core/_rules.py::_build_targets_from_action applies own_carrying AFTER the macro-specific target assignment, unconditionally overriding (tx,ty) to own_flag_home for EVERY macro. Verified directly, not from memory: forcing blue_carrying[0,0]=True and calling the real function with macro=GO_TO vs macro=GO_HOME (same target index) produced IDENTICAL (tx,ty) = exact own_flag_home in both cases.",
+    "consequence": "B_worse and B_better's ACTUAL MOVEMENT is identical in every carrying=True disagreement counted here. The 'disagreement' is a difference in which macro LABEL got logged, not in what either policy actually did. The outcome correlation in these buckets is confounded by the underlying situation (carrying near the enemy flag is inherently risky) and must not be attributed to the label difference.",
+    "buckets_retracted": ["carrying=T, pressured=F, near_enemy=T, prev=GO_TO (n=361)",
+                          "carrying=T, pressured=T, near_enemy=T, prev=GO_TO (n=46)",
+                          "carrying=T, pressured=F, near_enemy=T, prev=GO_HOME (n=32)",
+                          "carrying=T, pressured=F, near_enemy=T, prev=GET_FLAG (n=30)"]
+  },
+
+  "THE_GENUINE_FINDING": {
+    "state_class": "carrying = FALSE. This is the operative condition -- not a narrower combination of pressure/proximity/prior-macro. Within not-carrying, the SAME substitution appears at a consistent rate across essentially every pressure level, every flag-proximity combination, and both prior-macro states.",
+    "substitution": "GO_TO -> GET_FLAG (B_worse chooses the indirect waypoint macro where B_better chooses the direct enemy-flag-seeking macro), present as the dominant pattern in 9 of the 10 not-carrying buckets, at 54-69% concentration within each bucket's disagreements.",
+    "why_this_is_a_real_behavioural_difference_unlike_the_retracted_cluster": "GET_FLAG resolves to the EXACT enemy flag position (bypassing the 50-waypoint vocabulary); GO_TO resolves to a discretized waypoint. No override unifies them when carrying=False -- verified from the same function read above: the own_carrying line is a no-op when the condition is false, so GET_FLAG and GO_TO produce genuinely different execution.",
+    "consistency_across_context": {
+      "no_pressure_no_proximity_prev_GO_TO": {"n": 1407, "rate": 0.154, "A3_agrees_better": 0.611},
+      "no_pressure_no_proximity_prev_GET_FLAG": {"n": 895, "rate": 0.123, "A3_agrees_better": 0.616},
+      "pressured_prev_GET_FLAG": {"n": 813, "rate": 0.230, "A3_agrees_better": 0.598},
+      "near_own_flag_prev_GO_TO": {"n": 698, "rate": 0.150, "A3_agrees_better": 0.633},
+      "pressured_prev_GO_TO": {"n": 634, "rate": 0.231, "A3_agrees_better": 0.618},
+      "near_enemy_flag_prev_GO_TO": {"n": 461, "rate": 0.128, "A3_agrees_better": 0.555},
+      "near_own_flag_prev_GET_FLAG": {"n": 405, "rate": 0.150, "A3_agrees_better": 0.659},
+      "pressured_and_near_enemy_prev_GET_FLAG": {"n": 268, "rate": 0.184, "A3_agrees_better": 0.593},
+      "pressured_and_near_enemy_prev_GO_TO": {"n": 220, "rate": 0.231, "A3_agrees_better": 0.505},
+      "reading": "A3_agreement_with_B_better sits at 0.50-0.66 across all nine -- consistently ABOVE chance, never dramatically so. A3 mildly but consistently favours GET_FLAG in the same situations, corroborating (not proving) that this substitution is somewhat 'largely absent in frozen A' as asked, though 'mildly reduced' is more accurate than 'absent'."
+    },
+    "the_one_exception": {
+      "bucket": "no_pressure, near_enemy_flag=True, prev_macro=GET_FLAG",
+      "n": 405, "rate": 0.105, "dominant_substitution": "GET_FLAG -> GO_TO (the REVERSED direction)",
+      "A3_agrees_better": 0.523,
+      "reading": "the one case where, having just committed to GET_FLAG very close to the enemy flag, B_worse sometimes reconsiders toward GO_TO where B_better stays committed. Both the rate and the A3-agreement margin are the weakest of the ten not-carrying buckets -- treated as a minor inconsistency, not a second finding."
+    }
+  },
+
+  "OUTCOME_CORRELATION_HONESTLY_STATED": {
+    "not_carrying_buckets": "won_rate_in_touched_episodes ranges 0.41-0.56 across the nine consistent buckets -- close to the overall 0.479, no strong signal either direction.",
+    "what_this_means": "the genuine, behaviourally real substitution (GO_TO for GET_FLAG when not carrying) does NOT show a strong direct correlation with episode outcome in this data. The retracted carrying-cluster's strong outcome correlation cannot be borrowed to support this one -- they are different buckets and the strong signal lived entirely in the retracted, execution-irrelevant cluster.",
+    "honest_summary": "this diagnosis finds a real, consistent, context-INDEPENDENT behavioural difference (reduced GET_FLAG propensity when not carrying), but does not itself demonstrate that this specific difference is what costs B_worse the games it loses. That link -- if it exists -- would need to come from an intervention, not further correlational slicing."
+  },
+
+  "REVISED_ANSWER_TO_THE_FRAMING_QUESTION": {
+    "question_asked": "In state class S, B_later systematically replaces useful action X with Y",
+    "answer": "S = not carrying the flag (broadly -- not a narrower sub-condition; pressure/proximity/commit-state do not gate the effect). X = GET_FLAG (direct pursuit). Y = GO_TO (waypoint navigation). The effect is real (confirmed to be a genuine execution difference, unlike the retracted cluster) and fairly uniform in size (~55-69% of disagreements, consistently) across every other context tested. It is more accurate to describe this as 'B_worse has a broadly reduced propensity to commit to direct flag pursuit once it is not carrying' than as a narrow situational failure."
+  },
+
+  "WHAT_THIS_READING_MAY_NOT_CLAIM": [
+    "that this substitution causes the win-rate gap -- the outcome correlation is weak in exactly the buckets where the substitution is real",
+    "anything about the carrying=True buckets -- retracted as execution-irrelevant",
+    "that pressure, flag proximity, or prior macro GATE the effect -- the data shows the opposite, a fairly uniform effect across those axes",
+    "any win-rate or gate result -- n=48, exploratory, diagnostic arm",
+    "anything about 6v6 or 2v2"
+  ],
+
+  "WHAT_HAPPENS_NEXT_not_yet_authorized": "the PI's own stated next step: design ONE targeted intervention against this specific decision (reduced GET_FLAG propensity when not carrying), scoped to that state class rather than a global anchor or a global reward term -- and, given the weak direct outcome correlation found here, that intervention itself would need its own honest evaluation of whether restoring GET_FLAG propensity actually recovers delta_B, not an assumption that it will."
+}

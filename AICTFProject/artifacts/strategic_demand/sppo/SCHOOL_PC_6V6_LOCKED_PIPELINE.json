@@ -1,0 +1,169 @@
+{
+  "record_id": "SCHOOL_PC_6V6_LOCKED_PIPELINE",
+  "status": "FROZEN_FOR_SCHOOL_PC",
+  "utc": "2026-09-23T22:14:00Z",
+  "classification": "Unattended school/lab compute spend. NOT exploratory architecture design. Removes the 4v4-vs-6v6 foundation mismatch, then reuses the successful 4v4 split recipe at team size 6 with k=1 and the identical N' teacher. Does not guarantee a PASS; guarantees apples-to-apples chance.",
+  "PI_reading": "Best-supported path to making 6v6 work like 4v4. Composition evidence (scripted 5A/1D, geometry CLOSEST_DEFENDS k=1) is optimistic. Repaired A/B must still learn something useful. Phrase as: gives 6v6 its best apples-to-apples chance of reproducing the 4v4 PASS; final crossover still has to be measured.",
+  "framing": {
+    "boxed": "same algorithmic recipe, scale-specific configuration",
+    "method_unchanged": "mature A/B specialists, frozen pi_A on ATTACK, pi_D warm-started from pi_A, 200k split PPO, same N' defender-teacher schedule, CLOSEST_DEFENDS, same Delta_A/Delta_B LCB95 gate",
+    "scale_specific": "N=6 networks/obs/actions; k=1 (5A/1D) from sealed 6v6 composition evidence — not a mechanical copy of 4v4 k=2",
+    "wording": "We preserve the same learning architecture across scales while using the role composition independently established for each team size.",
+    "not": "we designed 6v6 specifically so it can pass"
+  },
+  "preflight": {
+    "script": "experiments/run_school_pc_6v6_preflight.py",
+    "stages": ["foundation", "split", "all"],
+    "result": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_PREFLIGHT_RESULT.json",
+    "required_before_long_grind": true,
+    "attestation_block": [
+      "teacher_enabled = true",
+      "teacher_lambda_peak = 0.1",
+      "teacher_cadence = 4",
+      "teacher_decay_end = 150000",
+      "split_attack_defend = true",
+      "frozen_attack = repaired pi_A hash",
+      "defender_warm_start = same repaired pi_A hash",
+      "closest_defends_k = 1",
+      "role_fixed_for_episode = true",
+      "pi_B_eval_hash = repaired pi_B hash",
+      "t0 equivalence + frozen ATTACK never enters optimizer (pytest)"
+    ]
+  },
+  "structure": "mature repaired pi_A/pi_B -> freeze ATTACK pi_A -> pi_D from pi_A -> 200k PPO + same N' teacher as 4v4 -> CLOSEST_DEFENDS(k=1) -> sealed crossover gate",
+  "N_PRIME_TEACHER_LOCKED_identical_to_4v4": {
+    "loss": "CE(macro, GO_TO) + CE(waypoint, w_N')",
+    "gate": "DEFEND-role AND alive AND decision-eligible only",
+    "implementation": "rl/custom_ppo/defend_teacher.py (reused unchanged)",
+    "lambda_schedule": {
+      "0_to_50k": 0.1,
+      "50k_to_150k": "linear decay 0.1 -> 0.0",
+      "150k_to_200k": 0.0,
+      "final_50k": "teacher-free consolidation"
+    },
+    "cadence": "1 teacher step every 4 PPO updates",
+    "CLI": {
+      "defend_teacher_lambda": 0.1,
+      "defend_teacher_lambda_end": 0.0,
+      "defend_teacher_decay_start_step": 50000,
+      "defend_teacher_decay_end_step": 150000,
+      "defend_teacher_cadence": 4
+    },
+    "compatibility": "GO_TO + waypoint N' stays inside 6v6 n_macros; same plumbing as 4v4 DEFEND_ATTACK_SPLIT_POLICY_A_V1.",
+    "DO_NOT": "retune this schedule, cadence, or formula from 6v6 outcomes. Reuse exactly.",
+    "NOT_the_diagnostic": "The 25k/50k CLOSEST_SPLIT viability run was teacher-free (defend_teacher_lambda=0) on the pre-entity base. That was a diagnostic. The school-PC paper split is NOT that setup."
+  },
+  "EXPLICITLY_FORBIDDEN_on_school_PC": [
+    "extra exploratory branches",
+    "k=1 vs k=3 mixture as the paper system",
+    "pre-entity base as the split foundation",
+    "teacher-free split as the paper system (diagnostic only)",
+    "retuning the N' teacher lambda schedule, cadence, or formula based on 6v6 outcomes",
+    "spending confirmatory seeds before exploratory crossover PASS",
+    "restarting home c2 while school owns this chain"
+  ],
+  "home_status": {
+    "c2_A": "STOPPED_MOVE_TO_SCHOOL_PC at ~1584/1000000 (~3.8 step/s)",
+    "note": "artifacts/strategic_demand/sppo/ENTITY_REPAIR_6V6_C2_HOME_STOPPED.json",
+    "usable_checkpoint": false
+  },
+  "time_estimate_one_GPU": {
+    "A_1M": "~3 days at 3.5-4 step/s",
+    "B_1M": "~3 days",
+    "split_200k": "~14-16 hours",
+    "total_training": "~6-7 days",
+    "two_GPUs": "run A and B in parallel -> foundation ~3 days"
+  },
+  "seeds": {
+    "entity_repair_A": 22500001,
+    "entity_repair_B": 22500002,
+    "split_200k": 22600001,
+    "crossover_exploratory": {"lo": 22700001, "hi": 22700064, "n": 64},
+    "crossover_confirmatory": {"lo": 22800001, "hi": 22800128, "n": 128, "spend_only_if_exploratory_PASS": true}
+  },
+  "warm_start_bases": {
+    "A": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+    "A_sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82",
+    "B": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip",
+    "B_sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4"
+  },
+  "expected_finals": {
+    "pi_A_repair": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip",
+    "pi_B_repair": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip",
+    "pi_D": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip"
+  },
+  "steps": [
+    {
+      "id": 1,
+      "name": "pi_A entity-repair 1M",
+      "cwd": "AICTFProject",
+      "command": ".\\.venv\\Scripts\\python.exe experiments/train_specialist_scale.py --team-size 6 --policy A --seed 22500001 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip --run-label-suffix _c2_entity_repair"
+    },
+    {
+      "id": 2,
+      "name": "verify/seal A final",
+      "action": "assert expected_finals.pi_A_repair exists; sha256sum; write SCHOOL_PC_6V6_PI_A_REPAIR_SEAL.json"
+    },
+    {
+      "id": 3,
+      "name": "pi_B entity-repair 1M",
+      "command": ".\\.venv\\Scripts\\python.exe experiments/train_specialist_scale.py --team-size 6 --policy B --seed 22500002 --device cuda --total-timesteps 1000000 --entity-repair-enabled --entity-hidden-dim 32 --load-path artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip --run-label-suffix _c2_entity_repair",
+      "note": "If two GPUs: start with step 1 in parallel on GPU1 / this on GPU2."
+    },
+    {
+      "id": 4,
+      "name": "verify/seal B final",
+      "action": "assert expected_finals.pi_B_repair exists; sha256sum; write SCHOOL_PC_6V6_PI_B_REPAIR_SEAL.json"
+    },
+    {
+      "id": 5,
+      "name": "200k split-defender PPO k=1 with N' teacher identical to 4v4 a4",
+      "command": ".\\.venv\\Scripts\\python.exe experiments/train_specialist_scale.py --team-size 6 --policy A --seed 22600001 --device cuda --total-timesteps 200000 --entity-repair-enabled --entity-hidden-dim 32 --role-conditioning-enabled --role-fixed-for-episode --role-k-defend 1 --split-attack-defend-enabled --split-attack-defend-frozen-ckpt artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip --load-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip --defend-teacher-lambda 0.1 --defend-teacher-lambda-end 0.0 --defend-teacher-decay-start-step 50000 --defend-teacher-decay-end-step 150000 --defend-teacher-cadence 4 --run-label-suffix _split_defend_k1_v1",
+      "note": "After A_repair exists, pin --split-attack-defend-frozen-ckpt-sha256 to the sealed A hash. Teacher schedule is locked: do not retune."
+    },
+    {
+      "id": 6,
+      "name": "freeze split final",
+      "action": "assert expected_finals.pi_D exists; sha256sum; write SCHOOL_PC_6V6_SPLIT_K1_SEAL.json"
+    },
+    {
+      "id": 7,
+      "name": "exploratory crossover n=64",
+      "command": ".\\.venv\\Scripts\\python.exe experiments/eval_specialist_crossover_scaled.py --team-size 6 --spec artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json --pi-a-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip --pi-b-path artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip --frozen-attack-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip --role-fixed-for-episode --role-k-defend 1 --seed-base 22700001 --n-seeds 64 --label EXPLORATORY_6V6_SPLIT_K1 --device cuda",
+      "gate": "PASS iff Delta_A>0 and Delta_B>0 and both LCB95>0 (same 4v4 gate)"
+    },
+    {
+      "id": 8,
+      "name": "confirmatory crossover n=128 IF exploratory PASS",
+      "command": ".\\.venv\\Scripts\\python.exe experiments/eval_specialist_crossover_scaled.py --team-size 6 --spec artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json --pi-a-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/final_pi_A_specialist_6v6_split_defend_k1_v1.zip --pi-b-path artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/final_pi_B_specialist_6v6_c2_entity_repair.zip --frozen-attack-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/final_pi_A_specialist_6v6_c2_entity_repair.zip --role-fixed-for-episode --role-k-defend 1 --seed-base 22800001 --n-seeds 128 --label CONFIRMATORY_6V6_SPLIT_K1 --device cuda",
+      "gate": "same Delta_A/Delta_B LCB95; if PASS then 6v6=DONE"
+    }
+  ],
+  "readme": "experiments/SCHOOL_PC_6V6_README.md",
+  "how_to_run_while_away": {
+    "detach": "powershell -ExecutionPolicy Bypass -File experiments/launch_school_pc_6v6_detached.ps1",
+    "foreground_alternative": "python experiments/run_school_pc_6v6_locked_pipeline.py",
+    "watch_overall_tqdm": "Get-Content artifacts/strategic_demand/sppo/school_pc_6v6_OVERALL.err -Wait -Tail 5",
+    "watch_stage_tqdm_examples": [
+      "Get-Content artifacts/strategic_demand/sppo/school_pc_6v6_repair_A.err -Wait -Tail 3",
+      "Get-Content artifacts/strategic_demand/sppo/school_pc_6v6_repair_B.err -Wait -Tail 3",
+      "Get-Content artifacts/strategic_demand/sppo/school_pc_6v6_split_k1.err -Wait -Tail 3",
+      "Get-Content artifacts/strategic_demand/sppo/school_pc_6v6_crossover_exploratory.err -Wait -Tail 3"
+    ],
+    "heartbeat_json": "artifacts/strategic_demand/sppo/school_pc_6v6_OVERALL_PROGRESS.json",
+    "pid_file": "artifacts/strategic_demand/sppo/school_pc_6v6_OVERALL.pid",
+    "overall_bar_units": "1M (A) + 1M (B) + 200k (split) + 256 (eval cells) — ETA for the whole chain",
+    "per_stage_bars": "each train/eval child writes its own PPO/eval tqdm to school_pc_6v6_<tag>.err"
+  },
+  "where_saved": {
+    "logs_and_seals": "artifacts/strategic_demand/sppo/",
+    "pi_A_repair_ckpt": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_c2_entity_repair/ckpts/",
+    "pi_B_repair_ckpt": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6_c2_entity_repair/ckpts/",
+    "pi_D_split_ckpt": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6_split_defend_k1_v1/ckpts/",
+    "exploratory_result": "artifacts/strategic_demand/EXPLORATORY_6V6_SPLIT_K1_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "pipeline_done": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_PIPELINE_DONE.json"
+  },
+  "orchestrator": "experiments/run_school_pc_6v6_locked_pipeline.py",
+  "detach_launcher": "experiments/launch_school_pc_6v6_detached.ps1",
+  "claim_boundary": "If confirmatory PASS: 6v6 closed under the same measurement protocol as 4v4, including the same N' teacher schedule on the split. Foundation mismatch removed. Does not rewrite SDS observability or latent paper-faithful claims."
+}

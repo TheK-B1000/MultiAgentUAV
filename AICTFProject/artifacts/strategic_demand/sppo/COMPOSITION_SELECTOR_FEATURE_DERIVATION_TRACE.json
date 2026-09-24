@@ -1,0 +1,72 @@
+{
+  "composition_held_fixed": "2A_2D",
+  "n_seeds_per_pole": 16,
+  "raw_rows": "composition_selector_feature_derivation_raw_rows.csv",
+  "threshold_criterion_predeclared": "minimize pooled misclassification rate over the combined A+B sample (exhaustive scan over midpoints between adjacent sorted pooled values); declared before this scan was run, applies identically at every radius",
+  "radii": {
+    "4.0": {
+      "A_median": 1.0520833333333335,
+      "A_mean": 1.0799479166666668,
+      "A_std": 0.6082842802711574,
+      "B_median": 0.3520833333333333,
+      "B_mean": 0.36953125,
+      "B_std": 0.20010829677905614,
+      "A_min": 0.19166666666666668,
+      "A_max": 2.075,
+      "B_min": 0.06666666666666667,
+      "B_max": 0.8708333333333333,
+      "naive_midpoint_threshold": 0.7020833333333334,
+      "optimal_threshold": 0.60625,
+      "optimal_pooled_misclassification_rate": 0.15625,
+      "pole_A_higher_pressure": true
+    },
+    "6.0": {
+      "A_median": 1.3104166666666668,
+      "A_mean": 1.35625,
+      "A_std": 0.6081125931321649,
+      "B_median": 0.7875000000000001,
+      "B_mean": 0.7453125,
+      "B_std": 0.23973787286364495,
+      "A_min": 0.4375,
+      "A_max": 2.3666666666666667,
+      "B_min": 0.32083333333333336,
+      "B_max": 1.2666666666666666,
+      "naive_midpoint_threshold": 1.0489583333333334,
+      "optimal_threshold": 1.0270833333333333,
+      "optimal_pooled_misclassification_rate": 0.1875,
+      "pole_A_higher_pressure": true
+    },
+    "8.0": {
+      "A_median": 1.7166666666666668,
+      "A_mean": 1.7565104166666665,
+      "A_std": 0.5924231641654594,
+      "B_median": 1.2875,
+      "B_mean": 1.2369791666666667,
+      "B_std": 0.2586596281616842,
+      "A_min": 0.8,
+      "A_max": 2.783333333333333,
+      "B_min": 0.7916666666666666,
+      "B_max": 1.6958333333333333,
+      "naive_midpoint_threshold": 1.5020833333333334,
+      "optimal_threshold": 1.50625,
+      "optimal_pooled_misclassification_rate": 0.1875,
+      "pole_A_higher_pressure": true
+    },
+    "10.0": {
+      "A_median": 2.45625,
+      "A_mean": 2.414583333333333,
+      "A_std": 0.6195802043558442,
+      "B_median": 1.9729166666666667,
+      "B_mean": 1.9268229166666666,
+      "B_std": 0.2200640097852845,
+      "A_min": 1.2916666666666667,
+      "A_max": 3.495833333333333,
+      "B_min": 1.5875,
+      "B_max": 2.2583333333333333,
+      "naive_midpoint_threshold": 2.214583333333333,
+      "optimal_threshold": 2.302083333333333,
+      "optimal_pooled_misclassification_rate": 0.1875,
+      "pole_A_higher_pressure": true
+    }
+  }
+}

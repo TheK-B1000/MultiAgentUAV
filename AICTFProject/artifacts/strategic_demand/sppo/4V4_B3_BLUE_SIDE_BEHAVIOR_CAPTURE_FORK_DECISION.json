@@ -1,0 +1,28 @@
+{
+  "record_id": "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE_FORK_DECISION",
+  "status": "FROZEN_DECISION",
+  "utc": "2026-09-10T21:55:00Z",
+  "authority": "PI, 2026-09-10",
+  "decides_from": "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE.json",
+  "resolves": "4V4_B3_SPECIALIZATION_PRESERVING_HOLD.json",
+
+  "CHOSEN_FORK": "similar_closed_loop_roles_despite_JSD → trajectory/role-level separation (NOT payoff anti-transfer; NOT per-state sibling JSD)",
+
+  "EVIDENCE_SUMMARY": {
+    "all_cells_dominant_role": "escort_pair",
+    "pole_A_same_dominant_role_frac": 0.84375,
+    "pole_A_role_hamming": 0.418,
+    "pole_A_role_occupancy_L1": 0.162,
+    "pole_B_same_dominant_role_frac": 0.375,
+    "pole_B_role_hamming": 0.543,
+    "pole_B_role_occupancy_L1": 0.100,
+    "reading": "Local action divergence and early timeline Hamming without complementary strategic modes. Mild Pole-B asymmetry is not enough to call these GUARD/BREACH specialists."
+  },
+
+  "REJECTED_ALTERNATIVES": {
+    "launch_held_jsd_spec": "poorly targeted; retire UNUSED",
+    "payoff_anti_transfer_R_A_minus_lambda_V_B": "can manufacture crossover by deliberate weakness on the other pole; reviewer-vulnerable"
+  },
+
+  "NEXT": "4V4_B3_ROLE_PRESERVATION_SPEC.json — one training experiment only"
+}

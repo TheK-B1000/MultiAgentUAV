@@ -1,0 +1,162 @@
+{
+  "record_id": "ENTITY_CONTINUATION_CONTROL_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING_STEP",
+  "arm": "CONFIRMATORY_CANDIDATE",
+  "confirmatory": false,
+  "utc": "2026-09-14T04:00:00Z",
+  "authorized_to_draft_by": "PI. EXPLICITLY NOT AUTHORIZED TO LAUNCH -- no training step, no seed reservation, and no code change may occur until the PI releases this spec.",
+
+  "THE_QUESTION": "Would the sealed B3-3 specialists recover 4v4 specialization after another fresh 1,000,000 PPO steps WITHOUT informative entity geometry?",
+
+  "WHY_THIS_IS_THE_NEXT_EXPERIMENT": {
+    "chain": [
+      "the 4v4 entity-repair run produced delta_A=+0.352 (pass) / delta_B=-0.086 (fail) -- asymmetric recovery",
+      "POLE_B_ENTITY_UTILIZATION: the entity pathway has a small per-decision footprint (~4% of input norm, ~97% greedy-action agreement when deleted) and that footprint is SYMMETRIC between the passing and failing regimes",
+      "POLE_A_GEOMETRY_ABLATION: closed-loop, C_A = -0.078 [-0.266, +0.109]; delta_A SURVIVES total geometry deletion (delta_A_zero=+0.359). H1 is operationally rejected as the load-bearing explanation at inference",
+      "what remains: H2 geometry-as-training-scaffold (the pathway shaped the optimization trajectory, then became redundant) vs H3 training-duration (the extra 1,000,000 steps would have done it with or without geometry). Neither can be tested on an already-trained checkpoint. This experiment is the only way to separate them."
+    ]
+  },
+
+  "CONTROL_CONSTRUCTION": {
+    "principle": "isolate the INFORMATION, not the architecture. The control must differ from the treatment in exactly one respect: the entity tensors carry no information. Everything else -- module, parameter count, optimizer param groups, buffer fields, code path, warm-start semantics -- is bit-for-bit the same machinery.",
+    "mechanism": "keep entity_repair_enabled=True (same augmented architecture and plumbing) and ZERO the entity FEATURE tensors (teammates, enemies) at every step of training. Validity masks are left untouched.",
+    "why_not_entity_repair_enabled_false": "that would change the architecture, the parameter count, the optimizer param groups and the rollout-buffer field set simultaneously with the information content -- four confounds instead of one. A difference found under that design could not be attributed to geometry.",
+    "why_zeroing_is_an_exact_information_deletion": "EntityResidualEncoder is bias-free throughout, so 0 in -> 0 out at every linear/ReLU, and the masked mean pool of all-zero encodings is exactly zero. Therefore g == 0 EXACTLY at every forward pass, for any weights, at any point in training. This is already proven in tests/test_entity_residual.py and re-asserted live by contract C2 below.",
+    "DERIVED_PREDICTION_that_must_be_verified_not_assumed": {
+      "claim": "the control's entity_encoder parameters will remain EXACTLY at their initialization for the entire 1,000,000 steps.",
+      "derivation": "g = W_proj @ concat(t_pooled, e_pooled). With zeroed features, concat(...) == 0, so dL/dW_proj = (dL/dg) (x)^T = 0. W_proj is zero-initialised, so dL/dx = W_proj^T (dL/dg) = 0, hence the per-entity encoders receive zero gradient too. With zero gradient and (expected) zero weight decay, Adam's update is identically zero.",
+      "why_it_must_be_CHECKED": "if the shared optimizer carries nonzero weight_decay, parameters WOULD drift under zero gradient, which would be a real (if small) difference from the treatment. Contract C5 checks this empirically rather than trusting this derivation.",
+      "if_the_check_fails": "do not launch. Report the weight-decay discrepancy and re-specify."
+    },
+    "implementation_required_before_launch": {
+      "new_PPOConfig_field": "entity_repair_zero_ablation: bool = False",
+      "seam": "the single place entity tensors are created for the rollout path -- gpu_env/_core/_entity_obs.py::augment_obs_with_entities gains a zero_features flag, and rl/custom_ppo/rollout/collector.py passes cfg.entity_repair_zero_ablation at BOTH of its call sites (collect() and _step_once()). Zeroing at the creation seam rather than duplicating it at each call site keeps one auditable location.",
+      "CLI": "--entity-repair-zero-ablation on experiments/train_specialist_scale.py",
+      "preset_snapshot": "tests/preset_snapshots.json must be regenerated and the diff reviewed (expected: exactly one new key, zero value changes) -- the same procedure already used for entity_repair_enabled, entity_hidden_dim and warm_start_reset_progress",
+      "status": "NOT YET WRITTEN. Code is deliberately not authored until this spec is released, so the spec cannot be shaped by the implementation."
+    }
+  },
+
+  "TRAINING_MATCHING": {
+    "checkpoint_initialization": "identical sealed B3-3 checkpoints, by sha256: pi_A 011fbc0b43460fffda28b1c30ea105586ce8030511c495e5433d53d4a608a1b0, pi_B 57d354e10c56aab6f548faa43a2c76360e03c5c8840ef7ff079b4cbe5c809aa8",
+    "warm_start_semantics": "identical to the treatment: --load-path (NOT --resume), warm_start_reset_progress=True, global_step reset to 0, optimizer/scheduler/RNG/run-identity fresh, allow_active_actor_module_migration=True",
+    "budget": "exactly 1,000,000 fresh steps per policy -- identical to the treatment",
+    "training_seeds": {
+      "pi_A3_control": 17700001,
+      "pi_B3_control": 17700002,
+      "rationale": "DELIBERATE TREATMENT-CONTROL MATCHING. Reusing the treatment's training seeds makes the environment/initialisation random streams common to both conditions, so the D contrast isolates the geometry manipulation instead of also absorbing a different random draw. This is matched-pair design, NOT evaluation-seed reuse: no training seed is ever used for evaluation.",
+      "registry_handling": "must be registered via experiments/seed_registry.py::allocate with subdivides='4V4_ENTITY_REPAIR_TRAINING', which is the registry's sanctioned mechanism for declared, deliberate sharing with a parent block. Silently re-spending 17700001-2 without that declaration is forbidden and would be caught by check_block as an overlap.",
+      "reproducibility_caveat": "seed equality makes the two runs' streams comparable at construction. It does NOT guarantee identical trajectories -- the policies diverge as soon as the (different) actions differ, and CUDA nondeterminism may contribute. Matching removes a nuisance source of variance; it does not make the runs paired step-for-step, and no such claim will be made."
+    }
+  },
+
+  "HELD_FIXED": [
+    "PPO hyperparameters (n_envs=16, n_steps=128, batch_size=512, n_epochs=4, gamma=0.995, gae_lambda=0.99, clip 0.25 / vf 0.2, vf_coef=1.0, ent_coef=0.01, effective lr 3.75e-04)",
+    "reward function and every env_* override",
+    "action interface: macros, 50-waypoint vocabulary, commit horizons, carrier override -- all untouched",
+    "Pole A definition (OP6 + min_alive_for_defender=4) and Pole B definition (candidate genome SDS2_B3_LOCKDEF10_2V1: lock_defender=10, enable_2v1=True, min_alive_for_defender=4)",
+    "training budget, checkpoint initialisation, warm-start semantics",
+    "evaluation protocol: paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7, seed as resampling unit",
+    "map_set=train, map_layout=map_a_open, ruleset RULESET_V3_M1_OWN_FLAG_HOME"
+  ],
+
+  "EVALUATION_DESIGN": {
+    "principle": "the treatment pair is RE-EVALUATED on the same fresh block as the control pair. The primary contrast is never computed against the old sealed +0.352 from a different seed block.",
+    "cells": [
+      "pi_A3 (entity) @ Pole A", "pi_A3 (entity) @ Pole B",
+      "pi_B3 (entity) @ Pole A", "pi_B3 (entity) @ Pole B",
+      "pi_A3_control @ Pole A", "pi_A3_control @ Pole B",
+      "pi_B3_control @ Pole A", "pi_B3_control @ Pole B"
+    ],
+    "TREATMENT_CONSISTENT_EVALUATION_do_not_get_this_wrong": {
+      "rule": "each policy is evaluated under the SAME entity condition it was trained under. The entity pair sees real geometry; the control pair sees ZEROED geometry.",
+      "why": "evaluating the control with real entity tensors would present it with an input distribution it never encountered in training -- a distribution shift that has nothing to do with the hypothesis under test.",
+      "does_this_confound_D_A": "no, and this is precisely why POLE_A_GEOMETRY_ABLATION had to run first. That experiment established C_A = -0.078 [-0.266, +0.109]: the evaluation-time entity condition does not detectably move delta_A. With the evaluation-time factor shown to be immaterial, D_A isolates the TRAINING-time manipulation. Had the ablation come back with C_A large, this design would have been uninterpretable and the spec would have needed a 2x2 evaluation instead."
+    },
+    "seeds": {
+      "block": "one FRESH block, class sealed_confirmatory, n=128, to be reserved via seed_registry.py IMMEDIATELY BEFORE LAUNCH and not before -- per the standing rule that seed reservation is the last administrative action.",
+      "shared_across_all_eight_cells": true,
+      "pole_A_uses": "all 128 seeds (primary question)",
+      "pole_B_uses": "the FIRST 64 seeds of the same block (exploratory secondary question) -- declared now, in advance, so the subset is not chosen after seeing any result",
+      "disjointness": "must not overlap 16700001-16700128 (sealed B3-3 crossover), 17700001-17700002 (training), 17800001-17800192 (entity crossover eval), 17900001-17900128 (POLE_B_ENTITY_DIAGNOSIS), 18000001-18000064 (POLE_A_GEOMETRY_ABLATION)"
+    },
+    "total_episodes": "4 cells x 128 (Pole A) + 4 cells x 64 (Pole B) = 768"
+  },
+
+  "ESTIMANDS": {
+    "delta_A_ENTITY": "V(pi_A3, A) - V(pi_B3, A)",
+    "delta_A_CONTROL": "V(pi_A3_control, A) - V(pi_B3_control, A)",
+    "D_A": "delta_A_ENTITY - delta_A_CONTROL     <-- PRIMARY, H2 vs H3",
+    "delta_B_ENTITY": "V(pi_B3, B) - V(pi_A3, B)",
+    "delta_B_CONTROL": "V(pi_B3_control, B) - V(pi_A3_control, B)",
+    "D_B": "delta_B_ENTITY - delta_B_CONTROL     <-- EXPLORATORY, bears on the remaining Pole-B problem",
+    "bootstrap": "every quantity is a SEED-LEVEL PAIRED contrast, resampled over seeds with a SINGLE shared resample matrix across all estimands, so they are mutually consistent. Never computed by differencing independently bootstrapped win rates.",
+    "also_reported": "all eight raw cell win rates, and the realized correlation between the paired series entering each D, as a pairing-efficiency diagnostic"
+  },
+
+  "PRECOMMITTED_INTERPRETATION_frozen_before_launch": [
+    {
+      "branch": 1,
+      "condition": "the no-geometry control pair reproduces strong Pole-A specialization (delta_A_CONTROL comparable to delta_A_ENTITY; D_A near zero)",
+      "reading": "H3 is SUFFICIENT. The extra 1,000,000 steps explain the recovery; geometry-as-scaffold is not needed to account for Pole A.",
+      "next": "the entity repair is not the active ingredient. The Pole-B problem becomes 'B needs more or better-targeted ACQUISITION time', not another representation redesign -- a much cheaper class of fix."
+    },
+    {
+      "branch": 2,
+      "condition": "delta_A_CONTROL does NOT recover (stays near the original sealed pre-repair +0.047) while delta_A_ENTITY does, on the matched fresh block (D_A clearly positive)",
+      "reading": "H2 gains DIRECT support. Training WITH the entity pathway present mattered, even though the trained policy barely uses it at inference -- a genuine scaffold effect.",
+      "next": "the repair is real but acts during learning. Investigate what the scaffold provides (gradient shaping? exploration? credit assignment?) and whether it can be delivered more directly to Pole B."
+    },
+    {
+      "branch": 3,
+      "condition": "both conditions unstable or mutually inconsistent (e.g. delta_A_ENTITY fails to reproduce on the fresh block, or telemetry shows unhealthy training in either control run)",
+      "reading": "neither mechanism gets credited. This is a robustness failure, not evidence.",
+      "next": "STOP and diagnose robustness first. Do not interpret D_A causally. The single-training-seed limitation below is the leading suspect and replication is the remedy."
+    }
+  ],
+
+  "KNOWN_ANSWER_CONTRACTS_before_the_real_run": {
+    "C1_initialisation_identity": "at step 0, the control model's parameters are bit-identical to the treatment model's parameters when both are warm-started from the same sealed B3-3 checkpoint under the same seed -- including the freshly-initialised entity_encoder. Verified by direct state-dict comparison, not asserted.",
+    "C2_zero_residual_through_the_REAL_path": "during an actual collect_rollout() + update() cycle with entity_repair_zero_ablation=True, the entity residual g is EXACTLY zero at every forward pass. Checked by (a) asserting the rollout buffer's obs_teammates / obs_enemies fields are all-zero, and (b) evaluating entity_encoder on the collected batch and asserting torch.equal against zeros. Both, not either.",
+    "C3_base_observation_untouched": "grid / vec / agent_mask / mask collected under entity_repair_zero_ablation=True are bit-identical to those collected without it from the same env state. The ablation must delete information from the entity stream only.",
+    "C4_behavioural_equivalence_at_warm_start": "the control's step-0 policy logits equal the sealed B3-3 checkpoint's logits exactly (the existing compat-loader behavioural-equivalence check must print PASS with max_logit_diff=0), confirming the control starts from the same behaviour as the treatment did.",
+    "C5_entity_encoder_parameters_frozen": "after a short real PPO smoke with the ablation active, entity_encoder parameters are bit-identical to their initialisation -- empirically confirming the zero-gradient derivation above and ruling out weight-decay drift.",
+    "C6_the_flag_actually_changes_something": "with the flag OFF on the same env state, the collected entity tensors are NOT all-zero. Guards against a vacuous control in which the ablation silently failed to engage and the run is quietly a second treatment replicate.",
+    "gate": "every contract must pass before the first training step. Any failure blocks launch."
+  },
+
+  "NAMED_LIMITATIONS_stated_before_any_data_exists": {
+    "single_training_seed_per_condition": {
+      "issue": "one control run per pole means D_A is a PAIRED SINGLE-REPLICATE contrast. It cannot statistically separate a geometry effect from training-seed-to-training-seed variance, which is large in RL generally and has bitten this project before (a prior 3-seed run had 2/3 seeds collapse to a degenerate policy).",
+      "what_the_design_CAN_do": "screen a LARGE effect. Branch 1 and branch 2 are far apart (delta_A_CONTROL ~ +0.30 vs ~ +0.05); a single seed per condition can distinguish 'recovered' from 'did not recover' at that separation.",
+      "what_the_design_CANNOT_do": "deliver a calibrated effect size, or exclude that this particular seed was lucky or unlucky. This is a SCREENING experiment.",
+      "consequence_frozen_now": "no result from this experiment may be called confirmatory. If the outcome is used to support a claim in a write-up, it must first be replicated at >= 3 training seeds per condition, which would cost roughly 3x the training budget here.",
+      "precommitted_trigger_for_replication": "if D_A's interval includes zero AND delta_A_CONTROL lands between the two branch anchors (roughly 0.10-0.25), the result is ambiguous and replication at additional training seeds is required before any reading is taken."
+    },
+    "cost": "approximately 15 GPU-hours: 2 control training runs at ~3.5 h each, plus 768 evaluation episodes at ~40 s each (~8.5 h). Substantially more than any diagnostic run so far.",
+    "no_claim_about_6v6_or_2v2": "this experiment speaks only to 4v4."
+  },
+
+  "COMPLIANCE": {
+    "rule_1_telemetry": "tqdm + periodic diagnostics on both training runs and the evaluation; per-cell win rate printed as each cell closes",
+    "rule_2_incremental": "metrics.csv / episode_rows.csv per step/episode; evaluation rows appended and flushed per episode",
+    "rule_3_frozen_spec": "this document, frozen before implementation and before any training step",
+    "rule_4_preflight": "contracts C1-C6 plus a --dry-run of the evaluator",
+    "rule_5_resumability": "standard checkpoint-resume; --resume reserved for crash recovery only",
+    "rule_7_audit_gated_seal": "any verdict-bearing evaluation record must go through experiments/run_state.py::seal",
+    "rule_9_seed_registry": "control training seeds registered with subdivides='4V4_ENTITY_REPAIR_TRAINING'; fresh evaluation block reserved immediately before launch",
+    "rule_10_decision_tree": "PRECOMMITTED_INTERPRETATION above",
+    "rule_12_known_answer_contract": "C1-C6",
+    "rule_13_hardened_lock": "RunLock held by every training run and by the evaluator"
+  },
+
+  "WHAT_THIS_EXPERIMENT_MAY_NOT_CLAIM": [
+    "confirmatory status of any kind -- single training seed per condition, screening design",
+    "that geometry is useless in general -- it speaks to this architecture, this budget, these two poles, at 4v4",
+    "anything about inference-time geometry beyond what POLE_A_GEOMETRY_ABLATION already established",
+    "anything about 6v6 or 2v2",
+    "a Pole-B fix -- D_B is exploratory evidence about where to look, not a validated remedy"
+  ],
+
+  "LAUNCH_GATE": "NOT AUTHORIZED. Requires explicit PI release. On release the order is: (1) implement the flag + CLI + snapshot regeneration, (2) run contracts C1-C6, (3) reserve the training-seed subdivision and the fresh evaluation block, (4) train both controls, (5) evaluate all eight cells, (6) seal."
+}

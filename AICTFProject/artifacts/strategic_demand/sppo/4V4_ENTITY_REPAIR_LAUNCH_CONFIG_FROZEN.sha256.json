@@ -1,0 +1,9 @@
+{
+  "record_id": "4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN_HASH",
+  "hashes": "4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json",
+  "sha256_pre_seed": "9eabfb013144e6c10c9561c2e864d37a76f22ea2e369a0fbef4ef62fc060fd66",
+  "sha256_post_seed": "6701b076891f7dfc8f98f97db8873f3cc667509fccf6a853dfc53222c3254c7f",
+  "utc": "2026-09-13T07:25:00Z",
+  "post_seed_utc": "2026-09-13T07:46:00Z",
+  "note": "sha256_pre_seed hashes the config as first frozen, with literal placeholders <TRAINING_SEED_A3>/<TRAINING_SEED_B3> and an unreserved eval block. sha256_post_seed hashes it after experiments/seed_registry.py reserved 4V4_ENTITY_REPAIR_TRAINING (17700001-17700002) and 4V4_ENTITY_REPAIR_CROSSOVER_EVAL (17800001-17800192) and the document was amended in place with those concrete values (see amended_utc in the parent doc). Both hashes are kept, in a separate sidecar file to avoid a self-referential hash, so the parent doc's launch commands can now be verified byte-for-byte against sha256_post_seed before either training job is started."
+}

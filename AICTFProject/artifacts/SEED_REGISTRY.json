@@ -1,0 +1,1556 @@
+{
+  "record": "seed allocation registry (Rule 9)",
+  "rule": "three seed classes, never overlapping; confirmatory seeds are spent exactly once and never on debugging",
+  "backfilled_from": "artifacts\\strategic_demand\\sppo",
+  "backfill_note": "HIST_* ids are historical blocks recovered from sealed artifacts after Rule 9 was codified. Their classification comes from each artifact's own arm/confirmatory fields.",
+  "blocks": [
+    {
+      "lo": 10700001,
+      "hi": 10700096,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json",
+      "purpose": "Oracle-gated K=2 V2 bank assembly audit",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json"
+      ],
+      "experiment_id": "HIST_10700001_10700096",
+      "n": 96,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 10700097,
+      "hi": 10700128,
+      "seed_class": "exploratory",
+      "evidence": "record name declares EXPLORATORY/DIAGNOSTIC/PILOT",
+      "spec": "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json",
+      "purpose": "CCP successor mechanism diagnostic",
+      "cited_by": [
+        "CCP_SUCCESSOR_MECHANISM_DIAGNOSTIC.json",
+        "HOG_PSP_V3_MECHANISM_DIAGNOSTIC.json",
+        "HOG_PSP_V4_MECHANISM_DIAGNOSTIC.json",
+        "OG_PSP_MECHANISM_DIAGNOSTIC.json"
+      ],
+      "experiment_id": "HIST_10700097_10700128",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 10700129,
+      "hi": 10700160,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ORACLE_GATED_K2_EVAL_RESULT.json",
+      "purpose": "Oracle-gated K=2 held-out EVAL",
+      "cited_by": [
+        "ORACLE_GATED_K2_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_10700129_10700160",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11000001,
+      "hi": 11000320,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json",
+      "purpose": "Oracle-gated K=2 V2 bank assembly audit",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_BANK_ASSEMBLY.json"
+      ],
+      "experiment_id": "HIST_11000001_11000320",
+      "n": 320,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11000007,
+      "hi": 11000085,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000007_11000085",
+      "n": 79,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11000086,
+      "hi": 11000164,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000086_11000164",
+      "n": 79,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11000165,
+      "hi": 11000243,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000165_11000243",
+      "n": 79,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11000244,
+      "hi": 11000320,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json",
+      "purpose": "ORACLE_GATED_K2_V2_BANK_COLLECTION",
+      "cited_by": [
+        "ORACLE_GATED_K2_V2_COLLECTION_PROTOCOL.json"
+      ],
+      "experiment_id": "HIST_11000244_11000320",
+      "n": 77,
+      "status": "SPENT",
+      "subdivides": "HIST_11000001_11000320",
+      "backfilled": true
+    },
+    {
+      "lo": 11200001,
+      "hi": 11200032,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "OG_PSP_EVAL_RESULT.json",
+      "purpose": "OG-PSP held-out EVAL",
+      "cited_by": [
+        "OG_PSP_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11200001_11200032",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11300101,
+      "hi": 11300132,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "HOG_PSP_V3_EVAL_RESULT.json",
+      "purpose": "H-OG-PSP V3 held-out payoff EVAL",
+      "cited_by": [
+        "HOG_PSP_V3_EVAL_INTEGRITY.json",
+        "HOG_PSP_V3_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11300101_11300132",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11400101,
+      "hi": 11400132,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "HOG_PSP_V4_EVAL_RESULT.json",
+      "purpose": "H-OG-PSP V4 held-out payoff EVAL",
+      "cited_by": [
+        "HOG_PSP_V4_EVAL_INTEGRITY.json",
+        "HOG_PSP_V4_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11400101_11400132",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11600101,
+      "hi": 11600132,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "CCP_SUCCESSOR_EVAL_RESULT.json",
+      "purpose": "CCP successor held-out payoff EVAL",
+      "cited_by": [
+        "CCP_SUCCESSOR_EVAL_INTEGRITY.json",
+        "CCP_SUCCESSOR_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11600101_11600132",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11700001,
+      "hi": 11700320,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "CCP_S2_SEED_PREFLIGHT.json",
+      "purpose": "CCP-S2 seed preflight",
+      "cited_by": [
+        "CCP_S2_SEED_PREFLIGHT.json"
+      ],
+      "experiment_id": "HIST_11700001_11700320",
+      "n": 320,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11701001,
+      "hi": 11701064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "CCP_S2_SEED_PREFLIGHT.json",
+      "purpose": "CCP-S2 seed preflight",
+      "cited_by": [
+        "CCP_S2_EVAL_INTEGRITY.json",
+        "CCP_S2_SEED_PREFLIGHT.json"
+      ],
+      "experiment_id": "HIST_11701001_11701064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11704001,
+      "hi": 11704064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "PI_G_EVAL_RESULT.json",
+      "purpose": "pi_G single-generalist baseline EVAL",
+      "cited_by": [
+        "PI_G_EVAL_RESULT.json",
+        "RSCFT_EVAL_INTEGRITY.json"
+      ],
+      "experiment_id": "HIST_11704001_11704064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11706001,
+      "hi": 11706064,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "TRUNK_FREEZE_EVAL_INTEGRITY.json",
+      "purpose": "Trunk-freeze EVAL integrity audit",
+      "cited_by": [
+        "TRUNK_FREEZE_EVAL_INTEGRITY.json"
+      ],
+      "experiment_id": "HIST_11706001_11706064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11804001,
+      "hi": 11804064,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "SAC_RFT_EVAL_INTEGRITY.json",
+      "purpose": "SAC-RFT EVAL integrity audit",
+      "cited_by": [
+        "SAC_RFT_EVAL_INTEGRITY.json"
+      ],
+      "experiment_id": "HIST_11804001_11804064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11805001,
+      "hi": 11805064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "SPECIALIST_BASELINE_EVAL_RESULT.json",
+      "purpose": "Specialist baseline sealed EVAL",
+      "cited_by": [
+        "SPECIALIST_BASELINE_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11805001_11805064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11922001,
+      "hi": 11922064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "COMPRESSION_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "Compression Crossover sealed EVAL",
+      "cited_by": [
+        "COMPRESSION_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11922001_11922064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11960001,
+      "hi": 11960064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "RUNG0_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "Rung 0 sealed crossover EVAL -- sharing-ladder positive control",
+      "cited_by": [
+        "RUNG0_CROSSOVER_EVAL_RESULT.json",
+        "RUNG0_LADDER_REFERENCE.json",
+        "RUNG0_STABILITY_RERUN_RESULT.json",
+        "RUNG1_LADDER_EVAL_RESULT.json",
+        "RUNG2_LADDER_EVAL_RESULT.json",
+        "RUNG3_LADDER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11960001_11960064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11961001,
+      "hi": 11961002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG1_STUDENT_FROZEN.json",
+      "purpose": "RUNG1_STUDENT_FROZEN",
+      "cited_by": [
+        "RUNG1_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_11961001_11961002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11963001,
+      "hi": 11963002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG2_STUDENT_FROZEN.json",
+      "purpose": "RUNG2_STUDENT_FROZEN",
+      "cited_by": [
+        "RUNG2_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_11963001_11963002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11965001,
+      "hi": 11965002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG3_CONSTRUCTION_AND_PREDICTION.json",
+      "purpose": "RUNG3_CONSTRUCTION_AND_PREDICTION",
+      "cited_by": [
+        "RUNG3_CONSTRUCTION_AND_PREDICTION.json",
+        "RUNG3_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_11965001_11965002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 11970001,
+      "hi": 11970064,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "RUNG1_LADDER_EVAL_RESULT.json",
+      "purpose": "Rung 1 matched evaluation",
+      "cited_by": [
+        "RUNG0_LADDER_REFERENCE.json",
+        "RUNG1_LADDER_EVAL_RESULT.json",
+        "RUNG2_LADDER_EVAL_RESULT.json",
+        "RUNG3_LADDER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_11970001_11970064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 12320001,
+      "hi": 12320002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json",
+      "purpose": "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT",
+      "cited_by": [
+        "3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json"
+      ],
+      "experiment_id": "HIST_12320001_12320002",
+      "n": 2,
+      "status": "RETIRED",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 12400001,
+      "hi": 12400001,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "TIE_REVERSAL_AUDIT_4v4_V1.json",
+      "purpose": "Row-level integrity audit (4v4, variant=v1)",
+      "cited_by": [
+        "TIE_REVERSAL_AUDIT_4v4_V1.json"
+      ],
+      "experiment_id": "HIST_12400001_12400001",
+      "n": 1,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 12800001,
+      "hi": 12800064,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "TIE_REVERSAL_AUDIT_4v4_GUARD_DISTRIBUTED_V2.json",
+      "purpose": "Row-level integrity audit (4v4, variant=guard_distributed_v2)",
+      "cited_by": [
+        "TIE_REVERSAL_AUDIT_4v4_GUARD_DISTRIBUTED_V2.json"
+      ],
+      "experiment_id": "HIST_12800001_12800064",
+      "n": 64,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13400001,
+      "hi": 13400128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares one_shot=true (spent-once contract)",
+      "spec": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT.json",
+      "purpose": "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT",
+      "cited_by": [
+        "ROBUSTNESS_2V2_DOSE_RESPONSE_LOW_TIER_RESULT.json",
+        "ROBUSTNESS_2V2_HIGH_TIER_RESULT.json",
+        "ROBUSTNESS_2V2_RUNG1_RESULT.json"
+      ],
+      "experiment_id": "HIST_13400001_13400128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13621001,
+      "hi": 13621002,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "RUNG1_6V6_STUDENT_FROZEN.json",
+      "purpose": "RUNG1_6V6_STUDENT_FROZEN",
+      "cited_by": [
+        "RUNG1_6V6_STUDENT_FROZEN.json"
+      ],
+      "experiment_id": "HIST_13621001_13621002",
+      "n": 2,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13640001,
+      "hi": 13640128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY' confirmatory=True",
+      "spec": "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "RUNG1_6V6 crossover EVAL",
+      "cited_by": [
+        "6V6_PIPELINE_SEED_ALLOCATION.json",
+        "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json",
+        "RUNG1_6V6_CROSSOVER_EVAL_SPEC.json",
+        "RUNG1_6V6_CROSSOVER_TQDM_RESTART.json"
+      ],
+      "experiment_id": "HIST_13640001_13640128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13660001,
+      "hi": 13660128,
+      "seed_class": "UNCLASSIFIED",
+      "evidence": "no arm/confirmatory/one_shot/PRIMARY_GATE field and no decisive name",
+      "spec": "6V6_PIPELINE_SEED_ALLOCATION.json",
+      "purpose": "6V6_PIPELINE_SEED_ALLOCATION",
+      "cited_by": [
+        "6V6_PIPELINE_SEED_ALLOCATION.json"
+      ],
+      "experiment_id": "HIST_13660001_13660128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13680001,
+      "hi": 13680128,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='DIAGNOSTIC' confirmatory=False",
+      "spec": "SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC.json",
+      "purpose": "SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC",
+      "cited_by": [
+        "SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC.json",
+        "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_13680001_13680128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13700001,
+      "hi": 13700020,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='EXPLORATORY_INFERENCE_ONLY' confirmatory=False",
+      "spec": "TRACK_HOLD_6V6_RESULT.json",
+      "purpose": "TRACK_HOLD_6V6 absolute track-hold dose-response",
+      "cited_by": [
+        "TRACK_HOLD_6V6_RESULT.json"
+      ],
+      "experiment_id": "HIST_13700001_13700020",
+      "n": 20,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 13710001,
+      "hi": 13710020,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='EXPLORATORY_INFERENCE_ONLY' confirmatory=False",
+      "spec": "TRACK_HOLD_6V6_SEVERE_RESULT.json",
+      "purpose": "TRACK_HOLD_6V6_SEVERE absolute track-hold dose-response",
+      "cited_by": [
+        "TRACK_HOLD_6V6_SEVERE_RESULT.json"
+      ],
+      "experiment_id": "HIST_13710001_13710020",
+      "n": 20,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 14400001,
+      "hi": 14400128,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='EXPLORATORY' confirmatory=False",
+      "spec": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT",
+      "cited_by": [
+        "EXPLORATORY_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_14400001_14400128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16400001,
+      "hi": 16400128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY_REDESIGN' confirmatory=True",
+      "spec": "CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+      "purpose": "CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT",
+      "cited_by": [
+        "CONFIRMATORY_REDESIGN_C2_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_16400001_16400128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16700001,
+      "hi": 16700128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY' confirmatory=True",
+      "spec": "4V4_B3_CONFIRMATORY_SPEC.json",
+      "purpose": "4V4_B3_CONFIRMATORY_SPEC",
+      "cited_by": [
+        "4V4_B3_CONFIRMATORY_SPEC.json",
+        "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_16700001_16700128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16800001,
+      "hi": 16800256,
+      "seed_class": "exploratory",
+      "evidence": "record name declares EXPLORATORY/DIAGNOSTIC/PILOT",
+      "spec": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE.json",
+      "purpose": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE",
+      "cited_by": [
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE.json",
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_RUN_STATUS_CORRECTION.json",
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPEC.json",
+        "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_SPECIALIST_CROSSOVER_EVAL_RESULT.json"
+      ],
+      "experiment_id": "HIST_16800001_16800256",
+      "n": 256,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 16810001,
+      "hi": 16810032,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY_LEARNING_SIDE' confirmatory=True",
+      "spec": "4V4_B3_ROLE_PRESERVATION_SPEC.json",
+      "purpose": "4V4_B3_ROLE_PRESERVATION_SPEC",
+      "cited_by": [
+        "4V4_B3_ROLE_PRESERVATION_SPEC.json"
+      ],
+      "experiment_id": "HIST_16810001_16810032",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 17200001,
+      "hi": 17200128,
+      "seed_class": "sealed_confirmatory",
+      "evidence": "artifact declares arm='CONFIRMATORY_LEARNING_SIDE' confirmatory=True",
+      "spec": "4V4_B3_ROLE_PRESERVATION_SPEC.json",
+      "purpose": "4V4_B3_ROLE_PRESERVATION_SPEC",
+      "cited_by": [
+        "4V4_B3_ROLE_PRESERVATION_SEALED_CROSSOVER_TQDM_RESTART.json",
+        "4V4_B3_ROLE_PRESERVATION_SPEC.json",
+        "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json"
+      ],
+      "experiment_id": "HIST_17200001_17200128",
+      "n": 128,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 17300001,
+      "hi": 17300024,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='DIAGNOSTIC' confirmatory=False",
+      "spec": "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC.json",
+      "purpose": "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC",
+      "cited_by": [
+        "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC.json"
+      ],
+      "experiment_id": "HIST_17300001_17300024",
+      "n": 24,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true
+    },
+    {
+      "lo": 17400001,
+      "hi": 17400032,
+      "seed_class": "exploratory",
+      "evidence": "artifact declares arm='DIAGNOSTIC' confirmatory=False",
+      "spec": "6V6_OPPONENT_CHANNEL_ABLATION_SPEC.json",
+      "purpose": "6V6_OPPONENT_CHANNEL_ABLATION_SPEC",
+      "cited_by": [
+        "6V6_OPPONENT_CHANNEL_ABLATION_SPEC.json"
+      ],
+      "experiment_id": "HIST_17400001_17400032",
+      "n": 32,
+      "status": "SPENT",
+      "subdivides": null,
+      "backfilled": true,
+      "spent_utc": "2026-09-12T23:38:38Z",
+      "notes": [
+        {
+          "utc": "2026-09-12T23:38:38Z",
+          "note": "partially spent: 84/384 episodes of OPP_ABLATION_6V6 before PI decision to stop; superseded by ARM1 TEST_0; block NOT free for reuse"
+        }
+      ]
+    },
+    {
+      "experiment_id": "GRAD_SNR_SCALING",
+      "purpose": "policy-gradient SNR vs team size at matched init; tests the Kuba MAPG-variance scaling hypothesis in our env",
+      "seed_class": "exploratory",
+      "lo": 17500001,
+      "hi": 17500032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "GRAD_SNR_SCALING_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-12T18:10:46Z"
+    },
+    {
+      "experiment_id": "ARM1_TEACHER_IDENTIFIABILITY",
+      "purpose": "observation-to-teacher-target identifiability probe; measures whether GUARD's target is a function of the student's observation at N=2/4/6",
+      "seed_class": "exploratory",
+      "lo": 17600001,
+      "hi": 17600032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "ARM1_TEACHER_IDENTIFIABILITY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-12T22:57:55Z"
+    },
+    {
+      "experiment_id": "4V4_ENTITY_REPAIR_TRAINING",
+      "purpose": "pi_A3/pi_B3 4v4 entity-repair specialist training seeds (one each), warm-started from the sealed B3-3 checkpoints per 4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json",
+      "seed_class": "sealed_confirmatory",
+      "lo": 17700001,
+      "hi": 17700002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-13T07:44:56Z"
+    },
+    {
+      "experiment_id": "4V4_ENTITY_REPAIR_CROSSOVER_EVAL",
+      "purpose": "closed-loop crossover evaluation of pi_A3 vs pi_B3 (Delta_A/Delta_B), n=192 matching the sealed B3-3 crossover eval sample size, per 4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json",
+      "seed_class": "sealed_confirmatory",
+      "lo": 17800001,
+      "hi": 17800192,
+      "n": 192,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-13T07:45:12Z"
+    },
+    {
+      "experiment_id": "POLE_B_ENTITY_DIAGNOSIS",
+      "purpose": "Pole-B-only diagnosis of the asymmetric 4v4 entity-repair result: entity-use ablation of pi_B3, Pole-B observation-sufficiency probe, and pi_A3-vs-pi_B3 behavioural comparison on Pole B. DIAGNOSTIC ONLY -- never a confirmatory claim.",
+      "seed_class": "exploratory",
+      "lo": 17900001,
+      "hi": 17900128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-13T23:58:51Z"
+    },
+    {
+      "experiment_id": "POLE_A_GEOMETRY_ABLATION",
+      "purpose": "Closed-loop Pole-A geometry ablation: 4 cells (pi_A3/pi_B3 x FULL/ZERO) on shared seeds, estimating C_A = delta_A_full - delta_A_zero plus per-policy deletion effects L_A, L_B. Tests INFERENCE-TIME load-bearing only. DIAGNOSTIC.",
+      "seed_class": "exploratory",
+      "lo": 18000001,
+      "hi": 18000064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "POLE_A_GEOMETRY_ABLATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T00:39:26Z"
+    },
+    {
+      "experiment_id": "DELTA_B_TRAJECTORY",
+      "purpose": "delta_B(t) across pi_B3 entity-repair training checkpoints (t=0/200k/400k/600k/800k/1M) on Pole B against the FROZEN pi_A3 final comparator. Routing decision: more training vs erosion control vs B-specific mechanism repair. DIAGNOSTIC -- any candidate checkpoint requires a fresh confirmatory crossover before any pass claim.",
+      "seed_class": "exploratory",
+      "lo": 18100001,
+      "hi": 18100064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DELTA_B_TRAJECTORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T04:06:45Z"
+    },
+    {
+      "experiment_id": "B3_CORRECTED_RETRAIN",
+      "purpose": "Corrected pi_B3 entity-repair retrain against the ATTESTED certified Pole B (SDS2_B3_LOCKDEF10_2V1). Replaces the contaminated run on seed 17700002, which trained against canonical SDS_PARENT_OP7 (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json). 17700002 is SPENT and must never be reused; exact A/B training-seed matching with pi_A3 (17700001) is therefore lost and is recorded as a known nuisance term.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 18200001,
+      "hi": 18200001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T12:04:10Z"
+    },
+    {
+      "experiment_id": "B3_ENTITY_REPAIR_CORRECTED_CROSSOVER",
+      "purpose": "Fresh confirmatory crossover: FROZEN pi_A3 (seed 17700001) vs CORRECTED pi_B3 (seed 18200001, trained against the attested certified Pole B SDS2_B3_LOCKDEF10_2V1). Replaces the invalid 17800001-17800128 crossover, whose pi_B3 was contaminated. NOT an exact matched-seed contrast: the two specialists were trained on different seeds after the construct-validity failure.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 18300001,
+      "hi": 18300128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "4V4_ENTITY_REPAIR_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T16:01:16Z"
+    },
+    {
+      "experiment_id": "DELTA_B_TRAJECTORY_CORRECTED",
+      "purpose": "delta_B(t) across all 9 CORRECTED pi_B3 checkpoints (100k granularity) plus t0 anchor and final, on Pole B against the FROZEN pi_A3 comparator. Replaces the invalid DELTA_B_TRAJECTORY run whose checkpoints trained against the wrong opponent. Routing decision: training duration/checkpointing vs B-specific coordination diagnosis. DIAGNOSTIC -- any candidate checkpoint requires a fresh confirmatory crossover before any pass claim.",
+      "seed_class": "exploratory",
+      "lo": 18400001,
+      "hi": 18400064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DELTA_B_TRAJECTORY_CORRECTED_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-14T21:47:22Z"
+    },
+    {
+      "experiment_id": "B3_100K_CANDIDATE_CROSSOVER",
+      "purpose": "Fresh confirmatory joint crossover of the FROZEN candidate pair: pi_A3 final (seed 17700001) vs pi_B3_corrected@100k (seed 18200001, checkpoint sha 4d4b813a5f9a...), selected by DELTA_B_TRAJECTORY_CORRECTED as the argmax of 11 evaluated checkpoints. This IS the selection-bias-controlled confirmatory test of that candidate: full gate on BOTH poles, delta_A and delta_B, on seeds untouched by the selection. Per the trajectory spec, no checkpoint selected there may be claimed to pass 4v4 without this test.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 18500001,
+      "hi": 18500128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "DELTA_B_TRAJECTORY_CORRECTED_READING.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-15T13:06:58Z"
+    },
+    {
+      "experiment_id": "POLE_B_BEHAVIORAL_DIAGNOSIS",
+      "purpose": "Behavioural diagnosis: A3 / B100k / Bfinal on identical Pole-B seeds (plus Pole-A reference), instrumenting macro/role allocation, command degeneracy, switching, spacing, posture, attrition, carrier and 2v1 support response, plus counterfactual macro replay on Bfinal Pole-B states. Measures WHAT the policies do, not whether they win. No delta computed; no gate claim possible.",
+      "seed_class": "exploratory",
+      "lo": 18600001,
+      "hi": 18600032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "POLE_B_BEHAVIORAL_DIAGNOSIS_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-16T00:57:35Z"
+    },
+    {
+      "experiment_id": "AB_BEHAVIORAL_TRAJECTORY",
+      "purpose": "Checkpoint-trajectory behavioural comparison: A3 own-trajectory on Pole A (11 pts) vs B3-corrected own-trajectory on Pole B (11 pts), 100k granularity, plus one cross-check (A tfinal on Pole B). Tests whether the GET_FLAG->GO_TO drift found in POLE_B_BEHAVIORAL_DIAGNOSIS is B-specific, general to both runs, or a phase A passes through and exits. No win-rate gate; behavioural characterization only.",
+      "seed_class": "exploratory",
+      "lo": 18700001,
+      "hi": 18700032,
+      "n": 32,
+      "status": "RESERVED",
+      "spec": "AB_BEHAVIORAL_TRAJECTORY_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-16T11:41:55Z"
+    },
+    {
+      "experiment_id": "B_CHECKPOINT_SCREENING",
+      "purpose": "Screening crossover for B_CHECKPOINT_SCREENING_SPEC.json: mechanically selected candidates {B_t200k, B_t500k, B_tfinal} vs frozen pi_A3, both poles, both deltas (delta_A and delta_B), point estimate only (no LCB95 gate at this stage). Answers whether a positive-delta_B B-basin already exists in the trajectory. NOT confirmatory -- any candidate clearing both deltas still requires its own fresh confirmatory joint crossover before any pass claim.",
+      "seed_class": "exploratory",
+      "lo": 18800001,
+      "hi": 18800064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "B_CHECKPOINT_SCREENING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-16T21:01:03Z"
+    },
+    {
+      "experiment_id": "STATE_CONDITIONED_DIAGNOSIS",
+      "purpose": "Context-bucketed macro-substitution diagnosis: B_worse (Bfinal, drives real rollout) vs B_better (B_t500k) vs frozen A3 (tertiary), all queried at every visited Pole-B state. Mechanical pair selected by delta_B ranking among B_CHECKPOINT_SCREENING candidates (B_t500k=best, Bfinal=worst), NOT by standalone win rate. Per-agent context buckets (carrying, pressured, near enemy/own flag, prev macro), fixed reporting threshold. Supersedes the JSD-preservation routing per B_CHECKPOINT_SCREENING_ROUTING_SUPERSESSION.json.",
+      "seed_class": "exploratory",
+      "lo": 18900001,
+      "hi": 18900048,
+      "n": 48,
+      "status": "RESERVED",
+      "spec": "STATE_CONDITIONED_DIAGNOSIS_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T12:05:06Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE_MANIPULATION",
+      "purpose": "Matched-state manipulation check for B_GETFLAG_PRESERVE: Bfinal drives, NEW continuation queried counterfactually on non-carrying + B_better=GET_FLAG states. Same seeds as sealed STATE_CONDITIONED_DIAGNOSIS for visit pairing.",
+      "seed_class": "exploratory",
+      "lo": 18900001,
+      "hi": 18900048,
+      "n": 48,
+      "status": "RESERVED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": "STATE_CONDITIONED_DIAGNOSIS",
+      "allocated_utc": "2026-09-17T15:00:41Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE",
+      "purpose": "Short B-only continuation from mechanically-defined B_better (B_t500k) with a gated non-carrying GET_FLAG macro-preservation loss. Tests whether reducing the diagnosed GET_FLAG\u2192GO_TO drift moves \u0394_B. Exploratory, 200k steps, not confirmatory. Eval seeds for the post-training crossover are reserved later, not here.",
+      "seed_class": "exploratory",
+      "lo": 19000001,
+      "hi": 19000001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T14:05:00Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE_CROSSOVER",
+      "purpose": "RETIRED: originally reserved 19100001-19100064 for GETFLAG delta_B_check, but ROLE training spent 19100001. See B_GETFLAG_PRESERVE_CROSSOVER_SEED_RETIREMENT.json. Replacement block below.",
+      "seed_class": "exploratory",
+      "lo": 19100001,
+      "hi": 19100064,
+      "n": 64,
+      "status": "RETIRED_CONTAMINATED_BY_ROLE_TRAINING_SEED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T15:00:22Z",
+      "retired_utc": "2026-09-17T20:40:00Z"
+    },
+    {
+      "experiment_id": "RULE_ROLE_4V4_CROSSOVER",
+      "purpose": "Exploratory 4v4 specialist crossover for RULE_BASED_ROLE_CONDITIONING_SPEC.json EVALUATION_after_short_run: frozen pi_A3 vs B_ROLE-final, both poles, both deltas (delta_A / delta_B), n=64, seeds 19200001-19200064. Point-estimate exploratory reading vs B_t500k screen; NOT confirmatory. Disjoint from GETFLAG 189/190/191 and ROLE training 19100001.",
+      "seed_class": "exploratory",
+      "lo": 19200001,
+      "hi": 19200064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "RULE_BASED_ROLE_CONDITIONING_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T17:18:00Z"
+    },
+    {
+      "experiment_id": "B_GETFLAG_PRESERVE_CROSSOVER",
+      "purpose": "64-seed exploratory crossover for B_GETFLAG_PRESERVE_SPEC delta_B_check (replacement after 191xxxx retirement): GETFLAG-preserve final vs frozen pi_A3, both poles, both deltas. Completes the 2x2 kill table with already-sealed manipulated=true.",
+      "seed_class": "exploratory",
+      "lo": 19300001,
+      "hi": 19300064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-17T20:40:00Z",
+      "replaces": "19100001-19100064"
+    },
+    {
+      "experiment_id": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC",
+      "purpose": "Pole-B credit/advantage diagnostic: matched seeds across 5 policies on SDS2_B3_LOCKDEF10_2V1 only",
+      "seed_class": "exploratory",
+      "lo": 19400001,
+      "hi": 19400024,
+      "n": 24,
+      "status": "RESERVED",
+      "spec": "POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T11:34:31Z"
+    },
+    {
+      "experiment_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC",
+      "purpose": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC 16 exploratory seeds",
+      "seed_class": "exploratory",
+      "lo": 19500001,
+      "hi": 19500016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T14:41:46Z",
+      "spent_utc": "2026-09-18T15:26:25Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T15:26:25Z",
+          "note": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1 completed with verdict ONE_B_RELEVANT_SCALE_BINDER_CANDIDATE"
+        }
+      ]
+    },
+    {
+      "experiment_id": "ACTION_INTERFACE_COMMITMENT_MECHANISM",
+      "purpose": "CPU-only surgical mechanism probe for stale commitment and decision lag after frozen quantitative localization",
+      "seed_class": "exploratory",
+      "lo": 19600001,
+      "hi": 19600016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/ACTION_INTERFACE_COMMITMENT_MECHANISM_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T15:16:59Z",
+      "spent_utc": "2026-09-18T15:47:24Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T15:47:24Z",
+          "note": "CPU mechanism probe completed; 64 traces, stale/blocked mechanism-support PASS; no outcome evaluation"
+        }
+      ]
+    },
+    {
+      "experiment_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1",
+      "purpose": "Outcome-blind I0-I3 action-interface scale diagnostic",
+      "seed_class": "exploratory",
+      "lo": 19700001,
+      "hi": 19700016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "artifacts\\strategic_demand\\sppo\\ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T15:48:01Z",
+      "spent_utc": "2026-09-18T16:27:20Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T16:02:21Z",
+          "note": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_REPAIR_OFF completed with verdict LEGACY_EQUIVALENCE_RUN"
+        },
+        {
+          "utc": "2026-09-18T16:27:20Z",
+          "note": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1 completed with verdict MANIPULATION_INSUFFICIENT"
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_TEAM_EVALUATION",
+      "purpose": "Pyquaticus-derived scripted 4v4 2A2D assignment evaluation",
+      "seed_class": "exploratory",
+      "lo": 19800001,
+      "hi": 19800064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T17:37:22Z",
+      "spent_utc": "2026-09-18T18:08:14Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T18:08:14Z",
+          "note": "384 scripted 4v4 episodes complete; result artifacts PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json and EPISODES.csv"
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP",
+      "purpose": "Pyquaticus-derived 4v4 role composition sweep",
+      "seed_class": "exploratory",
+      "lo": 19900001,
+      "hi": 19900064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T18:22:58Z",
+      "spent_utc": "2026-09-18T19:12:59Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T19:12:59Z",
+          "note": "640 scripted 4v4 composition episodes complete; result artifacts PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json and EPISODES.csv"
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION",
+      "purpose": "Targeted Pyquaticus 4v4 4A0D vs 2A2D cross-pole confirmation",
+      "seed_class": "exploratory",
+      "lo": 20000001,
+      "hi": 20000064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts\\strategic_demand\\sppo\\PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T19:20:56Z",
+      "spent_utc": "2026-09-18T19:40:42Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T19:40:42Z",
+          "note": "256 scripted confirmation episodes complete; result B_COMPOSITION_EFFECT_ONLY; no PPO or 6v6."
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_4V4_ORACLE_COMPOSITION",
+      "purpose": "Pyquaticus 4v4 oracle regime-conditioned composition evaluation",
+      "seed_class": "exploratory",
+      "lo": 20100001,
+      "hi": 20100064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts\\strategic_demand\\sppo\\PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-18T19:50:50Z",
+      "spent_utc": "2026-09-18T20:19:50Z",
+      "notes": [
+        {
+          "utc": "2026-09-18T20:19:50Z",
+          "note": "384 scripted oracle evaluation episodes complete; result NO_ORACLE_COMPOSITION_CONFIRMATION; no PPO or 6v6."
+        }
+      ]
+    },
+    {
+      "experiment_id": "ROUTED_COMPOSITION_OUTCOME_V1",
+      "purpose": "routed composition outcome, three arms, paired, 4v4, PPO off",
+      "seed_class": "sealed_confirmatory",
+      "lo": 20200001,
+      "hi": 20200064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T05:31:53Z",
+      "spent_utc": "2026-09-19T06:36:03Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T06:36:03Z",
+          "note": "sealed AUDIT_FAILED; B_GAIN_WITH_EXCESS_A_HARM"
+        }
+      ]
+    },
+    {
+      "experiment_id": "GUARDED_ROUTED_COMPOSITION_OUTCOME_V1",
+      "purpose": "guarded routed composition confirmatory outcome, three arms, paired, 4v4, PPO off, n=128",
+      "seed_class": "sealed_confirmatory",
+      "lo": 20300001,
+      "hi": 20300128,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T07:56:45Z",
+      "spent_utc": "2026-09-19T10:03:22Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T10:03:22Z",
+          "note": "sealed SEALED; GUARDED_ROUTED_COMPOSITION_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP",
+      "purpose": "6v6 role-composition sweep, 7 compositions x 2 certified poles, paired, PPO off",
+      "seed_class": "exploratory",
+      "lo": 20500001,
+      "hi": 20500064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T12:04:58Z",
+      "spent_utc": "2026-09-19T15:08:47Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T15:08:47Z",
+          "note": "sealed SEALED; COMPOSITION_DESCRIPTIVE_SIGNAL"
+        }
+      ]
+    },
+    {
+      "experiment_id": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATION_V1",
+      "purpose": "6v6 fixed 5A_1D vs 3A_3D confirmation, two certified poles, paired, PPO off, n=192",
+      "seed_class": "sealed_confirmatory",
+      "lo": 20600001,
+      "hi": 20600192,
+      "n": 192,
+      "status": "SPENT",
+      "spec": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T17:20:30Z",
+      "spent_utc": "2026-09-19T20:08:30Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T20:08:30Z",
+          "note": "sealed SEALED; FIXED_ATTACK_HEAVY_6V6_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "LEARNED_COMPOSITION_PROBE_CALIBRATION",
+      "purpose": "scripted opening-composition calibration, cuda, 384 truncated episodes, PPO off, read-only",
+      "seed_class": "exploratory",
+      "lo": 20700001,
+      "hi": 20700016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T21:54:07Z",
+      "spent_utc": "2026-09-19T22:21:39Z",
+      "notes": [
+        {
+          "utc": "2026-09-19T22:21:39Z",
+          "note": "sealed SEALED; INSTRUMENT_NOT_VALID"
+        }
+      ]
+    },
+    {
+      "experiment_id": "LEARNED_COMPOSITION_PROBE",
+      "purpose": "learned pi_A/pi_B opening-composition probe, 512 truncated episodes, read-only",
+      "seed_class": "exploratory",
+      "lo": 20700101,
+      "hi": 20700228,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-19T21:54:07Z",
+      "spent_utc": "2026-09-20T07:37:07Z",
+      "notes": [
+        {
+          "utc": "2026-09-20T07:37:07Z",
+          "note": "sealed SEALED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION",
+      "purpose": "fresh re-validation of the two pre-declared calibration survivors (position alt-window, intent opening-window) under the unchanged kill rule",
+      "seed_class": "exploratory",
+      "lo": 20800001,
+      "hi": 20800016,
+      "n": 16,
+      "status": "SPENT",
+      "spec": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-20T06:04:00Z",
+      "spent_utc": "2026-09-20T06:30:41Z",
+      "notes": [
+        {
+          "utc": "2026-09-20T06:30:41Z",
+          "note": "sealed SEALED; BOTH_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "DEFENDER_INJECTION_CAUSAL_BRIDGE",
+      "purpose": "one-defender causal bridge on frozen pi_A/pi_B checkpoints, native vs plus-one-defender, paired by seed, full episodes, PPO off",
+      "seed_class": "exploratory",
+      "lo": 20900001,
+      "hi": 20900096,
+      "n": 96,
+      "status": "SPENT",
+      "spec": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-20T07:59:34Z",
+      "spent_utc": "2026-09-20T17:37:32Z",
+      "notes": [
+        {
+          "utc": "2026-09-20T17:37:32Z",
+          "note": "sealed SEALED; verdict=ONE_DEFENDER_HARM_ONLY"
+        }
+      ]
+    },
+    {
+      "experiment_id": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION",
+      "purpose": "fresh-seed confirmation of the native vs plus-one-defender goal-volume interaction J across the two certified 6v6 poles, frozen learned pi_A/pi_B, PPO off",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21000001,
+      "hi": 21000096,
+      "n": 96,
+      "status": "SPENT",
+      "spec": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-21T12:11:12Z",
+      "spent_utc": "2026-09-21T16:07:50Z",
+      "notes": [
+        {
+          "utc": "2026-09-21T16:07:50Z",
+          "note": "sealed SEALED; OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4",
+      "purpose": "4v4 causal bridge: native pi_A vs scaffolded A-prime (pi_A + 2 injected defenders) vs pi_B, both certified poles, frozen learned specialists, PPO off",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21100001,
+      "hi": 21100128,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-21T17:12:13Z",
+      "spent_utc": "2026-09-21T21:02:45Z",
+      "notes": [
+        {
+          "utc": "2026-09-21T21:02:45Z",
+          "note": "sealed SEALED; SCAFFOLDED_CROSSOVER_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4",
+      "purpose": "4v4 env-level necessity test: is instantaneous DEFEND heading necessary for the scaffold's 2A/2D crossover, or does a defender restricted to native (GO_TO, legal waypoint) actions preserve it? Manipulation-gated on interaction-free window path fidelity vs the isolated DEFEND reference. No PPO, no new vocabulary. Last diagnostic before a training decision.",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21200001,
+      "hi": 21200128,
+      "n": 128,
+      "status": "SPENT",
+      "spec": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T00:13:37Z",
+      "spent_utc": "2026-09-22T06:32:20Z",
+      "notes": [
+        {
+          "utc": "2026-09-22T06:32:20Z",
+          "note": "sealed SEALED; GOTO_ONLY_CROSSOVER_CONFIRMED"
+        }
+      ]
+    },
+    {
+      "experiment_id": "CLOSEST_DEFENDS_SCREEN_4V4",
+      "purpose": "4v4 exploratory screen (descriptive, no confirmatory label): does forcing DEFEND onto the two ACTIVE agents closest to own flag at t=0 (fixed-at-episode-start, state-dependent) reproduce the sealed scaffold bridge's crossover pattern, or does the seed-rotated pair choice matter more than headcount?",
+      "seed_class": "exploratory",
+      "lo": 21300001,
+      "hi": 21300064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "CLOSEST_DEFENDS_SCREEN_4V4_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T04:56:45Z",
+      "spent_utc": "2026-09-22T07:43:05Z",
+      "notes": [
+        {
+          "utc": "2026-09-22T07:43:05Z",
+          "note": "descriptive screen complete; pattern_match=True"
+        }
+      ]
+    },
+    {
+      "experiment_id": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_TRAINING",
+      "purpose": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC: 200k role-conditioned pi_A training seed, single seed",
+      "seed_class": "exploratory",
+      "lo": 21400001,
+      "hi": 21400001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T11:23:30Z"
+    },
+    {
+      "experiment_id": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_EVAL",
+      "purpose": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC: post-training exploratory evaluation block, n=64, both poles vs frozen pi_B comparator",
+      "seed_class": "exploratory",
+      "lo": 21500001,
+      "hi": 21500064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T11:23:34Z"
+    },
+    {
+      "experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_TRAINING",
+      "purpose": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: 200k split-policy (frozen pi_A ATTACK + trained pi_D DEFEND) training seed, single seed",
+      "seed_class": "exploratory",
+      "lo": 21600001,
+      "hi": 21600001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T15:41:39Z"
+    },
+    {
+      "experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_EVAL",
+      "purpose": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: post-training exploratory evaluation block, n=64, both poles vs frozen pi_B comparator",
+      "seed_class": "exploratory",
+      "lo": 21700001,
+      "hi": 21700064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T15:41:39Z"
+    },
+    {
+      "experiment_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_EVAL",
+      "purpose": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC: fresh matched-seed confirmatory replication of the sealed n=64 exploratory crossover result, exact same frozen composite checkpoint, no retraining",
+      "seed_class": "sealed_confirmatory",
+      "lo": 21800001,
+      "hi": 21800128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T19:49:11Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_TRAINING",
+      "purpose": "6v6 entity-repair base pair (pi_A, pi_B), warm-started from existing R1-repertoire 6v6 checkpoints",
+      "seed_class": "exploratory",
+      "lo": 21900001,
+      "hi": 21900002,
+      "n": 2,
+      "status": "RETIRED",
+      "spec": "artifacts/strategic_demand/sppo/SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T20:03:58Z",
+      "retired_utc": "2026-09-22T20:16:40Z",
+      "notes": [
+        {
+          "utc": "2026-09-22T20:16:40Z",
+          "note": "Aborted by PI redirect 2026-09-22 at ~1.7k/1,000,000 steps each (both A and B). Compute-feasibility abort, not a scientific result -- essentially nothing was spent. Superseded by a cheap scaffold-screen-first approach (frozen existing pi_A_specialist_6v6 + scripted GO_TO-only defender, 5A/1D, n=64) mirroring how the 4v4 architecture was actually validated (CLOSEST_DEFENDS screen before any PPO training), rather than repairing the base 6v6 pair first."
+        }
+      ]
+    },
+    {
+      "experiment_id": "CLOSEST_DEFENDS_SCREEN_6V6",
+      "purpose": "6v6 closest-to-home k=1 forced-defender screen (5A/1D) on existing frozen pi_A/pi_B",
+      "seed_class": "exploratory",
+      "lo": 22000001,
+      "hi": 22000064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_DEFENDS_SCREEN_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-22T20:22:21Z",
+      "spent_utc": "2026-09-23T13:02:04Z",
+      "notes": [
+        {
+          "utc": "2026-09-23T13:02:04Z",
+          "note": "descriptive screen complete; pattern_match=False"
+        }
+      ]
+    },
+    {
+      "experiment_id": "CLOSEST_COMPOSITION_CONTRAST_6V6",
+      "purpose": "geometry-assigned scripted 5A/1D vs 3A/3D (CLOSEST_DEFENDS)",
+      "seed_class": "exploratory",
+      "lo": 22100001,
+      "hi": 22100064,
+      "n": 64,
+      "status": "SPENT",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_COMPOSITION_CONTRAST_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T13:14:00Z",
+      "spent_utc": "2026-09-23T14:29:14Z",
+      "notes": [
+        {
+          "utc": "2026-09-23T14:29:14Z",
+          "note": "descriptive screen complete; pattern_match=True"
+        }
+      ]
+    },
+    {
+      "experiment_id": "CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1",
+      "purpose": "6v6 learned DEFEND internalization under CLOSEST_DEFENDS k in {1,3}",
+      "seed_class": "exploratory",
+      "lo": 22200001,
+      "hi": 22200001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T14:35:53Z"
+    },
+    {
+      "experiment_id": "CLOSEST_SPLIT_COLLAPSE_WATCH_6V6",
+      "purpose": "non-claim n=8 k=1 vs k=3 collapse watches at 50k/100k/150k",
+      "seed_class": "exploratory",
+      "lo": 22300001,
+      "hi": 22300024,
+      "n": 24,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T14:40:56Z"
+    },
+    {
+      "experiment_id": "CLOSEST_SPLIT_VIABILITY_6V6_50K",
+      "purpose": "n=16 k=1 vs k=3 screen only if the 25k viability screen is unclear",
+      "seed_class": "exploratory",
+      "lo": 22400001,
+      "hi": 22400016,
+      "n": 16,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T14:45:16Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V2_TRAINING",
+      "purpose": "fresh-seed 1M entity-repair 6v6 pi_A/pi_B relaunch from final_pi_A/B_specialist_6v6 (c1 aborted at ~1.7k; seeds 21900001-002 RETIRED)",
+      "seed_class": "exploratory",
+      "lo": 22500001,
+      "hi": 22500002,
+      "n": 2,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_SPEC.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T21:43:06Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_SPLIT_DEFEND_K1_V1_TRAINING",
+      "purpose": "6v6 200k CLOSEST_DEFENDS(k=1) split after entity-repair foundation (school PC locked pipeline)",
+      "seed_class": "exploratory",
+      "lo": 22600001,
+      "hi": 22600001,
+      "n": 1,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T22:08:24Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_SPLIT_CROSSOVER_EXPLORATORY_V1",
+      "purpose": "6v6 exploratory crossover after k=1 split (school PC)",
+      "seed_class": "exploratory",
+      "lo": 22700001,
+      "hi": 22700064,
+      "n": 64,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T22:08:24Z"
+    },
+    {
+      "experiment_id": "SCALE_6V6_SPLIT_CROSSOVER_CONFIRMATORY_V1",
+      "purpose": "6v6 confirmatory crossover if exploratory passes (school PC); do not spend until exploratory PASS",
+      "seed_class": "sealed_confirmatory",
+      "lo": 22800001,
+      "hi": 22800128,
+      "n": 128,
+      "status": "RESERVED",
+      "spec": "artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json",
+      "subdivides": null,
+      "allocated_utc": "2026-09-23T22:08:24Z"
+    }
+  ],
+  "updated_utc": "2026-09-23T22:08:24Z",
+  "unregistered_usage": [
+    {
+      "experiment_id": "ASSIGNMENT_V1_4V4",
+      "lo": 19500001,
+      "hi": 19500064,
+      "n": 64,
+      "seed_class": "exploratory",
+      "declared_in": "artifacts/strategic_demand/sppo/ASSIGNMENT_CONDITIONING_V1_SPEC.json (EVALUATION_after.seeds)",
+      "spec_frozen_utc": "2026-09-17T21:06:30Z",
+      "consumed_utc": "2026-09-18T00:47:26Z/2026-09-18T03:26:16Z",
+      "registered": false,
+      "status": "DISCLOSED_NOT_RESERVED",
+      "collides_with": "ACTION_INTERFACE_SCALE_DIAGNOSTIC 19500001..19500016",
+      "note": "NOT a reservation. This range was consumed without ever being entered in 'blocks', so next_free() legitimately returned 19500001 to ACTION_INTERFACE_SCALE_DIAGNOSTIC on 2026-09-18. The diagnostic followed Rule 9 correctly; the defect is the missing registration here. Recorded under a separate key rather than appended to 'blocks' so that audit() is not fed a reservation that never happened. Full disclosure: artifacts/strategic_demand/sppo/SEED_REGISTRY_COLLISION_19500001.json",
+      "resolution": "OPEN - PI decision",
+      "disclosed_utc": "2026-09-18T15:35:00Z"
+    }
+  ],
+  "unregistered_usage_key_meaning": "Seed ranges known to have been spent but never reserved. These are disclosures, not allocations: they confer no claim on the range and are deliberately excluded from blocks so check_block/allocate/audit continue to operate on real reservations only. A range listed here is already dirty - do not assign it to a new experiment."
+}

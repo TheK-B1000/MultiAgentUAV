@@ -1,0 +1,31 @@
+{
+  "record_id": "PI_B3_ENTITY_REPAIR_ARTIFACTS_INVALID_MARKER",
+  "status": "INVALID_FOR_B_LEARNING_DYNAMICS",
+  "utc": "2026-09-14T12:05:00Z",
+  "applies_to": "every checkpoint, metrics.csv, episode_rows.csv and manifest in this directory",
+
+  "WHY": "this run trained against CANONICAL Pole B (SDS_PARENT_OP7, overlay {min_alive_for_defender: 4}) while every evaluation scored it against the CERTIFIED B3-3 candidate (SDS2_B3_LOCKDEF10_2V1, overlay adds lock_defender=10 and enable_2v1=True). The launch omitted --pole-b-genome-json. See PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json for the full account.",
+
+  "THESE_ARTIFACTS_ARE_PRESERVED_DELIBERATELY": "not deleted, not overwritten, not renamed. They are the evidentiary record of the incident and are referenced by the invalidation record, the tie/reversal audit, and the trajectory run. Any future reader must be able to reach them.",
+
+  "WHAT_THEY_MAY_BE_USED_FOR": [
+    "auditing the incident itself",
+    "demonstrating systematic drift away from a correctly trained warm start when the opponent is swapped"
+  ],
+
+  "WHAT_THEY_MAY_NEVER_BE_USED_FOR": [
+    "any delta_B claim",
+    "any conclusion about whether Pole B needs a different coordination mechanism",
+    "any conclusion about whether more training helps B",
+    "any branch routing in DELTA_B_TRAJECTORY_SPEC.json or 4V4_ENTITY_REPAIR_SPEC.json",
+    "as a comparator in any crossover, since both deltas would inherit the contamination"
+  ],
+
+  "SUPERSEDED_BY": {
+    "run": "pi_B_specialist_4v4_b3_entity_repair_corrected",
+    "seed": 18200001,
+    "registry_id": "B3_CORRECTED_RETRAIN",
+    "trains_against": "SDS2_B3_LOCKDEF10_2V1 (attested: certified hash == resolved hash == live hash before GPU work)",
+    "note": "the corrected run uses a FRESH seed. 17700002 is spent and is never reused, so exact A/B training-seed matching with pi_A3 (17700001) is lost. That is a known nuisance term, recorded rather than repaired -- retraining pi_A3 purely for seed symmetry would burn a run without fixing the underlying statistical issue."
+  }
+}

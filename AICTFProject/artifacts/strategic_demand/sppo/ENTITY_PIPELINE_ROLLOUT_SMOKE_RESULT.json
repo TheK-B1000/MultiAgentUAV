@@ -1,0 +1,20 @@
+{
+  "record": "ENTITY_PIPELINE_ROLLOUT_SMOKE mechanical pipeline smoke",
+  "status": "SMOKE_PASSED",
+  "utc": "2026-09-13T06:16:37Z",
+  "n_envs": 4,
+  "n_agents": 4,
+  "n_steps": 40,
+  "final_loss": 0.012766,
+  "entity_proj_grad_norm": 0.016698,
+  "checkpoint_reload_exact_match": true,
+  "rows_file": "entity_pipeline_rollout_smoke_rows.csv",
+  "n_rows_audited": 41,
+  "elapsed_s": 3.7,
+  "NOT_A_CLAIM": [
+    "real PPO correctness",
+    "GAE/advantage estimation",
+    "trained policy quality",
+    "closed-loop performance"
+  ]
+}

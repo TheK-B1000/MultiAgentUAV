@@ -134,13 +134,19 @@ def main() -> int:
         finally:
             env.close()
 
-    rows, summary = [], {}
-    for block, seeds in BLOCKS.items():
-        summary[block] = {}
-        for name, pole in CELLS:
-            for s in seeds:
-                rows.append({"block": block, "policy": name, "pole": pole, "seed": s,
-                             **run_episode(policies[name], pole, s)})
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
+
+    rows, summary = [], {block: {} for block in BLOCKS}
+    cells = [(block, name, pole, s)
+             for block, seeds in BLOCKS.items()
+             for name, pole in CELLS
+             for s in seeds]
+    bar = tqdm_iter(cells, desc="specialist anchor", unit="ep")
+    for block, name, pole, s in bar:
+        set_postfix(bar, f"{block} {name}@{pole} seed={s}")
+        rows.append({"block": block, "policy": name, "pole": pole, "seed": s,
+                     **run_episode(policies[name], pole, s)})
+        if s == BLOCKS[block][-1]:
             w = np.array([r["win"] for r in rows
                           if r["block"] == block and r["policy"] == name and r["pole"] == pole],
                          dtype=np.float64)

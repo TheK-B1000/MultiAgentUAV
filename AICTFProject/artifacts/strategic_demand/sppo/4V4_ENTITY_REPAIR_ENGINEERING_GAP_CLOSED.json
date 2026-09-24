@@ -1,0 +1,70 @@
+{
+  "record_id": "4V4_ENTITY_REPAIR_ENGINEERING_GAP_CLOSED",
+  "amends": "4V4_ENTITY_REPAIR_SPEC.json",
+  "amends_field": "REMAINING_ENGINEERING_BEFORE_LAUNCH",
+  "status": "GAP_CLOSED",
+  "utc": "2026-09-13T07:20:00Z",
+  "git_sha": "bd7e9fcbfaa6653cb659651b3e80ce9910651369 (DIRTY)",
+
+  "WHAT_WAS_STILL_MISSING_WHEN_4V4_ENTITY_REPAIR_SPEC_WAS_FROZEN": [
+    "PPOConfig had no entity_repair_enabled/entity_hidden_dim fields -- the production launcher (experiments/train_specialist_scale.py) could not build the repaired architecture at all.",
+    "load_custom_ppo_policy (the checkpoint-reconstruction path used for inference/eval) did not know about entity_repair_enabled, so it would have REJECTED any entity-repaired checkpoint with 'unexpected: entity_encoder.*' -- correct fail-closed behaviour, but a real gap.",
+    "no launcher-level known-answer contract had ever been run: entity-residual correctness was proven at the policy/unit level (tests/test_entity_residual.py, tests/test_entity_pipeline_end_to_end.py, tests/test_entity_repair_production_api.py) and via a hand-wired smoke (experiments/smoke_entity_ppo_production_path.py) that attached entity_encoder to trainer.model POST-CONSTRUCTION -- never through the actual CLI a real launch would use."
+  ],
+
+  "ENGINEERING_DONE_THIS_SESSION": {
+    "1_PPOConfig_CLI_loader_wiring": {
+      "files": [
+        "rl/config/ppo_config.py -- entity_repair_enabled, entity_hidden_dim fields",
+        "rl/custom_ppo/trainer_config.py -- build_model_kwargs threads both through unconditionally",
+        "experiments/train_specialist_scale.py -- --entity-repair-enabled, --entity-hidden-dim, --load-path CLI flags",
+        "rl/custom_ppo/checkpoints/loader.py -- _model_kwargs_from_cfg reconstructs entity_repair_enabled/entity_hidden_dim from a checkpoint's OWN saved cfg"
+      ],
+      "preset_snapshot": "tests/preset_snapshots.json regenerated (549 entries); diffed before/after -- 0 presets added/removed, 0 value diffs for any pre-existing key, only new keys added (entity_repair_enabled, entity_hidden_dim, warm_start_reset_progress, plus 11 unrelated pre-existing fields that were already stale in the committed snapshot before this session touched it)."
+    },
+
+    "2_RNG_generator_device_mismatch_fix": {
+      "symptom": "trainer.updater.load_state_dict() raised 'Expected a CPUGeneratorImplState of size 5056 but found the input RNG state size to be 16' when warm-starting a --device cpu run from the sealed B3-3 checkpoint (which was saved on --device cuda).",
+      "root_cause": "torch.Generator state format is device-family-specific and has NO defined cross-family conversion: a CPU generator's Mersenne-Twister state is always 5056 bytes; a CUDA generator's Philox seed+offset state is always 16 bytes. This is a deterministic property of the checkpoint's save-device vs. the load-device, not flakiness -- direct inspection confirmed the checkpoint's saved z_separation_generator tensor is exactly 16 bytes (torch.Size([16]), uint8).",
+      "impact_scope": "z_separation_generator only feeds SeparationObjective's subsampling (rl/custom_ppo/update/separation_objectives.py), which returns 'inactive' whenever z_idx is None -- i.e. whenever use_latent_strategy=False, as in every 4v4 specialist run including this one. Restoring or not restoring this generator's state has ZERO behavioural effect for this experiment; the crash was pure infrastructure breakage, not a correctness issue in the entity-repair architecture.",
+      "fix": "rl/custom_ppo/update/updater.py::PPOUpdater.load_state_dict -- compare state sizes explicitly; on a size mismatch, keep the freshly cfg.seed-derived generator and print a diagnostic instead of raising.",
+      "tests_added": "tests/test_ppo_updater_refactor_phase1.py::test_separation_generator_cross_device_family_mismatch_skips_restore (new) alongside the pre-existing same-device round-trip test (test_separation_generator_roundtrip), which still passes unchanged -- proving the fix is additive, not a behaviour change for the common case."
+    },
+
+    "3_warm_start_is_initialization_not_resume": {
+      "why_this_was_needed": "4V4_ENTITY_REPAIR_SPEC.json commits (held_fixed) to 'same training budget (steps) as the sealed B3-3 4v4 baseline'. The existing --load-path code path called trainer.load(path), which unconditionally restored global_step/updates_completed/return-norm stats/PPO-updater RNG state/comm+curriculum state FROM THE CHECKPOINT -- i.e. treated warm start as run CONTINUATION. Since B3-3's own global_step is 1,001,472, this meant either total_timesteps had to be set to 2,001,472 (a silent DOUBLE budget, discovered and flagged mid-session) or, if total_timesteps was left at a value appropriate for a from-scratch run, the trainer's own `while global_step < total_timesteps` loop was immediately false -- the exact silent no-op run this session's first launcher attempt actually produced (empty metrics.csv, no checkpoint delta, only pre-training manifest files).",
+      "fix": {
+        "PPOConfig": "new field warm_start_reset_progress: bool = False (rl/config/ppo_config.py). Default False preserves --resume's existing crash-recovery semantics for every pre-existing call site.",
+        "loader": "rl/custom_ppo/checkpoints/loader.py::load_trainer_checkpoint gained reset_progress: bool = False. When True: global_step, updates_completed, return_norm/strategy_return_norm stats, last_stats, the PPO updater's full state_dict (z_separation_generator, exp2 teacher state), comm_runtime state, and v6i1 curriculum state are all left at the values CustomPPOTrainer.__init__ already gave this run, instead of being overwritten from the checkpoint. Model weights (and, separately, optimizer state via the pre-existing allow_active_actor_module_migration mechanism, now also forced when reset_progress=True) still load normally. rl/custom_ppo/trainer.py::load() and rl/training/initialization.py::maybe_load_checkpoint thread the flag through.",
+        "CLI": "experiments/train_specialist_scale.py sets cfg.warm_start_reset_progress = True in the --load-path branch (warm start from a DIFFERENT completed run) and leaves it False in the --resume branch (crash recovery of THIS run) -- exactly the distinction the docstring for --load-path already drew ('Distinct from --resume, which is for crash recovery of THIS run'), now enforced in the state that actually gets restored, not only in which checkpoint directory is accepted."
+      },
+      "PI_decision_trail": [
+        "First asked: how much ADDITIONAL budget on top of the carried-over global_step. PI chose +1,000,000 additional (i.e. total_timesteps=2,001,472).",
+        "On reading 4V4_ENTITY_REPAIR_SPEC.json's own frozen wording ('same training budget (steps) as the sealed B3-3 baseline'), flagged the conflict: +1,000,000 additional gives DOUBLE the baseline's budget, not the SAME budget the spec already committed to.",
+        "Re-asked with the conflict disclosed. PI chose to honor the frozen spec literally: reset global_step to 0 at warm start, 1,000,000 total (fresh) steps.",
+        "PI then independently confirmed and generalized this via a mid-turn message: '--load-path / --init-from' should reset global_step, optimizer state, scheduler state, rollout state, and training RNG/seeds, while '--resume' should preserve all of them -- weights are initialization, not continuation. The implementation above matches this generalization (optimizer state reset already existed via allow_active_actor_module_migration; rollout state -- _last_obs/_last_global_state/latent_state.current_z -- was ALREADY unconditionally reset on every load regardless of this flag; scheduler behaviour follows for free from global_step+total_timesteps both being fresh, since no separate persisted scheduler object exists in this codebase)."
+      ]
+    },
+
+    "4_launcher_level_known_answer_contract_now_passes": {
+      "run": "smoke_pi_A_specialist_4v4_entity_repair_launch_smoke6 -- invoked through experiments/train_specialist_scale.py exactly as a real launch would be, not via manual entity_encoder attachment.",
+      "command": "python -m experiments.train_specialist_scale --team-size 4 --policy A --seed 99900101 --device cpu --smoke --total-timesteps 5000 --entity-repair-enabled --load-path artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3/ckpts/final_pi_A_specialist_4v4_b3.zip --run-label-suffix _entity_repair_launch_smoke6",
+      "evidence": {
+        "behavioral_equivalence_at_warm_start": "PASS (mean_kl=0.000e+00, max_kl=0.000e+00, max_logit_diff=0.0000e+00, argmax_diff=0) -- printed by the pre-existing compat-loader self-check, unaffected by reset_progress since it evaluates the loaded model before any training step.",
+        "global_step_starts_at_zero": "checkpoint schedule printed 'next=2,500' (not 1,001,472+2,500); final saved checkpoint's global_step field == 6144, confirming the run's OWN step counter, not the B3-3 baseline's carried-over value.",
+        "no_RNG_crash": "completed end-to-end on the first attempt (previous attempts under the old carry-over semantics hit the CPUGeneratorImplState error intermittently, since restoring the incompatible 16-byte CUDA-shaped state was attempted whenever the old code path ran; under reset_progress=True the updater's state_dict is never loaded from the checkpoint at all, so the fix in (2) is exercised defensively but the crash condition is structurally avoided for this specific run type).",
+        "entity_pathway_woke_up": "entity_encoder.proj.weight norm 0.0 (zero-init, verified) -> 0.03179876133799553 after training -- gradients flowed and the optimizer updated the new module through the REAL rollout/update loop, not a hand-wired smoke.",
+        "reconstruct_from_saved_config_matches": "load_custom_ppo_policy(checkpoint_path, ...) with NO entity kwargs passed at the call site (entity_repair_enabled=True/entity_hidden_dim=32 read automatically from the checkpoint's own saved cfg dict) produced logits torch.allclose(..., atol=1e-6)==True against an independently constructed model loaded via the low-level compat state-dict path -- the two reconstruction routes agree exactly."
+      }
+    }
+  },
+
+  "TESTS_ADDED_OR_MODIFIED_THIS_CLOSURE": [
+    "tests/test_ppo_updater_refactor_phase1.py::test_separation_generator_cross_device_family_mismatch_skips_restore (new)",
+    "tests/test_entity_pipeline_end_to_end.py::test_warm_start_reset_progress_starts_fresh_global_step (new) -- real CustomPPOTrainer, real sealed B3-3 checkpoint, real env; asserts global_step==0 and updates_completed==0 after trainer.load(path, reset_progress=True), and that weights actually changed (not a silent no-op)."
+  ],
+
+  "REGRESSION_CHECK": "tests/ -k 'entity or checkpoint or loader or ppo_updater or preset' -> 529 passed, 3 failed. All 3 failures (test_exp2_k2_terminal_eval.py::test_frozen_terminal_contract_and_checkpoint_hashes, test_sppo_production_guards.py::test_candidate_checkpoints_existing_does_NOT_block_a_fresh_run, test_sppo_production_guards.py::test_teacher_checkpoints_are_not_treated_as_forbidden_inputs) confirmed PRE-EXISTING and unrelated via git stash: same failure ('production_dir_is_empty: .../sppo_v1_production_1M_seed10100001') reproduces identically on a clean checkout of this session's starting commit. Root cause is a leftover non-empty directory from the already-closed SPPO V1 experiment, not anything touched by this closure.",
+
+  "STATUS_OF_PARENT_SPEC": "4V4_ENTITY_REPAIR_SPEC.json's REMAINING_ENGINEERING_BEFORE_LAUNCH gap is now CLOSED. Next step per the parent spec's own compliance section (rule_9_seed_registry): reserve fresh training + eval seed blocks, disjoint from all prior blocks, then launch pi_A3/pi_B3 for real. See 4V4_ENTITY_REPAIR_LAUNCH_CONFIG_FROZEN.json for the exact frozen launch commands this closure now makes possible."
+}

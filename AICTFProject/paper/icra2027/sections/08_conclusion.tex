@@ -1,0 +1,14 @@
+\section{Conclusion}
+\label{sec:conclusion}
+%======================================================================
+
+We use standard opponent-specific PPO to learn complementary multi-robot
+experts, distill their matched-state behaviors into discrete modes of shared
+strategy-conditioned controllers under a common recipe, and progressively tie
+policy modules to identify where closed-loop specialization survives or
+collapses. Share-Encoder preserves specialization; Share-Backbone introduces a
+detectable paired loss on one regime despite comparable fidelity; Share-Macro
+yields fit-confounded degradation with failure of the specialization criterion.
+High imitation alone does not guarantee payoff-level specialization. Claims
+remain scoped to the nominal $2$-vs-$2$, two-regime setting and training recipes
+studied here.

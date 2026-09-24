@@ -114,6 +114,31 @@ zip and send.** `run_6v6_pipeline.sh` calls this automatically after EVERY stage
 the end), so `artifacts/6v6_results/` is always up to date -- check it any time mid-run for
 real progress, not just at completion.
 
+### VALIDATE BEFORE YOU CALL A RUN TRANSFERRED
+
+Before wiping the source machine, or treating a bundle as the run, run:
+
+```bash
+bash experiments/export_6v6_results.sh --strict
+```
+
+This checks the bundle against an expected manifest and **exits non-zero naming every
+missing artifact**. It also always writes `artifacts/6v6_results/MANIFEST.json` with a full
+inventory and a **sha256 for every checkpoint**, so the receiving machine can verify
+integrity rather than assume it.
+
+Required for a bundle to be complete: terminal checkpoints, **intermediate checkpoints**,
+`metrics.csv`, `episode_rows.csv`, `result_summary.json`, `evaluation_manifest.json`,
+training manifests, the Rung-1 frozen-student + preflight records and checkpoint, and the
+sealed stage-4 result plus its raw rows.
+
+**Why this exists.** The first version of the exporter copied only terminal checkpoints,
+manifests and specs. The 6v6 training curves (`metrics.csv`, `episode_rows.csv`) and every
+intermediate checkpoint were therefore never bundled, and became unrecoverable once the
+source machine no longer had them. That cost the ability to diagnose 6v6 training dynamics
+at all. A partial bundle looks fine until the moment you need the part that is missing --
+so a transfer is not complete until `--strict` passes.
+
 ## 5. What each stage does, where it writes, how long it takes
 
 | Stage | Script | Writes | Approx. runtime |

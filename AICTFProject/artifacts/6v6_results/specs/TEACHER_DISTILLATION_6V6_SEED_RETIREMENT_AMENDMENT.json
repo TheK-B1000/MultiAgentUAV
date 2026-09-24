@@ -1,0 +1,27 @@
+{
+  "record_id": "TEACHER_DISTILLATION_6V6_SEED_RETIREMENT_AMENDMENT",
+  "status": "FROZEN_APPEND_ONLY_AMENDMENT",
+  "utc": "2026-09-08T14:00:00Z",
+  "amends": "TEACHER_DISTILLATION_6V6_SPEC.json#SEEDS",
+  "authority": "PI, 2026-09-08: 'those four frozen collection seeds that were accidentally used during the earlier smoke should stay retired and the replacement seed allocation should be what gets committed. Do not reuse the touched ones in the scientific run.'",
+
+  "WHAT_HAPPENED": "during pipeline-wiring verification (this session), a plumbing smoke test of collect_distillation_states_scale.py was run WITHOUT an explicit disposable-seed override, so it defaulted to the real frozen block and spent seeds 13600001, 13600002 (Pole A) and 13600101, 13600102 (Pole B) on real environment episodes using 5k-step non-scientific smoke checkpoints (not real teachers). Caught immediately; the resulting dataset manifest and state shards were deleted before any interpretation. A --smoke mode (disposable seeds, never the real block) was added to the script directly afterward so this cannot recur.",
+
+  "RETIRED_SEEDS": {
+    "pole_A": [13600001, 13600002],
+    "pole_B": [13600101, 13600102],
+    "disposition": "PERMANENTLY RETIRED. Must never be spent for this or any other collection, evaluation, or training purpose."
+  },
+
+  "REPLACEMENT_BLOCK": {
+    "collection_A": "13600003..13600098",
+    "collection_B": "13600103..13600198",
+    "n_per_pole": 96,
+    "reasoning": "shifts each pole's 96-seed block forward by exactly 2 to skip the retired seeds, changing nothing else about the original design (same n_per_pole, same episode structure, same total range size).",
+    "disjointness_verified": "grep for 13600097/13600098/13600197/13600198 (the two NEW seeds added at each pole's upper bound, beyond the original spec's 096/196 upper bound) against every JSON under artifacts/strategic_demand/: zero hits. The rest of the shifted range (13600003-096, 13600103-196) was already covered by TEACHER_DISTILLATION_6V6_SPEC.json's own disjointness verification."
+  },
+
+  "IMPLEMENTATION": "collect_distillation_states_scale.py's real (non-smoke) collection path checks for this amendment file and uses ITS seed block in preference to TEACHER_DISTILLATION_6V6_SPEC.json's original SEEDS field when present -- the original spec is not edited (append-only discipline), this amendment governs.",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["reusing 13600001/13600002/13600101/13600102 for any purpose", "any further shift or reallocation without its own freeze"]
+}

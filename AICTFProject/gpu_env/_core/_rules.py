@@ -8,6 +8,44 @@ import numpy as np
 import torch
 
 from macro_actions import MacroAction
+
+# Pyquaticus reference-controller constants for MacroAction.DEFEND (V2). Must
+# equal gpu_env.pyquaticus_port.{UPSTREAM_FLAG_KEEPOUT_M,UPSTREAM_CATCH_RADIUS_M,
+# UPSTREAM_DEFENDER_BUFFER_M,defender_radius_from_tag_range} bit-for-bit; a
+# duplicate rather than an import so the shared simulation core does not take a
+# dependency on an experiment-scoped port adapter. Drift is caught by
+# tests/test_pyquaticus_port_contracts.py::test_defend_radius_helper_matches_port_module.
+_PYQ_FLAG_KEEPOUT_M = 3.0
+_PYQ_CATCH_RADIUS_M = 10.0
+_PYQ_DEFENDER_BUFFER_M = 1.0
+
+
+def _pyquaticus_defender_radius_cells(tag_range_cells: float) -> float:
+    return float(tag_range_cells) * (
+        (_PYQ_FLAG_KEEPOUT_M + _PYQ_CATCH_RADIUS_M + _PYQ_DEFENDER_BUFFER_M) / _PYQ_CATCH_RADIUS_M
+    )
+
+
+def _ray_to_boundary_batched(
+    px: torch.Tensor, py: torch.Tensor, ux: torch.Tensor, uy: torch.Tensor,
+    *, max_x: float, max_y: float, eps: float = 1e-8,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Vectorized form of gpu_env.pyquaticus_port._ray_to_boundary.
+
+    Per axis, at most one candidate applies (positive-direction OR
+    negative-direction, never both -- matching the reference's if/elif), and
+    only non-negative candidates are eligible. A zero direction on an axis
+    contributes no candidate on that axis. If neither axis contributes a
+    candidate, the ray is degenerate and the origin is returned unchanged.
+    """
+    inf = torch.full_like(px, float("inf"))
+    cx = torch.where(ux > eps, (max_x - px) / ux, torch.where(ux < -eps, (0.0 - px) / ux, inf))
+    cy = torch.where(uy > eps, (max_y - py) / uy, torch.where(uy < -eps, (0.0 - py) / uy, inf))
+    cx = torch.where(cx >= 0.0, cx, inf)
+    cy = torch.where(cy >= 0.0, cy, inf)
+    t = torch.minimum(cx, cy)
+    t = torch.where(torch.isfinite(t), t, torch.zeros_like(t))
+    return px + ux * t, py + uy * t
 from rl.global_state import build_global_state_batch
 from game_manager import (
     get_grab_score_delta,
@@ -639,9 +677,66 @@ class _RulesMixin:
         ty = torch.where(get_flag, enemy_flag[:, None, 1], ty)
         tx = torch.where(go_home, own_flag_home[:, None, 0], tx)
         ty = torch.where(go_home, own_flag_home[:, None, 1], ty)
+
+        defend_flag = macro == MacroAction.DEFEND_FLAG
+        defend_outward = macro == MacroAction.DEFEND_OUTWARD
+        defend_unified = macro == MacroAction.DEFEND
+        if (
+            bool(torch.any(defend_flag).item())
+            or bool(torch.any(defend_outward).item())
+            or bool(torch.any(defend_unified).item())
+        ):
+            own_flag_now = side_t["own_flag"]
+            outward_tx, outward_ty = self._defend_outward_target(side_t, own_flag_now)
+            tx = torch.where(defend_flag, own_flag_now[:, None, 0], tx)
+            ty = torch.where(defend_flag, own_flag_now[:, None, 1], ty)
+            tx = torch.where(defend_outward, outward_tx, tx)
+            ty = torch.where(defend_outward, outward_ty, ty)
+
+            if bool(torch.any(defend_unified).item()):
+                # V2: one committed macro, target re-derived from live state each
+                # tick. See DEFEND_SEMANTIC_COMMITMENT_V2_SPEC.json -- this is a
+                # Pyquaticus reference-controller adapter, not a proposed general
+                # PPO action primitive.
+                own_x, own_y = side_t["own_x"], side_t["own_y"]
+                away_x = own_x - own_flag_now[:, None, 0]
+                away_y = own_y - own_flag_now[:, None, 1]
+                dist = torch.sqrt(away_x * away_x + away_y * away_y)
+                radius = _pyquaticus_defender_radius_cells(float(self.cfg.tag_range_cells))
+                # Match true_motion's boundary convention exactly: distance > R
+                # is INWARD; distance <= R (inclusive of exactly R) is OUTWARD.
+                inward = dist > radius
+                unified_tx = torch.where(inward, own_flag_now[:, None, 0].expand_as(outward_tx), outward_tx)
+                unified_ty = torch.where(inward, own_flag_now[:, None, 1].expand_as(outward_ty), outward_ty)
+                tx = torch.where(defend_unified, unified_tx, tx)
+                ty = torch.where(defend_unified, unified_ty, ty)
+
         tx = torch.where(own_carrying, own_flag_home[:, None, 0], tx)
         ty = torch.where(own_carrying, own_flag_home[:, None, 1], ty)
         return tx, ty
+
+    def _defend_outward_target(
+        self, side_t: Dict[str, torch.Tensor], own_flag_now: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Agent-relative outward ray to the arena boundary, mirroring
+        gpu_env.pyquaticus_port.true_motion's DEFEND_OUTWARD branch and
+        _ray_to_boundary exactly, vectorized over (env, agent).
+
+        Recomputed every tick from each agent's own instantaneous position,
+        because that is the native semantic: no fixed coordinate can name it.
+        """
+        own_x, own_y = side_t["own_x"], side_t["own_y"]
+        own_heading = side_t["own_heading"]
+        away_x = own_x - own_flag_now[:, None, 0]
+        away_y = own_y - own_flag_now[:, None, 1]
+        away_norm = torch.sqrt(away_x * away_x + away_y * away_y)
+        degenerate = away_norm <= 1e-8
+        safe_norm = torch.clamp(away_norm, min=1e-8)
+        ux = torch.where(degenerate, torch.cos(own_heading), away_x / safe_norm)
+        uy = torch.where(degenerate, torch.sin(own_heading), away_y / safe_norm)
+        max_x = float(max(0, self.cols - 1))
+        max_y = float(max(0, self.rows - 1))
+        return _ray_to_boundary_batched(own_x, own_y, ux, uy, max_x=max_x, max_y=max_y)
 
     def _redirect_tagged_to_home(
         self,

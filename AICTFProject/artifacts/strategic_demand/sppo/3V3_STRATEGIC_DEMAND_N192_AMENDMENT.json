@@ -1,0 +1,71 @@
+{
+  "record_id": "3V3_STRATEGIC_DEMAND_N192_AMENDMENT",
+  "status": "FROZEN_BEFORE_ANY_3V3_DEMAND_EPISODE",
+  "utc": "2026-09-10T01:45:00Z",
+  "authority": "PI, 2026-09-09: verify whether 3v3 is viable before committing to the expensive specialist pipeline. Step 1 only -- strategic-demand test. Do not train learned specialists yet.",
+
+  "VERIFICATION_LADDER_POSITION": {
+    "step": 1,
+    "name": "strategic-demand test",
+    "PASS_means": "3v3 strategic demand verified",
+    "PASS_does_NOT_mean": "3v3 latent strategies verified (that requires learned-specialist crossover PASS, then Share-0 / Share-Encoder preservation)",
+    "next_if_PASS": "train fresh pi_A^{3v3}, pi_B^{3v3} under a separate freeze; then sealed crossover",
+    "next_if_FAIL": "stop. Do not train 3v3 specialists. Do not reopen poles without a new freeze."
+  },
+
+  "SCOPE": "JOINT scripted GUARD-vs-BREACH certification of size-normalized Pole A + Pole B at team size 3, on ONE fresh n=192 seed block. Same tool, same bootstrap, same PASS criterion as the 4v4 n=192 certifications. No PPO policy is loaded. No 2v2 or 4v4 artifact is modified.",
+
+  "WHY_GUARD_DISTRIBUTED_V2_NOT_V1": "SIZE_NORMALIZED_POLE_SEMANTICS_SPEC.json NORMALIZATION_1 explicitly records that V1 multi-defender stacking is a known defect at N>2. GUARD_DISTRIBUTED_V2 is the production probe used for the 6v6 CERTIFIED demand row and for the post-V1 4v4 demand path. Spending a 3v3 V1 certification would recreate a measured defect rather than test the question.",
+
+  "WHY_CANONICAL_POLES_NOT_B3": "B3-3 is a 4v4 confirmatory redesign after GUARD_DISTRIBUTED_V2 failed to certify delta_A at 4v4. At 3v3 the size-normalized canonical poles have never been tested. Mixing a 4v4 pole redesign into the first 3v3 demand row would confound team-size with pole construction. Canonical size-normalized poles first; B3-class redesign only if this row fails for a documented stacking/geometry reason.",
+
+  "WHY_n192": "4v4 demand certification used preregistered n=192 (CONFIRMATION_N_AMENDMENT_192 / B3-3 n192). Matching that power structure makes the cross-scale demand comparison tidy and avoids a tiny pilot that leaves LCB uncertainty to chase afterward.",
+
+  "POLES": {
+    "A": "pole_A_genome(3) = OP6 + overlay min_alive_for_defender=3 (size-normalized)",
+    "B": "pole_B_genome(3) = OP7 + overlay min_alive_for_defender=3 (size-normalized; canonical OP7, no B2/B3 lock overlay)"
+  },
+
+  "GUARD": {
+    "style": "BLUE_ONE_DEFENDER_V2 (GUARD_DISTRIBUTED_V2 unique-threat assignment)",
+    "n_defenders": 2,
+    "defender_indices": [1, 2],
+    "rule": "ceil(N/2) defenders on the LAST ceil(N/2) indices; BREACH = BLUE_BOTH_ATTACK_V2 unchanged"
+  },
+
+  "SEED_BLOCK": {
+    "variant": "guard_distributed_v2_n192",
+    "seed_base": 12321001,
+    "n": 192,
+    "range": "12321001..12321192",
+    "paired": true,
+    "supersedes_original_block": "12320001..12320192 retired by 3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json after a timing probe spent 12320001..12320002",
+    "disjointness_note": "fresh 3v3 block; distinct from 4v4 v1 12400001, 4v4 V2 12800001, 4v4 B2/B3 n192 blocks 12440001/12460001, 6v6 v1 12600001, 6v6 V2 13000001, retired probe seeds 12320001..12320002, and the unused 3v3 v1 default slot 12300001 (not spent)"
+  },
+
+  "GATE_UNCHANGED": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0, paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7",
+
+  "DELTAS": {
+    "delta_A": "WR(GUARD, Pole A) - WR(BREACH, Pole A)",
+    "delta_B": "WR(BREACH, Pole B) - WR(GUARD, Pole B)"
+  },
+
+  "CONCEALMENT": "not applicable on this scaled demand row. Observability/concealment assays were part of the 2v2 V3_STRATEGIC_DEMAND_VALIDATED protocol (sds_confirmation_v2), not of certify_strategic_demand_scaled.py. This amendment does not invent a new concealment gate for 3v3.",
+
+  "DEVICE": "cpu -- matches prior scaled n=192 demand certifications; leaves CUDA free for any concurrent 4v4 specialist work.",
+
+  "RUN_COMMAND": "python experiments/certify_strategic_demand_scaled.py --team-size 3 --variant guard_distributed_v2_n192 --seed-base 12321001 --n-seeds 192 --device cpu",
+
+  "OUTPUT_RECORD": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_3v3_GUARD_DISTRIBUTED_V2_N192_CERTIFICATION.json",
+
+  "NOT_AUTHORIZED": [
+    "training 3v3 specialists before this VERDICT is CERTIFIED",
+    "proceeding automatically to specialist training on PASS",
+    "modifying any 2v2 or 4v4 frozen certification / crossover artifact",
+    "pooling this block with any other team-size demand rows",
+    "calling PASS '3v3 latent strategies verified'",
+    "reusing retired probe seeds 12320001..12320002"
+  ],
+
+  "PREDECLARED_BEFORE_RESULT": "seed block, n=192, poles, GUARD variant, gate, and device locked before any episode in 12321001..12321192 is spent. See also 3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json."
+}

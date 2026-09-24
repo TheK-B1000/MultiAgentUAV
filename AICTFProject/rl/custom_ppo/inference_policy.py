@@ -294,12 +294,27 @@ class CustomPPOInferencePolicy:
         return logits / self.model.strategy_tau
 
     def _tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
-        return {
+        out = {
             "grid": torch.as_tensor(obs["grid"], dtype=torch.float32, device=self.device),
             "vec": torch.as_tensor(obs["vec"], dtype=torch.float32, device=self.device),
             "agent_mask": torch.as_tensor(obs["agent_mask"], dtype=torch.float32, device=self.device),
             "mask": torch.as_tensor(obs["mask"], dtype=torch.float32, device=self.device),
         }
+        # Entity tensors (teammates/enemies geometry): present only when the
+        # caller augmented obs via gpu_env._core._entity_obs.augment_obs_with_entities
+        # -- harmless to convert unconditionally here even for a non-entity-repair
+        # model, since predict() below only reads these keys when
+        # self.model.entity_encoder is not None.
+        for k in ("teammates", "teammates_valid", "enemies", "enemies_valid"):
+            if k in obs:
+                out[k] = torch.as_tensor(obs[k], dtype=torch.float32, device=self.device)
+        if "roles" in obs:
+            out["roles"] = torch.as_tensor(obs["roles"], dtype=torch.float32, device=self.device)
+        if "assignment" in obs:
+            out["assignment"] = torch.as_tensor(
+                obs["assignment"], dtype=torch.float32, device=self.device
+            )
+        return out
 
     def _global_state_tensor(self, obs: Dict[str, np.ndarray], batch: int) -> torch.Tensor:
         raw = obs.get("global_state")
@@ -327,6 +342,10 @@ class CustomPPOInferencePolicy:
             elif key == "vec" and arr.ndim == 2:
                 arr = arr[None, ...]
             elif key in {"agent_mask", "mask"} and arr.ndim == 1:
+                arr = arr[None, ...]
+            elif key == "roles" and arr.ndim == 1:
+                arr = arr[None, ...]
+            elif key == "assignment" and arr.ndim == 2:
                 arr = arr[None, ...]
             batched[key] = arr
         return batched
@@ -605,8 +624,36 @@ class CustomPPOInferencePolicy:
             else:
                 batch = int(obs_t["grid"].shape[0])
                 global_state = self._global_state_tensor(batched, batch)
+                entity_kwargs: dict[str, torch.Tensor] = {}
+                if getattr(self.model, "entity_encoder", None) is not None:
+                    entity_keys = ("teammates", "teammates_valid", "enemies", "enemies_valid")
+                    missing = [k for k in entity_keys if k not in obs_t]
+                    if missing:
+                        raise ValueError(
+                            f"CustomPPOInferencePolicy.predict(): the loaded model has "
+                            f"entity_repair_enabled=True and requires entity tensors on every "
+                            f"call, but obs is missing {missing}. The caller must augment obs "
+                            f"via gpu_env._core._entity_obs.augment_obs_with_entities(obs, core) "
+                            f"before calling predict()."
+                        )
+                    entity_kwargs = {k: obs_t[k] for k in entity_keys}
+                if bool(getattr(self.model, "role_conditioning_enabled", False)):
+                    if "roles" not in obs_t:
+                        raise ValueError(
+                            "CustomPPOInferencePolicy.predict(): the loaded model has "
+                            "role_conditioning_enabled=True and requires obs['roles'] (B, N)."
+                        )
+                    entity_kwargs["roles"] = obs_t["roles"]
+                if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+                    if "assignment" not in obs_t:
+                        raise ValueError(
+                            "CustomPPOInferencePolicy.predict(): the loaded model has "
+                            "assignment_conditioning_enabled=True and requires "
+                            "obs['assignment'] (B, N, 4)."
+                        )
+                    entity_kwargs["assignment"] = obs_t["assignment"]
                 action_tensor, _, _, _ = self.model.act(
-                    obs_t, global_state, deterministic=deterministic, z_idx=None
+                    obs_t, global_state, deterministic=deterministic, z_idx=None, **entity_kwargs
                 )
         actions_np = action_tensor.detach().cpu().numpy().astype(np.int64)
         if actions_np.shape[0] == 1:

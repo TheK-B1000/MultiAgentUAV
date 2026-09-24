@@ -70,19 +70,96 @@ _OPPONENT_POOL_ATTR_ALIASES: dict[str, str] = {
 }
 
 
-def _tqdm_for_sb3_progress() -> Any:
-    """Match Stable-Baselines3 ``ProgressBarCallback``: prefer ``tqdm.rich.tqdm`` when available."""
+def _stderr_is_interactive() -> bool:
     try:
-        from tqdm import TqdmExperimentalWarning
-
-        warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
+        return bool(sys.stderr.isatty())
     except Exception:
-        pass
-    try:
-        from tqdm.rich import tqdm  # type: ignore[import-not-found]
-    except ImportError:
-        from tqdm import tqdm  # type: ignore[import-not-found]
+        return False
+
+
+def _tqdm_for_sb3_progress(*, interactive: bool) -> Any:
+    """SB3-style bar: rich only on a real TTY.
+
+    ``tqdm.rich`` writes a live display that often emits **zero durable bytes**
+    when stderr is redirected to a file (Windows ``Start-Process
+    -RedirectStandardError``). Log watchers then see an empty ``*.log.err``.
+    Classic tqdm always writes; for non-TTY we wrap it further.
+    """
+    if interactive:
+        try:
+            from tqdm import TqdmExperimentalWarning
+
+            warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
+        except Exception:
+            pass
+        try:
+            from tqdm.rich import tqdm  # type: ignore[import-not-found]
+
+            return tqdm
+        except ImportError:
+            pass
+    from tqdm import tqdm  # type: ignore[import-not-found]
+
     return tqdm
+
+
+class _LogWatcherProgress:
+    """tqdm stand-in that keeps ``Get-Content -Wait`` / log tails useful.
+
+    Classic tqdm uses ``\\r`` in-place updates, which do not grow a redirected
+    file in a way PowerShell's ``Get-Content -Wait`` reliably surfaces. We keep
+    a real tqdm for API compatibility (``.n`` / ``.total`` / ``.update``) and
+    also emit full newline progress lines to **both** stderr and stdout so
+    watching either ``*.log.err`` or ``*.log`` shows a bar.
+    """
+
+    def __init__(self, bar: Any, *, heartbeat_s: float = 5.0) -> None:
+        self._bar = bar
+        self.total = int(bar.total)
+        self._heartbeat_s = float(heartbeat_s)
+        self._last_heartbeat = 0.0
+        self._emit_heartbeat(force=True)
+
+    @property
+    def n(self) -> int:
+        return int(self._bar.n)
+
+    def update(self, n: int = 1) -> None:
+        self._bar.update(int(n))
+        self._emit_heartbeat(force=False)
+
+    def refresh(self) -> None:
+        try:
+            self._bar.refresh()
+        except Exception:
+            pass
+        self._emit_heartbeat(force=True)
+
+    def close(self) -> None:
+        try:
+            self._emit_heartbeat(force=True)
+        except Exception:
+            pass
+        try:
+            self._bar.close()
+        except Exception:
+            pass
+
+    def _emit_heartbeat(self, *, force: bool) -> None:
+        now = time.monotonic()
+        if not force and (now - self._last_heartbeat) < self._heartbeat_s:
+            return
+        self._last_heartbeat = now
+        try:
+            msg = str(self._bar)
+        except Exception:
+            msg = f"PPO: {self.n}/{self.total} step"
+        # Newline + flush: durable under file redirect; visible on either stream.
+        for stream in (sys.stderr, sys.stdout):
+            try:
+                print(msg, file=stream, flush=True)
+            except Exception:
+                pass
 
 
 def _open_sb3_style_progress(
@@ -96,20 +173,42 @@ def _open_sb3_style_progress(
     rem = int(total_timesteps) - int(current_num_timesteps)
     if rem <= 0:
         return None
+    interactive = _stderr_is_interactive()
     try:
-        tqdm = _tqdm_for_sb3_progress()
+        tqdm = _tqdm_for_sb3_progress(interactive=interactive)
     except ImportError:
         print(
-            "[PPO] Install tqdm and rich for the SB3-style bar:  pip install tqdm rich",
+            "[PPO] Install tqdm (and rich for interactive TTY bars):  pip install tqdm rich",
             file=sys.stderr,
+            flush=True,
         )
         return None
-    return tqdm(
+    if interactive:
+        return tqdm(
+            total=rem,
+            desc="PPO",
+            unit="step",
+            dynamic_ncols=True,
+            file=sys.stderr,
+            mininterval=0.2,
+        )
+    # Redirected / headless: plain ASCII bar + newline heartbeats for log tails.
+    try:
+        sys.stderr.reconfigure(line_buffering=True)  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    bar = tqdm(
         total=rem,
-        dynamic_ncols=True,
+        desc="PPO",
+        unit="step",
+        dynamic_ncols=False,
+        ncols=100,
+        ascii=True,
         file=sys.stderr,
-        mininterval=0.2,
+        mininterval=1.0,
+        leave=True,
     )
+    return _LogWatcherProgress(bar, heartbeat_s=5.0)
 
 
 class CustomPPOTrainer:
@@ -523,10 +622,17 @@ class CustomPPOTrainer:
             write_duration_seconds=report.write_seconds,
         )
 
-    def load(self, path: str) -> None:
-        """Restore a checkpoint produced by :meth:`save`."""
+    def load(self, path: str, *, reset_progress: bool = False) -> None:
+        """Restore a checkpoint produced by :meth:`save`.
+
+        ``reset_progress=True`` treats ``path`` as weight initialization rather
+        than run continuation: global_step, updates_completed, return-norm
+        stats, and the PPO updater's RNG/comm/curriculum state are left at this
+        run's own freshly-constructed values instead of being overwritten from
+        the checkpoint. See ``PPOConfig.warm_start_reset_progress``.
+        """
         from rl.custom_ppo.checkpoints.loader import load_trainer_checkpoint
-        report = load_trainer_checkpoint(self, path)
+        report = load_trainer_checkpoint(self, path, reset_progress=reset_progress)
         self.telemetry.emit_checkpoint_loaded(
             path=path,
             duration_seconds=report.total_seconds,

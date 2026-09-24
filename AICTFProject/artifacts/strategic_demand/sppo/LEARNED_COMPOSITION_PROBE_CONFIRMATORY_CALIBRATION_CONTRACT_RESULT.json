@@ -1,0 +1,48 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_CONTRACT_RESULT",
+  "utc": "2026-09-20T06:05:29Z",
+  "implements": "LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json",
+  "n_checks": 6,
+  "n_gating": 6,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_AMENDMENT_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "name": "C1_KILL_RULE_UNCHANGED_FROM_THE_SEALED_CALIBRATION",
+      "gating": true,
+      "passed": true,
+      "detail": "min_recovery 0.9 tol 1 vs sealed {'min_recovery': 0.9, 'tolerance_defenders': 1}"
+    },
+    {
+      "name": "C2_CANDIDATES_MATCH_THE_SEALED_SURVIVORS",
+      "gating": true,
+      "passed": true,
+      "detail": "sealed calibration: intent_opening valid=True, position_alt valid=True (both must be true -- these are the only two candidates this amendment is allowed to re-test)"
+    },
+    {
+      "name": "C3_FRESH_BLOCK_DISJOINT_FROM_PRIOR_BLOCKS",
+      "gating": true,
+      "passed": true,
+      "detail": "20800001..20800016 vs calibration 20700001..20700016 and probe 20700101..20700228"
+    },
+    {
+      "name": "C4_SEED_BLOCK_OWNED_AND_UNSPENT",
+      "gating": true,
+      "passed": true,
+      "detail": "already registered to LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION (status RESERVED) -- same block, no conflict; registry status = RESERVED"
+    },
+    {
+      "name": "C5_NO_PPO_REACHABLE",
+      "gating": true,
+      "passed": true,
+      "detail": "imported PPO/trainer modules: none"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only. No confirmatory episode was scored and no fresh seed was spent."
+}

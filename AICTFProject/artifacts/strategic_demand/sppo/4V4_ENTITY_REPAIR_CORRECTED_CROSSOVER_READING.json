@@ -1,0 +1,61 @@
+{
+  "record_id": "4V4_ENTITY_REPAIR_CORRECTED_CROSSOVER_READING",
+  "status": "READING_FROZEN_POST_AUDIT",
+  "utc": "2026-09-14T21:55:00Z",
+  "governed_by": "4V4_ENTITY_REPAIR_SPEC.json",
+  "rests_on": [
+    "CONFIRMATORY_B3_ENTITY_REPAIR_CORRECTED_SPECIALIST_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json",
+    "TIE_REVERSAL_AUDIT_CONFIRMATORY_B3_ENTITY_REPAIR_CORRECTED.json (rows clean, bootstrap independently reproduced)",
+    "run_manifest.json for pi_B_specialist_4v4_b3_entity_repair_corrected (certified_config_hash == live_config_hash, live_pole_attestation_passed=True)"
+  ],
+  "supersedes": "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json, which rested on a contaminated pi_B3 (PI_B3_TRAIN_EVAL_POLE_MISMATCH_INVALIDATION.json) and is retracted in its delta_B half.",
+
+  "VERDICT": "With a properly trained pi_B3 (attested against the certified Pole B), the 4v4 entity-repair joint gate FAILS. delta_A passes cleanly. delta_B is now a CONFIRMED, decisive reversal -- not the inconclusive null the contaminated run produced.",
+
+  "PRIMARY_GATE_OUTCOME": {
+    "delta_A": {"mean": 0.2734, "lcb95": 0.1719, "ucb95": 0.3750, "passes": true},
+    "delta_B": {"mean": -0.1562, "lcb95": -0.2656, "ucb95": -0.0469, "passes": false},
+    "joint_gate": "FAIL",
+    "delta_B_character": "DECISIVE reversal -- entire bootstrap interval negative (ucb95=-0.0469). Contrast with the invalid run's delta_B=-0.086 [-0.195,+0.023], whose interval straddled zero. Removing the training/eval confound did not soften the negative signal -- it sharpened it."
+  },
+
+  "raw_cells": {
+    "pi_A3_on_A": 0.8125, "pi_A3_on_B": 0.7422,
+    "pi_B3_corrected_on_A": 0.5391, "pi_B3_corrected_on_B": 0.5859
+  },
+
+  "THE_STRIKING_PATTERN": "pi_A3 beats Pole B (0.7422) more often than pi_B3_corrected does (0.5859) -- despite pi_B3_corrected being the specialist SPECIFICALLY TRAINED against Pole B, now correctly. pi_A3 also beats Pole A (0.8125) far more than pi_B3_corrected does (0.5391). pi_A3 dominates BOTH poles; pi_B3_corrected is mediocre on both, including its own. This is not two complementary specialists -- it is one strong generalist (pi_A3) and one weak policy (pi_B3_corrected).",
+
+  "PRECEDENT_THIS_MATCHES": "identical qualitative pattern to EXPLORATORY_4V4_SPECIALIST_CROSSOVER (pre-repair, 2026-09-07): delta_B=-0.3047, entirely negative interval, one policy strong against both poles. The entity-repair intervention changed the MAGNITUDE (delta_B moved from -0.30 to -0.16, and delta_A moved from a failing +0.25 to a passing +0.27... comparable to the sealed pre-repair B3-3 baseline's delta_A=+0.047[-0.070,+0.156], FAILED) but did NOT change the QUALITATIVE pattern: pi_A-side dominance persists.",
+
+  "COMPARISON_TABLE_across_the_investigation": {
+    "sealed_pre_repair_B3_3 (n=128, seeds 16700001-128)": {"delta_A": "0.047 [-0.070, +0.156] FAIL", "delta_B": "0.016 [-0.078, +0.109] FAIL"},
+    "INVALID_entity_repair (n=128, contaminated pi_B3, seeds 17800001-128)": {"delta_A": "0.352 [0.242, 0.461] PASS", "delta_B": "-0.086 [-0.195, +0.023] FAIL (inconclusive)"},
+    "CORRECTED_entity_repair (n=128, attested pi_B3, seeds 18300001-128)": {"delta_A": "0.273 [0.172, 0.375] PASS", "delta_B": "-0.156 [-0.266, -0.047] FAIL (decisive reversal)"},
+    "reading": "delta_A passes in BOTH the contaminated and corrected entity-repair runs (0.352 and 0.273 respectively -- same sign, comparable magnitude, both clear the 0.20 reproduction threshold used elsewhere in this investigation). This is independent partial evidence that the delta_A finding is not an artifact of the B-side contamination. delta_B, however, moved from inconclusive to decisively negative once measured correctly -- the contamination was NOT hiding a positive B result; if anything it was masking a worse one."
+  },
+
+  "WHAT_THIS_MEANS_FOR_THE_INVESTIGATION_SO_FAR": {
+    "H1_geometry_load_bearing_at_inference_for_A (POLE_A_GEOMETRY_ABLATION)": "that experiment used the CONTAMINATED pi_B3 as the off-pole comparator for C_A, L_B, and delta_A_zero. C_A and L_B are contaminated and must not be trusted. L_A (pi_A3 FULL vs ZERO, no comparator) remains clean and still shows no measurable inference-time dependence on geometry for pi_A3 alone.",
+    "POLE_B_ENTITY_UTILIZATION": "the pi_B3@PoleB cell measured the WRONG policy on an opponent it never trained on. Not informative about whether a correctly-trained pi_B3 uses geometry on Pole B. The pi_A3@PoleA cell is unaffected.",
+    "what_is_now_new_and_clean": "this is the FIRST valid measurement of how a properly-trained entity-repair Pole-B specialist actually performs. It says the representation repair, as implemented, does not produce a Pole-B specialist competitive with the Pole-A specialist even on its own home pole."
+  },
+
+  "PRECOMMITTED_BRANCH_THIS_LANDS_IN": "4V4_ENTITY_REPAIR_SPEC.json#PRECOMMITTED_DECISION_TREE -> delta_A passes, delta_B fails -- 'only ONE regime specializes ... partial/asymmetric recovery' remains the nominal branch label, but the CHARACTER differs from what that branch anticipated: this is not a near-miss or an inconclusive null on Pole B, it is a confirmed, sizeable reversal in which the Pole-A specialist outperforms the Pole-B specialist on Pole B itself.",
+
+  "OPEN_QUESTIONS_NOW_PROPERLY TESTABLE_for_the_first_time": [
+    "does pi_B3_corrected actually use its entity geometry on Pole B? (POLE_B_ENTITY_UTILIZATION needs re-running against the CORRECTED checkpoint)",
+    "is pi_B3_corrected's Pole-B weakness present throughout training or does it emerge/erode? (a trajectory re-run is now possible cleanly -- 9 intermediate corrected checkpoints already exist at 100k granularity, no new training required)",
+    "does pi_A3 actually specialize toward Pole-A-specific behavior, or has it converged toward a Pole-B-competent generalist that happens to also clear delta_A against a weak pi_B3?"
+  ],
+
+  "WHAT_THIS_READING_MAY_NOT_BE_USED_TO_CLAIM": [
+    "that 4v4 entity repair works -- the joint gate FAILED, decisively on the B side",
+    "anything about WHY pi_B3_corrected underperforms -- not diagnosed here",
+    "that C_A, L_B or delta_A_zero from POLE_A_GEOMETRY_ABLATION are valid -- they used the contaminated comparator",
+    "anything about 6v6 or 2v2",
+    "a sealed/confirmatory status under Rule 7 -- the crossover evaluator wrote no verdict-bearing result; this reading is built from its integrity-audit branch, same as its predecessor"
+  ],
+
+  "NOT_YET_AUTHORIZED": "no further diagnosis or training is authorized by this reading alone. Awaiting PI direction on which open question above to pursue."
+}

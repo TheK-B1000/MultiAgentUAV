@@ -1,0 +1,220 @@
+{
+  "record_id": "PYQUATICUS_4V4_TEAM_EVALUATION_RESULT",
+  "status": "COMPLETE",
+  "utc": "2026-09-18T18:07:41Z",
+  "implements": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json",
+  "spec_sha256": "3fe09ef1074f9017659f815520445267a701255e3740fdf30d90f9c70309b749",
+  "preflight_sha256": "720c09e14e19d2b5e31357e211016714a82020eb41f5be4aa5b5417c206cbe50",
+  "n_rows": 384,
+  "summaries": {
+    "A/FIXED_IDENTITY": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.671875,
+        "lcb95": 0.5625,
+        "ucb95": 0.78125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 1.21875,
+        "lcb95": 0.90625,
+        "ucb95": 1.546875,
+        "n": 64
+      },
+      "draw_rate": 0.25,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 279.40625,
+      "mean_defend_outward_count": 200.59375
+    },
+    "A/CLOSEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.625,
+        "lcb95": 0.5,
+        "ucb95": 0.75,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.96875,
+        "lcb95": 0.703125,
+        "ucb95": 1.25,
+        "n": 64
+      },
+      "draw_rate": 0.296875,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 271.234375,
+      "mean_defend_outward_count": 208.765625
+    },
+    "A/FARTHEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.6875,
+        "lcb95": 0.578125,
+        "ucb95": 0.796875,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 1.34375,
+        "lcb95": 1.03125,
+        "ucb95": 1.65625,
+        "n": 64
+      },
+      "draw_rate": 0.265625,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 288.78125,
+      "mean_defend_outward_count": 191.21875
+    },
+    "B/FIXED_IDENTITY": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.0625,
+        "lcb95": 0.015625,
+        "ucb95": 0.125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.703125,
+        "lcb95": -0.921875,
+        "ucb95": -0.484375,
+        "n": 64
+      },
+      "draw_rate": 0.328125,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 206.625,
+      "mean_defend_outward_count": 273.375
+    },
+    "B/CLOSEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.125,
+        "lcb95": 0.046875,
+        "ucb95": 0.21875,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.625,
+        "lcb95": -0.859375,
+        "ucb95": -0.390625,
+        "n": 64
+      },
+      "draw_rate": 0.296875,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 209.53125,
+      "mean_defend_outward_count": 270.46875
+    },
+    "B/FARTHEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.046875,
+        "lcb95": 0.0,
+        "ucb95": 0.109375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.828125,
+        "lcb95": -1.03125,
+        "ucb95": -0.625,
+        "n": 64
+      },
+      "draw_rate": 0.28125,
+      "mean_steps": 240.0,
+      "mean_defend_inward_count": 220.234375,
+      "mean_defend_outward_count": 259.765625
+    }
+  },
+  "assignment_contrasts": {
+    "A/FIXED_IDENTITY_minus_CLOSEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.046875,
+        "lcb95": -0.109375,
+        "ucb95": 0.203125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.25,
+        "lcb95": -0.125,
+        "ucb95": 0.65625,
+        "n": 64
+      }
+    },
+    "A/FIXED_IDENTITY_minus_FARTHEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": -0.015625,
+        "lcb95": -0.15625,
+        "ucb95": 0.125,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.125,
+        "lcb95": -0.5160156249999996,
+        "ucb95": 0.28125,
+        "n": 64
+      }
+    },
+    "A/CLOSEST_DEFENDS_minus_FARTHEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": -0.0625,
+        "lcb95": -0.234375,
+        "ucb95": 0.09375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.375,
+        "lcb95": -0.796875,
+        "ucb95": 0.03125,
+        "n": 64
+      }
+    },
+    "B/FIXED_IDENTITY_minus_CLOSEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": -0.0625,
+        "lcb95": -0.15625,
+        "ucb95": 0.015625,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": -0.078125,
+        "lcb95": -0.34375,
+        "ucb95": 0.171875,
+        "n": 64
+      }
+    },
+    "B/FIXED_IDENTITY_minus_FARTHEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.015625,
+        "lcb95": -0.0625,
+        "ucb95": 0.09375,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.125,
+        "lcb95": -0.171875,
+        "ucb95": 0.421875,
+        "n": 64
+      }
+    },
+    "B/CLOSEST_DEFENDS_minus_FARTHEST_DEFENDS": {
+      "n": 64,
+      "blue_win_rate": {
+        "mean": 0.078125,
+        "lcb95": 0.0,
+        "ucb95": 0.171875,
+        "n": 64
+      },
+      "score_difference": {
+        "mean": 0.203125,
+        "lcb95": -0.078125,
+        "ucb95": 0.484375,
+        "n": 64
+      }
+    }
+  },
+  "decision_label": "NO_DEMONSTRATED_ASSIGNMENT_EFFECT",
+  "claim_boundary": "This experiment tests Pyquaticus-derived behavioral roles in this project's CTF dynamics. It does not reproduce native Pyquaticus performance, establish learned roles, explain PPO failure causally, or authorize 6v6 by itself.",
+  "six_v_six": "NOT_RUN"
+}

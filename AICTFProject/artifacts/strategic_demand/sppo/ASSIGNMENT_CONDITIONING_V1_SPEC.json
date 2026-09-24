@@ -1,0 +1,64 @@
+{
+  "record_id": "ASSIGNMENT_CONDITIONING_V1_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING",
+  "utc": "2026-09-17T21:06:30Z",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "authorized_by": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_RESULT.json OVERALL_PASS=true",
+
+  "CLASSIFICATION": "DIAGNOSTIC / EXPLORATORY. Not PAPER-FAITHFUL. Not confirmatory.",
+
+  "SINGLE_AXIS": {
+    "change_only": "privileged GUARD_DISTRIBUTED_V2 responsibility assignment z_i concatenated into actor (team assignment summary on critic)",
+    "held_fixed": [
+      "entity_repair_enabled=True",
+      "Pole B SDS2_B3_LOCKDEF10_2V1",
+      "frozen A comparator",
+      "no GETFLAG preservation",
+      "no binary ROLE bit (assignment supersedes ROLE for this arm)",
+      "rewards/maps/M1 as clean B baseline"
+    ]
+  },
+
+  "z_i_locked": {
+    "source": "rl/custom_ppo/guard_assignment.py::assign_guard_v2_responsibilities",
+    "fields": ["responsibility", "assigned_entity", "delta_x", "delta_y"],
+    "actor_encoding": "float32 vector of size 4 per agent: [resp/2, entity_code, tanh(dx/R), tanh(dy/R)] with R=defense_radius, entity_code=(assigned_entity+2)/ (Ne+2)",
+    "H_a": 8,
+    "FORBIDDEN": ["macros", "actions", "btx/bty", "GETFLAG loss", "Hungarian"]
+  },
+
+  "TRAINING": {
+    "policy": "B",
+    "team_size": 4,
+    "total_timesteps": 200000,
+    "seed": 19400001,
+    "device": "cuda",
+    "run_label_suffix": "_b3_entity_repair_assignment_v1",
+    "warm_start": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/ckpt_pi_B_specialist_4v4_b3_entity_repair_corrected_500000.zip",
+    "warm_start_sha256": "d4c0d7ba2477cede8d4ea14764aae72b0688d016adfde8a4cc48fa656cf7a80a",
+    "warm_start_reset_progress": true,
+    "fresh_Adam_after_feature_expansion": true,
+    "t0_equivalence": "with z encoding at default ATTACK/home, expanded columns zero-init so π matches B_t500k at t0 for the zero-feature slice; behavioral probe required before learning"
+  },
+
+  "EVALUATION_after": {
+    "instrument": "experiments/eval_specialist_crossover_scaled.py",
+    "n": 64,
+    "seeds": "19500001-19500064",
+    "label": "ASSIGNMENT_V1_4V4",
+    "estimands": {
+      "delta_A": "V(pi_A3,A)-V(B_ASSIGN,A)",
+      "delta_B": "V(B_ASSIGN,B)-V(pi_A3,B)"
+    },
+    "reading": "exploratory vs B_t500k screen delta_B=-0.046875; NOT confirmatory"
+  },
+
+  "EXPLICITLY_FORBIDDEN": [
+    "mixing GETFLAG preservation",
+    "mixing binary ROLE with Assignment in one student",
+    "tuning H_a / encoding after seeing crossover",
+    "6v6 before 4v4 crossover interpretation",
+    "claiming PAPER-FAITHFUL"
+  ]
+}

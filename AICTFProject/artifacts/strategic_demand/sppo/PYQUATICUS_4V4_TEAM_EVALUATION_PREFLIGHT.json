@@ -1,0 +1,84 @@
+{
+  "record_id": "PYQUATICUS_4V4_TEAM_EVALUATION_PREFLIGHT",
+  "status": "PASS",
+  "utc": "2026-09-18T17:36:59Z",
+  "implements": "artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json",
+  "spec_sha256": "3fe09ef1074f9017659f815520445267a701255e3740fdf30d90f9c70309b749",
+  "checks": {
+    "spec_status": "FROZEN_BEFORE_SEED_ALLOCATION",
+    "upstream_commit": true,
+    "n_macros_eval": true,
+    "role_arms": true,
+    "role_count": true,
+    "v2_status": true,
+    "upstream_hash_block_present": true,
+    "synthetic_assignment_fixtures": true,
+    "opponent_and_action_preflight": true
+  },
+  "pole_checks": {
+    "A": {
+      "pass": true,
+      "genome_id": "SDS2_A_payoff_INIT_3",
+      "live_config_hash": "4194fe4715069fc9893ef6cd78ae68286562c87de984ecc8d0168a65bb7e1e85",
+      "mappings": {
+        "FIXED_IDENTITY": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "CLOSEST_DEFENDS": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "FARTHEST_DEFENDS": [
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      "direct_action_macros": [
+        7,
+        7,
+        2,
+        2
+      ]
+    },
+    "B": {
+      "pass": true,
+      "genome_id": "SDS2_B3_LOCKDEF10_2V1",
+      "live_config_hash": "ee1cab774896886b39608f53bc77f215cb91b1a02c86ff6dde93ff29d12adb7e",
+      "mappings": {
+        "FIXED_IDENTITY": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "CLOSEST_DEFENDS": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "FARTHEST_DEFENDS": [
+          0,
+          0,
+          1,
+          1
+        ]
+      },
+      "direct_action_macros": [
+        7,
+        7,
+        2,
+        2
+      ]
+    }
+  },
+  "episodes_run": 0,
+  "seed_allocation": "not performed by preflight"
+}

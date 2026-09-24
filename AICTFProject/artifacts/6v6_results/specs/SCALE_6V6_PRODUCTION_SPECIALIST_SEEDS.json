@@ -1,0 +1,33 @@
+{
+  "record_id": "SCALE_6V6_PRODUCTION_SPECIALIST_SEEDS",
+  "name": "Frozen production training seeds for pi_A_6v6 / pi_B_6v6",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-06T13:10:00Z",
+  "authority": "PI, 2026-09-06: '6v6 has earned production compute ... freeze fresh 6v6 production seeds now and send A/B training to the main school PCs.'",
+
+  "PRECONDITIONS_SATISFIED": {
+    "strategic_demand": "CERTIFIED (STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json, delta_A +0.2656 [+0.0938,+0.4375], delta_B +0.6250 [+0.4844,+0.7500])",
+    "specialist_path_verified": "5k-step smokes on seeds 99900061/99900062 (non-scientific) confirmed the live pole resolves to min_alive_for_defender=6 from core._bt_resolved_profile_tensors() for both pi_A and pi_B",
+    "distillation_spec": "frozen, TEACHER_DISTILLATION_6V6_SPEC.json, collection blocked on these checkpoints existing"
+  },
+
+  "SEEDS": {
+    "pi_A_6v6": 7610001,
+    "pi_B_6v6": 7620001,
+    "chosen_to_mirror": "the 2v2 specialist seeds (7100001/7200001) and the exploratory 4v4 seeds (7410001/7420001) follow the same 7-prefix convention; 6v6 continues it at 761/762 rather than colliding with either.",
+    "disjointness_verified": "exact-literal grep of 7610001 and 7620001 against every JSON under artifacts/strategic_demand/ and artifacts/strategic_demand/sppo/: ZERO hits. Verified immediately before this record was committed."
+  },
+
+  "RECIPE": "run_r1_repertoire_training.py::build_r1_config, UNCHANGED. 1,000,000 steps, the R1 specialist budget. The pre-existing max_agents>2 -> lr*=0.75 rule applies, as it already does for every 4v4/6v6 run in this program.",
+
+  "LAUNCH_COMMANDS_VERIFIED": {
+    "pi_A": "python experiments/train_specialist_scale.py --team-size 6 --policy A --seed 7610001 --device cuda",
+    "pi_B": "python experiments/train_specialist_scale.py --team-size 6 --policy B --seed 7620001 --device cuda",
+    "verified_by": "dry-run against the CERTIFIED record with these exact seeds, confirming the certification gate resolves CERTIFIED, cfg.max_blue_agents=6, and the live pole check passes before this record was committed. The dry-run does not write a run_manifest.json (fixed behaviour); the manifest is written only on a real launch.",
+    "expected_placement": "main school PCs, per the PI's compute-separation plan"
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["collecting the 6v6 distillation dataset (blocked until both checkpoints are frozen with recorded sha256)", "any change to the R1 recipe or the size-normalized poles", "reuse of 7610001/7620001 for any other purpose"]
+}

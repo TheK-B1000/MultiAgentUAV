@@ -1,0 +1,93 @@
+{
+  "record_id": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-21T00:00:00Z",
+  "classification": "CONFIRMATORY test of a hypothesis that was generated post hoc. Rollout-time intervention only: no training, no checkpoint write, no parameter change.",
+  "confirmatory": true,
+
+  "authorized_by": "PI direction 2026-09-21 ('96 seeds, J primary, four signs secondary, two-opponent wording, GO'): run a fresh-seed goal-volume confirmation of the native vs +1-defender intervention on both certified 6v6 poles, with Blue goals per episode as the sole primary endpoint, the pole interaction J per learned policy as the primary criterion, margin as a consistency check only, and the four cell directions as a secondary replication requirement.",
+
+  "HYPOTHESIS": "For the frozen learned checkpoints pi_A and pi_B, forcing exactly one policy-external defender changes Blue goal production differently against the two certified 6v6 opponents: it raises it against Pole A and lowers it against Pole B.",
+
+  "ORIGIN_IS_POST_HOC": {
+    "statement": "The hypothesis was generated after the sealed causal bridge (DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json, win-rate endpoint, ONE_DEFENDER_HARM_ONLY) and the exploratory records EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_* and DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM_*, all on seeds 20900001-20900096. The effect directions were chosen after seeing those data, so the exploratory estimates are optimistic (selection).",
+    "consequence": "Those seeds contribute nothing to this confirmation. Every episode analysed here is drawn from the fresh block below, which no earlier record has used or seen."
+  },
+
+  "MECHANISM_UNCHANGED": {
+    "statement": "Exactly the intervention of the causal bridge: experiments.probe_learned_composition.install_forced_defend_target patches the resolved-target layer of one agent so it takes MacroAction.DEFEND's live-state target, calling the real _build_targets_from_action a second time, never writing commit_macro. Rotation of the overridden agent is seed % 6, the same id at a given seed for both policies and both poles.",
+    "source_pin": {"file": "experiments/probe_learned_composition.py", "sha256": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb",
+                   "note": "byte-identical to the file that ran the causal bridge (last changed in commit 0197e65c). The contracts stage refuses to run if this hash differs."},
+    "behaviour_reverified": "the contracts stage re-runs the scripted-DEFEND equivalence check (bit-for-bit, n_macros 5 and 8) on two fresh (pole, agent-id) cells before any seed is spent."
+  },
+
+  "DESIGN": {
+    "policies": ["pi_A", "pi_B"], "poles": ["A", "B"], "arms": ["native", "plus_one_defender"],
+    "pole_meaning": "the two certified 6v6 Red strategy classes: Pole A = OP6 with its frozen overlay, Pole B = canonical OP7. No third certified 6v6 opponent exists in the repository.",
+    "fresh_seed_block": {"base": 21000001, "n": 96, "class": "sealed_confirmatory", "divisible_by_6": true,
+                         "disjoint_from": "every prior block in this line (13680001-128, 20700001-016, 20700101-228, 20800001-016, 20900001-096) and every other registered block"},
+    "n_episodes": "2 policies x 2 poles x 2 arms x 96 seeds = 768 FULL episodes (not truncated), deterministic actions, cuda, torch.no_grad().",
+    "pairing": "the same 96 seed values in every cell and both arms, so every difference below is paired by seed."
+  },
+
+  "ENDPOINTS_FROZEN": {
+    "primary_endpoint": "Blue goals per episode, G. It is the SOLE primary endpoint.",
+    "cell_effect": "Delta G_{p,r} = G_{p,r,+1D} - G_{p,r,native}, per seed then averaged, for each learned policy p and pole r in {A, B}.",
+    "interaction": "J_p = Delta G_{p,A} - Delta G_{p,B}, computed per seed as [G(p,A,+1D,s) - G(p,A,native,s)] - [G(p,B,+1D,s) - G(p,B,native,s)] and then bootstrapped over the 96 seeds. One J per learned policy.",
+    "statistics": "paired bootstrap 95% interval over seeds, the routine and settings used throughout this line (20000 resamples, alpha 0.05, rng seed 7).",
+    "margin": "score margin (Blue - Red) is reported beside Blue goals for every cell and for J, as a CONSISTENCY CHECK ONLY. Red scores almost never, so margin is nearly the same statistic as Blue goals; it is never counted as a second confirmation and never enters a label."
+  },
+
+  "PRIMARY_CRITERION_FROZEN": {
+    "rule": "LCB95(J_pi_A) > 0 AND LCB95(J_pi_B) > 0.",
+    "why_J_and_not_a_four_cell_conjunction": "From the exploratory rows (per-seed SD of the paired cell effects 1.2-1.4 goals), at 96 seeds and a true effect 60% of the exploratory estimate, J for both policies has power ~0.97, while requiring all four cell effects to resolve individually has power ~0.30. Requiring four individually significant cells would smuggle the underpowered conjunction back in after choosing J as primary, so it is not required."
+  },
+
+  "SECONDARY_REPLICATION_REQUIREMENT_FROZEN": {
+    "rule": "The four fresh cell POINT ESTIMATES reproduce the pre-registered directions: Delta G_{pi_A,A} > 0, Delta G_{pi_B,A} > 0, Delta G_{pi_A,B} < 0, Delta G_{pi_B,B} < 0. Strict inequalities on point estimates; an estimate of exactly zero fails its sign.",
+    "not_required": "that any individual cell interval excludes zero."
+  },
+
+  "TERMINAL_OUTCOMES_FROZEN": {
+    "precedence": ["AUDIT_FAILED (sealed status != SEALED) overrides everything below and certifies no label",
+                   "OPPONENT_CONDITIONED_GOAL_INTERACTION_NOT_CONFIRMED",
+                   "OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED",
+                   "INTERACTION_CONFIRMED_PATTERN_PARTIAL"],
+    "OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED": "Both J lower bounds exceed zero AND all four cell point estimates reproduce the frozen signs.",
+    "INTERACTION_CONFIRMED_PATTERN_PARTIAL": "Both J lower bounds exceed zero, but one or more cell point estimates fail the predicted sign. The interaction replicates; the specific A-positive / B-negative story does not fully replicate.",
+    "OPPONENT_CONDITIONED_GOAL_INTERACTION_NOT_CONFIRMED": "Either policy's J lower bound is not above zero.",
+    "always_reported": "all four cell effects with intervals and native / +1D means, both J with intervals, the margin counterparts, and which of the four signs reproduced, whichever label results."
+  },
+
+  "INTERPRETATION_GUARD_FROZEN": {
+    "sentence": "A positive J establishes differential intervention response between the two certified opponents. It does not distinguish opponent-specific strategic sensitivity from regression/compression toward a common goal-production level.",
+    "wording": "Any confirmed claim is worded 'opponent-conditioned across the two certified 6v6 poles'. It is not worded 'regime-conditioned', and it does not claim to rule out compression: natively the poles differ (about 1.1 vs 2.3 goals) while under +1D both landed near 1.8-2.0 goals in the exploratory data, and two poles cannot separate those readings."
+  },
+
+  "CONTRACTS_BEFORE_ANY_SEED_IS_SPENT": [
+    "spec frozen", "the mechanism source hash equals the pin above",
+    "scripted-DEFEND equivalence re-verified on two fresh (pole, id) cells at n_macros 5 and 8",
+    "seed rotation exactly uniform over the block", "checkpoint hashes equal the pinned values",
+    "the block is reserved to this experiment as sealed_confirmatory, unspent, and disjoint from every prior block",
+    "the real runner never writes a raw macro or commit tensor for the overridden agent",
+    "the terminal-outcome rule, implemented as a pure function, returns the frozen label on synthetic cases (including an exact-zero cell and a single failing J)"
+  ],
+
+  "RUN_CONDITIONS_FROZEN": [
+    "no PPO, no extra arm, no alternative defender count, no routing",
+    "no interim inspection of outcomes (progress COUNTS may be watched), no early stopping, no top-up of the seed block",
+    "sharding across processes with an append-only resume file per shard is an execution detail only: episodes are independent and deterministic, so it cannot change any result",
+    "the analysis stage refuses to run unless all 768 cells are present, and is sealed through the formal audit pipeline (rows, checkpoints, seed class, per-cell claims re-derived from the rows)"
+  ],
+
+  "NOT_AUTHORIZED": [
+    "using seeds 20900001-20900096 for any part of this confirmation",
+    "adding endpoints, cells, or a second vote (margin) after seeing the result",
+    "requiring individual cell significance after having chosen J as primary",
+    "wording the outcome as regime-conditioned or as ruling out compression",
+    "replacing or re-scoring any earlier sealed record"
+  ],
+
+  "claim_boundary": "Two frozen learned checkpoints, two certified 6v6 opponents, rollout-time intervention only, fresh seeds spent for the first time here. Establishes (or fails to establish) a differential response of Blue goal production to a forced defender across those two opponents.",
+  "claim_ceiling": "At most: OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED across the two certified 6v6 poles. Not a general regime law, not a win-probability claim, not a mechanism, not evidence about a retrained policy, and not a discrimination of opponent-specific sensitivity from compression."
+}

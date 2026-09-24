@@ -1,0 +1,213 @@
+{
+  "record_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_SPEC",
+  "status": "FROZEN_DESIGN_NO_EXECUTION",
+  "utc": "2026-09-18T16:05:00Z",
+  "arm": "INTERVENTION_MANIPULATION_CHECK",
+  "confirmatory": false,
+  "classification": "OUTCOME_BLIND_MANIPULATION_CHECK",
+  "authorized_by": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_READING.json — commitment is a mechanistically supported B-relevant scale-binder candidate",
+
+  "RESEARCH_QUESTION": "Can an intervention that preserves existing macro semantics, while making commitment responsive to meaningful target changes, reduce the measured 4v4 BREACH commitment mechanism (blocked switching, stale-target occupancy, decision lag) without altering legacy execution when disabled and without degenerating into global loss of temporal persistence?",
+
+  "SCIENTIFIC_DELTA": "This is a manipulation check on an already-localized mechanism. It does not rerun the I0-I3 component decomposition, does not measure win rate, does not train, and does not test whether specialization recovers. It asks only whether the mechanism can be moved by a targeted change.",
+
+  "WHAT_THIS_IS_NOT": [
+    "not a repair authorization",
+    "not a claim that commitment causes the 4v4 specialization failure",
+    "not a retest of commitment DURATION (the h=1 experiment already failed)",
+    "not a macro redesign",
+    "not a PPO, BC, or fine-tuning experiment",
+    "not a spatial/W50 study"
+  ],
+
+  "PRIOR_EVIDENCE_AND_NON_DUPLICATION": {
+    "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1": "Established commitment as the only component clearing the statistical gate, the materiality gate and mechanism support. Measured the 4v4 BREACH mechanism baseline this spec must move. Two independent implementations agree on C_commit because it is invariant to the E_v baseline they disagree on.",
+    "REPAIRED_GO_TO_H1": "Setting macro_commit_go_to_ticks from 4 to 1 did not restore specialization. That tested commitment DURATION globally. This spec tests commitment INTERRUPTIBILITY conditionally, and the distinction is the entire scientific content of V1. An intervention that behaves like h=1 is a FAILURE of this spec, not a success — see PERSISTENCE_PRESERVATION_GUARD.",
+    "ACTION_INTERFACE_DECOMP": "Established a commitment effect at 4v4 GUARD@A. Not reopened.",
+    "PROJECTION_DIVERGENCE_TRACE": "Measured blocked switches on a 4v4 Pole-A trace. Superseded for Pole B by the amendment run; not reused as a baseline.",
+    "I0_FIDELITY_ITEM": "OPEN and deliberately PARKED — see I0_INDEPENDENCE_PROOF. It constrains spatial claims only."
+  },
+
+  "I0_INDEPENDENCE_PROOF": {
+    "why_this_matters": "The open I0 fidelity item must not silently contaminate this spec's metrics. Parking it requires proof, not assertion.",
+    "verified_finding": "Every metric this spec gates on is computed from the source trace's oracle intent and from each arm's own position. None reads an I0 shadow replay.",
+    "specifics": [
+      "switch_request is computed from the raw scripted target and the SOURCE agent position only (angle change >= 15 degrees or target jump >= 1.0 cell between consecutive source ticks). No arm's trajectory enters it.",
+      "desired_vectors = raw_oracle_target - source_position. Source-derived.",
+      "direction_error = angle(desired_vector, effective_target - THAT ARM's own position). Depends on the arm being measured, never on I0.",
+      "blocked_switch, decision_lag_ticks, censored fraction and stale_target_tick are all derived from switch_request and direction_error, hence inherit the same independence."
+    ],
+    "consequence": "The I0 fidelity item may remain open while this spec executes. If it is later resolved, no metric in this spec changes.",
+    "restriction": "This spec therefore makes NO claim about C_spatial, E_v, or any I0-referenced quantity, and does not report them as evidence."
+  },
+
+  "THE_INTERVENTION": {
+    "name": "CONDITIONAL_COMMITMENT_INTERRUPTION",
+    "principle": "Preserve the production macro commitment horizon while the committed intent remains compatible with current scripted intent. Permit replanning only when a predeclared, large, persistent, target-identity-changing divergence occurs.",
+    "contrast_with_the_falsified_experiment": "h=1 removes temporal persistence everywhere. Conditional interruption removes specifically the stale persistence the diagnostic localized and retains persistence elsewhere. If the intervention ends up interrupting most commitments it has reproduced h=1 by another route and is rejected.",
+    "INTERRUPT_CONDITION_R_FROZEN": {
+      "evaluated": "at every non-boundary tick of an active commitment",
+      "fires_iff_all_three_hold": [
+        "R1: the nearest-W50 index of the CURRENT desired target differs from the committed target index",
+        "R2: the angle between the current desired bearing and the committed effective bearing is >= 45 degrees",
+        "R3: R1 and R2 have both held for >= 2 consecutive ticks"
+      ],
+      "operating_point": {"theta_degrees": 45.0, "k_consecutive_ticks": 2},
+      "rationale": "45 degrees is three times the 15-degree switch/adoption threshold already frozen in the diagnostic, so R cannot fire on ordinary jitter that the diagnostic already treats as noise. Requiring target-index change (R1) means R fires only when the commitment is holding a materially different destination, not merely a stale bearing. Requiring 2 consecutive ticks (R3) suppresses single-tick transients. The measured switch-request rate at 4v4 BREACH is 674.3 per episode; an unconditioned interrupt would fire on essentially all of them and reproduce h=1.",
+      "on_fire": "end the current commitment at that tick and re-invoke the production adapter exactly as at a normal decision boundary, including the normal horizon reset. Nothing else changes.",
+      "anti_tuning_rule": "This operating point is frozen before implementation. If the spec fails at this operating point it is falsified AT THIS OPERATING POINT. Re-specification requires a new spec that states why the new point is principled, not a threshold edit here."
+    },
+    "DESCRIPTIVE_ONLY_GRID": {
+      "grid": {"theta_degrees": [30.0, 45.0, 60.0], "k_consecutive_ticks": [1, 2, 3]},
+      "status": "reported for information only",
+      "binding_rule": "These cells MAY NOT change the verdict, which is read exclusively at theta=45, k=2. They exist so a future spec can be principled rather than blind. Reporting them is mandatory precisely so that selective reporting is impossible."
+    }
+  },
+
+  "SCOPE": {
+    "device": "cpu_only",
+    "PPO": "OFF",
+    "GPU": "OFF",
+    "outcome_blind": true,
+    "forbidden_columns": ["blue_score", "red_score", "win", "reward", "return", "value", "advantage"],
+    "scales": [2, 4],
+    "styles": {"GUARD": "BLUE_ONE_DEFENDER_V2", "BREACH": "BLUE_BOTH_ATTACK_V2"},
+    "primary_cell": "4v4 BREACH",
+    "other_cells": "reported; used for the concentration reading and for contract evidence, never to rescue a failed primary",
+    "opponent": "identical to the diagnostic: historical canonical Pole-B control at 2v2, certified B3-3 at 4v4, per ACTION_INTERFACE_SCALE_DIAGNOSTIC_INTEGRITY_AMENDMENT.json",
+    "map": "map_a",
+    "horizon_ticks": 240,
+    "domain_randomization": false,
+    "source_episodes": "one native scripted trace per scale x style x seed; all arms replay the same trace"
+  },
+
+  "ARMS": {
+    "I1_W50_NO_COMMIT": "unchanged from the diagnostic. Reference floor for the recovery fraction.",
+    "I2_W50_CURRENT_COMMIT": "unchanged from the diagnostic. Legacy baseline.",
+    "I2R_W50_INTERRUPTIBLE_COMMIT": "I2 plus INTERRUPT_CONDITION_R. PRIMARY intervention arm — isolates commitment with no macro semantics.",
+    "I3_FULL_CURRENT_MACRO": "unchanged from the diagnostic. Legacy full-path baseline.",
+    "I3R_FULL_MACRO_INTERRUPTIBLE": "I3 plus INTERRUPT_CONDITION_R. Shows whether the effect survives full macro execution.",
+    "I0_note": "The source trace supplies oracle intent for switch_request and desired bearings. No I0 shadow replay is performed or required by this spec (see I0_INDEPENDENCE_PROOF)."
+  },
+
+  "MEASURED_BASELINE_TO_BE_MOVED": {
+    "source": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_MECHANISM_AMENDMENT_V1_RESULT.json, 4v4 BREACH",
+    "blocked_switch_fraction": {"I1": 0.6877, "I2": 0.8233, "excess": 0.1356},
+    "p95_decision_lag_ticks": {"I1": 1.306, "I2": 2.620, "excess": 1.314},
+    "stale_target_fraction": {"I1": 0.0000, "I2": 0.5549, "excess": 0.5549},
+    "mean_decision_lag_ticks": {"I1": 0.260, "I2": 0.442, "excess": 0.182},
+    "switch_requests_per_episode": 674.3,
+    "caveat_carried_forward": "The stale-target excess is partly structural: I1 refreshes every tick and so cannot be stale by construction. It is therefore SECONDARY here. The primary gates use the two non-structural signals."
+  },
+
+  "PRIMARY_ESTIMAND": {
+    "name": "mechanism recovery fraction",
+    "definition": "rho_m = (m(I2) - m(I2R)) / (m(I2) - m(I1)), computed per seed on the 4v4 BREACH cell",
+    "interpretation": "rho = 0 means the intervention did nothing. rho = 1 means the mechanism was driven all the way back to the no-commitment reference, which is the degenerate h=1-like end and is guarded against separately.",
+    "resampling_unit": "seed",
+    "bootstrap": {"method": "paired percentile bootstrap over seeds", "n_boot": 20000, "alpha": 0.05, "rng_seed": 7},
+    "reporting": "point estimate and 95 percent interval for every rho, every raw metric, every arm and every cell. No p-values."
+  },
+
+  "FROZEN_DECISION_THRESHOLDS": {
+    "declared_before_implementation": true,
+    "PRIMARY_GATE_both_must_hold": {
+      "rho_blocked_switch": {"point_estimate_min": 0.50, "lcb95_min": 0.25},
+      "rho_p95_decision_lag": {"point_estimate_min": 0.50, "lcb95_min": 0.25}
+    },
+    "SECONDARY_must_not_contradict": {
+      "rho_stale_target": {"point_estimate_min": 0.30, "lcb95_min": 0.0},
+      "rho_mean_decision_lag": {"point_estimate_min": 0.30, "lcb95_min": 0.0}
+    },
+    "why_these_numbers": "An intervention removing less than half of the localized excess has not convincingly manipulated the mechanism it targets. Requiring the lower bound to clear 0.25 as well prevents a small reduction with a wide interval from being read as success after the fact. The secondary bar is lower because those two signals are partly structural (stale) or already near the resolution floor of a 240-tick trace (mean lag).",
+    "explicitly_rejected_alternative": "'the intervention reduces the metric' with no magnitude. That formulation would let any nonzero reduction be declared a manipulation, which is exactly the failure mode this block exists to prevent."
+  },
+
+  "PERSISTENCE_PRESERVATION_GUARD": {
+    "purpose": "Reject an intervention that achieves its reduction by becoming h=1 in disguise. This is the guard that makes V1 a different experiment from the falsified one.",
+    "G_P1_non_firing_ticks_are_bit_identical": "On every tick where R does not fire, I2R's committed macro, committed target index and commit-ticks-left must equal I2's exactly. Not within tolerance — exactly.",
+    "G_P2_interruption_rate_ceiling": "R fires on at most 0.40 of committed non-boundary agent-ticks at 4v4 BREACH.",
+    "G_P3_run_length_floor": "Mean sustained commitment run length under I2R is at least 0.70 of the legacy I2 mean run length at 4v4 BREACH.",
+    "G_P4_no_total_recovery": "rho_stale_target <= 0.95. A value at or near 1.0 means the arm effectively never holds a target, which is I1, which is h=1.",
+    "failure_effect": "Any guard failure yields MANIPULATION_DEGENERATE. A degenerate result does NOT count as a confirmed manipulation regardless of how good the primary numbers look."
+  },
+
+  "LEGACY_EQUIVALENCE_CONTRACTS": {
+    "G_L1_disabled_equals_legacy": "With the intervention flag disabled, every recorded column of I2R must equal I2 and every recorded column of I3R must equal I3, bit-identical, across all four cells and all seeds. Any difference is a stop condition.",
+    "G_L2_production_default_unchanged": "The production default path is unchanged: the flag defaults to disabled, and the existing macro horizon table (GO_TO=4, GRAB_MINE=3, GET_FLAG=4, PLACE_MINE=2, GO_HOME=4) is not edited.",
+    "G_L3_no_edits_outside_the_flag": "No production module is modified except behind the disabled-by-default flag. Demonstrated by diff review, not asserted."
+  },
+
+  "SEMANTIC_NON_INTERFERENCE_CONTRACTS": {
+    "purpose": "Prove the reduction is not achieved by accidentally changing what macros MEAN.",
+    "G_S1_adapter_mapping_identical": "experiments.teacher_action_adapter.adapt must return identical output for identical input under both arms. The intervention changes WHEN the adapter is invoked, never WHAT it returns. Proven on fixtures, by input/output equality, not by comparing rates on diverging trajectories.",
+    "G_S2_override_paths_untouched": "Carrier forced-home substitution, tagged redirect, obstacle routing and speed-cap behaviour produce identical output for identical input under both arms, on the existing fixture set.",
+    "G_S3_termination_semantics_untouched": "Macro success/failure/termination transitions are unchanged for identical input.",
+    "G_S4_rates_are_evidence_not_contracts": "Downstream event RATES (forced-home fraction, tagged fraction, adapted_category distribution) WILL shift because trajectories legitimately diverge. They are reported as descriptive evidence and are explicitly NOT used as pass/fail contracts. Requiring them to be unchanged would be incoherent for an intervention that is supposed to change behaviour."
+  },
+
+  "CONTRACT_GATES_BEFORE_ANY_SOURCE_EPISODE": {
+    "G0_PRIOR_ARTIFACT_PROTECTION": "Refuse to overwrite or reinterpret the sealed diagnostic outputs, the mechanism amendment outputs, REPAIRED_GO_TO_H1, PROJECTION_DIVERGENCE_TRACE or ACTION_INTERFACE_DECOMP. Digests recorded before and re-verified after.",
+    "G1_R_CONDITION_UNIT_TESTS": "R fires and does not fire correctly on hand-built fixtures covering each of R1, R2, R3 alone and in combination, including the k=2 persistence requirement and the boundary case where R becomes true exactly at a natural decision boundary.",
+    "G2_DISABLED_EQUALS_LEGACY": "G_L1 proven on a short deterministic trace before any seed is spent.",
+    "G3_PERSISTENCE_INSTRUMENTATION": "Commitment run-length and interruption-rate measurement verified against a hand-counted fixture.",
+    "G4_OUTCOME_BLIND_SCHEMA": "Row writer and result schema reject every forbidden outcome column; console prints no score, win, reward or return.",
+    "G5_TRACE_COMPLETENESS": "Each source trace records exactly 240 ticks for every active agent; all five arms consume the same trace hash; per-arm row counts match before analysis.",
+    "G6_SCALE_NEUTRAL_INTEGRITY": "A duplicated synthetic intent stream gives equal per-agent metrics at N=2 and N=4 within 1e-6.",
+    "FAILURE_RULE": "Any failed gate stops execution and emits a CONTRACT_RESULT with FAIL. No exploratory seed is allocated or spent."
+  },
+
+  "SAMPLING": {
+    "n_seeds": 16,
+    "seed_class": "exploratory",
+    "allocation": "After contracts pass, reserve the next free 16-seed block via experiments/seed_registry.py allocate COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1 16 --class exploratory, with no manual --lo override.",
+    "block_deliberately_not_selected_here": "The exact block is not chosen during the paper-only freeze, so no seed is consumable before executable contracts exist and operator seed choice is impossible.",
+    "must_not_reuse": [
+      "19500001-19500016 — SPENT by ACTION_INTERFACE_SCALE_DIAGNOSTIC",
+      "19500017-19500064 — dirty via the ASSIGNMENT_V1_4V4 crossover, disclosed in SEED_REGISTRY_COLLISION_19500001.json and recorded under unregistered_usage"
+    ],
+    "pairing": "same numeric seed list for both scales and both styles; every arm replays within the same source trace",
+    "estimated_cost": "roughly 20 minutes CPU, scaling the amendment's 14 minutes for four arms to five arms. No GPU."
+  },
+
+  "DECISION_RULE": {
+    "MANIPULATION_CONFIRMED": "Both primary gates pass, neither secondary contradicts, every persistence guard passes, every legacy-equivalence contract passes and every semantic non-interference contract passes.",
+    "MANIPULATION_INSUFFICIENT": "Primary gates not met. STOP. Conditional interruption at this operating point does not move the localized mechanism, and the commitment candidate does not graduate. Report the descriptive grid and stop.",
+    "MANIPULATION_DEGENERATE": "Primary gates met but a persistence guard failed. STOP. The intervention reproduced h=1 by another route and inherits that experiment's negative result.",
+    "CONTRACT_FAILURE": "Any legacy-equivalence or semantic contract failed. No verdict is issued; fix and re-run contracts. A contract failure is never reported as a scientific result.",
+    "WHAT_CONFIRMATION_DOES_NOT_MEAN": "MANIPULATION_CONFIRMED is not specialization recovery, is not a causal claim about the 4v4 failure, and is not authorization to train. It establishes only that the localized mechanism is movable by a targeted, semantics-preserving change.",
+    "ONLY_PATH_FORWARD_ON_CONFIRMATION": "Freeze a separate PPO crossover spec, with its own decision tree, testing whether training under the confirmed intervention recovers 4v4 Pole-B specialization. That spec does not exist yet and is not implied by this one."
+  },
+
+  "FROZEN_OUTPUTS": {
+    "contract_result": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_CONTRACT_RESULT.json",
+    "trace_manifest": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_TRACE_MANIFEST.json",
+    "agent_tick_rows": "commitment_interruptibility_intervention_v1_agent_tick_rows.csv",
+    "episode_rows": "commitment_interruptibility_intervention_v1_episode_rows.csv",
+    "result": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_RESULT.json",
+    "descriptive_grid": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_GRID.json",
+    "run_lock": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1.run.lock",
+    "refuse_if_result_exists": true,
+    "sealing": "The result must be produced through experiments/run_state.py seal(), never by a hand-written status field (Rule 7)."
+  },
+
+  "ISOLATION": {
+    "PPO": "OFF", "GPU": "OFF", "GETFLAG": "OFF", "Assignment_v1": "OFF",
+    "ROLE_bit": "OFF", "credit_correction": "OFF", "Pyquaticus_controller": "OFF",
+    "latent_routing": "OFF", "team_outcome_evaluation": "OFF",
+    "spatial_W50_changes": "OFF — the I0 fidelity item is open and no spatial claim is in scope"
+  },
+
+  "AUTHORIZED_NEXT_MILESTONE": "Implement R, the two intervention arms, the persistence instrumentation and the G0-G6 contracts. Run contract fixtures on CPU. Do not allocate or spend a seed block until the contract result is PASS.",
+
+  "NOT_AUTHORIZED": [
+    "PPO, BC, continuation or fresh specialist training",
+    "GPU use",
+    "editing the production macro horizon table",
+    "changing the 15-degree switch/adoption threshold or any diagnostic definition",
+    "tuning theta or k after seeing results",
+    "reading the verdict off any grid cell other than theta=45, k=2",
+    "any claim about C_spatial, E_v or waypoint resolution",
+    "declaring specialization recovered from a confirmed manipulation"
+  ]
+}

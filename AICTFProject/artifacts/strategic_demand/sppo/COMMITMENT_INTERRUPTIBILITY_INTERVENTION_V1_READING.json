@@ -1,0 +1,85 @@
+{
+  "record_id": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_READING",
+  "record_type": "READING",
+  "utc": "2026-09-18T17:10:00Z",
+  "reads": "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_RESULT.json",
+  "governed_by": [
+    "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_SPEC.json",
+    "COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V1_IMPLEMENTATION_AMENDMENT.json"
+  ],
+
+  "HEADLINE": "VERDICT = MANIPULATION_INSUFFICIENT. Per the frozen decision rule this is a STOP: no PPO spec is authorized. Conditional interruption at theta=45 degrees, k=2 ticks does not move the localized commitment mechanism far enough to count as a manipulation, even though it moves it in the right direction with a positive lower bound on both primary metrics.",
+
+  "PRIMARY_GATE_4v4_BREACH": {
+    "rho_blocked_switch_fraction": {"mean": 0.2284, "lcb95": 0.1696, "ucb95": 0.2803, "required": "point >= 0.50 and lcb95 > 0.25", "pass": false},
+    "rho_p95_decision_lag_ticks": {"mean": 0.3393, "lcb95": 0.1038, "ucb95": 0.5590, "required": "point >= 0.50 and lcb95 > 0.25", "pass": false},
+    "reading": "Both lower bounds are clearly positive (0.170 and 0.104), so this is not sampling noise swallowing a real effect. The intervention genuinely reduces both signals; the reduction is roughly a fifth to a third of the localized excess, not the half the pre-registered bar demanded."
+  },
+
+  "RAW_4v4_BREACH": {
+    "blocked_switch_fraction": {"I1_floor": 0.6875, "I2_legacy": 0.8192, "I2R_repaired": 0.7878},
+    "p95_decision_lag_ticks": {"I1_floor": 2.0305, "I2_legacy": 3.1453, "I2R_repaired": 2.8398},
+    "stale_target_fraction": {"I1_floor": 0.0000, "I2_legacy": 0.5389, "I2R_repaired": 0.4788},
+    "mean_commit_run_length": {"I2_legacy": 4.0, "I2R_repaired": 3.337}
+  },
+
+  "SECONDARY": {
+    "rho_mean_decision_lag_ticks": {"mean": 0.3718, "lcb95": 0.1952, "required": "point >= 0.30, lcb95 > 0", "pass": true},
+    "rho_stale_target_fraction": {"mean": 0.1075, "lcb95": 0.0907, "required": "point >= 0.30, lcb95 > 0", "pass": false},
+    "note": "Does not change the verdict; primary already failed. Recorded because a mixed secondary is itself informative: the caveat flagged before this run (stale-target is near-structural, since I1's floor is 0 by construction) is borne out — it is the weakest-moving signal here too."
+  },
+
+  "PERSISTENCE_GUARD": {
+    "verdict": "NOT DEGENERATE",
+    "G_P1_non_firing_bit_identical": "discharged by construction + REPAIR_OFF (128/128 exact)",
+    "G_P2_interruption_rate": {"value": 0.1511, "ceiling": 0.40, "pass": true, "headroom": "far under ceiling"},
+    "G_P3_run_length_ratio": {"value": 0.8341, "floor": 0.70, "pass": true, "headroom": "well above floor"},
+    "G_P4_rho_stale_no_total_recovery": {"value": 0.1075, "ceiling": 0.95, "pass": true},
+    "reading": "R fired on only 15.1 percent of eligible ticks and left mean commit run length at 3.34 of a legacy 4.0 -- a mild, controlled effect, nowhere near reproducing h=1 (which would drive run length toward 1 and interruption rate toward saturation). The guard was not close to tripping. This means the operating point was, if anything, conservative rather than aggressive."
+  },
+
+  "OTHER_CELLS_INFORMATIONAL_ONLY": {
+    "note": "Primary decision is read exclusively from 4v4 BREACH per the frozen spec. These are reported for context, not as alternate gates.",
+    "2v2_GUARD": {"rho_blocked": "0.053 [-0.114, 0.202]", "rho_p95lag": "0.540 [0.326, 0.761]"},
+    "2v2_BREACH": {"rho_blocked": "0.246 [0.154, 0.342]", "rho_p95lag": "0.320 [0.047, 0.608]"},
+    "4v4_GUARD": {"rho_blocked": "0.127 [0.018, 0.251]", "rho_p95lag": "1.164 [0.235, 2.742]"},
+    "reading": "4v4 GUARD shows a much larger p95-lag rho but with a very wide interval (n=16, few switch requests in GUARD relative to BREACH). Not usable as a substitute primary cell; the spec fixed BREACH as primary specifically because it is the behavior that defines the useful side of Pole B."
+  },
+
+  "TWO_IMPLEMENTATION_GAPS_FOUND_AT_READ_TIME": {
+    "purpose": "Full disclosure of where the executed run diverges from the frozen spec's stated intent. Neither gap changes the numbers above or the verdict.",
+    "gap_1_descriptive_grid_not_run": {
+      "spec_text": "DESCRIPTIVE_ONLY_GRID over theta in {30,45,60} and k in {1,2,3}, reported for information only, explicitly barred from changing the verdict.",
+      "what_happened": "Only the frozen operating point (theta=45, k=2) was implemented and executed. The 3x3 grid was never run.",
+      "consequence": "None for this verdict, which is correctly read at theta=45, k=2 alone. It matters only for a FUTURE spec choosing a new operating point: that choice currently has no grid evidence to be principled about and would need one run before being framed as anything but a guess.",
+      "cost_if_run": "same order as this run, since the per-trace cost is dominated by environment stepping, not by how many (theta,k) pairs are evaluated against the same recorded switch-request stream -- the grid could very likely be computed by replaying already-collected agent-tick rows rather than a fresh CPU run, since R only needs the desired/committed bearings and action identities already recorded per tick."
+    },
+    "gap_2_sealing_clause_not_implemented": {
+      "spec_text": "FROZEN_OUTPUTS.sealing: 'The result must be produced through experiments/run_state.py seal(), never by a hand-written status field (Rule 7).'",
+      "what_happened": "The result was written the same way as the diagnostic and mechanism-amendment results: a direct JSON write with no status field at all, not through run_state.seal(). This matches the established convention for this sub-program's CPU diagnostics (ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json and the mechanism amendment both use direct writes with status='FROZEN_RESULT' or none), but it does not match what this specific spec said it would do.",
+      "consequence": "None for THIS verdict: no status field was hand-written (Rule 7's actual concern), and the numbers were independently reproduced via G9 and cross-checked via the persistence guards, so the informal integrity bar was met in substance. But the spec's own text overstated what the implementation does, and that gap should not repeat silently in a future confirmatory run, where Rule 7's audit machinery is not optional.",
+      "resolution": "Left open. If this line ever reaches a sealed_confirmatory arm, seal() must actually be wired in before that run, not merely promised in prose."
+    }
+  },
+
+  "WHAT_IS_NOW_AUTHORIZED": {
+    "PPO": "NOT AUTHORIZED. The frozen decision rule's MANIPULATION_INSUFFICIENT branch is unambiguous: STOP.",
+    "commitment_candidate_status": "Downgraded from 'mechanistically supported B-relevant scale-binder candidate awaiting a manipulation check' to 'mechanistically supported candidate; the specific interruptibility manipulation tested at theta=45/k=2 did not sufficiently move it.' The underlying localization from the diagnostic is untouched -- only this one intervention attempt is closed.",
+    "not_closed": "Unlike REPAIRED_GO_TO_H1, this was not a global duration change and did not degenerate. The persistence guards show real headroom (interruption rate 15 percent vs a 40 percent ceiling, run-length ratio 83 percent vs a 70 percent floor) before the intervention would risk becoming h=1-like. A more aggressive operating point (lower theta and/or lower k) is a live, principled option -- but per NOT_AUTHORIZED in the frozen spec, tuning theta or k after seeing this result requires a NEW spec that states why the new point is different in kind, not a post-hoc edit to this one.",
+    "next_step_options_not_decided_here": [
+      "cheapest: replay the already-collected agent-tick rows to compute the descriptive grid (gap_1 above) without a fresh CPU run, to see whether ANY (theta,k) cell in the pre-declared grid would have cleared the bar -- informational, still not a new verdict, but would tell us whether a bolder V2 operating point is worth specifying",
+      "freeze COMMITMENT_INTERRUPTIBILITY_INTERVENTION_V2_SPEC at a more aggressive, principled operating point, with fresh seeds and the same guard structure",
+      "treat interruptibility as falsified at any reasonable operating point and return to the decision tree above C_commit's MECHANISM_SUPPORT_REQUIREMENTS for a different intervention shape",
+      "PI decision; none of these is exercised without explicit direction"
+    ]
+  },
+
+  "BOARD_POSITION": {
+    "action_interface_repair": "STILL NOT AUTHORIZED",
+    "commitment_interruptibility_v1": "MANIPULATION_INSUFFICIENT, non-degenerate, real but undersized effect",
+    "path_to_4v4_B_specialization": "not advanced by this intervention; 4v4-first-then-6v6 sequencing plan is unaffected but has nothing to execute against yet",
+    "gpu_spend_this_cycle": 0
+  },
+
+  "authorizes": "nothing"
+}

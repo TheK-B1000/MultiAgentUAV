@@ -1,0 +1,486 @@
+{
+  "record": "audit of PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_RESULT.json",
+  "audit_utc": "2026-09-19T15:08:47Z",
+  "git_sha": "67b63fe3d8efff378f08816d37647552f45f545d",
+  "passed": true,
+  "n_checks": 35,
+  "n_gating": 23,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 896,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_ALLOCATION'",
+      "spec": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json",
+      "sha256": "e0fd5839a2d4d69821a8353d1864f3c558bb5d5edb69c723bf3982bcda69ae02",
+      "status": "FROZEN_BEFORE_SEED_ALLOCATION"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_EPISODES.csv (83935 bytes)",
+      "sha256": "7e77aff41eabfab58d743f65d806047f7c33b9ee16193bc2f6acc623a2d651ff"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "896 rows, expected 896",
+      "found": 896,
+      "expected": 896
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "14 cells; 0 with a seed set != frozen block 20500001..20500064 (n=64)",
+      "n_cells": 14,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::blue_win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "blue_win takes values [0, 1]",
+      "field": "blue_win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "binary::draw",
+      "gating": true,
+      "result": "PASS",
+      "detail": "draw takes values [0, 1]",
+      "field": "draw",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "derived::blue_win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "blue_win == blue_win == int(blue_score > red_score): 0 disagreement(s) in 896 rows",
+      "field": "blue_win",
+      "definition": "blue_win == int(blue_score > red_score)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "derived::draw",
+      "gating": true,
+      "result": "PASS",
+      "detail": "draw == draw == int(blue_score == red_score): 0 disagreement(s) in 896 rows",
+      "field": "draw",
+      "definition": "draw == int(blue_score == red_score)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "claim::A_6A_0D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.0,
+        "lcb95": -0.140625,
+        "ucb95": 0.140625,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.0,
+        "lcb95": -0.140625,
+        "ucb95": 0.140625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::A_5A_1D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.078125,
+        "lcb95": -0.078125,
+        "ucb95": 0.234375,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.078125,
+        "lcb95": -0.078125,
+        "ucb95": 0.234375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::A_4A_2D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.09375,
+        "lcb95": -0.046875,
+        "ucb95": 0.234375,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.09375,
+        "lcb95": -0.046875,
+        "ucb95": 0.234375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::A_2A_4D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.15625,
+        "lcb95": -0.328125,
+        "ucb95": 0.015625,
+        "n": 64
+      },
+      "rederived": {
+        "mean": -0.15625,
+        "lcb95": -0.328125,
+        "ucb95": 0.015625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::A_1A_5D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.515625,
+        "lcb95": -0.65625,
+        "ucb95": -0.375,
+        "n": 64
+      },
+      "rederived": {
+        "mean": -0.515625,
+        "lcb95": -0.65625,
+        "ucb95": -0.375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::A_0A_6D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.75,
+        "lcb95": -0.859375,
+        "ucb95": -0.640625,
+        "n": 64
+      },
+      "rederived": {
+        "mean": -0.75,
+        "lcb95": -0.859375,
+        "ucb95": -0.640625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::B_6A_0D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.796875,
+        "lcb95": 0.6875,
+        "ucb95": 0.890625,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.796875,
+        "lcb95": 0.6875,
+        "ucb95": 0.890625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::B_5A_1D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.71875,
+        "lcb95": 0.59375,
+        "ucb95": 0.84375,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.71875,
+        "lcb95": 0.59375,
+        "ucb95": 0.84375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::B_4A_2D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.265625,
+        "lcb95": 0.125,
+        "ucb95": 0.40625,
+        "n": 64
+      },
+      "rederived": {
+        "mean": 0.265625,
+        "lcb95": 0.125,
+        "ucb95": 0.40625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::B_2A_4D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.078125,
+        "lcb95": -0.15625,
+        "ucb95": 0.0,
+        "n": 64
+      },
+      "rederived": {
+        "mean": -0.078125,
+        "lcb95": -0.15625,
+        "ucb95": 0.0
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::B_1A_5D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.09375,
+        "lcb95": -0.171875,
+        "ucb95": -0.03125,
+        "n": 64
+      },
+      "rederived": {
+        "mean": -0.09375,
+        "lcb95": -0.171875,
+        "ucb95": -0.03125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::B_0A_6D_minus_3A_3D",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.09375,
+        "lcb95": -0.171875,
+        "ucb95": -0.03125,
+        "n": 64
+      },
+      "rederived": {
+        "mean": -0.09375,
+        "lcb95": -0.171875,
+        "ucb95": -0.03125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "split_half::A_6A_0D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0938 | second half +0.0938  <-- SIGN FLIP between halves",
+      "first_half": -0.09375,
+      "second_half": 0.09375,
+      "sign_flip": true
+    },
+    {
+      "name": "split_half::A_5A_1D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0625 | second half +0.2188  <-- SIGN FLIP between halves",
+      "first_half": -0.0625,
+      "second_half": 0.21875,
+      "sign_flip": true
+    },
+    {
+      "name": "split_half::A_4A_2D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.0000 | second half +0.1875",
+      "first_half": 0.0,
+      "second_half": 0.1875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::A_2A_4D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.2812 | second half -0.0312",
+      "first_half": -0.28125,
+      "second_half": -0.03125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::A_1A_5D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.5938 | second half -0.4375",
+      "first_half": -0.59375,
+      "second_half": -0.4375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::A_0A_6D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.8438 | second half -0.6562",
+      "first_half": -0.84375,
+      "second_half": -0.65625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::B_6A_0D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.7500 | second half +0.8438",
+      "first_half": 0.75,
+      "second_half": 0.84375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::B_5A_1D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.6562 | second half +0.7812",
+      "first_half": 0.65625,
+      "second_half": 0.78125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::B_4A_2D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.2188 | second half +0.3125",
+      "first_half": 0.21875,
+      "second_half": 0.3125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::B_2A_4D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0938 | second half -0.0625",
+      "first_half": -0.09375,
+      "second_half": -0.0625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::B_1A_5D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1250 | second half -0.0625",
+      "first_half": -0.125,
+      "second_half": -0.0625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::B_0A_6D_minus_3A_3D",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1250 | second half -0.0625",
+      "first_half": -0.125,
+      "second_half": -0.0625,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP (status RESERVED) -- same block, no conflict",
+      "seed_class": "exploratory",
+      "experiment_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP"
+    }
+  ]
+}

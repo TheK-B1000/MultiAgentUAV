@@ -1,0 +1,83 @@
+{
+  "record": "ASSIGNMENT_INFORMATION_DIAGNOSTIC",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-17T21:02:23Z",
+  "implements": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC.json",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "elapsed_s": 103.0,
+  "seeds": [
+    17600001,
+    17600002,
+    17600003
+  ],
+  "G1_TEACHER_ASSIGNMENT_AGREEMENT": {
+    "N4": {
+      "scale": "4v4",
+      "n_eligible_agent_ticks": 440,
+      "n_target_match": 302,
+      "accuracy": 0.6863636363636364,
+      "mean_target_l2_err": 4.190686238651798,
+      "passed": false,
+      "pass_floor": 0.95
+    },
+    "N2_control": {
+      "scale": "2v2",
+      "n_eligible_agent_ticks": 192,
+      "n_target_match": 171,
+      "accuracy": 0.890625,
+      "mean_target_l2_err": 0.9559040722455691,
+      "passed": false,
+      "pass_floor": 0.95
+    }
+  },
+  "G2_RESOLVES_SEALED_AMBIGUITY": {
+    "N4": {
+      "scale": "4v4",
+      "n_test0_pairs": 9,
+      "n_zi_resolved": 9,
+      "passed": true,
+      "control": false,
+      "unresolved_examples": [],
+      "rule": "every o-identical q-differing pair must have differing discrete z_i"
+    },
+    "N2_control": {
+      "scale": "2v2",
+      "n_test0_pairs": 0,
+      "n_zi_resolved": 0,
+      "passed": true,
+      "control": true,
+      "note": "N=2 negative control (assignment inactive)",
+      "unresolved_examples": []
+    }
+  },
+  "G3_NO_ACTION_LEAK": {
+    "passed": true,
+    "static": {
+      "passed": true,
+      "parameter_names": [
+        "own_x",
+        "own_y",
+        "own_alive",
+        "home_xy",
+        "enemy_x",
+        "enemy_y",
+        "enemy_alive",
+        "enemy_tagged",
+        "enemy_flag_xy",
+        "on_our_side",
+        "defense_radius"
+      ],
+      "forbidden_hits": [],
+      "forbid_kwargs_assert_works": true
+    },
+    "dynamic": {
+      "passed": true,
+      "deterministic_replay": true
+    }
+  },
+  "OVERALL_PASS": false,
+  "AUTHORIZATION": "Assignment Conditioning v1 training FORBIDDEN \u2014 redesign z_i / rerun diagnostic",
+  "GETFLAG_untouched": true,
+  "no_PPO_in_this_record": true
+}

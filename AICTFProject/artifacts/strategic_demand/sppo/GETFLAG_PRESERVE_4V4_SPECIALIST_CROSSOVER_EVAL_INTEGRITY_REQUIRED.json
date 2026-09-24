@@ -1,0 +1,14 @@
+{
+  "record": "GETFLAG_PRESERVE_4V4 specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-18T07:34:52Z",
+  "implements": "B_GETFLAG_PRESERVE_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_A"
+  ],
+  "point_estimates": {
+    "delta_A": -0.046875,
+    "delta_B": 0.015625
+  },
+  "rule": "requires a row-level integrity audit before any verdict-bearing result. Raw rows: getflag_preserve_4v4_specialist_crossover_eval_rows.csv."
+}

@@ -1,0 +1,55 @@
+{
+  "record_id": "B_CHECKPOINT_SCREENING_READING",
+  "status": "READING_FROZEN_POST_AUDIT",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-17T12:00:00Z",
+  "governed_by": "B_CHECKPOINT_SCREENING_SPEC.json + B_CHECKPOINT_SCREENING_DECISION_TREE_AMENDMENT.json",
+  "rests_on": "three independent row-level audits, all clean: 64/64 unique seeds per cell, exact seed ranges, zero win/margin disagreements, independent bootstrap recomputation matching each flagged point estimate exactly.",
+
+  "VERDICT": "NO_BASIN_FOUND. None of the three mechanically-selected candidates clears delta_A>0 AND delta_B>0. In fact delta_B is non-positive for ALL THREE -- there is no seed-block noise story here; the result is unambiguous.",
+
+  "RESULTS_TABLE": {
+    "pi_A3_comparator_stable_across_all_three_runs": {"WR_PoleA": 0.6875, "WR_PoleB": 0.6875,
+      "note": "identical in all three independent invocations -- expected and a useful sanity check, since deterministic action selection + fixed seeds must reproduce bit-for-bit."},
+    "B_t200k": {"WR_PoleA": 0.75, "WR_PoleB": 0.5625,
+      "delta_A": {"mean": -0.0625, "lcb95": -0.2344, "ucb95": 0.1094},
+      "delta_B": {"mean": -0.125, "lcb95": -0.2969, "ucb95": 0.0469},
+      "striking_detail": "delta_A is NEGATIVE -- B_t200k actually beats frozen A3 on Pole A (0.75 vs 0.6875), A3's OWN home pole. It is not a Pole-B specialist; on these seeds it reads as a stronger-than-A3 generalist that still underperforms A3 specifically on Pole B."},
+    "B_t500k": {"WR_PoleA": 0.6719, "WR_PoleB": 0.6406,
+      "delta_A": {"mean": 0.0156, "lcb95": -0.125, "ucb95": 0.1562},
+      "delta_B": {"mean": -0.0469, "lcb95": -0.1875, "ucb95": 0.0938},
+      "reading": "the closest to neutral of the three -- both deltas near zero, both intervals straddling zero. Essentially indistinguishable from A3 on both poles, not a specialist in either direction."},
+    "B_tfinal": {"WR_PoleA": 0.4844, "WR_PoleB": 0.4844,
+      "delta_A": {"mean": 0.2031, "lcb95": 0.0312, "ucb95": 0.375, "passes": true},
+      "delta_B": {"mean": -0.2031, "lcb95": -0.3594, "ucb95": -0.0469, "passes": false},
+      "reading": "matches every prior measurement of this exact checkpoint: A3 CONFIRMED better on Pole A (entire interval positive) and Bfinal CONFIRMED worse on Pole B (entire interval negative) -- consistent with the corrected crossover's -0.156 and the trajectory's own numbers. No surprise here; included as the fixed reference point the frozen rule required."}
+  },
+
+  "SEED_BLOCK_VARIANCE_WORTH_NAMING": {
+    "observation": "B_t200k's standalone Pole-B win rate was 0.750 in AB_BEHAVIORAL_TRAJECTORY (seeds 18700001-32, n=32) and 0.5625 here (seeds 18800001-64, n=64) -- a substantial drop for nominally the same checkpoint against the same scripted opponent.",
+    "reading": "this is exactly the kind of sampling variance the 0.10 selection margin was built to tolerate, and exactly why B_t200k's trajectory-measured 0.750 was never treated as more than a screening candidate. It does not change today's verdict (delta_B is negative here regardless), but it is a concrete illustration of why n=32 point estimates should not be over-trusted, and it is recorded rather than left as an unexplained discrepancy between two of this investigation's own documents."
+  },
+
+  "WHAT_THIS_CLOSES": [
+    "checkpoint selection / early stopping as a stand-alone repair -- there is no better basin sitting in B's own 1M-step trajectory to select. B_t200k's high absolute Pole-B win rate (both in the trajectory and, less so, here) was never accompanied by the crossover separation the repair actually needs.",
+    "the CONFIRMED sub-branch of A_BASIN_EXISTS and the PROMISING_BUT_UNCONFIRMED sub-branch both -- neither applies, since no candidate cleared BOTH deltas even in point-estimate direction, the minimum bar for either."
+  ],
+
+  "A_ROUTING_DISCREPANCY_BEING_SURFACED_NOT_RESOLVED": {
+    "issue": "two of this investigation's own records disagree about what happens next under exactly this outcome.",
+    "record_1": "B_CHECKPOINT_SCREENING_SPEC.json#PRECOMMITTED_DECISION_TREE, NO_BASIN_FOUND branch (frozen 2026-09-16, before the trajectory even completed): 'move to a specialization-preserving training objective... continue from the best available B checkpoint (by absolute Pole-B performance) with an added anchor term [JSD preservation]'.",
+    "record_2": "the PI's own message authorizing this screening run (also 2026-09-16, later than record_1, stated in direct anticipation of this exact outcome): 'If none of the three produces meaningful B specialization... We route to the mechanically defined state-conditioned diagnosis instead of throwing preservation at a policy that never contained the desired crossover behavior.'",
+    "why_this_matters_now": "record_1 says: anchor-and-continue from B_t200k (best absolute performance). record_2 says: skip preservation entirely and go straight to comparing a good/bad checkpoint pair behaviourally. These are different next actions with different compute costs and different premises -- record_2's premise is that there is nothing worth preserving via an anchor if the anchor itself never showed the desired crossover behaviour, which this screening's own result now supports (B_t200k's delta_B is negative, not merely small).",
+    "not_resolved_here": "this reading does not pick one. Both were legitimately on the record at different times; the more specific, more recent, outcome-anticipating statement (record_2) reads as the intended supersession of the older general branch (record_1), but that is an inference, not a decision this document is authorized to make on its own."
+  },
+
+  "WHAT_THIS_READING_MAY_NOT_CLAIM": [
+    "any confirmatory status -- exploratory seeds (18800001-18800064), diagnostic arm, this was a screen",
+    "that NO checkpoint in B's trajectory ever showed positive delta_B -- only these three mechanically-selected points were tested, per the frozen rule",
+    "a mechanism for why the crossover behaviour never emerged -- that is precisely what the next step (whichever routing is confirmed) would investigate",
+    "anything about 6v6 or 2v2"
+  ],
+
+  "STOPPING_HERE": "per explicit PI instruction ('seal the screening results, compute both deltas, classify the branch, and stop'). Nothing further launched. Awaiting confirmation of which routing record governs before any Stage 2 action."
+}

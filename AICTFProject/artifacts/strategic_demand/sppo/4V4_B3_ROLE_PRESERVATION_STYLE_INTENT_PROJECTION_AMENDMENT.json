@@ -1,0 +1,29 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_STYLE_INTENT_PROJECTION_AMENDMENT",
+  "status": "FROZEN_AMENDMENT_BEFORE_TRAINING",
+  "utc": "2026-09-10T22:32:00Z",
+  "amends": "4V4_B3_ROLE_PRESERVATION_SPEC.json target collection + supersedes half-plane-only reading of TARGET_PROJECTION_AMENDMENT for the attack/defend feature channel",
+  "authority": "PI stronger semantic gate: GUARD must be more defensive and BREACH more attack-heavy across main features, not merely different in one OR-clause statistic. Half-plane projection failed that gate (both styles ~0.7 att / 3.3 def; BREACH slightly MORE defensive). Premature _b3_role launch aborted at ~6k steps.",
+
+  "AMENDMENT": {
+    "projection": "When collecting frozen targets, project telemetry macros from the SCRIPTED STYLE'S OWN ALLOCATION INTENT (gpu_env/_core/_scripted_blue_styles.py), not from instantaneous half-plane occupancy: GUARD/BLUE_ONE_DEFENDER_V2 assigns GO_HOME to the last ceil(N/2) agent indices and GET_FLAG to the rest (matching _blue_one_defender_v2_targets defender block); BREACH/BLUE_BOTH_ATTACK_V2 assigns GET_FLAG to all alive agents (matching _blue_both_attack_v2_targets). Alive mask still applied. Carrier geometry for escort/intercept continues to come from core state via compute_behavior_telemetry_batch.",
+    "why": "Half-plane occupancy is a consequence of motion, not the style's committed role structure. Style-intent projection measures the semantic attack/defend roles the GUARD/BREACH treatments were written to express.",
+    "loss": "If the recollected targets PASS the stronger directional gate, restore L_role = MSE(f_soft,f*) + CE(p*,q_soft) as originally frozen (LOSS_AMENDMENT's MSE drop was a workaround for failed half-plane targets and is then SUPERSEDED). If they still fail, do not train.",
+    "seed_repair": "pi_A training seed 16900001 is PARTIALLY_SPENT by the aborted non-result. Production relaunch uses pi_A_role seed 16910001 (fresh). pi_B remains 17000001. Sealed crossover remains 17200001-128."
+  },
+
+  "STRONGER_SEMANTIC_GATE_REQUIRED_BEFORE_LAUNCH": [
+    "GUARD mean_num_defenders > BREACH mean_num_defenders",
+    "BREACH mean_num_attackers > GUARD mean_num_attackers",
+    "BREACH mean_attack_defense_ratio > GUARD mean_attack_defense_ratio",
+    "features not identical",
+    "GUARD dominant role is defensively oriented (one_attack_three_defend or turtle_defense or two_attack_two_defend with def>=att)",
+    "BREACH dominant role is attack-oriented (all_push or three_attack_one_defend or escort_pair only if attack features also dominate)",
+    "occupancy L1(GUARD,BREACH) >= 0.20",
+    "finite plausible ranges",
+    "deterministic replay on a fixed seed sample",
+    "matched CE = H(q); swapped style targets clearly larger"
+  ],
+
+  "TIMING_INTEGRITY": "Aborted run spent ~6144 steps of seed 16900001 only. No sealed crossover seed spent. This amendment precedes any relaunch."
+}

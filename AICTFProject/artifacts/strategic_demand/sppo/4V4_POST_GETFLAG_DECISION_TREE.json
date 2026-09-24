@@ -1,0 +1,73 @@
+{
+  "record_id": "4V4_POST_GETFLAG_DECISION_TREE",
+  "status": "FROZEN_CONTINGENCY",
+  "utc": "2026-09-18T05:30:00Z",
+  "authority": "PI, 2026-09-18 — while GETFLAG_PRESERVE_4V4 crossover is LIVE",
+  "applies_if": "GETFLAG outcome crossover fails the joint specialization gate (or integrity-flags on delta_B / does not move delta_B relative to the B_t500k screen in the pre-specified reading)",
+
+  "PREMISE": {
+    "not": "4v4 is doomed",
+    "is": "the two strongest targeted repairs identified so far are real mechanisms but individually insufficient",
+    "already_eliminated": [
+      "ROLE: binary role identity — no recovery",
+      "Assignment-v1: explicit assignment resolving 9/9 ambiguities — diagnostic PASS, training no recovery"
+    ],
+    "getflag_known_before_crossover": "manipulation crushed GET_FLAG→GO_TO substitution (~19.1%→0.13%); Delta_B still UNKNOWN until this live eval"
+  },
+
+  "SEQUENCE": [
+    {
+      "step": 1,
+      "now": "Run frozen GETFLAG crossover (LIVE: GETFLAG_PRESERVE_4V4, seeds 19300001-64). Cleanest unresolved experiment; fills the causal table cell for outcome given confirmed manipulation."
+    },
+    {
+      "step": 2,
+      "if_getflag_fails": "Pole-B learning/credit diagnostic — NOT another 200k intuition repair, NOT Assignment-v2, NOT a blind retrain.",
+      "compare_policies_on_same_PoleB_states": [
+        "B_t500k",
+        "B_final (entity-repair corrected)",
+        "GETFLAG-preserve continuation",
+        "Assignment-v1 continuation",
+        "frozen pi_A3"
+      ],
+      "measure": [
+        "action distributions",
+        "advantages / returns",
+        "assignment states (privileged z_i for analysis only)",
+        "flag progress / captures / returns home / deaths",
+        "reward components"
+      ],
+      "key_question": "When the policy takes behavior that is strategically useful against Pole B, does PPO actually receive a learning signal that favors it?"
+    },
+    {
+      "step": 3,
+      "specifically": "Test reward/advantage alignment. If successful B-specific actions do not receive systematically better advantages than the alternatives PPO learns, the bottleneck may be acquisition/credit rather than observation."
+    },
+    {
+      "step": 4,
+      "choose_intervention_from_diagnostic": {
+        "bad_signal": "isolated reward/credit repair",
+        "good_signal_poor_retention": "optimization / interference / preservation-regularization",
+        "correct_signal_but_network_ignores_zi": "conditioning utilization / architecture diagnosis",
+        "joint_coordination_individual_advantages_poor": "THEN centralized-training / richer critic / MAPPO-style / counterfactual credit become scientifically motivated"
+      }
+    }
+  ],
+
+  "EXPLICITLY_FORBIDDEN_if_getflag_fails": [
+    "jump straight to Assignment + GETFLAG combination without evidence of interaction",
+    "Assignment-v2 without a new written experimental question from the credit diagnostic",
+    "another 200k PPO intervention based on intuition",
+    "port Assignment to 6v6",
+    "claim 4v4 is doomed"
+  ],
+
+  "COMBINATION_RULE": {
+    "interesting_possibility": "Assignment and GETFLAG could both be necessary but neither sufficient (who↔what + B-specific behavioral preservation)",
+    "nevertheless": "Do NOT combine two failed individual interventions without evidence they interact — muddy interpretation. Diagnose interaction first."
+  },
+
+  "TREE_ASCII": "GETFLAG crossover -> if fail -> [Pole-B reward/advantage/credit diagnostic] -> {bad signal: credit/reward repair | good signal poor retention: optimization/preservation | joint coordination: centralized MARL}",
+
+  "NEXT_MOVE_AFTER_GETFLAG_FAILURE": "Pole-B advantage/credit diagnostic, not Assignment-v2 and not another blind retrain."
+}

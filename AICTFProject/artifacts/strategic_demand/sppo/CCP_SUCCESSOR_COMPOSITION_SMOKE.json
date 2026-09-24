@@ -2,7 +2,7 @@
   "record": "CCP successor composition smoke",
   "status": "VERIFIED",
   "repeatable": true,
-  "utc": "2026-09-02T00:21:26Z",
+  "utc": "2026-09-22T15:33:48Z",
   "note": "engineering verification, not a scientific measurement; safe to rerun, always overwrites this file",
   "counters": {
     "task_updates": 6,

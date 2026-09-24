@@ -1,0 +1,92 @@
+{
+  "record_id": "CLOSEST_DEFENDS_SCREEN_4V4_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-22T04:56:33Z",
+  "classification": "EXPLORATORY / DESCRIPTIVE screen -- no confirmatory label, no LCB95 gate, no training",
+  "confirmatory": false,
+  "authorized_by": "PI, 2026-09-22: 'Yes, go with that design ... freeze, contract, and run the fixed-at-start CLOSEST_DEFENDS screen at n=64.' Fixed-at-episode-start (single computation right after env.reset(), before any action) explicitly chosen over a dynamic per-tick reassignment, to change exactly one variable relative to the sealed bridge (the pair-selection RULE) without also introducing untested mid-episode role-switching.",
+  "QUESTION": "Does forcing DEFEND onto the two ACTIVE agents closest to their own flag at the first decision tick (state-dependent, fixed for the whole episode) preserve the sealed scaffold bridge's crossover pattern (Delta_A' > 0, Delta_B' > 0, I_B < 0), or does the specific PAIR CHOICE matter more than the compositional headcount (2A/2D) the bridge's own diagnostics (I_A ~ -0.09, I_B ~ -0.49) suggested was the load-bearing variable?",
+  "WHY_THIS_LEVER": {
+    "the_sealed_bridge": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4 (commit ef5ee95f, sealed SCAFFOLDED_CROSSOVER_CONFIRMED): forced pair chosen by PAIRS[seed % 6] (seed-rotated, NOT state-dependent). Delta_A' +0.352 [+0.234,+0.461]; Delta_B' +0.359 [+0.250,+0.469]; I_A -0.094 [-0.203,+0.016]; I_B -0.492 [-0.594,-0.391].",
+    "the_hypothesis_under_test": "I_A ~ 0 / I_B << 0 is the signature of a HEADCOUNT effect (4 attackers -> 2), not a WHICH-TWO effect. If true, any reasonable fixed-pair rule should reproduce the same pattern. This screen tests that with a rule that could plausibly differ (closest-to-home) from pure seed rotation.",
+    "prior_learned_attempts_at_something_like_role_assignment": "ROLE and Assignment-v1 (pre-scaffold 4v4 repairs) both showed the same Delta_A-passes/Delta_B-fails signature (ROLE +0.203/-0.047, Assignment-v1 +0.125/-0.016) as every non-scaffold repair. Their own design records were not re-read for this screen; this experiment tests the ALLOCATION RULE in isolation on the frozen specialists, not a new learned mechanism.",
+    "successor_architecture_this_derisks": "greedy_role_allocator(N, k_D) -> role-conditioned PPO, with k_D(4)=2 evaluated here; k_D for other team sizes (e.g. 6v6's candidate 5A/1D) is a SEPARATE, later experiment on that team's own specialists and certified poles -- this spec authorizes 4v4 only."
+  },
+  "DESIGN": {
+    "arms": {
+      "pi_A": "native pi_A3 (identical arm and checkpoint to the sealed bridge)",
+      "A_closest": "pi_A3 + 2D: the k_D=2 ACTIVE agents (alive, not tagged, not carrying -- the audit's own eligibility convention) closest to own_flag_home by Euclidean distance, computed ONCE at the state immediately after env.reset() (before any action; 'the first decision tick'), have their resolved target forced to DEFEND's live-state target for the REST of the episode. Same mechanism as the sealed A' (experiments.probe_learned_composition.install_forced_defend_target, same sha256 pin); the ONLY difference from A' is the pair-selection rule.",
+      "pi_B": "native corrected pi_B3 (identical arm and checkpoint to the sealed bridge)"
+    },
+    "k_D": 2,
+    "fixed_vs_dynamic": "FIXED AT EPISODE START. Computed exactly once, immediately after env.reset(), never recomputed. A dynamic per-tick reassignment is explicitly OUT OF SCOPE for this spec (see NOT_AUTHORIZED) -- it would confound two changes (pair rule AND mid-episode role-switching) in one experiment.",
+    "tie_breaking": "stable argsort ascending by distance; ties broken by lower agent index. Structural probe (2026-09-22, read-only, no episode stepped) found no near-ties in practice: across 20 sample seeds the gap between the 2nd- and 3rd-closest agent was never below 0.358 cells (median 1.359); contract C6 re-checks this on the actual 64 seeds used.",
+    "poles": "A = OP6 + frozen overlay (min_alive_for_defender = 4); B = the certified B3-3 genome SDS2_B3_LOCKDEF10_2V1 -- NEVER canonical OP7. Both attested against the governing certification, identical to the sealed bridge.",
+    "seed_block": {
+      "base": 21300001,
+      "n": 64,
+      "class": "exploratory",
+      "id": "CLOSEST_DEFENDS_SCREEN_4V4",
+      "range": "21300001-21300064"
+    },
+    "episodes": "64 seeds x 2 poles x 3 arms = 384 full episodes, deterministic, PPO off. Fresh seeds, disjoint from every prior block.",
+    "n_rationale": "exploratory/screening scale (64), matching this project's own precedent for 'does a mechanism replicate under a changed condition, before deciding whether to invest training' checks -- cheaper than the 128 used for an actual confirmatory bridge, since no confirmatory claim is made here."
+  },
+  "ENDPOINTS": {
+    "reported": "Delta_A_closest = WR(A_closest,A) - WR(pi_B,A); Delta_B_closest = WR(pi_B,B) - WR(A_closest,B); I_A = WR(A_closest,A) - WR(pi_A,A); I_B = WR(A_closest,B) - WR(pi_A,B); native_Delta_A, native_Delta_B (descriptive, non-gating). Same bootstrap as the sealed bridge (paired percentile, 20000 resamples, alpha 0.05, rng seed 7) for point estimates and intervals, reported for information ONLY.",
+    "no_gate": "NO LCB95 threshold is applied and NO terminal pass/fail label is produced. This is explicitly descriptive per the PI: 'descriptive comparison to the sealed bridge, no new confirmatory label.'",
+    "pattern_match_rule": "Delta_A_closest_mean > 0 AND Delta_B_closest_mean > 0 AND I_B_mean < 0 -- the sealed bridge's own defining pattern, evaluated on POINT ESTIMATES only, frozen before any data is read, reported as a single descriptive boolean alongside the raw numbers and the sealed bridge's own reference values (read programmatically from the sealed RESULT.json at analyze time, never hand-transcribed).",
+    "also_reported": "Blue goals and margin contrasts (descriptive); the distribution of pairs A_closest actually selected across the 64 seeds (diagnostic: is the selection meaningfully varied, or does it degenerate toward one or two pairs)."
+  },
+  "INTEGRITY_FROZEN": {
+    "checkpoints": {
+      "pi_A": {
+        "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+        "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+      },
+      "pi_B": {
+        "path": "artifacts/scale_4v4_specialists/pi_B_specialist_4v4_b3_entity_repair_corrected/ckpts/final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+        "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+      },
+      "note": "the same two checkpoints, by hash prefix, that the sealed corrected crossover evaluated (its log records sha 94dde69d091a... and 021342c84bbe...)."
+    },
+    "pole_attestation": {
+      "governing_certification": "artifacts/strategic_demand/sppo/STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json",
+      "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+      "pole_b_genome_file": "artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+      "pole_b_genome_sha256": "99c17cadcb4e0cbccdad02847d3997b2c4d59a2c945ceba2fc5eedb8c5ad5f26",
+      "rule": "both poles are attested before any episode against the governing certification (fields and config hash), through experiments.pole_attestation, with the B3-3 genome file supplied so canonical OP7 can never be scored. Each episode additionally asserts the LIVE opponent batch and the live min_alive_for_defender equals 4, and fails closed otherwise. This is the defect that invalidated an earlier 4v4 experiment (a pi_B trained on canonical OP7 but scored on B3-3)."
+    },
+    "sealed_inputs_sha256": {
+      "scaffold_spec": "ac9a1e97f9d56eb7ac6177a398c112587eb12140db08519513d63786affa374f",
+      "scaffold_result": "4846b0c168962b93e7ccba4977381c3d8390da989d4b96127aa884a2a95f29f4",
+      "scaffold_rows": "2188aff0a8a9018491d7926c4079d95247d9354afb16648f461024b6ef02f5dd",
+      "scaffold_runner": "e6288f15fbe9dd67d13517c5641dbe8a5c144eb84790f5ead0dd3a24d536ff1c",
+      "mechanism_source": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb"
+    },
+    "seed_registry": "fresh exploratory block, disjoint from every sealed_confirmatory and exploratory block on record; contract C4 checks it is reserved before contracts pass."
+  },
+  "CONTRACTS_BEFORE_ANY_SEED_IS_SPENT": [
+    "C0 spec frozen",
+    "C1 all pinned sealed inputs equal their pins",
+    "C2 checkpoints equal their pins",
+    "C3 both poles attested (Pole B = the B3-3 genome)",
+    "C4 seed block reserved / exploratory / unspent / disjoint",
+    "C5 closest_defends_pair matches an independent brute-force argsort recomputation exactly on 500 synthetic states (incl. inactive-agent exclusion and tie-breaking)",
+    "C6 spawn geometry is non-degenerate (2nd/3rd-closest gap > 1e-3 cells) on ALL 64 real seeds x 2 poles that will actually be used",
+    "C7 the harness (S._setup_poles / S._open_opponent / S.run_episode) reproduces a KNOWN sealed bridge row exactly for both native arms on both poles, proving this new runner's plumbing is wired correctly before trusting its own fresh cells",
+    "C8 A_closest is deterministic given (pole,seed) and demonstrably state-dependent (>= 2 distinct pairs across the first 4 seeds); policy parameter digests unchanged by any contract episode",
+    "C9 no seed-table side door: the source never calls pair_for_seed or indexes PAIRS[seed...]",
+    "C10 the descriptive pattern-match rule self-tests correctly on synthetic cases",
+    "C11 read-only fence: no training/optimizer call in the source"
+  ],
+  "NOT_AUTHORIZED": [
+    "PPO or any training; any change to pi_A, pi_B, the poles, the scaffold, or its sealed record",
+    "a dynamic / per-tick reassignment variant (explicitly deferred; would confound the pair-selection-rule test with an untested mid-episode role-switching phenomenon)",
+    "a 6v6 (or any other team-size) version of this screen -- k_D for other team sizes is a separate future experiment on that team's own specialists and certified poles",
+    "treating the descriptive pattern-match result as a confirmatory crossover claim, or applying any LCB95-based label to it",
+    "committing before contracts pass; reading any outcome while shards run; top-up; re-run"
+  ],
+  "claim_boundary": "Two frozen 4v4 learned specialists, the two certified 4v4 poles, fresh exploratory seeds, a rollout-time state-dependent-but-fixed defender assignment on pi_A only. A_closest is pi_A with an externally imposed, state-dependent defender assignment (closest-to-home at t=0), not a learned assignment. This is a DESCRIPTIVE screen, not a confirmatory claim: no LCB95 gate, no terminal pass/fail label. It answers whether the pair-selection RULE matters, not whether PPO can learn to select or execute it.",
+  "claim_ceiling": "a descriptive statement about whether the closest-to-home pair rule reproduces the sealed bridge's own pattern of win-rate contrasts; nothing about learnability, PPO, pi_B, 6v6, or any other team size."
+}

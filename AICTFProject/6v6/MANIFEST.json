@@ -1,0 +1,5 @@
+﻿{
+  "record": "6v6_school_handoff",
+  "status": "EMPTY_AWAITING_PIPELINE",
+  "note": "Pipeline copies models/results/seals/logs here. Zip with experiments/pack_6v6_handoff.ps1"
+}

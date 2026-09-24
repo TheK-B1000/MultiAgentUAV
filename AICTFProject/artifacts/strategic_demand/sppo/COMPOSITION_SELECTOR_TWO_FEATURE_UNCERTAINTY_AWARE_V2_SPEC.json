@@ -1,0 +1,112 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_SPEC",
+  "status": "FROZEN_BEFORE_EXECUTION",
+  "utc": "2026-09-19T00:00:00Z",
+  "classification": "SCRIPTED_SELECTOR_CALIBRATION. PPO OFF. GPU OFF. OUTCOME-BLIND. NO OUTCOME SEEDS.",
+  "confirmatory": false,
+  "authorized_by": "PI direction 2026-09-19, Option B. One final handcrafted-selector attempt under this architecture. Terminal either way; no second reselection.",
+  "supersedes_nothing": "COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json#DECISION (NO_CONSERVATIVE_B_TRIGGER_TWO_FEATURE) is NOT rewritten, reopened, or amended. It stands as a sealed negative for the selection rule it tested.",
+
+  "WHY_THIS_RUN_EXISTS": {
+    "premise_change": "The V1 two-feature run changed the branch premise. It produced a large non-degenerate conservative calibration region (3773 of 9380 configs inside the A budget, best B_TP 0.783 with B dominance 0.9375; at a cap of exactly 0.00 the best config still reached B_TP 0.3466). The architecture was not shown incapable of conservative routing.",
+    "what_V1_actually_falsified": "The preregistered selection rule 'maximize B_TP subject to a POINT-ESTIMATE A_FP <= 0.10'. Maximizing an objective against an inequality constraint drives the choice onto the constraint boundary: the selected config had calibration A_FP 0.09635416666666667, a margin of 0.0036 against the cap, and the fresh held-out estimate moved to 0.11197916666666667.",
+    "the_defect_in_one_sentence": "Calibration was allowed to certify a configuration as safe on a point estimate whose own sampling uncertainty was an order of magnitude larger than its margin against the cap."
+  },
+
+  "THE_ONLY_CHANGE": {
+    "changed": "how a calibration configuration becomes ELIGIBLE.",
+    "old_eligibility": "A_FP_hat <= 0.10, where A_FP_hat is the pooled Pole-A false-positive tick rate on calibration.",
+    "new_eligibility": "UCB95_episode(A_FP) <= 0.10, where the upper confidence bound is obtained by resampling EPISODES, not ticks.",
+    "principle_that_justifies_it_independently_of_this_frontier": "The operational limit is 0.10. Calibration must supply enough statistical evidence that the TRUE Pole-A false-positive rate lies below that operational limit -- not merely that a point estimate does. This is a defensible selection principle that could have been written before any frontier was seen, and it is deliberately chosen over a tighter raw cap (0.05, 0.02) precisely because a tighter raw cap would have been selected after seeing where the good region lay.",
+    "why_episodes_and_not_ticks": "Within an episode, tick-level classifications are strongly autocorrelated: the V1 selected config produced only ~2.1 switches per Pole-A episode across 240 ticks. Treating 3840 ticks as 3840 independent samples understates the variance of A_FP by more than an order of magnitude. The effective sample size for the constraint is 16 episodes."
+  },
+
+  "UNCHANGED_AND_INHERITED_VERBATIM": {
+    "statistic": "D_t = P_blue_t(r=4.0) - P_red_t(r=4.0). FROZEN, not re-derived. r_red* = 4.0 was selected under the predeclared pooled-misclassification rule on calibration data in COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json before any V2 number existed. The executor re-derives it from the persisted calibration rows purely as a consistency check and ABORTS if it does not come back 4.0; it does not treat the re-derivation as a fresh selection.",
+    "grid": "window {20,40,60,80,120} x hysteresis {0.0,0.05,0.10,0.15,0.20} x dwell {4,10,20,40}; threshold candidates = percentiles of the pooled calibration windowed statistic at 1% steps. Imported from experiments/calibrate_asymmetric_b_trigger.py, not re-declared.",
+    "dwell_semantics": "unchanged",
+    "state_machine": "unchanged; imported, not re-implemented",
+    "objective_among_eligible": "maximize B_TP tick rate",
+    "tie_break_order": "min mean Pole-A switches per episode; then prefer dwell=4 (macro-commit horizon); then smallest window; then smallest threshold. Unchanged from V1.",
+    "operational_A_FP_limit": 0.10,
+    "B_dominance_bar": 0.50,
+    "held_out_success_rule": "UNCHANGED and deliberately comparable to the prior experiment: held-out A_FP <= 0.10 AND held-out B dominant-composition >= 0.50. The episode bootstrap is used to make CALIBRATION SELECTION conservative. It does NOT redefine, soften, or replace the operational gate, and no bootstrap bound appears in the held-out pass rule.",
+    "outcome_blind": "no score/win/reward/return/draw read, computed, printed or serialized; pole labels used only for FP/TP accounting and never as a selector input",
+    "default_and_triggered_compositions": "default 2A_2D, triggered 4A_0D",
+    "sign_convention": "D is higher on Pole A; strong B evidence is a LOW windowed D. Verified before scoring; violation aborts."
+  },
+
+  "BOOTSTRAP_SPECIFICATION_FROZEN_BEFORE_SCORING": {
+    "resampling_unit": "Pole-A calibration EPISODE (n = 16)",
+    "statistic_resampled": "the mean of per-episode Pole-A false-positive rates",
+    "equal_length_precondition": "All calibration episodes are 240 ticks, so the mean of per-episode rates equals the pooled tick rate exactly. The executor ASSERTS this equality per configuration and aborts on any mismatch; if episode lengths ever differ, the two definitions diverge and the constraint would silently change meaning.",
+    "n_boot": 20000,
+    "bound": "one-sided upper bound = the 95th percentile of the bootstrap distribution of the resampled mean",
+    "rng_seed": 20260919,
+    "common_random_numbers": "A single (n_boot x 16) resample-index matrix is drawn ONCE from the frozen seed and reused for every configuration. This is declared in advance for two reasons: it makes the ranking across configurations free of bootstrap Monte-Carlo noise, and it makes the whole scan reproducible from the seed alone.",
+    "not_a_gate_on_held_out": "This bound is computed on CALIBRATION only. The held-out block is scored by the unchanged point rule."
+  },
+
+  "SEEDS": {
+    "calibration": "99900101-99900116, both poles, 32 episodes. REUSED from the persisted per-tick rows composition_selector_two_feature_asymmetric_raw_ticks.csv (split=calibration), which passed the determinism gate against the sealed derivation trace at 0.0 absolute error. The executor re-applies that gate before using the rows.",
+    "held_out": "99900501-99900516, both poles, 32 episodes. FRESH, never used for any selector work. Verified unspent at freeze time.",
+    "spent_and_unusable": "99900201-216 (symmetric branch), 99900301-316 (V1 two-feature held-out), 99900401-416 (single-feature asymmetric held-out). None may be re-scored.",
+    "registry": "smoke family; no Rule-9 SEED_REGISTRY interaction, per experiments/seed_registry.py",
+    "held_out_is_used_exactly_once": "Scored once, for the one configuration the V2 rule selects. Not used to choose among configurations."
+  },
+
+  "DISCLOSED_LIMITATION_CALIBRATION_REUSE": {
+    "fact": "Calibration block 99900101-116 has now informed selection twice: once under the V1 point-estimate rule and once under this V2 uncertainty-aware rule.",
+    "consequence": "Calibration-side numbers in this record are NOT independent evidence and must never be reported as confirmation. Two passes over one calibration set is a mild multiplicity that inflates any calibration-side optimism.",
+    "what_protects_the_inference": "The held-out block 99900501-516 is fresh, was never seen by either selection pass, and is scored exactly once under an unchanged rule. It is the only clean evidence this record produces.",
+    "not_hidden": "This limitation is stated here before execution rather than discovered afterwards."
+  },
+
+  "PREDECLARED_TERMINAL_DECISION": {
+    "NO_ELIGIBLE_CONFIG": {
+      "condition": "no configuration in the frozen grid satisfies UCB95_episode(A_FP) <= 0.10",
+      "label": "NO_UNCERTAINTY_ELIGIBLE_B_TRIGGER",
+      "consequence": "STOP the handcrafted-selector branch. Reading: the two-feature region that looked safe on point estimates is not demonstrably safe at this calibration size. A larger calibration block, not a different knob, would be the only honest continuation, and it is not authorized here."
+    },
+    "HELD_OUT_PASS": {
+      "condition": "held-out A_FP <= 0.10 AND held-out B dominant-composition >= 0.50",
+      "label": "CONSERVATIVE_B_TRIGGER_CALIBRATED_V2",
+      "consequence": "A usable conservative router. Freeze that operating point exactly as selected. Then, in order, under COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC: contracts C1-C6, then the outcome arms at n=64 with tau_A_harm=0.10. Only then the regime-conditioned composition controller. No retuning at any of those steps."
+    },
+    "HELD_OUT_FAIL": {
+      "condition": "either held-out gate fails",
+      "label": "NO_CONSERVATIVE_B_TRIGGER_V2",
+      "consequence": "STOP the handcrafted-selector branch for good. With the selection-rule defect repaired and a fresh block, a failure here is evidence about the routing approach itself rather than about the procedure. Successor work changes the coordination mechanism, not the knobs."
+    },
+    "no_second_reselection": "This freeze authorizes exactly one calibration pass and exactly one held-out scoring. Whatever the outcome, no further configuration is selected and no further block is spent under this architecture.",
+    "degenerate_handling": "If the best eligible configuration has B_TP = 0.0, that is NO_ELIGIBLE_CONFIG in substance: no operating point is reported and the never-firing selector is not presented as a safe region."
+  },
+
+  "DESCRIPTIVE_ONLY_OUTPUTS": {
+    "ucb_frontier": "max B_TP as a function of the UCB eligibility bound, emitted for comparison with the V1 point-estimate frontier. DESCRIPTIVE ONLY, changes no frozen decision, and may not be used to pick an operating point.",
+    "held_out_episode_level_spread": "per-episode held-out A_FP and B_TP distributions and an episode bootstrap interval, reported so the size of any miss is legible. NON-GATING; it cannot convert a fail into a pass or a pass into a fail.",
+    "selected_config_margin": "the realized gap between the selected configuration's point A_FP and its UCB95, reported so the repair's effect on boundary-hugging is measurable."
+  },
+
+  "INTEGRITY": {
+    "determinism_gate": "Calibration P_blue full-episode means recomputed from the persisted rows must reproduce COMPOSITION_SELECTOR_FEATURE_DERIVATION_TRACE.json (A 1.0799479166666668, B 0.36953125) to within 1e-6. Mismatch aborts.",
+    "r_red_consistency_gate": "Re-deriving r_red under the predeclared pooled-misclassification rule must return 4.0. Mismatch aborts.",
+    "direction_gate": "pooled windowed D_t must be higher on Pole A. Violation aborts; the convention is never flipped to fit.",
+    "episode_pooling_gate": "mean of per-episode A rates must equal the pooled A tick rate exactly, per configuration. Mismatch aborts.",
+    "independent_rederivation": "held-out decision statistics recomputed from the persisted CSV by a second implementation sharing no code path with the scoring pass. Disagreement aborts.",
+    "rule_7_note": "No outcome rows exist by construction, so experiments/run_state.py::seal is not applicable and is deliberately not invoked. If this branch reaches an outcome arm, that arm MUST use seal()."
+  },
+
+  "NOT_AUTHORIZED": [
+    "relaxing the operational 0.10 A_FP limit or the 0.50 B dominance bar",
+    "using any bootstrap bound in the HELD-OUT pass rule",
+    "changing the grid, dwell, hysteresis, windows, tie-break order, statistic or r_red",
+    "re-deriving r_red as a fresh selection",
+    "re-scoring 99900201-216, 99900301-316 or 99900401-416",
+    "a second reselection or a second held-out block under this architecture",
+    "any outcome / win-rate episode in this record",
+    "reading score, win, reward, return or draw anywhere in this record's steps",
+    "PPO, training, GPU, 6v6",
+    "treating Pole A as a repair target"
+  ]
+}

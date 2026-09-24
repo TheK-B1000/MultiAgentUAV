@@ -1,0 +1,14 @@
+{
+  "record": "CONFIRMATORY_B3_ENTITY_REPAIR_CORRECTED specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-14T21:41:23Z",
+  "implements": "4V4_ENTITY_REPAIR_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_B"
+  ],
+  "point_estimates": {
+    "delta_A": 0.2734375,
+    "delta_B": -0.15625
+  },
+  "rule": "requires a row-level integrity audit before any verdict-bearing result. Raw rows: confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv."
+}

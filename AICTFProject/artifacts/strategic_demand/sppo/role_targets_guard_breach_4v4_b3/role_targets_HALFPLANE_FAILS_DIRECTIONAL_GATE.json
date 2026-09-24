@@ -1,0 +1,1199 @@
+{
+  "record": "4V4_B3_ROLE_TARGETS_GUARD_BREACH",
+  "status": "FROZEN_TARGETS",
+  "utc": "2026-09-10T22:22:55Z",
+  "implements": "4V4_B3_ROLE_PRESERVATION_SPEC.json#target_source",
+  "vocabulary": {
+    "role_buckets": {
+      "0": "all_push",
+      "1": "three_attack_one_defend",
+      "2": "two_attack_two_defend",
+      "3": "one_attack_three_defend",
+      "4": "escort_pair",
+      "5": "intercept_pair",
+      "6": "turtle_defense"
+    },
+    "macros": {
+      "attack": "GET_FLAG",
+      "defend": "GO_HOME"
+    },
+    "telemetry": [
+      "team_spread",
+      "num_attackers",
+      "num_defenders",
+      "num_go_to",
+      "carrier_escort_count",
+      "nearest_blue_to_carrier",
+      "nearest_blue_to_enemy_carrier",
+      "n_intercept_near_enemy_carrier",
+      "avg_blue_to_enemy_flag",
+      "avg_blue_to_own_flag",
+      "intercept_pressure",
+      "defense_pressure",
+      "attack_defense_ratio"
+    ]
+  },
+  "seed_base": 16810001,
+  "n_episodes_per_style_per_pole": 16,
+  "pole_b_genome_id": "SDS2_B3_LOCKDEF10_2V1",
+  "targets": {
+    "GUARD": {
+      "style_id": "BLUE_ONE_DEFENDER_V2",
+      "n_episodes": 32,
+      "role_occupancy": {
+        "all_push": 0.0,
+        "three_attack_one_defend": 0.0,
+        "two_attack_two_defend": 0.15857095609267735,
+        "one_attack_three_defend": 0.34308977416767633,
+        "escort_pair": 0.13690648205792613,
+        "intercept_pair": 0.04078966648158119,
+        "turtle_defense": 0.3206431212001391
+      },
+      "role_occupancy_vector": [
+        0.0,
+        0.0,
+        0.15857095609267735,
+        0.34308977416767633,
+        0.13690648205792613,
+        0.04078966648158119,
+        0.3206431212001391
+      ],
+      "features": {
+        "mean_num_attackers": 0.7155050800354467,
+        "mean_num_defenders": 3.284494919964553,
+        "mean_attack_defense_ratio": 0.17887627000886167
+      },
+      "dominant_role": "one_attack_three_defend"
+    },
+    "BREACH": {
+      "style_id": "BLUE_BOTH_ATTACK_V2",
+      "n_episodes": 32,
+      "role_occupancy": {
+        "all_push": 0.01418592163052577,
+        "three_attack_one_defend": 0.037676954787953534,
+        "two_attack_two_defend": 0.09244498613678573,
+        "one_attack_three_defend": 0.04858734486244093,
+        "escort_pair": 0.7356525747932506,
+        "intercept_pair": 0.014192708333333337,
+        "turtle_defense": 0.057259509455710254
+      },
+      "role_occupancy_vector": [
+        0.01418592163052577,
+        0.037676954787953534,
+        0.09244498613678573,
+        0.04858734486244093,
+        0.7356525747932506,
+        0.014192708333333337,
+        0.057259509455710254
+      ],
+      "features": {
+        "mean_num_attackers": 0.6566285562355021,
+        "mean_num_defenders": 3.3433714437644984,
+        "mean_attack_defense_ratio": 0.16415713905887552
+      },
+      "dominant_role": "escort_pair"
+    }
+  },
+  "raw_per_episode": {
+    "GUARD": {
+      "A": [
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.2,
+            0.275,
+            0.07083333333333333,
+            0.12916666666666668,
+            0.325
+          ],
+          "mean_num_attackers": 0.8708333333333333,
+          "mean_num_defenders": 3.129166666666667,
+          "mean_attack_defense_ratio": 0.21770833333333334,
+          "seed": 16810001,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.05,
+            0.10416666666666667,
+            0.7791666666666667,
+            0.0,
+            0.06666666666666667
+          ],
+          "mean_num_attackers": 0.2125,
+          "mean_num_defenders": 3.7875,
+          "mean_attack_defense_ratio": 0.053125,
+          "seed": 16810002,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 228,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.19736842105263158,
+            0.41228070175438597,
+            0.09649122807017543,
+            0.02631578947368421,
+            0.2675438596491228
+          ],
+          "mean_num_attackers": 0.8552631578947368,
+          "mean_num_defenders": 3.1447368421052633,
+          "mean_attack_defense_ratio": 0.2138157894736842,
+          "seed": 16810003,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.05,
+            0.05416666666666667,
+            0.8375,
+            0.0,
+            0.058333333333333334
+          ],
+          "mean_num_attackers": 0.17083333333333334,
+          "mean_num_defenders": 3.8291666666666666,
+          "mean_attack_defense_ratio": 0.042708333333333334,
+          "seed": 16810004,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.25,
+            0.2833333333333333,
+            0.041666666666666664,
+            0.05416666666666667,
+            0.37083333333333335
+          ],
+          "mean_num_attackers": 0.875,
+          "mean_num_defenders": 3.125,
+          "mean_attack_defense_ratio": 0.21875,
+          "seed": 16810005,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 160,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.26875,
+            0.2375,
+            0.1125,
+            0.0875,
+            0.29375
+          ],
+          "mean_num_attackers": 0.925,
+          "mean_num_defenders": 3.075,
+          "mean_attack_defense_ratio": 0.23125,
+          "seed": 16810006,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.03333333333333333,
+            0.05416666666666667,
+            0.8208333333333333,
+            0.03333333333333333,
+            0.058333333333333334
+          ],
+          "mean_num_attackers": 0.1875,
+          "mean_num_defenders": 3.8125,
+          "mean_attack_defense_ratio": 0.046875,
+          "seed": 16810007,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.09583333333333334,
+            0.07083333333333333,
+            0.6458333333333334,
+            0.058333333333333334,
+            0.12916666666666668
+          ],
+          "mean_num_attackers": 0.39166666666666666,
+          "mean_num_defenders": 3.6083333333333334,
+          "mean_attack_defense_ratio": 0.09791666666666667,
+          "seed": 16810008,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 184,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.1956521739130435,
+            0.3967391304347826,
+            0.11956521739130435,
+            0.09782608695652174,
+            0.19021739130434784
+          ],
+          "mean_num_attackers": 0.9021739130434783,
+          "mean_num_defenders": 3.097826086956522,
+          "mean_attack_defense_ratio": 0.22554347826086957,
+          "seed": 16810009,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.30416666666666664,
+            0.38333333333333336,
+            0.025,
+            0.0,
+            0.2875
+          ],
+          "mean_num_attackers": 0.9958333333333333,
+          "mean_num_defenders": 3.004166666666667,
+          "mean_attack_defense_ratio": 0.24895833333333334,
+          "seed": 16810010,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.35833333333333334,
+            0.1625,
+            0.058333333333333334,
+            0.08333333333333333,
+            0.3375
+          ],
+          "mean_num_attackers": 0.9541666666666667,
+          "mean_num_defenders": 3.0458333333333334,
+          "mean_attack_defense_ratio": 0.23854166666666668,
+          "seed": 16810011,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.19583333333333333,
+            0.3958333333333333,
+            0.06666666666666667,
+            0.0625,
+            0.2791666666666667
+          ],
+          "mean_num_attackers": 0.8625,
+          "mean_num_defenders": 3.1375,
+          "mean_attack_defense_ratio": 0.215625,
+          "seed": 16810012,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.24583333333333332,
+            0.2791666666666667,
+            0.03333333333333333,
+            0.1,
+            0.3416666666666667
+          ],
+          "mean_num_attackers": 0.9416666666666667,
+          "mean_num_defenders": 3.058333333333333,
+          "mean_attack_defense_ratio": 0.23541666666666666,
+          "seed": 16810013,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.19166666666666668,
+            0.19166666666666668,
+            0.4,
+            0.029166666666666667,
+            0.1875
+          ],
+          "mean_num_attackers": 0.6333333333333333,
+          "mean_num_defenders": 3.3666666666666667,
+          "mean_attack_defense_ratio": 0.15833333333333333,
+          "seed": 16810014,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 204,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.25,
+            0.29901960784313725,
+            0.12745098039215685,
+            0.06862745098039216,
+            0.2549019607843137
+          ],
+          "mean_num_attackers": 0.8970588235294118,
+          "mean_num_defenders": 3.1029411764705883,
+          "mean_attack_defense_ratio": 0.22426470588235295,
+          "seed": 16810015,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.30416666666666664,
+            0.24166666666666667,
+            0.07916666666666666,
+            0.029166666666666667,
+            0.3458333333333333
+          ],
+          "mean_num_attackers": 0.9041666666666667,
+          "mean_num_defenders": 3.095833333333333,
+          "mean_attack_defense_ratio": 0.22604166666666667,
+          "seed": 16810016,
+          "pole": "A"
+        }
+      ],
+      "B": [
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.09583333333333334,
+            0.4583333333333333,
+            0.0,
+            0.004166666666666667,
+            0.44166666666666665
+          ],
+          "mean_num_attackers": 0.65,
+          "mean_num_defenders": 3.35,
+          "mean_attack_defense_ratio": 0.1625,
+          "seed": 16810017,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.041666666666666664,
+            0.6208333333333333,
+            0.0,
+            0.008333333333333333,
+            0.32916666666666666
+          ],
+          "mean_num_attackers": 0.7041666666666667,
+          "mean_num_defenders": 3.2958333333333334,
+          "mean_attack_defense_ratio": 0.17604166666666668,
+          "seed": 16810018,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.1,
+            0.4791666666666667,
+            0.0375,
+            0.0,
+            0.38333333333333336
+          ],
+          "mean_num_attackers": 0.6958333333333333,
+          "mean_num_defenders": 3.3041666666666667,
+          "mean_attack_defense_ratio": 0.17395833333333333,
+          "seed": 16810019,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.08333333333333333,
+            0.55,
+            0.0,
+            0.0,
+            0.36666666666666664
+          ],
+          "mean_num_attackers": 0.7166666666666667,
+          "mean_num_defenders": 3.283333333333333,
+          "mean_attack_defense_ratio": 0.17916666666666667,
+          "seed": 16810020,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.11666666666666667,
+            0.48333333333333334,
+            0.0,
+            0.0,
+            0.4
+          ],
+          "mean_num_attackers": 0.7166666666666667,
+          "mean_num_defenders": 3.283333333333333,
+          "mean_attack_defense_ratio": 0.17916666666666667,
+          "seed": 16810021,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.09583333333333334,
+            0.45416666666666666,
+            0.0,
+            0.0,
+            0.45
+          ],
+          "mean_num_attackers": 0.6458333333333334,
+          "mean_num_defenders": 3.3541666666666665,
+          "mean_attack_defense_ratio": 0.16145833333333334,
+          "seed": 16810022,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.1625,
+            0.32083333333333336,
+            0.0,
+            0.09583333333333334,
+            0.42083333333333334
+          ],
+          "mean_num_attackers": 0.7375,
+          "mean_num_defenders": 3.2625,
+          "mean_attack_defense_ratio": 0.184375,
+          "seed": 16810023,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.07083333333333333,
+            0.48333333333333334,
+            0.0,
+            0.07083333333333333,
+            0.375
+          ],
+          "mean_num_attackers": 0.6875,
+          "mean_num_defenders": 3.3125,
+          "mean_attack_defense_ratio": 0.171875,
+          "seed": 16810024,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.16666666666666666,
+            0.4166666666666667,
+            0.0,
+            0.0,
+            0.4166666666666667
+          ],
+          "mean_num_attackers": 0.75,
+          "mean_num_defenders": 3.25,
+          "mean_attack_defense_ratio": 0.1875,
+          "seed": 16810025,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.1625,
+            0.3375,
+            0.0,
+            0.0625,
+            0.4375
+          ],
+          "mean_num_attackers": 0.7458333333333333,
+          "mean_num_defenders": 3.254166666666667,
+          "mean_attack_defense_ratio": 0.18645833333333334,
+          "seed": 16810026,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.07916666666666666,
+            0.37916666666666665,
+            0.0,
+            0.05416666666666667,
+            0.4875
+          ],
+          "mean_num_attackers": 0.5833333333333334,
+          "mean_num_defenders": 3.4166666666666665,
+          "mean_attack_defense_ratio": 0.14583333333333334,
+          "seed": 16810027,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.12083333333333333,
+            0.49166666666666664,
+            0.0,
+            0.0,
+            0.3875
+          ],
+          "mean_num_attackers": 0.7333333333333333,
+          "mean_num_defenders": 3.2666666666666666,
+          "mean_attack_defense_ratio": 0.18333333333333332,
+          "seed": 16810028,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.1,
+            0.4625,
+            0.0,
+            0.029166666666666667,
+            0.4083333333333333
+          ],
+          "mean_num_attackers": 0.6916666666666667,
+          "mean_num_defenders": 3.308333333333333,
+          "mean_attack_defense_ratio": 0.17291666666666666,
+          "seed": 16810029,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.16666666666666666,
+            0.32916666666666666,
+            0.029166666666666667,
+            0.12083333333333333,
+            0.3541666666666667
+          ],
+          "mean_num_attackers": 0.7458333333333333,
+          "mean_num_defenders": 3.254166666666667,
+          "mean_attack_defense_ratio": 0.18645833333333334,
+          "seed": 16810030,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.17083333333333334,
+            0.43333333333333335,
+            0.0,
+            0.0,
+            0.3958333333333333
+          ],
+          "mean_num_attackers": 0.775,
+          "mean_num_defenders": 3.225,
+          "mean_attack_defense_ratio": 0.19375,
+          "seed": 16810031,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.15,
+            0.4375,
+            0.0,
+            0.0,
+            0.4125
+          ],
+          "mean_num_attackers": 0.7375,
+          "mean_num_defenders": 3.2625,
+          "mean_attack_defense_ratio": 0.184375,
+          "seed": 16810032,
+          "pole": "B"
+        }
+      ]
+    },
+    "BREACH": {
+      "A": [
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.004166666666666667,
+            0.008333333333333333,
+            0.03333333333333333,
+            0.0375,
+            0.8833333333333333,
+            0.0,
+            0.03333333333333333
+          ],
+          "mean_num_attackers": 0.3125,
+          "mean_num_defenders": 3.6875,
+          "mean_attack_defense_ratio": 0.078125,
+          "seed": 16810033,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.004166666666666667,
+            0.016666666666666666,
+            0.0375,
+            0.9166666666666666,
+            0.0,
+            0.025
+          ],
+          "mean_num_attackers": 0.16666666666666666,
+          "mean_num_defenders": 3.8333333333333335,
+          "mean_attack_defense_ratio": 0.041666666666666664,
+          "seed": 16810034,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.016666666666666666,
+            0.029166666666666667,
+            0.016666666666666666,
+            0.8666666666666667,
+            0.041666666666666664,
+            0.029166666666666667
+          ],
+          "mean_num_attackers": 0.4375,
+          "mean_num_defenders": 3.5625,
+          "mean_attack_defense_ratio": 0.109375,
+          "seed": 16810035,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.025,
+            0.029166666666666667,
+            0.07916666666666666,
+            0.0,
+            0.8125,
+            0.004166666666666667,
+            0.05
+          ],
+          "mean_num_attackers": 0.5541666666666667,
+          "mean_num_defenders": 3.4458333333333333,
+          "mean_attack_defense_ratio": 0.13854166666666667,
+          "seed": 16810036,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.020833333333333332,
+            0.05,
+            0.1,
+            0.06666666666666667,
+            0.675,
+            0.016666666666666666,
+            0.07083333333333333
+          ],
+          "mean_num_attackers": 0.8208333333333333,
+          "mean_num_defenders": 3.1791666666666667,
+          "mean_attack_defense_ratio": 0.20520833333333333,
+          "seed": 16810037,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0125,
+            0.008333333333333333,
+            0.04583333333333333,
+            0.008333333333333333,
+            0.8708333333333333,
+            0.0,
+            0.05416666666666667
+          ],
+          "mean_num_attackers": 0.4583333333333333,
+          "mean_num_defenders": 3.5416666666666665,
+          "mean_attack_defense_ratio": 0.11458333333333333,
+          "seed": 16810038,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.020833333333333332,
+            0.03333333333333333,
+            0.1625,
+            0.06666666666666667,
+            0.6583333333333333,
+            0.0,
+            0.058333333333333334
+          ],
+          "mean_num_attackers": 0.8041666666666667,
+          "mean_num_defenders": 3.1958333333333333,
+          "mean_attack_defense_ratio": 0.20104166666666667,
+          "seed": 16810039,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.029166666666666667,
+            0.020833333333333332,
+            0.008333333333333333,
+            0.8458333333333333,
+            0.05416666666666667,
+            0.041666666666666664
+          ],
+          "mean_num_attackers": 0.5291666666666667,
+          "mean_num_defenders": 3.470833333333333,
+          "mean_attack_defense_ratio": 0.13229166666666667,
+          "seed": 16810040,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.004166666666666667,
+            0.008333333333333333,
+            0.041666666666666664,
+            0.004166666666666667,
+            0.9125,
+            0.0,
+            0.029166666666666667
+          ],
+          "mean_num_attackers": 0.17916666666666667,
+          "mean_num_defenders": 3.8208333333333333,
+          "mean_attack_defense_ratio": 0.04479166666666667,
+          "seed": 16810041,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.020833333333333332,
+            0.041666666666666664,
+            0.175,
+            0.07916666666666666,
+            0.6291666666666667,
+            0.0,
+            0.05416666666666667
+          ],
+          "mean_num_attackers": 0.9625,
+          "mean_num_defenders": 3.0375,
+          "mean_attack_defense_ratio": 0.240625,
+          "seed": 16810042,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0375,
+            0.125,
+            0.05416666666666667,
+            0.6625,
+            0.09583333333333334,
+            0.025
+          ],
+          "mean_num_attackers": 0.7375,
+          "mean_num_defenders": 3.2625,
+          "mean_attack_defense_ratio": 0.184375,
+          "seed": 16810043,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0375,
+            0.05,
+            0.09166666666666666,
+            0.08333333333333333,
+            0.6541666666666667,
+            0.0,
+            0.08333333333333333
+          ],
+          "mean_num_attackers": 0.825,
+          "mean_num_defenders": 3.175,
+          "mean_attack_defense_ratio": 0.20625,
+          "seed": 16810044,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.020833333333333332,
+            0.058333333333333334,
+            0.15833333333333333,
+            0.09583333333333334,
+            0.6166666666666667,
+            0.0,
+            0.05
+          ],
+          "mean_num_attackers": 0.95,
+          "mean_num_defenders": 3.05,
+          "mean_attack_defense_ratio": 0.2375,
+          "seed": 16810045,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.008333333333333333,
+            0.075,
+            0.23333333333333334,
+            0.14166666666666666,
+            0.44583333333333336,
+            0.041666666666666664,
+            0.05416666666666667
+          ],
+          "mean_num_attackers": 1.2583333333333333,
+          "mean_num_defenders": 2.7416666666666667,
+          "mean_attack_defense_ratio": 0.3145833333333333,
+          "seed": 16810046,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.041666666666666664,
+            0.016666666666666666,
+            0.05416666666666667,
+            0.004166666666666667,
+            0.7958333333333333,
+            0.0,
+            0.0875
+          ],
+          "mean_num_attackers": 0.7083333333333334,
+          "mean_num_defenders": 3.2916666666666665,
+          "mean_attack_defense_ratio": 0.17708333333333334,
+          "seed": 16810047,
+          "pole": "A"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.029166666666666667,
+            0.03333333333333333,
+            0.008333333333333333,
+            0.8416666666666667,
+            0.05,
+            0.0375
+          ],
+          "mean_num_attackers": 0.5,
+          "mean_num_defenders": 3.5,
+          "mean_attack_defense_ratio": 0.125,
+          "seed": 16810048,
+          "pole": "A"
+        }
+      ],
+      "B": [
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.020833333333333332,
+            0.004166666666666667,
+            0.008333333333333333,
+            0.9375,
+            0.0,
+            0.029166666666666667
+          ],
+          "mean_num_attackers": 0.2625,
+          "mean_num_defenders": 3.7375,
+          "mean_attack_defense_ratio": 0.065625,
+          "seed": 16810049,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 142,
+          "role_occupancy": [
+            0.035211267605633804,
+            0.1056338028169014,
+            0.2535211267605634,
+            0.08450704225352113,
+            0.3732394366197183,
+            0.0,
+            0.14788732394366197
+          ],
+          "mean_num_attackers": 1.556338028169014,
+          "mean_num_defenders": 2.443661971830986,
+          "mean_attack_defense_ratio": 0.3890845070422535,
+          "seed": 16810050,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.041666666666666664,
+            0.125,
+            0.3416666666666667,
+            0.2,
+            0.16666666666666666,
+            0.0,
+            0.125
+          ],
+          "mean_num_attackers": 1.7916666666666667,
+          "mean_num_defenders": 2.2083333333333335,
+          "mean_attack_defense_ratio": 0.4479166666666667,
+          "seed": 16810051,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0125,
+            0.008333333333333333,
+            0.004166666666666667,
+            0.9541666666666667,
+            0.0,
+            0.020833333333333332
+          ],
+          "mean_num_attackers": 0.2,
+          "mean_num_defenders": 3.8,
+          "mean_attack_defense_ratio": 0.05,
+          "seed": 16810052,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.041666666666666664,
+            0.004166666666666667,
+            0.9166666666666666,
+            0.008333333333333333,
+            0.029166666666666667
+          ],
+          "mean_num_attackers": 0.225,
+          "mean_num_defenders": 3.775,
+          "mean_attack_defense_ratio": 0.05625,
+          "seed": 16810053,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.016666666666666666,
+            0.03333333333333333,
+            0.22083333333333333,
+            0.041666666666666664,
+            0.6083333333333333,
+            0.0125,
+            0.06666666666666667
+          ],
+          "mean_num_attackers": 0.8375,
+          "mean_num_defenders": 3.1625,
+          "mean_attack_defense_ratio": 0.209375,
+          "seed": 16810054,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0125,
+            0.08333333333333333,
+            0.15416666666666667,
+            0.09166666666666666,
+            0.5416666666666666,
+            0.020833333333333332,
+            0.09583333333333334
+          ],
+          "mean_num_attackers": 1.2458333333333333,
+          "mean_num_defenders": 2.754166666666667,
+          "mean_attack_defense_ratio": 0.31145833333333334,
+          "seed": 16810055,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.004166666666666667,
+            0.008333333333333333,
+            0.016666666666666666,
+            0.004166666666666667,
+            0.9166666666666666,
+            0.025,
+            0.025
+          ],
+          "mean_num_attackers": 0.22916666666666666,
+          "mean_num_defenders": 3.7708333333333335,
+          "mean_attack_defense_ratio": 0.057291666666666664,
+          "seed": 16810056,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 239,
+          "role_occupancy": [
+            0.058577405857740586,
+            0.1297071129707113,
+            0.25523012552301255,
+            0.16736401673640167,
+            0.23430962343096234,
+            0.0,
+            0.15481171548117154
+          ],
+          "mean_num_attackers": 1.6317991631799162,
+          "mean_num_defenders": 2.3682008368200838,
+          "mean_attack_defense_ratio": 0.40794979079497906,
+          "seed": 16810057,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.03333333333333333,
+            0.004166666666666667,
+            0.0,
+            0.8791666666666667,
+            0.04583333333333333,
+            0.0375
+          ],
+          "mean_num_attackers": 0.29583333333333334,
+          "mean_num_defenders": 3.7041666666666666,
+          "mean_attack_defense_ratio": 0.07395833333333333,
+          "seed": 16810058,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.004166666666666667,
+            0.03333333333333333,
+            0.008333333333333333,
+            0.9166666666666666,
+            0.008333333333333333,
+            0.029166666666666667
+          ],
+          "mean_num_attackers": 0.22083333333333333,
+          "mean_num_defenders": 3.779166666666667,
+          "mean_attack_defense_ratio": 0.05520833333333333,
+          "seed": 16810059,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.03333333333333333,
+            0.0,
+            0.9125,
+            0.020833333333333332,
+            0.03333333333333333
+          ],
+          "mean_num_attackers": 0.24583333333333332,
+          "mean_num_defenders": 3.754166666666667,
+          "mean_attack_defense_ratio": 0.06145833333333333,
+          "seed": 16810060,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 171,
+          "role_occupancy": [
+            0.06432748538011696,
+            0.1286549707602339,
+            0.1286549707602339,
+            0.1695906432748538,
+            0.3333333333333333,
+            0.0,
+            0.17543859649122806
+          ],
+          "mean_num_attackers": 1.590643274853801,
+          "mean_num_defenders": 2.409356725146199,
+          "mean_attack_defense_ratio": 0.39766081871345027,
+          "seed": 16810061,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.0,
+            0.008333333333333333,
+            0.04583333333333333,
+            0.9208333333333333,
+            0.0,
+            0.025
+          ],
+          "mean_num_attackers": 0.1625,
+          "mean_num_defenders": 3.8375,
+          "mean_attack_defense_ratio": 0.040625,
+          "seed": 16810062,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.0,
+            0.008333333333333333,
+            0.029166666666666667,
+            0.008333333333333333,
+            0.925,
+            0.0,
+            0.029166666666666667
+          ],
+          "mean_num_attackers": 0.1375,
+          "mean_num_defenders": 3.8625,
+          "mean_attack_defense_ratio": 0.034375,
+          "seed": 16810063,
+          "pole": "B"
+        },
+        {
+          "n_ticks": 240,
+          "role_occupancy": [
+            0.004166666666666667,
+            0.016666666666666666,
+            0.025,
+            0.004166666666666667,
+            0.9166666666666666,
+            0.008333333333333333,
+            0.025
+          ],
+          "mean_num_attackers": 0.175,
+          "mean_num_defenders": 3.825,
+          "mean_attack_defense_ratio": 0.04375,
+          "seed": 16810064,
+          "pole": "B"
+        }
+      ]
+    }
+  }
+}

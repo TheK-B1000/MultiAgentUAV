@@ -1,0 +1,69 @@
+{
+  "record": "POLE_B_BEHAVIORAL_DIAGNOSIS (partial)",
+  "status": "RUNNING",
+  "utc": "2026-09-16T01:36:52Z",
+  "summaries": {
+    "A3@PoleB": {
+      "all_identical_cmd": 0.06440146707899254,
+      "distinct_cmds": 2.787543147071785,
+      "distinct_macros": 1.714449336677167,
+      "n_get_flag": 2.768557532366539,
+      "n_go_home": 0.21628128615316608,
+      "n_go_to": 0.9994808810771894,
+      "n_mine": 0.015680300403106074,
+      "mean_pair_dist": 3.7131633149331895,
+      "n_defenders": 0.6563851349562584,
+      "n_attackers": 2.0832650700665467,
+      "mean_d_own_flag": 9.504406095416837,
+      "mean_d_enemy_flag": 5.064646929449088,
+      "n_tagged": 0.7878898850186,
+      "any_carrying": 0.6059542723524167,
+      "n_pressured": 1.0450496111829053,
+      "mean_support_dist": 2.4296680688951886,
+      "steps": 193.3125,
+      "macro_switch_rate": 0.10605832734265196,
+      "won": 0.0,
+      "blue_score": 0.0,
+      "red_score": 0.0,
+      "macro_fraction": {
+        "GET_FLAG": 0.6563207242159715,
+        "GO_HOME": 0.05375040413837698,
+        "GO_TO": 0.28612997090203685,
+        "GRAB_MINE": 0.0026268994503718074,
+        "PLACE_MINE": 0.0011720012932428063
+      },
+      "n_agent_steps": 24744
+    },
+    "B100k@PoleB": {
+      "all_identical_cmd": 0.04675753512317278,
+      "distinct_cmds": 3.0226129651656306,
+      "distinct_macros": 1.7824230405156323,
+      "n_get_flag": 2.1624787303468436,
+      "n_go_home": 0.21736455866467053,
+      "n_go_to": 1.5985802590804794,
+      "n_mine": 0.021576451908006222,
+      "mean_pair_dist": 3.998498242643004,
+      "n_defenders": 0.6019367857634328,
+      "n_attackers": 1.872962502436938,
+      "mean_d_own_flag": 9.696243547289706,
+      "mean_d_enemy_flag": 5.3750726753264715,
+      "n_tagged": 0.7713466413646005,
+      "any_carrying": 0.5864015537161795,
+      "n_pressured": 0.9681875852508179,
+      "mean_support_dist": 2.716197245124164,
+      "steps": 211.90625,
+      "macro_switch_rate": 0.14935449559038289,
+      "won": 0.0,
+      "blue_score": 0.0,
+      "red_score": 0.0,
+      "macro_fraction": {
+        "GET_FLAG": 0.519613626308804,
+        "GO_HOME": 0.055117239345229316,
+        "GO_TO": 0.4201813891756378,
+        "GRAB_MINE": 0.0037236395811827165,
+        "PLACE_MINE": 0.0013641055891461436
+      },
+      "n_agent_steps": 27124
+    }
+  }
+}

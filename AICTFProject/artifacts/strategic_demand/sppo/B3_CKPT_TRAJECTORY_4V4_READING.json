@@ -1,0 +1,59 @@
+{
+  "record_id": "B3_CKPT_TRAJECTORY_4V4_READING",
+  "status": "FROZEN_READING",
+  "utc": "2026-09-12T22:35:00Z",
+  "reads": "B3_CKPT_TRAJECTORY_4V4_RESULT.json",
+  "implements_interpretation_of": "4V4_B3_CHECKPOINT_TRAJECTORY_DIAGNOSTIC_SPEC.json#PRECOMMITTED_INTERPRETATION",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+
+  "WHICH_PRECOMMITTED_BRANCH_APPLIES": {
+    "candidates_considered": [
+      "large_early_margin_then_collapse",
+      "flat_near_zero_throughout",
+      "margin_grows_monotonically_but_stays_small",
+      "noisy_non_monotone"
+    ],
+    "ruled_out_large_early_margin_then_collapse": "DEFINITIVELY NOT THIS. No checkpoint shows a jointly positive margin of any material size. The largest single-axis mean is delta_A=+0.125 at 400k, whose 95% interval [-0.125,+0.375] contains zero, and at that same checkpoint delta_B is NEGATIVE (-0.083). There is no candidate hump to have collapsed from.",
+    "ruled_out_monotonic_growth": "NOT THIS. Neither axis is monotone. delta_A: -0.083, +0.125, +0.083, -0.125, -0.125. delta_B: -0.083, -0.083, +0.042, +0.083, 0.000.",
+    "SELECTED": "noisy_non_monotone",
+    "why_this_rather_than_flat_near_zero_throughout": "These two branches are close, and the honest choice is the more conservative one. 'Flat near zero' would imply a stable near-zero margin; what we actually observe is SIGN-FLIPPING on both axes, with between-checkpoint swings (~0.25 on delta_A) comparable to the CI half-widths (~0.25). That is the signature of an underpowered scan, not of an established flat line. Selecting 'flat' would let us claim a shape the data does not support.",
+    "consequence_of_that_choice": "The precommitment for noisy_non_monotone says: 'report as underpowered and do not read a shape into it.' We therefore do NOT claim a trajectory shape, and we do NOT treat 'the fix is upstream in acquisition' as a CONCLUSION licensed by this experiment -- that inference belongs to the 'flat' branch, which we did not select."
+  },
+
+  "WHAT_THIS_RESULT_DOES_ESTABLISH": [
+    "No large transient specialization phase was detected anywhere in the 1M-step B3-3 4v4 run, at the resolution this scan was designed to provide (5 checkpoints, n=24 shared seeds).",
+    "The retention failure mode -- 'specialization was acquired and subsequently lost' -- has no support in this data. This is the branch the experiment was built to detect, and it did not fire."
+  ],
+
+  "WHAT_THIS_RESULT_DOES_NOT_ESTABLISH": [
+    "That specialization never existed at any point in training. Absence of a DETECTABLE large transient at n=24 is not proof of absence of a small or short-lived one.",
+    "That acquisition is the failing stage. That is a plausible direction of attention, supported by OTHER evidence (the 6v6 Share-0 teacher result, the terminal B3-3 FAIL), but it is not a conclusion this underpowered scan licenses on its own.",
+    "Any reinterpretation of the sealed terminal FAIL (CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json), which stands unchanged.",
+    "Any comparison between the 1,000,000-step point here (n=24, block 17300001-024) and the sealed terminal number (n=128, block 16700001-128). Different blocks, different n, not comparable."
+  ],
+
+  "DECISION_NOT_TO_INCREASE_N": {
+    "decision": "This scan will NOT be re-run at n=64 or n=128 to narrow the intervals.",
+    "rationale": "Its purpose was to detect a LARGE transient hump. It did not find one. Determining whether some checkpoint's true margin is +0.06 rather than +0.02 would not change which intervention family we pursue, so the additional episodes would buy no decision-relevant information.",
+    "also_already_precommitted": "The frozen spec's NOT_AUTHORIZED_BY_THIS_RECORD list already forbids 'adding checkpoints or seeds after inspecting the trajectory'. This decision is consistent with that freeze rather than a new judgement made after seeing the numbers."
+  },
+
+  "CONSEQUENCE_FOR_THE_INTERVENTION_SHORTLIST": {
+    "retention_family_DEPRIORITISED": "Policy Consolidation (ICML 2019), Kickstarting, EMA/teacher retention, KL-constrained fine-tuning, early stopping on a specialization metric, and specialization-margin checkpointing all address 'learned it, then lost it'. That pattern is unsupported here, so this family drops off the near-term shortlist. See docs/LITERATURE_REVIEW_SPECIALIZATION_AT_SCALE.md section 5, whose candidacy was explicitly made conditional on this diagnostic.",
+    "not_the_same_as_refuted": "Deprioritised on absence of the pattern they fix, not refuted as techniques."
+  },
+
+  "EVIDENCE_STACK_AS_IT_NOW_STANDS": {
+    "1_strategic_demand_exists": "certified at 4v4 and 6v6 (scripted-probe reversal)",
+    "2_2v2_acquires_specialization": "sealed PASS",
+    "3_4v4_shows_no_detectable_transient_specialization": "this record",
+    "4_6v6_terminal_source_policies_are_not_specialized": "Share-0 teacher crossover, delta_A = delta_B = +0.0078, both CIs contain zero",
+    "reading": "coherent with a scaling failure located at or before acquisition, but item 3 is an underpowered negative and is load-bearing only as the ABSENCE of the retention pattern."
+  },
+
+  "STILL_PENDING_BEFORE_ANY_INTERVENTION": {
+    "OPP_ABLATION_6V6": "running, started 2026-09-12T22:29:46Z, 384 episodes. Distinguishes two acquisition stories: if V_FULL >> V_ZERO/V_RANDOM the policy does use opponent-position information and fails to convert it into distinct strategies (optimization/credit-assignment/SNR/curriculum become more interesting); if V_FULL ~ V_ZERO ~ V_RANDOM the terminal policy depends only weakly on the opponent-position channels tested (observation utilisation / training pressure move ahead of gradient variance).",
+    "GRAD_SNR_SCALING": "spec frozen, implementation frozen and validated (115 tests), NOT LAUNCHED. Its own gate requires PI authorisation after BOTH the trajectory and the ablation have sealed. The trajectory half is now in; the ablation half is not."
+  }
+}

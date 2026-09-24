@@ -1,0 +1,50 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_PREMATURE_LAUNCH_ABORT",
+  "status": "ABORTED_NON_RESULT",
+  "utc": "2026-09-10T22:30:00Z",
+  "authority": "PI stronger semantic gate on role targets; agent stopped training after recognizing recollected targets fail directional coherence.",
+
+  "WHAT_HAPPENED": {
+    "pi_A_role_launched": true,
+    "seed": 16900001,
+    "steps_completed_approx": 6144,
+    "fraction_of_budget": 0.006,
+    "killed": true,
+    "run_lock_released": true
+  },
+
+  "WHY_ABORTED": {
+    "stronger_gate_required": [
+      "GUARD target has more defensive occupancy than BREACH",
+      "BREACH target has more attack-heavy occupancy than GUARD",
+      "numeric features not identical",
+      "dominant role buckets line up with intended semantics",
+      "directionally coherent across main features (not OR-of-one-statistic)"
+    ],
+    "measured_on_recollected_targets": {
+      "GUARD_dom": "one_attack_three_defend",
+      "BREACH_dom": "escort_pair",
+      "GUARD_att_def_adr": [0.716, 3.284, 0.179],
+      "BREACH_att_def_adr": [0.657, 3.343, 0.164],
+      "guard_more_def_on_n_def": false,
+      "breach_more_att_on_n_att": false,
+      "breach_higher_adr": false,
+      "occ_L1": 1.301
+    },
+    "reading": "Half-plane projection removed vacuity but did NOT produce directionally coherent GUARD-vs-BREACH attack/defend features. BREACH dominant=escort_pair is carrier-driven, not attack-heavy allocation. Launch under LOSS_AMENDMENT (CE-only) was premature relative to the stronger semantic gate."
+  },
+
+  "SEED_DISPOSITION": {
+    "16900001": "PARTIALLY_SPENT by aborted non-result (~6k steps). MUST NOT be reused for a production _b3_role launch. Next pi_A_role production seed must be a fresh prospectively reserved integer.",
+    "17000001": "still unspent",
+    "17200001-17200128": "still unspent"
+  },
+
+  "ARTIFACT_DISPOSITION": {
+    "dir": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_role/",
+    "status": "ABORTED_NON_RESULT — do not evaluate; do not treat as a specialist checkpoint",
+    "action": "leave on disk for audit; next production run uses a new run-label or cleared dir with a NEW seed"
+  },
+
+  "NEXT": "Strengthen semantic certification of role_targets.json; fix projection until directional coherence passes; freeze corrected targets; dry-run; train on a FRESH pi_A seed."
+}

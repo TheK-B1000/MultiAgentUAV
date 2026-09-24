@@ -1,0 +1,98 @@
+{
+  "record_id": "SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-12T00:38:00Z",
+
+  "TIMING_INTEGRITY_THE_POINT_OF_THIS_RECORD": "Frozen at 2026-09-12T00:38Z, while the Rung-1 6v6 sealed crossover was still running (471/512 episodes, z1@PoleB, no RESULT and no INTEGRITY flag on disk). The seed block, the gate, and BOTH branches of the interpretation below were therefore fixed WITHOUT knowledge of the Rung-1 outcome. This record cannot have been designed around a result that did not yet exist.",
+
+  "AUTHORITY": "PI 2026-09-12: 'If it fails, the best legitimate plan is not to tune the current run until it passes. Freeze the FAIL, then determine why it failed before spending another training cycle. The first thing I would do is a 6v6 Share-0 expert crossover on the frozen teachers.'",
+
+  "TRIGGER": {
+    "runs_only_if": "the Rung-1 6v6 sealed crossover (RUNG1_6V6) does NOT pass -- i.e. RUNG1_6V6_CROSSOVER_EVAL_RESULT.json has PRIMARY_GATE.passes == false, OR RUNG1_6V6_CROSSOVER_EVAL_INTEGRITY_REQUIRED.json is written",
+    "does_not_run_if": "RUNG1_6V6 passes -- in that case the scaling claim is established and this diagnostic is unnecessary; the record is then retired unused with zero seeds spent",
+    "precondition": "the Rung-1 result must be FROZEN first. This diagnostic does not reopen, reinterpret, or pool with it."
+  },
+
+  "QUESTION": "Are the 6v6 teachers themselves payoff-specialized, independent of any compression? This localizes a Rung-1 failure to exactly one of two stages.",
+
+  "WHY_THIS_IS_THE_RIGHT_FIRST_DIAGNOSTIC": "The 6v6 pipeline has two places a crossover can die: (1) the specialists never had complementary payoff specialization at 6v6, or (2) they had it and matched-state distillation into a shared-encoder controller lost it. These demand completely different responses, and no amount of tuning the distillation can legitimately rescue the claim under (1). Share-0 is a bit-exact z-dispatch between the two ALREADY-TRAINED, ALREADY-FROZEN teachers -- zero gradient steps of any kind, inference only -- so it separates (1) from (2) without spending a training cycle.",
+
+  "NO_TRAINING_OF_ANY_KIND": "This evaluation performs no PPO, no distillation, and no fine-tuning. It loads two existing frozen checkpoints and dispatches between them. Nothing is retrained, reselected, or modified.",
+
+  "CHECKPOINTS_UNDER_TEST": {
+    "pi_A": {
+      "path": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+      "sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82",
+      "train_seed": 7610001, "pole": "A", "base_opponent": "OP6", "steps": 1000000
+    },
+    "pi_B": {
+      "path": "artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip",
+      "sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4",
+      "train_seed": 7620001, "pole": "B", "base_opponent": "OP7", "steps": 1000000
+    },
+    "note": "These are the SAME checkpoints that served as distillation teachers for RUNG1_6V6. They are evaluated verbatim; the terminal-checkpoint rule is unchanged and no alternate epoch is eligible."
+  },
+
+  "POLES": {
+    "A": "pole_A_genome(6) -- OP6 + {min_alive_for_defender: 6}",
+    "B": "pole_B_genome(6) -- OP7 + {min_alive_for_defender: 6}",
+    "note": "canonical size-normalized poles, identical to those used for the 6v6 demand certification and for RUNG1_6V6. No candidate genome override is used at 6v6.",
+    "certification": "STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json -- CERTIFIED, not reopened"
+  },
+
+  "SEEDS": {
+    "block": [13680001, 13680128],
+    "n": 128,
+    "shared_across_policies_and_poles": true,
+    "episodes": 512,
+    "disjointness_verified": "grep for 13680001/13680128 across artifacts/**/*.json at freeze time: ZERO hits. Disjoint from every spent 6v6 block: specialist train 7610001/7620001, demand cert 13000001-064, collection 13600003-098 / 13600103-198, Rung-1 init 13621001-002, Rung-1 crossover 13640001-128, robustness reserved 13660001-128, track-hold pilot 13700001-020.",
+    "rule": "fresh block. The RUNG1_6V6 crossover block (13640001-128) is spent and MUST NOT be reused here -- reusing it would confound the diagnostic with the very result it is diagnosing."
+  },
+
+  "GATE": {
+    "delta_A": "V(pi_A, A) - V(pi_B, A)",
+    "delta_B": "V(pi_B, B) - V(pi_A, B)",
+    "rule": "PASS iff both means > 0 AND both LCB95 > 0 -- the identical criterion used at every scale in this program. Not relaxed for a diagnostic.",
+    "bootstrap": "paired percentile bootstrap over seeds, n_boot=20000, alpha=0.05, rng_seed=7, seed as the resampling unit",
+    "tie_reversal": "any delta with mean <= 0 writes an INTEGRITY_REQUIRED flag and stops before a verdict-bearing record, per the standing convention"
+  },
+
+  "TOOL": "experiments/eval_specialist_crossover_scaled.py --team-size 6",
+  "run_command": "./.venv/Scripts/python.exe experiments/eval_specialist_crossover_scaled.py --team-size 6 --spec artifacts/strategic_demand/sppo/SHARE0_6V6_TEACHER_CROSSOVER_DIAGNOSTIC_SPEC.json --pi-a-path artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip --pi-b-path artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip --seed-base 13680001 --n-seeds 128 --label SHARE0_6V6_TEACHER --device cuda",
+  "estimated_runtime": "512 episodes; ~6-9 GPU hours at the observed 6v6 pace (35-60 s/ep). Must not contend with another GPU job.",
+
+  "INTERPRETATION_BOTH_BRANCHES_FIXED_BEFORE_THE_RESULT_EXISTS": {
+    "share0_PASS": {
+      "means": "the 6v6 teachers ARE payoff-specialized. The Rung-1 failure is then localized to COMPRESSION: matched-state distillation into a shared-encoder controller lost a specialization that demonstrably existed in the sources.",
+      "licenses": "exactly ONE new, prospectively frozen rescue experiment, chosen from the observed failure pattern rather than guessed. Candidate interventions named in advance: (a) student-visited-state distillation, if the failure signature is distribution shift; (b) strategy-specific adapters / additional private capacity, if the shared encoder is overcompressing; (c) a closed-loop strategy-preservation stage, if imitation fidelity stays high while payoff specialization disappears.",
+      "constraints_on_that_rescue": "one intervention, one fresh seed block, one sealed evaluation. No lambda search, no reporting-the-winner across variants, no reuse of 13640001-128 or 13680001-128, no reuse of the failed confirmatory arm's seeds."
+    },
+    "share0_FAIL": {
+      "means": "the teachers themselves do not have verified complementary payoff specialization at 6v6. The source strategies were never proven specialized.",
+      "licenses": "NOTHING on the distillation axis. Changing the compression cannot legitimately rescue a claim whose sources were never shown to be specialized. The honest report is a scale-transfer negative: demand certifies at 6v6, but independently trained specialists do not realize it as complementary closed-loop payoff at this team size.",
+      "explicitly_forbidden": "tuning distillation, adding capacity, or any Share-Encoder variant, in response to a Share-0 FAIL"
+    }
+  },
+
+  "PRIOR_SUSPICION_RECORDED_BEFORE_THE_RESULT": "PI 2026-09-12, from the partial cell matrix (z0@A=0.8672, z0@B=0.9531, z1@A=0.8359, z1@B incomplete): if the failure seals on B, suspect cross-regime overperformance / ceiling effects, because z0@B=0.9531 leaves very little headroom for z1 to establish a significant advantage. If that is the sealed pattern, the follow-on intervention should target preserving RELATIVE STRATEGIC ADVANTAGE, not raw win rate and not imitation fidelity. Recorded here, before the fourth cell closed, so that this reading cannot later be mistaken for a post-hoc rationalisation.",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "running this diagnostic before the Rung-1 6v6 result is sealed and frozen",
+    "running it at all if Rung-1 PASSES",
+    "spending 13680001-13680128 for any other purpose",
+    "pooling these rows with the Rung-1 crossover rows",
+    "reinterpreting, reopening, or re-bootstrapping the Rung-1 result",
+    "any retraining, redistillation, checkpoint reselection, or gate change",
+    "treating a Share-0 PASS as itself a scaling claim -- it is a diagnostic about the teachers, not a result about the compressed policy"
+  ],
+
+  "SEQUENCE": [
+    "1. Let RUNG1_6V6 finish untouched (in flight at freeze time)",
+    "2. If it PASSES: retire this record unused, zero seeds spent",
+    "3. If it FAILS: freeze the FAIL first, with its row-level audit",
+    "4. Then run this diagnostic on 13680001-128",
+    "5. Branch on the result per INTERPRETATION above -- one intervention only, prospectively frozen, fresh block"
+  ]
+}

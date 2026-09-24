@@ -1,0 +1,68 @@
+{
+  "record_id": "POLE_B_ENTITY_UTILIZATION_READING",
+  "status": "DIAGNOSTIC_READING",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-14T00:12:00Z",
+  "rests_on": "POLE_B_ENTITY_UTILIZATION_RESULT.json (all 5 known-answer contracts passed in all 3 cells)",
+  "implements": "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json#WHAT_HAPPENS_NEXT.2_diagnose_B_only",
+
+  "HEADLINE": "The entity pathway is only WEAKLY used -- and it is weakly used to the SAME degree by the regime that PASSED (pi_A3) as by the regime that FAILED (pi_B3). The asymmetry in the crossover result is therefore NOT explained by an asymmetry in entity-stream utilization.",
+
+  "MEASUREMENTS": {
+    "pi_B3_on_PoleB_the_failed_regime": {
+      "residual_ratio_mean": 0.0379, "g_norm_mean": 1.0849, "base_norm_mean": 29.4345,
+      "both_zeroed_mean_kl": 0.014918, "both_zeroed_action_agreement": 0.9719,
+      "teammates_zeroed_mean_kl": 0.002280, "enemies_zeroed_mean_kl": 0.009073,
+      "n_states": 120, "n_agent_rows": 480
+    },
+    "pi_A3_on_PoleA_the_passed_regime": {
+      "residual_ratio_mean": 0.0452, "g_norm_mean": 1.3883, "base_norm_mean": 32.4541,
+      "both_zeroed_mean_kl": 0.014708, "both_zeroed_action_agreement": 0.9656,
+      "teammates_zeroed_mean_kl": 0.003059, "enemies_zeroed_mean_kl": 0.010227,
+      "n_states": 120, "n_agent_rows": 480
+    },
+    "pi_A3_on_PoleB": {
+      "residual_ratio_mean": 0.0408, "g_norm_mean": 1.0793, "base_norm_mean": 28.1861,
+      "both_zeroed_mean_kl": 0.020393, "both_zeroed_action_agreement": 0.9744,
+      "n_states": 83, "n_agent_rows": 332
+    }
+  },
+
+  "WHAT_THE_NUMBERS_MEAN": {
+    "residual_magnitude": "the geometry residual g is added to the actor's local input. ||g|| is ~1.1-1.4 against a base-feature norm of ~28-32, i.e. the entity stream perturbs the actor's input vector by roughly 4%. It is genuinely nonzero (contract 2 asserts this on the trained weights), so the pathway did wake up -- but it stayed small.",
+    "behavioural_dependence": "deleting the entity stream ENTIRELY (BOTH_ZEROED, an exact intervention: bias-free layers make g identically 0, contract 1) leaves the greedy action unchanged ~96.6-97.4% of the time, at a mean per-state KL of ~0.015.",
+    "kl_calibration": "for scale, these runs trained with approx_kl 0.0008-0.004 per PPO update against a target_kl of 0.02. Removing the entire geometry pathway moves the policy by ~0.015 KL -- less than one trust-region step, i.e. the scale of a few gradient updates, not the scale of a different policy.",
+    "the_decisive_comparison": "pi_A3 (PASSED, delta_A=+0.352) uses geometry no more than pi_B3 (FAILED): residual ratio 0.0452 vs 0.0379, BOTH_ZEROED KL 0.0147 vs 0.0149, action agreement 0.966 vs 0.972. There is no utilization gap to explain the outcome gap.",
+    "teammate_vs_enemy_split": "in every cell the enemy half carries ~3-4x the KL of the teammate half (e.g. 0.0091 vs 0.0023 for pi_B3), consistent with the earlier observation ladder where enemy geometry was the necessary component -- but both halves are small in absolute terms."
+  },
+
+  "IMPLICATION_FOR_THE_DELTA_A_RESULT": {
+    "claim": "delta_A = +0.352 is very unlikely to have been CAUSED by the entity representation.",
+    "reasoning": "pi_A3's behaviour is ~97% identical with the entity stream deleted. A pathway that changes 3% of greedy actions and moves the policy less than one trust-region step is a poor candidate explanation for a +0.35 swing in a paired win-rate contrast, especially when the FAILING policy uses that same pathway equally.",
+    "relationship_to_the_already_recorded_confound": "this is independent MECHANISTIC evidence for exactly the confound named in 4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json#CAUSAL_ATTRIBUTION_LIMIT -- that pi_A3/pi_B3 received 1,000,000 fresh optimization steps the pre-repair baseline never got. The deferred 'same 1M steps, entities ABSENT' continuation control is no longer optional hygiene; it is now the decisive experiment.",
+    "what_is_still_NOT_established": "that the entity stream is performance-IRRELEVANT. 3% of actions is not nothing: if the changed actions are concentrated on pivotal decisions (which defender to intercept at a contact moment), a small action-level effect could still carry outcome weight. This probe measures policy dependence, not win rate."
+  },
+
+  "WHICH_PRECOMMITTED_FORK_THIS_SELECTS": {
+    "selected": "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json#DIAGNOSTIC_FORK -> 'pi_B3 barely uses the entity stream ... the problem is ACQUISITION/UTILIZATION, not missing information'",
+    "but_with_a_correction_to_that_fork_s_premise": "the fork was written expecting weak utilization to be a B-SIDE property that would explain the asymmetry. It is not: utilization is weak on BOTH sides. So the honest reading is broader than the fork anticipated -- the information intervention largely did not take effect in EITHER regime, and the remaining question is no longer 'what is special about Pole B' but 'did the repair do anything at all, anywhere'.",
+    "consequence_for_the_plan": "'diagnose B only' is now the wrong frame. Narrowing to Pole B would be chasing an asymmetry whose mechanism this probe has already shown is absent from the entity pathway."
+  },
+
+  "RECOMMENDED_NEXT_EXPERIMENT_cheapest_decisive_test": {
+    "design": "ablated-delta_A contrast on Pole A only, fresh exploratory seeds, NO new training: four cells -- pi_A3 FULL, pi_A3 geometry-ablated, pi_B3 FULL, pi_B3 geometry-ablated -- giving a properly PAIRED comparison of delta_A_full vs delta_A_ablated on identical seeds.",
+    "what_it_decides": "if delta_A survives deleting geometry (delta_A_ablated ~= delta_A_full ~= +0.35), the specialization gap is not geometry-dependent and the extra 1,000,000 steps are the remaining explanation -- the continuation control then becomes confirmatory rather than exploratory. If delta_A collapses when geometry is removed, the repair IS load-bearing despite its small action-level footprint, and the 3%-of-actions are pivotal.",
+    "why_this_before_the_continuation_control": "it uses checkpoints already paid for and costs ~3 GPU-hours, versus ~13 GPU-hours to train two control specialists and run a fresh crossover. It also tests the causal question more directly: it intervenes on the geometry pathway itself rather than on training duration.",
+    "status": "PROPOSED -- not yet run, not yet authorized."
+  },
+
+  "WHAT_THIS_READING_MAY_NOT_BE_USED_TO_CLAIM": [
+    "that the entity stream is performance-irrelevant -- not measured here",
+    "that the entity-residual architecture is incorrect -- it is verifiably doing what it was built to do; it is simply barely leaned on",
+    "any confirmatory status -- exploratory seed block 17900001-17900128, diagnostic arm, 4 episodes per cell",
+    "a claim about 6v6, or about 2v2"
+  ],
+
+  "sampling_limits_stated_plainly": "3 cells x 4 episodes (seeds 17900001-17900004), states sampled every 8 decision steps -> 332-480 agent-rows per cell. The residual-magnitude statistic is a property of the trained weights and is stable; the action-agreement and KL statistics are averages over correlated within-episode states and over only 4 episodes of environment diversity. The qualitative conclusion (weak utilization, no A-vs-B utilization gap) is robust to this, but no interval is claimed on any of these numbers."
+}

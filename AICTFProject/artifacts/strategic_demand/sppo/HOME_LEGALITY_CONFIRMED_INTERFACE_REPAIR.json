@@ -1,0 +1,47 @@
+{
+  "record_id": "HOME_LEGALITY_CONFIRMED_INTERFACE_REPAIR",
+  "record_type": "CONFIRMED_INTERFACE_REPAIR",
+  "status": "CONFIRMED_LANDED_BEHIND_DEFAULT_OFF_FLAG",
+  "utc": "2026-09-18T19:50:00Z",
+  "promoted_from": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_CONTRACT_RESULT.json (Repair B)",
+  "reading": "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_READING.json",
+
+  "WHAT_IS_CONFIRMED": "The non-carrier GO_HOME legality defect is repaired. This is recorded as an independently successful interface repair, separable from Repair A (DEFEND primitive), which came back PARTIAL for unrelated reasons.",
+
+  "THE_DEFECT": {
+    "symptom": "G6_LEGALITY failed for exactly one candidate in the entire suite: ATTACK_HOME_TEAMMATE_CARRIER / GO_HOME_NONCARRIER, declared structurally_satisfiable=false.",
+    "what_was_already_correct": "That candidate's behavior was already exact before any repair: G6_TARGET 0.000 cells, G6_DIRECTION cosine 1.000 and radial agreement 1.000, G6_TRAJECTORY 1.313 cells (inside the 2.5 threshold). Three of four sub-gates passed. Only selectability failed.",
+    "root_cause_verified_in_the_engine": "The engine never blocked this. gpu_env/_core/_step.py::_advance_blue_macros accepts any macro id unconditionally (torch.remainder against n_macros); there is no carrying precondition on macro selection anywhere. The false declaration reflected only that GO_HOME's own capture-success flag -- blue_cap_agents = prev_carrying & ~carrying & cap_env, gpu_env/_core/_step.py -- cannot fire for an agent that is not the carrier.",
+    "why_that_was_the_wrong_criterion": "Capture-eligibility is the completion semantics of the literal flag-carrier. For a non-carrying escort assigned to follow the carrier home, correctness is target/direction/trajectory fidelity, which was already exact. Requiring a capture event that was never this agent's to trigger conflated two different questions."
+  },
+
+  "THE_REPAIR": {
+    "scope": "One boolean, read in exactly one branch of gpu_env/pyquaticus_port.py::projection_candidates.",
+    "flag": "repair_home_legality",
+    "default": "False",
+    "changes": "structurally_satisfiable for the GO_HOME_NONCARRIER candidate only",
+    "does_not_change": [
+      "GO_HOME's target resolution (already correct, untouched)",
+      "the sibling GO_TO_HOME_WAYPOINT_NONCARRIER candidate (verified byte-identical with the flag on and off)",
+      "any production engine code -- no change was needed, because no engine restriction existed",
+      "any other semantic branch"
+    ]
+  },
+
+  "EVIDENCE": {
+    "C4_orthogonality": "B_fixes_home_legality PASS, B_does_not_touch_target PASS, A_does_not_touch_legality PASS, attack_to_flag_unaffected_everywhere PASS.",
+    "independence_from_repair_A": "The DEFEND_OFF/HOME_ON combination shows the single legality fix with a G6_TARGET fail list identical to DEFEND_OFF/HOME_OFF. The DEFEND_ON/HOME_OFF combination shows the identical DEFEND target failure with the legality fail list unchanged. The two repairs provably do not interact.",
+    "C2_legacy_preservation": "With both flags off, every metric in every case/candidate reproduces the sealed PYQUATICUS_PORT_CONTRACT_RESULT.json with zero mismatches, and that sealed file's sha256 was verified unchanged before and after the sweep.",
+    "tests": "tests/test_pyquaticus_port_contracts.py::test_repair_home_legality_flips_only_the_satisfiability_flag asserts the flag changes only satisfiability, leaving macro, target_index and the sibling candidate identical. 33 tests in that file pass, including all 14 that predate the repair."
+  },
+
+  "DEPLOYMENT_CONSTRAINT": {
+    "default_off": "The flag stays default-OFF. It is not globally enabled.",
+    "explicitly_not_retroactive": "No prior experiment, sealed result, checkpoint, preset or training run is re-run, re-scored or re-interpreted under this repair. Every historical artifact keeps the semantics it was produced under.",
+    "opt_in_only": "Any future experiment wanting this behavior must enable the flag explicitly and say so in its own frozen spec."
+  },
+
+  "CLAIM_BOUNDARY": "This confirms one action-interface legality defect is repaired, in an outcome-blind CPU contract on fixed fixtures. It establishes nothing about learned specialization, PPO, team payoff, the 4v4 B failure, or whether escort behavior matters to any outcome. It does not unblock the Pyquaticus team evaluation, which remains gated on DEFEND representability.",
+
+  "authorizes": "opt-in use of repair_home_legality in future frozen specs"
+}

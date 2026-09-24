@@ -1,0 +1,161 @@
+{
+  "record": "PROJECTED_TEACHER_ORACLE closed-loop action-interface test",
+  "status": "FROZEN_RESULT",
+  "utc": "2026-09-13T01:21:59Z",
+  "run_id": "20260913T012159Z_afb31c3b",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "PROJECTED_TEACHER_ORACLE_SPEC.json",
+  "config_signature": {
+    "device": "cpu",
+    "n_seeds": 24,
+    "scales": [
+      2,
+      4
+    ],
+    "seed_lo": 17600001
+  },
+  "elapsed_s": 3886.2,
+  "results": {
+    "2v2": {
+      "GUARD@A": {
+        "V_original": 0.75,
+        "V_projected": 0.5417,
+        "L_paired_original_minus_projected": {
+          "mean": 0.208333,
+          "lcb95": -0.041667,
+          "ucb95": 0.416667,
+          "n": 24
+        }
+      },
+      "GUARD@B": {
+        "V_original": 0.0,
+        "V_projected": 0.0,
+        "L_paired_original_minus_projected": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 24
+        }
+      },
+      "BREACH@A": {
+        "V_original": 0.2083,
+        "V_projected": 0.2083,
+        "L_paired_original_minus_projected": {
+          "mean": 0.0,
+          "lcb95": -0.208333,
+          "ucb95": 0.25,
+          "n": 24
+        }
+      },
+      "BREACH@B": {
+        "V_original": 0.4583,
+        "V_projected": 0.4583,
+        "L_paired_original_minus_projected": {
+          "mean": 0.0,
+          "lcb95": -0.25,
+          "ucb95": 0.25,
+          "n": 24
+        }
+      },
+      "delta_ORIGINAL": {
+        "delta_A": {
+          "mean": 0.541667,
+          "lcb95": 0.25,
+          "ucb95": 0.791667,
+          "n": 24
+        },
+        "delta_B": {
+          "mean": 0.458333,
+          "lcb95": 0.25,
+          "ucb95": 0.666667,
+          "n": 24
+        }
+      },
+      "delta_PROJECTED": {
+        "delta_A": {
+          "mean": 0.333333,
+          "lcb95": 0.041667,
+          "ucb95": 0.625,
+          "n": 24
+        },
+        "delta_B": {
+          "mean": 0.458333,
+          "lcb95": 0.25,
+          "ucb95": 0.666667,
+          "n": 24
+        }
+      }
+    },
+    "4v4": {
+      "GUARD@A": {
+        "V_original": 0.7083,
+        "V_projected": 0.5417,
+        "L_paired_original_minus_projected": {
+          "mean": 0.166667,
+          "lcb95": -0.083333,
+          "ucb95": 0.416667,
+          "n": 24
+        }
+      },
+      "GUARD@B": {
+        "V_original": 0.0417,
+        "V_projected": 0.0417,
+        "L_paired_original_minus_projected": {
+          "mean": 0.0,
+          "lcb95": 0.0,
+          "ucb95": 0.0,
+          "n": 24
+        }
+      },
+      "BREACH@A": {
+        "V_original": 0.2917,
+        "V_projected": 0.4167,
+        "L_paired_original_minus_projected": {
+          "mean": -0.125,
+          "lcb95": -0.375,
+          "ucb95": 0.125,
+          "n": 24
+        }
+      },
+      "BREACH@B": {
+        "V_original": 0.6667,
+        "V_projected": 0.7083,
+        "L_paired_original_minus_projected": {
+          "mean": -0.041667,
+          "lcb95": -0.291667,
+          "ucb95": 0.208333,
+          "n": 24
+        }
+      },
+      "delta_ORIGINAL": {
+        "delta_A": {
+          "mean": 0.416667,
+          "lcb95": 0.166667,
+          "ucb95": 0.666667,
+          "n": 24
+        },
+        "delta_B": {
+          "mean": 0.625,
+          "lcb95": 0.416667,
+          "ucb95": 0.791667,
+          "n": 24
+        }
+      },
+      "delta_PROJECTED": {
+        "delta_A": {
+          "mean": 0.125,
+          "lcb95": -0.166667,
+          "ucb95": 0.416667,
+          "n": 24
+        },
+        "delta_B": {
+          "mean": 0.666667,
+          "lcb95": 0.458333,
+          "ucb95": 0.833333,
+          "n": 24
+        }
+      }
+    }
+  }
+}

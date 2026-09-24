@@ -1,0 +1,19 @@
+{
+  "stem": "fig_absolute_winrate_context_4v4",
+  "role": "absolute_performance_context_4v4_scaffold_not_specialization_test",
+  "policies": [
+    "pi_A",
+    "A_prime",
+    "pi_B"
+  ],
+  "n": 128,
+  "win_rate_pct": {
+    "pi_A_regimeA": 81.25,
+    "pi_A_regimeB": 62.5,
+    "A_prime_regimeA": 71.88,
+    "A_prime_regimeB": 13.28,
+    "pi_B_regimeA": 36.72,
+    "pi_B_regimeB": 49.22
+  },
+  "source": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_ROWS.csv"
+}

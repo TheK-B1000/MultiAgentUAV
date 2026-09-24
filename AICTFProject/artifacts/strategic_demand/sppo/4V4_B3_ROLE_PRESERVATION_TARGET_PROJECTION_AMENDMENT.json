@@ -1,0 +1,15 @@
+{
+  "record_id": "4V4_B3_ROLE_PRESERVATION_TARGET_PROJECTION_AMENDMENT",
+  "status": "FROZEN_AMENDMENT_BEFORE_TRAINING",
+  "utc": "2026-09-10T22:10:00Z",
+  "amends": "4V4_B3_ROLE_PRESERVATION_SPEC.json#SINGLE_AXIS_INTERVENTION.target_source",
+  "authority": "Pre-launch audit of first role_targets.json: both GUARD and BREACH reported mean_num_attackers=0, mean_num_defenders=0, adr=0.5 because scripted blue styles commit GO_TO waypoints, while BEHAVIOR_TELEMETRY defines attackers/defenders as MacroAction.GET_FLAG / GO_HOME. Leaving that uncorrected would make MSE(f,f*) identical for both styles and scientifically null.",
+
+  "AMENDMENT": {
+    "scripted_telemetry_projection": "When collecting frozen targets from scripted GUARD/BREACH, project each alive blue agent to a telemetry macro BEFORE calling compute_behavior_telemetry_batch: GET_FLAG if on enemy half, GO_HOME if on own half (via core._is_on_home_side). Carrier geometry for escort/intercept still comes from core state. This uses the same half-plane vocabulary already frozen in the blue-side capture protocol (defensive vs offensive regions) and the same MacroAction / role_bucket vocabulary as the training loss.",
+    "training_loss_unchanged": "Student-side f_soft / q_soft remain soft expectations over the policy's MacroAction probabilities (GET_FLAG/GO_HOME/...). L_role formula unchanged. Only the scripted target measurement is corrected so f* and p* actually separate GUARD from BREACH.",
+    "recollection": "Discard the vacuous first role_targets.json. Re-run collect_role_targets_4v4_b3.py with the projection; freeze the new file in place. No training seed spent."
+  },
+
+  "TIMING_INTEGRITY": "Zero training seeds (16900001/17000001) and zero sealed crossover seeds (17200001-128) spent at amendment time."
+}

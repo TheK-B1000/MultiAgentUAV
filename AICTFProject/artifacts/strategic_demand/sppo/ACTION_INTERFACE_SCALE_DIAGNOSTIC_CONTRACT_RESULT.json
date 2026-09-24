@@ -1,0 +1,87 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT",
+  "status": "PASS",
+  "utc": "2026-09-22T15:33:36Z",
+  "device": "cpu",
+  "gpu_used": false,
+  "gates": {
+    "G0_PRIOR_ARTIFACT_PROTECTION": {
+      "pass": true,
+      "notes": [
+        "missing protected artifact (read-only): ACTION_INTERFACE_DECOMP_RESULT.json",
+        "missing protected artifact (read-only): REPAIRED_GO_TO_H1_PROJECTED_RESULT.json"
+      ]
+    },
+    "G0_rule11": {
+      "pass": true,
+      "fails": []
+    },
+    "G1_SOURCE_INTENT": {
+      "pass": true,
+      "logged_equals_raw": true
+    },
+    "G2_I0_FIDELITY": {
+      "pass": true,
+      "I0_shadow_E_v": 1.5466235552983515e-07,
+      "I0_shadow_E_x_rmse": 0.0,
+      "tol": 1e-05
+    },
+    "G3_I1_ISOLATION": {
+      "pass": true,
+      "nearest_idx_sample": 25,
+      "tie_lowest": 0
+    },
+    "G4_I2_ISOLATION": {
+      "pass": true,
+      "note": "alternating stream replay completed",
+      "E_v_I1": 0.894853379086712,
+      "E_v_I2": 0.11486400381247856
+    },
+    "G5_I3_PRODUCTION_PARITY": {
+      "pass": true,
+      "adapt_category": "WAYPOINT",
+      "executed": [
+        0.0,
+        10.55555534362793
+      ]
+    },
+    "G6_SCALE_NEUTRAL_INTEGRITY": {
+      "pass": true,
+      "per_agent_E_v_2v2": [
+        3.703428666670675,
+        3.703428666670675
+      ],
+      "per_agent_E_v_4v4_first_pair": [
+        3.703428666670675,
+        3.703428666670675
+      ],
+      "tol": 1e-06
+    },
+    "G7_OUTCOME_BLIND_SCHEMA": {
+      "pass": true,
+      "forbidden": [
+        "advantage",
+        "blue_score",
+        "red_score",
+        "return",
+        "reward",
+        "value",
+        "win"
+      ],
+      "detail": "no forbidden columns"
+    },
+    "G8_TRACE_COMPLETENESS": {
+      "pass": true,
+      "ticks": 8,
+      "arms": 4,
+      "trace_hash_present": true
+    },
+    "AMENDMENT_2v2_POLE": {
+      "pass": true,
+      "detail": "historical canonical Pole B control OK"
+    }
+  },
+  "overall_pass": true,
+  "spec_sha256": "12f078df657fb609c2daae7123b6c45f81627150b274dc0d91c92e6618541ad5",
+  "amendment_sha256": "35e03bd80e1f05fd3d3d9cf1a04e9ad4c04e0c2c523e16e2e568b133ef8c11d2"
+}

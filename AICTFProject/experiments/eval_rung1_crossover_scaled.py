@@ -186,11 +186,15 @@ def main() -> int:
               "NO episodes run, NOTHING written.")
         return 0
 
+    from experiments.tqdm_loop import set_postfix, tqdm_iter
+
+    cells = [(z, pole, seed) for z in (0, 1) for pole in ("A", "B") for seed in seeds]
     rows = []
-    for z in (0, 1):
-        for pole in ("A", "B"):
-            for seed in seeds:
-                rows.append({"z": z, "pole": pole, "seed": seed, **run_cell(z, pole, seed)})
+    bar = tqdm_iter(cells, desc=f"{label} crossover", unit="ep")
+    for z, pole, seed in bar:
+        set_postfix(bar, f"z{z}@Pole{pole} seed={seed}")
+        rows.append({"z": z, "pole": pole, "seed": seed, **run_cell(z, pole, seed)})
+        if seed == seeds[-1]:
             wr = np.mean([r["win"] for r in rows if r["z"] == z and r["pole"] == pole])
             print(f"  z{z} on Pole {pole}: win rate {wr:.4f}", flush=True)
 

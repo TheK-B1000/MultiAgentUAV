@@ -1,0 +1,58 @@
+{
+  "record_id": "ACTION_INTERFACE_DECOMP_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "utc": "2026-09-13T01:35:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "OUTPUT_LABEL": "ACTION_INTERFACE_DECOMP",
+
+  "MOTIVATED_BY": "PROJECTED_TEACHER_ORACLE_20260913T012159Z_afb31c3b_RESULT.json: at 4v4, FULL projection destroys GUARD-side specialization (delta_A +0.42[+0.17,+0.67] -> +0.13[-0.17,+0.42]) while Pole B stays healthy. 2v2 still clears both gates under projection. Privileged-vs-Standard BC is PAUSED until this decomposition identifies which action-interface component binds.",
+
+  "QUESTION": "Which part of the student action interface kills 4v4 GUARD@A: spatial W50 quantization, commitment/temporal holding, or their interaction?",
+
+  "SCOPE": {
+    "primary": "4v4 GUARD Pole A",
+    "control": "2v2 GUARD Pole A (working control)",
+    "NOT_RUN": "BREACH cells, Pole B, 6v6 -- not needed for this diagnosis"
+  },
+
+  "ARMS": {
+    "ORIGINAL": "blue_scripted=True; continuous teacher targets every tick. Baseline.",
+    "SPATIAL_ONLY": "quantize teacher targets through the validated adapter (W50 / semantic macros) but FORCE a new commit every tick (blue_commit_ticks_left:=0 before each step) so spatial quantization is NOT coupled to temporal holding.",
+    "COMMIT_ONLY": "continuous teacher targets (scripted continuous steering) but refresh the held continuous target ONLY on the student GO_TO commitment schedule; hold between boundaries. No W50 quantization.",
+    "FULL": "real student interface: adapter + commitment boundaries (identical to PROJECTED in PROJECTED_TEACHER_ORACLE). May be loaded from the sealed oracle rows when seeds match."
+  },
+
+  "PRECOMMITTED_READING": [
+    {"if": "SPATIAL_ONLY collapses toward FULL while COMMIT_ONLY stays near ORIGINAL", "then": "fix target representation (dynamic/relative / dedicated intercept)"},
+    {"if": "COMMIT_ONLY collapses toward FULL while SPATIAL_ONLY stays near ORIGINAL", "then": "temporal responsiveness is the binder; shorten or condition commitment for intercept macros"},
+    {"if": "neither alone collapses but FULL does", "then": "interaction of discretization and commitment; fix must address both jointly"},
+    {"if": "both collapse similarly to FULL", "then": "either factor is sufficient to break GUARD; pick the cheaper repair first"}
+  ],
+
+  "PRIMARY_QUANTITY": {
+    "V": "win rate of each arm on GUARD@A",
+    "L_vs_ORIGINAL": "V(ORIGINAL) - V(arm), paired percentile bootstrap, n_boot=20000, alpha=0.05, rng_seed=7",
+    "note": "Specialization deltas are NOT re-measured here (BREACH not run). The oracle already established FULL loses the delta_A gate at 4v4; this probe localizes the value loss on the failing GUARD@A cell."
+  },
+
+  "STUDY_CLASS": "MECHANISTIC_FOLLOW_UP (not an independent confirmation of the oracle). Same 24 seeds deliberately reused for seed-by-seed pairing.",
+
+  "SEEDS": {
+    "block": [17600001, 17600024],
+    "n": 24,
+    "class": "exploratory",
+    "reuse_of_oracle_block": "SAME seeds as PROJECTED_TEACHER_ORACLE so FULL/ORIGINAL can be cross-checked against the sealed oracle rows for GUARD@A",
+    "RULE12_HARD_CONTRACT": "see ACTION_INTERFACE_DECOMP_RULE12_ORACLE_CONTRACT_AMENDMENT.json -- any seed mismatch on ORIGINAL↔oracle ORIGINAL or FULL↔oracle PROJECTED refuses interpretation"
+  },
+
+  "DEVICE": "cpu",
+  "PAUSES": ["Privileged-vs-Standard BC (until smallest action-side fix is identified)"],
+
+  "NOT_AUTHORIZED": [
+    "PPO / BC / specialist training",
+    "claiming a confirmatory result",
+    "expanding to a full {GUARD,BREACH}x{A,B} matrix without a new freeze",
+    "implementing both observation and action repairs before this diagnosis seals"
+  ]
+}

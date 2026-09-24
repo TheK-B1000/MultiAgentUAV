@@ -1,0 +1,78 @@
+\section{Introduction}
+%======================================================================
+
+Multi-robot systems that operate against heterogeneous environments or
+adversaries often cannot rely on a single coordination style. Different opponent
+behaviors can require qualitatively different team strategies---for example, a
+broad zone defense may favor one form of team organization, while a compact,
+reactive defense favors another. Learning policies that express the right
+strategy for the encountered regime is therefore a central robotics problem,
+not merely a representation-learning detail.
+
+Storing a separate neural policy for every operating regime preserves
+specialization but does not scale well as the number of regimes grows. Memory,
+deployment complexity, and maintenance cost all increase with the number of
+independent networks. A natural alternative is one shared multi-robot policy
+conditioned on a small discrete \emph{strategy code}: the code selects which
+opponent-conditioned behavior the shared policy should express.
+
+Parameter sharing, however, can erase strategically important differences even
+when average action imitation remains high. Closed-loop coordination depends on
+temporally extended decisions; agreement on individual actions does not
+automatically imply that each conditioned mode retains its intended task
+advantage. The scientific question of this paper is therefore:
+
+\begin{quote}
+\emph{Can a single strategy-conditioned multi-robot policy preserve multiple
+opponent-specific strategies, and how much neural-network parameter sharing can
+be introduced before those strategies interfere with one another?}
+\end{quote}
+
+Existing latent-policy and multi-agent reinforcement learning methods have shown
+that a shared policy can represent diverse behaviors, roles, or
+opponent-conditioned responses. However, substantially less attention has been
+paid to whether strategically distinct behaviors remain preserved as
+increasingly large portions of the policy are forced to share parameters. This
+distinction is important because high action-level imitation fidelity does not
+necessarily imply preservation of closed-loop strategic behavior.
+
+We therefore study strategy preservation under progressive policy sharing in a
+multi-robot adversarial task. The pipeline is intentionally staged so that each
+box has a distinct role:
+\begin{quote}
+\emph{PPO learns the experts;}
+\emph{matched-state distillation creates discrete shared strategy modes;}
+\emph{progressive parameter sharing is the primary experimental variable;}
+\emph{closed-loop crossover is the validation.}
+\end{quote}
+Concretely, we train two independent opponent-specific PPO specialists
+($\pi_A$ vs.\ Regime~A / OP6; $\pi_B$ vs.\ Regime~B / OP7), validate their
+complementary payoff specialization, and construct a zero-sharing structural
+control that dispatches the verbatim experts by strategy code (Share-0). We then
+distill the experts into modes $z_0\!\sim\!\pi_A$ and $z_1\!\sim\!\pi_B$ of
+shared controllers under a \emph{common} distillation recipe while progressively
+tying modules (Share-Encoder $\rightarrow$ Share-Backbone $\rightarrow$
+Share-Macro), asking where closed-loop specialization survives or collapses.
+Among the distilled rungs, the primary experimental variable is the location and
+amount of parameter sharing; Share-0 is the bit-exact expert dispatch reference
+against which paired losses are measured. We do \emph{not} present this core as
+a new PPO algorithm.
+
+The main contributions of this work are:
+\begin{enumerate}
+  \item A strategy-conditioned expert-distillation framework that grounds
+  discrete modes $z$ in independently learned, crossover-validated PPO experts
+  via matched-state supervision, isolating strategy differences from
+  state-distribution differences.
+  \item A progressive parameter-sharing study that isolates the effect of
+  sharing perception, policy-backbone, and action-output modules on
+  opponent-conditioned specialization while holding the distillation recipe,
+  data, schedule, seeds, and payoff criterion fixed among distilled rungs---with
+  a bit-exact expert-dispatch Share-0 control as the zero-sharing reference.
+  \item A measurement hierarchy that refuses to equate imitation or
+  action-distribution separation with closed-loop strategic meaning: a
+  $z_0$/$z_1$ pair counts only if changing $z$ changes payoff preference
+  against the opponent regimes.
+\end{enumerate}
+
+%======================================================================

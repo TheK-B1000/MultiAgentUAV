@@ -93,11 +93,37 @@ class RolloutStepRecorder:
         device = self.trainer.device
         obs = frame.obs
         rc = frame.reward_component
+        entity_items: Dict[str, torch.Tensor] = {}
+        if getattr(self.trainer.model, "entity_encoder", None) is not None:
+            entity_items = dict(
+                obs_teammates=torch.as_tensor(obs["teammates"], dtype=torch.float32, device=device),
+                obs_teammates_valid=torch.as_tensor(obs["teammates_valid"], dtype=torch.bool, device=device),
+                obs_enemies=torch.as_tensor(obs["enemies"], dtype=torch.float32, device=device),
+                obs_enemies_valid=torch.as_tensor(obs["enemies_valid"], dtype=torch.bool, device=device),
+            )
+        if bool(getattr(self.trainer.model, "role_conditioning_enabled", False)):
+            entity_items["obs_roles"] = torch.as_tensor(obs["roles"], dtype=torch.float32, device=device)
+        if bool(getattr(self.trainer.model, "assignment_conditioning_enabled", False)):
+            entity_items["obs_assignment"] = torch.as_tensor(
+                obs["assignment"], dtype=torch.float32, device=device
+            )
+        if float(getattr(self.trainer.cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+            entity_items["obs_defend_teacher_waypoint"] = torch.as_tensor(
+                obs["defend_teacher_waypoint"], dtype=torch.long, device=device
+            )
+        if bool(getattr(self.trainer.cfg, "split_attack_defend_enabled", False)):
+            if frame.defend_log_probs_t is None:
+                raise ValueError(
+                    "split_attack_defend_enabled=True but StepFrame.defend_log_probs_t is None "
+                    "-- the collector must compute it every step this flag is on"
+                )
+            entity_items["defend_log_probs"] = frame.defend_log_probs_t
         return dict(
             obs_grid=torch.as_tensor(obs["grid"], dtype=torch.float32, device=device),
             obs_vec=torch.as_tensor(obs["vec"], dtype=torch.float32, device=device),
             obs_agent_mask=torch.as_tensor(obs["agent_mask"], dtype=torch.float32, device=device),
             obs_mask=torch.as_tensor(obs["mask"], dtype=torch.float32, device=device),
+            **entity_items,
             global_state=frame.context_state,
             actions=frame.actions_t,
             log_probs=frame.log_probs_t,

@@ -1,0 +1,49 @@
+{
+  "record_id": "4V4_B3_CONFIRMATORY_SPEC",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-08T22:00:00Z",
+  "implements": "4V4_POLE_B3_N192_CERTIFICATION_AMENDMENT.json#IF_PASSES",
+
+  "authority": "PI, 2026-09-08: 'If B3-3 passes: freeze the certification result, then launch the fresh specialists once the 2v2 low sweep is finished or safely at the sealing stage.' Certification PASSED (STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json, VERDICT=CERTIFIED, independently re-verified). This record freezes the NEXT seed allocation now, cheaply, so nothing blocks launch the moment the 2v2 sweep reaches sealing stage -- it does NOT itself authorize starting training.",
+
+  "PRECONDITIONS": {
+    "certification": "SATISFIED -- CERTIFIED, delta_A +0.1198 [+0.0208,+0.2135], delta_B +0.5052 [+0.4323,+0.5781], n=192, independently re-verified (row integrity, fresh bootstrap recompute, split-half)",
+    "2v2_sweep_status": "NOT YET SATISFIED as of this freeze -- low-tier robustness is on cell 3 of 4 (Pole B, z=0). Training launch is gated on this reaching completion or the sealing stage, per explicit PI instruction, not on this record alone."
+  },
+
+  "POLES": {
+    "A": "unchanged pole_A_genome(4) / SDS2_A_payoff_INIT_3 -- never reopened across V1, V2, C2, or this B3 track",
+    "B3": "B3-3_2v1 (SDS2_B3_LOCKDEF10_2V1): OP7 + {lock_defender: 10, enable_2v1: true, min_alive_for_defender: 4}, per 4V4_POLE_B3_SELECTED.json"
+  },
+
+  "WHY_FRESH_SEEDS_EVEN_THOUGH_POLE_A_IS_UNCHANGED": "the same rule already applied to the C2 track: exploratory/prior-track checkpoints may never be promoted into a new confirmatory attempt, even against an identical pole, so the evidence chain (certification -> fresh specialists -> fresh crossover eval) stays clean and independently reproducible. pi_A2/pi_B2 (C2 track, already FAILED its own crossover eval) are NOT reused here.",
+
+  "SEEDS": {
+    "pi_A3_4v4": 16500001,
+    "pi_B3_4v4": 16600001,
+    "crossover_eval_block": [16700001, 16700128],
+    "disjointness_verified": "grep for 16500001/16600001/16700001/16700128 against every JSON under artifacts/strategic_demand/: zero hits at freeze time"
+  },
+
+  "RECIPE": "run_r1_repertoire_training.py::build_r1_config, UNCHANGED. 1,000,000 steps, the R1 specialist budget -- identical to every prior 4v4 attempt (exploratory, C2). No training-recipe change of any kind.",
+
+  "LAUNCH_COMMANDS_TO_BE_VERIFIED_BY_DRY_RUN_BEFORE_USE": {
+    "pi_A3": "python experiments/train_specialist_scale.py --team-size 4 --policy A --seed 16500001 --device cuda",
+    "pi_B3": "python experiments/train_specialist_scale.py --team-size 4 --policy B --seed 16600001 --device cuda --pole-b-genome-json artifacts/strategic_demand/sppo/pole_b2_candidates/B3-3_lockdef10_2v1.json",
+    "note": "pi_A3 needs no --pole-b-genome-json (Pole A only). pi_B3 REQUIRES it, per the same fail-closed check built for the C2 track's --pole-b-genome-json mechanism in train_specialist_scale.py -- the governing certification for 4v4 will need this record's precedence added to _CERT_PRECEDENCE before either command resolves CERTIFIED (see IMPLEMENTATION_GAP below)."
+  },
+
+  "IMPLEMENTATION_GAP_TO_CLOSE_BEFORE_LAUNCH": "train_specialist_scale.py's _CERT_PRECEDENCE currently checks STRATEGIC_DEMAND_4v4_CONFIRMATORY_REDESIGN_N192_CERTIFICATION.json (the C2/B2-1 record, whose own crossover eval already FAILED) ahead of the plain V1/V2 filenames, but does NOT yet know about STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json. This must be added (or the run launched via --confirmatory-redesign-spec-equivalent bypass) before either pi_A3 or pi_B3 can start, verified by dry-run first, exactly as done for the C2 track.",
+
+  "FRESH_CONFIRMATORY_CROSSOVER_EVAL": {
+    "seed_block": [16700001, 16700128],
+    "gate": "delta_A = V(pi_A3,A) - V(pi_B3,A); delta_B = V(pi_B3,B3) - V(pi_A3,B3); PASS iff both means > 0 AND both LCB95 > 0",
+    "tool": "experiments/eval_specialist_crossover_scaled.py --pole-b-genome-json <B3-3 path>"
+  },
+
+  "SEQUENCE": "freeze this record (done) -> close out the implementation gap (dry-run verified) -> wait for the 2v2 low-tier sweep to finish or reach sealing stage (per PI instruction, not this record) -> launch pi_A3, then pi_B3 -> freeze both checkpoints -> run the sealed crossover eval on 16700001-128 -> PASS: 4v4 reaches confirmatory parity; FAIL: 4v4 closes under this construction too, per the same no-second-attempt discipline used everywhere else.",
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": ["launching pi_A3 or pi_B3 training", "spending 16500001, 16600001, or any seed in 16700001-128", "reusing pi_A2/pi_B2 (C2 track) checkpoints for anything in this track"]
+}

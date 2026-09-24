@@ -1,0 +1,217 @@
+{
+  "record_id": "SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_RESULT",
+  "implements": "SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json",
+  "utc": "2026-09-21T23:26:40Z",
+  "TERMINAL_LABEL": "NOT_REPRESENTABLE_VOCABULARY",
+  "gate_status": {
+    "TARGET": {
+      "A": "PASS",
+      "B": "PASS"
+    },
+    "DIRECTION": {
+      "A": "FAIL",
+      "B": "FAIL"
+    },
+    "TRAJ_NATIVE": {
+      "A": "PASS",
+      "B": "PASS"
+    },
+    "TRAJ_INTR": {
+      "A": "PASS",
+      "B": "PASS"
+    }
+  },
+  "gates": {
+    "TARGET": {
+      "A": {
+        "rate": 0.9811933094782391,
+        "lcb95": 0.979355310679724,
+        "ucb95": 0.9829396446404509,
+        "n_units": 48068,
+        "n_episodes": 128
+      },
+      "B": {
+        "rate": 0.9837210124434389,
+        "lcb95": 0.9820586882811808,
+        "ucb95": 0.9853047177799303,
+        "n_units": 56576,
+        "n_episodes": 128
+      }
+    },
+    "DIRECTION": {
+      "A": {
+        "rate": 0.37486477490222186,
+        "lcb95": 0.34246587585514215,
+        "ucb95": 0.40854242572196703,
+        "n_units": 48068,
+        "n_episodes": 128
+      },
+      "B": {
+        "rate": 0.28084346719457015,
+        "lcb95": 0.2544819484690798,
+        "ucb95": 0.30814235836518883,
+        "n_units": 56576,
+        "n_episodes": 128
+      }
+    },
+    "TRAJ_NATIVE": {
+      "A": {
+        "rate": 0.9641190034306282,
+        "lcb95": 0.9593230186011283,
+        "ucb95": 0.9685725521697215,
+        "n_units": 17781,
+        "n_episodes": 128
+      },
+      "B": {
+        "rate": 0.9646865243439372,
+        "lcb95": 0.960674270653947,
+        "ucb95": 0.9686200585562186,
+        "n_units": 23702,
+        "n_episodes": 128
+      }
+    },
+    "TRAJ_INTR": {
+      "A": {
+        "rate": 0.9949946572183792,
+        "lcb95": 0.9933857668060412,
+        "ucb95": 0.9964679029898446,
+        "n_units": 17781,
+        "n_episodes": 128
+      },
+      "B": {
+        "rate": 0.9953590414311029,
+        "lcb95": 0.993986176385445,
+        "ucb95": 0.9965962203324831,
+        "n_units": 23702,
+        "n_episodes": 128
+      }
+    }
+  },
+  "diagnostics_non_gating": {
+    "A": {
+      "ticks": {
+        "n_ticks": 56350,
+        "n_active": 48068,
+        "n_tagged": 8260,
+        "n_carrying": 22,
+        "n_dead": 0,
+        "n_in": 21396,
+        "n_out": 26672
+      },
+      "target_rate_inward": 0.9963544587773415,
+      "target_rate_outward": 0.9690311937612478,
+      "direction_rate_inward": 0.5659469059637315,
+      "direction_rate_outward": 0.22158068386322735,
+      "direction_components": {
+        "joint_target_satisfying_and_aimed": 0.3711408837480236,
+        "any_legal_waypoint_aimed": 0.5577099109594741
+      },
+      "size_of_the_semantic_macro_exclusion": {
+        "target_rate_if_every_legal_macro_were_admitted": 0.9811933094782391,
+        "active_ticks_on_which_GO_HOME_is_legal": 101,
+        "gate_target_rate_witness_GO_TO_only": 0.9811933094782391
+      },
+      "exact_semantic_macro_masked_rate": 0.20995256719647168,
+      "exact_semantic_macro_masked_inward": 0.4716769489624229,
+      "exact_semantic_macro_masked_outward": 0.0,
+      "mean_error_paid_for_legal_substitution_cells": 0.42664911806209677,
+      "windows": 17781,
+      "windows_inward_start": 5848,
+      "windows_outward_start": 11933,
+      "traj_native_rate_inward_start": 0.9422024623803009,
+      "traj_native_rate_outward_start": 0.974859632950641,
+      "traj_interruptible_rate_inward_start": 0.9981190150478796,
+      "traj_interruptible_rate_outward_start": 0.9934635045671667,
+      "interaction_free_windows_robustness": {
+        "windows": 622,
+        "share_of_all_windows": 0.03498115966481075,
+        "traj_native_rate": 0.9903536977491961,
+        "traj_interruptible_rate": 1.0,
+        "definition": "no other live agent within the shove reach at the start of any of the 16 ticks, so the isolated rollout equals the live step (contract C9)"
+      },
+      "g6_comparator_native_commit": {
+        "committed_target_le_2_5": 0.22912097182385693,
+        "first_cos_and_radial": 0.012204038018109218,
+        "all_four_jointly": 0.0005061582588155897
+      },
+      "isolated_vs_live_position_rmse_mean": 0.6648100743699908,
+      "legality_violations": 0,
+      "rt_mismatch_cells": 0
+    },
+    "B": {
+      "ticks": {
+        "n_ticks": 61440,
+        "n_active": 56576,
+        "n_tagged": 4859,
+        "n_carrying": 5,
+        "n_dead": 0,
+        "n_in": 19492,
+        "n_out": 37084
+      },
+      "target_rate_inward": 0.9977939667555921,
+      "target_rate_outward": 0.976324021141193,
+      "direction_rate_inward": 0.45521239482864767,
+      "direction_rate_outward": 0.18919210441160608,
+      "direction_components": {
+        "joint_target_satisfying_and_aimed": 0.2788991798642534,
+        "any_legal_waypoint_aimed": 0.4585159785067873
+      },
+      "size_of_the_semantic_macro_exclusion": {
+        "target_rate_if_every_legal_macro_were_admitted": 0.9837210124434389,
+        "active_ticks_on_which_GO_HOME_is_legal": 562,
+        "gate_target_rate_witness_GO_TO_only": 0.9837210124434389
+      },
+      "exact_semantic_macro_masked_rate": 0.2133059954751131,
+      "exact_semantic_macro_masked_inward": 0.61912579519803,
+      "exact_semantic_macro_masked_outward": 0.0,
+      "mean_error_paid_for_legal_substitution_cells": 0.4402959875985732,
+      "windows": 23702,
+      "windows_inward_start": 6751,
+      "windows_outward_start": 16951,
+      "traj_native_rate_inward_start": 0.936157606280551,
+      "traj_native_rate_outward_start": 0.9760486107014336,
+      "traj_interruptible_rate_inward_start": 0.997778106947119,
+      "traj_interruptible_rate_outward_start": 0.9943956108784142,
+      "interaction_free_windows_robustness": {
+        "windows": 611,
+        "share_of_all_windows": 0.025778415323601384,
+        "traj_native_rate": 0.9967266775777414,
+        "traj_interruptible_rate": 1.0,
+        "definition": "no other live agent within the shove reach at the start of any of the 16 ticks, so the isolated rollout equals the live step (contract C9)"
+      },
+      "g6_comparator_native_commit": {
+        "committed_target_le_2_5": 0.267952071555143,
+        "first_cos_and_radial": 0.00915534554046072,
+        "all_four_jointly": 0.0003797147920006751
+      },
+      "isolated_vs_live_position_rmse_mean": 0.5815304920213276,
+      "legality_violations": 0,
+      "rt_mismatch_cells": 0
+    }
+  },
+  "audit": {
+    "rederivation_problems": [],
+    "csv_rows": 256,
+    "csv_sha256": "bd96bfcbb5662024cc5b1f75020437a992fddeca9e3c96165da9f5978ff46d7a"
+  },
+  "read_only_reuse_of_spent_block": {
+    "block": "21100001-128",
+    "class": "sealed_confirmatory",
+    "status_unchanged": true,
+    "outcome_inference_drawn": false
+  },
+  "provenance": {
+    "spec_sha256": "55b9f9943b4d027ab649b463a93d8c349504ebf65a0e512707395f6e6a597d36",
+    "script_sha256": "a34ba0906da4cdc0168dd074c757248411ef62116c2ed38684b690e823798571",
+    "sealed_inputs": {
+      "scaffold_spec": "ac9a1e97f9d56eb7ac6177a398c112587eb12140db08519513d63786affa374f",
+      "scaffold_result": "4846b0c168962b93e7ccba4977381c3d8390da989d4b96127aa884a2a95f29f4",
+      "scaffold_rows": "2188aff0a8a9018491d7926c4079d95247d9354afb16648f461024b6ef02f5dd",
+      "scaffold_runner": "e6288f15fbe9dd67d13517c5641dbe8a5c144eb84790f5ead0dd3a24d536ff1c",
+      "mechanism_source": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb"
+    }
+  },
+  "guard": "A statement about what the native 4v4 action interface can express relative to the scaffold's injected defender behavior on the sealed A' episodes. HIGH_COVERAGE_REPRESENTABLE_NATIVE means the episode-clustered LCB95 of the pass rate reached the pre-declared 0.90 on every gate and pole using a GO_TO-only, greedy, future-seeing path-oracle; it is constructive evidence of high-coverage representability, NOT a claim that the interface reproduces DEFEND at every state. A NOT_REPRESENTABLE_* label means the frozen coverage was not reached by that greedy oracle, not that no action sequence exists. Representability is not learnability, not a win-rate claim, and not evidence about pi_B or 6v6.",
+  "claim_boundary": "A statement about what the native 4v4 action interface can express relative to the scaffold's injected defender behavior on the sealed A' episodes, at the pre-declared 0.90 coverage and using a GO_TO-only greedy path-oracle. 'High-coverage representability' is not 'the interface reproduces DEFEND everywhere', and a NOT_REPRESENTABLE label is not a proof of impossibility. It is not a statement about whether PPO would learn that behavior, not a win-rate claim, and not evidence about pi_B or 6v6.",
+  "no_label_authorizes_training": true
+}

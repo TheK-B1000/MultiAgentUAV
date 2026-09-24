@@ -1,0 +1,18 @@
+{
+  "record": "INVALID -- see INVALIDATION in the pointed-to file; do not cite",
+  "points_to": "ARM1_EQ_WAYPOINT_AUDIT_20260912T234443Z_67b26c96_RESULT.json",
+  "run_id": "20260912T234443Z_67b26c96",
+  "promoted_utc": "2026-09-12T23:44:43Z",
+  "config_signature": {
+    "device": "cpu",
+    "max_ticks": 240,
+    "n_seeds": 3,
+    "scales": [
+      2,
+      4,
+      6
+    ],
+    "seed_lo": 17600001
+  },
+  "status": "INVALID_METRIC_MISSPECIFIED"
+}

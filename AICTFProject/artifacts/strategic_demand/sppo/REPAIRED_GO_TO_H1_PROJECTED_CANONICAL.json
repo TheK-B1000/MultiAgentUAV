@@ -1,0 +1,15 @@
+{
+  "record": "CANONICAL REPAIRED_GO_TO_H1_PROJECTED",
+  "points_to": "REPAIRED_GO_TO_H1_PROJECTED_20260913T033638Z_8aef55c7_RESULT.json",
+  "run_id": "20260913T033638Z_8aef55c7",
+  "promoted_utc": "2026-09-13T03:36:38Z",
+  "config_signature": {
+    "device": "cpu",
+    "go_to_horizon": 1,
+    "n_seeds": 24,
+    "scales": [
+      4
+    ],
+    "seed_lo": 17600001
+  }
+}

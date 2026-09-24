@@ -1,0 +1,10 @@
+{
+  "record_id": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_ATTEMPT1_INVALID_G1_BASELINE",
+  "status": "INVALID_DIAGNOSTIC_BASELINE",
+  "utc": "2026-09-17T21:03:00Z",
+  "points_to": "ASSIGNMENT_INFORMATION_DIAGNOSTIC_RESULT.json (attempt 1)",
+  "reason": "G1 compared diagnostic targets to core._get_scripted_targets (includes shared carrier-evasion override and other post-assignment transforms). Spec G1 requires agreement with the GUARD_DISTRIBUTED_V2 assignment subroutine itself (_blue_one_defender_v2_targets). G2 PASS (9/9) and G3 PASS remain informative but OVERALL from attempt 1 is not authoritative.",
+  "G2_attempt1": "9/9 TEST_0 pairs resolved by discrete z_i",
+  "G3_attempt1": true,
+  "action": "fix extractor + G1 baseline; delete/supersede RESULT; rerun"
+}

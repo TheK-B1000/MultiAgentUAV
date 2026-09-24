@@ -1,0 +1,212 @@
+{
+  "record_id": "FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "utc": "2026-09-19T00:00:00Z",
+  "classification": "SCRIPTED TWO-ARM PAIRED CONFIRMATORY OUTCOME EXPERIMENT AT 6v6. NO ROUTER. PPO OFF. GPU OFF. CPU ONLY.",
+  "confirmatory": true,
+  "authorized_by": "PI direction 2026-09-19: freeze exactly 5A/1D versus 3A/3D on fresh paired 6v6 seeds at n=192, adopt the A-failure refinement, keep the primary A gate unchanged, no router, no PPO, no new composition search. Reserve the block only after this freeze, then run contracts, then spend.",
+  "RESEARCH_QUESTION": "Does fixed 5A/1D recover substantial Pole-B performance relative to balanced 3A/3D while preserving the already-strong Pole-A performance within the frozen harm tolerance?",
+  "CONTEXT_THE_6V6_HISTORY_THAT_MOTIVATES_THIS_AND_THE_BOUNDARY_ON_IT": {
+    "learned_specialist_history": {
+      "SHARE0_6V6_TEACHER_SPECIALIST_CROSSOVER_EVAL_RESULT.json (DIAGNOSTIC, learned checkpoints, cuda, n=128)": "Delta_A +0.0078125 [-0.0703, +0.0859], Delta_B +0.0078125 [-0.0234, +0.0391], both gates fail. High absolute performance, essentially no learned specialization.",
+      "RUNG1_6V6_CROSSOVER_EVAL_RESULT.json (CONFIRMATORY, distilled student, cuda, n=128)": "Delta_A +0.03125 [-0.0469, +0.1094] fails; Delta_B +0.0390625 [+0.0078, +0.0781] passes but is tiny."
+    },
+    "the_reading": "The environment carries certified regime structure, but the learned specialists did not express it. 6v6 never showed the 4v4-style A-side problem: A was already strong. What was missing at 6v6 was B-side differentiation.",
+    "the_scripted_sweep": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP (exploratory, scripted fixed-role controllers, cpu, no checkpoint): balanced 3A/3D wins Pole B 9.4%, while 5A/1D wins 81.2% and 6A/0D wins 89.1%. Pole A stays high (0.75 to 0.84) across 3 to 6 attackers with no distinguishable best composition.",
+    "the_hypothesis_this_motivates_NOT_established": "Learned policies may already play attack-heavy on B (a learned Pole-A specialist wins Pole B at about 0.95, above the best scripted composition), which would leave a B-specialist nothing to specialize toward. This is a hypothesis linking two different objects, learned policies and scripted controllers.",
+    "BOUNDARY_WHAT_THIS_EXPERIMENT_CANNOT_MEASURE": "This is a SCRIPTED test. It answers whether a fixed 5A/1D beats balanced 3A/3D on B without harming A. It CANNOT measure learned specialization, cannot show that attack-heavy composition 'fixes' B specialization, and says nothing about why the learned specialists failed to differentiate. A pass must not be read as fixing specialization.",
+    "safest_wording_for_pole_A": "Pole A maintains high absolute performance across a broad 3-to-6-attacker plateau. It does NOT prefer a particular composition; no best composition is distinguishable at n=64."
+  },
+  "THE_FROZEN_SELECTION_RULE": {
+    "why_a_rule": "5A/1D is chosen by a mechanical rule declared before any fresh seed, so no one picks whichever arm looks nicest afterward.",
+    "rule": "Per pole, take the argmax composition and every composition whose paired 95% win-rate interval against it contains zero. Intersect the two poles' sets. Choose the member with the highest WORST-POLE win rate (maximin). An empty intersection, a tie at an argmax, or an exact tie at the maximin ABORTS and requires a PI decision. Nothing is broken silently.",
+    "implementation": "experiments/run_fixed_attack_heavy_6v6_confirmation.py::derive_selection, re-derived from the sealed sweep rows and required by contract C1 to equal the values below. 9 unit tests, including the empty-intersection, argmax-tie, maximin-tie and missing-rows abort paths.",
+    "derived_and_frozen": {
+      "selected": "5A_1D",
+      "A_argmax": "4A_2D",
+      "B_argmax": "6A_0D",
+      "intersection": [
+        "5A_1D",
+        "6A_0D"
+      ],
+      "indistinguishable_from_argmax": {
+        "A": [
+          "3A_3D",
+          "5A_1D",
+          "6A_0D"
+        ],
+        "B": [
+          "5A_1D"
+        ]
+      },
+      "mean_across_poles_win_rate": {
+        "5A_1D": 0.8203125,
+        "6A_0D": 0.8203125
+      },
+      "worst_pole_win_rate": {
+        "5A_1D": 0.8125,
+        "6A_0D": 0.75
+      },
+      "reading": "The two candidates tie EXACTLY on mean win rate, so 'best on average' cannot decide. Worst-pole win rate breaks the tie toward 5A_1D. It is attack-heavy enough to address B, sits in A's indistinguishable-best set, and retains one defender.",
+      "argmaxes_are_derivation_record_only": "4A_2D and 6A_0D are NOT run as arms."
+    }
+  },
+  "ARMS_AND_DESIGN": {
+    "arms": [
+      "3A_3D",
+      "5A_1D"
+    ],
+    "baseline": "3A_3D",
+    "why_exactly_two_arms": "PI direction. A draft of this design carried two extra descriptive arms to estimate routing headroom; they cost more compute than a larger n would and could not bound headroom tightly at this discordance, so they were dropped.",
+    "poles": "The certified 6v6 pole pair, exactly as in the sweep. Pole B is canonical SDS_PARENT_OP7, not the 4v4 B3-3 SDS2_B3_LOCKDEF10_2V1 construction.",
+    "seed_block": {
+      "base": 20600001,
+      "last": 20600192,
+      "n": 192,
+      "class": "sealed_confirmatory",
+      "verified_free_before_freeze": true,
+      "registry": "Reserved under FIXED_ATTACK_HEAVY_6V6_CONFIRMATION_V1 AFTER this freeze and before any episode. The executor verifies ownership and never allocates. It sets SPENT after the run."
+    },
+    "episodes": "2 poles x 2 arms x 192 seeds = 768 episodes, about 2.7 hours serial at the measured 12.7 s per 6v6 episode.",
+    "pairing": "Every seed is run on both poles under both arms. Paired differences are taken within (pole, seed).",
+    "device": "cpu",
+    "ppo": false,
+    "gpu": false,
+    "training": false,
+    "team_size": "6v6",
+    "horizon": 240,
+    "reused_machinery": "make_env_n, composition_roles_n, action_for_roles_n and run_episode from the sealed 6v6 sweep executor, imported and not re-implemented. Contract C3 requires them to reproduce sealed sweep rows exactly through this executor."
+  },
+  "PRIMARY_JOINT_GATE_UNCHANGED_FROM_4V4_STYLE": {
+    "B_improvement_required": "LCB95( WR_B(5A_1D) - WR_B(3A_3D) ) > 0",
+    "A_regression_tolerance": "UCB95( WR_A(3A_3D) - WR_A(5A_1D) ) <= 0.10",
+    "tau_A_harm": 0.1,
+    "inherited_from": "ROUTED_COMPOSITION_OUTCOME_V1_SPEC.json and GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json, unchanged",
+    "bootstrap": {
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7,
+      "interval": "percentile",
+      "resampling_unit": "seed"
+    },
+    "A_may_not_be_required_to_improve": "Pole A is a guardrail, not a second repair target.",
+    "A_pass_meaning": "A pass still means A safety is demonstrated under the preregistered criterion. The primary A gate is unchanged: UCB95(H_A) <= 0.10. Only the interpretation of a FAILURE is refined, below."
+  },
+  "CLAIM_CEILING_PI_WORDING_ADOPTED": {
+    "if_both_gates_pass": "For the tested 6v6 regimes, a fixed attack-heavy composition is sufficient to recover the B-side behavioral advantage while preserving strong A-side performance.",
+    "what_that_sentence_is_relative_to": "The balanced 3A/3D baseline. Whether per-pole routing could add value BEYOND 5A/1D is not tested here, because only two arms run. The exploratory sweep is the only evidence on that.",
+    "still_not_claimed": [
+      "that 6v6 is solved generally",
+      "that team size caused any difference from 4v4",
+      "that a router is unnecessary everywhere",
+      "that learned specialization is fixed",
+      "anything about PPO, learned coordination, or other opponents"
+    ],
+    "cross_scale_comparison_is_descriptive_not_causal": "Because 6v6 Pole B is SDS_PARENT_OP7 while 4v4 used B3-3, any statement that 4v4 needed regime-conditioned composition and 6v6 may not is a descriptive observation, not a causal one. It could be team size, opponent construction, the size-normalized defender gate, or their interaction.",
+    "scripted_not_learned": "This is a scripted 6v6 composition confirmation, not a learned-specialization experiment. A pass would tell us that the selected fixed composition works across the two 6v6 poles, not that the old learned pi_B problem has been solved."
+  },
+  "FROZEN_CLAIM_BOUNDARY_POLE_B": "The 6v6 composition runs use the certified 6v6 pole pair. Pole B is canonical SDS_PARENT_OP7, not the 4v4 B3-3 SDS2_B3_LOCKDEF10_2V1 construction. Therefore cross-scale differences cannot be attributed solely to team size.",
+  "CONTRACTS_BEFORE_ANY_EPISODE": {
+    "all_gating": true,
+    "C1_SELECTION_REPRODUCES_FROM_THE_SEALED_SWEEP": "The sealed sweep is SEALED with a passing audit, and derive_selection() re-derives exactly the values frozen above.",
+    "C2_POLES_RESOLVE_AS_CERTIFIED": "Live agent counts are 6 and 6, and both poles match the 6v6 certification's recorded fields.",
+    "C3_PARITY_ANCHOR_AGAINST_THE_SEALED_SWEEP": "Both arms on both poles on three spent sweep seeds (12 episodes) reproduce the sealed sweep rows on 12 fields with a non-degenerate win rate, and the arm-identity invariant holds on those rows. Parity only; no new evidence.",
+    "C4_ROLE_MAPPING": "3A_3D and 5A_1D map to (1,1,1,0,0,0) and (1,0,0,0,0,0).",
+    "C5_NO_PPO_REACHABLE": true,
+    "C6_SEED_BLOCK_OWNED_AND_UNSPENT": "registered to this experiment, exact range, RESERVED.",
+    "C7_AUDIT_PLAN_SEALS_A_REGISTERED_BLOCK": "The real AuditPlan on synthetic rows of the exact shape, run AFTER registration, with a negative control that omits the owner and must fail exactly seed_class.",
+    "C8_EXECUTOR_CONSTANTS_EQUAL_THE_SPEC": true,
+    "on_failure": "CONTRACT_FAILURE, stop, no seed spent. Diagnose against the frozen reference before editing anything.",
+    "post_run_integrity_invariant": "Every episode's role telemetry must satisfy defend_ticks == defenders x steps, attack_ticks == attackers x steps and role_switch_count == 0. Any violation yields FIXED_ATTACK_HEAVY_6V6_ARM_IDENTITY_VIOLATED with precedence over all scientific labels."
+  },
+  "SEALING": {
+    "rule_7": "Must seal via experiments/run_state.py::seal with AuditPlan.experiment_id supplied.",
+    "audit_expectations": {
+      "expected_rows": 768,
+      "group_by": [
+        "pole",
+        "composition"
+      ],
+      "binary_fields": [
+        "blue_win",
+        "draw"
+      ],
+      "expected_seeds": "20600001-20600192"
+    },
+    "audited_claims": [
+      "paired B gain 5A_1D minus 3A_3D on Pole B",
+      "paired A harm 3A_3D minus 5A_1D on Pole A"
+    ],
+    "reported_alongside": "discordant-pair counts and fractions for both gates, per-arm win rates and score margins, and a plain comparison to the exploratory sweep that changes no label.",
+    "label_quotability": "The result payload states that its label is quotable only if the record status is SEALED."
+  },
+  "NOT_AUTHORIZED": [
+    "any composition other than 5A_1D and 3A_3D, before or after the result",
+    "a router of any kind, or PPO, training, GPU",
+    "changing tau, the gates, the selection rule or n after any seed is spent",
+    "re-using 20500001-20500064 (the exploratory sweep block) as statistical evidence; contract C3 uses it for parity only",
+    "re-analysing the block to reach a different label",
+    "hand-writing a status string into the RESULT"
+  ],
+  "PI_DECISIONS_FROZEN_2026_09_19": {
+    "n": "192 paired seeds. At n=128 the A gate fails 58% of the time even when the true harm is exactly zero, so reading every A failure as evidence that the plateau was noise would be statistically misleading. 192 buys useful precision without the diminishing return of 256.",
+    "a_failure_refinement_adopted": "The primary A gate is unchanged. A failure is interpreted per PREDECLARED_TERMINAL_INTERPRETATION.",
+    "planning_arithmetic_recorded_not_a_prediction": {
+      "A_gate_pass_probability_at_the_observed_39_percent_discordance": {
+        "true_harm_-0.08": {
+          "n128": 0.9,
+          "n192": 0.98,
+          "n256": 1.0
+        },
+        "true_harm_-0.04": {
+          "n128": 0.69,
+          "n192": 0.86,
+          "n256": 0.94
+        },
+        "true_harm_0.00": {
+          "n128": 0.42,
+          "n192": 0.6,
+          "n256": 0.71
+        },
+        "true_harm_+0.04": {
+          "n128": 0.17,
+          "n192": 0.27,
+          "n256": 0.35
+        },
+        "true_harm_+0.08": {
+          "n128": 0.07,
+          "n192": 0.08,
+          "n256": 0.11
+        }
+      },
+      "reading": "At n=192 a composition exactly equal to the baseline on A passes about 60% of the time. A failure is therefore still weak evidence of harm, which is why the refinement matters more than n.",
+      "winners_curse": "The -0.08 row is the sweep's own estimate for 5A_1D on A and is likely inflated by selection."
+    }
+  },
+  "PREDECLARED_TERMINAL_INTERPRETATION": {
+    "precedence": "Any integrity or audit failure takes precedence over every scientific label. A record whose status is AUDIT_FAILED carries no quotable label. An arm-identity violation is such an integrity failure.",
+    "FIXED_ATTACK_HEAVY_6V6_CONFIRMED": "B gate PASS and A gate PASS. Fixed 5A/1D is confirmed for this 6v6 scripted comparison.",
+    "FIXED_ATTACK_HEAVY_6V6_A_SAFETY_NOT_DEMONSTRATED": "B PASS, UCB95(H_A) > 0.10 and LCB95(H_A) <= 0. Promising but inconclusive on A. This is NOT evidence the plateau was fake. Do NOT reopen routing on this basis alone. No promotion.",
+    "FIXED_ATTACK_HEAVY_6V6_A_HARM_DEMONSTRATED": "B PASS and LCB95(H_A) > 0 with the A gate failing. The fixed composition is not safe enough. This is evidence against the fixed 5A/1D replacement and is the ONLY branch that legitimately reopens the routed-composition question.",
+    "FIXED_ATTACK_HEAVY_6V6_B_NOT_REPLICATED": "B FAIL. No demonstrated advantage from 5A/1D, regardless of A. The sweep's B signal did not replicate. STOP promotion.",
+    "FIXED_ATTACK_HEAVY_6V6_ARM_IDENTITY_VIOLATED": "An episode's role telemetry contradicts its composition. Invalid; no scientific label.",
+    "boundary_strictness": "LCB95(H_A) exactly zero is not demonstrated harm. UCB95(H_A) exactly 0.10 passes. Both are pinned by unit tests of the decision function.",
+    "no_automatic_top_up": "Any larger follow-up after an inconclusive result needs a NEW freeze and FRESH seeds. This block is never topped up, and its rows are never pooled with a later block unless that pooling was declared in advance.",
+    "after_any_non_confirming_result": "No alternate composition, no re-analysis of this block to reach a different label, no router, no PPO.",
+    "the_distinction_that_matters": "'Failed to prove safety' and 'proved harm' are different claims."
+  },
+  "PREDECLARED_TERMINAL_LABELS": {
+    "SUPERSEDED": "The authoritative terminal interpretation is PREDECLARED_TERMINAL_INTERPRETATION. It is implemented as the pure function decide() and pinned by 13 unit tests.",
+    "correction_disclosed_before_any_seed_was_spent": {
+      "what_was_wrong": "When the PI's five-way interpretation was frozen, this older block was left in the spec. It named FIXED_ATTACK_HEAVY_6V6_A_SAFETY_NOT_DEMONSTRATED as 'B gate passes, A gate fails' and pointed to an 'item 2' that had been deleted, so it contradicted the new interpretation by folding demonstrated harm into the inconclusive label.",
+      "fix": "The old wording is retained here only as a superseded record. No gate, threshold, arm, seed block or decision rule changed.",
+      "seeds_spent_at_time_of_correction": 0
+    },
+    "superseded_wording_retained_for_the_record": {
+      "FIXED_ATTACK_HEAVY_6V6_CONFIRMED": "B gate passes AND A gate passes.",
+      "FIXED_ATTACK_HEAVY_6V6_B_NOT_REPLICATED": "B gate fails, whatever A shows. The sweep's B signal did not replicate. STOP promotion.",
+      "FIXED_ATTACK_HEAVY_6V6_A_SAFETY_NOT_DEMONSTRATED": "B gate passes, A gate fails. Sub-reading per item 2.",
+      "no_second_composition": "After any non-confirming result: no alternate composition, no re-analysis of this block to reach a different label, no router, no PPO."
+    }
+  }
+}

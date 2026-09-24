@@ -1,0 +1,200 @@
+{
+  "record_id": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_RESULT",
+  "implements": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json",
+  "utc": "2026-09-21T21:02:45Z",
+  "device": "cuda",
+  "seed_block": {
+    "base": 21100001,
+    "n": 128,
+    "class": "sealed_confirmatory"
+  },
+  "PRIMARY_WIN_RATE_CONTRASTS": {
+    "Delta_A_prime": {
+      "mean": 0.351562,
+      "lcb95": 0.234375,
+      "ucb95": 0.460938,
+      "n": 128,
+      "lcb95_above_zero": true
+    },
+    "Delta_B_prime": {
+      "mean": 0.359375,
+      "lcb95": 0.25,
+      "ucb95": 0.46875,
+      "n": 128,
+      "lcb95_above_zero": true
+    }
+  },
+  "PRIMARY_SIDES_CLEARED_DESCRIPTIVE": {
+    "Delta_A_prime_lcb95_above_zero": true,
+    "Delta_B_prime_lcb95_above_zero": true
+  },
+  "MECHANISM_DIAGNOSTICS_NOT_GATES_win_rate": {
+    "I_A": {
+      "mean": -0.09375,
+      "lcb95": -0.203125,
+      "ucb95": 0.015625,
+      "n": 128
+    },
+    "I_B": {
+      "mean": -0.492188,
+      "lcb95": -0.59375,
+      "ucb95": -0.390625,
+      "n": 128
+    }
+  },
+  "NATIVE_CROSSOVER_ON_THE_FRESH_BLOCK_DESCRIPTIVE_win_rate": {
+    "native_Delta_A": {
+      "mean": 0.445312,
+      "lcb95": 0.335938,
+      "ucb95": 0.546875,
+      "n": 128
+    },
+    "native_Delta_B": {
+      "mean": -0.132812,
+      "lcb95": -0.242188,
+      "ucb95": -0.023438,
+      "n": 128
+    }
+  },
+  "DESCRIPTIVE_BLUE_GOALS_CONTRASTS": {
+    "Delta_A_prime": {
+      "mean": 1.179688,
+      "lcb95": 0.929688,
+      "ucb95": 1.421875,
+      "n": 128
+    },
+    "Delta_B_prime": {
+      "mean": 0.585938,
+      "lcb95": 0.398438,
+      "ucb95": 0.78125,
+      "n": 128
+    },
+    "I_A": {
+      "mean": 0.625,
+      "lcb95": 0.382812,
+      "ucb95": 0.859375,
+      "n": 128
+    },
+    "I_B": {
+      "mean": -1.234375,
+      "lcb95": -1.484375,
+      "ucb95": -0.984375,
+      "n": 128
+    },
+    "native_Delta_A": {
+      "mean": 0.554688,
+      "lcb95": 0.34375,
+      "ucb95": 0.765625,
+      "n": 128
+    },
+    "native_Delta_B": {
+      "mean": -0.648438,
+      "lcb95": -0.914062,
+      "ucb95": -0.375,
+      "n": 128
+    }
+  },
+  "DESCRIPTIVE_MARGIN_CONTRASTS": {
+    "Delta_A_prime": {
+      "mean": 0.820312,
+      "lcb95": 0.5625,
+      "ucb95": 1.070312,
+      "n": 128
+    },
+    "Delta_B_prime": {
+      "mean": 1.164062,
+      "lcb95": 0.9375,
+      "ucb95": 1.390625,
+      "n": 128
+    },
+    "I_A": {
+      "mean": 0.164062,
+      "lcb95": -0.101562,
+      "ucb95": 0.421875,
+      "n": 128
+    },
+    "I_B": {
+      "mean": -2.070312,
+      "lcb95": -2.351562,
+      "ucb95": -1.789062,
+      "n": 128
+    },
+    "native_Delta_A": {
+      "mean": 0.65625,
+      "lcb95": 0.453125,
+      "ucb95": 0.859375,
+      "n": 128
+    },
+    "native_Delta_B": {
+      "mean": -0.90625,
+      "lcb95": -1.1875,
+      "ucb95": -0.617188,
+      "n": 128
+    }
+  },
+  "CELL_MEANS": {
+    "pi_A_poleA": {
+      "win": 0.8125,
+      "blue": 1.265625,
+      "margin": 1.171875
+    },
+    "pi_A_poleB": {
+      "win": 0.625,
+      "blue": 1.5625,
+      "margin": 1.554688
+    },
+    "A_prime_poleA": {
+      "win": 0.71875,
+      "blue": 1.890625,
+      "margin": 1.335938
+    },
+    "A_prime_poleB": {
+      "win": 0.132812,
+      "blue": 0.328125,
+      "margin": -0.515625
+    },
+    "pi_B_poleA": {
+      "win": 0.367188,
+      "blue": 0.710938,
+      "margin": 0.515625
+    },
+    "pi_B_poleB": {
+      "win": 0.492188,
+      "blue": 0.914062,
+      "margin": 0.648438
+    }
+  },
+  "sealed_baseline_for_reference": {
+    "source": "confirmatory_b3_entity_repair_corrected_specialist_crossover_eval_rows.csv (sha256 3f9b862448c27aff6cf804c9bbb686d07f2e5173d88be91593fd893febf46025), seeds 18300001-18300128, recomputed 2026-09-21 with the evaluator's own bootstrap",
+    "win_rates": {
+      "pi_A_on_A": 0.8125,
+      "pi_A_on_B": 0.7422,
+      "pi_B_on_A": 0.5391,
+      "pi_B_on_B": 0.5859
+    },
+    "Delta_A": "+0.2734 [+0.1719, +0.3750]",
+    "Delta_B": "-0.1562 [-0.2656, -0.0469]",
+    "note": "matches the earlier memory-only figures to every digit; the previously flagged memory-only row is now verified against the sealed artifact."
+  },
+  "TERMINAL_OUTCOME": "SCAFFOLDED_CROSSOVER_CONFIRMED",
+  "interpretation_guard": "A' is pi_A with an externally imposed defender structure. A scaffolded crossover is a causal bridge showing what the balanced structure does to the payoff separation; it is not a fully learned crossover and must not be reported as one.",
+  "provenance": {
+    "spec_sha256": "ac9a1e97f9d56eb7ac6177a398c112587eb12140db08519513d63786affa374f",
+    "script_sha256": "e6288f15fbe9dd67d13517c5641dbe8a5c144eb84790f5ead0dd3a24d536ff1c",
+    "mechanism_source_sha256": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb",
+    "certification_sha256": "161cab7198a3ab9b467890a648085d8e435b14386d12fca043847436c6dea430",
+    "pole_b_genome_sha256": "99c17cadcb4e0cbccdad02847d3997b2c4d59a2c945ceba2fc5eedb8c5ad5f26"
+  },
+  "claim_boundary": "Two frozen 4v4 learned specialists, the two certified 4v4 poles, a rollout-time scaffold on pi_A only, fresh sealed_confirmatory seeds. TERMINAL_OUTCOME is certified ONLY if this record's own status is SEALED; integrity/audit failure takes precedence over every label. A' is pi_A with an externally imposed defender structure. A scaffolded crossover is a causal bridge showing what the balanced structure does to the payoff separation; it is not a fully learned crossover and must not be reported as one.",
+  "status": "SEALED",
+  "sealed_utc": "2026-09-21T21:02:45Z",
+  "git_sha": "ef5ee95f978475bb6297d7a74fdc74d31414181a",
+  "AUDIT": {
+    "path": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_AUDIT.json",
+    "passed": true,
+    "n_checks": 48,
+    "n_gating": 30,
+    "failed_checks": [],
+    "rows_sha256": "2188aff0a8a9018491d7926c4079d95247d9354afb16648f461024b6ef02f5dd"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "record": "POLE_B_ENTITY_UTILIZATION policy-level entity-utilization probe",
+  "status": "COMPLETE_DIAGNOSTIC",
+  "utc": "2026-09-14T00:08:33Z",
+  "device": "cuda",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "implements": "4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json#WHAT_HAPPENS_NEXT.2_diagnose_B_only",
+  "seed_block": [
+    17900001,
+    17900128
+  ],
+  "seeds_used": [
+    17900001,
+    17900004
+  ],
+  "episodes_per_cell": 4,
+  "sample_every_steps": 8,
+  "checkpoints": {
+    "pi_A3": "final_pi_A_specialist_4v4_b3_entity_repair.zip",
+    "pi_B3": "final_pi_B_specialist_4v4_b3_entity_repair.zip"
+  },
+  "cells": [
+    {
+      "policy": "pi_B3",
+      "pole": "B",
+      "n_states": 120,
+      "n_agent_rows": 480,
+      "contracts": {
+        "both_zeroed_residual_is_exactly_zero": true,
+        "full_residual_is_nonzero": true,
+        "teammates_zeroed_matches_direct_construction": true,
+        "base_pathway_is_entity_invariant": true,
+        "logits_deterministic": true
+      },
+      "residual_ratio_g_over_base": {
+        "mean": 0.03794077615214822,
+        "median": 0.025007497519254684,
+        "p90": 0.08519264981150627,
+        "max": 0.2606010437011719
+      },
+      "g_norm": {
+        "mean": 1.084888458562394,
+        "median": 0.7310159802436829
+      },
+      "base_norm": {
+        "mean": 29.434537347157796
+      },
+      "ablation_vs_FULL": {
+        "TEAMMATES_ZEROED": {
+          "mean_kl": 0.0022802003136651668,
+          "action_agreement": 0.9895833333333334
+        },
+        "ENEMIES_ZEROED": {
+          "mean_kl": 0.009072597714536338,
+          "action_agreement": 0.9822916666666667
+        },
+        "BOTH_ZEROED": {
+          "mean_kl": 0.01491831184903276,
+          "action_agreement": 0.971875
+        }
+      }
+    },
+    {
+      "policy": "pi_A3",
+      "pole": "A",
+      "n_states": 120,
+      "n_agent_rows": 480,
+      "contracts": {
+        "both_zeroed_residual_is_exactly_zero": true,
+        "full_residual_is_nonzero": true,
+        "teammates_zeroed_matches_direct_construction": true,
+        "base_pathway_is_entity_invariant": true,
+        "logits_deterministic": true
+      },
+      "residual_ratio_g_over_base": {
+        "mean": 0.045156366888356086,
+        "median": 0.04051649384200573,
+        "p90": 0.0660074092447758,
+        "max": 0.23729625344276428
+      },
+      "g_norm": {
+        "mean": 1.388258715843161,
+        "median": 1.421619951725006
+      },
+      "base_norm": {
+        "mean": 32.45405113895734
+      },
+      "ablation_vs_FULL": {
+        "TEAMMATES_ZEROED": {
+          "mean_kl": 0.00305879943847079,
+          "action_agreement": 0.9916666666666667
+        },
+        "ENEMIES_ZEROED": {
+          "mean_kl": 0.01022733793555138,
+          "action_agreement": 0.965625
+        },
+        "BOTH_ZEROED": {
+          "mean_kl": 0.014707574590768975,
+          "action_agreement": 0.965625
+        }
+      }
+    },
+    {
+      "policy": "pi_A3",
+      "pole": "B",
+      "n_states": 83,
+      "n_agent_rows": 332,
+      "contracts": {
+        "both_zeroed_residual_is_exactly_zero": true,
+        "full_residual_is_nonzero": true,
+        "teammates_zeroed_matches_direct_construction": true,
+        "base_pathway_is_entity_invariant": true,
+        "logits_deterministic": true
+      },
+      "residual_ratio_g_over_base": {
+        "mean": 0.04083522223216672,
+        "median": 0.031588487327098846,
+        "p90": 0.07751315906643876,
+        "max": 0.23729625344276428
+      },
+      "g_norm": {
+        "mean": 1.0793407670255886,
+        "median": 0.9356954991817474
+      },
+      "base_norm": {
+        "mean": 28.18611133242228
+      },
+      "ablation_vs_FULL": {
+        "TEAMMATES_ZEROED": {
+          "mean_kl": 0.0056165373595382356,
+          "action_agreement": 0.9864457831325302
+        },
+        "ENEMIES_ZEROED": {
+          "mean_kl": 0.013197692167939595,
+          "action_agreement": 0.9789156626506024
+        },
+        "BOTH_ZEROED": {
+          "mean_kl": 0.020392719885903826,
+          "action_agreement": 0.9743975903614458
+        }
+      }
+    }
+  ],
+  "NOT_A_CLAIM": [
+    "that entity usage is or is not PERFORMANCE-relevant -- this measures the policy's dependence on the entity stream, not win rate",
+    "any confirmatory status -- exploratory seeds, diagnostic arm"
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "record_id": "SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC",
+  "status": "FROZEN_BEFORE_ANY_ARM_CONDITIONED_TELEMETRY_IS_READ",
+  "utc": "2026-09-21T23:30:00Z",
+  "classification": "DIAGNOSTIC -- read-only audit of a sealed scaffolded result; not confirmatory; draws no outcome inference and spends no seed",
+  "authorized_by": "PI, 2026-09-21: 'the immediate next task is: 4v4 scaffold-to-native representability audit. No new training. No new outcome seeds. No ROLE resurrection from the crypt.'",
+  "QUESTION": "Could native pi_A's existing action interface have produced the defender targets that the scaffold injected into the sealed A' episodes, without the injection? Four sub-questions, reusing the frozen G6 sub-gate definitions: TARGET (can legal learned actions reach the desired target closely enough?), LEGALITY (is the corresponding action legal under the native 4v4 learned interface?), DIRECTION (does the best native action move the defender the right way?), TRAJECTORY (closed loop: is the defensive PATH preserved, not one tick?).",
+  "FENCES": [
+    "No PPO, no training, no parameter change of any policy. pi_A is loaded read-only; its parameter digest must be equal before and after.",
+    "No new outcome seeds. The audit re-plays the ALREADY SPENT sealed A' episodes (block 21100001-128) to READ their defender trajectories. It draws no win-rate/goal/margin inference from them; the only outcome use is a parity check that each replay reproduces its sealed row exactly.",
+    "No ROLE, Assignment, 3A/1D, or other resurrected mechanism. pi_B is not loaded, not replayed, not touched.",
+    "No new full-episode outcomes are generated: the closed-loop TRAJECTORY check is an isolated-agent kinematic rollout (G6 precedent) from recorded states, not an env counterfactual.",
+    "The scaffold's frozen spec, result, rows, runner and mechanism source are pinned by sha256 and must be byte-identical when this audit runs."
+  ],
+  "POPULATION": {
+    "arm": "A_prime (pi_A + exactly two forced defenders; pair = PAIRS[seed % 6])",
+    "cells": "128 seeds (21100001-21100128) x 2 poles (A; B = certified B3-3 genome SDS2_B3_LOCKDEF10_2V1) = 256 episodes",
+    "forced_agents": "the two overridden agents per episode; every ACTIVE decision tick of each is one unit",
+    "ACTIVE": "alive AND not tagged AND not carrying at the start of the tick. Tagged and carrying agents are excluded: the env overrides their target home regardless of macro (_redirect_tagged_to_home; own_carrying override in _build_targets_from_action), so the interface is not the operative constraint. Their tick counts are reported.",
+    "parity": "each replay must equal its sealed ROWS.csv row on (steps, blue, red); any mismatch aborts the shard (a mismatch is an error state, never a default)."
+  },
+  "REFERENCE": {
+    "definition": "T*(s) = the LIVE V2 unified-DEFEND resolver (core._build_targets_from_action with MacroAction.DEFEND) evaluated at the defender's own state. INWARD (target = current own flag) iff distance(agent, own_flag_now) > R, else OUTWARD (agent-relative ray to the arena boundary). R = tag_range_cells x (3+10+1)/10 = 3.5 cells.",
+    "why_this_and_not_the_pyquaticus_true_motion": "The scaffold injected the live resolver, so the live resolver defines what 'those defender targets' were. gpu_env.pyquaticus_port.true_motion additionally scales speed by a Pyquaticus speed_fraction that the scaffold never applied; using it would compare against motion the sealed episodes did not contain.",
+    "isolated_rollout_reference": "For TRAJECTORY the reference path is the isolated injected-DEFEND rollout from the recorded state, integrated by the real core._integrate_side with the live speed cap, so reference and candidate share one integrator. Its fidelity to the recorded live motion is a contract (C9), not an assumption."
+  },
+  "NATIVE_INTERFACE_BOUND_FACTS": {
+    "source": "structural probe of the live 4v4 object on a smoke seed (map geometry and masks only; no episode stepped, no outcome read), 2026-09-21",
+    "arena_cells": "20 x 20 (coordinates 0..19); own flag home (2, 10); enemy flag home (17, 10)",
+    "n_macros": 5,
+    "macros": [
+      "GO_TO",
+      "GRAB_MINE",
+      "GET_FLAG",
+      "PLACE_MINE",
+      "GO_HOME"
+    ],
+    "n_targets": 50,
+    "waypoint_grid": "5 x 10 coarse grid over the field; first four slots overwritten by the mine-pickup coordinates (3,5),(3,14),(16,5),(16,14). unique x {0,3,4.75,9.5,14.25,16,19}",
+    "resolved_target_of_candidate": "GO_TO / GRAB_MINE / PLACE_MINE -> waypoint[idx]; GET_FLAG -> enemy flag; GO_HOME -> own flag home. The macro is not needed to name a waypoint: any legal macro with a legal idx resolves to that waypoint (they differ only in legality and commit length).",
+    "commit_ticks": {
+      "GO_TO": 4,
+      "GRAB_MINE": 3,
+      "GET_FLAG": 4,
+      "PLACE_MINE": 2,
+      "GO_HOME": 4
+    },
+    "commit_end_rule": "commit ends on success, expiry, death or tag. GO_TO success = within macro_arrival_radius_cells (1.0) of the committed waypoint, evaluated after the tick's motion. GRAB/GET_FLAG/PLACE/GO_HOME success is event-based and is not modeled in isolated rollouts (they run their full commit).",
+    "dynamics": "dt = 0.495 s; max_speed 2.2 cells/s; current 0; blue speed scale 1; no obstacles (map_a_open); deceleration inside 2 cells of the target. All rt_* motion parameters were constant across probed seeds and are re-checked per replayed cell. The live step ENDS with _apply_avoid_collision_guard: a non-physical tangential repulsion shove of 0.5 cells between any two live agents (blue-blue, red-red, blue-red) closer than cfg.avoid_collision_radius_cells. The isolated single-agent rollout omits it by design. A shove at tick t needs some live agent within shove reach = avoid_collision_radius + 2 x 2.2 x dt + 1.0 (two 0.5-cell shove stages) of the defender at the START of tick t, so outside that reach the isolated step must equal the live step exactly (contract C9).",
+    "policy_facing_mask": "obs['mask'] == core._build_action_mask (verified equal). A no-payload agent: GO_TO=1, GET_FLAG=1, GRAB_MINE=0 (unless at a pickup), PLACE_MINE=0, GO_HOME=0; all 50 targets selectable. Carrying: GO_TO, GO_HOME. Has mine: GO_TO, PLACE_MINE, GO_HOME. rl/custom_ppo/policy.py::_mask_logits fills masked logits with -1e8, so the mask binds pi_A at inference.",
+    "structural_geometry": {
+      "inward_target_nearest_waypoint": "own flag (2,10): nearest waypoint idx 5 = (0, 10.556) at 2.076 cells, i.e. BEHIND the flag; the only waypoint within 2.5 cells",
+      "outward_target_nearest_waypoint": "live resolver on 17 in-arena bearings at radius R-0.5: nearest-waypoint error min 0.071 / median 1.412 / max 3.882; 88% <= 2.5; the failures are the south bearings (-105 deg 3.88, -90 deg 2.75)",
+      "on_ring_hold_points": "nearest waypoint to a point ON the ring: max 2.128, all within 2.5"
+    }
+  },
+  "REPO_RECORD_DISCREPANCY_TO_CARRY_FORWARD": {
+    "record": "HOME_LEGALITY_CONFIRMED_INTERFACE_REPAIR.json / port note: 'the engine never blocks selecting GO_HOME for a non-carrier -- _advance_blue_macros accepts any macro id unconditionally'.",
+    "finding": "True of the ENGINE decode (torch.remainder(a[...,0], n_macros), gpu_env/_core/_step.py). Not true of the POLICY-FACING mask: _build_action_mask zeroes GO_HOME for a no-payload agent and _mask_logits enforces it. For a learned pi_A the operative legality is the mask.",
+    "handling": "This audit defines LEGALITY on the policy-facing (payload-only) mask and separately reports engine acceptance as a note. It does not edit or reinterpret the earlier record; it is carried to the tracker as an open discrepancy for the PI."
+  },
+  "CANDIDATES": {
+    "witness_set_W": "every legal GO_TO waypoint under the RECORDED PAYLOAD-ONLY MASK (the real mask recomputed with the commit lock removed, so the question is 'what could the interface express', not 'what was locked at that instant'). This is the only set any gate uses; see GATES.WITNESS_SET_RESTRICTION.",
+    "all_legal_macros_set": "every (macro, idx) legal under the same payload-only mask -- used ONLY for the 'size of the semantic-macro exclusion' diagnostic; GET_FLAG and GO_HOME contribute one candidate each",
+    "unrestricted_set": "all 5 macros x 50 idx ignoring the mask -- used only for the exact-semantic-macro legality diagnostic",
+    "rank_and_tiebreak": "(error, macro id, idx), as in G6 _candidate_rank"
+  },
+  "GATES": {
+    "thresholds_inherited_unchanged": {
+      "target_error_cells": 2.5,
+      "first_direction_cosine": 0.99,
+      "trajectory_rmse_cells": 2.5,
+      "horizon_decision_ticks": 16,
+      "source": "experiments/run_pyquaticus_port_contracts.py (HORIZON, DIRECTION_COSINE_MIN, INTERACTION_RADIUS_CELLS); PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json"
+    },
+    "TARGET": "unit = ACTIVE decision tick, free choice over the WITNESS set W (legal GO_TO waypoints). pass iff min over W of ||resolved(w) - T*|| <= 2.5.",
+    "DIRECTION": "unit = ACTIVE decision tick, EXISTENCE over W (never only the target-nearest candidate). Let W_t = {w in W : ||resolved(w) - T*|| <= 2.5}. If W_t is non-empty: pass iff SOME member has direction cosine(pos, resolved(w), T*) >= 0.99. If W_t is empty (a TARGET miss): pass iff SOME w in W has cosine >= 0.99, so a TARGET miss is not double-counted as a DIRECTION miss and an unlucky nearest-waypoint tie cannot manufacture a vocabulary failure. Cosine = a vectorized replica of gpu_env.pyquaticus_port.direction_cosine (same zero-vector conventions), contracted equal to the unchanged function (C14). Both components (joint, any) are reported.",
+    "LEGALITY": "MECHANICAL gate: every candidate any audit controller selects must be a member of the recorded legal set at its decision, and the witness set must never be empty on an ACTIVE tick (GO_TO masked for an alive, uncommitted agent would be an error state, not a default); violations must be 0. The exact-semantic-macro legality (below) is a diagnostic, not a gate, because a legal GO_TO waypoint substitution is an existing interface capability.",
+    "WITNESS_SET_RESTRICTION": "GO_TO waypoints only, for TARGET, DIRECTION and TRAJECTORY alike. GO_TO's whole semantics is 'move toward the waypoint; the commit ends on arrival or after 4 ticks', which the isolated rollout models completely. GRAB_MINE / PLACE_MINE / GET_FLAG / GO_HOME have event-dependent side effects (pickup, placement, flag grab, capture, payload changes) that the isolated rollout does not model, so they are never admitted as steering primitives. The size of this exclusion is reported (TARGET rate if every legal macro were admitted; ACTIVE ticks on which GO_HOME is legal).",
+    "TRAJECTORY": "unit = 16-tick window starting at every second tick t0 (stride 2) whose agent is ACTIVE at t0..t0+15 in the record. Window passes iff RMSE over ticks 1..16 of ||reference_position - candidate_position|| <= 2.5. Candidate = native-commit path-oracle controller: at each commit boundary choose, among the legal GO_TO waypoints at t0, the waypoint whose next commit horizon of positions best matches the reference (greedy 1-step lookahead, ties by rank); hold it for its real commit length (4 ticks), ending the commit early on arrival (1.0).",
+    "TRAJECTORY_interruptible_variant": "identical, but every tick is a commit boundary (commit length 1). NOT a native mode: a localization diagnostic used only by the routing rule to say whether the commit lock, rather than the vocabulary, is binding.",
+    "coverage_rule": "For each gate and each pole separately: pass-rate = sum(pass)/sum(units). 95% percentile interval by a cluster bootstrap over EPISODES (20000 resamples, rng seed 7). PASS iff LCB95 >= 0.90; FAIL iff UCB95 < 0.90; otherwise BORDERLINE. The 0.90 level is this audit's own pre-declared choice (G6 was all-or-nothing on a handful of fixtures; real trajectories need a tail allowance); it is fixed here, before any data, and is not tuned.",
+    "trajectory_role_note": "G6 reported TRAJECTORY as never gating because its reference was Pyquaticus, so a miss could be cross-simulator dynamics. Here reference and candidate share one simulator and one integrator, so that confound is absent and TRAJECTORY gates. Thresholds are unchanged."
+  },
+  "DIAGNOSTICS_NON_GATING": [
+    "branch split (INWARD / OUTWARD) for every gate",
+    "exact-semantic-macro legality: share of ACTIVE ticks whose UNRESTRICTED target-nearest candidate is masked for the agent (the GO_HOME defect), by branch, and the error paid for the legal substitution",
+    "G6-hard-check comparator on native-commit windows: committed-target max error <= 2.5, first-direction cosine, radial-sign agreement every tick, all four jointly -- the direct analogue of the sealed G6 numbers, reported so the flip-tracking artifact is visible rather than argued",
+    "isolated-reference vs recorded live-position RMSE per window (fidelity of the isolated integrator beyond one step)",
+    "DIRECTION components: joint (TARGET-satisfying and aimed) and any-legal-waypoint-aimed",
+    "size of the semantic-macro exclusion: TARGET rate if every legal macro were admitted; ACTIVE ticks on which GO_HOME is legal",
+    "INTERACTION-FREE WINDOW ROBUSTNESS: TRAJECTORY native / interruptible pass rates and the share of windows restricted to windows in which no other live agent is within shove reach at the start of any of the 16 ticks (there the isolated rollout equals the live step, contract C9). Pre-declared here so the robustness slice is not chosen after seeing results.",
+    "counts: ACTIVE / tagged / carrying / dead ticks, windows eligible, episodes"
+  ],
+  "TERMINAL_LABELS_AND_ROUTING": {
+    "precedence": "AUDIT_INVALID > vocabulary fail > borderline > trajectory outcomes",
+    "AUDIT_INVALID": "any contract fails, any replay parity mismatch, any LEGALITY violation, or any runtime motion parameter differing from the pinned defaults. Overrides every other label.",
+    "NOT_REPRESENTABLE_VOCABULARY": "TARGET or DIRECTION is FAIL on either pole -> PPO stays parked; the repair question is the minimum primitive that names the desired defender target (the scaffold's V2 DEFEND is the reference candidate and is an evaluation-only adapter, not a proposed general PPO primitive).",
+    "INCONCLUSIVE_BORDERLINE": "no gate FAIL but any deciding gate BORDERLINE -> no fork is taken; the PI decides.",
+    "HIGH_COVERAGE_REPRESENTABLE_NATIVE": "TARGET, DIRECTION and TRAJECTORY(native commit) all PASS on both poles (episode-clustered LCB95 >= 0.90) -> licenses DESIGNING (not launching) the narrow targeted internalization run. The wording is deliberately 'high-coverage representability': it is constructive evidence from a GO_TO-only, greedy, future-seeing oracle at the pre-declared coverage, NOT a claim that the interface reproduces DEFEND at every state.",
+    "NOT_REPRESENTABLE_COMMITMENT_BOUND": "TARGET and DIRECTION PASS on both poles; TRAJECTORY(native commit) FAIL on at least one pole; TRAJECTORY(interruptible) PASS on both poles -> PPO stays parked; the minimum addition is an interruptibility change to the defender-relevant commit, not a new vocabulary.",
+    "NOT_REPRESENTABLE_OTHER": "TARGET and DIRECTION PASS; TRAJECTORY(native commit) FAIL on at least one pole AND TRAJECTORY(interruptible) FAIL on at least one pole -> PPO stays parked; PI decision.",
+    "no_label_authorizes_training": "Every label is a routing recommendation to the PI. None authorizes PPO."
+  },
+  "KNOWN_LIMITATIONS_FROZEN": [
+    "Restricting the witness to GO_TO is conservative by construction: it can only remove ways to pass. Its size is reported, not assumed negligible.",
+    "The path-oracle is GREEDY with one-commit lookahead. A PASS is a constructive existence witness (a legal native action sequence reproduces the path). A FAIL means 'not reached by the greedy oracle', not a proof that no sequence exists.",
+    "The oracle sees the reference future; a learned policy would not. REPRESENTABLE_NATIVE therefore says the interface CAN express the path, not that PPO WILL find it -- representability is not learnability, and the internalization run remains a separate PI decision.",
+    "TRAJECTORY is an isolated single-agent rollout: it ignores teammate/opponent interaction inside the 16-tick window, INCLUDING the live step's 0.5-cell avoid-collision shove, which the first contract run showed is the entire source of the one-step mismatches (they cluster near the ring because that is where attackers and teammates meet the defender). Windows in which the recorded agent stops being ACTIVE are excluded, which also removes windows containing a tag or a carry. Both the reference and the candidate are isolated, so a shove perturbs neither differently; the interaction-free slice is reported as a robustness diagnostic.",
+    "Windows start every second tick and overlap; the cluster bootstrap is over episodes to account for that.",
+    "The audit inherits the scaffold's own scope: two forced agents, pair rotation 22/22/21/21/21/21, the two certified 4v4 poles, pi_A only."
+  ],
+  "INTEGRITY_FROZEN": {
+    "sealed_inputs_sha256": {
+      "scaffold_spec": "ac9a1e97f9d56eb7ac6177a398c112587eb12140db08519513d63786affa374f",
+      "scaffold_result": "4846b0c168962b93e7ccba4977381c3d8390da989d4b96127aa884a2a95f29f4",
+      "scaffold_rows": "2188aff0a8a9018491d7926c4079d95247d9354afb16648f461024b6ef02f5dd",
+      "scaffold_runner": "e6288f15fbe9dd67d13517c5641dbe8a5c144eb84790f5ead0dd3a24d536ff1c",
+      "mechanism_source": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb"
+    },
+    "pi_A_checkpoint": {
+      "path": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    "poles": "attested against STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json with the B3-3 genome (canonical OP7 can never be scored)",
+    "seed_registry": "block 21100001-128 stays SPENT / sealed_confirmatory and is NOT written to: seed_registry.set_status refuses any write to a spent confirmatory block (correctly), and this audit does not route around that guard. The read-only reuse is recorded in this spec and in the audit result; contract C13 checks the registry entry is byte-identical before and after. No block is allocated.",
+    "recorded_arrays_exact": "positions/headings/speeds stored as float32 values round-tripped through JSON doubles, so the isolated integrator starts from bit-identical state"
+  },
+  "CONTRACTS_BEFORE_REPLAY": [
+    "C0 spec frozen",
+    "C1 sealed inputs equal their pins",
+    "C2 pi_A checkpoint equals its pin",
+    "C3 both poles attested",
+    "C4 G6 thresholds imported from the G6 runner equal this spec's",
+    "C5 vector DEFEND and native resolvers equal the live _build_targets_from_action (random states)",
+    "C6 candidate-vectorized integration equals per-candidate integration",
+    "C7 mask facts reproduced (obs mask == core mask; GO_HOME masked for no payload; payload-only mask restores commit state exactly and differs from the real mask under a commit lock)",
+    "C8 replay parity: 4 sealed cells reproduce their sealed rows exactly, recorded arrays finite, parameter digests unchanged, motion parameters at their pinned defaults",
+    "C9 isolated one-step integrator reproduces recorded live motion on >= 95% of ACTIVE ticks within 1e-3 cells AND every non-matching tick has some other live agent within shove reach (a necessary condition for the avoid-collision shove); the record also breaks the non-matching ticks down by status change, branch and distance to the ring",
+    "C10 terminal-label and coverage-rule self-tests on synthetic cases",
+    "C11 structural pins reproduced (idx 5 at 2.076; GO_HOME masked)",
+    "C12 read-only fence: the audit source contains no training/optimizer call",
+    "C13 the seed-registry entry for the sealed block is byte-identical before and after the contracts, and still SPENT / sealed_confirmatory",
+    "C14 the vectorized cosine equals the unchanged direction_cosine (incl. zero-vector cases) and DIRECTION is existence, on synthetic cases where a nearest-only rule would give the opposite answer",
+    "C15 the witness set is GO_TO-only and never empty on any ACTIVE tick of the probe cells",
+    "C16 planted-truth: the path-oracle exactly recovers a planted GO_TO path natively, and a planted per-tick-alternating path only in the interruptible variant (so the commit lock provably binds natively); the analysis pipeline runs end-to-end on the 4 probe cells, deterministically, with all internal invariants (tick partition, pass <= units, finite, no empty witness, no runtime-parameter mismatch) and a clean independent re-derivation. Gate rates are NOT printed or recorded at this stage."
+  ],
+  "AMENDMENTS_AFTER_PI_REVIEW_BEFORE_ANY_SCALE_TELEMETRY": {
+    "when": "2026-09-21T22:02:06Z",
+    "reviewer_message": "PI review of the frozen spec + runner, same day: two hard checks before scale replay (DIRECTION as existence; no semantic macros as steering primitives), the 'high-coverage representability' wording, and one provenance commit before launch.",
+    "state_when_amended": "no gate-relevant arm-conditioned telemetry had been read at scale. A first contract run on the PRE-amendment implementation (which replays 4 sealed cells for parity) returned 14/14 PASS, incl. replay parity 4/4 sealed rows, resolver equality 0.00e+00, and one-step integrator fidelity 1611/1669 (0.9652). It was superseded and its record overwritten by a rerun on the final files.",
+    "A1": "DIRECTION changed from 'cosine of the target-nearest legal candidate' to EXISTENCE over the legal witness set, preferring TARGET-satisfying members (GATES.DIRECTION). Reason: a nearest-waypoint tie could manufacture a vocabulary failure. Effect: can only make DIRECTION easier to pass than the earlier definition.",
+    "A2": "Witness set restricted to GO_TO waypoints for TARGET, DIRECTION and TRAJECTORY (GATES.WITNESS_SET_RESTRICTION). Reason: semantic macros carry side effects the isolated rollout does not model. Effect: conservative; size of the exclusion is reported.",
+    "A3": "Positive label renamed REPRESENTABLE_NATIVE -> HIGH_COVERAGE_REPRESENTABLE_NATIVE; result guard and claim boundary state that it is not 'reproduces DEFEND everywhere'.",
+    "A4": "Contracts: C9 now reports a breakdown of non-matching ticks; C14 (cosine replica + DIRECTION-existence), C15 (witness set) and C16 (planted-truth tests of the path-oracle + end-to-end pipeline invariants, because the first contract run never exercised the analysis code itself) added. Thresholds unchanged.",
+    "A5": "Found by the amended C9 breakdown of the first contract runs (1611/1669 one-step ticks matched; 49 of the 58 misses within 1.5 cells of the ring, median error 0.500 cells): the live step's 0.5-cell avoid-collision shove. The recorder now stores each forced defender's distance to the nearest other live agent per tick; C9 additionally requires every miss to have a neighbour inside shove reach; the interaction-free window robustness diagnostic is pre-declared. No gate, threshold, or label changed.",
+    "unchanged": "population, replay, reference, coverage level 0.90, G6 thresholds, stride, horizon, routing rule, all fences."
+  },
+  "NOT_AUTHORIZED": [
+    "PPO or any training",
+    "any new outcome seed or seed block",
+    "any change to pi_A, pi_B, the poles, the scaffold, or its sealed record",
+    "loading or replaying pi_B",
+    "reinterpreting the earlier legality record",
+    "an env-level counterfactual with the projected controller (new outcomes on spent seeds)",
+    "committing before the PI asks"
+  ],
+  "claim_boundary": "A statement about what the native 4v4 action interface can express relative to the scaffold's injected defender behavior on the sealed A' episodes, at the pre-declared 0.90 coverage and using a GO_TO-only greedy path-oracle. 'High-coverage representability' is not 'the interface reproduces DEFEND everywhere', and a NOT_REPRESENTABLE label is not a proof of impossibility. It is not a statement about whether PPO would learn that behavior, not a win-rate claim, and not evidence about pi_B or 6v6."
+}

@@ -38,6 +38,18 @@ def _model_kwargs_from_cfg(cfg: Any) -> dict[str, Any]:
     )
     kwargs: dict[str, Any] = {
         "actor_cnn_feature_dim": int(cfg.get("actor_cnn_feature_dim", 128)),
+        # 4v4 entity repair: reconstruct from the CHECKPOINT'S OWN saved cfg,
+        # unconditionally (mirrors the trainer-side wiring in
+        # build_model_kwargs, which is also not gated on use_latent_strategy).
+        # Absent in every pre-2026-09-13 checkpoint -> defaults False, so old
+        # checkpoints reconstruct exactly as before this addition.
+        "entity_repair_enabled": bool(cfg.get("entity_repair_enabled", False)),
+        "entity_hidden_dim": int(cfg.get("entity_hidden_dim", 32)),
+        "role_conditioning_enabled": bool(cfg.get("role_conditioning_enabled", False)),
+        "assignment_conditioning_enabled": bool(
+            cfg.get("assignment_conditioning_enabled", False)
+        ),
+        "assignment_feature_dim": int(cfg.get("assignment_feature_dim", 4)),
     }
     if bool(cfg.get("use_latent_strategy", False)):
         kwargs.update(
@@ -307,7 +319,7 @@ def load_custom_ppo_policy(path: str, observation_space, action_space, *, device
     return load_custom_ppo_checkpoint(path, observation_space, action_space, device=device).policy
 
 
-def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
+def load_trainer_checkpoint(trainer: Any, path: str, *, reset_progress: bool = False) -> CheckpointTimingReport:
     import time
     from .archive import _torch_load_checkpoint
     from .metadata import assert_compatible_global_state_dim
@@ -383,10 +395,40 @@ def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
     
     state_start = time.perf_counter()
     load_weights_only = bool(getattr(trainer.cfg, "load_weights_only", False))
-    if load_weights_only:
-        print("[PPO] Skipping checkpoint optimizer state: --load-weights-only was set.")
+    # Honor both the explicit caller flag and cfg (initialization.py sets both;
+    # unit tests may pass only reset_progress=True on trainer.load).
+    reset_progress = bool(reset_progress) or bool(
+        getattr(trainer.cfg, "warm_start_reset_progress", False)
+    )
+    if load_weights_only or reset_progress:
+        why = (
+            "--load-weights-only was set"
+            if load_weights_only
+            else "warm_start_reset_progress / reset_progress=True (weight init only; fresh optimizer)"
+        )
+        print(f"[PPO] Skipping checkpoint optimizer state: {why}.")
         if bool(getattr(trainer.cfg, "router_reinitialize_on_load", False)):
             trainer._reinitialize_router_after_load()
+        # Role-conditioning warm-start widens Linear in_features (148→149 actor,
+        # 34→38 critic). Even with optimizer load skipped, rebuild Adam from the
+        # post-expansion Parameter objects so no 148-d moment buffers can linger
+        # from any other path. Fresh global_step / scheduler identity already
+        # follows from reset_progress=True below.
+        if (
+            bool(getattr(trainer.model, "role_conditioning_enabled", False))
+            or bool(getattr(trainer.model, "assignment_conditioning_enabled", False))
+            or bool(getattr(trainer.model, "_role_warmstart_expanded", False))
+        ):
+            from rl.custom_ppo.trainer_optimizers import TrainerOptimizerBundle
+
+            trainer.optimizers = TrainerOptimizerBundle.build(
+                model=trainer.model, cfg=trainer.cfg, hparams=trainer.hparams
+            )
+            print(
+                "[PPO] Rebuilt fresh Adam optimizer after privileged-conditioning "
+                "weight expansion (W'=[W 0]; no inherited narrow moments from "
+                "B_t500k or any other run)."
+            )
     else:
         reinit_router = bool(getattr(trainer.cfg, "router_reinitialize_on_load", False))
         if reinit_router:
@@ -395,29 +437,47 @@ def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
         else:
             allow_migration = bool(getattr(trainer.cfg, "allow_active_actor_module_migration", False))
             trainer.optimizers.load_checkpoint(payload, allow_architecture_migration=allow_migration)
-            
-    v6i1_latent_payload = dict(payload.get("latent_state_v6i1", {}) or {})
-    if trainer.v6i1_curriculum is not None and "v6i1_curriculum_state" in payload:
-        from rl.custom_ppo.v6i1_phase_runtime import load_v6i1_curriculum_state
-        load_v6i1_curriculum_state(trainer.v6i1_curriculum, payload["v6i1_curriculum_state"])
-        
-    trainer.global_step = int(payload.get("global_step", 0))
-    trainer._updates_completed = int(payload.get("updates_completed", 0))
-    trainer.return_norm.load_state_dict(
-        {
-            "mean": payload.get("return_norm_mean", 0.0),
-            "var": payload.get("return_norm_var", 1.0),
-            "count": payload.get("return_norm_count", 1e-4),
-        }
-    )
-    trainer.strategy_return_norm.load_state_dict(
-        {
-            "mean": payload.get("strategy_return_mean", 0.0),
-            "var": payload.get("strategy_return_var", 1.0),
-            "count": payload.get("strategy_return_count", 1e-4),
-        }
-    )
-    trainer.last_stats = dict(payload.get("last_stats", {}))
+
+    if reset_progress:
+        # `path` is WEIGHT INITIALIZATION, not run continuation (see PPOConfig.
+        # warm_start_reset_progress docstring): this run's own global_step,
+        # updates_completed, return-norm stats, PPO updater RNG state
+        # (z_separation_generator), and comm/v6i1-curriculum state are left at
+        # the freshly-constructed values from CustomPPOTrainer.__init__ instead
+        # of being overwritten from the checkpoint. Everything keyed off
+        # global_step (LR/entropy schedules, total_timesteps accounting) then
+        # behaves as this run's OWN fresh budget, not as a continuation of the
+        # checkpoint's prior progress.
+        v6i1_latent_payload = {}
+        print(f"[PPO] reset_progress=True (warm start = weight initialization only): "
+              f"NOT restoring global_step/updates_completed/return_norm/"
+              f"z_separation_generator/comm+curriculum state from the checkpoint -- "
+              f"this run starts its own fresh global_step=0 and keeps its own "
+              f"cfg.seed-derived RNG state.")
+    else:
+        v6i1_latent_payload = dict(payload.get("latent_state_v6i1", {}) or {})
+        if trainer.v6i1_curriculum is not None and "v6i1_curriculum_state" in payload:
+            from rl.custom_ppo.v6i1_phase_runtime import load_v6i1_curriculum_state
+            load_v6i1_curriculum_state(trainer.v6i1_curriculum, payload["v6i1_curriculum_state"])
+
+        trainer.global_step = int(payload.get("global_step", 0))
+        trainer._updates_completed = int(payload.get("updates_completed", 0))
+        trainer.return_norm.load_state_dict(
+            {
+                "mean": payload.get("return_norm_mean", 0.0),
+                "var": payload.get("return_norm_var", 1.0),
+                "count": payload.get("return_norm_count", 1e-4),
+            }
+        )
+        trainer.strategy_return_norm.load_state_dict(
+            {
+                "mean": payload.get("strategy_return_mean", 0.0),
+                "var": payload.get("strategy_return_var", 1.0),
+                "count": payload.get("strategy_return_count", 1e-4),
+            }
+        )
+        trainer.last_stats = dict(payload.get("last_stats", {}))
+
     trainer._last_obs = None
     trainer._last_global_state = None
     trainer.latent_state.current_z = None
@@ -426,9 +486,10 @@ def load_trainer_checkpoint(trainer: Any, path: str) -> CheckpointTimingReport:
     if v6i1_latent_payload:
         from rl.custom_ppo.v6i1_phase_runtime import restore_latent_state_v6i1_checkpoint
         restore_latent_state_v6i1_checkpoint(trainer.latent_state, v6i1_latent_payload)
-    if trainer.comm_runtime.enabled and "comm_runtime_state" in payload:
-        trainer.comm_runtime.load_state_dict(dict(payload.get("comm_runtime_state", {}) or {}))
-    trainer.updater.load_state_dict(dict(payload.get("ppo_updater_state", {}) or {}))
+    if not reset_progress:
+        if trainer.comm_runtime.enabled and "comm_runtime_state" in payload:
+            trainer.comm_runtime.load_state_dict(dict(payload.get("comm_runtime_state", {}) or {}))
+        trainer.updater.load_state_dict(dict(payload.get("ppo_updater_state", {}) or {}))
     state_load_seconds = time.perf_counter() - state_start
     
     import os

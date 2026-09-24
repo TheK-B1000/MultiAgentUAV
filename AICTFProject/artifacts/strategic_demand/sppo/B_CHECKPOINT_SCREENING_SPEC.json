@@ -1,0 +1,68 @@
+{
+  "record_id": "B_CHECKPOINT_SCREENING_SPEC",
+  "status": "FROZEN_BEFORE_TRAJECTORY_RESULT_IS_KNOWN",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-16T12:20:00Z",
+  "written_while": "AB_BEHAVIORAL_TRAJECTORY was still running (11/23 cells complete, all A-side; B-side ~65% through). No B-side win-rate number existed when this was frozen -- verifiable against that run's own timestamped log.",
+
+  "THE_QUESTION": "Does a positive-delta_B B-basin already exist somewhere in B's own training trajectory, such that the fix is preserving/selecting it rather than changing the training objective or architecture?",
+
+  "WHY_A_MECHANICAL_SELECTION_RULE_NOT_EYEBALLING": "choosing 'the promising-looking checkpoints' after seeing the trajectory is itself a selection step, on top of the selection the screening crossover already performs. Stacking two informal choices before the confirmatory gate compounds exactly the bias that already produced one false positive (t100k). This spec fixes the selection rule NOW, mechanically, from a quantity AB_BEHAVIORAL_TRAJECTORY_RESULT.json will contain, so no human judgment about 'which checkpoints look good' enters between seeing the trajectory and running the screen.",
+
+  "SELECTION_RULE_mechanical_applied_once_the_trajectory_completes": {
+    "source": "AB_BEHAVIORAL_TRAJECTORY_RESULT.json#summaries, the B-side cells (B_t0, B_t100k..B_t900k, B_tfinal), field 'won' (raw Pole-B win rate, n=32)",
+    "rule": "select every B-side checkpoint (EXCLUDING B_t0, which predates the entity repair and is architecturally different) whose 'won' is within 0.10 of the maximum 'won' across all 10 post-repair B-side checkpoints. Always include B_tfinal regardless, as the fixed reference endpoint already measured in every prior crossover.",
+    "why_a_margin_and_not_top_1": "the trajectory is measured at n=32 per point -- noisy enough that the single argmax is not obviously more real than points within a small margin of it (this is exactly the lesson of t100k, which WAS the argmax and did not hold up). A margin band screens a plausible basin, not a single lucky point.",
+    "why_0.10": "chosen now, before any number exists, so it cannot be tuned to include or exclude a checkpoint after seeing the data. It is roughly one seed's worth of noise at n=32 (1/32 = 0.031) times a small multiple, wide enough to catch a basin, narrow enough not to select nearly everything.",
+    "expected_cap": "if this rule selects more than 5 checkpoints (including B_tfinal), take the 5 with the highest 'won' among those selected -- stated now so a wide trajectory cannot balloon the screening cost after the fact."
+  },
+
+  "MEASUREMENT_DESIGN": {
+    "principle": "EVERY selected candidate is evaluated against BOTH poles, with frozen pi_A3 (tfinal) as the fixed comparator on both. This is not optional and not inferred -- it is the single correction this spec exists to make explicit, because a candidate can look excellent on absolute Pole-B win rate for the same reason B100k did (general strength, not specialization), and that is only visible by also checking Pole A.",
+    "per_candidate_cells": ["candidate @ Pole A", "candidate @ Pole B"],
+    "comparator_cells": ["pi_A3_tfinal @ Pole A (already known: 0.75-0.84 across prior crossovers, RE-MEASURED here on these fresh seeds for a paired comparison, not assumed from a different seed block)",
+                        "pi_A3_tfinal @ Pole B (same)"],
+    "estimands_per_candidate": {
+      "delta_A(candidate)": "V(pi_A3, A) - V(candidate, A)",
+      "delta_B(candidate)": "V(candidate, B) - V(pi_A3, B)",
+      "both_required": "a candidate is 'promising' for the decision tree below ONLY if BOTH delta_A(candidate) and delta_B(candidate) point the right direction -- exactly the joint-gate shape used everywhere else in this investigation, not delta_B alone."
+    },
+    "seeds": {"n": 64, "class": "exploratory", "shared_across_all_cells": true,
+              "block": "fresh, reserved immediately before launch",
+              "disjointness": "must not overlap AB_BEHAVIORAL_TRAJECTORY's 18700001-18700032, or any prior confirmatory or exploratory block in the registry",
+              "why_exploratory_not_confirmatory": "this IS the screen the selection-bias rule requires before any confirmatory claim -- spending confirmatory seeds here would be using them for exactly the kind of selection they are supposed to come AFTER, not during"},
+    "bootstrap": "paired percentile bootstrap per candidate (n_boot=20000, alpha=0.05, rng_seed=7), same protocol as every prior sealed/screening crossover in this project. Reported per candidate; NOT pooled across candidates (each candidate's delta is its own independent bootstrap on the shared seed set)."
+  },
+
+  "PRECOMMITTED_DECISION_TREE": [
+    {
+      "branch": "A_BASIN_EXISTS",
+      "condition": "at least one candidate has delta_A(candidate) mean > 0 AND delta_B(candidate) mean > 0 (LCB95 not required at this screening stage -- this is exploratory, per the standing rule that a screen need not itself pass the confirmatory bar)",
+      "reading": "a positive-delta_B specialization basin already exists in the trajectory. The training PROCEDURE, not the training OBJECTIVE or architecture, is the problem -- PPO finds it and then leaves it.",
+      "next": "(1) checkpoint selection / early stopping repair: retrain B with periodic evaluation on a FIXED, PRE-DECLARED validation seed block (disjoint from both this screen and any future confirmatory block) and retain the checkpoint maximizing the validation delta_B criterion, instead of training to a fixed step count and keeping whatever exists at the end. (2) the checkpoint that wins this screen is NOT itself confirmatory -- it requires its own fresh confirmatory joint crossover (both poles, both deltas, LCB95 gate) before any pass claim, exactly the precedent set for t100k."
+    },
+    {
+      "branch": "NO_BASIN_FOUND",
+      "condition": "no candidate clears both delta_A>0 and delta_B>0 simultaneously",
+      "reading": "vanilla Pole-B PPO, across its own trajectory, produces competent generalists but never a specialization basin. Early stopping alone cannot fix this, because there is nothing better to stop early AT.",
+      "next": "move to a specialization-preserving training objective. The frozen candidate design (from PI discussion 2026-09-16): continue from the best available B checkpoint (by absolute Pole-B performance, since no delta_B basin exists to prefer) with an added anchor term L = L_PPO + lambda * KL(pi_theta(.|s) || pi_B*(.|s)) on states visited during training, penalizing destructive drift away from the anchor policy rather than rewarding any specific macro. Explicitly NOT a GET_FLAG-frequency reward -- POLE_B_BEHAVIORAL_DIAGNOSIS already showed A's OWN macro usage also drifts, so GET_FLAG frequency alone is not established as the mechanism, only as a correlate."
+    }
+  ],
+
+  "WHAT_THIS_SCREEN_MAY_NOT_CLAIM": [
+    "any confirmatory pass -- n=64, exploratory seeds, no LCB95 gate applied at this stage by design",
+    "that a candidate clearing A_BASIN_EXISTS WILL pass the full confirmatory crossover -- selection bias from choosing among up to 5 candidates on one seed block still applies, exactly as it did for t100k, and is why the confirmatory step is mandatory regardless of this screen's outcome",
+    "anything about WHY a basin exists or is lost, if one is found -- that is a separate mechanistic question from whether one exists",
+    "anything about 6v6 or 2v2"
+  ],
+
+  "COMPLIANCE": {
+    "rule_3_frozen_spec": "this document, frozen before the trajectory result exists",
+    "rule_9_seed_registry": "fresh exploratory block reserved after the trajectory completes and candidates are mechanically selected, immediately before launch",
+    "rule_10_decision_tree": "PRECOMMITTED_DECISION_TREE above",
+    "rule_14_certification_attestation": "both poles attested before any episode, inherited from the existing crossover/attestation infrastructure"
+  },
+
+  "NOT_YET_AUTHORIZED": "AB_BEHAVIORAL_TRAJECTORY must complete first. The candidate list is not yet known -- it will be computed mechanically from that result per SELECTION_RULE above, not chosen by inspection."
+}

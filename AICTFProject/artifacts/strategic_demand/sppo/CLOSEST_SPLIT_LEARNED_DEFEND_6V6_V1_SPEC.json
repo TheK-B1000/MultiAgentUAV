@@ -1,0 +1,64 @@
+{
+  "record_id": "CLOSEST_SPLIT_LEARNED_DEFEND_6V6_V1_SPEC",
+  "status": "FROZEN_BEFORE_ANY_TRAINING",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-23T15:00:00Z",
+  "classification": "DIAGNOSTIC / EXPLORATORY. Not PAPER-FAITHFUL. Not a confirmatory crossover. Not latent-strategy work.",
+  "authorized_by": "PI, 2026-09-23, after CLOSEST_COMPOSITION_CONTRAST_6V6 sealed pattern_match=true: scripted 5A/1D vs 3A/3D survives CLOSEST_DEFENDS (Delta_B +0.594 [+0.45,+0.72], Delta_A +0.109 [-0.03,+0.25]). Do not spend the next block confirming the scripted controller. Authorize learned-behavior replacement of that controller: CLOSEST_DEFENDS still assigns roles; ATTACK slots stay frozen pi_A; DEFEND slots are a separately trained pi_D. Confirmatory fresh-seed eval waits until an exploratory learned screen preserves the separation.",
+
+  "RESEARCH_QUESTION": "Can a learned DEFEND policy, trained only on CLOSEST_DEFENDS slots while frozen pi_A keeps the ATTACK slots, replace the scripted DEFEND controller without asking PPO to discover the team assignment?",
+
+  "WHY_NOT_THE_4V4_N_PRIME_TEACHER": "The sealed 4v4 split used an N' GO_TO teacher on an entity-repair base. The 6v6 attacker we are keeping is the existing pre-entity-repair pi_A_specialist_6v6. Enabling entity repair or the 4v4 N' teacher would change the base the composition result was about. Internalization here is team-reward PPO on DEFEND slots only (defend_teacher_lambda=0). The scripted controller is the thing being replaced, not a distillation target.",
+
+  "ARCHITECTURE": {
+    "diagram": "each episode: k ~ uniform{1,3}; CLOSEST_DEFENDS(k) -> {ATTACK: pi_A_frozen, DEFEND: pi_D}",
+    "pi_A_frozen": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip sha256 8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82. role_conditioning off. requires_grad false. ATTACK slots only.",
+    "pi_D": "trainable, role_conditioning_enabled, warm-started from the same checkpoint via zero-init role-column expansion. DEFEND slots only. No entity-repair module.",
+    "k_mixture": "Episode-static. At each episode start, k is drawn uniformly from {1, 3} so both compositions that the later screen will score are in the training distribution. Default k=N/2 remains the code path when this flag is absent.",
+    "training_opponent": "Pole A only (launcher --policy A). Pole B at the later screen is transfer. This matches the 4v4 split (train on A, score both poles) and is not a claim that pi_D has seen Pole B."
+  },
+
+  "TRAINING": {
+    "policy": "A",
+    "team_size": 6,
+    "seed": 22200001,
+    "total_timesteps": 200000,
+    "device": "cuda",
+    "role_conditioning_enabled": true,
+    "role_fixed_for_episode": true,
+    "role_conditioning_allow_pre_entity_base": true,
+    "role_k_defend_choices": "1,3",
+    "defend_teacher_lambda": 0.0,
+    "entity_repair_enabled": false,
+    "split_attack_defend_enabled": true,
+    "split_attack_defend_frozen_ckpt": "artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip",
+    "run_label_suffix": "_closest_split_defend_6v6_v1",
+    "seeds": {"pi_A_6v6": 22200001}
+  },
+
+  "CHECKPOINTS_AND_COLLAPSE_WATCH": {
+    "this_pc": "Viability only. First budget 25000 steps, then n=16 k=1 vs k=3 on both poles (seeds 22300001-016). Promising => full 200k is launched on the other PC from that checkpoint, not here. Unclear => resume locally to 50000 and screen again (seeds 22400001-016). Obvious collapse (k=1 win rate < 0.25 on both poles) => stop.",
+    "promising_rule": "Delta_B mean > 0 and Delta_A mean > -0.25 and neither composition is below 0.25 on both poles. Point estimates. Not a significance gate.",
+    "full_run": "200k on the other PC, resumed from the viability checkpoint. Same frozen pi_A, same k mixture, same seed 22200001."
+  },
+
+  "EVALUATION_after_training_not_during": {
+    "do_not_eval_until_final_ckpt": true,
+    "question": "Does learned k=1 still beat learned k=3 on both poles (the scripted signature), using the same frozen pi_A and the trained pi_D?",
+    "not_this_record": "No confirmatory n. No pi_B retrain. No second k sweep. The n=8 collapse watch is not this evaluation."
+  },
+
+  "EXPLICITLY_FORBIDDEN": [
+    "a confirmatory scripted 5A/1D vs 3A/3D re-run as the next spend",
+    "the 4v4 N' teacher on this pre-entity base",
+    "entity-repair expansion of the frozen 6v6 pi_A inside this run",
+    "training pi_D from the failed closest-1-on-native-pi_A vs unchanged pi_B scaffold",
+    "a 1,000,000-step budget for this first internalization",
+    "evaluating the final k=1 vs k=3 screen before the 200k checkpoint exists",
+    "claiming PAPER-FAITHFUL or latent-strategy relevance"
+  ],
+
+  "claim_boundary": "Exploratory 200k internalization of DEFEND-slot behavior under CLOSEST_DEFENDS k in {1,3}, frozen pre-entity 6v6 pi_A on ATTACK slots. Does not by itself establish learned 6v6 separation.",
+  "POST_HOC_LABEL_2026-09-23": "6v6 composition/viability diagnostic, not the final 6v6 closure architecture. Locked closure path (2026-09-23): mature entity-repair pi_A/pi_B, freeze pi_A on ATTACK, warm-start pi_D from that pi_A, 200k defender adaptation, CLOSEST_DEFENDS(k=1), then composite A vs frozen pi_B with the same Delta_A/Delta_B LCB95 gate as 4v4. k=1 is frozen from the sealed scripted confirmation. This k=1 vs k=3 run does not mutate that architecture. The existing pre-entity-repair 6v6 pair is not the foundation."
+}

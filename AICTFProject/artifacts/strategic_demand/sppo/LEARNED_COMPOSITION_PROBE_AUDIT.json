@@ -1,0 +1,74 @@
+{
+  "record": "audit of LEARNED_COMPOSITION_PROBE_RESULT.json",
+  "audit_utc": "2026-09-20T07:37:02Z",
+  "git_sha": "c539bdf02c4a09b33870c63ea40fae84a2f5636e",
+  "passed": true,
+  "n_checks": 7,
+  "n_gating": 7,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 512,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_SPEND'",
+      "spec": "LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json",
+      "sha256": "1a7044754fafb2b2e0e1b7a551f2109bd251c1e47f86f4272d7bc363008ce8ea",
+      "status": "FROZEN_BEFORE_SEED_SPEND"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "LEARNED_COMPOSITION_PROBE_ROWS.csv (76660 bytes)",
+      "sha256": "160370aa0f88fab4b7821dff4a2665b154b23712ba5607cd84cd350f90d06471"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "512 rows, expected 512",
+      "found": 512,
+      "expected": 512
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "4 cells; 0 with a seed set != frozen block 20700101..20700228 (n=128)",
+      "n_cells": 4,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to LEARNED_COMPOSITION_PROBE (status RESERVED) -- same block, no conflict",
+      "seed_class": "exploratory",
+      "experiment_id": "LEARNED_COMPOSITION_PROBE"
+    }
+  ]
+}

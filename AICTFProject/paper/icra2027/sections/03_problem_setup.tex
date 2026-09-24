@@ -1,0 +1,134 @@
+\section{Problem Setup}
+\label{sec:setup}
+%======================================================================
+
+\subsection{Environment and agents}
+
+We study a partially observable, adversarial multi-robot setting instantiated
+as a nominal $2$-vs-$2$ naval Capture-the-Flag task on a symmetric maritime
+arena. Blue is the learned multi-robot team; Red is a scripted or frozen
+adversarial opponent. Each side controls $|B|=|R|=2$ autonomous surface vessels.
+We model the interaction as a finite-horizon partially observable Markov game
+\[
+G =
+\left(
+\mathcal{N},\mathcal{S},\{\mathcal{A}_i\}_{i\in\mathcal{N}},P,
+\{r_i\}_{i\in\mathcal{N}},\{\Omega_i\}_{i\in\mathcal{N}},\{O_i\}_{i\in\mathcal{N}},\gamma
+\right),
+\]
+with $\mathcal{N}=B\cup R$.
+
+At each simulator tick $t$, agent $i$ receives a local observation
+$o_{i,t}\sim O_i(\cdot\mid s_t)$ and may request a temporally extended
+\emph{macro-action} together with a target. The macro vocabulary is
+$\{\texttt{GO\_TO},\texttt{GRAB\_MINE},\texttt{GET\_FLAG},\texttt{PLACE\_MINE},\texttt{GO\_HOME}\}$.
+For reproducibility, the joint action is represented as
+$\mathrm{MultiDiscrete}([5,50,5,50])$ (per agent: a $5$-way macro and a
+$50$-way target). The joint action induces $s_{t+1}\sim P(\cdot\mid s_t,a_t)$.
+
+Each team's flag is anchored at its home base; a carrier that returns the enemy
+flag alive scores a capture. Mines are stationary hazards that create
+area-denial and ambush dynamics.
+
+\subsection{Asynchronous macro-action decision points}
+
+An accepted macro-action is held for a macro-specific number of ticks before the
+agent may choose a new one
+($\texttt{GO\_TO}=4$, $\texttt{GRAB\_MINE}=3$, $\texttt{GET\_FLAG}=4$,
+$\texttt{PLACE\_MINE}=2$, $\texttt{GO\_HOME}=4$). Agent $i$ carries a countdown
+$c_{i,t}$; a newly requested macro is accepted only when
+\[
+d_t^i=\mathbb{I}\!\left[c_{i,t}\le 0\right].
+\]
+When $d_t^i=0$, the legal-action mask collapses to the already-committed macro,
+so the network output is not an executable decision. Because hold lengths differ
+by macro and agents commit independently, decision boundaries are asynchronous.
+For policy evaluation and supervision, the task is therefore better viewed as a
+semi-Markov decision process over commitment decisions than as a flat per-tick
+Markov decision process.
+
+\subsection{Opponent regimes}
+
+Red is drawn from one of two scripted defensive philosophies that we call
+\emph{opponent regimes}:
+\begin{itemize}
+  \item \textbf{Opponent Regime~A:} broad / passive zone defense.
+  \item \textbf{Opponent Regime~B:} compact / reactive defense.
+\end{itemize}
+The two regimes are designed to elicit contrasting strategic responses from
+Blue rather than represent two difficulty levels of the same opponent behavior.
+Implementation identifiers used for reproducibility (configuration overlay
+\textbf{OP6} for Regime~A; canonical \textbf{OP7} for Regime~B), together with
+frozen behavior-tree parameters such as
+$\texttt{defender\_zone\_frac}$ and $\texttt{threat\_radius}$, are recorded in
+the experiment configuration and are not repeated as conceptual labels in the
+main narrative.
+
+We do not assume a priori that the two regimes require different Blue
+strategies. An \emph{opponent-conditioned strategy-preference test} measures
+whether a GUARD-biased response is preferred over a BREACH-biased response under
+Regime~A, and the reverse contrast under Regime~B, with pass condition
+$\mathrm{LCB}_{95}>0$ on each contrast. This empirical test establishes whether
+the regimes induce complementary strategic demand. If one Blue policy were
+simply better against both regimes, a single shared behavior would be
+appropriate rather than a specialization problem.
+
+\subsection{Strategy-conditioned policies}
+
+Let $\pi_\theta(a\mid o,z)$ denote a shared multi-robot policy conditioned on a
+discrete \emph{strategy code} $z\in\{z_0,z_1\}$. The strategy code selects which
+opponent-conditioned behavior the shared policy should express. The intended
+deployment mapping is $z_0\mapsto\text{Regime~A}$ and $z_1\mapsto\text{Regime~B}$;
+once fixed, this assignment is never flipped. Let $V(z,p)$ denote the win rate
+when deploying with strategy code $z$ against opponent regime
+$p\in\{A,B\}$, estimated over a held-out seed block.
+
+Independently trained \emph{strategy-specific expert policies} $\pi_A$ and
+$\pi_B$ are the source behaviors: each is trained against one regime with no
+shared parameters and no strategy-code mechanism. Their bit-exact $z$-dispatch
+wrapper is Share-0 (Section~\ref{sec:sharing}). A single \emph{generalist}
+policy $\pi_G$ trained on the mixed opponent distribution without a strategy
+code provides a single-policy baseline.
+
+\subsection{Strategy-specialization criterion}
+\label{sec:specialization}
+
+We require more than behavioral diversity. For two strategy codes to represent
+meaningful specialization, each code must provide higher task success than the
+alternative code in its intended opponent regime. A policy is considered
+strategy-specialized only if each strategy code significantly outperforms the
+alternative code in the opponent regime for which it is intended.
+
+Formally, define
+\[
+\Delta_A = V(z_0,A)-V(z_1,A),
+\qquad
+\Delta_B = V(z_1,B)-V(z_0,B).
+\]
+The \emph{strategy-specialization criterion} (equivalently, the two-sided
+\emph{specialization crossover} pattern) requires
+\[
+\mathrm{LCB}_{95}(\Delta_A)>0
+\quad\wedge\quad
+\mathrm{LCB}_{95}(\Delta_B)>0,
+\]
+evaluated by a paired percentile bootstrap over the held-out seeds with
+$n_{\mathrm{boot}}=20{,}000$, $\alpha=0.05$, and the seed as the resampling
+unit. The binary win indicator is the primary outcome because it is the
+deployment quantity used by every specialization evaluation.
+
+Independent-expert specialization is reported on a held-out $64$-seed block.
+All parameter-sharing comparisons use the matched $128$-seed paired protocol of
+Section~\ref{sec:matched}.
+
+\subsection{Scope of claims}
+
+Primary claims apply to the nominal $2$-vs-$2$ environment, the two opponent
+regimes above, the specific training recipe, and the fixed evaluation
+implementation. Scaling to $4$-vs-$4$ and $6$-vs-$6$, and robustness
+perturbations such as localization noise, motion uncertainty, and control delay,
+are external-validity experiments. Until completed, they are not used as evidence
+for the primary sharing conclusions and are not used to select the primary
+architecture.
+
+%======================================================================

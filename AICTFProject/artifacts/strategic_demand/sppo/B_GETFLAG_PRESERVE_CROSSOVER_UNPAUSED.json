@@ -1,0 +1,35 @@
+{
+  "record_id": "B_GETFLAG_PRESERVE_CROSSOVER_UNPAUSED",
+  "status": "UNPAUSED_LIVE",
+  "utc": "2026-09-18T04:51:00Z",
+  "authority": "PI, 2026-09-18: explicit unpause after Assignment-v1 miss sealed.",
+  "supersedes": "B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json",
+
+  "BOXED_STATUS": "GETFLAG = MANIPULATION CONFIRMED / OUTCOME EVALUATION IN PROGRESS",
+
+  "resume": {
+    "instrument": "experiments/eval_specialist_crossover_scaled.py",
+    "label": "GETFLAG_PRESERVE_4V4",
+    "seeds": "19300001-19300064",
+    "n": 64,
+    "seed_block_status": "RESERVED_BUT_UNUSED reused as authorized (premature launch wrote no rows/RESULT)",
+    "pi_A": "artifacts/scale_4v4_specialists/pi_A_specialist_4v4_b3_entity_repair/ckpts/final_pi_A_specialist_4v4_b3_entity_repair.zip",
+    "pi_B": "artifacts/exploratory_scale_4v4_specialists/exploratory_pi_B_specialist_4v4_b3_entity_repair_getflag_preserve/ckpts/final_exploratory_pi_B_specialist_4v4_b3_entity_repair_getflag_preserve.zip",
+    "spec": "B_GETFLAG_PRESERVE_SPEC.json",
+    "screen_reference_delta_B": -0.046875,
+    "logs": [
+      "getflag_preserve_4v4_crossover.log",
+      "getflag_preserve_4v4_crossover.log.err"
+    ]
+  },
+
+  "isolation_rule": "Do not combine ASSIGNMENT or ROLE with GETFLAG. Single-axis outcome evaluation only.",
+
+  "may_not_call_until_RESULT_or_integrity_flag": [
+    "promising",
+    "failed",
+    "specialization repair",
+    "KILL THIS BRANCH"
+  ]
+}
+

@@ -1,0 +1,54 @@
+{
+  "record_id": "LEARNED_COMPOSITION_PROBE_STAGE2_CONTRACT_RESULT",
+  "utc": "2026-09-20T06:59:07Z",
+  "implements": "LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json",
+  "n_checks": 7,
+  "n_gating": 7,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_STAGE2_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "name": "C1_GATE_CONDITION_MET_AND_INSTRUMENTS_MATCH",
+      "gating": true,
+      "passed": true,
+      "detail": "confirmatory status=SEALED confirmed=['position_alt_window_5_15', 'intent_opening_window_0_10'] vs spec declares ['intent_opening_window_0_10', 'position_alt_window_5_15']"
+    },
+    {
+      "name": "C2_CALIBRATION_MAPPING_SOURCE_UNCHANGED_SINCE_SEALING",
+      "gating": true,
+      "passed": true,
+      "detail": "7961f885eb1d3fc703fe5ee4dc064dc8daf9f4540dca63b15051a41be16b18a5 vs pinned 7961f885eb1d3fc703fe5ee4dc064dc8daf9f4540dca63b15051a41be16b18a5"
+    },
+    {
+      "name": "C3_CHECKPOINTS_MATCH_THE_PINNED_HASHES",
+      "gating": true,
+      "passed": true,
+      "detail": "{'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'} vs pinned {'pi_A': '8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82', 'pi_B': 'd2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4'}"
+    },
+    {
+      "name": "C4_SEED_BLOCK_OWNED_AND_UNSPENT",
+      "gating": true,
+      "passed": true,
+      "detail": "already registered to LEARNED_COMPOSITION_PROBE (status RESERVED) -- same block, no conflict; registry status = RESERVED"
+    },
+    {
+      "name": "C5_PARITY_16_FULL_EPISODES_MATCH_SHARE0_AND_TRUNCATION_IS_EXACT",
+      "gating": true,
+      "passed": true,
+      "detail": "16/16 episodes reproduced the recorded outcome exactly; truncated run equals the first ticks of the full run"
+    },
+    {
+      "name": "C6_POLICY_PARAMETERS_UNCHANGED_BY_THE_PARITY_RUN",
+      "gating": true,
+      "passed": true,
+      "detail": "parameter digests equal before/after: True"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only, including a real parity run on 16 already-spent SHARE0 seeds. No seed from the 20700101-20700228 probe block was spent."
+}

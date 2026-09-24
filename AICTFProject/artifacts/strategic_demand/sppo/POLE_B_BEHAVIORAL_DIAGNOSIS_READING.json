@@ -1,0 +1,67 @@
+{
+  "record_id": "POLE_B_BEHAVIORAL_DIAGNOSIS_READING",
+  "status": "READING_FROZEN",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-16T06:20:00Z",
+  "rests_on": "POLE_B_BEHAVIORAL_DIAGNOSIS_RESULT.json (all 4 contracts + both Rule-14 pole attestations passed; scoring bug found and fixed before this run -- see POLE_B_BEHAVIORAL_DIAGNOSIS_SCORING_BUG_FIX note in the script)",
+
+  "HEADLINE": "A single, convergent behavioural signature explains the outcome: across A3 -> B100k -> Bfinal, the policy moves away from the direct GET_FLAG macro toward the waypoint-based GO_TO macro, attacks less, carries the flag less, and thrashes between macros more -- and this shift is NOT specific to Pole B. It appears on Pole A too, where it costs B100k->Bfinal far more win rate (0.78->0.53) than it costs on Pole B (0.56->0.56, though score margins collapse there as well, 1.34->0.72). This reframes the question from 'why is Pole B hard for B' toward 'why did B's own training drift this way, on both poles'.",
+
+  "WIN_RATES_n32_exploratory_NOT_A_GATE": {
+    "PoleB": {"A3": 0.6875, "B100k": 0.5625, "Bfinal": 0.5625},
+    "PoleA": {"A3": 0.75, "B100k": 0.78125, "Bfinal": 0.53125},
+    "note": "B100k actually wins Pole A MORE OFTEN than A3 does (0.78 vs 0.75). B100k is a strong generalist, not a nascent B specialist -- consistent with the earlier confirmatory rejection of t100k as a candidate."
+  },
+
+  "THE_CONVERGENT_SIGNATURE": {
+    "macro_fraction_GET_FLAG_vs_GO_TO": {
+      "PoleB": {"A3": {"GET_FLAG": 0.656, "GO_TO": 0.286}, "B100k": {"GET_FLAG": 0.520, "GO_TO": 0.420}, "Bfinal": {"GET_FLAG": 0.440, "GO_TO": 0.539}},
+      "PoleA": {"A3": {"GET_FLAG": 0.574, "GO_TO": 0.388}, "B100k": {"GET_FLAG": 0.394, "GO_TO": 0.491}, "Bfinal": {"GET_FLAG": 0.344, "GO_TO": 0.636}},
+      "reading": "monotonic on BOTH poles across A3->B100k->Bfinal: GET_FLAG (the semantic macro that bypasses the waypoint vocabulary and heads straight for the exact flag position) steadily gives way to GO_TO (discretized 50-waypoint navigation). This is the single largest, cleanest, most consistent behavioural trend in the whole dataset."
+    },
+    "aggression_and_outcome_on_Pole_B": {
+      "n_attackers": {"A3": 2.083, "B100k": 1.873, "Bfinal": 1.366},
+      "any_carrying_fraction": {"A3": 0.606, "B100k": 0.586, "Bfinal": 0.401},
+      "mean_d_enemy_flag": {"A3": 5.065, "B100k": 5.375, "Bfinal": 6.736},
+      "blue_score_mean": {"A3": 1.75, "B100k": 1.344, "Bfinal": 0.719},
+      "reading": "all four move together and monotonically: fewer agents near the enemy flag, less time spent carrying it, agents staying farther from it on average, and a proportional collapse in mean score. The carrying-frequency drop (0.606->0.401) is the most direct behavioural correlate of the score decline, since carrying is a prerequisite for scoring."
+    },
+    "commitment": {
+      "macro_switch_rate_PoleB": {"A3": 0.106, "B100k": 0.149, "Bfinal": 0.197},
+      "reading": "Bfinal switches macros nearly TWICE as often per step as A3 -- less commitment, more thrashing. Notably this is NOT explained by collapsed role differentiation: Bfinal's command degeneracy is LOWER, not higher (all_identical_cmd 0.064->0.047->0.014, distinct_cmds 2.79->3.02->3.28) -- Bfinal issues MORE varied per-agent commands, not fewer. So this is not 'B lost the ability to allocate distinct roles'; if anything it allocates more distinct ones, less stably."
+    },
+    "2v1_support_on_Pole_B_the_mechanic_this_pole_was_built_around": {
+      "n_pressured": {"A3": 1.045, "B100k": 0.968, "Bfinal": 0.885},
+      "mean_support_dist_when_pressured": {"A3": 2.430, "B100k": 2.716, "Bfinal": 3.144},
+      "reading": "Bfinal's more conservative, less-attacking posture means its agents get double-teamed somewhat LESS often -- but when they do, the nearest teammate is farther away (2.43 -> 3.14), i.e. slower/weaker support. A smaller, less coordinated response to the exact mechanic (enable_2v1) this pole exists to test."
+    }
+  },
+
+  "COUNTERFACTUAL_REPLAY_the_sharpest_single_result": {
+    "design": "Bfinal's own 3,772 agent-states from real Pole-B episodes, replayed through A3 and B100k -- same state, different policy, what macro would each choose?",
+    "A3_vs_Bfinal": {"macro_agreement": 0.791, "dominant_disagreement": "GO_TO -> GET_FLAG (688 of ~789 total disagreements, 87%)"},
+    "B100k_vs_Bfinal": {"macro_agreement": 0.815, "dominant_disagreement": "GO_TO -> GET_FLAG (517 of ~697), with a smaller reverse GET_FLAG -> GO_TO (156)"},
+    "reading": "this is not aggregate noise. In the SPECIFIC situations Bfinal actually reaches on Pole B, when A3 disagrees with Bfinal's choice, it overwhelmingly would have gone straight for the flag where Bfinal chose to navigate by waypoint instead. This directly corroborates the on-policy macro-fraction trend using a controlled, matched-state design that removes the confound of the two policies simply visiting different states."
+  },
+
+  "THE_REFRAME_state_plainly": {
+    "original_question": "why does Pole B specifically defeat a policy trained directly against it?",
+    "what_this_diagnosis_actually_found": "the GET_FLAG-to-GO_TO drift, the reduced aggression, and the increased macro-switching all appear on POLE A TOO across B100k->Bfinal -- and cost B100k->Bfinal FAR more win rate there (0.78->0.53, a 0.25 drop) than on Pole B (0.56->0.56 nominally flat, though blue_score nearly halves). This is evidence the dominant effect is a property of B's OWN CONTINUED TRAINING -- a general behavioural drift away from direct, aggressive flag-seeking -- rather than something Pole B's specific mechanics (lock_defender, enable_2v1) uniquely provoke.",
+    "what_this_does_and_does_not_resolve": "it does NOT explain why A3's training did not suffer the same drift (A3's own intermediate checkpoints were never examined here -- this diagnosis has no A-side time machine, only a B-side one). It DOES redirect the likely next question from 'what does Pole B require that B never learned' toward 'why did continued PPO training on this recipe erode direct, aggressive flag-seeking behaviour, on both poles, for the B run specifically'."
+  },
+
+  "WHAT_THIS_READING_MAY_NOT_CLAIM": [
+    "any win-rate or gate result -- n=32, exploratory, no delta computed",
+    "that training CAUSED or DESTROYED this behaviour rather than merely correlating with its absence -- B100k is one intermediate point; a trajectory of behavioural snapshots (not just two win-rate trajectories) would be needed to claim a causal timeline",
+    "anything about why A3's OWN training did not drift the same way -- not measured",
+    "anything about 6v6 or 2v2",
+    "that the GET_FLAG-vs-GO_TO shift is THE mechanism rather than a highly correlated marker of it -- an intervention experiment (e.g. penalizing GO_TO reliance, or KL-anchoring to B100k's macro distribution) would be needed to test causality"
+  ],
+
+  "CANDIDATE_NEXT_EXPERIMENTS_NOT_YET_AUTHORIZED": [
+    "run the SAME behavioural instrument on A3's own intermediate training checkpoints (if saved) to check whether A3's training shows the same GET_FLAG->GO_TO drift and simply recovers or never drifts, versus B's -- this would directly test the reframed hypothesis",
+    "an intervention run: continue training from B100k with an auxiliary term encouraging GET_FLAG usage / penalizing macro-switch rate, and check whether that alone recovers Pole-B performance without any architecture change",
+    "extend the trajectory (already available at 100k granularity) with THIS SAME behavioural instrument at every checkpoint, not just three points, to see whether the drift is gradual or has a sharper onset"
+  ]
+}

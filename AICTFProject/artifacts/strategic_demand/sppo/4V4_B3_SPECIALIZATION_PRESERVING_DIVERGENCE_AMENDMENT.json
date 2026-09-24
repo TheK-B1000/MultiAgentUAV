@@ -1,0 +1,36 @@
+{
+  "record_id": "4V4_B3_SPECIALIZATION_PRESERVING_DIVERGENCE_AMENDMENT",
+  "status": "FROZEN_BEFORE_TRAINING",
+  "utc": "2026-09-10T18:50:00Z",
+  "amends": "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json#SINGLE_AXIS_INTERVENTION",
+
+  "AUTHORITY": "PI, 2026-09-10: 'Separation metric: use the existing in-repo JSD machinery if it is already tested and stable. That is preferable to inventing a new divergence implementation under deadline.'",
+
+  "CHANGE": {
+    "from": "L_sep = -clip(KL(pi_i || stopgrad(pi_sib)), max=2.0 nats), hand-rolled per-head KL written for this SPEC",
+    "to": "L_sep = -JSD(pi_i, stopgrad(pi_sib)) using rl/teacher_distillation.py::jsd_per_head over rl/custom_ppo/strategy_anchor.py::_masked_heads, averaged by rl/teacher_distillation.py::masked_mean over decision-eligible agent-heads (rl/custom_ppo/exp2_teacher_compression.py::decision_eligible_agents)",
+    "config_field_removed": "sibling_sep_kl_clip (obsolete: JSD is bounded by ln 2 = 0.6931 nats, so no ad-hoc clip is needed)"
+  },
+
+  "WHY": [
+    "jsd_per_head is pre-existing, in-repo, and already used on the distillation fidelity path -- not a new divergence implementation authored under deadline",
+    "JSD is symmetric and bounded in [0, ln 2], so the separation term cannot dominate the PPO surrogate through an unbounded tail; the arbitrary 2.0-nat clip disappears rather than becoming a second untested hyperparameter",
+    "head_logits applies the SAME legality masking PPO's own update evaluates, so separation pressure acts on the distribution PPO optimizes rather than an unmasked surrogate",
+    "masked_mean restricts numerator and denominator to decision-eligible agent-heads (blue_commit_ticks_left <= 0), matching the disagreement mask's own decision-point definition"
+  ],
+
+  "UNCHANGED_BY_THIS_AMENDMENT": {
+    "poles": "B3-3 unchanged",
+    "lambda": 0.05,
+    "cadence": "1 separation step per 4 completed PPO actor minibatches, separate zero_grad/backward/step",
+    "sibling_source": "frozen opposite-pole VANILLA B3 final, stop-grad",
+    "mask": "prospectively fixed GUARD/BREACH scripted disagreement states; NOT derived from the new learned policies",
+    "checkpoint_rule": "terminal 1M",
+    "seeds": "pi_A_sep 16900001, pi_B_sep 17000001, sealed crossover 17200001..17200128",
+    "gate": "LCB95(delta_A) > 0 AND LCB95(delta_B) > 0"
+  },
+
+  "TIMING_INTEGRITY": "No training seed and no sealed crossover seed had been spent when this amendment was written. The disagreement-dataset collection (16810001..16810064) was in progress; that block carries no policy gradient and no gate outcome, so the divergence definition was still prospective.",
+
+  "FAILURE_POLICY_RESTATED": "A FAIL remains a FAIL. lambda, mask definition, divergence, and checkpoint rule may not be revised in response to the sealed crossover outcome."
+}

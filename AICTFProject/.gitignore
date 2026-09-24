@@ -41,3 +41,7 @@ artifacts/scale_*/smoke_scale_*/
 
 # NON-SCIENTIFIC train_specialist_scale smoke/dry-run output (99_9xx_xxx seeds).
 artifacts/scale_*_specialists/smoke_*/
+
+# Crash-recovery resume files written by long confirmatory runs. Redundant with the
+# episodes CSV once a run seals; not part of the scientific record.
+*_PARTIAL.jsonl

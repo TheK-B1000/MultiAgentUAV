@@ -1,0 +1,60 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT",
+  "status": "SUSPENDED_SUPERSEDED_BY_ASYMMETRIC_B_TRIGGER",
+  "utc": "2026-09-18T22:40:00Z",
+  "suspended_utc": "2026-09-18T21:15:00Z",
+  "amends": "COMPOSITION_SELECTOR_ONLINE_CALIBRATION_AMENDMENT.json",
+  "authorized_by": "PI direction: one bounded two-feature calibration attempt, no third-feature safari",
+  "suspension": {
+    "reason": "PI reframed A as guardrail and B as repair target. This amendment still optimizes symmetric dominant-composition accuracy toward a dual-gain / large-n outcome. Execution is suspended pending an explicit later freeze if a two-feature attempt is re-authorized under COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json.",
+    "superseded_by": "COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json",
+    "reading": "COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING.json"
+  },
+
+  "WHY_A_SECOND_FEATURE_AND_NOT_MORE_TUNING": {
+    "diagnosis": "The single-feature (P_blue) online calibration grid was nearly flat for W>=20 (50/64 configs within the 2pp tie band) and held-out dominant-composition accuracy was 65.6%. That shape means window/hysteresis/dwell are not the bottleneck; the feature itself carries limited moment-to-moment signal online even though its full-episode average separated poles well (15.6% error).",
+    "mechanistic_motivation": "The controller read that produced P_blue only used half of the documented asymmetry: OP6's threat_radius=0.0 dual-lane rush ON BLUE'S FLAG. The other half, never yet measured, is OP7+B3-3's tight fortress occupancy on RED'S OWN FLAG (defender_zone_frac 0.05 vs OP6's 0.35) plus its reactive enable_2v1 behavior. A contrast between forward pressure and home occupancy is a more complete read of the same documented mechanism, not a new guess.",
+    "legality_verified": "gpu_env/_core/_rules.py::_build_targets_from_action already reads side_t['enemy_flag'] (Red's own flag position, from Blue's perspective) to resolve Blue's own GET_FLAG macro. It is exactly as observable as the enemy positions used for P_blue -- not privileged state."
+  },
+
+  "THE_SECOND_FEATURE": {
+    "P_red_t": "count of live Red agents within radius r_red of Red's own flag position (structurally identical to P_blue, mirrored)",
+    "r_red_selection": "NOT assumed equal to r_blue=4.0. Re-run the exact same full-episode radius-selection procedure (minimize pooled misclassification, radii {4,6,8,10}) independently for P_red, on the SAME 32 calibration episodes already collected -- no new episodes needed for this step, since both P_blue and P_red are computable from the same recorded state.",
+    "combined_statistic": "D_t = P_blue_t(r_blue*=4.0) - P_red_t(r_red*), where r_red* is whatever the re-run selects",
+    "interpretation": "D > 0: opponent committing forward relative to its own defense -> defend more (2A_2D). D < 0: opponent turtling -> attack more (4A_0D). This is the PI's predeclared reading, not fit after seeing outcomes.",
+    "not_done": "no 2-D joint classifier, no learned weighting between P_blue and P_red. The contrast is the one predeclared combination rule; if it fails, the branch stops rather than trying a weighted or learned combination."
+  },
+
+  "PROCEDURE": {
+    "step_1": "Recompute P_red at all four radii on the existing 32 calibration episodes (99900101-99900116, both poles, fixed 2A_2D) -- outcome-blind, reusing already-collected episodes, no new smoke seeds needed for this step.",
+    "step_2": "Select r_red* by minimize-pooled-misclassification on full-episode P_red averages, identical criterion to the original r_blue selection.",
+    "step_3": "Form D_t = P_blue_t(4.0) - P_red_t(r_red*) for every tick of every calibration episode already in hand.",
+    "step_4": "Re-run the EXACT frozen calibration grid from COMPOSITION_SELECTOR_ONLINE_CALIBRATION_AMENDMENT.json (window {20,40,60,80}, hysteresis {0,0.05,0.10,0.15}, dwell {4,10,20,40}, same tie-break order) on D_t in place of the raw P_blue windowed statistic. Nothing about the grid, tie-break, or dwell-4-alignment-to-macro-horizon changes.",
+    "step_5": "Validate the selected configuration on a FRESH held-out smoke block, seeds 99900301-99900316 (disjoint from both prior blocks: 99900101-116 calibration, 99900201-216 first held-out set), both poles.",
+    "step_6": "Compare held-out dominant-composition accuracy against the frozen kill threshold below. Report and stop -- no further feature iteration regardless of outcome."
+  },
+
+  "PREDECLARED_KILL_RULE": {
+    "threshold": "held-out dominant-composition accuracy >= 0.80 (equivalently, per-episode dominant-composition error <= 0.20)",
+    "derivation_of_this_number_not_arbitrary": "The downstream consequence that matters is the outcome-experiment sample size. Using expected_gain = (1-e)*oracle_gain and required_n_zero_crossing = 64/(1-e)^2 (the same relation used to project n=148 at the current e=0.344): solving for the error rate that brings Pole A's zero-crossing n down to ~100 -- a scale comparable to the already-spent 64-seed oracle test and clearly fundable -- gives (1-e) >= sqrt(64/100) = 0.80, i.e. e <= 0.20, i.e. accuracy >= 0.80. Below this, the projected outcome-arm cost stays in the hundreds-of-seeds range for a diluted confirmation of an already-known oracle effect, which is exactly the poor use of budget the PI flagged for Option 1.",
+    "PASS": "accuracy >= 0.80 on the held-out 99900301-316 block. Recompute expected gains and required n from the real held-out error (not assumed), then bring a fresh go/no-go on the 4v4 outcome experiment. The two-feature configuration itself is NOT retuned further -- one shot, as specified.",
+    "FAIL": "accuracy < 0.80. Stop the selector branch entirely. Report: composition is a strong lever when the regime label is known (oracle), and a legally-observable two-feature contrast built directly from the documented controller mechanism does not recover enough online signal to justify a state-conditioned outcome experiment at a practical seed budget. This is the finding, not a placeholder for a third feature.",
+    "no_further_tuning_either_way": "This amendment authorizes exactly one two-feature calibration pass. It does not authorize a third feature, a learned combination, or retuning D_t's window/hysteresis/dwell beyond the one frozen grid re-run."
+  },
+
+  "OUTCOME_BLIND_ENFORCEMENT": "Unchanged from the parent amendment: no score, win, reward, return, or draw field is read, computed, printed, or serialized in any step above.",
+
+  "SEED_ACCOUNTING": {
+    "reused_no_new_episodes": "99900101-99900116 (calibration, both poles) -- P_red recomputed from already-collected state, no re-simulation needed if raw per-tick state was retained; otherwise the identical 32 episodes are re-run deterministically",
+    "fresh_smoke_for_this_amendments_holdout": "99900301-99900316, both poles -- disjoint from both prior smoke blocks",
+    "registry": "smoke family, no Rule-9 registry interaction, per experiments/seed_registry.py"
+  },
+
+  "NOT_AUTHORIZED": [
+    "a third feature or any feature beyond D_t",
+    "a learned or weighted combination of P_blue and P_red",
+    "retuning window/hysteresis/dwell beyond the one frozen grid re-run",
+    "any outcome episode",
+    "reading score/win/reward/return anywhere in this amendment's steps"
+  ]
+}

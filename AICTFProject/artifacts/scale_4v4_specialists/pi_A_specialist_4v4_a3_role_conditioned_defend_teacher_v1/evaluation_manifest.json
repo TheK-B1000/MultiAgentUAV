@@ -1,0 +1,18 @@
+{
+  "utc_timestamp": "2026-09-22T12:16:35.438883Z",
+  "evaluation_run_id": "pi_A_specialist_4v4_a3_role_conditioned_defend_teacher_v1",
+  "source_training_run_id": "pi_A_specialist_4v4_a3_role_conditioned_defend_teacher_v1",
+  "source_checkpoint_fingerprint": "e74adf1a904f72e183824eb1a29608a2fa98f5153abfc09610087b61b3f92b28",
+  "source_checkpoint_ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+  "checkpoint_lineage_complete": true,
+  "scope": "in_training",
+  "artifact_identity": {
+    "run_id": "pi_A_specialist_4v4_a3_role_conditioned_defend_teacher_v1",
+    "canonical_map": "map_a",
+    "resolved_map": "map_a_open",
+    "ruleset_id": "RULESET_V3_M1_OWN_FLAG_HOME",
+    "ruleset_fingerprint": "73b77ac3a0efb2c33a4498544c96bb702a656cbbfe17af18ec859c6d6b4c2142",
+    "formal_result_eligible": true,
+    "identity_override_used": false
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "record_id": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_DESIGN_NO_EXECUTION",
+  "utc": "2026-09-18T14:15:01Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "classification": "EXPLORATORY_MECHANISTIC_DIAGNOSTIC",
+
+  "RESEARCH_QUESTION": "On outcome-blind scripted intent traces from the certified Pole-B setup, which incremental part of the current action interface becomes more restrictive from 2v2 to 4v4, and is the extra restriction concentrated on the BREACH behavior that defines the useful side of Pole B?",
+
+  "SCIENTIFIC_DELTA": "This diagnostic measures per-step representational and temporal distortion. It does not test win rate, train PPO, choose an adapter, or repeat the earlier GUARD-at-Pole-A outcome decomposition.",
+
+  "PRIOR_EVIDENCE_AND_NON_DUPLICATION": {
+    "ACTION_INTERFACE_DECOMP": "The earlier 2v2/4v4 GUARD@A outcome study already measured W50/semantic projection, continuous-target commitment, and their full combination. At 4v4 it found L_S=0.00 and L_C=+0.7083. This established a real commitment effect for that cell but did not diagnose Pole B or per-step scale-conditioned distortion.",
+    "REPAIRED_GO_TO_H1": "Changing only macro_commit_go_to_ticks from 4 to 1 did not restore specialization. Commitment is therefore not an authorized B repair merely because this diagnostic may measure lag.",
+    "PROJECTION_DIVERGENCE_TRACE": "The existing 4v4 Pole-A trace measured blocked switches on 2.8 percent of BREACH ticks and 6.7 percent of GUARD ticks, plus carrier target substitution. It did not include a matched 2v2 trace or a Pole-B style-by-scale interaction.",
+    "PYQUATICUS_PORT": "The outcome-blind G6 failure independently established that the current macro interface cannot represent several external target/speed intents. This diagnostic does not repair or reopen the Pyquaticus experiment.",
+    "A_FREEZE_RULE": "No A-specific work is authorized. The new primary contrast is Pole-B relevant and uses no A policy, training, or A outcome cell.",
+    "GETFLAG": "GETFLAG remains isolated and OFF. Its current repository reading is manipulation confirmed and specialization not demonstrated, not outcome unevaluated. No GETFLAG policy or preservation loss enters this diagnostic."
+  },
+
+  "SCOPE": {
+    "device": "cpu_only",
+    "scales": [2, 4],
+    "blue_scripted_styles": [
+      "BLUE_ONE_DEFENDER_V2",
+      "BLUE_BOTH_ATTACK_V2"
+    ],
+    "style_labels": {
+      "BLUE_ONE_DEFENDER_V2": "GUARD",
+      "BLUE_BOTH_ATTACK_V2": "BREACH"
+    },
+    "opponent": "Certified Pole B resolved and Rule-14 attested independently at each team size. At 2v2 this is the certified canonical Pole-B row; at 4v4 it is OP7 plus the certified B3-3 lock_defender=10, enable_2v1=true overlay.",
+    "scale_claim_limit": "Because the certified Pole-B opponent is itself team-size specific, 2v2 versus 4v4 is a scale-conditioned comparison in the actual benchmark, not a pure causal effect of changing N while holding every state and opponent action identical.",
+    "map": "map_a",
+    "horizon_ticks": 240,
+    "score_limit_for_trace_collection": 1000000,
+    "score_limit_reason": "Prevent score termination from changing trace exposure. Flag, capture, tag, and reset dynamics remain active. Score, reward, return, and win fields are not read or serialized.",
+    "domain_randomization": false,
+    "source_episodes": "One native scripted trace per scale x style x seed. I0-I3 are replayed from the same trace; they do not consume separate environment episodes.",
+    "not_in_scope": [
+      "PPO, BC, imitation, fine-tuning, or GPU execution",
+      "team win rate, score, reward, return, capture count, or crossover",
+      "Pyquaticus assignment evaluation or a G6 repair",
+      "adapter search or adapter selection",
+      "Pole A diagnostics",
+      "GETFLAG, Assignment-v1, ROLE, latent routing, or credit correction"
+    ]
+  },
+
+  "INTENT_TRACE_CONTRACT": {
+    "oracle_target": "At every simulator tick, capture the unprojected target returned by the existing native scripted Blue controller before teacher_action_adapter.adapt or any macro commitment is applied.",
+    "oracle_speed": "The native project scripted controller does not emit an independent speed command. I0-I2 therefore use the production Blue speed cap from the source trace. This diagnostic does not re-test Pyquaticus easy-mode 0.5-speed representability.",
+    "matched_context": "All replay arms receive the same source-trace exogenous context at each tick: flags, carrying, tagged/alive state, opponent geometry, home positions, and map. Shadow positions, headings, speeds, accepted targets, and commitment state remain arm-specific.",
+    "physics": "Use the production integration equations and dt. Do not substitute a point-mass approximation.",
+    "interpretation_limit": "Matched-context shadow replay identifies command-path distortion without outcome feedback. It does not establish what closed-loop game states each arm would visit."
+  },
+
+  "ARMS": {
+    "I0_CONTINUOUS_ORACLE": {
+      "target": "Current unprojected scripted target, refreshed every tick.",
+      "speed": "Source-trace production Blue speed cap.",
+      "commitment": "None.",
+      "semantic_macros": "None.",
+      "purpose": "Reference motion. The shadow replay must reproduce the native source trajectory within the frozen numerical tolerance."
+    },
+    "I1_W50_NO_COMMIT": {
+      "target": "Euclidean-nearest target in the production 5x10 W50 table, refreshed every tick. Ties resolve to the lowest target index.",
+      "speed": "Identical to I0.",
+      "commitment": "None.",
+      "semantic_macros": "None. This is a target-only counterfactual, not a legal student action.",
+      "purpose": "Isolate spatial target discretization."
+    },
+    "I2_W50_CURRENT_COMMIT": {
+      "target": "Same W50 target rule as I1, accepted only at a GO_TO decision boundary and held between boundaries.",
+      "speed": "Identical to I0 and I1.",
+      "commitment": "Production macro_commit_go_to_ticks=4 with the exact production off-by-one/boundary convention pinned by executable contracts.",
+      "semantic_macros": "None. GO_TO supplies only the current temporal schedule; semantic success/failure and target overrides remain disabled.",
+      "purpose": "Isolate commitment and temporal responsiveness after W50 discretization."
+    },
+    "I3_FULL_CURRENT_MACRO": {
+      "target": "Run experiments.teacher_action_adapter.adapt and the production five-macro target resolver, including W50 target indices where applicable.",
+      "speed": "Production macro execution speed behavior.",
+      "commitment": "Production per-macro horizons: GO_TO=4, GRAB_MINE=3, GET_FLAG=4, PLACE_MINE=2, GO_HOME=4, including the production boundary/update convention.",
+      "semantic_macros": "Production success/failure behavior, carrying forced-home substitution, tagged redirect, and all other current action-path overrides.",
+      "purpose": "Measure the remaining full macro-execution contract after W50 plus GO_TO commitment."
+    }
+  },
+
+  "IDENTIFIABLE_INCREMENTAL_CONTRASTS": {
+    "C_spatial": "E_v(I1) - E_v(I0)",
+    "C_commit": "E_v(I2) - E_v(I1)",
+    "C_macro_residual": "E_v(I3) - E_v(I2)",
+    "important_label_rule": "I2 to I3 is not called pure macro-semantic cost. It is the residual full macro-execution cost and may contain semantic target substitution, macro-specific horizons/termination, tagged or carrier overrides, and speed behavior. If it binds, a later outcome-blind subdecomposition must localize those subcomponents before a repair is selected."
+  },
+
+  "MEASUREMENTS": {
+    "primary_error": {
+      "name": "E_v",
+      "definition": "Per-agent per-tick norm of shadow velocity minus I0 velocity, divided by max_speed_cps. Average first over live ticks per agent, then agents per episode, so 4v4 does not receive double the weight of 2v2.",
+      "units": "fraction_of_max_speed"
+    },
+    "trajectory_error": {
+      "name": "E_x",
+      "definition": "Per-agent trajectory RMSE in cells from the I0 shadow path, plus p50, p90, p95, and max. Aggregate agent then episode."
+    },
+    "target_error": {
+      "definition": "Effective-target endpoint distance and desired-versus-effective direction angle. Report separately for non-carrying, carrying, tagged, and dead/reset ticks."
+    },
+    "switch_event": {
+      "definition": "A new desired-target request occurs when the I0 desired bearing changes by at least 15 degrees or the desired target moves by at least 1.0 cell since the previous tick.",
+      "adoption": "An arm adopts the request when its effective target bearing is within 15 degrees of the current I0 desired bearing.",
+      "decision_lag_ticks": "Ticks from request to adoption. Censor at the next request or trace end and report the censored fraction.",
+      "blocked_switch": "A request not adopted on its request tick.",
+      "stale_target_tick": "The arm is executing a previously accepted target and its effective bearing differs from current desired bearing by at least 15 degrees."
+    },
+    "macro_residual_attribution": [
+      "adapted and committed macro and target index",
+      "commit ticks remaining and boundary flag",
+      "carrying forced-home substitution flag",
+      "tagged redirect flag",
+      "macro success/failure/termination transition",
+      "effective speed-cap difference from I2",
+      "effective target difference from I2"
+    ],
+    "forbidden_columns": [
+      "blue_score",
+      "red_score",
+      "win",
+      "reward",
+      "return",
+      "value",
+      "advantage"
+    ]
+  },
+
+  "PRIMARY_ANALYSIS": {
+    "component_costs": "For each seed, scale, and style, compute C_spatial, C_commit, and C_macro_residual from E_v.",
+    "scale_interaction": "S_k = mean_style(C_k[4v4,style]) - mean_style(C_k[2v2,style]), with GUARD and BREACH equally weighted.",
+    "B_relevant_style_by_scale_interaction": "J_k = (C_k[4v4,BREACH] - C_k[4v4,GUARD]) - (C_k[2v2,BREACH] - C_k[2v2,GUARD]). This is primary for deciding whether an interface component can explain the Pole-B specialization failure rather than merely imposing a general cost.",
+    "resampling_unit": "seed",
+    "bootstrap": {
+      "method": "paired percentile bootstrap over seeds",
+      "n_boot": 20000,
+      "alpha": 0.05,
+      "rng_seed": 7
+    },
+    "reporting": "Report point estimate and 95 percent interval for every C_k, S_k, and J_k. Agent-ticks are telemetry, never independent bootstrap samples. No p-values."
+  },
+
+  "MECHANISM_SUPPORT_REQUIREMENTS": {
+    "spatial": "C_spatial must be accompanied by W50 endpoint or direction error. A velocity difference without the expected projection error is an integrity failure.",
+    "commitment": "C_commit must be accompanied by excess blocked-switch fraction, stale-target occupancy, or decision lag in I2 relative to I1.",
+    "macro_residual": "C_macro_residual must be accompanied by a named production execution event such as semantic target substitution, macro-specific holding/termination, carrier/tag override, or speed-cap change. Otherwise it remains UNLOCALIZED_RESIDUAL."
+  },
+
+  "DECISION_RULE": {
+    "material_4v4_breach_burden": "C_k[4v4,BREACH] >= 0.10 in normalized E_v. A 0.10 threshold is one tenth of max-speed vector error per tick and is frozen as the minimum intervention-worthy trace burden.",
+    "B_RELEVANT_SCALE_BINDER_CANDIDATE": "LCB95(J_k) > 0, the material 4v4 BREACH burden is met, and the component-specific mechanism support requirement passes.",
+    "GENERAL_INTERFACE_COST_ONLY": "S_k is positive with LCB95 above zero, but J_k does not clear zero or the 4v4 BREACH materiality threshold. This does not explain loss of Pole-B specialization and does not authorize B training.",
+    "NO_SCALE_LOCALIZATION": "No component satisfies the B-relevant rule. Demote action abstraction as the next B repair target.",
+    "MULTIPLE_COMPONENTS": "If more than one component satisfies the rule, do not choose by win rate or by the largest noisy point estimate. Freeze separate outcome-blind component interventions or a factorial contract before any training.",
+    "COMMITMENT_NEXT": "Only a B-relevant commitment result may motivate a fresh paper-only commitment intervention spec. It does not itself authorize fresh B training, especially because the prior h=1 repair failed.",
+    "MACRO_NEXT": "A B-relevant residual macro result requires an outcome-blind speed/target-override/termination subdecomposition before selecting a semantic repair.",
+    "SPATIAL_NEXT": "A B-relevant spatial result may motivate one pre-specified representation intervention. Do not reopen broad waypoint search."
+  },
+
+  "CONTRACT_GATES_BEFORE_ANY_SOURCE_EPISODE": {
+    "G0_PRIOR_ARTIFACT_PROTECTION": "Runner refuses to overwrite or reinterpret ACTION_INTERFACE_DECOMP, PROJECTION_DIVERGENCE_TRACE, REPAIRED_GO_TO_H1, or Pyquaticus artifacts.",
+    "G1_SOURCE_INTENT": "Controlled states prove the logged target is captured before adapter projection, commitment, carrying substitution, and tagged redirect.",
+    "G2_I0_FIDELITY": "Production-physics I0 replay matches the source native scripted path with trajectory RMSE <= 1e-5 cells and velocity RMSE <= 1e-5 cps on deterministic contract traces.",
+    "G3_I1_ISOLATION": "Every I1 target is the deterministic nearest W50 point; it refreshes every tick; speed and every non-target input equal I0; no macro override or commitment can fire.",
+    "G4_I2_ISOLATION": "I2 equals I1 at each decision boundary and differs only by the exact GO_TO=4 hold schedule between boundaries. Tests include an alternating inward/outward target stream.",
+    "G5_I3_PRODUCTION_PARITY": "On fixed carrying, non-carrying, tagged, reset, GET_FLAG, GO_HOME, and GO_TO fixtures, I3 accepted actions, targets, commitment counters, and effective motion match the production macro path tick for tick.",
+    "G6_SCALE_NEUTRAL_INTEGRITY": "A duplicated synthetic intent stream gives equal per-agent error at N=2 and N=4 within 1e-6. Failure indicates tensor-size or aggregation leakage, not a scale effect.",
+    "G7_OUTCOME_BLIND_SCHEMA": "The row writer and result schema reject every forbidden outcome/learning column. Console output must not print score, win, reward, or return.",
+    "G8_TRACE_COMPLETENESS": "Each source trace records exactly 240 ticks for every active agent, all four replay arms consume the same trace hash, and per-arm row counts match before analysis.",
+    "FAILURE_RULE": "Any failed gate stops execution. Emit ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json with FAIL and do not allocate or spend exploratory seeds."
+  },
+
+  "SAMPLING": {
+    "n_seeds": 16,
+    "seed_class": "exploratory",
+    "allocation": "After the runner and G0-G8 contract suite pass, reserve the next free 16-seed block using experiments/seed_registry.py allocate ACTION_INTERFACE_SCALE_DIAGNOSTIC 16 --class exploratory with no manual --lo override. The exact block is intentionally not selected during the paper-only freeze, so no seed is consumed before executable contracts exist and operator seed choice is impossible.",
+    "pairing": "Use the same numeric seed list for both scales and both styles. Pair every I0-I3 replay within the same source trace."
+  },
+
+  "FROZEN_OUTPUTS": {
+    "contract_result": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_CONTRACT_RESULT.json",
+    "trace_manifest": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_TRACE_MANIFEST.json",
+    "agent_tick_rows": "action_interface_scale_diagnostic_agent_tick_rows.csv",
+    "episode_rows": "action_interface_scale_diagnostic_episode_rows.csv",
+    "result": "ACTION_INTERFACE_SCALE_DIAGNOSTIC_RESULT.json",
+    "run_lock": "ACTION_INTERFACE_SCALE_DIAGNOSTIC.run.lock",
+    "refuse_if_result_exists": true
+  },
+
+  "ISOLATION": {
+    "PPO": "OFF",
+    "GPU": "OFF",
+    "GETFLAG": "OFF",
+    "Assignment_v1": "OFF",
+    "ROLE_bit": "OFF",
+    "credit_correction": "OFF",
+    "Pyquaticus_controller": "OFF",
+    "Heuristic_CTF_Agent": "EXCLUDED",
+    "team_outcome_evaluation": "OFF"
+  },
+
+  "AUTHORIZED_NEXT_MILESTONE": "Implement only the source-trace collector, matched-context I0-I3 replay, G0-G8 executable contracts, and frozen schemas. Run contract fixtures on CPU. Do not launch the 64 source traces until the contract result is PASS and the exploratory seed block is reserved.",
+
+  "NOT_AUTHORIZED": [
+    "PPO, BC, continuation, or fresh specialist training",
+    "GPU use",
+    "4v4 crossover or team assignment evaluation",
+    "modifying production macro semantics",
+    "selecting an adapter from performance",
+    "combining GETFLAG, Assignment-v1, ROLE, Pyquaticus, or credit changes",
+    "claiming that action abstraction explains the 2-to-4 failure from a general S_k effect without the B-relevant J_k gate"
+  ]
+}

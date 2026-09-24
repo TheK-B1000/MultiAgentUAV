@@ -77,6 +77,7 @@ from rl.custom_ppo.return_normalization import (
 )
 from rl.custom_ppo.rollout.action_selection import tensor_obs_dict
 from rl.custom_ppo.rollout.bootstrap import global_state_rows_from_step_infos
+from rl.custom_ppo.split_attack_defend import defend_gated_sum, splice_actions
 from rl.custom_ppo.rollout.buffer_writer import RolloutStepRecorder, StepFrame
 from rl.custom_ppo.contract_specialists import contract_specialist_reward
 from rl.custom_ppo.rollout.episode_tracker import episode_scores_from_info
@@ -179,6 +180,145 @@ class RolloutCollector:
     def tensor_obs(self, obs: Dict[str, np.ndarray]) -> Dict[str, torch.Tensor]:
         return tensor_obs_dict(obs, device=self.device)
 
+    def _augment_obs_with_roles(
+        self, obs: Dict[str, np.ndarray], *, force: bool = False, advance_age: bool = True
+    ) -> Dict[str, np.ndarray]:
+        """Attach geometric roles when ``role_conditioning_enabled`` (fail-closed)."""
+        if not bool(getattr(self.model, "role_conditioning_enabled", False)):
+            return obs
+        from rl.custom_ppo.rule_role_assignment import (
+            RoleHoldState,
+            role_k_kwargs_from_cfg,
+            roles_from_core,
+        )
+
+        hold = getattr(self, "_role_hold", None)
+        if hold is None:
+            hold = RoleHoldState(
+                int(self.env.num_envs),
+                int(self.model.n_agents),
+                hold_ticks=int(getattr(self.cfg, "role_hold_ticks", 8) or 8),
+                fixed_for_episode=bool(getattr(self.cfg, "role_fixed_for_episode", False)),
+                device=self.device,
+                **role_k_kwargs_from_cfg(self.cfg),
+            )
+            self._role_hold = hold
+        roles = roles_from_core(self.env.core, hold, force=force, advance_age=advance_age)
+        out = dict(obs)
+        out["roles"] = roles.detach().cpu().numpy().astype(np.float32)
+        return out
+
+    def _augment_obs_with_assignment(
+        self, obs: Dict[str, np.ndarray], *, force: bool = False, advance_age: bool = True
+    ) -> Dict[str, np.ndarray]:
+        """Attach privileged assignment z_i when ``assignment_conditioning_enabled``."""
+        if not bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+            return obs
+        from rl.custom_ppo.guard_assignment import AssignmentHoldState, assignment_from_core
+
+        hold = getattr(self, "_assignment_hold", None)
+        if hold is None:
+            n_enemies = int(self.env.core.red_x.shape[1])
+            hold = AssignmentHoldState(
+                int(self.env.num_envs),
+                int(self.model.n_agents),
+                hold_ticks=int(getattr(self.cfg, "assignment_hold_ticks", 8) or 8),
+                n_enemies=n_enemies,
+                device=self.device,
+            )
+            self._assignment_hold = hold
+        assignment = assignment_from_core(
+            self.env.core, hold, force=force, advance_age=advance_age
+        )
+        out = dict(obs)
+        out["assignment"] = assignment.detach().cpu().numpy().astype(np.float32)
+        return out
+
+    def _augment_obs_with_defend_teacher(
+        self, obs: Dict[str, np.ndarray]
+    ) -> Dict[str, np.ndarray]:
+        """Attach the N'-port teacher waypoint target when ``defend_teacher_lambda > 0``.
+
+        DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC TEACHER_locked: computed
+        during rollout collection from the live, training-only-privileged
+        ``core`` state (exact own position, own flag position) -- this state
+        is not reconstructable from a shuffled PPO minibatch's ``obs_vec``
+        (clamped/lossy flag offset) or ``global_state`` (team-aggregate
+        only), so it must be captured here and threaded through the buffer.
+        """
+        if float(getattr(self.cfg, "defend_teacher_lambda", 0.0) or 0.0) <= 0.0:
+            return obs
+        if not bool(getattr(self.model, "role_conditioning_enabled", False)):
+            raise RuntimeError(
+                "defend_teacher_lambda > 0 requires role_conditioning_enabled=True "
+                "(DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC TEACHER_locked.applies_to)"
+            )
+        from rl.custom_ppo.defend_teacher import compute_defend_teacher_waypoints
+
+        waypoint = compute_defend_teacher_waypoints(self.env.core)
+        out = dict(obs)
+        out["defend_teacher_waypoint"] = waypoint.detach().cpu().numpy().astype(np.int64)
+        return out
+
+    def _augment_obs_with_privileged_conditioning(
+        self, obs: Dict[str, np.ndarray], *, force: bool = False, advance_age: bool = True
+    ) -> Dict[str, np.ndarray]:
+        obs = self._augment_obs_with_roles(obs, force=force, advance_age=advance_age)
+        obs = self._augment_obs_with_assignment(obs, force=force, advance_age=advance_age)
+        return self._augment_obs_with_defend_teacher(obs)
+
+    def _split_attack_defend_frozen_model(self):
+        """DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC: the frozen pi_A used for
+        ATTACK-role agent slots. Attached by
+        rl.training.orchestrator._maybe_attach_split_attack_defend before the
+        first rollout step; read at USE time, never cached at construction
+        (same seam discipline as every other runner in this trainer)."""
+        model = getattr(self.runtime, "split_attack_defend_frozen_model", None)
+        if model is None:
+            raise RuntimeError(
+                "split_attack_defend_enabled=True but runtime.split_attack_defend_frozen_model "
+                "is not attached -- _maybe_attach_split_attack_defend must run before the first "
+                "rollout step."
+            )
+        return model
+
+    def _splice_split_attack_defend_actions(
+        self,
+        obs_t: Dict[str, torch.Tensor],
+        context_state: torch.Tensor,
+        actions_t: torch.Tensor,
+        log_prob_per_agent: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Splice the trainable model's own DEFEND-slot actions with the
+        frozen model's ATTACK-slot actions BEFORE env.step -- never
+        overwritten after the fact, so every stored (action, log_prob) pair
+        always corresponds to the policy that actually produced it -- and
+        reduce the trainable model's per-agent log-prob to the DEFEND-only
+        scalar the split PPO loss trains on."""
+        frozen_model = self._split_attack_defend_frozen_model()
+        frozen_entity_kwargs: Dict[str, torch.Tensor] = {}
+        if getattr(frozen_model, "entity_encoder", None) is not None:
+            frozen_entity_kwargs = dict(
+                teammates=obs_t["teammates"], teammates_valid=obs_t["teammates_valid"],
+                enemies=obs_t["enemies"], enemies_valid=obs_t["enemies_valid"],
+            )
+        with torch.no_grad():
+            frozen_actions_t, *_ = frozen_model.act(
+                obs_t, context_state, z_idx=None, **frozen_entity_kwargs
+            )
+        roles_t = obs_t["roles"]
+        n_agents = int(self.model.n_agents)
+        if roles_t.dim() != 2 or int(roles_t.shape[1]) != n_agents:
+            raise ValueError(
+                f"split_attack_defend requires obs['roles'] shape (B, {n_agents}), "
+                f"got {tuple(roles_t.shape)}"
+            )
+        is_defend = roles_t < 0.5  # ROLE_DEFEND == 0, ROLE_ATTACK == 1
+        heads_per_agent = int(self.model.heads_per_agent)
+        actions_exec = splice_actions(actions_t, frozen_actions_t, is_defend, heads_per_agent)
+        defend_log_prob = defend_gated_sum(log_prob_per_agent, is_defend)
+        return actions_exec, defend_log_prob
+
     def on_sb3_rollout_env_step(self) -> None:
         p = self.runtime._sb3_rollout_pbar
         if p is None:
@@ -208,6 +348,25 @@ class RolloutCollector:
         buffer.register_field("obs_vec", tuple(obs["vec"].shape[1:]))
         buffer.register_field("obs_agent_mask", tuple(obs["agent_mask"].shape[1:]))
         buffer.register_field("obs_mask", tuple(obs["mask"].shape[1:]))
+        if getattr(self.model, "entity_encoder", None) is not None:
+            buffer.register_field("obs_teammates", tuple(obs["teammates"].shape[1:]))
+            buffer.register_field("obs_teammates_valid", tuple(obs["teammates_valid"].shape[1:]),
+                                  dtype=torch.bool)
+            buffer.register_field("obs_enemies", tuple(obs["enemies"].shape[1:]))
+            buffer.register_field("obs_enemies_valid", tuple(obs["enemies_valid"].shape[1:]),
+                                  dtype=torch.bool)
+        if bool(getattr(self.model, "role_conditioning_enabled", False)):
+            buffer.register_field("obs_roles", tuple(obs["roles"].shape[1:]))
+        if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+            buffer.register_field("obs_assignment", tuple(obs["assignment"].shape[1:]))
+        if float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0) > 0.0:
+            buffer.register_field(
+                "obs_defend_teacher_waypoint",
+                tuple(obs["defend_teacher_waypoint"].shape[1:]),
+                dtype=torch.long,
+            )
+        if bool(getattr(cfg, "split_attack_defend_enabled", False)):
+            buffer.register_field("defend_log_probs")
         buffer.register_field("global_state", (self.model.global_state_dim,))
         buffer.register_field("actions", (len(getattr(self.env.action_space, "nvec", [])),), dtype=torch.long)
         buffer.register_field("log_probs")
@@ -347,7 +506,33 @@ class RolloutCollector:
         )
         with torch.no_grad():
             if not self.hparams.use_latent_strategy:
-                return _denormalize_values(runtime, self.model.values(gs))
+                team_roles = None
+                team_assignment = None
+                if bool(getattr(self.model, "role_conditioning_enabled", False)):
+                    # Post-step geometry; do not consume an extra hold tick.
+                    synced = self._augment_obs_with_roles(
+                        next_obs if next_obs is not None else {},
+                        force=False,
+                        advance_age=False,
+                    )
+                    team_roles = torch.as_tensor(
+                        synced["roles"], dtype=torch.float32, device=device
+                    )
+                if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+                    synced_a = self._augment_obs_with_assignment(
+                        next_obs if next_obs is not None else {},
+                        force=False,
+                        advance_age=False,
+                    )
+                    team_assignment = torch.as_tensor(
+                        synced_a["assignment"], dtype=torch.float32, device=device
+                    )
+                return _denormalize_values(
+                    runtime,
+                    self.model.values(
+                        gs, team_roles=team_roles, team_assignment=team_assignment
+                    ),
+                )
 
             done_t = torch.as_tensor(dones, dtype=torch.bool, device=device) if dones is not None else None
             if self._is_v6i7_mode:
@@ -471,6 +656,10 @@ class RolloutCollector:
                 obs,
                 expected_grid_channels=int(self.model.grid_shape[0]),
             )
+        if getattr(self.model, "entity_encoder", None) is not None:
+            from gpu_env._core._entity_obs import augment_obs_with_entities
+            obs = augment_obs_with_entities(obs, self.env.core, side="blue")
+        obs = self._augment_obs_with_privileged_conditioning(obs, force=True)
         buffer = self.make_buffer(obs)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
@@ -673,6 +862,10 @@ class RolloutCollector:
                 obs,
                 expected_grid_channels=int(self.model.grid_shape[0]),
             )
+        if getattr(self.model, "entity_encoder", None) is not None:
+            from gpu_env._core._entity_obs import augment_obs_with_entities
+            obs = augment_obs_with_entities(obs, env.core, side="blue")
+        obs = self._augment_obs_with_privileged_conditioning(obs, force=False)
         obs_t = self.tensor_obs(obs)
         comm_boundary = (
             comm.current_boundary_mask()
@@ -711,9 +904,29 @@ class RolloutCollector:
                         boundary_mask=comm_boundary,
                         num_agents=int(self.model.n_agents),
                     )
-            actions_t, values_norm_t, log_probs_t, _ = self.model.act(
-                obs_t, context_state, z_idx=z_t
-            )
+            entity_act_kwargs: Dict[str, torch.Tensor] = {}
+            if getattr(self.model, "entity_encoder", None) is not None:
+                entity_act_kwargs = dict(
+                    teammates=obs_t["teammates"], teammates_valid=obs_t["teammates_valid"],
+                    enemies=obs_t["enemies"], enemies_valid=obs_t["enemies_valid"],
+                )
+            if bool(getattr(self.model, "role_conditioning_enabled", False)):
+                entity_act_kwargs["roles"] = obs_t["roles"]
+            if bool(getattr(self.model, "assignment_conditioning_enabled", False)):
+                entity_act_kwargs["assignment"] = obs_t["assignment"]
+            split_attack_defend = bool(getattr(self.cfg, "split_attack_defend_enabled", False))
+            defend_log_probs_t: Optional[torch.Tensor] = None
+            if split_attack_defend:
+                actions_t, values_norm_t, log_probs_t, _entropy_t, per_agent_aux = self.model.act(
+                    obs_t, context_state, z_idx=z_t, return_per_agent=True, **entity_act_kwargs
+                )
+                actions_t, defend_log_probs_t = self._splice_split_attack_defend_actions(
+                    obs_t, context_state, actions_t, per_agent_aux["log_prob_per_agent"],
+                )
+            else:
+                actions_t, values_norm_t, log_probs_t, _ = self.model.act(
+                    obs_t, context_state, z_idx=z_t, **entity_act_kwargs
+                )
             values_t = _denormalize_values(runtime, values_norm_t)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
@@ -745,6 +958,12 @@ class RolloutCollector:
             comm.advance_after_step(env.core)
             if bool(np.asarray(dones).any()):
                 comm.reset_env_indices(np.asarray(dones))
+        if bool(np.asarray(dones).any()):
+            done_t = torch.as_tensor(np.asarray(dones), dtype=torch.bool, device=self.device)
+            if getattr(self, "_role_hold", None) is not None:
+                self._role_hold.reset_envs(done_t)
+            if getattr(self, "_assignment_hold", None) is not None:
+                self._assignment_hold.reset_envs(done_t)
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():
                 torch.cuda.synchronize()
@@ -940,6 +1159,7 @@ class RolloutCollector:
             attack_defense_ratio_bucket=adb,
             blue_ahead=blue_ahead_t,
             message_aux=message_aux,
+            defend_log_probs_t=defend_log_probs_t,
         )
         if detailed_timing:
             if cuda_sync and torch.cuda.is_available():

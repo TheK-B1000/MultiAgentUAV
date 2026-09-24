@@ -1,0 +1,132 @@
+{
+  "record_id": "COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC",
+  "status": "FROZEN_BEFORE_ASYMMETRIC_CALIBRATION",
+  "utc": "2026-09-18T21:15:00Z",
+  "classification": "SCRIPTED_SELECTOR_CALIBRATION_THEN_ASYMMETRIC_OUTCOME. PPO OFF.",
+  "confirmatory": false,
+  "authorized_by": "PI direction 2026-09-18: A is the guardrail / already-good reference; B is the repair target. Do not spend n≈300 proving dual positive gain under the symmetric classifier.",
+  "supersedes_for_successor_work": [
+    "PYQUATICUS_4V4_STATE_CONDITIONED_COMPOSITION_SELECTOR_V1_SPEC.json#SUCCESS_GATE",
+    "COMPOSITION_SELECTOR_ONLINE_CALIBRATION_AMENDMENT.json#stage_D_revised_outcome_n dual-gain sizing",
+    "COMPOSITION_SELECTOR_TWO_FEATURE_AMENDMENT.json (suspended; may be revived only by a later freeze that re-authorizes it under an asymmetric criterion)"
+  ],
+  "prior_sealed_context": {
+    "symmetric_calibration_reading": "COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING.json",
+    "composition_confirmation": "PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT.json (B_COMPOSITION_EFFECT_ONLY; Delta_B=+0.6875; Delta_A=-0.3125 for 4A/0D vs 2A/2D)",
+    "oracle": "PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json (NO_ORACLE_COMPOSITION_CONFIRMATION; B gate strong, A LCB exactly 0)",
+    "v2_defend": "DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json REPRESENTABLE_ACROSS_TRANSITIONS"
+  },
+
+  "RESEARCH_QUESTION": "Can observable pressure provide a conservative B-trigger that defaults to the A-safe composition 2A/2D, switches to 4A/0D only under strong B-like evidence, substantially detects B-like states, and rarely triggers harmful 4A/0D under Pole A?",
+
+  "ENGINEERING_OBJECTIVE": {
+    "boxed": "help B substantially while not breaking A",
+    "default_composition": "2A_2D",
+    "triggered_composition": "4A_0D",
+    "A_role": "guardrail / preservation / integrity control — already good; not a second patient",
+    "B_role": "repair target — large composition effect already measured"
+  },
+
+  "WHY_ASYMMETRIC_NOT_SYMMETRIC": {
+    "false_B_on_A": "dangerous — switches A from good 2A/2D into 4A/0D, which confirmation measured as Delta_A=-0.3125",
+    "missed_B_on_B": "unfortunate but leaves B at the old composition longer; B still has +0.6875 headroom when correctly triggered",
+    "consequence": "Optimize under a hard A false-positive constraint; maximize B detection. Do not minimize pooled misclassification."
+  },
+
+  "SELECTOR_SHAPE": {
+    "inputs": "only the declared observable feature dict; never pole/genome/outcome (same anti-leak architecture as V1)",
+    "default": "2A_2D",
+    "trigger_to_4A0D": "only when the online statistic exceeds the frozen high threshold under the frozen hysteresis/dwell rule",
+    "return_to_2A2D": "when evidence falls back below the lower hysteresis bound after dwell, or at episode start",
+    "feature_family_authorized_now": "the already-selected radius-4 blue-flag pressure count P_blue, recomputed per tick with a trailing window. A second feature is NOT required for this freeze; if used later it must be under a separate amendment that keeps the asymmetric criterion.",
+    "numbers_deferred": "exact W, threshold, hysteresis, dwell are NOT inherited from the symmetric calibration RESULT. They are re-selected under the asymmetric criterion below on calibration traces, then locked before any outcome episode."
+  },
+
+  "ASYMMETRIC_CALIBRATION_PROCEDURE": {
+    "data_calibration": "reuse smoke-family traces already collected for selector work (99900101-99900116 both poles, fixed 2A_2D) — outcome-blind; no win/score fields",
+    "data_validation": "fresh disjoint smoke block never used for this operating-point selection — allocate next free smoke pair (e.g. 99900401-99900416) at execution time; report the actual block in the RESULT",
+    "grid": {
+      "window_W": [20, 40, 60, 80, 120],
+      "hysteresis_half_width_m": [0.0, 0.05, 0.10, 0.15, 0.20],
+      "dwell_d": [4, 10, 20, 40],
+      "note": "W=120 added because the symmetric stage found the regime difference is slow/aggregate; still one bounded grid, not an open safari"
+    },
+    "per_config_threshold_rule_declared_before_scoring": "For each (W,m,d), scan candidate thresholds on the windowed statistic. Retain only configs whose A-side false-positive tick rate (fraction of Pole-A ticks classified as 4A_0D) is <= max_A_FP_tick_rate. Among survivors, maximize B-side true-positive tick rate (fraction of Pole-B ticks classified as 4A_0D). Tie-break: minimum mean switches/episode on A; then prefer d=4 (macro-commit horizon); then smallest W.",
+    "max_A_FP_tick_rate": {
+      "value": 0.10,
+      "frozen_now": true,
+      "justification": "Confirmation shows full-time 4A/0D on A costs about 0.31 win rate versus 2A/2D. A 10% A-tick false-positive budget is a conservative preservation band: rough linear exposure ~0.03 win rate if harm scaled by exposure, well below that measured full switch cost. This number is frozen before scoring; it is not retuned after seeing the grid."
+    },
+    "held_out_report": [
+      "A FP tick rate",
+      "B TP tick rate",
+      "A mean switches/episode to 4A0D",
+      "B mean switches/episode",
+      "fraction of A episodes with any 4A0D tick",
+      "fraction of B episodes whose dominant composition is 4A0D"
+    ],
+    "calibration_pass_rule": "held-out A FP tick rate <= 0.10 AND held-out B dominant-composition = 4A0D on at least 0.50 of B episodes. If fail: seal NO_CONSERVATIVE_B_TRIGGER and stop — do not spend outcome seeds.",
+    "outcome_blind": "no score/win/reward/return/draw in calibration or held-out scoring; pole labels only for FP/TP accounting"
+  },
+
+  "OUTCOME_EXPERIMENT_IF_CALIBRATION_PASSES": {
+    "authorized_only_after": "asymmetric calibration RESULT status PASS",
+    "arms": ["STATE_B_TRIGGER", "FIXED_2A2D", "FIXED_4A0D"],
+    "oracle_arm": "descriptive reference only, never gating",
+    "device": "cpu",
+    "ppo": false,
+    "gpu": false,
+    "n_default": 64,
+    "n_note": "Do NOT auto-inflate to ~300 for an A positive-gain proof. B's measured composition effect is large; A is a regression guardrail. If A preservation is noisy at n=64, report underpowered preservation, do not silently retarget.",
+    "gates": {
+      "B_improvement_required": "STATE_B_TRIGGER minus FIXED_2A2D blue win-rate LCB95 > 0 on Pole B",
+      "A_regression_tolerance": "FIXED_2A2D minus STATE_B_TRIGGER blue win-rate (A harm) has UCB95 <= tau_A_harm",
+      "tau_A_harm": {
+        "value": 0.10,
+        "frozen_now": true,
+        "meaning": "A may not be shown to improve; it must not be shown to degrade by more than 0.10 win rate at the UCB95 under the selector versus its safe fixed 2A/2D control"
+      }
+    },
+    "decision_labels": {
+      "B_TRIGGER_CONFIRMED_A_PRESERVED": "B gate passes and A harm UCB95 <= 0.10",
+      "B_IMPROVED_A_REGRESSED": "B gate passes but A harm exceeds tolerance — selector helps B but breaks the guardrail; not a promotion",
+      "NO_B_TRIGGER_PAYOFF": "B gate fails",
+      "CONTRACT_FAILURE": "pre-outcome contracts fail"
+    }
+  },
+
+  "CONTRACTS_BEFORE_OUTCOME_SEEDS": [
+    "C1_NO_REGIME_LEAK (identical declared features => identical composition across poles)",
+    "C2_DEFAULT_IS_2A2D at episode start and under below-threshold evidence",
+    "C3_FORCED_HIGH_PRESSURE_FIXTURE switches to 4A0D",
+    "C4_FORCED_LOW_PRESSURE_FIXTURE returns to or stays 2A2D",
+    "C5_CONTROL_PARITY when selector pinned constant",
+    "C6_ASYMMETRIC_CALIBRATION_PASS sealed before seed allocation"
+  ],
+
+  "ISOLATION": {
+    "PPO": "OFF",
+    "GPU": "OFF",
+    "training": "OFF",
+    "6v6": "OFF",
+    "production_interface_changes": "NONE",
+    "not_authorized": [
+      "n≈300 dual positive-gain outcome run under the symmetric classifier",
+      "retuning max_A_FP_tick_rate or tau_A_harm after seeing calibration or outcome numbers",
+      "treating Pole A as a second repair target",
+      "PPO or learned selector",
+      "6v6"
+    ]
+  },
+
+  "SEQUENCING_LOCK": [
+    "1. Seal COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING (done with this freeze)",
+    "2. Implement asymmetric calibration only (no outcome seeds)",
+    "3. Freeze asymmetric calibration RESULT",
+    "4. If PASS: run C1-C5, allocate fresh exploratory seeds, run outcome arms",
+    "5. If FAIL: stop; report NO_CONSERVATIVE_B_TRIGGER",
+    "6. PPO/6v6 remain blocked regardless"
+  ],
+
+  "claim_ceiling": "Even B_TRIGGER_CONFIRMED_A_PRESERVED establishes only that a conservative scripted B-trigger helps B without breaking A under these two frozen opponents at 4v4. It does not authorize PPO, learned coordination, or 6v6."
+}

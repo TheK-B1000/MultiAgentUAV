@@ -1,0 +1,58 @@
+{
+  "record_id": "4V4_B3_SPECIALIZATION_PRESERVING_HOLD",
+  "status": "HOLD_RESOLVED_SPEC_RETIRED_UNUSED",
+  "utc": "2026-09-10T21:55:00Z",
+  "resolved_by": "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE_FORK_DECISION.json",
+  "outcome": "RETIRE held JSD SPEC unused; freeze 4V4_B3_ROLE_PRESERVATION_SPEC.json instead",
+  "holds": "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json",
+  "amends_spec_contradiction": true,
+
+  "AUTHORITY": "PI, 2026-09-10: Do not launch the sibling-separation training yet. The JSD audit weakens the homogenization premise. Build the blue-side behavior-capture extension on sealed seeds 16700001..128 (reuse; no new experimental seed budget). Decide the next intervention only after that capture lands.",
+
+  "SPEC_CONTRADICTION_AMENDED": {
+    "where": "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json authority line and launch posture",
+    "contradiction": "The SPEC was frozen under time pressure with 'Behavior capture deferred (not a launch gate)' and a homogenization premise that assumed the specialists had collapsed into one broadly competent policy family.",
+    "amendment": "Behavior capture is NOW a launch gate for this SPEC. The SPEC text of the intervention (lambda, JSD, mask, seeds, checkpoint rule) remains frozen and is NOT rewritten. Its LAUNCH is held. Either the SPEC is later executed exactly as written, or it is RETIRED UNUSED after the capture chooses a different fork. Silent post-hoc edits to lambda/mask/divergence are still forbidden.",
+    "measurement_that_created_the_contradiction": "4V4_B3_VANILLA_PAIR_DISAGREEMENT_JSD_MEASUREMENT.json: pi_A3 vs pi_B3 JSD = 0.3378 nats (48.7% of ln 2) on GUARD/BREACH disagreement states while sealed payoffs stay flat ~0.67-0.72."
+  },
+
+  "WHAT_IS_HELD": {
+    "training_launch": "pi_A_sep seed 16900001 and pi_B_sep seed 17000001",
+    "sealed_crossover_launch": "17200001-17200128",
+    "seeds_spent_from_held_blocks": "NONE",
+    "spec_text_revised": false
+  },
+
+  "CAPTURE_IN_PROGRESS": {
+    "tool": "experiments/capture_blue_side_behavior_4v4_b3.py",
+    "protocol": "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE_PROTOCOL.json",
+    "seeds": "prospective representative subset 16700001-16700032 of sealed confirmatory block (matched across both policies and both poles)",
+    "no_new_seed_spent": true,
+    "output": "artifacts/strategic_demand/sppo/4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE.json",
+    "status": "RUNNING",
+    "smoke": "1-seed fidelity check PASSED (seed 16700001, both poles, both policies matched sealed CSV terminals)"
+  },
+
+  "PREREGISTERED_FORK_ON_THE_CAPTURE_RESULT": {
+    "different_JSD_and_different_ROLES_and_flat_payoff": "separation already exists; sibling-separation SPEC is the WRONG fix → RETIRE UNUSED. Next rung: payoff-relevant specialization objective.",
+    "different_JSD_and_SAME_roles_and_flat_payoff": "per-state divergence washes out. Sibling separation may still be right, but at TRAJECTORY/ROLE level → NEW prospectively frozen SPEC, not a silent edit of this one.",
+    "different_JSD_and_different_roles_and_payoff_separation_in_any_exploratory_lines": "still NO retroactive PASS of the sealed FAIL; any new claim needs a fresh sealed evaluation. Exploratory block 16800001-16800256 is INVALID_INCOMPLETE and cannot supply that evidence."
+  },
+
+  "UNCHANGED_PROHIBITIONS": [
+    "no change to B3-3 or any pole genome",
+    "no pooling of 16800001-16800256 with sealed n=128",
+    "no retroactive reinterpretation of CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "no lambda tuning on sealed data",
+    "no launch of sibling-sep training until blue-side capture lands and the fork is chosen",
+    "sealed crossover block 17200001-17200128 remains untouched"
+  ],
+
+  "RELATED_RECORDS": {
+    "jsd_measurement": "4V4_B3_VANILLA_PAIR_DISAGREEMENT_JSD_MEASUREMENT.json",
+    "held_spec": "4V4_B3_SPECIALIZATION_PRESERVING_SPEC.json",
+    "divergence_amendment": "4V4_B3_SPECIALIZATION_PRESERVING_DIVERGENCE_AMENDMENT.json",
+    "exploratory_disposition": "EXPLORATORY_B3_3_4V4_DIAGNOSTIC_INVALID_INCOMPLETE.json",
+    "capture_protocol": "4V4_B3_BLUE_SIDE_BEHAVIOR_CAPTURE_PROTOCOL.json"
+  }
+}

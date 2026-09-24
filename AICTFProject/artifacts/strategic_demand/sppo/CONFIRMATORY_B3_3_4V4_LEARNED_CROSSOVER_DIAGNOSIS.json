@@ -1,0 +1,224 @@
+{
+  "record_id": "CONFIRMATORY_B3_3_4V4_LEARNED_CROSSOVER_DIAGNOSIS",
+  "status": "FROZEN_DIAGNOSIS_NO_NEW_SEEDS",
+  "utc": "2026-09-10T01:55:00Z",
+  "authority": "PI 2026-09-09: do not spend more seeds certifying current B3 specialists; diagnose small learned crossover from existing artifacts only.",
+  "implements": [
+    "CONFIRMATORY_B3_3_4V4_SPECIALIST_CROSSOVER_EVAL_RESULT.json",
+    "CONFIRMATORY_B3_3_4V4_INDEPENDENT_AUDIT.json",
+    "confirmatory_b3_3_4v4_specialist_crossover_eval_rows.csv",
+    "pi_A/B_specialist_4v4_b3/metrics.csv"
+  ],
+  "GATE_STATUS": "FAIL / underpowered with correctly signed point estimates -- FREEZE AS SUCH. Do not enlarge n to force certification of these specialists.",
+  "PRIMARY": {
+    "delta_A": {
+      "mean": 0.046875,
+      "lcb95": -0.0703125,
+      "ucb95": 0.15625
+    },
+    "delta_B": {
+      "mean": 0.015625,
+      "lcb95": -0.078125,
+      "ucb95": 0.109375
+    },
+    "paired_sign_fractions": {
+      "delta_A": {
+        "P_gt0": 0.234375,
+        "P_eq0": 0.578125,
+        "P_lt0": 0.1875
+      },
+      "delta_B": {
+        "P_gt0": 0.1640625,
+        "P_eq0": 0.6875,
+        "P_lt0": 0.1484375
+      }
+    }
+  },
+  "Q1_FOUR_ABSOLUTE_CELLS": {
+    "V(pi_A,A)": {
+      "win_rate": 0.71875,
+      "mean_margin": 0.9375,
+      "n": 128
+    },
+    "V(pi_A,B)": {
+      "win_rate": 0.671875,
+      "mean_margin": 1.6640625,
+      "n": 128
+    },
+    "V(pi_B,A)": {
+      "win_rate": 0.671875,
+      "mean_margin": 1.15625,
+      "n": 128
+    },
+    "V(pi_B,B)": {
+      "win_rate": 0.6875,
+      "mean_margin": 1.609375,
+      "n": 128
+    }
+  },
+  "Q2_WEAK_DELTA_SOURCE": {
+    "own_regime": {
+      "V(pi_A,A)": 0.71875,
+      "V(pi_B,B)": 0.6875
+    },
+    "cross_regime": {
+      "V(pi_A,B)": 0.671875,
+      "V(pi_B,A)": 0.671875
+    },
+    "reading": "BOTH specialists are strong on BOTH poles (all four cells in ~0.67-0.72). delta_A is small because pi_B nearly matches pi_A on Pole A (0.6719 vs 0.7188) \u2014 strong cross-regime transfer of pi_B onto A, not collapse of pi_A on A. delta_B is near-zero because pi_A transfers almost as well onto B3 as pi_B (0.6719 vs 0.6875) \u2014 cross-regime transfer dominates; neither own-regime is weak in absolute terms. This is NOT the C2 pattern (both ~0.91-0.93 on B2 / weaker on A).",
+    "vs_C2_raw": {
+      "pi_A2_on_A": 0.6953,
+      "pi_A2_on_B": 0.9297,
+      "pi_B2_on_A": 0.7734,
+      "pi_B2_on_B": 0.9141
+    }
+  },
+  "Q3_BEHAVIOR_DESPITE_SIMILAR_PAYOFF": {
+    "available_in_repo": "no sealed B3 qualitative trajectory / role-allocation capture exists yet (only C2 and 2v2 latent captures). Payoff-level cells alone cannot settle behavioral distinctness.",
+    "implication": "behavior diagnostic on existing B3 checkpoints is the smallest next measurement IF authorized \u2014 still NO new training / no gate change / no B4. Until then treat payoff similarity as unresolved on the behavior axis.",
+    "payoff_evidence_only": "the 2x2 payoff matrix is nearly flat; specialization is not expressed as large closed-loop win-rate gaps."
+  },
+  "Q4_VS_SCRIPTED_STRATEGIC_DEMAND": {
+    "scripted_CERTIFIED": {
+      "delta_A": {
+        "mean": 0.11979166666666667,
+        "lcb95": 0.020833333333333332,
+        "ucb95": 0.21354166666666666,
+        "n": 192
+      },
+      "delta_B": {
+        "mean": 0.5052083333333334,
+        "lcb95": 0.4322916666666667,
+        "ucb95": 0.578125,
+        "n": 192
+      },
+      "cell_win_rates": {
+        "poleA_guard_wr": 0.6354166666666666,
+        "poleA_breach_wr": 0.515625,
+        "poleB_guard_wr": 0.026041666666666668,
+        "poleB_breach_wr": 0.53125
+      }
+    },
+    "contestability_screen_B3_3": {
+      "win_rate": 0.5417,
+      "ci": [
+        0.3333,
+        0.75
+      ],
+      "in_band": true
+    },
+    "reading": "Scripted GUARD/BREACH demand on B3-3 was large (delta_B ~ +0.505). Early-pi_A2 contestability was inside band (~0.54). Yet fully trained pi_A3 and pi_B3 both win ~0.67-0.72 against B3 \u2014 PPO found high-performing responses that are NOT the scripted BREACH/GUARD contrast. So the specialists did not recover the certified scripted strategy separation as a learned complementary pair; they recovered a shared high-skill policy family with only tiny own-pole edges."
+  },
+  "Q5_TRAINING_CURVES": {
+    "pi_A3": {
+      "n_metric_rows": 489,
+      "final_timesteps": 1001472.0,
+      "final_win_rate": 0.684259045863102,
+      "final_rolling_200": 0.735,
+      "early_200k_rolling_200_mean": 0.5420056546250323,
+      "last20pct_rolling_200": {
+        "mean": 0.7138775510204083,
+        "std": 0.02798989077933734,
+        "min": 0.635,
+        "max": 0.76
+      },
+      "checkpoints": {
+        "100000": {
+          "timesteps": 100352.0,
+          "win_rate": 0.5578703703703703,
+          "rolling_200": 0.63
+        },
+        "140000": {
+          "timesteps": 139264.0,
+          "win_rate": 0.5607321131447587,
+          "rolling_200": 0.58
+        },
+        "200000": {
+          "timesteps": 200704.0,
+          "win_rate": 0.5762124711316398,
+          "rolling_200": 0.615
+        },
+        "500000": {
+          "timesteps": 499712.0,
+          "win_rate": 0.6557904411764706,
+          "rolling_200": 0.73
+        },
+        "900000": {
+          "timesteps": 899072.0,
+          "win_rate": 0.6787179487179488,
+          "rolling_200": 0.7
+        },
+        "1000000": {
+          "timesteps": 999424.0,
+          "win_rate": 0.6837488457987073,
+          "rolling_200": 0.73
+        }
+      },
+      "reading": "converged_plateau"
+    },
+    "pi_B3": {
+      "n_metric_rows": 489,
+      "final_timesteps": 1001472.0,
+      "final_win_rate": 0.6857142857142857,
+      "final_rolling_200": 0.7,
+      "early_200k_rolling_200_mean": 0.6364599687585362,
+      "last20pct_rolling_200": {
+        "mean": 0.693418367346939,
+        "std": 0.019930964254394546,
+        "min": 0.645,
+        "max": 0.74
+      },
+      "checkpoints": {
+        "100000": {
+          "timesteps": 100352.0,
+          "win_rate": 0.6294642857142857,
+          "rolling_200": 0.71
+        },
+        "140000": {
+          "timesteps": 139264.0,
+          "win_rate": 0.6464174454828661,
+          "rolling_200": 0.695
+        },
+        "200000": {
+          "timesteps": 200704.0,
+          "win_rate": 0.6542948038176034,
+          "rolling_200": 0.63
+        },
+        "500000": {
+          "timesteps": 499712.0,
+          "win_rate": 0.6788720538720538,
+          "rolling_200": 0.71
+        },
+        "900000": {
+          "timesteps": 899072.0,
+          "win_rate": 0.6848710202184523,
+          "rolling_200": 0.68
+        },
+        "1000000": {
+          "timesteps": 999424.0,
+          "win_rate": 0.6854636591478697,
+          "rolling_200": 0.7
+        }
+      },
+      "reading": "converged_plateau"
+    }
+  },
+  "HYPOTHESIS_SEPARATION": {
+    "rejected_for_this_arm": "4v4 environment lacks strategic demand \u2014 contradicted by CERTIFIED scripted n=192 demand on the same poles",
+    "supported": "strategic demand exists, but PPO specialists fail to capture it strongly as complementary closed-loop specialization",
+    "mechanism_sketch": "cross-regime transfer / shared competence, not own-regime incompetence or early collapse"
+  },
+  "NOT_AUTHORIZED": [
+    "additional evaluation seeds to force LCB>0 on these specialists",
+    "retraining / B4 redesign",
+    "gate change",
+    "checkpoint promotion",
+    "latent / sharing-ladder distillation from these experts"
+  ],
+  "SMALLEST_SCIENTIFICALLY_JUSTIFIED_NEXT": {
+    "preferred": "behavior / role diagnostic on the FROZEN pi_A3 and pi_B3 checkpoints (matched seeds already spent only if a disposable diagnostic block is newly frozen \u2014 OR reuse sealed crossover seeds ONLY for offline replay of logged episodes if logs exist; they do not). Goal: are the policies behaviorally similar while payoff-similar?",
+    "if_behavior_similar": "intervention should target training objective / diversity pressure / anti-transfer, not another lockdef-style Pole-B tweak",
+    "if_behavior_different_but_payoff_flat": "payoff gate may be too coarse; still do NOT distill yet \u2014 need payoff-relevant specialization first",
+    "explicitly_deferred": "latent shared-policy pipeline"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "record_id": "DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM_RESULT",
+  "implements": "DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM_SPEC.json",
+  "utc": "2026-09-21T11:38:12Z",
+  "classification": "DESCRIPTIVE ADDENDUM. NON-GATING. NO TERMINAL LABEL. Post-hoc motivation disclosed in the spec.",
+  "source": {
+    "rows": "DEFENDER_INJECTION_CAUSAL_BRIDGE_ROWS.csv",
+    "rows_sha256": "2d0619f3d55d45087b6984bd800f19ce980520bc3cf33cc291fd15fc2ef89a98",
+    "equals_sealed_audit_rows_sha256": true,
+    "n_rows": 768,
+    "margin_equals_blue_minus_red_on_every_row": true
+  },
+  "PER_CELL": {
+    "pi_A_poleA": {
+      "blue_goals": {
+        "native_mean": 1.197917,
+        "plus_one_defender_mean": 1.96875,
+        "delta_plus1D_minus_native_paired": {
+          "mean": 0.770833,
+          "lcb95": 0.489583,
+          "ucb95": 1.052083,
+          "n": 96
+        }
+      },
+      "margin": {
+        "native_mean": 1.166667,
+        "plus_one_defender_mean": 1.9375,
+        "delta_plus1D_minus_native_paired": {
+          "mean": 0.770833,
+          "lcb95": 0.489583,
+          "ucb95": 1.052083,
+          "n": 96
+        }
+      }
+    },
+    "pi_B_poleA": {
+      "blue_goals": {
+        "native_mean": 1.041667,
+        "plus_one_defender_mean": 1.96875,
+        "delta_plus1D_minus_native_paired": {
+          "mean": 0.927083,
+          "lcb95": 0.677083,
+          "ucb95": 1.177083,
+          "n": 96
+        }
+      },
+      "margin": {
+        "native_mean": 0.989583,
+        "plus_one_defender_mean": 1.9375,
+        "delta_plus1D_minus_native_paired": {
+          "mean": 0.947917,
+          "lcb95": 0.708073,
+          "ucb95": 1.197917,
+          "n": 96
+        }
+      }
+    },
+    "pi_A_poleB": {
+      "blue_goals": {
+        "native_mean": 2.34375,
+        "plus_one_defender_mean": 1.760417,
+        "delta_plus1D_minus_native_paired": {
+          "mean": -0.583333,
+          "lcb95": -0.864583,
+          "ucb95": -0.302083,
+          "n": 96
+        }
+      },
+      "margin": {
+        "native_mean": 2.322917,
+        "plus_one_defender_mean": 1.6875,
+        "delta_plus1D_minus_native_paired": {
+          "mean": -0.635417,
+          "lcb95": -0.927083,
+          "ucb95": -0.34375,
+          "n": 96
+        }
+      }
+    },
+    "pi_B_poleB": {
+      "blue_goals": {
+        "native_mean": 2.333333,
+        "plus_one_defender_mean": 1.90625,
+        "delta_plus1D_minus_native_paired": {
+          "mean": -0.427083,
+          "lcb95": -0.6875,
+          "ucb95": -0.166667,
+          "n": 96
+        }
+      },
+      "margin": {
+        "native_mean": 2.322917,
+        "plus_one_defender_mean": 1.885417,
+        "delta_plus1D_minus_native_paired": {
+          "mean": -0.4375,
+          "lcb95": -0.697917,
+          "ucb95": -0.177083,
+          "n": 96
+        }
+      }
+    }
+  },
+  "claim_boundary": "Descriptive only, on the sealed rows. Does not replace or re-score the sealed win-rate verdict ONE_DEFENDER_HARM_ONLY, which stands under its frozen binary-win criterion. No mechanism claim, no gate, no label."
+}

@@ -119,6 +119,31 @@ def resolve_latent_forced_z_frac(cfg: Any, *, global_step: int | float) -> float
     return max(0.0, min(value, 1.0))
 
 
+def resolve_defend_teacher_lambda(cfg: Any, *, global_step: int | float) -> float:
+    """Resolve the current DEFEND-teacher imitation coefficient.
+
+    DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC LAMBDA_SCHEDULE_locked: flat
+    ``defend_teacher_lambda`` for [0, decay_start), linear decay to
+    ``defend_teacher_lambda_end`` over [decay_start, decay_end], flat
+    ``defend_teacher_lambda_end`` for [decay_end, total). A pure function of
+    ``cfg`` plus ``global_step``, resolved once per PPO update -- resume-safe
+    the same way ``resolve_latent_lam_h`` is (``global_step`` is restored
+    from the checkpoint before the rollout loop resumes). Returns 0.0 (no
+    schedule to resolve) whenever the peak/start value is <= 0.0, matching
+    the "disabled means not constructing a runner at all" convention -- this
+    resolver is only ever called when a ``DefendTeacherRunner`` already
+    exists, i.e. ``defend_teacher_lambda > 0`` was already true at attach
+    time.
+    """
+    peak = float(getattr(cfg, "defend_teacher_lambda", 0.0) or 0.0)
+    if peak <= 0.0:
+        return 0.0
+    end = float(getattr(cfg, "defend_teacher_lambda_end", 0.0) or 0.0)
+    decay_start = int(getattr(cfg, "defend_teacher_decay_start_step", 50_000))
+    decay_end = int(getattr(cfg, "defend_teacher_decay_end_step", 150_000))
+    return linear_anneal(global_step, peak, end, decay_start, decay_end)
+
+
 def resolve_v6i1_cf_coef(phase: str, step: int | float, t_A: int | float, N: int | float, coef_max: float) -> float:
     """Resolve the counterfactual separation coefficient for v6i1 staged curriculum.
 

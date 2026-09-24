@@ -1,0 +1,43 @@
+{
+  "label": "GUARDED_ROUTED_COMPOSITION_OUTCOME",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-19T08:06:33Z",
+      "pid": 40772,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "1f4cac7f7153f3b48b5a1efd84ada088284f1830",
+      "spec": "GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json",
+      "n_episodes": 768
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-19T10:03:22Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-19T10:03:22Z",
+      "audit": "GUARDED_ROUTED_COMPOSITION_OUTCOME_AUDIT.json",
+      "n_checks": 15
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-19T10:03:22Z",
+      "result": "GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-19T10:03:22Z",
+  "pid": 40772,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "1f4cac7f7153f3b48b5a1efd84ada088284f1830",
+  "spec": "GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json",
+  "n_episodes": 768,
+  "reason": "all episodes written",
+  "audit": "GUARDED_ROUTED_COMPOSITION_OUTCOME_AUDIT.json",
+  "n_checks": 15,
+  "result": "GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json"
+}

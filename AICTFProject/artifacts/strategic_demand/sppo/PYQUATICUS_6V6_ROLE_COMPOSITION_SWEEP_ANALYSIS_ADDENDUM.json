@@ -1,0 +1,42 @@
+{
+  "record_id": "PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_ANALYSIS_ADDENDUM",
+  "status": "DECLARED_BEFORE_ANY_OUTCOME_WAS_READ",
+  "utc": "2026-09-19T00:00:00Z",
+  "classification": "SUPPLEMENTARY DESCRIPTIVE ANALYSIS PLAN. Reads sealed rows only. Gates nothing. Changes no label.",
+  "does_not_touch": ["PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json (frozen)", "experiments/run_pyquaticus_6v6_role_composition_sweep.py (running)", "seed block 20500001-20500064", "the sealed RESULT, which will not contain these quantities"],
+  "state_of_the_run_when_this_was_written": "RUNNING, 20 of 896 episodes recorded. Only the line count of the resume file was inspected. No win, score or margin value has been read.",
+
+  "WHY_THIS_EXISTS": {
+    "the_gap": "The frozen spec's deliverable statement promises 'paired uncertainty ... for contrasts against the 3A/3D baseline and against relevant neighbouring and top compositions.' The executor computes argmax-vs-runner-up, argmax-vs-baseline and every-composition-vs-baseline. It does NOT compute contrasts against neighbouring compositions or the third-ranked one. The runner-up need not be adjacent to the argmax.",
+    "why_declared_now": "Choosing which neighbours and which 'top' compositions to show after seeing the ranking would be exactly the post-hoc flexibility the freeze exists to prevent. The set is fixed here, mechanically, as a function of the ranking, before the ranking exists.",
+    "why_not_edit_the_executor": "It is running, the frozen spec is read at seal time and its hash is recorded in the audit, and 'nothing else should change while it runs.' The quantities are derivable from the persisted rows, so they are computed after sealing and reported in the reading."
+  },
+
+  "PREDECLARED_SUPPLEMENTARY_CONTRASTS_PER_POLE": {
+    "procedure": "Identical to the sealed analysis: paired by seed, percentile bootstrap, 20000 resamples, alpha 0.05, rng seed 7, computed from the sealed episodes CSV only. No new episode is run.",
+    "S1_argmax_vs_each_adjacent_composition": "The argmax composition against every composition whose defender count differs from the argmax's by exactly one (one neighbour if the argmax sits at an end of the range, two otherwise).",
+    "S2_argmax_vs_third_ranked": "The argmax against the composition ranked third by win rate. Together with the sealed argmax-vs-runner-up this covers the top three.",
+    "S3_indistinguishable_set": "The set of compositions, other than the argmax, whose paired win-rate contrast against the argmax has a 95% interval that CONTAINS zero. Reported as a list and a size. This is the honest answer to 'how many compositions are effectively tied with the best?'",
+    "tie_handling": "If two compositions tie exactly for the argmax by win rate, all tied compositions are treated as co-argmax: S1 and S3 are computed against each, and the tie is stated in the first sentence of the reading."
+  },
+
+  "PREDECLARED_DIRECTION_QUESTION": {
+    "definition_of_B_heavy_in_this_addendum": "Pole B is called 'more attack-heavy than Pole A' if the defender count of Pole B's argmax composition is strictly lower than the defender count of Pole A's argmax composition. This is the 4v4 direction: at 4v4 Pole B's argmax was 4A/0D (0 defenders) and Pole A's was 2A/2D (2 defenders).",
+    "what_is_reported": "Both argmax defender counts, whether the inequality holds, and whether each pole's argmax is in the other pole's indistinguishable set.",
+    "what_is_NOT_claimed": "That this inequality is 'a clear B-heavy pattern'. Whether a pattern is clear enough to justify freezing a router is the PI's judgement under the predeclared branch. This addendum supplies facts for that judgement and does not replace it."
+  },
+
+  "FROZEN_INTERPRETATION_RULES": {
+    "argmax_upward_bias": "An argmax over 7 noisy win rates is biased upward: the winning cell is partly the luckiest one. The argmax win rate is therefore never quoted alone. It is quoted with its runner-up contrast and its indistinguishable set.",
+    "tied_means_tied": "If the argmax-vs-runner-up interval contains zero, the reading says several compositions are effectively tied. It does not name a winner.",
+    "pole_B_boundary": "The 6v6 composition sweep uses the certified 6v6 pole pair. Pole B is canonical SDS_PARENT_OP7, not the 4v4 B3-3 SDS2_B3_LOCKDEF10_2V1 construction. Therefore cross-scale differences cannot be attributed solely to team size. Any sentence comparing the 6v6 and 4v4 argmax compositions carries this clause.",
+    "multiplicity": "S1-S3 add contrasts to a sweep that already has 7 x 2 unadjusted contrasts. They are descriptive and cannot convert a non-signal into a signal."
+  },
+
+  "NOT_AUTHORIZED": [
+    "computing any contrast not listed above and presenting it as part of this plan",
+    "choosing neighbours or top compositions after seeing the ranking",
+    "using any quantity here to raise n, add compositions, or re-run cells",
+    "using these results to freeze a router without the PI's explicit go-ahead under the predeclared branch"
+  ]
+}

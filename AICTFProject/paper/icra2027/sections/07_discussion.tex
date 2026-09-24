@@ -1,0 +1,35 @@
+\section{Discussion}
+\label{sec:discussion}
+%======================================================================
+
+The primary scientific finding concerns progressive parameter sharing:
+perception-level sharing (Share-Encoder) preserves the specialization criterion
+under the matched-seed protocol, with a decomposition consistent with mild
+strategy homogenization rather than on-regime specialization loss. Deeper
+sharing of the MLP backbone (Share-Backbone) remains fidelity-comparable and
+still clears the absolute specialization criterion, yet produces a detectable
+paired reduction relative to Share-0 on Regime~A, consistent with specialization
+loss under additional representation sharing. Further sharing at macro-action
+outputs (Share-Macro) coincides with deteriorated imitation fidelity and failure
+of the specialization criterion; under the imitation-fidelity control, that
+degradation is reported as sharing-associated but not uniquely attributed to a
+single interference mechanism.
+
+The centerpiece is architectural and experimental, not algorithmic PPO novelty:
+independently learned strategies are encoded as discrete modes of shared
+controllers under a common distillation recipe, validated by closed-loop
+crossover at Share-Encoder, and then subjected to controlled progressive
+sharing. Share-0 is the bit-exact expert-dispatch reference; Enc$\rightarrow$Back$\rightarrow$Macro
+is the clean sharing axis. Attempted PPO interventions (CSC/SPFT) remain a
+sealed non-recovery side study in the supplementary material and are not the
+method that produced Share-Encoder PASS.
+
+For multi-robot policy design, the sharing study suggests that substantial
+perception sharing can be tolerable in this setting, while sharing deeper
+decision-related representations is where opponent-conditioned specialization
+becomes fragile. Claims remain scoped to the two-regime nominal $2$-vs-$2$ task
+and training recipes studied here. External validity for larger teams and
+sensing/control perturbations remains outside the primary claim until those
+experiments are finished.
+
+%======================================================================

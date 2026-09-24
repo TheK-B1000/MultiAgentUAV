@@ -1,0 +1,1 @@
+TEST_0 6v6:   0%|          | 0/2 [00:00<?, ?seed/s]TEST_0 6v6:  50%|#####     | 1/2 [00:15<00:15, 15.19s/seed, found=0 attempts=0]TEST_0 6v6: 100%|##########| 2/2 [00:30<00:00, 15.38s/seed, found=3 attempts=60]TEST_0 6v6: 100%|##########| 2/2 [00:30<00:00, 15.35s/seed, found=3 attempts=60]

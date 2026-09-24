@@ -1,0 +1,84 @@
+{
+  "record_id": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_CONTRACT_RESULT",
+  "utc": "2026-09-21T17:28:34Z",
+  "implements": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json",
+  "n_checks": 12,
+  "n_gating": 12,
+  "n_failed": 0,
+  "checks": [
+    {
+      "name": "C0_SPEC_FROZEN",
+      "gating": true,
+      "passed": true,
+      "detail": "spec status = 'FROZEN_BEFORE_SEED_SPEND'"
+    },
+    {
+      "name": "C1_MECHANISM_SOURCE_EQUALS_THE_PIN",
+      "gating": true,
+      "passed": true,
+      "detail": "0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb vs pinned 0044d2ea1ca3b5dc77c75d64da2cfb02047422e5547c55c2438a5f0fc6ca33eb"
+    },
+    {
+      "name": "C2_CHECKPOINTS_EQUAL_THE_PINNED_HASHES",
+      "gating": true,
+      "passed": true,
+      "detail": "{'pi_A': '94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478', 'pi_B': '021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12'} vs pinned {'pi_A': '94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478', 'pi_B': '021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12'}"
+    },
+    {
+      "name": "C3_BOTH_POLES_ATTESTED_AND_POLE_B_IS_THE_CERTIFIED_B3_3_GENOME",
+      "gating": true,
+      "passed": true,
+      "detail": "certification STRATEGIC_DEMAND_4v4_POLE_B3_3_N192_CERTIFICATION.json verdict=CERTIFIED; live Pole B SDS2_B3_LOCKDEF10_2V1 overlay={'enable_2v1': True, 'lock_defender': 10, 'min_alive_for_defender': 4}; hashes_match A=True B=True"
+    },
+    {
+      "name": "C4_ROTATION_COVERS_ALL_SIX_PAIRS_WITHIN_ONE_SEED_OF_UNIFORM",
+      "gating": true,
+      "passed": true,
+      "detail": "pair counts: {(0, 1): 22, (0, 2): 21, (0, 3): 21, (1, 2): 21, (1, 3): 21, (2, 3): 22}"
+    },
+    {
+      "name": "C5_BLOCK_RESERVED_AS_SEALED_CONFIRMATORY_UNSPENT_AND_DISJOINT",
+      "gating": true,
+      "passed": true,
+      "detail": "already registered to SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4 (status RESERVED) -- same block, no conflict; registry status=RESERVED class=sealed_confirmatory; disjoint from [(16700001, 16700128), (17800001, 17800128), (18300001, 18300128), (18500001, 18500128), (20900001, 20900096), (21000001, 21000096)]: True"
+    },
+    {
+      "name": "C6_TWO_DEFENDER_INJECTION_MATCHES_A_SCRIPTED_TWO_DEFENDER_TEAM_EXACTLY_AT_4V4",
+      "gating": true,
+      "passed": true,
+      "detail": "2/2 (pole, pair) cells exact at n_macros 8 and 5 (pos/alive/tagged/carrying for all 4 agents every tick, and the outcome)"
+    },
+    {
+      "name": "C7_LOADED_POLICIES_ARE_PLAIN_SPECIALISTS",
+      "gating": true,
+      "passed": true,
+      "detail": "neither is latent-, role-, or assignment-conditioned"
+    },
+    {
+      "name": "C8_NATIVE_PATH_REPRODUCES_16_SEALED_EPISODES_EXACTLY",
+      "gating": true,
+      "passed": true,
+      "detail": "16/16 episodes of the sealed corrected crossover reproduced exactly (env config, entity observations, attestation and checkpoint loading all agree)"
+    },
+    {
+      "name": "C9_POLICY_PARAMETERS_UNCHANGED_BY_THE_PARITY_RUN",
+      "gating": true,
+      "passed": true,
+      "detail": "parameter digests equal before/after"
+    },
+    {
+      "name": "C10_TERMINAL_RULE_RETURNS_THE_FROZEN_LABEL_ON_SYNTHETIC_CASES",
+      "gating": true,
+      "passed": true,
+      "detail": "6/6 synthetic cases return the frozen label"
+    },
+    {
+      "name": "C11_REAL_RUNNER_NEVER_WRITES_A_RAW_MACRO_OR_COMMIT_TENSOR",
+      "gating": true,
+      "passed": true,
+      "detail": "run_episode only calls install_forced_defend_target(); it touches no action array or commit_* tensor"
+    }
+  ],
+  "DECISION": "CONTRACTS_PASS",
+  "claim_boundary": "Contracts only. No seed from 21100001-21100128 was spent; the parity replay uses spent seeds 18300001-4 for verification only."
+}

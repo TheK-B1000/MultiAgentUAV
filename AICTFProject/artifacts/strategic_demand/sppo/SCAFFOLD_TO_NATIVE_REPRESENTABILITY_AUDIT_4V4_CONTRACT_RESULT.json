@@ -1,0 +1,95 @@
+{
+  "record_id": "SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_CONTRACT_RESULT",
+  "implements": "SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json",
+  "utc": "2026-09-21T22:06:06Z",
+  "DECISION": "CONTRACTS_PASS",
+  "spec_sha256": "55b9f9943b4d027ab649b463a93d8c349504ebf65a0e512707395f6e6a597d36",
+  "script_sha256": "a34ba0906da4cdc0168dd074c757248411ef62116c2ed38684b690e823798571",
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN",
+      "pass": true,
+      "detail": "spec status = 'FROZEN_BEFORE_ANY_ARM_CONDITIONED_TELEMETRY_IS_READ'"
+    },
+    {
+      "check": "C1_SEALED_INPUTS_EQUAL_THEIR_PINS",
+      "pass": true,
+      "detail": "all five sealed inputs equal their pins"
+    },
+    {
+      "check": "C2_PI_A_CHECKPOINT_EQUALS_ITS_PIN",
+      "pass": true,
+      "detail": "final_pi_A_specialist_4v4_b3_entity_repair.zip sha256 == pin"
+    },
+    {
+      "check": "C3_BOTH_POLES_ATTESTED_AND_POLE_B_IS_THE_CERTIFIED_B3_3_GENOME",
+      "pass": true,
+      "detail": "attested ['A', 'B']; Pole B genome file B3-3_lockdef10_2v1.json"
+    },
+    {
+      "check": "C4_G6_THRESHOLDS_EQUAL_THIS_SPECS",
+      "pass": true,
+      "detail": "G6 module {'HORIZON': 16, 'DIRECTION_COSINE_MIN': 0.99, 'INTERACTION_RADIUS_CELLS': 2.5}"
+    },
+    {
+      "check": "C5_VECTOR_RESOLVERS_EQUAL_THE_LIVE_RESOLVER",
+      "pass": true,
+      "detail": "600 random states: DEFEND max|diff| 0.00e+00, native max|diff| 0.00e+00"
+    },
+    {
+      "check": "C6_CANDIDATE_VECTORIZED_INTEGRATION_EQUALS_PER_CANDIDATE",
+      "pass": true,
+      "detail": "K=51: max|diff| 0.00e+00"
+    },
+    {
+      "check": "C7_MASK_FACTS",
+      "pass": true,
+      "detail": "obs mask == core mask; no-payload macros [1, 0, 1, 0, 0] (GO_HOME masked); commit lock one-hot [0, 0, 1, 0, 0] vs payload-only [1, 0, 1, 0, 0]; commit state restored=True"
+    },
+    {
+      "check": "C11_STRUCTURAL_PINS_REPRODUCED",
+      "pass": true,
+      "detail": "nearest waypoint to own flag idx 5 at 2.076; 1 within 2.5; commit {0: 4, 1: 3, 2: 4, 3: 2, 4: 4}; R 3.5"
+    },
+    {
+      "check": "C8_REPLAY_REPRODUCES_SEALED_ROWS_EXACTLY",
+      "pass": true,
+      "detail": "4/4 cells equal their sealed (steps, blue, red); arrays finite & length==steps: True; motion params at defaults: True; parameter digest unchanged: True"
+    },
+    {
+      "check": "C9_ISOLATED_ONE_STEP_INTEGRATOR_REPRODUCES_LIVE_MOTION_AND_EVERY_MISS_HAS_A_NEIGHBOUR_IN_SHOVE_REACH",
+      "pass": true,
+      "detail": "1611/1669 ACTIVE ticks within 0.001 cells (0.9652; 1611 within 1e-5); threshold 0.95. Non-matching ticks (58): status changed at t+1 in 3; inward-branch 36 / outward 22; within 1.5 cells of the ring 49; error median 0.500 max 2.163. Mechanism (live step ends with a 0.5-cell tangential shove between agents closer than avoid_collision_radius=0.75): shove reach = 3.928 cells; ticks with a live neighbour inside reach 1006/1669; non-matching ticks with NO neighbour inside reach: 0 (must be 0)"
+    },
+    {
+      "check": "C14_COSINE_REPLICA_EQUALS_THE_UNCHANGED_FUNCTION_AND_DIRECTION_IS_EXISTENCE",
+      "pass": true,
+      "detail": "400 random incl. zero-vector cases: max|diff| 2.22e-16; existence self-tests [(True, True, True), (True, False, True), (False, False, False), (False, False, True)]; a nearest-only rule would have said False on the case where existence says True"
+    },
+    {
+      "check": "C15_WITNESS_SET_IS_GO_TO_ONLY_AND_NEVER_EMPTY_ON_ACTIVE_TICKS",
+      "pass": true,
+      "detail": "across all ACTIVE ticks of the 4 probe cells: empty witness sets 0, non-GO_TO members 0, largest witness set 50 waypoints"
+    },
+    {
+      "check": "C16_PLANTED_TRUTH_AND_PIPELINE_INVARIANTS",
+      "pass": true,
+      "detail": "path-oracle: planted GO_TO path recovered natively RMSE 0.00e+00; planted per-tick alternating path recovered by the interruptible variant RMSE 0.00e+00 but not natively (RMSE 0.819 > 1e-3, i.e. the commit lock binds); pipeline on the 4 probe cells: 44/44 invariants hold, deterministic=True, re-derivation clean. Gate rates deliberately not printed or recorded."
+    },
+    {
+      "check": "C10_DECISION_RULE_SELFTESTS",
+      "pass": true,
+      "detail": "9/9 label cases, coverage classes, cluster-CI on all-pass = (1.0, 1.0, 1.0)"
+    },
+    {
+      "check": "C12_READ_ONLY_FENCE",
+      "pass": true,
+      "detail": "no training/optimizer call in the audit source"
+    },
+    {
+      "check": "C13_SEED_REGISTRY_ENTRY_UNCHANGED",
+      "pass": true,
+      "detail": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4: SPENT / sealed_confirmatory; entry byte-identical before/after"
+    }
+  ]
+}

@@ -1,0 +1,266 @@
+{
+  "record_id": "DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT",
+  "status": "REPRESENTABLE_ACROSS_TRANSITIONS",
+  "utc": "2026-09-18T17:25:27Z",
+  "implements": [
+    "artifacts\\strategic_demand\\sppo\\DEFEND_SEMANTIC_COMMITMENT_V2_SPEC.json"
+  ],
+  "spec_sha256": "453028b20d27caa769a495255999a5ff85b71563bdcd8a0624c721dae0a606e7",
+  "C0_prior_artifact_protection": {
+    "pass": true,
+    "sha256": {
+      "PYQUATICUS_PORT_CONTRACT_RESULT.json": "d24ecdc72044741c52bf5e1ec52694679fffb36b98593b5aa11465ac4d4cc891",
+      "PYQUATICUS_G6_SUBGATE_DECOMPOSITION.json": "350f40cc148fc15ab130d5eb83de7450274ad3c8283c5c835cd554a0035ded3a",
+      "PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_UNREPRESENTABLE_RESULT.json": "b97791d35db3b234e6f56e72a76a25f003d48350682bce8a8a1032951d49b8e4",
+      "PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json": "4f6fcae6d3f3e07d4a6e2dde5a3bbcac1898603592cddaec311b2b1f5c588d5f",
+      "DEFEND_PRIMITIVE_AND_HOME_LEGALITY_V1_CONTRACT_RESULT.json": "ceaffffc48f178b5222eb7141bd8f1582495098043e3f81a0920744e7be74bf4",
+      "HOME_LEGALITY_CONFIRMED_INTERFACE_REPAIR.json": "ae039c830f7208e1af51afde756c0ebf6c01134d02c66b20f0612797f322e2c3"
+    }
+  },
+  "C2_repair_off_equals_sealed_on_original_fixtures": {
+    "pass": true,
+    "n_mismatches": 0,
+    "mismatches_sample": []
+  },
+  "C4_orthogonality_non_defend_branches_unaffected": {
+    "pass": true,
+    "non_defend_fails_unchanged": true
+  },
+  "DECISIVE_G6_TARGET_pass_on": [
+    "G3_DEFEND_OUTSIDE",
+    "G4_DEFEND_INSIDE",
+    "V2_ANCHOR_STABLE_INWARD"
+  ],
+  "DECISIVE_G6_TARGET_result": true,
+  "DECISIVE_G6_DIRECTION_first_cosine_result": true,
+  "MECHANICAL_RADIAL_SIGN_ATTRIBUTION": {
+    "G1_ATTACK_NO_CARRIER": {
+      "GET_FLAG": {
+        "branch_flip_ticks": [
+          2
+        ],
+        "target_error_at_flip_ticks": {
+          "2": 0.0
+        },
+        "radial_disagreement_ticks_total": 0,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": []
+      },
+      "GO_TO_ENEMY_FLAG_WAYPOINT": {
+        "branch_flip_ticks": [
+          2
+        ],
+        "target_error_at_flip_ticks": {
+          "2": 2.075726797975482
+        },
+        "radial_disagreement_ticks_total": 4,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          12,
+          13,
+          14,
+          15
+        ]
+      }
+    },
+    "G2_ATTACK_SELF_CARRIER": {
+      "GO_HOME_SELF_CARRIER": {
+        "branch_flip_ticks": [],
+        "target_error_at_flip_ticks": {},
+        "radial_disagreement_ticks_total": 0,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": []
+      },
+      "GO_TO_HOME_WAYPOINT_SELF_CARRIER": {
+        "branch_flip_ticks": [],
+        "target_error_at_flip_ticks": {},
+        "radial_disagreement_ticks_total": 0,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": []
+      }
+    },
+    "G2_ATTACK_TEAMMATE_CARRIER_NONCARRIER": {
+      "GO_HOME_NONCARRIER": {
+        "branch_flip_ticks": [
+          6
+        ],
+        "target_error_at_flip_ticks": {
+          "6": 0.0
+        },
+        "radial_disagreement_ticks_total": 0,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": []
+      },
+      "GO_TO_HOME_WAYPOINT_NONCARRIER": {
+        "branch_flip_ticks": [
+          6
+        ],
+        "target_error_at_flip_ticks": {
+          "6": 2.075726797975482
+        },
+        "radial_disagreement_ticks_total": 9,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
+        ]
+      }
+    },
+    "G3_DEFEND_OUTSIDE": {
+      "DEFEND_UNIFIED_SEMANTIC_TARGET": {
+        "branch_flip_ticks": [
+          7,
+          11
+        ],
+        "target_error_at_flip_ticks": {
+          "7": 0.0,
+          "11": 0.0
+        },
+        "radial_disagreement_ticks_total": 5,
+        "radial_disagreement_explained_opposite_side": [
+          4,
+          7
+        ],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          6,
+          9,
+          12
+        ]
+      },
+      "GO_TO_DEFENDER_SEMANTIC_TARGET": {
+        "branch_flip_ticks": [
+          7,
+          11
+        ],
+        "target_error_at_flip_ticks": {
+          "7": 17.009075275858873,
+          "11": 2.075726797975482
+        },
+        "radial_disagreement_ticks_total": 7,
+        "radial_disagreement_explained_opposite_side": [
+          12
+        ],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          5,
+          6,
+          11,
+          13,
+          14,
+          15
+        ]
+      }
+    },
+    "G4_DEFEND_INSIDE": {
+      "DEFEND_UNIFIED_SEMANTIC_TARGET": {
+        "branch_flip_ticks": [
+          3,
+          7,
+          9,
+          12,
+          15
+        ],
+        "target_error_at_flip_ticks": {
+          "3": 0.0,
+          "7": 0.0,
+          "9": 0.0,
+          "12": 0.0,
+          "15": 0.0
+        },
+        "radial_disagreement_ticks_total": 6,
+        "radial_disagreement_explained_opposite_side": [
+          6,
+          8
+        ],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          4,
+          7,
+          9,
+          12
+        ]
+      },
+      "GO_TO_DEFENDER_SEMANTIC_TARGET": {
+        "branch_flip_ticks": [
+          3,
+          7,
+          9,
+          12,
+          15
+        ],
+        "target_error_at_flip_ticks": {
+          "3": 17.009075275858873,
+          "7": 2.075726797975482,
+          "9": 8.149085982904825,
+          "12": 2.075726797975482,
+          "15": 2.075726797975482
+        },
+        "radial_disagreement_ticks_total": 6,
+        "radial_disagreement_explained_opposite_side": [
+          7,
+          9,
+          12
+        ],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          10,
+          11,
+          15
+        ]
+      }
+    },
+    "G5_TAGGED": {
+      "TAGGED_INTERFACE_IGNORED": {
+        "branch_flip_ticks": [],
+        "target_error_at_flip_ticks": {},
+        "radial_disagreement_ticks_total": 0,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": []
+      }
+    },
+    "G5_DEAD_LOCAL_ADAPTATION": {
+      "DEAD_INTERFACE_IGNORED": {
+        "branch_flip_ticks": [],
+        "target_error_at_flip_ticks": {},
+        "radial_disagreement_ticks_total": 0,
+        "radial_disagreement_explained_opposite_side": [],
+        "radial_disagreement_UNEXPLAINED_same_side": []
+      }
+    },
+    "V2_ANCHOR_STABLE_INWARD": {
+      "DEFEND_UNIFIED_SEMANTIC_TARGET": {
+        "branch_flip_ticks": [],
+        "target_error_at_flip_ticks": {},
+        "radial_disagreement_ticks_total": 2,
+        "radial_disagreement_explained_opposite_side": [
+          11
+        ],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          13
+        ]
+      },
+      "GO_TO_DEFENDER_SEMANTIC_TARGET": {
+        "branch_flip_ticks": [],
+        "target_error_at_flip_ticks": {},
+        "radial_disagreement_ticks_total": 2,
+        "radial_disagreement_explained_opposite_side": [
+          11
+        ],
+        "radial_disagreement_UNEXPLAINED_same_side": [
+          15
+        ]
+      }
+    }
+  },
+  "results": {
+    "unified_off": "DEFEND_SEMANTIC_COMMITMENT_V2_UNIFIED_OFF_RESULT.json",
+    "unified_on": "DEFEND_SEMANTIC_COMMITMENT_V2_UNIFIED_ON_RESULT.json"
+  },
+  "REPRESENTABLE_ACROSS_TRANSITIONS": true,
+  "team_evaluation_unlocked": false,
+  "claim_boundary": "This establishes only that a single committed DEFEND macro can express the frozen external defender semantics across its own branch transitions on the tested fixtures. It says nothing about learned specialization, PPO, or team payoff, and does not by itself unblock the Pyquaticus team evaluation."
+}

@@ -1,0 +1,313 @@
+{
+  "record_id": "PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC",
+  "status": "FROZEN_PAPER_ONLY_NO_EXECUTION_AUTHORIZATION",
+  "utc": "2026-09-18T13:37:23Z",
+  "pre_execution_amended_utc": "2026-09-18T13:48:15Z",
+  "pre_execution_amendment": "Named the executable gates G1-G6 exactly, added the pinned upstream environment source required for tagged/reset provenance, and authorized only the CPU contract milestone. No outcome data or team episodes existed when amended.",
+  "classification": "DIAGNOSTIC / EXTERNAL SCRIPTED-CONTROLLER BASELINE. Not PAPER-FAITHFUL. Not latent-strategy work. Not PPO training.",
+  "scientific_question": "Can an externally defined attacker/defender controller family preserve its easy-mode semantics in this CTF environment, can those semantics be represented through the project's macro action interface, and does deterministic 2A/2D agent-to-role allocation become payoff-relevant once role behavior is fixed?",
+  "scientific_delta": "Introduce no learned policy and no reward or environment change. Port the externally defined Pyquaticus BaseAttacker and BaseDefender easy-mode semantics, compare direct native semantic execution with projection through the existing action interface, then vary only the deterministic agent-to-role mapping.",
+  "no_new_preset": true,
+  "no_resolved_config_diff": "No PPOConfig or latent preset is created or modified by this paper-only freeze.",
+
+  "FRAMING_LOCK": {
+    "existing_project_fact": "Explicit attack/defense decomposition is not new to this environment. Existing scripted Blue controllers already produce payoff-relevant strategic differences in 4v4.",
+    "purpose_of_this_rung": "Semantic portability and role-assignment evaluation using an external, pre-existing controller family, independently of PPO.",
+    "frozen_paper_wording": "The failed ROLE experiment did not test explicit behavioral role decomposition. It tested whether a shared PPO policy could exploit an ATTACK/DEFEND conditioning variable. Explicit scripted decomposition has already demonstrated payoff-relevant behavior in our environment. The Pyquaticus experiment provides an externally grounded controller family for testing semantic portability and agent-to-role assignment independently of PPO.",
+    "forbidden_reading": "No result from this rung may be described as PPO learning roles, PPO discovering specialization, or a repair of the shared PPO policy."
+  },
+
+  "FROZEN_HIERARCHY": {
+    "stage_1": "Pinned upstream easy-mode semantics",
+    "stage_2": [
+      "TRUE_NATIVE: global-state controller semantics execute as direct physical targets with the upstream normalized speed intent",
+      "PROJECTED: the same semantic targets are represented through the existing legal macro-plus-target interface"
+    ],
+    "stage_3": "Within each cleared execution arm, compare the same 2 BaseAttacker plus 2 BaseDefender controllers under CLOSEST_DEFENDS, FARTHEST_DEFENDS, and FIXED_IDENTITY mappings.",
+    "dependency": "No later stage is authorized until every gate of the preceding stage passes and its result artifact is frozen."
+  },
+
+  "UPSTREAM_PROVENANCE_GATE": {
+    "repository": "https://github.com/mit-ll-trusted-autonomy/pyquaticus",
+    "branch_observed": "main",
+    "branch_observed_utc": "2026-09-18T13:37:23Z",
+    "pinned_commit": "72b50e067ab311929390ecd4e59131452be15c6d",
+    "mode": "easy",
+    "license": "BSD-3-Clause",
+    "attribution_requirement": "Any adapted source file and research artifact must retain the upstream copyright and BSD-3-Clause attribution.",
+    "source_files": [
+      {
+        "path": "LICENSE",
+        "sha256": "0fdad9afd329ec1eb589fedf9e1a00be1ed641e2ebf31bb837eb9223f168d755",
+        "purpose": "license text"
+      },
+      {
+        "path": "pyquaticus/base_policies/base_attack.py",
+        "sha256": "e3a7f6e19dc4231124d927206efbee8fa1248e8cc081598efbc7b2cefcd92568",
+        "symbols": [
+          "BaseAttacker.compute_action",
+          "BaseAttacker.update_state",
+          "BaseAttacker.action_from_vector"
+        ]
+      },
+      {
+        "path": "pyquaticus/base_policies/base_defend.py",
+        "sha256": "8bf5947a1028dccf0b35c0a134926d24a33f832b4d331a99a90b8b114396a75b",
+        "symbols": [
+          "BaseDefender.compute_action",
+          "BaseDefender.update_state",
+          "BaseDefender.action_from_vector"
+        ]
+      },
+      {
+        "path": "pyquaticus/base_policies/base_policy.py",
+        "sha256": "d2db01ac77aaa3ed10739c1ed738b3201e731b3672b2b3a19cc38478d3b4a5d9",
+        "symbols": [
+          "BaseAgentPolicy"
+        ]
+      },
+      {
+        "path": "pyquaticus/envs/pyquaticus.py",
+        "sha256": "ab87caaf460762d341b4121dd385eaa19bfa315fff56df0029c9aa1c365b57bc",
+        "symbols": [
+          "PyQuaticusEnv._move_agents",
+          "PyQuaticusEnv.reset"
+        ],
+        "purpose": "tagged auto-home execution and reset-state provenance"
+      },
+      {
+        "path": "pyquaticus/config.py",
+        "sha256": "5c0cb391fb33622df8cff18ee9298f8c76b897c3acc6a8d75f178faf7c7205a4",
+        "purpose": "easy-mode geometry defaults: env_bounds=[160,80] m, flag_keepout=3 m, catch_radius=10 m"
+      },
+      {
+        "path": "pyquaticus/base_policies/README.md",
+        "sha256": "d26fd9ab42b19ed6ce4cb480b2530edb353b461f05f8c08c9d7babae5f5cde6d",
+        "purpose": "upstream controller-family documentation"
+      },
+      {
+        "path": "pyproject.toml",
+        "sha256": "9f54cbb440ee4f357bb01c8e3b82bec91016ecfeea8c4533c39cba72ab1e51a9",
+        "purpose": "upstream package provenance"
+      }
+    ],
+    "explicitly_excluded": {
+      "path": "pyquaticus/base_policies/base_combined.py",
+      "sha256": "8259679c0bf69a80647a027e9cc104d88f7776a7031ccb19283b2b8ea1f1e828",
+      "symbols": [
+        "Heuristic_CTF_Agent"
+      ],
+      "reason": "It combines role definition with upstream role selection. Importing it would confound controller semantics with assignment."
+    },
+    "gate_pass_condition": "Implementation must re-check the pinned commit and every listed SHA256 before adapting code. Any mismatch requires a written provenance amendment before implementation."
+  },
+
+  "INFORMATION_CONTRACT": {
+    "TRUE_NATIVE": "Uses full simulator global state for all friendly carry flags, own/enemy flag positions, own position, heading, tagged state, and alive state. It must not reconstruct those quantities from the agent-local observation.",
+    "PROJECTED": "Receives the exact same global semantic state and computes the exact same semantic target as TRUE_NATIVE. Only target-to-action representation may differ.",
+    "later_decentralized_variant": "Reconstructing controller state from local observations is a separate decentralized-adaptation experiment and is outside this spec.",
+    "anti_leak_note": "Global state is allowed because this is a scripted external-controller diagnostic, not a decentralized learned actor and not a paper-faithful latent-policy row."
+  },
+
+  "EASY_MODE_SEMANTICS": {
+    "BaseAttacker": {
+      "no_friendly_carrier": "Target the current opponent flag position at normalized desired speed 0.5.",
+      "self_carries": "Target own flag home at normalized desired speed 0.5.",
+      "teammate_carries": "Target own flag home at normalized desired speed 0.5, including for every non-carrier attacker.",
+      "source_condition": "self.has_flag OR any teammate has_flag selects home; otherwise opponent flag."
+    },
+    "BaseDefender": {
+      "upstream_threshold_m": 14.0,
+      "upstream_formula": "flag_keepout 3.0 + catch_radius 10.0 + 1.0",
+      "unit_adapter": "Map upstream catch_radius=10 m to this environment's tag_range_cells=2.5. The locked scale is 0.25 cell/m, so the local threshold is 3.5 cells. This preserves the 0.3 keepout/catch and 0.1 buffer/catch ratios.",
+      "local_threshold_cells": 3.5,
+      "outside_threshold": "If distance to the current own flag position is strictly greater than 3.5 cells, point toward the current own flag at normalized desired speed 0.5.",
+      "inside_or_on_threshold": "If distance is less than or equal to 3.5 cells, point directly away from the current own flag at normalized desired speed 0.5.",
+      "stolen_flag_case": "Use current own flag position, not own flag home."
+    },
+    "tagged_and_dead": {
+      "tagged": "Controller role remains assigned, but environment-level tagged handling overrides the controller and targets own flag home. This matches the upstream environment's easy-mode execution contract, where tagged players are auto-driven home independently of BaseAttacker/BaseDefender's easy branch.",
+      "dead": "Pinned Pyquaticus has tagged state but no project-equivalent alive/dead respawn axis. Dead agents are therefore an explicit local interface adaptation: they are immobile and controller output is ignored. This adaptation must be reported separately from copied upstream semantics.",
+      "recovery": "After untag/respawn, the agent resumes the same episode-static role. No death, tag, untag, or respawn event triggers role reassignment in this first rung."
+    }
+  },
+
+  "EXECUTION_ARMS": {
+    "TRUE_NATIVE": {
+      "definition": "Convert the semantic vector to a direct world-space physical target and execute it through the simulator's native target/dynamics path, bypassing MacroAction and target-index decoding.",
+      "speed_contract": "For alive, untagged agents, cap requested speed at 0.5 times the local maximum speed, matching upstream easy mode's desired_speed_normalized=0.5. Existing collision, obstacle, tagging, flag, and capture rules remain active.",
+      "toward_target": "Use the exact current enemy flag, own flag, or own flag home coordinates named by the semantic controller.",
+      "away_target": "Use the ray from the current own flag through the agent and place its endpoint at the arena boundary, preserving the exact outward bearing. At exact flag-center coincidence, preserve upstream zero-relative-bearing behavior by using the agent's current heading. Recompute every decision tick.",
+      "not_claimed": "TRUE_NATIVE is semantic execution inside this simulator. It is not a claim of reproducing Pyquaticus physics, dynamics, or full trajectory identity."
+    },
+    "PROJECTED": {
+      "definition": "Represent each already-computed semantic target through the existing legal (macro, target_index) action interface. The adapter may not inspect rewards, scores, opponent identity, future state, or evaluation outcomes.",
+      "target_quantizer": "For GO_TO, choose the Euclidean-nearest legal target waypoint; ties resolve to the smaller target index.",
+      "candidate_sets": {
+        "attacker_no_friendly_carrier": [
+          "GET_FLAG with its legal ignored/default target field",
+          "GO_TO(nearest legal waypoint to current enemy flag)"
+        ],
+        "attacker_self_carries": [
+          "GO_HOME with its legal ignored/default target field",
+          "GO_TO(nearest legal waypoint to own flag home)"
+        ],
+        "attacker_teammate_carries_self_does_not": [
+          "GO_HOME with its legal ignored/default target field",
+          "GO_TO(nearest legal waypoint to own flag home)"
+        ],
+        "defender_outside_threshold": [
+          "GO_TO(nearest legal waypoint to current own flag position)"
+        ],
+        "defender_inside_or_on_threshold": [
+          "GO_TO(nearest legal waypoint along the TRUE_NATIVE away ray)"
+        ]
+      },
+      "carrier_trap": "Self-carriers and non-carriers in the friendly-carrier state are separate cases. Physical target agreement alone is insufficient because GO_HOME and carrying overrides can change commitment, success, and failure behavior.",
+      "adapter_status": "UNSELECTED_BY_THIS_PAPER_ONLY_SPEC"
+    }
+  },
+
+  "NATIVE_SEMANTIC_CONTRACT_GATE": {
+    "controlled_cases": [
+      "G1 ATTACK_NO_CARRIER: no friendly carrier implies exact current enemy-flag target",
+      "G2 ATTACK_FRIENDLY_CARRIER: self carrier and teammate-carrier/non-carrier cases both imply exact own-flag-home target for every attacker",
+      "G2 GLOBAL_CONTRACT: changing only a teammate's global carry bit changes G1 to G2 even when the tested agent-local observation fixture is held fixed",
+      "G3 DEFEND_OUTSIDE: distance strictly greater than 3.5 cells implies inward direction toward the current own flag",
+      "G4 DEFEND_INSIDE: distance less than or equal to 3.5 cells implies outward direction; displaced/stolen own flag uses current flag position rather than flag home",
+      "G5 RESET_TAG: tagged attacker and defender are auto-driven home at upstream max-speed intent; reset clears tagged/carry state; project-local dead agents remain immobile and are reported as a local adaptation"
+    ],
+    "geometric_coverage": "Run each non-degenerate direction case in all four arena quadrants and at headings 0, pi/2, pi, and 3pi/2 where physically valid.",
+    "hard_checks": [
+      "semantic target category is correct in 100% of fixtures",
+      "desired-bearing cosine with the analytical semantic vector is at least 0.999999",
+      "requested alive/untagged speed equals 0.5 times local max speed within float tolerance",
+      "tagged and dead overrides are role-invariant",
+      "no local-observation reconstruction path is called"
+    ],
+    "pass_rule": "All hard checks pass. Any failure blocks PROJECTED implementation and team evaluation."
+  },
+
+  "PROJECTION_CONTRACT_GATE": {
+    "gate_id": "G6 PROJECTED_REPRESENTABILITY",
+    "execution_horizon_decision_ticks": 16,
+    "comparison": "For the same controlled initial global state, compare each candidate's effective target and physical trajectory against TRUE_NATIVE. No score, win rate, episode return, policy advantage, or opponent-outcome quantity may enter selection.",
+    "recorded_metrics": [
+      "effective_target_error_cells per tick",
+      "desired-bearing cosine per tick",
+      "sign and magnitude of radial progress toward or away from the semantic target",
+      "paired 16-tick position RMSE relative to TRUE_NATIVE",
+      "macro commitment duration and retarget delay",
+      "macro success, timeout, and failed-commit events",
+      "carrier and non-carrier results reported separately"
+    ],
+    "hard_pass_conditions": [
+      "correct target category in 100% of fixtures",
+      "first-tick desired-bearing cosine at least 0.99 for every nonzero semantic vector",
+      "radial-progress sign agrees with TRUE_NATIVE on every alive, untagged, unobstructed tick",
+      "maximum effective-target error is at most one local interaction radius (2.5 cells) in every controlled fixture",
+      "paired 16-tick position RMSE is at most one local interaction radius (2.5 cells); larger divergence is material because it can change tag/contact outcomes",
+      "no structurally impossible macro-success predicate for the semantic branch; ordinary en-route timeout behavior is measured but is not confused with the non-carrier GO_HOME impossibility",
+      "friendly-carrier non-carrier case passes independently of the self-carrier case"
+    ],
+    "selection_rule": "Discard every candidate that fails a hard condition. Among remaining candidates for a semantic branch, select lexicographically by lower maximum target error, lower 16-tick position RMSE, lower maximum retarget delay, then smaller (macro_id,target_id). Freeze the selected branch mapping and hashes in PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_ADAPTER_FREEZE.json before any team outcome evaluation.",
+    "unrepresentable_rule": "If no candidate passes for any required semantic branch, mark PROJECTED UNREPRESENTABLE, report the failed branch, and do not launch PROJECTED team evaluation.",
+    "anti_selection_bias": "Adapter candidates, metrics, tolerances, and tie-breaking are frozen here. Performance against opponents may not choose, reject, or revise an adapter."
+  },
+
+  "ASSIGNMENT_CONTRACT": {
+    "team_size": "4v4 only",
+    "role_count": "Exactly 2 ATTACK and 2 DEFEND identities on the four-agent controlled roster.",
+    "assignment_time": "Compute once from the reset state before the first action, then hold for the entire episode.",
+    "reassignment": "None within an episode. Death, tag, untag, and respawn do not reassign roles.",
+    "episode_reset": "Recompute at every episode reset using that episode's initial global state.",
+    "distance": "Euclidean distance from each controlled agent's reset position to its own flag home.",
+    "arms": {
+      "CLOSEST_DEFENDS": "The two smallest (distance, agent_index) tuples are DEFEND; the remaining two are ATTACK.",
+      "FARTHEST_DEFENDS": "The two smallest (-distance, agent_index) tuples are DEFEND; the remaining two are ATTACK.",
+      "FIXED_IDENTITY": "Agent indices 0 and 1 are DEFEND; indices 2 and 3 are ATTACK. Positions do not affect this arm."
+    },
+    "tie_break": "Smaller agent index wins every exact distance tie in both geometric arms.",
+    "mapping_checks": [
+      "all-alive/reset roster always has exactly 2A/2D",
+      "identical reset state always yields identical assignment",
+      "agent-batch permutation followed by restoration of stable agent ids does not change assignment",
+      "synthetic fixtures independently establish the expected CLOSEST_DEFENDS, FARTHEST_DEFENDS, and FIXED_IDENTITY mappings",
+      "real evaluation seed block must report pairwise mapping equality rates before outcomes; if every mapping pair is identical on every seed, the assignment comparison is non-informative and outcome evaluation stops"
+    ]
+  },
+
+  "ISOLATION_GATE": {
+    "held_identical_across_assignment_arms": [
+      "pinned BaseAttacker and BaseDefender semantic implementation and hashes",
+      "execution arm: compare mappings within TRUE_NATIVE or within the one frozen PROJECTED adapter, never across mixed interfaces",
+      "2A/2D role count",
+      "environment and rules profile",
+      "map and initial-state generator",
+      "opponent controller and parameters",
+      "episode horizon",
+      "seed order",
+      "controller speed intent",
+      "projection adapter and target quantizer",
+      "telemetry and outcome code"
+    ],
+    "only_allowed_assignment_delta": "agent_index to ATTACK/DEFEND mapping",
+    "cross_execution_note": "TRUE_NATIVE versus PROJECTED is a separate interface contrast, not an assignment contrast."
+  },
+
+  "TEAM_EVALUATION_FUTURE_CONTRACT": {
+    "status": "BLOCKED_PENDING_NATIVE_AND_PROJECTION_CONTRACT_RESULTS",
+    "design_shape_if_unblocked": "Six paired cells: 2 execution arms x 3 assignment mappings, with identical seeds within every comparison.",
+    "primary_assignment_question": "Within a fixed cleared execution arm, do CLOSEST_DEFENDS, FARTHEST_DEFENDS, or FIXED_IDENTITY produce different payoff distributions when f_A and f_D are held fixed?",
+    "secondary_interface_question": "For a fixed assignment mapping, how much does the frozen action projection change behavior and payoff relative to TRUE_NATIVE?",
+    "required_later_freeze": "Before any team episode runs, write PYQUATICUS_BEHAVIORAL_ROLE_EVAL_SPEC.json with exact map, rules profile, opponent, seeds, sample size, estimands, bootstrap unit, multiplicity handling, success/failure criteria, runtime command, and artifact paths.",
+    "seeds_reserved_here": false,
+    "outcome_thresholds_frozen_here": false,
+    "reason": "This record is the requested paper-only semantic and assignment freeze. Outcome evaluation is intentionally sequenced after executable semantic evidence."
+  },
+
+  "FAILURE_LOCALIZATION_TREE": {
+    "TRUE_NATIVE_contract_fails": "Semantic port/controller implementation issue. Stop before projection or team evaluation.",
+    "TRUE_NATIVE_passes_PROJECTED_fails": "The existing action interface cannot represent at least one required external-controller semantic branch under the frozen candidate set.",
+    "PROJECTED_passes_but_assignment_effect_not_demonstrated": "The tested agent-to-role mappings are not shown to be payoff-relevant under the frozen setup.",
+    "PROJECTED_passes_and_assignment_effect_is_demonstrated": "Agent-to-role allocation is experimentally consequential for the frozen external controllers and setup.",
+    "claim_ceiling": "None of these branches establishes learned roles, PPO specialization, or a causal explanation of prior PPO failure."
+  },
+
+  "EXPLICITLY_FORBIDDEN": [
+    "PPO training or fine-tuning in this rung",
+    "GETFLAG preservation mixing",
+    "Assignment-v1 feature or checkpoint mixing",
+    "binary ROLE conditioning mixing",
+    "Heuristic_CTF_Agent or any upstream role-selection heuristic",
+    "reward shaping or reward-weight changes",
+    "choosing a projection adapter using win rate, score, return, opponent results, or any team outcome",
+    "changing the 3.5-cell defender threshold after seeing outcome data",
+    "dynamic role switching or within-episode reassignment",
+    "6v6 before this 4v4 rung is interpreted",
+    "merging or cherry-picking the archaeological pyquaticus branch wholesale",
+    "claiming PAPER-FAITHFUL, Summer-faithful, learned roles, or PPO recovery"
+  ],
+
+  "SEQUENCING_LOCK": [
+    "1. Paper-only spec freeze: this record",
+    "2. Implement the smallest provenance-pinned semantic port and executable contracts",
+    "3. Freeze PYQUATICUS_BEHAVIORAL_ROLE_NATIVE_CONTRACT_RESULT.json",
+    "4. Run the outcome-blind projection candidate contracts",
+    "5. Freeze PYQUATICUS_BEHAVIORAL_ROLE_PROJECTION_ADAPTER_FREEZE.json or an UNREPRESENTABLE result",
+    "6. If gates pass, freeze a separate exact team-evaluation spec",
+    "7. Only then run paired 4v4 team evaluation"
+  ],
+
+  "AUTHORIZATION_BOUNDARY": {
+    "authorized_now": "CPU-only PYQUATICUS_PORT_CONTRACTS milestone: provenance-pinned semantic functions, TRUE target oracle, PROJECTED adapter candidates, G1-G6 executable tests, tiny controlled probes, and one contract result artifact.",
+    "not_authorized_now": [
+      "team evaluation",
+      "training",
+      "new seed allocation",
+      "GPU execution",
+      "branch merge or cherry-pick"
+    ],
+    "next_action": "Run the CPU-only G1-G6 contracts. A clean contract seal may unlock writing the separate 4v4 team-evaluation spec, but never launches that evaluation automatically."
+  }
+}

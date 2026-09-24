@@ -157,6 +157,74 @@ def _expand_cnn_obs_channels(sd: dict[str, Any], target_channels: int) -> dict[s
     return sd
 
 
+def _expand_linear_in_features(
+    sd: dict[str, Any],
+    key: str,
+    target_in: int,
+) -> dict[str, Any]:
+    """Widen a Linear.weight's in_features, zero-initializing new input columns.
+
+    Used for rule-based role conditioning warm-start: pretrained ``B_t500k``
+    actor/critic first layers grow by the role feature(s); zero new columns
+    keep the pretrained map identical for any role bit at t=0.
+    """
+    if key not in sd:
+        return sd
+    w = sd[key]
+    if not isinstance(w, torch.Tensor) or w.dim() != 2:
+        return sd
+    src_in = int(w.shape[1])
+    if src_in == int(target_in):
+        return sd
+    if src_in > int(target_in):
+        return sd
+    new_w = w.new_zeros(w.shape[0], int(target_in))
+    new_w[:, :src_in] = w
+    sd = dict(sd)
+    sd[key] = new_w
+    print(
+        f"[checkpoint compat] Linear in_features expansion: {key} "
+        f"{src_in}->{int(target_in)} (new columns zero-initialized)"
+    )
+    return sd
+
+
+def _expand_role_conditioning_linears(sd: dict[str, Any], model: nn.Module) -> dict[str, Any]:
+    """Expand actor/critic first Linears when the target model has role features."""
+    if not bool(getattr(model, "role_conditioning_enabled", False)):
+        return sd
+    out = dict(sd)
+    body0 = getattr(getattr(model, "latent_actor", None), "body", None)
+    if body0 is not None and len(body0) > 0 and hasattr(body0[0], "in_features"):
+        out = _expand_linear_in_features(out, "latent_actor.body.0.weight", int(body0[0].in_features))
+    critic = getattr(model, "critic", None)
+    net = getattr(critic, "net", None) if critic is not None else None
+    if net is not None and len(net) > 0 and hasattr(net[0], "in_features"):
+        out = _expand_linear_in_features(out, "critic.net.0.weight", int(net[0].in_features))
+    return out
+
+
+def _expand_assignment_conditioning_linears(sd: dict[str, Any], model: nn.Module) -> dict[str, Any]:
+    """Expand actor/critic first Linears when the target model has assignment features."""
+    if not bool(getattr(model, "assignment_conditioning_enabled", False)):
+        return sd
+    out = dict(sd)
+    body0 = getattr(getattr(model, "latent_actor", None), "body", None)
+    if body0 is not None and len(body0) > 0 and hasattr(body0[0], "in_features"):
+        out = _expand_linear_in_features(out, "latent_actor.body.0.weight", int(body0[0].in_features))
+    critic = getattr(model, "critic", None)
+    net = getattr(critic, "net", None) if critic is not None else None
+    if net is not None and len(net) > 0 and hasattr(net[0], "in_features"):
+        out = _expand_linear_in_features(out, "critic.net.0.weight", int(net[0].in_features))
+    return out
+
+
+def _expand_privileged_conditioning_linears(sd: dict[str, Any], model: nn.Module) -> dict[str, Any]:
+    """Role (+1 / +N critic) and assignment (+4 / +N*4 critic) warm-start expansion."""
+    out = _expand_role_conditioning_linears(sd, model)
+    return _expand_assignment_conditioning_linears(out, model)
+
+
 def _load_model_state_dict_compat(
     model: nn.Module,
     sd: Mapping[str, Any],
@@ -194,6 +262,27 @@ def _load_model_state_dict_compat(
             break
     if _target_ch is not None and _target_ch > 1:
         actor_remapped = _expand_cnn_obs_channels(actor_remapped, _target_ch)
+    # Keep the source-shaped state dict BEFORE role expansion. The behavioral-
+    # equivalence probe reconstructs a source model without role features and
+    # must load these unexpanded weights (W_B500k), not W'=[W 0].
+    source_state_dict = {k: (v.detach().clone() if isinstance(v, torch.Tensor) else v)
+                         for k, v in actor_remapped.items()}
+    cond_expanded = bool(getattr(model, "role_conditioning_enabled", False)) or bool(
+        getattr(model, "assignment_conditioning_enabled", False)
+    )
+    actor_remapped = _expand_privileged_conditioning_linears(actor_remapped, model)
+    role_expanded = cond_expanded
+    if role_expanded:
+        # Detect whether expansion actually widened any Linear (warm-start seam).
+        role_expanded = any(
+            (
+                k in source_state_dict
+                and isinstance(source_state_dict[k], torch.Tensor)
+                and isinstance(v, torch.Tensor)
+                and tuple(source_state_dict[k].shape) != tuple(v.shape)
+            )
+            for k, v in actor_remapped.items()
+        )
     model_sd = dict(model.state_dict())
     shape_skipped: list[str] = []
     filtered: dict[str, Any] = {}
@@ -233,6 +322,11 @@ def _load_model_state_dict_compat(
     allowed_missing.extend(
         k for k in missing if any(k.startswith(p) for p in _V6I7_RESIDUAL_PREFIXES)
     )
+    # 4v4 entity-repair (2026-09-13): a checkpoint sealed before entity_encoder
+    # existed warm-starts everything ELSE exactly, with entity_encoder left at
+    # its fresh zero-init projection -- proven behavior-preserving at load time
+    # by tests/test_entity_pipeline_end_to_end.py's warm-start equivalence check.
+    allowed_missing.extend(k for k in missing if k.startswith("entity_encoder."))
     router_reinit = bool(
         target_cfg is not None and getattr(target_cfg, "router_reinitialize_on_load", False)
     )
@@ -365,17 +459,19 @@ def _load_model_state_dict_compat(
         try:
             from rl.custom_ppo.checkpoints.loader import _model_kwargs_from_cfg
 
-            # Reconstruct the source-compatible model strictly
+            # Reconstruct the source-compatible model strictly from the
+            # CHECKPOINT cfg (no role bit). Load the UNEXPANDED weights so the
+            # probe compares π_B500k(a|o) against π_role,t0(a|o,r) with W'=[W 0].
             source_model = SharedActorCentralizedCritic(
                 observation_space,
                 action_space,
                 **_model_kwargs_from_cfg(checkpoint_cfg),
             ).to(device)
-            # When newly-initialized params exist, actor_remapped lacks those keys.
+            # When newly-initialized params exist, source_state_dict lacks those keys.
             # Use strict=False so the source model's new modules stay zero-initialized,
             # matching the target model — the probe will confirm outputs are identical.
             _src_strict = not bool(newly_initialized)
-            source_model.load_state_dict(actor_remapped, strict=_src_strict)
+            source_model.load_state_dict(source_state_dict, strict=_src_strict)
 
             # V6I22E/V6I23: if adapters or per-z heads are newly initialized,
             # temporarily bypass residual + per-z heads so the equivalence check
@@ -414,21 +510,52 @@ def _load_model_state_dict_compat(
                     la._residual_bypass_for_compat = False
             
             # Require tight tolerance for non-override cases
+            role_on = bool(getattr(model, "role_conditioning_enabled", False))
+            assign_on = bool(getattr(model, "assignment_conditioning_enabled", False))
+            priv_on = role_on or assign_on
             if argmax_diff > 0 or max_kl >= 1e-6:
                 print(f"[checkpoint compat] Behavioral-equivalence check: FAIL (mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
-                if not migration_override_allowed:
+                # Role warm-start is never overridable: W'=[W 0] must hold or the
+                # scientific branch is contaminated at initialization.
+                if priv_on or not migration_override_allowed:
                     raise CheckpointStateDictError(
-                        f"Behavioral equivalence check failed: argmax_diff={argmax_diff}, max_kl={max_kl:.3e}. "
-                        "The policy logits differ from the source checkpoint. "
-                        "To override this and proceed anyway, use --allow-active-actor-module-migration or set ALLOW_ACTIVE_COMPAT_MIGRATION=1."
+                        f"Behavioral equivalence check failed: argmax_diff={argmax_diff}, max_kl={max_kl:.3e}"
+                        f", max_logit_diff={max_logit_diff:.4e}. "
+                        + (
+                            "Role-conditioning warm-start requires pi_role,t0 == pi_B500k "
+                            "for r in {0,1}; refusing to proceed."
+                            if role_on
+                            else (
+                                "Assignment-conditioning warm-start requires pi_assign,t0 == "
+                                "pi_B500k for any z_i (zero-init columns); refusing to proceed."
+                                if assign_on
+                                else (
+                                    "The policy logits differ from the source checkpoint. "
+                                    "To override this and proceed anyway, use "
+                                    "--allow-active-actor-module-migration or set "
+                                    "ALLOW_ACTIVE_COMPAT_MIGRATION=1."
+                                )
+                            )
+                        )
                     )
             else:
+                role_note = (
+                    " role-warmstart r0==r1==source;"
+                    if role_on
+                    else (
+                        " assignment-warmstart z-any==source;"
+                        if assign_on
+                        else ""
+                    )
+                )
                 if _adapter_bypass_set:
-                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (trunk-only; residual/per-z specialists bypassed; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (trunk-only; residual/per-z specialists bypassed;{role_note} mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
                 elif outcome == "NOOP_MODULE_ELISION":
-                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (ignored actor extras were inactive/no-op; mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (ignored actor extras were inactive/no-op;{role_note} mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
                 else:
-                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS (mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+                    print(f"[checkpoint compat] Behavioral-equivalence check: PASS ({role_note.strip() + '; ' if role_note else ''}mean_kl={mean_kl:.3e}, max_kl={max_kl:.3e}, max_logit_diff={max_logit_diff:.4e}, argmax_diff={argmax_diff})")
+            # Stash for the loader: role expansion happened and equivalence passed.
+            setattr(model, "_role_warmstart_expanded", bool(role_expanded))
         except Exception as exc:
             if _adapter_bypass_set:
                 la = getattr(model, "latent_actor", None)
@@ -436,6 +563,16 @@ def _load_model_state_dict_compat(
                     la._residual_bypass_for_compat = False
             if isinstance(exc, RuntimeError) and "Behavioral equivalence check failed" in str(exc):
                 raise
+            # Role-conditioning warm-start MUST prove π_role,t0 ≡ π_B500k.
+            # NOT_RUN is fail-closed (do not proceed with a silent seam).
+            if bool(getattr(model, "role_conditioning_enabled", False)) or bool(
+                getattr(model, "assignment_conditioning_enabled", False)
+            ):
+                raise CheckpointStateDictError(
+                    "Privileged-conditioning warm-start behavioral-equivalence check "
+                    f"NOT_RUN / failed to execute: {exc}. Refusing to train -- "
+                    "the W'=[W 0] contract was not proven."
+                ) from exc
             print(f"[checkpoint compat] Behavioral-equivalence check: NOT_RUN (could not reconstruct source model: {exc})")
     else:
         print("[checkpoint compat] Behavioral-equivalence check: NOT_RUN (spaces not provided)")

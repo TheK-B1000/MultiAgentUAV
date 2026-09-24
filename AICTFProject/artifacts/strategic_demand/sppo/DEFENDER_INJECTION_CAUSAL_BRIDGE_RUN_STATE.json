@@ -1,0 +1,52 @@
+{
+  "label": "DEFENDER_INJECTION_CAUSAL_BRIDGE",
+  "state": "SEALED",
+  "history": [
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-20T08:22:51Z",
+      "pid": 39804,
+      "host": "DESKTOP-9MUFES4",
+      "python": "3.12.4",
+      "git_sha": "1faa60d8eb23e1c956d726399a03470c8b4fac02",
+      "spec": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
+      "n_episodes": 768
+    },
+    {
+      "state": "RUNNING",
+      "utc": "2026-09-20T17:37:31Z",
+      "pid": 43312,
+      "resumed": true,
+      "spec": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
+      "n_episodes": 768
+    },
+    {
+      "state": "COMPLETE",
+      "utc": "2026-09-20T17:37:32Z",
+      "reason": "all episodes written"
+    },
+    {
+      "state": "AUDITED",
+      "utc": "2026-09-20T17:37:32Z",
+      "audit": "DEFENDER_INJECTION_CAUSAL_BRIDGE_AUDIT.json",
+      "n_checks": 26
+    },
+    {
+      "state": "SEALED",
+      "utc": "2026-09-20T17:37:32Z",
+      "result": "DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json"
+    }
+  ],
+  "updated_utc": "2026-09-20T17:37:32Z",
+  "pid": 43312,
+  "host": "DESKTOP-9MUFES4",
+  "python": "3.12.4",
+  "git_sha": "1faa60d8eb23e1c956d726399a03470c8b4fac02",
+  "spec": "DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json",
+  "n_episodes": 768,
+  "resumed": true,
+  "reason": "all episodes written",
+  "audit": "DEFENDER_INJECTION_CAUSAL_BRIDGE_AUDIT.json",
+  "n_checks": 26,
+  "result": "DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json"
+}

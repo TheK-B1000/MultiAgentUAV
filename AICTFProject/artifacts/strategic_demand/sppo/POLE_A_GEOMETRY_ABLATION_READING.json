@@ -1,0 +1,58 @@
+{
+  "record_id": "POLE_A_GEOMETRY_ABLATION_READING",
+  "status": "READING_FROZEN",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "utc": "2026-09-14T03:35:00Z",
+  "rests_on": "POLE_A_GEOMETRY_ABLATION_RESULT.json (all 8 known-answer contracts passed live on trained weights)",
+  "governed_by": "POLE_A_GEOMETRY_ABLATION_SPEC.json, amended by POLE_A_GEOMETRY_ABLATION_BRANCH4_CRITERION_AMENDMENT.json (both frozen before this result existed)",
+
+  "HEADLINE": "H1 (geometry load-bearing at inference for Pole-A specialization) is REJECTED. C_A is statistically indistinguishable from zero, and its point estimate is even slightly negative -- deleting geometry did not collapse the specialization gap, if anything the ablated gap was numerically LARGER.",
+
+  "REPRODUCTION_CHECK_branch_4": {
+    "delta_A_full": {"mean": 0.28125, "lcb95": 0.125, "ucb95": 0.4375},
+    "threshold_from_amendment": "reproduces if mean >= 0.20 (frozen before this data existed)",
+    "verdict": "REPRODUCES CLEANLY. 0.281 clears 0.20; sign and rough magnitude consistent with the sealed n=128 delta_A=+0.352 (some shrinkage expected/tolerated per the amendment's own reasoning about n=64 vs n=128 sampling variation). Branch 4 (stop, don't interpret) does NOT fire."
+  },
+
+  "PRIMARY_RESULT": {
+    "delta_A_full": {"mean": 0.28125, "lcb95": 0.125, "ucb95": 0.4375, "passes_pass_fail_gate": true},
+    "delta_A_zero": {"mean": 0.359375, "lcb95": 0.203125, "ucb95": 0.515625, "passes_pass_fail_gate": true},
+    "C_A": {"mean": -0.078125, "lcb95": -0.265625, "ucb95": 0.109375},
+    "reading": "Deleting the entire geometry pathway PRESERVED the specialization gap. delta_A_zero (0.359) is if anything numerically larger than delta_A_full (0.281), though C_A's interval comfortably contains zero so this must NOT be read as 'ablation helped' -- it is a null result, not a reversal.",
+    "matches_precommitted_branch": "BRANCH 1 exactly: 'FULL reproduces the strong delta_A AND ZERO also preserves it, with C_A near zero' -> reading: 'entity geometry is NOT load-bearing at deployment for Pole-A specialization'."
+  },
+
+  "SECONDARY_RESULTS_absolute_capability": {
+    "L_A": {"mean": -0.015625, "lcb95": -0.078125, "ucb95": 0.046875,
+           "reading": "deleting geometry from pi_A3 did not measurably change its own Pole-A win rate (0.8125 -> 0.828125). Entirely compatible with zero."},
+    "L_B": {"mean": 0.0625, "lcb95": -0.09375, "ucb95": 0.21875,
+           "reading": "deleting geometry from pi_B3 also did not measurably change its Pole-A win rate (0.53125 -> 0.46875 raw, but the bootstrap interval is wide and contains zero). Entirely compatible with zero."},
+    "why_this_matters": "this rules out the specific failure mode the L_A/L_B split was designed to catch -- 'geometry boosts both policies equally, leaving the gap unchanged' would still show C_A~0 but LARGE L_A and L_B. Instead both L values are small AND compatible with zero: geometry is not doing detectable work on EITHER policy's absolute Pole-A performance, let alone differentially."
+  },
+
+  "PAIRING_DIAGNOSTIC": {
+    "corr(d_full, d_zero)": 0.318,
+    "reading": "positive but moderate, not the strong cancellation that would have made C_A's interval dramatically tighter than a naive unpaired combination. The pairing still helped (shared seeds, shared environments), but FULL and ZERO trajectories diverge enough within an episode (closed-loop compounding, exactly the effect this experiment was designed to let happen) that per-seed outcomes are not highly redundant across arms. This is expected and does not weaken the C_A~0 conclusion -- it is reported for calibration, not as a caveat that changes the reading."
+  },
+
+  "STATUS_OF_THE_THREE_LIVE_HYPOTHESES": {
+    "H1_geometry_load_bearing_at_inference": "REJECTED. C_A's mean is not just non-significant, it is in the WRONG direction for H1 (ablation did not hurt specialization; if anything the point estimate moved the other way). Combined with the earlier POLE_B_ENTITY_UTILIZATION finding (weak, symmetric per-decision footprint) and now this closed-loop result (weak, non-differential closed-loop consequence), H1 has two independent, converging pieces of evidence against it -- one open-loop, one closed-loop.",
+    "H2_geometry_as_scaffold": "UNTESTED, now the live question. Nothing in this experiment or the utilization probe can support or refute it -- both measured the ALREADY-TRAINED policy.",
+    "H3_extra_training_duration": "UNTESTED, now the live question, exactly tied to H2 -- they can only be separated from each other, not from this experiment."
+  },
+
+  "WHAT_HAPPENS_NEXT": {
+    "decisive_experiment": "the no-entity +1,000,000-step continuation control named in 4V4_ENTITY_REPAIR_ASYMMETRIC_RECOVERY_READING.json and POLE_B_ENTITY_UTILIZATION_SCAFFOLD_HYPOTHESIS_AMENDMENT.json is now the right next spend. Design: warm-start pi_A3_control / pi_B3_control from the SAME sealed B3-3 checkpoints, SAME fresh 1,000,000-step budget, SAME reset_progress=True warm-start semantics, --entity-repair-enabled OMITTED, then run the identical crossover protocol.",
+    "what_it_separates": "if the no-entity control reproduces delta_A~+0.28-0.35 on its own, H3 (training duration) is the explanation and H2 (scaffold) is not needed. If the no-entity control's delta_A collapses toward the ORIGINAL pre-repair sealed value (+0.047, FAILED), then something about training WITH the entity pathway present mattered even though it is barely used post-hoc -- H2 (scaffold) survives.",
+    "cost": "~13 GPU-hours (2x ~3.5h training + ~6h crossover eval), matching the original repair run's cost -- this is a real training experiment, not a cheap read of existing checkpoints, and needs its own frozen spec + confirmatory-or-exploratory seed reservation before launch.",
+    "not_yet_authorized": true
+  },
+
+  "WHAT_THIS_READING_MAY_NOT_BE_USED_TO_CLAIM": [
+    "that geometry did or does not matter during TRAINING -- untested by this closed-loop-at-inference design",
+    "that the entity-residual architecture is flawed -- it is verifiably functioning exactly as built; it is simply not load-bearing for THIS outcome at THIS checkpoint",
+    "anything about Pole B or about why pi_B3 failed the original crossover -- not evaluated here",
+    "any confirmatory status -- exploratory seeds (18000001-18000064), diagnostic arm, n=64"
+  ]
+}

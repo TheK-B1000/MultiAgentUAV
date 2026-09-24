@@ -1,0 +1,65 @@
+{
+  "record_id": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_CONTRACT_RESULT",
+  "implements": "DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json",
+  "utc": "2026-09-22T11:26:13Z",
+  "DECISION": "CONTRACTS_PASS",
+  "spec_sha256": "e4d11083d77f714b523d813281c4b923775baa0c1683077eb2efd9027ab66cd9",
+  "script_sha256": "2b6f147f073c47b46548e50ae4cebd4d0e94dc06506b73a800a901cf026fec7f",
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN",
+      "pass": true,
+      "detail": "spec status = 'FROZEN_BEFORE_ANY_TRAINING'"
+    },
+    {
+      "check": "C1a_PI_A_CHECKPOINT_EQUALS_PIN",
+      "pass": true,
+      "detail": "exists=True sha256_matches_pin=True"
+    },
+    {
+      "check": "C1b_A_FREEZE_RULE_SUPERSESSION_RECORD_PRESENT_AND_DATED",
+      "pass": true,
+      "detail": "SUPERSEDES.record='A_FREEZE_RULE.json' A_FREEZE_RULE.json_exists=True exception_fired_present=True"
+    },
+    {
+      "check": "C2_FIXED_FOR_EPISODE_HOLD_SEMANTICS",
+      "pass": true,
+      "detail": "death_ignored=True reset_triggers_exactly_once=True no_repeat_until_next_reset=True role_hold_ticks_provably_inert=True force_kwarg_ignored=True"
+    },
+    {
+      "check": "C3_TEACHER_PARITY_BIT_IDENTICAL_TO_SEALED_N_PRIME",
+      "pass": true,
+      "detail": "12/12 (agent,tick) samples bit-identical to the sealed controller_select"
+    },
+    {
+      "check": "C4_TEACHER_LOSS_GATING",
+      "pass": true,
+      "detail": "n_gated=2 (expected 2: only agent 0 is DEFEND+eligible+alive), loss=5.6062"
+    },
+    {
+      "check": "C5_LAMBDA_SCHEDULE_EXACT_BOUNDARY_VALUES_AND_MONOTONIC",
+      "pass": true,
+      "detail": "boundary_values_ok=True t149999_just_above_zero=True monotonic_on_decay_window=True constant_before=True constant_after=True"
+    },
+    {
+      "check": "C6_C7_WARMSTART_T0_EQUIVALENCE_AND_FRESH_OPTIMIZER",
+      "pass": true,
+      "detail": "probe_script_exists=True; probe recorded pass=True parent_ckpt_sha256_matches_pin=True max_logit_diff=0.0 argmax_diff_total=0 fresh_optimizer_survives_migration=True"
+    },
+    {
+      "check": "C8_MUTUAL_EXCLUSION_GUARDS",
+      "pass": true,
+      "detail": "all 8 mutual-exclusion guards raise as expected"
+    },
+    {
+      "check": "C9_STRUCTURALLY_ABSENT_AT_LAMBDA_LE_0",
+      "pass": true,
+      "detail": "constructor_rejects_lambda<=0=True constructor_requires_role_conditioning=True zero_lambda_step_fires=False params_unchanged_after_zero_lambda_step=True"
+    },
+    {
+      "check": "C10_CONTRACTS_ARE_READ_ONLY",
+      "pass": true,
+      "detail": "no training/checkpoint-writing call in this script's own source"
+    }
+  ]
+}

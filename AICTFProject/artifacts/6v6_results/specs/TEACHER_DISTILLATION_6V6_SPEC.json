@@ -1,0 +1,80 @@
+{
+  "record_id": "TEACHER_DISTILLATION_6V6_SPEC",
+  "name": "6v6 teacher distillation: dataset collection and latent student training",
+  "status": "FROZEN_BEFORE_IMPLEMENTATION",
+  "arm": "CONFIRMATORY",
+  "confirmatory": true,
+  "utc": "2026-09-06T01:25:00Z",
+  "authority": "PI, 2026-09-06: 'authorize the bounded distillation work now: write and freeze the 6v6 distillation dataset spec and verify the exact collection/distillation commands, but do not collect rows until the real 6v6 specialist checkpoints exist.'",
+
+  "timing_disclosure": {
+    "when": "written before any 6v6 specialist checkpoint exists, before any 6v6 state is collected, and before any 6v6 student is trained.",
+    "visible_when_written": ["STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json (CERTIFIED)", "the 6v6 specialist A/B smokes (5k steps, non-scientific, both PASS with the size-normalized pole verified from live BT tensors)", "the complete 2v2 distillation record it is modelled on"],
+    "NOT_visible_when_written": ["any 6v6 specialist checkpoint, its fidelity, or any 6v6 distillation or crossover outcome"]
+  },
+
+  "PRECONDITIONS_ALL_REQUIRED_BEFORE_ANY_ROW_IS_COLLECTED": [
+    "6v6 strategic demand CERTIFIED -- satisfied (GUARD_DISTRIBUTED_V2, delta_A +0.2656 [+0.0938,+0.4375], delta_B +0.6250 [+0.4844,+0.7500])",
+    "pi_A_6v6 and pi_B_6v6 terminal checkpoints EXIST, frozen, with recorded sha256 -- NOT satisfied; these are the school-PC training outputs",
+    "each specialist's training manifest shows the size-normalized pole resolved at min_alive_for_defender=6 from core._bt_resolved_profile_tensors()"
+  ],
+
+  "TEACHERS": {
+    "pi_A_6v6": "trained against Pole A (OP6 + overlay min_alive_for_defender=6)",
+    "pi_B_6v6": "trained against Pole B (OP7 + overlay min_alive_for_defender=6)",
+    "recipe": "run_r1_repertoire_training.py::build_r1_config, unchanged, via experiments/train_specialist_scale.py --team-size 6",
+    "sha256_recorded_at_collection_time": "both checkpoints' sha256 are written into the dataset manifest and re-verified by the distillation runner, exactly as the 2v2 path does",
+    "single_strategy_required": "both teachers must be non-latent; a latent-conditioned teacher is refused"
+  },
+
+  "DATASET": {
+    "states_from_both_deployments": "roll pi_A_6v6 against Pole A and pi_B_6v6 against Pole B (their natural deployments), EQUAL episode counts per pole. Deterministic teacher actions. Every visited pre-action state stored with the exact observation dict the policies consume (grid, vec, agent_mask, mask, global_state) plus the live decision mask.",
+    "decision_rows_only": "rows where no agent is free to commit contribute nothing to the loss by construction and are not stored",
+    "decision_mask_source": "rl.causal_supervision.decision_mask_from_core(core, 6, side='blue') -- fatal if the predicate is missing, and it ASSERTS the live tick tensor carries 6 agents",
+    "n_per_pole": 96,
+    "teacher_targets_not_cached": "both teachers are queried on every stored state at training time through the same masked-head code path the student uses"
+  },
+
+  "SEEDS": {
+    "collection_A": "13600001..13600096",
+    "collection_B": "13600101..13600196",
+    "student_init_and_shuffle": 13620001,
+    "crossover_eval": "reserved, to be frozen in a separate record when the student exists -- NOT allocated here, because allocating an evaluation block before the artefact under test exists invites reuse pressure",
+    "disjointness_verified": "exact-literal grep of 13600001 / 13600096 / 13600101 / 13600196 / 13620001, and the patterns 136000[0-9]{2} and 136001[0-9]{2}, against every JSON under artifacts/strategic_demand/ and artifacts/strategic_demand/sppo/: ZERO hits. Verified immediately before this record was committed."
+  },
+
+  "LOSS": {
+    "objective": "0.5*KL(pi_A_6v6 || pi_theta(.|z0)) + 0.5*KL(pi_B_6v6 || pi_theta(.|z1))",
+    "evaluated": "per action head over MASKED distributions, averaged over decision-boundary heads only",
+    "same_states": "both teachers are queried on the SAME states, so the difference between z0 and z1 is teacher strategy rather than state distribution",
+    "actor_only": "only actor parameters are optimized; critics are excluded and verified immobile",
+    "no_reinforcement_learning": "no PPO, no reward, no returns, no GAE, no value targets. A purely supervised runner.",
+    "z_assignment": "z0 <- pi_A_6v6, z1 <- pi_B_6v6. Frozen; never flipped."
+  },
+
+  "TRAINING": {
+    "schedule": "20 fixed epochs, batch 256, lr 3e-4, clip 1.0, no early stopping, no checkpoint selection, TERMINAL WEIGHTS ONLY -- identical to the 2v2 offline TD run and every ladder rung",
+    "fit_check_floor": "teacher-state holdout agreement >= 0.50 for both z before any evaluation is opened",
+    "fidelity_band": "NOT INHERITED from the 2v2 ladder. The 0.957/0.979 band was anchored on 2v2 students and has no standing at 6v6, where teacher agreement has never been measured. A 6v6 comparability band may only be frozen once at least two converged 6v6 students exist to anchor it; until then 6v6 fidelity is reported as a continuous descriptive quantity with no band."
+  },
+
+  "TEAM_SIZE_PROPAGATION": {
+    "why_it_needs_saying": "the distillation CORE is already team-size generic (rl.teacher_distillation derives n_agents from decision_mask.shape[1]; rl.causal_supervision asserts it), but two module globals are NOT, and one of them is not caught by any name-based sweep.",
+    "must_be_set_by_name": {
+      "experiments.collect_distillation_states.N_AGENTS": "named N_AGENTS, not AGENTS -- train_scale.py's _propagate_team_size sweep does NOT catch it",
+      "experiments.r2_learned_crossover.AGENTS": "consumed by build_env's GPUFieldConfig"
+    },
+    "verified_mechanism": "experiments/collect_distillation_states_scale.py --check-only proves both reach the live env at N and that decision_mask_from_core REJECTS a deliberate agent-count mismatch (verified at N=4 and N=6)"
+  },
+
+  "OUTPUTS": {
+    "dataset_manifest": "TEACHER_DISTILLATION_6V6_DATASET.json (status FROZEN_DATASET), mirroring the 2v2 manifest's shape: teachers with sha256, seeds, device, per-shard decision_rows, totals",
+    "state_shards": "artifacts/strategic_demand/sppo/teacher_distillation_6v6/states/",
+    "student": "TEACHER_DISTILLATION_6V6_STUDENT_FROZEN.json + a terminal checkpoint with recorded sha256",
+    "separation_from_2v2": "no 6v6 artefact may overwrite or be written into a 2v2 path. The 2v2 dataset manifest, student record and state directory are untouched."
+  },
+
+  "NOT_AUTHORIZED_BY_THIS_SPEC": ["collecting any 6v6 state row (blocked until the specialist checkpoints exist)", "training the 6v6 student", "any 6v6 crossover evaluation", "allocating the 6v6 crossover evaluation seed block", "inheriting the 2v2 fidelity band", "any change to the loss, schedule, or z assignment"],
+
+  "SEQUENCE": "freeze this spec -> (school PC) train pi_A_6v6 and pi_B_6v6 to their terminal checkpoints -> freeze both with sha256 -> collect the dataset on the blocks above -> freeze the dataset manifest -> distil 20 epochs -> freeze the student -> freeze a crossover eval block in a separate record -> evaluate"
+}

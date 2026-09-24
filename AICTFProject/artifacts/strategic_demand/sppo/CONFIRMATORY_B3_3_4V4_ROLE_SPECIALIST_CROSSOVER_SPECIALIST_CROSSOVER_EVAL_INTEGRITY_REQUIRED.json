@@ -1,0 +1,14 @@
+{
+  "record": "CONFIRMATORY_B3_3_4V4_ROLE_SPECIALIST_CROSSOVER specialist crossover EVAL integrity audit REQUIRED",
+  "status": "FLAGGED",
+  "utc": "2026-09-11T18:32:56Z",
+  "implements": "4V4_B3_ROLE_PRESERVATION_SPEC.json#EVALUATION.tie_or_reversal",
+  "triggered_by": [
+    "delta_A"
+  ],
+  "point_estimates": {
+    "delta_A": -0.1953125,
+    "delta_B": 0.34375
+  },
+  "rule": "requires a row-level integrity audit before any verdict-bearing result. Raw rows: confirmatory_b3_3_4v4_role_specialist_crossover_specialist_crossover_eval_rows.csv."
+}

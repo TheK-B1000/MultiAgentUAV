@@ -1,0 +1,51 @@
+{
+  "record": "ICRA claim separation: what 2v2 results prove vs what SP-PPO must prove",
+  "status": "LOCKED",
+  "utc": "2026-09-09",
+  "deadline": "ICRA 2027 contributed papers 2026-09-15; 8 pages incl. refs",
+  "evidence_alignment": "paper/data/icra_evidence_alignment.json",
+  "methodology_framing": "paper/data/methodology_framing_lock.json",
+
+  "LEAD_WITH": "We use PPO to learn opponent-specific multi-robot experts, distill their behaviors into discrete modes of a shared strategy-conditioned controller, and progressively tie policy modules to identify how representation sharing affects closed-loop strategic specialization.",
+
+  "DO_NOT_LEAD_WITH": "We created a new PPO / SP-PPO that allows latent strategies. PPO is the expert engine only; novelty is matched-state distillation + progressive sharing + closed-loop payoff validation.",
+
+  "METHOD_ROLES": {
+    "PPO": "learns the experts (standard opponent-specific multi-agent PPO)",
+    "matched_state_distillation": "creates shared discrete strategy modes z0~pi_A, z1~pi_B",
+    "progressive_sharing": "scientific intervention",
+    "closed_loop_crossover": "validation",
+    "SP_PPO_CSC_SPFT": "Claim B sealed non-recovery; appendix/tiny paragraph only"
+  },
+
+  "CLAIM_A_architecture_and_sharing": {
+    "flagship_sentence": "In 2v2, payoff-relevant strategy specialization is preserved under shared perception, begins to degrade when the policy backbone is shared, and fails once macro-action outputs are also shared.",
+    "composite_figure": "fig_claim_a_2v2",
+    "sharing_ci_figure": "fig_sharing_ladder_2v2",
+    "absolute_winrate_context_figure": "fig_absolute_winrate_context_2v2",
+    "robotics_takeaway": "shared perception can be reused aggressively; strategy-specific higher-level action capacity is where specialization becomes fragile"
+  },
+
+  "CLAIM_B_algorithmic_SP_PPO": {
+    "how_to_report_in_paper": "One sentence or appendix: intervention family did not recover the prespecified specialization criterion. Do not attribute Share-Encoder PASS to SP-PPO.",
+    "ablation_figure": "fig_claim_b_spp_ablation"
+  },
+
+  "ICRA_FIGURE_STACK_8PAGE": [
+    {"fig": 1, "stem": "fig_method_pipeline_2v2"},
+    {"fig": 2, "stem": "fig_claim_a_2v2"},
+    {"fig": 3, "stem": "fig_sharing_ladder_2v2"},
+    {"fig": 4, "stem": "fig_qualitative_latent_2v2"},
+    {"fig": 5, "stem": "fig_robustness_delta_dose"},
+    {"table": 1, "source": "2v2_measurement_hierarchy"}
+  ],
+
+  "PRIORITY_BEFORE_2026_09_15": [
+    "Polish killer 3-panel + sharing CIs (builders ready)",
+    "Qualitative matched frames / optional trajectory strip",
+    "ICRA video <=180s",
+    "Cut CSC/SPFT to appendix in camera-ready",
+    "4v4 only if B3 crossover sealed PASS",
+    "No new algorithmic branches"
+  ]
+}

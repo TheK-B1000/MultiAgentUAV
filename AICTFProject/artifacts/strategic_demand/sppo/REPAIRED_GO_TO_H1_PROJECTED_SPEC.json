@@ -1,0 +1,79 @@
+{
+  "record_id": "REPAIRED_GO_TO_H1_PROJECTED_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "utc": "2026-09-13T02:45:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "OUTPUT_LABEL": "REPAIRED_GO_TO_H1_PROJECTED",
+  "study_class": "MECHANISTIC_FOLLOW_UP",
+  "not": "INDEPENDENT_CONFIRMATION",
+
+  "QUESTION": "Does changing only macro_commit_go_to_ticks from 4 to 1 restore 4v4 specialization under the projected teacher (student macro+W50 interface)?",
+
+  "PRIOR_EVIDENCE": {
+    "ACTION_INTERFACE_DECOMP_SEALED_READING": "L_S^{4v4}=0.00; L_C^{4v4}=+0.71 [+0.50,+0.88]; binder=COMMIT. Spatial W50 alone is not the 4v4 GUARD break; stale GO_TO commitment is.",
+    "PROJECTED_TEACHER_ORACLE_sealed_h4": "4v4 PROJECTED delta_A LCB95 < 0 (gate FAIL); ORIGINAL passes. Seeds 17600001..17600024.",
+    "two_defects": [
+      "hidden multi-defender assignment information (TEST_0)",
+      "stale GO_TO interception targets (this repair axis)"
+    ]
+  },
+
+  "DESIGN": {
+    "change": "Exactly one cfg field: GPUFieldConfig.macro_commit_go_to_ticks : 4 -> 1. Other macro horizons unchanged (GRAB/GET_FLAG/PLACE/GO_HOME).",
+    "why_global_not_intercept_only": "Moving-intercept GO_TO cannot be cleanly labeled from the adapter alone (no INTERCEPT macro; teacher threat-assignment bit is not exported). Global h_GO_TO=1 is the smallest clean ablation that matches SPATIAL_ONLY's every-tick refresh on the GO_TO pathway. Intercept-selective refresh requires a new teacher-side instrumented SPEC later.",
+    "arms": {
+      "ORIGINAL": "blue_scripted=True continuous teacher (control; unaffected by GO_TO ticks).",
+      "PROJECTED": "same fidelity as PROJECTED_TEACHER_ORACLE: re-query only at blue_commit_ticks_left<=0, but GO_TO commits last 1 tick."
+    },
+    "matrix": {
+      "strategies": ["GUARD", "BREACH"],
+      "poles": ["A", "B"],
+      "scales": [4],
+      "note": "4v4 is decision-driving. 2v2 not required for this gate-recovery test."
+    },
+    "episodes_per_cell": 24,
+    "device": "cpu",
+    "baseline_comparison": "Sealed PROJECTED_TEACHER_ORACLE (h=4) RESULT on the same seeds. Do not overwrite that artifact."
+  },
+
+  "SEEDS": {
+    "block": [17600001, 17600032],
+    "class": "mechanistic_follow_up",
+    "note": "SAME block as sealed PROJECTED_TEACHER_ORACLE / ACTION_INTERFACE_DECOMP. Not an independent confirmation."
+  },
+
+  "PRIMARY_GATE": {
+    "rule": "Under PROJECTED with h_GO_TO=1: LCB95(delta_A)>0 AND LCB95(delta_B)>0",
+    "delta_A": "V(GUARD,A) - V(BREACH,A)",
+    "delta_B": "V(BREACH,B) - V(GUARD,B)",
+    "bootstrap": "n_boot=20000, alpha=0.05, rng_seed=7, seed as unit"
+  },
+
+  "PRECOMMITTED_INTERPRETATION": [
+    {"outcome": "PROJECTED h=1 recovers both specialization gates at 4v4", "reading": "Changing temporal GO_TO commitment restores the teacher's strategic function through the student action space.", "next": "Action-side representability repaired for this axis; proceed to Privileged BC vs Standard BC, then observation/role repair, then fresh 4v4 PPO."},
+    {"outcome": "GUARD@A improves but specialization gate still fails", "reading": "Commitment timing is necessary but not sufficient; keep looking at action pathway interactions or move to observation repair with action fix retained.", "next": "Do not claim full action-side repair."},
+    {"outcome": "No improvement vs sealed h=4 PROJECTED", "reading": "STOP. Re-audit: decomp binder may have been confounded, or h=1 interacts badly with other macros.", "next": "Harness audit before any BC."},
+    {"outcome": "ORIGINAL specialization changes vs sealed oracle", "reading": "INTEGRITY_REQUIRED. ORIGINAL must be unaffected by GO_TO ticks.", "next": "Stop interpretation; audit harness."}
+  ],
+
+  "WHAT_THIS_MAY_NOT_CLAIM": [
+    "that observation/assignment is fixed (TEST_0 still stands)",
+    "that PPO will learn the strategy",
+    "that intercept-only refresh is implemented (deferred)",
+    "independent confirmation of the oracle (same seeds by design)"
+  ],
+
+  "PAUSES": ["Privileged-vs-Standard BC", "PPO", "SNR"],
+
+  "COMPLIANCE": {
+    "rule_1": "tqdm per cell",
+    "rule_2": "per-episode append + fsync",
+    "rule_3": "this document frozen before any episode",
+    "rule_4": "RULE 11 adapter anchors + ORIGINAL harness anchor",
+    "rule_5": "resume skips completed keys",
+    "rule_6": "REPAIRED_GO_TO_H1_PROJECTED_LIVE_STATUS.json",
+    "rule_10": "PRECOMMITTED_INTERPRETATION above",
+    "rule_12": "ORIGINAL win vector on this run must match sealed ORACLE ORIGINAL seed-by-seed on overlapping 4v4 cells; mismatch => INTEGRITY_REQUIRED"
+  }
+}

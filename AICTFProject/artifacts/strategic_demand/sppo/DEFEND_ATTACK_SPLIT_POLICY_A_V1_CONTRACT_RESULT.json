@@ -1,0 +1,55 @@
+{
+  "record_id": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONTRACT_RESULT",
+  "implements": "DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json",
+  "utc": "2026-09-22T15:40:38Z",
+  "DECISION": "CONTRACTS_PASS",
+  "spec_sha256": "34309c01e4dbce628d21eb1cbc1053920bb9c9ac296b76d85b93cbf4b2b786c5",
+  "script_sha256": "459158aa8279f6d4244ee5c75a34cc4331807fc109079ceec56dcf7199277b80",
+  "checks": [
+    {
+      "check": "C0_SPEC_FROZEN",
+      "pass": true,
+      "detail": "spec status = 'FROZEN_BEFORE_ANY_TRAINING'"
+    },
+    {
+      "check": "C1_PI_A_CHECKPOINT_EQUALS_PIN",
+      "pass": true,
+      "detail": "exists=True sha256_matches_pin=True (used for pi_A_frozen AND pi_D's warm-start)"
+    },
+    {
+      "check": "C1b_SUPERSEDES_DEFEND_TEACHER_RECORD_PRESENT",
+      "pass": true,
+      "detail": "SUPERSEDES.record='DEFEND_TEACHER_ROLE_CONDITIONING_A_V1_SPEC.json' exception_fired_present=True"
+    },
+    {
+      "check": "C2_C8_DEFEND_TEACHER_MECHANISMS_REUSED_UNCHANGED",
+      "pass": true,
+      "detail": "re-ran DEFEND_TEACHER_ROLE_CONDITIONING_A_V1's own tests (fixed_for_episode role hold, N' teacher parity, teacher loss gating, lambda schedule) for regressions; .............                                                            [100%]\n13 passed, 19 deselected in 4.18s"
+    },
+    {
+      "check": "C9_EXECUTED_ACTION_PROVENANCE_AND_DEFEND_GATING_MATH",
+      "pass": true,
+      "detail": "ATTACK slots from frozen pi_A, DEFEND slots from pi_D, ATTACK-slot values excluded entirely from the DEFEND-gated scalar; .....                                                                    [100%]\n5 passed, 20 deselected in 2.78s"
+    },
+    {
+      "check": "C10_FROZEN_PI_A_IMMUTABLE_PI_D_TRAINS_RATIO_EXACT_AT_T0",
+      "pass": true,
+      "detail": "frozen pi_A parameters/gradients/optimizer-membership/content-hash unchanged after a real collect+update cycle; pi_D receives nonzero gradient; DEFEND-gated old/new log-prob recompute is exact before any parameter change; ..                                                                       [100%]\n2 passed, 23 deselected in 6.02s"
+    },
+    {
+      "check": "C11_COMBINES_WITH_DEFEND_TEACHER_RUNNER",
+      "pass": true,
+      "detail": "split-policy PPO functions correctly with the N'-teacher runner attached (lambda>0, the real training configuration); .                                                                        [100%]\n1 passed, 24 deselected in 5.06s"
+    },
+    {
+      "check": "C12_MUTUAL_EXCLUSION_AND_STRUCTURAL_ABSENCE",
+      "pass": true,
+      "detail": "guarded both directions against SAPPO/EXP2/sibling/role_pres/getflag; split_attack_defend_enabled=False reproduces the non-split path with no new buffer fields; .................                                                        [100%]\n17 passed, 8 deselected in 4.37s"
+    },
+    {
+      "check": "C13_CONTRACTS_ARE_READ_ONLY",
+      "pass": true,
+      "detail": "no training/checkpoint-writing call in this script's own source"
+    }
+  ]
+}

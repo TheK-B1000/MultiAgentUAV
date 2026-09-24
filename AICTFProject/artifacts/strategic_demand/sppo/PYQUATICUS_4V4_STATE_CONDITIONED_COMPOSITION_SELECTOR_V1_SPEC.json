@@ -1,0 +1,134 @@
+{
+  "record_id": "PYQUATICUS_4V4_STATE_CONDITIONED_COMPOSITION_SELECTOR_V1_SPEC",
+  "status": "FROZEN_DESIGN_NO_EXECUTION_THRESHOLDS_DEFERRED",
+  "utc": "2026-09-18T21:30:00Z",
+  "classification": "OUTCOME_BLIND_UNTIL_PHASE_2_SCRIPTED_SELECTOR_TEST",
+  "confirmatory": false,
+  "authorized_by": "PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json (decision_label NO_ORACLE_COMPOSITION_CONFIRMATION; its sequencing_lock step 4 defers a successor selector until the oracle result is interpreted, which it now is)",
+
+  "RESEARCH_QUESTION": "Can ONE deterministic selector, reading only predeclared observable game state and never the pole/regime identity, switch between 2A/2D and 4A/0D within an episode and preserve the useful behavior that each regime-specific fixed composition produced?",
+
+  "WHY_THIS_IS_A_NEW_QUESTION": "The oracle test asked whether a known regime label can be mapped to a good fixed composition. Its plumbing was correct (oracle parity 0 mismatches over 384 rows) and it still did not confirm, because the A-side gain over the wrong fixed composition did not clear zero. This spec asks the genuinely different question: whether the SAME composition decision can be recovered from state the team can actually observe, with no label handed to it.",
+
+  "TWO_PHASE_FREEZE": {
+    "why": "The PI's constraint: do not freeze pressure thresholds because they sound right. Derive the rule from observable semantics and execution logic first, then freeze the numbers before any outcome data exists.",
+    "PHASE_1_frozen_here": [
+      "the research question and claim boundary",
+      "the permitted observable input set and the anti-leak architecture",
+      "the arms, controls, pairing and estimands",
+      "the contract gates, including forced mid-episode switching",
+      "the success gate and the null interpretation",
+      "the procedure by which Phase-2 thresholds must be derived"
+    ],
+    "PHASE_2_frozen_later": "The concrete feature definitions and threshold VALUES, in PYQUATICUS_4V4_STATE_CONDITIONED_COMPOSITION_SELECTOR_V1_THRESHOLD_AMENDMENT.json, written and frozen BEFORE a single 4v4 outcome episode is run. Deriving them may read scripted-controller source, execution logic, and outcome-blind state traces. It may NOT read any win rate, score, or outcome contrast from this spec's arms.",
+    "violation_condition": "Any threshold chosen or altered after an outcome number is seen voids the run. The result would then be a knob-shopping exercise, which is the specific failure this structure exists to prevent."
+  },
+
+  "EXECUTION_PATH_INSPECTION": {
+    "purpose": "Recorded so Phase 2 derives from real machinery rather than assumption, and so the spec does not freeze an unbuildable contract.",
+    "composition_is_currently_episode_fixed": "experiments/run_pyquaticus_4v4_role_composition_sweep.py::run_episode computes roles = composition_roles(composition) ONCE before the horizon loop, then calls _action_for_roles(core, roles) every tick with that fixed tuple. Mid-episode switching is therefore NOT currently implemented.",
+    "but_it_is_a_small_localized_change": "Because _action_for_roles already takes live core and already runs per tick, a state-conditioned selector only needs roles recomputed inside the loop. No new environment machinery is required.",
+    "schema_already_anticipates_it": "The episode row schema already carries role_switch_count, currently hard-coded to 0. This spec makes it a real measured quantity.",
+    "role_to_macro_mapping": "experiments/run_pyquaticus_4v4_team_evaluation.py::_action_for_roles: role 1 -> MacroAction.DEFEND; role 0 -> GO_HOME when the team is carrying, else GET_FLAG. Attackers are therefore ALREADY state-conditioned on team carrier state; only the attacker/defender SPLIT is fixed.",
+    "defend_macro_dependency": "role 1 resolves to MacroAction.DEFEND (=7), the unified primitive sealed by DEFEND_SEMANTIC_COMMITMENT_V2_CONTRACT_RESULT.json as REPRESENTABLE_ACROSS_TRANSITIONS (target error exactly 0.000 across branch flips). This experiment is downstream of that result and is not interpretable without it.",
+    "eval_vocabulary": "The evaluation env sets n_macros=8 explicitly to admit DEFEND=7. Production configs remain at n_macros=5, so nothing here widens any learned policy's action space.",
+    "identity_is_held_fixed": "composition_roles assigns defender roles to the lowest agent indices. Identity assignment was already tested and is not the lever, so it is held fixed and is out of scope; only the COUNT changes."
+  },
+
+  "ANTI_LEAK_ARCHITECTURE": {
+    "requirement": "No pole label, opponent genome id, genome hash, certification record, arm name, or any other regime shortcut may reach the selector.",
+    "structural_enforcement_not_a_promise": "The selector MUST NOT receive the core object or the pole string. A separate extraction step reads core and returns a declared feature dict; the selector's only argument is that dict. Undeclared state is therefore unreachable by construction, not merely forbidden by convention.",
+    "mechanical_leak_test": "A contract gate constructs two states that are identical in every declared feature but were produced under different poles, and asserts the selector returns the identical composition. A selector that can distinguish them has leaked and the run is void.",
+    "oracle_is_reference_only": "The pole-aware oracle arm may be reported side by side as a descriptive upper reference. It is NOT an eligible input, NOT a fitting target, and NOT part of any gate."
+  },
+
+  "PERMITTED_OBSERVABLE_INPUTS": {
+    "note": "The exact feature set and thresholds are Phase 2. This is the permitted universe Phase 2 may draw from -- all verified present on the live core.",
+    "own_flag_state": "blue_flag_pos versus blue_flag_home (whether our flag is displaced/taken)",
+    "team_carrier_state": "blue_carrying (whether any teammate holds the enemy flag)",
+    "threat_geometry": "alive enemy positions relative to our own flag and our own half, e.g. counts within a declared radius and nearest-enemy distance",
+    "own_roster_state": "blue_alive, blue_tagged",
+    "clock": "tick index within the frozen 240-tick horizon",
+    "explicitly_forbidden_inputs": [
+      "pole label or arm name",
+      "opponent genome id, genome hash, or certification record",
+      "any opponent internal parameter such as lock_defender or enable_2v1",
+      "any outcome field: score, win, reward, return"
+    ]
+  },
+
+  "PHASE_2_DERIVATION_PROCEDURE": {
+    "step_1": "From the scripted opponent controllers' own source, identify what observable footprint distinguishes an opponent that pressures our flag from one that does not. This is a reading of execution logic, not of outcomes.",
+    "step_2": "Collect outcome-blind state traces under both poles with fixed compositions, and report the distribution of each candidate feature. Outcome fields must be neither serialized nor printed.",
+    "step_3": "Choose thresholds from those distributions by a stated, mechanical criterion declared in the amendment BEFORE the values are computed -- for example a separating point between the two observed distributions -- not by trying values against win rate.",
+    "step_4": "Freeze the amendment. Only then run the outcome arms.",
+    "single_rule_constraint": "Exactly one rule with one threshold set is frozen. No grid, no per-pole variant, no post-hoc alternative is eligible."
+  },
+
+  "ARMS_AND_CONTROLS": {
+    "STATE_SELECTOR": "the Phase-2 rule, run identically on both poles",
+    "FIXED_2A2D": "frozen control",
+    "FIXED_4A0D": "frozen control",
+    "ORACLE_REGIME": "descriptive upper reference only, reported, never gating",
+    "poles": "A and B, both evaluated with the identical selector",
+    "pairing": "the same fresh paired seed used in every arm and both poles",
+    "seeds": "a fresh exploratory block allocated via seed_registry next_free at Phase 2. 20100001-20100064 is SPENT by the oracle test and must not be reused.",
+    "bootstrap": "95 percent deterministic bootstrap over paired seeds, NUM_BOOT=20000, matching the oracle test",
+    "controllers": "Pyquaticus ATTACK/DEFEND semantics held exactly fixed. Only composition selection changes."
+  },
+
+  "CONTRACT_GATES_BEFORE_ANY_OUTCOME_EPISODE": {
+    "C1_NO_REGIME_LEAK": "The mechanical leak test above passes.",
+    "C2_FORCED_SWITCH_FIXTURES": "Deterministic fixtures constructed to drive the declared features across their thresholds mid-episode. The selector must demonstrably change composition on these fixtures. A rule that never switches cannot reach the outcome stage, because it would be a fixed composition wearing a selector's name.",
+    "C3_SWITCH_IS_REAL_IN_EXECUTION": "role_switch_count becomes a genuinely measured field, and on the forced-switch fixtures the per-tick macro vector observably changes between 2A/2D and 4A/0D patterns.",
+    "C4_CONTROL_PARITY": "With the selector pinned to a constant output, the arm must reproduce the corresponding FIXED control bit-identically on outcome and telemetry -- the same parity discipline the oracle test passed with 0 mismatches.",
+    "C5_OUTCOME_BLIND_UNTIL_PHASE_2_SEALED": "No outcome field is read, serialized or printed during Phase-2 derivation.",
+    "FAILURE_RULE": "Any failed gate stops execution before a seed is spent."
+  },
+
+  "SUCCESS_GATE": {
+    "primary": "Under ONE state-based rule with no pole identity: gain over the WRONG fixed composition has LCB95 > 0 on BOTH poles. Concretely, selector minus FIXED_4A0D on Pole A, and selector minus FIXED_2A2D on Pole B. This mirrors the oracle test's frozen two-sided gate exactly.",
+    "supporting_reported": "selector versus each matched fixed control, role_switch_count distribution, switch timing, score difference, draw rate, episode length, and the oracle arm as descriptive reference.",
+    "PREREGISTERED_CEILING_CAVEAT": {
+      "statement": "The A-side gate may be hard to clear for a reason that has nothing to do with selector quality, and this is recorded BEFORE the run so it cannot be invoked afterwards as an excuse.",
+      "evidence": "In the oracle result, FIXED_2A2D minus FIXED_4A0D on Pole A was +0.171875 with LCB95 exactly 0.0. The A-side advantage of the 'right' composition is itself marginal at n=64, so even a perfect selector has very little headroom to clear an LCB95>0 gate there.",
+      "consequence": "If the run returns B-side pass and A-side fail, that is the EXPECTED shape given this ceiling and must be reported as 'A-side underpowered at this n' rather than as evidence the selector failed. It also must not be used to argue the gate should be loosened after the fact. If more A-side power is wanted, that is a sample-size decision to make in Phase 2, before running."
+    }
+  },
+
+  "DECISION_RULE": {
+    "STATE_CONDITIONED_COMPOSITION_CONFIRMED": "All contract gates pass and both primary gains clear LCB95 > 0. Evidence that state -> composition -> role behavior is recoverable without a regime label.",
+    "PARTIAL_B_ONLY": "B clears, A does not. Report as-is with the ceiling caveat above. Does not authorize PPO or 6v6.",
+    "NO_STATE_CONDITIONED_CONFIRMATION": "Neither clears, or the selector never meaningfully switches. Interpretation: composition is a strong B-side lever but THIS state-conditioned rule is insufficient. Explicitly NOT 'composition does not matter', and explicitly NOT a licence to try a second rule inside this spec.",
+    "CONTRACT_FAILURE": "Any gate failed. No verdict.",
+    "claim_ceiling": "Even full confirmation establishes only that a scripted selector recovers composition from observable state under these two frozen opponents at 4v4. It says nothing about a learned selector, PPO trainability, or 6v6."
+  },
+
+  "ISOLATION": {
+    "device": "cpu_only", "PPO": "OFF", "GPU": "OFF", "training": "OFF", "6v6": "OFF",
+    "production_interface_changes": "NONE -- no new macro, no n_macros change, no engine edit",
+    "pyquaticus_controllers": "FROZEN, unchanged"
+  },
+
+  "SEQUENCING_LOCK": [
+    "1. This Phase-1 freeze",
+    "2. Derive features and thresholds per PHASE_2_DERIVATION_PROCEDURE, outcome-blind",
+    "3. Freeze the threshold amendment",
+    "4. Implement the selector, the extraction step, and the forced-switch fixtures",
+    "5. Run C1-C5 on CPU",
+    "6. Allocate a fresh seed block only after all gates pass",
+    "7. Run the paired outcome cells and freeze the result",
+    "8. PPO and 6v6 remain blocked regardless of outcome and require their own freezes"
+  ],
+
+  "NOT_AUTHORIZED": [
+    "PPO, GPU, 6v6, or any learned selector",
+    "reusing seed block 20100001-20100064",
+    "tuning thresholds after any outcome number is seen",
+    "adding a second candidate rule inside this spec",
+    "treating the oracle arm as an input or fitting target",
+    "loosening the success gate after seeing the A-side result"
+  ],
+
+  "authorizes": "Phase-2 outcome-blind derivation only. No seed allocation, no outcome episode."
+}

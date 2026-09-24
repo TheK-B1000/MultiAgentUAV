@@ -1,0 +1,56 @@
+{
+  "record_id": "A_FREEZE_RULE",
+  "status": "FROZEN_PROGRAM_RULE",
+  "utc": "2026-09-16T16:15:00Z",
+  "authority": "PI, 2026-09-16: A has served its purpose as the healthy control; continuing A experiments risks a two-headed hydra when only B is sick. Stop working on A does not mean stop evaluating against A.",
+
+  "THE_RULE_ONE_SENTENCE": "A is frozen. B is the repair target. No experiment unless it can help explain or improve Δ_B at 4v4/6v6.",
+
+  "A_FREEZE_RULE": {
+    "verbatim": "π_A is considered operationally solved for the current specialization-repair program. No further A training, tuning, architecture changes, reward changes, or A-specific diagnostics are permitted unless a future B-side intervention demonstrably causes a regression in Δ_A or a required integrity/control check specifically requires A. π_A may be used only as a frozen comparator/control. All repair effort is directed toward π_B and the failure of Δ_B at 4v4 and 6v6.",
+    "why": "A's AB_BEHAVIORAL_TRAJECTORY cells already show substantial macro oscillation during training that does not map cleanly onto performance (GO_TO-heavy@100k with higher win; GET_FLAG recovery@200k with lower win; healthy aggression+performance by mid/late training). Bfinal's endpoint macro signature therefore describes where B ended up, not necessarily why specialization eroded. The sealed corrected B win/score trajectory (PEAK_THEN_DECLINE) remains the primary established performance fact.",
+    "distinction": "stop working on A ≠ stop evaluating against A. Δ_B = V(π_B, B) − V(π_A, B) still requires frozen A as the measuring stick; we do not spend training budget changing the measuring stick."
+  },
+
+  "PROSPECTIVE_SCOPE_ON_CURRENT_RUN": {
+    "run": "AB_BEHAVIORAL_TRAJECTORY (736 episodes; SPEC already frozen)",
+    "do_not_abort_or_discard": "all A-side cells already completed or still finishing under this SPEC — they are paid-for controls",
+    "after_this_run_finishes": "no further A trajectory investigations; B half completes because it directly diagnoses the Δ_B problem",
+    "at_freeze_time_pulse": "A-side complete (t0..tfinal); B movie in progress (B_t100k underway) — rule does not interrupt the load-bearing B half"
+  },
+
+  "RESEARCH_LOOP_FROM_HERE": {
+    "boxed": "B diagnosis → B intervention → Δ_B evaluation",
+    "goal_order": [
+      "get B specialization working at 4v4 first",
+      "then test whether the same repair transfers to 6v6"
+    ],
+    "hypothesis_gate_for_GPU": "a new hypothesis must explain the observed B failure AND predict a measurable B-side improvement before it earns GPU time"
+  },
+
+  "EXPLICITLY_NOT_CLAIMED": [
+    "that we already know the B fix",
+    "that COMMIT / L_C ≈ +0.71 is a solution to the current Δ_B problem (sealed mechanism from ACTION_INTERFACE_DECOMP; h=1 repair failed to restore specialization)",
+    "that A is scientifically uninteresting forever — only that it is operationally out of scope for this repair program unless an exception below fires"
+  ],
+
+  "EXCEPTIONS_THAT_REOPEN_A": [
+    "a B-side intervention demonstrably regresses Δ_A (integrity / specialization asymmetry check)",
+    "a required integrity or control check that specifically requires evaluating or loading A (frozen comparator use, seed contracts, Rule-12 overlaps, attestation) — evaluation against A is always allowed; retraining A is not"
+  ],
+
+  "NOT_AUTHORIZED_BY_THIS_RECORD": [
+    "further A training or fine-tuning",
+    "A-specific reward / architecture / observation / commitment experiments",
+    "new A trajectory diagnostics after AB_BEHAVIORAL_TRAJECTORY completes",
+    "reopening observation repair, commitment repair, entity architecture, or A training merely because they are interesting",
+    "aborting or discarding already-completed A cells of the in-flight AB_BEHAVIORAL_TRAJECTORY run",
+    "claiming a known B fix from this freeze alone"
+  ],
+
+  "KEPT_SEPARATE": {
+    "COMMIT_mechanism": "ACTION_INTERFACE_DECOMP L_C^{4v4}≈+0.71 / L_S≈0 remains an established action-interface effect",
+    "not_a_Δ_B_solution": "REPAIRED_GO_TO_H1_PROJECTED failed; shortening GO_TO commitment did not restore specialization",
+    "primary_performance_fact": "DELTA_B_TRAJECTORY_CORRECTED — PEAK_THEN_DECLINE (~100k then erodes)"
+  }
+}

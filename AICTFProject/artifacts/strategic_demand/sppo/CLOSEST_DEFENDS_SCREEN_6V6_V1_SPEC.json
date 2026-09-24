@@ -1,0 +1,80 @@
+{
+  "record_id": "CLOSEST_DEFENDS_SCREEN_6V6_V1_SPEC",
+  "status": "FROZEN_BEFORE_SEED_SPEND",
+  "arm": "EXPLORATORY",
+  "confirmatory": false,
+  "utc": "2026-09-22T20:30:00Z",
+  "classification": "DESCRIPTIVE / EXPLORATORY screen. No training, no checkpoint write, no parameter change. Mirrors experiments/run_closest_defends_screen_4v4.py (SEALED 41575677 at 4v4) at 6v6, with two deliberate differences: k_D=1 (not N/2=2), matching the sealed SCRIPTED 6v6 composition finding (5A_1D beats 3A_3D, FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json), and the frozen pi_A/pi_B checkpoints are the EXISTING pre-entity-repair pi_A_specialist_6v6/pi_B_specialist_6v6 (the same ones experiments/run_defender_injection_causal_bridge.py already used and pinned) -- not a repaired or retrained pair.",
+  "authorized_by": "PI, 2026-09-22, redirecting away from a 1,000,000-step entity-repair base-pair retrain (aborted, see SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1_SPEC.json, seed block 21900001-002 RETIRED): 'The 4v4 result showed that the final hierarchical architecture does not require the base A policy itself to learn the coordination structure... Run one cheap 6v6 scaffold screen using the architecture we actually care about: 5A/1D, with the closest eligible agent assigned DEFEND at episode start, five agents remaining on frozen pi_A... Use n=32 or n=64... Does this composite structure create the desired A/B separation? I would also avoid assuming the allocator should use N/2=3 defenders... test k_D=1 first.'",
+
+  "RESEARCH_QUESTION": "Does forcing DEFEND onto exactly the one ACTIVE agent closest to its own flag at t=0 (state-dependent, fixed for the episode), on top of the frozen native pi_A rollout, create the desired A/B specialization separation against the frozen pi_B comparator -- mirroring the exact question and mechanism the 4v4 CLOSEST_DEFENDS_SCREEN_4V4 answered YES to (pattern_match=TRUE, SEALED 41575677) before any PPO training was attempted there?",
+
+  "IMPORTANT_PRIOR_RESULT_TO_WEIGH": {
+    "record": "DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json (SEALED, 2026-09-20)",
+    "what_it_found": "The SAME install_forced_defend_target mechanism, on the SAME two 6v6 checkpoints, but with SEED-ROTATED defender-id selection (seed % 6, deliberately geometry-independent), found SCIENTIFIC_VERDICT=ONE_DEFENDER_HARM_ONLY: pi_A on Pole B resolved harm (delta -0.177 [-0.260,-0.104]), pi_B on Pole B resolved harm (delta -0.094 [-0.156,-0.042]); both Pole-A cells were unresolved (near zero, no significant effect either way). No cell resolved improvement anywhere.",
+    "why_this_screen_is_not_a_blind_repeat": "The harm was concentrated specifically in the Pole-B cells for BOTH policies, and prior informal localization pointed to carrier-conversion disruption -- a seed-rotated defender id can land on an agent that is mid-attack or carrying the flag deep in enemy territory, which install_forced_defend_target then yanks back toward home regardless of game state. CLOSEST_DEFENDS selection is computed ONCE at t=0, before any carrying has occurred, on the agent already nearest its own flag -- the agent least likely to be mid-attack. This is the same reasoning that motivated running CLOSEST_DEFENDS_SCREEN_4V4 as a separate experiment from the seed-rotated scaffolded-A bridge at 4v4, where selection RULE was shown to matter (the closest-to-home screen matched/exceeded the seed-rotated bridge's own sealed numbers).",
+    "risk_flagged_not_dismissed": "It remains possible that ANY single forced defender (regardless of selection rule) is harmful specifically against the Pole B opponent (OP7: enable_intercept, enable_mines, high threat_radius) for reasons unrelated to which agent is chosen. If this screen also shows Pole-B harm concentrated in A_closest, that is evidence the mechanism itself (not the seed-rotation artifact) is the problem, and the composite-hierarchy approach should be reconsidered for 6v6, not just re-tuned."
+  },
+
+  "MECHANISM_REUSED_UNCHANGED": {
+    "forced_target_injection": "experiments.probe_learned_composition.install_forced_defend_target (unchanged, already contract-tested bit-for-bit against the scripted DEFEND reference at n_macros in {5,8} by DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json's own C1)",
+    "native_episode_runner": "experiments.probe_learned_composition.run_learned_episode (unchanged)",
+    "checkpoints": "experiments.probe_learned_composition.CHECKPOINTS (pi_A, pi_B -- identical paths/pins already used and passed by DEFENDER_INJECTION_CAUSAL_BRIDGE and SHARE0)",
+    "pole_genomes": "experiments.probe_learned_composition.pole_genomes() -- no genome override for either pole at 6v6 (confirmed by STRATEGIC_DEMAND_6v6_GUARD_DISTRIBUTED_V2_CERTIFICATION.json: both poles canonical, overlay={min_alive_for_defender:6} only)",
+    "new_code": "ONE new function in the new screen script (experiments/run_closest_defends_screen_6v6.py): a closest-to-home selector (k=1, ACTIVE = alive & ~tagged & ~carrying, Euclidean distance to own_flag_home, ties broken by lower agent index, computed ONCE at the post-reset state before any action) plus a thin episode-runner mirroring run_learned_episode_with_forced_defender action-for-action except the defender id is computed from state instead of taken as a seed-derived parameter -- exactly the same relationship run_closest_defends_screen_4v4.py::run_closest_episode has to run_scaffolded_a_crossover_bridge_4v4.py::run_episode."
+  },
+
+  "DESIGN": {
+    "policies_frozen": {
+      "pi_A": "artifacts/6v6_results/specialists/final_pi_A_specialist_6v6.zip (= artifacts/scale_6v6_specialists/pi_A_specialist_6v6/ckpts/final_pi_A_specialist_6v6.zip, export mirror)",
+      "pi_B": "artifacts/6v6_results/specialists/final_pi_B_specialist_6v6.zip (= artifacts/scale_6v6_specialists/pi_B_specialist_6v6/ckpts/final_pi_B_specialist_6v6.zip, export mirror)"
+    },
+    "arms": ["pi_A", "A_closest", "pi_B"],
+    "arm_policy": {"pi_A": "pi_A (native, 0 forced defenders)", "A_closest": "pi_A + 1 forced DEFEND on the closest-to-home ACTIVE agent at t=0 (5A/1D)", "pi_B": "pi_B (native comparator, 0 forced defenders)"},
+    "k_defend": 1,
+    "poles": ["A", "B"],
+    "seed_block": {"base": 22000001, "n": 64, "class": "exploratory",
+                   "not_reused": "disjoint from every prior 6v6 block in this line: SHARE0 13680001-128, FIXED_ATTACK_HEAVY 20600001-192, DEFENDER_INJECTION_CAUSAL_BRIDGE 20900001-096, SCALE_6V6_ENTITY_REPAIR_BASE_PAIR (RETIRED) 21900001-002. Enforced structurally by seed_registry.check_block, which refuses on overlap against every registered block regardless of team size."},
+    "n_episodes": "64 seeds x 2 poles x 3 arms = 384 FULL episodes (not truncated -- a win/margin outcome question, same reasoning as DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json)",
+    "device": "cuda",
+    "action": "deterministic (policy.predict(..., deterministic=True))"
+  },
+
+  "CONTRASTS_win_rate_paired_by_seed": {
+    "Delta_A_closest": "WR(A_closest, Pole A) - WR(pi_B, Pole A)",
+    "Delta_B_closest": "WR(pi_B, Pole B) - WR(A_closest, Pole B)",
+    "I_A": "WR(A_closest, Pole A) - WR(pi_A, Pole A) -- does adding the one closest-to-home defender change pi_A's own performance on its home pole",
+    "I_B": "WR(A_closest, Pole B) - WR(pi_A, Pole B) -- does the composite structure suppress pi_A's generalist behavior on Pole B (the specialization signature)",
+    "native_Delta_A": "WR(pi_A, Pole A) - WR(pi_B, Pole A) -- baseline, reproduces (up to fresh sampling noise) the near-zero SHARE0 finding",
+    "native_Delta_B": "WR(pi_B, Pole B) - WR(pi_A, Pole B) -- baseline, same"
+  },
+
+  "PATTERN_MATCH_DECISION_RULE": {
+    "rule": "Delta_A_closest_mean > 0 AND Delta_B_closest_mean > 0 AND I_B_mean < 0 -- identical rule to CLOSEST_DEFENDS_SCREEN_4V4's own PATTERN_MATCH, which is the operational answer to 'does this composite structure create the desired A/B separation'.",
+    "classification": "DESCRIPTIVE / EXPLORATORY -- point estimates and bootstrap CIs are reported (n_boot=20000, alpha=0.05, rng_seed=7, matching every other record in this line) but this is not a confirmatory LCB95 gate. A pattern_match=TRUE result licenses training a real 6v6 pi_D (200k exploratory steps, 5A/1D, frozen pi_A on the other five slots) as the next PI-gated step, mirroring exactly how the 4v4 CLOSEST_DEFENDS screen preceded DEFEND_TEACHER/split-policy training there. It does not itself constitute a learned-crossover claim."
+  },
+
+  "CONTRACTS_before_seed_spend": [
+    "C0 spec frozen",
+    "C1 pi_A/pi_B checkpoints equal the pins already used by DEFENDER_INJECTION_CAUSAL_BRIDGE and LEARNED_COMPOSITION_PROBE",
+    "C2 seed block 22000001-22000064 reserved, exploratory, disjoint from every prior block (seed_registry-enforced)",
+    "C3 closest-to-home (k=1) selection matches an independent brute-force recomputation on >=400 synthetic eligible states",
+    "C4 spawn geometry non-degenerate (gap between 1st and 2nd closest ACTIVE agent to own_flag_home > 0) on all 128 real (seed, pole) cells that will actually be used",
+    "C5 A_closest selection is deterministic (rerun of the same (pole,seed) picks the same agent) and state-dependent (varies across seeds, not a hidden fixed id)",
+    "C6 policy parameters (both pi_A, pi_B) bit-identical before and after the contract episodes",
+    "C7 no seed-table side door -- the closest-to-home selector never looks up a seed-to-id table",
+    "C8 read-only fence -- no .learn(/optimizer.step/backward(/PPO(/zero_grad anywhere in the new script's source",
+    "C9 pattern-match decision-rule self-test on synthetic cases"
+  ],
+
+  "EXPLICITLY_FORBIDDEN": [
+    "any PPO run, any training-time defender constraint -- this spec is entirely rollout-time, exactly like its 4v4 and DEFENDER_INJECTION_CAUSAL_BRIDGE precedents",
+    "sending raw macro id 7 through the discrete action array at n_macros=5",
+    "a fixed or seed-derived override agent id -- selection must be state-dependent (closest-to-home) for this screen specifically; that is the entire point of running it as a SEPARATE experiment from the already-sealed seed-rotated DEFENDER_INJECTION_CAUSAL_BRIDGE",
+    "reusing any seed already spent or reserved by SHARE0, FIXED_ATTACK_HEAVY, DEFENDER_INJECTION_CAUSAL_BRIDGE, or the retired SCALE_6V6_ENTITY_REPAIR_BASE_PAIR_V1 block",
+    "treating a pattern_match=TRUE result as a confirmatory crossover claim -- it licenses a 200k exploratory pi_D training step next, not a paper-grade claim",
+    "retraining, fine-tuning, or otherwise touching pi_A_specialist_6v6 or pi_B_specialist_6v6 as part of this record"
+  ],
+
+  "claim_boundary": "Descriptive, exploratory comparison on the frozen, existing 6v6 learned specialists, fresh seeds, k=1 closest-to-home defender injection. Answers only whether this specific composite structure's win-rate pattern matches the desired A/B separation shape. Not a confirmatory claim, not a statement about whether a trained pi_D would do better or worse, and not a re-litigation of DEFENDER_INJECTION_CAUSAL_BRIDGE's already-sealed seed-rotated result (a different, disjoint experiment on the same mechanism)."
+}

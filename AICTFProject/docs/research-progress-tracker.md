@@ -16,7 +16,1245 @@ It is **not** the source of truth for:
 * Launch / eval / statistical protocols →
   [`experiment-and-evaluation-protocol.md`](experiment-and-evaluation-protocol.md).
 
-> **Last updated:** 2026-08-31 — H-OG-PSP V4 completed valid training. Its frozen mechanism diagnostic returned `TRAJECTORY_IDENTITY_PARTIAL / IDENTITY_DEGRADED` (`af03130b`). The terminal-only payoff EVAL on untouched `11400101..11400132` is running as PID `47992` under protocol/evaluator commit `cd2a0d40`; terminal SHA and frozen gate were verified before episode 1.
+> Prior — 2026-09-24 — **2v2 Fully Shared+\(z\) distilled student FROZEN.**
+> Holdout agree \(0.965/0.988\), unique actor params \(3{,}456{,}599\), sha256
+> `4aebecd8…`. Record:
+> `artifacts/strategic_demand/sppo/suite_sharing/2v2/fully_shared_z/STUDENT_FROZEN.json`.
+> Next suite step still: collect `SUITE_DISTILLATION_4V4` under CD \(k=2\).
+>
+> ---
+>
+> Prior — 2026-09-24 — **Suite fairness rule confirmed in ops.** Distillation
+> arms fail-closed until matched state sets exist. Inventory:
+> 2v2 Separated/Share-Encoder/Generalist available, Fully Shared+\(z\) training
+> (unique actor params \(3{,}456{,}599\)); 4v4 Separated sealed, both sharing arms
+> blocked on CD \(k=2\) dataset; 6v6 Separated critical path, sharing arms blocked.
+> Next collectable dataset: `SUITE_DISTILLATION_4V4` under `CLOSEST_DEFENDS(k=2)`
+> from the sealed mature split; 6v6 collection waits on Separated seal then \(k=1\).
+>
+> ---
+>
+> Prior — 2026-09-24 — **Suite distillation implementation started (do not wait
+> on the 6v6 seal for the code).** `experiments/run_suite_sharing_distillation.py`
+> + `rl/suite_fully_shared_distill.py`. **2v2 Share-Encoder reused** (sealed Rung-1).
+> **2v2 Fully Shared+\(z\)** preflight 7/7; 20-epoch distillation launched on CPU
+> (GPU was occupied). **4v4/6v6 both arms fail-closed** until
+> `SUITE_DISTILLATION_{4,6}V{4,6}_DATASET.json` exists under `CLOSEST_DEFENDS`.
+>
+> ---
+>
+> **Last updated:** 2026-09-24 (cross-scale baseline suite FROZEN) —
+> **Suite:** [`CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json`](../artifacts/strategic_demand/sppo/CROSS_SCALE_BASELINE_SUITE_V1_SPEC.json)
+> — same four arms at 2v2/4v4/6v6 (Generalist / Fully Shared+\(z\) / Share-Encoder /
+> Separated), distillation identity for the sharing family, allocator fairness
+> (`4v4: CLOSEST_DEFENDS k=2` / `6v6: k=1`; 2v2 natural). **Do not train suite arms
+> now.** Critical path remains sealing repaired 6v6 Separated; then prioritize
+> standardized Fully Shared+\(z\) at all three scales, then Share-Encoder under the
+> same locks. Depth ladder (Backbone/Macro) stays **2v2-only**. Prior one-off
+> fully-shared PPO SPECs are plumbing children under this suite, not complete
+> baselines by themselves.
+>
+> **Final paper scale story:** `2v2 → 4v4 → repaired 6v6`, then suite curves.
+>
+> | Piece | Final paper status |
+> |-------|--------------------|
+> | 2v2 specialists + sharing ladder (depth) | **Include** |
+> | 4v4 split crossover PASS | **Include** |
+> | Old 6v6 Share-0 / Share-Encoder (no CLOSEST_DEFENDS) | **Exclude** from suite/narrative |
+> | Repaired/mature 6v6 Separated | **Include once sealed** — critical path |
+> | Cross-scale suite (4 arms × 3 scales) | **Frozen design; build after 6v6 seal** |
+>
+> Compute path unchanged: same algorithmic recipe, scale-specific config
+> (`4v4: N=4,k=2` / `6v6: N=6,k=1`). Mature A/B → frozen ATTACK `π_A` → `π_D` +200k +
+> identical N′ teacher → `CLOSEST_DEFENDS` → same `Δ_A`/`Δ_B` LCB95 gate.
+> School PC: [`SCHOOL_PC_6V6_LOCKED_PIPELINE.json`](../artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json),
+> [`experiments/SCHOOL_PC_6V6_README.md`](../experiments/SCHOOL_PC_6V6_README.md).
+> Fail-closed preflight before grind. Home c2 STOPPED.
+>
+> ---
+>
+> Prior — 2026-09-23 (paper scale narrative LOCKED) —
+> **Final paper scale story:** `2v2 → 4v4 → repaired 6v6`.
+>
+> | Piece | Final paper status |
+> |-------|--------------------|
+> | 2v2 specialists + sharing ladder | **Include** |
+> | 4v4 split crossover PASS | **Include** (reverses 2026-09-11 “exclude 4v4” draft note) |
+> | Old 6v6 Share-0 / Share-Encoder compression results | **Exclude** from narrative (archive/provenance only) |
+> | Repaired/mature 6v6 split (school-PC pipeline) | **Include once sealed** — only 6v6 result in the main story |
+> | Fully shared strategy-conditioned baseline | **Run after 6v6, then include** |
+>
+> Compute path unchanged: same algorithmic recipe, scale-specific config
+> (`4v4: N=4,k=2` / `6v6: N=6,k=1`). Mature A/B → frozen ATTACK `π_A` → `π_D` +200k +
+> identical N′ teacher → `CLOSEST_DEFENDS` → same `Δ_A`/`Δ_B` LCB95 gate.
+> School PC: [`SCHOOL_PC_6V6_LOCKED_PIPELINE.json`](../artifacts/strategic_demand/sppo/SCHOOL_PC_6V6_LOCKED_PIPELINE.json),
+> [`experiments/SCHOOL_PC_6V6_README.md`](../experiments/SCHOOL_PC_6V6_README.md).
+> Fail-closed preflight before grind. Home c2 STOPPED.
+>
+> ---
+>
+> Prior — 2026-09-23 — **6v6 closure criterion is the 4v4 recipe, not SDS observability.**
+> Finish line: `CLOSEST_DEFENDS(k)` + frozen ATTACK + learned `π_D`, then the same sealed
+> crossover gate (`Δ_A>0`, `Δ_B>0`, both LCB95>0). `V3_STRATEGIC_DEMAND_NOT_VALIDATED`
+> stays a separate negative observability experiment
+> ([`HUMAN_DECISION_REQUIRED_OBSERVABILITY.md`](../artifacts/strategic_demand/HUMAN_DECISION_REQUIRED_OBSERVABILITY.md),
+> [`CONFIRMATION_SDS_G1_4_RESULT.json`](../artifacts/strategic_demand/CONFIRMATION_SDS_G1_4_RESULT.json)).
+> It is not rewritten as a PASS, and it is not a gate on this closure path.
+> Scale story: 2v2 crossover PASS; 4v4 heuristic allocation + learned strategy crossover PASS;
+> 6v6 the same gate, still open.
+>
+> ---
+>
+> Prior — 2026-09-23 — **Fully Shared Strategy-Conditioned plumbing READY
+> (train still deferred).** Implementation landed under the frozen SPECs:
+> `rl/custom_ppo/fully_shared_z.py`, `experiments/train_fully_shared_strategy_conditioned.py`
+> (`--authorize-launch` required for non-smoke), `experiments/eval_fully_shared_z_crossover_scaled.py`
+> (forced-z + CLOSEST_DEFENDS + `run_state.seal`), `tests/test_fully_shared_z_conditioned.py`
+> (13 passed). **Do not launch** while `CLOSEST_SPLIT` 6v6 viability owns the GPU.
+> Seed reservation + 200k train + n=64 eval wait on C11 clear / other PC.
+>
+> ---
+>
+> Prior — 2026-09-23 — **Fully Shared Strategy-Conditioned baseline SPECs frozen
+> (queue only; no train on this PC).** Sharing-axis port under identical `CLOSEST_DEFENDS`:
+> [`FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/FULLY_SHARED_STRATEGY_CONDITIONED_4V4_V1_SPEC.json)
+> (primary vs sealed separated 4v4 PASS) and contingent
+> [`FULLY_SHARED_STRATEGY_CONDITIONED_6V6_V1_SPEC.json`](../artifacts/strategic_demand/sppo/FULLY_SHARED_STRATEGY_CONDITIONED_6V6_V1_SPEC.json)
+> (k pins deferred to sealed separated 6v6 composition). Single network `π_φ(a|o,z)`, no
+> router, forced-z crossover, same Δ/LCB95/seal machinery. **Do not launch while
+> `CLOSEST_SPLIT` 6v6 viability owns the GPU.** Implementation remaining is listed in the
+> 4v4 SPEC; this is freeze-only.
+>
+> ---
+>
+> Prior — 2026-09-23 — **4v4 = DONE** under the frozen closure rule
+> (*heuristic role allocation + learned strategy* → confirmatory crossover PASS).
+> Evidence already on disk: `DEFEND_ATTACK_SPLIT_POLICY_A_V1` trained `pi_D` under
+> `CLOSEST_DEFENDS` (allocator on during training; frozen `pi_A` on ATTACK slots), then
+> [`DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json`](../artifacts/strategic_demand/sppo/DEFEND_ATTACK_SPLIT_POLICY_A_V1_CONFIRMATORY_V1_SPECIALIST_CROSSOVER_EVAL_RESULT.json)
+> sealed **joint gate PASS** on fresh n=128 (seeds 21800001–128):
+> Δ_A = +0.156 [+0.039, +0.273], Δ_B = +0.406 [+0.297, +0.508]. Practical paper status
+> matches 2v2. **Do not train another 4v4 closure run.** All attention goes to 6v6
+> (current closest-split viability in flight).
+>
+> **FROZEN 4v4 CLOSURE RULE (PI):** confirmatory crossover PASS under *strategy learned,
+> role assignment heuristic* closes 4v4. Heuristic assignment alone does not keep the lane open.
+>
+> ---
+>
+> Prior — 2026-09-23 — This PC is a **25k viability test** only, not the 200k run. After the checkpoint, an n=16 k=1 vs k=3
+> screen on both poles decides: promising → full 200k on the other PC; unclear → 50k here and screen again; obvious
+> collapse → stop.
+>
+> The 25k viability screen is complete:
+> [`CLOSEST_SPLIT_VIABILITY_6V6_25000.json`](../artifacts/strategic_demand/sppo/CLOSEST_SPLIT_VIABILITY_6V6_25000.json).
+> Cell win rates were `k=1`: Pole A `0.8125`, Pole B `1.0`; `k=3`: Pole A
+> `0.875`, Pole B `1.0`. Paired contrasts were `Delta_A=-0.0625`
+> `[-0.25,+0.125]` and `Delta_B=0.0` `[0,0]`. Neither composition collapsed,
+> but the B improvement criterion was not met. Frozen ladder decision:
+> **UNCLEAR**, so the one-time 50k continuation is the only remaining
+> viability step; this is not a crossover result or 200k authorization.
+>
+> ---
+>
+> Prior — 2026-09-23 (later) — **`CLOSEST_COMPOSITION_CONTRAST_6V6` SEALED: `pattern_match = true`. Geometry-assigned
+> scripted 5A/1D vs 3A/3D recreates the sealed FIXED_IDENTITY composition signature. Do not auto-train `pi_D`; PI gate on
+> confirmatory n / heuristic+learned bridge.**
+>
+> Sealed
+> [`CLOSEST_COMPOSITION_CONTRAST_6V6_RESULT.json`](../artifacts/strategic_demand/sppo/CLOSEST_COMPOSITION_CONTRAST_6V6_RESULT.json)
+> (block `22100001-064`, 256 episodes, scripted macros, `CLOSEST_DEFENDS` `k_D=1` vs `k_D=3`):
+>
+> | contrast | mean | LCB95 | UCB95 |
+> |---|---|---|---|
+> | Delta_B (5A/1D − 3A/3D, Pole B) | **+0.594** | +0.453 | +0.719 |
+> | Delta_A (5A/1D − 3A/3D, Pole A) | **+0.109** | −0.031 | +0.250 |
+>
+> Cell WR: Pole B `0.75` vs `0.16`; Pole A `0.83` vs `0.72`. Matches the direction of
+> `FIXED_ATTACK_HEAVY_6V6_CONFIRMED` (identity assignment; B +0.69, A +0.125 at n=192). Point estimates only at n=64 —
+> not a confirmatory label. **Reading:** the successful asymmetric compositions survive heuristic role assignment; the
+> prior failure was specifically “add one defender to generalist `pi_A` vs unchanged `pi_B`,” not “5A/1D vs 3A/3D under
+> CLOSEST_DEFENDS.” Next is a PI decision (confirmatory n, or strategy-learned + heuristic allocation bridge) — still no
+> auto-`pi_D`.
+>
+> ---
+>
+> Prior — 2026-09-23 — **`CLOSEST_DEFENDS_SCREEN_6V6` SEALED: `pattern_match = false`. Closest-to-home fixed 5A/1D on
+> frozen `pi_A` is safer than seed-rotated +1D, but it is not enough to create 6v6 crossover. Do not train `pi_D` from that
+> scaffold. Next targeted test: geometry-assigned scripted 5A/1D vs 3A/3D (`CLOSEST_COMPOSITION_CONTRAST_6V6`), not a k-sweep
+> and not `pi_D`.**
+>
+> Sealed result
+> [`CLOSEST_DEFENDS_SCREEN_6V6_RESULT.json`](../artifacts/strategic_demand/sppo/CLOSEST_DEFENDS_SCREEN_6V6_RESULT.json)
+> (block `22000001-064`, 384 episodes, frozen existing 6v6 specialists, `k_D=1`):
+>
+> | contrast | mean | LCB95 | UCB95 |
+> |---|---|---|---|
+> | Delta_A_closest (`A_closest` vs `pi_B`, Pole A) | **-0.016** | -0.141 | +0.109 |
+> | Delta_B_closest (`pi_B` vs `A_closest`, Pole B) | +0.094 | +0.016 | +0.188 |
+> | I_B (`A_closest` vs native `pi_A`, Pole B) | **-0.078** | -0.172 | +0.016 |
+>
+> Cell means: `A_closest` 0.86/0.88 vs native `pi_A` 0.89/0.95 (Poles A/B). Selection rule mattered relative to
+> `DEFENDER_INJECTION_CAUSAL_BRIDGE` (`ONE_DEFENDER_HARM_ONLY`, Pole-B resolved harm much harsher). But Pole A stays a
+> near-tie / slight loss vs generalist `pi_B`, so the composite does not recreate crossover. **Frozen branch rule:** do
+> not auto-start 6v6 `pi_D` training from this scaffold — there is not enough causal evidence a learned one-defender
+> policy would solve it.
+>
+> **Recorded reading (PI, 2026-09-23):** closest-to-home selection removes much of the prior +1D harm but does not produce
+> 6v6 crossover when only the A-side composition is changed. Next experiment is **not** random `k=2`/`k=3` on learned
+> specialists; it is the geometry-assigned version of the sealed scripted contrast that *did* separate
+> (`FIXED_ATTACK_HEAVY_6V6_CONFIRMED`: 5A/1D vs 3A/3D): `CLOSEST_COMPOSITION_CONTRAST_6V6` — scripted macros, `CLOSEST_DEFENDS`
+> `k_D=1` vs `k_D=3`, exploratory `n=64`, block `22100001-064`. If that recreates the signature, bridge is
+> strategy-learned + role-assignment heuristic. If it fails, stop rescuing old 6v6 checkpoints with allocation tricks.
+>
+> ---
+>
+> Prior — 2026-09-22 (later) — **`CLOSEST_DEFENDS_SCREEN_4V4` COMPLETE: `pattern_match = true`. Both load-bearing pieces
+> of the target 4v4 training architecture now have empirical support: GO_TO is sufficient enough (`GOTO_ONLY_DEFEND_SUBSTITUTION_4V4`,
+> below) and a fixed distance-based greedy allocator preserves the useful 2A/2D effect (this experiment). Research question shifts
+> from "can this architecture work?" to "can PPO learn competent role-conditioned behavior under this fixed allocator?"**
+>
+> `CLOSEST_DEFENDS_SCREEN_4V4` was an EXPLORATORY DESCRIPTIVE screen, not a confirmatory crossover test -- no LCB95 gate, no
+> terminal pass/fail label, by design. It reproduced the sealed scaffold bridge's signature with `pattern_match: true`: Delta_A and
+> Delta_B were positive, I_B was strongly negative, Pole A performance was preserved, and all six possible defender pairs were
+> selected across seeds. Pre-run package (spec, runner, 13/13 contract record, seed reservation) committed as `f4f4ac6f` before any
+> seed in the fresh exploratory block 21300001-21300064 was touched; one self-referential contract bug (a banned-string check
+> matching its own declaration, not a real call site) was found and fixed before that freeze. 64 fresh exploratory seeds x 2 poles
+> x 3 arms = 384 episodes, all recorded and analyzed cleanly (two shards needed one retry after an unrelated GPU-contention crash
+> from launching alongside `GOTO_ONLY_DEFEND_SUBSTITUTION_4V4`'s still-running shards; no data was lost, only redone).
+>
+> Mechanism: `A_closest` = `pi_A` + the two ACTIVE agents closest to `own_flag_home` at the first decision tick (state-dependent,
+> fixed for the whole episode) forced to DEFEND via the SAME mechanism as the sealed `A'` -- the only variable changed is the
+> pair-selection rule, from seed rotation to distance-to-home.
+>
+> | | sealed bridge (seed-rotated pair) | `CLOSEST_DEFENDS` (distance-to-home pair) |
+> |---|---|---|
+> | Delta_A' | +0.352 [+0.234, +0.461] | +0.266 [+0.125, +0.406] |
+> | Delta_B' | +0.359 [+0.250, +0.469] | **+0.422** [+0.297, +0.547] |
+> | I_A (A's own-pole win rate) | -0.094 [-0.203, +0.016] | **0.000** [-0.141, +0.141] -- exact tie with native `pi_A` |
+> | I_B (A's Pole-B competence) | -0.492 [-0.594, -0.391] | **-0.625** [-0.734, -0.500] |
+>
+> Cell means: `A_closest` wins Pole A exactly as often as native `pi_A` (0.781 = 0.781) while collapsing to 0.047 on Pole B (even
+> lower than the bridge's `A'` at 0.133). Blue-goal and margin currencies move the same direction with equal or larger magnitude.
+> Diagnostic: all 6 possible unordered agent-pairs were selected across the 64 seeds (12-30 occurrences each), confirming the rule
+> is genuinely state-dependent, not degenerate. Point estimates only -- n=64, no confirmatory claim -- but the direction and
+> magnitude are unambiguous and consistent across win rate, goals, and margin.
+>
+> **What this does and does not support.** Supports using a fixed distance-based greedy allocator as the role-assignment layer:
+> `greedy_role_allocator(N, k_D)` with `k_D(4)=2`, closest-to-base -> DEFEND, computed once per episode, kept active at evaluation.
+> Does NOT itself authorize PPO or any training -- that remains the next, separate PI decision. Says nothing about `pi_B`, a dynamic
+> per-tick reassignment variant (explicitly out of scope here), or any team size other than 4v4. Per the PI: after this commit, stop
+> running diagnostic screens and move to the actual training architecture -- `CLOSEST_DEFENDS` allocator -> ATTACK/DEFEND role label
+> -> role-conditioned PPO, allocator kept at evaluation -- rather than a further vocabulary or allocation-rule test.
+>
+> **Earlier 2026-09-22 — `GOTO_ONLY_DEFEND_SUBSTITUTION_4V4` SEALED: `GOTO_ONLY_CROSSOVER_CONFIRMED`, with two caveats attached
+> beside the headline, not buried later: Pole A crossover is confirmed but THIN (LCB95 = +0.016), and `N'` did NOT satisfy the
+> predeclared path-fidelity gate on Pole A, so faithful scaffold-path reproduction is NOT claimed. Strongest supported conclusion:
+> instantaneous heading fidelity is not necessary for 4v4 crossover -- a GO_TO-only defender with substantially worse heading
+> agreement than the scaffold still preserved crossover. Clean next implication: we do not need a new DEFEND primitive before
+> training. This is the last diagnostic in this line per its own frozen commitment -- no further metric exploration, no re-run.**
+>
+> Pre-run package (spec, runner, 15/15 contract record, seed reservation) committed as `541e9bab` before any seed in block
+> 21200001-21200128 was touched; two real contract bugs were found and fixed before that freeze (`GPUCTFVecEnv.step_wait()`
+> auto-resets core buffers on episode end, so 7 apparent boundary/commit-state mismatches were reading next-episode buffers, not
+> violating the commit lock; a wording self-test checked for "necessary" against text that correctly said "necessity"). Result
+> sealed 2026-09-22 (0/48 gating checks failed, 1024/1024 rows, attestation clean: 256 `N'` cells, 85,861 verified boundary
+> events, 396 correctly excluded as unverifiable at episode-end resets).
+>
+> `N'` = `pi_A` + a causal, oracle-informed controller restricted to the native `(GO_TO, legal waypoint)` surface on the same two
+> agents the sealed scaffold `A'` force-injects DEFEND onto; no PPO, no new vocabulary, `pi_B` untouched.
+>
+> | primary win-rate contrast | mean | LCB95 | UCB95 |
+> |---|---|---|---|
+> | Delta_A_N (`N'` vs `pi_B`, Pole A) | +0.141 | **+0.016** | +0.258 |
+> | Delta_B_N (`pi_B` vs `N'`, Pole B) | +0.438 | +0.336 | +0.539 |
+>
+> Both lower bounds clear zero -> `GOTO_ONLY_CROSSOVER_CONFIRMED` by the frozen precedence. **Frozen interpretation text, verbatim:**
+> "Instantaneous DIRECTION is not necessary for crossover: a defender restricted to native (GO_TO, legal waypoint) actions, which
+> removes per-tick heading fidelity relative to the scaffold, preserved the crossover. This does not mean the DIRECTION metric was
+> wrong; it measured a real mismatch that was not behaviorally necessary for the endpoint. `N'` also did not meet the pre-declared
+> in-env path criterion, so it is not claimed to reproduce the scaffold's path."
+>
+> **Why the path-fidelity caveat fired (`check_pass_n=False`):** the interaction-free manipulation gate (RMSE <= 2.5 cells,
+> LCB95 >= 0.90, same population definition as the representability audit) passed clearly on Pole B (0.980) but came back
+> BORDERLINE on Pole A (0.883 [0.834, 0.923] -- LCB just under 0.90). The positive control `A'` passed comfortably on both poles
+> (0.948 / 0.962), so the instrument itself is not in question; `N'`'s own path simply did not clear the bar on Pole A.
+>
+> **Direction was robustly, not marginally, manipulated:** realized per-tick heading agreement dropped from `A'`'s 0.42 / 0.29 to
+> `N'`'s 0.19 / 0.11 (Pole A / B); the paired `A'` minus `N'` contrast is clearly positive on both poles (LCB95 0.207 and 0.148,
+> n=128 pairs each) -- a large, unambiguous gap, licensing the "not necessary" statement rather than the weaker "no statement made"
+> branch of the frozen tree.
+>
+> **Other honesty notes (non-gating):** the automated split-half check flagged a sign flip on a purely descriptive margin contrast
+> (`N'` minus `A'` on Pole A: +0.047 -> -0.016 between halves) -- does not touch the primary win-rate gate, but is consistent with
+> Pole A being the noisier axis in this comparison, alongside its thin primary margin.
+>
+> **What this does and does not authorize.** Per the frozen `POST_RUN_COMMITMENT_FROZEN`: this experiment is the LAST diagnostic
+> in the vocabulary-necessity line -- no further metric exploration, no second manipulation-check definition, no re-run of this
+> question, regardless of the caveats above. It licenses moving to a training decision (teacher-guided PPO warm-started from
+> `pi_A`, see the PROPOSED item below and [[teacher-guided-ppo-successor-plan]] in memory) without first building a new DEFEND
+> primitive. It does NOT itself authorize PPO -- that remains a separate PI decision -- and it says nothing about `pi_B`, 6v6, or
+> whether PPO will actually learn the behavior the greedy oracle can merely express.
+>
+> **Earlier 2026-09-21 (later) — 4v4 SCAFFOLD-TO-NATIVE REPRESENTABILITY AUDIT COMPLETE: frozen label `NOT_REPRESENTABLE_VOCABULARY` on a valid audit, driven entirely by the DIRECTION sub-gate; TARGET and TRAJECTORY both pass at high coverage. READ-ONLY DIAGNOSTIC: no PPO, no new seed, `pi_B` not loaded. The label authorizes nothing.**
+> Spec [`SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_V1_SPEC.json)
+> (amendment trail A1-A5 from the PI review), runner `experiments/audit_scaffold_to_native_representability_4v4.py` and the passing
+> 17/17 contract record were committed together as `59bb5073` before the replay started. The replay re-ran the 256 sealed A' cells
+> (block 21100001-128, registry entry untouched and byte-identical, no outcome inference drawn); every cell reproduced its sealed row
+> and the `pi_A` parameter digest was unchanged. Question: could native `pi_A`'s existing 4v4 interface (5 macros, a 50-waypoint grid,
+> the real action mask, real commit lengths) have produced the defender targets the scaffold injected? Witness set = legal `GO_TO`
+> waypoints only (no semantic macro used as a steering primitive); G6 thresholds unchanged (2.5 cells / cos 0.99 / 16 ticks); PASS iff
+> episode-clustered LCB95 >= 0.90 (this audit's own pre-declared level). Result
+> [`..._RESULT.json`](../artifacts/strategic_demand/sppo/SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_RESULT.json), per-cell
+> [`..._CELLS.csv`](../artifacts/strategic_demand/sppo/SCAFFOLD_TO_NATIVE_REPRESENTABILITY_AUDIT_4V4_CELLS.csv).
+>
+> | gate (unit) | Pole A | Pole B |
+> |---|---|---|
+> | TARGET (ACTIVE tick: some legal waypoint within 2.5 cells of the DEFEND target) | 0.981 [0.979, 0.983] PASS | 0.984 [0.982, 0.985] PASS |
+> | DIRECTION (ACTIVE tick: existence over legal waypoints of one aimed within 8 deg; TARGET-satisfying preferred) | **0.375 [0.343, 0.409] FAIL** | **0.281 [0.255, 0.308] FAIL** |
+> | TRAJECTORY, native commit (16-tick window, RMSE <= 2.5 vs the isolated DEFEND path) | 0.964 [0.959, 0.969] PASS | 0.965 [0.961, 0.969] PASS |
+> | TRAJECTORY, interruptible (commit 1; localization diagnostic) | 0.995 [0.993, 0.997] PASS | 0.995 [0.994, 0.997] PASS |
+>
+> Units: 48,068 / 56,576 ACTIVE ticks and 17,781 / 23,702 windows (A / B). Tagged ticks (14.7% / 7.9%) are excluded because the env forces
+> them home regardless of macro. Legality violations 0, runtime-parameter mismatches 0, independent re-derivation clean.
+>
+> **Reading.** The interface can name the DEFEND target to within 2.5 cells on ~98% of ticks and, with hindsight, reproduce the
+> defender's position PATH within 2.5 cells RMSE on ~96% of 16-tick windows under its real 4-tick commit lock (99.5% if interruptible,
+> so the commit lock is a minor factor; 99.0% / 99.7% on the interaction-free windows). It cannot, with a coarse waypoint grid,
+> reproduce the per-tick HEADING toward the DEFEND target on most ticks. Those are different questions; the frozen precedence made the
+> per-tick heading decisive, hence the label. **Representability is not learnability:** the path-oracle is greedy and sees the reference
+> future, so TRAJECTORY says the path CAN be expressed, not that PPO WILL find it, and a NOT_REPRESENTABLE label is not a proof of impossibility.
+>
+> **Frozen-gate limitation that only became visible on the population (author's miss):** the inherited G6 `direction_cosine` returns -1
+> when the desired vector is zero and the candidate's is not. The defender is exactly at its DEFEND target on 18.1% / 23.0% of ACTIVE
+> ticks, and within 1.5 cells of it on 39% / 49% (OUTWARD ticks, target = a boundary point; the own flag is 2 cells from the west wall).
+> **Exploratory sensitivity (post hoc, same recorded states, does NOT replace the frozen verdict):** excluding exactly-zero ticks the frozen gate is
+> 0.458 / 0.365 and pure existence over any legal waypoint is 0.681 / 0.596 -- still below 0.90, so the DIRECTION failure is not just that
+> convention. Other measured drivers: OUTWARD ticks with the target < 1.5 cells away pass 0.4% / 0.3%; INWARD ticks with the flag at home
+> pass 27.6% / 26.5% under the TARGET-satisfying-preferred rule (only waypoint idx 5, behind the flag, is within 2.5 cells) but 90.8% / 89.9% under pure
+> existence; the own flag is away from home on 55% / 40% of INWARD ticks. Independent re-check of the pipeline's DIRECTION flags with the
+> unchanged `direction_cosine`: 425/425 sampled ticks identical.
+>
+> **Other diagnostics (non-gating):** the exact semantic macro for INWARD, `GO_HOME`, is masked for a no-payload defender on 47% / 62% of
+> INWARD ticks (legal substitution costs 0.43 / 0.44 cells on average; admitting every legal macro would change TARGET by 0.000 because
+> GO_HOME is legal on only 101 / 562 ACTIVE ticks). G6-style committed-candidate comparator, all four checks jointly: 0.05% / 0.04% (the
+> old flip-tracking failure, visible on real states). Isolated-vs-live position RMSE 0.66 / 0.58 cells (the live step's 0.5-cell
+> avoid-collision shove; every one-step miss verified to have a neighbour in shove reach). **Open discrepancy, carried not edited:**
+> `HOME_LEGALITY_CONFIRMED_INTERFACE_REPAIR.json` says the engine never blocks `GO_HOME` for a non-carrier -- true of the engine decode,
+> false of the policy-facing mask that `pi_A` actually sees.
+>
+> **Narrow reading of the frozen result (PI wording, adopted as the record's summary):** under the preregistered representability
+> criteria, the existing GO_TO vocabulary fails because it cannot reproduce scaffold-relative instantaneous direction at the required
+> 90% coverage. Target and short-horizon trajectory representability remain high. **Whether instantaneous direction is behaviorally
+> necessary for crossover is unresolved.** "DIRECTION fails" is established; "DIRECTION is necessary" is not, and the stronger claim
+> "GO_TO cannot express the behavior needed for crossover" is NOT established by this audit. The frozen label stays exactly as computed.
+>
+> **Routing per the frozen rule:** PPO stays parked; the pre-declared repair question is the minimum primitive that names the desired
+> defender target. That routing is a recommendation the label carries by pre-declaration; because necessity is unresolved, no new
+> primitive (e.g. a learned-selectable DEFEND) is proposed on the strength of this audit alone. Any re-scoring with a different DIRECTION
+> definition, or an env-level test with a native-legal defender controller, is a NEW pre-registered analysis, not a relabeling of this one.
+>
+> **Earlier 2026-09-21:** **4v4 SCAFFOLDED-A CROSSOVER BRIDGE SEALED: `SCAFFOLDED_CROSSOVER_CONFIRMED` (fresh sealed_confirmatory seeds 21100001-21100128, 30/30 gating checks, run from the pre-run commit `ef5ee95f`). IMPOSING 2A/2D ON `pi_A` RECOVERS THE A/B PAYOFF SEPARATION AGAINST THE EXISTING `pi_B`. THIS IS A SCAFFOLDED-CONTROLLER RESULT, NOT A LEARNED CROSSOVER.**
+> Spec [`SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json`](../artifacts/strategic_demand/sppo/SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_V1_SPEC.json),
+> committed together with the runner, the seed reservation and the passing 12/12 contract record (including
+> exact reproduction of 16 sealed episodes) before any seed in the block was touched; the sealed result's
+> own `git_sha` field is that commit. Arms on both certified 4v4 poles (Pole B the B3-3 genome, never
+> canonical OP7), the same 128 paired seeds, 768 full episodes, deterministic, PPO off: native `pi_A3`;
+> `A'` = `pi_A3` with two of the four agents' resolved targets forced to DEFEND's (pair rotated over the six
+> agent pairs by seed); native corrected `pi_B3`. Motivation: every earlier 4v4 learned repair passed
+> `Delta_A` and failed `Delta_B` because `pi_A3` is a strong generalist (0.74 on Pole B).
+>
+> | win rate | Pole A | Pole B |
+> |---|---|---|
+> | native `pi_A` | 0.813 | 0.625 |
+> | `A'` = `pi_A` + 2D | 0.719 | 0.133 |
+> | native `pi_B` | 0.367 | 0.492 |
+>
+> **Primary gate:** `Delta_A'` = `WR(A',A) - WR(pi_B,A)` = **+0.352 [+0.234, +0.461]**; `Delta_B'` =
+> `WR(pi_B,B) - WR(A',B)` = **+0.359 [+0.250, +0.469]**; both lower bounds above zero, so the frozen label is
+> `SCAFFOLDED_CROSSOVER_CONFIRMED`. **Mechanism diagnostics (not gates):** `I_A` = -0.094 [-0.203, +0.016]
+> (A's win rate on its own pole is roughly preserved), `I_B` = -0.492 [-0.594, -0.391] (A's competence on Pole
+> B is suppressed) -- the pattern the design hoped for. The native crossover on the fresh block reproduces the
+> earlier failure (`Delta_A` +0.445 [+0.336, +0.547], `Delta_B` -0.133 [-0.242, -0.023]; sealed baseline
+> +0.273 / -0.156), so the fresh block is not unusual. No sign flip between split halves in any of the 18
+> re-derived claims.
+>
+> **Descriptive, non-gating:** Blue goals `Delta_A'` +1.18, `Delta_B'` +0.59, `I_A` +0.63 [+0.38, +0.86],
+> `I_B` -1.23 [-1.48, -0.98]; margin `Delta_A'` +0.82, `Delta_B'` +1.16, `I_A` +0.16 [-0.10, +0.42], `I_B`
+> -2.07. From the cell means (Red goals = Blue goals - margin), `A'` concedes far more than native `pi_A`: about
+> 0.09 -> 0.55 Red goals per episode on Pole A and 0.01 -> 0.84 on Pole B.
+>
+> **What this establishes:** imposing the balanced 2A/2D structure on `pi_A` is sufficient to recover the 4v4
+> A/B payoff separation against the existing `pi_B`, at the scaffolded-controller level. **What it does not:**
+> `pi_B` is still weak (0.367 on Pole A, 0.492 on its own Pole B, below one half); the separation is created by
+> weakening A on B, not by B becoming a strong specialist. `A'`'s payoffs resemble the scripted 2A/2D records
+> (about 0.11-0.15 on Pole B, 0.74-0.75 on Pole A) but that is a resemblance across different seed blocks and
+> attackers, not a test. It is not a fully learned crossover and must not be reported as one. Per the frozen
+> branch rules nothing further is run from this experiment; PPO to internalize the structure into `pi_A`,
+> removal of the scaffold, and any fully learned crossover are a separate decision, not started.
+>
+> Prior — 2026-09-21 — **ONE-DEFENDER GOAL-VOLUME CONFIRMATION SEALED: `OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED` (fresh sealed_confirmatory seeds 21000001-21000096, 20/20 gating checks, independent re-derivation exact). THE POLE-A GAIN AND POLE-B LOSS IN GOAL PRODUCTION REPLICATE. WORDED "OPPONENT-CONDITIONED ACROSS THE TWO CERTIFIED 6v6 POLES"; IT DOES NOT SEPARATE THAT FROM COMPRESSION TOWARD A COMMON GOAL LEVEL.**
+> Spec [`ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json)
+> (frozen before any seed was spent; result and audit beside it). The hypothesis was generated post hoc
+> from the exploratory records on seeds 20900001-096, which contribute nothing here. Same injection
+> mechanism as the causal bridge (source sha256 pinned and re-verified), 768 full episodes, Blue goals
+> per episode the sole primary endpoint, margin a consistency check only, contracts 8/8 before the
+> run, no interim outcome inspection. Primary criterion: `LCB95(J_p) > 0` for both learned policies,
+> `J_p = dG_{p,A} - dG_{p,B}`.
+>
+> | | native -> +1D mean Blue goals | +1D - native, paired, mean [95% CI] |
+> |---|---|---|
+> | `pi_A` Pole A | 1.21 -> 2.14 | **+0.93 [+0.66, +1.19]** |
+> | `pi_A` Pole B | 2.47 -> 1.85 | **-0.61 [-0.89, -0.34]** |
+> | `pi_B` Pole A | 1.07 -> 1.99 | **+0.92 [+0.67, +1.16]** |
+> | `pi_B` Pole B | 2.24 -> 1.95 | **-0.29 [-0.55, -0.03]** |
+> | **J, `pi_A`** | | **+1.54 [+1.16, +1.93]** |
+> | **J, `pi_B`** | | **+1.21 [+0.88, +1.54]** |
+>
+> Both J lower bounds exceed zero, and all four cell point estimates reproduce the frozen signs, so the
+> frozen label is `OPPONENT_CONDITIONED_GOAL_INTERACTION_CONFIRMED`. (All four cell intervals also
+> exclude zero, though the frozen rules did not require that; `pi_B` Pole B is the narrow one, upper
+> bound -0.03.) Margin agrees (cells +0.90, -0.68, +0.93, -0.34; J +1.57 [+1.20, +1.95] and +1.27
+> [+0.94, +1.60]) and is not a second vote. The split-half check shows no sign flip in any of the eight
+> re-derived claims. The exploratory estimates did not shrink on fresh seeds (exploratory J was +1.35 for
+> both policies), so no winner's-curse signature is visible.
+>
+> **What this establishes:** a replicated differential response of Blue goal production to a forced
+> defender between the two certified 6v6 opponents. **What it does not:** it says nothing about win
+> probability (the sealed win-rate endpoint and its `ONE_DEFENDER_HARM_ONLY` label are untouched); no
+> mechanism; no "regime" law; and per the frozen guard it does not distinguish opponent-specific
+> strategic sensitivity from regression/compression toward a common goal level. That last caveat is
+> not hypothetical: natively the four cells span 1.07-2.47 goals, while under +1D all four land between
+> 1.85 and 2.14 -- the fresh block reproduces the convergence seen in the exploratory data. Two poles
+> cannot separate the readings. A third opponent (none is certified for 6v6 in the repository) or a
+> design that varies the native goal level is the discrimination experiment; none is started.
+>
+> **Third-opponent inventory (read-only, 2026-09-21; nothing was run, no seed touched).** Against the
+> three conditions set by the PI: **(c) fails for every candidate on existing evidence** -- no record in
+> the repository scores `pi_A`, `pi_B`, or any 6v6 learned policy against an opponent other than Pole A or
+> B (`artifacts/6v6_results/robustness/` is empty and the export manifest is marked incomplete; the
+> specialists were trained only against their own pole; other-opponent tests use 2-4 agents). **(a) and
+> (b) are plausible but unverified:** the opponents are a canonical registry `OP5`-`OP12` of documented
+> strategic niches built through the same shared code path as the poles (`canonical_parent` plus the
+> size-normalized defender gate, which resolves `min_alive_for_defender=6` for `OP8`/`OP10`); `OP5` is NOT
+> eligible (the genome path rejects it as an illegal dispatch key); `OP11`/`OP12` are `adaptive_enabled`,
+> so they would adapt to the injected defender and confound the manipulation; nothing in the repository has
+> ever instantiated any of them at 6v6, and none has a certification record or config hash. Eligible,
+> non-adaptive candidates: `OP8` (escort), `OP9` (split-lane feint), `OP10` (aggressive interceptor). By the
+> PI's rule as stated no opponent currently qualifies. Two design points for the decision: a cheap
+> native-only measurement (~96 episodes on disposable smoke seeds, ~30 min sharded) would supply (a) and
+> (c); and selecting for a middle native level alone is an asymmetric test (compression predicts change
+> ~0 there, so a clearly non-zero change refutes compression but ~0 does not confirm it), whereas a
+> candidate that DISSOCIATES native level from opponent identity discriminates in both directions.
+> Open PI decision: run that small measurement, or freeze the claim as it stands.
+>
+> **Resolved (PI, 2026-09-21): the third-opponent detour is deferred, not pursued now.** The confirmed
+> result stands as worded (an opponent-dependent goal-volume response across the two certified 6v6
+> poles; no claim about why). Main line: 4v4 coordination known -> learned repair -> crossover, then 6v6
+> A/B coordination effect known -> learned repair -> crossover. Third-opponent work is an
+> external-validity / mechanism follow-up if the paper needs it. **Corrections to the inventory above,
+> for whoever revisits it:** `OP8`-`OP10` are not part of the certified A/B methodology and were proposed
+> only by elimination (genome-path-legal, non-adaptive). But they are not new to the repo: the 2v2
+> Strategic Demand Searcher lists `OP6, OP8-OP12` as legal A-pole bases against the fixed `OP7` anchor
+> (`experiments/sds_genome.py`; search archives under `artifacts/strategic_demand/searcher*/`, NOT read
+> here), and the 4v4 draft `HELDOUT_REGIME_GENERALIZATION_V1_SPEC.json` (status
+> `DRAFT_HELD_OUT_SET_UNDECIDED`) already names `OP5` and `OP8`-`OP12` as held-out opponents. That draft
+> (i) categorizes by `defender_zone_frac` at the pole midpoint 0.20 (A-like: `OP5`, `OP9`; B-like: `OP8`,
+> `OP10`, `OP11`, `OP12`), which supersedes the ad hoc structural ordering above; (ii) records a PI
+> decision to run canonical opponents UNMODIFIED with no size-normalized defender gate, so the
+> size-normalization applied to `OP8`/`OP10` in the inventory departs from project precedent; and (iii)
+> notes the registry also contains `C6A`/`C6B`, which lie outside the pole span and were not examined.
+> Read that spec and the searcher archives first if this is ever revived.
+>
+> Prior — 2026-09-21 — **EXPLORATORY ONE-DEFENDER FAILURE LOCALIZATION DONE (DIAGNOSTIC, NON-GATING, NO VERDICT COMPUTED): THE POLE-B HARM LOCALIZES TO CARRIER CONVERSION AFTER ACQUISITION. TWO CAVEATS QUALIFY HOW THE SEALED CAUSAL RESULT SHOULD BE READ.**
+> Spec [`EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/EXPLORATORY_ONE_DEFENDER_FAILURE_LOCALIZATION_V1_SPEC.json),
+> result `..._RESULT.json` and `..._ROWS.csv` beside it. The sealed causal rows held only outcomes
+> (no per-tick telemetry), so the exact 768 sealed cells were replayed (same seeds, sha-pinned
+> checkpoints, same code paths, deterministic; no new seed). **Parity 768/768 exact** against the
+> sealed causal record, checked per episode as written and again at merge; the merge refuses to run
+> unless all 768 cells are present. The first attempt (serial) was lost at 260/768 to a Windows
+> Update reboot because it had no resume file; the rerun is 6 resumable shards.
+>
+> **Pole B (primary), both policies, +1D minus native, paired by seed:** offensive opportunity is
+> NOT reduced (carry starts +2.4 all six agents, +3.1/+3.2 for the five non-overridden agents; first
+> carry ~2-3 ticks later). Conversion after acquisition collapses: total carry time -49/-39 ticks,
+> carriers tagged-while-carrying roughly double (`pi_A` 3.1 -> 6.2, `pi_B` 2.4 -> 5.4), clean
+> releases -0.34/-0.19. Defense does improve on the frozen proxy (opponent carry time 62 -> 14 and
+> 67 -> 26 ticks) but buys nothing: red scores ~0.01-0.02 goals/episode natively and is never ahead
+> in any Pole-B episode under +1D. The +1D non-wins on Pole B are 0-0 timeouts (13/96, 10/96), i.e.
+> blue fails to convert, not red wins. Attrition: tagged fraction +0.08, active agents -0.47.
+> **Pole A (non-gating contrast):** the attrition (+0.08-0.09 tagged fraction, -0.5 active agents) and
+> defensive-proxy (opponent carry time -81/-89) signatures are present there too, so they are generic
+> side effects of the injection, not the Pole-B mechanism. What differs is conversion direction:
+> clean releases go UP at Pole A (+0.34/+0.45) and DOWN at Pole B, and tag-while-carrying rises far
+> less (+1.3/+0.9 vs +3.1/+3.0). Read against the PI's mapping this is closest to "opportunities
+> stay similar, conversion collapses"; it does not separate "lost screening from the removed
+> attacker" from "disrupted learned coordination" -- that needs a targeted intervention, not more
+> telemetry. Full 14-metric x 4-cell table with paired bootstrap intervals is in the RESULT.
+>
+> **Instrument check:** "clean release" is a proxy for a capture and structurally cannot see an
+> episode's terminal capture (the trace is recorded pre-step and stops at `done`). Accounting for
+> that, clean releases + terminal captures reproduces the sealed mean blue score in every cell
+> checked (e.g. `pi_A`@B native 1.74 + 0.60 = 2.34; +1D 1.40 + 0.36 = 1.76), which supports the proxy.
+>
+> **Caveat 1 -- Pole B is a ceiling pole.** Native `pi_A` won 96/96 and `pi_B` 95/96 on Pole B, so
+> that pole could never show a benefit; its "harm" is a drop from perfect. The sealed causal test
+> could only have detected a benefit on Pole A (native 0.83/0.885), where it was INCONCLUSIVE
+> (`+0.031 [-0.063,+0.125]`, `-0.010 [-0.094,+0.073]`), not negative. "One defender does not help"
+> is therefore trivially true at the ceiling pole and unresolved at the other; "falsified" overstates
+> it, and the sealed label `ONE_DEFENDER_HARM_ONLY` should be read as a statement about that
+> frozen metric on these seeds, not as closing the role-count hypothesis.
+> **Caveat 2 -- the frozen win metric saturates at one goal.** On Pole A native, 90/96 and 92/96
+> episodes run the full 240 ticks at ~1.1 goals/episode; under +1D that falls to 49/96 and 47/96
+> with mean blue score 1.20 -> 1.97 and 1.04 -> 1.97, while win rate stays flat (win only needs one
+> goal). The frozen rules did not include a goal-volume or margin endpoint (the superseded proposal
+> listed margin as secondary; it was never computed), so a tiny post-hoc DESCRIPTIVE addendum was
+> frozen BEFORE computation and run on the sealed rows (no simulation; rows sha256 bound to the sealed
+> audit; margin verified = blue - red on all 768 rows): see the addendum block below.
+>
+> **DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM** ([spec](../artifacts/strategic_demand/sppo/DESCRIPTIVE_ONE_DEFENDER_GOAL_VOLUME_ADDENDUM_SPEC.json),
+> result beside it; POST-HOC motivation, non-gating, no pass/fail, no terminal label; it does not
+> replace the sealed win-rate verdict). Paired by seed over the same 96 seeds, +1D minus native,
+> mean [95% CI], native -> +1D means:
+>
+> | cell | Blue goals / episode | score margin |
+> |---|---|---|
+> | `pi_A` Pole A | 1.20 -> 1.97, **+0.77 [+0.49, +1.05]** | +0.77 [+0.49, +1.05] |
+> | `pi_B` Pole A | 1.04 -> 1.97, **+0.93 [+0.68, +1.18]** | +0.95 [+0.71, +1.20] |
+> | `pi_A` Pole B | 2.34 -> 1.76, **-0.58 [-0.87, -0.30]** | -0.64 [-0.93, -0.34] |
+> | `pi_B` Pole B | 2.33 -> 1.91, **-0.43 [-0.69, -0.17]** | -0.44 [-0.70, -0.18] |
+>
+> The Pole-A goal-volume increase survives the paired analysis in both policies on both endpoints
+> (intervals exclude zero) while win rate was unresolved: the binary win endpoint was hiding a real
+> change in goal production there. It is consistent with the localization (clean releases +0.34/+0.45
+> plus ~+0.5 more terminal captures per episode ~ the measured +0.8 goals). Pole B goal production
+> falls, in line with its win-rate harm. What this does NOT establish: that +1D raises the
+> probability of winning; a mechanism; "efficiency" (goals per tick or per carry were not measured --
+> episodes are also shorter, 233 -> 180 ticks on `pi_A` Pole A, but that was not a frozen endpoint);
+> or any confirmatory claim. Goals are capped at 3 by the score limit, so Pole B (native ~2.3) had
+> little room to rise and Pole A (native ~1.1) had a lot. Any confirmatory version needs a fresh
+> seed block and goal volume / margin frozen as an endpoint in advance; none is started.
+>
+> **CORRECTION NOTE (2026-09-21; supersedes the interpretation, not the record).** The earlier
+> `ONE_DEFENDER_HARM_ONLY` label remains correct under its frozen binary win-rate criterion, and
+> commit `e0a16c17` is left exactly as it is. The broader interpretation that the causal bridge
+> "falsifies the defender-count hypothesis" is superseded: Pole B was ceiling-limited for benefit
+> detection (native 96/96 and 95/96 wins), and Pole A effects were unresolved by win rate. The
+> exploratory localization indicates the Pole-B harm arises primarily from impaired carrier
+> conversion after acquisition (carry starts rise, tagged-while-carrying roughly doubles, clean
+> releases fall) despite improved defense, and the goal-volume addendum shows +1D raised goal
+> production on Pole A. Net: the role-count question is open, not closed.
+>
+> Prior — 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE SEALED: `ONE_DEFENDER_HARM_ONLY`. FORCING ONE REAL DEFENDER NEVER HELPS, AND RESOLVED-HARMS pi_A AND pi_B ON POLE B SPECIFICALLY.**
+> PI confirmed the decision rules (per-cell resolved improvement/harm via LCB95/UCB95, a
+> per-pole interaction test for B-disproportionate support, and two non-gating secondary
+> diagnostics -- crossover-under-condition and its paired change from native) and authorized
+> the run: 768 full episodes, `pi_A`/`pi_B` x Pole A/B x {native, +1 defender} x 96 paired
+> seeds `20900001-20900096`, cuda, deterministic. **Sealed, 18/18 gating checks, independent
+> re-derivation of the interaction/paired-change quantities exact (max diff 0.0), read-only
+> guarantee held.**
+>
+> **No cell shows a resolved improvement.** Two of four resolve HARM, both on Pole B:
+> `pi_A@B` `-0.177 [-0.260,-0.104]`, `pi_B@B` `-0.094 [-0.156,-0.042]`. Pole A is unresolved
+> for both policies (`pi_A@A +0.031 [-0.063,+0.125]`, `pi_B@A -0.010 [-0.094,+0.073]`). The
+> per-pole interaction `I_r` is unresolved on both poles (`I_B +0.083 [-0.010,+0.177]` comes
+> closest but does not clear the bar), so `B_DISPROPORTIONATE_ONE_DEFENDER_SUPPORT` is
+> `false` on both poles and `TRANSFERABLE_ONE_DEFENDER_SCAFFOLD` is `false`. **Verdict:
+> `ONE_DEFENDER_HARM_ONLY`** (>=1 resolved harm, zero resolved improvements anywhere).
+>
+> **Split-half check (report-only, non-gating) strengthens the harm reading**: the two
+> resolved-harm cells (`pi_A@B`, `pi_B@B`) show NO sign flip between the first and second
+> half of the seed block; three unresolved quantities (`delta_pi_A_A`, `delta_pi_B_A`,
+> `crossover_B_plus1D`) DO flip sign between halves, consistent with those being genuinely
+> noisy/near-zero rather than a hidden signal being averaged away.
+>
+> **Secondary diagnostics (non-gating):** the native-condition specialist crossover on fresh
+> seeds is small and unresolved on both poles (`Delta_A_native -0.052 [-0.135,+0.021]`,
+> `Delta_B_native -0.010 [-0.031,0.000]`), consistent with the original SHARE0 near-zero
+> crossover finding. Under +1D, `Delta_B_plus1D` shifts to `+0.073 [-0.021,+0.167]` (still
+> unresolved) -- the paired change `C_B = I_B` exactly (an algebraic identity, confirmed by
+> the independent re-derivation), so this is not new information beyond the interaction test.
+>
+> **Bottom line:** the missing defender is not merely correlated with the near-zero
+> `pi_A`/`pi_B` crossover -- forcing one in causally HURTS both policies on Pole B and helps
+> neither policy on either pole. The scripted 6v6 composition result (5A/1D beats 3A/3D) does
+> **not** transfer causally to these frozen checkpoints via a naive rollout-time defender
+> injection. Per the frozen spec's own launch conditions (no PPO, no extra arm, no mid-run
+> inspection, no top-up), this experiment is complete; full numbers in
+> [`DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json`](../artifacts/strategic_demand/sppo/DEFENDER_INJECTION_CAUSAL_BRIDGE_RESULT.json).
+> Whether/how to follow up (e.g. a training-time constraint, or investigating why Pole B
+> specifically is harmed) is an open PI decision; nothing further is started.
+>
+> Prior — 2026-09-20 — **DEFENDER-INJECTION CAUSAL BRIDGE: MECHANISM FROZEN AND CONTRACT-VERIFIED (7/7); DECISION THRESHOLDS PROPOSED, NOT YET PI-CONFIRMED; NO SEED SPENT.**
+> Follow-up to the Stage 2 finding below: PI direction 2026-09-20 (no PPO yet) asked to
+> freeze a rollout-time test of whether forcing exactly one real defender onto the frozen
+> `pi_A`/`pi_B` checkpoints changes their outcomes. Spec:
+> [`DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json`](../artifacts/strategic_demand/sppo/DEFENDER_INJECTION_CAUSAL_BRIDGE_V1_SPEC.json).
+>
+> **A first design (write `MacroAction.DEFEND=7` directly into `blue_commit_macro`,
+> bypassing the discrete action head) crashes CUDA at n_macros=5**: the observation's
+> action-mask builder (`gpu_env/_core/_observations.py::_build_action_mask`) scatters
+> `commit_macro` into a one-hot dimension sized `cfg.n_macros`, and index 7 has no
+> representation in a 5-wide mask. The frozen mechanism instead patches one layer
+> downstream, at `_build_targets_from_action`'s continuous `(tx, ty)` OUTPUT (a per-instance
+> monkey-patch, `experiments.probe_learned_composition.install_forced_defend_target`): the
+> real, untouched target-resolution code is called twice per tick, once for the agent's own
+> (always small, always-valid) committed macro and once more with a synthetic all-DEFEND
+> macro tensor purely to read the DEFEND target, splicing only that value in. `commit_macro`
+> itself is never written, so the action-mask and the (DEFEND-blind) reward bookkeeping are
+> undisturbed.
+>
+> **Contracts 7/7 PASS**, including a real equivalence run: the injection reproduces a
+> natural scripted DEFEND's full trajectory (position, alive, tagged, carrying, intent,
+> outcome) bit-for-bit, at both n_macros=5 and n_macros=8, across 4 (pole, non-trivial
+> defender-id) cells. Rotation (`seed % 6`) is exactly uniform (16/16/16/16/16/16) over the
+> freshly reserved, disjoint seed block `20900001-20900096` (96 = 16x6, unspent). Checkpoint
+> hashes match the pinned values.
+>
+> **Design frozen, not yet run:** `pi_A`/`pi_B` x Pole A/B x {native, +1 defender} x 96
+> paired seeds = 768 FULL episodes (not truncated -- Stage 2's 20-tick truncation reads
+> win/margin as ~always 0-0 that early, so an outcome question needs full episodes).
+>
+> **Open, PI decision — decision thresholds proposed but not frozen:** primary metric
+> = paired win-rate delta (native vs +1-defender), same "Delta" convention as
+> everywhere else in this line. Proposed: *improves* = delta > 0, CI excludes zero;
+> *transferable scaffold* = all 4 cells improve; *B disproportionate* = pi_B improves AND
+> the difference-of-deltas CI excludes zero on >=1 pole; *closes the intervention* = no
+> resolved improvement anywhere, or any resolved harm. The `run` stage is deliberately
+> unwritten until these are confirmed and the PI explicitly authorizes spending the block.
+>
+> Prior — 2026-09-20 — **LEARNED-COMPOSITION PROBE, STAGE 2 SEALED: BOTH pi_A AND pi_B OPEN FAR MORE ATTACK-HEAVY THAN THE WINNING SCRIPTED 5A/1D STRUCTURE, AND pi_B IS SIGNIFICANTLY MORE SO THAN pi_A.**
+> PI direction 2026-09-20 authorized Stage 2 as a dual-instrument diagnostic with no further
+> instrument selection: both confirmed survivors (position `[5,15)`, intent `[0,10)`) used as
+> co-equal, separately-reported measurements, no averaging, no post-hoc instrument choice, the dead
+> primary excluded even as a sanity check, the D_hat inversion using ONLY the original sealed
+> calibration's class means (sha256-pinned, never refit on confirmatory or Stage-2 data). Spec:
+> [`LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_PROBE_STAGE2_V1_SPEC.json).
+>
+> **Sealed** (`LEARNED_COMPOSITION_PROBE_RESULT.json`, 512 learned-policy episodes, `pi_A`/`pi_B` x
+> Pole A/B x 128 paired seeds `20700101-20700228`, cuda, deterministic, 7/7 audit, independent
+> re-derivation exact; read-only guarantee held: parameter digests and checkpoint sha256 unchanged
+> before/after; a real 16-episode parity check against the spent SHARE0 crossover record passed exactly
+> before any probe-block seed was spent):
+>
+> - **Concordance holds in all 4 (policy, pole) cells** -- position and intent instruments agree
+>   (`attack_heavy`, D_hat <= 1.5) everywhere, so per the frozen interpretation rule a role-composition
+>   claim is licensed for every cell.
+> - **Neither policy resembles the confirmed 5A/1D reference (D=1).** Mean |D_hat - 1| is 0.82-1.00
+>   across cells -- both read far closer to a fully-committed 6A/0D opening than to the composition that
+>   actually beat balanced play in the scripted world.
+> - **pi_B is significantly MORE attack-committed than pi_A, not closer to the target** -- the paired
+>   contrast D_hat(pi_B) - D_hat(pi_A) is negative with a CI excluding zero in all 4 instrument x pole
+>   combinations (position: -0.12 both poles; intent: -0.03 both poles). pi_B's intent-window reading is
+>   EXACTLY 0.0 with a [0,0] CI in both poles -- zero of 256 episodes ever showed a home-directed agent
+>   in that window.
+> - **Interpretation (not itself a further gated claim):** composition does not explain the near-zero
+>   `pi_A`/`pi_B` crossover delta because neither policy plays anything resembling the discovered
+>   winning structure to begin with -- both are near-unconditional full-attack in the opening, and the
+>   one real, concordant difference between them runs away from, not toward, the scripted target.
+>
+> Full per-cell bootstrap intervals, the paired contrasts, and the concordance table are in the sealed
+> result. This closes the opening-composition read of `pi_A`/`pi_B`; any further step (e.g. a
+> coordination intervention, or reading sustained-episode behaviour) needs its own PI-frozen spec.
+>
+> Prior — 2026-09-20 — **LEARNED-COMPOSITION PROBE, CONFIRMATORY CALIBRATION SEALED: `BOTH_CONFIRMED`. NO LEARNED POLICY HAS BEEN READ.**
+> PI direction 2026-09-20 chose Option B from `LEARNED_COMPOSITION_PROBE_CALIBRATION_READING.json`:
+> re-validate the two pre-declared calibration survivors on a fresh, never-before-spent seed block
+> before treating either as a real instrument. Spec:
+> [`LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_PROBE_CONFIRMATORY_CALIBRATION_V1_SPEC.json)
+> (amends the V1 spec; unchanged kill rule, unchanged R_pos/R_intent/windows/tolerance/bar).
+>
+> **Sealed** (`..._CONFIRMATORY_CALIBRATION_RESULT.json`, 384 fresh truncated scripted episodes, seeds
+> `20800001-20800016`, cuda, 7/7 audit, independent re-derivation exact, contracts 6/6 including a
+> mechanical check that the two candidates are exactly the two the original calibration recorded as
+> passing): **both candidates independently clear the identical V1+V2+V3 rule (recovery >= 0.90, +-1
+> defender) on both poles, on seeds that had no part in selecting them.**
+>
+> - Position, ticks `[5,15)`, R=4.5: pole A `V2 0.991 / V3 0.988`, pole B `V2 0.991 / V3 0.963` ->
+>   `pole_valid` true on both.
+> - Resolved-target intent, ticks `[0,10)`, R=4.5: pole A `V2 1.000 / V3 1.000`, pole B `V2 0.991 /
+>   V3 1.000` -> `pole_valid` true on both.
+> - FYI, not gating: the original dead primary (position `[0,10)`) was re-scored on this fresh block too,
+>   as a sanity check, and reproduces its earlier failure (`V2 0.875 / V3 0.80-0.85` vs `0.90`,
+>   `pole_valid` false on both) -- consistent with the original verdict, not reopened.
+>
+> **What this does and does not authorize:** per the amendment spec, this verdict gates only which
+> instrument(s) a Stage-2 spec addendum is permitted to declare; it does not itself authorize Stage 2 to
+> run. No learned-policy checkpoint has been loaded and no learned telemetry has been read under this
+> probe line. **Open, PI decision:** whether to now declare and freeze a Stage-2 addendum that reads
+> `pi_A`/`pi_B` on the already-reserved seed block `20700101-20700228` (RESERVED, unspent) using BOTH
+> confirmed instruments as convergent measurements, per the original spec's read-only guarantees
+> (checkpoint hash pinning, parameter-digest equality, `torch.no_grad()`, eval mode, no optimizer).
+>
+> Prior — 2026-09-19 — **LEARNED-COMPOSITION PROBE, STAGE 1 SEALED: THE FROZEN PRIMARY INSTRUMENT IS `NOT_VALID`; STAGE 2 REFUSED. TWO PRE-DECLARED ALTERNATIVES PASS ON THE SAME DATA. NO LEARNED POLICY HAS BEEN READ.**
+> Read-only probe of the existing learned 6v6 specialists (`final_pi_A/B_specialist_6v6`,
+> sha256-pinned to the record behind `Delta_A = Delta_B = +0.0078`; spec
+> [`LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_OPENING_PROBE_V1_SPEC.json)).
+> Because learned policies cannot select `DEFEND` (production `n_macros` is 5), their
+> role has to be inferred by an instrument calibrated on scripted ground truth.
+> **Whole-episode position-near-home failed its known-answer calibration**
+> (scripted attackers sit near home 67-77% of the time; tagged agents walk home and
+> the adapter sends all attackers home when any teammate carries; at R=6 scripted
+> 6A_0D reads 0.70-0.82 defend-like after tick 100, essentially the same as 0A_6D).
+> **Whole-episode resolved-target intent failed its
+> pre-declared criterion** (76% / 67% within +-1 against 0.90). Neither was rescued.
+>
+> **Sealed calibration** (`..._CALIBRATION_RESULT.json`, 384 truncated scripted
+> episodes, fresh seeds `20700001-016`, cuda, 7/7 audit, independent re-derivation
+> exact): the frozen primary (position, `R=4.5`, ticks `[0,10)`) fails, V2 `0.786`
+> and V3 `0.81 / 0.80` against `0.90`, because the class means are evenly spaced
+> (~0.09) but within-class SD is 0.10-0.12. The prototype's 95% was
+> selection-inflated exactly as warned (fresh exact recovery 35%). **Stage 2 is
+> refused; no learned telemetry was read.**
+>
+> **But two readings declared in the same spec before the run pass the identical
+> rule**: position over ticks `[5,15)` (V2 `1.00 / 0.98`, V3 `0.99 / 0.99`) and the
+> resolved-target intent reading over `[0,10)` (V2 `1.00 / 1.00`, V3 `1.00 / 1.00`,
+> exact recovery ~87%). The cross-assignment control (defenders on the last ids)
+> passes, so the id-geometry confound is not the cause. They gate nothing under the
+> frozen rule, and promoting one now would select it for having passed on the data
+> that validated it. **Open, PI decision** (see
+> [`..._CALIBRATION_READING.json`](../artifacts/strategic_demand/sppo/LEARNED_COMPOSITION_PROBE_CALIBRATION_READING.json)):
+> stop here, or amend so BOTH survivors are re-validated on a fresh calibration block
+> (~32 min) before any learned reading. Nothing further is started. Training and
+> PPO remain off.
+>
+> Prior — 2026-09-19 — **6v6 FIXED 5A/1D vs 3A/3D CONFIRMED (SEALED, n=192, fresh seeds): B +0.69, AND A IMPROVED +0.125.**
+> The pre-registered confirmation
+> ([`FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json`](../artifacts/strategic_demand/sppo/FIXED_ATTACK_HEAVY_6V6_CONFIRMATORY_V1_SPEC.json);
+> two arms, both certified 6v6 poles, block `20600001-20600192`, 768 episodes,
+> PPO off, no router) returned **`FIXED_ATTACK_HEAVY_6V6_CONFIRMED`** on a
+> **`SEALED`** record: 13/13 audit checks, 9/9 contracts, no arm-identity
+> violations. The composition was chosen by a mechanical maximin rule from the
+> sealed sweep before any fresh seed, and re-derived by contract C1. Result:
+> [`..._OUTCOME_RESULT.json`](../artifacts/strategic_demand/sppo/FIXED_ATTACK_HEAVY_6V6_OUTCOME_RESULT.json),
+> reading: [`..._OUTCOME_READING.json`](../artifacts/strategic_demand/sppo/FIXED_ATTACK_HEAVY_6V6_OUTCOME_READING.json).
+>
+> **Gates (unchanged):** Pole-B gain `WR_B(5A1D) - WR_B(3A3D) = +0.6875
+> [+0.6146, +0.7604]` (**PASS**; 136 seeds won by 5A/1D only, 4 the reverse).
+> Pole-A harm `-0.125 [-0.2083, -0.0417]` against `tau 0.10` (**PASS**; the
+> harm is *negative* with the whole interval below zero, so 5A/1D beat the
+> balanced baseline on A by `+0.125`; 45 seeds to 21, 34% discordant). Win
+> rates: B `5A1D 0.755 / 3A3D 0.068`; A `5A1D 0.854 / 3A3D 0.729`. Both halves
+> agree on both poles. The refined A-failure interpretation was never
+> exercised.
+>
+> **Correction to the sweep's Pole-A reading:** the sweep called Pole A a
+> plateau with no distinguishable winner. On fresh seeds 5A/1D is *better* than
+> 3A/3D on A with an interval excluding zero (sweep: `+0.078 [-0.078, +0.234]`,
+> same sign, underpowered at n=64). Whether A distinguishes among attack-heavy
+> compositions was not tested; only two arms ran.
+>
+> **Not established:** that routing could not add value beyond 5A/1D (per-pole
+> compositions not run; sweep headroom on B `+0.078 [-0.031, +0.203]`);
+> anything about learned specialization. This is a *scripted* confirmation.
+> The learned-specialist failure (`Delta_A = Delta_B = +0.0078`) and the
+> hypothesis that learned policies already play attack-heavy on B remain
+> untested. Cross-scale statements are descriptive only: 6v6 Pole B is
+> canonical `SDS_PARENT_OP7`, not the 4v4 B3-3 construction, and the
+> size-normalized defender gate also differs. **Next step is a PI decision;
+> nothing further is started.** PPO remains off.
+>
+> Prior — 2026-09-19 — **6v6 COMPOSITION SWEEP SEALED (exploratory): B CLEARLY ATTACK-HEAVY, A A TIED PLATEAU; A FIXED ATTACK-HEAVY COMPOSITION IS TIED WITH THE BEST ON BOTH POLES.**
+> The frozen 6v6 sweep
+> ([`PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_SPEC.json);
+> 7 compositions x 2 certified 6v6 poles, block `20500001-20500064`, 896
+> episodes, PPO off) is **`SEALED`** (23/23 audit checks, 9/9 contracts incl.
+> 480 live 4v4 ticks of adapter parity at n=4) with label
+> **`COMPOSITION_DESCRIPTIVE_SIGNAL`**. Result:
+> [`..._SWEEP_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_RESULT.json),
+> reading: [`..._SWEEP_READING.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_6V6_ROLE_COMPOSITION_SWEEP_READING.json).
+>
+> **Per-pole argmax (the frozen deliverable):** A `4A_2D` (0.844), B `6A_0D`
+> (0.891). **Pole B** has a clear, monotone attack-heavy landscape: `6A_0D 0.891`
+> and `5A_1D 0.812` (tied) far above `4A_2D 0.359` and the balanced baseline
+> `3A_3D 0.094`; attack-heavy beats the baseline by `+0.80 / +0.72`, intervals
+> clear of zero, stable across seed halves. **Pole A** has no distinguishable
+> winner: `4A_2D` is tied with `5A_1D`, `6A_0D` and `3A_3D` (indistinguishable
+> set 3 of 6), a plateau across 3-6 attackers (0-3 defenders) that falls
+> off at 4 defenders (`2A_4D` 0.594) and collapses at `1A_5D` / `0A_6D`; Pole-A
+> contrasts flip sign between seed halves. B is more
+> attack-heavy than A (0 vs 2 defenders), the 4v4 direction.
+>
+> **Bearing on the predeclared branch:** the compositions statistically as good
+> as each pole's best, intersected, are **`6A_0D` and `5A_1D`**, so a single fixed
+> attack-heavy composition is tied with the per-pole best on both poles. The
+> 4v4 router exists because all-attack hurt Pole A; at 6v6 that trade-off is not
+> visible. By the letter of the branch a clear B-heavy pattern licenses a routed
+> freeze, but a router's added value over a fixed `5A_1D` is undemonstrated and
+> small on point estimates (upward-biased). **Which reading governs is a PI
+> decision; nothing further is started.** Cross-scale statements carry the
+> frozen clause: 6v6 Pole B is canonical `SDS_PARENT_OP7`, not the 4v4 B3-3
+> construction, so differences cannot be attributed to team size alone.
+>
+> Prior — 2026-09-19 — **GUARDED ROUTED COMPOSITION CONFIRMED (SEALED, n=128, fresh seeds).**
+> The pre-registered confirmatory run of the full-window startup guard
+> (`GUARDED_ROUTED_COMPOSITION_OUTCOME_V1`, block `20300001-20300128`, 768
+> episodes, PPO off, spec
+> [`GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json`](../artifacts/strategic_demand/sppo/GUARDED_ROUTED_COMPOSITION_CONFIRMATORY_V1_SPEC.json))
+> returned **`GUARDED_ROUTED_COMPOSITION_CONFIRMED`** on a **`SEALED`** record:
+> 13 of 13 gating audit checks passed, 15 of 15 contracts passed, guard
+> invariant held (0 violations, earliest first departure tick 39 on both
+> poles). This is the first sealed record through `run_state.seal()` and it
+> validates the owner-aware `seed_class` fix in use. Result:
+> [`..._OUTCOME_RESULT.json`](../artifacts/strategic_demand/sppo/GUARDED_ROUTED_COMPOSITION_OUTCOME_RESULT.json),
+> reading: [`..._OUTCOME_READING.json`](../artifacts/strategic_demand/sppo/GUARDED_ROUTED_COMPOSITION_OUTCOME_READING.json).
+>
+> **Gates (unchanged from the unguarded run):** Pole-B gain
+> `+0.6094 [+0.5234, +0.6953]`, LCB above zero (**PASS**; 79 seeds won by the
+> guarded router and not by 2A/2D, 1 the reverse). Pole-A harm
+> `+0.0156 [-0.0156, +0.0469]` against `tau_A_harm = 0.10` (**PASS**; 3 harm
+> flips, 1 gain flip). Win rates: B `guarded 0.758 / 2A2D 0.148 / 4A0D 0.688`;
+> A `guarded 0.727 / 2A2D 0.742 / 4A0D 0.547`.
+>
+> **Sizing agreed closely** (A harm `0 -> +0.016`, B gain `+0.625 -> +0.609`),
+> so the optimism disclosed in advance turned out small on these metrics. The
+> Pole-A trigger rate did double on fresh seeds (28/128 against 7/64), the
+> pessimistic case in the planning table, and harm stayed small.
+>
+> **What it does not show:** the guardrail is preserved largely because the
+> router acts on Pole A only 2.2% of ticks (never in 100 of 128 episodes),
+> which is not evidence of *safe switching* on A. Only two opponents, both of
+> which shaped the selector, so external validity is untested. No PPO, no
+> learned coordination, no 6v6. The unguarded router's verdict is unchanged:
+> `B_GAIN_WITH_EXCESS_A_HARM` on an `AUDIT_FAILED` record. **Next step is a PI
+> decision; nothing further is started.** Router and guard stay frozen.
+>
+> Prior — 2026-09-19 — **ROUTED OUTCOME: `B_GAIN_WITH_EXCESS_A_HARM` ON AN `AUDIT_FAILED` RECORD. HARM LOCALIZED TO TICK-0 SWITCHING. STARTUP GUARD FROZEN AND SIZED; CONFIRMATORY FREEZE AWAITS PI.** *(the open confirmatory decision below is now resolved by the entry above)*
+> The calibration-side "RESOLVED POSITIVE" entry below is **superseded**: the
+> router passed its held-out calibration and then failed its outcome guardrail.
+>
+> **Outcome run** (`ROUTED_COMPOSITION_OUTCOME_V1`, block `20200001-20200064`,
+> 384 episodes, PPO off, three arms, paired): Pole-B gain
+> `WR_B(STATE) - WR_B(2A2D) = +0.6719 [+0.5156, +0.8125]` (**PASS**), Pole-A
+> harm `+0.1719 [+0.0469, +0.2969]` against `tau_A_harm = 0.10` (**FAIL**,
+> harm's LCB above zero). Label **`B_GAIN_WITH_EXCESS_A_HARM`**, not a
+> promotion. Win rates: B `STATE 0.875 / 2A2D 0.203 / 4A0D 0.656`; A
+> `STATE 0.516 / 2A2D 0.688 / 4A0D 0.422`. The router beat fixed 4A/0D on B
+> (`+0.2188 [+0.0938, +0.3438]`, post-hoc). The record is
+> **`AUDIT_FAILED`**, not sealed: `run_state.py` called `check_block()` without
+> an `experiment_id` and read the run's own Rule-9 reservation as reuse. The
+> other 12 gating checks passed and both claims re-derive at `0.00e+00`. The
+> terminal record is preserved untouched; fix, 5 regression tests and a replay
+> (13/13) are in
+> [`ROUTED_COMPOSITION_OUTCOME_AUDIT_CORRECTION.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_OUTCOME_AUDIT_CORRECTION.json).
+> Rules 7 and 9 had been mutually unsatisfiable in practice
+> ([`RESEARCH_RUN_STANDARDS.md`](RESEARCH_RUN_STANDARDS.md)).
+>
+> **Why the calibration safety proxy failed** (protocol
+> [§5.6](experiment-and-evaluation-protocol.md)): the spec projected harm from
+> tick exposure at about `0.03`; observed harm was `0.172`, about 6x. Harm sits
+> entirely in triggered episodes, and **82% of it in the 27 episodes whose first
+> trigger fires at tick 0**
+> ([`..._A_HARM_LOCALIZATION.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_A_HARM_LOCALIZATION.json)).
+> Every exposure measure failed to separate harmful episodes. At tick 0 the
+> window holds one sample and the dwell sentinel exempts the first switch, and
+> `D_0` is **bit-identical across poles on 64/64 seeds**
+> ([`..._SWITCH_SAFETY_CONTRAST.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_SWITCH_SAFETY_CONTRAST.json)),
+> so a tick-0 decision carries zero regime information. Pass 2 found no
+> state-based separator (home pressure and `red_alive` are constant across
+> harmful and other switches) and B's bursts are 4x longer than A's, ruling out
+> a state veto and a burst cap. Pass 1 localized the harm to early
+> first-departure timing; Pass 2 independently established the tick-0 evidence
+> is regime-free but did **not** reproduce the per-switch onset contrast.
+>
+> **Startup guard**
+> ([`..._STARTUP_GUARD_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_STARTUP_GUARD_V1_SPEC.json),
+> frozen before sizing): no departure from 2A/2D until the selector holds a full
+> evidence window. Regime-blind by construction (reads only buffer length) and
+> inert from tick 39 onward. **Descriptive sizing, same spent block, NOT
+> evidence** ([reading](../artifacts/strategic_demand/sppo/ROUTED_COMPOSITION_STARTUP_GUARD_SIZING_READING.json)):
+> Pole-A harm `+0.172 -> 0` (0 win flips of 64), Pole-B gain `+0.672 -> +0.625`
+> (about 93% retained; paired B cost `-0.047 [-0.156, +0.063]`, spans zero).
+> Blocked first departures re-fire on B 47 of 49 and on A 3 of 35, so the
+> discrimination comes from the router's own statistic once given valid
+> evidence, not from the guard. Optimistic by an unknown amount: the mechanism
+> was found on these seeds.
+>
+> **Open, PI decision:** the predeclared "continue" condition is met on its
+> face, but no confirmatory experiment is frozen and no seed is allocated. The
+> sizing reading carries planning arithmetic for `n` (n=64 vs 128; the A gate
+> is a UCB gate and is lenient when discordant pairs are few). Router
+> operating point stays frozen. PPO / GPU / 6v6 remain off.
+>
+> Prior, **superseded** — 2026-09-19 — **CONSERVATIVE B-TRIGGER CALIBRATED (V2). HANDCRAFTED-SELECTOR BRANCH RESOLVED POSITIVE.**
+> The PI authorized one final selector attempt (Option B) with an
+> uncertainty-aware eligibility rule, frozen in
+> [`COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_SPEC.json).
+> **One thing changed:** eligibility became `UCB95_episode(A_FP) <= 0.10`
+> (bootstrap over *episodes*, n=16, not over autocorrelated ticks) instead of
+> the point estimate. Statistic, grid, dwell, hysteresis, windows, threshold
+> rule, tie-break order and state machine were imported unchanged, and the
+> **held-out pass rule was deliberately left as the same point rule** so the
+> two runs stay comparable. Result:
+> [`..._V2_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_RESULT.json),
+> reading: [`..._V2_READING.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_UNCERTAINTY_AWARE_V2_READING.json).
+>
+> **Decision: `CONSERVATIVE_B_TRIGGER_CALIBRATED_V2`.** Both frozen held-out
+> gates passed on the fresh block `99900501-516`: Pole-A false-positive tick
+> rate `0.0674` against the `0.10` operational limit, and Pole-B dominant
+> composition `0.9375` against the `0.50` bar. Operating point, now frozen:
+> `D_t = P_blue(4.0) - P_red(4.0)`, `W=40`, hysteresis `0.2`, dwell `10`,
+> threshold `-0.8333333333333334`, default `2A/2D`, triggered `4A/0D`.
+>
+> **The repair is measurable.** Eligibility became strictly stricter (3137 of
+> 9380 vs 3773 under the point rule). Boundary-hugging is gone: V1's selected
+> config sat at point `A_FP = 0.0964` (margin `0.0036`); V2's sits at `0.0651`
+> (margin `0.0349`), with the *bound* (`0.0987`) against the cap instead.
+> Calibration→held-out A drift fell from `+0.0156` (which crossed the cap) to
+> `+0.0023` (which did not). The margin was **derived from the principle, not
+> chosen off the frontier** — no raw cap like 0.05 was ever picked. Cost:
+> calibration B_TP `0.783 → 0.711`; held-out B dominance *rose* to `0.9375`.
+>
+> **Honest caveat, recorded in the reading:** applying the same uncertainty
+> standard to the held-out block gives a one-sided `UCB95` of `0.1026`, just
+> *above* `0.10` — the evidence places the true A rate under the limit with
+> roughly **94%** confidence, not "proven safe". The held-out gate is a point
+> rule by design and is not reinterpreted. Quote `0.067` with that interval,
+> never alone. 7 of 16 Pole-A episodes never triggered; the mean is carried by
+> a 3-episode tail. Closing that gap needs more episodes, not another knob.
+>
+> **Disclosed:** calibration block `99900101-116` informed selection twice
+> (V1 point rule, V2 UCB rule), stated in the freeze before execution.
+> Calibration-side numbers are not independent evidence; the fresh held-out
+> block is. The V1 sealed negative
+> ([`..._ASYMMETRIC_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json))
+> stands unrewritten and is now correctly readable as a falsification of the
+> *point-estimate selection rule*, not of the routing architecture.
+>
+> **Next, NOT authorized by any agent:** contracts C1–C6 then the outcome arms
+> (`STATE_B_TRIGGER` / `FIXED_2A2D` / `FIXED_4A0D`, n=64, cpu, PPO off, B
+> improvement LCB95 > 0, A harm UCB95 ≤ `tau_A_harm = 0.10`) under
+> [`COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json).
+> That is the first non-outcome-blind work in this branch and needs a fresh PI
+> go-ahead. Next free smoke pair `99900601-616`. PPO / GPU / 6v6 remain off.
+>
+> Prior — 2026-09-19 — **TWO-FEATURE SELECTOR REVIVAL: FROZEN GATE FAILED, BUT A SAFE NONZERO REGION EXISTS**
+> The two-feature amendment was revived under the asymmetric criterion by
+> [`COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_REVIVAL_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_REVIVAL_SPEC.json),
+> which is the "later freeze" the asymmetric spec required. Exactly one thing
+> changed: the online statistic became `D_t = P_blue(4.0) - P_red(r_red*)`.
+> The `A_FP <= 0.10` budget, the `B >= 0.50` dominance bar, the dwell grid, the
+> window/hysteresis grid, the tie-break order and the state machine were
+> inherited verbatim (imported, not re-implemented). Result:
+> [`COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_RESULT.json),
+> reading: [`COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_READING.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_TWO_FEATURE_ASYMMETRIC_READING.json).
+>
+> **Decision: `NO_CONSERVATIVE_B_TRIGGER_TWO_FEATURE`** — held-out Pole-A
+> false-positive tick rate `0.11197916666666667` exceeds the frozen `0.10` cap.
+> The cap was not relaxed. The B side passed decisively and was never binding
+> (held-out B dominant-composition `0.875` against the `0.50` bar, B TP tick
+> rate `0.8122395833333333`). No outcome seeds spent or authorized.
+>
+> **The failure mode is the opposite of the single-feature run and the
+> predeclared FAIL narrative is retracted as factually wrong for this run.**
+> Single feature: 816 configs inside the A budget, every one with `B_TP = 0.0`
+> — the budget was satisfiable only by a never-firing selector, flat to a cap
+> of `0.14`. Two features: 3773 configs inside the budget, best `B_TP = 0.783`
+> with B dominance `0.9375` on calibration, and at a cap of **exactly `0.00`**
+> the best config still reaches `B_TP = 0.3466`; at `0.02` it reaches `0.5437`
+> with B dominance `0.6875` — above the B bar at one fifth of the A budget.
+> A safe nonzero region exists. What failed is the **selection rule**: "maximize
+> `B_TP` subject to `A_FP <= 0.10`" hugs the constraint boundary by
+> construction, and it picked a config whose calibration `A_FP` was `0.0964`
+> — 96.4% of the budget, margin `0.0036`. Every frontier number above is
+> calibration-side and **not** held-out-verified.
+>
+> **Feature fact worth keeping:** `r_red* = 4.0`, and `P_red(4.0)` separates the
+> poles *perfectly* on full-episode means (A `0.5138`, B `1.5687`, pooled
+> misclassification `0.0`) against `P_blue(4.0)`'s `0.15625`. The feature added
+> second is the stronger regime discriminator.
+>
+> **Open PI decision** (see the reading's `THE_OPEN_DECISION_FOR_THE_PI`): the
+> run landed between the two preregistered branches — a safe region appeared,
+> but the point the frozen rule produced from it failed confirmation for a
+> procedural reason unrelated to the feature or the architecture. Option A:
+> honour the terminal clause and stop hand-tuned selector work. Option B: one
+> margin-aware re-selection under a fresh freeze and a fresh held-out block
+> (`99900501-516`; `99900301-316` is now SPENT). **Not decided by any agent.**
+> PPO / GPU / 6v6 remain off.
+>
+> Prior — 2026-09-18 — **ASYMMETRIC B-TRIGGER SUCCESSOR FROZEN; SYMMETRIC SELECTOR PATH CLOSED**
+> Pole A is the already-good guardrail; Pole B is the repair target. The
+> symmetric online-calibration RESULT stands historically
+> ([`COMPOSITION_SELECTOR_ONLINE_CALIBRATION_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ONLINE_CALIBRATION_RESULT.json);
+> held-out tick error ~37%, dominant-composition accuracy 65.6%), sealed by
+> [`COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_SYMMETRIC_CALIBRATION_READING.json).
+> The n≈300 dual positive-gain outcome sizing is **not authorized**. The
+> two-feature amendment is **SUSPENDED**. Successor:
+> [`COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_V1_SPEC.json)
+> — default `2A/2D`, trigger `4A/0D` only under a conservative B-like
+> threshold; calibrate by max A FP tick rate ≤ 0.10 then maximize B detection;
+> outcome gates = B improvement required + A regression UCB95 ≤ 0.10. No
+> outcome seeds until asymmetric calibration PASS. PPO/GPU/6v6 still off.
+> The asymmetric calibration has now completed:
+> [`COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_CALIBRATION_RESULT.json`](../artifacts/strategic_demand/sppo/COMPOSITION_SELECTOR_ASYMMETRIC_B_TRIGGER_CALIBRATION_RESULT.json).
+> The frozen grid selected `W=20`, hysteresis `0.0`, dwell `4`, threshold `0.0`.
+> Held-out metrics were A false-positive tick rate `0.0`, B true-positive tick
+> rate `0.0`, A switches/episode `0.0`, B switches/episode `0.0`, A episodes
+> with any trigger `0.0`, and B episodes with dominant `4A/0D` `0.0`.
+> The A guardrail passed, but the frozen B dominant-composition requirement
+> (`>=0.50`) failed. Decision: **NO_CONSERVATIVE_B_TRIGGER**. No outcome seeds
+> were spent or authorized.
+>
+> Prior — **PYQUATICUS 4v4 TARGETED ROLE-COMPOSITION CONFIRMATION COMPLETE**
+> Follow-up — **ORACLE REGIME-CONDITIONED COMPOSITION EVALUATION COMPLETE**.
+> The frozen three-arm test ran all 384 CPU episodes on paired seeds
+> `20100001–20100064`: oracle dispatch (`A -> 2A/2D`, `B -> 4A/0D`), fixed
+> `2A/2D`, and fixed `4A/0D`. Result:
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT.json).
+> Oracle parity passed exactly with zero mismatches. The oracle matched the
+> selected fixed composition: Pole A win rate `0.703125` versus fixed `4A/0D`
+> `0.53125`, and Pole B win rate `0.734375` versus fixed `2A/2D` `0.125`.
+> The paired win-rate gains were positive (`A +0.171875 [0,0.34375]`,
+> `B +0.609375 [0.484375,0.734375]`). The B-side gate passed, while the
+> A-side lower confidence bound was exactly `0`, so the frozen strict gate
+> requiring both LCBs to be greater than zero failed.
+> Supporting score-difference intervals were positive, but they do not replace
+> the frozen win-rate gate. The decision is **NO_ORACLE_COMPOSITION_CONFIRMATION**.
+> An analysis-integrity amendment corrected the B-side wrong-control lookup
+> from matched `4A/0D` to frozen wrong `2A/2D`, using the retained rows without
+> rerunning episodes or changing the rule. The pre-amendment artifact is
+> preserved as
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT_PREAMENDMENT_BUGGY.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_RESULT_PREAMENDMENT_BUGGY.json).
+> This demonstrates exact dispatch and descriptive improvement over the wrong
+> fixed composition in these samples, but it does not establish selector
+> sufficiency. The seed block is marked SPENT. No PPO, learned selector, or 6v6
+> promotion is authorized from this result alone.
+>
+> Follow-up — **ORACLE REGIME-CONDITIONED COMPOSITION TEST FROZEN / PREFLIGHT PASS**.
+> The frozen spec
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_SPEC.json)
+> defines three paired CPU arms: `ORACLE_REGIME` maps Pole A to `2A/2D` and
+> Pole B to `4A/0D`, alongside fixed `2A/2D` and fixed `4A/0D` controls.
+> Preflight passed the upstream provenance, V2 semantic status, prior-result
+> boundary, certified poles, macro projections, and oracle dispatch checks:
+> [`PYQUATICUS_4V4_ORACLE_COMPOSITION_PREFLIGHT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ORACLE_COMPOSITION_PREFLIGHT.json).
+> The fresh exploratory block `20100001–20100064` is only the next available
+> range; it has not been allocated or spent. The 384-episode CPU evaluation
+> requires explicit follow-up authorization. PPO, GPU, and 6v6 remain off.
+>
+> Follow-up — **TARGETED ROLE-COMPOSITION CONFIRMATION COMPLETE**. The frozen
+> confirmation artifact
+> [`PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_SPEC.json)
+> compared only `4A/0D` with `2A/2D` on both certified poles using paired
+> fresh seeds `20000001–20000064` (256 CPU episodes; PPO/GPU/training off).
+> The result is
+> [`PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_CONFIRMATION_RESULT.json).
+> Pole B improved by `Delta_B = +0.6875` `[+0.5625,+0.8125]`, from win rate
+> `0.109375` to `0.796875`. Pole A moved in the opposite direction,
+> `Delta_A = -0.3125` `[-0.46875,-0.140625]`, from `0.75` to `0.4375`.
+> The paired cross-pole interaction was positive, `Delta_B - Delta_A = +1.0`
+> `[+0.796875,+1.203125]`, but the preregistered full confirmation gate also
+> required `Delta_A UCB95 >= 0`; that condition failed. The frozen decision is
+> **B_COMPOSITION_EFFECT_ONLY**, not `REGIME_COMPOSITION_CONFIRMATION_PASS`.
+> This strengthens the Pole-B attack-heavy composition clue but does not show
+> that one composition rule solves both poles. The seed block is marked SPENT.
+> No PPO launch, composition-selector implementation, or 6v6 promotion is
+> authorized from this descriptive scripted result alone.
+>
+> V2 unified-DEFEND contracts passed the semantic subgate: exact target parity
+> and near-perfect direction parity across inward/outward state transitions.
+> The historical aggregate G6 remains false because it includes obsolete
+> waypoint candidates and the known cross-dynamics speed/trajectory mismatch;
+> it is not silently rewritten.
+>
+> The authorized follow-up was frozen in
+> [`PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_SPEC.json).
+> CPU preflight passed with both certified opponent poles, the evaluation-only
+> `n_macros=8` direct reference path, the unified `DEFEND=7` adapter, and all
+> three deterministic 2A/2D assignment mappings. The paired block
+> `19800001–19800064` was then spent across 2 poles × 3 assignments × 64
+> episodes (384 episodes; PPO/GPU/training off). Results:
+> [`PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_RESULT.json),
+> episode rows [`PYQUATICUS_4V4_TEAM_EVALUATION_EPISODES.csv`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_EPISODES.csv),
+> and mapping audit [`PYQUATICUS_4V4_TEAM_EVALUATION_MAPPING_AUDIT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_TEAM_EVALUATION_MAPPING_AUDIT.json).
+> Pole-A Blue win rates were `0.625–0.6875`; Pole-B rates were `0.046875–0.125`.
+> Every paired assignment contrast interval included zero, so the frozen
+> decision is **NO_DEMONSTRATED_ASSIGNMENT_EFFECT**. This does not show that
+> explicit roles are useless; it shows no assignment effect under this exact
+> scripted family, opponent pair, and local dynamics. No 6v6 promotion, PPO
+> design, or macro change is authorized from this result alone.
+>
+> Follow-up — **ROLE COMPOSITION SWEEP COMPLETE**. The frozen CPU-only
+> sweep [`PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_SPEC.json)
+> tested `4A/0D`, `3A/1D`, `2A/2D`, `1A/3D`, and `0A/4D` under one fixed
+> identity ordering, both poles, and fresh paired seeds `19900001–19900064`.
+> All 640 episodes completed with PPO/GPU/training off. Result:
+> [`PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_4V4_ROLE_COMPOSITION_SWEEP_RESULT.json).
+> Pole B is strongly composition-sensitive: `4A/0D` wins `0.765625`
+> `[0.65625,0.859375]` and `3A/1D` wins `0.53125` `[0.40625,0.65625]`,
+> versus the fresh `2A/2D` baseline `0.125` `[0.046875,0.21875]`.
+> `1A/3D` and `0A/4D` are `0.0` on B. Pole A instead peaks around
+> `2A/2D` (`0.640625`) and sharply rejects the defensive-heavy arms:
+> `1A/3D` `0.296875` and `0A/4D` `0.015625`.
+> The preregistered conservative label is **COMPOSITION_DESCRIPTIVE_SIGNAL**,
+> not the stricter `REGIME_DEPENDENT_COMPOSITION_SIGNAL`, because the A-side
+> `4A/0D` versus `2A/2D` win-rate interval still includes zero. The practical
+> finding is nevertheless clear: **Pole B requires an attack-heavy
+> composition under these scripted semantics, while identity assignment was
+> not the lever.** This is a composition clue, not a learned-policy repair;
+> no PPO launch or 6v6 promotion is authorized yet.
+>
+> Prior status — **COMMITMENT MECHANISM SUPPORT PASS / REPAIR SPEC NEXT**
+> The CPU-only surgical probe passed all contracts, including G6 outcome-blind
+> schema, over 64 source traces and seeds `19600001–16`:
+> [`ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json`](../artifacts/strategic_demand/sppo/ACTION_INTERFACE_COMMITMENT_MECHANISM_READING.json).
+> In 4v4 BREACH, stale-switch burden is `0.49` versus `0.32` in 2v2, with
+> paired scale contrast `+0.167502` `[+0.084054,+0.251855]`. Blocked-switch
+> burden is `0.54` versus `0.37`, contrast `+0.171654`
+> `[+0.115528,+0.233837]`. Both clear the frozen mechanism gate. Decision-lag
+> support was unavailable for one seed pair, but it was not needed because the
+> stale and blocked gates passed. Commitment is now a **mechanistically
+> supported intervention target**, not yet a demonstrated 4v4 fix. Freeze the
+> smallest commitment-only repair and validate its stale/blocked reduction
+> before any PPO or team-outcome run. Credit branch closed:
+> [`POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_READING.json`](../artifacts/strategic_demand/sppo/POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_READING.json)
+> (anomaly present / not failure-localizing / no credit-correction training).
+> Spec: [`ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json`](../artifacts/strategic_demand/sppo/ACTION_INTERFACE_SCALE_DIAGNOSTIC_SPEC.json).
+> Board: [`4V4_REPAIR_BOARD_20260917.json`](../artifacts/strategic_demand/sppo/4V4_REPAIR_BOARD_20260917.json).
+>
+> Prior — Pole-B credit diagnostic CLOSED (A3 counterexample on \(G_{\mathrm{diff}}\)).
+> Action-interface scale diagnostic SPEC was frozen with no execution until
+> contracts; contracts passed and the 64-trace run completed. A mechanism-
+> support replay is the only authorized follow-up before any intervention.
+>
+> Prior same day - Pyquaticus behavioral-role port
+> **G1-G5 TRUE PASS / G6 PROJECTED FAIL / TEAM EVALUATION BLOCKED**
+> ([`PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_BEHAVIORAL_ROLE_PORT_SPEC.json)).
+> Official upstream `main` is pinned at
+> `72b50e067ab311929390ecd4e59131452be15c6d`; BaseAttacker and
+> BaseDefender `mode="easy"` only; Heuristic_CTF_Agent excluded. TRUE_NATIVE
+> preserves the global-state contract and direct physical targets. PROJECTED
+> failed its frozen outcome-blind representability contracts, so no adapter was
+> frozen. Result:
+> [`PYQUATICUS_PORT_CONTRACT_RESULT.json`](../artifacts/strategic_demand/sppo/PYQUATICUS_PORT_CONTRACT_RESULT.json).
+> Provenance and G1-G5 native semantics passed. G6 failed in the no-carrier
+> attack, non-carrier friendly-carrier, defender-outside, and defender-inside
+> cases. Exact GET_FLAG targeting still exceeded the 2.5-cell trajectory-RMSE
+> ceiling because the macro interface cannot express the upstream 0.5-speed
+> intent. In the friendly-carrier/non-carrier case, GO_HOME was structurally
+> unsatisfiable while GO_TO failed direction and temporal-motion checks. This is
+> **ACTION-INTERFACE DISTORTION**, not an assignment result. The planned first
+> assignment rung remains episode-static 2A/2D with
+> CLOSEST_DEFENDS, FARTHEST_DEFENDS, and FIXED_IDENTITY. **No implementation,
+> team evaluation, training, seed allocation, or old-branch merge beyond the
+> completed CPU contract milestone is authorized. No GPU was used.**
+>
+> Prior same day - Pole-B credit/advantage diagnostic **COMPLETE**
+> ([`POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_RESULT.json`](../artifacts/strategic_demand/sppo/POLE_B_CREDIT_ADVANTAGE_DIAGNOSTIC_RESULT.json)).
+> Additive useful-minus-idle advantage contrasts were negative for all five
+> policies: B_t500k `-1.040`, B_final `-0.611`, GETFLAG `-1.678`,
+> Assignment-v1 `-1.222`, A3 `-2.540`. Because successful frozen A3 is the
+> most negative row, this diagnostic does **not** localize simple credit
+> misalignment as the 4v4 failure mechanism. The preregistered ratio CI is
+> invalid because its implementation clamps negative denominators with
+> `maximum(denominator, 1e-9)`; raw means and additive differences are retained,
+> and an explicit analysis-integrity amendment is still required. No PPO repair
+> is authorized from this result.
+>
+> Prior — **GETFLAG sealed MISS**
+> ([`GETFLAG_PRESERVE_4V4_READING.json`](../artifacts/strategic_demand/sppo/GETFLAG_PRESERVE_4V4_READING.json)):
+> manipulation confirmed, specialization not demonstrated
+> (Δ_A=**−0.046875**, Δ_B=+0.015625 point / LCB≤0; integrity on Δ_A).
+> Contingency **ACTIVATED** → Pole-B credit/advantage diagnostic.
+>
+> Prior 2026-09-17 - Assignment-v1 200k COMPLETE; crossover reading
+> [`ASSIGNMENT_V1_4V4_READING.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_V1_4V4_READING.json)
+> is **NOT SPECIALIZED / NO DEMONSTRATED RECOVERY**. Delta_A=`+0.125`
+> `[-0.03125,+0.28125]`; Delta_B=`-0.015625`
+> `[-0.140625,+0.109375]`; joint gate FAIL. The privileged assignment signal
+> passed its manipulation contracts but was insufficient to recover 4v4
+> specialization. No Assignment-v2, 6v6 promotion, or GETFLAG combination.
+>
+> Prior same day — Assignment diagnostic PASS (G1=1.0, G2=9/9, G3=PASS);
+> [`ASSIGNMENT_CONDITIONING_V1_SPEC.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_CONDITIONING_V1_SPEC.json)
+> frozen and train wiring landed.
+>
+> Prior same day — Board + Assignment diagnostic SPEC frozen
+> ([`ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC.json`](../artifacts/strategic_demand/sppo/ASSIGNMENT_INFORMATION_DIAGNOSTIC_SPEC.json)).
+> CPU-only G1∧G2∧G3 before any Assignment PPO. GETFLAG stays PAUSED.
+> No active GPU experiment.
+>
+> Prior same day — Board:
+> [`4V4_REPAIR_BOARD_20260917.json`](../artifacts/strategic_demand/sppo/4V4_REPAIR_BOARD_20260917.json)
+> + [`4V4_RESCUE_TREE_AFTER_ROLE_AMENDMENT_PAUSE_GETFLAG.json`](../artifacts/strategic_demand/sppo/4V4_RESCUE_TREE_AFTER_ROLE_AMENDMENT_PAUSE_GETFLAG.json).
+>
+> * **ROLE:** finished — `RULE_ROLE_4V4_READING.json`. Δ_A=+0.203
+>   [+0.047,+0.359], Δ_B=**−0.046875** [−0.203,+0.109] (= clean `B_t500k`
+>   point estimate). Integrity flag kept; **no 6v6 ROLE**.
+> * **GETFLAG:** **PAUSED** —
+>   `B_GETFLAG_PRESERVE_CROSSOVER_PAUSED.json`. Boxed:
+>   **MANIPULATION CONFIRMED / OUTCOME UNEVALUATED** (0.191→0.0013;
+>   Δ_B=UNKNOWN). Premature `GETFLAG_PRESERVE_4V4` launch aborted;
+>   no rows. Branch intact; n=64 crossover later. **Do not
+>   combine with ASSIGNMENT.**
+> * **ASSIGNMENT:** **diagnostic frozen** — teacher greedy+`taken`
+>   who↔what signal; must PASS G1 agreement / G2 resolve ARM1 TEST_0
+>   / G3 no macro leak before any train.
+>
+> Prior same day — Rescue tree frozen (`4V4_RESCUE_TREE_AFTER_ROLE.json`)
+> had sequenced GETFLAG crossover next; that step is superseded by the
+> pause amendment above.
+>
+> Prior same day — **ROLE 4v4 crossover FLAGGED / did not help.**
+> `RULE_ROLE_4V4`: Δ_A=+0.203 [+0.047,+0.359], Δ_B=**−0.046875**
+> [−0.203,+0.109] — identical point estimate to clean `B_t500k` screen.
+> Integrity flag (δ_B≤0); no PASS RESULT. **Do not** 400k ROLE / retune
+> H_r / 3–1 roles / port to 6v6.
+>
+> Prior same day — Parallel routing for 4v4 speed: freeze
+> [`RULE_BASED_ROLE_CONDITIONING_SPEC.json`](../artifacts/strategic_demand/sppo/RULE_BASED_ROLE_CONDITIONING_SPEC.json)
+> (`π(a|o,r)`, geometric N/2 DEFEND/ATTACK, `H_r=8`, no macro hard-code, no
+> GETFLAG mix, short 200k after contracts). **Do not cancel** in-flight
+> GETFLAG manipulation; record it when done — role arm does **not** wait on
+> GETFLAG Δ_B / kill-table.
+>
+> Prior same day — Frozen `B_GETFLAG_PRESERVE_SPEC.json`: one short B-only
+> continuation from `B_t500k`, 200k steps, gated non-carrying GET_FLAG macro
+> preservation. 2×2 kill table frozen; A remains frozen (`A_FREEZE_RULE.json`).
+>
+> Prior 2026-09-13 — Action-interface diagnosis sealed:
+> `ACTION_INTERFACE_DECOMP_SEALED_READING.json` (Rule-12 PASS). Binder is
+> **stale GO_TO commitment** (\(L_C^{4v4}=+0.71\)), not W50 projection
+> (\(L_S^{4v4}=0\)). Next: `REPAIRED_GO_TO_H1_PROJECTED_SPEC.json`
+> (`macro_commit_go_to_ticks` 4→1) for 4v4 specialization-gate recovery.
+> **Privileged BC / PPO / SNR remain PAUSED.**
+>
+> Prior 2026-09-11 — Sealed role crossover **restarted with tqdm**
+> (`4V4_B3_ROLE_PRESERVATION_SEALED_CROSSOVER_TQDM_RESTART.json`; no RESULT
+> from first attempt). Single worker; bar on stderr (`0/512…`). Shared
+> `experiments/tqdm_loop.py` wired into crossover/certify/diagnostic collectors;
+> PPO already has SB3-style bar (`enable_progress_bar=True`).
+>
+> Prior same day — 3v3 strategic-demand Step 1 completed:
+> `STRATEGIC_DEMAND_3v3_GUARD_DISTRIBUTED_V2_N192_CERTIFICATION.json` =
+> **NOT_CERTIFIED** (`delta_A` +0.0104 [−0.0833, +0.1042], `delta_B` +0.5625
+> [+0.4948, +0.6354], n=192, seeds `12321001..12321192`). Reading:
+> [`3V3_STRATEGIC_DEMAND_N192_RESULT_READING.json`](../artifacts/strategic_demand/sppo/3V3_STRATEGIC_DEMAND_N192_RESULT_READING.json).
+> **No 3v3 specialist training is authorized.** This is demand failure, not
+> latent-strategy verification.
+
+### 3v3 strategic-demand ladder (Step 1 only) — `NOT_CERTIFIED`
+
+Preregistered in
+[`3V3_STRATEGIC_DEMAND_N192_AMENDMENT.json`](../artifacts/strategic_demand/sppo/3V3_STRATEGIC_DEMAND_N192_AMENDMENT.json)
+(seed retirement:
+[`3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json`](../artifacts/strategic_demand/sppo/3V3_STRATEGIC_DEMAND_N192_SEED_RETIREMENT_AMENDMENT.json)).
+Protocol: size-normalized Pole A/B, GUARD_DISTRIBUTED_V2, paired n=192,
+same bootstrap/gate as 4v4 n=192 demand certs. Tool:
+`experiments/certify_strategic_demand_scaled.py --team-size 3`.
+
+| Cell | Win rate |
+|------|----------|
+| GUARD @ A | 0.4323 |
+| BREACH @ A | 0.4219 |
+| GUARD @ B | 0.0000 |
+| BREACH @ B | 0.5625 |
+
+Pole B demand is strong; Pole A GUARD advantage is null at powered n.
+Same qualitative pattern as 4v4 GUARD_DISTRIBUTED_V2. Concealment N/A on
+this scaled row. Steps 2–4 (specialists / crossover / Share-*) **not started**.
 
 ### Current non-latent campaign (V3 M1)
 
@@ -474,6 +1712,86 @@ unless otherwise noted (4v4, OP5/OP6/OP7 uniform, 1 M steps, `n_envs=32`,
 > [`summer-fidelity-rules.md`](summer-fidelity-rules.md) §8). PLANNED
 > rows that have not yet had the template filed are explicitly labeled
 > as such.
+
+### RESOLVED — GO_TO-only env-level DEFEND substitution test + CLOSEST_DEFENDS screen (2026-09-21/22)
+
+**Status: COMPLETE.** Both experiments this item proposed are sealed; see the "Last updated" entries above for full results
+(`GOTO_ONLY_DEFEND_SUBSTITUTION_4V4` -> `GOTO_ONLY_CROSSOVER_CONFIRMED` with caveats, commits `541e9bab`/`9d14717d`;
+`CLOSEST_DEFENDS_SCREEN_4V4` -> `pattern_match: true`, commit `f4f4ac6f`). The original proposal text below is kept for the
+design trail (three PI-approved defaults, the interpretation tree, the fences) rather than rewritten; nothing past this note
+is still open. **Next step per the PI: stop running diagnostic screens; move to the training architecture** -- `CLOSEST_DEFENDS`
+allocator -> ATTACK/DEFEND role label -> role-conditioned PPO, allocator kept at evaluation. That is a PPO/training change and
+is NOT authorized by this entry; it requires its own pre-change checklist per AGENTS.md before any code is written.
+
+<details>
+<summary>Original proposal text (2026-09-21, kept for the design trail)</summary>
+
+**Status (at proposal time):** PROPOSED only. No seed block allocated, no code written, nothing launched. Not a preset (no `PPOConfig`, preset, actor,
+critic or loss change), so no Proposed Preset Review applies. Follows from the frozen representability audit (`f2e051de`).
+
+**Question.** Is instantaneous DEFEND heading *necessary* for the scaffold's crossover effect, or does GO_TO-only defense -- the coarse
+native vocabulary, made to behave as much like the scaffold's defenders as GO_TO permits -- preserve it? The audit shows DIRECTION fails
+while TARGET (~98%) and native-commit TRAJECTORY (~96%) pass; it never tested necessity. This experiment intervenes on exactly that
+ambiguity, which correlation between low DIRECTION and a non-crossing learned policy cannot do.
+
+**Hierarchy.** forced 2A/2D scaffold `A'` (known crossover, sealed) -> GO_TO-only approximation of 2A/2D `N'` (?).
+
+**Design as proposed -- every choice below is the author's default, for the PI to veto before freeze:**
+
+* Fresh `sealed_confirmatory` block; both certified 4v4 poles (Pole B = the B3-3 genome, never canonical OP7); the same pair rotation
+  (`PAIRS[seed % 6]`). Arms: native `pi_A`, `A'` (the unchanged target-injection scaffold), `N'`, native `pi_B`; n = 128 paired seeds
+  -> 1,024 episodes (~5 h on 6 shards). `A'` and `pi_B` are re-run on the fresh seeds so `N'` vs `A'` is paired.
+* `N'`: the same two agents per episode as in `A'` are driven by a controller whose ONLY outputs are native actions (macro `GO_TO` plus
+  a legal waypoint index), fed through the real action interface and taking effect at native commit boundaries. No
+  `install_forced_defend_target`, no resolved-target override, no new macro (`n_macros` stays 5), PPO off.
+* Controller = a CAUSAL version of the audit's greedy path-oracle: at each commit boundary it recomputes the isolated DEFEND rollout
+  from the agent's CURRENT live state (a function of state only, no future information) and commits the legal `GO_TO` waypoint whose
+  commit-horizon path best matches it. It uses the teacher law as information, so this tests interface capacity in the env, not learnability.
+* Manipulation check (controller-quality gate): in the env, `N'`'s defender path must meet the audit's TRAJECTORY criterion against the
+  isolated DEFEND reference (RMSE <= 2.5 cells, coverage >= 0.90 per pole) before a crossover failure may be read as vocabulary necessity.
+* Primary: crossover on `N'`: LCB95(WR(N',A) - WR(pi_B,A)) > 0 AND LCB95(WR(pi_B,B) - WR(N',B)) > 0 (paired percentile bootstrap,
+  20000 resamples, rng seed 7, as in the bridge). Reported, non-gating: `N'` vs `A'` paired contrasts per pole (how much of the
+  scaffold's suppression of A on B is retained), Blue goals, margin.
+
+**Informative outcomes (pre-stated).** (1) GO_TO-only still crosses over and the manipulation check passes -> DIRECTION was not necessary
+for this question; the audit's routing was conservative; no DEFEND macro is needed; proceed toward teaching `pi_A` with the existing
+vocabulary. (2) GO_TO-only loses crossover with the manipulation check passing -> something absent from the coarse reproduction
+matters; DIRECTION becomes a strong candidate and a learned-selectable DEFEND primitive test becomes justified rather than speculative.
+(3) The manipulation check fails -> `INCONCLUSIVE_CONTROLLER`: fix the controller before concluding anything; never read as "DIRECTION necessary".
+
+**Fences (as for the bridge).** No PPO; no new vocabulary; native and `A'` arms unchanged; contracts before any seed is spent (including
+exact reproduction of sealed episodes through the new runner for the unchanged arms, and a legal-action contract that every `N'` action
+is `(GO_TO, legal idx)`); commit the frozen pre-run package before launch; no interim outcome reading; no top-up. Interpretation guard:
+`N'` is an oracle-informed GO_TO controller, NOT a learned policy; a positive result says the vocabulary suffices for the effect, not that PPO will find it.
+
+**Choices APPROVED by the PI (2026-09-21):** (1) 4 arms x n=128 (a paired contemporary baseline beats a smaller run); (2) the causal
+path-oracle as the `N'` controller (a ring-hold rule would add a second question, "was the controller good enough?"); (3) the
+manipulation-check level unchanged at 2.5 cells / 0.90 coverage, never loosened after outcomes.
+
+**Guardrails added at approval.** The interpretation tree is frozen explicitly (`N'` crossover -> "instantaneous DIRECTION is not
+necessary for crossover", which does NOT mean the DIRECTION metric was wrong; `N'` loses crossover with TRAJECTORY < 0.90 ->
+`INCONCLUSIVE_CONTROLLER` and no claim about direction or vocabulary; `N'` loses crossover with TRAJECTORY >= 0.90 -> "high path
+fidelity under native GO_TO was insufficient to preserve crossover, strengthening evidence that behavior omitted by the GO_TO
+approximation, including instantaneous directional control, may be causally important", NOT "DIRECTION proven necessary", because `N'`
+could still differ from `A'` in another unmeasured way; it would authorize the next directional/interface experiment only). The
+controller and analysis must be outcome-blind and deterministic given state/seed, and `N'` carries a per-episode attestation that every
+emitted action is on the existing native `(GO_TO, legal waypoint)` surface -- no hidden helper, no direct target injection, no scaffold
+action through a side door. Author's additions, flagged for veto at freeze: an `A'` positive control for the in-env trajectory
+instrument, and a paired heading-agreement diagnostic showing `N'` actually removes per-tick heading fidelity relative to `A'`
+(otherwise the crossover result carries no statement about DIRECTION).
+
+**Conditional successor (PI plan, NOT authorized; gated on this experiment showing GO_TO suffices):** teacher-guided PPO warm-started
+from `pi_A` (`L = L_PPO + lambda L_teacher`, lambda annealed 1.0 -> 0.5 -> 0.2 -> 0), an auxiliary ATTACK/DEFEND role head, DAgger-style
+on-policy teacher queries, training-only defend shaping annealed to zero, forced roles decayed in stages, and the success criterion that
+native `pi_A` ALONE passes crossover with no forced defenders, no scaffold, no teacher at evaluation. Flags for that freeze: the
+scaffold's defenders are chosen by seed rotation, not by state, so a state-dependent teacher assignment would need its own bridge
+test; and a prior teacher-distillation attempt failed a Compression Crossover (see memory) and GUARD's assignment machinery needs
+information absent from the student observation.
+
+**Next (at proposal time):** freeze spec -> contract-test -> commit the pre-run package (spec, runner, seed reservation, passing
+contract record) -> reserve the fresh seed block -> await the PI's launch go (the run spends the confirmatory block once).
+
+</details>
 
 ### C2 fresh confirmation — `C2_REJECTED` (2026-08-06)
 

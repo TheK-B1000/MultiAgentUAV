@@ -1,0 +1,361 @@
+{
+  "record": "audit of ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_RESULT.json",
+  "audit_utc": "2026-09-21T16:07:50Z",
+  "git_sha": "92a6b95d9b059e6cecb977d73838a586f438f912",
+  "passed": true,
+  "n_checks": 28,
+  "n_gating": 20,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 768,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_SPEND'",
+      "spec": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_V1_SPEC.json",
+      "sha256": "df8e401e4473f0f154ed7f9dd19074a22730842bd1589076990b41bc732b51c9",
+      "status": "FROZEN_BEFORE_SEED_SPEND"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION_ROWS.csv (33374 bytes)",
+      "sha256": "734aed439fad3ec7ce55a5e6c6f83f8b49b848d0e2eabad2382da94d0c9613f1"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "768 rows, expected 768",
+      "found": 768,
+      "expected": 768
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "8 cells; 0 with a seed set != frozen block 21000001..21000096 (n=96)",
+      "n_cells": 8,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "derived::margin",
+      "gating": true,
+      "result": "PASS",
+      "detail": "margin == margin == blue - red: 0 disagreement(s) in 768 rows",
+      "field": "margin",
+      "definition": "margin == blue - red",
+      "n_disagreements": 0
+    },
+    {
+      "name": "derived::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win == win == (blue > red): 0 disagreement(s) in 768 rows",
+      "field": "win",
+      "definition": "win == (blue > red)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "checkpoint::pi_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_A sha 8ac6a41c66ac... vs frozen 8ac6a41c66ac...",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\6v6_results\\specialists\\final_pi_A_specialist_6v6.zip",
+      "sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82",
+      "frozen_sha256": "8ac6a41c66ac2d83cf906f9a83a80aa60f4bff11d1a1a97c5a11fa551a5a5d82"
+    },
+    {
+      "name": "checkpoint::pi_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_B sha d2c52a7c1647... vs frozen d2c52a7c1647...",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\6v6_results\\specialists\\final_pi_B_specialist_6v6.zip",
+      "sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4",
+      "frozen_sha256": "d2c52a7c164786380ea2b977ec5e57c85f6298d08ae7710d225ceec472d6aac4"
+    },
+    {
+      "name": "claim::dG_pi_A_poleA",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.927083,
+        "lcb95": 0.65625,
+        "ucb95": 1.1875
+      },
+      "rederived": {
+        "mean": 0.927083333,
+        "lcb95": 0.65625,
+        "ucb95": 1.1875
+      },
+      "abs_diff": {
+        "mean": 3.33333e-07,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::dG_pi_A_poleB",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.614583,
+        "lcb95": -0.885417,
+        "ucb95": -0.34375
+      },
+      "rederived": {
+        "mean": -0.614583333,
+        "lcb95": -0.885416667,
+        "ucb95": -0.34375
+      },
+      "abs_diff": {
+        "mean": 3.33333e-07,
+        "lcb95": 3.33333e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::dG_pi_B_poleA",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.916667,
+        "lcb95": 0.666667,
+        "ucb95": 1.15625
+      },
+      "rederived": {
+        "mean": 0.916666667,
+        "lcb95": 0.666666667,
+        "ucb95": 1.15625
+      },
+      "abs_diff": {
+        "mean": 3.33333e-07,
+        "lcb95": 3.33333e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::dG_pi_B_poleB",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.291667,
+        "lcb95": -0.552083,
+        "ucb95": -0.03125
+      },
+      "rederived": {
+        "mean": -0.291666667,
+        "lcb95": -0.552083333,
+        "ucb95": -0.03125
+      },
+      "abs_diff": {
+        "mean": 3.33333e-07,
+        "lcb95": 3.33333e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::dM_pi_A_poleA",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.895833,
+        "lcb95": 0.635417,
+        "ucb95": 1.15625
+      },
+      "rederived": {
+        "mean": 0.895833333,
+        "lcb95": 0.635416667,
+        "ucb95": 1.15625
+      },
+      "abs_diff": {
+        "mean": 3.33333e-07,
+        "lcb95": 3.33333e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::dM_pi_A_poleB",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.677083,
+        "lcb95": -0.947917,
+        "ucb95": -0.395833
+      },
+      "rederived": {
+        "mean": -0.677083333,
+        "lcb95": -0.947916667,
+        "ucb95": -0.395833333
+      },
+      "abs_diff": {
+        "mean": 3.33333e-07,
+        "lcb95": 3.33333e-07,
+        "ucb95": 3.33333e-07
+      }
+    },
+    {
+      "name": "claim::dM_pi_B_poleA",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.927083,
+        "lcb95": 0.677083,
+        "ucb95": 1.166667
+      },
+      "rederived": {
+        "mean": 0.927083333,
+        "lcb95": 0.677083333,
+        "ucb95": 1.166666667
+      },
+      "abs_diff": {
+        "mean": 3.33333e-07,
+        "lcb95": 3.33333e-07,
+        "ucb95": 3.33333e-07
+      }
+    },
+    {
+      "name": "claim::dM_pi_B_poleB",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 3.33e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.34375,
+        "lcb95": -0.604167,
+        "ucb95": -0.083333
+      },
+      "rederived": {
+        "mean": -0.34375,
+        "lcb95": -0.604166667,
+        "ucb95": -0.083333333
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 3.33333e-07,
+        "ucb95": 3.33333e-07
+      }
+    },
+    {
+      "name": "split_half::dG_pi_A_poleA",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.8750 | second half +0.9792",
+      "first_half": 0.875,
+      "second_half": 0.979167,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::dG_pi_A_poleB",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.5417 | second half -0.6875",
+      "first_half": -0.541667,
+      "second_half": -0.6875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::dG_pi_B_poleA",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +1.0417 | second half +0.7917",
+      "first_half": 1.041667,
+      "second_half": 0.791667,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::dG_pi_B_poleB",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.3542 | second half -0.2292",
+      "first_half": -0.354167,
+      "second_half": -0.229167,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::dM_pi_A_poleA",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.7917 | second half +1.0000",
+      "first_half": 0.791667,
+      "second_half": 1.0,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::dM_pi_A_poleB",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.5625 | second half -0.7917",
+      "first_half": -0.5625,
+      "second_half": -0.791667,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::dM_pi_B_poleA",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +1.0625 | second half +0.7917",
+      "first_half": 1.0625,
+      "second_half": 0.791667,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::dM_pi_B_poleB",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.3958 | second half -0.2917",
+      "first_half": -0.395833,
+      "second_half": -0.291667,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION (status RESERVED) -- same block, no conflict",
+      "seed_class": "sealed_confirmatory",
+      "experiment_id": "ONE_DEFENDER_GOAL_VOLUME_CONFIRMATION"
+    }
+  ]
+}

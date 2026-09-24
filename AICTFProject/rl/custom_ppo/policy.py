@@ -246,6 +246,11 @@ class SharedActorCentralizedCritic(nn.Module):
         experiment_id: str = "",
         router_context_mode: str = "",
         router_context_dimension: int = 0,
+        entity_repair_enabled: bool = False,
+        entity_hidden_dim: int = 32,
+        role_conditioning_enabled: bool = False,
+        assignment_conditioning_enabled: bool = False,
+        assignment_feature_dim: int = 4,
     ) -> None:
         super().__init__()
         grid_shape = tuple(int(v) for v in observation_space.spaces["grid"].shape)
@@ -262,7 +267,42 @@ class SharedActorCentralizedCritic(nn.Module):
         self.actor_cnn = CNNEncoder(self.grid_shape, feature_dim=int(actor_cnn_feature_dim))
         self.actor_cnn_feature_dim = int(self.actor_cnn.feature_dim)
         self._scalar_per_agent = self.vec_dim
+        # Base local width (CNN+vec). Entity residual matches this width.
+        # Role bit is concatenated AFTER entity residual and widens the actor MLP only.
         self._local_actor_in_dim = self.actor_cnn_feature_dim + self._scalar_per_agent
+        self.role_conditioning_enabled = bool(role_conditioning_enabled)
+        self.assignment_conditioning_enabled = bool(assignment_conditioning_enabled)
+        if self.role_conditioning_enabled and self.assignment_conditioning_enabled:
+            raise ValueError(
+                "role_conditioning_enabled and assignment_conditioning_enabled are "
+                "mutually exclusive (ASSIGNMENT_CONDITIONING_V1_SPEC / RULE_ROLE_SPEC)."
+            )
+        self._role_feature_dim = 1 if self.role_conditioning_enabled else 0
+        locked_assign_dim = 4
+        if self.assignment_conditioning_enabled and int(assignment_feature_dim) != locked_assign_dim:
+            raise ValueError(
+                f"assignment_feature_dim is locked at {locked_assign_dim}; "
+                f"got {assignment_feature_dim}"
+            )
+        self._assignment_feature_dim = (
+            locked_assign_dim if self.assignment_conditioning_enabled else 0
+        )
+        self._actor_local_with_role_dim = int(
+            self._local_actor_in_dim + self._role_feature_dim + self._assignment_feature_dim
+        )
+
+        # 4v4 entity-repair (2026-09-13): optional residual over exact teammate/
+        # enemy geometry, added to local_in AFTER the CNN/vec fusion above and
+        # BEFORE latent_actor -- see rl/custom_ppo/entity_residual.py for the
+        # bias-free/zero-init contract this depends on. Disabled (None) by
+        # default so every pre-existing checkpoint and call path is untouched.
+        self.entity_repair_enabled = bool(entity_repair_enabled)
+        if self.entity_repair_enabled:
+            from rl.custom_ppo.entity_residual import EntityResidualEncoder
+            self.entity_encoder = EntityResidualEncoder(
+                out_dim=self._local_actor_in_dim, hidden=int(entity_hidden_dim))
+        else:
+            self.entity_encoder = None
         self.action_dims = tuple(int(v) for v in getattr(action_space, "nvec", []))
         if len(self.action_dims) % self.n_agents != 0:
             raise ValueError("MultiDiscrete action heads must divide evenly across agents.")
@@ -359,7 +399,7 @@ class SharedActorCentralizedCritic(nn.Module):
 
         # Decentralized policy: CNN(grid) is concatenated with per-agent scalar features (+ z_emb), never `GLOBAL_STATE_DIM`.
         self._decentralized_actor_in_dim = int(
-            self._local_actor_in_dim
+            self._actor_local_with_role_dim
             + (self.z_embed_dim if self.uses_latent_strategy else 0)
             + self.z_onehot_dim
         )
@@ -369,7 +409,7 @@ class SharedActorCentralizedCritic(nn.Module):
         # goes through the property shims below; legacy on-disk state dicts are
         # migrated by ``remap_legacy_actor_state_dict_keys``.
         self.latent_actor = LatentConditionedActor(
-            local_feature_dim=int(self._local_actor_in_dim),
+            local_feature_dim=int(self._actor_local_with_role_dim),
             latent_k=self.latent_k if self.uses_latent_strategy else 0,
             action_dim=int(self.per_agent_logits),
             z_embed_dim=self.z_embed_dim if self.uses_latent_strategy else 0,
@@ -397,7 +437,13 @@ class SharedActorCentralizedCritic(nn.Module):
             exp2c_mode_specific_action_heads=bool(exp2c_mode_specific_action_heads),
             latent_lro_deep_branches=bool(latent_lro_deep_branches),
         )
-        critic_extra_dim = self.latent_k if self.uses_latent_strategy else 0
+        critic_extra_dim = (self.latent_k if self.uses_latent_strategy else 0) + (
+            self.n_agents if self.role_conditioning_enabled else 0
+        ) + (
+            self.n_agents * self._assignment_feature_dim
+            if self.assignment_conditioning_enabled
+            else 0
+        )
         self.critic = CentralizedCritic(
             global_state_dim=self.global_state_dim,
             hidden_dim=int(critic_hidden_dim),
@@ -540,7 +586,12 @@ class SharedActorCentralizedCritic(nn.Module):
         raise AssertionError("could not resolve q_phi input dim")
 
     def _assert_input_contracts(self) -> None:
-        actor_expected = int(self.actor_cnn_feature_dim) + int(self._scalar_per_agent)
+        actor_expected = (
+            int(self.actor_cnn_feature_dim)
+            + int(self._scalar_per_agent)
+            + int(self._role_feature_dim)
+            + int(self._assignment_feature_dim)
+        )
         if self.uses_latent_strategy:
             actor_expected += int(self.z_embed_dim) + int(self.z_onehot_dim)
             # V6I7 "current" mode uses GLOBAL_STATE_V6I7_DIM (35); other latent
@@ -578,10 +629,16 @@ class SharedActorCentralizedCritic(nn.Module):
                 raise ValueError(
                     f"latent actor input dim must be {actor_expected}, got {self._decentralized_actor_in_dim}"
                 )
-            expected_extra = int(self.latent_k)
+            expected_extra = int(self.latent_k) + (
+                int(self.n_agents) if self.role_conditioning_enabled else 0
+            ) + (
+                int(self.n_agents * self._assignment_feature_dim)
+                if self.assignment_conditioning_enabled
+                else 0
+            )
             if int(self.critic.extra_dim) != expected_extra:
                 raise ValueError(
-                    f"critic extra_dim must be latent_k = {expected_extra}, got {self.critic.extra_dim}"
+                    f"critic extra_dim must be {expected_extra}, got {self.critic.extra_dim}"
                 )
         else:
             if int(self.global_state_dim) != int(GLOBAL_STATE_DIM):
@@ -592,8 +649,18 @@ class SharedActorCentralizedCritic(nn.Module):
                 raise ValueError(
                     f"no-latent critic global_state_dim must be {GLOBAL_STATE_DIM}, got {self.critic.global_state_dim}"
                 )
-            if int(self.critic.extra_dim) != 0:
-                raise ValueError(f"no-latent critic extra_dim must be 0, got {self.critic.extra_dim}")
+            expected_extra = (
+                (int(self.n_agents) if self.role_conditioning_enabled else 0)
+                + (
+                    int(self.n_agents * self._assignment_feature_dim)
+                    if self.assignment_conditioning_enabled
+                    else 0
+                )
+            )
+            if int(self.critic.extra_dim) != expected_extra:
+                raise ValueError(
+                    f"no-latent critic extra_dim must be {expected_extra}, got {self.critic.extra_dim}"
+                )
 
         if int(self._decentralized_actor_in_dim) != actor_expected:
             raise ValueError(
@@ -903,8 +970,29 @@ class SharedActorCentralizedCritic(nn.Module):
     def _encode_local_obs(
         self,
         obs: Dict[str, torch.Tensor],
+        *,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
+        roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Return ``(local_in, cnn_features, agent_mask)`` with shape ``(B*N, F)``."""
+        """Return ``(local_in, cnn_features, agent_mask)`` with shape ``(B*N, F)``.
+
+        ``teammates``/``enemies``: ``(B, N, K, ENTITY_FEATURES)``; ``*_valid``:
+        ``(B, N, K)``. Same (B, N, ...) convention as ``grid``/``vec`` -- the
+        ``(B*N)`` flatten happens HERE, not in the caller, mirroring how
+        grid/vec are already flattened below.
+
+        ``roles``: ``(B, N)`` float {0=DEFEND, 1=ATTACK}, concatenated after the
+        optional entity residual when ``role_conditioning_enabled``.
+
+        Fails CLOSED rather than silently dropping information: a model built
+        with ``entity_repair_enabled=True`` requires all four entity tensors on
+        every call; a model built WITHOUT it must never receive them. Absence
+        is an error state here, not a default. Same fail-closed rule for roles.
+        """
         grid = obs["grid"].float()
         vec = obs["vec"].float()
         if grid.dim() != 5:
@@ -937,6 +1025,88 @@ class SharedActorCentralizedCritic(nn.Module):
             raise AssertionError(
                 f"local actor input width {int(local_in.shape[-1])} != expected "
                 f"{int(self._local_actor_in_dim)}"
+            )
+
+        entity_args = (teammates, teammates_valid, enemies, enemies_valid)
+        if self.entity_encoder is not None:
+            if any(a is None for a in entity_args):
+                raise ValueError(
+                    "this model was constructed with entity_repair_enabled=True "
+                    "and requires teammates, teammates_valid, enemies, and "
+                    "enemies_valid on every call -- refusing to silently fall "
+                    "back to the base pathway."
+                )
+            n = self.n_agents
+            k_t, feat = int(teammates.shape[2]), int(teammates.shape[3])
+            k_e = int(enemies.shape[2])
+            g = self.entity_encoder(
+                teammates.reshape(batch * n, k_t, feat),
+                teammates_valid.reshape(batch * n, k_t),
+                enemies.reshape(batch * n, k_e, feat),
+                enemies_valid.reshape(batch * n, k_e),
+            )
+            local_in = local_in + g
+        elif any(a is not None for a in entity_args):
+            raise ValueError(
+                "entity tensors were provided but this model was constructed "
+                "with entity_repair_enabled=False -- refusing to silently "
+                "ignore them."
+            )
+
+        if self.role_conditioning_enabled:
+            if roles is None:
+                raise ValueError(
+                    "this model was constructed with role_conditioning_enabled=True "
+                    "and requires roles (B, N) on every call -- refusing to silently "
+                    "fall back to the base pathway."
+                )
+            if roles.dim() != 2 or int(roles.shape[0]) != batch or int(roles.shape[1]) != self.n_agents:
+                raise ValueError(
+                    f"roles must have shape (B={batch}, N={self.n_agents}), got {tuple(roles.shape)}"
+                )
+            # Join point named in RULE_BASED_ROLE_CONDITIONING_SPEC:
+            # concat r_i onto local_in AFTER CNN/vec (+ entity residual), BEFORE latent_actor.
+            local_in = torch.cat(
+                [local_in, roles.float().reshape(batch * self.n_agents, 1)],
+                dim=-1,
+            )
+        elif roles is not None:
+            raise ValueError(
+                "roles were provided but this model was constructed with "
+                "role_conditioning_enabled=False -- refusing to silently ignore them."
+            )
+
+        if self.assignment_conditioning_enabled:
+            if assignment is None:
+                raise ValueError(
+                    "this model was constructed with assignment_conditioning_enabled=True "
+                    "and requires assignment (B, N, 4) on every call -- refusing to silently "
+                    "fall back to the base pathway."
+                )
+            if (
+                assignment.dim() != 3
+                or int(assignment.shape[0]) != batch
+                or int(assignment.shape[1]) != self.n_agents
+                or int(assignment.shape[2]) != self._assignment_feature_dim
+            ):
+                raise ValueError(
+                    f"assignment must have shape (B={batch}, N={self.n_agents}, "
+                    f"{self._assignment_feature_dim}), got {tuple(assignment.shape)}"
+                )
+            local_in = torch.cat(
+                [local_in, assignment.float().reshape(batch * self.n_agents, self._assignment_feature_dim)],
+                dim=-1,
+            )
+        elif assignment is not None:
+            raise ValueError(
+                "assignment was provided but this model was constructed with "
+                "assignment_conditioning_enabled=False -- refusing to silently ignore it."
+            )
+
+        if int(local_in.shape[-1]) != int(self._actor_local_with_role_dim):
+            raise AssertionError(
+                f"actor local+role width {int(local_in.shape[-1])} != expected "
+                f"{int(self._actor_local_with_role_dim)}"
             )
         return local_in, cnn_features, mask.squeeze(-1)
 
@@ -1100,6 +1270,12 @@ class SharedActorCentralizedCritic(nn.Module):
         z_idx: Optional[torch.Tensor] = None,
         *,
         detach_local_features: bool = False,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
+        roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return flattened MultiDiscrete logits with shape ``(B, sum(action_dims))``.
 
@@ -1107,12 +1283,21 @@ class SharedActorCentralizedCritic(nn.Module):
 
         1. ``actor_cnn`` encodes per-agent grids → ``cnn_features``.
         2. Optional agent mask zeroes out padded agents' features / scalars.
-        3. ``local_features = concat(cnn_features, scalars)`` per-agent.
-        4. ``self.latent_actor`` handles the strategy embedding (when present)
+        3. ``local_features = concat(cnn_features, scalars)`` per-agent, plus
+           the optional entity residual (see ``_encode_local_obs``).
+        4. Optional role bit ``r_i`` concatenated after the entity residual.
+        5. ``self.latent_actor`` handles the strategy embedding (when present)
            and the 256-256 MLP + action head. Per-agent ``z`` is shared across
            the team — the same ``z_idx`` row is broadcast across all agents.
+
+        Entity and role kwargs are optional and default to ``None`` -- the
+        legacy call path is EXACTLY unchanged. Required, and validated, when
+        this model was built with the corresponding ``*_enabled=True`` flag.
         """
-        local_in, _, _ = self._encode_local_obs(obs)
+        local_in, _, _ = self._encode_local_obs(
+            obs, teammates=teammates, teammates_valid=teammates_valid,
+            enemies=enemies, enemies_valid=enemies_valid, roles=roles,
+            assignment=assignment)
         if detach_local_features:
             local_in = local_in.detach()
         batch = int(obs["grid"].shape[0])
@@ -1136,6 +1321,12 @@ class SharedActorCentralizedCritic(nn.Module):
         obs: Dict[str, torch.Tensor],
         *,
         z_idx: Optional[torch.Tensor] = None,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
+        roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
     ) -> MultiHeadActionDistribution:
         """Return per-action-head logit distribution (public PolicyInferenceContract).
 
@@ -1155,7 +1346,10 @@ class SharedActorCentralizedCritic(nn.Module):
                 "tensor explicitly:\n"
                 "    z_idx = torch.zeros(batch, dtype=torch.long, device=obs['grid'].device)"
             )
-        flat = self.policy_logits(obs, z_idx=z_idx)
+        flat = self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
+                                  teammates_valid=teammates_valid, enemies=enemies,
+                                  enemies_valid=enemies_valid, roles=roles,
+                                  assignment=assignment)
         heads = torch.split(flat, list(self.action_dims), dim=-1)
         return MultiHeadActionDistribution([ActionHead(h) for h in heads])
 
@@ -1210,19 +1404,57 @@ class SharedActorCentralizedCritic(nn.Module):
             chunks.append(F.one_hot(action, num_classes=int(dim)).float())
         return torch.cat(chunks, dim=-1)
 
-    def _critic_extra(self, z_idx: Optional[torch.Tensor]) -> Optional[torch.Tensor]:
-        if not self.uses_latent_strategy:
+    def _critic_extra(
+        self,
+        z_idx: Optional[torch.Tensor],
+        team_roles: Optional[torch.Tensor] = None,
+        team_assignment: Optional[torch.Tensor] = None,
+    ) -> Optional[torch.Tensor]:
+        parts: list[torch.Tensor] = []
+        if self.uses_latent_strategy:
+            if z_idx is None:
+                raise ValueError("z_idx is required for critic conditioning in latent strategy mode.")
+            z = self._validate_z_idx(z_idx)
+            parts.append(F.one_hot(z, num_classes=self.latent_k).float())
+        if self.role_conditioning_enabled:
+            if team_roles is None:
+                raise ValueError(
+                    "team_roles (B, N) is required for critic conditioning when "
+                    "role_conditioning_enabled=True."
+                )
+            if team_roles.dim() != 2 or int(team_roles.shape[1]) != self.n_agents:
+                raise ValueError(
+                    f"team_roles must have shape (B, {self.n_agents}), got {tuple(team_roles.shape)}"
+                )
+            parts.append(team_roles.float())
+        if self.assignment_conditioning_enabled:
+            if team_assignment is None:
+                raise ValueError(
+                    "team_assignment (B, N, 4) is required for critic conditioning when "
+                    "assignment_conditioning_enabled=True."
+                )
+            if (
+                team_assignment.dim() != 3
+                or int(team_assignment.shape[1]) != self.n_agents
+                or int(team_assignment.shape[2]) != self._assignment_feature_dim
+            ):
+                raise ValueError(
+                    f"team_assignment must have shape (B, {self.n_agents}, "
+                    f"{self._assignment_feature_dim}), got {tuple(team_assignment.shape)}"
+                )
+            b = int(team_assignment.shape[0])
+            parts.append(team_assignment.float().reshape(b, self.n_agents * self._assignment_feature_dim))
+        if not parts:
             return None
-        if z_idx is None:
-            raise ValueError("z_idx is required for critic conditioning in latent strategy mode.")
-        z = self._validate_z_idx(z_idx)
-        return F.one_hot(z, num_classes=self.latent_k).float()
+        return torch.cat(parts, dim=-1)
 
     def values(
         self,
         global_state: torch.Tensor,
         actions: Optional[torch.Tensor] = None,
         z_idx: Optional[torch.Tensor] = None,
+        team_roles: Optional[torch.Tensor] = None,
+        team_assignment: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Return scalar :math:`V_\\phi(s, z)` with shape ``(B,)`` (PPO/GAE baseline)."""
         if global_state.dim() != 2 or int(global_state.shape[1]) != int(self.critic_context_dim):
@@ -1233,7 +1465,12 @@ class SharedActorCentralizedCritic(nn.Module):
             raise ValueError(
                 "The PPO value critic is conditioned on z only; pass z_idx and omit actions."
             )
-        return self.critic(global_state.float(), extra=self._critic_extra(z_idx)).squeeze(-1)
+        return self.critic(
+            global_state.float(),
+            extra=self._critic_extra(
+                z_idx, team_roles=team_roles, team_assignment=team_assignment
+            ),
+        ).squeeze(-1)
 
     def _mask_logits(self, logits: torch.Tensor, mask: Optional[torch.Tensor]) -> torch.Tensor:
         if mask is None:
@@ -1263,7 +1500,8 @@ class SharedActorCentralizedCritic(nn.Module):
             yield Categorical(logits=logits[:, offset : offset + dim])
             offset += dim
 
-    def _log_prob_entropy(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+    def _log_prob_entropy_per_head(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Per-head (not summed) log-prob/entropy, each shape (B, len(action_dims))."""
         actions = actions.long()
         log_probs = []
         entropies = []
@@ -1271,7 +1509,23 @@ class SharedActorCentralizedCritic(nn.Module):
             action = _validate_indices(actions[:, col], int(dist.logits.shape[1]), f"actions[:, {col}]")
             log_probs.append(dist.log_prob(action))
             entropies.append(dist.entropy())
-        return torch.stack(log_probs, dim=0).sum(dim=0), torch.stack(entropies, dim=0).sum(dim=0)
+        return torch.stack(log_probs, dim=1), torch.stack(entropies, dim=1)
+
+    def _log_prob_entropy(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        log_probs, entropies = self._log_prob_entropy_per_head(logits, actions)
+        return log_probs.sum(dim=1), entropies.sum(dim=1)
+
+    def _log_prob_entropy_per_agent(self, logits: torch.Tensor, actions: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """Per-agent (heads_per_agent summed within each agent) log-prob/entropy,
+        each shape (B, n_agents). Used by role-gated training paths (e.g.
+        split-attack-defend) that must credit only a subset of agent slots
+        instead of the whole team's joint action -- see
+        DEFEND_ATTACK_SPLIT_POLICY_A_V1_SPEC.json."""
+        log_probs, entropies = self._log_prob_entropy_per_head(logits, actions)
+        batch = log_probs.shape[0]
+        log_probs_pa = log_probs.view(batch, self.n_agents, self.heads_per_agent).sum(dim=-1)
+        entropies_pa = entropies.view(batch, self.n_agents, self.heads_per_agent).sum(dim=-1)
+        return log_probs_pa, entropies_pa
 
     def act(
         self,
@@ -1280,11 +1534,33 @@ class SharedActorCentralizedCritic(nn.Module):
         *,
         deterministic: bool = False,
         z_idx: Optional[torch.Tensor] = None,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
+        roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
+        return_per_agent: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Sample or greedily select actions and return values/log-probs/entropy."""
+        """Sample or greedily select actions and return values/log-probs/entropy.
+
+        Entity / role kwargs are optional (default ``None``); the legacy call
+        path is unchanged when they are omitted. See ``_encode_local_obs`` for
+        the fail-closed contract when the corresponding flags are enabled.
+
+        ``return_per_agent=True`` appends a 5th dict element
+        (``{"log_prob_per_agent": (B,n_agents), "entropy_per_agent": (B,n_agents)}``)
+        to the returned tuple; omitted (default) it is the plain 4-tuple every
+        existing caller already expects -- purely additive, no call site changes.
+        """
         if self.uses_latent_strategy and z_idx is None:
             raise ValueError("Sample and provide z_idx before calling act() when latent strategy is enabled.")
-        logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
+        logits = self._mask_logits(
+            self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
+                               teammates_valid=teammates_valid, enemies=enemies,
+                               enemies_valid=enemies_valid, roles=roles,
+                               assignment=assignment),
+            obs.get("mask"))
         actions = []
         g_act = self._sampling_gen_action
         for dist in self._categoricals(logits):
@@ -1295,8 +1571,15 @@ class SharedActorCentralizedCritic(nn.Module):
             )
         action_tensor = torch.stack(actions, dim=1)
         log_prob, entropy = self._log_prob_entropy(logits, action_tensor)
-        values = self.values(global_state, z_idx=z_idx)
-        return action_tensor, values, log_prob, entropy
+        values = self.values(
+            global_state, z_idx=z_idx, team_roles=roles, team_assignment=assignment
+        )
+        if not return_per_agent:
+            return action_tensor, values, log_prob, entropy
+        log_prob_pa, entropy_pa = self._log_prob_entropy_per_agent(logits, action_tensor)
+        return action_tensor, values, log_prob, entropy, {
+            "log_prob_per_agent": log_prob_pa, "entropy_per_agent": entropy_pa,
+        }
 
     def evaluate_actions(
         self,
@@ -1309,12 +1592,38 @@ class SharedActorCentralizedCritic(nn.Module):
         router_context: Optional[torch.Tensor] = None,
         message_symbols: Optional[torch.Tensor] = None,
         message_boundary_mask: Optional[torch.Tensor] = None,
+        teammates: Optional[torch.Tensor] = None,
+        teammates_valid: Optional[torch.Tensor] = None,
+        enemies: Optional[torch.Tensor] = None,
+        enemies_valid: Optional[torch.Tensor] = None,
+        roles: Optional[torch.Tensor] = None,
+        assignment: Optional[torch.Tensor] = None,
+        return_per_agent: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict[str, torch.Tensor]]:
-        """Evaluate fixed actions under the current policy."""
-        logits = self._mask_logits(self.policy_logits(obs, z_idx=z_idx), obs.get("mask"))
+        """Evaluate fixed actions under the current policy.
+
+        Entity / role kwargs are optional (default ``None``); the legacy call
+        path is unchanged when they are omitted.
+
+        ``return_per_agent=True`` additionally populates
+        ``aux["log_prob_per_agent"]``/``aux["entropy_per_agent"]`` (each
+        shape (B,n_agents)) -- see ``act()``'s docstring for the rationale.
+        """
+        logits = self._mask_logits(
+            self.policy_logits(obs, z_idx=z_idx, teammates=teammates,
+                               teammates_valid=teammates_valid, enemies=enemies,
+                               enemies_valid=enemies_valid, roles=roles,
+                               assignment=assignment),
+            obs.get("mask"))
         log_prob, entropy = self._log_prob_entropy(logits, actions)
-        values = self.values(global_state, z_idx=z_idx)
+        values = self.values(
+            global_state, z_idx=z_idx, team_roles=roles, team_assignment=assignment
+        )
         aux: dict[str, torch.Tensor] = {}
+        if return_per_agent:
+            log_prob_pa, entropy_pa = self._log_prob_entropy_per_agent(logits, actions)
+            aux["log_prob_per_agent"] = log_prob_pa
+            aux["entropy_per_agent"] = entropy_pa
         if self.communication_enabled and message_symbols is not None and message_boundary_mask is not None:
             msg_log_prob, msg_entropy = self._evaluate_messages(
                 obs,

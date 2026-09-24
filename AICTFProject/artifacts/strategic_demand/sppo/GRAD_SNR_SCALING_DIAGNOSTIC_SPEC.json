@@ -1,0 +1,220 @@
+{
+  "record_id": "GRAD_SNR_SCALING_DIAGNOSTIC_SPEC",
+  "status": "FROZEN_BEFORE_ANY_EPISODE",
+  "utc": "2026-09-12T18:05:00Z",
+  "arm": "DIAGNOSTIC",
+  "confirmatory": false,
+  "OUTPUT_LABEL": "GRAD_SNR_SCALING",
+
+  "QUESTION": "Under our production PPO recipe, does the policy-gradient signal that would drive opponent-conditioned specialization become measurably harder to resolve as team size grows from 2v2 to 4v4 to 6v6?",
+
+  "HYPOTHESIS": {
+    "source": "Kuba et al., Settling the Variance of Multi-Agent Policy Gradients (NeurIPS 2021, arXiv 2108.08612)",
+    "claim_ACTUALLY_MADE_BY_KUBA_ET_AL": "the excess variance of the CENTRALIZED multi-agent policy-gradient estimator over its decentralized counterpart can grow linearly with the number of agents, with additional dependence on the agents' local advantages. This is a theorem about an ESTIMATOR, stated and proved in their setting -- it is not a claim about any specific downstream SNR metric, and it does not assert a particular functional form for how a crossover-style specialization signal degrades with N.",
+    "our_translation": "Delta is a small payoff difference. If estimator variance grows with N while the opponent-specific component of the signal does not, the SNR on precisely the quantity we measure could plausibly degrade with team size -- with identical architecture, identical parameter count, contested win rates and large behavioural divergence, all of which we observe. This is our own extrapolation from their theorem to our setting, not a restatement of it.",
+    "status_of_this_hypothesis": "THEORETICALLY MOTIVATED, NOT EVIDENCED IN OUR ENVIRONMENT. This experiment exists to convert a citation into a measurement. A negative result is a real result and closes the hypothesis."
+  },
+
+  "WHY_THIS_DESIGN_IS_UNUSUALLY_CLEAN": "The actor is per-agent weight-shared, so the architecture is byte-identical at 2v2/4v4/6v6 (3,473,592 parameters, verified; a validated 2v2 checkpoint loads into a 6v6 policy by plain load_state_dict). We can therefore measure the gradient at the SAME PARAMETER VECTOR under all three team sizes. Team size is then the only thing that varies -- no initialization lottery, no policy-difference confound, no capacity difference. Most published work cannot isolate N this way.",
+
+  "MEASUREMENT_TARGET": {
+    "loss": "rl/ppo_core.py::ppo_policy_loss -- the PRODUCTION clipped surrogate, imported, never reimplemented",
+    "rationale": "diagnosing the optimizer with a hand-written approximation of its own objective would measure the approximation"
+  },
+
+  "DESIGN": {
+    "scales": ["2v2", "4v4", "6v6"],
+    "n_agents": {"2v2": 2, "4v4": 4, "6v6": 6},
+    "poles": {"A": "OP6 guard-distributed", "B": "OP7 lock_defender + enable_2v1"},
+    "parameter_points": {
+      "PRIMARY": {
+        "name": "MATCHED_INIT",
+        "what": "one fixed randomly-initialised actor, identical weights loaded at all three team sizes",
+        "why_primary": "isolates N with zero policy-difference confound; this is the only arm that can attribute a difference to team size alone"
+      },
+      "SECONDARY": {
+        "name": "MATCHED_2V2_SPECIALIST",
+        "what": "the validated 2v2 specialist checkpoint, loaded unchanged at all three team sizes",
+        "why": "measures the signal at a parameter point where specialization demonstrably WAS learnable, rather than at random init where no structure exists yet. Same isolation property."
+      },
+      "TERTIARY_DESCRIPTIVE_ONLY": {
+        "name": "OWN_TRAINED_SPECIALIST",
+        "what": "each scale's own trained specialist",
+        "caveat": "NOT comparable across scales -- the policies differ, so any difference confounds N with the policy. Recorded for context, never for the scaling claim."
+      },
+      "replicates_R": 16,
+      "minibatches_per_replicate_M": 16,
+      "note_on_M": "M must be IDENTICAL at every scale. The split-half ratio depends on samples-per-half; unequal M makes scales incomparable. experiments/grad_snr_metrics.py::snr_spec refuses unequal groups rather than returning a plausible-looking number."
+    }
+  },
+
+  "FROZEN_CONTROLS": {
+    "identical_across_scales": [
+      "PPO hyperparameters (clip_range, lr, gamma, gae_lambda, entropy coef)",
+      "minibatch size in AGENT DECISION SAMPLES, not episodes",
+      "number of minibatches M per replicate",
+      "parameter subset over which gradients are taken",
+      "opponent-regime treatment and overlay installation path",
+      "parameter dimension (guaranteed by the shared architecture; asserted at runtime)",
+      "bootstrap settings (n_boot=20000, alpha=0.05, rng_seed=7)"
+    ],
+    "EQUAL_AGENT_DECISION_SAMPLES": {
+      "rule": "each minibatch contains the same number of executable agent decision samples at every team size",
+      "why": "at equal EPISODE counts, 6v6 contributes 3x the per-agent samples of 2v2, so any SNR difference would be confounded with sample count. Equal decision samples is the fair test of 'does adding agents hurt at equal data'.",
+      "secondary_arm": "equal-EPISODE accounting is ALSO recorded, because it is what our training runs actually did. Both are reported; the equal-sample arm is primary for the causal claim, the equal-episode arm is primary for the engineering claim."
+    },
+    "assert_at_runtime": [
+      "parameter count identical across the three scales",
+      "M identical across the three scales",
+      "agent-decision-sample count per minibatch identical across the three scales",
+      "the loaded state_dict is bitwise identical across the three scales in the MATCHED arms"
+    ]
+  },
+
+  "TWO_LAYER_MEASUREMENT": {
+    "rationale": "The updater standardises advantages PER MINIBATCH (rl/custom_ppo/update/minibatch_updater.py:196). So gradient SNR measures the signal AFTER the exact normalization PPO trains on -- the right engineering question -- but a lower gradient SNR must NOT be read as proof that the underlying return/advantage signal is noisier. Recording both layers is what separates those.",
+    "LAYER_1_RAW_PRE_NORMALIZATION": [
+      "advantage mean / std / variance / |mean|, per scale per pole",
+      "return distribution per scale per pole",
+      "regime-conditioned separation: standardized_separation (pooled-SD Cohen's d) between pole-A and pole-B advantages, with bootstrap CI",
+      "value-function spread"
+    ],
+    "LAYER_2_POST_NORMALIZATION_GRADIENT": [
+      "snr_spec: split-half between/within ratio, NULL VALUE 1.0",
+      "gradient_snr: ||E g||^2 / E||g - E g||^2 within each pole",
+      "gradient norm distribution (mean, std, coefficient of variation)",
+      "within-pole pairwise gradient cosine agreement",
+      "cosine between the two pole-mean gradients"
+    ],
+    "WHAT_THE_TWO_LAYERS_SEPARATE": {
+      "weak_raw_strategic_signal": "Layer 1 separation shrinks with N -> the task itself stops demanding differentiated play at scale. Points at task parallelizability, NOT at the optimizer.",
+      "reasonable_raw_signal_but_destructive_gradient_disagreement": "Layer 1 holds, gradient NORMS hold, but within-pole cosine collapses -> agents' updates conflict. Points at gradient interference (HyperMARL framing), NOT at pure variance.",
+      "normalization_or_optimization_transforms_signal_poorly": "Layer 1 holds, gradient norms shrink or noise grows -> the Kuba estimator-variance story. Points at variance reduction / optimal baseline."
+    }
+  },
+
+  "PARAMETER_GROUPS": {
+    "groups": ["whole_actor", "shared_backbone", "policy_macro_head"],
+    "why": "a backbone whose gradients stay coherent while the action-selection head degrades with team size is a DIFFERENT failure, and a different intervention, from network-wide optimization degradation. Reported separately for every statistic."
+  },
+
+  "INFERENCE": {
+    "resampling_unit": "the REPLICATE (an independent rollout batch with its own seed), consistent with every other sealed result in this project, which uses seed as the resampling unit",
+    "procedure": "compute snr_spec within each replicate, then percentile-bootstrap the mean over replicates with numpy.random.default_rng(7), n_boot=20000, alpha=0.05",
+    "IMPORTANT_CLARIFICATION": "SNRResult.lcb95/ucb95 returned by snr_spec is the spread over random SPLITS of one fixed dataset. That is NOT an inferential confidence interval and must never be reported as one -- the splits reuse the same data. The inferential CI is the bootstrap over replicates described above."
+  },
+
+  "VALIDITY_GATES": {
+    "rule": "every gate must pass AT EVERY SCALE before any cross-scale comparison is made. A failed gate invalidates that scale's measurement; it does not get reinterpreted.",
+    "gates": [
+      "NULL CONTROL: running the estimator with BOTH groups drawn from the SAME pole must give a ratio whose 95% interval contains 1.0. This catches scale-specific artifacts that would otherwise read as a scaling effect.",
+      "parameter count, M, and per-minibatch agent-decision-sample count identical across scales",
+      "in the MATCHED arms, the loaded weights are bitwise identical across scales",
+      "no NaN/Inf in any gradient",
+      "clip_fraction and approx_kl within sane ranges at all scales (a scale where the surrogate is mostly clipped is measuring clipping, not signal)"
+    ]
+  },
+
+  "PRECOMMITTED_INTERPRETATION": {
+    "WARNING_THIS_SECTION_IS_THE_POINT": "Monotone decrease across three points is NOT evidence on its own -- under random ordering, a monotone sequence of three numbers occurs 1 time in 6. Ordering is necessary and nowhere near sufficient. The thresholds below are fixed BEFORE the trajectory and ablation results are known, and before any rollout is collected.",
+
+    "THEORY_MOTIVATED_SCALING_PREDICTION": {
+      "LABEL_CORRECTED_2026-09-12": "This was previously called 'a sharp quantitative prediction from Kuba's own scaling law'. That attribution was wrong and is corrected here before any data exists. Kuba et al. show that MAPG excess variance CAN grow linearly with agent count for the estimator they analyse; they do not state, and we do not claim they state, that our specific snr_spec metric must obey any particular functional form in N.",
+      "what_is_actually_derived_and_by_whom": "The prediction below is OUR OWN derivation from OUR OWN measurement model (documented in experiments/grad_snr_metrics.py), under an ADDITIONAL diagnostic assumption we are introducing: that the opponent-specific signal power stays approximately constant across team size while per-minibatch noise power grows proportionally to N. Kuba et al. license the second half of that assumption qualitatively (variance grows with N); the first half (constant signal power) and the resulting 1/N functional form are ours, not theirs.",
+      "derivation": "snr_spec ~= sqrt(1 + k*||delta||^2 / (2*sigma^2*d)). UNDER THE ADDITIONAL ASSUMPTION that ||delta||^2 (signal) and d (dimension) are scale-invariant while sigma^2 (noise) grows linearly in N, (snr_spec^2 - 1) is proportional to 1/N.",
+      "kuba_index_our_terminology": "K(N) = (snr_spec(N)^2 - 1) * N should be approximately CONSTANT across N IF our additional assumption holds. Naming it 'the Kuba index' is our shorthand for 'the index this diagnostic model motivated by Kuba et al. predicts should be constant' -- not a quantity Kuba et al. define.",
+      "point_prediction": "under our model, (snr_spec^2 - 1) at 6v6 should be about 1/3 of its value at 2v2 (N = 2 vs 6). This is a DERIVED, TESTABLE hypothesis from our diagnostic model, not a theorem asserted by Kuba et al.",
+      "why_stated": "so the result can disagree with the hypothesis in a specific way, rather than being absorbed into it. A reviewer correctly objecting that 'the cited theorem does not imply this exact PPO SNR scaling' is answered by this section, not contradicted by it."
+    },
+
+    "EXECUTABLE_ROUTING": {
+      "note": "This decision table is implemented as CODE, not applied by eye after the numbers exist: experiments/grad_snr_decision.py::classify_outcome. It is regression-tested against six synthetic scenarios (one per verdict below, plus explicit precedence and dim-invariance tests) in tests/test_grad_snr_decision.py -- all passing before any real gradient was collected.",
+      "why_no_dimension_normalization_here": "Every comparison below is a FALL RATIO of one module's raw (snr_spec^2-1) at 2v2 divided by the SAME module's raw (snr_spec^2-1) at 6v6. Because the architecture and the frozen minibatch count M are held IDENTICAL across scales, any dimension/sample-count factor would be the same constant in numerator and denominator and cancels EXACTLY (verified to floating-point precision in tests/test_grad_snr_metrics.py::test_within_module_fall_ratio_is_identical_via_raw_delta_or_spec_index). So this routing needs no dimension-normalized index and is NOT subject to the amplification problem documented under SPEC_INDEX_USAGE_RULE below. A permanent test (test_classification_is_invariant_to_dim_because_router_uses_raw_deltas) locks this in by asserting `dim` appears nowhere in classify_outcome's inputs."
+    },
+
+    "THRESHOLDS": {
+      "note": "Machine-readable, loaded directly by experiments/grad_snr_decision.py::load_thresholds -- the single source of truth. If a threshold changes, it changes here, not in the code.",
+      "kuba_fall_supported_min": 2.0,
+      "kuba_fall_refute_max": 1.3,
+      "layer1_fall_weakening_min": 2.0,
+      "cos_drop_interference_min": 0.15,
+      "norm_cv_growth_interference_min": 1.5,
+      "head_fall_min": 2.0,
+      "backbone_fall_max": 1.3
+    },
+
+    "SUPPORTED_requires_ALL_of": [
+      "every validity gate passes at all three scales",
+      "the 95% CIs for raw snr_spec at 2v2 and at 6v6 do NOT overlap",
+      "whole-actor (snr_spec^2 - 1) falls by a factor of at least kuba_fall_supported_min (2.0) from 2v2 to 6v6",
+      "Layer 1 regime-conditioned separation does NOT itself fall by >= layer1_fall_weakening_min (2.0x) over the same range -- otherwise the raw signal weakened and this is not an estimator story"
+    ],
+    "REFUTED_if_ANY_of": [
+      "raw snr_spec CIs at 2v2 and 6v6 overlap",
+      "whole-actor (snr_spec^2 - 1) falls by less than kuba_fall_refute_max (1.3x) from 2v2 to 6v6",
+      "snr_spec is statistically indistinguishable from its null value of 1.0 at 2v2 -- meaning the estimator finds no specialization signal even where specialization demonstrably succeeded, which would indict the measurement rather than the hypothesis"
+    ],
+    "AMBIGUOUS": "the fall lands in the inconclusive middle (between kuba_fall_refute_max and kuba_fall_supported_min) and NEITHER interference signature fires. Licenses NO intervention and must be reported as ambiguous, not resolved by eye.",
+
+    "ALTERNATIVE_MECHANISM_READOUTS_precommitted": {
+      "GRADIENT_INTERFERENCE": "declared only if the whole-actor fall lands in the inconclusive middle (not >= supported, not < refute floor) AND EITHER mean within-pole pairwise cosine falls by >= cos_drop_interference_min (0.15 absolute) OR gradient-norm coefficient of variation grows by >= norm_cv_growth_interference_min (1.5x). Changed from an AND to an OR of these two signatures: either one alone -- 'individually strong but conflicting' (cosine) or 'individually noisier' (norm CV) -- is evidence of interference rather than pure shrinkage; requiring both was an unnecessary conjunction.",
+      "TASK_SIGNAL_WEAKENING": "declared indicated only if Layer 1 |Cohen's d| falls by >= layer1_fall_weakening_min (2.0x) from 2v2 to 6v6. Checked FIRST, before every other branch: if the raw signal weakened this much, whatever happened to the gradient SNR is a downstream consequence of the task, not evidence about the optimizer. Points at task parallelizability and AWAY from any PPO change.",
+      "HEAD_LOCALIZED": "declared indicated only if the policy_macro_head raw (snr_spec^2-1) falls >= head_fall_min (2.0x) while the shared_backbone raw (snr_spec^2-1) falls < backbone_fall_max (1.3x) over the SAME scale range. Checked before the generic SUPPORTED test because it is more specific and more informative. Note this is a WITHIN-module (head-across-scale, backbone-across-scale) comparison, not a cross-module magnitude comparison -- it needs no dimension normalization either, for the same cancellation reason as the whole-actor test."
+    },
+
+    "MUST_APPEAR_IN_POLICY_RELEVANT_GROUPS": "SUPPORTED and GRADIENT_INTERFERENCE must be read from whole_actor and/or policy_macro_head, not from an incidental subset with no bearing on action selection. shared_backbone alone falling while whole_actor and policy_macro_head do not is not, by itself, grounds for any of the five named verdicts.",
+
+    "NOT_REQUIRED_monotonicity_disclaimer": "This table does NOT require snr_spec(2v2) > snr_spec(4v4) > snr_spec(6v6) as a strict three-point monotonic sequence. Stochastic RL rarely gifts ruler-straight curves, and requiring monotonicity across all three points would reject a real effect on pure sampling noise at the middle point. Every criterion above references only the 2v2 and 6v6 ENDPOINTS; 4v4 is recorded and reported for context but is not a gating input to any verdict.",
+
+    "SPEC_INDEX_USAGE_RULE": {
+      "what_happened": "An earlier draft of this spec used a dimension-normalized index (spec_index = (snr_spec^2-1)*dim/n_per_half) directly in this decision table, motivated by the correct observation that comparing modules of different dimension requires such normalization. Calibrating it (experiments/grad_snr_metrics.py::null_std_scaling_probe) against the SAME validated synthetic generator showed its single-replicate standard deviation scales as C*sqrt(dim)/k (C ~= 0.69-0.73, fitted). At the actor's real dimension (3,473,592) and k=8 minibatches per half, that predicts a single-replicate standard deviation of ~162 units and a REQUIRED REPLICATE COUNT in the tens of thousands (~26,000 at k=8, ~6,500 at k=16) merely to bring the aggregate's standard error down to an O(1) target -- utterly infeasible at the frozen replicates_R=16 budget. This was discovered and fixed BEFORE any real data was collected.",
+      "resolution": "The five-way routing above was rebuilt on raw (snr_spec^2-1) FALL RATIOS instead, which need no dimension normalization at all when comparing the SAME module across scales (the dim/k factor cancels exactly -- see EXECUTABLE_ROUTING above). spec_index and its aggregate form remain available in experiments/grad_snr_metrics.py exclusively for a genuinely different, narrower question: comparing RAW MAGNITUDE across two DIFFERENT-dimension modules (e.g. 'does the head carry more absolute specialization signal than the backbone'). That question is NOT part of this decision table.",
+      "if_that_narrower_question_is_ever_asked": "Individual normalized-index replicates are not interpreted, because dimensional normalization strongly amplifies finite-sample variability. Inference is based on the precommitted aggregate estimator (experiments/grad_snr_metrics.py::aggregate_spec_index) and its bootstrap uncertainty across independent replicates, conditional on passing the null-control gate for that scale/module. A required-replicate-count and statistical-power check (required_replicates / power_to_detect) must be run for the ACTUAL module dimensions involved before committing to a replicate budget -- not chosen by feel."
+    },
+
+    "WHAT_EACH_OUTCOME_LICENSES": {
+      "SUPPORTED": "a variance-reduction intervention (Kuba optimal baseline is the cleanest: critic-side only, our existing runs are the control arm) tested against a matched baseline. Still requires its own frozen spec. NOTE: Kuba et al. is the source of the OPTIMAL-BASELINE INTERVENTION and of the qualitative claim that MAPG variance can grow with agent count; it is not the source of this diagnostic's specific metric or thresholds, which are ours (see HYPOTHESIS above).",
+      "GRADIENT_INTERFERENCE": "an interference-targeted intervention instead; the optimal-baseline arm would be the wrong tool.",
+      "TASK_SIGNAL_WEAKENING": "no PPO change. Re-examine whether the poles still demand differentiated play at 6v6, i.e. the task-parallelizability question.",
+      "HEAD_LOCALIZED": "an intervention targeted at the action-selection head specifically (e.g. a head-only auxiliary loss or a larger/regularized head), not a network-wide change.",
+      "REFUTED": "close the gradient-SNR hypothesis and move weight to opponent-conditioning (LIAM-style auxiliary head) or retention, per the trajectory and ablation results.",
+      "AMBIGUOUS": "no intervention. Report and stop."
+    }
+  },
+
+  "WHAT_THIS_EXPERIMENT_MAY_NOT_CLAIM": [
+    "that gradient SNR CAUSES the specialization failure -- it is an observational measurement at fixed parameters, not an intervention",
+    "anything about a policy trained with a different recipe",
+    "that a measured SNR difference would persist along a real training trajectory; this measures a point in parameter space, not a path",
+    "that the Kuba bound is tight or applies exactly in our setting -- we test its qualitative prediction, not its constant",
+    "anything from the TERTIARY own-trained-specialist arm about scaling, since it confounds N with the policy",
+    "any conclusion resting on a scale whose validity gate failed"
+  ],
+
+  "GATING": {
+    "rule": "This experiment is NOT authorised to run by this spec. It is gated on the two in-flight diagnostics.",
+    "run_if": "B3_CKPT_TRAJECTORY_4V4 shows FLAT Delta across checkpoints (acquisition never happens), which is the outcome that makes an acquisition-side mechanism the live question",
+    "do_not_run_if": "the trajectory shows a large early Delta hump followed by collapse -- that is a RETENTION failure, and retention interventions (Policy Consolidation) are then the indicated family, not gradient SNR",
+    "authority": "PI decision after both the trajectory and the opponent-channel ablation have sealed"
+  },
+
+  "SEEDS": {
+    "block": [17500001, 17500032],
+    "n": 32,
+    "class": "exploratory",
+    "registry": "artifacts/SEED_REGISTRY.json -- allocated to GRAD_SNR_SCALING, status RESERVED",
+    "note": "exploratory class: this is a mechanism diagnostic, not a confirmatory seed spend. It may be repeated or revised without burning a confirmatory block."
+  },
+
+  "COMPLIANCE": {
+    "rule_1_telemetry": "tqdm per replicate with scale/pole/parameter-point; per-scale result printed as each scale closes",
+    "rule_2_incremental": "per-replicate Gram matrices and Layer-1 stats appended + fsynced as each replicate completes",
+    "rule_3_frozen_spec": "this document, frozen before any rollout",
+    "rule_4_preflight": "validity gates run as a dry-run self-test before any seed is spent; estimator itself validated on synthetic gradients in tests/test_grad_snr_metrics.py (21 tests: correct null at 1.0, calibration against the closed form, monotone response to planted signal, refusal of incomparable group sizes)",
+    "rule_5_resumability": "completed (scale, pole, parameter_point, replicate) cells skipped on restart",
+    "rule_6_live_status": "GRAD_SNR_SCALING_LIVE_STATUS.json",
+    "rule_7_audit_gated_seal": "MUST use experiments/run_state.py::seal. This is intended to be the FIRST evaluator migrated onto the sealing state machine.",
+    "rule_9_seed_registry": "block reserved via experiments/seed_registry.py before this spec was written",
+    "rule_10_decision_tree": "PRECOMMITTED_INTERPRETATION above"
+  }
+}

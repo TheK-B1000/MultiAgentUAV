@@ -159,6 +159,33 @@ class UpdaterRngCheckpointTests(unittest.TestCase):
         actual_next = torch.rand(5, generator=gen)
         self.assertTrue(torch.allclose(actual_next, expected_next))
 
+    def test_separation_generator_cross_device_family_mismatch_skips_restore(self) -> None:
+        """A CPU generator's state is always 5056B (Mersenne-Twister); a CUDA
+        generator's is always 16B (Philox seed+offset). There is no defined
+        conversion between the two, so loading a checkpoint's CUDA-shaped
+        generator state into a CPU updater must not crash the whole training
+        run -- it should skip the restore and keep the freshly
+        cfg.seed-derived generator instead."""
+        updater = PPOUpdater(
+            model=nn.Linear(2, 2),
+            optimizer=torch.optim.Adam(nn.Linear(2, 2).parameters()),
+            device=torch.device("cpu"),
+            cfg=PPOConfig(),
+            hparams=_minimal_hparams(),
+            latent_state=SimpleNamespace(),
+            runtime=SimpleNamespace(global_step=0),
+        )
+        gen = updater._z_separation_generator
+        pre_state = gen.get_state().clone()
+        fake_cuda_shaped_state = torch.zeros(16, dtype=torch.uint8)
+        updater.load_state_dict({"z_separation_generator": fake_cuda_shaped_state})
+        post_state = gen.get_state()
+        self.assertTrue(
+            torch.equal(pre_state, post_state),
+            "generator state must be left untouched (freshly seeded) when the "
+            "checkpoint's state is from a different device family",
+        )
+
 
 class UpdateContextTests(unittest.TestCase):
     @mock.patch("rl.custom_ppo.v6i1_phase_runtime.v6i1_macro_router_active", return_value=False)

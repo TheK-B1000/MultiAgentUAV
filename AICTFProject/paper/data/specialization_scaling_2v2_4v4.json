@@ -1,0 +1,39 @@
+{
+  "stem": "fig_specialization_scaling_2v2_4v4",
+  "role": "specialization_contrast_2v2_PASS_vs_4v4_scaffold_PASS",
+  "note": "Compares only gate-clearing conditions. PASS* = scaffolded controller (A'=pi_A+2D), not a learned crossover. Native 4v4 FAIL omitted.",
+  "conditions": [
+    {
+      "label": "2v2 Share-0",
+      "delta_A": {
+        "mean": 0.2890625,
+        "lcb95": 0.1640625,
+        "ucb95": 0.40625
+      },
+      "delta_B": {
+        "mean": 0.2578125,
+        "lcb95": 0.140625,
+        "ucb95": 0.375
+      },
+      "gate": "PASS"
+    },
+    {
+      "label": "4v4 A' scaffold",
+      "delta_A": {
+        "mean": 0.351562,
+        "lcb95": 0.234375,
+        "ucb95": 0.460938
+      },
+      "delta_B": {
+        "mean": 0.359375,
+        "lcb95": 0.25,
+        "ucb95": 0.46875
+      },
+      "gate": "PASS*"
+    }
+  ],
+  "sources": {
+    "2v2_Share-0": "RUNG0_LADDER_REFERENCE.json#POOLED_N128",
+    "4v4_A_prime": "SCAFFOLDED_A_CROSSOVER_BRIDGE_4V4_RESULT.json"
+  }
+}

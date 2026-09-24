@@ -1,0 +1,1201 @@
+{
+  "record": "audit of GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_RESULT.json",
+  "audit_utc": "2026-09-22T06:32:20Z",
+  "git_sha": "f4f4ac6f6001dc121828e7e4221f62bfa6d5382c",
+  "passed": true,
+  "n_checks": 84,
+  "n_gating": 48,
+  "n_failed": 0,
+  "failed_checks": [],
+  "WHAT_A_PASS_MEANS": "the sealed statistics re-derive from the rows on disk and those rows have the structure the frozen spec demanded. It does NOT certify that the experimental design or the statistical method is correct -- a mistake made identically in the evaluator and in this audit would reproduce and pass.",
+  "bootstrap": {
+    "n_boot": 20000,
+    "alpha": 0.05,
+    "rng_seed": 7,
+    "generator": "numpy.random.default_rng (PCG64)",
+    "tolerance": 1e-06
+  },
+  "total_rows_seen": 1024,
+  "checks": [
+    {
+      "name": "spec_frozen",
+      "gating": true,
+      "result": "PASS",
+      "detail": "spec status 'FROZEN_BEFORE_SEED_SPEND'",
+      "spec": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_V1_SPEC.json",
+      "sha256": "a01e468e2977bb0cde50b1d819b8e2b2167dadf556cb90f021caf68734000d8f",
+      "status": "FROZEN_BEFORE_SEED_SPEND"
+    },
+    {
+      "name": "rows_present",
+      "gating": true,
+      "result": "PASS",
+      "detail": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4_ROWS.csv (33987 bytes)",
+      "sha256": "20615e6d4af379d90afd7da691e3dd4e1c3f9d9318ed909a0e1284cdcfef9d7c"
+    },
+    {
+      "name": "row_count",
+      "gating": true,
+      "result": "PASS",
+      "detail": "1024 rows, expected 1024",
+      "found": 1024,
+      "expected": 1024
+    },
+    {
+      "name": "cell_seed_block_exact",
+      "gating": true,
+      "result": "PASS",
+      "detail": "8 cells; 0 with a seed set != frozen block 21200001..21200128 (n=128)",
+      "n_cells": 8,
+      "offending": []
+    },
+    {
+      "name": "no_duplicate_seeds",
+      "gating": true,
+      "result": "PASS",
+      "detail": "0 cell(s) contain a repeated seed",
+      "offending": []
+    },
+    {
+      "name": "pairing_valid",
+      "gating": true,
+      "result": "PASS",
+      "detail": "every cell carries the identical seed set, so paired differences are seed-matched"
+    },
+    {
+      "name": "binary::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win takes values [0, 1]",
+      "field": "win",
+      "values": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "derived::margin",
+      "gating": true,
+      "result": "PASS",
+      "detail": "margin == margin == blue - red: 0 disagreement(s) in 1024 rows",
+      "field": "margin",
+      "definition": "margin == blue - red",
+      "n_disagreements": 0
+    },
+    {
+      "name": "derived::win",
+      "gating": true,
+      "result": "PASS",
+      "detail": "win == win == (blue > red): 0 disagreement(s) in 1024 rows",
+      "field": "win",
+      "definition": "win == (blue > red)",
+      "n_disagreements": 0
+    },
+    {
+      "name": "checkpoint::pi_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_A sha 94dde69d091a... vs frozen 94dde69d091a...",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\scale_4v4_specialists\\pi_A_specialist_4v4_b3_entity_repair\\ckpts\\final_pi_A_specialist_4v4_b3_entity_repair.zip",
+      "sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478",
+      "frozen_sha256": "94dde69d091a79344db3390d5464dbb4bcf51677a175df93969ab252b2e0f478"
+    },
+    {
+      "name": "checkpoint::pi_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "pi_B sha 021342c84bbe... vs frozen 021342c84bbe...",
+      "path": "K:\\MultiAgentUAV\\AICTFProject\\artifacts\\scale_4v4_specialists\\pi_B_specialist_4v4_b3_entity_repair_corrected\\ckpts\\final_pi_B_specialist_4v4_b3_entity_repair_corrected.zip",
+      "sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12",
+      "frozen_sha256": "021342c84bbe3aa37d70ed609d898bba3ea85affb53852324f92922c72f70e12"
+    },
+    {
+      "name": "claim::win_Delta_A_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.140625,
+        "lcb95": 0.015625,
+        "ucb95": 0.257812
+      },
+      "rederived": {
+        "mean": 0.140625,
+        "lcb95": 0.015625,
+        "ucb95": 0.2578125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::win_Delta_B_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.4375,
+        "lcb95": 0.335938,
+        "ucb95": 0.539062
+      },
+      "rederived": {
+        "mean": 0.4375,
+        "lcb95": 0.3359375,
+        "ucb95": 0.5390625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::win_Delta_A_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.09375,
+        "lcb95": -0.015625,
+        "ucb95": 0.203125
+      },
+      "rederived": {
+        "mean": 0.09375,
+        "lcb95": -0.015625,
+        "ucb95": 0.203125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::win_Delta_B_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.382812,
+        "lcb95": 0.28125,
+        "ucb95": 0.484375
+      },
+      "rederived": {
+        "mean": 0.3828125,
+        "lcb95": 0.28125,
+        "ucb95": 0.484375
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::win_I_A_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.195312,
+        "lcb95": -0.296875,
+        "ucb95": -0.09375
+      },
+      "rederived": {
+        "mean": -0.1953125,
+        "lcb95": -0.296875,
+        "ucb95": -0.09375
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::win_I_B_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.492188,
+        "lcb95": -0.59375,
+        "ucb95": -0.390625
+      },
+      "rederived": {
+        "mean": -0.4921875,
+        "lcb95": -0.59375,
+        "ucb95": -0.390625
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::win_I_A_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.148438,
+        "lcb95": -0.257812,
+        "ucb95": -0.039062
+      },
+      "rederived": {
+        "mean": -0.1484375,
+        "lcb95": -0.2578125,
+        "ucb95": -0.0390625
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::win_I_B_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.546875,
+        "lcb95": -0.648438,
+        "ucb95": -0.445312
+      },
+      "rederived": {
+        "mean": -0.546875,
+        "lcb95": -0.6484375,
+        "ucb95": -0.4453125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::win_N_minus_Aprime_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.046875,
+        "lcb95": -0.0625,
+        "ucb95": 0.15625
+      },
+      "rederived": {
+        "mean": 0.046875,
+        "lcb95": -0.0625,
+        "ucb95": 0.15625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::win_N_minus_Aprime_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.054688,
+        "lcb95": -0.132812,
+        "ucb95": 0.015625
+      },
+      "rederived": {
+        "mean": -0.0546875,
+        "lcb95": -0.1328125,
+        "ucb95": 0.015625
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 5e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::win_native_Delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.289062,
+        "lcb95": 0.1875,
+        "ucb95": 0.382812
+      },
+      "rederived": {
+        "mean": 0.2890625,
+        "lcb95": 0.1875,
+        "ucb95": 0.3828125
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::win_native_Delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.109375,
+        "lcb95": -0.210938,
+        "ucb95": -0.007812
+      },
+      "rederived": {
+        "mean": -0.109375,
+        "lcb95": -0.2109375,
+        "ucb95": -0.0078125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::blue_Delta_A_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.851562,
+        "lcb95": 0.585938,
+        "ucb95": 1.109375
+      },
+      "rederived": {
+        "mean": 0.8515625,
+        "lcb95": 0.5859375,
+        "ucb95": 1.109375
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 5e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::blue_Delta_B_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.875,
+        "lcb95": 0.679688,
+        "ucb95": 1.078125
+      },
+      "rederived": {
+        "mean": 0.875,
+        "lcb95": 0.6796875,
+        "ucb95": 1.078125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::blue_Delta_A_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.671875,
+        "lcb95": 0.421875,
+        "ucb95": 0.914062
+      },
+      "rederived": {
+        "mean": 0.671875,
+        "lcb95": 0.421875,
+        "ucb95": 0.9140625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::blue_Delta_B_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.742188,
+        "lcb95": 0.539062,
+        "ucb95": 0.953125
+      },
+      "rederived": {
+        "mean": 0.7421875,
+        "lcb95": 0.5390625,
+        "ucb95": 0.953125
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 5e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::blue_I_A_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.546875,
+        "lcb95": 0.3125,
+        "ucb95": 0.773438
+      },
+      "rederived": {
+        "mean": 0.546875,
+        "lcb95": 0.3125,
+        "ucb95": 0.7734375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::blue_I_B_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -1.257812,
+        "lcb95": -1.515625,
+        "ucb95": -1.007812
+      },
+      "rederived": {
+        "mean": -1.2578125,
+        "lcb95": -1.515625,
+        "ucb95": -1.0078125
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::blue_I_A_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.726562,
+        "lcb95": 0.484375,
+        "ucb95": 0.960938
+      },
+      "rederived": {
+        "mean": 0.7265625,
+        "lcb95": 0.484375,
+        "ucb95": 0.9609375
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::blue_I_B_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -1.390625,
+        "lcb95": -1.640625,
+        "ucb95": -1.140625
+      },
+      "rederived": {
+        "mean": -1.390625,
+        "lcb95": -1.640625,
+        "ucb95": -1.140625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::blue_N_minus_Aprime_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.179688,
+        "lcb95": -0.101562,
+        "ucb95": 0.460938
+      },
+      "rederived": {
+        "mean": 0.1796875,
+        "lcb95": -0.1015625,
+        "ucb95": 0.4609375
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::blue_N_minus_Aprime_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.132812,
+        "lcb95": -0.25,
+        "ucb95": -0.015625
+      },
+      "rederived": {
+        "mean": -0.1328125,
+        "lcb95": -0.25,
+        "ucb95": -0.015625
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::blue_native_Delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.125,
+        "lcb95": -0.085938,
+        "ucb95": 0.335938
+      },
+      "rederived": {
+        "mean": 0.125,
+        "lcb95": -0.0859375,
+        "ucb95": 0.3359375
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::blue_native_Delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.515625,
+        "lcb95": -0.757812,
+        "ucb95": -0.265625
+      },
+      "rederived": {
+        "mean": -0.515625,
+        "lcb95": -0.7578125,
+        "ucb95": -0.265625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::margin_Delta_A_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.429688,
+        "lcb95": 0.140625,
+        "ucb95": 0.710938
+      },
+      "rederived": {
+        "mean": 0.4296875,
+        "lcb95": 0.140625,
+        "ucb95": 0.7109375
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::margin_Delta_B_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 1.88e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 1.5625,
+        "lcb95": 1.296875,
+        "ucb95": 1.820508
+      },
+      "rederived": {
+        "mean": 1.5625,
+        "lcb95": 1.296875,
+        "ucb95": 1.820507812
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 1.875e-07
+      }
+    },
+    {
+      "name": "claim::margin_Delta_A_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.414062,
+        "lcb95": 0.15625,
+        "ucb95": 0.664062
+      },
+      "rederived": {
+        "mean": 0.4140625,
+        "lcb95": 0.15625,
+        "ucb95": 0.6640625
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::margin_Delta_B_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 1.335938,
+        "lcb95": 1.07793,
+        "ucb95": 1.601562
+      },
+      "rederived": {
+        "mean": 1.3359375,
+        "lcb95": 1.077929688,
+        "ucb95": 1.6015625
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 3.125e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::margin_I_A_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.140625,
+        "lcb95": -0.09375,
+        "ucb95": 0.367188
+      },
+      "rederived": {
+        "mean": 0.140625,
+        "lcb95": -0.09375,
+        "ucb95": 0.3671875
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::margin_I_B_Aprime",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 0.00e+00 (tol 1e-06)",
+      "recorded": {
+        "mean": -2.0625,
+        "lcb95": -2.34375,
+        "ucb95": -1.78125
+      },
+      "rederived": {
+        "mean": -2.0625,
+        "lcb95": -2.34375,
+        "ucb95": -1.78125
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::margin_I_A_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.15625,
+        "lcb95": -0.101562,
+        "ucb95": 0.414062
+      },
+      "rederived": {
+        "mean": 0.15625,
+        "lcb95": -0.1015625,
+        "ucb95": 0.4140625
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::margin_I_B_N",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -2.289062,
+        "lcb95": -2.554688,
+        "ucb95": -2.015625
+      },
+      "rederived": {
+        "mean": -2.2890625,
+        "lcb95": -2.5546875,
+        "ucb95": -2.015625
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 5e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::margin_N_minus_Aprime_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.015625,
+        "lcb95": -0.273438,
+        "ucb95": 0.304688
+      },
+      "rederived": {
+        "mean": 0.015625,
+        "lcb95": -0.2734375,
+        "ucb95": 0.3046875
+      },
+      "abs_diff": {
+        "mean": 0.0,
+        "lcb95": 5e-07,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "claim::margin_N_minus_Aprime_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.226562,
+        "lcb95": -0.421875,
+        "ucb95": -0.03125
+      },
+      "rederived": {
+        "mean": -0.2265625,
+        "lcb95": -0.421875,
+        "ucb95": -0.03125
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::margin_native_Delta_A",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": 0.273438,
+        "lcb95": 0.070312,
+        "ucb95": 0.46875
+      },
+      "rederived": {
+        "mean": 0.2734375,
+        "lcb95": 0.0703125,
+        "ucb95": 0.46875
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 5e-07,
+        "ucb95": 0.0
+      }
+    },
+    {
+      "name": "claim::margin_native_Delta_B",
+      "gating": true,
+      "result": "PASS",
+      "detail": "max |re-derived - recorded| = 5.00e-07 (tol 1e-06)",
+      "recorded": {
+        "mean": -0.726562,
+        "lcb95": -0.984375,
+        "ucb95": -0.460938
+      },
+      "rederived": {
+        "mean": -0.7265625,
+        "lcb95": -0.984375,
+        "ucb95": -0.4609375
+      },
+      "abs_diff": {
+        "mean": 5e-07,
+        "lcb95": 0.0,
+        "ucb95": 5e-07
+      }
+    },
+    {
+      "name": "split_half::win_Delta_A_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.2031 | second half +0.0781",
+      "first_half": 0.203125,
+      "second_half": 0.078125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_Delta_B_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.5156 | second half +0.3594",
+      "first_half": 0.515625,
+      "second_half": 0.359375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_Delta_A_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.1406 | second half +0.0469",
+      "first_half": 0.140625,
+      "second_half": 0.046875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_Delta_B_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.4375 | second half +0.3281",
+      "first_half": 0.4375,
+      "second_half": 0.328125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_I_A_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.2031 | second half -0.1875",
+      "first_half": -0.203125,
+      "second_half": -0.1875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_I_B_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.5156 | second half -0.4688",
+      "first_half": -0.515625,
+      "second_half": -0.46875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_I_A_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1406 | second half -0.1562",
+      "first_half": -0.140625,
+      "second_half": -0.15625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_I_B_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.5938 | second half -0.5000",
+      "first_half": -0.59375,
+      "second_half": -0.5,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_N_minus_Aprime_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.0625 | second half +0.0312",
+      "first_half": 0.0625,
+      "second_half": 0.03125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_N_minus_Aprime_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0781 | second half -0.0312",
+      "first_half": -0.078125,
+      "second_half": -0.03125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_native_Delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.3438 | second half +0.2344",
+      "first_half": 0.34375,
+      "second_half": 0.234375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::win_native_Delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.0781 | second half -0.1406",
+      "first_half": -0.078125,
+      "second_half": -0.140625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_Delta_A_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.9219 | second half +0.7812",
+      "first_half": 0.921875,
+      "second_half": 0.78125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_Delta_B_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.9844 | second half +0.7656",
+      "first_half": 0.984375,
+      "second_half": 0.765625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_Delta_A_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.8125 | second half +0.5312",
+      "first_half": 0.8125,
+      "second_half": 0.53125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_Delta_B_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.8438 | second half +0.6406",
+      "first_half": 0.84375,
+      "second_half": 0.640625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_I_A_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.6094 | second half +0.4844",
+      "first_half": 0.609375,
+      "second_half": 0.484375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_I_B_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -1.3125 | second half -1.2031",
+      "first_half": -1.3125,
+      "second_half": -1.203125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_I_A_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.7188 | second half +0.7344",
+      "first_half": 0.71875,
+      "second_half": 0.734375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_I_B_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -1.4531 | second half -1.3281",
+      "first_half": -1.453125,
+      "second_half": -1.328125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_N_minus_Aprime_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.1094 | second half +0.2500",
+      "first_half": 0.109375,
+      "second_half": 0.25,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_N_minus_Aprime_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.1406 | second half -0.1250",
+      "first_half": -0.140625,
+      "second_half": -0.125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_native_Delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.2031 | second half +0.0469",
+      "first_half": 0.203125,
+      "second_half": 0.046875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::blue_native_Delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.4688 | second half -0.5625",
+      "first_half": -0.46875,
+      "second_half": -0.5625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_Delta_A_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.5938 | second half +0.2656",
+      "first_half": 0.59375,
+      "second_half": 0.265625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_Delta_B_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +1.7031 | second half +1.4219",
+      "first_half": 1.703125,
+      "second_half": 1.421875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_Delta_A_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.5469 | second half +0.2812",
+      "first_half": 0.546875,
+      "second_half": 0.28125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_Delta_B_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +1.4531 | second half +1.2188",
+      "first_half": 1.453125,
+      "second_half": 1.21875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_I_A_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.1562 | second half +0.1250",
+      "first_half": 0.15625,
+      "second_half": 0.125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_I_B_Aprime",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -2.1094 | second half -2.0156",
+      "first_half": -2.109375,
+      "second_half": -2.015625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_I_A_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.2031 | second half +0.1094",
+      "first_half": 0.203125,
+      "second_half": 0.109375,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_I_B_N",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -2.3594 | second half -2.2188",
+      "first_half": -2.359375,
+      "second_half": -2.21875,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_N_minus_Aprime_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.0469 | second half -0.0156  <-- SIGN FLIP between halves",
+      "first_half": 0.046875,
+      "second_half": -0.015625,
+      "sign_flip": true
+    },
+    {
+      "name": "split_half::margin_N_minus_Aprime_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.2500 | second half -0.2031",
+      "first_half": -0.25,
+      "second_half": -0.203125,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_native_Delta_A",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half +0.3906 | second half +0.1562",
+      "first_half": 0.390625,
+      "second_half": 0.15625,
+      "sign_flip": false
+    },
+    {
+      "name": "split_half::margin_native_Delta_B",
+      "gating": false,
+      "result": "PASS",
+      "detail": "first half -0.6562 | second half -0.7969",
+      "first_half": -0.65625,
+      "second_half": -0.796875,
+      "sign_flip": false
+    },
+    {
+      "name": "seed_class",
+      "gating": true,
+      "result": "PASS",
+      "detail": "already registered to GOTO_ONLY_DEFEND_SUBSTITUTION_4V4 (status RESERVED) -- same block, no conflict",
+      "seed_class": "sealed_confirmatory",
+      "experiment_id": "GOTO_ONLY_DEFEND_SUBSTITUTION_4V4"
+    }
+  ]
+}
